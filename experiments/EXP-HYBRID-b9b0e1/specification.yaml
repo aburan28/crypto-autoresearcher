@@ -1,0 +1,383 @@
+experiment:
+  id: EXP-HYBRID-b9b0e1
+  hypothesis_id: H-HYBRID-3cd8ad
+  derived_from_idea: IDEA-20260809-c13e6a
+  question_id: RQ-HYBRID-cdf2b2
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    Component baseline for ML-KEM binding under adversarially generated keys - a
+    three-valued per-property table with literal certificates, written derivations, and
+    an honest-keygen control that must produce none
+
+  objective: >-
+    The one uncertainty a run reduces is what ML-KEM alone binds when the adversary
+    generates the key material itself, established with artifacts inside this program
+    rather than cited, so that every later combiner row in this goal rests on something
+    checked here. A run establishes (i) whether this program's ML-KEM reproduces the
+    FIPS 203 test vectors exactly at all three parameter sets, which gates everything
+    else; (ii) per binding property in a frozen list, whether a literal certificate
+    exists within the declared adversary class, whether the property is ruled out by a
+    written derivation from the specification's key-derivation inputs, or whether the
+    cell is undetermined; (iii) whether every certificate is accepted by a second
+    independently written implementation; and (iv) whether the same constructions fail
+    under honest key generation, which is what attributes any certificate to adversarial
+    keygen rather than to a bug. No confidentiality claim, no attack, and no statement
+    about any deployed system follows from a run.
+
+  what_this_is_not:
+    - >-
+      Not a confidentiality break, a key-recovery attack, or a claim that any shared
+      secret is exposed. Binding and confidentiality are different properties and this
+      contract touches only the first.
+    - >-
+      Not an examination, test, audit or disclosure concerning any third-party ML-KEM
+      implementation, library, product or deployment. All keys are self-generated
+      against this program's own code.
+    - >-
+      Not a claim to the published binding analysis of ML-KEM. It produces this
+      program's own artifacts against a vector-validated implementation.
+    - >-
+      Not approval, freezing, execution authorization, a run, or evidence. No run has
+      been executed under this contract.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      MAXIMAL SUPPORTABLE SCOPE. For ML-KEM as implemented in this program and validated
+      against the FIPS 203 vectors at ML-KEM-512/768/1024, within the DECLARED adversary
+      class for key generation, and for the properties in the frozen list: each property
+      admits the exhibited certificate, or is ruled out by the exhibited derivation, or
+      is undetermined. WHAT DOES NOT FOLLOW - nothing about confidentiality; nothing
+      about any third-party implementation or deployment; nothing about adversary
+      classes not declared; no assertion that an unfound certificate does not exist; and
+      no combiner-level conclusion, which requires the combiner rows this contract does
+      not fill.
+
+  inputs:
+    procedure: >-
+      STAGE 0 (reading and declaration, zero compute, HARD GATE). File FIPS 203 as a
+      KN-LIT entry. From it, freeze (a) the binding-property list, (b) the ADVERSARY
+      CLASS for key generation, stated as exactly which byte strings the adversary may
+      choose and which specification checks still apply, and (c) the per-property
+      pre-registered expectation. Hash the declaration. NO LATER STAGE MAY RUN BEFORE
+      THIS, and no cell may be filled from memory or from a search snippet.
+      STAGE 1 (minutes, BLOCKING GATE). Implement ML-KEM from FIPS 203 and reproduce the
+      specification's test vectors at all three parameter sets. Any mismatch stops the
+      contract.
+      STAGE 2 (zero compute, DERIVATION ARM). For each property, write out from the
+      specification's key-derivation inputs whether the certificate-defining collision is
+      forbidden. A property so ruled out is recorded RULED_OUT_BY_DERIVATION with the
+      derivation text attached; a property not settled this way proceeds to STAGE 3.
+      STAGE 3 (minutes per property, CERTIFICATE ARM). Within the declared adversary
+      class, attempt to construct two distinct (key, ciphertext) pairs yielding the same
+      shared secret, three times with distinct seeds. Record the construction and its
+      time.
+      STAGE 4 (minutes, VERIFICATION). Submit every certificate to the SECOND
+      independent implementation and record acceptance. Independently recompute both
+      shared secrets and confirm equality and pair distinctness.
+      STAGE 5 (minutes, HONEST-KEYGEN CONTROL). Re-run every STAGE 3 construction with
+      keys produced by the specification's own key-generation procedure from fresh
+      randomness. All must FAIL. Any success voids the corresponding cell.
+      STAGE 6 (zero compute). Assemble the three-valued table, count the UNDETERMINED
+      cells and report the count beside the table. A cell settled neither by derivation
+      nor by certificate is UNDETERMINED and is never guessed.
+    instrument: >-
+      Python 3.11. ML-KEM implemented from FIPS 203 in one module. A SECOND
+      implementation, written from the specification, in a separate module sharing no
+      code with the first, used only to verify certificates. Test vectors run as a gate.
+      Certificate constructions in a third module. Recorded through harness/runner.py.
+    parameters: >-
+      Parameter sets ML-KEM-512, ML-KEM-768, ML-KEM-1024. Binding-property list and
+      adversary class frozen at STAGE 0. Three construction attempts per property at
+      seeds 20260825, 20260826, 20260827. Per-property construction budget 120 seconds;
+      exceeding it records UNDETERMINED with the measured time, never RULED_OUT.
+
+  controls:
+    - >-
+      TEST-VECTOR PRECONDITION, BLOCKING. The implementation must reproduce the FIPS 203
+      vectors at all three parameter sets before any certificate attempt. An
+      implementation that is not ML-KEM produces certificates about nothing.
+    - >-
+      HONEST-KEYGEN CONTROL, BLOCKING PER CELL. Every certificate construction must FAIL
+      with honestly generated keys, isolating adversarial key generation as the enabling
+      condition. A construction that also succeeds honestly is finding an implementation
+      defect and its cell is void.
+    - >-
+      SECOND INDEPENDENT IMPLEMENTATION verifies every certificate. It shares no code
+      with the producing implementation; a certificate accepted only by its own producer
+      is a statement about that producer.
+    - >-
+      DISTINCTNESS AND EQUALITY CHECK. Both pairs of a certificate are independently
+      confirmed distinct, and both shared secrets independently recomputed and confirmed
+      equal. A "collision" between a pair and itself is not a collision.
+    - >-
+      DERIVATION REQUIREMENT ON EVERY NEGATIVE CELL. RULED_OUT_BY_DERIVATION requires a
+      written derivation from the specification's hash inputs. Without one the cell is
+      UNDETERMINED. This is the control that keeps "not found" from being read as "does
+      not exist".
+    - >-
+      FROZEN ADVERSARY CLASS, declared before any construction. A class widened after a
+      construction fails is not a class, and a negative cell quoted without its class
+      asserts more than it measured.
+    - >-
+      UNDETERMINED COUNT REPORTED AND NOT MINIMIZED, since a table with none, from a
+      specification this program had not read when the contract was written, would be
+      evidence of guessing.
+
+  independent_variables:
+    - binding property, over the frozen list
+    - parameter set (ML-KEM-512 / 768 / 1024)
+    - 'key generation: adversarial (declared class) versus honest'
+    - 'verifier: producing implementation versus second independent implementation'
+    - seed
+
+  metrics:
+    primary:
+      - >-
+        Per-property outcome in {CERTIFICATE, RULED_OUT_BY_DERIVATION, UNDETERMINED},
+        one row per (property, parameter set), assigned by the rules in the success
+        criterion.
+      - >-
+        FIPS 203 vector reproduction, an exact pass/fail per parameter set with the
+        count of vectors matched over vectors attempted.
+      - >-
+        Second-implementation verification rate over reported certificates, computed as
+        accepted divided by submitted.
+      - >-
+        Certificates produced under HONEST key generation, an integer per property that
+        must be 0.
+      - >-
+        Count of cells recorded UNDETERMINED, with numerator and denominator.
+    secondary:
+      - Construction wall time per property and per seed.
+      - Distinctness and shared-secret-equality check outcomes per certificate.
+      - The exact byte-level freedom each successful construction used, named per certificate.
+      - Discarded-certificate count with the reason per discard.
+      - sha256 of the STAGE 0 declaration, of the property list, and of each certificate artifact.
+      - Per-parameter-set differences in the table, since a property may hold at one set and not another.
+
+  heuristic_under_test: null
+  heuristic_under_test_note: >-
+    Explicitly null. H-HYBRID-3cd8ad carries no numbered heuristic: every claim is a
+    vector check, an exhibited certificate, or a derivation from the specification's own
+    key-derivation inputs, and where none of the three settles a cell the outcome is
+    UNDETERMINED rather than a conditional assertion.
+
+  preregistered_prediction:
+    quantity: >-
+      The per-property outcome table over the frozen list, and the integer count of
+      certificates produced under honest key generation.
+    formula: >-
+      Predicted - CERTIFICATE for every property whose defining collision requires only
+      key material an honest keygen would never produce; RULED_OUT_BY_DERIVATION for
+      every property whose defining collision would require a hash collision on the
+      specification's key-derivation inputs; 0 certificates under honest keygen; and
+      1.000 second-implementation acceptance. THE PREDICTION IS TWO-SIDED: a
+      predicted-CERTIFICATE property that resists, and a predicted-RULED_OUT property
+      that yields a verified certificate, each falsify it and each correct the component
+      baseline.
+    source: >-
+      Pre-registered in the parent proposal IDEA-20260809-c13e6a, whose predictions block
+      states "Certificates exist for the properties that depend on the key being honestly
+      formed, and derivations rule out the rest. A property whose status cannot be
+      settled either way is recorded as undetermined rather than assumed." The exact
+      per-property expectation is fixed at STAGE 0 from the filed specification, before
+      any construction is attempted, and is hashed.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Executed at the actual standardized parameter sets ML-KEM-512/768/1024, because
+      the constructions are direct rather than search-based and the specification's own
+      parameters are therefore affordable - there is no reduced-parameter regime here
+      and none is used. The tier is nonetheless TOY because the object examined is THIS
+      PROGRAM'S OWN implementation with self-generated keys, not a deployed one, and
+      because the adversary class is declared rather than exhaustive. NO TRANSFER to any
+      third-party implementation is claimed, and a certificate here is a certificate
+      about this code's conformance behaviour under adversarial inputs.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Report the table per parameter set, never merged; a property can hold at one set
+      and not another and a merged row would hide it.
+    - >-
+      Report the specific byte-level freedom each certificate used, so a reviewer can
+      check it lies inside the declared adversary class rather than outside it.
+    - >-
+      Report per-seed construction outcomes; a construction succeeding on one seed only
+      is not a construction and is recorded as such.
+    - >-
+      Report the UNDETERMINED count with its denominator, since a partial baseline used
+      as a complete one is the specific way this contract's output could mislead the
+      goal.
+
+  replication:
+    seeds: [20260825, 20260826, 20260827]
+    independent_instances: 3
+    repeat_count_per_cell: 3
+    note: >-
+      Three independent construction attempts per property with distinct seeds. A
+      certificate must reproduce on all three to be recorded; reproduction on a strict
+      subset indicates a search and the cell is recorded UNDETERMINED with that note.
+
+  budget:
+    wall_clock_seconds: 3600
+    wall_clock_seconds_note: Per run. total_cpu_hours bounds the whole contract.
+    total_cpu_hours: 2.0
+    memory_gb: 4
+    maximum_runs: 20
+
+  stopping_rules:
+    - >-
+      Stop the entire contract if the FIPS 203 vectors are not reproduced at any
+      parameter set, and report the localized mismatch.
+    - >-
+      Stop and report if any certificate construction succeeds under honest key
+      generation; the implementation defect is the deliverable and the affected cells
+      are void.
+    - >-
+      Stop a property's construction at 120 seconds and record UNDETERMINED with the
+      measured time; never RULED_OUT_BY_DERIVATION on a timeout.
+    - >-
+      ESCALATION STOP. If a property predicted RULED_OUT yields a verified certificate,
+      stop, record the artifact, and escalate to an independent review before any
+      further cell is filled. A single session's reading of a specification is not a
+      basis for a claim of that shape.
+    - >-
+      Stop at maximum_runs or total_cpu_hours. Budget exhaustion is a stop, never a
+      negative result (AGENTS.md rule 5).
+
+  invalidation_rules:
+    - >-
+      A timeout, crash or dependency failure makes the run failed_infrastructure and is
+      NEVER evidence that a property is ruled out.
+    - >-
+      A run in which the honest-keygen control was not executed in the same invocation
+      as the adversarial arm is invalid_measurement.
+    - >-
+      A run whose second implementation shares code with the first is
+      invalid_measurement, because the independence its verification assumes does not
+      exist.
+    - >-
+      A run in which the adversary class or the property list was modified after any
+      construction attempt is invalid_measurement.
+    - >-
+      A run recording RULED_OUT_BY_DERIVATION on any cell without an attached written
+      derivation is invalid_measurement.
+    - >-
+      Any reported certificate whose distinctness or shared-secret equality fails
+      independent recomputation makes the run completed_invalid
+      (docs/claims-and-verification.md).
+    - >-
+      A run whose parameters differ from the frozen contract is a DIFFERENT experiment
+      and requires a new contract.
+
+  success_criterion: >-
+    ALL of the following, each decidable from the primary metrics. (1) FIPS 203 vectors
+    reproduce exactly at all three parameter sets. (2) Certificates produced under
+    honest key generation is exactly 0 for every property. (3) Second-implementation
+    verification rate is exactly 1.000 over every reported certificate, and every
+    certificate passes the distinctness and equality checks. (4) Every (property,
+    parameter set) cell carries exactly one of the three values, assigned by these
+    rules: CERTIFICATE if all three seeds produce a verified certificate within the
+    per-property budget and the honest control fails; RULED_OUT_BY_DERIVATION if a
+    written derivation from the specification's key-derivation inputs is attached;
+    UNDETERMINED otherwise. A run meeting (1) to (4) is VALID and constitutes the
+    component baseline; its verdict on H-HYBRID-3cd8ad (B2) is read from the table and
+    on (B3) from metric (2).
+
+  falsification_criterion:
+    - >-
+      Vector reproduction failing at any parameter set falsifies (B1); no certificate
+      attempt may be made or reported.
+    - >-
+      Any certificate produced under honest key generation falsifies (B3); the
+      construction exploits an implementation defect and the affected cells are void.
+    - >-
+      A certificate rejected by the second implementation, or failing distinctness or
+      equality, falsifies that cell; the certificate is discarded and counted.
+    - >-
+      A property predicted CERTIFICATE that resists across all three seeds and is then
+      ruled out by derivation falsifies the pre-registered table in one direction and
+      corrects the baseline.
+    - >-
+      A property predicted RULED_OUT that yields a verified certificate falsifies the
+      table in the other direction, means the reading of the specification's hash inputs
+      was wrong, and triggers the escalation stop.
+    - >-
+      A cell recorded RULED_OUT without a derivation falsifies the procedure, not the
+      property, and the run is invalid.
+
+  required_artifacts:
+    - >-
+      manifest.yaml with the exact command, commit sha, dirty-tree state, resolved
+      model/inference block and environment
+    - >-
+      the STAGE 0 declaration - property list, adversary class, per-property expectation
+      - hashed before any construction attempt, together with the KN-LIT entry id for
+      FIPS 203
+    - the test-vector run output, per parameter set, with counts
+    - raw-result.json with per-property, per-seed, per-parameter-set outcomes and timings
+    - one replayable certificate artifact per CERTIFICATE cell, verifiable by the second implementation
+    - the written derivation text for every RULED_OUT_BY_DERIVATION cell
+    - the honest-keygen control's measurements, in the same file as the adversarial arm
+    - the three-valued table as emitted, with the UNDETERMINED count and denominator
+
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - >-
+      Coordinator drafting does not approve. This contract is review_required and NOT
+      approved; approved_by is null and execution_authorized is false. Approval is the
+      USER's gate because it authorizes execution and spends compute.
+    - >-
+      STAGE 0 IS A HARD GATE. FIPS 203 must be filed as a KN-LIT entry and the property
+      list and adversary class frozen and hashed before STAGE 1 runs. No cell may be
+      filled from memory.
+    - >-
+      SCOPE GATE, BINDING. All keys are self-generated against this program's own
+      implementation. A version of this contract pointed at a third-party implementation
+      or a deployed system must not be approved under this record.
+    - >-
+      The honest-keygen control must remain in the frozen protocol; without it no
+      certificate can be attributed to adversarial key generation.
+
+  derivation_provenance:
+    tool: coordinator subagent, /design-experiment lifecycle steps 3-5
+    source_record: IDEA-20260809-c13e6a
+    authored_at: '2026-08-25'
+    note: >-
+      The test-vector precondition, the honest-keygen control, the second-implementation
+      verification and the undetermined-cell discipline all come from the parent
+      proposal's controls, predictions and falsification_conditions blocks. THE FROZEN
+      ADVERSARY CLASS, the derivation requirement on every negative cell, the
+      three-valued taxonomy and the escalation stop are this contract's additions, added
+      because "no certificate found" and "no certificate exists" are different facts and
+      the proposal as written did not force them apart. Budgets come from the parent's
+      estimated_cost (implementation medium, compute negligible). No measurement,
+      timing, run or citation is invented.
+
+  derivation_gaps:
+    - >-
+      THE BINDING-PROPERTY LIST IS NOT FIXED HERE. The parent proposal cites "KEM
+      binding taxonomy references" as RECALLED, REQUIRED READS and none has been read by
+      this program. The list must be frozen at STAGE 0 from filed sources; a table over
+      an unstated property list is not a baseline.
+    - >-
+      THE ADVERSARY CLASS IS NOT FIXED HERE either, and it is the field that decides what
+      every negative cell means. A Coordinator must fix it at approval; widening it after
+      a construction fails would silently convert a negative into a different negative.
+    - >-
+      FIPS 203 has not been read by this program. Every statement in this contract about
+      what the specification hashes is therefore a placeholder for what STAGE 0 will
+      read, and the derivation arm cannot run until it does.
+    - >-
+      This contract fills the COMPONENT row only. No combiner row is filled, and the
+      goal's table cannot be completed from this contract alone; a downstream record
+      treating it as a combiner result would be citing something that does not exist.

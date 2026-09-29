@@ -1,0 +1,267 @@
+idea:
+  id: IDEA-20260816-1b4b7d
+  question_id: RQ-FNDSA-001
+  added: '2026-08-16'
+  title: The nearest-plane recursion emits one comparison bit per level -- whether the drawn integer
+    landed on the floor or the ceiling side of the level's center -- and that per-level rounding-bit
+    vector is a control-flow observable distinct from the signature; enumerate its exact joint distribution
+    with the secret basis at dimensions 2 and 4.
+  class: measurement
+  claim: '(A) THE OBSERVABLE IS A BIT VECTOR, NOT A DISTRIBUTION. In a nearest-plane lattice sampler,
+    level i computes a real center c_i and draws an integer z_i near it. Whichever way the implementation
+    resolves the comparison -- z_i at or below floor(c_i) versus at or above ceil(c_i) -- is a single
+    branch outcome, and across d levels it forms a vector r in {0,1}^d. This vector is emitted by
+    CONTROL FLOW, not by output, and an adversary who sees it sees something the verifier never receives.
+    (B) THE CLAIM. At small dimension and small width the joint distribution of (secret basis, r)
+    is exactly enumerable, so I(basis ; r) in bits per signature is computable in closed form with
+    no sampling error. The deliverable is that number as a function of dimension and width, plus the
+    signature count at which the accumulated information reaches one bit about the basis under the
+    stated independence. (C) THE INDEPENDENT INTEREST. The rounding-bit vector is not a function of
+    the released signature: two signings that produce the same output vector can have different r,
+    and two with the same r can produce different outputs. So this is a genuinely additional observation,
+    and whether it carries more, less or the same information than the signature itself is a comparison
+    the same enumeration answers directly by computing I(basis ; signature) on the same joint. That
+    comparison is the part worth having. (D) WHAT IS NOT CLAIMED. The observation is ASSUMED. This
+    environment has no physical measurement capability and cannot show that any implementation''s
+    rounding branch is observable by anyone. No trapdoor recovery, no attack, no claim about FN-DSA
+    at standardized parameters, no claim about what any published implementation does, and no claim
+    that any deployed signer even has such a branch -- a branchless implementation of the same comparison
+    emits nothing and the whole object is empty for it, which the record must say. (E) WHY IT MATTERS
+    ANYWAY. RQ-FNDSA-001 is explicitly about deviation independent of timing. This is the complementary
+    question: an observable that is independent of the OUTPUT.'
+  mechanism: 'STAGE 1: implement the nearest-plane recursion at dimension d in {2, 4} over a basis
+    parameterised by a small secret, with an explicit branch resolving the rounding comparison and
+    the branch outcome recorded directly. STAGE 2: truncate the per-level sample support at a stated
+    number of standard deviations and enumerate: for each secret in a small enumerable family and
+    each combination of per-level integer draws within the support, compute the exact probability
+    and the induced (r, output) pair. STAGE 3: accumulate the exact joint distribution over (secret,
+    r) and over (secret, output) from the same enumeration, so the two mutual informations are computed
+    from one object and are directly comparable. STAGE 4: compute I(secret ; r), I(secret ; output)
+    and I(secret ; (r, output)) exactly. The third is the interesting one: if it equals I(secret ;
+    output) then r adds nothing and the object is empty. STAGE 5: run the null -- a fixed public basis
+    with an independently drawn fictitious label -- through the identical code, which must return
+    exactly zero on all three quantities. STAGE 6: report the three informations, their differences,
+    and the signature count to one bit for each, with the independence assumption named at every number.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-FNDSA-001 in full, noting its stated interest in deviation 'not merely from timing'
+      and in integer-reformulated samplers. Grepped ledger/proposals/ and knowledge/ for 'nearest
+      plane', 'Klein', 'rounding', 'branch', 'CDT', 'mutual information', 'rejection sampl', 'constant-time'.
+      Read the titles and classes of IDEA-20260816-0e6599, IDEA-20260805-2bbfb2, IDEA-20260816-b6de60
+      and IDEA-20260805-2a669e. Checked ledger/hypotheses/ for H-FNDSA-58b464 and H-FNDSA-6a9cbb.
+    results: IDEA-20260816-0e6599 enumerates the Klein/GPV nearest-plane sampler's output support
+      exhaustively at d in {2,4,8} and computes total variation against exact rational arithmetic
+      with mantissa width swept -- the same recursion, the same enumeration technique, but its measured
+      quantity is the OUTPUT distribution's exactness and it has no observer and no branch. IDEA-20260805-2bbfb2
+      derives a closed-form leaf-normalizer defect, again about the output. IDEA-20260816-b6de60 measures
+      leakage rate from a HAWK TRANSCRIPT, i.e. from released signatures, with an in-run estimator
+      floor. IDEA-20260805-2a669e applies the Fiat-Shamir-with-aborts leakage template to SQIsign's
+      retry loop, an acceptance-probability observable in a different scheme. Nothing found treats
+      a per-level rounding branch outcome as an object, and nothing compares an internal observable
+      against the released output on one joint distribution.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Assembled from known parts:
+      exhaustive enumeration of a small-dimension nearest-plane sampler is already this repository''s
+      method in IDEA-20260816-0e6599, and mutual-information leakage accounting with a null is already
+      its method in IDEA-20260816-b6de60. Claimed new only within this repository: the per-level rounding-bit
+      vector as the tracked object, and computing I(secret ; r), I(secret ; output) and I(secret ;
+      (r, output)) from ONE exact joint so that the incremental value of the internal observable over
+      the released one is a computed difference rather than an argument.'
+  object_first_candidate:
+    tracked_object: The rounding-bit vector r = (r_1..r_d) in {0,1}^d, where r_i records which side
+      of the level-i center the drawn integer fell on, carried alongside the secret basis and the
+      released output vector through the same enumeration.
+    lossiness: 'Genuinely lossy, and lossy in a direction the output is not. From r alone the drawn
+      integers are not recoverable: r records only a comparison against the center, so all integers
+      on the same side of c_i at level i collapse to one symbol, discarding both the magnitude of
+      the draw and the center itself. Crucially the loss is not the same loss the output vector suffers,
+      which is why the two observations are not redundant -- the output retains the integer combination
+      but discards the per-level comparison structure once the basis is unknown. The retained part
+      propagates because the recursion is strictly level-by-level: r_i is determined by c_i and z_i
+      alone, and c_i is determined by the basis and the draws at levels above, so r is generated by
+      the same Markov chain that generates the output.'
+    propagation: One level of the recursion acts on the tracked object by computing c_i from the basis
+      and the partial sum, drawing z_i, appending sign(z_i - c_i) coarsened to a bit, and updating
+      the partial sum. The one-step action is therefore a deterministic map from (basis, partial sum,
+      draw) to (bit, new partial sum), and the joint distribution propagates by a transition kernel
+      that is exactly computable at the tested dimensions. Coarsening the recursion by one level --
+      dropping r_d -- acts on the observation by marginalisation, which gives the whole prefix-length
+      curve from a single joint.
+    survival_score: 'Stated as the number of levels after which the accumulated I(secret ; r_1..r_i)
+      stops increasing -- where the deeper levels add nothing because the partial sum has decorrelated
+      from the secret. Reported as the incremental information per level, which is a curve of length
+      d, rather than as a single number. Also reported: the largest width sigma at which I(secret
+      ; r) still exceeds 0.01 bits per signature, past which the object dissolves into the sampler''s
+      noise.'
+  null_object_control: 'The identical enumeration run with the basis PINNED to a fixed public value
+    while a fictitious secret label is drawn independently, with I(label ; r), I(label ; output) and
+    I(label ; (r, output)) all computed by the identical code path. All three must return exactly
+    zero to numerical tolerance 1e-12, since the label is independent of everything by construction;
+    a nonzero value exposes a bias in the joint-distribution accumulation or in the entropy summation.
+    A SECOND null is structurally forced and stronger: run the enumeration with a sampler whose rounding
+    branch is replaced by a coin flip independent of the center, for which I(secret ; r) must be exactly
+    zero while I(secret ; output) is unchanged -- this separates ''the bit vector carries information''
+    from ''the enumeration attributes information to whatever is in the r slot''. Both nulls execute
+    in the same invocation as the signal arm.'
+  discriminated_from:
+  - 'IDEA-20260816-0e6599 (exhaustive enumeration of the Klein sampler at d in {2,4,8}, total variation
+    between p-bit mantissa and exact arithmetic, mantissa width swept): identical recursion and identical
+    enumeration machinery, entirely different measured quantity -- output-distribution exactness versus
+    information carried by an internal branch. A sampler can be exact to arbitrary precision and still
+    emit a fully informative rounding bit, and vice versa.'
+  - 'IDEA-20260805-2bbfb2 (closed-form leaf-normalizer theta defect 2 exp(-2 pi^2 sigma_min^2)): a
+    property of the output distribution present in exact arithmetic, with no observer in the argument
+    at all.'
+  - 'IDEA-20260816-b6de60 (HAWK transcript as a channel, bits per signature about the secret Gram
+    matrix): measures the released output, which every verifier holds. This measures an internal branch
+    no protocol participant receives, and the whole point is the computed difference between the two
+    on one joint.'
+  - 'IDEA-20260805-2a669e (Fiat-Shamir-with-aborts leakage template pointed at SQIsign''s retry loop,
+    reducing to whether one acceptance probability depends on the secret): an acceptance-count observable
+    in an isogeny signature; here the observable is a per-level comparison in a lattice sampler and
+    there is no rejection loop in the object at all.'
+  - 'The table-index granularity proposal elsewhere in this batch: that observable is a memory index
+    at a swept resolution, this one is a control-flow bit; different assumed adversaries, and their
+    information contents are computed on different marginals of the same recursion.'
+  assumptions:
+  - An observer of the per-level rounding branch is ASSUMED; this environment has no physical measurement
+    capability and demonstrates no such observer.
+  - The implementation under study HAS such a branch; a branchless comparison emits nothing and makes
+    the object empty, which is a property of the artifact and must be checked rather than assumed.
+  - The secret basis family is small enough to enumerate, so the computed information is with respect
+    to that family's uniform prior and not to any realistic key distribution.
+  - Truncating the per-level support at the stated number of standard deviations neglects a mass that
+    is bounded explicitly and reported.
+  - Accumulating per-signature information across signatures assumes independence across signings,
+    which holds for fresh randomness but is stated rather than proved.
+  predictions:
+  - metric: I(label ; r), I(label ; output) and I(label ; (r, output)) on the fixed-basis null
+    direction: lower
+    minimum_effect: forced value exactly 0 on all three, to tolerance 1e-12
+  - metric: I(secret ; r) with the rounding branch replaced by an independent coin
+    direction: lower
+    minimum_effect: forced value exactly 0, while I(secret ; output) must be unchanged from the signal
+      arm to 1e-12
+  - metric: I(secret ; (r, output)) relative to I(secret ; output)
+    direction: higher
+    minimum_effect: 'forced: greater than or equal, since conditioning on more cannot reduce mutual
+      information; the question the run answers is whether the difference is greater than 0.01 bits,
+      and that value is NOT pre-committed'
+  - metric: incremental information per level, I(secret ; r_1..r_i) minus I(secret ; r_1..r_{i-1})
+    direction: different
+    minimum_effect: 'forced: non-negative at every level; no pre-commitment on the profile shape,
+      which is the object of the measurement'
+  minimal_test:
+    design: 'Do d=2 only, with a secret basis family of 16 elements and a per-level width of 2.0 truncated
+      at 6 sigma, so the full enumeration is a few thousand terms and can be summed exactly in Fraction
+      arithmetic. Compute all three informations plus both nulls in one call. This is under a second
+      of compute and settles the only question that determines whether the d=4 version is worth building:
+      is I(secret ; (r, output)) minus I(secret ; output) bigger than 0.01 bits. If the difference
+      is zero to numerical precision, the rounding bit vector is a deterministic function of the output
+      given the enumerated basis family and the object is empty -- a complete, cheap, reportable result
+      with a mechanism attached, exactly the kind of measured obstruction docs/inventor-protocol.md
+      section 4 asks for. If the difference is substantial, the d=4 and width sweep become worth their
+      cost.'
+    controls:
+    - Fixed-basis null with an independently drawn fictitious label, all three informations computed
+      by the identical code.
+    - Independent-coin rounding null, which must zero out I(secret ; r) while leaving I(secret ; output)
+      unchanged.
+    - 'Exact-arithmetic control: informations computed in Fraction and in float, agreement required
+      to 1e-12.'
+    - 'Truncation-mass control: neglected support mass computed and reported as a number.'
+    - 'Branch-existence control: the implementation is traced to confirm the rounding comparison is
+      actually a branch and to record where it is not.'
+    - 'Marginalisation consistency: I(secret ; r_1..r_d) computed directly and by summing incremental
+      per-level terms, required to agree.'
+    required_metrics:
+    - I(secret ; r) in bits per signature
+    - I(secret ; output) in bits per signature
+    - I(secret ; (r, output)) and its difference from I(secret ; output)
+    - incremental information per level
+    - signature count to one bit for each of the three observations
+    - both null values
+    - truncated support mass
+  falsification_conditions:
+  - Any of the three fixed-basis null values is nonzero beyond 1e-12.
+  - The independent-coin null yields nonzero I(secret ; r), or changes I(secret ; output).
+  - I(secret ; (r, output)) is less than I(secret ; output), violating monotonicity of mutual information
+    under refinement.
+  - Incremental per-level information is negative at any level.
+  - Fraction and float computations disagree beyond 1e-12.
+  - Branch-existence tracing shows the implementation resolves the comparison branchlessly, in which
+    case the object is empty for that artifact and the run reports exactly that.
+  confounders:
+  - A small enumerable secret-basis family imposes a uniform prior that no real key distribution matches,
+    so the computed information is prior-dependent in a way that cannot be corrected inside the experiment.
+  - Support truncation removes the tail where the rounding comparison is most decisive, biasing I(secret
+    ; r) downward by an amount only bounded, not corrected.
+  - If the implementation's rounding convention differs from the one enumerated, r is a different
+    object and the numbers describe nothing real.
+  - Numerical summation over many small joint terms can lose precision; Fraction arithmetic guards
+    this but at a cost that limits dimension.
+  - Independence across signings is assumed when converting per-signature bits into a signature count,
+    and correlated randomness would break it.
+  interpretation_limits:
+  - The observation is assumed; no real observer is demonstrated and none can be in this environment.
+  - Bits about a small enumerated basis family are not bits about an NTRU trapdoor at standardized
+    parameters, and no bridge is offered.
+  - An empty result -- r adds nothing over the output -- is a statement about this recursion at these
+    parameters and this rounding convention, not about lattice samplers generally.
+  - A branchless implementation of the same comparison is untouched by every number here.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The enumeration is exponential in dimension at fixed
+      support width, which is why d is capped at 4; that is the measurement's cost, not an attack's.
+    memory_exponent: No attack exponent is claimed. The joint table is |secret family| times |support|^d
+      entries and is the binding resource at d=4.
+    best_known: Within this repository the incumbents in this lane are IDEA-20260816-0e6599's exhaustive
+      mantissa-width total-variation computation and IDEA-20260805-2bbfb2's closed-form defect, both
+      about the output distribution, plus IDEA-20260816-b6de60's transcript-channel estimator in a
+      neighbouring scheme. For an internal control-flow observable of the sampler the incumbent is
+      nothing.
+    hidden_overhead: The enumeration's cost grows as support-width to the power of the dimension,
+      so the honest reach of the method is two or three levels, and any statement about a full-dimension
+      sampler is an extrapolation nobody has justified. The human cost is that the rounding convention
+      must be read out of a specific implementation and re-read whenever that implementation changes,
+      or the object silently becomes a different one.
+  dominated_by: 'n/a (no result claimed). No attack cost is produced and no time/memory/data frontier
+    row applies; all three axes were considered and none is populated. Explicitly not null: the frontier
+    question does not arise rather than being won. The nearest cost-bearing object this could feed
+    is the deviation-to-signature-count curve RQ-FNDSA-001 names as a target, to which this contributes
+    an observation-side input.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: produces three
+    exactly computed mutual informations on one joint at d in {2,4}, together with the incremental
+    value of an internal observable over the released signature stated in bits and a signature-count-to-one-bit
+    figure, where the current corpus state has an output-side exactness measurement and no internal-observable
+    measurement at all. No attack time, memory or signature count is claimed to change.'
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the exact enumeration is correct and both nulls return zero: 0.85,
+    since the machinery closely parallels an approach already used in this repository for the same
+    recursion. That the monotonicity and non-negativity checks pass: 0.95, since they are theorems
+    and a violation is a bug. That I(secret ; (r, output)) exceeds I(secret ; output) by more than
+    0.01 bits, i.e. the rounding bit vector is genuinely additional: 0.4, because for a nearest-plane
+    recursion the output may well determine the per-level comparisons once the basis family is small.
+    That the target implementation actually has an observable rounding branch rather than a branchless
+    comparison: 0.5, and if it does not, the honest result is an empty object with a mechanism, which
+    this proposal treats as a success.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FNDSA-001
+  - IDEA-20260816-0e6599
+  - IDEA-20260805-2bbfb2
+  - IDEA-20260816-b6de60
+  - IDEA-20260805-2a669e
+  - H-FNDSA-58b464
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-3f3fde

@@ -173,6 +173,36 @@ def test_identity_tokens_are_indexed(indexed_sample):
     assert "test-001" in payload["identity_tokens"]
 
 
+def test_lineage_reaches_payload_and_legacy_alias_tokens(
+    pipeline, store, sample_document, sample_metadata
+):
+    key = "knowledge/source/ledgers/evidence/ev-dreg.yaml"
+    metadata = dict(
+        sample_metadata,
+        source_id="evidence:EV-DREG-7597cb",
+        source_type="ledger",
+        supersedes=["EV-GOAL-DREG-001-B003"],
+        verification_artifacts=[
+            "ledger/evidence/EV-GOAL-DREG-001-B003.yaml@sha256:" + "a" * 64,
+            "ledger/corrections/EV-GOAL-DREG-001-B003.v2.yaml@sha256:" + "b" * 64,
+        ],
+    )
+    stage(store, key, sample_document, metadata)
+
+    result = pipeline.ingest_key(key)
+
+    assert result.ok, result.reason
+    payload = pipeline.index.by_source(metadata["source_id"])[0]["payload"]
+    assert payload["supersedes"] == metadata["supersedes"]
+    assert payload["verification_artifacts"] == metadata["verification_artifacts"]
+    assert set(payload["identity_tokens"]) >= {
+        "evidence:ev-dreg-7597cb",
+        "ev-dreg-7597cb",
+        "evidence:ev-goal-dreg-001-b003",
+        "ev-goal-dreg-001-b003",
+    }
+
+
 @pytest.mark.parametrize("state", [IngestState.INDEXED])
 def test_manifest_records_every_pipeline_version(indexed_sample, state):
     pipeline, source_id, _ = indexed_sample

@@ -1,0 +1,163 @@
+consumer_inventory:
+  task_id: TASK-20260821-1c3b8d
+  classification: read_only_infrastructure_inventory
+  recorded_at: '2026-08-21'
+  inspected_commit: cf3416776c57c09ff8e76c5bbaec57a75e065d93
+  target_grammar:
+    legacy_accepted: '^GOAL-[A-Z0-9]+-\\d{3}$'
+    new_preferred: '^GOAL-[A-Z0-9]+-[0-9a-f]{6}$'
+    combined: '^GOAL-[A-Z0-9]+-(?:\\d{3}|[0-9a-f]{6})$'
+    allocation: python3 tools/allocate_id.py --next goal --area AREA
+    verification: python3 tools/allocate_id.py --check GOAL-AREA-abcdef
+  implementation_scope_required:
+    - path: tools/validate_ledger.py
+      consumer: authoritative goal-record validator and flat/sharded filename binding
+      current_behavior: GOAL_ID accepts only a three-digit suffix, independently of the shared SUFFIX grammar.
+      required_change: Derive the goal pattern from the shared legacy-or-random SUFFIX grammar while retaining the existing area grammar and filename/directory identity checks.
+      reason: A newly allocated random-suffix goal otherwise fails the authoritative ledger gate.
+    - path: tools/allocate_id.py
+      consumer: identifier allocator, well-formedness checker, collision scanner, and audit
+      current_behavior: PREFIX_TYPE omits GOAL, so --next goal is unavailable and --check explicitly declines to validate GOAL syntax; the curated audit does not model a sharded goal whose ID is in its directory.
+      required_change: Register GOAL as an area-scoped record type, bind its form to the validator's canonical goal pattern, include flat and sharded goal identities in collision/audit semantics, and retain random-token allocation as the default.
+      reason: Core rule 14 requires every new record ID to be minted and checked by this tool.
+    - path: CLAUDE.md
+      consumer: operator-facing canonical identifier convention
+      current_behavior: The conventions list every durable random-token family except GOAL.
+      required_change: Add GOAL-<AREA>-<tok> and its --next goal invocation to the current convention without changing legacy-history language.
+      reason: The documented creation path must agree with allocator and validator behavior.
+  template_and_workflow_documentation_required:
+    - path: templates/research-records.md
+      current_behavior: Persistent-goal template uses GOAL-AREA-NNN.
+      required_change: Use a six-hex token placeholder for newly created goals and explicitly preserve legacy three-digit validity.
+    - path: templates/subagent-task-queue.json
+      current_behavior: The queue, ledger artifact, and archive record examples use GOAL-EXAMPLE-001.
+      required_change: Replace the goal example consistently with one six-hex example so queues and archive bindings demonstrate current creation practice.
+    - path: docs/task-lifecycle.md
+      current_behavior: Persistent-goal intake documents GOAL-<AREA>-<NNN>.
+      required_change: Document the random-token creation form while noting that existing three-digit goals remain valid.
+    - path: docs/dynamic-subagent-dispatch.md
+      current_behavior: Persistent-goal queue binding documents GOAL-<AREA>-<NNN>.
+      required_change: Document the random-token creation form; no dispatcher algorithm change is needed.
+    - path: .claude/skills/coordinate-research-goal/SKILL.md
+      current_behavior: Creation and batch-path examples specify GOAL-<AREA>-<NNN>.
+      required_change: Require allocator-generated GOAL-<AREA>-<tok> for new campaigns and keep resume behavior compatible with legacy IDs.
+    - path: .claude/skills/launch-research-harness/SKILL.md
+      current_behavior: New-goal instructions say GOAL-<AREA>-<NNN> and GOAL-SSI-00N.
+      required_change: Replace new-record instructions with --next goal --area AREA plus --check; keep existing-goal examples as historical examples.
+  regression_tests_required:
+    - path: tools/test_allocate_id.py
+      current_behavior: Explicitly asserts that GOAL has no enforced pattern.
+      required_change: Replace that assertion with legacy/random/malformed goal checks and deterministic --next goal allocation coverage.
+    - path: tools/test_goal_closure_quorum.py
+      current_behavior: Exercises closure semantics only with legacy GOAL-TEST-001 fixtures.
+      required_change: Add authoritative check_goals coverage showing both legacy and six-hex IDs accepted and non-three/non-six suffixes rejected, independent of closure-quorum state.
+    - path: tests/test_campaign_projection.py
+      current_behavior: Projection path, flat/sharded, and safety tests use legacy goal fixtures; implementation already accepts random suffixes.
+      required_change: Add at least one flat and one sharded six-hex goal fixture to prevent regression at the filesystem projection boundary.
+    - path: tests/test_campaign_mcp.py
+      current_behavior: MCP goal validation and committed projection tests use legacy fixtures; MCP imports the projection regex.
+      required_change: Add a six-hex goal acceptance case and retain unsafe-path rejection coverage.
+    - path: tools/test_research_dispatch.py
+      current_behavior: Queue goal_id echo tests use legacy examples and the dispatcher intentionally treats goal_id as nonempty text.
+      required_change: Change or add an echo fixture using a six-hex goal ID; do not add a second incompatible grammar to the dispatcher.
+  compatible_semantic_consumers_no_source_change:
+    - path: tools/research_dispatch.py
+      consumer: dispatch queues, rendered plans, archive record_ids, and exact ledger artifact binding
+      behavior: goal_id is opaque nonempty text; archive IDs are opaque exact strings and filenames are checked by containment. Six-hex goal IDs propagate unchanged.
+    - path: tools/check_merge_hygiene.py
+      consumer: new-record parseability and cross-branch exact-path collision detection
+      behavior: ledger YAML and identifier-bearing paths are handled generically. A random-suffix goal receives the same parse and exact-path collision checks without a GOAL-specific regex.
+    - path: tools/merge_digest.py
+      consumer: changed-goal discovery and status/next_action digest
+      behavior: Its goal path regex accepts both three-character legacy suffixes and six-character random suffixes. It is permissive for four/five characters, but authoritative validation rejects those; no change is required merely to enable six-hex IDs.
+      optional_hardening: Tighten {3,6} to the authoritative legacy-or-six alternative in a separately justified change if desired.
+    - path: tools/shard_goal.py
+      consumer: flat-to-sharded goal path conversion
+      behavior: Uses the supplied goal ID opaquely in flat and directory paths; six-hex IDs need no algorithm change.
+    - path: orchestration/campaign/projection.py
+      consumer: safe committed flat/sharded goal projection
+      behavior: GOAL_ID already intentionally accepts legacy and random safe GOAL-* identifiers and uses the full ID opaquely for paths.
+    - path: orchestration/campaign/mcp_server.py
+      consumer: peer check-in, listing, coordination status, and lease scope validation
+      behavior: Imports projection.GOAL_ID, so six-hex identifiers already pass without a second grammar.
+    - path: orchestration/campaign/cli.py
+      consumer: campaign command --goal argument
+      behavior: Passes an existing goal identifier to projection; no suffix parsing exists here.
+    - path: orchestration/campaign/checkpoint.py
+      consumer: derived goal checkpoint projection
+      behavior: Carries MaterializedGoal.goal_id unchanged.
+    - path: orchestration/campaign/store.py
+      consumer: advisory presence and lease keys
+      behavior: Stores goal IDs as bounded opaque campaign keys after MCP validation.
+    - path: orchestration/routing/models.py
+      consumer: routing envelope goal_id
+      behavior: Identifier is an opaque bounded string type; no legacy suffix assumption.
+    - path: orchestration/knowledge/models.py
+      consumer: knowledge request goal_id
+      behavior: Identifier is an opaque bounded string type; no legacy suffix assumption.
+    - path: tools/agent_bus.py
+      consumer: optional session --goal metadata
+      behavior: Treats GOAL-* as coordination metadata and does not parse a numeric suffix.
+    - path: tools/sync_open_branches.py
+      consumer: goal_id reporting in branch sync summaries
+      behavior: Emits supplied IDs unchanged.
+  ledger_reference_consumers_no_schema_change:
+    - path: tools/validate_ledger.py
+      consumer: goal.question_ids and closure attestation reviewed_record_ids
+      behavior: Questions resolve through the ordinary RQ registry; reviewed GOAL-* references use the registered goal ID/prefix escape. Random goal IDs do not alter either relation after GOAL_ID registration is fixed.
+    - path: ledger/handoffs/
+      classification: immutable_historical_records
+      behavior: Existing goal_id values are data references, not parsers. Do not rewrite them; future handoffs may carry the new exact ID.
+    - path: ledger/questions/
+      classification: immutable_historical_records
+      behavior: Question records are bound from goal.question_ids and contain no three-digit GOAL parser. Do not rewrite them.
+    - path: coordination/goals/
+      classification: immutable_historical_records_and_archives
+      behavior: Existing queue, task, run, receipt, and archive paths bind exact legacy IDs. Do not rename or rewrite them; new random goal directories coexist.
+    - path: ledger/goals/
+      classification: immutable_historical_records
+      behavior: Existing flat and sharded three-digit goals remain valid forever. No migration or identifier remap is permitted.
+  fixed_campaign_code_and_historical_fixtures_unchanged:
+    - path: harness/
+      behavior: GOAL literals pin specific historical experiment campaigns; they are not general GOAL syntax consumers and must remain unchanged.
+    - path: tools/derive_experiment_contracts.py
+      behavior: GOAL-ENDO-001 literals bind a specific historical derivation package; unchanged.
+    - path: tools/author_reconciliation_history.py
+      behavior: GOAL-ECDLP-001 literal addresses historical reconciliation artifacts; unchanged.
+    - path: tools/build_schema_repair_20260808.py
+      behavior: Historical repair input paths and broad GOAL prefix reference matching are immutable repair provenance; unchanged.
+    - path: tests/test_campaign_store.py
+      behavior: Legacy IDs are opaque store keys and valuable compatibility fixtures; retain them, optionally add random-form cases elsewhere.
+    - path: tests/test_phase0_contracts.py
+      behavior: GOAL literals are opaque protocol-tamper fixtures, not syntax assertions; unchanged.
+    - path: tests/test_verify_exact_merge_certificate.py
+      behavior: Legacy goal_id is historical-style payload data with no parser assertion; unchanged.
+    - path: tests/test_research_dispatch_reconciliation.py
+      behavior: Legacy path is a reconciliation fixture; unchanged.
+  generated_or_adapter_surfaces:
+    - path: .agents/skills/crypto-autoresearcher-harness/SKILL.md
+      behavior: Delegating adapter uses generic GOAL-* language; no change.
+    - path: plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+      behavior: Portable harness uses generic GOAL-* language; no change.
+    - path: .claude/agents/coordinator.md
+      behavior: Generated role binding contains no new-goal suffix grammar to change directly; regenerate only if its source contract changes.
+  completeness:
+    required_categories:
+      allocator: covered
+      validators: covered
+      dispatch: covered
+      queues: covered
+      handoffs: covered
+      questions: covered
+      archives: covered
+      tests: covered
+      templates: covered
+    literal_search_distinguished_from_semantics: true
+    indirect_consumers_inspected: true
+    historical_rewrite_required: false
+    experiments_run: 0
+    interpretation: >-
+      The enabling implementation can remain narrow: authoritative GOAL syntax,
+      allocator/check/audit support, current creation documentation/templates,
+      and focused regression tests. Generic queue, archive, projection, MCP,
+      and storage paths already carry six-hex goal IDs end to end.

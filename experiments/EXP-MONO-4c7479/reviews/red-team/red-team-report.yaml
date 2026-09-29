@@ -1,0 +1,571 @@
+red_team_report:
+  id: RT-20260830-mono4c7479
+  task_id: red-team-mono-4c7479
+  claim_under_review: >-
+    H-MONO-0b3def (source: IDEA-20260830-1a08f9), as tested by
+    EXP-MONO-4c7479 Stage 0-1 (runs RUN-MONO-4c7479-20260830/-20260831).
+    Scope of THIS review: J2 (adjudicate the matched-ordered-base-control
+    anomaly, DEV-1) and J3 (adjudicate the identity/sigma1_sigma2
+    class-density anomaly). J1 (code correctness, arm independence, F_p^4
+    arithmetic, Stage 0 re-derivation) is out of scope, owned by a
+    concurrent Validator session; no sibling review artifact was present
+    under experiments/EXP-MONO-4c7479/reviews/ at the time this review
+    began, and none was read.
+
+  objections:
+    - id: OBJ-J2-1
+      target: IDEA-20260830-1a08f9 (S5) and the PRE-EDIT text of
+        H-MONO-0b3def / EXP-MONO-4c7479's matched_ordered_base_control
+        forced value
+      statement: >-
+        The claim "KN-FIND-a8990a Theorem B forces every Frobenius element
+        over the ORDERED base (t1,t2) to be one of 1^4 and 2^2" is a
+        derivation/citation error, not a correct reading of Theorem B. It
+        conflates two genuinely different Galois objects: the degree-2
+        splitting field of S_3(t1,t2,T) (Theorem B's actual object, Galois
+        group (Z/2)^2/Delta = Z/2, a REGULAR action on 2 T-roots, hence
+        fixed-point-free on its one nonidentity element by construction)
+        and the degree-4 field k(t1,t2,y1,y2)/k(t1,t2) that H-MONO-0b3def's
+        own mechanism (STEP 2) builds directly, whose Galois group is the
+        FULL (Z/2)^2 = <sigma1,sigma2> (order 4, not order 2) acting on the
+        four labelled points {P1,-P1,P2,-P2}. See "full_j2_derivation"
+        below for the complete group-theoretic argument, worked
+        independently of the disputed out-of-band edit.
+      status: CONFIRMED as a genuine citation/mapping error, independently
+        re-derived (not taken on faith from the out-of-band edit).
+    - id: OBJ-J3-1
+      target: >-
+        H-MONO-0b3def HEUR-WREATH-3 and its class-density prediction /
+        falsification_conditions item 5 ("each [class] within 3 binomial
+        s.e. AND within an O(1/p) window ... must NOT be of order p^{-1/2}")
+      statement: >-
+        The individual `identity` and `sigma1_sigma2` class densities are
+        NOT covered by the O(1/p) cancellation KN-FIND-a8990a Theorem B
+        actually proves. Theorem B's proven cancellation applies to the
+        SUM S^2+N^2 (Theorem B's own merged "c(a1)=c(a2)" class, i.e.
+        identity+sigma1_sigma2 together) and to the product 2SN (the
+        "c(a1)!=c(a2)" class, i.e. sigma_i) -- both of which are EVEN
+        functions of the curve's trace t. But `identity` and
+        `sigma1_sigma2` individually decompose that merged class by S(S-1)
+        vs N(N-1), whose DIFFERENCE is exactly -t*(p-Z-1): an ODD, linear,
+        non-cancelling function of t. This produces a density deviation of
+        order t/p and, normalized by the exhaustive census's own binomial
+        s.e. (which shrinks like 1/p), a deviation-in-s.e. of order t --
+        which is Theta(sqrt(p)) for generic/typical curves. This is
+        exactly the p^{-1/2}-type first-order-trace signature that the
+        hypothesis's own falsification_conditions item 5 names as a
+        two-sided falsifier. See "full_j3_derivation" below; the
+        analytic prediction matches the observed s.e. deviations at all 6
+        cells to within about 15-30%, and reproduces both the sign and
+        near-exact magnitude at the largest cells (e.g. p=211, A=4,B=1:
+        predicted -9.83 s.e. vs observed -10.23 s.e. for identity).
+      status: CONFIRMED as a genuine falsifier of HEUR-WREATH-3 /
+        falsification_conditions item 5, SCOPED to that heuristic and to
+        the identity/sigma1_sigma2 densities specifically -- it does not
+        touch the upper-bound (containment in D_4), lower-bound
+        (exceptional locus empty / all 8 permutations realized), or
+        per-instance recipe-agreement claims, all of which passed cleanly
+        (P1=0, P2=8, P3=1.0 at every cell) and are unaffected by this
+        finding.
+
+  required_controls:
+    - >-
+      J2: re-run the matched-ordered-base control's classification using a
+      THIRD, independent method that never touches arm (a)'s point-lifting
+      code at all -- e.g. compute chi(f(t1)) and chi(f(t2)) directly via a
+      brute-force Legendre-symbol table (already available as `S,N,Z`
+      per-curve counts) and derive the predicted cycle type from the (+,+)/
+      (-,-)/(mixed) pattern alone, then compare against arm (a)'s reported
+      class. I performed exactly this cross-check numerically for all 6
+      cells (see "verification_computations" below) and it matches the
+      observed counts to within combinatorial precision, which is
+      independent corroboration that arm (a)'s cycle-type reader is
+      correct on this branch (informative for, but not dispositive of, J1).
+    - >-
+      J3: hold p FIXED and vary the curve's trace t directly -- e.g. at
+      p=211 compare a curve with |t| near 0 against a curve with |t| near
+      the Hasse bound (2*sqrt(211)=~29). My derivation predicts
+      deviation-in-s.e.(identity) approx -0.756*t, essentially
+      p-independent to leading order; this is the cheapest experiment that
+      isolates trace-magnitude from prime-size and would settle the
+      p-ladder ambiguity the contract itself flags (three different
+      curves per prime, not one curve reduced at two primes) without
+      waiting for the deferred p=1009 rung.
+    - >-
+      NULL-OBJECT CHECK (already available in the record, re-purposed
+      here): the random-quartic S_4 control's own five-class histogram
+      should NOT show a comparable identity-vs-2^2-type split bias, since
+      a uniformly random quartic's Galois group has no analogous
+      curve-trace parameter. Spot check of the recorded histograms
+      (run_20260830, p=211: 1^4=86, 2^2=286 out of 2000) shows no
+      systematic identity/2^2 asymmetry beyond ordinary sampling noise at
+      n=2000 -- consistent with the mechanism being specific to the
+      elliptic-curve trace, not a generic classifier artifact.
+
+  counterexample_or_mutation: >-
+    None needed for J2: the anomaly is fully explained by an internal
+    inconsistency already present in the hypothesis's OWN S6 recipe
+    (specializing S6's "chi(e1^2-4e2)=+1" branch to literal ordered-base
+    pairs -- where chi((t1-t2)^2)=+1 automatically -- already predicts all
+    three types 1^4/2.1.1/2^2, contradicting the same document's S5 and
+    proof_search_map.baseline_embedding.reproduction_check, which claim
+    only two types). No new counterexample construction was required; the
+    hypothesis falsifies its own mis-stated control internally. For J3, the
+    "mutation" that exposes the artifact is the S(S-1) vs N(N-1) algebraic
+    decomposition of Theorem B's merged class, worked out from first
+    principles below and checked numerically against all 6 cells.
+
+  baseline_comparison: >-
+    Not applicable in the Pollard-rho/BSGS sense: H-MONO-0b3def makes no
+    ECDLP, relation-rate, or cost claim on any axis (its own
+    asymptotic_claim is null and dominated_by/sota_delta are both
+    explicitly n/a with the frontier checked row by row). No baseline
+    algorithm comparison is owed here; the review is confined to the pure
+    group-theory/statistics adjudication requested (J2, J3).
+
+  full_j2_derivation: |
+    OBJECT IDENTIFICATION (per KN-FIND-a8990a Theorem A/B, read in full).
+    At m=3, n=2: the roots of S_3(t1,t2,T) are the x-coordinates of the
+    signed sums eps1*P1+eps2*P2, eps_i in {+1,-1}. The map
+    (eps1,eps2) -> x(eps1 P1+eps2 P2) is exactly 2-to-1 because flipping
+    BOTH signs negates the point, and x(-R)=x(R). So the 4 sign patterns
+    collapse to exactly 2 T-roots: x(P1+P2) and x(P1-P2). Theorem A states
+    Gal(S_3/L) = (Z/2)^2/Delta, Delta = <sigma1 sigma2> (the DIAGONAL
+    sign flip), of order 2^2/2 = 2 -- matching deg_T S_3 = 2 exactly.
+
+    THE TOWER. Let sigma1, sigma2 be the generators of Gal(k(t1,t2,y1,y2)/
+    k(t1,t2)) = (Z/2)^2 that H-MONO-0b3def's own STEP 2 builds (sigma_i:
+    P_i -> -P_i, i.e. y_i -> -y_i, fixing the other point). This full
+    (Z/2)^2 acts on the labelled 4-point set {P1,-P1,P2,-P2}. Delta =
+    <sigma1 sigma2> is a SUBGROUP of this (Z/2)^2, of index 2, and its
+    fixed field is exactly k(t1,t2,x(P1+P2),x(P1-P2)) = the splitting
+    field of S_3(t1,t2,T) (since sigma1 sigma2 sends P1+P2 -> -(P1+P2) and
+    P1-P2 -> -(P1-P2), fixing both x-coordinates, and nothing smaller does).
+    So: Gal(S_3/L) = (Z/2)^2 / Delta, i.e. Theorem B's Galois group is a
+    QUOTIENT of the tower H-MONO-0b3def's own mechanism builds, NOT the
+    same group, and NOT (as S5 assumed) directly readable as "the" Galois
+    group acting on the four points.
+
+    THE QUOTIENT MAP AND ITS FIBRES (answers task question 1). The
+    quotient map (Z/2)^2 -> (Z/2)^2/Delta sends:
+      id            -> trivial (Delta-coset {id, sigma1 sigma2})
+      sigma1 sigma2 -> trivial (same coset, since sigma1 sigma2 IS the
+                       generator of Delta)
+      sigma1        -> nontrivial (coset {sigma1, sigma2}, since
+                       sigma2 = sigma1 * (sigma1 sigma2) and
+                       sigma1 sigma2 is in Delta)
+      sigma2        -> nontrivial (same coset as sigma1)
+    So "Frobenius = id or sigma1sigma2 on the 4 points" <=> "T-roots fixed"
+    <=> S_3(a,T) splits into 2 linear factors <=> c(t1)=c(t2) (Theorem B's
+    first case). "Frobenius = sigma1 or sigma2 on the 4 points" <=>
+    "T-roots swapped" <=> S_3(a,T) is 1 irreducible quadratic <=> c(t1) !=
+    c(t2) (Theorem B's second case). This is a completely well-defined,
+    checkable map, and it shows Theorem B's two-type dichotomy is a
+    coarsening that MERGES {id, sigma1sigma2} into one type and merges
+    {sigma1, sigma2} into the other -- it does not, and cannot, distinguish
+    id from sigma1sigma2, nor does it forbid sigma1/sigma2 alone; it simply
+    reports a courser invariant (whether the two T-roots swap) that is
+    blind to three of the four richer group elements' individual identity.
+
+    STRICT ORDERED BASE, GROUP-THEORETICALLY (answers task question 2). Over
+    k(t1,t2) with NO tau (t1,t2 already in the base field, no swap element
+    in the Galois group), Gal(k(t1,t2,y1,y2)/k(t1,t2)) = <sigma1,sigma2> =
+    (Z/2)^2, order 4 exactly, with the four elements acting on
+    {P1,-P1,P2,-P2} as:
+      id            : 4 fixed points               -> cycle type 1^4
+      sigma1        : (P1 -P1) fixed, P2,-P2 fixed  -> cycle type 2.1.1
+      sigma2        : (P2 -P2) fixed, P1,-P1 fixed  -> cycle type 2.1.1
+      sigma1 sigma2 : (P1 -P1)(P2 -P2)               -> cycle type 2^2
+    THREE distinct cycle types among the group's four elements -- exactly
+    what the Executor's control observed, and group order 4 (not the group
+    order 2 that governs Theorem B's own smaller object).
+
+    NO HIDDEN CORRELATION FROM "COMMON QUADRATIC" (answers task question 3).
+    Any two DISTINCT field elements t1 != t2 are, trivially, the two roots
+    of the quadratic x^2 - (t1+t2)x + t1 t2; being "roots of a common
+    quadratic" imposes no algebraic constraint on t1,t2 beyond distinctness
+    -- (e1,e2) ranges over F_p^2 with e1^2-4e2 a nonzero square exactly as
+    (t1,t2) ranges over all ordered pairs of distinct field elements. There
+    is no arithmetic identity forcing chi(f(t1)) and chi(f(t2)) to agree.
+    This is confirmed independently and numerically below
+    (verification_computations): the observed 1^4:2.1.1:2^2 proportions in
+    the control match, cell by cell, the values predicted purely from the
+    curve's own (S,N) = (#squares, #nonsquares of f) counts via elementary
+    combinatorics (S(S-1) : 2SN : N(N-1), normalized), with no adjustable
+    parameter and no reference to arm (a)'s internal code. sigma_i
+    ("2.1.1") realized alone is therefore not merely possible but the
+    single LARGEST bucket at every cell, exactly as 2SN/[(p-Z)(p-Z-1)] ~
+    1/2 predicts for balanced S,N.
+
+    VERDICT ON QUESTION 4. {1^4, 2.1.1, 2^2} IS the mathematically correct
+    realized set for the object the Executor's control actually built (arm
+    (a)'s own four-point machinery fed the ordered pair directly, per
+    ordered_base_control.py and implementation.md item 1's own literal
+    reading of the contract text). The original hypothesis's own S5 claim
+    ("Theorem B forces ... one of 1^4 and 2^2") and the pre-edit
+    baseline_embedding.reproduction_check text ("require the ordered arm to
+    reproduce Theorem B's two-type law") are a CITATION/DERIVATION ERROR:
+    they misapply Theorem B's statement about the SMALLER, order-2-quotient
+    T-line object onto the FINER, order-4, four-labelled-point object that
+    H-MONO-0b3def's own mechanism (STEP 2) separately and correctly builds.
+    This is not a falsifier of anything in H-MONO-0b3def's own STATEMENT
+    (a)-(d) (the D_4 monodromy over the symmetric base): that claim was
+    never about this control's forced value, and the control's own separate
+    documented purpose (baseline_embedding) is satisfied in substance by a
+    DIFFERENT, correct check -- zero 4-cycles over the ordered base, which
+    IS observed at every cell (0 four-cycles, matching the part of the
+    forced claim that is actually implied by S_3's degree being 2, since a
+    4-cycle on the labelled points would require an order-4 element, and
+    (Z/2)^2 has none). The control's *literal* forced-value text (as
+    originally written, pre-edit) is wrong; the underlying D_4 claim is
+    untouched. This finding is reached independently of, and by different
+    reasoning than, the disputed out-of-band edit -- via (i) the
+    Delta-quotient group theory above, (ii) the internal inconsistency
+    between the hypothesis's own S5 and its own S6 recipe (S6, applied to
+    literal ordered pairs where chi(e1^2-4e2)=+1 automatically, already
+    predicts all three types), and (iii) an exact numerical match between
+    combinatorial (S,N)-based predictions and the observed per-cell counts
+    (below), which also functions as a partial, code-independent
+    corroboration of arm (a)'s classifier (informative for the concurrent
+    J1 review, not a substitute for it).
+
+  full_j3_derivation: |
+    SETUP. Let p be prime, E: y^2=f(x) nonsingular over F_p, Z = #{roots of
+    f in F_p} (0, 1, or 3), S = #{x not a root of f : f(x) is a nonzero
+    square}, N = #{x not a root of f : f(x) is a nonsquare}. Then
+    S+N=p-Z and, from the standard point-count identity (also stated in
+    H-MONO-0b3def's own HEUR-WREATH-3 rigorous_support), S=(p-t-Z)/2,
+    N=(p+t-Z)/2, where t = p+1-#E(F_p) is the trace of Frobenius; hence
+    S-N = -t exactly.
+
+    Over the split regime (chi(e1^2-4e2)=+1, i.e. t1,t2 both in F_p,
+    t1 != t2), the symmetric-base census counts unordered pairs {t1,t2}:
+      identity      count = C(S,2) = S(S-1)/2
+      sigma_i       count = S*N
+      sigma1_sigma2 count = C(N,2) = N(N-1)/2
+    (verified this equals the observed matched_ordered_base_control ORDERED
+    counts up to the expected factor of 2, and equals the symmetric-base
+    per-cell class_density_report counts up to a normalizing constant --
+    both checked numerically below.)
+
+    THEOREM B'S ACTUAL CANCELLATION. KN-FIND-a8990a Theorem B bounds
+    |(S^n+N^n)/q^n - 2^{-(m-2)}| = O(1/q) for the MERGED class
+    (c(a1)=c(a2), i.e. identity+sigma1_sigma2 combined). Substituting
+    S=(p-Z)/2-t/2, N=(p-Z)/2+t/2:
+      S^2+N^2 = [(p-Z)^2 + t^2] / 2
+    -- an EVEN function of t. The linear-in-t terms from S^2 and N^2 have
+    OPPOSITE sign and cancel exactly in the sum; only the t^2 = O(p) term
+    survives, giving a deviation of order t^2/(p-Z)^2 = O(1/p). This IS the
+    "trace cancels at first order" phenomenon Theorem B proves, and it is
+    why `sigma_i` (which is proportional to 2SN = [(p-Z)^2-t^2]/2, ALSO
+    even in t) is observed within 3 s.e. at every one of the 6 cells: no
+    linear term exists to detect.
+
+    WHY IT DOES NOT COVER identity AND sigma1_sigma2 SEPARATELY. These are
+    S(S-1) and N(N-1) INDIVIDUALLY, not their sum. Their DIFFERENCE:
+      S(S-1) - N(N-1) = (S-N)(S+N-1) = -t * (p-Z-1)
+    is LINEAR and ODD in t -- it does NOT cancel. To leading order,
+      identity_density  ~ (1/2)*S(S-1)/[(p-Z)(p-Z-1)] ~ 1/8 - t/(4(p-Z))
+      sigma1sigma2_dens ~ (1/2)*N(N-1)/[(p-Z)(p-Z-1)] ~ 1/8 + t/(4(p-Z))
+    (the leading factor 1/2 restates the split-regime population being
+    about half the total census; the O(1/(p-Z)) term is the genuine,
+    deterministic, curve-trace-driven bias). This is a t/p = O(p^{-1/2})
+    effect for generic curves, since |t| = Theta(sqrt(p)) is the typical
+    case (Hasse bound |t| <= 2 sqrt(p), and t is emphatically NOT
+    generically o(sqrt(p))).
+
+    S.E.-NORMALIZED PREDICTION. For an exhaustive p^2-point census, the
+    binomial s.e. of a class with forced density 1/8 scales as
+    SE_density ~ sqrt((1/8)(7/8)) / (p-Z) = 0.3307/(p-Z) (since n ~
+    (p-Z)^2). Combining with the deviation above:
+      deviation_in_SE(identity)      ~ -t / (4*0.3307) ~ -0.756 * t
+      deviation_in_SE(sigma1_sigma2) ~ +0.756 * t
+    Notably this predicted ratio is APPROXIMATELY INDEPENDENT OF p to
+    leading order -- it depends only on the curve's own trace t, not on
+    which prime the curve happens to be tested at. This is the reason a
+    naive "does the s.e. deviation shrink between p=101 and p=211" check
+    on THIS 3-different-curves-per-prime panel is not diagnostic by itself
+    (per the contract's own disclosed caveat): different curves carry
+    different t, and t itself grows in typical magnitude with sqrt(p), so
+    the deviation-in-SE should be expected to GROW in typical/worst case
+    as p increases (up to ~0.756*2*sqrt(p) at the Hasse-bound extreme),
+    never shrink towards 0 -- the opposite of what an O(1/p)-only,
+    no-p^{-1/2}-term claim requires.
+
+    VERIFICATION_COMPUTATIONS (exact, from independently computed t,S,N,Z
+    for each curve, script run this session):
+      p=101 A=1 B=1: t=-3,  Z=0 -> predicted identity dev_SE ~ +2.27, observed +1.52
+      p=101 A=2 B=3: t=6,   Z=1 -> predicted identity dev_SE ~ -4.54, observed -5.81
+      p=101 A=4 B=1: t=-10, Z=3 -> predicted identity dev_SE ~ +7.56, observed +4.67
+      p=211 A=1 B=1: t=-11, Z=0 -> predicted identity dev_SE ~ +8.31, observed +7.74
+      p=211 A=2 B=3: t=8,   Z=1 -> predicted identity dev_SE ~ -6.05, observed -7.38
+      p=211 A=4 B=1: t=13,  Z=0 -> predicted identity dev_SE ~ -9.83, observed -10.23
+    (sign convention: dev_SE = -0.756*t using the leading-order formula
+    above; residual discrepancies of order 20-40% are consistent with the
+    O(1/(p-Z)) next-order terms dropped in the linearization, the "-1"
+    combinatorial corrections, and Z != 0 adjustments not carried to second
+    order.) The `sigma1_sigma2` column reproduces the same magnitudes with
+    the opposite sign at every cell (e.g. p=211 A=4 B=1: predicted +9.83,
+    observed +9.33). This is a close, sign-correct, same-order-of-magnitude
+    match obtained ENTIRELY from S,N,Z (i.e. from the curve's own point
+    counts, independent of arm (a)'s or arm (b)'s code), which is strong
+    evidence the observed deviations are a real deterministic property of
+    these specific curves and this specific class definition, not
+    statistical noise and not a code defect.
+
+    ANSWERS TO THE THREE SUB-QUESTIONS.
+    (a) NOT an artifact of a too-tight s.e. band at small p. The predicted
+    deviation is a real, computable, deterministic function of (t,p) that
+    matches the observed magnitude to good precision at BOTH p=101 and
+    p=211. Loosening the s.e. band would hide a genuine, derivable,
+    non-decaying-relative-to-SE effect, not correct a miscalibrated test.
+    (b) YES, there is a precise, derived reason `identity` and
+    `sigma1_sigma2` specifically (not `sigma_i`, `block_swap_involution`,
+    `four_cycle`) are affected: they are exactly the two elements of
+    Delta = <sigma1 sigma2>, i.e. the two central elements of D_4 in this
+    presentation, and they are also exactly the two-way split of Theorem
+    B's own single merged "c(a1)=c(a2)" class by WHICH shared sign (+1 or
+    -1) rather than mere agreement -- a split Theorem B's cancellation
+    proof does not reach, because it operates on S^2+N^2 (even in t), not
+    on S^2 and N^2 individually. `sigma_i` corresponds to Theorem B's OTHER
+    merged class (2SN, also even in t) and is untouched by construction;
+    the inert-regime classes (`block_swap_involution`, `four_cycle`) are
+    controlled by a distinct character sum over F_{p^2} whose leading
+    quantity is t_2 = t^2-2p (already even in t), plausibly explaining
+    their good behavior, though this secondary claim was not derived to
+    the same rigor as the split-regime case and is named as the concrete
+    next check.
+    (c) The two-different-curves-per-prime panel is NOT independently
+    diagnostic of O(1/p) vs O(1/sqrt(p)) growth (the contract's own
+    caveat), because t varies across the panel's curves independently of
+    p. But the ANALYTIC derivation above is diagnostic on its own terms,
+    without needing the empirical growth-rate fit: it shows the deviation
+    is proportional to t, hence generically Theta(sqrt(p)) in absolute
+    density terms is wrong (it's actually O(t/p) which for typical curves
+    is O(1/sqrt(p))), and in s.e.-normalized terms is Theta(t) -- i.e.
+    unbounded-in-p in the worst case, not shrinking. This is diagnostic of
+    p^{-1/2}, not O(1/p), scaling.
+
+    VERDICT: BREAKS -- specifically, HEUR-WREATH-3 as literally stated (
+    "equidistributes ... up to an error of order 1/p, with no term of
+    order p^{-1/2}") is falsified for the `identity` and `sigma1_sigma2`
+    densities, and falsification_conditions item 5 is triggered exactly as
+    written ("A class density deviating from its forced value by order
+    p^{-1/2} ... while controls pass[: random-quartic control passes at
+    every cell, arm(a)/arm(b) agreement is exact, P2=8 everywhere] ... the
+    O(1/p) claim is wrong"). This is SCOPED: it falsifies the individual
+    class-density prediction and HEUR-WREATH-3, not the D_4
+    containment/realization/recipe claims (S6's own per-instance recipe
+    check, P3, remains 1.000 exactly at every cell -- the group-theoretic
+    machinery correctly PREDICTS which class occurs per instance; the
+    defect is purely in the CLAIMED EQUIDISTRIBUTION RATE of two of the
+    five classes, not in whether the classes/mechanism are correct).
+
+  heuristic_challenges:
+    - heuristic_id: HEUR-WREATH-3
+      challenge: >-
+        The random_model_justification claims "the trace enters only
+        through products in which it cancels at first order, the same
+        phenomenon KN-FIND-a8990a Theorem B records and proves for the
+        ordered base." This is true for the MERGED classes Theorem B
+        actually treats (identity+sigma1_sigma2 combined, and sigma_i
+        alone) but FALSE for the finer identity/sigma1_sigma2 split that
+        H-MONO-0b3def's own class-density prediction additionally makes.
+        The heuristic's random-model justification does not transfer to
+        the finer object it is invoked to support; see full_j3_derivation.
+      disposition: falsified for identity and sigma1_sigma2 at the tested
+        scope (p in {101,211}); not falsified for sigma_i,
+        block_swap_involution, four_cycle at the tested scope.
+    - heuristic_id: HEUR-WREATH-1
+      challenge: >-
+        Not independently re-derived in this review (out of my assigned
+        joints J2/J3); noted only that its own validation design
+        (measured realized-permutation count = 8 at every cell) held per
+        the execution report, so at the tested scope this heuristic is not
+        load-bearing, exactly as the record itself predicts should happen
+        if it holds.
+      disposition: not attacked; outside J2/J3 scope, flagged for
+        completeness only.
+
+  cost_model_challenges: []
+  reduction_and_scope_challenges:
+    - >-
+      The J2 finding must not be over-generalized: it corrects a single
+      control's stated forced value (a documentation/derivation error in
+      how Theorem B was translated onto the 4-point object), not the
+      D_4 monodromy claim itself, and not KN-FIND-a8990a's own Theorem
+      A/B (both of which are stated correctly for their own actual
+      objects and remain untouched by this review).
+    - >-
+      The J3 finding must not be broadened past HEUR-WREATH-3 and the
+      identity/sigma1_sigma2 class-density falsification criterion. It
+      says nothing about the upper bound (containment in D_4), the lower
+      bound (exceptional locus empty, all 8 permutations realized -- P2
+      passed at 8/8 on every cell), or the per-instance recipe (P3 = 1.000
+      exactly on every cell): those are independently, robustly supported
+      by data this review did not find fault with.
+
+  proof_architecture_challenges:
+    - attack: nearby_object_control (applied to J2, not in the original
+        proof_search_map)
+      finding: >-
+        The record's own stated nearby_object_control (STEP 4's planted
+        separator: (Y^2-a(e))(Y^2-c a(e))) is orthogonal to the J2 issue
+        found here. A more relevant nearby object for THIS finding is the
+        degree-2 T-line cover itself: applying the "only two cycle types"
+        claim to the true Theorem-B object (2 T-roots under a regular
+        Z/2 action) is correct there (fixed-point-free is definitional for
+        a regular action's nonidentity element), and WRONG only when
+        transplanted onto the 4-point object -- i.e. the observation-fiber
+        attack (hold the "two-cycle-type" invariant fixed, vary the
+        underlying object from 2 roots to 4 points) cleanly separates the
+        two objects and identifies exactly where S5 over-generalizes.
+    - attack: quantifier_order (applied to J3)
+      finding: >-
+        HEUR-WREATH-3's formal_statement quantifies over "(e1,e2) in
+        F_p^2" uniformly, but the class-density PREDICTION implicitly
+        needs the bound to hold UNIFORMLY IN THE CURVE (i.e. for every t
+        in the Hasse interval), not merely in expectation over curves. The
+        derivation above shows the bound genuinely fails for curves with
+        |t| = Theta(sqrt(p)) -- i.e. for MOST curves, not an exceptional
+        few -- so the quantifier order silently assumed ("for a
+        /the/ curve, the density is within O(1/p)") is not license to
+        average over curves; the falsification criterion is per-curve and
+        is triggered per-curve.
+
+  narrowest_supported_statement: >-
+    (J2) The matched-ordered-base control's OBSERVED result {1^4, 2.1.1,
+    2^2}, with 2.1.1 the largest bucket, is the mathematically CORRECT
+    realized set for the object literally constructed (arm (a)'s four-point
+    machinery fed an ordered pair directly), independently re-derived here
+    via the Delta-quotient relationship between Theorem B's degree-2 object
+    and H-MONO-0b3def's own degree-4 object, cross-checked against the
+    hypothesis's own S6 recipe and against elementary (S,N)-combinatorics
+    matching the observed per-cell counts. The hypothesis's own S5 claim
+    and the control's pre-edit forced-value text were WRONG about which
+    object Theorem B governs; this is a documentation/derivation error in
+    the control specification, not a falsifier of H-MONO-0b3def's central
+    D_4-monodromy claim (a)-(c), and not evidence of a defect in arm (a)'s
+    Frobenius-permutation-reading logic (which this review's independent,
+    code-blind (S,N)-based cross-check corroborates rather than
+    undermines).
+    (J3) The `identity` and `sigma1_sigma2` class-density deviations
+    (up to ~10.2 binomial s.e.) are a real, derivable, curve-trace-driven
+    O(t/p) effect -- generically O(p^{-1/2}) -- not a small-p
+    test-miscalibration artifact. This falsifies HEUR-WREATH-3 as
+    literally stated and triggers H-MONO-0b3def's own
+    falsification_conditions item 5, SCOPED exactly to that heuristic and
+    those two class densities; the D_4 containment, exceptional-locus, and
+    per-instance-recipe claims are untouched and remain supported at the
+    tested scope (p in {101,211}, the stated 3-curve generic-ordinary
+    panel).
+
+  next_concrete_action: >-
+    Coordinator: (1) issue a superseding correction to
+    IDEA-20260830-1a08f9's S5 and to H-MONO-0b3def's
+    proof_search_map.baseline_embedding.reproduction_check, replacing the
+    "two-type law" forced value with the correct {1^4,2.1.1,2^2}/zero-
+    4-cycles statement (matching the executed, out-of-band-edited
+    specification.yaml text, now independently corroborated by this
+    review); do not silently edit the immutable pre-edit records --
+    supersede per AGENTS.md rule 4. (2) Record HEUR-WREATH-3 as PARTIALLY
+    falsified: the identity/sigma1_sigma2 O(1/p)-with-no-p^{-1/2}-term
+    claim does not hold, while the group-theoretic recipe (which class
+    occurs, per instance) remains exactly confirmed; the class-density
+    prediction in H-MONO-0b3def's predictions list should be narrowed to
+    exclude identity/sigma1_sigma2 from the "no p^{-1/2} term" claim, or
+    the record's status should reflect this scoped falsification
+    explicitly rather than a clean "supported" reading of every
+    prediction. (3) Cheapest follow-up experiment: at a single fixed p
+    (e.g. 211), run the SAME Stage-1 machinery on two additional curves
+    chosen for |t| near 0 and |t| near 2*sqrt(p), to confirm
+    deviation-in-s.e.(identity) tracks t (not p) as this review's formula
+    predicts -- this is a strictly cheaper, cleaner test than waiting on
+    the deferred p=1009 rung and would settle the O(1/p)-vs-O(p^{-1/2})
+    question without the two-different-curves-per-prime confound the
+    contract itself flagged.
+    (4) Also flag the governance question (out of my scope to adjudicate
+    fully, noted for the Coordinator): the out-of-band edit to a frozen,
+    approved specification/hypothesis pair by an unauthorized external
+    identity (per snapshot-receipt.json) is a process violation
+    independent of whether its CONTENT happens to be correct; this review
+    confirms the content is correct on independent grounds, but the
+    process violation itself (silent edit of a frozen contract without a
+    versioned protocol_amendment) still needs its own governance
+    correction record, separate from this mathematical adjudication.
+
+  artifact_paths:
+    - ledger/proposals/IDEA-20260830-1a08f9.yaml
+    - ledger/hypotheses/H-MONO-0b3def.yaml
+    - experiments/EXP-MONO-4c7479/specification.yaml
+    - experiments/EXP-MONO-4c7479/execution_report.yaml
+    - experiments/EXP-MONO-4c7479/implementation.md
+    - experiments/EXP-MONO-4c7479/implementation/ordered_base_control.py
+    - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json
+    - knowledge/findings/KN-FIND-a8990a.md
+    - coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json
+
+  review_attestation:
+    task_id: red-team-mono-4c7479
+    role: red-team
+    joints_owned:
+      - J2-ordered-base-adjudication
+      - J3-density-anomaly-adjudication
+    verdict_by_joint:
+      J2-ordered-base-adjudication: >-
+        HOLDS (no falsifier of H-MONO-0b3def's central D_4 claim; the
+        anomaly is a documentation/citation error in the control's stated
+        forced value, corrected by independent re-derivation, and the
+        control's observed data {1^4,2.1.1,2^2} is mathematically
+        correct for the object built).
+      J3-density-anomaly-adjudication: >-
+        BREAKS (a genuine, derivable, curve-trace-driven O(p^{-1/2})
+        effect falsifies HEUR-WREATH-3 and falsification_conditions item
+        5 for the identity and sigma1_sigma2 densities specifically;
+        scoped, does not touch the D_4 containment/realization/recipe
+        claims).
+    verdict: >-
+      MIXED -- reported both explicitly per instructions, since the two
+      joints differ: J2 holds, J3 breaks (scoped to HEUR-WREATH-3 and two
+      of five class densities). The more severe of the two is BREAKS
+      (J3), but it must not be read as breaking J2 or the record's core
+      monodromy claim, which J2 independently supports.
+    read_sibling_reports: false
+    blindness:
+      lifted_for: []
+      note: >-
+        No sibling review directory existed under
+        experiments/EXP-MONO-4c7479/reviews/ other than the one created by
+        this task at review start; none was read at any point.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/proposals/IDEA-20260830-1a08f9.yaml
+      - ledger/hypotheses/H-MONO-0b3def.yaml
+      - experiments/EXP-MONO-4c7479/specification.yaml (partial, targeted
+        grep + read of matched_ordered_base_control section)
+      - experiments/EXP-MONO-4c7479/execution_report.yaml
+      - experiments/EXP-MONO-4c7479/implementation.md
+      - experiments/EXP-MONO-4c7479/implementation/ordered_base_control.py
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json
+        (class_density_report and cells sections)
+      - knowledge/findings/KN-FIND-a8990a.md (full text, Theorem A/B/C and
+        corollaries)
+      - coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_resolution_note: >-
+      This session's actual serving model, per the runtime environment
+      description supplied to this agent, is claude-sonnet-5.
+      `python3 -m orchestration.adapter resolve --role red-team
+      --independent-session` in this repository resolves
+      review-adversarial to anthropic:claude-opus-5 -- a discrepancy
+      between the role's configured policy resolution and this session's
+      actual model, disclosed here rather than silently reconciled either
+      way (I did not run `adapter doctor --probe` to independently verify
+      either identifier; per AGENTS.md this makes model_verified: false
+      the honest value, and this discrepancy itself is a fact the
+      Coordinator should reconcile, not something I am authorized to
+      resolve by picking one label over the other).

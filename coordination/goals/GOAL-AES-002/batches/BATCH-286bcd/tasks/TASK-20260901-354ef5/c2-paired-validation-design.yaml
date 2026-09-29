@@ -1,0 +1,1120 @@
+# =============================================================================
+# TASK-20260901-354ef5 — C2 PAIRED HEURISTIC-VALIDATION EXPERIMENT DESIGN.
+# DESIGN ONLY. ZERO COMPUTE WAS RUN TO PRODUCE THIS RECORD.
+# =============================================================================
+# NOT-YET-APPROVED. NOT-YET-EXECUTED. THIS RECORD DOES NOT AUTHORIZE ITS OWN
+# FUTURE DISPATCH (per SC-9 and AGENTS.md: only the Coordinator may approve an
+# experiment). No EXP-* or H-* ledger identifier is minted here; `id` and
+# `hypothesis_id` below are null by explicit task-card prohibition, not by
+# omission. This record asserts NOTHING about AES at any round count: every
+# quantity below is a PREDICTION, stated as a prediction, not a finding.
+# =============================================================================
+
+experiment:
+  id: null
+  id_note: >-
+    NULL BY EXPLICIT TASK-CARD PROHIBITION, not omission. TASK-20260901-354ef5
+    forbids minting an EXP-* identifier: "Do not mint an EXP-* or H-*
+    identifier and do not write to ledger/hypotheses/ or experiments/. Only
+    the Coordinator approves an experiment (AGENTS.md), and this batch does
+    not authorize approval." If this design is later approved for dispatch, a
+    Coordinator-authored handoff mints EXP-AES-<tok> via
+    `tools/allocate_id.py --next experiment --area AES` at that time, over
+    this record's exact content, unedited (this file is not itself editable
+    into an EXP-* record; a superseding act creates the ledger experiment).
+
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    NULL. No H-* hypothesis record exists for candidate C2 in
+    ledger/hypotheses/ at the time of this design (confirmed by KS-D2 below);
+    minting one is explicitly out of this task's scope. This design is a
+    contract for testing C2's own `survival` prediction
+    (object-enumeration.yaml, id C2, `axis_scores.survival.rationale`), stated
+    directly rather than through an intermediate hypothesis record, because no
+    such record has been authored. A future H-AES-<tok> record, if authored,
+    would cite this design's `preregistered_prediction` and
+    `falsification_criterion` verbatim rather than restating them.
+
+  version: 1
+
+  title: >-
+    C2 paired-independent-key data-path Hamming-distance histogram vs
+    Binomial(128,1/2), full round count, with matched structural null and
+    deterministic sensitivity anchor (DESIGN CONTRACT, NOT EXECUTED)
+
+  status: draft
+  status_note: >-
+    `draft` per the experiment lifecycle in AGENTS.md ("draft ->
+    review_required -> approved -> running -> completed|failed_infrastructure|
+    invalid -> analyzed -> archived"). This record has not been submitted for
+    Coordinator review under this batch's scope and stays `draft` until a
+    future task explicitly moves it. STATED PLAINLY PER SC-9: this design is
+    NOT-YET-APPROVED and NOT-YET-EXECUTED, and nothing in this file authorizes
+    its own future dispatch — that requires a separate Coordinator-approved
+    handoff citing this exact record.
+
+  objective: >-
+    Convert candidate C2's `minimal_test_sketch`
+    (object-enumeration.yaml, id C2) into a preregistered, control-bearing,
+    fully budgeted experiment contract meeting docs/target-result-profile.md's
+    heuristic-validation standard (A7) and docs/inventor-protocol.md section
+    3's controls-before-belief discipline, BEFORE any compute is spent: does
+    the paired-independent-key data-path Hamming-distance histogram converge
+    to Binomial(128,1/2) by round ~2-4 and stay there through the full round
+    count, for BOTH the real cipher and a matched structural null in which the
+    key schedule is replaced by independent uniform round keys (whitening key
+    RK[0] preserved) — or does the real-cipher arm retain detectable
+    cross-key structure past the predicted convergence window while the
+    matched-null arm does not, the data-path analogue of H-AES-77230c's
+    key-schedule non-saturation finding (ledger/hypotheses/H-AES-77230c.yaml,
+    density stuck at 0.78125, never 1.0, at round 10)?
+
+  inputs:
+    fixed_plaintext_P: >-
+      One FIXED plaintext block P, declared once at design-freeze time as a
+      16-byte constant (e.g. P = 0x00112233445566778899aabbccddeeff, the
+      FIPS-197 Appendix B/C example plaintext, chosen because it is already
+      the block used by this campaign's own KAT cross-checks
+      (envelope-receipt.json item iv / run3-python.json), so the same
+      constant serves both correctness verification and the C2 measurement
+      without introducing a second magic value). P is IDENTICAL across every
+      sample, every round, every arm, and every key size in this design;
+      varying P is explicitly OUT OF SCOPE for this design (see
+      interpretation_limits in falsification_criterion/scope_note below) and
+      would require a superseding design.
+    key_sizes_and_round_counts:
+      - {key_size_bits: 128, full_round_count_R: 10}
+      - {key_size_bits: 192, full_round_count_R: 12}
+      - {key_size_bits: 256, full_round_count_R: 14}
+    round_boundary_convention: >-
+      state_0 := the state immediately after the initial whitening
+      AddRoundKey (FIPS-197's "AddRoundKey" step using w[0..Nb-1]), BEFORE
+      Round 1's SubBytes. state_r for r=1..R := the state immediately after
+      round r's own final step (AddRoundKey for r=1..R-1 and r=R, MixColumns
+      included for r=1..R-1 and OMITTED for r=R per the standard final-round
+      rule). h_r := HammingWeight(state_r(K) XOR state_r(K')), an integer in
+      {0,...,128}. THIS CONVENTION IS FROZEN BY THIS DESIGN; an executor that
+      reads "round r" any other way (e.g. state_0 = P with no whitening) is
+      not running this design and must not report against it.
+    implementation_basis: >-
+      PURE PYTHON, not C/AES-NI. This corrects C2's original
+      `minimal_test_sketch` wording ("C, instrumented, non-AES-NI"), which
+      predates the RANK 3 envelope measurement
+      (coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/tasks/TASK-20260810-2a0a37/envelope-receipt.json).
+      That receipt found (item ii) that `-maes` DOES NOT COMPILE on the
+      measured host (Apple clang 17.0.0 masquerading as gcc, targeting
+      arm64-apple-darwin25.6.0) and (item iii) that the only compiling
+      accelerated path (arm64 crypto extension) FAILS its own FIPS-197 KAT
+      (0/8 vectors agree with the openssl CLI) and is therefore
+      `invalid_measurement`. The ONLY validated throughput figure in this
+      environment is item iv, the pure-Python implementation: 11061.1924
+      AES-128 evaluations/s/core (fresh key, key schedule charged per
+      evaluation, KAT-verified 4/4 against the openssl CLI, run3-python.json).
+      This design is sized against THAT figure and requires a freshly built
+      (not pasted) pure-Python implementation with tables constructed from the
+      AES definition, per the same discipline run3-python.json used, extended
+      to EXPOSE the round-r state (an "instrumented" build in the sense C2's
+      sketch intended, just not in C).
+    arms:
+      - id: ARM-REAL
+        name: real_cipher
+        description: >-
+          Two independently uniform random keys K, K' (drawn per the seed
+          policy below), each processed through its OWN full, unmodified
+          AES-<keysize> key schedule (FIPS-197 KeyExpansion) and its own full
+          encryption of the fixed P, with state_r captured at every round
+          boundary per round_boundary_convention. No assumed algebraic
+          relation between K and K' (this is C2's defining feature,
+          distinguishing it from every coset/delta-based object PRIOR-1/2
+          named — see object-enumeration.yaml C2 `deduplication_argument`).
+      - id: ARM-NULL
+        name: matched_null_control
+        description: >-
+          STRUCTURAL null. RK[0] (the whitening round key) is PRESERVED
+          exactly as derived by the real KeyExpansion of K and K'
+          respectively (RK[0](K), RK[0](K')), so state_0 in this arm is
+          BYTE-IDENTICAL, sample for sample, to state_0 in ARM-REAL for the
+          same (K,K') pair — the two arms start from the identical initial
+          condition. For r=1..R, RK[r] is replaced by an INDEPENDENT
+          uniformly random 128-bit string, drawn fresh per round per
+          trajectory (i.e. 2*R independent draws per sample: R for K's
+          trajectory, R for K''s trajectory, none equal to any real
+          KeyExpansion output and none correlated with any other round's
+          draw). The round FUNCTION itself (SubBytes, ShiftRows, MixColumns)
+          is UNCHANGED — only the round-key SOURCE is replaced. This isolates
+          whether the real key schedule's round-to-round CORRELATION
+          structure (all round keys derived from one seed via a fixed linear
+          recurrence) is load-bearing for any observed convergence pattern,
+          versus convergence being generic to "any round-key sequence at
+          all." Holding RK[0] fixed across arms (rather than randomizing it
+          too) is a deliberate design choice, independently re-derived here
+          (not borrowed from PRIOR-2's D-4 note as authority, per this
+          campaign's citation discipline): it holds the ONE nuisance variable
+          (the initial condition state_0) constant across arms so that a
+          difference between ARM-REAL and ARM-NULL at r>=1 is attributable
+          to the round-key CORRELATION STRUCTURE under test, not to a
+          different starting point.
+      - id: ARM-ANCHOR
+        name: sensitivity_anchor_planted_difference
+        description: >-
+          POSITIVE CONTROL, not a statistical arm and not a candidate
+          attack object. Draw K uniformly at random; construct K'' whose
+          ENTIRE key schedule is IDENTICAL to K's except round key RK[1] is
+          replaced by RK[1](K) XOR delta, for a FIXED, DECLARED,
+          non-uniformly-random delta (delta_low or delta_high, below). Every
+          other round key (RK[0], RK[2..R]) is identical between the K and
+          K'' trajectories. By construction, state_0(K) == state_0(K'')
+          exactly (h_0 = 0, deterministic), and state_1(K) XOR state_1(K'')
+          == delta EXACTLY, deterministically, independent of K, because
+          MixColumns(ShiftRows(SubBytes(state_0))) is computed from the
+          IDENTICAL state_0 in both trajectories and only the final
+          AddRoundKey of round 1 differs, by exactly delta. This is
+          "detectable by construction" in object-enumeration.yaml C2's own
+          phrase (minimal_test_sketch), not a statistical claim: it exists
+          to verify the measurement PIPELINE has power to detect a KNOWN,
+          engineered, large deviation from Binomial(128,1/2) before any
+          finding from ARM-REAL/ARM-NULL is trusted. USED PURELY
+          DIAGNOSTICALLY: this construction resembles a single fixed-input
+          differential trajectory in spirit, but its ROLE here is a
+          correctness/power check on the instrument, exactly as PRIOR-5's L0
+          null object (SubBytes replaced by identity) was used as a
+          sensitivity anchor for a different design — it is NOT proposed as
+          the primary lens and does not reopen "differential and truncated
+          differential," which RQ-AES-002 declares off-limits as the primary
+          lens for this campaign.
+      - id: GATE-ROUND0
+        name: round_0_sanity_gate
+        description: >-
+          For ARM-REAL and ARM-NULL alike, h_0 == HammingWeight(RK[0](K) XOR
+          RK[0](K')). Because RK[0] for AES-128 is the raw key K itself
+          (FIPS-197 KeyExpansion word 0..3 = the input key bytes verbatim),
+          and for AES-192/256 is the first 128 bits of the raw key, h_0 is
+          the Hamming weight of the first 128 bits of two INDEPENDENT
+          UNIFORM RANDOM keys XORed together, which is EXACTLY
+          Binomial(128,1/2) by construction — a purely probabilistic fact
+          about independent uniform bit strings, requiring no AES round
+          function at all. This is NOT a finding about AES; it is an
+          IMPLEMENTATION-CORRECTNESS gate. Any measured deviation of h_0's
+          empirical distribution from Binomial(128,1/2) beyond sampling noise
+          indicates a bug in key generation or state-0 bookkeeping, not a
+          property of AES, and HALTS the run (stopping_rules below).
+    sample_size_tiers:
+      - tier: pilot
+        N: 4096            # 2^12
+        purpose: >-
+          Mandatory FIRST phase for every key-size run. Verifies GATE-ROUND0,
+          ARM-ANCHOR, and the final-ciphertext KAT pass; MEASURES (does not
+          assume) the actual wall-clock cost of the instrumented
+          (round-state-capturing) pipeline, per
+          docs/inventor-protocol.md section 6 step 1 ("isolate each
+          assumption... and measure it separately at a scale where
+          measurement is possible"). The base throughput figure
+          (11061.1924 evals/s/core) measures ONLY final-ciphertext
+          computation, not per-round state capture and per-round
+          Hamming-weight bookkeeping; this pilot supplies the missing,
+          instrumentation-inclusive number before the primary tier's budget
+          is trusted.
+      - tier: primary
+        N: 1048576          # 2^20
+        purpose: >-
+          THE PREREGISTERED, DECISION-BEARING sample size for the
+          success/falsification determination in every key size. Chosen so
+          that, under the WORST-CASE assumption of NO multi-core parallelism
+          (this environment's multi-core scaling is explicitly UNMEASURED
+          for the only valid implementation per envelope-receipt.json item
+          vi's own disclosure, and this design does not rely on it), the
+          full run for every key size fits inside a single 1600 s task
+          budget with several-fold headroom (see `budget` below for the
+          derivation). N=2^20 is the LOWER end of C2's own
+          `minimal_test_sketch` range (2^16-2^24); the choice trades sample
+          count for staying inside a single dispatched task without
+          depending on the unvalidated multi-core assumption.
+      - tier: escalation
+        N: 16777216          # 2^24
+        purpose: >-
+          NAMED, NOT AUTHORIZED BY THIS DESIGN. The upper end of C2's own
+          `minimal_test_sketch` range. At the SAME worst-case single-core
+          assumption this costs roughly 3.0-3.9 CPU-hours (see `budget`
+          derivation), i.e. 3-12x a single 1600 s task, per key size. Running
+          it requires either a multi-task chained dispatch or a
+          Coordinator-approved larger budget line; this design supplies the
+          arithmetic but does not request or authorize the dispatch.
+    seed_policy: >-
+      Deterministic, reproducible, and fully specified so no executor
+      judgment call is needed. BASE_SEED := 20260901 (this task's dispatch
+      date, YYYYMMDD, as an integer). For key_size in {128,192,256} (index
+      ks_idx in {0,1,2} respectively) and arm in {real, null, anchor} (index
+      arm_idx in {0,1,2} respectively): SEED(key_size, arm, tier) :=
+      BASE_SEED + 1000*ks_idx + 100*arm_idx + tier_offset, where
+      tier_offset is 0 for pilot and 1 for primary. Each such SEED
+      initializes an independent `random.Random(SEED)` instance (Python
+      standard library) used ONLY for that (key_size, arm, tier)
+      combination's key draws; no seed is shared or reused across
+      combinations. The calibration-null draws (below) use a SEPARATE,
+      declared seed: CAL_SEED := BASE_SEED + 900000.
+    delta_values_for_ARM_ANCHOR:
+      deltas:
+        - id: delta_low
+          hex: "0x00000000000000000000000000000001"
+          hamming_weight: 1
+          purpose: >-
+            A single-bit round-key difference should be the HARDEST case for
+            the instrument to detect (smallest deviation from state_0's
+            identical value); confirming h_1 == 1 exactly validates the
+            pipeline at minimum sensitivity.
+        - id: delta_high
+          hex: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          hamming_weight: 64
+          purpose: >-
+            0xAA = 0b10101010 (4 set bits) repeated over 16 bytes = exactly 64
+            set bits, chosen because 64 is ALSO the mean of the target null
+            Binomial(128,1/2) distribution: h_1 == 64 exactly in ARM-ANCHOR
+            under this delta despite being a DEGENERATE (Dirac, not
+            binomially-distributed) outcome, which is precisely the point —
+            the sensitivity-anchor gate checks against the EXACT deterministic
+            value 64, not against "looks like the null," and a pipeline bug
+            that silently reports a binomial-looking value here would be
+            caught by the exact-equality check, not by a distributional one.
+      draws_per_delta: 20
+      note: >-
+        20 independent K draws (per the seed policy's arm_idx=2 "anchor"
+        stream) per delta value, 2 delta values, 3 key sizes = 120
+        deterministic checks total, each requiring one key-schedule pair and
+        one round of encryption — well under a second of compute in
+        aggregate; negligible relative to the pilot/primary tiers.
+    statistical_procedure:
+      null_model: >-
+        H0 (per round r, arm, key size): h_r ~ Binomial(128, 1/2) i.i.d.
+        across the N sampled (K,K') pairs. p_bin(k) := C(128,k) * 0.5^128
+        for k = 0..128, computed via the exact integer binomial coefficient
+        (Python's arbitrary-precision integers; no floating-point
+        combinatorial approximation) to avoid tail underflow.
+      primary_statistic_total_variation_distance: >-
+        TVD_r(arm) := 0.5 * sum_{k=0}^{128} |p_hat_r(k) - p_bin(k)|, where
+        p_hat_r(k) := count(h_r == k) / N is the empirical frequency at
+        round r for that arm/key-size. TVD is PRIMARY (not chi-square
+        p-value) because at N up to 2^20-2^24 a chi-square test has power
+        to detect deviations far smaller than any effect size this design
+        cares about, making raw p-values hypersensitive and uninformative
+        about MATERIALITY; TVD is bounded in [0,1] and directly comparable
+        across sample sizes, rounds, arms and key sizes.
+      secondary_statistic_chi_square_goodness_of_fit: >-
+        A binned Pearson chi-square statistic is computed as a DIAGNOSTIC
+        cross-check, never as the decision rule. BINNING RULE (fully
+        deterministic, no judgment call): start from k=64 (the mode) and
+        extend outward; merge k=0..low-1 into one "low tail" bin and
+        k=high+1..128 into one "high tail" bin, where low is the smallest
+        k with N*p_bin(k) >= 5 and high is the largest k with the same
+        property (standard Cochran rule for chi-square validity). Retained
+        bins: {low_tail, low, low+1, ..., high, high_tail}, B bins total.
+        X2_r(arm) := sum_over_bins (observed - N*p_bin_bin)^2 / (N*p_bin_bin).
+        Degrees of freedom := B - 1 (p=1/2 is fixed by H0, not fit from
+        data, so no additional parameter-count reduction). Reported
+        alongside its p-value (chi-square CDF, B-1 df) for every
+        (round, arm, key_size); NEVER used alone to decide convergence.
+      sampling_noise_calibration_null: >-
+        tau(N) := the 99th percentile, over M=1000 independent synthetic
+        replicate draws EACH of size N directly from the theoretical
+        Binomial(128,1/2) (not from any AES computation), of the same
+        TVD statistic computed against the same p_bin. This calibrates
+        "how much TVD does pure sampling noise alone produce at this N,"
+        giving a materiality threshold GROUNDED IN THE ACTUAL FINITE-SAMPLE
+        NOISE FLOOR rather than an arbitrary cutoff. Computed ONCE PER N
+        (reused across every round, arm, and key size at that N, since
+        tau depends only on N and the fixed null model, never on the
+        observed data) using CAL_SEED. IMPLEMENTATION: if numpy is
+        importable in the execution environment (numpy 2.4.4 confirmed
+        importable in this environment per RANK 3's own
+        run1-inventory.json, cited by path, NOT re-verified here),
+        use numpy.random.binomial(128, 0.5, size=(M, N)) (vectorized,
+        seconds-scale even at N=2^24) seeded from CAL_SEED via
+        numpy.random.default_rng(CAL_SEED); if numpy is unavailable at
+        run time, fall back to M=200 (reduced for cost) pure-Python
+        replicates, each drawn as the sum of 128 independent
+        random.Random(CAL_SEED + replicate_index).random() < 0.5
+        Bernoulli trials per sample, and record which path was used in the
+        run manifest. This is the ONLY compute in this design that is not
+        AES-shaped; it is a pure statistical calibration and is described
+        here, not run.
+      tail_check: >-
+        Per docs/target-result-profile.md A7's pattern. At the FULL round
+        count R only (not every round, to bound reporting volume), for
+        ARM-REAL and ARM-NULL separately, per key size: identify m_min :=
+        the minimum observed h_R value across the N primary-tier samples
+        and m_max := the maximum. Report the EXACT binomial tail
+        probabilities Pr[H <= m_min] and Pr[H >= m_max] under
+        Binomial(128,1/2) (computed via the exact integer pmf summed
+        exactly, not a normal approximation, since exactness matters at
+        the extreme tail) and check consistency with order-statistic
+        expectation at N=2^20 (i.e., N * Pr[H <= m_min] should be of order
+        1, matching the exemplar's "smoothest sample" consistency check).
+        A wildly inconsistent extreme (e.g. N * Pr[H <= m_min] >> 1,
+        meaning an implausibly extreme value was observed far more often
+        than chance predicts) is itself an instrument-integrity flag,
+        reported alongside the main result, not silently absorbed.
+
+  controls:
+    - "ARM-NULL (matched_null_control): structural null isolating whether the real key schedule's round-to-round correlation is load-bearing for any observed convergence, versus generic to any round-key sequence."
+    - "sampling_noise_calibration_null (tau(N)): statistical null fixing the materiality threshold from the actual finite-sample noise floor of the theoretical Binomial(128,1/2), not an arbitrary cutoff."
+    - "ARM-ANCHOR (sensitivity_anchor_planted_difference): deterministic positive control verifying the measurement pipeline can detect a KNOWN, engineered, large deviation before any ARM-REAL/ARM-NULL result is trusted."
+    - "GATE-ROUND0 (round_0_sanity_gate): implementation-correctness check independent of the AES round function, verifying key generation and state-0 bookkeeping are not the source of any observed pattern."
+    - "Final-ciphertext FIPS-197 KAT cross-check of the instrumented implementation against the openssl CLI (and pycryptodome if importable), re-run fresh for THIS instrumented build before any sampling — the RANK 3 receipt's 4/4 KAT agreement (run3-python.json) was measured on a DIFFERENT, non-instrumented, ciphertext-only implementation and does not transfer automatically to a round-state-exposing build."
+
+  independent_variables:
+    - "round r, r = 0..R (R = 10/12/14 by key size)"
+    - "key_size_bits, in {128, 192, 256}"
+    - "arm, in {real_cipher, matched_null_control, sensitivity_anchor_planted_difference}"
+    - "sample_size_tier, in {pilot (N=2^12), primary (N=2^20), escalation (N=2^24, named but not authorized)}"
+
+  metrics:
+    primary:
+      - "TVD_r(arm, key_size): total variation distance between the empirical h_r histogram and Binomial(128,1/2), per round, arm, and key size, at the primary tier (N=2^20)"
+      - "first-convergence round r*(arm, key_size) := min{r in [1,R] : TVD_r(arm,key_size) <= tau(N_primary)}, or 'no convergence within [1,R]' if none exists"
+    secondary:
+      - "X2_r(arm, key_size) and its chi-square p-value, per round/arm/key size, diagnostic only"
+      - "empirical mean and variance of h_r per round, vs the theoretical 64 and 32, per arm/key size"
+      - "tail_check outputs (m_min, m_max, Pr[H<=m_min], Pr[H>=m_max], N*Pr[H<=m_min]) at round R, per arm/key size"
+      - "GATE-ROUND0 pass/fail and ARM-ANCHOR exact-match pass/fail counts (120 checks), per key size"
+
+  heuristic_under_test: >-
+    NO CANONICAL HEUR-NNN LEDGER ENTRY EXISTS FOR THIS HEURISTIC (checked:
+    KS-D3 below finds zero heuristic_assumptions blocks under RQ-AES-002 in
+    ledger/hypotheses/). Stated here as a locally-scoped CANDIDATE HEURISTIC
+    (id CH-1, not a registered HEUR-NNN; registering one is a Coordinator/
+    idea-generator act this task does not perform), per the task card's
+    instruction to name it explicitly even though this design claims no
+    target-class status:
+    CH-1. "AES's data path behaves, with respect to the paired-independent-
+    key Hamming-distance statistic h_r, like a family of two independent
+    random permutations applied to a common fixed input, by round
+    approximately 2-4." FORMAL STATEMENT: for K, K' iid uniform over
+    {0,1}^{keysize}, and P fixed, Pr[h_r = k] converges (in total variation,
+    as measured by TVD_r) to C(128,k)*0.5^128 for all k, for some r in
+    {2,3,4}, and TVD_r remains at or below the sampling-noise floor tau(N)
+    for every r > that round through the full round count R.
+    RANDOM-MODEL JUSTIFICATION (stated honestly, not overclaimed): this
+    IMITATES the classical distribution law for two independent uniform
+    128-bit strings' Hamming distance (exactly Binomial(128,1/2), a proven,
+    elementary fact used already at GATE-ROUND0). What CH-1 additionally
+    assumes — and what is NOT rigorously established for AES's actual round
+    function anywhere in this campaign or, so far as this session's
+    unresolvable-literature environment can determine, cited from any read
+    source (RQ-AES-002 provenance: no primary source reachable) — is that
+    AES's round transformation, iterated a small constant number of times,
+    mixes an arbitrary nonzero input-state difference to the point of
+    statistical indistinguishability from independence, in the specific
+    sense of TVD_r crossing tau(N). This is the informal "avalanche effect" /
+    Strict Avalanche Criterion folklore, RESTATED FORMALLY here rather than
+    invoked by name, and is ANALOGOUS to (not proved by) a random-walk
+    mixing-time argument: if each round's transition kernel had a spectral
+    gap bounded away from zero, standard mixing-time bounds would give
+    convergence in O(log(128)) steps; NO SUCH SPECTRAL-GAP BOUND IS PROVEN
+    FOR AES'S ACTUAL ROUND FUNCTION IN THIS RECORD OR CITED FROM ANY VERIFIED
+    SOURCE. CH-1 is exactly the heuristic docs/inventor-protocol.md section 3
+    says any apparent signal is an artifact until controlled against; this
+    design IS that control. CH-1's own confidence is REDUCED (not default)
+    by this campaign's structurally adjacent finding H-AES-77230c
+    (ledger/hypotheses/H-AES-77230c.yaml): the AES-128 KEY SCHEDULE's
+    bit-influence density does NOT reach 1.0 even at round 10 (stuck at
+    0.78125), directly contradicting a naive full-diffusion expectation for
+    a structurally similar quantity. Whether the DATA PATH under two
+    unrelated keys has an analogous non-saturation is exactly what this
+    design's falsification_criterion tests.
+
+  preregistered_prediction:
+    quantity: >-
+      The full empirical distribution (129-point histogram, k=0..128) of
+      h_r, the Hamming distance between the two independent-key
+      trajectories' COMPLETE intermediate state, at every round boundary
+      r=0..R, for BOTH ARM-REAL and ARM-NULL, at each of the three key
+      sizes, at the primary sample-size tier (N=2^20).
+    formula: >-
+      H0 per (round, arm, key_size): h_r ~ Binomial(128, 1/2) i.i.d.
+      PREDICTION (CH-1, stated at REDUCED CONFIDENCE per H-AES-77230c's
+      precedent, named explicitly rather than assumed): for BOTH ARM-REAL
+      and ARM-NULL, TVD_r exceeds tau(N) at r=1 (confirming, jointly with
+      GATE-ROUND0 and ARM-ANCHOR, that the instrument starts from a
+      genuinely non-null, detectable state rather than trivially reporting
+      "converged" from round 0 onward) and decays to at-or-below tau(N) by
+      some r* in {2,3,4}, remaining at-or-below tau(N) for every subsequent
+      round through R, for every key size. The possibility that r* does not
+      exist within [2,4] for ARM-REAL specifically, or exists but excess
+      later re-emerges past it (an event this design's own invalidation
+      rule would flag rather than silently absorb), is the substantive
+      open question this design is built to discriminate — it is NOT
+      assumed to resolve either way by this record.
+    source: >-
+      object-enumeration.yaml, id C2, fields `mechanism` and
+      `axis_scores.survival.rationale`
+      (coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/tasks/TASK-20260810-d8835b/object-enumeration.yaml);
+      the reduced-confidence qualifier is sourced from H-AES-77230c.yaml
+      `statement` and `predictions[0]` (ledger/hypotheses/H-AES-77230c.yaml),
+      cited as a structurally-adjacent precedent per that record's own
+      `interpretation_limits` (explicitly scoped to the key schedule as a
+      standalone object under RQ-AES-001, "distinct from a statement about
+      the cipher at full round count" and "not owned by and does not touch
+      GOAL-AES-002" — cited here ONLY as context for why CH-1's confidence
+      is reduced, never as authority transferred across questions).
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      `toy` per RQ-AES-002 R7's explicit, question-specific ruling: "DEFAULT
+      TIER IS toy for every evidence record under this question... regardless
+      of the full-round ambition of the mechanism they serve." This overrides
+      docs/claims-and-verification.md's generic field-bit-size-derived tier
+      table, which is written for ECDLP experiments and does not transfer
+      directly to a block-cipher record; RQ-AES-002 R7 is the governing,
+      domain-specific ruling for this question and is followed here rather
+      than the generic table. NOTED EXPLICITLY SO THE TENSION IS NOT SILENT:
+      the ACTUAL TESTED PARAMETERS are cryptographic-size keys (128/192/256
+      bits) at their FULL published round counts (10/12/14) — this is not a
+      small-parameter analogue standing in for a real-size claim, the way a
+      GF(2^4) toy cipher would be. The `toy` LABEL here reflects R7's
+      blanket claim-tier ceiling for this question (no cost claim, no
+      distinguisher claim, no key-recovery claim may exceed `analyzed` in
+      this environment regardless of measured parameters), not a statement
+      about parameter smallness. Transfer/extrapolation assumption: this
+      design tests exactly ONE fixed plaintext P at each key size; nothing
+      is asserted about any other plaintext, about related-key structure, or
+      about any statistic finer-grained than the full-state Hamming weight
+      (matching object-enumeration.yaml C2's own `interpretation_limits`).
+    correspondence: null
+    correspondence_note: >-
+      NULL — no correspondence or scaled-analogue sampling trick is used to
+      reach scale; K, K', and P are drawn/fixed directly at their real
+      cryptographic size and the real full round count. This is a genuine
+      positive relative to a typical `toy`-tier record (see justification
+      above): the parameters are not scaled down, only the claim tier is
+      ceilinged by RQ-AES-002 R7's blanket rule.
+
+  tail_checks:
+    - >-
+      Per statistical_procedure.tail_check above: at round R (full round
+      count), per arm, per key size, the extreme observed h_R value (min and
+      max across N=2^20 primary-tier samples) is compared against its exact
+      Binomial(128,1/2) tail probability, with the order-statistic
+      consistency check N*Pr[H<=m_min] ~ O(1), per
+      docs/target-result-profile.md A7's exemplar pattern (the p=5*2^248-1
+      "smoothest of 100,000 samples is 12589-smooth; predicted probability
+      ~1/69232 — consistent" check).
+    - >-
+      GATE-ROUND0 and ARM-ANCHOR (statistical_procedure / arms above) are
+      themselves EXACT (not statistical) tail checks in the trivial sense:
+      their predicted values (Binomial(128,1/2) for h_0; the deterministic
+      weight(delta) for h_1 under ARM-ANCHOR) are checkable with zero
+      sampling uncertainty, and any deviation is unambiguous instrument
+      failure rather than a borderline statistical call.
+
+  replication:
+    seeds: >-
+      Deterministic per seed_policy above (BASE_SEED=20260901,
+      CAL_SEED=BASE_SEED+900000); every (key_size, arm, tier) combination's
+      seed is derived by the stated formula, requiring no executor judgment.
+    independent_instances: 1
+    independent_instances_note: >-
+      A single seeded primary-tier run (N=2^20) per key size is sufficient
+      to evaluate the falsification_criterion below, since N=2^20 already
+      supplies its own internal statistical power (tau(N) is derived from
+      that same N). A SECOND, independently-seeded full replication
+      (independent_instances=2) is RECOMMENDED, not required, specifically
+      for any key size whose result lands CLOSE to the decision boundary
+      (TVD_r within a factor of 2 of tau(N) at the predicted convergence
+      round or at any invalidation-relevant round) — a future Coordinator
+      decision, not mandated by this design, and named here so it is not
+      silently skipped if that situation arises.
+
+  budget:
+    wall_clock_seconds_per_run: 1600
+    wall_clock_seconds_per_run_note: >-
+      Matches this campaign's own established per-task sizing convention
+      (envelope-receipt.json item vi `basis`: "Per-task budget = 1600 s wall
+      clock (GOAL-AES-002 campaign_budget sizing_basis, executor producer
+      line)"). DERIVATION, SHOWN NOT ASSERTED, from the ONLY validated
+      throughput figure in this environment (11061.1924 AES-128
+      evaluations/s/core, single core, fresh key, KAT-verified,
+      envelope-receipt.json item iv, cited by path, NOT re-measured here):
+      per key size, ARM-REAL + ARM-NULL together require 2 arms * N samples
+      * 2 keys(K,K') = 4N evaluation-equivalents at the primary tier
+      (N=2^20=1,048,576): 4N = 4,194,304. At AES-128's measured rate:
+      4,194,304 / 11061.1924 ~= 379.2 s (single core, worst case, NO
+      parallelism assumed or required). AES-192/256 have no VALIDATED
+      throughput figure in this environment; conservatively scaling the
+      AES-128 figure by round-count ratio ONLY (12/10=1.2x, 14/10=1.4x — an
+      approximation, explicitly flagged, NOT a measurement) gives ~455.0 s
+      (AES-192) and ~530.9 s (AES-256). All three fit inside 1600 s with
+      3.0-4.2x headroom, single core, which is offered as a buffer for the
+      round-state-capture/Hamming-bookkeeping overhead the base figure does
+      NOT include (it measures final-ciphertext computation only) — this
+      buffer is UNVALIDATED and stopping_rules.4 (mandatory pilot-based
+      recalibration) governs before the primary tier is trusted against this
+      number. Escalation-tier arithmetic (N=2^24), named but NOT authorized:
+      4*16,777,216=67,108,864 evaluation-equivalents; ~6068 s (AES-128),
+      ~7282 s (AES-192, scaled), ~8495 s (AES-256, scaled) at single core —
+      3.8-5.3x a single 1600 s task per key size, requiring either a
+      multi-task chained dispatch or a Coordinator-approved larger budget
+      line.
+    total_cpu_hours: 1.0
+    total_cpu_hours_note: >-
+      Sum of the three key sizes' point-estimate primary-tier times
+      (379.2+455.0+530.9 ~= 1365.1 s ~= 0.379 CPU-hours, single-core
+      equivalent, per wall_clock_seconds_per_run_note derivation) plus the
+      three pilot tiers (each N=2^12, i.e. 1/256th of the primary tier's
+      evaluation count, a few seconds each) plus calibration compute
+      (numpy-vectorized per statistical_procedure, seconds-scale) plus the
+      120 ARM-ANCHOR deterministic checks (sub-second), rounded UP to 1.0
+      CPU-hour for margin. Declared budget line, not a measurement.
+    maximum_memory_gb: 2
+    maximum_memory_gb_note: >-
+      The per-sample state is O(1) (16-byte state arrays, 128/192/256-bit
+      key schedules); the design REQUIRES streaming histogram accumulation
+      (increment a 129-entry count array per round per arm per key size as
+      each sample is generated, never buffering all N raw trajectories
+      simultaneously), making peak memory O(rounds * 129) regardless of N —
+      trivially small. 2 GB is a generous ceiling covering Python
+      interpreter/table overhead, not a tight estimate; this is a design
+      REQUIREMENT on the implementation (streaming, not batch-buffered), not
+      merely a budget line.
+    maximum_runs: 3
+    maximum_runs_note: >-
+      One execution per key size (AES-128, AES-192, AES-256), each an
+      internally-phased run (KAT check -> GATE-ROUND0 -> ARM-ANCHOR ->
+      pilot -> primary sampling -> analysis) governed by stopping_rules,
+      not three separately-dispatched pilot+primary pairs.
+    maximum_workers: null
+    maximum_workers_note: >-
+      NULL == 1 == single process, DELIBERATELY. This design's primary-tier
+      sample size (N=2^20) is sized to fit the 1600 s budget under the
+      WORST-CASE single-core assumption specifically so the design does NOT
+      depend on this environment's UNMEASURED multi-core scaling
+      (envelope-receipt.json item vi discloses this explicitly for the only
+      valid implementation: "multi-core scaling is ASSUMED LINEAR and was
+      NOT measured for any valid implementation"). A future executor MAY
+      request `maximum_workers` > 1 as a separate, explicitly justified
+      amendment, but this design does not require it and recommends against
+      relying on it until it is actually measured.
+
+  stopping_rules:
+    - >-
+      1. FINAL-CIPHERTEXT KAT PRE-CHECK. Before any sampling, the
+      instrumented implementation must reproduce standard FIPS-197
+      known-answer vectors EXACTLY for AES-128/192/256, cross-checked
+      against the openssl CLI and, if importable, pycryptodome. FAILURE
+      HALTS the run; record as infrastructure signal / `invalid_measurement`
+      per AGENTS.md rule 5, never as evidence about AES.
+    - >-
+      2. GATE-ROUND0. On the first 1000 pilot-tier samples, h_0 (as computed
+      by the instrumented state-tracking code path) must equal
+      HammingWeight(RK[0](K) XOR RK[0](K')) computed INDEPENDENTLY from the
+      raw key bytes (bypassing the round-function code path), for BOTH
+      ARM-REAL and ARM-NULL, in EVERY sample. Any mismatch HALTS the run;
+      `invalid_measurement`, an implementation defect, never evidence.
+    - >-
+      3. ARM-ANCHOR SENSITIVITY GATE. All 120 deterministic checks
+      (delta_low and delta_high, 20 K-draws each, x3 key sizes) must return
+      h_1 EXACTLY equal to the declared delta's Hamming weight (1 or 64
+      respectively). Any mismatch HALTS the run; `invalid_measurement`, and
+      per invalidation_rules.2 below, retroactively invalidates any
+      already-collected primary-tier data for that key size, because this
+      gate is REQUIRED to run strictly before pilot/primary sampling, never
+      after.
+    - >-
+      4. MANDATORY PILOT-BASED RECALIBRATION. After the pilot tier
+      (N=2^12) completes with gates 1-3 passed, measure the ACTUAL observed
+      wall-clock cost per sample of the full instrumented pipeline
+      (including state capture and histogram bookkeeping, which the
+      11061.1924 evals/s/core baseline figure does not include). Re-derive
+      the primary tier's expected wall-clock from this MEASURED throughput.
+      If the re-derived estimate exceeds wall_clock_seconds_per_run (1600
+      s), REDUCE N_primary to the largest power of two that fits under the
+      measured throughput, record the reduction and its measured basis, and
+      proceed at the reduced N — never silently proceed at the original
+      N=2^20 target past a measured overrun, and never extrapolate past a
+      measured shortfall.
+    - >-
+      5. PRIMARY-RUN WALL-CLOCK BUDGET STOP. If a primary-tier run exceeds
+      wall_clock_seconds_per_run before completing all rounds for all N
+      samples, STOP at the current sample count, record the ACHIEVED N
+      (never the target N), and report every statistic (TVD_r, X2_r, tail
+      checks) at the achieved N, explicitly flagged as reduced-from-
+      preregistered N.
+    - >-
+      6. PER-KEY-SIZE INDEPENDENCE. Each of the three key sizes is its own
+      independent stopping/decision unit; a halt or failure in one key
+      size's run does not invalidate or block the other two.
+
+  invalidation_rules:
+    - >-
+      THE ROUND-COUNT DECAY CHECK (this design's central, task-card-required
+      invalidation rule, per docs/inventor-protocol.md section 3's canonical
+      artifact tell). For BOTH ARM-REAL and ARM-NULL, independently, at each
+      key size: TVD_{r+1}(arm) must not exceed TVD_r(arm) + tau(N) for any
+      consecutive round pair r, r+1 in [1, R] (the "+tau(N)" term tolerates
+      genuine finite-sample noise in the TVD_r ESTIMATE itself, distinct
+      from tau(N)'s use as the convergence threshold). ANY violation — a
+      jump in excess-over-null exceeding one calibration-null-threshold's
+      worth of sampling noise — INVALIDATES the interpretation of that
+      arm's series at that key size as evidence about convergence or its
+      absence. It is recorded and reported as the canonical artifact tell
+      (docs/inventor-protocol.md section 3: "an excess that stays constant
+      [or reappears] across rounds is instead the signature of an
+      artifact"), and the run's result for that (arm, key_size) is reported
+      as UNINTERPRETABLE pending instrument investigation, NEVER as a
+      null-convergence finding and NEVER as a structure-retention finding.
+    - >-
+      ARM-ANCHOR ORDERING REQUIREMENT. Stopping rule 3 (the sensitivity
+      gate) MUST run strictly BEFORE pilot and primary sampling for a given
+      key size, never after or concurrently with it. If this design's own
+      procedure is deviated from (anchor run after primary sampling
+      completes), ALL primary-tier data collected before the anchor check
+      passed is retroactively INVALID and must be re-collected, because the
+      anchor's purpose — confirming the pipeline has ANY sensitivity before
+      trusting a "converged" reading — cannot certify data gathered before
+      it ran.
+    - >-
+      KAT RE-FAILURE. A KAT failure discovered at ANY later point (e.g. a
+      re-check performed before the primary tier, on the exact same
+      implementation file/hash used for the pilot) invalidates ALL data
+      collected under that implementation version, back to and including
+      the pilot tier.
+    - >-
+      ARM-NULL PERSISTENT EXCESS IS AN INSTRUMENT FLAG, NOT AN AES FINDING.
+      If ARM-NULL's OWN TVD_r series fails the round-count decay check (a
+      persistent, non-decaying excess in the STRUCTURAL null, whose true
+      generating process — independent uniform round keys through the
+      unmodified AES round function — has no stated reason to deviate from
+      Binomial(128,1/2) once several rounds of SubBytes/MixColumns mixing
+      have occurred), this is reported as a MEASUREMENT-PIPELINE DEFECT
+      requiring investigation BEFORE any claim is drawn from ARM-REAL under
+      the same pipeline, per docs/inventor-protocol.md section 3 ("run the
+      identical measurement against a null object... if the numbers match,
+      record a controlled null, not a finding" — extended here to "if the
+      null object itself fails to null out, the pipeline, not AES, is the
+      subject").
+
+  success_criterion: >-
+    The MEASUREMENT PIPELINE succeeds — produces an INTERPRETABLE result,
+    independent of which way that result comes out — iff: (a) the
+    final-ciphertext KAT pre-check, GATE-ROUND0, and the ARM-ANCHOR
+    sensitivity gate all pass, in the required order; (b) neither ARM-REAL
+    nor ARM-NULL triggers the round-count decay invalidation rule at any key
+    size; (c) the achieved sample size at the primary tier, per key size, is
+    at least the pilot-tier N=2^12 (below which the chi-square binning
+    rule's Cochran-rule guarantee, and TVD's own estimation reliability,
+    degrade). MEETING THIS BAR IS A CLAIM ABOUT MEASUREMENT VALIDITY, NOT
+    ABOUT AES: it states the run is interpretable, not that CH-1 (or its
+    negation) was confirmed.
+
+  falsification_criterion: >-
+    The preregistered prediction (CH-1: data-path convergence to
+    Binomial(128,1/2) by round ~2-4, sustained through the full round
+    count) is FALSIFIED, for a given key size, if: at some round r* with
+    5 <= r* <= R (materially past the predicted [2,4] convergence window,
+    giving the naive prediction a comfortable margin before being judged
+    falsified), TVD_{r*}(ARM-REAL) > tau(N) WHILE, AT THE SAME ROUND r* AND
+    KEY SIZE, TVD_{r*}(ARM-NULL) <= tau(N). This is a DIFFERENTIAL
+    condition, and it is the design's actual discriminator among THREE
+    possible outcomes, stated so each is defined before any data exists:
+    (i) CH-1 HOLDS — both ARM-REAL and ARM-NULL converge (TVD_r <= tau(N))
+    by some r* in {2,3,4} and stay there through R: the naive full-diffusion
+    heuristic holds for the data path, in contrast to H-AES-77230c's
+    key-schedule finding.
+    (ii) CH-1 IS FALSIFIED WITH A DATA-PATH-SPECIFIC MECHANISM — ARM-REAL
+    persists (TVD_r > tau(N)) past round 4 through some r* >= 5 while
+    ARM-NULL has already converged at that same r*: the real key schedule's
+    round-to-round CORRELATION structure (present in ARM-REAL, absent in
+    ARM-NULL) is doing something ARM-NULL's independent-random-round-keys
+    construction does not, an analogue of H-AES-77230c's key-schedule
+    non-saturation finding surviving on the data path. THIS OUTCOME, IF
+    OBSERVED, IS NOT ITSELF A DISTINGUISHER, A KEY-RECOVERY RESULT, OR A
+    MARGIN AGAINST EXHAUSTIVE SEARCH — see interpretation_limits below — it
+    is a falsification of CH-1 as stated, nothing more, and would itself
+    need its own follow-up design before any cost claim could be considered.
+    (iii) NEITHER ARM CONVERGES, OR BOTH PERSIST TOGETHER PAST ROUND 4 — per
+    invalidation_rules, this is NOT read as (ii); a shared persistent excess
+    in BOTH arms is the artifact signature docs/inventor-protocol.md section
+    3 names, and the run is reported UNINTERPRETABLE pending instrument
+    investigation, never as evidence for or against CH-1.
+
+  required_artifacts:
+    - "Source code: the fresh, self-built (tables from the AES definition, not pasted) pure-Python instrumented AES-128/192/256 implementation exposing state_r, with the openssl-CLI (and pycryptodome, if importable) cross-check harness for the final-ciphertext KAT."
+    - "Machine-readable per-round histograms (JSON/CSV): counts c_r(k) for k=0..128, per round, per arm, per key size, per tier (pilot and primary), streamed/accumulated per stopping_rules.4/maximum_memory_gb (never a dump of raw per-sample trajectories at the primary tier)."
+    - "The calibration-null code/output computing tau(N_pilot) and tau(N_primary), with the M and RNG path (numpy vs pure-Python fallback) actually used recorded."
+    - "The 120 ARM-ANCHOR deterministic-check outputs (pass/fail per delta/K-draw/key-size)."
+    - "GATE-ROUND0 pass/fail log for the first 1000 pilot samples per arm per key size."
+    - "A run manifest per AGENTS.md 'Artifact policy': exact command, git commit and dirty-tree state, environment/dependency versions (Python version, numpy availability and version if used), the seed policy's actual seeds used, requested model policy/backend and resolved runtime model identifier, stdout/stderr, raw machine-readable results, validity status and reason, timestamps and resource measurements."
+    - "certificate: kind: none, per docs/claims-and-verification.md ('kind: none is used for pure measurement runs... those have nothing to certify, and that is stated explicitly rather than left blank') — this design claims no solve, no key recovery, no decomposition; there is nothing to certify."
+
+  assigned_to: executor
+  approved_by: null
+  approved_by_note: >-
+    NULL. NOT APPROVED. Per SC-9 and this task's explicit prohibition, this
+    record does not authorize its own dispatch. Approval requires a separate
+    Coordinator decision citing this exact design by path, in a future
+    batch, per DEC-20260810-6c00b4's own next_actions item (5) framing
+    ("This decision does not itself approve or dispatch that measurement").
+
+# =============================================================================
+# BATCH-286bcd STANDING-CONSTRAINT SCAFFOLD (SC-1 through SC-11), IDENTICAL
+# DISCIPLINE TO THIS BATCH'S SIBLING RECORDS (object-enumeration.yaml,
+# protocol-amendment-GOAL-AES-002-003.yaml).
+# =============================================================================
+
+knowledge_retrieval:
+  attempted: true
+  outcome: unavailable_in_this_session
+  what_was_attempted_and_what_was_observed: >-
+    The crypto-kb MCP tools (search_knowledge, get_context, get_source,
+    find_related) named in CLAUDE.md/AGENTS.md's Knowledge retrieval policy
+    ARE NOT PRESENT in this session's tool surface. This subagent's tool
+    surface is Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage — no
+    knowledge-base MCP tool and no command-execution tool. No
+    `search_knowledge` query could be issued and none is recorded as issued
+    (recording an unissued query would be fabrication, SC-10/AGENTS.md rule
+    9). A repository content search (Grep, ripgrep-backed) was performed
+    instead, over knowledge/ and ledger/hypotheses/, as the honest record of
+    what diligence this session could perform — a search of committed
+    FILES, not a knowledge-corpus retrieval, and not offered as a
+    substitute for one. NO ABSENCE OR NOVELTY INFERENCE IS DRAWN FROM ANY OF
+    THIS. This design does not claim novelty for the statistical framing
+    (chi-square/TVD/binomial calibration are textbook goodness-of-fit
+    methods); the only novelty claim in scope of this task is C2's own,
+    already recorded as `unverified` in object-enumeration.yaml and not
+    re-litigated here.
+  searches:
+    - id: KS-D1
+      pattern: "avalanche|strict avalanche|SAC\\b"
+      paths: [knowledge/]
+      mode: files_with_matches
+      matches: 23
+      note: >-
+        Same broad hit count object-enumeration.yaml's KS-3 found; not
+        individually reopened here (that task's own diligence already
+        recorded it, cited by path rather than re-performed).
+    - id: KS-D2
+      pattern: "H-AES-.*yaml (glob), then grep for 'C2|Hamming.distance.histogram|paired.independent.key'"
+      paths: [ledger/hypotheses/]
+      mode: files_with_matches_then_content
+      matches: 0
+      what_it_establishes: >-
+        No H-* record in ledger/hypotheses/ currently cites candidate C2 by
+        name or restates its Hamming-distance-histogram object. Confirms
+        `hypothesis_id: null` above is not an oversight — none exists.
+    - id: KS-D3
+      pattern: "heuristic_assumptions:\\s*\\[\\]|heuristic_assumptions:$"
+      paths: [ledger/hypotheses/H-AES-ecf3ad.yaml, ledger/hypotheses/H-AES-8c2d07.yaml, ledger/hypotheses/H-AES-77230c.yaml]
+      mode: content
+      matches: 3
+      what_it_establishes: >-
+        All three RQ-AES-001/002 hypothesis records checked carry an empty
+        `heuristic_assumptions: []` — no HEUR-NNN registry entry exists yet
+        under either AES question. Confirms CH-1 above is correctly stated
+        as a locally-scoped candidate heuristic, not miscited against an
+        existing HEUR-NNN.
+    - id: KS-D4
+      pattern: "Binomial|chi.square|chi2|Kolmogorov.Smirnov|goodness.of.fit"
+      paths: [knowledge/]
+      mode: files_with_matches
+      matches: 7
+      note: >-
+        Includes knowledge/findings/KN-FIND-c7d31e.md (BKK Speedup Theorem,
+        ECDLP/Semaev, proved), which uses a Binomial(m,1/2) argument for an
+        UNRELATED index-calculus combinatorics result — read in full,
+        confirmed NOT AES-relevant, cited only as internal precedent that
+        this program's statistical-testing conventions (exact binomial
+        arguments, tail-probability tables) are already in use elsewhere,
+        not as authority for this design's specific test choice.
+    - id: KS-D5
+      pattern: "Hamming.distance.profile|Hamming profile|paired.key|matched.null|round.count.decay"
+      paths: [knowledge/]
+      mode: files_with_matches
+      matches: 5
+      note: >-
+        knowledge/findings/KN-FIND-006.md and KN-FIND-3546c2.md read in
+        full (the latter is a process/harness finding about a stale-goal
+        resumption, confirmed unrelated to AES or Hamming-distance
+        statistics); the remaining three (KN-TECH-7745e6.md,
+        KN-TECH-95a42b.md, KN-OPEN-2c095b.md) not individually opened
+        (broad-pattern hits, per this task's diligence budget), consistent
+        with object-enumeration.yaml's own KS-8 (0 hits for the same
+        pattern set under a narrower path) — no absence inference drawn.
+  substitute_search_via_WebSearch: >-
+    NOT PERFORMED IN THIS TASK. This design's statistical machinery
+    (chi-square goodness-of-fit, total variation distance, binomial
+    calibration nulls) is textbook and does not require literature
+    grounding beyond what is already cited (the exact Binomial(128,1/2)
+    fact used at GATE-ROUND0 and throughout is elementary and independently
+    re-derivable, not sourced from a read document). No claim in this
+    record depends on an external citation that a WebSearch could
+    strengthen; none is therefore attempted, per the same diligence-budget
+    discipline object-enumeration.yaml applied to its own searches.
+
+budget:
+  declared_wall_clock_seconds: 1600
+  declared_wall_clock_seconds_source: >-
+    ledger/handoffs/TASK-20260901-354ef5.yaml budget.wall_clock_seconds and
+    the task card's own "Declared budget: 1600 s" line.
+  start_utc: null
+  start_epoch: null
+  binding_stop_utc: null
+  section_boundary_stamps: []
+  why_every_stamp_field_is_null_and_why_that_is_not_an_omission: >-
+    NO CLOCK IS READABLE FROM THIS SESSION. SC-1 requires start_utc,
+    start_epoch and a binding_stop_utc computed as start plus declared, all
+    of which require reading the system clock via a command-execution tool.
+    This subagent's tool surface is Read, Grep, Glob, Write, WebSearch,
+    WebFetch, SendMessage — no Bash, no command execution. This is the SAME
+    gap CM-1's own budget block discloses as DEF-CM1-CLOCK and object-
+    enumeration.yaml's own budget block reproduces
+    (DEF-OBJENUM-CLOCK): unsatisfiable by construction for a producer
+    dispatched into a session whose tool surface excludes command
+    execution. SC-10 forbids inventing a timestamp; where SC-1 and SC-10
+    cannot both be satisfied, SC-10 governs, and a declared null is the
+    honest artifact.
+  the_governing_clause_this_falls_under: >-
+    protocol-amendment-GOAL-AES-001-005 Part B, C6 (adopted for this goal by
+    adoption-amendment-005-partB.yaml): a completed task whose duration was
+    not reported is charged at its DECLARED budget and never at zero, and
+    the recurrence is a defect against the campaign's INSTRUMENTATION, not
+    against the producer.
+  charged_seconds: 1600
+  charged_basis: declared_budget_under_C6_no_measurement_available
+  compute_wall_clock_seconds_used: null
+  compute_wall_clock_seconds_note: >-
+    NULL AND UNMEASURABLE for the same reason; under SC-2/C4 it could not be
+    offered as evidence of budget compliance even if known. THIS IS THE
+    AUTHORING TASK'S OWN BUDGET LINE, distinct from the FUTURE EXPERIMENT's
+    own `experiment.budget` block above, which this design sets
+    independently for whichever later executor session dispatches it.
+  halted_on_budget: false
+  halted_on_budget_basis: >-
+    TRUTHFUL AND STATED CAREFULLY. No halt occurred: both declared
+    deliverables (this file and design-report.md) were authored to
+    completion and no declared work was dropped mid-task. This is NOT a
+    claim that the 1600 s declaration was respected in session-elapsed
+    terms — that quantity is not observable here. It is the narrower true
+    statement that the task did not stop early.
+  work_dropped: >-
+    NONE OF THE DECLARED DELIVERABLES. ZERO COMPUTE was requested or run,
+    per the task card's explicit prohibition — this is scope by design, not
+    a budget-forced truncation, and is recorded as such rather than as
+    dropped work.
+  defect_recorded_against_instrumentation:
+    id: DEF-C2DESIGN-CLOCK
+    statement: >-
+      A third recurrence, in this same batch, of the identical
+      unsatisfiable-by-construction gap CM-1 (DEF-CM1-CLOCK) and
+      object-enumeration.yaml (DEF-OBJENUM-CLOCK) already record: the C2
+      stamp duty cannot be satisfied by any producer dispatched into a
+      session whose tool surface excludes command execution.
+    consequence_for_this_task: None against the producer, per C6.
+    consequence_for_the_campaign: >-
+      Further confirms the pattern both prior records already predicted;
+      no new ruling is made here, and this task has no authority to amend
+      the batch's standing constraints.
+    routed_to: >-
+      The independent reviewers of this task (TASK-20260901-4c225b,
+      TASK-20260901-1af5d9) and the Coordinator decision that closes
+      BATCH-286bcd.
+
+covering_manifest_declaration:
+  this_record_is_the_covering_manifest_for_TASK_20260901_354ef5: true
+  designated_by: >-
+    The task handoff (ledger/handoffs/TASK-20260901-354ef5.yaml
+    deliverables/artifact_paths) and the task card's SC-3 clause naming
+    `c2-paired-validation-design.yaml` as "this task's designated covering
+    manifest, covering both declared artifacts," and this declaration in
+    the manifest's own text, as SC-3 requires both.
+artifact_provenance:
+  - path: coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/tasks/TASK-20260901-354ef5/c2-paired-validation-design.yaml
+    kind: MACHINE_READABLE_MANIFEST
+    sha256: SELF
+    sha256_note: A record cannot carry its own digest; recorded as SELF.
+    comment_block_inference_stanza: false
+    comment_block_inference_stanza_note: >-
+      FALSE, stated honestly. This is not source code; the stanza duty
+      attaches to SOURCE_CODE artifacts and this task declares none (zero
+      compute, no implementation written).
+    covered_by_this_manifest_inference_block: true
+  - path: coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/tasks/TASK-20260901-354ef5/design-report.md
+    kind: PROSE_REPORT
+    sha256: null
+    sha256_note: >-
+      NULL AND NOT COMPUTABLE IN THIS SESSION (no command-execution tool;
+      see budget.defect_recorded_against_instrumentation). THE DIGEST IS
+      OWED by the archival task that snapshots this batch's producer
+      artifacts.
+    comment_block_inference_stanza: false
+    comment_block_inference_stanza_note: Not source code.
+    covered_by_this_manifest_inference_block: true
+other_manifests_of_this_task: >-
+  NONE BEYOND THE TWO LISTED ABOVE. Both declared artifacts of this task
+  appear as entries, meeting SC-3 by enumeration.
+
+# =============================================================================
+# INVENTOR-PROTOCOL SECTION 5 HONEST-ACCOUNTING BLOCK. R5 ANTI-LAUNDERING
+# CLAUSE (SC-4, SC-6, SC-7).
+# =============================================================================
+honest_accounting:
+  objects_studied: >-
+    ONE object: C2 (paired-independent-key data-path Hamming-distance
+    histogram), already enumerated and screened by TASK-20260810-d8835b
+    (object-enumeration.yaml). This task does not enumerate any new
+    candidate object; it converts C2's existing `minimal_test_sketch` into
+    an executable-when-approved contract. No new tracked object is proposed
+    here, and no lossy-projection test is re-run (C2's own PASSES verdict,
+    object-enumeration.yaml, stands unedited and is cited, not
+    re-litigated).
+  depth_of_verified_structure: >-
+    NONE MEASURED. Zero compute was run in this session. Every arithmetic
+    figure in this design (budget derivations, delta weights, binning-rule
+    thresholds' EXISTENCE though not their numeric values at any specific
+    N, the h_0 exact-binomial argument at GATE-ROUND0) is a DERIVATION,
+    independently checkable by any reader without a machine — algebra and
+    elementary probability, not a measurement — at the `derivation` tier
+    informally (no `proof_status` field is claimed formally since no
+    evidence record is being filed; this is a design contract, not an
+    evidence record).
+  margin_stated_by_this_record: none
+  margin_note: >-
+    This record states no cost, no margin and no attack, and predicts a
+    null (not a break). R5's same-sentence duty is therefore satisfied
+    vacuously and is recorded as such rather than left for a reviewer to
+    infer, per SC-7.
+  dominated_by: >-
+    unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory
+  sota_delta: >-
+    NOT APPLICABLE / NO RESULT CLAIMED. This record proposes an
+    instrumentation contract for a PREDICTED-NULL statistical measurement,
+    not an attack, and states no cost figure and no margin against any
+    reference (definitional or published). `dominated_by` is recorded per
+    SC-4's operational clause rather than left null, per RQ-AES-002 R5.
+  closures_enumerated: []
+  closures_note: >-
+    NO CLOSURE AT THE docs/inventor-protocol.md SECTION 4 STANDARD (named
+    obstruction with measured value/error bars, argument, forward guidance)
+    IS OFFERED OR ATTEMPTED IN THIS RECORD. This design authors a
+    measurement CONTRACT; it does not run the measurement and therefore has
+    no obstruction to report.
+  open_directions_for_next_session:
+    - >-
+      THIS DESIGN IS NOT APPROVED, NOT DISPATCHED, AND ZERO COMPUTE HAS
+      BEEN REQUESTED FOR IT (per SC-9 and the task's own prohibition). A
+      future Coordinator decision, citing this exact design by path, is
+      required before ANY of the compute described in `experiment.budget`
+      may be spent.
+    - >-
+      The escalation sample-size tier (N=2^24) is named and costed
+      (`experiment.inputs.sample_size_tiers`) but is NOT authorized by this
+      design; pursuing it requires either a multi-task chained dispatch or
+      a separate, larger budget line, named here so it is not silently
+      assumed available.
+    - >-
+      `independent_instances=2` (a second, independently-seeded full
+      replication) is RECOMMENDED but not mandated for any key size whose
+      primary-tier result lands close to the decision boundary
+      (`experiment.replication.independent_instances_note`); a future
+      executor or Coordinator decision should not silently skip this if the
+      situation arises.
+    - >-
+      If a future run of this design lands in outcome (ii) of
+      `falsification_criterion` (ARM-REAL persists past round 4 while
+      ARM-NULL has already converged), that outcome is explicitly NOT
+      itself a distinguisher, key-recovery result, or cost-model margin —
+      it would be a falsification of candidate heuristic CH-1 with a
+      data-path-specific mechanism, requiring its OWN follow-up design
+      (a new candidate object or a refined statistic) before any
+      cost-relevant claim under RQ-AES-002 could even be attempted. This
+      design deliberately does not speculate further, per AGENTS.md's
+      prohibition on reporting imagined experimental outcomes.
+    - >-
+      No canonical HEUR-NNN ledger entry exists for CH-1
+      (`heuristic_under_test`); registering one, per
+      docs/claims-and-verification.md's heuristic-record schema, is OPEN
+      AND UNATTEMPTED — a Coordinator or idea-generator act this task does
+      not perform.
+
+r5_anti_laundering:
+  margin_stated_by_this_record: none
+  margin_stated_by_this_record_note: >-
+    THIS RECORD STATES NO MARGIN, so R5's same-sentence duty has nothing to
+    attach to here. The duty is discharged VACUOUSLY and is recorded as
+    such rather than left for a reader to infer, per SC-7.
+  dominated_by: >-
+    unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory
+  sota_delta: >-
+    NOT APPLICABLE. This record states no result and no margin and
+    therefore no delta. `dominated_by` is recorded per SC-4's operational
+    clause rather than left null.
+  no_state_of_the_art_comparison_made: >-
+    TRUE, per SC-6. No comparison against the published state of the art is
+    made or implied anywhere in this record, in either direction.
+
+not_yet_approved_not_yet_executed_statement:
+  approved: false
+  dispatched: false
+  executed: false
+  compute_run: false
+  statement: >-
+    STATED EXPLICITLY, PER SC-9. This design is NOT-YET-APPROVED and
+    NOT-YET-EXECUTED. It is a fully specified, control-bearing,
+    preregistered experiment CONTRACT for a future dispatch, not itself a
+    dispatch. Nothing in this file — no field, no budget figure, no
+    preregistered prediction — authorizes its own future execution. A
+    future Coordinator decision, citing this exact record by path, and a
+    separate handoff minting EXP-AES-<tok> over its unedited content, are
+    both required before ANY compute described here may be spent. This
+    design predicts a NULL result (CH-1 holding) at REDUCED confidence; it
+    does not claim, and must not be read as claiming, that CH-1 has been
+    tested, confirmed, or refuted by anything in this file.
+
+# =============================================================================
+# INFERENCE.
+# =============================================================================
+inference:
+  requested_policy: research-deep
+  requested_reasoning_effort: high
+  fallback_allowed: false
+  degraded_allowed: false
+  fallback_used: false
+  resolved_model_id_self_reported: "claude-sonnet-5"
+  resolved_model_self_report_basis: >-
+    GENUINE SELF-REPORT FROM THIS SESSION'S OWN RUNTIME CONTEXT (Claude Code
+    system context: model "Sonnet 5", exact model id "claude-sonnet-5"). NOT
+    copied from orchestration/model-bindings.yaml and not offered as
+    verification that the committed binding was honoured; this session
+    cannot query its own backend, so the policy-to-model resolution is
+    UNVERIFIED FROM INSIDE.
+  amazon_bedrock: >-
+    NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED AND NOT USED, in
+    any runtime, backend, endpoint, model identifier, fallback or probe, per
+    AGENTS.md rule 16 and SC-11.
+
+evidence_refs:
+  - coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/task-cards/TASK-20260901-354ef5.md
+  - ledger/handoffs/TASK-20260901-354ef5.yaml
+  - coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/tasks/TASK-20260810-d8835b/object-enumeration.yaml
+  - coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/tasks/TASK-20260810-2a0a37/envelope-receipt.json
+  - ledger/hypotheses/H-AES-77230c.yaml
+  - ledger/decisions/DEC-20260810-6c00b4.yaml
+  - coordination/goals/GOAL-AES-002/amendments/protocol-amendment-GOAL-AES-002-003.yaml
+  - ledger/questions/RQ-AES-002.yaml
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+
+commit: null
+commit_note: >-
+  NULL BY NECESSITY. A record cannot carry the SHA of the commit that
+  contains it, and this task does not commit. Bound by the archival task
+  that snapshots this batch's producer artifacts.
+archived_by: null
+archived_by_note: >-
+  NOT YET KNOWN AT AUTHORING TIME. Bound by the Coordinator's snapshot
+  archive task for this batch, per the task card's "Snapshotted by:
+  TASK-20260901-a5374b" line — that task ID is named in the task card as
+  the intended archiver but is not this record's own field to assert as
+  fact until the archive actually runs.

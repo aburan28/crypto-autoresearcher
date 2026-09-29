@@ -163,6 +163,7 @@ def test_the_sandbox_carries_the_contract_and_the_harness(tmp_path):
     task = _task(CAPABILITY, "EVAL-CAP-DLOG-12")
     sandbox, _ = tasks_module.build_sandbox(task, tmp_path / "s")
     assert (sandbox / "AGENTS.md").is_file()
+    assert (sandbox / "docs/agent-runtime-core.md").is_file()
     assert (sandbox / "agents/executor.md").is_file()
     assert (sandbox / "harness/toycurve.py").is_file()
     # and nothing of the real research repository
@@ -450,6 +451,7 @@ def test_fingerprint_tracks_the_role_contracts_that_get_tuned():
     round cannot be attributed to the thing that was tuned."""
     fp = fingerprint_module.harness_fingerprint()
     assert fp["inputs"]["agents/executor.md"]
+    assert fp["inputs"]["docs/agent-runtime-core.md"]
     assert fp["inputs"]["orchestration/roles.yaml"]
     assert fp["git_commit"] != ""
 

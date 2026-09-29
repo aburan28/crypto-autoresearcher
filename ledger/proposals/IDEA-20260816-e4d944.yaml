@@ -1,0 +1,266 @@
+idea:
+  id: IDEA-20260816-e4d944
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Use the message-injection-disabled BLAKE3 round -- the ChaCha-shaped nearby object obtained
+    by forcing every injected message word to zero and holding it constant -- as the instrument's
+    free control, and report how much of the measured per-round bound is carried by message freedom
+    rather than by the permutation itself.
+  class: control
+  claim: '(A) BLAKE''s round function is a ChaCha-style quarter-round with message injection added.
+    Setting the injected words to a constant therefore degenerates the round into a FIXED PERMUTATION
+    with no adversarial freedom, and that degenerate object is obtainable from the same generator
+    by one argument change -- it costs nothing to build and it is executable in the same invocation
+    as the signal arm. (B) The claim is that the difference between the per-round bound measured on
+    the full round (message words free) and on the degenerate round (message words constant) is a
+    measurable quantity, call it F(r), the MESSAGE-FREEDOM CONTRIBUTION, and that F(r) is the part
+    of any BLAKE3-versus-BLAKE2s divergence that lives in the schedule''s freedom rather than in the
+    ARX layer the two designs share. Reporting a bound-per-round curve without F(r) leaves the reader
+    unable to tell whether a divergence came from the mixing layer or from how much freedom the schedule
+    granted at that round. (C) NOT CLAIMED, and this is the part that matters most here: the degenerate
+    object is NOT ChaCha. It shares the quarter-round shape and nothing else -- constants, permutation
+    of state words, round count and the surrounding mode all differ -- and no measurement on it is
+    a statement about ChaCha as a stream cipher, which GOAL-BLAKE-001''s non_duplication clause explicitly
+    forbids this lane from making. No attack, no break, no security consequence, and nothing about
+    full-round BLAKE3 follows. (D) The negative outcome is the useful measurement: if F(r) is zero
+    within the measured band across all reached rounds, the per-round bound is carried entirely by
+    the ARX layer at those rounds, which is a quantified statement about where the bound lives and
+    is exactly what a transfer argument between two designs sharing that layer would need in order
+    to be plausible. That statement does not currently exist in this repository at any round count.'
+  mechanism: 'One argument change, three arms, one invocation. Stage one: extend the parameter-only
+    generator so the schedule table can be replaced by a NULL SCHEDULE that injects a fixed constant
+    word (zero) at every position, and verify that the resulting constraint set differs from the full
+    one only in the message-variable declarations -- a structural diff, zero compute, and the thing
+    that makes the control free rather than merely cheap. Stage two: for each primitive (BLAKE3-parameterised,
+    BLAKE2s-parameterised) run the trail-weight instrument twice, once with message words free and
+    once with them constant, at identical rounds, ceilings and seeds. Stage three: compute F(r) =
+    W_constant(r) - W_free(r) per primitive per round, with the seed band carried through, and report
+    the two F curves alongside the two W curves. Stage four: run the same pair on a random-parameter
+    ARX null of the same shape, giving a by-chance message-freedom contribution against which the
+    real F values are read. Stage five: a degeneracy sanity check -- with message words constant the
+    object is a fixed permutation, so its trail search should behave qualitatively differently (typically
+    much faster to close, since the freedom that drives the search is gone); if solve times are indistinguishable
+    between free and constant arms, the encoding is probably not exposing message freedom as freedom
+    at all, which invalidates F(r) and is caught before anything is interpreted.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril 'quarter-round|quarterround|rotation constant' over ledger/ and knowledge/,
+      which returned only GOAL-BLAKE-001, GOAL-SIMSPK-001, RQ-BLAKE-584719, RQ-SHATWO-f196c7, RQ-SIMSPK-f6a6c0,
+      KN-LIT-5292 and KN-LIT-5562; grep -ril chacha over ledger/ and knowledge/; grep -ril blake over
+      the repository; read RQ-BLAKE-584719's fourth target (the free nearby-object control) and GOAL-BLAKE-001's
+      non_duplication clause on ChaCha in full; read docs/inventor-protocol.md section 3 (controls
+      before belief) and section 8 item 4 (method ceiling and nearby-object control).
+    results: No BLAKE proposal exists. ChaCha in the ledger appears as IDEA-20260809-3a39bc (ChaCha20-Poly1305
+      commitment ablation under RQ-AEADC-8db132), and in GOAL-AEADC-001 and GOAL-POLYMAC-001, all
+      AEAD-side records about the authenticator rather than the permutation. GOAL-BLAKE-001's non_duplication
+      clause states explicitly that ChaCha appears in this goal ONLY as a control on the instrument
+      and that no claim about ChaCha as a stream cipher may be written here -- this record is written
+      to that constraint and part (C) is its restatement. RQ-BLAKE-584719's fourth target frames the
+      ChaCha control as the published differential-linear frontier; this record deliberately proposes
+      a DIFFERENT and cheaper control (the degenerate message-constant object) because the published-frontier
+      version has an acquisition precondition this one does not.
+    verdict: 'UNVERIFIED. Nothing is asserted about what has been published on ChaCha or on BLAKE.
+      Assembled from known parts: the nearby-object control is inventor-protocol section 8 item 4
+      and section 3, both already binding here; the generator is the transfer-curve record''s. Claimed
+      new HERE: treating message-injection disablement as the nearby object -- obtained by an argument
+      change rather than by importing a separate primitive and a separate acquisition dependency --
+      and defining F(r) as a reported quantity in its own right rather than as a diagnostic, so that
+      a bound-per-round curve is never published without the fraction of it attributable to message
+      freedom.'
+  object_first_candidate:
+    tracked_object: F(r) = W_constant(r) - W_free(r), the message-freedom contribution to the per-round
+      trail-weight bound, per primitive per round, carried with the solve-time ratio between the two
+      arms as an attached diagnostic.
+    lossiness: 'Lossy, and doubly so. Within each arm W(r) discards trail positions, message differences
+      and clustering exactly as before. Across arms F(r) discards both absolute levels and retains
+      only their difference, which removes the encoding-dependent offset common to both arms -- that
+      is the specific reason F(r) is more portable than either W curve. What survives propagation
+      and why: message freedom enters the model only through the message-variable declarations and
+      the schedule''s injection constraints, and those are separable from the ARX propagation constraints
+      in the encoding, so setting them constant removes exactly one source of slack and leaves the
+      rest of the propagation identical round by round. Stage one''s structural diff is the check
+      that this separation is real in the encoding rather than assumed.'
+    propagation: 'One round acts on the object through the schedule: in the free arm the round''s
+      injection introduces new message variables that a trail may use to cancel differences, lowering
+      the achievable weight; in the constant arm no such variables exist and the round''s weight contribution
+      is whatever the ARX layer alone forces. F(r) therefore accumulates round by round as the difference
+      between two monotone sequences, and its per-round increment dF/dr is the freedom the schedule
+      granted AT THAT ROUND -- which is the quantity a schedule comparison actually wants and which
+      a raw W curve conflates with everything else.'
+    survival_score: 'F(r) survives as an interpretable quantity only where BOTH arms return rows of
+      the same optimality status at the same r. Because the constant arm is much easier to solve,
+      it typically reaches proved optimality several rounds beyond the free arm, and F(r) must NOT
+      be computed on those rounds -- the temptation to do so is the specific failure this record guards
+      against. Concretely: F is reported over the round range where both arms are proved_optimum,
+      and separately (clearly labelled, never merged) over the range where both are certified_lower_bound.
+      The expected surviving range is the free arm''s Rmax, which is the binding constraint, and it
+      is expected to be short -- 2 to 5 rounds.'
+  null_object_control: 'The null is a random-parameter ARX permutation of the same shape (random rotation
+    constants, random schedule table) run in BOTH configurations -- free and message-constant -- in
+    the same invocation, at the same rounds, ceilings and seeds, yielding F_null(r). What the null
+    must show for the signal arm to mean anything: F_null(r) must be nonzero somewhere in the reached
+    range, establishing that the instrument registers message freedom at all, AND the real F(r) values
+    must be read against F_null(r)''s spread rather than against zero. If F_null(r) equals F(r) within
+    the band for both primitives, the message-freedom contribution is a property of ARX-with-a-schedule
+    generally and not of either design''s schedule, which is a complete and reportable result but
+    not an attribution. If F_null(r) is identically zero while the real F(r) is not, the null''s random
+    schedule failed to grant freedom for a structural reason that must be found before the real numbers
+    are trusted. Three independent null parameterisations are run so F_null has its own measured spread.'
+  discriminated_from:
+  - 'RQ-BLAKE-584719''s fourth target as literally stated (reproduce the published reduced-round ChaCha
+    differential-linear frontier): that control has a blocking acquisition dependency -- a published
+    frontier must be located and filed -- and GOAL-BLAKE-001 makes it a hard gate. This record proposes
+    a DIFFERENT control with no acquisition dependency, and explicitly does not substitute for the
+    gate; it is a second control, not a replacement, and the record says so rather than quietly reinterpreting
+    the goal''s requirement.'
+  - 'IDEA-20260809-3a39bc: ablates Poly1305''s clamping and mask in an AEAD commitment construction.
+    Same ablation philosophy, entirely different object (an authenticator''s algebra versus a permutation''s
+    message freedom) and different metric (certificate construction cost versus trail-weight difference).'
+  - 'The chimera-lattice record in this bucket: that one swaps one real schedule for another real
+    schedule; this one removes the schedule''s freedom entirely. They are orthogonal ablations and
+    the second is a degenerate limit of the first, which is stated so the two are not read as the
+    same move in different notation.'
+  - 'KN-TECH-077 (related-key and known-key models): those change the attacker''s access to the KEY.
+    This changes the MESSAGE input''s freedom inside the model, with the access model fixed at single-key.
+    Different axis entirely.'
+  assumptions:
+  - Message freedom is separable in the encoding from ARX propagation, so that zeroing the schedule
+    removes exactly one source of slack. Checked by structural diff at stage one, not assumed.
+  - Setting injected words to a constant yields a well-defined fixed permutation in both parameterisations
+    -- true by construction for an ARX round with additive injection, but to be confirmed against
+    pinned primary text for each design's actual injection form.
+  - The solve-time ratio between free and constant arms is a usable degeneracy diagnostic; if the
+    encoding's difficulty is dominated by something other than message variables, the diagnostic is
+    uninformative and the record says so rather than reading it anyway.
+  - Rows of differing optimality status are never differenced, which is a discipline rather than an
+    assumption but is the one most likely to be violated by a hurried analysis.
+  predictions:
+  - metric: F(r) = W_constant(r) - W_free(r) for each real primitive
+    direction: higher
+    minimum_effect: strictly greater than 0 at some r in the reached range is predicted, since removing
+      freedom cannot lower a minimum-weight bound; a measured F(r) < 0 on matched optimality rows
+      is impossible and would be an instrument defect
+  - metric: solve-time ratio, free arm over constant arm, at fixed r
+    direction: higher
+    minimum_effect: at least 2x is expected; a ratio near 1 indicates the encoding is not exposing
+      message freedom as search freedom and invalidates F(r) for that round
+  - metric: difference between the two real primitives' F curves, F_BLAKE3(r) - F_BLAKE2s(r)
+    direction: different
+    minimum_effect: 'REFUSING TO PRE-COMMIT, with reason: this is a difference of differences and
+      its band is the convolution of four measured spreads, none known before the run. The frozen
+      rule is that it is reported as resolved only if it exceeds twice the combined band and exceeds
+      the corresponding null quantity'
+  - metric: F_null(r) on random-parameter arms
+    direction: higher
+    minimum_effect: must be nonzero somewhere in the reached range; identically zero means the instrument
+      does not register message freedom and no F result is reportable
+  minimal_test:
+    design: 'Run r = 2 and r = 3 only, on six arms in one invocation: BLAKE3-free, BLAKE3-constant,
+      BLAKE2s-free, BLAKE2s-constant, null-free, null-constant, three seeds each. Two rounds of an
+      ARX permutation closes to proved optimality quickly in both configurations, which makes all
+      four gating checks available at negligible cost: the sign check (F(r) >= 0 on matched rows,
+      an impossibility test that catches encoding errors), the degeneracy diagnostic (solve-time ratio
+      >= 2x), the null''s nonzero F, and the structural diff from stage one. If F(2) or F(3) comes
+      out negative on matched-status rows, the encoding is wrong and no further compute is justified.
+      If the solve-time ratio is near 1, message variables are not driving the search and F is measuring
+      something else. Both failures are cheap to find here and expensive to find after a full sweep.'
+    controls:
+    - Random-parameter ARX null run in BOTH free and constant configurations in the same invocation,
+      three parameterisations, giving F_null and its spread.
+    - 'Structural diff at stage one: the constant-arm constraint set must differ from the free-arm
+      one only in message-variable declarations and injection constraints.'
+    - 'Sign control: F(r) >= 0 on any pair of rows with matched optimality status; a negative value
+      halts analysis as an encoding defect.'
+    - 'Degeneracy diagnostic: solve-time ratio between arms recorded per round and required to exceed
+      2x before F(r) at that round is interpreted.'
+    - 'Optimality-status matching: F is computed only between rows of identical status, with proved
+      and lower-bound ranges reported on separate lines.'
+    required_metrics:
+    - W_free(r) and W_constant(r) per primitive per round with optimality status
+    - F(r) per primitive per round
+    - dF/dr per primitive
+    - F_null(r) per null parameterisation with spread
+    - solve-time ratio free/constant per round per arm
+    - seed band per point
+    - the round range over which optimality status matched
+  falsification_conditions:
+  - F(r) < 0 on rows of matched optimality status -- the encoding is defective and no result is reportable.
+  - Solve-time ratio near 1 across all reached rounds, indicating message freedom is not the search's
+    driver.
+  - F_null(r) identically zero, meaning the instrument does not register message freedom at all.
+  - The structural diff shows the constant arm differs from the free arm in more than the message
+    declarations, so the ablation is not clean.
+  - The round range with matched optimality status is empty, so F is undefined everywhere.
+  - F_null(r) matches both real F curves within band across the whole range, so nothing is attributable
+    to either design's schedule -- reportable, but not an attribution.
+  confounders:
+  - The constant arm being trivially easy, so its optimum is proved at rounds where the free arm is
+    not, tempting an analyst to difference mismatched rows. Guarded by the status-matching rule, which
+    is the single most important discipline in this record.
+  - Choosing zero as the injected constant may interact with the design's constants in a way another
+    constant would not; mitigated by re-running the constant arm with a second, nonzero constant and
+    reporting whether F changes.
+  - Encoding size differences between arms making the solve-time ratio a proxy for constraint count
+    rather than for freedom.
+  - A random null schedule that happens to grant unusually little freedom, making F_null small for
+    reasons of draw rather than of structure; mitigated by three independent parameterisations.
+  - Reading F(r) as 'how much the schedule contributes to security', which it is not -- it is how
+    much it contributes to a trail-weight bound in one model.
+  interpretation_limits:
+  - The message-constant object is not ChaCha and no measurement on it is a statement about ChaCha;
+    GOAL-BLAKE-001 forbids ChaCha claims in this lane and this record does not make one.
+  - F(r) is a decomposition of a bound in one encoding, not a decomposition of security.
+  - Scoped to the rounds where both arms shared optimality status, which is expected to be a short
+    range.
+  - A nonzero F(r) does not license any statement about full-round behaviour or about the adequacy
+    of any round count.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Solve times are recorded as instrument diagnostics
+      and explicitly as properties of an encoding and machine.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the practice of publishing a bound-per-round curve without stating
+      how much of it is message freedom. Nothing is beaten; a missing decomposition is supplied over
+      the rounds a solver reaches, and this repository currently supplies it over zero rounds.
+    hidden_overhead: 'Hidden in the discipline rather than the compute: the status-matching rule discards
+      rows that individually succeeded, so the usable output is smaller than the run, and an analyst
+      under budget pressure will be tempted to relax it. Also hidden -- the second-constant re-run
+      (nonzero injected constant) is easy to skip and is the only defence against a constant-specific
+      artifact.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is produced, so no frontier row can dominate or be dominated.
+    As a measurement it is dominated by any run reporting F over a longer matched-status range, or
+    by one that decomposes freedom per message word rather than per round.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: zero rounds of
+    message-freedom decomposition currently exist in this repository, and a run would supply F(r)
+    over the matched-status range for two designs plus three nulls, each with a spread. The delta
+    is a decomposition, not a speedup.'
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the ablation is structurally clean (constant arm differs
+    only in message declarations): 0.85 -- additive injection makes this easy, and the structural
+    diff will say so cheaply. That F(r) is strictly positive somewhere in the reached range: 0.9,
+    close to forced by the model. That the solve-time ratio exceeds 2x, confirming freedom drives
+    the search: 0.7. That the difference of differences between the two primitives'' F curves resolves
+    above band: 0.2 -- differences of differences are noisy and the reached range is short, and I
+    expect this to be the honest ''unresolved'' line in the report. That the whole record is worth
+    running even if that last part is unresolved: high, because F(r) itself is the deliverable and
+    the difference-of-differences was always the stretch.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260809-3a39bc
+  - KN-TECH-076
+  - KN-TECH-077
+  - GOAL-AEADC-001
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-57a74e

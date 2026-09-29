@@ -1,0 +1,221 @@
+experiment:
+  id: EXP-FHEX-847eff
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-93ca21; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-93ca21
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Replay one recorded toy evaluation trace through two independently transcribed FHE noise
+    recursions, a worst-case infinity-norm one and a variance-plus-tail one, and report their per-step
+    ratio as a band over the plausible tail-factor range.
+  objective: The one uncertainty a run reduces is how much of any measured-versus-modelled noise gap
+    is attributable to the choice of noise recursion rather than to anything about the ciphertexts.
+    (i) It produces two auditable transcriptions, with all constants recorded verbatim, so that the
+    phrase 'the noise model' acquires two named referents in this repository instead of none. (ii)
+    It replays a single recorded trace through both, giving the per-step ratio D_L, and sweeps the
+    variance recursion's free parameters so the ratio is reported as a band rather than as a point
+    that a tail-factor choice silently determined. (iii) It attributes the divergence by replaying
+    two null traces, one with constant message magnitudes and one with additions only, so the answer
+    distinguishes a message-weighted divergence from a constants artifact. The output is a calibration
+    table that every other contract in this bucket cites when it says its own model is loose by some
+    factor, which is the only way those statements become comparable to each other.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for these two transcriptions,
+      with these recorded constants, replayed over this trace at these tail factors and failure probabilities,
+      the two bounds stand in the measured per-step ratio, and the null traces show the measured attribution.
+      What does NOT follow: nothing about either recursion being correct or incorrect, nothing about
+      which should be used, nothing about any parameter set or library, and no security statement.
+      A worst-case bound is meant to be loose, so a large ratio is not a defect of either; and a third
+      convention not transcribed here could lie outside the measured band, so the band is not a bound
+      on the field.'
+  inputs:
+    procedure: 'STAGE 0 (a day, human, the dominant cost): transcribe recursion W (worst-case infinity-norm)
+      and recursion V (variance plus tail factor) for the five-operation set, recording every constant
+      verbatim with its source location, and align their fresh-encryption bounds explicitly. STAGE
+      1 (hours, human): independently reimplement the multiplication rule of each recursion and require
+      agreement with the first implementation. STAGE 2 (minutes): record one trace from a depth-6
+      toy evaluation at N=32, capturing operation type, message magnitudes and true noise magnitude
+      at each step. STAGE 3 (seconds): replay the trace through W, and through V at five tail factors
+      and three failure probabilities; emit W_L, V_L and the D_L band. STAGE 4 (seconds): replay the
+      constant-message null trace and the additions-only null trace through both recursions. STAGE
+      5 (seconds): degenerate zero-length trace check, requiring identical fresh-encryption bounds.
+      STAGE 6 (minutes): decompose log D by operation type and emit the calibration table plus the
+      run manifest.'
+    instrument: Python 3 with arbitrary-precision integers and exact rational arithmetic for the recursions,
+      so no floating-point rounding enters a bound comparison; the toy evaluation that produces the
+      trace reuses the audited exact scheme from the first contract in this bucket. Each recursion
+      implemented as a pure function from a trace to a bound sequence, touching no ciphertext, with
+      the multiplication rule of each duplicated in an independently written module for cross-checking.
+      Run manifests and deterministic seeding through harness/runner.py conventions. No Sage, no external
+      FHE library, no numerical solver.
+    parameters: 'Operation set: fresh encryption, addition, multiplication, relinearization, modulus
+      switching. Trace: depth 6 at ring degree N = 32, plaintext modulus t = 2, three 20-bit primes,
+      containing at least 6 multiplications, 6 additions, 6 relinearizations and 3 modulus switches.
+      Tail factors in the variance recursion: five values spanning the plausible range for the declared
+      failure probability. Failure probabilities: 2^-20, 2^-40, 2^-64. Null traces: constant-message
+      variant with all message magnitudes fixed at the trace mean, and additions-only variant of equal
+      length. Degenerate trace: length 0.'
+  controls:
+  - Constant-message null trace, isolating the message-driven part of the divergence.
+  - Additions-only null trace, where both recursions are additive and D_L must be flat.
+  - Tail-factor and failure-probability sweep, so the band is reported rather than a point.
+  - Second-pass transcription review of both recursions by an independent implementation of at least
+    the multiplication rule.
+  - Degenerate trace of length zero, where both recursions must return the same fresh-encryption bound
+    by construction.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Null arm: a synthetic trace with the identical operation sequence but
+    constant message magnitudes, run through both recursions in the same invocation. Since the predicted
+    divergence mechanism is message-weighted, the null must show a substantially SMALLER D_L growth
+    than the real trace for the message-driven explanation to hold. A second null replaces the operation
+    sequence by additions only, where both recursions are additive and D_L must be nearly flat; if
+    D_L grows under additions alone, the divergence is an artifact of the constants rather than of
+    the operations, and that is a distinct reportable outcome. Both nulls are executable in the same
+    invocation because neither requires a ciphertext.'
+  independent_variables:
+  - recursion (W versus V)
+  - step index along the trace
+  - tail factor in V
+  - failure probability in V
+  - trace variant (real, constant-message null, additions-only null, degenerate)
+  metrics:
+    primary:
+    - W_L, the worst-case bound at each step
+    - V_L, the variance-recursion bound at each step per tail factor and failure probability
+    - D_L = W_L / V_L at each step, as a band across the tail-factor and failure-probability sweep
+    - width of the D_L band at the final step
+    secondary:
+    - D_L on each null trace
+    - per-operation-type marginal contribution to log D
+    - agreement between primary and independently reimplemented multiplication rules
+    - the transcribed constants of both recursions, recorded verbatim with source locations
+    - fresh-encryption bounds of both recursions on the degenerate trace
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The ratio D_L between the two recursions' bounds after four multiplications, reported
+      as a band across the tail-factor and failure-probability sweep, and its growth on the additions-only
+      null trace.
+    formula: D_L = W_L / V_L(tau, p), where W is the worst-case infinity-norm recursion, V is the
+      variance recursion with tail factor tau and failure probability p, both replayed over the identical
+      trace of (operation type, message magnitudes). Predicted D after 4 multiplications >= 4 at the
+      centre of the band; predicted D on the additions-only null within 1.2 across the whole trace;
+      predicted band width >= 2 across the tail-factor range; predicted D = 1 exactly on the degenerate
+      zero-length trace.
+    source: Pre-registered in the parent proposal IDEA-20260816-93ca21 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The trace comes from a depth-6 toy evaluation at N = 32, but the object compared
+      is two arithmetic recursions, which are total functions of the trace and are not themselves
+      scale-limited: the same replay runs on a trace from any scale at the same cost. The transfer
+      assumption is therefore narrow and explicit: the divergence measured on this trace is claimed
+      to characterise these two recursions on traces with this operation mix, and a trace with a different
+      mix would give a different D. The contract accordingly reports D decomposed by operation type,
+      so a reader with a different mix can recombine rather than extrapolate, and it claims nothing
+      about deployed parameters.'
+    correspondence: null
+  tail_checks:
+  - Report D at the extreme tail factors of the sweep separately, since the band's edges are where
+    a convenient choice would be made.
+  - Report the step-by-step D rather than only the endpoint, since a divergence concentrated at one
+    operation and one spread across the trace are different findings.
+  - Report D at failure probability 2^-64, the most demanding setting, where the variance recursion
+    is closest to the worst-case one and the band is tightest.
+  - Report the ratio computed with W and V swapped in the numerator, as an arithmetic check that the
+    sweep was applied symmetrically.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Abort and report a transcription failure, not a result, if the degenerate zero-length trace gives
+    different fresh-encryption bounds.
+  - Abort if the independently reimplemented multiplication rule disagrees with the primary implementation.
+  - Stop the sweep at five tail factors and three failure probabilities and report the band as covering
+    only that grid.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A D of at least 4 after four multiplications at the band centre, with the additions-only
+    null within 1.2 throughout, the degenerate trace giving D = 1 exactly, and both independent reimplementations
+    agreeing.
+  falsification_criterion:
+  - D stays within 1.2 across all levels and all tail factors, meaning model choice is not a confound
+    for this lane, which is a usable licence rather than a failure.
+  - D grows on the additions-only null, meaning the divergence is a constants artifact.
+  - Degenerate trace gives D other than 1, meaning fresh-encryption bounds were not aligned.
+  - Independent reimplementations disagree, meaning a transcription is wrong.
+  - The band width exceeds the measured D itself, meaning the comparison has no resolution at the
+    swept tail factors.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-93ca21
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must name the two source documents the recursions are transcribed from, and must
+    confirm that they are genuinely independent conventions rather than two presentations of one;
+    if they share an ancestor the measured band understates the spread across conventions and the
+    contract must say so.
+  - The plausible range of tail factors and failure probabilities needs a defensible definition, since
+    the band is exactly as honest as that range.
+  - The RQ-FHE-001 primary-source constraint bears directly here, because this contract's entire input
+    is two transcribed documents; the Coordinator must resolve the source gate before approval rather
+    than after.
+  - Whether a third convention should be added to make the band a genuine spread rather than a pair
+    difference is undetermined.

@@ -1,0 +1,319 @@
+blind_rederivation:
+  schema: crypto.autoresearch.blind_rederivation.v1
+  task_id: TASK-20260827-d14e0e
+  statement_id: BLIND-P1553-TARGET-SHIFT-SUCCESSOR-20260827-6b69e4-V2
+  role: validator
+  mode: statement_only_blind_rederivation
+  result: derived_without_statement_defect
+  control_plane:
+    expected_head: 2821232f7661439bbe1ec5c75ae85e4e8a46270a
+    observed_head: 2821232f7661439bbe1ec5c75ae85e4e8a46270a
+  scientific_input_boundary:
+    exact_count: 2
+    sources:
+      - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-SUCCESSOR-20260827-6b69e4/blind-statement-v2.yaml
+      - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-SUCCESSOR-20260827-6b69e4/handoffs/TASK-20260827-d14e0e-v2.yaml
+    other_scientific_sources_read: []
+  governance_sources_non_evidentiary:
+    - AGENTS.md
+    - agents/validator.md
+    - .agents/skills/crypto-autoresearcher-harness/SKILL.md
+    - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+    - docs/task-lifecycle.md
+  setup:
+    B: "N^(1/5)"
+    r: "ceil(log2(B))"
+    m: "2^r"
+    D: "{-m,...,-1,1,...,m}"
+    C: "1+m+m^2+m^3+m^4"
+    L: "m+m^2+m^3+m^4"
+    stratum:
+      - "m >= 2"
+      - "N > 4L+1"
+    useful_asymptotics:
+      - "B <= m < 2B, hence m=Theta(B)=B^(1+o(1))."
+      - "polylog(N)=B^(o(1)) because N=B^5."
+  derivation:
+    nonzero_signed_interval:
+      status: derived
+      alphabet_zero_absent: true
+      proof:
+        - >-
+          Zero is absent from D by definition; this does not prevent zero from
+          occurring in a multi-deck sumset.
+        - >-
+          Put A=m+m^2. For each positive j in {1,...,m},
+          mj+D=[m(j-1),mj-1] union [mj+1,m(j+1)]. The omitted point mj is
+          supplied as -m+m(j+1) when j<m, and m^2 is supplied as
+          m+m(m-1) when j=m; the last identity uses m>=2. Also
+          0=-m+m. Thus the nonnegative part [0,A] is covered. Symmetry of D
+          gives D+mD=[-A,A].
+        - >-
+          Regroup the four-deck sum as (D+mD)+m^2(D+mD). For each integer
+          v in [-A,A], the corresponding interval is
+          I_v=[m^2 v-A,m^2 v+A]. Consecutive intervals have no integer gap
+          because m^2 <= 2A+1. Their endpoint union is
+          [-A(1+m^2),A(1+m^2)]. Since
+          A(1+m^2)=m+m^2+m^3+m^4=L, the exact result is
+          D+mD+m^2D+m^3D=[-L,L].
+      exact_results:
+        two_deck: "D+mD=[-(m+m^2),m+m^2]"
+        four_deck: "D+mD+m^2D+m^3D=[-L,L]"
+    f0_value_injectivity:
+      status: derived
+      proof: >-
+        An F0 occurrence has value [c]P with c in D. If [c]P=[c']P,
+        prime order gives N | (c-c'). Here |c-c'|<=2m<N because
+        N>4L+1 and L>=m. Therefore c=c', so the isolated value determines
+        exactly one signed coefficient c0 on the stated stratum.
+      collision_stratum_control: >-
+        The large-stratum hypothesis is necessary. At m=2,N=3,
+        [-2]P=[1]P and [-1]P=[2]P, so value injectivity fails.
+    f0_finite_recovery:
+      status: derived_and_charged
+      public_label_interface: >-
+        If the singleton interface returns its public occurrence label, parse
+        (d,sigma), compute c0=sigma(d+1), and charge the public label-table
+        construction/serialization plus the ordinary lookup. A uniform upper
+        bound for this path is O(m polylog N), although the final lookup is one
+        ordinary operation after the public table has been materialized.
+      generic_value_interface:
+        algorithm:
+          - >-
+            After the advice boundary, start from the current public input
+            handle P. Construct [j]P for 1<=j<=m by sequential additions and
+            construct [-j]P by inversion; associate each of the 2m handles
+            with its public signed label j or -j.
+          - >-
+            Compare the isolated generic value against the labelled list and
+            stop on equality. In the worst case this uses at most 2m labelled
+            equality tests. Injectivity proves that exactly one label can
+            match.
+        dictionary_used: false
+        collision_assumption: none
+        explicit_charges:
+          generic_group_operations: "O(m) sequential additions/inversions"
+          representation_and_equality_queries: "O(m), including at most 2m equality tests"
+          label_serialization_and_traffic_bits: "O(m log N)"
+          live_main_phase_storage_bits: "O(m log N)"
+          ordinary_scan_work: "O(m polylog N)"
+        total: "O(m polylog N)=B^(1+o(1))"
+        aggregate_accounting: >-
+          The construction, representations, labels, equality tests, traffic,
+          storage, scan, and lookup are all main-phase charges. They are
+          counted once inside the single aggregate k and do not reset k.
+      conclusion: >-
+        Value injectivity is accompanied by a finite deterministic recovery
+        algorithm; it is not used as a free decoder.
+    post_boundary_public_handle_reconstruction:
+      status: derived_and_charged
+      algorithm:
+        - >-
+          Carry only ordinary public coefficients and labels across the
+          boundary. In the main phase obtain P as the current public group
+          input and form G_i=[m^i]P for i=0,...,4 by four successive known
+          scalar multiplications by m (or equivalent double-and-add work).
+        - >-
+          For each i, generate [j]G_i for 1<=j<=m sequentially and negate to
+          obtain [-j]G_i. This reconstructs all 10m occurrence-labelled
+          handles in F0,...,F4 from public scalar lineage. The F0 list used by
+          recovery is this same reconstruction and is not charged twice.
+        - >-
+          Construct [C]P and each adaptively requested [mt]P after the
+          boundary by known-scalar multiplication, then form R and R_t by
+          group addition. Final decoding similarly constructs [x_hat]P for
+          verification.
+      explicit_charges:
+        deck_group_operations: "O(m polylog N)"
+        deck_representations: "10m handles, O(m log N) bits"
+        labels_serialization_storage_traffic: "O(m polylog N)"
+        adaptive_target_constructions: "O(log L) scalar multiplications, each O(polylog N)"
+        recovery_equality_tests: "at most 2m, already included"
+        predicate_internals_replay_decode_verification: "included in the stated aggregate k premise"
+      total: "O(m polylog N)=B^(1+o(1))"
+      boundary_claim: >-
+        No opaque encoding or live group handle is retained in advice or
+        crosses preprocessing. All reconstructed handles are created and used
+        inside the one main phase and may be discarded when it ends.
+      aggregate_accounting: >-
+        Since B<=m<2B and polylog(N)=B^(o(1)), the inclusive reconstruction
+        and recovery charge is B^(1+o(1)), asymptotically below and included
+        in the premise's one non-resetting k=B^(5/4+o(1)).
+    residual_congruence:
+      status: derived
+      definition: "z=c1+m*c2+m^2*c3+m^3*c4"
+      membership: "z in [-L,L]"
+      relation: "m*z congruent to x+C-c0 (mod N)"
+      proof: >-
+        A surviving completion satisfies
+        [c0+m c1+m^2 c2+m^3 c3+m^4 c4]P=[x+C]P. Regrouping the four
+        non-F0 coefficients gives the displayed modular relation. This is a
+        group congruence only; it does not imply integer equality or integer
+        divisibility by m.
+      uniqueness: >-
+        If z,z' in [-L,L] both satisfy the relation, then
+        m(z-z') is congruent to zero modulo N. The stratum gives m<N; since N
+        is prime, gcd(m,N)=1, so z-z' is congruent to zero modulo N. But
+        |z-z'|<=2L<N, hence z=z'.
+    correlated_target_threshold:
+      status: derived
+      equivalence: >-
+        Exactness of the predicate and the proved four-deck interval give
+        q(t)=1 iff z+t modulo N has a representative w in [-L,L].
+      threshold: "T=L-z, with T in {0,...,2L}"
+      proof: >-
+        For 0<=t<=2L+1 put y=z+t. Then -L<=y<=3L+1. If t<=L-z,
+        y lies in [-L,L], so w=y is a representative. If t>L-z, then
+        L+1<=y<=3L+1<N. The only downward wrap is y-N, and
+        y-N<=3L+1-N<-L because N>4L+1. Thus no representative lies in
+        [-L,L]. Therefore q(t)=1 iff t<=T.
+      sentinels:
+        q_0: "q(0)=1 logically because z is in [-L,L]; no predicate call is charged."
+        q_2L_plus_1: >-
+          q(2L+1)=0 logically because z+2L+1 is in [L+1,3L+1] and cannot
+          wrap into [-L,L]; no predicate call is charged.
+      sharp_uniform_no_wrap_threshold: >-
+        The outside high range [L+1,3L+1] and allowed range [-L,L] have
+        possible positive differences exactly from 1 through 4L+1, so
+        N>4L+1 excludes every wrap uniformly. It is sharp for the full shift
+        range: if N<=2L+1, take z=L,t=N,w=L; if
+        2L+1<N<=4L+1, take z=L,t=2L+1,w=3L+1-N. In both cases
+        1<=t<=2L+1, t>L-z=0, w is in [-L,L], and z+t is congruent to w
+        modulo N. This sharpness concerns the uniform interval no-wrap
+        condition; other object premises may separately exclude a small
+        parameter stratum.
+    exact_query_accounting:
+      status: derived
+      isolation_calls: "log2(2m)=r+1 exactly"
+      full_deck_existence_call: "0; existence is supplied by the universal witness"
+      possible_thresholds: "2L+1"
+      shifted_predicate_lower_bound: >-
+        Any binary-answer decision tree distinguishing 2L+1 thresholds has
+        worst-case depth at least ceil(log2(2L+1)).
+      shifted_predicate_achievability: >-
+        Balanced binary search using exact monotone q(t), with the two logical
+        sentinels, attains worst-case ceil(log2(2L+1)) shifted calls.
+      shifted_predicate_exact_optimum: "ceil(log2(2L+1))"
+      upper_bound_proof: >-
+        For m>=2, L=m+m^2+m^3+m^4<2m^4. Since L is integral,
+        2L+1<=4m^4-1<4m^4=2^(4r+2), hence
+        ceil(log2(2L+1))<=4r+2.
+      exact_combined_worst_case: "r+1+ceil(log2(2L+1))"
+      conservative_combined_cap: "5r+3"
+      transcript_success_semantics: >-
+        Correct decoding uses the premise of one jointly correct adaptive
+        transcript containing isolation and every correlated-target call.
+        No independent or marginal per-target success probabilities are
+        multiplied, and k is never reset.
+    decoder:
+      status: derived
+      steps:
+        - "Recover T by exact threshold search."
+        - "Set z=L-T."
+        - "Set x_hat=(m*z+c0-C) mod N using the canonical residue."
+        - "Construct [x_hat]P and accept only if [x_hat]P=Q."
+      correctness: >-
+        The unique residual congruence gives m*z+c0-C congruent to x modulo
+        N, so x_hat is the canonical target scalar on a correct transcript.
+        The final group equality is an explicitly charged verification rather
+        than an inferred success.
+    supplied_mpz_bound_arithmetic:
+      status: conditionally_derived
+      source_status: supplied_internal_statement_for_arithmetic_only
+      source_independently_verified: false
+      supplied_bound: "Pr[complete success] <= 3*ell*(k+1)^2/N"
+      substitutions:
+        ell_B: "B^(9/4+o(1))"
+        k_B: "B^(5/4+o(1))"
+        N_B: "B^5"
+        ell_N: "N^(9/20+o(1))"
+        k_N: "N^(1/4+o(1))"
+      exponent_arithmetic:
+        numerator_B: "B^(9/4+5/2+o(1))=B^(19/4+o(1))"
+        success_B: "3*B^(-1/4+o(1))"
+        success_N: "3*N^(-1/20+o(1))"
+        limit: "o(1)"
+      conditional_consequence: >-
+        If the supplied MPZ dense prime-order preprocessing generic-group
+        bound applies to the complete transcript exactly as stated, its upper
+        bound vanishes, which is incompatible with the object premise's
+        nonvanishing complete-transcript success. This is conditional
+        arithmetic from the supplied statement, not independent source
+        verification and not a construction of the object.
+      applicability_premises:
+        - "The supplied MPZ theorem statement is valid for this dense prime-order preprocessing generic-group setting."
+        - "G has prime order N and the target x is fresh uniform canonical after preprocessing."
+        - "At most ell target-independent ordinary advice bits cross the boundary."
+        - "No live or opaque group handle, target-conditioned advice, Query2P1 oracle, or extra oracle crosses or augments the phases."
+        - "Isolation and all correlated targets belong to one jointly correct adaptive complete transcript."
+        - "Every generic operation, representation, reconstruction, target construction, predicate internal, equality, storage/dictionary operation, replay, decode, and verification is charged to one aggregate k with no reset."
+        - "The direct recovery and all public-handle reconstruction described above occur after the boundary and are included in k."
+        - "The success notion bounded is the average complete-transcript success over the fresh uniform target."
+        - "The asymptotic substitutions ell=B^(9/4+o(1)), k=B^(5/4+o(1)), and N=B^5 hold simultaneously."
+  known_false_controls:
+    residual_integer_equality:
+      result: rejected_as_required
+      arithmetic: >-
+        For the supplied N=18731,m=8,L=4680,C=4681,c0=8,x=14036
+        instance, x+C-c0=18709 is 5 modulo 8, whereas
+        m*z=8*4680=37440 is congruent to 18709 modulo 18731. Thus the
+        modular residual holds while integer equality and divisibility fail.
+    omitted_recovery_cost:
+      result: avoided
+      reason: "A finite at-most-2m equality scan and every build/representation/storage/traffic/lookup charge are explicit."
+    retained_generic_handle:
+      result: avoided
+      reason: "All public handles are reconstructed from current P and ordinary scalar lineage after the boundary."
+  required_distinctions_preserved:
+    - "The transcript premise is joint adaptive correctness, not independent or marginal target success."
+    - "A fixed-target one-restriction interface alone would not imply the correlated-target premise used here."
+    - "Zero is excluded from D even though zero belongs to the proved sumsets."
+    - "Injectivity proves uniqueness but recovery is supplied and charged separately."
+    - "The derivation is conditional on the object premise and does not construct an object."
+  scope_ceiling:
+    joints_owned: []
+    J1: null
+    J2: null
+    J3: null
+    whole_claim_verdict: null
+    scientific_state_verdict: null
+    object_construction: null
+    generic_ecdlp_lower_bound_verdict: null
+    algorithm_or_attack_claim: null
+    sota_movement_claim: null
+    closure_completion_or_breakthrough_claim: null
+    scoped_statement_only_result: >-
+      The requested symbolic quantity follows from the supplied blind
+      statement, including finite recovery and inclusive reconstruction cost;
+      no statement-internal defect was found in that bounded derivation.
+  experiments_run: 0
+  implementations_run: 0
+  state_changes_made: 0
+  limitations:
+    - "No producer artifact, snapshot, packet, queue, review plan, correction, predecessor, sibling report, message, memory, or external source was consulted."
+    - "The supplied MPZ citation and theorem statement were not independently verified."
+    - "No assertion is made about whether the object premise is realizable."
+  review_attestation:
+    task_id: TASK-20260827-d14e0e
+    role: validator
+    independent_session: true
+    joints_owned: []
+    sources_read:
+      scientific:
+        - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-SUCCESSOR-20260827-6b69e4/blind-statement-v2.yaml
+        - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-TARGET-SHIFT-SUCCESSOR-20260827-6b69e4/handoffs/TASK-20260827-d14e0e-v2.yaml
+      governance_non_evidentiary:
+        - AGENTS.md
+        - agents/validator.md
+        - .agents/skills/crypto-autoresearcher-harness/SKILL.md
+        - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+        - docs/task-lifecycle.md
+    read_sibling_reports: false
+    blind_from_respected: true
+    blind_from_read: []
+    procedure_deviations: []
+    verdict:
+      blind_statement_quantity: derived
+      J1_J2_J3: null
+      whole_claim: null
+      scientific_state: null

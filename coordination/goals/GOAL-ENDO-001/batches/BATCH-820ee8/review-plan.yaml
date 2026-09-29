@@ -1,0 +1,151 @@
+review_plan:
+  schema: crypto.autoresearch.review_plan.v1
+  id: REVIEW-PLAN-BATCH-820ee8
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-820ee8
+  work_unit: runtime-harness-attachment-host-binding-enforceability
+  recorded_at: '2026-08-30'
+  recorded_by: coordinator
+  recorded_before_any_reviewer_ran: true
+  claim_scope: >-
+    Reviews may change only the disposition of this static instrumentation
+    package (receipt schema v2, emit procedure, demo receipt, STOP control).
+    They cannot establish a JINV, ECDLP, isogeny, exponent, speedup,
+    scientific closure, breakthrough, hypothesis, goal-status,
+    implementation, or experiment authorization, and they cannot convert
+    HOST-BINDING-ENFORCEABILITY from a disclosed limitation into an enforced
+    closure beyond what the archived package actually delivers.
+  coordinator_prior: >-
+    I expect the schema extension (J1) to be largely sound, with its likely
+    defect being under-specified verification semantics -- what exactly a
+    reviewer or dispatcher checks host_id and filesystem_id AGAINST, and what
+    happens on a host whose identity surfaces differ from the ones the
+    procedure assumes. I expect the real fight in J2: "verifiable host
+    binding" is the load-bearing phrase of this batch, and my prior is that
+    the red team finds the binding is still SELF-ATTESTED by the emitting
+    session -- the emit procedure captures values from the host's identity
+    surfaces, but nothing INDEPENDENTLY cross-checks the capture, so the
+    enforceability gap narrows (a caller can no longer supply arbitrary
+    values through the schema) without fully closing (a compromised emitting
+    session can still lie about its host). I expect that to come back as a
+    disclosed limitation rather than a REVISE, because the v5 rule's threat
+    model was caller-supplied bindings, not a malicious runtime. For J3 I
+    expect the STOP control to fire correctly as a static construction, with
+    residual risk that making host_binding OPTIONAL in v2 (for
+    backward compatibility with v1 receipts) silently weakens the
+    missing-binding STOP. If all three joints come back clean with NO
+    disclosed limitation, that is a surprise I would record explicitly and
+    treat skeptically before composing a PASS.
+  prior:
+    expectation: >-
+      At least one verification-semantics gap in the emit-procedure joint,
+      most likely self-attestation of the binding by the emitting session;
+      schema joint sound or repairably defective; STOP control fires.
+    decision_if_overturned: >-
+      If both reviewers find the package clean with no disclosed limitation,
+      record that surprise explicitly and probe it in the ledger archive
+      before composing PASS; if either finds a defect, preserve it without
+      outvoting it.
+  joints:
+    - joint: J1-schema-v2-semantics-and-v5-consistency
+      assigned_to: TASK-20260830-78281a
+      role: validator
+      attack_plan: >-
+        Diff the v2 schema against v1 field by field and against the v5
+        closure's authoritative-binding rule (j3-closure-v5.yaml): every
+        added host_binding field must have declared provenance (where the
+        value comes from), declared verification semantics (what checks it,
+        when, and against what), and a specified failure behavior. Construct
+        a same-heading v2 variant with a caller-suppliable host_binding field
+        and require the v5 STOP to still reject it; construct a v2 variant
+        where host_binding is absent and require the missing-receipt-field
+        STOP semantics to be preserved exactly, not silently weakened by
+        optionality. Check backward compatibility claims against actual v1
+        receipts on disk (the BATCH-90392b review receipts are the corpus).
+      expected_break: >-
+        An added field whose provenance or verification semantics is prose
+        only, or an optional host_binding that lets a v1-shaped receipt pass
+        a rule the v5 schema says must STOP.
+    - joint: J2-emit-procedure-verifiability-and-demo-reality
+      assigned_to: TASK-20260830-d85fdf
+      role: red-team
+      attack_plan: >-
+        Attack the emit procedure as an adversary of its verification claim:
+        attempt to produce a receipt whose host_binding values are caller
+        supplied (not from the host's identity surfaces) by following the
+        procedure exactly, and by deviating from it; check whether ANY
+        independent cross-check exists that a reviewer or dispatcher could
+        run to falsify a binding value, and name precisely what a compromised
+        emitting session could still lie about. Verify the demo receipt was
+        actually produced by the procedure it ships with (commands, working
+        directory, timestamps consistent with the producer's own runtime
+        receipt) rather than hand-written to look produced. State whether
+        HOST-BINDING-ENFORCEABILITY is closed, narrowed, or unchanged, and
+        against which threat model.
+      expected_break: >-
+        The binding is self-attested with no independent cross-check, or the
+        demo receipt cannot be distinguished from a hand-written one.
+    - joint: J3-stop-control-integrity-and-escape-surface
+      assigned_to: TASK-20260830-d85fdf
+      role: red-team
+      attack_plan: >-
+        Execute the package's own STOP control as written against (a) a
+        caller-supplied binding, (b) a missing binding, (c) a v1 receipt
+        under the v2 schema, and require STOP in each case the v5 rule
+        demands it. Then hunt for a NEW escape the v2 addition opens: a field
+        value shape that satisfies the schema while defeating the binding
+        rule (empty string, placeholder, wildcard, non-canonical encoding,
+        duplicate keys), and any place the procedure's outputs are trusted
+        where the v5 schema demanded verification.
+      expected_break: >-
+        A schema-valid but binding-defeating value shape, or a case where
+        v2 optionality weakens a v5 STOP.
+  blindness:
+    reviewers_may_read:
+      - AGENTS.md
+      - CLAUDE.md
+      - docs/
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/review-plan.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/dispatch_queue.json
+    sibling_reports:
+      forbidden_until_ledger_archive: true
+      paths:
+        - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/reviews/TASK-20260830-78281a/
+        - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/reviews/TASK-20260830-d85fdf/
+    attestation_required: >-
+      Each reviewer states exactly what it read, confirms it did not read the
+      sibling report, and discloses policy/model provenance. Independence is
+      a fresh session and disjoint context, not a distinct-model quorum.
+  proves_too_much:
+    required: true
+    assigned_to: TASK-20260830-d85fdf
+    objects:
+      - same-heading package whose emit procedure reads host_binding values from an environment variable the caller controls
+      - same-heading package whose demo receipt contains host_binding values with no corresponding host identity surface
+      - same-heading package whose STOP control checks only field presence, not provenance
+    failure_signature: >-
+      The argument "this package makes the host binding authoritative" must
+      FAIL on an object where the binding values are caller-controlled: the
+      review must return STOP or REVISE on each known-false object, and any
+      object the argument survives on is a review-method failure that forces
+      REVISE of the disposition.
+  blind_rederivation:
+    required: true
+    assigned_to: TASK-20260830-78281a
+    quantity: >-
+      The host identity surfaces themselves: from the statement of what
+      host_id, filesystem_id, and filesystem_mount CLAIM to be (the v2
+      schema's provenance declarations) and the demo receipt's stated host
+      alone, re-derive the expected binding values for THIS host by querying
+      the host's own identity surfaces, never reading the producer's emit
+      procedure, script, or implementation notes.
+    blind_from:
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/emit_procedure.md
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/emit_host_binding.sh
+    agreement_means: >-
+      Agreement is evidence about the demo receipt's values (the procedure
+      captured the real surfaces); disagreement localises to either the
+      schema's provenance declaration or the procedure -- two named suspects,
+      not an undifferentiated failure.

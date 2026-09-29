@@ -19,11 +19,16 @@ a suggester -- it writes no records and creates no files.
 
     python3 tools/allocate_id.py --check EXP-RT1476-001
     python3 tools/allocate_id.py --next hypothesis --area SUBRES   # random token
+    python3 tools/allocate_id.py --next run --area ECDLP           # random token
     python3 tools/allocate_id.py --next coordinator_decision --date 20260728
+    python3 tools/allocate_id.py --next correction --date 20260728
+    python3 tools/allocate_id.py --next literature               # KN-LIT-<tok>
+    python3 tools/allocate_id.py --next known_result --area IC   # KR-IC-<tok>
     python3 tools/allocate_id.py --audit
 
-Patterns are imported from `validate_ledger`, never restated, so this tool and
-the build gate cannot drift apart. If they disagree, that is the bug.
+Ledger patterns and the shared suffix grammar are imported from
+`validate_ledger`, so this tool and the build gate cannot silently disagree on
+legacy or random suffixes.
 """
 from __future__ import annotations
 
@@ -44,33 +49,116 @@ REPO = vl.REPO
 SEARCH_GLOBS = [
     os.path.join(REPO, "ledger", "*.yaml"),            # root, live not legacy
     os.path.join(REPO, "ledger", "*", "*.yaml"),       # typed subdirectories
+    # Persistent goals support both a flat head and a sharded head whose
+    # identifier is carried by its parent directory.
+    os.path.join(REPO, "ledger", "goals", "*", "goal.yaml"),
+    os.path.join(REPO, "ledger", "corrections", "*.md"),
     os.path.join(REPO, "experiments", "*", "specification.yaml"),
+    os.path.join(REPO, "experiments", "*", "corrections", "*.yaml"),
+    os.path.join(REPO, "experiments", "*", "corrections", "*.md"),
     os.path.join(REPO, "knowledge", "*", "*.md"),
-    # Batch directories. Their identifier lives in the DIRECTORY name, which is
-    # why occurrences() matches on the parent as well as the stem.
+    os.path.join(REPO, "knowledge", "frontiers", "*", "*", "KR-*.yaml"),
+    # Batch directories. Their identifier lives in the directory name; the
+    # recursive collision index below sees the directory itself.
     os.path.join(REPO, "coordination", "goals", "*", "batches", "*", "*.json"),
+    # Control-plane corrections may live inside a batch rather than the ledger.
+    # They remain part of the same global CORR identifier space.
+    os.path.join(REPO, "coordination", "goals", "*", "batches", "*",
+                 "corrections", "*.yaml"),
+    os.path.join(REPO, "coordination", "goals", "*", "batches", "*",
+                 "corrections", "*.md"),
 ]
 
 # id prefix -> the record type whose pattern governs it
 PREFIX_TYPE = {
+    "GOAL": "goal",
     "RQ": "research_question",
     "IDEA": "idea",
     "H": "hypothesis",
     "EXP": "experiment",
+    "RUN": "run",
     "EV": "evidence",
     "DEC": "coordinator_decision",
     "TASK": "handoff",
     "BATCH": "batch",
+    "CORR": "correction",
 }
 
+# Knowledge-corpus identifiers (knowledge/*/KN-*.md) and known-result rows
+# (knowledge/frontiers/*/*/KR-*.yaml). They share the one identifier space:
+# a KN-LIT minted in two worktrees collides exactly like a DEC does. Their
+# grammar is owned here, not by validate_ledger.ID_PATTERNS, which governs
+# ledger records only. Legacy 3- and 4-digit knowledge suffixes stay valid
+# forever (the files are immutable); new ones are random 6-hex tokens.
+KNOWLEDGE_PREFIX_TYPE = {
+    "KN-LIT": "literature",
+    "KN-TECH": "technique",
+    "KN-FIND": "internal_finding",
+    "KN-OPEN": "open_problem",
+    "KR": "known_result",
+}
+KNOWLEDGE_ID_PATTERNS = {
+    "literature": re.compile(r"^KN-LIT-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "technique": re.compile(r"^KN-TECH-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "internal_finding": re.compile(r"^KN-FIND-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "open_problem": re.compile(r"^KN-OPEN-(?:\d{3,4}|[0-9a-f]{6})$"),
+    # KR-<AREA>-<tok>: area letters-only, token random 6-hex (no legacy form).
+    "known_result": re.compile(r"^KR-[A-Z]+-[0-9a-f]{6}$"),
+}
+# Knowledge types that are minted without an area or date segment.
+KNOWLEDGE_NO_MIDDLE = {"literature", "technique", "internal_finding",
+                       "open_problem"}
+
 # Record types whose identifier is PREFIX-SUFFIX with no date or area segment.
-NO_MIDDLE = {"batch"}
+NO_MIDDLE = {"batch"} | KNOWLEDGE_NO_MIDDLE
+SEQUENTIAL_FORBIDDEN = {"goal", "run"}
+NEW_RUN_AREA = re.compile(r"^[A-Z]+$")
 
 
-ID_TOKEN = re.compile(r"\b(RQ|IDEA|H|EXP|EV|DEC|TASK|CORR|GOAL|KN|RUN)-[A-Za-z0-9._-]+\b")
+# Corrections are coordination/control-plane records rather than one of the
+# ledger record types validated by validate_ledger.check_record, so
+# validate_ledger.ID_PATTERNS has no "correction" entry. Reuse the validator's
+# canonical legacy-or-random suffix expression instead of copying it.
+SUPPLEMENTAL_ID_PATTERNS = {
+    "correction": re.compile(rf"^CORR-\d{{8}}-{vl.SUFFIX}$"),
+    # Historical run names have a broader grammar than newly allocated IDs.
+    # Keep checks bound to the validator; constrain new allocation separately.
+    "run": vl.RUN_ID,
+}
+
+# SEARCH_GLOBS remains the curated set used by audit(): broadening that audit
+# to every task receipt and archive path would count one logical task once per
+# artifact and manufacture a large new duplicate-debt baseline. Allocation has
+# a different requirement. An identifier is not free if it appears in ANY
+# repository path component, including a deep task directory or task-card
+# filename, so occurrences() uses this recursive path index instead.
+PATH_SCAN_EXCLUDED_DIRS = {
+    ".git",
+    ".worktrees",  # other checkouts are not records in this checkout
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+}
+PATH_SCAN_EXCLUDED_FILES = {".git", ".DS_Store"}
+PATH_ID_PREFIX = re.compile(
+    rf"^(?:{'|'.join(map(re.escape, [*PREFIX_TYPE, *KNOWLEDGE_PREFIX_TYPE]))})-"
+)
+
+
+def _knowledge_type(rec_id: str) -> str | None:
+    """The knowledge/known-result type an identifier claims, if any."""
+    for prefix, rec_type in KNOWLEDGE_PREFIX_TYPE.items():
+        if rec_id.startswith(prefix + "-"):
+            return rec_type
+    return None
 
 
 def _paths() -> list[str]:
+    """Curated canonical record files used by the legacy-debt audit."""
     out: list[str] = []
     for pattern in SEARCH_GLOBS:
         out += [p for p in glob.glob(pattern)
@@ -78,25 +166,79 @@ def _paths() -> list[str]:
     return sorted(set(out))
 
 
+def _identifier_paths() -> list[str]:
+    """Identifier-bearing files and directories anywhere in this checkout.
+
+    This deliberately inspects path components only; it never parses or scans
+    file contents. Directories are included because TASK, EXP, BATCH, and other
+    records often carry their identifier in a parent directory while their
+    artifacts have generic names such as receipt.json.
+    """
+    out: list[str] = []
+    for current, directories, files in os.walk(REPO, followlinks=False):
+        directories[:] = sorted(
+            directory
+            for directory in directories
+            if directory not in PATH_SCAN_EXCLUDED_DIRS
+            and not directory.startswith("._")
+        )
+        for directory in directories:
+            if PATH_ID_PREFIX.match(directory):
+                out.append(os.path.join(current, directory))
+        for filename in sorted(files):
+            if (filename in PATH_SCAN_EXCLUDED_FILES
+                    or filename.startswith("._")):
+                continue
+            if PATH_ID_PREFIX.match(filename):
+                out.append(os.path.join(current, filename))
+    return sorted(set(out))
+
+
+def _path_names_identifier(path: str, rec_id: str) -> bool:
+    """Whether one identifier-bearing path component names rec_id."""
+    name = os.path.basename(path)
+    stem = os.path.splitext(name)[0]
+    if name == rec_id or stem == rec_id:
+        return True
+    # Task cards and receipts sometimes append a descriptive suffix. Require a
+    # delimiter so TASK-...-001 never matches the distinct TASK-...-0010.
+    return any(stem.startswith(rec_id + delimiter)
+               for delimiter in (".", "_", "-"))
+
+
 def occurrences(rec_id: str) -> list[str]:
-    """Every file whose NAME carries this identifier, across the whole union."""
-    hits = []
-    for path in _paths():
-        stem = os.path.basename(path)
-        parent = os.path.basename(os.path.dirname(path))
-        if rec_id in stem or rec_id == parent:
-            hits.append(os.path.relpath(path, REPO))
-    return hits
+    """Every repository path component that carries this identifier."""
+    return [
+        os.path.relpath(path, REPO)
+        for path in _identifier_paths()
+        if _path_names_identifier(path, rec_id)
+    ]
+
+
+def _record_identifier(path: str) -> str:
+    """Return the canonical record identifier carried by a curated path."""
+    rel = os.path.relpath(path, REPO).replace(os.sep, "/")
+    sharded_goal = re.match(r"^ledger/goals/(GOAL-[^/]+)/goal\.yaml$", rel)
+    if sharded_goal:
+        return sharded_goal.group(1)
+    return os.path.splitext(os.path.basename(path))[0]
 
 
 def well_formed(rec_id: str) -> tuple[bool, str]:
     """Check an identifier against the build gate's own pattern."""
+    kn_type = _knowledge_type(rec_id)
+    if kn_type is not None:
+        pattern = KNOWLEDGE_ID_PATTERNS[kn_type]
+        if pattern.match(rec_id):
+            return True, f"matches {kn_type} pattern {pattern.pattern}"
+        return False, (f"does NOT match {kn_type} pattern {pattern.pattern} "
+                       "-- new knowledge ids take a random 6-hex token")
     prefix = rec_id.split("-", 1)[0]
     rec_type = PREFIX_TYPE.get(prefix)
     if rec_type is None:
         return True, (f"no pattern is enforced for {prefix}-* in "
                       "validate_ledger.ID_PATTERNS; well-formedness NOT checked")
-    pattern = vl.ID_PATTERNS[rec_type]
+    pattern = vl.ID_PATTERNS.get(rec_type) or SUPPLEMENTAL_ID_PATTERNS[rec_type]
     if pattern.match(rec_id):
         return True, f"matches {rec_type} pattern {pattern.pattern}"
     return False, (f"does NOT match {rec_type} pattern {pattern.pattern} "
@@ -109,7 +251,8 @@ def check(rec_id: str) -> int:
     hits = occurrences(rec_id)
     print(f"identifier: {rec_id}")
     print(f"  well-formed: {'YES' if ok else 'NO'} -- {why}")
-    print(f"  occurrences across the union ({len(_paths())} files scanned): "
+    print(f"  occurrences across the union "
+          f"({len(_identifier_paths())} identifier-bearing paths scanned): "
           f"{len(hits)}")
     for h in hits:
         print(f"    {h}")
@@ -120,6 +263,11 @@ def check(rec_id: str) -> int:
         print("\nREFUSE: taken. Allocate above the union maximum; never reuse, "
               "and never fill a gap.")
         return 1
+    if vl.GOAL_LEGACY_ID.fullmatch(rec_id):
+        print("\nREFUSE: a free legacy-form GOAL id cannot be minted. Existing "
+              "three-digit GOAL ids remain valid history, but every new goal "
+              "must use a random six-hex suffix from --next goal --area AREA.")
+        return 1
     print("\nOK: well-formed and free across the union.")
     return 0
 
@@ -127,10 +275,8 @@ def check(rec_id: str) -> int:
 def _used_numbers(prefix: str, middle: str) -> set[int]:
     pat = re.compile(rf"^{re.escape(prefix)}-{re.escape(middle)}-(\d{{3}})$")
     used: set[int] = set()
-    for path in _paths():
-        for token in ID_TOKEN.findall(os.path.basename(path)) or []:
-            pass
-        stem = os.path.splitext(os.path.basename(path))[0]
+    for path in _identifier_paths():
+        stem = _record_identifier(path)
         m = pat.match(stem)
         if m:
             used.add(int(m.group(1)))
@@ -158,7 +304,13 @@ def random_token(rng: random.Random | random.SystemRandom,
 
 def token_id(rec_type: str, middle: str, *, seed: int | None = None) -> int:
     """Mint a random-token identifier and verify it against the build gate."""
-    prefix = next((p for p, t in PREFIX_TYPE.items() if t == rec_type), None)
+    if rec_type == "run" and not NEW_RUN_AREA.fullmatch(middle or ""):
+        print("REFUSE: new run allocation requires a letters-only uppercase "
+              "area code (A-Z)", file=sys.stderr)
+        return 1
+    prefix = next((p for p, t in [*PREFIX_TYPE.items(),
+                                  *KNOWLEDGE_PREFIX_TYPE.items()]
+                   if t == rec_type), None)
     if prefix is None:
         print(f"REFUSE: no prefix is registered for {rec_type}", file=sys.stderr)
         return 1
@@ -192,6 +344,10 @@ def next_free(rec_type: str, middle: str) -> int:
     computes it from the same committed state and gets the same answer. Never
     use it to mint a record that will be merged; use token_id instead.
     """
+    if rec_type == "run":
+        print("REFUSE: sequential RUN allocation is prohibited; new runs "
+              "must use the default random 6-hex token", file=sys.stderr)
+        return 1
     prefix = next(p for p, t in PREFIX_TYPE.items() if t == rec_type)
     candidate = f"{prefix}-{middle}-001"
     ok, why = well_formed(candidate)
@@ -221,7 +377,7 @@ def audit() -> int:
     seen: dict[str, list[str]] = {}
     malformed: list[tuple[str, str, str]] = []
     for path in _paths():
-        stem = os.path.splitext(os.path.basename(path))[0]
+        stem = _record_identifier(path)
         prefix = stem.split("-", 1)[0]
         if prefix not in PREFIX_TYPE:
             continue
@@ -243,6 +399,7 @@ def audit() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(
         prog="python3 tools/allocate_id.py",
         description="Check an identifier is well-formed AND free across the "
@@ -250,11 +407,14 @@ def main(argv: list[str] | None = None) -> int:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", metavar="ID",
                    help="check one identifier for form and freedom")
-    g.add_argument("--next", metavar="TYPE", choices=sorted(set(PREFIX_TYPE.values())),
+    g.add_argument("--next", metavar="TYPE",
+                   choices=sorted(set(PREFIX_TYPE.values())
+                                  | set(KNOWLEDGE_PREFIX_TYPE.values())),
                    help="suggest the next free id of this record type")
     g.add_argument("--audit", action="store_true",
                    help="report every malformed or doubly-occupied identifier")
-    ap.add_argument("--area", help="area code for --next (letters only)")
+    ap.add_argument("--area", action="append",
+                    help="area code for --next (letters only)")
     ap.add_argument("--date", help="YYYYMMDD for --next on dated record types")
     ap.add_argument("--sequential", action="store_true",
                     help="legacy 3-digit suffix as max+1. COLLIDES ACROSS "
@@ -262,17 +422,45 @@ def main(argv: list[str] | None = None) -> int:
                          "that will be merged.")
     ap.add_argument("--seed", type=int, default=None,
                     help="seed the random allocator (tests and reproduction only)")
-    args = ap.parse_args(argv)
+    args = ap.parse_args(raw_argv)
+    area_occurrences = len(args.area or [])
+    # Preserve the existing last-value behavior for other record types while
+    # counting every parsed occurrence, including argparse abbreviations.
+    args.area = args.area[-1] if args.area else None
 
     if args.check:
         return check(args.check)
     if args.audit:
         return audit()
+    if args.next == "run" and (area_occurrences != 1
+                               or not NEW_RUN_AREA.fullmatch(args.area or "")
+                               or args.date is not None):
+        ap.error("run allocation requires exactly one letters-only uppercase "
+                 "--area (A-Z) and does not accept --date")
+    if args.next == "goal" and (area_occurrences != 1
+                                or not args.area or args.date):
+        ap.error("goal allocation requires exactly one --area occurrence "
+                 "(--next goal requires exactly --area) and does not accept "
+                 "--date")
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
-        ap.error("--next requires --area (for RQ/H/EXP/EV) or --date "
-                 "(for IDEA/DEC/TASK); batch takes neither")
+        ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV/RUN) or --date "
+                 "(for IDEA/DEC/TASK/CORR); batch takes neither")
+    if args.next in KNOWLEDGE_PREFIX_TYPE.values() and args.sequential:
+        ap.error("knowledge and known-result ids are random tokens only; "
+                 "--sequential is refused")
+    if args.next == "known_result" and (area_occurrences != 1
+                                        or not re.fullmatch(r"[A-Z]+", args.area or "")
+                                        or args.date):
+        ap.error("known_result allocation requires exactly one letters-only "
+                 "uppercase --area (e.g. RHO, IC) and does not accept --date")
     if args.sequential:
+        if args.next in SEQUENTIAL_FORBIDDEN:
+            prefix = "RUN" if args.next == "run" else "GOAL"
+            print(f"REFUSE: sequential {prefix} allocation is prohibited; new "
+                  f"{args.next}s must use the default random 6-hex token",
+                  file=sys.stderr)
+            return 1
         return next_free(args.next, middle)
     return token_id(args.next, middle, seed=args.seed)
 

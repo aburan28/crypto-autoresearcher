@@ -1,0 +1,1316 @@
+audit_plan:
+  task_id: TASK-20260824-796875
+  goal_id: GOAL-SCURVE-31fc17
+  question_id: RQ-SCURVE-b10b2c
+  batch_id: BATCH-765208
+  role: idea-generator
+  produced_at: '2026-08-25'
+  curve: Curve383187
+  status: proposal_only_not_approved
+  authority_note: >-
+    A PLAN. Nothing here has been run. No lane may be executed until the
+    Coordinator approves it in a frozen contract; this producer assigns no work
+    and allocates no canonical IDs. LANE-*, CHK-*, POS-*, NEG-*, NULL-* are
+    local identifiers for this task's artifacts only.
+  companion_artifact: ./parameter-capsule.yaml
+
+  # ===========================================================================
+  # 0. FRAME
+  # ===========================================================================
+  object_first_frame:
+    tracked_object: >-
+      THE CERTIFICATE-BEARING DERIVATION CHAIN from the raw triple (p, A, B) to
+      each of the eleven SafeCurves cells. Not the curve, not the criterion: the
+      DERIVATION, carried as an explicit dependency DAG in which every node is
+      either (a) an exact small-integer identity, (b) a modular computation with
+      a stated witness, or (c) a declared UNRESOLVED with a reason.
+    lossy_projection_test:
+      is_it_lossy: >-
+        Yes, severely. The whole curve -- every one of its ~2^383 points, its
+        full isogeny class, its endomorphism ring -- projects to at most a few
+        dozen integers and a boolean per node. Nothing about the curve is
+        recoverable from the chain.
+      what_is_discarded_and_why_compatibly: >-
+        Discarded: the point set, the group law, the individual coordinates of
+        all points except the base point. Retained: (p, A, B, x1, y1, l, t, D,
+        two embedding degrees, two cofactors). This is discarded COMPATIBLY with
+        the operations SafeCurves' criteria are invariant under: the retained
+        tuple is fixed by every F_p-isomorphism and every change of model
+        (Montgomery <-> short Weierstrass <-> twisted Edwards) that the criteria
+        are stated up to, and it propagates deterministically through each of
+        them without ever re-consulting the point set. That is exactly why a
+        criterion table is possible at all.
+      is_it_a_change_of_coordinates: >-
+        No. A change of coordinates would be reversible; this is not. The
+        NON-triviality of the projection is precisely the thing this audit
+        exploits: because the retained data is tiny, every cell admits a
+        certificate a third party re-checks in milliseconds.
+      honest_caveat: >-
+        This object is NOT new. It is the standard curve-validation projection
+        that SEC 1, X9.62, Brainpool and SafeCurves all use. It is recorded here
+        because the protocol requires the test to be applied and answered, and
+        the honest answer is "known, and known to be the right projection". The
+        NEW content of this plan is not the object; it is (i) the certificate
+        format at each node, (ii) the control battery, and (iii) the two nodes
+        SafeCurves' own script does not compute (trace, rigidity).
+    novelty_status: known
+    novelty_basis: >-
+      Every technique named below is textbook curve validation. See
+      parameter-capsule.yaml novelty_screen. No mechanism claim is made.
+
+  environment_assumptions:
+    - id: E1
+      statement: >-
+        Executor environment is pure Python with no Sage and no PARI. Assumed
+        from IDEA-20260807-98a970's recorded environment note; it must be
+        re-checked by the Executor, and a lane's budget is void if it is false.
+      consequence: >-
+        380-bit modular exponentiation, Montgomery ladders and Miller-Rabin are
+        all trivially fast. GENERAL 380-BIT FACTORIZATION IS NOT AVAILABLE. Every
+        lane needing a factorization is specified in HINT-AND-VERIFY form.
+    - id: E2
+      statement: >-
+        HINT-AND-VERIFY DISCIPLINE. Candidate factor lists may be taken from
+        inputs/SAFECURVES-20260825/pages/primeproofs.txt. A hint is an untrusted
+        input. Acceptance requires that WE verify: (i) the product of the claimed
+        factors equals the target exactly, and (ii) each claimed factor is prime
+        by our own certificate. A hint that fails either test is discarded and
+        the node becomes UNRESOLVED -- never "corrected" toward the hint.
+      why_this_is_still_independent: >-
+        Verification consumes only (p, A, B) and the arithmetic; the hint only
+        tells us where to look. A wrong hint cannot produce a passing
+        certificate, which is the whole property that makes hinting sound.
+    - id: E3
+      statement: >-
+        Claim tier. Where a Pocklington chain completes, primality is
+        DETERMINISTIC. Where it does not, the honest output is "probable prime,
+        Miller-Rabin with k independent random bases, error bound 4^-k for a
+        RANDOMLY CHOSEN base, which is not a bound on this fixed integer".
+        Deterministic and probabilistic results are not interchangeable and must
+        not be reported in the same column without the tier.
+
+  # ===========================================================================
+  # 1. CONTROL BATTERY -- BLOCKING, RUNS BEFORE ANY INTERPRETATION
+  # ===========================================================================
+  control_battery:
+    binding_rule: >-
+      The battery is a HARD GATE. If any control fails, NO cell of the target
+      curve may be interpreted, reported, or promoted, and the run is an
+      instrument failure (an operational observation), not evidence about
+      Curve383187. This is stated before any measurement, per
+      docs/inventor-protocol.md section 3.
+    positive_controls:
+      - id: POS-1
+        object: 'Anomalous (SafeCurves toy), p and equation in pages/field.txt and pages/equation.txt'
+        structure_present: 'l = p exactly; tiny |D|; no Montgomery ladder; not complete; no Elligator 2'
+        must_fire_in: [LANE-TRANSFER, LANE-DISC, LANE-LADDER, LANE-COMPLETE, LANE-IND]
+        required_output: >-
+          additive-transfer flag TRUE (l = p); disc flag FALSE (|D| <= 2^100);
+          montladder FALSE; completeness FALSE; Elligator 2 FALSE. Anything else
+          voids those four lanes.
+        scope_note: >-
+          Per the goal's claim_boundaries this is a positive CONTROL for known
+          described behavior, not a discovered attack. Its parameters still
+          require the same sourced reproduction as the target's.
+      - id: POS-2
+        object: 'BN(2,254), y^2 = x^3+0x+2, p in pages/field.txt'
+        structure_present: 'pairing-friendly by construction (small embedding degree); small |D|'
+        must_fire_in: [LANE-TRANSFER, LANE-DISC]
+        required_output: 'multiplicative-transfer flag TRUE at small embedding degree; disc flag FALSE'
+        honest_limitation: >-
+          SafeCurves reports "Unverified" for the Anomalous row's embedding
+          degree, so POS-2 -- not POS-1 -- is the multiplicative-transfer
+          positive.
+      - id: POS-3
+        object: >-
+          Planted toy curves reused verbatim from IDEA-20260807-98a970's
+          null_object_control: toy BN-shaped curve with k = 12; toy curve with
+          p = 1 mod l (k = 1); toy supersingular curve with t = 0 (k = 2).
+        must_fire_in: [LANE-TRANSFER, LANE-D4]
+        required_output: 'the instrument returns exactly 12, exactly 1, exactly 2'
+        why: >-
+          The 383-bit embedding-degree computation has no independently known
+          answer available to us at that size. Planted small cases are the only
+          way to show the instrument can fire at all. Per that proposal: if any
+          planted positive is not returned correctly, every embedding-degree
+          output is void.
+      - id: POS-4
+        object: 'NIST P-224 and brainpoolP256t1 (parameters in pages/*.txt)'
+        structure_present: >-
+          published "False" cells: P-224 fails rigid, ladder, twist, complete,
+          ind; brainpoolP256t1 fails ladder, twist, complete, ind.
+        must_fire_in: [LANE-RIGID, LANE-LADDER, LANE-TWIST, LANE-COMPLETE, LANE-IND]
+        required_output: 'our reproduction must reproduce FALSE on those cells'
+        why: >-
+          A pipeline that returns True for everything has no resolving power. A
+          criterion that has never been observed to fail cannot certify a pass.
+    parameter_matched_negative_controls:
+      - id: NEG-1
+        object: 'M-383, y^2 = x^3+2065150x^2+x, p = 2^383-187'
+        matching_assumptions_stated_explicitly:
+          - identical field prime p = 2^383-187 (verified against pages/field.txt)
+          - identical shape (Montgomery) and identical B = 1
+          - identical cofactor profile: cofactor 2^3, twist cofactor 2^2 (pages/twist.txt)
+          - same authors, same year, same publication
+          - differs ONLY in A (2065150 vs 229969)
+        expected: 'no criterion triggers; all eleven cells reproduce as published'
+        what_it_controls_for: >-
+          Any effect we attribute to Curve383187 that is really an effect of the
+          prime 2^383-187, of the Montgomery shape, of the cofactor profile, or
+          of our code path, will show up identically on M-383. This is the
+          tightest available negative: it holds everything fixed but A.
+        honest_limitation: >-
+          NOT an independent source. M-383's published values come from the same
+          page as the target's, so NEG-1 controls the INSTRUMENT, not the
+          sourcing. CONF-1 in the capsule is unaffected by it.
+      - id: NEG-2
+        object: 'Curve25519, y^2 = x^3+486662x^2+x, p = 2^255-19'
+        matching_assumptions_stated_explicitly:
+          - same shape (Montgomery), same B = 1, same cofactor 2^3
+          - different prime, different size (255 vs 383 bits)
+        what_it_controls_for: >-
+          Bugs specific to the 383-bit limb layout, to the sparse form 2^383-187,
+          or to p = 5 mod 8 square-root branches.
+    same_shape_null_controls:
+      - id: NULL-1
+        object: >-
+          y^2 = x^3 + A' x^2 + x over the SAME p = 2^383-187, with A' drawn from
+          a seeded PRNG (seed recorded in the run record) uniformly in [3, p-3]
+          subject only to A'^2 != 4 mod p. Ten independent draws.
+        structure_deliberately_removed: >-
+          every design decision: minimality of A, the {8*prime, 4*prime} order
+          profile, twist security, and any transcript.
+        identical: 'field, shape, model, code path, certificate format'
+        predicted_behavior: >-
+          #E and #E' for a random Montgomery curve are not expected to be 8*prime
+          and 4*prime; the twist, complete-multi and rho cells are expected to
+          come back FALSE or UNRESOLVED on most draws. `complete` may come back
+          TRUE for a fraction of draws (it needs only A'^2-4 a non-square and a
+          cyclic 2-Sylow), and that is a legitimate expected outcome, not a bug.
+        must_not_happen: >-
+          A null draw reproducing the TARGET's cells across the board. That would
+          mean the criteria are being read off a constant, not computed.
+      - id: NULL-2
+        object: >-
+          DIGIT-SHUFFLE NULL. Take the published l, permute its decimal digits
+          under a recorded seed (same digit count), feed the result into every
+          certificate checker as if it were l.
+        must_happen: 'EVERY certificate fails: primality, l*(x1,y1) = 0, Hasse uniqueness, embedding degree'
+        what_it_catches: 'a checker that accepts its input, i.e. a checker that is not checking'
+      - id: NULL-3
+        object: >-
+          WRONG-ROW NULL. Keep A = 229969 but substitute p = 2^511-187 (M-511's
+          prime; deliberately the same "-187" sparse shape).
+        must_happen: 'the base point is not on the curve; l*(x1,y1) != 0; all downstream cells UNRESOLVED'
+        what_it_catches: 'copy-paste of one row''s numbers into another row, the single most likely transcription failure in a 20-row table'
+    control_ordering:
+      - 'NULL-2 and NULL-3 first (cheapest, and they test the checkers themselves)'
+      - 'POS-3 planted small-k positives second (hard gate for the embedding-degree instrument)'
+      - 'POS-1, POS-2, POS-4 third (criterion instruments must be shown to fire)'
+      - 'NEG-1, NEG-2 fourth'
+      - 'NULL-1 fifth'
+      - 'ONLY THEN the target curve.'
+
+  # ===========================================================================
+  # 2. THE ELEVEN CRITERION LANES
+  # ===========================================================================
+  criterion_lanes:
+
+    - id: LANE-FIELD
+      category: basic_parameter_requirements
+      criterion: field
+      comparison_target: 'p prime = True; p = 2^383-187'
+      mechanism: >-
+        The criterion is exactly "p is prime and the field is prime". Primality
+        is established by a Pocklington chain: recursively certify the prime
+        factors of p-1 (hinted by primeproofs.txt, verified by us per E2), then
+        exhibit a base b with b^(p-1) = 1 mod p and, for each certified factor
+        q of the certified part F of p-1, gcd(b^((p-1)/q)-1, p) = 1, with
+        F^2 > p.
+      quantitative_prediction:
+        - metric: 'primality tier for p'
+          direction: different
+          target: 'DETERMINISTIC (Pocklington chain closes) or PROBABLE-PRIME (chain does not close); no third outcome is acceptable'
+        - metric: 'p - (2^383 - 187)'
+          direction: different
+          target: 'exactly 0'
+      certificate: >-
+        (b, list of certified prime factors of p-1 with their multiplicities and
+        their own recursive certificates, the partial product F, the witnesses
+        b^((p-1)/q) mod p). Third-party re-verification cost: omega(F) modular
+        exponentiations, a few dozen.
+      explicit_bound_if_certificate_fails: >-
+        "p is a probable prime: Miller-Rabin passed with k = 64 independent
+        random bases; the 4^-k bound applies to a random base and is NOT a bound
+        on this fixed integer." State the tier, do not upgrade it.
+      controls: [NULL-2, NULL-3, NEG-1, NEG-2]
+      budget: '120 s wall clock; < 0.1 GB'
+      stopping_rule: >-
+        Stop at 120 s or when the chain closes. If p-1's certified part never
+        exceeds sqrt(p), stop and emit the probable-prime tier with the reason.
+        Do not extend the budget to chase a factorization.
+      falsifier: >-
+        p != 2^383-187 as an integer; or a Miller-Rabin composite witness for p;
+        or a hint factor that is composite or whose product misses p-1.
+      discrimination: >-
+        Outcome A (chain closes): the `field` cell is reproduced at deterministic
+        tier, independently of SafeCurves. Outcome B (chain does not close):
+        the cell is reproduced only at probable-prime tier, and the residual gap
+        is exactly GAP-1 in the capsule -- which tells the campaign that
+        SafeCurves' proof pages are worth staging. Both outcomes are informative.
+      honest_limitation: >-
+        Certifying p prime says nothing about any other criterion. It is the
+        cheapest node in the DAG and the one every other node silently assumes.
+
+    - id: LANE-EQUATION
+      category: basic_parameter_requirements
+      criterion: equation
+      comparison_target: 'Elliptic = True; B(A^2-4) = 52885740957'
+      mechanism: >-
+        A Montgomery equation By^2 = x^3+Ax^2+x is an elliptic curve iff
+        B(A^2-4) != 0 in F_p. With B = 1 this is the exact small integer
+        A^2-4 = 52885740957, which is nonzero and lies far below p, hence
+        nonzero mod p.
+      quantitative_prediction:
+        - metric: 'B*(A^2-4) as an exact integer'
+          direction: different
+          target: 'exactly 52885740957'
+      certificate: >-
+        The one-line integer identity 229969^2 - 4 = 52885740957, plus
+        0 < 52885740957 < p. Re-verifiable by inspection.
+      controls: [NULL-2, NEG-1, NEG-2, POS-1]
+      budget: '5 s'
+      stopping_rule: 'single evaluation; no retries'
+      falsifier: 'any value other than 52885740957, or a value congruent to 0 mod p'
+      discrimination: >-
+        Outcome A (match): confirms the staged equation page is internally
+        consistent and the target is a genuine elliptic curve.
+        Outcome B (mismatch): a transcription error exists in the mirror, in the
+        intake, or in our reading -- and every downstream lane is void until it
+        is adjudicated. Given CHK-DESK-1 already matched by hand, Outcome B would
+        most likely indict the executor's transcription, which is why this lane
+        runs early and cheaply.
+      honest_limitation: 'confirms only that the object is an elliptic curve, nothing about its security'
+
+    - id: LANE-BASE
+      category: basic_parameter_requirements
+      criterion: base
+      comparison_target: '(x1,y1) on curve True; l prime True; l*(x1,y1) = 0 True'
+      mechanism: >-
+        Three checks plus one that SafeCurves does not do. (i) Substitute
+        (x1,y1) into y^2 = x^3+Ax^2+x mod p. (ii) Certify l prime as in
+        LANE-FIELD. (iii) Compute l*(x1,y1) with a Montgomery ladder and check it
+        is the point at infinity. (iv) NEW AND LOAD-BEARING: certify the GROUP
+        ORDER. Because l > 4*sqrt(p) (l ~ 2^380, 4*sqrt(p) ~ 2^193.5), the Hasse
+        interval [p+1-2sqrt(p), p+1+2sqrt(p)], of width 4sqrt(p) < l, contains AT
+        MOST ONE multiple of l. Given that a point of order l exists, Lagrange
+        forces l | #E, so #E is that unique multiple. Exhibiting it as 8*l then
+        determines #E and hence t = p+1-8l EXACTLY, with no rounding assumption.
+      why_step_iv_matters: >-
+        verify.sage computes t = p+1-l*round((p+1)/l). That is the same
+        arithmetic, but SafeCurves does not publish it as a certificate, and the
+        `disc`, `twist`, `complete` and `ind` cells all consume t. Step (iv)
+        turns the single most reused number in the table into a checkable
+        deduction from (p, A, B, x1, y1, l).
+      quantitative_prediction:
+        - metric: 'y1^2 - (x1^3 + A x1^2 + x1) mod p'
+          direction: different
+          target: 'exactly 0'
+        - metric: 'l * (x1,y1) via Montgomery ladder'
+          direction: different
+          target: 'point at infinity (Z-coordinate = 0)'
+        - metric: '8*l - (p+1-t) using the published t'
+          direction: different
+          target: 'exactly 0'
+        - metric: 'number of multiples of l inside the Hasse interval'
+          direction: different
+          target: 'exactly 1'
+      certificate:
+        - 'the on-curve residue, printed as 0'
+        - 'the ladder transcript endpoint (X:Z) with Z = 0 mod p'
+        - 'the inequality 2*l > 4*sqrt(p), stated as the exact integer comparison l^2 > 4p'
+        - 'the exact integer 8*l and its equality with p+1-t'
+      controls: [NULL-2, NULL-3, POS-4, NEG-1, NEG-2]
+      budget: '60 s (one 380-bit ladder is milliseconds; the budget is dominated by l''s primality chain, shared with LANE-D1)'
+      stopping_rule: 'single evaluation per check; if the ladder does not terminate at infinity, STOP the entire audit and adjudicate transcription before any other lane runs'
+      falsifier: >-
+        nonzero on-curve residue; ladder endpoint not at infinity; l^2 <= 4p
+        (which would void the uniqueness argument); 8*l != p+1-t.
+      discrimination: >-
+        Outcome A (all four): #E = 8l is certified from raw parameters, and every
+        downstream cell inherits a sourced order rather than an inferred one.
+        Outcome B (on-curve fails): pure transcription defect; capsule
+        superseded. Outcome C (on-curve passes, ladder does not reach infinity):
+        either l is not the order of this point or our ladder is wrong -- NULL-2
+        and NEG-2 distinguish those two, which is precisely why they run first.
+      honest_limitation: >-
+        Certifies the order of the group, not the difficulty of the discrete
+        logarithm in it. Also: (x0,y0) is unavailable (capsule GAP-2), so the
+        SafeCurves cell verify-cofactorbase01 is deliberately NOT reproduced;
+        the Hasse-uniqueness route replaces it and is strictly stronger for our
+        purpose.
+
+    - id: LANE-RHO
+      category: ecdlp_security_requirements
+      criterion: rho
+      comparison_target: 'cost above 2^100 True; cost = 2^189.8; SafeCurves requires l >= 2^200'
+      mechanism: >-
+        The published cell is a closed-form evaluation, not a measurement:
+        cost = 0.886*sqrt(l), reported as log2. Reproduce it in exact rational /
+        interval arithmetic rather than floats, so the reported digit is bounded
+        rather than rounded by an unstated float path.
+      quantitative_prediction:
+        - metric: 'log2(0.886*sqrt(l))'
+          direction: different
+          target: '189.8 to one decimal place; an interval-arithmetic bracket must contain 189.825'
+        - metric: 'log2(l)'
+          direction: different
+          target: '380.000 (l/2^380 - 1 < 2^-192)'
+      certificate: >-
+        Exact integer comparison l > 2^200 (the actual SafeCurves requirement),
+        plus an interval bracket [lo, hi] for log2(0.886*sqrt(l)) with
+        hi - lo < 0.05, computed with rational arithmetic and a certified
+        logarithm bound. No floating point in the certificate.
+      controls: [NULL-2, NEG-1, NEG-2, POS-1]
+      budget: '30 s'
+      stopping_rule: 'single evaluation'
+      falsifier: 'the bracket excludes 189.825, or l <= 2^200'
+      discrimination: >-
+        Outcome A: the cell is an arithmetic identity we reproduce, and the lane
+        contributes a certified generic-attack cost. Outcome B (bracket misses):
+        either l is mis-transcribed (NULL-2 catches) or SafeCurves' float path
+        differs from ours -- in which case the interesting output is the size of
+        the discrepancy, which bounds how much of the published table is float
+        noise.
+      honest_limitation: >-
+        0.886*sqrt(l) is the cost of ONE generic attack under the standard model
+        (KN-TECH-001, KN-TECH-006). It is not a lower bound on ECDLP and this
+        lane must not be cited as one. Multi-target and precomputation effects
+        (the rho page's own square-root multi-target remark) are out of scope
+        here and are picked up in D2.
+
+    - id: LANE-TRANSFER
+      category: ecdlp_security_requirements
+      criterion: transfer
+      comparison_target: 'additive safe True; multiplicative safe True; embedding degree = (l-1)/15'
+      reuses: IDEA-20260807-98a970
+      nonduplication_statement: >-
+        This lane does NOT mint a new embedding-degree mechanism. It
+        SPECIALIZES IDEA-20260807-98a970 to one curve, adopting that record's
+        EXACT-k certificate, its LOWER-BOUND certificate, its three degenerate
+        checks and its planted-positive gate verbatim. Any general-curve
+        conclusions belong to that record, not here.
+      mechanism: >-
+        Additive: check l != p (immediate from LANE-BASE; l ~ 2^380, p ~ 2^383).
+        Multiplicative: the embedding degree is k = ord_l(p). SafeCurves'
+        requirement is the Brainpool-style one, (l-1)/k <= 100. Compute k by the
+        standard order algorithm over the certified factorization of l-1 (hinted
+        per E2), emitting the witness chain. Also run the three degenerate checks
+        from IDEA-20260807-98a970: p = 1 mod l, l = p, l^2 | #E.
+      quantitative_prediction:
+        - metric: '(l-1)/ord_l(p)'
+          direction: different
+          target: 'exactly 15 (hence 15 <= 100, criterion met)'
+        - metric: 'number of degenerate flags raised'
+          direction: lower
+          target: 'exactly 0 (p != 1 mod l; l != p; l^2 does not divide 8l since l is an odd prime)'
+        - metric: 'l - p'
+          direction: different
+          target: 'nonzero and negative'
+      certificate:
+        exact_k: >-
+          complete factorization of l-1 with a primality certificate per factor,
+          plus the witness p^((l-1)/q) mod l for each prime q, forming the chain
+          that divides out to k. Re-verification: omega(l-1) modular
+          exponentiations at 380 bits, well under a second.
+        fallback_bound: >-
+          if l-1 resists certified factoring, emit "k > K" certified by p^j != 1
+          mod l for all j <= K with K = 10^6. HONEST COST DISCLOSURE, taken from
+          IDEA-20260807-98a970: this bound is NOT succinct -- verifying it costs
+          K modular multiplications, the same as producing it.
+        representability_wall: >-
+          one element of F_{p^k} occupies k*ceil(log2 p) bits; report that number
+          for whichever k or K is certified, as an NFS-constant-independent floor.
+      controls: [POS-1, POS-2, POS-3, NULL-2, NEG-1, NEG-2]
+      budget: '600 s (dominated by certifying the factorization of l-1 from hints)'
+      stopping_rule: >-
+        Stop at 600 s. If the exact-k chain has not closed, emit the K = 10^6
+        lower bound instead and record which route was taken. Do not extend.
+      falsifier: >-
+        (l-1)/ord_l(p) != 15; or any degenerate flag raised; or a planted
+        positive in POS-3 not returned exactly (12, 1, 2) -- which voids this
+        lane entirely per IDEA-20260807-98a970.
+      discrimination: >-
+        Outcome A (cofactor 15): the published cell is independently reproduced
+        with a short certificate, and the transfer route is quantified rather
+        than asserted. Outcome B (different cofactor, still <= 100): the cell's
+        VERDICT survives but its published NUMBER does not -- a material
+        transcription or version finding about the table, reportable as such and
+        nothing more. Outcome C (cofactor > 100 or a degenerate flag): a
+        material finding that must go to independent review before any statement
+        leaves this repository, per IDEA-20260807-98a970's pre-committed route.
+      honest_limitation: >-
+        A large embedding degree closes the pairing route ONLY. It says nothing
+        about rho, index calculus on the curve, or implementation attacks. Per
+        IDEA-20260807-98a970, a SAFE verdict here is also provisional until the
+        crossover threshold k*(p,l) of IDEA-20260807-5f24d7 exists; this lane
+        reports k and the wall, and defers the verdict.
+
+    - id: LANE-DISC
+      category: ecdlp_security_requirements
+      criterion: disc
+      comparison_target: '|D| > 2^100 True; D = -1*2^2*29*150041*869237302217*<115-digit prime>; D ~ -2^382.8'
+      mechanism: >-
+        From the certified t (LANE-BASE step iv), form t^2-4p. Strip the largest
+        square divisor s^2 using the certified factorization (hinted per E2),
+        then set D = (t^2-4p)/s^2 if that is 1 mod 4, else 4*(t^2-4p)/s^2.
+        Compare |D| against 2^100.
+      quantitative_prediction:
+        - metric: 'product of the published factorization of D'
+          direction: different
+          target: 'exactly the published D (a single big-integer multiplication)'
+        - metric: 'log2|D|'
+          direction: different
+          target: '382.8 to one decimal'
+        - metric: '|D| vs 2^100'
+          direction: higher
+          target: '|D| / 2^100 > 2^282'
+      certificate: >-
+        (t, the exact integer t^2-4p, the certified factorization with a
+        primality certificate per factor, the extracted conductor s, D, and the
+        exact integer comparison |D| > 2^100). Re-verification is one
+        multiplication plus omega() primality checks.
+      controls: [POS-1, POS-2, NULL-1, NULL-2, NEG-1, NEG-2]
+      budget: '600 s (shared certified-primes pool with LANE-TRANSFER and LANE-D1)'
+      stopping_rule: >-
+        Stop at 600 s. If the square-free part cannot be certified, the honest
+        output is the EXPLICIT BOUND route: |D| >= (t^2-4p)/s_max^2 for the
+        largest square divisor found so far, reported with s_max stated. Never
+        report an uncertified D.
+      falsifier: >-
+        the published factorization does not multiply to D; or a claimed factor
+        is composite; or |D| <= 2^100; or t is inconsistent with LANE-BASE.
+      discrimination: >-
+        Outcome A: large-|D| is certified, which is what forecloses small-CM
+        constructions and, via D3, forecloses a GLV-style endomorphism speedup.
+        Outcome B (factorization fails to certify): the cell drops to a BOUND,
+        and the campaign learns exactly which 380-bit factorization is the
+        binding constraint in this environment -- a useful infrastructure
+        measurement.
+      honest_limitation: >-
+        Large |D| is a heuristic hygiene criterion, not a theorem that ECDLP is
+        hard. SafeCurves itself frames it that way. A failure here would not be
+        an ECDLP break.
+
+    - id: LANE-RIGID
+      category: ecc_security_beyond_ecdlp
+      criterion: rigid
+      comparison_target: '"fully rigid", note: p largest prime below 2^383; B=1; A>2 as small as possible'
+      mechanism_and_the_thing_that_makes_this_lane_different: >-
+        THE SAFECURVES SCRIPT DOES NOT COMPUTE THIS CELL. verify.sage reads a
+        file named `rigid` and accepts the string. So there is nothing to
+        "reproduce" in the usual sense; the cell is an editorial judgement about
+        a generation transcript. This lane therefore tests the TRANSCRIPT: does
+        the stated rule determine the stated parameter?
+        Step 1 (free): check the two determinate clauses. "p is the largest prime
+        smaller than 2^383" is checkable by testing 2^383-k for k = 1,3,5,...,187
+        and certifying each is composite until 187. "B = 1" is given.
+        Step 2 (the real question): "A > 2 is as small as possible" -- subject to
+        WHAT? The staged note does not say, and capsule CONF-2 shows the note as
+        written cannot be right for both M-383 and Curve383187 at the same p with
+        the same cofactor profile. Enumerate candidate constraint sets, and for
+        each, test whether it selects 229969 and separately whether it selects
+        2065150. Delegated in full to LANE-D8.
+      quantitative_prediction:
+        - metric: 'number of primes strictly between 2^383-187 and 2^383'
+          direction: different
+          target: 'exactly 0 (i.e. 2^383-k composite for every odd k < 187, and k=187 prime)'
+        - metric: 'number of candidate constraint sets that select A = 229969 AND are consistent with M-383 selecting 2065150'
+          direction: different
+          target: 'at least 1; if 0, the transcript is not reconstructible from staged text and the cell stays UNRESOLVED'
+      certificate: >-
+        For the prime-maximality clause: 93 compositeness witnesses (one
+        Miller-Rabin witness per odd k < 187), each re-verifiable in one
+        exponentiation, plus p's own certificate from LANE-FIELD. This clause IS
+        fully certifiable and cheap.
+        For the A-minimality clause: NO CERTIFICATE IS CLAIMED at 383 bits. See
+        the honest limitation.
+      controls: [POS-4, NEG-1, NEG-2]
+      budget: '300 s for the prime-maximality clause; the minimality clause is budgeted inside LANE-D8'
+      stopping_rule: >-
+        Prime-maximality: stop when all 93 witnesses are found or at 300 s.
+        Minimality: this lane does not attempt it; it hands off to LANE-D8.
+      falsifier: >-
+        a prime strictly between 2^383-187 and 2^383 (which would falsify the
+        published note's first clause outright); or LANE-D8 finding an A in
+        (2, 229969) satisfying every reconstructed constraint.
+      discrimination: >-
+        Outcome A (prime-maximality holds, D8 finds a consistent constraint set):
+        the transcript is reconstructible and the editorial cell is supported by
+        a checkable derivation for the first time.
+        Outcome B (prime-maximality holds, no consistent constraint set found):
+        the cell remains an editorial judgement that the staged text does not
+        determine. That is a statement about DOCUMENTATION, explicitly NOT a
+        security claim and explicitly NOT an ECDLP claim -- per the goal's own
+        claim_boundaries, a rigidity failure is not a break.
+        Outcome C (a prime is found between 2^383-187 and 2^383): a hard
+        contradiction in the retrieved text, escalate immediately.
+      honest_limitation: >-
+        A-minimality at 383 bits requires deciding, for each candidate A, whether
+        the curve and twist orders have the required shape -- i.e. point counting
+        on up to ~2.3*10^5 curves over a 383-bit field. Under E1 (no Sage, no
+        PARI, hence no SEA) that is NOT feasible in this environment, and this
+        plan does not pretend otherwise. LANE-D8 substitutes a scaled-down
+        reproduction plus an explicit statement of what remains untested.
+
+    - id: LANE-LADDER
+      category: ecc_security_beyond_ecdlp
+      criterion: ladder
+      comparison_target: 'Montgomery ladder available True; cofactor 2^3'
+      mechanism: >-
+        The scripted check is: convert to short Weierstrass y^2 = x^3+az+b and
+        ask whether some root r of z^3+az+b has 3r^2+a a square. For a curve
+        already given in Montgomery form with B = 1 this is satisfied by
+        construction, and the certificate should exhibit the witnesses rather
+        than appeal to the shape: r = A/3 mod p (using p = 1 mod 3, CHK-DESK-4)
+        and s with s^2 = 3r^2+a. Separately certify the cofactor 8 from
+        LANE-BASE's #E = 8l.
+      quantitative_prediction:
+        - metric: 'r^3 + a*r + b mod p for the exhibited r'
+          direction: different
+          target: 'exactly 0'
+        - metric: 'Legendre symbol of 3r^2+a mod p'
+          direction: different
+          target: '+1, with an explicit square root exhibited (p = 5 mod 8 branch, CHK-DESK-3)'
+        - metric: 'cofactor #E/l'
+          direction: different
+          target: 'exactly 8'
+      certificate: '(r, s) with the two residues printed as 0, plus the integer 8*l = #E from LANE-BASE'
+      controls: [POS-1, POS-4, NEG-1, NEG-2, NULL-1]
+      budget: '30 s'
+      stopping_rule: 'single evaluation'
+      falsifier: 'no root r with 3r^2+a square; or cofactor != 8'
+      discrimination: >-
+        Outcome A: ladder availability is certified constructively (a reviewer
+        can run the ladder with the exhibited constants).
+        Outcome B: would contradict the curve being in Montgomery form, i.e.
+        indict our model conversion -- which POS-4 (P-224, where the check must
+        return FALSE) and NEG-2 (Curve25519, where it must return TRUE)
+        distinguish.
+      honest_limitation: >-
+        Ladder availability is an implementation-security criterion. Its failure
+        is not an ECDLP break, and its success is not a security proof: it says a
+        simple constant-time implementation is POSSIBLE, not that any deployed
+        one is correct.
+
+    - id: LANE-TWIST
+      category: ecc_security_beyond_ecdlp
+      criterion: twist
+      comparison_target: >-
+        combined-attack cost 2^188.3 (above 2^100 True); l' = 2^381 -
+        712161694434539774737374313066473440599398497955765034143; twist cofactor
+        2^2; twist rho 2^190.3; twist additive-safe and multiplicative-safe True;
+        twist embedding degree (l'-1)/1
+      mechanism: >-
+        (i) #E' = p+1+t = 2p+2-#E, exact from LANE-BASE; check #E' = 4*l'.
+        (ii) certify l' prime (Pocklington, hinted).
+        (iii) twist rho = 0.886*sqrt(l') in interval arithmetic.
+        (iv) twist embedding degree = ord_{l'}(p), certificate as in
+        LANE-TRANSFER; predicted cofactor (l'-1)/k' = 1, i.e. p is a primitive
+        root mod l'.
+        (v) reimplement the published combined-attack greedy: peel each small
+        prime v dividing #E or #E' while v + sqrt(pi/4 * joint/v) <
+        sqrt(pi/4 * joint), accumulating precomp and shrinking joint, then report
+        log2(precomp + sqrt(pi/4*joint)).
+      quantitative_prediction:
+        - metric: '#E + #E'' - (2p+2)'
+          direction: different
+          target: 'exactly 0'
+        - metric: "#E'/l'"
+          direction: different
+          target: 'exactly 4'
+        - metric: 'log2(0.886*sqrt(l''))'
+          direction: different
+          target: 'bracket contains 190.325'
+        - metric: "(l'-1)/ord_{l'}(p)"
+          direction: different
+          target: 'exactly 1'
+        - metric: 'combined-attack log2 cost'
+          direction: different
+          target: >-
+            bracket contains 188.325. Desk reconstruction (capsule
+            producer_desk_arithmetic): the greedy peels v = 2 three times because
+            #E carries 2^3 and #E' carries 2^2, giving precomp = 6 and joint =
+            l/8 = 2^377.
+      certificate: >-
+        (the exact integer identity #E+#E' = 2p+2; l''s Pocklington chain; the
+        ord_{l'}(p) witness chain over the certified factorization of l'-1; the
+        greedy transcript listing every peeled v with the inequality that
+        justified peeling it, so the cost number is auditable step by step).
+      controls: [POS-4, NULL-1, NULL-2, NEG-1, NEG-2]
+      budget: '900 s (two more 380-bit factorization certifications; the largest single lane)'
+      stopping_rule: >-
+        Stop at 900 s. Sub-checks that completed are reported; those that did not
+        are UNRESOLVED with the reason. A partial twist lane is an honest
+        outcome; a twist lane reported as complete when the l'-1 factorization
+        did not certify is not.
+      falsifier: >-
+        #E' != 4*l'; l' composite; the combined-cost bracket excluding 188.325;
+        (l'-1)/ord_{l'}(p) != 1.
+      discrimination: >-
+        Outcome A: the twist cells are reproduced, and in particular the
+        combined-attack number stops being an opaque float and becomes an
+        auditable greedy transcript.
+        Outcome B (cost differs by < 0.5 in log2): float-path difference; report
+        the delta as a measurement of the published table's numeric precision.
+        Outcome C (cost differs materially, or the cofactor profile differs):
+        adjudicate against NEG-1 first, since M-383 has an identical published
+        cofactor profile and any code-path defect must move both.
+      honest_limitation: >-
+        The combined-attack model is SafeCurves' own cost model, including its
+        stated best-case-for-attacker assumptions (cyclic groups; kangaroo as
+        efficient as rho). Reproducing the number validates the arithmetic, NOT
+        the model. This lane must not be read as a bound on any real attack.
+
+    - id: LANE-COMPLETE
+      category: ecc_security_beyond_ecdlp
+      criterion: complete
+      comparison_target: 'complete single True; complete multi True; #points of order 2 = 1; #points of order 4 = 2'
+      mechanism: >-
+        A cheap fully rigorous route that avoids division-point computation.
+        (i) A^2-4 = 52885740957 is a non-square mod p (one Euler-criterion
+        exponentiation) => the only 2-torsion point of the Montgomery curve is
+        (0,0) => numorder2 = 1.
+        (ii) From LANE-BASE, #E = 8l with l an odd prime, so the 2-Sylow subgroup
+        has order 8; with exactly one element of order 2 it is CYCLIC, hence
+        isomorphic to Z/8, hence has exactly phi(4) = 2 elements of order 4 =>
+        numorder4 = 2.
+        (iii) The scripted rule (numorder2 = 1 and numorder4 = 2) then gives
+        complete-single and complete-multi True.
+      quantitative_prediction:
+        - metric: 'Legendre symbol of A^2-4 = 52885740957 mod p'
+          direction: different
+          target: '-1'
+        - metric: 'number of points of order 2'
+          direction: different
+          target: 'exactly 1'
+        - metric: 'number of points of order 4'
+          direction: different
+          target: 'exactly 2'
+      certificate: >-
+        The single exponentiation (A^2-4)^((p-1)/2) mod p printed as p-1, plus
+        the integer #E = 8l from LANE-BASE and the two-line group-theoretic
+        deduction. Total re-verification: one exponentiation and one division.
+      controls: [POS-1, POS-4, NULL-1, NEG-1, NEG-2]
+      budget: '30 s'
+      stopping_rule: 'single evaluation'
+      falsifier: >-
+        Legendre symbol +1 (full 2-torsion, contradicting numorder2 = 1); or
+        #E/l != 8; or a direct division-point computation, if run as a
+        cross-check, disagreeing with the deduction.
+      discrimination: >-
+        Outcome A: completeness reproduced by a certificate that is strictly
+        cheaper than the reference implementation's (which builds division
+        points in Sage) -- a small methodological contribution, honestly a
+        constant-factor one.
+        Outcome B (Legendre +1): the published numorder2 = 1 is wrong or our
+        transcription is; NULL-2 and NEG-1 discriminate.
+      honest_limitation: >-
+        Completeness of the CURVE, per the SafeCurves page's own caveat, does not
+        guarantee completeness of any particular addition law an implementer
+        chooses. This lane certifies that a complete law EXISTS.
+
+    - id: LANE-IND
+      category: ecc_security_beyond_ecdlp
+      criterion: ind
+      comparison_target: 'Supports indistinguishability True; "Elligator 2: Yes."'
+      mechanism: >-
+        The scripted condition is exactly: #E even AND short-Weierstrass b != 0
+        (i.e. a point of order 2 exists and j != 1728). (i) #E = 8l is even, from
+        LANE-BASE. (ii) b = (2A^3-9A)/27, so b != 0 iff A(2A^2-9) != 0 mod p;
+        A = 229969 and 2A^2-9 = 105771481913 are both nonzero exact integers far
+        below p (CHK-DESK-6). Also record p mod 4 = 1 (CHK-DESK-2), which is why
+        Elligator 1 is inapplicable here by its own stated precondition and why
+        the mirror's note mentions only Elligator 2.
+      quantitative_prediction:
+        - metric: '#E mod 2'
+          direction: different
+          target: '0'
+        - metric: 'A*(2A^2-9) as an exact integer'
+          direction: different
+          target: '229969 * 105771481913, nonzero, and less than p'
+        - metric: 'p mod 4'
+          direction: different
+          target: '1 (Elligator 1 precondition FAILS; this is expected, not a defect)'
+      certificate: 'two exact small-integer statements plus #E = 8l; re-verifiable by inspection'
+      controls: [POS-1, POS-4, NEG-1, NEG-2]
+      budget: '20 s'
+      stopping_rule: 'single evaluation'
+      falsifier: 'A*(2A^2-9) = 0 mod p; or #E odd'
+      discrimination: >-
+        Outcome A: the cell reproduces, and the lane additionally documents WHICH
+        map applies (Elligator 2 only) and why (p = 1 mod 4), which the boolean
+        cell does not carry.
+        Outcome B: contradiction with LANE-COMPLETE (which needs a point of order
+        2), so the two lanes cross-check each other for free.
+      honest_limitation: >-
+        The scripted criterion is a coarse proxy: "has a 2-torsion point and
+        j != 1728". It certifies that Elligator 2 is APPLICABLE, not that any
+        implementation of it is constant-time, correct, or indistinguishable in
+        practice. A failure here is not an ECDLP break.
+
+  # ===========================================================================
+  # 3. THE EIGHT DECLARED ADDITIONAL DIAGNOSTICS
+  # ===========================================================================
+  additional_diagnostic_lanes:
+
+    - id: LANE-D1
+      diagnostic: 'complete curve and twist order factorization with checkable certificates'
+      mechanism: >-
+        Emit #E = 2^3 * l and #E' = 2^2 * l' as fully certified factorizations:
+        Pocklington chains for l and l' built bottom-up from the hinted prime
+        pool (E2), plus the exact identities 8l = p+1-t, 4l' = p+1+t,
+        8l + 4l' = 2p+2, plus the Hasse-uniqueness argument from LANE-BASE that
+        makes 8l the ONLY admissible order.
+      prediction:
+        - metric: 'certified factorization of #E'
+          direction: different
+          target: '2^3 * l with l certified prime; no other prime factor'
+        - metric: "certified factorization of #E'"
+          direction: different
+          target: "2^2 * l' with l' certified prime"
+      certificate: 'the two Pocklington chains plus three exact integer identities'
+      controls: [NULL-2, NULL-3, NEG-1]
+      budget: '900 s, shared pool with LANE-FIELD / LANE-TRANSFER / LANE-TWIST'
+      stopping_rule: 'stop at 900 s; emit whichever chains closed, mark the rest probable-prime with the tier stated'
+      falsifier: 'a chain that does not close to a deterministic proof AND a Miller-Rabin composite witness for l or l'''
+      discrimination: >-
+        Outcome A (both chains close): the order factorizations are deterministic
+        and the whole DAG rests on proved primes.
+        Outcome B (one or both fail to close): the audit is honest at
+        probable-prime tier and the campaign learns exactly which staged proof
+        pages (GAP-1) are worth retrieving next.
+      honest_limitation: 'a certified order says nothing about DLP hardness in the group of that order'
+
+    - id: LANE-D2
+      diagnostic: 'subgroup, cofactor, and invalid-curve confinement costs'
+      mechanism: >-
+        Quantify, as explicit numbers rather than adjectives: (a) small-subgroup
+        leakage, bounded by the cofactor 8 -- at most log2(8) = 3 bits of the
+        scalar, and exactly 0 bits if the protocol picks n = 8s (the twist page's
+        own remark); (b) the kangaroo speedup available when n is drawn mod l
+        rather than mod 8l: a factor of at most sqrt(8) = 2^1.5, moving 2^189.8
+        to 2^188.3 at best; (c) invalid-curve confinement for an x-only
+        Montgomery ladder: an x-only implementation confines any input to the
+        curve OR its quadratic twist, so the invalid-curve surface is exactly the
+        twist, whose cost is LANE-TWIST's 2^190.3 and whose combined cost is
+        2^188.3; (d) the residual surface for a y-carrying short-Weierstrass
+        implementation, which is NOT confined -- state that as the scope boundary.
+      prediction:
+        - metric: 'maximum scalar bits leaked by a small-subgroup query'
+          direction: different
+          target: 'exactly 3 (= log2 cofactor), and exactly 0 under n = 8s'
+        - metric: 'best-case attacker speedup from cofactor structure'
+          direction: different
+          target: 'at most 2^1.5'
+        - metric: 'invalid-curve confinement set size for an x-only ladder'
+          direction: different
+          target: 'exactly 2 groups (curve and twist), not the ~4*sqrt(p) orders available to a y-carrying implementation'
+      certificate: 'each number is an arithmetic consequence of certified cofactors 8 and 4; no measurement is needed and none is claimed'
+      controls: [NEG-1, NEG-2, POS-4]
+      budget: '60 s'
+      stopping_rule: 'closed-form; single pass'
+      falsifier: 'cofactor != 8 or twist cofactor != 4 from LANE-BASE / LANE-TWIST'
+      discrimination: >-
+        Outcome A: confinement costs become explicit numbers the campaign can
+        cite. Outcome B (cofactors differ): every number here changes and the
+        lane is recomputed -- which is why it consumes certified cofactors rather
+        than published ones.
+      honest_limitation: >-
+        These are PARAMETER-LEVEL confinement bounds. They are not statements
+        about any implementation, and (d) is deliberately left open: a
+        y-carrying implementation is out of scope for a parameter audit.
+
+    - id: LANE-D3
+      diagnostic: 'automorphism- and endomorphism-adjusted rho cost'
+      mechanism: >-
+        Two independent bounds. (i) AUTOMORPHISMS: over F_p with p > 3,
+        Aut(E) = {+-1} unless j = 0 or j = 1728. CHK-DESK-6 and CHK-DESK-7 give
+        b != 0 and a != 0 as exact small-integer facts, so j is neither, so
+        Aut(E) = {+-1} exactly and the only rho discount available is the
+        negation factor sqrt(2) ALREADY BAKED INTO the 0.886 constant. Net extra
+        speedup: 1.
+        (ii) ENDOMORPHISMS / GLV: for a CM order of discriminant D, every
+        non-integer element has norm at least |D|/4. With |D| ~ 2^382.8
+        (LANE-DISC) the shortest non-scalar endomorphism has norm >= 2^380.8,
+        while a GLV decomposition needs an endomorphism of norm about
+        sqrt(l) ~ 2^190. The gap is 2^190.8, so no GLV-style speedup exists.
+      prediction:
+        - metric: '|Aut(E)|'
+          direction: different
+          target: 'exactly 2'
+        - metric: 'extra rho speedup from automorphisms beyond negation'
+          direction: different
+          target: 'exactly 1 (none)'
+        - metric: 'log2(minimum norm of a non-scalar endomorphism) - log2(sqrt(l))'
+          direction: higher
+          target: '>= 190 (i.e. GLV is unavailable by a margin of 2^190)'
+      certificate: >-
+        (a != 0 and b != 0 as exact integers; |D| from LANE-DISC; the inequality
+        norm >= |D|/4 for non-integer elements of an order of discriminant D,
+        stated with its one-line proof: for w = (u+v*sqrt(D))/2 with v >= 1,
+        N(w) = (u^2 - D v^2)/4 >= |D|/4).
+      controls: [POS-2, NULL-1, NEG-1, NEG-2]
+      dedicated_negative_control: >-
+        secp256k1, whose published disc cell is False and which is the canonical
+        GLV curve. Our instrument must show a SMALL minimum endomorphism norm
+        there. A bound that never distinguishes secp256k1 from Curve383187 is not
+        measuring anything.
+      budget: '60 s (conditional on LANE-DISC having produced D)'
+      stopping_rule: 'if LANE-DISC leaves D uncertified, emit part (i) only and mark part (ii) UNRESOLVED'
+      falsifier: 'j = 0 or j = 1728; or the endomorphism-norm bound failing on the secp256k1 control'
+      discrimination: >-
+        Outcome A: the rho cost of LANE-RHO is certified to be the ACTUAL generic
+        cost, with no automorphism or endomorphism discount -- which is what a
+        rho number is usually asserted to mean without proof.
+        Outcome B (a discount exists): LANE-RHO's headline number is an
+        overestimate by the measured factor, and that factor is the result.
+      honest_limitation: >-
+        Bounds the discount from THESE two known sources. It is not a proof that
+        no other structure discounts rho, and must not be cited as one.
+
+    - id: LANE-D4
+      diagnostic: 'embedding-degree certificate or explicit search bound'
+      reuses: IDEA-20260807-98a970
+      mechanism: 'delivered by LANE-TRANSFER (curve) and LANE-TWIST step (iv) (twist); not duplicated here'
+      prediction:
+        - metric: '(l-1)/k'
+          direction: different
+          target: 'exactly 15'
+        - metric: "(l'-1)/k'"
+          direction: different
+          target: 'exactly 1'
+        - metric: 'representability wall k*ceil(log2 p) in bits, for the certified k'
+          direction: higher
+          target: '> 2^383 bits per field element if k ~ l; report the exact figure'
+      certificate: 'see LANE-TRANSFER; EXACT-k chain, else the non-succinct k > 10^6 bound with its cost disclosed'
+      controls: [POS-3, POS-2]
+      budget: 'inside LANE-TRANSFER and LANE-TWIST budgets'
+      stopping_rule: 'as those lanes'
+      falsifier: 'as those lanes; plus any planted positive in POS-3 not returned exactly'
+      discrimination: 'as LANE-TRANSFER'
+      honest_limitation: >-
+        Per IDEA-20260807-98a970: a bound k > K is a BOUND, not a value, and
+        reporting it as "k is about l" would overstate the certificate.
+
+    - id: LANE-D5
+      diagnostic: 'CM discriminant and conductor structure'
+      mechanism: >-
+        Beyond |D| > 2^100, report the STRUCTURE: the conductor f defined by
+        t^2-4p = f^2 * D, the factorization of f, whether D = 1 mod 4 (which
+        decides the factor-4 branch in the definition), and the 2-adic and small-
+        prime structure of D. The published factorization begins -1 * 2^2 * 29 *
+        150041 * ..., i.e. the 4 is present, indicating the D != 1 mod 4 branch
+        was taken; verify that branch decision independently rather than
+        inheriting it.
+      prediction:
+        - metric: 'conductor f'
+          direction: different
+          target: 'the exact integer with its certified factorization; predicted small, but NO value is predicted in advance and none is guessed here'
+        - metric: '(t^2-4p)/f^2 mod 4'
+          direction: different
+          target: 'consistent with the published factor of 2^2 in D, i.e. the squarefree part is 2 or 3 mod 4'
+      certificate: 'f, f^2 * D = t^2-4p as an exact identity, and the mod-4 branch decision printed'
+      controls: [POS-1, POS-2, NEG-1]
+      budget: 'inside LANE-DISC''s 600 s'
+      stopping_rule: 'as LANE-DISC'
+      falsifier: 'f^2 * D != t^2-4p; or a branch decision inconsistent with the published D'
+      discrimination: >-
+        Outcome A: the CM structure is fully explicit, and D3(ii)'s endomorphism
+        bound rests on a certified discriminant rather than an approximation.
+        Outcome B (branch mismatch): the published D is off by a factor of 4,
+        which changes log2|D| by 2 and nothing else -- a precise, small,
+        reportable discrepancy.
+      honest_limitation: 'CM structure constrains endomorphisms; it does not bound ECDLP'
+
+    - id: LANE-D6
+      diagnostic: 'model-conversion exceptional sets'
+      mechanism: >-
+        Enumerate EXACTLY, with no sampling, the points at which each model
+        conversion is undefined, and count them.
+        (a) Montgomery -> short Weierstrass, x -> (x+A/3)/B: defined everywhere;
+        exceptional set = {} plus the point at infinity handled separately.
+        (b) Montgomery -> twisted Edwards with a = (A+2)/B, d = (A-2)/B, via
+        (x,y) -> (x/y, (x-1)/(x+1)): undefined at y = 0 (i.e. the 2-torsion
+        point (0,0)) and at x = -1. Enumerate those preimages exactly: y = 0 has
+        exactly one solution since A^2-4 is a non-square (LANE-COMPLETE), and
+        x = -1 is on the curve iff -1 + A - 1 = A-2 is a square.
+        (c) THE DISCRIMINATING SUB-CHECK: compute the two Legendre symbols
+        chi(A+2) = chi(229971) and chi(A-2) = chi(229967). Since A^2-4 is a
+        non-square, EXACTLY ONE of them is +1. WHICH ONE IS NOT PREDICTED HERE
+        AND IS NOT GUESSED. Both outcomes are defined in advance:
+          - chi(A+2) = +1: the twisted Edwards model has a = square, d =
+            non-square, so the curve is directly isomorphic to a COMPLETE
+            untwisted Edwards curve; the x = -1 exceptional point does NOT lie
+            on the Montgomery curve.
+          - chi(A-2) = +1: a is a non-square, so reaching a complete Edwards
+            model requires the standard -1-scaling; the x = -1 point DOES lie on
+            the curve and enters the exceptional set.
+        Either way LANE-COMPLETE's conclusion stands; what differs is the SIZE
+        and MEMBERSHIP of the conversion exceptional set, which is the quantity
+        this diagnostic exists to measure.
+        (d) Point decompression: with p = 5 mod 8 (CHK-DESK-3) the square-root
+        branch is the 2^((p-5)/8) route with an i-multiplication fix-up; count
+        the inputs on which the naive p = 3 mod 4 formula would silently return a
+        wrong root -- predicted: ALL of them, since that formula is simply
+        invalid for p = 5 mod 8. This is a documentation-grade implementation
+        hazard, not a curve weakness.
+      prediction:
+        - metric: 'size of the Montgomery -> twisted Edwards exceptional set'
+          direction: different
+          target: 'exactly 1 or exactly 3, decided by chi(A+2); both outcomes pre-defined above'
+        - metric: 'chi(A+2) * chi(A-2)'
+          direction: different
+          target: 'exactly -1 (forced by A^2-4 non-square; a +1 here contradicts LANE-COMPLETE)'
+      certificate: 'two Euler-criterion exponentiations printed, plus the explicit enumerated point list'
+      controls: [NEG-1, NEG-2, NULL-1, POS-1]
+      budget: '60 s'
+      stopping_rule: 'single evaluation'
+      falsifier: 'chi(A+2)*chi(A-2) = +1, which would contradict LANE-EQUATION and LANE-COMPLETE simultaneously'
+      discrimination: 'stated inline above; both branches are informative and neither is a failure'
+      honest_limitation: >-
+        An exceptional set is an implementation hazard inventory. It is not a
+        vulnerability, and this lane makes no claim that any implementation hits
+        any of these points.
+
+    - id: LANE-D7
+      diagnostic: 'scalar and multiscalar formula exceptional-case search'
+      mechanism: >-
+        Exhaustive over EQUIVALENCE CLASSES, not random sampling. For the x-only
+        Montgomery ladder, Bernstein's completeness result applies exactly when
+        A^2-4 is a non-square (LANE-COMPLETE certifies that), giving
+        X0(nP) for every P and every n. Test the claim by enumerating the
+        structurally distinct inputs: P in {infinity, the order-2 point (0,0), an
+        order-4 point, an order-8 point, a point of order l, a point of order 8l,
+        an x-value on the TWIST}, crossed with n in {0, 1, 2, 8, l, l+1, 8l,
+        8l+1, a random 380-bit n}. That is 63 ladder runs. Separately, run the
+        standard affine short-Weierstrass addition on the same input classes and
+        COUNT its exceptions (P = Q and P = -Q), which is the failure the
+        completeness page describes.
+      prediction:
+        - metric: 'number of ladder input classes producing a wrong or undefined X0(nP)'
+          direction: lower
+          target: 'exactly 0'
+        - metric: 'number of affine short-Weierstrass input classes producing an exception'
+          direction: higher
+          target: 'at least 2 (P = Q and P = -Q), i.e. the instrument demonstrably detects exceptions'
+      certificate: >-
+        the full 63-row transcript with expected and observed X0 per row,
+        cross-checked against an independent double-and-add reference; plus the
+        exception count for the affine law.
+      controls:
+        - id: NULL-D7
+          object: >-
+            SAME-SHAPE NULL: a synthetic Montgomery curve over the same p chosen
+            so that A'^2-4 IS a square (full 2-torsion), i.e. the precondition of
+            the completeness theorem is deliberately removed while shape, field
+            and code path are identical.
+          must_happen: 'the ladder exhibits at least one exceptional class; if it does not, the instrument cannot detect exceptions and every zero above is void'
+        - POS-1
+        - NEG-1
+      budget: '300 s'
+      stopping_rule: 'all 63 classes, or 300 s; partial transcripts are reported as partial'
+      falsifier: 'any nonzero exception count for the ladder; or a zero exception count on NULL-D7'
+      discrimination: >-
+        Outcome A (0 ladder exceptions and >0 on both the affine law and
+        NULL-D7): the completeness precondition is confirmed to bite, and the
+        instrument is shown able to see exceptions.
+        Outcome B (0 everywhere including NULL-D7): instrument failure; nothing
+        is concluded about the curve.
+      honest_limitation: >-
+        Equivalence-class coverage, not exhaustive over 2^383 points. The classes
+        are chosen from the known structure of the failure modes; an exception
+        confined to a class we did not enumerate would be missed, and that is
+        stated as the tested boundary rather than hidden.
+
+    - id: LANE-D8
+      diagnostic: 'deterministic parameter-generation transcript audit'
+      resolves: CONF-2
+      mechanism: >-
+        Turn the rigidity note into a decidable statement and test it.
+        Step 1: formalize candidate constraint sets C_i. C_1 = {p largest prime
+        below 2^383; B = 1; #E = 8*prime; #E' = 4*prime; A > 2 minimal}. C_2 =
+        C_1 + {A = 2 mod 4} (the M-series congruence identified in CHK-DESK-5).
+        C_3 = C_1 + {(A-2)/4 minimal rather than A minimal}. Others may be added
+        if ePrint 2013/647 is later retrieved.
+        Step 2 (feasible, and the actual experiment): reproduce the minimality
+        search AT SMALL SCALE, where point counting is possible in pure Python by
+        baby-step/giant-step. Choose primes q of 40-64 bits with the same sparse
+        shape (q = 2^n - c, c small), and for each C_i enumerate A = 3,4,5,...
+        computing #E and #E' by BSGS until the first A satisfying C_i is found.
+        Record, per (q, C_i), the winning A and whether C_2's winner differs from
+        C_1's winner in the same way that 2065150 differs from 229969.
+        Step 3: report the 383-bit case explicitly as UNTESTED, with the reason
+        (E1: SEA unavailable; ~2.3*10^5 candidate curves at 383 bits).
+      prediction:
+        - metric: 'per small prime q, whether C_1 and C_2 select different A'
+          direction: different
+          target: >-
+            C_2''s winner >= C_1''s winner always (C_2 is a strict refinement);
+            strict inequality on a majority of q would make the "M-series adds
+            A = 2 mod 4" hypothesis a live explanation of CONF-2, while equality
+            on nearly all q would weaken it.
+        - metric: 'number of constraint sets C_i under which BOTH 229969 (for the plain family) and 2065150 (for the M family) are minimal at p = 2^383-187'
+          direction: different
+          target: 'UNTESTED at 383 bits; reported as such, not as 0'
+      certificate: >-
+        For the small-scale reproduction: the full enumeration transcript per
+        (q, C_i), with #E and #E' and the BSGS witnesses, re-runnable from the
+        recorded seed and parameters. For the 383-bit claim: NO CERTIFICATE IS
+        CLAIMED, and the lane says so in its own output.
+      controls:
+        - id: POS-D8
+          object: >-
+            Curve25519 at its own p, whose rigidity note is far more detailed and
+            states the constraint set explicitly ({4*prime, 8*prime}, primes
+            above 2^252, (A-2)/4 small, A minimal, ruling out A = 358990 and
+            A = 464586). Run the reconstruction there.
+          must_happen: >-
+            the reconstruction must select A = 486662 AND must reject 358990 and
+            464586 for the stated reason. A transcript reconstructor that cannot
+            reproduce the one curve whose transcript IS fully published has no
+            standing to adjudicate CONF-2.
+        - id: NEG-D8
+          object: 'NIST P-224 / NIST P-256, whose rigidity cell is "manipulatable" (seed-hashed, unexplained)'
+          must_happen: 'the reconstructor must return NO deterministic transcript, i.e. must fail to explain the parameter'
+        - id: NULL-D8
+          object: >-
+            a random A drawn over the same small q, asked "is this the minimal A
+            under C_i?"
+          must_happen: 'answer NO with overwhelming probability; a reconstructor that certifies a random A as minimal is broken'
+      budget: '1200 s for the small-scale reproduction; 0 s spent on the 383-bit enumeration, which is not attempted'
+      stopping_rule: >-
+        Stop at 1200 s or after 8 small primes q. Do not extend the budget toward
+        the 383-bit case: it is out of reach under E1 and a partial 383-bit
+        enumeration would prove nothing (absence of a smaller A over a scanned
+        prefix is not minimality unless the whole range is scanned, and that
+        distinction must be stated if any prefix scan is reported at all).
+      falsifier: >-
+        POS-D8 failing to select 486662; or NEG-D8 producing a transcript for a
+        seed-hashed NIST curve; or NULL-D8 certifying a random A.
+      discrimination: >-
+        Outcome A (POS-D8 passes and some C_i separates the families): CONF-2 has
+        a concrete, testable explanation, and the campaign can say precisely what
+        additional clause the published rigidity note omits. That is a
+        DOCUMENTATION finding about SafeCurves' transcript text.
+        Outcome B (POS-D8 passes, no C_i separates them): the omission is not the
+        A = 2 mod 4 clause, and CONF-2 stays open with one hypothesis eliminated.
+        Outcome C (POS-D8 fails): the reconstructor is not trustworthy and CONF-2
+        is untouched.
+      honest_limitation: >-
+        THIS IS THE WEAKEST LANE IN THE PLAN AND IS LABELLED SO DELIBERATELY. It
+        tests the transcript-reconstruction METHOD at 40-64 bits and TRANSFERS
+        nothing automatically to 383 bits; the transfer assumption (that the
+        minimality structure at small q predicts the structure at 2^383-187) is
+        stated, is not validated here, and is the reason the 383-bit answer stays
+        UNRESOLVED. Nothing in this lane is a security claim: a rigidity or
+        transcript gap is not an ECDLP break, per the goal's claim_boundaries.
+
+  # ===========================================================================
+  # 4. DEFERRALS AND COVERAGE ACCOUNTING
+  # ===========================================================================
+  coverage:
+    eleven_criteria_covered: [field, equation, base, rho, transfer, disc, rigid, ladder, twist, complete, ind]
+    eleven_criteria_deferred: []
+    eight_diagnostics_covered:
+      - 'complete curve and twist order factorization with checkable certificates -> LANE-D1'
+      - 'subgroup, cofactor, and invalid-curve confinement costs -> LANE-D2'
+      - 'automorphism- and endomorphism-adjusted rho cost -> LANE-D3'
+      - 'embedding-degree certificate or explicit search bound -> LANE-D4 (reuses IDEA-20260807-98a970)'
+      - 'CM discriminant and conductor structure -> LANE-D5'
+      - 'model-conversion exceptional sets -> LANE-D6'
+      - 'scalar and multiscalar formula exceptional-case search -> LANE-D7'
+      - 'deterministic parameter-generation transcript audit -> LANE-D8'
+    eight_diagnostics_deferred: []
+    partial_coverage_declared_explicitly:
+      - lane: LANE-RIGID / LANE-D8
+        what_is_deferred: 'the A-minimality clause at p = 2^383-187'
+        concrete_reason: >-
+          requires point counting on up to ~2.3*10^5 curves over a 383-bit field;
+          under environment assumption E1 (pure Python, no Sage/PARI, hence no
+          SEA) this is not feasible within any batch budget in this campaign.
+        successor_condition: >-
+          Either (i) a staged, hash-pinned mirror of ePrint 2013/647 supplying
+          the authors' own generation description, which would replace
+          enumeration with verification of a stated rule; or (ii) an executor
+          environment with an SEA implementation, at which point the enumeration
+          becomes a bounded compute question with a statable cost. Until one of
+          these exists the cell is UNRESOLVED, not True and not False.
+      - lane: LANE-FIELD / LANE-D1
+        what_may_be_deferred: 'deterministic primality tier for p, l, l'''
+        concrete_reason: 'Pocklington chains depend on hinted factorizations closing; SafeCurves'' own proof pages are not staged (capsule GAP-1)'
+        successor_condition: 'stage the three proof/<n>.html pages, or complete the chains in-program from the hinted prime pool'
+
+  # ===========================================================================
+  # 5. PRIORITIZATION
+  # ===========================================================================
+  prioritization:
+    execution_order:
+      - 'control_battery (BLOCKING; NULL-2, NULL-3, POS-3, POS-1/2/4, NEG-1/2, NULL-1 in that order)'
+      - LANE-EQUATION
+      - LANE-BASE
+      - LANE-COMPLETE
+      - LANE-IND
+      - LANE-LADDER
+      - LANE-RHO
+      - LANE-D6
+      - LANE-D2
+      - LANE-FIELD
+      - LANE-D1
+      - LANE-TRANSFER
+      - LANE-D4
+      - LANE-DISC
+      - LANE-D5
+      - LANE-D3
+      - LANE-TWIST
+      - LANE-D7
+      - LANE-RIGID
+      - LANE-D8
+    test_first: LANE-BASE
+    why_first: >-
+      LANE-BASE is the cheapest valid discriminator with the widest reach. Its
+      core is ONE 380-bit Montgomery ladder (milliseconds) plus one integer
+      comparison l^2 > 4p, and what it buys is the exact group order #E = 8l --
+      the single quantity that seven other cells (rho, transfer, disc, ladder
+      cofactor, twist, complete, ind) silently consume. It is also the one node
+      where SafeCurves' own script does NOT publish a proof: verify.sage infers
+      t by rounding rather than certifying it. So LANE-BASE simultaneously (a)
+      reproduces a published cell, (b) upgrades an inference to a certificate,
+      and (c) is the earliest point at which a transcription error anywhere in
+      the tuple becomes visible -- a wrong y1, a wrong l or a wrong p all make
+      the ladder miss infinity. Its negative outcome is as informative as its
+      positive one, and it costs less than a second of compute.
+    aggregate_budget: 'sum of lane budgets ~= 5300 s of executor wall clock, excluding the control battery; well inside a single batch if the certified-primes pool is shared across LANE-FIELD, LANE-TRANSFER, LANE-DISC, LANE-TWIST and LANE-D1 as specified'
+
+  # ===========================================================================
+  # 6. HEURISTIC ASSUMPTIONS
+  # ===========================================================================
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a 380-bit integer that has passed k = 64 Miller-Rabin rounds with
+        independent uniformly random bases and has no Pocklington chain, the
+        probability that it is composite is treated as negligible for the purpose
+        of ORDERING further work -- but never for the purpose of stating a
+        result.
+      rigorous_support: >-
+        Monier-Rabin: a composite n has at most (n-1)/4 strong liars, so a single
+        random base fails to detect a composite with probability < 1/4. That is a
+        bound over the RANDOM BASE, not over the fixed integer.
+      validation_plan: >-
+        Sample 10^4 random 380-bit integers and 10^4 integers of the form
+        2^380 + r; compare the observed density of MR-64 survivors against the
+        prime-number-theorem prediction 1/ln(2^380) ~ 1/263. Tail check: no
+        MR-64 survivor in the sample may fail a subsequent Pocklington attempt
+        that closes. Sampled parameters recorded; NO transfer to the specific
+        integers l, l' is claimed -- those get their own chain or their own
+        stated tier.
+      where_used: 'LANE-FIELD, LANE-D1, and the fallback tier in E3'
+    - id: H2
+      statement: >-
+        The hinted prime pool in primeproofs.txt is treated as a COMPLETE
+        candidate set for the recursive Pocklington closure of p, l and l'.
+      rigorous_support: >-
+        The verify.sage documentation states the `primes` file contains all prime
+        divisors of p, p+1-t, p+1+t and t^2-4p, and recursively all prime
+        divisors of q-1 for each q listed. If that description is accurate the
+        pool is closed by construction.
+      validation_plan: >-
+        Falsifiable directly, at zero extra cost: attempt each chain using ONLY
+        the pool. If a chain closes, H2 held for that number. If a chain stalls,
+        H2 failed for that number and the honest output is the probable-prime
+        tier plus a report of exactly which cofactor was left unfactored. No
+        distributional assumption is involved and none is imported.
+      where_used: 'LANE-FIELD, LANE-TRANSFER, LANE-DISC, LANE-TWIST, LANE-D1, LANE-D5'
+    - id: H3
+      statement: >-
+        The structural behavior of the parameter-generation minimality search at
+        40-64 bit primes of sparse form 2^n - c is informative about, but does
+        NOT determine, the same search at p = 2^383-187.
+      rigorous_support: >-
+        None claimed. This is a pure transfer assumption and is labelled as such.
+        The only rigorous content is that a constraint set which fails to select
+        the published A at small scale cannot be the rule at large scale either,
+        which is why LANE-D8 is run as an ELIMINATION rather than a confirmation.
+      validation_plan: >-
+        POS-D8 (Curve25519, the one curve with a fully published transcript) is
+        the direct validation at 255 bits, which is far closer to 383 than the
+        small primes are. If the reconstructor reproduces A = 486662 including
+        the rejections of 358990 and 464586, H3 has real support at
+        cryptographic scale for THAT constraint set. If it does not, H3 is
+        unsupported and LANE-D8 reports only its own failure.
+      where_used: 'LANE-D8 exclusively'
+    - id: H4
+      statement: >-
+        SafeCurves' published cost cells (2^189.8, 2^190.3, 2^188.3) were
+        produced by the float path in verify.sage, so a reproduction agreeing to
+        one decimal place is treated as a match and a disagreement below 0.05 in
+        log2 is treated as float noise rather than a finding.
+      rigorous_support: >-
+        The script computes log(pi4*l)/log(4) in Sage floats and formats with
+        "%.1f". The formatting alone bounds the recoverable precision at 0.05.
+      validation_plan: >-
+        Recompute all three cells for all 20 curves in the mirror's tables using
+        exact rational/interval arithmetic and compare against the published
+        strings. If every one of the 60 cells lands inside its 0.05 bracket, H4
+        is validated across the whole table at once; any cell that does not is a
+        located, reportable discrepancy in the published table.
+      where_used: 'LANE-RHO, LANE-TWIST'
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR SOUGHT. This is a measurement plan. Audit
+      cost: dominated by certifying two 380-bit Pocklington chains from hints
+      (O(omega) modular exponentiations each, seconds) and, if the exact-k route
+      fails, by the non-succinct k > 10^6 bound at 10^6 modular multiplications
+      per group. Third-party re-verification of the emitted certificates: a few
+      dozen 383-bit modular exponentiations, i.e. milliseconds.
+    memory_exponent: 'O(log p) for the audit; O(1)-sized certificates. No time-memory tradeoff arises because no search is performed.'
+    best_known: >-
+      Against this curve the frontier is rho at 0.886*sqrt(l) = 2^189.8 with O(1)
+      memory (KN-TECH-001, KN-TECH-006) and BSGS at sqrt(l) time / sqrt(l) memory
+      (KN-TECH-031, with the n^{2/3+o(1)} full cost of KN-TECH-035). Nothing in
+      this plan approaches, threatens, or is intended to approach any of them.
+    hidden_overhead: >-
+      The LOWER-BOUND embedding-degree certificate is not succinct: verifying
+      k > K genuinely costs K modular multiplications. Stated per
+      IDEA-20260807-98a970 rather than presented as a short proof.
+    tradeoff_note: >-
+      One real tradeoff inside the audit: exact k needs a certified factorization
+      of l-1 (expensive to obtain, succinct to verify) versus a bound needing K
+      multiplications (cheap to obtain, expensive to verify). Every emitted row
+      records which route it took.
+
+  interpretation_limits:
+    - 'A parameter audit. It mounts no attack and moves no exponent.'
+    - >-
+      Reproducing a SafeCurves cell certifies the CELL, not security. The eleven
+      criteria are SafeCurves'' chosen proxies and this plan adopts them as
+      comparison targets without endorsing them as sufficient.
+    - >-
+      Failures of rigid, ladder, complete or ind are not ECDLP breaks. This is
+      restated inside the affected lanes so it cannot be lost in extraction.
+    - >-
+      Every number this plan would produce is scoped to Curve383187 at
+      p = 2^383-187, to the named controls, to the pure-Python executor
+      environment E1, and to the stated per-lane budgets.
+    - >-
+      Timeouts, HTTP 502s, the WebFetch numeric-corruption defect, and budget
+      stops are operational observations and can never appear as mathematical
+      evidence in any lane's output.
+
+  prohibited_actions_restated:
+    - 'No lane requests, derives, stores, or tests a live private key. All scalars are freshly generated public test values or fixed structural constants.'
+    - 'No lane attempts a discrete logarithm on Curve383187 or on any control at any scale.'
+    - 'No lane output may assert that Curve383187 is safe, unsafe, vulnerable, or free of vulnerabilities.'
+    - 'No provider, backend, endpoint or model identifier containing "Bedrock" (case-insensitive) may be selected for any lane.'

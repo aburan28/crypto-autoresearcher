@@ -1,0 +1,275 @@
+idea:
+  id: IDEA-20260816-7bab5e
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: 'Measure the finalization as a separate object: the map that turns a permuted state into
+    a chaining value or a digest, scored by exact counts of output-difference cancellation on its
+    algebraic layer alone, for BLAKE3''s chaining and root outputs against BLAKE2s''s feed-forward,
+    with a random map of the same shape as the null.'
+  class: theory
+  claim: '(A) The finalization is the third bundled change between BLAKE2s and BLAKE3 and is the only
+    one that can be studied with NO permutation at all. Isolate it: define the finalization as a map
+    Phi from the permuted state (and, where the design feeds it forward, the pre-permutation state)
+    to the emitted words, and study Phi alone as an algebraic object -- its rank over GF(2) if it
+    is linear, its exact preimage-size distribution on the truncated output, and the exact count of
+    state-difference pairs that Phi maps to a zero output difference. (B) The claim is that these
+    are computable EXACTLY, without any solver and without evaluating the permutation, because Phi
+    is a small fixed map on 16 words; and that the quantity that matters for comparing designs is
+    the CANCELLATION COUNT -- the number of nonzero state differences Phi sends to zero output difference
+    -- normalised by the truncation ratio, since a finalization that discards words necessarily has
+    cancellation and the interesting question is whether it has more than truncation alone forces.
+    (C) NOT CLAIMED: cancellation in the finalization is not a weakness, is not an attack, and is
+    not a security statement. Every truncating map has a kernel by counting, and the record''s entire
+    content is whether the measured kernel is larger than the counting bound, by how much, and for
+    which design. Nothing about full BLAKE3, nothing about deployed systems, and specifically no claim
+    that a larger kernel is worse -- a design may accept it deliberately, and this record measures
+    rather than judges. (D) The negative outcome is the deliverable: if both designs'' finalizations
+    cancel exactly at the counting bound, then the finalization contributes nothing to any BLAKE3-versus-BLAKE2s
+    difference and the chimera lattice can drop an axis, which is a measured simplification of the
+    whole bucket''s remaining work rather than a null report.'
+  mechanism: 'Zero-compute in the solver sense, exact in the arithmetic sense. Stage one: from pinned
+    primary text write Phi explicitly for each design and for each output role -- BLAKE3''s chaining-value
+    output and its root output, BLAKE2s''s feed-forward -- as code, and classify each as GF(2)-linear,
+    affine, or nonlinear. This classification decides everything downstream and is a reading task.
+    Stage two, linear case: build Phi''s matrix over GF(2) directly by evaluating it on the standard
+    basis (512 evaluations for a 512-bit state, milliseconds), compute its rank exactly by Gaussian
+    elimination, and read the kernel dimension. The cancellation count is then exactly 2^(kernel dimension)
+    - 1 and needs no search. Stage three, nonlinear or affine case: the exact count is no longer a
+    rank, so measure it by exhaustive evaluation on a declared sub-domain (single-word differences,
+    two-word differences, and low-weight differences up to weight 3), reporting the sub-domain as
+    the class boundary in the same style as the finite audits in this bucket. Stage four: compute
+    the counting bound -- for a map from n bits to m bits with m < n, cancellation is at least 2^(n-m)
+    - 1 by pigeonhole under uniformity -- and report the EXCESS over that bound, which is the comparable
+    quantity. Stage five: run the identical computation on random maps of the same shape (random GF(2)
+    matrices of the same dimensions, or random truncating maps) to get the excess distribution by
+    chance.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'grep -ril blake over ledger/, knowledge/, experiments/; grep -ril ''feed-forward|feedforward|finalization|finalisation''
+      over ledger/proposals; grep -ril ''message schedule'' over ledger/proposals; read RQ-BLAKE-584719''s
+      second target (isolate what changed: schedule, round count, finalization) and GOAL-BLAKE-001
+      in full; read docs/inventor-protocol.md sections 1-3 and 8, in particular section 2''s worked
+      example of a projection that loses nothing.'
+    results: Zero BLAKE proposals. The finalization greps returned nothing in ledger/proposals bearing
+      on a hash's output map as an algebraic object; the hits were incidental uses of the word in
+      unrelated records. RQ-BLAKE-584719 names finalization as one of the three changes to be scored
+      separately but supplies no method for scoring it, and GOAL-BLAKE-001's completion criteria mention
+      attribution 'where the structure permits' without saying what permits it. Within this repository
+      the closest methodological neighbours are the chimera-lattice record in this same bucket (which
+      treats finalization as a lattice axis rather than as an object) and IDEA-20260809-3a39bc's feature-level
+      ablation philosophy.
+    verdict: 'UNVERIFIED. No claim about the external literature, which this program cannot read.
+      Assembled from known parts: rank and kernel computation over GF(2) is elementary; the pigeonhole
+      counting bound for a truncating map is elementary; the null-of-the-same-shape discipline is
+      inventor-protocol section 3. Claimed new HERE: treating the finalization as a standalone object
+      measured independently of the permutation, defining the comparable quantity as the EXCESS cancellation
+      over the counting bound rather than the raw cancellation count (which is dominated by truncation
+      and therefore incomparable across designs with different output widths), and using the result
+      to decide whether the chimera lattice can drop an axis.'
+  object_first_candidate:
+    tracked_object: 'The finalization map Phi itself, as an algebraic object: its GF(2) rank and kernel
+      dimension where linear, and its exact zero-output-difference preimage count on a declared low-weight
+      sub-domain otherwise. The object followed through the computation is the KERNEL EXCESS -- measured
+      cancellation minus the counting bound forced by truncation.'
+    lossiness: 'Genuinely lossy. The full object is a map on 512 bits of state; the tracked object
+      is one integer (the kernel dimension, or the excess). Discarded: which state differences cancel,
+      the algebraic structure of the kernel as a subspace, and every relationship between the kernel
+      and the permutation that precedes Phi. What survives propagation and why: the kernel is defined
+      by Phi alone and is invariant under any relabelling of the permutation''s output, so it propagates
+      as a property of the finalization independent of what feeds it -- which is exactly the separability
+      this record needs and exactly what makes the measurement comparable between two designs whose
+      permutations differ. IMPORTANT HONESTY NOTE required by inventor-protocol section 2: in the
+      linear case the rank determines the kernel completely, so the projection from Phi to (rank,
+      kernel dimension) discards the kernel''s basis but discards nothing about its SIZE -- for the
+      size question this is not a lossy projection but an exact summary, and the record says so rather
+      than dressing an exact computation as a discovery.'
+    propagation: 'Phi is applied once, at the end, so there is no per-round propagation and the object
+      does not evolve. What does propagate is the composition question: the kernel of Phi, intersected
+      with the image of the permutation''s difference propagation, is what an attack would care about,
+      and this record explicitly does NOT compute that intersection -- doing so requires the permutation
+      and belongs to the trail-search records. The one-step action studied here is therefore the single
+      application of Phi to a state difference, and the measurement is a count over that single step.'
+    survival_score: 'The object is exact and does not dissolve at all in the linear case: rank and
+      kernel dimension are computed exactly for the full 512-bit domain in milliseconds, and the survival
+      statement is total within the object''s own scope. In the nonlinear case it survives only over
+      the declared low-weight sub-domain (weights 1 through 3), and the boundary is stated: differences
+      of weight 4 and above are not enumerated and nothing is claimed about them. The honest limitation
+      is that the object''s total survival is purchased by its narrowness -- it says everything about
+      Phi and nothing about Phi composed with anything.'
+  null_object_control: 'Random maps of the same shape, computed identically in the same invocation.
+    For a linear Phi: 1000 random GF(2) matrices of the same dimensions, each with rank and kernel
+    dimension computed by the same code path, giving the by-chance excess distribution. For a nonlinear
+    Phi: 1000 random truncating maps built from the same word-level shape (random word selections
+    and random XOR patterns), evaluated over the identical low-weight sub-domain. What the null must
+    show for the signal arm to mean anything: the null distribution of the excess must be concentrated
+    at or near zero with a measured spread, so that a real design''s excess can be located within
+    or outside it. If random maps of the same shape routinely show large excess, the excess is a property
+    of the shape and not of either design, and the record reports that instead -- a complete result
+    that would also invalidate the intended comparison. A second null is required for the nonlinear
+    case specifically: the identical measurement on a random map that is deliberately given a planted
+    kernel of known dimension, which the code path must recover exactly.'
+  discriminated_from:
+  - 'The chimera-lattice record in this bucket: that treats finalization as one axis of a factorial
+    design measured through downstream metrics (trail weight, diffusion round). This record measures
+    the finalization DIRECTLY as an object with no permutation involved, and its result determines
+    whether the lattice''s finalization axis is worth running at all. Complementary, not duplicative,
+    and the dependency runs from this record to that one.'
+  - 'The message-freedom control record: also an ablation, but it removes the schedule''s freedom
+    inside a solver model. This computes an exact algebraic invariant with no solver and no model.
+    Different instrument, different object.'
+  - 'IDEA-20260809-3a39bc: feature-level attribution in an AEAD, by construction cost. Here the attribution
+    is by an exact algebraic count and there is no construction and no certificate.'
+  - 'Generic ''analyse the compression function''s output transformation'': explicitly not that, because
+    this record commits to one comparable scalar (excess over the counting bound) and to a null distribution
+    for it, rather than to an open-ended examination.'
+  assumptions:
+  - Phi is separable from the permutation in both designs -- i.e. the finalization can be written
+    as a map applied after the last round without reaching back into intermediate rounds. Verified
+    at stage one against pinned text; if it fails for either design, the object does not exist as
+    defined and that is the finding.
+  - For the linear case, evaluating Phi on the standard basis recovers the matrix exactly. True by
+    linearity, but only if the linearity classification at stage one is correct, which is why the
+    classification is a separate stage with its own check.
+  - The pigeonhole counting bound 2^(n-m) - 1 is the right baseline. It assumes a uniform map; a non-uniform
+    map may have larger cancellation for entirely benign reasons, and the excess must therefore be
+    read against the RANDOM-MAP NULL rather than against the pigeonhole bound alone. This is stated
+    as an assumption because a lazy reading of the excess against the bound alone would be wrong.
+  - The low-weight sub-domain (weights 1 to 3) is a budget choice with no claimed structural significance.
+  predictions:
+  - metric: linearity classification of Phi for each design and output role
+    direction: different
+    minimum_effect: no pre-committed value; this is a reading outcome and pre-committing would be
+      guessing at a specification not yet filed
+  - metric: excess cancellation over the counting bound, real designs
+    direction: lower
+    minimum_effect: 0 -- predicted value. A well-constructed finalization is expected to cancel exactly
+      at the counting bound; the prediction is that the excess is zero and the measurement exists
+      to test it
+  - metric: planted-kernel recovery on the null control
+    direction: higher
+    minimum_effect: the planted kernel dimension must be recovered exactly, to the bit; anything else
+      means the code path cannot measure what it claims to measure
+  - metric: spread of the excess across 1000 random maps of the same shape
+    direction: different
+    minimum_effect: 'REFUSING TO PRE-COMMIT a number, with reason: the spread depends on the shape,
+      which depends on the specification''s output widths, unread at proposal time. The frozen rule
+      is that a real excess is called notable only if it falls outside the null''s full observed range'
+  minimal_test:
+    design: Stage one and stage two alone, for BLAKE2s only, take minutes and settle whether the whole
+      record is worth continuing. Write BLAKE2s's feed-forward as code, classify it, and if linear
+      build its 512-column GF(2) matrix by basis evaluation and compute the rank. That single computation
+      gives the kernel dimension exactly, the counting bound follows from the output width by arithmetic,
+      and the excess is their difference. Then run 1000 random matrices of the same dimensions through
+      the same code path for the null distribution -- also seconds. If BLAKE2s's excess is zero and
+      the null's excess is concentrated at zero with tiny spread, the measurement has no resolving
+      power for this pair and the BLAKE3 half can be run for completeness but should not be sold as
+      an attribution. If the null shows meaningful spread, the comparison is worth completing. The
+      entire minimal test runs on a laptop in under a minute and requires no solver, no ceiling and
+      no seeds beyond the null's.
+    controls:
+    - Random maps of the same shape (1000 draws) run through the identical code path in the same invocation,
+      giving the by-chance excess distribution.
+    - 'Planted-kernel control: a random map given a kernel of known dimension, which the code path
+      must recover exactly to the bit.'
+    - 'Linearity control: verify the linearity classification by testing Phi(a XOR b) == Phi(a) XOR
+      Phi(b) on 10000 random pairs before trusting the matrix construction; a single failure reclassifies
+      the map and switches to the enumeration branch.'
+    - 'Truncation-bound control: report the counting bound explicitly alongside every cancellation
+      count so the raw count is never presented without it.'
+    - 'Cross-implementation control: build Phi from the pinned C reference''s behaviour by black-box
+      evaluation as well as from the specification text, and require the two matrices to agree.'
+    required_metrics:
+    - linearity classification per design per output role
+    - GF(2) rank and kernel dimension where linear
+    - exact zero-output-difference count over the low-weight sub-domain where not linear
+    - counting bound per map
+    - excess = measured cancellation minus counting bound
+    - null excess distribution (1000 draws) with full range
+    - planted-kernel recovery exactness
+  falsification_conditions:
+  - The linearity control fails after the map was classified linear, meaning the matrix construction
+    was invalid.
+  - The planted-kernel control does not recover the planted dimension exactly.
+  - Phi cannot be separated from the permutation in either design, so the object does not exist as
+    defined.
+  - The null excess distribution is so wide that no real value could fall outside it, meaning the
+    measurement has no resolving power for this shape.
+  - The specification-derived and reference-derived matrices disagree, meaning the audit is about
+    one or the other but not both.
+  - Both designs show identical excess and identical kernel dimension, which is a real result and
+    specifically the one that lets the chimera lattice drop its finalization axis.
+  confounders:
+  - Comparing raw cancellation counts across designs with different output widths, where truncation
+    alone explains the difference. Guarded by mandating the counting bound alongside every count and
+    by making excess the comparable quantity.
+  - A finalization that reaches back into intermediate state (a feed-forward from before the permutation),
+    which is separable in appearance but not in fact; stage one must catch this and it is the likeliest
+    way the object dissolves.
+  - Basis evaluation on a map with hidden state or a mode-dependent branch, so that the matrix built
+    is one of several.
+  - Low-weight sub-domain choice in the nonlinear case, where all the structure could sit at weight
+    4 and above.
+  - Reading a nonzero excess as a weakness. It is not, and part (C) exists to forbid that reading
+    rather than to hedge it.
+  interpretation_limits:
+  - The measurement concerns Phi alone; the intersection of Phi's kernel with the permutation's reachable
+    difference set is the quantity an attack would need, and this record explicitly does not compute
+    it.
+  - A nonzero excess is not a weakness and a zero excess is not a strength; both are measurements
+    of an algebraic map against a counting baseline and a random-shape null.
+  - In the nonlinear case, results hold only over the enumerated low-weight sub-domain, whose boundary
+    is stated.
+  - Nothing about full-round BLAKE3, about round counts, or about deployed systems follows from any
+    value measured here.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Computation cost is a Gaussian elimination on a
+      512-column GF(2) matrix -- reported as milliseconds, an audit cost.
+    memory_exponent: No attack memory exponent is claimed; the matrix is 512 by output-width bits.
+    best_known: The incumbent is the absence of any separate measurement of the finalization in this
+      repository. Nothing is beaten. What is supplied is one exact scalar per design per output role,
+      with a null distribution, where currently there are none.
+    hidden_overhead: 'Almost all of it is stage one: writing Phi correctly from primary text, including
+      any feed-forward from pre-permutation state, and classifying it. That reading is the entire
+      result and produces no plot. The second hidden cost is the discipline of always printing the
+      counting bound -- without it the raw cancellation counts invite exactly the cross-design comparison
+      the record is built to prevent.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is emitted so no frontier row applies. As a measurement it is
+    dominated by any later computation that intersects Phi''s kernel with the permutation''s reachable
+    difference set, which is strictly more informative and strictly more expensive; that successor
+    is named here as the intended supersession.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: zero exact finalization
+    measurements exist in this repository, and a run would supply rank, kernel dimension, counting
+    bound and excess for each design and output role, plus a 1000-draw null distribution. The delta
+    is a small number of exact integers where there are currently none.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That Phi is separable from the permutation in both designs:
+    0.7 -- feed-forward constructions often reach back to pre-permutation state, which is separable
+    if that state is treated as an input to Phi but is easy to get wrong. That Phi is GF(2)-linear
+    in at least BLAKE2s''s case: 0.75, feed-forward XOR constructions usually are, and the linearity
+    control will settle it cheaply. That the excess is exactly zero for both designs: 0.7 -- this
+    is the expected and predicted outcome. That the null distribution has enough spread to give the
+    comparison any resolving power: 0.4, and this is the honest risk that the whole measurement turns
+    out to be a confirmation of arithmetic. That the result is nonetheless worth having because it
+    lets the chimera lattice drop an axis: 0.8, since a measured reason to drop an axis is worth more
+    than an unmeasured assumption that the axis matters.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260809-3a39bc
+  - KN-TECH-076
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-868493

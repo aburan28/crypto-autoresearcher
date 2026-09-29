@@ -1,0 +1,159 @@
+experiment:
+  id: EXP-ECDLP-184fc4
+  hypothesis_id: H-ECDLP-0bc396
+  derived_from_idea: IDEA-20260905-f31bc4
+  threshold_source_idea: IDEA-20260905-b6154d
+  question_id: RQ-ECDLP-4fcbd3
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    DL-spectrum census of a frozen library of cheap coordinate functions on
+    toy prime-order subgroups, with a random-function null, a synthetic-character
+    instrument check, and the 2-torsion descent symbol as the known-true object
+  status: draft
+  objective: >-
+    Measure, for every member of a frozen library of cheap coordinate functions
+    on cofactor-1 prime-order subgroups at field_bits 12 to 24, the maximal
+    DL-spectral spike, its scaling exponent beta across the ladder, its level Z
+    against the Gumbel extreme of a matched random function, and the half-energy
+    frequency fraction; and verify on a cyclic order-2q curve that the instrument
+    reports the descent symbol as a single-frequency spectrum. Decide H-ECDLP-0bc396
+    claims (1)-(3) from these numbers alone.
+  inputs:
+    procedure: >-
+      STAGE 0 (zero compute, blocking): freeze the library below; write the
+      derivation note for the Gumbel level, the break-even line and the slope
+      windows; define the synthetic character g_0. STAGE 1 (instrument, blocking):
+      curve generation by rejection, enumeration, log table, certificate sample,
+      FFT, the random-function null and the synthetic-character check on the
+      smallest size. STAGE 2 (census): all cells, all members. STAGE 3 (known-true
+      object): order-2q curves, exhaustive homomorphism check, descent-symbol
+      spectrum. STAGE 4 (report): beta and Z tables, slopes with bootstrap
+      intervals, tail check, resource reading.
+    library: >-
+      FROZEN. For each of the following, every centred real-valued function is one
+      member. (a) Residue indicators 1[x = j mod m] for m in {2, 3, 4, 5, 7, 8, 16,
+      32, 64, 128, 256} and every j; this covers the harness partition function
+      x mod r and the distinguished-point predicate x = 0 mod 2^d. (b) Residue
+      indicators 1[y = j mod m] for m in {2, 4, 8}. (c) Legendre symbols of x + c
+      for c in {0, 1, -1, 2, -2, 3, 5}, of y, and of x*y. (d) Interval indicators
+      1[x < p / 2^j] for j in {1, ..., 8} and 1[|x - p/2| < p / 2^j] for j in
+      {1, ..., 8}. (e) Mixed: (x + y) mod 2, Legendre(x) * Legendre(y), and the
+      product of 1[x = 0 mod 3] with 1[y = 0 mod 2]. About 550 members counting
+      residue classes separately. No member may be added after Stage 1.
+    mechanism: >-
+      For each cell: enumerate G as iP for i in [0, N); store x, y and i; certify
+      1000 random entries by recomputing iP independently. For each member g,
+      centre exactly, FFT over the i-ordering (numpy, any N), assert |g^(0)| <
+      1e-9 * N, record max over a != 0 of |g^(a)|, the argmax, Var(g), Z, and the
+      half-energy fraction (smallest number of frequencies, sorted by energy,
+      carrying half the total energy, divided by N). Null: a seeded random
+      function with g's exact marginal (permute g's values uniformly at random),
+      same statistics. Synthetic check: g_0(W) = cos(2 pi a_0 i / N) with a_0 =
+      floor(N/3), must give one spike at a_0 with Z at the full level. Across the
+      ladder fit log(max spike) against log N per member and per null to obtain
+      beta with a bootstrap interval over seeds.
+    instrument: >-
+      harness/toycurve.py for arithmetic and lift_x; a new driver under
+      experiments/EXP-ECDLP-184fc4/driver/; numpy FFT; harness/runner.py for run
+      records. Prime-order curves: iterate the harness generator's seed tags until
+      #E is prime (cofactor 1). Order-2q curves: iterate until #E = 2q with q
+      prime and the group cyclic (a point of order 2q exists), then locate the
+      rational 2-torsion point (e, 0) by root-finding x^3 + a x + b.
+  controls:
+    - random-function null with the member's exact marginal, per member per cell (blocking, same file)
+    - synthetic character g_0 instrument check per cell (blocking)
+    - exact centring assertion g^(0) = 0 per member (blocking)
+    - certificate of the log table on 1000 random entries per curve (blocking)
+    - second curve family per size (three seeds)
+    - descent symbol on the order-2q curve as the known-true object (blocking for claim 3)
+  independent_variables:
+    - field_bits in {12, 14, 16, 18, 20, 22, 24}
+    - seed in {20260905, 20260906, 20260907}
+    - library member
+  metrics:
+    primary:
+      - beta per member with bootstrap interval, and beta of its null
+      - Z per member per cell, and Z of its null
+      - half-energy frequency fraction per member per cell
+      - descent-symbol spectrum on the control curve (number of coefficients above 1e-6 of total energy, and their frequencies)
+    secondary:
+      - argmax frequency per member per cell, to see whether spikes recur at related frequencies across sizes
+      - Var(g) per member per cell
+      - wall seconds and peak bytes per cell
+      - certificate pass count per curve
+  heuristic_under_test: HEUR-CBIAS-H1
+  preregistered_prediction:
+    quantity: max over a != 0 of |g^(a)| as a function of N, per member
+    formula: >-
+      proportional to N^beta with beta = 1/2 up to log corrections (window [0.45,
+      0.60]); level Z = max spike / sqrt(N Var(g) ln(N/2)) in [0.5, 4]; half-energy
+      fraction 0.5 +- 0.05. Synthetic character and descent symbol: beta = 1, one
+      nonzero coefficient.
+    source: >-
+      Pre-registered in IDEA-20260905-f31bc4 and H-ECDLP-0bc396 before any run;
+      the Gumbel level is the classical extreme-value law for N/2 independent
+      exponential variables; the Weil-level scaling is the recalled
+      Bombieri / Kohel-Shparlinski bound (unverified here). Never tuned to data.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Field sizes 12 to 24 bits; exhaustive tabulation is O(N). Evidence from
+      any run under this contract is capped at claim_tier toy and the slope beta
+      is the only statement about scale; no transfer is asserted.
+    correspondence: null
+  tail_checks:
+    - >-
+      The single largest Z observed over all members and cells has a predicted
+      null exceedance probability above 1/(members * cells); a smaller value is
+      reported as a tail anomaly and its member is re-run at a fourth seed.
+    - >-
+      Members with Z above 2 at every size are listed with their argmax
+      frequencies; a recurring argmax across sizes at a structurally related
+      frequency (for instance a fixed fraction of N) is reported as a Weil-level
+      correlation with a named frequency.
+    - >-
+      Members with Var(g) below 1e-3 (nearly constant indicators such as x = 0
+      mod 256 at small p) are flagged; their Z is reported but excluded from the
+      beta fit when fewer than 30 points carry the indicator.
+  replication:
+    seeds: [20260905, 20260906, 20260907]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 12
+    maximum_memory_gb: 8
+    maximum_runs: 48
+  stopping_rules:
+    - Stop at maximum_runs or total_cpu_hours, whichever binds first.
+    - Stop immediately if the synthetic-character check or the centring assertion fails on any cell; measurements taken with a failed instrument are attempted_and_inconclusive.
+    - Stop and escalate to an independent review-adversarial session if any member shows beta at or above 0.60 on both families at the two largest sizes (RQ-ECDLP-4fcbd3 decision branch b).
+  invalidation_rules:
+    - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure and is never negative mathematical evidence (AGENTS.md rule 5).
+    - A curve whose certificate sample fails makes every cell on that curve invalid.
+    - A cell whose random null shows beta outside 0.5 +- 0.05 or Z above 4 is an instrument defect and is invalid.
+    - Any claimed solve or relation (none is expected) whose certificate fails makes the run completed_invalid.
+  success_criterion: >-
+    Every library member has beta in [0.45, 0.60] with the null at 0.5 +- 0.05,
+    Z in [0.5, 4] at every size, half-energy fraction 0.5 +- 0.05; the synthetic
+    character and the descent symbol are single-frequency with beta = 1. This
+    supports H-ECDLP-0bc396 claims (1)-(3) at toy scale.
+  falsification_criterion:
+    - A member with beta at or above 0.60 at the two largest sizes on both curve families while its null stays at 0.5 +- 0.05. Claim (1) is false for that member.
+    - A member with half-energy fraction below 0.1 at every size. Claim (2) is false for that member.
+    - The descent symbol fails the exhaustive homomorphism check or is not single-frequency. Claim (3) fails; instrument void.
+    - Synthetic character not single-frequency, or centring assertion fails. Instrument defect; nothing reported.
+    - Crashes, timeouts, memory exhaustion. Infrastructure outcome, never negative mathematical evidence.
+  required_artifacts:
+    - manifest.yaml with command, commit, dirty-tree state, environment and the inference block
+    - raw-result.json with every per-member per-cell statistic, the null's statistics in the same file, the argmax frequencies and Var(g)
+    - the frozen library listing as a machine-readable file under the experiment directory, hashed in the manifest
+    - certificate records for the log-table samples
+    - the order-2q control curve parameters, the located 2-torsion point, and the exhaustive homomorphism check result
+    - the Stage 0 derivation note (Gumbel level, break-even line, slope windows)
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - Coordinator approval required before execution; this contract is a design draft and is NOT approved.
+    - Stage 0 and Stage 1 are blocking; no census cell runs before the synthetic-character check passes on the smallest size.
+    - The library may not be extended after Stage 1; a new member is a new versioned amendment.

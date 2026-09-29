@@ -1,0 +1,161 @@
+retrieval_screen:
+  task_id: TASK-20260813-5bfa22
+  goal_id: GOAL-QALG-001
+  batch_id: BATCH-d4b33f
+  research_question: RQ-QALG-457b41
+  snapshot_commit_read_from: 083ca0026281c05e85570e5bddf90adbd4954d69
+  performed_by: idea-generator
+  performed_at: '2026-08-14'
+
+  crypto_kb_mcp_status: >-
+    UNAVAILABLE in this session. .mcp.json declares a "crypto-kb" MCP server
+    (command: uv run --directory kb --extra index --extra mcp python -m
+    crypto_kb.mcp.server), but no search_knowledge, get_context, get_source,
+    or find_related tool was present in this session's callable tool surface
+    at any point during this task. Per the task's binding instruction ("If
+    crypto-kb is unavailable or returns nothing, say so plainly in the screen
+    rather than skipping the step silently"), this is recorded here rather
+    than silently omitted. This is a known failure mode on this machine per
+    the operator's own recorded note: an empty or disconnected kb/.env
+    produces an ":memory:" index or a server that never registers tools, and
+    the fix (killing/reloading the worktree's MCP server, or provisioning
+    kb/.env) is outside this subagent's tool access (no Bash tool available
+    to this role). No retrieval was silently skipped: every candidate
+    mechanism below was screened by the substitute method described next.
+
+  web_search_status: >-
+    ATTEMPTED, FAILED. Two WebSearch calls were issued (queries: "Daniel
+    Simon dihedral coset problem quantum polynomial time 2026 eprint 1591
+    retraction bug"; "'Module-LWE' 'Extrapolated Dihedral Coset' IP-M-EDCP
+    eprint 2026/155") and both returned a tool error ("There's an issue with
+    the selected model (us.anthropic.claude-haiku-4-5-20251001-v1:0). It may
+    not exist or you may not have access to it."), i.e. an infrastructure
+    failure of the WebSearch tool's backing model in this session, not a
+    zero-results response. Per AGENTS.md rule 3 / CLAUDE.md rule 3, this
+    infrastructure failure is recorded as an infrastructure outcome, not as
+    evidence about whether newer developments on the Simon 2026 claim exist.
+    All five proposals' novelty_status is therefore kept at unverified rather
+    than any stronger label, and each proposal states explicitly that no
+    live web verification was possible this session.
+
+  substitute_method: >-
+    Direct Grep-based retrieval against the committed working tree
+    (knowledge/, ledger/proposals/, ledger/hypotheses/) at the declared
+    snapshot commit, used as the fallback for every candidate mechanism
+    below, per this task's read_scope.
+
+  candidate_mechanism_screens:
+    - candidate: >-
+        Grover/amplitude-amplification and quantum-walk sieve speedups
+        against MLWE/MSVP sieving (the RQ's own stated established baseline).
+      queries_run:
+        - pattern: "Grover|amplitude amplification|quantum walk|sieving|lattice.*quantum|quantum.*lattice|Module-LWE|MLWE|BKZ.*quantum"
+          scope: knowledge/
+          result: >-
+            250+ files matched (limit hit); too broad to be useful directly,
+            narrowed by the follow-up queries below.
+        - pattern: "Laarhoven|quantum walk siev|element distinctness|nearest neighbor.*quantum|quantum lower bound.*search|Ambainis"
+          scope: knowledge/
+          result: 21 files matched; KN-LIT-703 identified as the load-bearing
+            established-baseline citation (Laarhoven 2^(0.2653d), Kirshanova-
+            Martensson-Postlethwaite quantum k-Sieve 2^(0.2989d)/2^(0.1395d)).
+      finding: >-
+        Established family, already load-bearing for the RQ's own stated
+        baseline. Declared off-limits as the PRIMARY mechanism lens per
+        docs/inventor-protocol.md section 1; used instead as the ceiling
+        object audited by IDEA-20260813-f35692 and as the dominated_by
+        baseline for every proposal in this batch.
+    - candidate: >-
+        Dihedral Coset Problem / Extrapolated DCP quantum algorithms as a
+        route to polynomial-time quantum LWE/SVP.
+      queries_run:
+        - pattern: "Grover|quantum siev|amplitude amplification|Laarhoven|dihedral|Kuperberg"
+          scope: "knowledge/literature/{KN-LIT-f7d7dd,KN-LIT-e204ab,KN-LIT-de5373,KN-LIT-cd29fd}.md"
+          result: >-
+            KN-LIT-e204ab identified: "A Polynomial-Time Quantum Algorithm
+            for the Dihedral Coset Problem (Simon 2026, preliminary draft)",
+            confidence unverified, with a linked open problem KN-OPEN-8a5965
+            and background technique note KN-TECH-d1bc4f, both read in full.
+        - pattern: "ML-KEM|Module-LWE|Module-SVP|MLWE|MSVP"
+          scope: ledger/proposals/
+          result: >-
+            68 files matched, none tagged RQ-QALG-457b41 (see duplication
+            screen below); confirms this external ingredient has not yet
+            been converted into a QALG proposal anywhere in the ledger.
+      finding: >-
+        Fresh (added 2026-08-06, eight days before this task under the
+        stated current date), directly relevant, and explicitly unverified
+        external structural ingredient exactly matching the "hunt for
+        recent external structural ingredients" search heuristic in
+        agents/idea-generator.md. Became the anchor for four of the five
+        filed proposals (IDEA-20260813-4aecda, -0cf345, -8aa6ea, -02479f),
+        each targeting a genuinely different tracked object within the same
+        ingredient cluster, per the object-scoring discipline of
+        docs/inventor-protocol.md section 1.
+    - candidate: >-
+        Provable (non-heuristic) worst-case quantum/classical SVP algorithms
+        as a possible source of exponent movement transferable to ML-KEM.
+      queries_run:
+        - pattern: "quantum sieving for code-based|Solving the Shortest Vector Problem"
+          scope: knowledge/literature/
+          result: >-
+            KN-LIT-b875db read in full (2^(0.7314n) provable worst-case
+            classical SVP result); its own scope statement explicitly
+            disclaims relevance to deployed lattice cryptography ("Practical
+            cryptanalysis uses heuristic sieving at ~2^(0.292n)...concrete
+            parameter estimates for ML-KEM...are built on those heuristic
+            costs. This is a result about the provable worst-case frontier
+            only.").
+      finding: >-
+        Screened and explicitly excluded as a primary mechanism per its own
+        stated scope; referenced only as background for
+        IDEA-20260813-f35692's average-case-vs-worst-case framing, never
+        cited as bearing on ML-KEM's concrete security.
+    - candidate: >-
+        Grover-only quantum cost estimates for CODE-based (not lattice)
+        schemes, screened to confirm they do not transfer.
+      queries_run:
+        - pattern: "Grover vs. McEliece|Security analysis for BIKE.*Classic McEliece.*HQC"
+          scope: knowledge/literature/KN-LIT-de5373.md
+          result: >-
+            Confirms Bernstein's "Grover vs. McEliece" finding (quantum
+            speedup against code-based schemes is modest, not naive sqrt);
+            the entry's own text states "Does not bear on the ECDLP directly"
+            and, by the same logic, does not bear on MLWE/MSVP either -- this
+            is a code-based (HQC/McEliece), not lattice-based, cost line and
+            is out of scope for RQ-QALG-457b41. Recorded to confirm exclusion,
+            not used in any proposal.
+
+  duplication_screen:
+    method: >-
+      grep -r "RQ-QALG-457b41" ledger/proposals/ at snapshot commit
+      083ca0026281c05e85570e5bddf90adbd4954d69.
+    result: >-
+      Zero prior filings found. This is the first batch to open
+      RQ-QALG-457b41. Each of the five filed proposals was additionally
+      cross-compared against the other four within this same filing (see
+      each proposal's own novelty_screen.screened_proposals field) to ensure
+      no two of the five collapse into the same tracked object.
+    cross_lane_check: >-
+      GOAL-QALG-001's own non_duplication note (ledger/goals/GOAL-QALG-001.yaml)
+      was read in full; no mechanism, cost figure, or finding from
+      GOAL-MLKEM-001/005 (classical mechanism search) or from
+      RQ-QALG-122b59/RQ-QALG-74bf20 (the sibling HQC/CSIDH quantum lanes) was
+      cited as evidence in any of the five proposals filed here, consistent
+      with that note's binding constraint.
+
+  overall_assessment: >-
+    The corpus retrieval, though performed without the crypto-kb MCP server
+    and without live web search (both infrastructure unavailability, not
+    zero-result screens), surfaced one directly load-bearing, fresh,
+    explicitly-unverified external ingredient (Simon 2026 DCP claim plus its
+    already-open KN-OPEN-8a5965 tracking record) that the program's own
+    corpus had already flagged as adjacent to GOAL-MLKEM-* but had not yet
+    converted into a QALG proposal. Four of the five filed proposals target
+    genuinely distinct tracked objects within that ingredient's dependency
+    chain (algorithm correctness; reduction-quality precondition; sample-
+    access-model precondition; ring-symmetry composition), and the fifth
+    (IDEA-20260813-f35692) is deliberately independent of that ingredient,
+    auditing the established Grover/quantum-walk baseline's own ceiling
+    instead, so the batch is not single-threaded on one external claim's
+    survival.

@@ -92,6 +92,31 @@ bindings:
           budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
                              xhigh: 32000, max: 48000}
 
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
+      model: claude-opus-5
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 8000
+        reasoning:
+          mode: anthropic_thinking
+          # The policy's requested effort selects the budget. 0 disables
+          # extended thinking entirely, which is the point of the `low` tier.
+          budget_by_effort: {none: 0, low: 0, medium: 8000, high: 16000,
+                             xhigh: 32000, max: 48000}
     review-adversarial:
       model: claude-opus-5
       provenance: runtime-verified
@@ -217,11 +242,14 @@ bindings:
         temperature: 0.4
         reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
 
-    # `review-adversarial` requires xhigh. If this backend's ceiling really is
-    # `high`, the resolver refuses it unless the handoff allows fallback, and
-    # records the downgrade. Raise `max_reasoning_effort` only if the provider
-    # documents a deeper reasoning tier — not to make the gate pass.
-    review-adversarial:
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
       model: glm-5.2
       provenance: operator-supplied
       last_probed: null
@@ -232,9 +260,42 @@ bindings:
         context_tokens: 200000
         max_output_tokens: 32000
       request:
+        max_tokens: 8000
+        temperature: 0.4
+        reasoning: {mode: openai_effort, effort_map: {high: high, medium: medium, low: low}}
+    # `review-adversarial` requires xhigh. Originally bound to glm-5.2 at a
+    # `high` ceiling (resolved DEGR), then moved to glm-5.3 at `xhigh` on the
+    # operator's assertion (2026-08-16, GOAL-ECDLP-001 BATCH-7d9b78 review
+    # tier). On 2026-08-17 the funded account was permission-blocked from
+    # glm-5.3 (HTTP 403, code 1220 "no permission to access glm-5.3") while
+    # glm-5.2 served, so per operator direction review-adversarial moves back
+    # to glm-5.2. glm-5.2 was probed 2026-08-17 to accept reasoning_effort up
+    # to `max` and to return a reasoning_content field; the depth question
+    # (whether the provider's `max` reaches our xhigh) remains an unverified
+    # operator assertion, recorded as such in the run receipt — if the provider
+    # clamps it, record the gap, do not silently re-assert a lower ceiling.
+    #
+    # WIRE MAPPING (2026-08-16, GOAL-ECDLP-001 BATCH-7d9b78 validator run):
+    # the provider's accepted effort set is {low, high, max}; in the effort
+    # lattice (none < low < medium < high < xhigh < max) the only accepted
+    # value at or above the xhigh floor is `max`. The map therefore sends our
+    # `xhigh` as the provider's `max`. The declared ceiling is UNCHANGED at
+    # xhigh — no deeper tier is claimed. Mapping `xhigh` to `high` instead
+    # would be a silent downgrade and is forbidden.
+    review-adversarial:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: xhigh
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
         max_tokens: 24000
         temperature: 0.1
-        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: high}}
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: max}}
 
     executor-implementation:
       model: glm-5.2
@@ -328,6 +389,25 @@ bindings:
       request:
         max_tokens: 24000
 
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
+      model: glm-5.2
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 8000
     review-adversarial:
       model: glm-5.2
       provenance: operator-supplied
@@ -400,13 +480,125 @@ bindings:
   # (`adapter models --backend fireworks`) rather than guessing. Canonical form
   # is `accounts/fireworks/models/<name>`; short slugs also resolve.
   fireworks:
-    coordinator-orchestration-code: {model: null, provenance: unbound}
-    coordinator-orchestration: {model: null, provenance: unbound}
-    research-deep: {model: null, provenance: unbound}
-    review-adversarial: {model: null, provenance: unbound}
+    # 2026-09-03: bound under DEC-20260903-* (user-authorized effort-floor
+    # relaxation). glm-5p3 is probe-listed (`adapter models --backend
+    # fireworks`) and in live use by the dispatching session. With the
+    # coordinator-orchestration-code floor unchanged at `high` and glm-5p3's
+    # declared ceiling `high`, this is an exact match -- no degradation, no
+    # cap. Review-adversarial's floor was relaxed to `low` by the same
+    # decision; its xhigh REQUEST is served capped at this backend's `high`
+    # ceiling and every cap is recorded in the run receipt.
+    coordinator-orchestration-code:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: &fireworks_glm5p3_capabilities
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high}}
+    review-adversarial:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {low: low, medium: medium, high: high, xhigh: high}}
+    # 2026-09-06: Qwen alternative on this backend (user-authorized extension;
+    # muse skipped -- no muse-spark reachable; local review tiers unchanged
+    # per their written rationale). Bound model is
+    # accounts/fireworks/models/qwen3p8-2p4t-a95b -- provider-listed
+    # (`adapter models --backend fireworks` 2026-09-06), supports_tools
+    # true, provider-stated context_length 262144: that is the verified
+    # part, and the last_probed stamp below covers exactly that. Asserted
+    # (operator-supplied): ceiling high (conservative, below xhigh/max,
+    # matching the local Qwen ceiling), max_output_tokens 32768 (mirrors
+    # the local Qwen operational value; unprobed -- re-assert only from a
+    # probe, never to make a gate pass), structured_output true. No
+    # reasoning block: no effort knob verified on this model-backend pair
+    # (same rationale as local); requests serve at ceiling. Sibling
+    # qwen3p8-max is listed but carries no provider context figure, so it
+    # stays unbound. Occupied slots (coordinator-orchestration-code,
+    # review-adversarial, executor-implementation on glm-5p3) are untouched;
+    # review-breakthrough stays unbound: nothing here reaches max and it is
+    # degradable: false.
+    coordinator-orchestration:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+    research-deep:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.7
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 8000
+        temperature: 0.7
     review-breakthrough: {model: null, provenance: unbound}
-    executor-implementation: {model: null, provenance: unbound}
-    executor-mechanical: {model: null, provenance: unbound}
+    # 2026-08-31 binding (7e63b0f91) that never reached main -- PR 648
+    # merged before it was pushed; restored here under DEC-20260903-* so
+    # main carries the config the last two executor dispatches actually ran
+    # on (TASK-20260810-2a0a37, TASK-20260824-c6625a).
+    executor-implementation:
+      model: accounts/fireworks/models/glm-5p3
+      provenance: operator-supplied
+      last_probed: '2026-09-03'
+      capabilities: *fireworks_glm5p3_capabilities
+      request:
+        max_tokens: 32000
+        reasoning: {mode: openai_effort, effort_map: {medium: medium, high: high}}
+    executor-mechanical:
+      model: accounts/fireworks/models/qwen3p8-2p4t-a95b
+      provenance: operator-supplied
+      last_probed: '2026-09-06'
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 16000
+        temperature: 0.0
 
   # Same models over the Anthropic wire. `review-breakthrough` has a `max`
   # floor, so it will refuse here unless a binding genuinely declares that
@@ -416,6 +608,9 @@ bindings:
     coordinator-orchestration-code: {model: null, provenance: unbound}
     coordinator-orchestration: {model: null, provenance: unbound}
     research-deep: {model: null, provenance: unbound}
+    # research-deep is unbound on this backend, so this is too. A model
+    # invented here would be an assertion nobody made.
+    consolidation-routing: {model: null, provenance: unbound}
     review-adversarial: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
@@ -454,6 +649,21 @@ bindings:
         max_tokens: 64000
         reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
 
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
+      model: gpt-5.6-sol
+      provenance: operator-supplied
+      last_probed: '2026-08-02'
+      capabilities: *openai_56_capabilities
+      request:
+        max_tokens: 8000
+        reasoning: {mode: openai_effort, effort_map: {high: high, xhigh: xhigh, max: max}}
     review-adversarial:
       model: gpt-5.6-sol
       provenance: operator-supplied
@@ -486,25 +696,141 @@ bindings:
       model: gpt-5.6-sol
       provenance: operator-supplied
       last_probed: '2026-08-02'
-      capabilities: *openai_56_capabilities
+      # Ceiling corrected 2026-09-04 (DEC-20260904-67cde4 R-2): the chat
+      # completions API rejects reasoning_effort 'max' for gpt-5.6 —
+      # "Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'".
+      # Declared 'max' made the resolver report OK for a tier the wire cannot
+      # express; review-breakthrough (degradable: false) must resolve DEGR
+      # here, not pass on an unreachable tier.
+      capabilities:
+        <<: *openai_56_capabilities
+        max_reasoning_effort: xhigh
       request:
         max_tokens: 128000
-        reasoning: {mode: openai_effort, effort_map: {max: max}}
+        reasoning: {mode: openai_effort, effort_map: {xhigh: xhigh}}
 
   openrouter:
     coordinator-orchestration-code: {model: null, provenance: unbound}
     coordinator-orchestration: {model: null, provenance: unbound}
     research-deep: {model: null, provenance: unbound}
+    # research-deep is unbound on this backend, so this is too. A model
+    # invented here would be an assertion nobody made.
+    consolidation-routing: {model: null, provenance: unbound}
     review-adversarial: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
 
+  # Self-hosted Qwen3.8-27B-FP8 on vLLM, reached through the lazy-launch proxy
+  # (LOCAL_LLM_BASE_URL=http://127.0.0.1:8787/v1 -> ALB -> g6e GPU box). Set
+  # that variable or the resolver probes the provider default of :8000 and
+  # reports the backend down.
+  #
+  # `context_tokens: 262144` is measured, not asserted: the server runs
+  # --max-model-len 262144 with --kv-cache-dtype fp8 and /v1/models reports it.
+  #
+  # `max_reasoning_effort: high` is the honest ceiling and the reason two
+  # policies below stay unbound. The model reasons natively (--reasoning-parser
+  # qwen3) but the effort tier is NOT dialable on this backend -- there is no
+  # equivalent of an anthropic thinking budget or an openai reasoning_effort
+  # knob, so every request gets whatever depth the model gives. Declaring
+  # `xhigh`/`max` here would make review-adversarial and review-breakthrough
+  # resolve, which is precisely the overstatement the integrity rules at the top
+  # of this file forbid. Both are left unbound so the resolver stops with a
+  # named error rather than silently downgrading adversarial review to a single
+  # 27B local model -- review-breakthrough is `degradable: false` besides.
+  # Binding them means asserting a capability nobody has verified.
   local:
-    coordinator-orchestration-code: {model: null, provenance: unbound}
-    coordinator-orchestration: {model: null, provenance: unbound}
-    research-deep: {model: null, provenance: unbound}
+    coordinator-orchestration-code:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+
+    coordinator-orchestration:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+
+    research-deep:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.7
+
+
+    # Same model as this backend's research-deep: the pass is a `high`-effort
+    # selection task over a large input. `max_tokens` is cut instead, because
+    # the deliverable is a handful of pointers and a consolidation needing a big
+    # output budget has started writing the summary the bus contract forbids.
+    # provenance is operator-supplied, not inherited: the model id is already
+    # asserted above, but THIS binding has not been probed.
+    consolidation-routing:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 8000
+        temperature: 0.7
     review-adversarial: {model: null, provenance: unbound}
-    executor-implementation: {model: null, provenance: unbound}
-    executor-mechanical: {model: null, provenance: unbound}
+
+    executor-implementation:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 24000
+        temperature: 0.2
+
+    executor-mechanical:
+      model: qwen3.8-27b
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 262144
+        max_output_tokens: 32768
+      request:
+        max_tokens: 16000
+        temperature: 0.0
+
     review-breakthrough: {model: null, provenance: unbound}

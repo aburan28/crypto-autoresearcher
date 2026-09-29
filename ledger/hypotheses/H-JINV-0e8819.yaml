@@ -1,0 +1,301 @@
+hypothesis:
+  id: H-JINV-0e8819
+  question_id: RQ-JINV-8fc13a
+  title: >-
+    Setting a = 0 (j = 0) or b = 0 (j = 1728) in the Semaev decomposition system is a support and
+    coefficient reduction on the UNSPECIALISED polynomial and NOTHING on the specialised m = 2 system,
+    while at m = 3 the a = 0 specialisation confines S_4's support to total x-degree congruent to
+    0 mod 3
+  statement: >-
+    For y^2 = x^3 + a x + b, the third summation polynomial S_3 carries exactly 13 monomials in
+    (x1,x2,x3); setting a = 0 leaves 9 and setting b = 0 leaves 10, with per-variable degree 2 and
+    total degree 4 in every case, so the effect on the UNSPECIALISED polynomial is a support reduction
+    and NOT a degree reduction. THE PART THAT MATTERS IS THE SPECIALISED SYSTEM. Index calculus solves
+    S_3(x1, x2, x_R) with x_R the target's x-coordinate; collecting coefficients of the 9 surviving
+    monomials in (x1,x2) gives, for generic x_R and b nonzero, ALL NINE coefficients nonzero under
+    a = 0, and likewise under b = 0 for a nonzero. THEREFORE the specialised m = 2 system has
+    IDENTICAL support, identical Newton polygon and identical BKK bound on j = 0, j = 1728 and generic
+    curves, and the simplification is invisible to any solver whose cost is a function of the support.
+    SEPARATELY, at m = 3: S_3 restricted to a = 0 is weighted-homogeneous of weight 4 under
+    deg(x_i) = 1, deg(b) = 3, so S_4 = Res_t(S_3(x1,x2,t), S_3(x3,x4,t)) inherits weight 12 and is
+    invariant under the diagonal mu_3 action, confining its support to monomials of total x-degree
+    congruent to 0 mod 3. Whether that survives the specialisation x4 := x_R, which breaks the
+    diagonal action because x_R is a constant, is the single open question. NOTHING BEYOND THE
+    sqrt(|Aut|) CONSTANT IS CLAIMED; no speedup of any kind follows from any outcome.
+  mechanism: >-
+    Under a = 0 the four monomials whose coefficient is a multiple of a or a^2 (x1x3, x2x3, x1x2 and
+    the constant) vanish; under b = 0 the three monomials with coefficient -4b (x3, x1, x2) vanish.
+    Neither touches the leading coefficients of S_3 in t, which are (x1-x2)^2 and (x3-x4)^2 and
+    contain neither a nor b, so the t-degree and hence the resultant degree CANNOT drop -- which is
+    why a genuine degree reduction is predicted to be very unlikely. After specialising x3 := x_R the
+    nine coefficients of the (x1,x2)-system are 1: a^2 - 4 b x_R; x1, x2: -2 a x_R - 4 b; x1x2:
+    -2 x_R^2 - 2a; x1^2, x2^2: x_R^2; x1^2x2, x1x2^2: -2 x_R; x1^2x2^2: 1. None of these is
+    identically zero at a = 0 for generic x_R and b nonzero, which is the mechanism behind the
+    predicted null. At m = 3 the weighted-homogeneity of S_3|_{a=0} propagates through the resultant,
+    because the resultant of weighted-homogeneous polynomials is weighted-homogeneous, and the
+    resulting mu_3-invariance is a support restriction with no analogue on a generic curve. The
+    tracked object throughout is the MONOMIAL SUPPORT (equivalently the Newton polytope), which is
+    exactly the projection that BKK and degree-of-regularity heuristics already consume, and which
+    propagates deterministically through "build S_3, take resultant, specialise" except through
+    cancellation -- finding out where cancellation occurs is the whole measurement.
+  assumptions:
+    - >-
+      p > 3, and p congruent to 1 mod 3 for the j = 0 family (else the order-3 automorphism is not
+      F_p-rational and the curve is supersingular), and congruent to 1 mod 4 for the j = 1728 family.
+      Curves are verified ordinary by point counting before use.
+    - >-
+      The 13/9/10 monomial counts and the nine specialised coefficients are PREDICTIONS derived by
+      hand in the parent proposal, not measurements. They are verified mechanically first, and this
+      hypothesis is superseded if any of them is wrong.
+    - >-
+      Toy scale: p up to about 2^24 for the Groebner arm, purely symbolic over Q[a,b] for the support
+      arm. sympy's Buchberger-family routine is not an optimised F4 and does not expose the degree of
+      regularity; only observable proxies are reported.
+    - >-
+      x_R is not 0 for the generic-specialisation claim. On a j = 0 curve with b a square, (0, sqrt b)
+      IS a point of order 3, and x_R = 0 is a degenerate stratum on which several coefficients vanish;
+      it is measured separately rather than folded into the generic count.
+    - >-
+      The order of operations -- specialising x_{m+1} := x_R before versus after taking the resultant
+      -- is frozen before the m = 3 arm, since the two can give different intermediate supports.
+  proof_search_map:
+    bottleneck: >-
+      The resultant computation Res_t(S_3(x1,x2,t), S_3(x3,x4,t)) over Q[a,b], and at m >= 4 the
+      iterated resultant. This is the step whose cost sets the largest reachable m, and it is also the
+      step where the predicted mod-3 support grading either appears or cancels.
+    baseline_embedding:
+      parameter_slice: >-
+        Generic (a,b) at m = 2 and m = 3 with no specialisation, which must reproduce the recorded
+        per-variable degrees 2 and 4 exactly and must reproduce harness/semaev.py's s3_expr and
+        s4_expr term for term.
+      reproduction_check: >-
+        Frozen fixture asserting exact integer equality of the expanded polynomial against
+        harness/semaev.py's output on a fixed (a,b,p). Any mismatch is an instrument failure and halts
+        the line before any specialisation is computed.
+    observation_collision:
+      observable: >-
+        The monomial support, equivalently the Newton polytope, of the specialised system.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED at m = 2, which IS the prediction: a j = 0 curve, a j = 1728
+        curve and a generic curve at the same p and the same x_R are three distinct ground-truth
+        objects with the SAME observable. That collision is the RESULT, not a falsifier: it establishes
+        that support cannot distinguish special j from generic j at m = 2, and therefore that no
+        support-based or BKK-based argument may be used to claim a j = 0 advantage at m = 2. Reporting
+        a support-based j = 0 claim without exhibiting this collision search is prohibited.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (the monomial support of the specialised system) fixed and vary the
+          forgotten structure (which j-invariant the curve has), to establish that the fibre over the
+          observed support contains all three curve families.
+        predicted_gain: >-
+          A prohibition rather than a gain: it forbids every downstream L3 argument that leans on "the
+          equation is simpler on j = 0 curves" at m = 2.
+    quantifier_order: >-
+      INTENDED: FOR ALL primes p in the declared set, FOR ALL ordinary curves E/F_p with a = 0 (resp.
+      b = 0), FOR ALL targets R with x_R outside the declared degenerate stratum, the specialised
+      m = 2 system's support EQUALS the support of the corresponding generic-curve system. THE
+      DANGEROUS WEAKER READING, NOT CLAIMED: for all E there exists a target x_R for which the supports
+      agree, which would let x_R be chosen per curve and would be vacuous. The audit obligation is that
+      the nine coefficients are checked as polynomials in (a, b, x_R) that are not identically zero,
+      UNIFORMLY, and not at sampled points.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For arities m in the tested set, at the declared primes, in short Weierstrass form, the
+        monomial support and BKK bound of the specialised decomposition system are (or are not)
+        changed by a = 0 / b = 0." It can never certify anything about solving TIME, about other curve
+        models, about m outside the tested set, or about the ECDLP.
+      nearby_object_control: >-
+        A curve with a and b both nonzero but with b a SIXTH POWER, so that (a,b) "looks special" in an
+        arithmetically irrelevant way. The method must NOT report a support change there. A support
+        instrument that fires on a sixth-power b is detecting a numerical accident and has not
+        identified the load-bearing structure.
+    proof_obligations:
+      - claim: The 13/9/10 monomial counts of unspecialised S_3.
+        responsibility: correctness
+      - claim: The nine specialised coefficients are not identically zero as polynomials in (a,b,x_R).
+        responsibility: correctness
+      - claim: "S_3|_{a=0} is weighted-homogeneous of weight 4 with deg(b) = 3."
+        responsibility: correctness
+      - claim: >-
+          S_4|_{a=0} is diagonal-mu_3-invariant, hence supported on total x-degree congruent to 0
+          mod 3.
+        responsibility: correctness
+      - claim: Per-variable degree of S_4 is 4 at a = 0 and at b = 0.
+        responsibility: scope
+      - claim: >-
+          The symbolic pipeline reproduces harness/semaev.py's s3_expr and s4_expr exactly on a frozen
+          fixture.
+        responsibility: baseline
+    not_applicable_reason: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients:
+    - description: >-
+        The recorded per-variable degree 2^{n-2} of the n-th summation polynomial for a generic curve,
+        used as the baseline the specialised degrees are compared against.
+      citation: KN-TECH-002
+      provenance: internal
+      verified_by: idea-generator novelty screen 2026-08-07, entry read in full
+      role: degree baseline
+    - description: >-
+        The committed symbolic construction of S_3 and S_4 with a and b symbolic, which the pipeline
+        must reproduce term for term before any specialisation is computed.
+      citation: harness/semaev.py, functions s3_expr and s4_expr
+      provenance: internal
+      verified_by: idea-generator novelty screen 2026-08-07, module read in full
+      role: frozen baseline fixture
+    - description: >-
+        The automorphism discount on CM curves, at most sqrt(6) and never an exponent, which bounds
+        what any j = 0 or j = 1728 result could be worth.
+      citation: KN-TECH-018
+      provenance: internal
+      verified_by: idea-generator novelty screen 2026-08-07
+      role: ceiling on the value of any positive outcome
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: monomial_count_unspecialised_S3
+      direction: lower
+      minimum_effect: >-
+        Exactly 13 / 9 / 10 for generic / a = 0 / b = 0. Any other triple falsifies the hand derivation
+        and this hypothesis is superseded rather than amended.
+    - metric: monomial_count_specialised_m2
+      direction: different
+      minimum_effect: >-
+        Predicted 9 / 9 / 9, i.e. NO DIFFERENCE at generic x_R. Any difference is a positive result for
+        the lane and must be reported and independently replicated before use. This is the prediction
+        that decides the null outcome.
+    - metric: per_variable_degree_S4
+      direction: different
+      minimum_effect: >-
+        Predicted 4 at a = 0 and at b = 0, unchanged from generic. A drop to 3 or below would be the
+        lane's first real finding.
+    - metric: mod3_support_fraction_S4_a0
+      direction: higher
+      minimum_effect: >-
+        Predicted exactly 1.000, i.e. every monomial of S_4|_{a=0} has total x-degree congruent to 0
+        mod 3, against a generic-curve baseline of approximately 1/3. A measured fraction strictly
+        between 1/3 and 1 falsifies the weighted-homogeneity argument.
+    - metric: bkk_mixed_volume_ratio_m3_a0_over_generic
+      direction: lower
+      minimum_effect: >-
+        A ratio of at least 1.5 is required before any statement that the equation is simpler at m = 3
+        may be made. A ratio in [0.9, 1.1] is the null outcome at m = 3 and closes the support route
+        for m at most 3.
+    - metric: groebner_proxy_distribution_by_family
+      direction: different
+      minimum_effect: >-
+        Predicted identical distributions (Mann-Whitney p > 0.05 over the seed set). A difference here
+        WITHOUT a corresponding support or BKK difference is evidence about sympy, not about the curve,
+        and must be reported in those words.
+  test_boundary:
+    instances:
+      - Symbolic S_3 and S_4 over Q[a,b] with the pinned formal-degree convention
+      - >-
+        Generic-j, j = 0 (a = 0) and j = 1728 (b = 0) ordinary curves at three declared primes, at
+        matched factor-base size and matched target
+      - >-
+        Representation null: the same j = 0 curve written with b replaced by u^6 b for three declared u
+      - >-
+        Nearby-object control: a curve with a and b both nonzero and b a sixth power
+      - >-
+        Degenerate stratum, namely x_R = 0 on a j = 0 curve with b a square, measured separately
+    parameters:
+      arities: [2, 3]
+      primes: three declared primes, all congruent to 1 mod 12 so both families are ordinary
+      groebner_arm_prime_ceiling: about 2^24
+      gauge_representatives: three declared u for the u^6 b null
+      seeds_per_curve_family: at least 5 factor-base seeds
+    implementation: >-
+      sympy over Q[a,b] for the support arm, with all support work done over Q[a,b] FIRST and only
+      then reduced mod each declared p, the two reported separately. harness/semaev.py's existing
+      Groebner measurement for the empirical arm, with its outputs labelled implementation-bound
+      proxies and never as degrees of regularity.
+    budget:
+      wall_clock_seconds: 7200
+      cpu_hours: 4.0
+      maximum_memory_gb: 8
+      maximum_runs: 16
+  falsification_conditions:
+    - >-
+      The 13/9/10 counts are wrong. The hand derivation is false; supersede this hypothesis before
+      proceeding.
+    - >-
+      Any of the nine specialised coefficients vanishes identically at a = 0 or at b = 0 for generic
+      x_R. THE NULL PREDICTION IS FALSE and the lane gains a target; this must be independently
+      replicated before it is used.
+    - >-
+      S_4|_{a=0} has a monomial of total x-degree not congruent to 0 mod 3. The weighted-homogeneity
+      argument is false as stated.
+    - >-
+      The representation null fires: b and u^6 b give different support, BKK or solving degree. The
+      instrument is measuring the representative and every number it produced is void.
+    - >-
+      The nearby-object control fires: a support change is reported on a curve with a and b both
+      nonzero and b a sixth power. The instrument is detecting a numerical accident.
+    - >-
+      NOT a falsification: the m = 3 resultant exceeding the memory budget before any support is
+      resolved. That is an INFRASTRUCTURE outcome under AGENTS.md rule 5 and is not evidence about
+      support.
+  distinguishable_outcomes:
+    O1_degree_reduction: >-
+      Per-variable or total degree of the specialised system drops at a = 0 or b = 0, or S_4|_{a=0}
+      factors over F_p into pieces of strictly lower degree. MEANING: the first genuine structural gain
+      in this lane; the lane moves from calibration to target. Predicted probability LOW, because the
+      leading coefficients of S_3 in t contain neither a nor b so the resultant degree cannot drop.
+      Requires independent verification before anything else in the lane is run.
+    O2_support_reduction_only: >-
+      Support and BKK shrink while per-variable degree and the measured Groebner proxy do not.
+      MEANING: a constant-factor arithmetic saving in building the Macaulay/F4 matrices, BOUNDED BY THE
+      SUPPORT RATIO, with no exponent movement.
+    O3_nothing: >-
+      Specialised support, Newton polygon, BKK and solving-degree proxy are identical to generic.
+      MEANING: the a = 0 / b = 0 "simplification" is an artifact of how S_3 is written, and every
+      downstream argument that leans on "the equation is simpler" is VOID. This is the predicted
+      outcome at m = 2 and it is the useful one.
+    mod3_grading_confirmed_at_m3: >-
+      S_4|_{a=0} is supported entirely on total x-degree congruent to 0 mod 3 before specialisation.
+      MEANING: a factor-about-3 support restriction exists on the UNSPECIALISED m = 3 polynomial; whether
+      it survives x4 := x_R is reported separately and is the open question.
+    instrument_void: >-
+      The representation null or the nearby-object control fires, or the frozen fixture fails.
+      MEANING: INVALID. The instrument is measuring the representative or a numerical accident, and
+      every number it produced is void in both directions.
+    scope_limited_by_memory: >-
+      The m = 3 resultant exceeds the memory budget. MEANING: an INFRASTRUCTURE outcome recorded as
+      such, with the largest arity reached; never evidence about support.
+  interpretation_limits:
+    - >-
+      No speedup of any kind is claimed. Outcome O2 would bound a constant-factor arithmetic saving by
+      the support ratio and nothing more.
+    - >-
+      Nothing here touches the exponent, which is fixed at 1/2 for generic methods and is not
+      challenged.
+    - >-
+      Scoped to short Weierstrass form, arities m in {2,3}, the declared primes and the declared
+      factor-base construction. A support result in one curve model does not transfer to another.
+    - >-
+      MONOMIAL COUNT IS NOT SOLVING COST. A system with fewer monomials can be harder to solve. Every
+      count is accompanied by the BKK bound and by the empirical proxy, and no count is reported as a
+      cost.
+    - >-
+      j = 0 requires D_0 = -3 and j = 1728 requires D_0 = -4, so a curve whose isogeny class does not
+      already contain such a curve CANNOT BE WALKED TO ONE AT ANY PRICE. Even outcome O1 would apply
+      only to curves already in such a class and would confer nothing on any other curve.
+    - >-
+      Even outcome O1 would be a statement about one step of one attack family that does not currently
+      beat rho over prime fields at all.
+  prior_evidence_refs:
+    - KN-TECH-002
+    - KN-TECH-018
+    - KN-FIND-017
+    - KN-FIND-018
+    - KN-FIND-019
+    - KN-FIND-2a8b7e
+    - KN-FIND-c7d31e
+  derived_from_idea: IDEA-20260807-477e40
+  status: proposed
+  added: '2026-08-25'
+  proposed_by: coordinator

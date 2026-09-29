@@ -1,0 +1,484 @@
+# Independent red-team review of TASK-20260814-11516e (GOAL-QALG-001
+# BATCH-dbf57a). Fresh session, no memory of the design sessions that
+# produced H-MLKEM-36f511/EXP-MLKEM-12d9b8 and H-CSIDH-3eaede/EXP-CSIDH-c65945.
+# Reviewed the Coordinator-committed snapshot at commit
+# 531fd399823d1375ca06873fb0089df806b4a394 (content_first-verified against
+# HEAD f4bb6d6e356269ff8b403ac91018073b700a8248, which post-dates the snapshot
+# with two further verification-marker commits only; no source artifact
+# content changed). Findings below are this reviewer's own, independently
+# re-derived where a claim was checkable (arithmetic, file staging, corpus
+# confidence fields) -- not a restatement of the Coordinator's own review.
+
+red_team_report:
+  id: RT-20260814-41d4cc
+  task_id: TASK-20260814-11516e
+  claim_under_review: >-
+    Whether EXP-MLKEM-12d9b8 (H-MLKEM-36f511) and EXP-CSIDH-c65945
+    (H-CSIDH-3eaede) -- both already Coordinator-approved and frozen at the
+    cited snapshot -- are decidable, cost-honest, and scope-honest enough to
+    clear ledger/handoffs/TASK-20260814-807901.yaml and
+    ledger/handoffs/TASK-20260814-a82a19.yaml for Executor dispatch.
+
+  verdicts:
+    EXP-MLKEM-12d9b8: HOLD-FOR-REVISION
+    EXP-CSIDH-c65945: HOLD-FOR-REVISION
+    dispatch_TASK-20260814-807901: DO NOT DISPATCH until MLKEM objections below are resolved by a protocol_amendment
+    dispatch_TASK-20260814-a82a19: DO NOT DISPATCH until CSIDH objections below are resolved by a protocol_amendment
+    scope_of_hold: >-
+      Narrow. Neither objection set below invalidates IDEA-20260813-02479f or
+      IDEA-20260813-e6d55d as research directions, nor H-MLKEM-36f511 or
+      H-CSIDH-3eaede as hypotheses. Both are protocol-definition/disclosure
+      defects, each fixable by a versioned protocol_amendment
+      (docs/task-lifecycle.md "Protocol amendments") without re-scoping
+      either experiment or re-running any design work.
+
+  objections:
+    - id: MLKEM-OBJ-1
+      severity: moderate
+      target: EXP-MLKEM-12d9b8
+      title: >-
+        The "REALIZABLE" branch (F2) is not reachable under the B-grid the
+        contract itself names, and the contract does not disclose this --
+        so the claimed "three genuinely live, non-self-fulfilling outcomes"
+        framing overstates where this experiment's real uncertainty lives.
+      detail: >-
+        independent_variables names B (coefficient magnitude bound) as
+        "swept over a small explicit grid the Executor records, e.g.
+        {1, 2, eta1, eta2}" -- all values <= eta1_max = 3 for ML-KEM's
+        standardized levels. combinatorial_ceiling is upper-bounded by
+        (2B+1)^k_mlkem. I independently computed the order-of-magnitude gap:
+        at ML-KEM-512 (k=2, n=k*256=512), Simon's own stated minimal c=12
+        gives Q = 2*512^13 = 2*2^(9*13) = 2*2^117 ~ 3x10^35. Even taking B as
+        large as ML-KEM's own modulus q=3329 (already far beyond anything the
+        stated example grid explores, and already physically meaningless
+        since ML-KEM arithmetic is mod q, so a coefficient magnitude beyond
+        q adds no new distinct virtual sample), the ceiling caps at
+        (2*3329+1)^4 ~ 2x10^15 for the largest level (k=4) -- roughly 20
+        orders of magnitude short of Q even at its smallest standardized
+        value. So F2 (realizable) is not merely "unlikely" but effectively
+        foreclosed for ANY coefficient bound compatible with ML-KEM's own
+        ring structure, independent of whatever stage 0's faulty-rate
+        conversion resolves to. The contract's own success_criterion and
+        falsification_criterion present F2 as an equally live, "fully
+        specified" outcome (H-MLKEM-36f511 falsification_conditions: "The
+        opposite verdict... is an equally legitimate, fully specified
+        outcome and is not dispreferred by this record") -- that framing is
+        not false (F2 IS a coherent, checkable outcome type), but it is
+        materially incomplete: a reviewer reading only the contract has no
+        way to see that elementary arithmetic already forecloses F2 for any
+        B ML-KEM's own modulus would motivate, and the contract does not
+        disclose this gap itself, unlike its careful disclosure of the
+        stage-0 gap.
+      consequence: >-
+        The tail_checks "extreme-B check" instructs the Executor to find "a
+        bound large enough to make the ceiling approach Q (if any exists
+        within a defensible noise budget)". "Defensible noise budget" is
+        undefined absent stage 0 (which may resolve to NOT COMPUTED per
+        F4), so this specific instruction has no operational stopping rule:
+        the Executor either (a) stays inside the tiny example grid and
+        trivially reproduces the predicted outcome without ever probing the
+        boundary the instruction asks for, or (b) searches an unbounded B
+        with no principled ceiling, producing a result that depends on an
+        arbitrary, unreviewable choice of search range.
+
+    - id: MLKEM-OBJ-2
+      severity: minor
+      target: EXP-MLKEM-12d9b8
+      title: The flagged mid-design gap (stage-0 conversion chain) was handled honestly, not smoothed over -- independently confirmed.
+      detail: >-
+        Checked directly against the record text, not taken on the
+        Coordinator's word: the noise-variance-to-faulty-rate conversion gap
+        is named in H-MLKEM-36f511.mechanism, .proof_search_map.proof_obligations
+        (marked "NOT YET PERFORMED"), EXP-MLKEM-12d9b8.inputs.stage_0_conversion_chain
+        (names the exact missing object and the exact sources checked and
+        found insufficient), .stopping_rules, .invalidation_rules ("Reporting
+        a realizability verdict for the faulty-rate axis specifically without
+        either the stage-0 derivation artifact or the explicit 'not computed'
+        disposition attached" is an invalidation trigger), and
+        H-MLKEM-36f511.falsification_conditions F4 (explicitly "NOT a
+        falsification... NOT a realizability verdict of either kind"). I
+        found no location where this gap is silently assumed resolved in
+        either direction. This concurs with, and independently verifies, the
+        Coordinator's own flagged item -- not merely repeating it.
+
+    - id: MLKEM-OBJ-3
+      severity: informational
+      target: EXP-MLKEM-12d9b8
+      title: Stage 0's literature dependency (Regev 2004 / BKSW full derivations) is honestly disclosed and has a clean, non-defaulting escape valve (F4).
+      detail: >-
+        Confirmed via direct search of inputs/ and knowledge/literature/:
+        no Regev 2004 or BKSW full-text file is staged under inputs/. This
+        matches the contract's own disclosure. Unlike the CSIDH contract
+        (CSIDH-OBJ-1 below), this contract already builds F4 ("NOT COMPUTED")
+        as a first-class, non-negative, non-defaulted outcome specifically
+        for this axis, so no hold is warranted on this point alone.
+
+    - id: CSIDH-OBJ-1
+      severity: major
+      target: EXP-CSIDH-c65945
+      title: >-
+        The applicability audit's literature-access requirement is
+        materially under-budgeted and under-disclosed: none of the four
+        primary sources it must cite at page/section/lemma granularity are
+        staged in this repository, three of the four are marked "Paper not
+        read" by this program's own knowledge curators, and the contract's
+        BLOCKED/NOT-COMPUTED escape valve only names one of the four.
+      detail: >-
+        Independently verified by direct search, not inferred from the
+        contract's own text: `find inputs -iname "*csi*" -o -iname
+        "*kuperberg*" -o -iname "*regev*" -o -iname "*ettinger*" -o -iname
+        "*beullens*"` returns nothing -- no CSI-FiSh (Beullens-Kleinjung-
+        Vercauteren 2019), Kuperberg 2005, Regev 2004, or Ettinger-Hoyer
+        primary text is staged anywhere under inputs/. This program's own
+        curated corpus entries for three of these four papers explicitly
+        record that the paper itself was never read:
+          - KN-LIT-21383c (Regev 2004): "confidence: reported",
+            "citation_verified: web", "## Not verified here / Paper not
+            read... the n^2 dimension figure... should be checked against
+            the original before use."
+          - KN-LIT-2c8264 (Kuperberg 2005): "confidence: reported",
+            "citation_verified: web", "Paper not read."
+          - KN-LIT-071 (Childs-Jao-Soukharev, the CJS reduction this
+            contract's own required_artifacts item 4 depends on): "Full
+            paper not read."
+        Ettinger-Hoyer -- named in H-CSIDH-3eaede.mechanism, .structural_ingredients,
+        and EXP-CSIDH-c65945.inputs.audited_construction as one of "its cited
+        predecessors" whose "exact stated group-order hypothesis" must be
+        read from primary source text -- has NO knowledge-base entry at all
+        (no KN-LIT-* record exists for it anywhere in knowledge/). It appears
+        only as a passing mention inside KN-TECH-d1bc4f ("Ettinger and Hoyer
+        showed it suffices to handle |H|=2"), i.e. as background provenance
+        for a DIFFERENT reduction (general dihedral HSP to |H|=2), not as a
+        source stating a group-order/N-presentation hypothesis -- which
+        raises a separate concern that the contract's own characterization
+        of what Ettinger-Hoyer needs to be checked for may itself rest on an
+        unread source. The only staged primary text in this whole lineage is
+        inputs/DCP-SIMON-2026/paper_extracted_text.txt (Simon 2026 itself)
+        and BKSW's first two pages (KN-LIT-4706, local PDF under
+        knowledge's downloads/, "claims are relayed from the paper's
+        abstract without independent verification... Upgrade to a fully
+        verified entry after a careful read" -- and BKSW is not even one of
+        the four sources this contract's applicability audit is scoped to).
+
+        This program's own immediately-prior sessions -- the very idea-
+        generator sessions that produced both IDEA-20260813-02479f and
+        IDEA-20260813-e6d55d, read in full for this review -- recorded
+        WebSearch and crypto-kb retrieval failing outright in this exact
+        harness ("WebSearch returned a backend model error on every query
+        attempted this session"; "crypto-kb MCP tools unavailable this
+        session"). Given that documented, recent failure mode, the
+        probability that the Executor can fetch and closely read four
+        academic papers (three of them unread even by this program's own
+        curators) within an 1800-second/0.5-CPU-hour budget and extract
+        page/section/lemma-exact citations for each -- which the
+        citation-completeness control demands -- is materially lower than
+        the budget note's framing implies ("a factorization lookup/
+        verification and a close literature read... not a compute
+        campaign"). That framing correctly rules out the expensive
+        alternative (re-deriving the class number from scratch), but says
+        nothing about the literature-access risk, which is real, specific,
+        and was not named anywhere in the contract, the hypothesis, the
+        design report, or the Coordinator's own snapshot review.
+      consequence: >-
+        EXP-CSIDH-c65945.stopping_rules names exactly one BLOCKED/
+        NOT-COMPUTED escape valve: "if the primary CSI-FiSh source (paper
+        text and/or reference implementation) cannot be accessed within
+        budget." It names no equivalent escape valve for failure to access
+        Kuperberg 2005, Regev 2004, or Ettinger-Hoyer -- even though
+        applicability_outcome (metrics.primary #2, arguably this contract's
+        entire point per the handoff's own uncertainty_reduced text) is
+        defined in terms of exactly those sources. Under the contract as
+        written, an Executor who cannot reach those three sources has no
+        named terminal disposition to report into: citation_completeness
+        (a secondary metric) partially absorbs this by flagging uncited
+        claims, but the primary applicability_outcome metric itself has no
+        stated fallback for "could not audit against Kuperberg/Regev/
+        Ettinger-Hoyer within budget" distinct from reaching outcome A or B
+        on incomplete grounds -- exactly the "class-group-order
+        re-derivation hides real work" pattern this task was asked to check
+        for, just relocated from the N-computation (correctly scoped out)
+        to the applicability-audit literature requirement (not scoped or
+        budgeted for at all).
+
+    - id: CSIDH-OBJ-2
+      severity: moderate
+      target: EXP-CSIDH-c65945
+      title: >-
+        The outcome-A/outcome-B boundary rests on an unpinned interpretive
+        judgment call ("citable reduction... preserves the construction's
+        proven/sketched hypotheses"), which is a decidability softness the
+        contract does not resolve.
+      detail: >-
+        metrics.primary.applicability_outcome defines A as "N... either
+        literally matches Simon 2026's stated N=2^n presentation OR has a
+        citable, stated reduction to it that preserves the construction's
+        proven/sketched hypotheses." Standard dihedral-HSP/DCP literature
+        (Kuperberg's own sieve -- cited in this very contract as the
+        baseline -- and the broader Regev/Ettinger-Hoyer lineage) is
+        understood in the field to handle general group order N via
+        well-known base-2 representation/embedding conventions, not a
+        literal requirement that N itself equal a power of two; this raises
+        a genuine risk that "citable reduction" is satisfied almost
+        automatically by boilerplate machinery already present in the cited
+        predecessor papers -- making outcome A close to structurally
+        inevitable and the audit far less discriminating than its "cheap,
+        decisive gate" framing (IDEA-20260813-e6d55d's own proof_search_map,
+        carried into H-CSIDH-3eaede unchanged) claims. Conversely, a strict
+        reading of "preserves the construction's proven/sketched hypotheses"
+        could just as easily disqualify any non-literal presentation and
+        land on B. Both readings are defensible from the contract's own
+        text; nothing pins which one governs, so the A/B boundary is not a
+        mechanical test but an Executor judgment call made without
+        independent check at design time.
+      note: >-
+        This is exactly the kind of question a proof_search_map's
+        observation_collision / distinct_preimage_search audit exists to
+        pre-empt, and the hypothesis record itself already says this axis
+        was NOT performed ("Not performed by this experiment (requires a
+        toy-instance simulation harness IDEA-20260813-e6d55d's own
+        minimal_test describes but this experiment does not build)"). That
+        omission is honestly disclosed, which is good practice, but it
+        directly causes this decidability softness rather than merely
+        being adjacent to it.
+
+    - id: CSIDH-OBJ-3
+      severity: minor
+      target: EXP-CSIDH-c65945
+      title: >-
+        The "cross-source agreement" control likely checks citation
+        consistency, not independent mathematical correctness, and the
+        contract does not disclose this distinction.
+      detail: >-
+        inputs.second_independent_citation names "the CSI-FiSh reference
+        implementation's own parameter file" as an example second source.
+        That parameter file was produced by the same authors from the same
+        underlying class-group computation as the CSI-FiSh paper itself, so
+        agreement between the two is very likely a check that the same
+        number was transcribed consistently across two of the authors' own
+        publications, not an independent re-derivation or cross-check
+        against a second, differently-computed source. The contract's own
+        language is appropriately careful ("independently obtained
+        citations", never "independently computed"), which avoids
+        overclaiming in the strict sense, but the control's name ("Cross-
+        source agreement control") and its role in the success_criterion
+        ("required for the cross-source agreement check below -- not
+        merely re-reading the same PDF twice") invite a reader to credit it
+        with more epistemic weight (independent verification of N's
+        correctness) than "two citations of one computation agree" actually
+        supplies.
+
+  required_controls:
+    - >-
+      MLKEM: before dispatch, add an explicit, stage-0-independent
+      justification for any B considered in the tail_checks extreme-B
+      search (e.g., cap B at ML-KEM's own modulus q, since coefficients
+      beyond q add no new residue and hence no new distinct virtual sample
+      under the stated construction) -- OR explicitly state in the contract
+      that the "extreme-B check" is expected to conclude "no B compatible
+      with ML-KEM's own ring structure closes the gap" and that this
+      specific sub-claim does not require stage 0 to resolve, since it
+      follows from the modulus bound alone. Either fix makes the tail-check
+      instruction operationally decidable without silently relying on an
+      undefined "defensible noise budget."
+    - >-
+      MLKEM: add one disclosure sentence to H-MLKEM-36f511 or
+      EXP-MLKEM-12d9b8 stating the order-of-magnitude gap this review
+      computed (Q at ML-KEM-512's minimal c=12 already exceeds the
+      combinatorial ceiling at B=q by roughly 20 orders of magnitude), so a
+      reader is not left to infer that F2 is a live, uncertain outcome when
+      it is essentially foreclosed by ML-KEM's own ring structure
+      independent of anything the run computes.
+    - >-
+      CSIDH: before dispatch, either (a) pre-stage the CSI-FiSh eprint
+      (2019/498) full text or its reference-implementation parameter file,
+      Kuperberg 2005, and Regev 2004 into inputs/ (or confirm the Executor's
+      session has verified working network access to fetch them, a cheap
+      30-second preflight check given this program's own documented recent
+      WebSearch failures), or (b) broaden EXP-CSIDH-c65945.stopping_rules
+      to name BLOCKED/NOT-COMPUTED as the terminal disposition for failure
+      to access ANY of the four sources the applicability audit depends on
+      (CSI-FiSh, Kuperberg 2005, Regev 2004, Ettinger-Hoyer), not only
+      CSI-FiSh, and revise the budget note to disclose the literature-access
+      risk rather than characterizing the whole task as routine
+      "citation-plus-arithmetic-check."
+    - >-
+      CSIDH: pin, in advance of dispatch, what counts as a "citable
+      reduction... that preserves the construction's proven/sketched
+      hypotheses" for outcome A -- e.g. name the specific general-N
+      embedding/padding technique (if the Executor or a future design pass
+      can identify one from the DCP/HSP literature) the audit should check
+      for, rather than leaving the A/B boundary as an unsupervised judgment
+      call.
+    - >-
+      CSIDH: add one disclosure sentence noting that the "cross-source
+      agreement control" checks citation consistency across sources likely
+      to share a common origin, not independent re-derivation of N.
+
+  counterexample_or_mutation: >-
+    MLKEM: the cheapest discriminating check is the arithmetic already
+    performed in MLKEM-OBJ-1 -- compute Q at ML-KEM-512's minimal c=12
+    (~3x10^35) against the combinatorial ceiling at the most generous
+    ring-compatible B=q=3329 (~2x10^15 at k=4): a ~20-order-of-magnitude gap
+    that requires no run, no simulation, and no stage-0 resolution to see.
+    CSIDH: the cheapest discriminating control is a live preflight check --
+    attempt one fetch of the CSI-FiSh eprint (2019/498) abstract page with
+    whatever network tool the Executor's session actually has, before
+    dispatch. If it fails (as this program's own immediately-prior sessions
+    recorded for WebSearch), that single result should gate dispatch of
+    TASK-20260814-a82a19 directly, since the entire applicability-audit half
+    of the contract is presumptively BLOCKED before a single citation is
+    attempted.
+
+  baseline_comparison: >-
+    Not directly applicable in the Pollard-rho/BSGS sense -- neither
+    contract claims an ECDLP speedup; both are pre-compute realizability/
+    applicability gates on a DCP-route family. The relevant "baseline" each
+    contract itself declares and explicitly does NOT reproduce is Kuperberg's
+    sieve (2^{O(sqrt(log N))} time/query, KN-LIT-2c8264) for the CSIDH branch
+    -- EXP-CSIDH-c65945.proof_search_map.baseline_embedding.reproduction_check
+    states plainly "NOT performed by this experiment... required before any
+    crossover-order (premise (ii)) computation, but is out of THIS
+    experiment's scope" -- and this is honestly disclosed, not hidden, so it
+    is not an objection on its own; it does compound CSIDH-OBJ-1, since
+    Kuperberg's own paper is one of the four unstaged, unread primary
+    sources this contract's applicability half already depends on.
+
+  heuristic_challenges:
+    - >-
+      HEUR-MLKEM-36f511-1 (variance additivity) is, as the record itself
+      says, an exact elementary identity, not a random-model conjecture --
+      correctly not dressed up with a random_model_justification it does not
+      need. No objection to the heuristic itself; the objection (MLKEM-OBJ-1)
+      is to how its consequence (the B-grid) interacts with the contract's
+      claimed three-way decidability, not to the identity's correctness.
+    - >-
+      HEUR-CSIDH-3eaede-1 (H1, per-recursion-level bias Omega(1/n)) is
+      explicitly and correctly disclosed as "a placeholder pending Lemma 3's
+      own resolution, not a derived heuristic" and "NOT VALIDATED BY THIS
+      EXPERIMENT." Confirmed this framing is honored: EXP-CSIDH-c65945's
+      heuristic_under_test field is null with a stated reason, matching the
+      hypothesis's own disclosure. No objection.
+
+  cost_model_challenges:
+    - >-
+      EXP-MLKEM-12d9b8's stated budget (1800s wall-clock, 0.25 CPU-hr, 2GB)
+      is adequate for the arithmetic itself (exact-integer exponentiation of
+      Q up to n^21-scale exponents is trivial for arbitrary-precision
+      arithmetic; no compute-cost concern there) but the budget note's own
+      escape hatch ("stage 0's gating_rule... applies rather than extending
+      the budget") is the correct fix for stage 0's literature risk and is
+      already in place -- no additional objection beyond MLKEM-OBJ-3
+      (informational).
+    - >-
+      EXP-CSIDH-c65945's stated budget (1800s wall-clock, 0.5 CPU-hr, 2GB) is
+      correctly justified for the arithmetic half (primality-checking and
+      product-reconciling a several-hundred-bit factorization is trivial for
+      modern hardware; this is not where the hidden cost is) but does not
+      account for the literature-access half at all -- this is CSIDH-OBJ-1,
+      the most load-bearing finding in this report, and the one this
+      reviewer judges the Coordinator's own snapshot review did not surface
+      (see next_concrete_action).
+
+  reduction_and_scope_challenges:
+    - >-
+      EXP-CSIDH-c65945 / H-CSIDH-3eaede: independently re-checked, across
+      every field enumerated in the task card (statement, mechanism,
+      proof_search_map, asymptotic_claim, falsification_conditions,
+      interpretation_limits, and the handoff's own constraints), that
+      premise (i) (applicability) and premise (ii) (cost-beats-Kuperberg)
+      plus Lemma 3's correctness stay visibly separated throughout, with
+      premise (ii) and Lemma 3 named as out of scope every time the
+      conditional claim is stated. PASS -- no instance found where the
+      narrowing is stated once and then quietly exceeded. This concurs with,
+      and independently verifies, the Coordinator's own scope_check.
+    - >-
+      EXP-MLKEM-12d9b8 / H-MLKEM-36f511: independently re-checked that the
+      sample-count access-model question (this experiment) stays separated
+      from Simon's Lemma 3 (IDEA-20260813-4aecda, a different, not-yet-
+      dispatched task) throughout statement, what_this_is_not, claim_ceiling,
+      and invalidation_rules ("Any claim that a favorable (realizable)
+      verdict establishes Simon 2026's correctness, or that an unfavorable
+      (unrealizable) verdict refutes it... this experiment is silent on
+      Lemma 3"). PASS, independently verified.
+    - >-
+      Both contracts consistently label Simon 2026 (KN-LIT-e204ab) as an
+      UNVERIFIED, unrefereed, sketch-proof preprint in every location this
+      review checked (statement, mechanism, assumptions, structural_ingredients,
+      interpretation_limits, and both handoffs' constraints) -- independently
+      confirmed against knowledge/literature/KN-LIT-e204ab.md's own
+      "confidence: unverified" header. PASS on the unverified-dependency
+      discipline requested by this task's item 5.
+    - >-
+      Both ledger/handoffs/TASK-20260814-807901.yaml and
+      ledger/handoffs/TASK-20260814-a82a19.yaml carry an explicit,
+      unambiguous "DO NOT DISPATCH" notice naming this exact task
+      (TASK-20260814-11516e) by ID, both in a leading file-header comment
+      and inside the handoff record's own body (objective /
+      do_not_dispatch_until fields). PASS on this task's item 6 -- confirmed
+      independently, not merely trusted from the Coordinator's own
+      handoff_gate_check.
+
+  proof_architecture_challenges:
+    - >-
+      H-CSIDH-3eaede.proof_search_map.method_ceiling.nearby_object_control
+      and .baseline_embedding.reproduction_check are both explicitly marked
+      "Not performed by this experiment" / "NOT performed by this
+      experiment" -- honestly disclosed gaps, not silently skipped, per
+      KN-TECH-080's "an audit that does not apply records why; it is not
+      silently omitted." No objection to the disclosure practice itself;
+      CSIDH-OBJ-2 above is about the downstream consequence (an unpinned A/B
+      boundary), not about whether the gap was honestly named.
+    - >-
+      H-MLKEM-36f511.proof_search_map.observation_collision.distinct_preimage_search
+      is performed at the level of "if no such strategy exists under plain
+      variance-additivity, the closure follows from arithmetic alone" --
+      this reviewer's own MLKEM-OBJ-1 arithmetic is exactly that audit,
+      carried one step further than the design task took it (to an actual
+      numeric order-of-magnitude comparison), which is why it surfaces a gap
+      the design-time text did not.
+
+  narrowest_supported_statement: >-
+    Neither EXP-MLKEM-12d9b8 nor EXP-CSIDH-c65945 is decidable, cost-honest,
+    and scope-honest AS CURRENTLY WRITTEN in the two respects named above
+    (MLKEM: the B-grid/tail-check circularity in MLKEM-OBJ-1; CSIDH: the
+    undisclosed literature-access cost/risk in CSIDH-OBJ-1, compounded by the
+    A/B judgment-call softness in CSIDH-OBJ-2). Both defects are narrow,
+    protocol-level, and resolvable by a versioned protocol_amendment without
+    invalidating either underlying hypothesis, either source idea, or any of
+    the design tasks' other field-completeness work, which this review
+    independently re-checked and found genuinely thorough (n-definition pin,
+    symbol-collision control, premise (i)/(ii) separation, unverified-
+    dependency disclosure, and the stage-0 gap's honest handling all PASS on
+    independent re-check, not merely on the Coordinator's own say-so).
+
+  next_concrete_action: >-
+    Coordinator: do not clear the dispatch hold on TASK-20260814-807901 or
+    TASK-20260814-a82a19 as-is. File one versioned protocol_amendment per
+    experiment (experiments/EXP-MLKEM-12d9b8/amendments/,
+    experiments/EXP-CSIDH-c65945/amendments/) addressing the
+    required_controls above, then re-run this batch's own
+    TASK-20260814-5870c1 ledger-archive step against the amended contracts.
+    The single most load-bearing finding for TASK-20260814-5870c1 to weigh
+    (not surfaced by the Coordinator's own snapshot_commit_receipt.json
+    coordinator_review, which checked budget size and structure but not
+    literature-source availability) is CSIDH-OBJ-1: none of the four primary
+    sources EXP-CSIDH-c65945's applicability audit must cite at
+    page/section/lemma granularity are staged in this repository, three of
+    four are marked "Paper not read" by this program's own knowledge
+    curators, and the contract's only named BLOCKED escape valve covers one
+    of the four.
+
+  artifact_paths:
+    - coordination/goals/GOAL-QALG-001/batches/BATCH-dbf57a/tasks/TASK-20260814-11516e/red_team_report.yaml
+
+  provenance:
+    role: red-team
+    runtime: Claude Code
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    independent_session: true
+    reviewed_snapshot_commit: 531fd399823d1375ca06873fb0089df806b4a394
+    reviewed_at_head: f4bb6d6e356269ff8b403ac91018073b700a8248
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_used: false

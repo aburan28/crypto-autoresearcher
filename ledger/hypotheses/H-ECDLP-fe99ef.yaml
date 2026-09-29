@@ -1,0 +1,468 @@
+hypothesis:
+  id: H-ECDLP-fe99ef
+  question_id: RQ-ECDLP-002
+  title: >-
+    Every band in the LPF lane is calibrated on 200 i.i.d. replicates drawn
+    INSIDE ONE curve instance per cell, so the scale that actually fluctuates -
+    across instances - has never been measured; and because the committed
+    driver's null arms depend on the instance ONLY through the field prime p,
+    the null arms' between-instance spread is DERIVABLE and becomes the floor
+    against which the real arm's spread must be read
+  statement: >-
+    Source proposal IDEA-20260807-347a83 (RQ-ECDLP-002, class control). THE
+    SOURCE PROPOSAL IS NOT EDITED BY THIS RECORD and remains `proposed`.
+
+    (A) THE DEFECT, IN THE CAMPAIGN'S OWN WORDS. DEC-20260801-015 states it:
+    "The frozen band is calibrated to a noise source the real arm does not have
+    ... OBJ-REAL IS NOT A SAMPLE ... THE SCALE THAT ACTUALLY FLUCTUATES, ACROSS
+    CURVE INSTANCES, WAS NEVER MEASURED, BECAUSE THERE IS ONE INSTANCE PER
+    CELL", and names OBJ-RT082-1 "THE SINGLE LARGEST HOLE THE CAMPAIGN HAS
+    DECLARED". DEC-20260801-014's single next action is RT082-CTRL-1 at k >= 20
+    fresh curve instances per cell, costed at about ten minutes. H-YIELD-001's
+    own test_boundary calls one curve per field size "a DECLARED WEAKNESS of the
+    design, not a strength". No specification, reading rule or run was ever
+    created, and the batch label under which it was opened was subsequently
+    re-used on main for a different lane (CORR-20260803-77d5da). The control was
+    named, costed, and orphaned by a label collision rather than by a decision on
+    its merits.
+
+    (B) THE MEASURABLE. The archived RUN-LPF-001-calib bands are order
+    statistics of 200 replicates drawn from ONE instance -
+    harness.toycurve.generate_instance(2301, bits) - so they estimate the
+    WITHIN-instance i.i.d. standard deviation and nothing else. The deliverable
+    is the BETWEEN-instance standard deviation of each banded statistic across
+    k fresh instances per cell, and the RATIO between-instance / i.i.d. per
+    statistic. A ratio of 1 vindicates the bands as stated. A ratio of 4 means
+    the detection floors are wrong by a factor of sixteen in variance, which is
+    the decision's own phrasing.
+
+    (C) A STRUCTURAL FACT READ OUT OF THE COMMITTED DRIVER THAT THE SOURCE
+    PROPOSAL DID NOT USE, AND WHICH TURNS A BOOKKEEPING EXERCISE INTO A CONTROL
+    WITH A DERIVABLE FLOOR. In experiments/EXP-LPF-001/implementation/
+    lpf001_driver.py, CalibrationCell.draw_uniform returns
+    rng.integers(1, self.X + 1, ...) with self.X = self.p * self.p. THE NULL ARMS
+    THEREFORE DEPEND ON THE CURVE INSTANCE ONLY THROUGH THE FIELD PRIME p. No
+    curve point, no group order, no coefficient enters them. Two consequences,
+    both load-bearing:
+      (i) For the null arms, "between-instance variance" is exactly
+      "variance induced by p varying", and it is DERIVABLE: p_hat(u) estimates
+      the smooth density of [1, p**2] at bound Bsm, which is a smooth function of
+      p alone. A predicted between-instance SD can therefore be computed from the
+      realised p values BEFORE the measured one is looked at, and compared to it.
+      (ii) A null object with NO instance dependence at all can be built by
+      freezing the range: draw the uniform arm on the FIXED range [1, X_0] with
+      X_0 the archived instance's p**2, for every instance, with a per-instance
+      seed. That arm's between-instance SD MUST equal its i.i.d. SD, because
+      nothing but the random stream differs. If it does not, the instance sweep
+      itself is broken and every ratio in the run is void.
+    The real arm has no such derivation, which is precisely the asymmetry the
+    campaign declared and never measured. The real arm's ratio is therefore read
+    AGAINST the uniform arm's ratio as a floor, and only excess above that floor
+    is attributable to curve structure.
+
+    (D) WHAT THIS HYPOTHESIS DOES NOT COVER, STATED RATHER THAN QUIETLY DROPPED.
+    The source proposal names four evidence records - EV-LPF-001, EV-EQD-001 and
+    the EV-YIELD-e1adbf / ca4b02 / 7c3195 yield ratios - and says one control
+    re-scopes all four. This hypothesis covers the statistics produced by the
+    committed EXP-LPF-001 driver, whose implementation was read at design time.
+    It does NOT cover STAT-CHI and STAT-KS1 of EV-EQD-001 or the EV-YIELD-*
+    ratios, because their pipelines were NOT read at design time and writing a
+    frozen contract naming their metrics would be inventing them. That gap is
+    converted into a deliverable: the contract requires a zero-compute report of
+    whether the same driver produces those statistics, so the successor contract
+    can be written from a run artifact instead of from a coordinator's guess.
+  mechanism: >-
+    Re-run the committed EXP-LPF-001 statistic pipeline at k fresh curve
+    instances per cell at bits 16 and bits 20, changing NOTHING but the instance
+    seed, and report the between-instance standard deviation of each statistic
+    against the archived within-instance i.i.d. standard deviation the bands were
+    set from.
+    Three arms per instance, chosen so that the variance decomposes rather than
+    being reported as one number:
+      ARM-REAL (OBJ-REAL) - the arm the campaign's bands are applied to and the
+      only arm in which the curve genuinely enters.
+      ARM-UNIF (OBJ-NULL-UNIF) - drawn on [1, p_i**2]; depends on the instance
+      only through p_i, so its between-instance spread is the DERIVABLE FLOOR.
+      ARM-FROZEN - identical to ARM-UNIF except that the range is held at the
+      archived [1, X_0] for every instance; depends on the instance not at all,
+      so its between-instance spread must equal its i.i.d. spread.
+    The reading is a chain of comparisons, each with a derivable expectation:
+    ARM-FROZEN's ratio must be 1 (instrument check); ARM-UNIF's ratio must match
+    the SD predicted from the realised p values (derivable floor); ARM-REAL's
+    ratio is the finding, and it is reported as an excess over ARM-UNIF's floor
+    rather than as a bare number.
+    A ratio stably above the pre-registered threshold means every band built on
+    that statistic must be restated, by SUPERSESSION and never by edit, and the
+    affected evidence records are re-scoped by a Coordinator decision that this
+    hypothesis does not perform.
+  assumptions:
+    - >-
+      Fresh curve instances at bits 16 and 20 are generable deterministically
+      from declared seeds by the committed harness generator, which is what
+      RUN-LPF-001-calib itself did at seed 2301. Verified structurally: the
+      archived descriptor records
+      "curve_instance_source": "harness.toycurve.generate_instance(2301, 16)".
+    - >-
+      The committed driver is DETERMINISTIC given (seed, bits), so regenerating
+      instance seed 2301 must reproduce the archived per-replicate values
+      EXACTLY, not merely closely. This is checkable before any new instance is
+      read and its failure is a drift finding, which is different from and more
+      urgent than a variance finding.
+    - >-
+      The driver file itself is IMMUTABLE. The sweep is performed by a thin
+      wrapper that imports the committed driver's functions and varies only the
+      instance seed. A MODIFIED DRIVER IS A NEW IMPLEMENTATION AND VOIDS THE
+      REGRESSION CONTROL, hence voids the whole run.
+    - >-
+      The ten-minute cost estimate in DEC-20260801-014 is approximately right at
+      bits 16. It is NOT assumed at bits 20, where trial division runs over about
+      eighty thousand primes per sample set; the contract stages bits 16 first
+      and reports realised cost rather than absorbing an order-of-magnitude miss.
+  proof_search_map:
+    bottleneck: >-
+      The denominator of every detection statement in the lane. Each band is an
+      order statistic of a spread, and if the spread that was measured is not the
+      spread the real arm is subject to, every detection floor in the lane is
+      wrong by the ratio between them - simultaneously, and in the same
+      direction. The bottleneck is not any one hypothesis; it is the NULL
+      CALIBRATION shared by all of them, which is why one control touches several
+      records at once.
+    baseline_embedding:
+      parameter_slice: >-
+        Instance seed 2301, the archived instance, at both cells.
+      reproduction_check: >-
+        FROZEN REGRESSION FIXTURE, EXACT. Regenerating seed 2301 must reproduce
+        the archived per-replicate values bit-for-bit: at bits 16 the archived
+        STAT-RATE-u means are 0.35907492202788643, 0.07060718872309196,
+        0.010077475232387476, 0.0015946443860078278 and 0.00021916279354207438,
+        with STAT-KS-DICK 0.04892964163405088 and STAT-TAIL-DEEP
+        6.0840393523072365, and the archived descriptor records p = 46663,
+        X = 2177435569 and n_per_sample_set = 130816. Anything other than exact
+        agreement is DRIFT, not variance, and it is the more urgent finding.
+    observation_collision:
+      observable: >-
+        A standard deviation per statistic, in two flavours - between-instance
+        and within-instance.
+      distinct_preimage_search: >-
+        THE CANONICAL FAILURE OF SUCH AN ESTIMATOR IS ONE THAT RETURNS THE i.i.d.
+        VALUE BY CONSTRUCTION, and it is checked rather than asserted away: the
+        between-instance estimator is computed ACROSS instances and the i.i.d.
+        one WITHIN them, and at k = 1 the former is undefined, which is precisely
+        why it was never computed. The genuine collision risk is different and is
+        the reason ARM-FROZEN exists: a sweep whose per-instance random streams
+        are correlated would return a between-instance SD close to the i.i.d. one
+        for a reason that has nothing to do with the curves, and would be
+        indistinguishable from a true null by the ratio alone. ARM-FROZEN
+        separates them because its ratio is forced to 1 by construction only if
+        the seeding is genuinely independent.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The two-flavour spread (between-instance, within-instance) of every
+          banded statistic, in place of the single spread the bands were set
+          from.
+        predicted_gain: >-
+          Error bars that the four cited evidence records do not have. It can
+          only ever produce error bars, which is an honest caveat and is exactly
+          what is missing.
+      - transform: specialization_pack
+        proposed_object: >-
+          The three-arm decomposition ARM-FROZEN / ARM-UNIF / ARM-REAL, giving a
+          derivable floor for the null arms so the real arm's spread is read as
+          an EXCESS rather than as a bare ratio.
+        predicted_gain: >-
+          Converts a bookkeeping number into a comparison with a pre-computable
+          expectation, so that "the ratio is 2" becomes decidable as "2 against a
+          derivable floor of 1.9" or "2 against a derivable floor of 1.05".
+    quantifier_order: >-
+      FOR each cell in {bits 16, bits 20} SEPARATELY - never pooled - and FOR
+      each banded statistic produced by the committed EXP-LPF-001 driver, the
+      between-instance standard deviation across k fresh instances is estimated
+      with its chi-square confidence interval and compared to the archived
+      within-instance i.i.d. standard deviation from that cell's 200 replicates.
+      NOT CLAIMED: any statement at other field sizes, any statement about
+      statistics produced by other pipelines, any statement about ECDLP.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        That at bits 16 and bits 20, across k fresh instances, the
+        between-instance spread of each named statistic is the stated value with
+        the stated confidence interval, and that its ratio to the archived
+        within-instance spread is the stated number. IT CANNOT CERTIFY that a
+        band is correct, that any evidence record's direction changes, or
+        anything whatsoever about ECDLP. THIS MEASURES THE INSTRUMENT, NOT THE
+        MATHEMATICS.
+      nearby_object_control: >-
+        ARM-FROZEN, the range-frozen uniform arm, which is the same object with
+        its instance dependence surgically removed. Its ratio must be 1. If it is
+        not, the sweep is measuring its own seeding and no other arm is read.
+    proof_obligations:
+      - claim: seed 2301 reproduces the archived values exactly
+        responsibility: baseline
+      - claim: >-
+          the committed driver's null arms depend on the instance only through p
+        responsibility: correctness
+      - claim: >-
+          ARM-FROZEN's between-instance SD equals its i.i.d. SD within its CI
+        responsibility: correctness
+      - claim: >-
+          ARM-UNIF's between-instance SD matches the SD derivable from the
+          realised p values
+        responsibility: success_probability
+      - claim: >-
+          k is large enough that the pre-registered ratio threshold is resolvable
+        responsibility: strictness
+      - claim: >-
+          the sweep fits the declared wall-clock and memory budget on this host
+        responsibility: runtime
+      - claim: >-
+          bits 16 and bits 20 are never pooled, and nothing transfers to other
+          sizes
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim:
+    problem: null
+    prior_best: null
+    time_exponent: null
+    memory_exponent: null
+    hidden_cofactor: null
+    claim_kind: null
+  heuristic_assumptions:
+    - id: HEUR-IVAR-1
+      formal_statement: >-
+        The between-instance variance measured at bits 16 and bits 20 is
+        indicative of the between-instance variance at other field sizes in the
+        same lane.
+      random_model_justification: >-
+        NONE. There is no model under which two field sizes determine a third,
+        and none is offered.
+      supporting_results: []
+      validation_experiment_ids: []
+      falsification_condition: >-
+        NOT VALIDATABLE BY THIS CONTRACT, AND THE CONTRACT DOES NOT RELY ON IT.
+        It is discharged by refusing to pool: both sizes are reported separately,
+        every conclusion is stated per size, and no statement is made about any
+        size not measured. A pooled statistic anywhere in the deliverable is an
+        invalidation.
+    - id: HEUR-IVAR-2
+      formal_statement: >-
+        For the null arms of the committed EXP-LPF-001 driver, the curve instance
+        enters the measured statistics ONLY through the field prime p, so the
+        between-instance spread of those arms is a smooth function of the spread
+        of p and is computable in advance from the realised p values.
+      random_model_justification: >-
+        Not a random model but a code reading: CalibrationCell.draw_uniform
+        returns rng.integers(1, self.X + 1, ...) with self.X = self.p * self.p,
+        and no other instance attribute enters any null arm. The heuristic half
+        is that this reading is complete - that no instance-dependent state
+        enters through a path not read.
+      supporting_results:
+        - >-
+          experiments/EXP-LPF-001/implementation/lpf001_driver.py, read at design
+          time: CalibrationCell.__init__, draw_uniform, draw_synth,
+          draw_product_control and descriptor.
+      validation_experiment_ids: [EXP-ECDLP-7edfd3]
+      falsification_condition: >-
+        ARM-UNIF's measured between-instance SD departs from the SD predicted
+        from the realised p values by more than a factor of 2 at any statistic,
+        with ARM-FROZEN passing. The null arm then carries instance dependence
+        through a path that was not read, and the derivable floor is not
+        derivable. THIS IS A REACHABLE OUTCOME: the code reading is a reading,
+        and a factorizer table rebuilt per instance to a p-dependent bound is one
+        concrete path by which additional instance dependence could enter.
+  structural_ingredients:
+    - description: >-
+        The campaign's own statement of the defect, its costing, and its
+        designation as the single largest declared hole.
+      citation: DEC-20260801-015
+      provenance: internal
+      verified_by: >-
+        idea-generator, IDEA-20260807-347a83, quoted the decision verbatim; this
+        coordinator did not re-open DEC-20260801-015 at design time and the
+        quotation is carried at the proposal's provenance rather than upgraded.
+        The contract requires the executor to re-read and re-quote it as a
+        run artifact before any reading is issued.
+    - description: >-
+        The archived single-instance calibration: seed 2301, p = 46663,
+        X = p**2 = 2177435569, n_per_sample_set = 130816, 200 replicates, and the
+        per-statistic means and standard deviations the bands were computed from
+        by the frozen THR-LPF-1 rule at ascending ranks 2 and 199.
+      citation: experiments/EXP-LPF-001/results/calib/null_replicate_statistics.json
+      provenance: internal
+      verified_by: >-
+        coordinator, this design session, read the per_cell["16"] descriptor,
+        LPF_null_spread and band_by_frozen_rule blocks of the committed file
+    - description: >-
+        The committed driver's null-arm samplers, establishing that the instance
+        enters them only through p.
+      citation: experiments/EXP-LPF-001/implementation/lpf001_driver.py
+      provenance: internal
+      verified_by: >-
+        coordinator, this design session, read CalibrationCell.__init__,
+        draw_uniform, draw_synth, draw_product_control and descriptor in the
+        committed file
+    - description: >-
+        The batch-label collision that orphaned the control, recorded so that the
+        record's history is not read as a decision on its merits.
+      citation: CORR-20260803-77d5da
+      provenance: recalled
+      verified_by: null
+      role: provenance of the orphaning, not support for any measurement
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: seed_2301_regression_exactness
+      direction: same
+      minimum_effect: >-
+        EXACT reproduction of the archived per-replicate values at seed 2301, at
+        both cells. Not "within tolerance" - exact, because the driver is
+        deterministic given the seed. Any deviation is DRIFT and is a different
+        and more urgent finding than variance; the run reports it and stops.
+    - metric: arm_frozen_ratio
+      direction: same
+      minimum_effect: >-
+        FORCED VALUE 1. ARM-FROZEN's between-instance SD divided by its
+        within-instance i.i.d. SD must lie inside the chi-square confidence
+        interval for a ratio of 1 at the realised k. If it does not, the sweep is
+        measuring its own seeding and NO other arm is read.
+    - metric: arm_unif_ratio_versus_derivable_floor
+      direction: same
+      minimum_effect: >-
+        ARM-UNIF's measured between-instance SD must agree within a factor of 2
+        with the SD predicted from the realised p values through the smooth
+        density of [1, p**2] at each Bsm. Disagreement beyond that, with
+        ARM-FROZEN passing, refutes HEUR-IVAR-2 and means the null arm carries
+        instance dependence through an unread path.
+    - metric: arm_real_between_over_iid_ratio
+      direction: higher
+      minimum_effect: >-
+        THE FINDING. Reported per statistic, per cell, with its chi-square
+        confidence interval, AND as an excess over ARM-UNIF's floor. A ratio
+        whose entire confidence interval lies above 1.5 invalidates the
+        corresponding band as currently stated. A ratio whose interval contains 1
+        vindicates it AT THE MEASURED k and is a genuine and valuable negative.
+        An interval spanning 1.5 is reported as UNRESOLVED at this k and is not
+        rounded into either verdict.
+    - metric: resolvable_ratio_at_realised_k
+      direction: different
+      minimum_effect: >-
+        Stated before any reading: the sampling relative standard error of an SD
+        estimate from k instances is about 1/sqrt(2*(k-1)), so k = 20 resolves a
+        ratio of 1.5 at about 3 standard errors and k = 32 at about 4. THE
+        CONTRACT TARGETS k = 32 AND FLOORS AT k = 20. A cell that reaches fewer
+        than 20 instances within budget reports its realised k and its widened
+        interval, and the 1.5 threshold is NOT applied at that cell.
+  test_boundary:
+    instances:
+      - >-
+        k fresh curve instances per cell from declared seeds, target k = 32,
+        minimum k = 20, at bits 16 and bits 20, with instance 1 fixed at the
+        archived seed 2301 as the regression fixture.
+      - >-
+        Three arms per instance: ARM-REAL (OBJ-REAL), ARM-UNIF (OBJ-NULL-UNIF on
+        [1, p_i**2]), ARM-FROZEN (uniform on the archived fixed range
+        [1, 2177435569] at bits 16 and the corresponding archived X_0 at bits 20).
+    parameters:
+      cells: [16, 20]
+      target_k: 32
+      minimum_k: 20
+      samples_per_instance_per_arm: 130816
+      archived_iid_replicates: 200
+      archived_regression_seed: 2301
+      statistics:
+        - STAT-RATE-u at u_target 2, 3, 4, 5, 6
+        - STAT-KS-DICK
+        - STAT-TAIL-DEEP
+      pooling: FORBIDDEN across cells
+    implementation: >-
+      A thin wrapper importing the COMMITTED lpf001_driver.py functions and
+      varying only the instance seed. The driver file is immutable and is not
+      edited. No new statistic is defined; only the existing ones are recomputed
+      at new instances.
+    budget:
+      wall_clock_seconds: 5400
+      memory_gb: 4
+      maximum_runs: 6
+  falsification_conditions:
+    - >-
+      The pipeline does not reproduce its own single-instance values at seed
+      2301. The defect is DRIFT, not variance; that is a different and more
+      urgent finding, it invalidates the archived arrays as a description of the
+      current pipeline, and it also blocks the sibling contract EXP-ECDLP-a1c262,
+      which reads those arrays.
+    - >-
+      ARM-FROZEN's ratio departs from 1 beyond its interval. The instance sweep
+      is broken - most likely correlated per-instance seeding or state carried
+      between instances - and no ratio in the run may be read.
+    - >-
+      Ratio near 1 for every statistic on ARM-REAL. The bands are right at the
+      measured k and the cited evidence records keep their stated strength. A
+      GENUINE AND VALUABLE NEGATIVE, reported as a result and not as a null.
+    - >-
+      Ratio confidently above 1.5 for any statistic on ARM-REAL, in excess of
+      ARM-UNIF's derivable floor. Every band built on that statistic must be
+      restated and the affected evidence records re-scoped BY SUPERSESSION,
+      never by edit - a Coordinator act this hypothesis supplies the measurement
+      for and does not perform.
+    - >-
+      ARM-UNIF's measured spread disagrees with its derivable floor by more than
+      a factor of 2 while ARM-FROZEN passes. HEUR-IVAR-2 is refuted; the null
+      arm carries instance dependence through a path not read at design time, and
+      the excess reading for ARM-REAL loses its floor.
+  interpretation_limits:
+    - >-
+      THIS MEASURES THE INSTRUMENT, NOT THE MATHEMATICS. It supports no claim
+      about ECDLP, about the Semaev map, about any cost, or about any exponent,
+      in either direction. It can only ever produce error bars, and that is
+      exactly what four evidence records are missing.
+    - >-
+      RE-SCOPING AN EVIDENCE RECORD IS A COORDINATOR ACT. This hypothesis
+      supplies a measurement; it performs no transition and edits no band. A
+      correction to a frozen band is a superseding record under a new id.
+    - >-
+      SCOPE IS NARROWER THAN THE SOURCE PROPOSAL'S AND THE NARROWING IS
+      DELIBERATE. Only statistics produced by the committed EXP-LPF-001 driver
+      are covered. STAT-CHI and STAT-KS1 of EV-EQD-001 and the EV-YIELD-e1adbf /
+      ca4b02 / 7c3195 ratios are NOT covered, because their pipelines were not
+      read at design time and naming their metrics in a frozen contract would be
+      inventing them. The gap is converted into a deliverable rather than
+      dropped: the contract requires a zero-compute report of whether the same
+      driver produces them, so a successor contract can be written from a run
+      artifact.
+    - >-
+      TWO SIZES, NEVER POOLED. Bits 16 and bits 20 are reported separately and
+      nothing is claimed at any other size. HEUR-IVAR-1 is stated with no
+      support precisely so that no reader inherits it.
+    - >-
+      k INSTANCES GIVE A VARIANCE ESTIMATE WITH ITS OWN WIDE INTERVAL. Every
+      ratio carries its chi-square confidence interval, and a ratio whose
+      interval spans the threshold is reported as UNRESOLVED rather than rounded
+      into a verdict.
+    - >-
+      CURVE INSTANCES DIFFER IN GROUP ORDER, which changes some statistics
+      mechanically. Order-normalised statistics are reported alongside raw ones
+      and neither is presented alone.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  source_proposal: IDEA-20260807-347a83
+  design_note: >-
+    DESIGNED, NOT APPROVED. EXP-ECDLP-7edfd3 is written at status
+    `review_required` with approved_by null and is not authorised to execute.
+    Approval is a separate committed Coordinator decision.
+  related_contracts:
+    - >-
+      EXP-ECDLP-a1c262 (H-ECDLP-d2aa2c) reads the SAME EXP-LPF-001 calibration
+      statistics and is ORTHOGONAL BY CONSTRUCTION: it holds the SAMPLE FIXED and
+      varies the REFERENCE, this one holds the REFERENCE FIXED and varies the
+      INSTANCE. To keep them separable, THIS contract's PRIMARY metrics are RAW,
+      REFERENCE-FREE statistic spreads, so its result does not move if that
+      contract changes the reference; reference-dependent quantities are
+      secondary and flagged. THIS CONTRACT'S SEED-2301 REGRESSION ARM IS THAT
+      CONTRACT'S PIPELINE-DRIFT CONTROL, and its failure blocks both.
+    - >-
+      EXP-ECDLP-96b5d3 (H-ECDLP-6c52c0) QUOTES the two-term optimum
+      B* = N**(1/(m+1)) that rests on the mean-yield convention whose
+      instance-level error bars are the subject of this lane. THE DEPENDENCY RUNS
+      ONE WAY and this contract does not re-derive B*.

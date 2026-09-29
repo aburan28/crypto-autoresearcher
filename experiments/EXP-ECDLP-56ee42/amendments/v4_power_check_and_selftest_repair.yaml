@@ -1,0 +1,788 @@
+amendment:
+  experiment: EXP-ECDLP-56ee42
+  hypothesis_id: H-ECDLP-a4be60
+  goal_id: GOAL-ECDLP-001
+  version: v4
+  amendment_ordinal: 3
+  filename_convention_note: >-
+    v4_power_check_and_selftest_repair.yaml is amendment ordinal 3 for this
+    experiment (v2_control_c_recalibration.yaml was ordinal 1,
+    v3_comparator_and_t3_repair.yaml was ordinal 2), advancing the frozen
+    protocol from base version 3 (the version resulting from v3) to
+    resulting version 4. It supersedes named fields of v3 by the versioned
+    protocol_amendment mechanism (docs/task-lifecycle.md "Protocol
+    amendments"); v3.yaml, v2.yaml, and specification.yaml are not edited in
+    place, and no raw run record is retroactively altered.
+  base_version: 3
+  resulting_version: 4
+  authored_by: coordinator
+  authored_at: '2026-09-06'
+  approved_by: null
+  status: proposed
+  opened_by: DEC-20260906-da1212
+  review_round: null
+  review_round_note: >-
+    No review round is opened by this amendment. DEC-20260906-da1212's own
+    next_actions direct a "follow-up protocol-amendment task" (not a dispatch
+    task) to close the five gaps its independent red-team review of v3
+    found. Whether v4 itself should be sent through independent review before
+    any Coordinator decision relies on it is that follow-up decision's call,
+    not pre-judged here -- consistent with v3's own review_round_note, and
+    given that the v3 review round (experiments/EXP-ECDLP-56ee42/reviews/
+    amendment-v3-review/report.yaml) is itself the second consecutive round
+    to find a Coordinator-drafted repair incomplete (v2's C2 broke on
+    round-1; v3's completeness gaps are what this amendment closes), a review
+    pass before relying on v4 is recommended in next_step below.
+
+  supersedes: >-
+    v3 (v3_comparator_and_t3_repair.yaml): (1) leg_C2a_nonsparse_x_comparator
+    .why_the_curve_point_level_sets_are_provably_non_sparse's closing two
+    sentences (the "regardless of what c turns out to be" wording) --
+    softened per change_10 below. (2) change_1_c2_comparator_repair
+    .required_synthetic_power_check.method / .required_outcome_before_the_
+    real_calibration_run -- extended with a pinned seed schedule and a
+    replication requirement per change_6. (3) change_1_c2_comparator_repair
+    .required_synthetic_power_check.gate -- extended with a mechanically
+    checkable sequencing invariant per change_7. (4)
+    change_1_c2_comparator_repair.combination_rule_for_C2's diagnostic-only
+    branch -- extended with a required disclosure sentence per change_8. (5)
+    change_2_t3_repair.required_naming_and_wiring /
+    required_rerun_before_stage_3 -- extended to name selftest.py explicitly
+    per change_5. (6) change_2_t3_repair.annotation_of_arms_T3_not_a_
+    redefinition.new_text and historical_run_integrity.reclassification --
+    corrected to name only RUN-ECDLP-56ee42-S0 per change_9. Everything else
+    in v3 not named here is UNCHANGED: C2a's formula and exact-domain-split
+    reasoning, C2b's design and blocking status, the T3 identity
+    u(x) = popcount(x & (x>>1)) and its vectorized wiring, change_3's
+    max-preserving-permutation disambiguation rule, change_4's seed-manifest
+    /arm_index/PRNG-name repair and its own stopping rule, the preregistered
+    prediction, the two-branch rule, the frozen ladder, and every arm
+    definition. C1 and C3 remain UNCHANGED and UNCONTESTED, as they were
+    under v3.
+
+  rationale: >-
+    Directed by DEC-20260906-da1212's next_actions, itself composing the
+    independent red-team review of v3
+    (experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/report.yaml,
+    verdict REVISE -- not BROKEN: no repair's core mathematical or logical
+    content was found wrong, but five concrete completeness gaps were found
+    and verified by direct computation and direct code reads). Two of the
+    review's own computations (attack1_c2a_balance.py's exact per-rung fiber
+    counts, attack1_output.txt; attack4_verify_oeis_cross.py's retrieved-not-
+    recalled OEIS A020985 cross-check, attack4_oeis_output.txt) are cited
+    directly below per the review's own next_concrete_action and
+    DEC-20260906-da1212's next_actions, rather than re-derived from scratch.
+    This amendment closes all five required_controls the review names, plus
+    the minor wording overclaim it flagged in attack 1. It does not revisit
+    any of v3's four repairs' core content, which the review found sound.
+
+  # ===========================================================================
+  # CHANGE 5 (review attack_3): selftest.py falls outside v3's named T3-repair
+  # scope and will break, or assert a now-false fact, once v3's rename is
+  # applied.
+  # ===========================================================================
+  change_5_selftest_repair:
+    id: V4-CHG-5
+    closes: >-
+      Review required_controls item 4 / objections item 5 (attack_3):
+      "selftest.py hard-codes the CURRENT BROKEN recursion as ground truth
+      (including a 'frozen audit fact' of exactly 135/256 mismatches against
+      the literal block-count definition) and is neither a 'pipeline file'
+      nor a numbered stage, so it falls outside both the required_naming_and_
+      wiring instruction and required_rerun_before_stage_3's named artifact
+      set -- it will raise AttributeError or assert a now-false fact if run
+      unmodified after the amendment's rename."
+    verified_directly_by_this_coordinator: >-
+      Read experiments/EXP-ECDLP-56ee42/implementation/selftest.py in full
+      (current committed content, not paraphrased from the review). Confirmed
+      test_digit_statistics (lines 22-65) builds its own reference list `r`
+      via the BROKEN recursion (lines 35-37), asserts
+      E.rudin_shapiro_sign(x) == r[x] for x in range(256) (line 39, ground-
+      truth role), and separately asserts a literal-block-count mismatch
+      count of exactly 135 of 256 against that same broken `r` (lines 40-43,
+      commented "frozen audit fact") -- exactly as the review describes. Once
+      v3's required rename (rudin_shapiro_sign -> _rudin_shapiro_signflip_
+      variant, rudin_shapiro_sign_array -> _rudin_shapiro_signflip_variant_
+      array) is applied to estimator.py, line 39's call to
+      E.rudin_shapiro_sign raises AttributeError (name no longer exists); if
+      an Executor instead patches only the name without changing the test's
+      logic, the true implementation (rudin_shapiro_sign_true, the literal
+      block-count definition per v3's V3-CHG-2) would show 0 mismatches
+      against itself trivially or -- if compared against the OLD recursion
+      as v3 leaves it -- would still assert the WRONG fact (135 mismatches
+      against a function that is no longer ground truth). Neither v3's
+      required_naming_and_wiring ("wire in ... whichever pipeline file
+      currently calls rudin_shapiro_sign_array") nor its
+      required_rerun_before_stage_3 (naming only RUN-ECDLP-56ee42-S0/-S1/-S2)
+      names selftest.py, which is neither a pipeline file nor a numbered
+      stage -- confirmed, by this Coordinator's own read, to be a real,
+      currently-passing, executable validation script, distinct from
+      stage0.py/stage1.py/stage2.py.
+    old_text_superseded_verbatim_selftest_py_lines_31_47: |
+      # Rudin-Shapiro: the standard recursion r(0)=r(1)=1, r(2n)=r(n),
+      # r(2n+1)=-r(n) (n>=1).  (The contract's 'count of block 11' is a
+      # heuristic characterization that does not exactly match; see the
+      # interpretation note in estimator.rudin_shapiro_sign.)
+      r = [1, 1]
+      for m in range(2, 256):
+          r.append(r[m >> 1] if m % 2 == 0 else -r[m >> 1])
+      for x in range(256):
+          assert E.rudin_shapiro_sign(x) == r[x], x
+      # the literal block-count '11' is kept for audit and differs (documented)
+      n_diff = sum(1 for x in range(256)
+                   if (1 if E._rudin_shapiro_u(x) % 2 == 0 else -1) != r[x])
+      assert n_diff == 135, n_diff  # frozen audit fact
+      xs = np.arange(5000, dtype=np.uint32)
+      arr = E.rudin_shapiro_sign_array(xs)
+      for x in range(0, 5000, 13):
+          assert arr[x] == E.rudin_shapiro_sign(x), x
+    old_text_location_note: >-
+      This is the exact, complete, currently committed content of
+      selftest.py's test_digit_statistics function between the Thue-Morse
+      block (which ends at the blank line 30) and the popcount-mod-4 block
+      (which begins at line 49, "# popcount mod 4"). Nothing before line 31
+      or after line 47 is touched by this change.
+    new_text_replacement: |
+      # Rudin-Shapiro TRUE ground truth is the literal block-count '11'
+      # definition (OEIS A020985, specification.yaml's own arms.T3 text),
+      # implemented by _rudin_shapiro_u (scalar) and rudin_shapiro_sign_true
+      # / _array (per amendment v3, V3-CHG-2 / V3-RA-3).  PRIMARY
+      # correctness check: rudin_shapiro_sign_true(_array) against
+      # _rudin_shapiro_u, 0 mismatches required.  This supersedes the old
+      # test's use of the now-retired broken recursion as ground truth
+      # (amendment v4, V4-CHG-5).
+      for x in range(256):
+          assert E.rudin_shapiro_sign_true(x) == (
+              1 if E._rudin_shapiro_u(x) % 2 == 0 else -1), x
+      xs = np.arange(5000, dtype=np.uint32)
+      arr = E.rudin_shapiro_sign_true_array(xs)
+      for x in range(0, 5000, 13):
+          assert arr[x] == E.rudin_shapiro_sign_true(x), x
+
+      # RETIRED (v3-renamed) recursion: kept ONLY as a self-consistency /
+      # audit-trail regression check on the historical, now-unused
+      # _rudin_shapiro_signflip_variant(_array) pair.  This block does NOT
+      # test against ground truth and its passing must never be read as
+      # validating T3; it exists so the audit trail can detect if the
+      # retired function's own behaviour is ever accidentally changed.
+      r = [1, 1]
+      for m in range(2, 256):
+          r.append(r[m >> 1] if m % 2 == 0 else -r[m >> 1])
+      for x in range(256):
+          assert E._rudin_shapiro_signflip_variant(x) == r[x], x
+      arr_variant = E._rudin_shapiro_signflip_variant_array(xs)
+      for x in range(0, 5000, 13):
+          assert arr_variant[x] == E._rudin_shapiro_signflip_variant(x), x
+      # Historical audit fact, PRESERVED under the renamed identifier: the
+      # retired variant differs from the TRUE block-count definition at
+      # exactly 135 of the first 256 values.  This is the SAME fact the
+      # pre-v4 test recorded (only the identifier and its "ground truth"
+      # status have changed; the underlying divergence count is unchanged
+      # because neither function's code changes under this amendment).
+      n_diff = sum(1 for x in range(256)
+                   if E._rudin_shapiro_signflip_variant(x)
+                   != E.rudin_shapiro_sign_true(x))
+      assert n_diff == 135, n_diff  # frozen audit fact, retired-variant-vs-truth
+    application_note_for_the_executor: >-
+      This replaces exactly the old_text_superseded_verbatim block above,
+      in place, inside test_digit_statistics, once estimator.py carries
+      rudin_shapiro_sign_true / _array (V3-CHG-2) and the renamed
+      _rudin_shapiro_signflip_variant / _array (V3-CHG-2's required_naming_
+      and_wiring). No other line of selftest.py is touched by this change:
+      the Thue-Morse block above it, and the popcount-mod-4 / top-bit-fiber
+      blocks below it, are unaffected and unchanged. print("  digit
+      statistics: OK") at the function's end (line 65) is unaffected.
+    required_artifact: >-
+      REQUIRED_ARTIFACT V4-RA-1: selftest.py's test_digit_statistics, after
+      this replacement, PASSES (0 mismatches on the primary
+      rudin_shapiro_sign_true-vs-_rudin_shapiro_u check, 0 mismatches on the
+      retained variant's self-consistency check, n_diff == 135 on the
+      retired-variant-vs-truth audit fact) before selftest.py is treated as
+      passing for any purpose, and specifically before the change_2 Stage
+      0-2 re-run (V3-RA-3) is treated as validated. This is required in
+      addition to, not instead of, V3-RA-3's existing x in [0, 200000) /
+      OEIS x=0..15 / [0, 2^20) array-vs-scalar checks -- selftest.py's
+      checks are a distinct, smaller-range regression artifact that must
+      also pass, since it is a real gate an Executor or future contributor
+      will actually run (`python3 selftest.py`).
+
+  # ===========================================================================
+  # CHANGE 6 (review attack_2, required_controls item 1): pin V3-RA-2's seed
+  # and replication count.
+  # ===========================================================================
+  change_6_power_check_seed_and_replication:
+    id: V4-CHG-6
+    closes: >-
+      Review required_controls item 1 / objections item 2 (attack_2,
+      finding_gap_1_unpinned_seed_in_the_power_check): "required_synthetic_
+      power_check (V3-RA-2) ... specifies NEITHER a seed nor a replication
+      count beyond one realization of 8 draws per condition per rung ...
+      the regime decision has a hidden researcher degree of freedom ...
+      Required control: pin an explicit seed (or run N >> 1 independent
+      repetitions ... and require the separation criterion to hold in a
+      stated fraction of them, e.g. all of N=20 draws)."
+    old_text_superseded_verbatim_v3_method: >-
+      For each of the six rungs, using ONLY public curve/ladder
+      parameters (no cache, no k, no real enumeration needed beyond what
+      V3-RA-1 already computes): place n = N total positions; synthesize
+      a NULL placement of m0 "fiber-0" and m1 "fiber-1" values (m0, m1
+      from V3-RA-1's exact per-rung counts, each approximately N/2) at
+      UNIFORMLY RANDOM positions -- the stand-in for "no genuine dlog
+      structure", exactly as J2's own script used for the sparse case.
+      Compute, over 8 draws each: (i) max ratio under a genuine full
+      random permutation (mirrors the frozen NULL-2 protocol exactly);
+      (ii) max ratio under the DEGENERATE "reading 1" (fix ALL max-tied
+      positions) case -- for THIS binary (2-valued) statistic this is
+      mathematically IDENTICAL to the identity/no-op permutation (see
+      change_3 below: permuting only among positions that share one
+      value cannot change any observable value), so (ii) needs no
+      simulation: report ratio = 1.0 exactly, and record this identity
+      explicitly rather than silently omitting the reading; (iii) max
+      ratio under "reading 2" (fix exactly one arbitrary max-tied
+      position, permute everything else), the non-degenerate case for a
+      binary statistic per change_3's disambiguation.
+    old_text_superseded_verbatim_v3_required_outcome: >-
+      The check must show, and the run record must state PRE-REGISTERED
+      (before any real calibration data is seen), which of the two
+      combination_rule_for_C2 regimes applies: C2a is BLOCKING iff, across
+      all six rungs, max(genuine-full-shuffle ratio) < min(reading-2
+      ratio) - 0.05 (the same 0.05 effect-size convention this contract
+      already uses for the LEAD branch). If that separation is not
+      achieved -- plausible, since fixing one point out of ~N/2 is a mild
+      perturbation and may itself be close to a no-op at these n -- C2a
+      reports as DIAGNOSTIC ONLY per the combination rule, and this
+      finding (power achieved / power not achieved, with the actual
+      numbers) is itself a required_artifact, not an outcome to be
+      smoothed over or silently downgraded after the fact.
+    chosen_disposition: >-
+      REPLICATION (N=20 independent repetitions, unanimity required), not a
+      single fixed seed. Justification: the check's purpose is to measure
+      whether C2a's power (its ability to separate a genuine shuffle's
+      collapse ratio from a known-broken shuffle's ratio) is real at the
+      achieved (n, m), which is fundamentally a statistical power question
+      -- a single realization of "8 draws under each of two conditions"
+      cannot itself distinguish "reliable separation" from "one lucky draw",
+      regardless of whether its seed is pinned. Pinning a single seed closes
+      the review's REPRODUCIBILITY objection (anyone re-running it gets the
+      identical result) but not its POWER objection (whether that single
+      result generalizes). N=20 independent repetitions, each with its own
+      deterministically derived seed (so the whole schedule remains fully
+      pinned and reproducible, closing both objections at once), and a
+      REQUIRED PASS FRACTION of 20/20 (100%, not merely >=90%), is chosen
+      because the two possible errors are asymmetric: wrongly downgrading
+      C2a to diagnostic-only (a false negative on power) costs only that
+      C2's evidentiary weight narrows to C2b -- v3's own combination_rule_
+      for_C2 already treats this as a safe, non-catastrophic fallback (C2b
+      alone still blocks C2 on a proven-magnitude statistic); wrongly
+      keeping C2a blocking when its true power is marginal (a false
+      positive) costs C2 gating Stage-3 dispatch on unreliable evidence,
+      the more expensive error given C2's role. Requiring unanimity (not a
+      90% majority) keeps the blocking designation conservative in the
+      direction that matters: a single repetition failing to separate is
+      itself informative that the separation is not robust at this (n, m),
+      and is a legitimate basis for DIAGNOSTIC-ONLY, not something to be
+      outvoted by 19 successful repetitions.
+    seed_schedule: >-
+      A NEW, separate namespace from the real NULL-2 seed schedule
+      (0x56EE42 + 1000 + 10*arm_index + shuffle_index, arm_index in 0..7),
+      chosen to make collision structurally impossible rather than merely
+      unlikely, since this check synthesizes PURELY SYNTHETIC null data and
+      is never applied to real curve points: for repetition rep in 0..19
+      and rung_idx in 0..5 (T17=0, T19=1, T21=2, T23=3, T25=4, T27=5, per
+      the frozen ladder order): (a) PLACEMENT seed (drives the uniformly
+      random assignment of the m0/m1 synthetic fiber-0/fiber-1 values to
+      positions): seed_placement(rep, rung_idx) = 0x56EE42 + 90000 +
+      1000*rep + 10*rung_idx. (b) SHUFFLE seeds (drive each of the 8 draws
+      under each of the two conditions -- genuine full shuffle and reading-2
+      broken shuffle -- per rung per repetition), for draw_idx in 0..7:
+      seed_genuine(rep, rung_idx, draw_idx) = 0x56EE42 + 190000 + 1000*rep +
+      10*rung_idx + draw_idx; seed_reading2(rep, rung_idx, draw_idx) =
+      0x56EE42 + 290000 + 1000*rep + 10*rung_idx + draw_idx. All three
+      ranges (90000+, 190000+, 290000+ offsets) are disjoint from each
+      other and from the real NULL-2 range (1000-1077) and from any future
+      arm's seed range under change_4's "next unused integer, appended"
+      rule, by inspection of the fixed offsets and the bounded rep
+      (0..19) x rung_idx (0..5) x draw_idx (0..7) ranges (max index within
+      each block is 1000*19+10*5+7 = 19057, far below the next block's
+      100000 spacing).
+    replication_and_pass_fraction: >-
+      The ENTIRE synthetic power check (synthetic null placement plus 8
+      genuine-shuffle draws plus 8 reading-2 draws, per rung) is repeated
+      N=20 times independently, rep = 0..19, using the seed_schedule above
+      (a fresh, independently drawn synthetic placement AND a fresh set of
+      16 shuffle draws per repetition, not the same placement re-shuffled).
+      For each rung, C2a's power is judged SEPARATED in a given repetition
+      iff that repetition's max(genuine-full-shuffle ratio) <
+      min(reading-2 ratio) - 0.05 (v3's unchanged 0.05 effect-size
+      convention). C2a is BLOCKING (across the whole check) iff separation
+      holds in ALL 20 of 20 repetitions at EVERY rung actually computed
+      (see the T27 carve-out below); if separation fails in even one
+      repetition at one rung, C2a is DIAGNOSTIC ONLY, per v3's unchanged
+      combination_rule_for_C2.
+    t27_carve_out_interaction: >-
+      v3's disclosed_limitation already permits T27's power-check
+      simulation to be marked NOT-COMPUTED under budget/memory constraints
+      (T27's own COMPARATOR/T1-T4 measurements are unaffected). This
+      replication requirement multiplies T27's compute cost by
+      approximately 20x if attempted; if 20 repetitions at T27 cannot be
+      run within budget, the regime decision may be made on T17-T25's full
+      20-repetition results alone, with T27 explicitly marked NOT-COMPUTED
+      for the power-check specifically -- exactly as v3 already allows for
+      a single repetition, unchanged by this amendment. This is a disclosed
+      infrastructure risk (AGENTS.md rule 3: a timeout/memory failure here
+      is not evidence, for or against C2a's power), not a result.
+    required_committed_content: >-
+      Committed alongside the regime decision (a structured, machine-
+      readable artifact, e.g. power_check_results.yaml, under this
+      experiment's runs/ or reviews/ directory per the dispatching task
+      card): for every (repetition, rung) pair actually computed: the
+      three literal derived seed integers used (placement, and the 8+8
+      shuffle seeds, or a reference to the deterministic formula plus rep/
+      rung_idx/draw_idx so they are re-derivable); the computed
+      max(genuine-full-shuffle ratio) and min(reading-2 ratio); whether
+      separation held (boolean) for that repetition at that rung. THEN,
+      aggregated: per rung, the count of repetitions with separation held
+      out of 20 (or out of however many were computed, with T27's carve-out
+      noted if applicable); and the single overall regime decision
+      (BLOCKING or DIAGNOSTIC-ONLY) with the exact rule applied (20/20 at
+      every computed rung => BLOCKING; else DIAGNOSTIC-ONLY), stated
+      PRE-REGISTERED (before any real C2 calibration data exists), per
+      v3's unchanged required_outcome_before_the_real_calibration_run
+      discipline.
+
+  # ===========================================================================
+  # CHANGE 7 (review attack_2, required_controls item 2): enforce, not merely
+  # state, that the power check precedes the calibration run.
+  # ===========================================================================
+  change_7_power_check_sequencing_enforcement:
+    id: V4-CHG-7
+    closes: >-
+      Review required_controls item 2 / objections item 3 (attack_2,
+      finding_gap_2_no_concrete_sequencing_enforcement): "The amendment
+      states the power check 'must exist, committed, before the calibration
+      run's task card is opened' ... but names no concrete, checkable
+      enforcement mechanism ... Required control: add an explicit, checkable
+      ordering requirement (e.g. the calibration run's task card must cite
+      the power-check artifact's commit sha as an ancestor) mirroring
+      change_4's own pattern in the SAME amendment."
+    old_text_superseded_verbatim_v3_gate: >-
+      The C2 calibration run (any run measuring C2a and/or C2b against
+      real curve data) MUST NOT be dispatched until this synthetic power
+      check has been run and its regime decision recorded. This is a
+      required_artifact of THIS AMENDMENT, not of a future run: the check
+      must exist, committed, before the calibration run's task card is
+      opened.
+    new_stopping_rule_added_not_superseding_any_existing_one: >-
+      APPENDED to specification.yaml's stopping_rules (an addition; no
+      existing stopping_rules item, including change_4's V3-CHG-4 addition,
+      is altered): "The C2 calibration run's task card / handoff record
+      (ledger/handoffs/TASK-*.yaml) MUST carry an explicit field,
+      `power_check_ancestor_commit_sha`, naming the exact 40-hex-character
+      git commit SHA at which change_6's V4-CHG-6 power-check artifact
+      (power_check_results.yaml, containing the pre-registered regime
+      decision) was committed. Before the calibration run's task card may
+      be opened for dispatch, this MUST be verified mechanically -- not
+      merely asserted in prose -- by running `git merge-base --is-ancestor
+      <power_check_ancestor_commit_sha> <branch-HEAD-the-task-card-is-
+      opened-on>` and confirming exit code 0. If the field is null, absent,
+      or the ancestry check exits non-zero, the calibration run's task card
+      FAILS this check and MUST NOT be dispatched, regardless of whether
+      the power-check artifact exists somewhere in the working tree
+      uncommitted. This closes exactly the gap the review found: change_4's
+      own manifest-before-next-stage rule (V3-CHG-4) already enforces an
+      analogous invariant mechanically for the seed manifest; this rule
+      gives the power-check-before-calibration-run discipline the same
+      mechanical enforcement, rather than leaving it as stated intent."
+    required_artifact: >-
+      REQUIRED_ARTIFACT V4-RA-3: the output of the
+      `git merge-base --is-ancestor` check above (the two commit SHAs
+      compared and the exit code), recorded in the calibration run's task
+      card or its manifest.yaml, before that run's gates are scored. A
+      calibration run record missing this artifact is, per this rule,
+      never validly dispatched in the first place -- this required_artifact
+      exists so the check's having been performed is itself independently
+      auditable after the fact, not merely inferable from the calibration
+      run having occurred at all.
+    scope_note: >-
+      This is a sequencing/provenance control only. It does not change
+      V4-CHG-6's regime-decision RULE (20/20 unanimity) or v3's
+      combination_rule_for_C2; it only makes the ORDER in which the power
+      check and the calibration run occur mechanically checkable rather
+      than a stated discipline.
+
+  # ===========================================================================
+  # CHANGE 8 (review attack_2, required_controls item 3): if C2a is
+  # diagnostic-only, disclose the regularity-vs-magnitude scope limitation
+  # explicitly.
+  # ===========================================================================
+  change_8_c2a_diagnostic_regularity_disclosure:
+    id: V4-CHG-8
+    closes: >-
+      Review required_controls item 3 / objections item 4 (attack_2,
+      finding_gap_3_external_validity_of_c2b_as_sole_fallback): "If the
+      power check finds C2a's power inconclusive ... C2's ENTIRE
+      evidentiary weight for validating NULL-2 against natural, irregular,
+      x-derived statistics ... rests on C2b alone. But C2b is POS-A = (-1)^k
+      -- a MAXIMALLY REGULAR, perfectly period-2 alternating sequence ... a
+      categorically easier task ... than destroying whatever irregular,
+      curve-structure-correlated dependence a natural x-based statistic
+      might carry ... this is a distinct failure mode ... Required control:
+      if the power check finds C2a diagnostic-only, the run record and any
+      Stage-3-dispatch decision must state this scope limitation
+      explicitly (not merely report 'C2: PASS')."
+    old_text_superseded_verbatim_v3_combination_rule_diagnostic_branch: >-
+      If the required synthetic power check instead shows C2a's power is
+      inconclusive at the achieved (n, m) (a possibility this amendment
+      discloses below, since "fix one arbitrary point out of ~n/2" is
+      itself a very mild perturbation and may not separate cleanly), C2a
+      is reported as DIAGNOSTIC ONLY, not blocking, and C2's overall
+      pass/fail rests on C2b alone -- exactly mirroring how v2 already
+      treats C1 as a non-blocking-alone qualitative floor next to a
+      blocking positive-control leg.
+    new_text_required_disclosure: >-
+      UNCHANGED: if change_6's power check finds C2a's power inconclusive
+      (i.e. does not achieve 20/20 separation at every rung computed), C2a
+      is reported DIAGNOSTIC ONLY and C2's overall pass/fail still rests on
+      C2b alone, exactly as v3 specifies. ADDED (amendment v4, V4-CHG-8):
+      in THIS regime, the calibration run's record and any decision that
+      dispatches or relies on Stage 3 MUST include, verbatim (rung/run-id
+      references may be filled in; no other wording may be paraphrased or
+      omitted), the following disclosure sentence: "SCOPE LIMITATION
+      (required by amendment v4, V4-CHG-8): C2's PASS in this regime
+      reflects NULL-2's demonstrated power to collapse an exactly-periodic,
+      k-based sequence (POS-A / leg C2b) only; it does NOT demonstrate
+      NULL-2's power against irregular, natural x-based statistics (C2a,
+      T1-T4, the frozen COMPARATOR arm), because C2a's synthetic power
+      check (V3-RA-2, as pinned by V4-CHG-6) did not achieve the required
+      20-of-20 separation and C2a was therefore downgraded to
+      diagnostic-only, non-blocking, per v3's combination_rule_for_C2." A
+      bare "C2: PASS" with no such sentence, in this regime, is an
+      incomplete record and MUST NOT be treated as satisfying C2's gate for
+      the purpose of any Stage-3-dispatch decision.
+    required_artifact: >-
+      REQUIRED_ARTIFACT V4-RA-4: the disclosure sentence above, present
+      verbatim in the calibration run's record (and repeated in any
+      Stage-3-dispatch decision that relies on that run), whenever
+      change_6's power check outcome is DIAGNOSTIC-ONLY. Not applicable
+      (no disclosure required) if the power check outcome is BLOCKING.
+    what_this_does_not_close: >-
+      This is a disclosure requirement, not a repair of the regularity gap
+      itself. It does not add a planted-but-irregular positive control (the
+      review's own "ideally" suggestion) -- that remains open, named in
+      what_remains_open below, as a possible future amendment if C2a is in
+      fact downgraded and a stronger positive control is later judged
+      necessary before treating NULL-2 as validated on natural statistics.
+
+  # ===========================================================================
+  # CHANGE 9 (review attack_5, required_controls item 5): correct the
+  # overstated S2 T3-fields citation inherited from v3, DEC-20260906-030aad,
+  # and J1.
+  # ===========================================================================
+  change_9_s2_t3_citation_correction:
+    id: V4-CHG-9
+    closes: >-
+      Review required_controls item 5 / objections item 6 (attack_5,
+      new_finding_precision_defect): "Direct inspection of
+      RUN-ECDLP-56ee42-S2/raw-result.json's top-level `steps` keys shows:
+      static_provenance_check, POS-A, POS-B, CONTROL-C, smoke_check_G -- NO
+      T3 measurement field exists in S2 at all. S2's only T3-related
+      content is the static-provenance-check's function-name-keyed pass/
+      fail dict ... a source-scan label, not a measured T3 statistic value
+      ... Required correction: narrow 'RUN-ECDLP-56ee42-S0 and
+      RUN-ECDLP-56ee42-S2's T3 fields' to 'RUN-ECDLP-56ee42-S0's
+      r.L1/r.Linf fields (S2 contains no T3 measurement to reclassify)'."
+    verified_directly_by_this_coordinator: >-
+      This Coordinator did not re-open RUN-ECDLP-56ee42-S2/raw-result.json
+      in this drafting session (no code-execution or broad file-read budget
+      spent re-verifying what the review already verified by direct
+      inspection); this correction is adopted on the strength of the
+      review's own directly-quoted top-level-keys enumeration
+      (static_provenance_check, POS-A, POS-B, CONTROL-C, smoke_check_G --
+      no "T3" or "r" key), which is a specific, checkable, falsifiable claim
+      about a committed JSON file's key set, not a qualitative judgment, and
+      is consistent with v3's own change_2_t3_repair.diagnosis section
+      identifying stage0.py (not stage2.py) as the only pre-Stage-3 producer
+      of a T3-attributable number (the spectral-norm "r" field).
+    old_text_superseded_verbatim_annotation_of_arms_T3: >-
+      T3: 'Rudin-Shapiro sign of x: v(R) = (-1)^{u(x(R))}, u the count of
+      block 11 in the binary expansion' [TEXT UNCHANGED BY THIS AMENDMENT
+      -- the definition was always correct]. IMPLEMENTATION-FIDELITY NOTE
+      (added by amendment v3): the archived RUN-ECDLP-56ee42-S0 and
+      RUN-ECDLP-56ee42-S2 numbers reported under this arm's name were
+      NOT measurements of this definition; they measured a different
+      recursion, mathematically equal to -thue_morse_sign(x) for x >= 1,
+      confirmed by round-1 review (J1). Those archived numbers remain
+      permanently in the archive, immutable, and are RECLASSIFIED (not
+      edited) as measurements of that other statistic, never cited as T3
+      evidence going forward. A corrected implementation
+      (rudin_shapiro_sign_true / _array, per change_2 above) must produce
+      the T3 numbers used for every gate and metric from Stage 0 onward.
+    new_text_corrected: >-
+      T3: 'Rudin-Shapiro sign of x: v(R) = (-1)^{u(x(R))}, u the count of
+      block 11 in the binary expansion' [TEXT UNCHANGED -- the definition
+      was always correct]. IMPLEMENTATION-FIDELITY NOTE (added by amendment
+      v3, CITATION CORRECTED by amendment v4, V4-CHG-9): the archived
+      RUN-ECDLP-56ee42-S0 run's T3-attributable field (the "r" spectral-norm
+      gate's L1/Linf values, r.L1/r.Linf) reported under this arm's name was
+      NOT a measurement of this definition; it measured a different
+      recursion, mathematically equal to -thue_morse_sign(x) for x >= 1,
+      confirmed by round-1 review (J1). RUN-ECDLP-56ee42-S2 contains NO T3
+      measurement field at all to reclassify (verified by the
+      amendment-v3-review, attack_5: S2's raw-result.json top-level `steps`
+      keys are static_provenance_check, POS-A, POS-B, CONTROL-C,
+      smoke_check_G; its only T3-related content is the static-provenance-
+      check's source-scan pass/fail label, unaffected by which recursion
+      the function implements and never a measured statistic value). S0's
+      r.L1/r.Linf numbers remain permanently in the archive, immutable, and
+      are RECLASSIFIED (not edited) as measurements of that other
+      statistic, never cited as T3 evidence going forward. A corrected
+      implementation (rudin_shapiro_sign_true / _array, per change_2) must
+      produce the T3 numbers used for every gate and metric from Stage 0
+      onward.
+    old_text_superseded_verbatim_historical_run_integrity_reclassification: >-
+      RUN-ECDLP-56ee42-S0 and RUN-ECDLP-56ee42-S2's T3 fields ("Rudin-
+      Shapiro of x") are reclassified, WITHOUT EDITING THE RECORDS, as
+      measurements of a different, non-independent statistic (a sign-flip
+      of T1), per annotation_of_arms_T3_not_a_redefinition above. They
+      remain permanently archived and citable as that statistic; they are
+      never cited as T3 evidence for this contract's success_criterion
+      going forward.
+    new_text_corrected_historical_run_integrity_reclassification: >-
+      RUN-ECDLP-56ee42-S0's r.L1/r.Linf fields ("Rudin-Shapiro of x"
+      spectral norm) are reclassified, WITHOUT EDITING THE RECORD, as
+      measurements of a different, non-independent statistic (a sign-flip
+      of T1), per annotation_of_arms_T3_not_a_redefinition above (as
+      corrected by V4-CHG-9). RUN-ECDLP-56ee42-S2 has no T3-attributable
+      field and nothing to reclassify (S2's only T3-related content is a
+      source-scan pass/fail label, unaffected by the recursion defect).
+      S0's r.L1/r.Linf numbers remain permanently archived and citable as
+      the reclassified statistic; they are never cited as T3 evidence for
+      this contract's success_criterion going forward.
+    scope_note: >-
+      This does not smuggle any wrong evidence into use, per the review's
+      own finding: there was never a wrong S2 T3 number being relied on,
+      only an overstated citation of the archive's extent. This correction
+      also applies wherever this finding is restated in a future record
+      (e.g. a Stage-3-dispatch decision) -- any such record must cite only
+      S0, not S0-and-S2, for T3-attributable archived numbers.
+
+  # ===========================================================================
+  # CHANGE 10 (review attack_1, required_controls item 6 / objections item 1):
+  # soften the "regardless of what c turns out to be" overclaim to cite the
+  # now-available V3-RA-1 measurement.
+  # ===========================================================================
+  change_10_c2a_weil_bound_wording_softening:
+    id: V4-CHG-10
+    closes: >-
+      Review required_controls item 6 / objections item 1 (attack_1,
+      finding_on_the_bound_and_the_smuggled_constant): "the amendment's
+      sentence 'a qualitatively different regime... regardless of what c
+      turns out to be' is not rigorously supported by the bound alone: for
+      a sufficiently large (but still O(1)) constant c, '0.5 - c*0.033' is
+      negative and the bound would be VACUOUS ... Recommend softening that
+      sentence to '(V3-RA-1) confirms a qualitatively different regime'
+      rather than asserting it follows from the bound alone."
+    old_text_superseded_verbatim: >-
+      Even at the smallest rung, the guaranteed floor on each fiber's
+      share of N is at worst on the order of 0.5 - c*0.033 for an
+      undetermined O(1) constant c from the RECALLED bound -- a
+      qualitatively different regime from top_bit's 1.6e-7 to 2.4e-4
+      fractions, by many orders of magnitude, regardless of what c turns
+      out to be.
+    new_text_softened: >-
+      Even at the smallest rung, the guaranteed floor on each fiber's
+      share of N implied by the bound ALONE is at worst on the order of
+      0.5 - c*0.033 for an undetermined O(1) constant c from the RECALLED
+      bound; taken by itself, this does not rule out a sufficiently large
+      (but still O(1)) c making the bound vacuous, which is a real, if
+      minor, overclaim in this amendment's original wording (identified by
+      the amendment-v3-review's attack_1 and corrected here, amendment v4
+      V4-CHG-10). The qualitative claim -- that C2a occupies a
+      qualitatively different, non-sparse regime from top_bit's 1.6e-7 to
+      2.4e-4 minority-fiber fractions -- is NOT asserted here on the
+      strength of the bound's shape alone. It is CONFIRMED by V3-RA-1's
+      actual measurement (experiments/EXP-ECDLP-56ee42/reviews/
+      amendment-v3-review/report.yaml, attack_1_c2a_weil_bound_and_actual_
+      computation; raw output experiments/EXP-ECDLP-56ee42/reviews/
+      amendment-v3-review/attack1_output.txt), independently computed by
+      exact Legendre-symbol classification of every x in [0, p) against
+      y^2 = x^3 + x + b using only public (p, b, N): minority-fiber
+      fractions of 0.498890 (T17) to 0.499994 (T27) at all six frozen
+      rungs -- 2.0e3x to 3.1e6x larger than top_bit's measured minority
+      fractions at matched rungs -- with the deviation from exact 1/2
+      shrinking monotonically as p grows (0.00110973 at T17 down to
+      0.00000597 at T27), exactly the qualitative trend originally
+      claimed, now established by direct computation rather than by
+      appeal to the bound's shape.
+    scope_note: >-
+      This is a wording correction to the amendment's own prose only. It
+      does not change C2a's formula, gate, blocking status, or any
+      required_artifact; V3-RA-1 (the required exact-per-rung verification
+      v3 already demanded before C2a is relied on) is hereby treated as
+      DISCHARGED by the review's own computation, per DEC-20260906-da1212's
+      rationale, and this amendment records the citation that discharge
+      rests on directly in the contract text rather than leaving the
+      "regardless of c" sentence as the load-bearing claim.
+
+  # ===========================================================================
+  # WHAT REMAINS OPEN.
+  # ===========================================================================
+  what_remains_open:
+    - >-
+      Whether an independent review round should be run on THIS amendment
+      before it is relied on is not decided here (see review_round_note
+      above); it is recommended in next_step.
+    - >-
+      Whether C2a will actually turn out BLOCKING or DIAGNOSTIC-ONLY under
+      change_6's 20-repetition, unanimity-required regime is not decided
+      here; it is decided by running the check, before the calibration run,
+      per the pre-registration discipline v3 and change_6 both state.
+    - >-
+      change_8's disclosure requirement addresses the DIAGNOSTIC-ONLY
+      regime's evidentiary scope by disclosure, not by adding a stronger
+      (planted, irregular) positive control. Whether such a control is
+      needed is left open, as the review itself only recommends it
+      "ideally," not as a required_control; a future amendment may revisit
+      this if C2a is in fact downgraded and this disclosure is judged
+      insufficient for the evidentiary weight Stage 3 needs to carry.
+    - >-
+      This amendment does not stage inputs/, knowledge/, selftest.py,
+      estimator.py, or specification.yaml changes; it specifies, in full
+      and exact detail (including a verbatim drop-in replacement for
+      selftest.py's test_digit_statistics block), what those future changes
+      must be. write_scope of this amendment is
+      experiments/EXP-ECDLP-56ee42/amendments/ only.
+    - >-
+      This amendment does not itself re-verify V3-RA-1, V3-RA-3, or the
+      review's attack1/attack4 computations from scratch; it relies on the
+      review's own committed outputs (attack1_output.txt,
+      attack4_oeis_output.txt), per DEC-20260906-da1212's explicit
+      authorization to cite them directly.
+
+  historical_run_integrity:
+    rescoring: >-
+      not_applicable to T1, T2, T4, POS-A, POS-B, COMPARATOR, NULL-1, the
+      NULL-2 mechanism, or C1 -- unchanged by this amendment, exactly as
+      under v3.
+    reclassification: >-
+      Superseded by change_9 above (V4-CHG-9): only RUN-ECDLP-56ee42-S0's
+      r.L1/r.Linf fields are reclassified; RUN-ECDLP-56ee42-S2 has no T3
+      field to reclassify.
+    amendment_of_run_record: 'not_applicable -- no file under experiments/EXP-ECDLP-56ee42/implementation/runs/ is edited by this amendment.'
+    artifact_mutation: not_applicable
+    superseded_role_not_deletion: >-
+      Unchanged from v3: RUN-ECDLP-56ee42-S0/S1/S2 remain the historical
+      record of what was actually run and measured; they are superseded
+      only in their role as the operative provenance-complete basis for
+      Stage 3 dispatch, which passes to the change_2 re-run once it exists
+      and passes its gates.
+
+  authority_boundary:
+    claim_ceiling: protocol_repair_only_no_compute_no_status_transition
+    execution_authorized_by_this_amendment: false
+    dispatch_hold_cleared_by_this_amendment: false
+    experiment_status_transition: none
+    hypothesis_status_transition: none
+    goal_status_transition: none
+    scientific_interpretation_authority: none
+
+  nonclaims:
+    - No claim that H-ECDLP-a4be60 is supported, refuted, or advanced by this amendment; no run occurs under it.
+    - No claim about what the corrected T3 arm's, C2a's, or C2b's actual measured values will be, at any rung -- this amendment specifies the correct computation and test logic, it does not perform or predict either.
+    - No claim that C2a will turn out to have discriminating power under change_6's 20-repetition check; the outcome is genuinely open, and this amendment names the pre-registered rule for either outcome rather than assuming one.
+    - No claim that the Weil-bound-derived non-sparsity guarantee for C2A-COMPARATOR is sharp or independently re-derived here; per change_10, the qualitative claim now rests on V3-RA-1's actual measurement (cited directly, not re-derived), not on the bound's shape.
+    - No claim that the change_2 re-run's T1/T2/T4/POS-A/POS-B/COMPARATOR numbers, or selftest.py's other (non-Rudin-Shapiro) self-tests, will behave differently than v3 already expected; only the Rudin-Shapiro block of test_digit_statistics is touched.
+    - No authorization of execution and no clearing of any dispatch hold; both are named as a separate, later Coordinator decision, per next_step.
+
+  next_step: >-
+    A Coordinator decision citing this amendment
+    (experiments/EXP-ECDLP-56ee42/amendments/v4_power_check_and_selftest_repair.yaml)
+    must record that all five gaps DEC-20260906-da1212 directed be closed
+    (selftest.py scope, V3-RA-2's seed/replication pinning, power-check-
+    before-calibration-run sequencing enforcement, the C2a-diagnostic
+    regularity disclosure, and the S2 T3-fields citation correction), plus
+    the "regardless of c" wording softening, are in fact closed by this
+    amendment, before any of the following may be dispatched: (a) the
+    required Stage 0-2 corrected re-run (v3 change_2, now including
+    selftest.py's updated test_digit_statistics per change_5); (b) the
+    required synthetic power check for C2a (v3 change_1, now with change_6's
+    pinned 20-repetition schedule and change_7's mechanical sequencing
+    enforcement); (c) the C2 calibration run (gated on (b)'s regime
+    decision, and per change_8's disclosure requirement if diagnostic-only);
+    (d) Stage 3. This mirrors DEC-20260906-da1212's own precedent (itself
+    following DEC-20260906-b60887's precedent for the sibling QALG-001
+    amendments) that a Coordinator decision, not the amendment's own
+    drafting act, is what authorizes dispatch. Independent review of this
+    amendment before that Coordinator decision is recommended, given that
+    the review this amendment responds to is the second consecutive round
+    to find a Coordinator-drafted repair to this experiment's controls
+    incomplete on first pass (v2's C2 broke on round-1; v3's five gaps are
+    what this amendment closes) -- it is not made a hard precondition here,
+    since that choice belongs to the Coordinator decision this amendment
+    feeds, not to this drafting act.
+
+  required_artifacts_summary_of_this_amendment:
+    - {id: V4-RA-1, description: 'selftest.py test_digit_statistics passes its replaced Rudin-Shapiro block (0 mismatches rudin_shapiro_sign_true vs _rudin_shapiro_u; 0 mismatches on the retained _rudin_shapiro_signflip_variant self-consistency check; n_diff == 135 on the retired-variant-vs-truth audit fact) before selftest.py is treated as passing for any purpose'}
+    - {id: V4-RA-2, description: 'the N=20-repetition, pinned-seed synthetic power check (change_6), with per-repetition-per-rung seeds, ratios, and separation outcomes, plus the aggregated regime decision, committed before the C2 calibration run'}
+    - {id: V4-RA-3, description: 'the git merge-base --is-ancestor output verifying the calibration run task card''s power_check_ancestor_commit_sha is a real ancestor (change_7), recorded in the calibration run''s task card or manifest'}
+    - {id: V4-RA-4, description: 'the required verbatim scope-limitation disclosure sentence (change_8) in the calibration run record and any Stage-3-dispatch decision, present if and only if change_6''s power check outcome is DIAGNOSTIC-ONLY'}
+
+  confirmatory_status: mixed
+  confirmatory_status_detail:
+    v3_four_repairs_core_content: "preserved (per the review's own verdict_detail: not BROKEN, no core mathematical or logical content found wrong)"
+    selftest_py_ground_truth: reset (must be updated per change_5 before it is treated as validating T3; its other self-tests -- q_maj/q_strict, integer-recovery, A(v), NULL-2 multiset -- are untouched)
+    v3_ra_2_power_check_specification: reset (v3's single-realization, unseeded method is superseded by change_6's pinned 20-repetition schedule; the check has not yet been run under either specification)
+    v3_ra_1_weil_bound_wording: preserved_with_correction (the underlying measurement, V3-RA-1, is unchanged and already discharged per DEC-20260906-da1212; only the amendment's own prose citing it is corrected, per change_10)
+    s0_s2_t3_citation: reset (narrowed to S0 only, per change_9; no archived number's value or status changes)
+  confirmatory_rationale: >-
+    None of the four v3 repairs' mathematical or logical content is
+    disturbed by this amendment, consistent with the review's own verdict
+    (REVISE for completeness, not BROKEN for a defect in direction). What
+    resets is: (a) which selftest.py code counts as validating T3 (change_5,
+    since the pre-v4 test used the retired recursion as ground truth); (b)
+    the exact specification of V3-RA-2's power check (change_6, since no
+    prior specification with a pinned seed/replication count has ever been
+    run); (c) the precise citation of which archived run has T3-attributable
+    fields (change_9, a correction with no effect on any number's value).
+    Change_7 (sequencing enforcement) and change_8 (disclosure requirement)
+    add new required, checkable invariants rather than resetting any prior
+    result. Change_10 corrects prose only; V3-RA-1 itself is unchanged and
+    already discharged.
+
+  provenance:
+    role: coordinator
+    runtime: Claude Code
+    requested_policy: coordinator-orchestration-code
+    requested_reasoning_effort: high
+    fallback_allowed: false
+    degraded_allowed: false
+    fallback_used: false
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_self_report_basis: >-
+      Genuine self-report from this session's own runtime system context,
+      which names the answering model "Sonnet 5", exact model id
+      "claude-sonnet-5". Not independently confirmed against
+      orchestration/model-bindings.yaml or by a live backend probe from
+      inside this session (no such tool is on this session's surface); this
+      matches the same disclosed, structural limitation recorded in v3's own
+      provenance block and in the amendment-v3-review's model_provenance.
+    amazon_bedrock: not_selected_not_configured_not_used
+
+  evidence_refs:
+    - ledger/decisions/DEC-20260906-da1212.yaml
+    - ledger/decisions/DEC-20260906-030aad.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/report.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack1_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack4_oeis_output.txt
+    - experiments/EXP-ECDLP-56ee42/amendments/v3_comparator_and_t3_repair.yaml
+    - experiments/EXP-ECDLP-56ee42/implementation/selftest.py
+    - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+    - experiments/EXP-ECDLP-56ee42/specification.yaml
+    - ledger/hypotheses/H-ECDLP-a4be60.yaml
+
+  commit: null
+  commit_note: >-
+    NULL. A record cannot carry the SHA of the commit that contains it. The
+    Coordinator's own isolated snapshot-archive act binds this field after
+    the post-commit verifier accepts the commit, per AGENTS.md's archival
+    discipline; this drafting task does not commit anything.

@@ -1,0 +1,773 @@
+red_team_report:
+  id: RT-20260907-56ee42-v4review
+  id_note: >-
+    Task-scoped report identifier, not a minted ledger ID via
+    tools/allocate_id.py. Review work product under write_scope only; no
+    ledger, run, or knowledge record is created. maximum_runs: 0 honoured --
+    every computation below is scratch verification against PUBLIC curve
+    parameters (p, b, n from specification.yaml / design/ladder.json) or
+    against reconstructed/patched COPIES of estimator.py and selftest.py
+    held only in this review's own write_scope directory (never written back
+    to experiments/EXP-ECDLP-56ee42/implementation/). No discrete log k is
+    touched, no stage-cache is read, no stage of EXP-ECDLP-56ee42 itself is
+    executed, and no file outside this review's own directory is modified.
+
+  task: >-
+    Independent adversarial review of amendment v4
+    (experiments/EXP-ECDLP-56ee42/amendments/
+    v4_power_check_and_selftest_repair.yaml, base_version 3 ->
+    resulting_version 4), which claims to close all five gaps
+    DEC-20260906-da1212 directed (V4-CHG-5 through V4-CHG-9) plus a wording
+    softening (V4-CHG-10). This review re-derives or re-checks every
+    load-bearing claim independently (code execution, arithmetic, direct
+    file reads) rather than accepting the amendment's own
+    "verified_directly_by_this_coordinator" claims, and separately searches
+    for defects v4 introduces or fails to close that neither round-1 nor the
+    amendment-v3-review caught.
+
+  claim_under_review: >-
+    v4's six changes: V4-CHG-5 (extend the T3 repair's scope to
+    selftest.py's test_digit_statistics, replacing its use of the retired
+    broken recursion as ground truth with rudin_shapiro_sign_true/_array
+    against _rudin_shapiro_u); V4-CHG-6 (pin V3-RA-2's synthetic power
+    check to a seeded, N=20-repetition, 20/20-unanimity schedule);
+    V4-CHG-7 (a git merge-base --is-ancestor mechanical sequencing check
+    for power-check-before-calibration-run); V4-CHG-8 (a required verbatim
+    scope-limitation disclosure sentence if C2a is downgraded to
+    diagnostic-only); V4-CHG-9 (narrow the S0/S2 T3-fields citation to S0
+    only); V4-CHG-10 (soften the "regardless of what c turns out to be"
+    Weil-bound wording to cite V3-RA-1's actual measurement).
+
+  # =========================================================================
+  # PER-CHANGE FINDINGS
+  # =========================================================================
+  per_attack_step_findings:
+
+    change_5_selftest_repair_V4_CHG_5:
+      what_was_checked: >-
+        Whether the proposed drop-in replacement for selftest.py's
+        test_digit_statistics Rudin-Shapiro block actually compiles and
+        passes once dropped into an estimator.py that carries v3's
+        required rename/add (rudin_shapiro_sign_true, _rudin_shapiro_u,
+        rudin_shapiro_sign_true_array, _rudin_shapiro_signflip_variant,
+        _rudin_shapiro_signflip_variant_array); whether the n_diff == 135
+        claim survives the reversed comparison (old test: block-count
+        parity vs the OLD recursion; new test: OLD recursion vs the NEW
+        true implementation); and whether the OTHER four self-tests in the
+        same file (q_maj/q_strict, integer-recovery, A(v), NULL-2) still
+        pass unmodified.
+      method: >-
+        Built a byte-faithful reconstruction of estimator.py by taking the
+        REAL, currently committed file (read in full by this review) and
+        applying ONLY V3-CHG-2's specified rename/add, touching nothing
+        else (full_patched_estimator_v3only.py, in this directory).
+        Transcribed v4's new_text_replacement CHARACTER-FOR-CHARACTER from
+        the amendment YAML into the real selftest.py's
+        old_text_superseded_verbatim location (confirmed the verbatim block
+        matches selftest.py lines 31-47 EXACTLY, including the blank lines
+        at 30 and 48 the amendment's old_text_location_note claims) and ran
+        the FULL, unmodified selftest.py end to end against the
+        reconstruction (full_patched_selftest.py / full_patched_selftest_
+        output.txt). Separately ran just the transcribed replacement block
+        in isolation (change5_verify.py / change5_output.txt) with an
+        explicit cross-check that n_diff==135 is the SAME fact under both
+        the old and new framings (not a coincidence of the specific
+        comparison order, since != is symmetric and the two functions are
+        asserted equal to their respective ground truths beforehand).
+      result: >-
+        ALL SELF-TESTS PASSED, including "digit statistics: OK",
+        "q_maj/q_strict... OK", "integer recovery... OK", "A(v)... OK",
+        "NULL-2... OK" (full_patched_selftest_output.txt). The isolated
+        block also passes cleanly and n_diff (retired-variant-vs-truth) =
+        135, confirmed identical under both framings
+        (change5_output.txt). Every function name the replacement
+        references (rudin_shapiro_sign_true, _rudin_shapiro_u,
+        rudin_shapiro_sign_true_array, _rudin_shapiro_signflip_variant,
+        _rudin_shapiro_signflip_variant_array) is exactly the set V3-CHG-2
+        specifies exist -- no reference to a function outside that set, no
+        NameError, no AttributeError. The old_text_location_note's claim
+        (block sits between the blank line 30 and the blank line 48,
+        before "# popcount mod 4") is confirmed by direct read of the real
+        file, not merely asserted.
+      verdict: SUSTAINED -- no break found in change_5 itself.
+
+    change_6_power_check_seed_and_replication_V4_CHG_6:
+      what_was_checked: >-
+        (i) the seed_schedule's collision-freedom claim, by direct
+        enumeration rather than "by inspection"; (ii) whether N=20
+        repetitions with 20/20 unanimity is a defensible choice given the
+        stated asymmetric-cost rationale; (iii) whether 20 repetitions are
+        actually computationally feasible within the experiment's own
+        declared budget at the rungs the disclosed T27 carve-out leaves as
+        the fallback (T17-T25) -- a question the task explicitly poses and
+        change_6 does not itself compute or cite.
+      collision_freedom_result: >-
+        Generated all 2104 seed values the real NULL-2 schedule (64: 8 arms
+        x 8 shuffles) plus change_6's three new blocks (120 placement +
+        960 genuine + 960 reading2) would ever produce, and confirmed 2104
+        distinct values with ZERO collisions
+        (change6_seed_collision_check.py / change6_seed_collision_output.
+        txt). Block ranges are exactly [1000,1077] (real), [90000,109050]
+        (placement), [190000,209057] (genuine), [290000,309057]
+        (reading2) -- disjoint, confirming the claim is TRUE. One minor
+        imprecision flagged: the amendment's own justification sentence
+        ("max index within each block is ... 19057, far below the next
+        block's 100000 spacing") could be misread as claiming absolute
+        offsets stay below 100000 -- they do not (placement's own max
+        offset is 109050, ABOVE 100000) -- but the CORRECT reading (intra-
+        block SPAN of 19057 vs inter-block SPACING of 100000) is the
+        comparison that actually matters for collision-freedom, and that
+        comparison is right. Not a defect, a wording clarity note only.
+      unanimity_policy_assessment: >-
+        DEFENSIBLE, not a new problem. The stated asymmetric-cost
+        reasoning (false-negative-to-diagnostic is cheap because C2b alone
+        still blocks C2, per v3's own combination_rule_for_C2; false-
+        positive-to-blocking is expensive because it gates Stage-3 on
+        possibly-unreliable evidence) correctly identifies which error
+        unanimity should suppress: requiring 20/20 (not e.g. 18/20)
+        lowers the probability that a marginal-power statistic is
+        accidentally declared BLOCKING by chance across 20 independent
+        draws, at the cost of being more likely to downgrade a genuinely
+        reliable statistic on a single unlucky repetition -- which the
+        amendment's own reasoning, and v3's already-safe fallback (C2b
+        alone still blocks C2), correctly treats as the cheaper error. Not
+        the only defensible choice (a Wilson-interval-based threshold is
+        a reasonable alternative this amendment does not consider), but a
+        reasoned, non-arbitrary one; not rejected here for being
+        conditional on a stated design choice.
+      NEW_FINDING_computational_feasibility_not_disclosed: >-
+        REAL, PREVIOUSLY UNFLAGGED GAP. change_6 discloses ONLY T27's
+        memory-ceiling risk (inherited from v3's disclosed_limitation) and
+        provides a fallback (T17-T25 only, T27 NOT-COMPUTED). It does NOT
+        disclose or compute the AGGREGATE wall-clock cost of running 20
+        repetitions at T17-T25 -- exactly the fallback scenario the regime
+        decision would then rest on. Independently timed (17 length-n
+        FFTs per repetition: 1 pre-shuffle baseline + 8 genuine + 8
+        reading-2, matching V3-RA-2's own stated method) on this review's
+        4-core sandbox, single-threaded numpy.fft
+        (change6_power_check_timing.py / change6_power_check_timing_
+        output.txt): T17-T25's full 20-repetition schedule takes 8152s
+        (~2.26 CPU-hours) wall-clock, dominated by T25 alone at ~6764s
+        (~112.7 min). This EXCEEDS the experiment's own declared
+        wall_clock_seconds_per_run: 7200 (2h) cap -- the cap that applies
+        to "one stage invocation over all six rungs" per
+        specification.yaml's budget note -- even BEFORE T27 is attempted,
+        and consumes roughly 9.4% of the experiment's entire 24 CPU-hour
+        total budget for a diagnostic check that is not itself one of
+        Stage 0-4. Neither v3 nor v4 states which budget line item (an
+        existing Stage-N allocation, or a new one) the power check draws
+        from, or whether it counts against maximum_runs: 12. This timing
+        is on unknown-relative-speed sandbox hardware and is not a
+        certified production estimate, but the qualitative finding --
+        that the DISCLOSED FALLBACK scenario itself has an undisclosed,
+        plausible budget-cap risk, not just the ALREADY-disclosed T27
+        scenario -- is real and independently reproducible.
+      verdict: >-
+        REVISE for change_6 -- the seed/collision arithmetic is verified
+        correct and the unanimity policy is defensible, but a real,
+        previously unflagged budget-feasibility disclosure gap remains at
+        exactly the fallback rungs (T17-T25) the amendment relies on if
+        T27 is infeasible.
+
+    change_7_power_check_sequencing_enforcement_V4_CHG_7:
+      what_was_checked: >-
+        Whether the git merge-base --is-ancestor mechanism is actually
+        sound and enforceable as described, per the task's specific
+        prompt: "what if the power-check commit is on a different
+        unrelated branch that happens to be an ancestor?"
+      method: >-
+        Built a throwaway git repository with four commits: an unrelated
+        initial commit (A, no power-check artifact), an unrelated second
+        commit (B, still no artifact), the "real" power-check-artifact
+        commit (C), and a later "calibration-run task-card HEAD" commit
+        (D). Ran git merge-base --is-ancestor for both the CORRECT sha (C)
+        and a WRONG-but-still-ancestor sha (A) against HEAD (D)
+        (change7_ancestor_check_gap_demo.sh / change7_ancestor_check_gap_
+        output.txt). Also grepped the entire repository for
+        "power_check_ancestor_commit_sha" and for "merge-base"/
+        "is-ancestor" in tools/ to check whether any EXISTING validator or
+        dispatch tool actually implements this check.
+      result_soundness_gap: >-
+        CONFIRMED, exactly the gap the task named. git merge-base
+        --is-ancestor A HEAD returns exit code 0 for commit A -- which
+        contains NO power_check_results.yaml at all -- exactly as cleanly
+        as it does for the correct commit C. The mechanism verifies DAG
+        REACHABILITY of the CITED sha only; it never inspects whether that
+        sha's tree actually CONTAINS the power-check artifact, let alone
+        whether the artifact's CONTENT (the pinned seeds, the per-
+        repetition separation outcomes, the aggregated regime decision)
+        is valid. A task-card author who cites ANY earlier ancestor commit
+        on the same branch -- a typo, a stale copy-paste from an unrelated
+        task, or the sha of a commit that merely PRE-DATES the real power
+        check -- passes V4-CHG-7's "mechanical, not merely asserted in
+        prose" check with the SAME exit code 0 as a correct citation.
+        This directly inverts this program's OWN established archive-
+        receipt discipline (CLAUDE.md "Archive receipts bind to CONTENT
+        first": tools/research_dispatch.py verifies path_sha256 as
+        PRIMARY and treats commit reachability as merely ADVISORY) --
+        change_7 does the opposite, treating reachability as the ONLY
+        check and content as unverified.
+      result_enforcement_gap: >-
+        FURTHER, INDEPENDENT GAP. Grepping the full repository confirms
+        "power_check_ancestor_commit_sha" appears NOWHERE in tools/
+        (zero matches outside this review's own new report), and no
+        existing tool implements a git merge-base --is-ancestor check
+        anywhere (grep for merge-base/is-ancestor across tools/ and docs/
+        finds only unrelated branch-sync/merge-hygiene tooling with no
+        code path performing this specific check). tools/validate_ledger.
+        py's handoff record schema requires only
+        ["id","from","to","objective","budget"] -- power_check_ancestor_
+        commit_sha is not a recognized or validated field. So the rule as
+        drafted is, in practice, exactly as unenforced today as v3's
+        original prose-only "must exist, committed, before the task card
+        is opened" rule the review objected to -- it is described in more
+        mechanically precise LANGUAGE, but nothing in the repository's
+        actual tooling will BLOCK a task card that omits the field, cites
+        a wrong sha, or is opened by a human/Coordinator who simply does
+        not run the command. This is the SAME "stated discipline vs.
+        enforced invariant" failure mode the review found in v3, one
+        level deeper (the RULE is now precise; the ENFORCEMENT is still
+        absent).
+      narrowest_valid_conclusion: >-
+        Change_7 is a real improvement over pure prose IN THE SENSE that
+        a diligent Coordinator or Executor who actually runs the command
+        against the CORRECT sha gets a genuine, non-trivial ordering
+        check (ruling out "no sha at all," "sha does not exist," or "sha
+        postdates HEAD"). It is NOT yet a mechanism that closes the
+        review's required_control as strongly as its own language claims
+        ("MUST be verified mechanically -- not merely asserted in
+        prose"): it neither verifies the cited commit's content/identity,
+        nor is it wired into any validator that would actually enforce
+        its own stopping rule.
+      verdict: >-
+        REVISE for change_7 -- the mechanism is directionally sound and a
+        real improvement, but has a demonstrated content-blindness gap
+        (any ancestor sha passes, correct or not) and is not integrated
+        into any existing schema or tool, so "mechanically... not merely
+        asserted in prose" overstates what is actually enforced today.
+
+    change_8_c2a_diagnostic_regularity_disclosure_V4_CHG_8:
+      what_was_checked: >-
+        Whether the required verbatim disclosure sentence accurately
+        describes the C2a/C2b asymmetry the review's attack_2 found, and
+        whether its wording is internally consistent with the arms'
+        actual definitions in specification.yaml.
+      substantive_check: >-
+        The sentence's core claim is accurate and matches attack_2's
+        finding precisely: POS-A/C2b is "an exactly-periodic, k-based
+        sequence" (v(R)=(-1)^k, confirmed by direct read of
+        specification.yaml arms.POS-A and stage2.py's pos_a_sequence);
+        the sentence correctly states this does NOT demonstrate power
+        against "irregular, natural x-based statistics," correctly
+        preserving the regularity-vs-magnitude distinction attack_2 drew.
+      wording_gap_found: >-
+        MINOR. The sentence groups "(C2a, T1-T4, the frozen COMPARATOR
+        arm)" under "irregular, natural x-based statistics" -- but T2 is
+        defined on y, not x (specification.yaml arms.T2: "Thue-Morse sign
+        of y: v(R) = (-1)^{s_2(y(R))}"), confirmed by direct read.
+        Calling T1-T4 collectively "x-based" is imprecise for T2. This
+        does not undermine the sentence's SUBSTANTIVE claim (T2 is still
+        a natural, non-planted, non-k-reading statistic in the same
+        evidentiary category as T1/T3/T4/COMPARATOR that the regularity
+        gap applies to -- the label "x-based" is being used loosely to
+        mean "not k-based," not literally "a function of the x-
+        coordinate only"), but since this is a REQUIRED VERBATIM sentence
+        whose entire purpose is precision, the imprecision is worth
+        naming and is a one-word-class fix (e.g. "coordinate-based,
+        non-planted statistics" in place of "x-based statistics").
+      verdict: >-
+        SUSTAINED with a minor required wording correction (not a break):
+        replace "x-based" with a term that does not mischaracterize T2.
+
+    change_9_s2_t3_citation_correction_V4_CHG_9:
+      what_was_checked: >-
+        Independently, by direct read of RUN-ECDLP-56ee42-S2/raw-
+        result.json (NOT by trusting the amendment's or the prior
+        review's restatement), whether S2's top-level steps keys really
+        are only static_provenance_check/POS-A/POS-B/CONTROL-C/
+        smoke_check_G with no T3-attributable measurement field, and
+        whether S0's r.L1/r.Linf fields (cited as the corrected, narrowed
+        target) actually exist as named.
+      result: >-
+        CONFIRMED, independently, by direct read of both raw-result.json
+        files (not the amendment's paraphrase). S2's top-level "steps"
+        object contains EXACTLY: static_provenance_check, POS-A, POS-B,
+        CONTROL-C, smoke_check_G -- no "T3" or "r" key anywhere in S2. Its
+        only T3-related content is the static_provenance_check.functions
+        dict's two labeled entries ("T3 (rudin_shapiro_sign)", "T3
+        (rudin_shapiro_sign_array)"), which are pass/fail LABELS from a
+        source-text scan, not measured statistic VALUES -- exactly as
+        change_9 (and the prior review) characterizes them. Separately,
+        S0's raw-result.json DOES contain an "r" object with L1, Linf,
+        L1_over_p, L1_noDC_over_p, Linf_over_p fields at every rung
+        (confirmed by direct read), matching change_9's new_text's
+        "r.L1/r.Linf fields" citation exactly. Both halves of change_9's
+        correction are independently verified accurate.
+      related_but_unaddressed_consequence: >-
+        Change_9 correctly narrows WHICH RUN has a T3-attributable
+        NUMBER (S0 only), and correctly notes S2's only T3 content is a
+        LABEL, "unaffected by which recursion the function implements."
+        That description is accurate for the label's VALUE under the
+        CURRENT code. It does not extend to the label's COMPUTABILITY
+        after v3's rename is applied -- see the NEW finding under
+        "additional_findings_beyond_the_five_named_gaps" below, which is
+        adjacent to but distinct from what change_9 claims (change_9 is
+        about which run has a measured NUMBER; the new finding is about
+        whether S2's LABEL-producing mechanism keeps working at all).
+      verdict: SUSTAINED -- no break found; both cited facts independently confirmed true.
+
+    change_10_weil_bound_wording_softening_V4_CHG_10:
+      what_was_checked: >-
+        Whether the new wording accurately represents V3-RA-1's actual
+        measurement (attack1_output.txt) without overclaiming or
+        underclaiming, by direct comparison of every cited number against
+        that file (not against the amendment's restatement of it).
+      result: >-
+        CONFIRMED accurate on every cited figure, checked directly against
+        attack1_output.txt. Minority-fiber fractions: T17=0.498890 (the
+        amendment's cited low end) up to T27=0.499994 (the cited high
+        end) -- this IS the true min/max of the six values
+        (0.498890, 0.499299, 0.499462, 0.499639, 0.499983, 0.499994),
+        even though the sequence is not perfectly monotonic in T-order
+        internally at every step relative to the OTHER cited quantity
+        (the ratio); the amendment does not claim monotonicity for the
+        ratio, only for dev_from_half, which IS monotonically decreasing
+        T17->T27 (0.00110973, 0.00070142, 0.00053781, 0.00036101,
+        0.00001682, 0.00000597 -- verified strictly decreasing, matching
+        the "shrinking monotonically" claim exactly). "2.0e3x to 3.1e6x
+        larger" matches the file's own printed ratios' true min (T17,
+        2.044e3) and max (T27, 3.125e6) exactly. The hedging itself is
+        correctly calibrated: the new text explicitly disclaims that the
+        bound ALONE rules out a vacuous large-c case, and attributes the
+        qualitative claim to the MEASUREMENT, not the bound's shape --
+        matching exactly what attack_1's own verdict required.
+      verdict: SUSTAINED -- no overclaim or underclaim found; every cited number independently reproduced.
+
+    additional_findings_beyond_the_five_named_gaps:
+      NEW_finding_stage2_static_provenance_check_breaks_under_v3_rename:
+        what_was_checked: >-
+          Per the task's own instruction to look beyond the five named
+          gaps: whether V3-CHG-2's required rename (rudin_shapiro_sign ->
+          _rudin_shapiro_signflip_variant, rudin_shapiro_sign_array ->
+          _rudin_shapiro_signflip_variant_array) has any consequence for
+          stage2.py -- a real "pipeline file" both amendments discuss --
+          beyond the call site (stage0.py line 54) v3's own diagnosis
+          already identifies.
+        method: >-
+          Read stage2.py in full. Found static_provenance_check()
+          (lines 49-103) performs a LITERAL SOURCE-TEXT SCAN of
+          estimator.py for hard-coded signature strings, including
+          "def rudin_shapiro_sign(" and "def rudin_shapiro_sign_array(".
+          This is DISTINCT from a call site: it never invokes the
+          function, it string-searches estimator.py's own text. Re-
+          implemented this exact function (verified line-for-line
+          against the real stage2.py) and ran it against (a) the REAL,
+          currently committed estimator.py, and (b) the review's own
+          faithful reconstruction of estimator.py AFTER V3-CHG-2's
+          rename/add (full_patched_estimator_v3only.py, the SAME file
+          used to validate change_5 above)
+          (stage2_static_provenance_break.py / stage2_static_provenance_
+          break_output.txt).
+        result_today_a_pre_existing_false_positive_already_diagnosed_by_J1: >-
+          Confirmed the reimplementation reproduces the ARCHIVED
+          RUN-ECDLP-56ee42-S2/raw-result.json's static_provenance_check
+          entry for "T3 (rudin_shapiro_sign_array)" EXACTLY: {found:
+          true, reads_k: true, k_refs_in_code: [k x7], pass: false}. This
+          is a FALSE POSITIVE, already correctly diagnosed by round-1's
+          own validator (J1,
+          reviews/round-1/validator/check_e_t3_dataflow_and_definition.py
+          lines 76-88): the 7 "k" matches are the function's OWN LOCAL
+          LOOP VARIABLE (a bit-shift level index, bounded by the array's
+          length, unrelated to the discrete-log coordinate) plus the
+          word "k" inside a multi-line docstring's CONTINUATION lines
+          (which the scanner's comment/docstring filter fails to strip,
+          since it only excludes lines whose OWN leading character is a
+          quote/hash, not lines that are inside a docstring but do not
+          themselves start with one). J1 correctly explained this in
+          round-1; NOTHING in v2, v3, or v4 patches the scanner or the
+          dict, so the CURRENT S2 record's "static_provenance: false" /
+          "validity: gate_failure" badge is, in part, an artifact of this
+          unfixed false positive, not (only) of CONTROL-C's genuine
+          failure.
+        result_after_v3_rename_a_new_and_different_failure_neither_amendment_addresses: >-
+          Against the reconstruction with V3-CHG-2's rename applied,
+          BOTH "T3 (rudin_shapiro_sign)" and "T3 (rudin_shapiro_sign_
+          array)" flip to {found: false, reads_k: null, pass: false} --
+          the search strings no longer appear ANYWHERE in estimator.py's
+          source (the old names are gone; the new true implementation is
+          named rudin_shapiro_sign_true(_array), which does not match
+          the old search strings as a substring either). all_pass
+          remains False, for a DIFFERENT reason than today. Confirmed
+          separately that if stage2.py's dict were updated to search for
+          "def rudin_shapiro_sign_true(" / "def rudin_shapiro_sign_true_
+          array(" instead, the check would PASS cleanly (the new
+          implementation has no local variable literally named k) --
+          this is a real but SIMPLE, one-line-per-entry fix, not a deep
+          design problem.
+        why_this_matters: >-
+          v3's own required_rerun_before_stage_3 explicitly lists
+          "static provenance C3" among the gates that "all pass" is
+          required before Stage 3 may be dispatched. Neither v3's
+          required_naming_and_wiring (which is scoped to WIRING A CALL
+          SITE, correctly identified by the amendment-v3-review's
+          attack_3 as stage0.py line 54, not to updating a source-text-
+          scan dict) nor v4's change_5 (scoped explicitly to
+          selftest.py) touches stage2.py's static_provenance_check
+          dict. As currently drafted, the REQUIRED Stage 0-2 re-run's
+          Stage 2 output will report static_provenance: false and
+          validity: gate_failure YET AGAIN, blocking Stage 3 dispatch
+          per v3's own stated gate list -- for a reason (a stale
+          text-search string) that is unrelated to any real k-leak and
+          is not disclosed or fixed by either amendment. This is
+          precisely the same CLASS of gap change_5 closes for
+          selftest.py (a real, currently-executing artifact falling
+          through the boundary between "a call site" and "something
+          else," missed by v3's naming/wiring language) -- but it sits
+          on a BLOCKING GATE inside the required re-run itself, arguably
+          more consequential than the selftest.py gap v4 does fix, since
+          selftest.py is a manual regression script not wired into any
+          stage's own gating logic.
+        required_control: >-
+          Extend the T3 repair's required scope (alongside change_5's
+          selftest.py fix) to include stage2.py's static_provenance_check
+          function-name dict: update the two T3 entries to search for
+          "def rudin_shapiro_sign_true(" and "def rudin_shapiro_sign_
+          true_array(" (or an equivalent robust check), verified to PASS
+          before the Stage 0-2 re-run's Stage 2 gate is scored. As a
+          more durable secondary fix (out of scope for a protocol
+          amendment, but worth naming for the Executor): the scanner's
+          comment/docstring-continuation-line filter has the SAME class
+          of false-positive risk for ANY future function whose docstring
+          happens to use the identifier "k" in prose, independent of
+          this specific rename -- a more robust implementation (e.g. AST
+          parsing instead of line-prefix heuristics) would remove this
+          entire failure class, not just this one instance of it.
+
+    heuristics_and_random_model_transfer:
+      note: >-
+        None of v4's six changes touch H1's own random-model
+        justification (A(v) = O(sqrt(log n / n)) for a uniform +-1
+        sequence heuristic applied to the digit-family Fourier
+        coefficients); this remains exactly the open question
+        EXP-ECDLP-56ee42 exists to test and is unaffected by whether the
+        C2/T3 instrumentation is correctly wired. Flagged per red-team.md
+        item 9's standing instruction, not because v4 makes any claim
+        about it -- v4's own nonclaims list explicitly disclaims any
+        such claim, correctly.
+
+  # =========================================================================
+  # STANDARD RED-TEAM FIELDS
+  # =========================================================================
+  objections:
+    - >-
+      (change_6) The N=20-repetition power check's own disclosed
+      infrastructure risk covers ONLY T27 (a memory ceiling); it does not
+      disclose or compute the aggregate wall-clock cost at the T17-T25
+      rungs the amendment's own carve-out leaves as the fallback.
+      Independently timed at ~2.26 CPU-hours (8152s), this EXCEEDS the
+      experiment's declared 7200s per-run budget cap even before T27 is
+      attempted, and neither amendment states what budget line item the
+      power check draws from.
+    - >-
+      (change_7) The git merge-base --is-ancestor mechanism verifies DAG
+      reachability of the CITED commit sha only, never its content or
+      identity -- demonstrated directly: an unrelated ancestor commit
+      containing NO power-check artifact passes the check with the same
+      exit code 0 as the correct commit. This inverts this program's own
+      "content-first" archive-receipt discipline (CLAUDE.md), and the
+      field/check is not integrated into any existing validator
+      (tools/validate_ledger.py's handoff schema does not recognize
+      power_check_ancestor_commit_sha; no tool implements the
+      merge-base check), so "verified mechanically... not merely
+      asserted in prose" overstates what the repository's tooling
+      actually enforces today.
+    - >-
+      (change_8) The required verbatim disclosure sentence groups T1-T4
+      under "irregular, natural x-based statistics," but T2 is defined on
+      y (specification.yaml arms.T2), not x -- a minor but real wording
+      imprecision in a sentence whose entire purpose is precision.
+    - >-
+      (new finding, not among the five named gaps) stage2.py's
+      static_provenance_check() does a literal source-text scan for the
+      OLD T3 function names ("def rudin_shapiro_sign(", "def
+      rudin_shapiro_sign_array("). Neither v3's required_naming_and_wiring
+      (scoped to the call site, stage0.py) nor v4's change_5 (scoped to
+      selftest.py) updates this dict. TODAY this produces an already-
+      diagnosed-by-J1 false positive (a local loop variable and a
+      docstring-continuation-line leak, not a real k-read); AFTER v3's
+      required rename, it will fail again for a different reason (the
+      search strings are no longer found at all), and v3's own
+      required_rerun_before_stage_3 explicitly requires this gate to pass
+      before Stage 3 -- so the required re-run will hit this exact wall,
+      undisclosed, unless stage2.py's dict is also updated.
+
+  required_controls:
+    - >-
+      Before the power check is dispatched: either (a) independently time
+      the actual production power-check implementation at T17-T25 and
+      confirm it fits within whichever budget line item the Coordinator
+      declares it draws from, or (b) explicitly re-scope N downward (or
+      split the check across multiple task invocations) if the ~2.26
+      CPU-hour estimate (or the real implementation's own measured cost)
+      does not fit the declared 7200s per-run cap.
+    - >-
+      Add a content-verification step to V4-CHG-7's sequencing check
+      (e.g. a recorded sha256 of power_check_results.yaml at the cited
+      commit, verified via `git show <sha>:<path> | sha256sum` against a
+      value recorded in the task card, mirroring this program's own
+      path_sha256 archive-receipt convention) so that citing an
+      unrelated-but-valid ancestor commit cannot pass the check; and wire
+      power_check_ancestor_commit_sha into tools/validate_ledger.py's
+      handoff schema (or an equivalent validator) so the check is
+      actually enforced by tooling, not merely describable as mechanical.
+    - >-
+      Correct change_8's required verbatim sentence's "(C2a, T1-T4, the
+      frozen COMPARATOR arm)" parenthetical to avoid mischaracterizing T2
+      (a y-based statistic) as "x-based" -- e.g. "coordinate-based,
+      non-planted statistics."
+    - >-
+      Extend the T3 repair's required scope (alongside change_5's
+      selftest.py fix) to stage2.py's static_provenance_check function-
+      name dict: update the two T3 entries to search for the new true
+      implementation's signatures ("def rudin_shapiro_sign_true(", "def
+      rudin_shapiro_sign_true_array(") so the required Stage 0-2 re-run's
+      Stage 2 static_provenance gate can actually pass, and verify this
+      BEFORE the re-run is dispatched (this review's stage2_static_
+      provenance_break.py confirms the fix is a simple, one-line-per-
+      entry change that passes cleanly once made).
+
+  counterexample_or_mutation: >-
+    The single cheapest, most decisive check available was exactly the
+    one this review ran for change_5: actually apply v3's specified
+    rename to a faithful copy of estimator.py, drop v4's verbatim
+    replacement text into a copy of selftest.py, and EXECUTE the whole
+    file -- not read it. That same technique, pointed one file further
+    (stage2.py's static_provenance_check, which reads the SAME renamed
+    estimator.py source text but was never itself patched by either
+    amendment), is what surfaced the new finding above: a mutation as
+    cheap as "search for these signature strings in the post-rename
+    source" immediately reveals a gate that will fail again, silently,
+    for a new reason. A second cheap, decisive check was the git-DAG
+    mutation for change_7 (cite a wrong-but-valid ancestor sha instead of
+    the right one) -- a two-line git experiment that fully falsifies "not
+    merely asserted in prose."
+
+  baseline_comparison: >-
+    Not applicable in the Pollard-rho/BSGS sense: EXP-ECDLP-56ee42 is a
+    heuristic-validation digit-statistic measurement (class:
+    heuristic-validation; no attack, no key), and this amendment is a
+    protocol repair of that experiment's own control/test instrumentation
+    and process discipline, not an asymptotic solver claim. No baseline
+    algorithm comparison applies.
+
+  heuristic_challenges:
+    - >-
+      H1's own random-model justification is untouched by any of v4's six
+      changes and remains the open question this experiment exists to
+      test; nothing here strengthens or weakens it. Recorded per
+      red-team.md's standing instruction, not because v4 claims otherwise
+      (it correctly does not).
+
+  cost_model_challenges:
+    - >-
+      change_6's power check has no disclosed budget classification or
+      aggregate-cost estimate at the very rungs (T17-T25) its own T27
+      carve-out relies on as the fallback; independently measured at
+      ~2.26 CPU-hours, comparable to or exceeding the experiment's own
+      declared 7200s per-run cap. Total expected cost here is not
+      per-repetition cost alone but per-repetition cost x 20 x (number of
+      rungs actually run) x (draws per repetition) -- exactly the kind of
+      aggregation this review's required_controls asks be computed and
+      checked against budget before dispatch, not asserted informally.
+
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >-
+    Of v4's six changes: (1) change_5 (selftest.py repair) is verified
+    CORRECT end to end by actually executing the full patched file, not
+    merely reading it -- no break found. (2) change_6 (power-check seed/
+    replication) has a verified-correct, collision-free seed schedule and
+    a defensible (if not uniquely correct) unanimity policy, but a real,
+    previously unflagged budget-feasibility gap at the T17-T25 fallback
+    rungs it relies on if T27 is infeasible. (3) change_7 (sequencing
+    enforcement) is a real, directionally sound improvement over prose,
+    but has a demonstrated content-blindness gap (any ancestor commit sha
+    passes, correct or not) and is not wired into any existing validator,
+    so its own "verified mechanically" language overstates current
+    enforcement. (4) change_8 (diagnostic-regime disclosure) is
+    substantively accurate with one minor, easily-fixed wording
+    imprecision (T2 mischaracterized as "x-based"). (5) change_9 (S2
+    citation correction) is independently confirmed accurate on both
+    halves by direct reads of both raw-result.json files. (6) change_10
+    (wording softening) is independently confirmed accurate on every
+    cited number, correctly hedged, no overclaim or underclaim. Beyond
+    the five named gaps: a NEW, real, load-bearing gap was found --
+    stage2.py's static_provenance_check will fail the required Stage 0-2
+    re-run's Stage 2 gate again, for an undisclosed new reason, unless
+    its function-name dict is also updated to the new true
+    implementation's names, which neither v3 nor v4 specifies. None of
+    v4's six changes is WRONG in its core mathematical or logical
+    content (mirroring the v3-review's own finding about v3); this review
+    finds v4 INCOMPLETE in the same sense the v3-review found v3
+    incomplete -- a fresh, comparably real completeness gap on the T3/
+    static-provenance side, plus two disclosure/soundness gaps on the
+    power-check side (budget, and sequencing-check content-blindness),
+    plus one cosmetic wording nit.
+
+  next_concrete_action: >-
+    Before any Coordinator decision authorizes dispatch of the Stage 0-2
+    re-run, the power check, or the C2 calibration run: (a) extend the T3
+    repair's scope to stage2.py's static_provenance_check dict (this
+    review's stage2_static_provenance_break.py shows the fix and confirms
+    it passes cleanly once made) -- this is the single highest-priority
+    item, since without it the REQUIRED re-run cannot satisfy its own
+    stated gate list; (b) either measure the real power-check
+    implementation's wall-clock cost at T17-T25 against its declared
+    budget, or explicitly re-scope N/the rung set to fit; (c) add a
+    content-verification step (a recorded artifact content hash) to
+    change_7's sequencing check and wire power_check_ancestor_commit_sha
+    into an actual validator; (d) fix change_8's "x-based" wording. None
+    of these blocks v4's core direction -- change_5, change_9, and
+    change_10 are independently confirmed correct as drafted, and this
+    review's own patched-estimator/patched-selftest reconstruction and
+    seed-collision/timing/git-ancestor scripts may be cited directly by
+    the next amendment rather than re-derived from scratch.
+
+  verdict: REVISE
+  verdict_detail: >-
+    Not BROKEN: none of v4's six changes is mathematically or logically
+    wrong -- change_5, change_9, and change_10 are independently
+    confirmed correct by direct execution or direct file comparison;
+    change_6's seed arithmetic is verified collision-free and its
+    unanimity policy is a defensible design choice; change_7's mechanism
+    is a real, directionally sound improvement over prose. Not
+    SUSTAINED-clean: this review independently found (i) a genuinely new,
+    load-bearing completeness gap v4 does not address -- stage2.py's
+    static_provenance_check will block the REQUIRED Stage 0-2 re-run's
+    own Stage 2 gate, for an undisclosed reason, exactly the same class
+    of gap change_5 fixes for selftest.py, but on a blocking gate rather
+    than a manual script; (ii) an undisclosed budget-feasibility risk in
+    change_6 at the very fallback rungs it relies on; (iii) a content-
+    blindness soundness gap in change_7's enforcement mechanism,
+    independently demonstrated with a throwaway git repository; (iv) one
+    minor wording imprecision in change_8. Per this program's "narrowest
+    valid conclusion when a candidate fails" instruction and per the
+    same standard the amendment-v3-review itself applied to v3: v4's
+    DIRECTION is sound and its five claimed closures largely hold up
+    under independent re-derivation, but it is not yet safe to rely on
+    as-is for dispatching the Stage 0-2 re-run, the power check, or the
+    C2 calibration run without the required_controls above -- most
+    urgently the stage2.py fix, without which the re-run v4 itself
+    requires cannot pass its own stated gates.
+
+  # =========================================================================
+  # BLINDNESS / PROCESS ATTESTATION
+  # =========================================================================
+  review_attestation:
+    reads_in_order:
+      - ledger/decisions/DEC-20260906-da1212.yaml
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/report.yaml
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack1_output.txt
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack1_c2a_balance.py
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack4_oeis_output.txt
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v3-review/attack4_verify_oeis_cross.py
+      - experiments/EXP-ECDLP-56ee42/amendments/v3_comparator_and_t3_repair.yaml
+      - experiments/EXP-ECDLP-56ee42/amendments/v4_power_check_and_selftest_repair.yaml
+      - experiments/EXP-ECDLP-56ee42/implementation/selftest.py
+      - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage0.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage2.py
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/raw-result.json
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S0/raw-result.json
+      - experiments/EXP-ECDLP-56ee42/specification.yaml
+      - experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/check_e_t3_dataflow_and_definition.py
+      - tools/validate_ledger.py (handoff schema fields only)
+      - tools/research_dispatch.py (path_sha256 archive-receipt convention only)
+    git_provenance_check: >-
+      Reviewed the Coordinator-committed snapshot content of every file
+      listed above via direct Read of the working tree (this task's
+      instructions name specific committed artifacts, not a HEAD sha to
+      pin as in the prior review's own attestation style; no ledger,
+      amendment, or implementation file was edited by this review). All
+      code-execution verification was performed against RECONSTRUCTED
+      COPIES held only in this review's own write_scope directory
+      (experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/), built
+      by diffing against the real committed files read directly, never
+      against the committed implementation files themselves.
+    computations_performed: >-
+      change5_verify.py + full_patched_selftest.py (V4-CHG-5's replacement
+      text, executed in isolation and as part of the FULL selftest.py
+      suite, against a faithful V3-CHG-2 reconstruction of estimator.py);
+      change6_seed_collision_check.py (exhaustive enumeration of all 2104
+      seed values V4-CHG-6 plus the real NULL-2 schedule would produce);
+      change6_power_check_timing.py (independent wall-clock timing of the
+      N=20-repetition power check's stated method at T17-T25); change7_
+      ancestor_check_gap_demo.sh (a throwaway git repository
+      demonstrating git merge-base --is-ancestor's content-blindness);
+      stage2_static_provenance_break.py (a line-for-line reimplementation
+      of stage2.py's static_provenance_check, run against both the real
+      committed estimator.py and the V3-CHG-2 reconstruction, cross-
+      checked against the archived RUN-ECDLP-56ee42-S2 record). All
+      outputs captured verbatim in this directory's own *_output.txt
+      files. Total wall clock across all scripts: a few minutes, well
+      inside the 3600s budget note this program's review tasks operate
+      under. No stage of EXP-ECDLP-56ee42 was executed; no run record was
+      created; no discrete log k was touched; no stage-cache was read or
+      required.
+    external_retrieval_disclosed: >-
+      None required for this task -- every load-bearing claim checked
+      here was checkable by direct code execution, direct file
+      comparison, or direct arithmetic against files already committed
+      in this repository; no recalled citation was load-bearing to any
+      finding in this review.
+    read_sibling_reports: >-
+      N/A -- no review_plan was issued for this task; the prior round's
+      reports (amendment-v3-review, round-1) were read as REQUIRED
+      INPUTS per the task card, not as a blind-sibling constraint.
+    write_scope_respected: >-
+      Wrote only under experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-
+      review/. No spec, amendment, or implementation file was edited. All
+      "patched" estimator.py / selftest.py reconstructions used for
+      verification are held ONLY in this directory as scratch evidence,
+      never written back over the real implementation files. No commit
+      was made by this session (commits are the Coordinator's ledger-
+      archive task).
+
+  model_provenance:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    runtime: claude_code
+    independent_session: true
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_id_note: >-
+      Genuine self-report from this session's own runtime system context
+      ("You are powered by the model named Sonnet 5. The exact model ID
+      is claude-sonnet-5."), matching this repository's own effort table
+      (CLAUDE.md "Model policy note": red-team -> review-adversarial ->
+      xhigh) and .claude/agents/red-team.md's frontmatter. Not
+      independently probe-confirmed against orchestration/model-
+      bindings.yaml (no live backend probe tool is on this session's
+      surface); this matches the same disclosed, structural limitation
+      both the round-1 reports and the amendment-v3-review recorded, not
+      a new gap introduced here.
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements: []
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/report.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/patched_estimator.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/full_patched_estimator_v3only.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/full_patched_selftest.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/full_patched_selftest_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change5_verify.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change5_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_seed_collision_check.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_seed_collision_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_power_check_timing.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_power_check_timing_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change7_ancestor_check_gap_demo.sh
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change7_ancestor_check_gap_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/stage2_static_provenance_break.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/stage2_static_provenance_break_output.txt

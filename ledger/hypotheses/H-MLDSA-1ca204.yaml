@@ -1,0 +1,441 @@
+hypothesis:
+  id: H-MLDSA-1ca204
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  derived_from_idea: IDEA-20260821-4c0246
+  added: '2026-08-25'
+  statement: >-
+    Define W(N) as the expected number of hash evaluations needed to produce a
+    valid forgery against ANY of N independently generated ML-DSA public keys by
+    the hash arm of SelfTargetMSIS, and define the multi-target amortisation
+    exponent alpha by W(N) proportional to N^{-alpha}. The claim is that
+    alpha = 0 for ML-DSA's hash arm, and that this follows from a DERIVABLE
+    INTEGER rather than a probabilistic argument: a hash evaluation can be
+    scored against more than one target only if some prefix of its input is
+    target-independent, and in ML-DSA the commitment hash is
+    c-tilde = H(mu || w1) with mu = H(tr || M), tr = H(pk), and
+    w1 = HighBits(A y - c t), so both operands are functions of the target's own
+    public key and the per-target material occupies the FIRST absorbed bytes.
+    THE SHARED SPONGE ABSORB PREFIX IS THEREFORE ZERO BYTES LONG. The
+    hypothesis is that the derived byte count (zero) and the measured exponent
+    (zero) agree, while the SAME harness recovers alpha = 1 on generic
+    multi-target preimage search where the shared prefix is full-length, and
+    while a pricing variant with tr removed and A shared across keys returns a
+    materially LARGER alpha - so the prefix object, not the scheme, is what
+    controls the exponent.
+  mechanism: >-
+    Generic multi-target preimage search over N targets has alpha = 1 exactly
+    because the target enters only at the COMPARISON: one squeeze is computed
+    and then matched against a sorted table of all N targets, so the per-target
+    marginal cost of a hash evaluation falls to a table lookup. The structural
+    precondition for that is a non-empty target-common input prefix, which lets
+    one sponge absorb state serve every target. ML-DSA's commitment hash denies
+    that precondition by ORDERING: mu carries tr = H(pk) and w1 carries A and t,
+    so the very first absorbed block already differs per target and no absorb
+    state can be shared. The mechanism is therefore a projection of the whole
+    attack trial - (y, c, w1, mu, c-tilde', the accept bit) - onto a single
+    sponge state plus a residual byte count, with the propagation law "prefix
+    state P_i after block i remains shared if and only if block i is identical
+    across all N targets". That projection is strongly lossy (from the shared
+    prefix state one cannot recover y, c, w1, or which target was attacked), and
+    the discard is exactly the part a batching adversary must recompute per
+    target, which is why the retained part is the right object. The one-step
+    observable is the number of leading target-common blocks; in ML-DSA it is
+    zero, in the control it is full-length, and the two fitted exponents must
+    match those two byte counts.
+  assumptions:
+    - >-
+      A reduced parameter set exists with log2|B_tau| in [22, 26] retaining the
+      four rejection gates, the beta = tau*eta relation, and the
+      mu = H(tr || M) / c-tilde = H(mu || w1) input ordering. If no such set
+      also preserves the arm ratio, this hypothesis still stands - its claim is
+      about the INPUT ORDERING of a hash, preserved by construction - but any
+      transfer of a RATIO between the lattice and hash arms is forfeited.
+    - >-
+      THE IMPLEMENTER GENUINELY ATTEMPTS A BATCHED FORGER rather than a
+      per-target loop. A measured alpha = 0 from an unbatched implementation is
+      worthless. This is why the forced-alpha = 1 control must be written FIRST,
+      in the same harness, and must reach alpha = 1 before any headline arm runs.
+    - >-
+      Hash evaluations, not wall time, are the primary cost unit. Wall time is
+      recorded alongside as secondary because table lookups at N = 1024 are not
+      free and must not be mistaken for an exponent.
+    - >-
+      The N public keys are generated independently with independent rho,
+      matching FIPS 204 key generation.
+    - >-
+      THE LATTICE ARM IS NOT MEASURED and nothing is asserted about its alpha.
+      Because A is expanded from a per-key 32-byte seed rho, the N instances
+      share no lattice, but that is an observation of no identified shared
+      structure, not a measurement. If the lattice arm amortised and the hash arm
+      did not, the binding-arm identity would move with N - which is the
+      successor question, named and left open.
+  proof_search_map:
+    bottleneck: >-
+      The per-target marginal cost of one hash evaluation in a batched hash-arm
+      attack - the step whose removal (by making one evaluation score against
+      all N targets) would change the cost from N^0 to N^{-1}.
+    baseline_embedding:
+      parameter_slice: >-
+        N = 1 must reproduce the single-target hash-arm cost |B_tau| exactly, in
+        hash evaluations, at the reduced parameters.
+      reproduction_check: >-
+        Frozen regression fixture - at the reduced parameters the mean number of
+        hash evaluations to a certified forgery at N = 1 must equal
+        2^{log2|B_tau|} within the 30-repetition interval, with |B_tau|
+        RECOMPUTED from (n, tau) in the fixture rather than read from any prior
+        record. A curve that merely looks flat is not a reproduction.
+    observation_collision:
+      observable: >-
+        The fitted exponent alpha in W(N) proportional to N^{-alpha}, together
+        with the derived shared-absorb-prefix length in bytes.
+      distinct_preimage_search: >-
+        TWO DISTINCT GROUND TRUTHS GIVE alpha = 0 - (i) no batching structure
+        exists, the intended conclusion, and (ii) batching structure exists but
+        the implementer did not find it. These are OBSERVATIONALLY IDENTICAL and
+        the experiment cannot separate them. This is a real identifiability
+        failure, disclosed rather than discovered: it is why the prefix-length
+        derivation is reported beside the exponent and why the pricing variant is
+        mandatory. The additional separating condition is the byte count -
+        alpha = 0 with a zero-byte shared prefix is consistent with (i);
+        alpha = 0 with a LARGE shared prefix in the pricing variant indicates
+        (ii) and voids the headline.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The shared sponge absorb prefix, moving "does the hash arm amortise"
+          into "is there a non-empty target-common input prefix", where the
+          hypothesis is an exact equality of byte strings rather than a
+          probabilistic claim.
+        predicted_gain: >-
+          Converts an unbounded search over attack strategies into a finite
+          checkable integer plus one measured exponent. The gain is DIAGNOSTIC,
+          not computational - no speedup is claimed.
+    quantifier_order: >-
+      For all reduced parameter sets in the declared family, for all N on the
+      declared ladder, there EXISTS no batched hash-arm forger IN THE DECLARED
+      STRATEGY CLASS whose expected hash-evaluation count is below
+      (1/2) * |B_tau|. The existential is over IMPLEMENTED strategies in a NAMED
+      class, not over all algorithms. The claim is deliberately not uniform over
+      all adversaries and must never be restated as if it were.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Within the declared strategy class and at the reduced parameters, the
+        measured amortisation exponent of the hash arm is alpha with interval
+        [a, b], while the same harness recovers alpha = 1 on a problem where it
+        is forced." Nothing about FIPS 204 parameters, and nothing about
+        strategies outside the class.
+      nearby_object_control: >-
+        The pricing variant with tr removed and A shared is the nearby object on
+        which the hoped-for conclusion (alpha = 0) is expected to FAIL. A method
+        returning alpha = 0 for BOTH has not identified the load-bearing
+        structure and its headline is withdrawn.
+    proof_obligations:
+      - claim: 'The shared absorb prefix of c-tilde = H(mu || w1) across independently generated keys is zero bytes.'
+        responsibility: correctness
+      - claim: 'At N = 1 the harness reproduces |B_tau| expected hash evaluations to a certified forgery.'
+        responsibility: baseline
+      - claim: 'The harness recovers alpha = 1 on generic multi-target preimage search within [0.9, 1.1].'
+        responsibility: feasibility
+      - claim: 'Every accepted forgery verifies under an independent verifier implementation.'
+        responsibility: correctness
+      - claim: 'The 30-repetition ensemble at each N is reported as an interval, not a point.'
+        responsibility: success_probability
+      - claim: 'No statement about FIPS 204 parameters follows from any reduced-parameter result.'
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim:
+    problem: >-
+      Multi-target forgery against N independently generated ML-DSA public keys
+      via the hash arm of SelfTargetMSIS.
+    prior_best: >-
+      |B_tau| hash evaluations PER TARGET, i.e. the per-target accounting
+      implicit in the ML-DSA specification, which assumes alpha = 0 and has never
+      measured it.
+    time_exponent: >-
+      alpha = 0 predicted, in the number of TARGETS N, not in the security
+      parameter. W(N) proportional to |B_tau| * N^{-alpha}.
+    memory_exponent: >-
+      O(N) target-derived table entries for the batched forger, i.e. 2^10 at the
+      top of the declared ladder - negligible at measured scale. Were alpha > 0
+      ever found, the O(N) memory must be charged against the time saved and
+      reported as a triple, never as a time figure alone.
+    hidden_cofactor: >-
+      The o(1) hides THE STRATEGY CLASS. "alpha = 0" is a statement about the
+      strategies an implementer wrote inside a bounded budget, and the gap
+      between that and "no batched strategy exists" is neither small nor
+      measured. It also hides the toy-to-FIPS transfer of a scaling exponent - an
+      exponent measured over N in [1, 1024] at |B_tau| = 2^24 need not persist at
+      |B_tau| = 2^192.76, and nothing here forces it to.
+    claim_kind: cofactor_improvement
+    claim_kind_note: >-
+      RECORDED FOR SHAPE, NOT AS AN IMPROVEMENT. No improvement over any
+      published algorithm is claimed here in any direction. The block is filled
+      because the hypothesis measures an EXPONENT (alpha, in the number of
+      targets) and the target-result profile requires an exponent under
+      discussion to be stated with its prior best, its memory cost and its
+      hidden cofactor. The predicted value alpha = 0 leaves the incumbent
+      per-target accounting exactly where it stands; sota_delta is 0 bits. Only
+      the falsifying outcome - a measured alpha above 0.1 - would describe a
+      cofactor movement, and even then it would be a movement at reduced
+      parameters inside a named strategy class, requiring attribution to a named
+      batching mechanism before any interpretation.
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        At the reduced parameters, for uniformly random (y, c) and a fixed
+        target, the event
+        SampleInBall(H(mu || HighBits(A y - c t))) = c occurs with probability
+        1/|B_tau|, uniformly over targets and independently across trials.
+      random_model_justification: >-
+        The rigorous ingredient is the flatness of SampleInBall's fibres -
+        c-tilde has 2*lambda bits and B_tau has 2^{log2|B_tau|} elements with
+        log2|B_tau| < 2*lambda at every FIPS 204 category (192.760 < 256,
+        225.345 < 384, 257.015 < 512), so the fibres of SampleInBall have mean
+        size 2^{2*lambda - log2|B_tau|} and, under a random-function model for
+        SHAKE, are Poisson-concentrated around it; the min-entropy deficit
+        relative to log2|B_tau| is of order 2^{-63} at ML-DSA-44 and smaller at
+        65 and 87. The classical statement imitated is the
+        balls-in-bins/Poissonisation law for a random map from 2^{2*lambda}
+        inputs onto 2^{log2|B_tau|} outputs.
+      supporting_results:
+        - >-
+          log2|B_tau| = 192.760 / 225.345 / 257.015 at ML-DSA-44 / 65 / 87, cited
+          to IDEA-20260805-5194f9 and NOT independently recomputed by that
+          record; any derived experiment must recompute it from the parameters.
+        - >-
+          RECALLED - the balls-in-bins / Poissonisation law for a random map,
+          used as the classical statement being imitated.
+      validation_experiment_ids:
+        - EXP-MLDSA-e034e1
+      falsification_condition: >-
+        The exhaustively enumerated fibre-size histogram of SampleInBall at the
+        reduced parameters departs from the Poisson prediction with the matching
+        mean, or the directly estimated per-trial acceptance rate over 10^7
+        trials differs from 1/|B_tau| beyond its sampling interval.
+    - id: HEUR-002
+      formal_statement: >-
+        The number of hash evaluations to the first certified forgery at N
+        targets is geometric with success parameter N-dependent only through the
+        incidence structure of the batched search, so that log E[W(N)] is linear
+        in log N with slope -alpha over the declared ladder.
+      random_model_justification: >-
+        Imitates the standard geometric model for independent Bernoulli search
+        trials. Its rigorous support is that under HEUR-001 each trial succeeds
+        independently, and that the only N-dependence a batched strategy can
+        introduce is the number of targets one trial is scored against.
+      supporting_results:
+        - >-
+          Internal - the geometric model for independent Bernoulli trials,
+          conditional on HEUR-001. No external citation claimed.
+      validation_experiment_ids:
+        - EXP-MLDSA-e034e1
+      falsification_condition: >-
+        The log-log regression slope differs between the two halves of the
+        ladder, or the residuals show structure - in which case the power law is
+        wrong and NO single alpha may be reported.
+  structural_ingredients:
+    - description: >-
+        FIPS 204 parameters tau = 39 / 49 / 60 and lambda = 128 / 192 / 256 at
+        ML-DSA-44 / 65 / 87, giving |B_tau| = 2^tau * C(256, tau) and a
+        commitment hash of 2*lambda bits.
+      citation: NIST FIPS 204 initial public draft (ipd)
+      provenance: retrieved
+      verified_by: >-
+        idea-generator@2026-08-21, fetched from nvlpubs.nist.gov. FIDELITY
+        CAVEAT carried forward - the table came from the fetch tool's
+        summarisation of the PDF, from the INITIAL PUBLIC DRAFT, not a byte-level
+        read of the final FIPS 204.
+      role: scale of the hash arm the surrogate must shrink
+    - description: >-
+        The IETF ML-DSA security-considerations draft discusses EUF-CMA and says
+        nothing about per-key versus per-target claims - a NEGATIVE retrieval
+        result, recorded as such and NOT as evidence that no such analysis
+        exists elsewhere.
+      citation: draft-connolly-cfrg-ml-dsa-security-considerations-02
+      provenance: retrieved
+      verified_by: idea-generator@2026-08-21, fetched from ietf.org
+      role: shows the question is unanswered where practitioners are pointed
+    - description: >-
+        Generic multi-target preimage / batch key search - finding a preimage for
+        any of N targets costs 2^n / N hash evaluations via a sorted table, i.e.
+        amortisation exponent exactly 1, when the target enters only at the
+        comparison.
+      citation: Biham batch key search; Chatterjee-Menezes-Sarkar multi-user framework
+      provenance: recalled
+      verified_by: null
+      role: >-
+        the forced-alpha = 1 control; RECALLED only, which is why the control
+        re-establishes it empirically rather than relying on the recollection
+    - description: >-
+        Nearest internal neighbour on the amortisation-method axis - one BKZ
+        reduction amortised over L candidate challenges within ONE key, with a
+        null forcing the gain to zero. Different shared object (a lattice, not a
+        sponge state) and different dial (L, not N).
+      citation: IDEA-20260808-c1abd1
+      provenance: internal
+      verified_by: idea-generator@2026-08-24, read in repository with context
+      role: prior-art discrimination; a reviewer should read it first
+    - description: >-
+        A sensitivity demonstration must name its comparator and a numeric
+        threshold before the run; a generated comparator must be drawn at least 8
+        times and reported as an interval; the forced value must be derived
+        before measuring.
+      citation: KN-TECH-1a5b7e
+      provenance: internal
+      verified_by: idea-generator@2026-08-21, re-read in full 2026-08-24
+      role: governs the forced-one control and the ensemble reporting
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: 'fitted amortisation exponent alpha for the ML-DSA-shaped hash arm over N in {1,...,1024}'
+      direction: different
+      minimum_effect: 'predicted 0.00; a fitted alpha whose interval excludes 0 by more than 0.10 is the positive finding'
+    - metric: 'fitted alpha for the generic multi-target preimage control'
+      direction: higher
+      minimum_effect: '0.90 - must land in [0.9, 1.1] or no alpha is reported anywhere'
+    - metric: 'shared target-common absorb prefix length, in bytes, for the ML-DSA-shaped arm'
+      direction: lower
+      minimum_effect: '0 bytes exactly'
+    - metric: 'fitted alpha for the pricing variant (tr removed, A shared)'
+      direction: higher
+      minimum_effect: '0.10 above the headline arm, or the framing is falsified'
+    - metric: 'mean hash evaluations to certified forgery at N = 1, divided by 2^{log2|B_tau|}'
+      direction: different
+      minimum_effect: 'within the 30-repetition interval of 1.0'
+  test_boundary:
+    instances:
+      - >-
+        one reduced ML-DSA-shaped parameter set with log2|B_tau| about 24,
+        n = 64, (k, l) = (2, 2), an NTT-friendly q
+      - >-
+        a generic multi-target preimage problem over N random 2*lambda'-bit
+        targets, as the forced-alpha = 1 control
+      - >-
+        a pricing variant with mu a global constant (tr binding removed) and all
+        N keys sharing one matrix A
+    parameters:
+      n_ladder: '{1, 2, 4, 16, 64, 256, 1024}'
+      repetitions_per_N: 30
+      forced_control_threshold: '[0.9, 1.1]'
+      primary_cost_unit: hash evaluations
+    implementation: >-
+      Reduced-parameter ML-DSA with a hash-arm forger that repeatedly draws
+      (y, c), computes w1 = HighBits(A y - c t), computes c-tilde' = H(mu || w1),
+      and accepts when SampleInBall(c-tilde') equals c and the norm predicates
+      hold. Every accepted output is emitted as a FORGERY CERTIFICATE and
+      independently re-verified by a SEPARATE verifier implementation per
+      docs/claims-and-verification.md. The batched forger must explicitly attempt
+      shared y, shared c, shared sponge state and a sorted table of
+      target-derived values.
+    budget:
+      estimated_wall_clock_seconds: 3600
+      note: >-
+        At log2|B_tau| about 24, order 2^25 hash evaluations per repetition
+        summed over the ladder - well under one hour of single-core compute in a
+        compiled inner loop. The parent declares implementation medium, compute
+        low.
+  distinguishable_outcomes:
+    - outcome: >-
+        The control recovers alpha in [0.9, 1.1]; the N = 1 baseline reproduces
+        |B_tau|; the headline arm returns alpha = 0 with an interval containing
+        0 and a derived shared prefix of 0 bytes; the pricing variant returns
+        alpha at least 0.10 higher.
+      means: >-
+        The tr/w1 binding is load-bearing on the multi-target axis and its worth
+        is now PRICED in fitted alpha and in bytes of shared prefix, rather than
+        asserted. The standard's per-target accounting multiplies, as it
+        implicitly assumes, and that assumption is now a measured number with an
+        instrument behind it. NO new security claim follows.
+    - outcome: >-
+        The control does NOT recover alpha in [0.9, 1.1].
+      means: >-
+        The harness cannot detect amortisation and NO alpha is reported for any
+        arm. Instrument failure, not evidence about ML-DSA.
+    - outcome: >-
+        The N = 1 baseline does not reproduce |B_tau| within its interval.
+      means: >-
+        The forger is not implementing the hash arm at all. Nothing downstream is
+        reportable and the deliverable is a defect report.
+    - outcome: >-
+        The pricing variant returns the same alpha as the headline arm.
+      means: >-
+        The shared-prefix object does NOT control the exponent and the framing is
+        FALSIFIED - that is the recorded finding. The likeliest cause, named in
+        advance, is that removing tr still leaves w1 target-dependent through t,
+        so the shared prefix stays short even there; the redesign (sharing t as
+        well) is itself part of the deliverable.
+    - outcome: >-
+        The derived prefix byte count and the measured exponent disagree - zero
+        bytes with alpha above 0.1, or a large shared prefix with alpha at 0.
+      means: >-
+        The tracked object is wrong, not the scheme. The projection does not
+        capture what controls amortisation and the framing must be rebuilt.
+    - outcome: >-
+        The ML-DSA-shaped arm returns a fitted alpha above 0.1 with the control
+        and baseline both passing.
+      means: >-
+        AN UNNOTICED BATCHING STRUCTURE EXISTS at the reduced parameters, making
+        the published per-target hash-arm figure optimistic by a factor up to
+        N^alpha at deployment scale. This must be attributed to a NAMED batching
+        mechanism before any interpretation; an unattributed positive alpha is an
+        implementation bug until shown otherwise, and it demands independent
+        replication before any record states it.
+    - outcome: >-
+        Any emitted forgery fails the independent verifier.
+      means: >-
+        The run is VOID under docs/claims-and-verification.md. No exponent, in
+        any arm, may be reported.
+  prior_evidence_refs:
+    - RQ-MLDSA-001
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-001
+    - IDEA-20260821-4c0246
+    - IDEA-20260801-008
+    - IDEA-20260805-5194f9
+    - IDEA-20260808-c1abd1
+    - H-MLDSA-d1e509
+    - KN-TECH-1a5b7e
+    - KN-LIT-4f3b80
+    - docs/claims-and-verification.md
+  falsification_conditions:
+    - 'The control arm does not recover alpha in [0.9, 1.1]: the harness cannot detect amortisation and NO alpha is reported for any arm.'
+    - 'The N = 1 baseline does not reproduce |B_tau| within its interval: the forger is not implementing the hash arm and nothing downstream is reportable.'
+    - 'The pricing variant returns the same alpha as the headline arm: the shared-prefix object does not control the exponent, the framing is falsified, and that is the recorded finding.'
+    - 'The derived prefix byte count and the measured exponent disagree: the object is wrong, not the scheme.'
+    - 'Any emitted forgery fails the independent verifier: the run is void under docs/claims-and-verification.md.'
+    - 'A fitted alpha above 0.1 for the ML-DSA-shaped arm is the POSITIVE outcome and must be attributed to a named batching mechanism before any interpretation.'
+  interpretation_limits:
+    - >-
+      The claim is over a NAMED STRATEGY CLASS, not over all adversaries. A
+      measured alpha = 0 does not prove no batched attack exists.
+    - >-
+      TOY TIER ONLY. FIPS 204 has log2|B_tau| = 192.760 / 225.345 / 257.015; the
+      surrogate is about 24, roughly 150 orders of magnitude smaller. No forgery,
+      cost or arm-ordering statement transfers.
+    - >-
+      The lattice arm is not measured. Any statement about which arm binds as N
+      grows requires the lattice arm's exponent, explicitly left open.
+    - >-
+      A negative (alpha = 0) is a SCOPED CONFIRMATION that the per-target
+      accounting multiplies - what the standard implicitly assumes. It adds a
+      number and an instrument, not a new security claim, and sota_delta is
+      exactly 0 bits against the incumbent accounting.
+    - >-
+      The corpus screen behind the parent's novelty_status is bounded by a tool
+      truncation the parent records: "no internal record turns the N dial" is a
+      screen result over the ML-DSA lane, not a proof over the whole ledger.
+      External novelty is NOT established - two web searches is a screen, not a
+      survey, and alpha = 0 for ML-DSA's hash arm may well be folklore.
+    - >-
+      Choosing tau small enough to exhaust the challenge space may make the norm
+      gates behave unlike FIPS 204. That is a scope limit on any statement about
+      the ARMS, though not on the prefix-ordering claim.
+    - >-
+      A batching structure could exist that depends on parameter sizes and
+      appears only at large tau. The toy scale cannot see it, and absence at toy
+      scale is not concluded to be absence.
+  status: proposed
+  proposed_by: idea-generator

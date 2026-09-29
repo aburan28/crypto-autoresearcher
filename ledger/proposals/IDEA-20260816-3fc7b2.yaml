@@ -1,0 +1,230 @@
+idea:
+  id: IDEA-20260816-3fc7b2
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Restate a parameter change as an operation count rather than a bit count: for a grid of
+    secret densities and modulus chains, count the homomorphic multiplications and rotations a fixed
+    bootstrapping-shaped pipeline consumes, and report the elasticity of that count with respect to
+    the parameter being changed.'
+  class: composition
+  claim: '(A) Sparse secrets exist in FHE parameter sets because they make bootstrapping affordable,
+    so any proposal to change a parameter set has two sides: whatever it does on the security side,
+    and what it costs on the evaluation side. RQ-FHE-001 states this explicitly as one of its five
+    targets. The claim is that the evaluation side can be made a counted quantity rather than a rhetorical
+    one, without benchmarking anything: for a fixed bootstrapping-shaped pipeline (a linear transform,
+    a polynomial evaluation of stated degree, a second linear transform), the number of homomorphic
+    multiplications, rotations and key switches is a deterministic function of the ring degree, the
+    sparsity, the polynomial degree and the level budget, and can be counted exactly by instrumenting
+    a symbolic evaluator. (B) The claim is that the useful output is an elasticity: the fractional
+    change in operation count per fractional change in the parameter, computed across a grid, so that
+    a hypothetical parameter change can be quoted in operations rather than in adjectives. (C) NOT
+    CLAIMED: no timing, no throughput, no library comparison, no claim that any parameter change is
+    needed, and no security statement whatsoever. Operation counts are not run times and the two are
+    not interchangeable; the contract measures counts precisely because counts are implementation-independent
+    while times are not, and it states that the translation to time is not attempted.'
+  mechanism: 'STAGE 1 defines the pipeline shape symbolically: a linear transform implemented as a
+    baby-step giant-step rotation set, a polynomial evaluation of stated degree by a Paterson-Stockmeyer-shaped
+    schedule, and a second linear transform. Only the shape matters, since the counts are shape-determined.
+    STAGE 2 implements a symbolic evaluator that executes the pipeline over a token type carrying
+    only a level index, incrementing counters for multiplications, rotations, key switches and levels
+    consumed. Nothing is encrypted and nothing is computed numerically, which is what makes this cheap
+    and implementation-independent. STAGE 3 sweeps the grid: ring degree, secret Hamming weight, polynomial
+    degree, and modulus chain length, recording the four counts and the levels consumed at each point.
+    STAGE 4 computes the elasticity of each count with respect to each parameter by finite differences
+    on the grid, with the grid spacing chosen so the differences are resolvable. STAGE 5 runs the
+    null: a pipeline of the same shape whose parameter dependence is deliberately removed (fixed rotation
+    set, fixed polynomial degree), for which every elasticity must be zero; a nonzero elasticity there
+    means the counter is picking up something other than the parameter. The negative outcome, an elasticity
+    indistinguishable from zero across the grid, would say the evaluation side is insensitive in this
+    range and is a usable measured statement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -rl 'RQ-FHE-001' ledger/proposals/; grep -ril 'bootstrap' over ledger/proposals/
+      and inspected the hits; grep -ril 'sparse secret|Hamming weight' over ledger/ and knowledge/;
+      ls experiments/ | grep -i fhe; read RQ-FHE-001's targets (whose fourth is the induced bootstrapping
+      cost of any parameter repair) and KN-OPEN-026 Q3 on whether sparse-secret concentration is essential
+      or incidental.
+    results: 'RQ-FHE-001''s fourth stated target is exactly this coupling: ''sparse secrets exist
+      to make bootstrapping cheap, so any parameter repair must be costed as a bootstrapping slowdown,
+      not reported as a bit count alone''. It has no proposal addressing it; the question''s only
+      proposal, IDEA-20260807-a06996, is a shipped-parameter census that explicitly declares running
+      anything off-limits. All ''bootstrap'' hits in ledger/proposals/ (IDEA-20260816-f49ad1, IDEA-20260809-2ba70c,
+      IDEA-20260807-59fed3, IDEA-20260807-d53a93, IDEA-20260816-98ab8e, IDEA-20260731-014) are statistical
+      bootstrap resampling, not FHE bootstrapping. KN-OPEN-026 asks whether the sparse-secret concentration
+      is essential or incidental but poses it as a question about attack mechanisms, not about evaluation
+      cost. KN-TECH-082 notes that sparsity is why the hybrid family bites on FHE parameters, again
+      attack-side. No experiments/EXP-FHE-* exists.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature, where operation counting
+      for bootstrapping pipelines is very plausibly standard practice. What is claimed new is internal:
+      RQ-FHE-001''s own fourth target has no proposal attached, and the specific move of reporting
+      the coupling as an elasticity of counted operations, with a parameter-independent null pipeline
+      whose elasticities must all be zero, is assembled from a standard symbolic-evaluator technique
+      and this program''s null-object rule.'
+  object_first_candidate:
+    tracked_object: The vector of counted homomorphic operations (multiplications, rotations, key
+      switches, levels consumed) for a fixed bootstrapping-shaped pipeline, and its elasticity with
+      respect to each swept parameter.
+    lossiness: 'Genuinely lossy. The full object is an entire evaluation with its ciphertexts, noise,
+      plaintexts and timings; the tracked object retains four integers per grid point. Discarded:
+      every value, all noise, all correctness, and all timing. What survives propagates because the
+      counts are determined by the pipeline''s control flow, which the symbolic evaluator reproduces
+      exactly while carrying no data: the retained coordinate has a composition rule (counts add over
+      composed pipelines) matching the operation being tracked. It is not a coordinate change, since
+      no evaluation can be reconstructed from four counters, and that is precisely the point: the
+      counters are implementation-independent in a way the evaluation is not.'
+    propagation: Composing two pipeline stages adds their counters and their level consumption. Increasing
+      the polynomial degree increases multiplications roughly as its square root under a Paterson-Stockmeyer-shaped
+      schedule and increases level consumption logarithmically. Increasing the ring degree changes
+      the rotation set size of the linear transforms as a baby-step giant-step split of the slot count.
+      Decreasing sparsity changes the polynomial degree needed for the same approximation quality,
+      which is the coupling the whole contract exists to count, and that dependence must be supplied
+      as a declared modelling input rather than derived here.
+    survival_score: 'The counts are exact and do not dissolve. What limits the object is the grid''s
+      range: elasticities computed over a two-fold parameter range are local, and the contract reports
+      them as local rather than extrapolating. The elasticity ceases to be meaningful once a parameter
+      change alters the pipeline''s shape rather than its parameters, and identifying where that happens
+      on the grid is part of the output.'
+  null_object_control: 'Null arm: a pipeline of the identical shape whose parameter dependence has
+    been removed by hard-coding the rotation set size and the polynomial degree, so that every elasticity
+    with respect to every swept parameter must be exactly zero. The same symbolic evaluator and the
+    same finite-difference code run on it in the same invocation. For the signal arm to mean anything
+    the null must return exact zeros; a nonzero elasticity in the null means the counter or the differencing
+    is picking up something other than the parameter, and no signal number is usable. This is a null
+    that must MATCH a known value rather than a distribution, which is the right null for a counting
+    instrument.'
+  discriminated_from:
+  - IDEA-20260807-a06996 (RQ-FHE-001) censuses shipped parameter tuples and runs nothing; this counts
+    operations for a pipeline shape and reads no library.
+  - 'A library speed benchmark, which this bucket''s AVOID list rules out: no wall-clock time is measured,
+    no library is executed, and the counts are implementation-independent by construction.'
+  - Entry 4 of this bucket locates the level at which correctness fails; this counts the operations
+    a bootstrapping-shaped pipeline consumes and never evaluates correctness or noise at all.
+  - KN-TECH-082's account of why sparsity matters is attack-side; this is entirely evaluation-side
+    and produces no bit count.
+  - Entry 6 of this bucket counts SAMPLES published by a circuit; this counts OPERATIONS consumed
+    by a pipeline. The two counters have different inputs, different conventions and different consumers.
+  assumptions:
+  - The pipeline's shape can be fixed in a way that is representative enough for counts to be reusable,
+    which is a modelling choice and is declared as one.
+  - The dependence of the required polynomial degree on secret sparsity must be supplied as a declared
+    input; it is not derived here and the contract is honest that its absence is the design's largest
+    hole.
+  - A symbolic evaluator carrying only level indices reproduces the control flow exactly, which is
+    asserted by running it alongside a real toy evaluation on one grid point and requiring identical
+    counts.
+  - Elasticities computed by finite differences over the grid spacing are resolvable, i.e. the counts
+    change by more than one unit between adjacent grid points.
+  predictions:
+  - metric: elasticity of multiplication count with respect to polynomial degree
+    direction: higher
+    minimum_effect: 0.4, i.e. a 10 percent increase in polynomial degree raises the multiplication
+      count by at least 4 percent, consistent with a square-root-shaped schedule
+  - metric: every elasticity in the parameter-independent null pipeline
+    direction: different
+    minimum_effect: exactly 0; any nonzero value invalidates the instrument
+  - metric: elasticity of rotation count with respect to ring degree
+    direction: higher
+    minimum_effect: 0.3, reflecting the baby-step giant-step split of a growing slot count
+  - metric: elasticity of total operation count with respect to secret Hamming weight
+    direction: higher
+    minimum_effect: 'refusal to pre-commit: this elasticity is entirely determined by the declared
+      sparsity-to-polynomial-degree input, which the contract does not derive, so pre-committing a
+      value would be pre-committing that input''s shape'
+  minimal_test:
+    design: 'Fix the pipeline shape, implement the symbolic evaluator with four counters, and sweep
+      a 4-by-4 grid of polynomial degree and ring degree at fixed sparsity, recording counts at each
+      point. Compute elasticities by central differences. Run the parameter-independent null pipeline
+      over the identical grid and require exact zeros everywhere. Validate the symbolic counter against
+      a real toy evaluation at one grid point, requiring identical counts. Seconds of compute, a day
+      of implementation. This discriminates because the whole proposal rests on the counts being parameter-sensitive
+      and instrument-clean: if the null returns nonzero elasticities the instrument is broken and
+      nothing else matters; if the null is clean and the signal elasticities are resolvable, the elasticity
+      table exists and is reusable; if the signal elasticities are all within differencing noise,
+      the evaluation side is insensitive over this range and that is a measured statement worth recording.
+      The sparsity axis is deliberately excluded from the minimal test because it depends on an input
+      the contract does not supply.'
+    controls:
+    - Parameter-independent null pipeline where every elasticity must be exactly zero.
+    - Validation of the symbolic counter against a real toy evaluation at one grid point, requiring
+      identical counts.
+    - Degenerate pipeline of a single multiplication, where the counts are known by inspection.
+    - Two grid spacings, so the finite differences can be checked for spacing sensitivity.
+    - Counts reported per stage as well as in total, so a spurious total cannot hide a miscount in
+      one stage.
+    required_metrics:
+    - homomorphic multiplication count per grid point
+    - rotation count per grid point
+    - key switch count per grid point
+    - levels consumed per grid point
+    - elasticity of each count with respect to each swept parameter, by central differences
+    - the same elasticities for the parameter-independent null pipeline
+    - agreement between symbolic and real-evaluation counts at the validation point
+  falsification_conditions:
+  - Any nonzero elasticity in the parameter-independent null pipeline, which invalidates the instrument.
+  - Disagreement between the symbolic counter and the real toy evaluation at the validation point.
+  - All signal elasticities within finite-differencing noise, meaning the evaluation side is insensitive
+    over the grid, which is recorded as a measured obstruction and not as a failure.
+  - Elasticities that change sign between the two grid spacings, meaning the differencing is unresolved.
+  - Degenerate-pipeline counts disagreeing with inspection.
+  confounders:
+  - The pipeline shape is a modelling choice and a different shape gives different elasticities; nothing
+    in the contract selects a canonical shape.
+  - The sparsity-to-polynomial-degree dependence is an external input and the sparsity elasticity
+    is entirely inherited from it, so that number is only as good as the input.
+  - Counts are not times, and a reader may translate them anyway; the contract states the non-translation
+    explicitly for that reason.
+  - Grid spacing chosen too fine makes integer counts change by zero between points and the elasticity
+    reads as zero spuriously.
+  - Baby-step giant-step splits are integer-optimised, so counts can move non-monotonically with ring
+    degree and confound a smooth elasticity.
+  interpretation_limits:
+  - Operation counts are implementation-independent and therefore say nothing about run time, throughput,
+    or any library's performance.
+  - Elasticities are local to the swept grid and are not extrapolated.
+  - No security statement of any kind is supported, and the contract deliberately never computes a
+    bit count so that none can be paired with these numbers by accident.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The symbolic evaluator is linear in the pipeline's
+      operation count.
+    memory_exponent: No attack memory exponent is claimed. Four counters and a grid.
+    best_known: The incumbent is quoting a parameter change as a bit count with the evaluation cost
+      described qualitatively. This beats no attack; it replaces the qualitative half with counted
+      operations and an elasticity.
+    hidden_overhead: The sparsity-to-polynomial-degree input is the hidden term and it carries the
+      whole sparsity elasticity; the human cost hides in choosing a pipeline shape that a reviewer
+      will accept as representative, which no measurement in the contract can settle.
+  dominated_by: 'n/a (no result claimed). Checked: the contract produces no attack cost along time,
+    memory or data/queries; no FHE experiment directory exists in this repository; and operation counts
+    for an evaluation pipeline do not appear on any attack frontier, so there is no row to be dominated
+    by.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is an elasticity of
+    counted operations, in units no attack cost uses and which the contract explicitly refuses to
+    translate into time.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the symbolic evaluator counts correctly and matches a real evaluation
+    at the validation point: 0.85. That the null pipeline returns exact zeros: 0.9. That the polynomial-degree
+    and ring-degree elasticities are resolvable and exceed the pre-committed values: 0.7. That the
+    sparsity elasticity can be quoted at all, which requires an input the contract does not derive:
+    0.3, and this is the honest limit of the design. That a reviewer accepts the pipeline shape as
+    representative: 0.45.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - docs/target-result-profile.md
+  - AGENTS.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-ea745a

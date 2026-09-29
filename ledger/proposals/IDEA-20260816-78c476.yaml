@@ -1,0 +1,292 @@
+idea:
+  id: IDEA-20260816-78c476
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: For Argon2d the memory-access DAG is not one graph but a random variable indexed by the input;
+    measure the input-invariant skeleton -- the edges that recur across many synthetic inputs -- with
+    Argon2i, whose graph is input-independent by construction, as the perfect positive control and
+    a fresh-uniform generator as the negative one.
+  class: representation
+  claim: '(A) Every existing treatment of Argon2''s memory-access graph in this repository, including
+    H-ARGON-ef2f0b and the ten proposals under this question, treats the graph as a single fixed object.
+    For Argon2i that is exactly right: addressing is data-independent, so the graph is a function
+    of (t, m, p) alone. For Argon2d it is a category error. The reference target of block j is read
+    from the CONTENT of block j-1, so the graph is a random variable G(x) indexed by the input x,
+    and any quantity measured on one draw -- depth, live set, removal-set size -- is a sample statistic
+    whose spread nobody has measured. (B) The claim is that this random variable has a measurable
+    degenerate part: an input-invariant skeleton consisting of the chain, plus any reference edge
+    that recurs across a large fraction of independent synthetic inputs, plus more subtly the STRUCTURAL
+    invariants that hold for every draw -- the candidate window bounds, the slice-boundary resets,
+    and the position-dependent back-distance law. It is claimed that the edge-level skeleton beyond
+    the chain is small, approaching the size expected from coincidence alone, while the DISTRIBUTIONAL
+    skeleton is total: the back-distance law at position j is the same for every input even though
+    the realized edge is not. (C) It is claimed that this distinction is measurable and that it changes
+    what a single-draw measurement means: if the spread of a graph statistic across inputs is comparable
+    to the difference between Argon2d and Argon2i on one draw, then every single-draw variant comparison
+    in this lane, including the three-variant comparison GOAL-ARGON-001 names as a completion criterion,
+    is under-powered and must be re-run with input replication. (D) WHAT IS NOT CLAIMED: no claim
+    that an input-invariant skeleton enables precomputation, amortization, or any attack; no claim
+    that a large skeleton would be a weakness or a small one a strength; no claim about side-channel
+    leakage, which is a different object entirely; and no claim about deployed parameters. The deliverable
+    is a variance decomposition and a statement of how many input draws a variant comparison needs,
+    which is an instrument-validity result about this lane''s own existing plans, not a result about
+    Argon2. (E) The named way the cost model flatters the defender: an AT charge computed on one input
+    draw silently asserts that the graph is the graph, and if the across-input spread is wide the
+    charge is a point estimate reported without its error bar.'
+  mechanism: 'STAGE 1: for a declared (t, q) cell at p=1, generate N independent synthetic inputs
+    and build the Argon2d reference-target array r_x[j] for each. STAGE 2: compute the edge-recurrence
+    profile -- for each position j, the empirical distribution of r_x[j] over the N draws, its entropy,
+    and its modal mass. Any position whose modal mass materially exceeds what a uniform draw over
+    W(j) would give is a skeleton candidate, and the expected coincidence rate under the null is computable
+    in closed form from |W(j)| and N. STAGE 3: define the skeleton as the set of positions whose modal
+    mass exceeds a pre-declared threshold calibrated so that the expected number of false skeleton
+    positions under the fresh-uniform null is below one, and report its size. STAGE 4: compute, for
+    each draw, the graph statistics this lane already cares about -- native depth, live-set integral,
+    orphan fraction, and back-distance quantiles -- and report their across-input variance. STAGE
+    5: run the identical pipeline on Argon2i, where the answer is known a priori: the skeleton must
+    be the entire graph and the across-input variance must be exactly zero. That is a positive control
+    with a forced value, and any deviation is a bug in the pipeline rather than a finding. STAGE 6:
+    run the identical pipeline on a fresh-uniform generator that redraws every reference target independently
+    per input, where the skeleton must be only the chain and the variance is the null variance. STAGE
+    7: report the power calculation -- the number of input draws needed for a variant comparison to
+    resolve a difference of the size the lane''s existing predictions assume.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for consensus subgraph, data-dependent, input-invariant, skeleton across ledger/proposals/,
+      ledger/hypotheses/ and knowledge/; grep -l RQ-ARGON-141710 ledger/proposals/*.yaml and read
+      all ten titles and classes; read H-ARGON-ef2f0b in full, paying particular attention to its
+      test_boundary and interpretation_limits; read EV-ARGON-209ece in full including its unresolved_confounds
+      block; read the objective and inputs blocks of experiments/EXP-ARGON-2608c2/specification.yaml.
+    results: 'The phrase consensus subgraph returns zero hits repository-wide. The term data-dependent
+      hits IDEA-20260809-b17238 and IDEA-20260809-ac5947 under this question, plus records under other
+      questions (IDEA-20260805-2a669e, IDEA-20260816-15c21e, IDEA-20260805-96cb3d, IDEA-20260816-9a91df).
+      b17238 is the nearest: it proposes measuring all three indexing modes on one harness so the
+      tradeoff-versus-leakage exchange becomes numbers. It treats the three modes as three graphs
+      to be compared, which is precisely the framing this record says is under-specified for the two
+      data-dependent modes. H-ARGON-ef2f0b''s test_boundary specifies all three variants but declares
+      no input replication and no across-input variance metric; EXP-ARGON-2608c2 likewise constructs
+      G_real and G_unif without an input-replication axis. EV-ARGON-209ece''s unresolved_confounds
+      names the null-versus-theory gap and the declared rho thresholds but does not name input variance.'
+    verdict: 'UNVERIFIED. No claim is made about external literature; the data-dependent versus data-independent
+      distinction is manifestly part of Argon2''s public design rationale as recorded in KN-LIT-7f3c21
+      and nothing here asserts what has or has not been measured elsewhere. What is claimed new within
+      this repository is treating the Argon2d graph as an input-indexed random variable and measuring
+      its variance decomposition, with Argon2i used as a forced-value positive control. Assembled
+      from known parts: the positive control is free, the coincidence calculation is elementary combinatorics,
+      and the power calculation is standard. The contribution is noticing that this lane''s own existing
+      contracts measure a random variable with one draw.'
+  object_first_candidate:
+    tracked_object: The input-indexed reference-target array r_x[j], followed as a family over N synthetic
+      inputs x, and projected onto the per-position empirical target distribution together with its
+      modal mass and entropy.
+    lossiness: 'The projection discards block contents, discards the joint dependence between positions
+      within a single draw, and keeps only per-position marginals across draws. It is genuinely lossy
+      in a way that matters and is stated as such: two very different graph families can share per-position
+      marginals while differing in the correlations between adjacent positions, which is exactly the
+      configuration-model gap that H-ARGON-ef2f0b already records as its HEUR-002 and explicitly leaves
+      unvalidated. This record therefore does not claim the marginals determine the graph; it claims
+      the marginals are what an input-invariant skeleton can be defined on, and it reports a joint-structure
+      check -- lag-one target correlation across positions -- as a secondary metric precisely because
+      the projection throws that away.'
+    propagation: One step writes block j from blocks j-1 and r_x(j), and in Argon2d the first 64 bits
+      of block j-1's content become J1, which the RFC 9106 offset transform maps into the candidate
+      window. So the input propagates into the graph through exactly one channel per step, and that
+      channel is a compression-function output. Across the family, one step maps a distribution over
+      block contents to a distribution over targets in W(j), and the modelling heuristic that this
+      distribution is uniform on the 32-bit input to the transform is precisely H-ARGON-ef2f0b's HEUR-001,
+      recorded there as unvalidated. This record's stage 2 measures the realized target distribution
+      directly and so tests HEUR-001's downstream consequence per position rather than assuming it
+      -- which is a service to the existing hypothesis, not a competitor to it.
+    survival_score: 'Structural invariance survives the entire computation: the window bounds and
+      slice resets hold for every input at every position, without exception, by construction. Edge-level
+      invariance is predicted to survive essentially zero steps beyond the chain -- the modal mass
+      at each position should sit at the coincidence level within the first few blocks after the window
+      becomes larger than a handful. The honest statement is that the object has a total component
+      and a null component and the whole point of the measurement is to locate the boundary between
+      them, which is currently unmeasured.'
+  null_object_control: 'A fresh-uniform generator: for each of the N inputs, redraw every reference
+    target independently and uniformly from the same candidate window W(j). The skeleton-detection
+    code, the threshold, and the variance decomposition run on this null in the same invocation via
+    the identical code path. The null must show a skeleton of exactly the chain plus a number of false
+    positions consistent with the pre-computed coincidence rate, and it must show the null variance
+    against which Argon2d''s variance is compared. If Argon2d''s skeleton size and across-input variance
+    are indistinguishable from this null, the correct record is a controlled null with real content:
+    the Argon2d graph is, at the resolution of this measurement, a fresh draw per input, which is
+    a directly usable statement that fixes the number of replicates every downstream variant comparison
+    in this lane requires. Argon2i serves as the opposite control with a forced value -- skeleton
+    equal to the whole graph, variance exactly zero -- and any deviation there is a bug, not a result.'
+  discriminated_from:
+  - IDEA-20260809-b17238 compares the three indexing modes on one harness to expose the tradeoff-versus-leakage
+    exchange as numbers. It compares three graphs; this record asks whether two of those three are
+    graphs at all in the required sense, and supplies the replication count b17238 would need to be
+    powered.
+  - H-ARGON-ef2f0b and EXP-ARGON-2608c2 construct G_real per variant and compare against a window-matched
+    uniform null, with no input-replication axis and no across-input variance metric. This record
+    adds exactly that axis and does not compute rho at all.
+  - IDEA-20260809-a915ea measures depth-robustness of a single fixed DAG. This record measures the
+    spread of any such statistic across inputs, which is a property of the ensemble rather than of
+    a graph.
+  - Side-channel analysis of data-dependent addressing. No timing, no cache observation, no leakage
+    model and no adversary appears here; the object is the graph ensemble under synthetic inputs,
+    measured offline from the index arrays.
+  - Password-cracking or credential work. Inputs are synthetic random bytes generated in-run with
+    declared seeds; nothing resembling a password list, a corpus, or a guess rate exists anywhere
+    in the design.
+  assumptions:
+  - KN-LIT-7f3c21's description of Argon2d's J1 source, Argon2i's counter-driven stream, Argon2id's
+    split point, and the shared offset transform is accurate, as independently spot-checked per EV-ARGON-209ece.
+  - N independent synthetic inputs drawn from a declared PRNG are adequate proxies for the input distribution
+    for the purpose of measuring graph variance; no claim is made that they resemble any real input
+    distribution, and none is needed since the graph's dependence is through a compression function.
+  - The coincidence rate under the fresh-uniform null is computable in closed form from |W(j)| and
+    N, so the skeleton threshold can be calibrated analytically rather than by simulation -- though
+    the simulation is run anyway as a check.
+  - p=1 construction, as in the rest of this lane, with cross-lane edges excluded by construction.
+  - 'Argon2i''s forced-value control is genuinely forced: its graph depends on parameters and on H_0-derived
+    counter material only, so with parameters fixed and the same salt the graph is identical across
+    inputs. If the salt is varied the control must be re-stated, and the contract fixes salt handling
+    explicitly.'
+  predictions:
+  - metric: size of the input-invariant edge skeleton beyond the chain, for Argon2d, as a fraction
+      of q
+    direction: lower
+    minimum_effect: below 0.02, and within a factor of two of the analytically computed coincidence
+      rate for the declared N and threshold
+  - metric: across-input standard deviation of the live-set integral-to-rectangle ratio for Argon2d
+    direction: different
+    minimum_effect: 'REFUSAL TO PRE-COMMIT on magnitude: this quantity has never been measured here
+      and any number would be invented. The pre-committed comparison is relational -- it is predicted
+      to be statistically indistinguishable from the fresh-uniform null''s spread, and materially
+      larger than Argon2i''s, which is exactly zero.'
+  - metric: across-input variance of any graph statistic for Argon2i
+    direction: lower
+    minimum_effect: exactly zero, a forced value; any nonzero result is a pipeline bug and halts the
+      run
+  - metric: number of input draws needed to resolve a difference between Argon2d and Argon2i of the
+      size H-ARGON-ef2f0b's rho thresholds assume, at 80 percent power
+    direction: higher
+    minimum_effect: greater than 1, which is the number every existing contract in this lane currently
+      uses; the specific value is the deliverable and is not pre-committed
+  minimal_test:
+    design: Fix p=1, t=1, q=4096, variant Argon2d. Draw N=200 independent synthetic inputs and build
+      the reference-target array for each -- this is 200 index arrays of 4096 entries, trivially cheap.
+      Compute per-position empirical target distributions, modal masses, entropies, and lag-one target
+      correlations. Apply the analytically calibrated skeleton threshold and report skeleton size.
+      Compute four graph statistics per draw -- native depth, live-set integral ratio, orphan fraction,
+      median back-distance -- and report their across-input mean and spread. Run the identical pipeline,
+      same invocation, on Argon2i (forced zero variance) and on the fresh-uniform generator (null
+      variance and coincidence-level skeleton). Finally compute, from the observed spreads, the replicate
+      count a two-variant comparison would need at 80 percent power for effect sizes of 0.1, 0.2 and
+      0.5 in the ratio scale. The whole thing is minutes on one core; the cost is in specifying the
+      threshold and the salt handling, not in computing.
+    controls:
+    - Argon2i positive control with the forced value of exactly zero across-input variance and a whole-graph
+      skeleton.
+    - Fresh-uniform generator negative control supplying the coincidence-level skeleton and the null
+      variance.
+    - Analytically computed coincidence rate, checked against the fresh-uniform simulation, so the
+      skeleton threshold is validated in two independent ways.
+    - Salt held fixed across draws in the primary arm and varied in a secondary arm, so that the Argon2i
+      control's forced value is not silently broken by salt handling.
+    - Lag-one target correlation reported alongside the marginals, since the projection discards joint
+      structure and the discard must be visible.
+    required_metrics:
+    - skeleton size beyond the chain as a fraction of q
+    - analytically expected false-skeleton count at the declared threshold and N
+    - per-position modal mass and entropy of the target distribution
+    - across-input mean and standard deviation of native depth, live-set integral ratio, orphan fraction
+      and median back-distance
+    - lag-one target correlation across positions
+    - required replicate count at 80 percent power for three declared effect sizes
+  falsification_conditions:
+  - Argon2i shows nonzero across-input variance, which halts the run as a pipeline bug rather than
+    producing a finding.
+  - The fresh-uniform null's measured false-skeleton count disagrees with the analytic coincidence
+    rate by more than a factor of two, invalidating the threshold calibration.
+  - Argon2d's skeleton beyond the chain exceeds 0.02 of q, which would falsify the small-skeleton
+    prediction and require a completely different treatment of why particular positions recur.
+  - Argon2d's across-input spread is indistinguishable from zero, which would falsify the premise
+    that single-draw measurement is under-powered and would validate the existing contracts as written.
+  - Lag-one target correlation in Argon2d differs materially from the fresh-uniform null, which would
+    mean the per-position marginal projection is inadequate and the whole variance decomposition must
+    be redone on a joint object.
+  confounders:
+  - 'Salt handling: if salt is drawn per input, Argon2i''s graph also changes and the positive control''s
+    forced value evaporates. Fixing salt is a design choice with consequences that must be reported,
+    not hidden.'
+  - N=200 may be too small to resolve modal masses at positions where the window is small, producing
+    spurious skeleton positions early in the first pass; the analytic coincidence rate is position-dependent
+    and must be applied per position rather than globally.
+  - Argon2id mixes both regimes and its skeleton is trivially the Argon2i-style prefix; reporting
+    a single skeleton number for Argon2id without the split point is meaningless and the split must
+    be reported separately.
+  - The PRNG generating synthetic inputs, if poor, could induce correlations across draws that inflate
+    the apparent skeleton; a declared and seeded high-quality generator plus a cross-draw independence
+    check is required.
+  - Boundary positions where the window has just reset have small |W(j)| and high coincidence rates
+    by construction, and will dominate any globally thresholded skeleton.
+  interpretation_limits:
+  - A small skeleton is not evidence of strength and a large one is not evidence of weakness; the
+    measurement is about how many draws a comparison needs, not about security.
+  - Synthetic inputs measure the graph ensemble under a uniform-bytes input law; no real input distribution
+    is modelled and none is claimed.
+  - p=1 and toy q only; cross-lane structure in a real p=4 run could concentrate or disperse recurrence
+    and is untested.
+  - The per-position marginal projection discards joint structure, which the lag-one check probes
+    but does not exhaust.
+  - Nothing here concerns side-channel leakage, which is the other half of the data-dependence exchange
+    and requires an entirely different measurement.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement is O(N * t * q) integer operations.
+    memory_exponent: No attack exponent is claimed. The measurement holds N index arrays of length
+      t*q, which at the declared parameters is a few tens of megabytes.
+    best_known: The incumbent inside this repository is the single-draw treatment of the Argon2d and
+      Argon2id graphs in H-ARGON-ef2f0b, EXP-ARGON-2608c2 and IDEA-20260809-b17238; there is no incumbent
+      variance estimate because no variance has been measured. Externally the incumbent framing is
+      the data-independent versus data-dependent design distinction recorded in KN-LIT-7f3c21, about
+      whose published analysis nothing is asserted here.
+    hidden_overhead: 'The salt-handling decision is the hidden cost: it looks like a detail and it
+      determines whether the positive control exists at all. Second, the per-position coincidence
+      calculation must be done per position rather than globally, which quadruples the analysis code
+      relative to the naive version everyone writes first.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed: all ten proposals under RQ-ARGON-141710
+    were read by title and class, the single evidence record EV-ARGON-209ece contains no measurement,
+    and experiments/EXP-ARGON-2608c2/runs/ is empty, so no time, memory or data/query frontier row
+    exists under this question at all. This record additionally checked the nearest cross-question
+    rows for input-ensemble variance treatments and found none.'
+  sota_delta: 'No attack; instrument-validity and measurement contribution only. The quantitative
+    delta is a replicate count: the existing contracts in this lane use one input draw, and this record
+    delivers the number of draws required at declared power for declared effect sizes. If that number
+    is one, the delta is a validation of existing practice at zero cost; if it is fifty, every existing
+    planned comparison in the lane is under-powered by a factor of fifty in replication.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the Argon2i positive control returns exactly zero variance once
+    salt handling is fixed: high, around 0.9, since it is forced by the design. That the Argon2d edge
+    skeleton beyond the chain is at coincidence level: high, around 0.85, because the target passes
+    through a compression function. That the across-input spread of graph statistics is large enough
+    to matter for the lane''s planned comparisons: genuinely uncertain, around 0.45 -- these are averages
+    over thousands of positions and averages concentrate, so the spread may well be negligible, and
+    a negligible spread is a fully usable result that validates existing contracts. That the lag-one
+    correlation check comes back clean: around 0.7.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - H-ARGON-ef2f0b
+  - IDEA-20260809-b17238
+  - IDEA-20260812-318db8
+  - EV-ARGON-209ece
+  - experiments/EXP-ARGON-2608c2/specification.yaml
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-b1d030

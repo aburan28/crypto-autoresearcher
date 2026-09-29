@@ -1,0 +1,950 @@
+red_team_report:
+  task_id: TASK-20260826-5ee48b
+  role: red-team
+  goal_id: GOAL-MLKEM-005
+  batch_id: BATCH-762807
+  question_id: RQ-MLKEM-001
+  binding_plan: coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/review-plan/review_plan.yaml
+  assignment: coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/review-plan/assignment-TASK-20260826-5ee48b.yaml
+  opening_decision: DEC-20260824-5e222e
+  reviewed_at: '2026-08-26'
+  joints_owned:
+  - 'J4 -- the d=64 surrogate does not generalise to d=512 at mpfr_bits=100'
+  - 'J5 -- proves-too-much against BATCH-f9780d own executions, and what this batch actually buys'
+  - 'J6 -- next-run sizing from the 14448 s lower bound, computable or not'
+
+  claim_ceiling_observed: >-
+    instrument_repair, claim tier toy. Nothing in this report is evidence about ML-KEM
+    at any FIPS 203 parameter set, about lattice hardness, or about the obstruction
+    RT-CTRL-1 targets, in either direction. Every statement below about d=512 is a
+    statement about what a RECORD would or would not contain, never about a
+    mathematical outcome. No hypothesis moves and nothing here authorises any run.
+
+  what_i_did_not_do:
+  - No d=512 reduction was run at any precision under any label.
+  - No mpfr_bits=100 cell was run.
+  - >-
+    Every lattice I touched was d=64, beta=20, mpfr_bits=53, q=3329 -- the batch's own
+    acceptance scale -- in one probe, run in-process with arm_signals=False, which
+    installed no signal handler and killed nothing.
+  - >-
+    I did not supply --scale-run-authorisation and did not exercise the scale guard's
+    override.
+  - >-
+    I did not read the sibling review directory or the sibling assignment, and I did not
+    read the uncommitted scratchpad EXECUTOR_ADDENDUM.md. See attestation.yaml.
+
+  probe_artifacts_named_for_the_ledger_archive:
+    note: >-
+      DISCLOSED RATHER THAN SMOOTHED, per my assignment's
+      `additional_files_and_their_archival_status`. These are NOT among the two
+      artifact_paths declared in my committed handoff. TASK-20260826-70d800 must either
+      declare and bind them or disclose them BY NAME under `staged_not_in_binding_set`.
+      Everything load-bearing from them is reproduced inside this file, which IS a
+      declared artifact.
+    paths:
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/reviews/TASK-20260826-5ee48b/probes/probe_payload_lifetime.py
+    - coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/reviews/TASK-20260826-5ee48b/probes/probe_payload_lifetime_output.json
+    - >-
+      coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/reviews/TASK-20260826-5ee48b/probes/_probe_workdir/
+      (three files written by the instrument during my probe: probe_results.jsonl,
+      probe_stdout.log, and no probe_results.json since I called run_cell directly
+      rather than main()). Preservable or droppable at the archive's discretion; nothing
+      in this report depends on them beyond the output JSON named above.
+
+  # =====================================================================
+  # J4
+  # =====================================================================
+  J4:
+    joint: 'J4 -- the d=64 surrogate does not generalise to d=512 at mpfr_bits=100'
+    verdict: breaks
+    verdict_polarity_stated_explicitly: >-
+      READ THIS BEFORE THE VERDICT WORD. `breaks` here does NOT mean the acceptance
+      board is wrong. All six PASSes are correctly reported AT d=64, beta=20,
+      mpfr_bits=53 and I adjudicate them as PASS below. What breaks is the INFERENCE
+      from that board to d=512 readiness, and it breaks on named, concrete,
+      scale-only failure modes that the producer's own disclosure list does not
+      contain. Two of the six fixes (D1, D6) I find to transfer to d=512 without
+      qualification, and I say so.
+
+    what_a_d512_mpfr100_run_does_that_d64_cannot_show:
+      stated_concretely_as_required: >-
+        Five things, each with the mechanism and the parameter that destroys the toy
+        signal.
+      items:
+      - id: S1
+        what: >-
+          IT HAS A LONG PROLOGUE. At d=64 the whole prologue between the STARTED stub
+          and the first tour is 0.000378 s (producer §4.1, `pre_loop_lll`) plus an outer
+          LLL of the same order. At d=512 the SAME construction's outer
+          `LLL.reduction(A)` was MEASURED at 498.96 s (attempt 2) and 508.58 s
+          (attempt 1) by BATCH-f9780d's own 75-bit cell -- committed figures in
+          `coordination/goals/GOAL-MLKEM-005/batches/BATCH-f9780d/tasks/TASK-20260824-b3e9da/execution_report.md`,
+          not measured by me. `M.update_gso()` at mpfr_bits=100 on d=512 and the
+          pre-loop `bkz.lll_obj()` follow it, and the pre-loop lll_obj is inside the
+          interval EV-MLKEM-59e4a4 brackets the 75-bit terminal error to. The parameter
+          that destroys the toy signal is d itself: the prologue's share of cell time
+          goes from ~0.04 per cent at d=64 to at least ~16 per cent at d=512, and is
+          unknown at mpfr_bits=100.
+      - id: S2
+        what: >-
+          A SIGNAL CAN BE DEFERRED FOR A WHOLE TOUR. Disclosed by the producer. What
+          d=512 additionally shows and d=64 cannot is that the deferral is not
+          MEASURABLE by this instrument: the flushed record carries the payload's last
+          refresh time, never the signal's arrival time, so the gap between kill and
+          flush is unrecoverable from the artifacts.
+      - id: S3
+        what: >-
+          THE RESOURCE SAMPLER'S SHORTFALL METRIC SATURATES. At d=64 the producer
+          measured 9 observed against 19 expected. I independently measured 8 against 18
+          on my own cell at heartbeat 0.05 s -- consistent with the producer's figure,
+          which I therefore corroborate rather than challenge. At d=512 with the default
+          heartbeat 1.0 s and a cell of order 14400 s, `expected_if_never_starved` is of
+          order 14400 while `observed` is of order the tour count (tens). The ratio will
+          read ~99.9 per cent starved for EVERY d=512 run regardless of anything that
+          happens, so the one quantity that carries information at d=64 carries none at
+          d=512. This is the artifact tell in its saturating form and it is not
+          disclosed.
+      - id: S4
+        what: >-
+          A CELL BOUNDARY IS CROSSED IN A PROCESS THAT HAS BEEN RUNNING FOR HOURS. The
+          instrument's default invocation IS the matched pair -- `D_DEFAULT = 512`,
+          `BETA_DEFAULT = 55`, `--mpfr-bits` default "75,100" -- so the 75-bit cell
+          completes or errors, `main()` calls `rebuild_results` over the accumulated
+          journal, and only then does the 100-bit cell arm. At d=64 that window is
+          microseconds. See F4 for what the module-level signal state does in it.
+      - id: S5
+        what: >-
+          THE STOPPING RULE ACTUALLY BINDS. At d=64/beta=20 my probe's cells ended with
+          `clean=True` after 9 tours -- the `clean or block_size >= d` branch. At
+          d=512/beta=55 with `flags=BKZ.AUTO_ABORT` and `max_loops == 0`
+          (EV-MLKEM-59e4a4 boundary), the run ends on `auto_abort.test_abort()`, a
+          basis-quality criterion. The toy cell therefore never exercises the branch
+          that decides how long a d=512 cell runs, which is the whole of J6.
+
+    per_defect_could_it_silently_fail_only_at_scale:
+      required_by_completion_gate: true
+      D1:
+        silent_scale_failure: 'NO'
+        argument: >-
+          The STARTED stub is written and fsync'd before any lattice work; its cost is
+          O(1) in d and it is on disk before anything can go wrong. It survives SIGKILL,
+          a container stop and a deferred handler alike, because it does not depend on
+          the handler running. This is the one fix that transfers to d=512
+          unconditionally, and alone it repairs the literal BATCH-f9780d harm ("this
+          cell has NO entry ... at all"). SAID PLAINLY BECAUSE IT IS TRUE.
+        residual: >-
+          The stub cannot distinguish "killed in the prologue" from "killed in tour 0",
+          because nothing is journalled between the stub and the first `tour_start`.
+          That is F1, charged to D3, not to D1.
+      D2:
+        silent_scale_failure: 'YES, in two named modes'
+        argument: >-
+          MODE 1 (loud, then silently wrong): a mid-tour SIGTERM at d=512 defers the
+          flush until the tour returns. Under plain `timeout T` -- which is exactly what
+          BATCH-f9780d used, `timeout 17500`, no `-k` -- no SIGKILL follows, so the
+          handler DOES eventually run and the record IS written. It is written with
+          `elapsed_seconds_at_refresh` frozen at the pre-tour refresh, i.e. under-stating
+          elapsed by up to one whole tour, and `staleness_bound_seconds: null` is the
+          only warning. The producer's decision to leave that null is correct and I
+          endorse it.
+          MODE 2 (silent, undisclosed): a kill during the PROLOGUE. See F1.
+        named_measurement_not_taken: >-
+          To settle the deferral magnitude: a d=512/mpfr_bits=100 cell killed at a known
+          wall-clock instant, with the killer's own timestamp captured externally, and
+          the journal line's write time compared against it. THE INSTRUMENT CANNOT DO
+          THIS ALONE -- it records no signal-arrival time -- so the measurement needs an
+          external timestamp and a d=512 run. NAMED AND NOT TAKEN.
+      D3:
+        silent_scale_failure: 'YES'
+        argument: >-
+          The per-tour rows themselves are correct. What fails silently is their
+          INTERPRETATION at scale. `elapsed_seconds_since_cell_start` on row 0 silently
+          absorbs the entire prologue. At d=64 that is 0.000378 s and invisible; at
+          d=512 it is at least 498.96 s by the predecessor's own committed measurement.
+          A reader computing tours-per-hour as j / (elapsed/3600) from a killed cell
+          therefore silently charges the prologue to the tours and under-states
+          throughput -- and the producer's own §4.1 table cannot flag this, because at
+          d=64 there is nothing to see. The prologue IS recoverable arithmetically as
+          `row[0].elapsed_seconds_since_cell_start - row[0].tour_elapsed_seconds`,
+          PROVIDED at least one tour completes; F1 is the case where it does not.
+        named_measurement_not_taken: 'None needed. The arithmetic is available now; the missing thing is a record, not a measurement.'
+      D4:
+        silent_scale_failure: 'YES'
+        argument: >-
+          MEASURED BY ME, NOT ARGUED. The per-tour row carries exactly one
+          memory quantity, `peak_rss_bytes` -- the POLLED peak -- and no `ru_maxrss`.
+          My probe read the row keys directly: `tour_row_keys_rss_related:
+          ["peak_rss_bytes"]`, `tour_row_has_ru_maxrss: false`. Because the sampler is
+          GIL-starved during tours (producer 9/19; mine 8/18, consistent), the polled
+          peak at d=512 is a maximum over TOUR BOUNDARIES only and cannot see an
+          intra-tour peak. A memory-sizing decision read off the per-tour RSS column
+          would therefore under-size, and nothing in the row warns of it. The kernel
+          high-water mark IS present -- `snap["ru_maxrss_kb"]`, hence in `resources` of
+          the final and of the flushed partial record -- so the honest number exists and
+          simply is not in the per-tour curve.
+        named_measurement_not_taken: >-
+          To bound the intra-tour RSS excursion at d=512: sample from a SEPARATE
+          PROCESS, which is the producer's own named mitigation (§4.2) and which this
+          instrument does not implement. NAMED AND NOT TAKEN.
+      D5:
+        silent_scale_failure: 'NO for the count; a latent, currently inert divergence'
+        argument: >-
+          I CHECKED THE TRANSCRIPTION AGAINST THE INSTALLED UPSTREAM
+          `fpylll/algorithms/bkz.py` `BKZReduction.__call__` MYSELF. It is faithful:
+          `BKZ.AutoAbort(bkz.M, bkz.M.d)` matches upstream's
+          `BKZ.AutoAbort(self.M, self.M.d)` argument for argument, `cputime_start =
+          process_time()` matches, the pre-loop `lll_obj()` is retained, and all four
+          break tests appear in upstream's order with upstream's conditions. The count
+          itself is a Python integer incremented in the driving loop and is
+          dimension-independent. J1 owns the re-derivation and I did not spend budget
+          there. ONE LATENT DIVERGENCE, correctly weighted as small: v2 runs a sampler
+          thread that upstream's control run did not, and `process_time()` is
+          process-wide across threads, so v2's `MAX_TIME` break test would see slightly
+          more CPU than upstream's. Under the pinned `flags=BKZ.AUTO_ABORT` the MAX_TIME
+          branch is dead, so this is inert today and would become live only if MAX_TIME
+          were ever set. Reported because it is real, not because it matters yet.
+        residual: >-
+          The equivalence control is d=64 ONLY, which the producer states itself. What
+          it establishes is that the transcription is faithful at a dimension where the
+          run ends on `clean`, not on `auto_abort`. It exercises neither the branch that
+          governs d=512 nor a block size the strategies file resolves differently.
+      D6:
+        silent_scale_failure: 'NO'
+        argument: >-
+          `(b0 / q**0.5) ** (1/d)` is pure Python float arithmetic with no dimension-
+          dependent conditioning problem in this regime. At d=512, q=3329, `b0` for this
+          q-ary construction is of order 1e4-1e5 and `(b0/57.7)**(1/512)` is well
+          conditioned; `math.exp(logdet/(2d))` at d=512 has argument ~4.06 and does not
+          overflow. The producer's b0-independence check spans d up to 512 with max
+          relative deviation 4.44e-16. The final record's b0 comes from `A[0].norm()`
+          (exact integers) and the per-tour rows' from `M.get_r(0,0)**0.5` (mpfr); the
+          producer reports these agreeing to ~1e-15 at d=64 and at mpfr_bits=100 the GSO
+          route is strictly more precise, not less. I find no scale-only failure mode
+          here and I do not manufacture one.
+
+    findings_not_in_the_producers_disclosure_list:
+      preamble: >-
+        The producer disclosed six substantial limitations against itself and they are
+        honest. Restating them earns nothing. These four are NOT on that list.
+      F1:
+        title: 'THE UNRECORDED PROLOGUE -- the strongest finding on this joint'
+        severity: material
+        mechanism: >-
+          Nothing is journalled between the STARTED stub and the first `tour_start`.
+          `refresh_partial_payload()` is called once at cell start (v2 line 560) and not
+          again until the pre-tour refresh (line 646); the sampler cannot refresh in
+          between because fplll holds the GIL through each prologue C call. The two
+          prologue timings the instrument does compute --
+          `outer_lll_reduction_elapsed_seconds` and `pre_loop_lll_elapsed_seconds` --
+          are written into `result`, which reaches disk ONLY on the COMPLETED/ERROR
+          path. A cell killed before the first tour therefore flushes `tours: 0`,
+          `tour_in_flight_index: null`, and an `elapsed_seconds_at_refresh` frozen at
+          whichever inter-C-call boundary it last crossed -- for a kill inside the outer
+          LLL, that value is approximately 0.0 for a cell that has been running for
+          minutes.
+        measured_by_me: >-
+          probe_payload_lifetime_output.json: `journal_has_any_prologue_record_kind:
+          false`; `journal_record_kinds_in_order_first_6: [cell_started_stub, tour_start,
+          tour_progress, tour_start, tour_progress, tour_start]`;
+          `prologue_timings_only_in_cell_final: {outer_lll_in_signal_payload: false,
+          pre_loop_lll_in_signal_payload: false,
+          outer_lll_reduction_elapsed_seconds_in_final: true,
+          pre_loop_lll_elapsed_seconds_in_final: true}`.
+        why_it_is_silent_and_only_at_scale: >-
+          At d=64 the window is 0.000378 s and no acceptance test could see it. At d=512
+          the window is bounded below by the predecessor's own committed 498.96 s outer
+          LLL and is otherwise unknown at mpfr_bits=100. The resulting record is not
+          empty -- it is CONFIDENTLY WRONG in a machine-readable field, which is the
+          exact harm this goal exists to stop.
+        cheapest_falsification_control: >-
+          NO SCALE RUN NEEDED. At d=64, patch nothing and simply pass a construction
+          that makes the prologue dominant -- or read the code, as I did. The decisive
+          artifact is already above. To exhibit the wrong number rather than infer it:
+          run one d=64 cell under `--simulate-slow-tour-seconds` is NOT sufficient
+          (that sleep is inter-tour, inside the loop); the honest cheap exhibit is a
+          d=128 cell at `--max-toy-d 128` where the outer LLL is measurably non-zero,
+          killed during it, and the flushed `elapsed_seconds_at_refresh` compared with
+          the killer's wall clock. THAT IS WITHIN THE TOY GUARD AND I DID NOT TAKE IT,
+          because the code reading is already decisive and the extra run buys
+          presentation, not truth.
+        cheapest_repair_named_not_taken: >-
+          One `phase_start` / `phase_done` journal record per prologue phase, using the
+          identical pattern already written for `tour_start`. Cost O(1) per phase.
+      F2:
+        title: 'THE PRODUCER NAMED A SCALE LIMIT THAT THE TARGET REGIME MAKES IMPLAUSIBLE'
+        severity: moderate
+        mechanism: >-
+          Disclosed item (4) names unbounded `tours_table` growth making each refresh's
+          serialisation progressively more expensive, and says a cell with THOUSANDS of
+          tours would suffer. The closest committed tour count in this goal's own
+          records is EV-MLKEM-59e4a4's `arithmetic_errors_disclosed` OBJ-4: at d=80,
+          beta=55, the reduction "completes in 274.29 s at 75 bits and 277.56 s at 100
+          bits ... with IDENTICAL tour counts of 26". Twenty-six, not thousands. At 26
+          tours a `tours_table` is ~26 rows of ~18 fields, its serialisation is
+          microseconds, the journal is tens of kilobytes and there are ~52 fsyncs across
+          a multi-hour cell.
+        what_follows: >-
+          The producer's headline scale hazard is very likely NOT the hazard, and the one
+          that does bite -- the handler deferred for a whole tour, for which it has no
+          mitigation and offers only a lower bound -- is correspondingly under-weighted.
+          I state the limit of my own claim: no d=512 tour count exists in any committed
+          record of this goal, 14448 s is a lower bound on an unfinished computation, and
+          d=80 is not d=512. What I assert is that the ONLY committed evidence points to
+          tens, and that a disclosure ranking hazards should rank on that evidence rather
+          than on an unanchored "thousands".
+        amplification_worth_one_line: >-
+          `refresh_partial_payload` serialises THREE payloads per call, one per signal in
+          `_SIGNAL_STATUS`, each embedding the full `tours_table`; and it is called twice
+          per tour plus on each heartbeat. So the growth the producer names is 3x and 2x
+          what its wording implies. At 26 tours this remains negligible. Stated for
+          completeness, not as a hazard.
+        cheapest_falsification_control: >-
+          Read the tour count off the FIRST completed d=512 tours_table this instrument
+          ever writes. Costs nothing extra: it is a by-product of the next capped run,
+          whenever a Coordinator authorises one. If it is in the thousands, F2 is wrong
+          and the producer was right.
+      F3:
+        title: 'WHERE THE FLUSH COST LANDS -- judging the argument the producer labelled an argument'
+        severity: minor
+        mechanism: >-
+          The pre-tour `refresh_partial_payload()` at v2 line 646 sits between
+          `journal.write(tour_start)` and `bkz.tour(...)`, i.e. ON THE CRITICAL PATH of
+          every tour, not off it. Per tour the instrument pays: two `journal.write` calls
+          each with an `os.fsync`, and two `refresh_partial_payload` calls each doing one
+          `sampler.sample()` (two psutil /proc reads plus a getrusage) and three
+          `json.dumps` of the growing table.
+        judging_the_argument: >-
+          The producer says this "should be negligible against an hours-long tour by the
+          same argument -- but that is an argument, not a measurement". I JUDGE THE
+          ARGUMENT SOUND, and say so rather than manufacture an objection. Two fsyncs and
+          six small serialisations are milliseconds; a d=512/beta=55 tour, extrapolating
+          only the ORDER from the 26-tour/274 s d=80 figure, is minutes at least. The
+          ratio is not close. Placement on the critical path is the right design choice
+          anyway: it is the only moment the payload can learn which tour is in flight,
+          which is precisely the field that makes a mid-tour kill informative.
+        residual: >-
+          One case the argument does not cover: if the journal's filesystem fills or
+          `fsync` blocks on a degraded device, `journal.write` swallows only `OSError`
+          from `fsync` -- the `os.write` itself is unguarded and would raise, be caught
+          by the cell's own `except Exception`, and be recorded as `status: ERROR` with a
+          traceback. That is the correct behaviour and it is not silent. No objection.
+      F4:
+        title: 'THE SIGNAL PAYLOAD IS NEVER RESET AND THE HANDLERS ARE NEVER DISARMED'
+        severity: minor_but_undisclosed_and_two_lines_to_fix
+        mechanism: >-
+          `_H_PAYLOAD`, `_H_FD` and `_H_ARMED` are module-level and shared across cells.
+          `run_cell`'s `finally` clears the itimer, stops the sampler and restores
+          precision. It does NOT clear `_H_PAYLOAD` and does not restore SIGTERM/SIGINT
+          to `SIG_DFL`. So after a cell COMPLETES, the module still holds a fully
+          serialised `KILLED_PARTIAL` record for that cell, and the handlers are still
+          armed against it.
+        measured_by_me_not_argued: >-
+          probe_payload_lifetime_output.json, at d=64 in-process with arm_signals=False:
+          after a cell whose true `status` was `COMPLETED` with 9 tours,
+          `payload_after_completed_cell` decodes to `{status: KILLED_PARTIAL, role:
+          probe_cell_1, failed_infrastructure: true, tours: 9, tour_in_flight_index:
+          null, elapsed_seconds_at_refresh: 0.914181}`; and at the start of cell 2,
+          `payload_identity_at_start_of_cell_2: {role: probe_cell_1, status:
+          KILLED_PARTIAL}`. Source checks: `source_contains_payload_reset: false`,
+          `source_contains_SIG_DFL_restore: false`, `source_H_ARMED_ever_set_false:
+          false`.
+        consequence: >-
+          A SIGTERM delivered (a) in the inter-cell window -- which at d=512 spans
+          `main()`'s `rebuild_results` over the accumulated journal plus the next cell's
+          `IntegerMatrix.random` -- or (b) after the last cell completes but before the
+          process exits, writes a record asserting `status: KILLED_PARTIAL` and
+          `failed_infrastructure: true` for a cell that COMPLETED, into the same journal
+          that already carries that cell's `cell_final` with `status: COMPLETED`. Under
+          the DEFAULT matched-pair invocation the worst shape is: 75-bit COMPLETED,
+          75-bit KILLED_PARTIAL, and NOTHING AT ALL for the 100-bit cell -- which
+          reproduces the exact BATCH-f9780d harm with a spurious record on top.
+        correct_weighting_stated_honestly: >-
+          The window is short and does not grow with d in probability, only in
+          consequence; the cells are distinguishable by `role` and `mpfr_bits` in
+          `identity`, so a careful reader can attribute the false record; and it adds a
+          false record rather than losing a true one. It is NOT admission-blocking. It IS
+          undisclosed, it IS a defect in D1/D2 as specified, and the acceptance suite
+          does not test it because PTM-2's "no signal delivered" control tests the
+          unkilled path, not the after-the-cell path.
+        cheapest_repair_named_not_taken: >-
+          Two lines in `run_cell`'s `finally`: `_H_PAYLOAD = {}` and
+          `signal.signal(signal.SIGTERM, signal.SIG_DFL)` / same for SIGINT, guarded by
+          `arm_signals`.
+      F5:
+        title: 'THE SELF-CAP IS ONLY TOUR-BOUNDARY-ACCURATE, AND THERE IS NO IN-LOOP DEADLINE'
+        severity: moderate
+        mechanism: >-
+          `--cell-timeout-seconds` is implemented as `signal.setitimer(ITIMER_REAL)` with
+          a Python SIGALRM handler. SIGALRM is a Python-level signal and is deferred by
+          the GIL exactly as SIGTERM is. So at d=512 a cell given a cap of T does not
+          stop at T; it stops at the first interpreter check after T, i.e. up to one
+          whole tour late, and the record it then writes is a `TIMED_OUT_PARTIAL` with
+          stale elapsed. The producer discloses the deferral for SIGTERM; it does not
+          state the consequence for its own timeout feature, which is the feature a
+          capped run would rely on.
+        what_is_missing_that_costs_one_line: >-
+          The driving loop runs PYTHON between tours. A deadline test at the top of the
+          `while True` -- `if time.time() - t_start_wall >= deadline: break_reason =
+          "deadline"; break` -- needs no signal, cannot be deferred by the GIL beyond the
+          tour it is already waiting on, and would produce a normally-returned record
+          with `status: COMPLETED`-shaped fields, a full `tours_table` and an explicit
+          `break_reason`, instead of a signal-flushed partial. That is strictly better
+          than every signal path for the one case that matters and the instrument does
+          not have it.
+        cheapest_falsification_control: >-
+          At d=64 with `--simulate-slow-tour-seconds 0.4` and `--cell-timeout-seconds`
+          set to land mid-sleep, confirm SIGALRM fires promptly (it will: the sleep is
+          Python, not fplll). THAT PROBE WOULD PASS AND WOULD PROVE NOTHING about the
+          fplll case -- which is exactly why I name it as the control that must NOT be
+          mistaken for evidence. The discriminating version needs a long C call, hence
+          scale. NAMED AND NOT TAKEN.
+      F6:
+        title: 'THE SCALE GUARD IS A CLI-PATH GUARD ONLY'
+        severity: minor
+        mechanism: >-
+          The `--max-toy-d` refusal lives in `main()` (v2 lines 911-918). `run_cell` has
+          no guard of its own. Any caller importing the module and invoking `run_cell`
+          directly bypasses it entirely -- and the batch's own `acceptance_tests.py` does
+          exactly that at line 210, `v2.run_cell(...)`, which is a legitimate use and
+          also a live demonstration of the bypass path.
+        correct_weighting: >-
+          A guard against ACCIDENT, which is what it is for, and it works on the path a
+          human types. It is not and does not claim to be a guard against a determined
+          caller. The producer discloses the guard's existence and explicitly says it was
+          not exercised as an acceptance test. I report the CLI-only scope because
+          my assignment asked whether it is a guard or a speed bump, and the honest answer
+          is: a guard on one path, absent on the other, and the batch itself uses the
+          other.
+
+  # =====================================================================
+  # J5
+  # =====================================================================
+  J5:
+    joint: 'J5 -- proves-too-much against BATCH-f9780d own executions, and what this batch actually buys'
+    verdict: breaks
+    verdict_scope_stated_explicitly: >-
+      NARROW, AND THE COMPOSER MUST NOT WIDEN IT. The proves-too-much control itself
+      PASSED: my argument fails on the 75-bit cell exactly as PTM-4 requires, and no
+      committed verdict would have changed. `breaks` is recorded solely because
+      PTM-5's required behaviour was NOT fully observed -- two records of this batch
+      state or invite the kill-time guarantee without its carve-outs, and an
+      overstatement of that guarantee is one of J5's own named breaking artifacts. On
+      the substantive question ("would the verdict have changed, and what does the
+      batch buy") my answer is a clean `holds` and is set out below.
+
+    the_two_cells_taken_separately:
+      cell_75bit_reference:
+        what_actually_happened: >-
+          Attempt 2: `status: ERROR`, `ReductionError: b'infinite loop in babai'`, seed
+          452658293, `outer_lll_reduction_elapsed_seconds: 498.96`,
+          `cell_wall_clock_seconds: 3051.82`. Attempt 1 reproduced it independently at
+          2974.33 s. THE OUTCOME WAS RECORDED: v1's `except` path caught the exception
+          and wrote it.
+        what_v2_would_have_left: >-
+          Strictly more: a `run_header`, a fsync'd STARTED stub, however many
+          `tour_start`/`tour_progress` rows preceded the failure, and a `cell_final` with
+          `status: ERROR` carrying the TRACEBACK, `outer_lll_reduction_elapsed_seconds`,
+          `pre_loop_lll_elapsed_seconds` and the `tours_table`.
+        what_DEC_20260824_5e222e_would_then_have_ruled: >-
+          THE SAME THING. Its ruling on this arm is that the 75-bit reference "failed
+          terminally and reproducibly, NOT at BKZ.Param, under strategies bytes different
+          from every prior run of that cell -- which is the one thing route (c) was built
+          to establish and it is established." Every clause of that survives v2 unchanged:
+          still terminal, still reproducible, still not at BKZ.Param. The batch's
+          `incomplete` verdict was driven by the OTHER arm. NO CHANGE.
+      cell_100bit_target:
+        what_actually_happened: >-
+          Started 07:12:10Z, ran at least 14448 s at ~99.9 per cent CPU and ~175 MB RSS,
+          then `timeout 17500` fired -- SIGTERM, exit code 124. "Because the process was
+          signalled rather than returning, the script's except/finally recording path
+          never ran, so this cell has NO entry ... at all."
+        what_v2_would_have_left: >-
+          A `run_header` and a fsync'd STARTED stub WITH CERTAINTY -- those do not depend
+          on the handler. Then every completed tour's row, fsync'd as it went. Then, ON
+          THIS PARTICULAR EXECUTION, very probably the flushed `KILLED_PARTIAL` too, and
+          the reason is worth stating because nobody has: `timeout` WITHOUT `-k` sends
+          SIGTERM and then waits. No SIGKILL follows. So the deferred handler eventually
+          gets its interpreter check when the in-flight tour returns, and writes the
+          record -- late, with elapsed under-stated by up to one tour, but written. The
+          producer's worst case (SIGTERM immediately followed by SIGKILL, or a hard
+          container stop) is NOT the case this execution was in.
+        the_case_where_it_would_still_have_been_thin: >-
+          If the cell was still in the PROLOGUE at 14448 s -- not impossible, since the
+          75-bit arm's outer LLL alone was 498.96 s and the pre-loop lll_obj at
+          mpfr_bits=100 on d=512 is inside the interval EV-MLKEM-59e4a4 brackets the
+          75-bit failure to -- then F1 applies: the flush carries `tours: 0` and a stale
+          elapsed, and there are no tour rows. I cannot resolve which case obtained and I
+          do not pretend to; the artifacts do not say and no run may be taken to find out.
+        what_DEC_20260824_5e222e_would_then_have_ruled: >-
+          STILL `incomplete`. The decision closed the batch because "None of the four
+          outcomes the task card declared in advance is realised, because all four
+          presuppose both cells terminating." Under v2 the 100-bit cell still does not
+          terminate. The verdict changes in KIND of record, not in DIRECTION of ruling.
+
+    ptm_4:
+      object: "BATCH-f9780d's 75-bit reference cell (terminated on its own, ReductionError at 2502.74 s cross-container / 3051.82 s in this container, outcome recorded)."
+      required_behaviour: 'My argument must visibly FAIL on this cell and may succeed only on the 100-bit cell.'
+      observed: 'YES -- required behaviour observed. The control PASSED.'
+      where_a_weaker_argument_DID_go_through_reported_because_ptm4_demands_it: >-
+        A strictly narrower claim does go through on BOTH cells, and I report it rather
+        than hide it. EV-MLKEM-59e4a4 carries the boundary "Localisation of the exception
+        to a TOUR is NOT supported by this batch's artifacts. The runner stores only the
+        exception type and message, so the failure is bracketed to the interval between
+        the LLL.Reduction construction and the return of bkz(par)". Under v2 that
+        boundary would be REMOVED for the 75-bit cell, because v2 records a traceback,
+        `pre_loop_lll_elapsed_seconds` and a `tours_table`. So "the record would have been
+        materially richer" goes through on both cells.
+      why_that_is_not_the_control_failing: >-
+        THE DISTINCTION IS LOAD-BEARING AND IT IS THE POINT OF PTM-4. Removing an EVIDENCE
+        BOUNDARY is not changing a DECISION VERDICT. Had I let the first count as the
+        second, my argument would have gone through on both cells and would have proved
+        too much -- the 75-bit cell terminated and was recorded, and no instrument repair
+        can change an outcome a returning run already wrote down. The control did its job:
+        it forced the distinction that keeps the J5 answer honest.
+
+    ptm_5:
+      object: "The proposition 'the instrument now records partial state on kill', which is KNOWN FALSE unqualified."
+      required_behaviour: 'Every record of this batch that states the guarantee states it WITH the SIGKILL and mid-tour-at-d=512 carve-outs.'
+      observed: 'NO -- required behaviour NOT fully observed. Two of the four audited records fall short, in two different ways.'
+      audit:
+        implementation_report_md_section_0:
+          finding: PASS
+          basis: >-
+            The board table is followed immediately by "A passing board is not a result...
+            Section 8 states what the surrogates cannot show, INCLUDING A RESIDUAL LOSS
+            WINDOW THAT SURVIVES EVERY ONE OF THESE PASSES." That is an explicit
+            carve-out pointer in section 0 itself, and section 8 items 1 and 2 carry the
+            SIGKILL and mid-tour statements in terms. Clean.
+        batch_yaml:
+          finding: PASS
+          basis: >-
+            batch.yaml does not assert the guarantee; it SPECIFIES it, and specifies the
+            carve-out with it: D2's `required_fix` demands the executor "state its safety
+            argument honestly, claiming no more than the mechanism supports", and
+            `what_the_surrogate_cannot_show` anticipates, at opening, that a tiny-d
+            surrogate "cannot show that the handler fires when the process is deep in an
+            fplll C call that does not return to the interpreter between signal delivery
+            and death." The opening got this right before the work existed. Credit where
+            it is due.
+        acceptance_results_json:
+          finding: FALLS SHORT -- named residual, not a fabrication
+          basis: >-
+            The file carries `scale_of_every_test: "d=64, beta=20, mpfr_bits=53 (toy
+            surrogate)"` and a `not_evidence_about` block, and its per-defect `asserted`
+            strings are scoped reports of what each test asserted. IT CARRIES NO CARVE-OUT
+            AT ALL. And one clause reaches beyond the observation: D1's `asserted` ends
+            "-- the exact record BATCH-f9780d's 100-bit cell did not leave." For the
+            STARTED STUB that clause is defensible even at d=512, because the stub is
+            fsync'd before any work and survives SIGKILL. But the sentence sits on a board
+            whose adjacent D2 entry is about the flushed KILLED_PARTIAL, which does NOT
+            survive SIGKILL and IS deferred mid-tour at d=512, and the machine-readable
+            board is the artifact most likely to be read alone by a tool or lifted into a
+            close.
+          cheapest_repair: >-
+            One key: `"carve_outs": "SIGKILL runs nothing; at d=512 a mid-tour SIGTERM's
+            flush is deferred until the C call returns."` A successor record, never an
+            edit -- AGENTS.md rule 4.
+        review_plan_yaml:
+          finding: FALLS SHORT -- a finding against this Coordinator's own artifact, reported as PTM-5 invited
+          basis: >-
+            The plan is qualified at DOCUMENT level and prominently so: `already_disclosed_items`
+            (1) and (2) at lines 104-112 state both carve-outs in terms, and PTM-5 itself
+            commissions this very audit. It is NOT qualified at SENTENCE level in the one
+            paragraph built to be quoted. `claim_under_review` (line 43) reads "...writes a
+            per-cell STARTED stub before a cell begins, FLUSHES A PARTIAL RECORD ON A REAL
+            SIGNAL, emits and flushes per-tour progress..." with no inline carve-out, in a
+            self-contained block explicitly labelled "AS THE PRODUCER STATED IT, not as this
+            Coordinator would restate it".
+          why_this_is_worth_reporting_rather_than_waving_through: >-
+            That paragraph is the natural thing for DEC-20260826-9d7d93 to quote verbatim as
+            the statement of what was reviewed. Lifted alone it carries an unqualified
+            guarantee sixty lines away from its carve-outs. The defect is a QUOTATION HAZARD
+            in the one block designed to be quoted, not a misstatement of the producer's
+            position -- which the plan represents accurately elsewhere. I weight it as small
+            and I do not inflate it.
+          cheapest_repair: >-
+            Eight words inline: "...flushes a partial record on a real signal, subject to
+            the SIGKILL and mid-tour carve-outs at (1) and (2) below...".
+        my_own_assignment_document:
+          finding: 'Not audited as a batch record -- it is sibling-private and quotes PTM-5 correctly at line 140. No issue found.'
+
+    would_the_verdict_have_changed:
+      answer: 'NO. Neither cell. The verdict of DEC-20260824-5e222e stands unchanged under the repaired instrument.'
+      therefore_what_does_this_batch_buy:
+        preamble: >-
+          My assignment binds both halves: do not conclude "worthless" any more readily
+          than "fine". I conclude neither. The batch buys one specific, checkable thing
+          and does not buy several others it might be read as buying.
+        it_buys:
+        - >-
+          A CURVE INSTEAD OF A BOUND, and this is checkable arithmetic rather than
+          rhetoric. With one bit you can say "at least 14448 s, unknown fraction
+          complete" and any budget is a guess with no error term. With what v2 writes you
+          can compute, from a killed cell, the prologue cost, the realised per-tour wall
+          and CPU cost SEQUENCE (not merely a mean), whether that sequence is rising,
+          falling or flat, the per-tour `delta_0` and `clean` trajectory, and a lower
+          bound on the in-flight tour from its `tour_start`. J6 enumerates exactly which
+          of these survive and which do not.
+        - >-
+          A STARTED STUB THAT SURVIVES ANYTHING SHORT OF MACHINE LOSS. This alone
+          converts "this cell has NO entry at all" into "this cell began at t and did not
+          finish", unconditionally at d=512, with no dependence on the handler running.
+          It is the smallest of the six fixes and the only one I find transfers without
+          qualification.
+        - >-
+          A TOUR COUNT THAT CAN BE NON-NULL. D5 repairs an instrument that, in
+          DEC-20260824-5e222e's own words, "COULD NOT HAVE RECORDED A SUCCESS EVEN IF IT
+          HAD GOT ONE". That is a precondition for any future result, and preconditions
+          are worth what they cost -- which here was under 8 seconds of lattice compute.
+        - >-
+          A CORRECTED D6 AND A PRESERVED DEFECTIVE ONE SIDE BY SIDE, so the 57.242
+          distortion in the committed record is reproducible rather than merely asserted.
+        it_does_not_buy:
+        - 'Any change to any committed verdict. Stated plainly, as required.'
+        - 'Any evidence about d=512, mpfr_bits=100, lattice hardness, or ML-KEM.'
+        - >-
+          A guarantee that a d=512 kill leaves a usable record. It leaves the stub with
+          certainty, the completed tours with certainty, and the partial record only if
+          the handler gets an interpreter check before the process dies.
+        - >-
+          The sizing input DEC-20260824-5e222e's next_action requires. That is J6 and the
+          answer there is "partially".
+        is_that_worth_its_cost: >-
+          The cost was 6.457 s of suite wall clock, under 8 s of lattice compute, one
+          executor task and one review round. Against it, the predecessor spent 21538 s
+          to learn one bit. I do not need a fine judgement here: the batch is cheap and
+          its deliverable is a precondition for every later measurement in this lane.
+          What it must NOT be read as is a result, and every producer record already says
+          so unprompted.
+
+  # =====================================================================
+  # J6
+  # =====================================================================
+  J6:
+    joint: 'J6 -- next-run sizing from the 14448 s lower bound, computable or not'
+    verdict: breaks
+    verdict_polarity_stated_explicitly: >-
+      `breaks` means the sizing DEC-20260824-5e222e requires is NOT made computable by
+      this instrument. It is made PARTIALLY computable. The missing half is named below,
+      it is not recorded by any of D1..D6, and -- this is the useful part -- it is
+      cheaply obtainable, so this is a gap with forward guidance and not a closure.
+    no_budget_recommended: >-
+      I NAME NO NUMBER. Not a duration, not a multiple of 14448 s, not a range. J6 asks
+      whether the sizing is computable; authorisation is a Coordinator decision plus a
+      frozen contract and neither exists for the 100-bit cell.
+
+    what_a_capped_sigtermd_d512_cell_leaves_on_disk_under_v2:
+      certain_regardless_of_the_handler:
+      - '`run_header` with the environment path, the pinned predecessor sha256 and start time.'
+      - '`<prefix>_environment.json` with fpylll/numpy/psutil versions, the strategies sha256, the git commit, MemTotal, nproc and `os.getloadavg()` AT RUN START.'
+      - 'A per-cell fsync''d STARTED stub with pid, start wall clock and cell identity.'
+      - 'One `tour_start` and one `tour_progress` row per tour, each fsync''d as it was written.'
+      only_if_the_handler_gets_an_interpreter_check:
+      - 'One `KILLED_PARTIAL` (or `TIMED_OUT_PARTIAL`) record with the tours table, stdout tail, resources snapshot and `tour_in_flight_index`.'
+      never_on_a_killed_cell:
+      - '`<prefix>_results.json` -- the aggregate view is not signal-safe and is not written from signal context. `rebuild-results` regenerates it from the journal, which is the durable primary. Correct design; noted, not objected to.'
+      - '`outer_lll_reduction_elapsed_seconds` and `pre_loop_lll_elapsed_seconds` as fields -- they live only in `cell_final`. See F1.'
+
+    computable_from_that:
+    - id: C1
+      quantity: 'Prologue cost, exactly.'
+      how: '`row[0].elapsed_seconds_since_cell_start - row[0].tour_elapsed_seconds`.'
+      condition: 'Requires at least one COMPLETED tour. Not available if the cell was killed in the prologue (F1).'
+    - id: C2
+      quantity: 'The per-tour wall-cost SEQUENCE t_0 .. t_{j-1}, not merely a rate.'
+      how: '`tour_elapsed_seconds` per row. This is strictly more than the "tours-per-hour" the prescription names, and it is the instrument''s strongest output.'
+    - id: C3
+      quantity: 'Per-tour CPU cost.'
+      how: 'Successive differences of `cpu_seconds_since_cell_start`. Note this is `process_time()`, process-wide across threads, so it includes the sampler thread; the producer discloses the process-wide caveat for `cpu_times()` and it applies here too.'
+    - id: C4
+      quantity: 'A lower bound on the in-flight tour j.'
+      how: '`tour_start[j].elapsed_seconds` against the external kill time. NOTE: the kill time must come from OUTSIDE the record -- the instrument stores no signal-arrival timestamp.'
+    - id: C5
+      quantity: 'Accounted elapsed: prologue + sum(t_i) + lower bound on t_j, checkable against the external wall clock.'
+      how: 'Arithmetic on C1, C2, C4. A residual between this and the external elapsed localises unrecorded time, which is itself diagnostic.'
+    - id: C6
+      quantity: 'The basis-quality trajectory: `delta_0_from_gso_logdet`, `root_hermite_factor`, `gso_r00` and `clean` per tour.'
+      how: 'Directly off the rows. This is the QUALITY axis and it did not exist at all before this batch.'
+    - id: C7
+      quantity: 'Peak RSS as a LOWER BOUND per tour, plus the process-wide kernel high-water mark.'
+      how: '`peak_rss_bytes` per row (polled, boundary-only -- see D4) and `resources.ru_maxrss_kb` in the final or flushed record.'
+
+    not_computable_enumerated:
+    - id: M1
+      missing: 'THE NUMBER OF TOURS TO COMPLETION. This is the decisive gap.'
+      why: >-
+        The run ends on `auto_abort.test_abort()` -- `flags=BKZ.AUTO_ABORT` with
+        `max_loops == 0` (EV-MLKEM-59e4a4 boundary), so there is no tour budget to read
+        off. `BKZ.AutoAbort` tests the evolution of the SLOPE of the log GSO norms. The
+        instrument records exactly two GSO summaries per tour, `gso_r00` and
+        `gso_log_det_0_d` -- the first and the sum. THE SLOPE CANNOT BE RECOVERED FROM A
+        FIRST AND A SUM. So the stopping criterion can be neither evaluated on the
+        recorded prefix nor extrapolated forward, and total cost = prologue + sum over N
+        tours has an unknown N.
+      cheapest_thing_that_would_change_this_named_not_taken: >-
+        Journal the per-tour GSO log-norm vector, or just the AutoAbort statistic itself,
+        as one more key in the existing `row`. Cost is O(d) mpfr reads per tour -- 512
+        reads against a tour of minutes, i.e. negligible by the same argument the producer
+        uses for its flush overhead, and here I judge that argument sound. THIS WOULD NOT
+        MAKE N A MEASUREMENT. It would make N an EXTRAPOLATION FROM A RECORDED SERIES with
+        a visible fit, which is categorically better than the current state, where N has
+        no empirical handle at all.
+    - id: M2
+      missing: 'A BOUND ON THE EXTRAPOLATION ERROR of the per-tour cost curve.'
+      why: >-
+        Per-tour cost is not constant across tours, and nothing recorded bounds how t_i
+        evolves past the observed prefix. The one committed comparand -- d=80/beta=55, 26
+        tours, 274.29 s at 75 bits versus 277.56 s at 100 bits -- constrains the PRECISION
+        axis (1.2 per cent, identical tour counts) and says nothing about the DIMENSION
+        axis. Extrapolating a d=512 prefix is an assumption, and the instrument records
+        nothing that makes the assumption falsifiable within one run.
+    - id: M3
+      missing: 'VARIANCE ACROSS SEEDS.'
+      why: >-
+        One seed per (d, beta, seed_index). The seed formula carries a `seed_index` slot
+        and `run_cell` accepts it, but nothing in this batch or its predecessor ever
+        varies it, and a single-seed cost is not a distribution.
+    - id: M4
+      missing: 'PER-TOUR HOST LOAD.'
+      why: >-
+        `os.getloadavg()` is captured ONCE, into `environment.json`, at run start. A
+        multi-hour cell sharing a 4-core host -- and this batch itself declares
+        `max_concurrent: 2` on that host -- has per-tour costs contaminated by load that
+        the record cannot separate from the reduction's own cost. Cheapest fix: one key in
+        the existing per-tour row. Named, not taken.
+    - id: M5
+      missing: 'THE PROLOGUE COST WHEN THE CELL IS KILLED BEFORE THE FIRST TOUR. F1.'
+    - id: M6
+      missing: 'AN INTRA-TOUR MEMORY PEAK, hence a defensible memory ceiling. D4.'
+    - id: M7
+      missing: 'THE LATENCY BETWEEN SIGNAL AND FLUSH, hence any check that the flushed elapsed is trustworthy. The instrument records no signal-arrival time.'
+
+    finding_against_DEC_20260815_3e8e9c_condition_i:
+      invited_explicitly_by_my_assignment: true
+      the_wording_at_issue: >-
+        Condition (i) names the tours-per-hour cost curve from a killed cell as "exactly
+        the quantity a Stage-1 sizing decision needs and does not have". batch.yaml D3
+        quotes it, and the producer's §4.1 reports the tours table as discharging it.
+      the_finding: >-
+        THE QUANTITY IS NECESSARY AND IT IS NOT SUFFICIENT, AND "EXACTLY" IS THE
+        OVERSTATEMENT. Total cost = prologue + sum_{i<N} t_i. A tours-per-hour figure is a
+        THROUGHPUT: it constrains the t_i and says nothing about N. A throughput without a
+        work quantity is not a budget. Under `flags=BKZ.AUTO_ABORT` with `max_loops == 0`,
+        N is not fixed a priori and is determined by a basis-quality criterion the record
+        cannot reconstruct (M1). So a decision sized from tours-per-hour alone would be
+        sized from half of the product it needs.
+      what_follows_and_what_does_not: >-
+        THIS IS A FINDING AGAINST THE DECISION'S WORDING, NOT AGAINST THE PRODUCER. The
+        producer implemented what was prescribed, implemented it well, and additionally
+        gave a per-tour SEQUENCE where a rate was asked for -- which is more than the
+        prescription demanded. The gap is in the prescription. It is also cheap to close
+        (M1), so this is guidance, not an obstruction.
+      what_it_does_NOT_license: >-
+        It does not license re-opening or re-litigating DEC-20260815-3e8e9c, it does not
+        move any status, and it is not a claim that no sizing is possible -- only that
+        sizing from the prescribed quantity alone is not.
+
+  # =====================================================================
+  # Adjudication of the acceptance board
+  # =====================================================================
+  acceptance_results_adjudication:
+    file: coordination/goals/GOAL-MLKEM-005/batches/BATCH-762807/tasks/TASK-20260826-602395/acceptance_results.json
+    fails_found: 0
+    not_reached_found: 0
+    ruling: >-
+      I accept all six PASSes AS REPORTED AND AT THE SCOPE THE FILE ITSELF STATES: d=64,
+      beta=20, mpfr_bits=53, q=3329, one host, fpylll 0.6.4, one strategies file
+      identified by content, one suite execution. The file's own `scale_of_every_test`,
+      `not_evidence_about` and `no_d512_and_no_100bit_cell_executed` fields are accurate
+      and prominent, and its `a_fail_is_a_legitimate_outcome` note is present. Nothing on
+      this board is a result and the board says so.
+    one_defect_in_the_board_itself: >-
+      It carries no carve-out on the kill-time guarantee, and D1's `asserted` clause "the
+      exact record BATCH-f9780d's 100-bit cell did not leave" invites a d=512 reading that
+      is true for the STUB and false for the flushed partial record. See J5.ptm_5. One
+      added key repairs it, as a successor record and never an edit.
+    what_i_did_not_adjudicate: >-
+      Hash and receipt integrity, figure-for-figure agreement between the report and the
+      raw JSON, and the D6 closed form are J3's, owned by TASK-20260826-9605ae. I did not
+      recompute a hash and did not re-derive D6, by instruction.
+
+  # =====================================================================
+  # Findings against this Coordinator's own conduct of the round
+  # =====================================================================
+  findings_against_the_coordinator:
+    invited_explicitly_by_the_plan: true
+    PD_A_judged:
+      question_put_to_me: 'Was the committed envelope right and this Coordinator wrong to depart from it?'
+      my_ruling: 'THE DEPARTURE IS SOUND AND I UPHOLD IT. The envelope was wrong on this point.'
+      reason: >-
+        The envelope required a BLIND re-derivation of the D6 quantity. D6's answer -- the
+        closed form q^(1/2 - 1/(2d)), 57.242 at (q=3329, d=512), 54.8457 at (q=3329, d=80)
+        -- is published in batch.yaml, in DEC-20260824-5e222e and in EV-MLKEM-59e4a4, all
+        three of which are required reading for both reviewers. A blind re-derivation of a
+        number the re-deriver has already been handed three times is not a blind. Executing
+        the envelope literally would have produced a round CLAIMING an independence property
+        it demonstrably did not have, which is worse than the substitution. Substituting a
+        cell the producer never ran (d=64, beta=25) makes the blind a property of the
+        artifacts rather than of a reviewer's reading discipline, which is the stronger
+        construction.
+      one_clause_i_do_not_uphold: >-
+        PD-A writes that the gate's purpose "is met MORE STRONGLY than the gate's TEXT
+        asks". That is the single self-flattering sentence in the trail. The two coverages
+        are not comparable along one axis: the substitution buys artifact-level
+        independence of the blind and SPENDS independent reproduction of the batch's own
+        reported figures. PD-G's `what_it_costs` says exactly that -- "no reviewer
+        independently reproduces the beta=20 numbers the producer reported, and this plan
+        does not pretend otherwise" -- and therefore contradicts "more strongly" two
+        hundred lines later. The honest word is DIFFERENTLY, and the record already
+        contains the material to say so. Small; reported because PTM-5 asked whether the
+        trail flatters its author, and in exactly one clause it does.
+      does_the_departure_drop_coverage_my_completion_gate_requires: >-
+        NO. My gate names J4, J5, J6, a per-defect D1..D6 statement, the proves-too-much
+        control against BATCH-f9780d, the J6 enumeration and an admissibility ruling. None
+        of it touches the blind re-derivation. I can attest to my own gate without it.
+    PD_G_judged:
+      ruling: 'SOUND, and the trail is better than the fix.'
+      reason: >-
+        The sequence recorded -- brief names three blind_from paths; the plan's author finds
+        the list incomplete and REPORTS THE RESIDUAL AGAINST THE BRIEF rather than
+        presenting its repair as sufficient; the brief-writer verifies independently and
+        REMOVES THE CONSTRAINT instead of patching around it -- is the correct handling of a
+        defect found after a handoff was frozen, and the attribution of each step to a
+        different session is what makes it checkable. I find nothing self-serving in it.
+        PD-G's `what_it_costs` states the price without softening it.
+    P1_the_pre_commitment:
+      ruling: 'Declared, mitigated, and carrying one residual that the Coordinator should own at close.'
+      residual: >-
+        Telling both reviewers IN ADVANCE that a bare ADMIT will be read as under-coverage
+        puts a thumb on the scale toward naming a residual, and `what_this_is_not` cannot
+        fully remove an incentive it acknowledges. PD-E's widening to four values is the
+        right mitigation and I credit it. FOR THE RECORD, AND SO THE CLOSE CAN CHECK IT: I
+        reached F1, F4 and M1 from the source and from my own probe BEFORE weighing P1 at
+        all, and my ruling below would be identical had P1 not existed. If the close cannot
+        verify that ordering from my report, it should discount this paragraph, not credit
+        it.
+    the_claim_ceiling: >-
+      I audited every record of this batch I read for any sentence reading as though a green
+      board were a result or as though anything here authorised the 100-bit re-run. I FOUND
+      NONE. batch.yaml, acceptance_results.json, implementation_report.md sections 0/8/12
+      and review_plan.yaml's `claim_ceiling` each state the opposite, unprompted and
+      repeatedly. This is the batch's most consistent property and it deserves saying.
+
+  # =====================================================================
+  obstruction:
+    do_i_claim_anything_closed_or_weakened: 'YES -- one weakening, no closure.'
+    what_is_weakened: >-
+      DEC-20260815-3e8e9c condition (i)'s characterisation of the tours-per-hour cost curve
+      as "EXACTLY the quantity a Stage-1 sizing decision needs and does not have". I find it
+      necessary and not sufficient (J6.M1).
+    what_is_NOT_claimed: >-
+      No lane is closed. No obstruction is asserted. I do not claim the 100-bit cell cannot
+      be sized, that the instrument cannot be made fit, or that this approach is dead. A
+      count of gaps I found is a report about my search, not a statement about the problem.
+    named_obstruction_if_any: 'None. This is a gap with a named, cheap remedy, not an obstruction.'
+    forward_guidance_naming_what_remains_open:
+    - 'Whether the AutoAbort slope series, once recorded per tour, actually supports a usable projection of N at d=512. OPEN, and answerable only from a real d=512 record.'
+    - 'The true per-tour cost profile at d=512/mpfr_bits=100 -- rising, falling or flat. OPEN.'
+    - 'Whether the mid-tour flush deferral is minutes or hours at d=512. OPEN and not measurable by this instrument alone (M7).'
+    - 'Whether the target regime''s tour count is tens or thousands. OPEN; F2 argues tens on the only committed evidence and will be settled free by the first d=512 tours_table ever written.'
+    resource_check:
+      is_the_missing_quantity_within_reach: 'YES.'
+      basis: >-
+        M1's remedy is O(d) mpfr reads appended to a per-tour row that is already written
+        and already fsync'd -- 512 reads against a tour whose order, on the only committed
+        comparand, is minutes. M4's is one key. F1's is one journal record per prologue
+        phase, using a pattern already implemented. F4's is two lines in an existing
+        `finally`. F5's is one `if` at the top of an existing loop. NONE of these requires a
+        d=512 run to IMPLEMENT; all of them require one to VALIDATE, which is the ordinary
+        condition of this lane and not an obstruction.
+      cost_of_not_doing_them: >-
+        A capped d=512 run under the current instrument returns a per-tour cost prefix with
+        no way to project completion, a memory column that under-reports, and -- if the kill
+        lands in the prologue -- a record that states elapsed near zero for a cell that ran
+        for minutes. That is much better than one bit and it is not yet a sizing input.
+
+  # =====================================================================
+  admissibility_ruling:
+    question: 'Is this instrument fit to carry the next capped run at d=512, mpfr_bits=100?'
+    ruling: ADMIT WITH NAMED RESIDUAL
+    reason: >-
+      ADMIT, because the instrument is unambiguously and substantially better than the
+      predecessor on the exact axis that failed, and two of its six fixes transfer to d=512
+      without qualification: the fsync'd STARTED stub cannot fail to record that a cell
+      began, and D6 is dimension-safe arithmetic. Every per-tour row is on disk and fsync'd
+      before the next tour starts, so a capped d=512 cell cannot again produce literally
+      nothing. Refusing admission would leave the lane with the predecessor, which is
+      strictly worse, and premature closure is a failure mode symmetric with overclaiming.
+      WITH NAMED RESIDUAL, because five specific things are missing that a capped d=512 run
+      would want and that no acceptance test at d=64 could have surfaced. Each is named
+      below, each is concrete, and each is cheap. I did not go looking for a residual to
+      satisfy P1; I went looking for scale-only failure modes, found these, and only then
+      read P1's weight.
+    residuals_named_concretely:
+    - id: R1
+      residual: 'No prologue record. A d=512 cell killed before the first `tour_start` is indistinguishable from one killed at t=0, and the prologue at d=512 is bounded below by the predecessor''s committed 498.96 s outer LLL.'
+      remedy: 'One `phase_start` journal record per prologue phase, using the existing `tour_start` pattern.'
+    - id: R2
+      residual: 'The per-tour row carries only the polled `peak_rss_bytes`, which the GIL-starved sampler makes a tour-boundary maximum; `ru_maxrss` is not in the row. A memory ceiling read off that column under-sizes.'
+      remedy: 'One key in the existing row.'
+    - id: R3
+      residual: 'The AUTO_ABORT stopping criterion is not reconstructible from the record, so tours-to-completion has no empirical handle and the sizing DEC-20260824-5e222e requires stays half-computable.'
+      remedy: 'Journal the per-tour GSO log-norm slope, or the AutoAbort statistic, as one more key.'
+    - id: R4
+      residual: '`_H_PAYLOAD` is never reset and the handlers are never disarmed, so a signal after a cell completes writes a KILLED_PARTIAL with `failed_infrastructure: true` for a cell that COMPLETED. Demonstrated at d=64 in my probe.'
+      remedy: 'Two lines in `run_cell`''s existing `finally`.'
+    - id: R5
+      residual: 'The only cap mechanisms are Python signals, all deferred by the GIL for a whole tour, so a declared cap is only tour-boundary-accurate and the deferral is not measurable from the record.'
+      remedy: 'An in-loop deadline test at the top of the driving loop, which needs no signal at all; plus an externally captured kill timestamp if the deferral is ever to be quantified.'
+    what_this_ruling_is_not:
+    - >-
+      IT IS NOT AN APPROVAL. Approval is a frozen contract at a declared path plus a
+      committed Coordinator decision, and neither exists for the 100-bit cell.
+      DEC-20260824-5e222e's substance is a REFUSAL; this batch discharges the condition that
+      refusal names and does not lift it. Nothing in this report may be read as authorising
+      any run.
+    - 'It is not a statement that R1-R5 must be fixed before a run. It is a statement that a run made without them will return less than a run made with them, and that the difference is cheap.'
+    - 'It is not a whole-claim verdict. I own three joints of six and cannot see J1, J2 or J3 by construction. TASK-20260826-70d800 composes.'
+    - 'It is not corroboration of anything the producer, my sibling or the closing Coordinator concludes. Rule 12 is unmet: we are expected to resolve to the same model and our agreement is correlated same-model judgement.'
+
+  scope_limits:
+    tested_scope_of_every_statement_i_make_from_my_own_measurement: >-
+      d=64, beta=20, mpfr_bits=53, q=3329, one seed per cell drawn by the pinned formula,
+      strategies resolved from `DEFAULT_STRATEGIES`, fpylll 0.6.4, psutil 7.2.2, Python
+      3.11, one 4-core host, two cells in one process, `arm_signals=False`. Nothing I
+      measured transfers to d=512, to mpfr_bits=100, to beta=25, to any other dimension or
+      precision, or to any cryptographic parameter set.
+    statements_i_make_from_committed_records_rather_than_measurement: >-
+      498.96 s and 508.58 s outer LLL at d=512/75-bit, 3051.82 s and 2974.33 s cell wall
+      clock, 14448 s lower bound, 21538 s cumulative, exit 124, `timeout 17500` -- all from
+      BATCH-f9780d's execution_report.md. 26 tours and 274.29/277.56 s at d=80/beta=55 --
+      from EV-MLKEM-59e4a4. 9 versus 19 heartbeat samples, 0.000378 s pre-loop LLL, 6.457 s
+      suite wall clock -- from implementation_report.md. Each attributed at its point of use.
+      I recomputed none of them and do not assert them as my own measurements.
+    ml_kem: >-
+      NOTHING IS ASSERTED ABOUT ML-KEM AT ANY PARAMETER SET, IN EITHER DIRECTION. The object
+      at d=512 is already a structureless random q-ary lattice -- a null object -- and that
+      limit is inherited, not established here.
+    rule_12: >-
+      UNMET AND UNWAIVED, INHERITED. I am expected to resolve to the same model as the
+      producer, my sibling and the closing Coordinator. MY AGREEMENT WITH ANY OF THEM IS
+      CORRELATED SAME-MODEL JUDGEMENT AND IS NOT INDEPENDENT CORROBORATION. My independence
+      in this round is procedural only: a fresh session, a disjoint write scope, sibling
+      blindness, and a plan written before I ran.
+
+  next_concrete_action:
+    one_action: >-
+      BEFORE the next capped d=512 / mpfr_bits=100 attempt is contracted, add R3 -- one
+      per-tour key carrying the GSO log-norm slope (or the `BKZ.AutoAbort` statistic itself)
+      to the existing `tours_table` row -- and R1, one `phase_start` journal record per
+      prologue phase. Together they are the difference between a capped cell that returns a
+      cost PREFIX and one that returns a cost prefix plus the only empirical handle on how
+      much work remains, which is the half of DEC-20260824-5e222e's sizing requirement that
+      is currently missing. Both are additive, neither touches the reduction, neither costs
+      lattice compute to implement, and both can be acceptance-tested at d=64 exactly as
+      D1..D6 were.
+    what_this_action_is_not: >-
+      It is not a request to run anything at d=512, and it names no budget. It is an
+      instrument change that a Coordinator may or may not require; whether the next attempt
+      happens at all, and under what contract, is not mine to say.

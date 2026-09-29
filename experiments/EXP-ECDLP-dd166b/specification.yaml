@@ -1,0 +1,325 @@
+experiment:
+  id: EXP-ECDLP-dd166b
+  hypothesis_id: H-ECDLP-3ffc94
+  question_id: RQ-JINV-8fc13a
+  goal_id: null
+  version: 1
+  status: draft
+  claim_tier: toy
+  title: >-
+    Exact symbolic support of S_3 under the translation x -> x + c, special
+    curve against a paired generic control at the same c, with the ambient
+    monomial bound computed in advance and a curve-free sparse-polynomial null
+    whose consequence is pre-stated
+
+  objective: >-
+    Decide whether the special-j support drop of the third summation polynomial
+    survives a translation of the x-line. Measure D(c), the paired difference
+    between the generic and the special curve's support at the SAME c, exactly
+    and symbolically. Decide separately whether the same densification is
+    produced by a sparse polynomial with no curve behind it, which fixes
+    whether any conclusion is a statement about elliptic curves or about sparse
+    polynomials. NO SOLVER IS RUN, NO TIMING IS MEASURED, AND NO ALGORITHMIC
+    COMPARISON IS MADE.
+
+  independent_variables:
+    - name: shift_c
+      values: >-
+        symbolic indeterminate first; then 0, 1, -1, a root of x^3 + ax + b if
+        one is rational, and 20 seeded random elements of F_p
+    - name: locus
+      values: [generic_control, a_equals_0, b_equals_0]
+    - name: prime_p
+      values: [4001, 65537, 1048583]
+    - name: summation_index
+      values: [3, 4]
+
+  inputs:
+    curve_model: y^2 = x^3 + a x + b over F_p, p greater than 3
+    translated_model: y^2 = x^3 + 3c x^2 + (a + 3c^2) x + (b + a c + c^3)
+    committed_c0_support_S3: {generic: 13, a_equals_0: 9, b_equals_0: 10}
+    ambient_monomial_bound_S3: 23
+    expansion_convention: >-
+      fully expanded in the monomial basis of F_p[x1,x2,x3], convention hashed
+      into the run manifest before the first non-zero shift
+    substitution_route: >-
+      direct substitution x_i -> x_i + c into the depressed S_m, so the
+      translated polynomial is provably the same system re-expressed
+
+  metrics:
+    primary:
+      - name: support_count
+        unit: monomials (dimensionless non-negative integer)
+        definition: >-
+          The number of monomials with non-zero coefficient in the fully
+          expanded translated polynomial, reported per curve, per locus, per c,
+          per summation index. Never reported for a special curve without its
+          paired generic control at the SAME c.
+      - name: D_of_c
+        unit: monomials (dimensionless integer)
+        definition: >-
+          support_count(generic, c) minus support_count(special, c). Both sides
+          are counted in the same unit by the same routine at the same c.
+    secondary:
+      - name: semantic_check_pass_rate
+        unit: fraction of trials (dimensionless)
+        definition: >-
+          Over 100 random triples of factor-base points with a known sum, the
+          fraction for which the translated relation holds.
+      - name: montgomery_model_eligibility
+        unit: boolean per curve
+        definition: >-
+          Whether the curve has a rational point of order 2, decided exactly.
+      - name: curve_free_null_support_count
+        unit: monomials (dimensionless non-negative integer)
+        definition: >-
+          The support of a random polynomial on the 13-monomial S_3 support set
+          with a random 4-monomial block deleted, after the identical
+          substitution.
+
+  controls:
+    - name: C-BASELINE
+      kind: forced-value baseline
+      blocking: true
+      description: >-
+        At c = 0 the pipeline must return support 13 for the generic curve, 9
+        at a = 0 and 10 at b = 0. These three integers were independently
+        re-derived by hand in the coordinating session by expanding
+        (x1 - x2)^2 x3^2 - 2((x1 + x2)(x1 x2 + a) + 2b) x3 + (x1 x2 - a)^2 -
+        4b(x1 + x2), so the baseline is a checkable derivation and not a quoted
+        number.
+    - name: C-NOOP
+      kind: instrument null
+      blocking: true
+      description: >-
+        c = 0 is supplied THROUGH THE SAME SUBSTITUTION MACHINERY as the
+        non-zero values, proving the machinery is not itself altering the
+        polynomial. A c = 0 result that differs between the direct and the
+        substituted route voids the run.
+    - name: C-SEMANTIC
+      kind: correctness gate
+      blocking: true
+      description: >-
+        For each translated polynomial, verify on 100 random triples of
+        factor-base points with a known sum that the translated relation holds.
+        A translation that breaks the relation is an implementation error and
+        every support count derived from it is void.
+    - name: C-GENERIC-PAIRED
+      kind: matched control, the measurement itself
+      blocking: true
+      description: >-
+        Every special-curve measurement is paired with a generic-curve
+        measurement at the SAME c on the SAME prime, because the generic
+        support itself changes with c and only the difference is meaningful.
+        Reporting a special curve's absolute support at non-zero c without its
+        paired control is forbidden by this contract.
+    - name: C-CURVE-FREE-SPARSE
+      kind: curve-free null, REQUIRED, consequence pre-stated
+      blocking: true
+      description: >-
+        A random polynomial supported on the same 13-monomial set with a random
+        4-monomial block deleted, carrying no curve and no group law, put
+        through the identical substitution and the identical support count.
+        PRE-STATED CONSEQUENCE. If this null densifies to the same ambient size
+        as the curve arms and its own paired difference also goes to 0, then
+        "the drop vanishes under translation" is a fact about sparse
+        polynomials under a linear change of variables, it is NOT a fact about
+        elliptic curves or about special j, and the evidence record must say
+        so in its inference field. If instead the null retains a non-zero
+        difference, the densification is specific to the summation
+        polynomial's coefficient structure and the curve-bound reading is
+        available.
+    - name: C-INVARIANT-NEARBY-OBJECT
+      kind: nearby-object control
+      blocking: false
+      description: >-
+        The dimension of the singular locus of the same system, which is
+        invariant under any change of coordinates. Support must move while this
+        does not; if both move together, the mechanism is refuted.
+    - name: C-TORSION-ELIGIBILITY
+      kind: scope gate on the exploratory arm
+      blocking: true
+      description: >-
+        The alternative-model arm runs only on curves whose torsion admits the
+        model, decided per curve and reported. It is reported separately and
+        MAY NEVER BE POOLED with the translation arm, because model existence
+        is itself a curve-dependent condition.
+    - name: C-CONVENTION-FREEZE
+      kind: instrument freeze
+      blocking: true
+      description: >-
+        The expansion convention is hashed before the first non-zero shift and
+        asserted identical across every arm and every c.
+
+  heuristic_under_test: HEUR-001
+
+  preregistered_prediction:
+    quantity: >-
+      D(c), the paired generic-minus-special support difference of S_3 in the
+      coordinate x + c, for every non-zero c.
+    formula: >-
+      D(c) = 0 exactly, for every non-zero c and both loci, while
+      D(0) = 4 at a = 0 and D(0) = 3 at b = 0, and the generic support strictly
+      increases from 13 into the range 14 to 23.
+    source: >-
+      D(0) is re-derived by hand in this session from the standard S_3
+      expression. The ambient bound 23 is the exact count of exponent triples
+      with each exponent at most 2 and total degree at most 4, namely 27 minus
+      the four triples (2,2,2) and the three permutations of (2,2,1). The
+      prediction D(c) = 0 follows from the mechanism in H-ECDLP-3ffc94.
+
+  band_non_degeneracy_analysis: >-
+    COMPUTED BEFORE THE BANDS WERE FIXED.
+    (1) THE PRIMARY BAND IS DISCRETE AND HAS NO THRESHOLD TO LOOSEN. D(c) is an
+    integer. The predicted value is exactly 0 and the alternative is any value
+    at least 1. There is no tolerance and no way to reach either branch by
+    moving a cut.
+    (2) THE ALTERNATIVE IS REACHABLE, WHICH WAS CHECKED RATHER THAN ASSUMED.
+    The shift does NOT move the curve off the degeneration locus: for the
+    a = 0 curve the shifted model has (a2, a4, a6) = (3c, 3c^2, b + c^3) and
+    c4 = a2^2 - 3 a4 = 9c^2 - 9c^2 = 0, so the shifted curve is still a j = 0
+    curve. The special locus is preserved exactly and the comparison is not
+    trivially destroyed. Whether the general-model S_3 support drops on the
+    c4 = 0 locus is a genuinely open exact computation, so the intrinsic
+    alternative can fire.
+    (3) THE SANITY METRIC HAS A COMPUTED RANGE, NOT A HOPE. The generic support
+    after a non-zero shift is bounded below by 13, since a linear substitution
+    is invertible and cannot reduce the ideal, and above by exactly 23, the
+    ambient monomial count computed above. A measurement of exactly 13 proves a
+    no-op; a measurement above 23 proves a broken substitution. Both failure
+    modes are detectable and neither is absorbed by a tolerance.
+    (4) A CURVE-FREE OBJECT REPRODUCES THE SIGNATURE, SO A CURVE-FREE NULL IS
+    MANDATORY. Densification of a sparse polynomial under x -> x + c requires
+    no curve, no group law and no j-invariant; a randomly 4-monomial-punctured
+    polynomial on the same support set will densify for the same reason. The
+    null is therefore run as a blocking arm with its consequence written down
+    in advance, rather than argued about after the result.
+    (5) ONE ARM IS DECLARED UNANCHORED RATHER THAN QUIETLY GATED. The source
+    proposal gates on reproducing an S_4 support of 439 with the block values
+    391 / 403 / 433 / 433 / 435 / 438. A search of this repository by the
+    coordinating session located those numbers only in sibling ideation
+    proposals of the same batch and in no hypothesis, evidence, experiment or
+    decision record. The S_4 arm therefore carries its own self-derived
+    baseline and is reported as exploratory; it is not gated on numbers whose
+    committed source cannot be produced.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact symbolic algebra over Q[a,b,c] where feasible, otherwise exact over
+      F_p at p in {4001, 65537, 1048583}. Support counts of a symbolic
+      polynomial are p-independent and transfer exactly to any p greater than
+      3 outside the finitely many characteristic degeneracies, which the
+      symbolic-in-c route makes explicit. No cryptographic-scale statement.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The structured shift c equal to a root of the curve cubic is the one
+      shift with geometric meaning, moving a 2-torsion x-coordinate to the
+      origin, and is exactly the kind of c at which a coefficient of the
+      c-indeterminate expansion can vanish. It is reported individually and is
+      never averaged into the random-c sample.
+    - >-
+      The realised Schwartz-Zippel bound 20 d / p is reported at p = 4001,
+      where d = 4 gives 80/4001 = 0.020. If the symbolic-in-c route does not
+      complete at some locus, that 2 percent miss probability is the honest
+      residual and must be recorded with the sampled result.
+
+  replication:
+    seeds: [20260904, 20260905, 20260906]
+    independent_instances: 9
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 3
+    maximum_memory_gb: 8
+    maximum_runs: 12
+    maximum_workers: 1
+
+  stopping_rules:
+    - >-
+      Attempt the symbolic-in-c computation first at every locus. If it exceeds
+      the per-run budget, fall back to the sampled c and RECORD the fallback
+      and the realised Schwartz-Zippel residual; do not silently substitute one
+      route for the other.
+    - If C-BASELINE or C-NOOP fails, stop before any non-zero shift is run.
+    - If C-SEMANTIC fails at any c, void every support count at that c.
+
+  invalidation_rules:
+    - A special-curve support reported without its paired generic control at
+      the same c.
+    - Any support count taken under an expansion convention whose hash differs
+      from the frozen one.
+    - Any pooling of the alternative-model arm with the translation arm.
+    - Any support count above the ambient bound 23 for S_3, which proves the
+      substitution is not preserving the degree bounds.
+    - Any citation of an S_4 baseline as committed.
+
+  success_criterion: >-
+    C-BASELINE, C-NOOP, C-SEMANTIC and C-CURVE-FREE-SPARSE all complete; D(c)
+    is reported as an exact integer for every locus, every c and both curve
+    arms plus the curve-free null; the generic support growth curve is reported
+    and lies in 14 to 23; and the torsion eligibility of every special curve is
+    recorded. The criterion is the production of these integers and the
+    curve-free comparison, not any particular value.
+
+  falsification_criterion: >-
+    The central prediction is falsified if D(c) is non-zero for any tested
+    non-zero c at any locus. The instrument is void if the generic support does
+    not grow, if C-SEMANTIC fails, or if c = 0 does not reproduce 13, 9 and 10.
+    The CURVE-BOUND READING is falsified, without falsifying the arithmetic, if
+    the curve-free sparse null densifies identically and its own paired
+    difference also goes to 0; in that case the conclusion is about sparse
+    polynomials under translation and the evidence record must be written that
+    way.
+
+  required_artifacts:
+    - the frozen expansion convention and its hash
+    - the symbolic-in-c expansion where it completed, as an exact object
+    - per locus, per c, per prime, the support count and D(c)
+    - the generic support growth curve against the ambient bound 23
+    - the curve-free sparse-null support counts and its own paired difference
+    - the semantic check pass rate per translated polynomial
+    - the torsion eligibility record per special curve per prime
+    - the singular-locus dimension per curve per c
+    - the fallback record if the symbolic route did not complete, with the
+      realised Schwartz-Zippel residual
+    - run manifest per AGENTS.md artifact policy
+
+  limitations:
+    - >-
+      A CURVE-FREE OBJECT MAY OWN THIS RESULT AND THE CONTRACT SAYS SO IN
+      ADVANCE. Densification under a translation is a property of sparse
+      polynomials, and the required curve-free null exists so that a null
+      difference cannot be reported as a statement about elliptic curves
+      unless the null behaves differently.
+    - >-
+      Translations are a subgroup of the model-change groupoid, not the whole
+      of it. Non-invariance proves non-intrinsicness; invariance proves
+      nothing about the full groupoid. Only one direction is conclusive.
+    - >-
+      THE S_4 ARM IS EXPLORATORY AND ITS BASELINE IS UNANCHORED. The 439 count
+      and its block stratification were not located by the coordinating session
+      in any committed hypothesis, evidence, experiment or decision record. The
+      check was a CONTENT SEARCH for the literal token across every YAML file in
+      the repository, not a filename listing, so it would have reached a goal
+      record sharded under a directory and a question stored at the ledger root;
+      the absence is checked rather than inferred, and is scoped to YAML files
+      on this branch. The arm carries a self-derived baseline and may not be
+      reported as reproducing committed data.
+    - >-
+      UNTESTABLE HERE, STATED PLAINLY. Whether a support drop has any cost
+      consequence is not testable by this contract, because no solver is run
+      and no timing is measured. The frequently quoted -0.44 percent timing
+      figure was not located in any ledger record by the coordinating session
+      and is used by no prediction, control or criterion here.
+    - >-
+      Scope: S_3 primary and S_4 exploratory, short-Weierstrass curves over
+      F_p at p in {4001, 65537, 1048583}, the translation subgroup only, one
+      frozen expansion convention. Nothing transfers to other model changes,
+      other coordinate systems, other summation indices, or cryptographic
+      parameters.
+
+  assigned_to: executor
+  approved_by: null

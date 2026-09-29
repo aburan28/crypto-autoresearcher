@@ -1,0 +1,183 @@
+id: EXP-ECDLP-9d1966
+status: draft
+area: ECDLP
+title: Zero-run symbolic windowed-tree point-decomposition accounting contract
+origin:
+  idea_id: IDEA-20260808-486ae2
+  hypothesis_id: H-ECDLP-5014e2
+  design_task: TASK-20260909-5e04f0
+  batch: BATCH-71d3ac
+experiment_kind: source_only_design
+scientific_execution:
+  authorized: false
+  maximum_runs: 0
+  run_identifiers: forbidden
+  prohibited_actions:
+    - implement code
+    - execute a renderer, solver, or benchmark
+    - select an elliptic curve
+    - construct a factor base
+    - generate relations
+    - invoke lattice reduction or a small-root method
+    - solve or attempt to solve a discrete logarithm
+    - record timing, memory, yield, or success metrics
+abstract_input_model:
+  target:
+    type: opaque_target_token
+    grammar: '^target:[a-z0-9][a-z0-9_-]{0,31}$'
+    semantics: >
+      An opaque symbolic name only.  It is not an elliptic-curve point,
+      coordinate, scalar, group element, or encoded instance.
+  tree:
+    root_id: r
+    topology: full_binary
+    maximum_depth: 3
+    node_id_grammar: '^(r|[01]{1,3})$'
+    child_rule: >
+      A non-leaf node n has exactly children n0 and n1.  A leaf has no
+      children.  The supplied node set must contain r, be prefix-closed, and
+      contain no duplicate node identifiers.
+    terminal_rule: nodes at depth 3 are leaves; shallower leaves are forbidden
+  variables:
+    per_internal_node:
+      - name: w_left
+        type: integer
+        inclusive_bounds: [-8, 8]
+      - name: w_right
+        type: integer
+        inclusive_bounds: [-8, 8]
+    per_leaf:
+      - name: residual_tag
+        type: nonnegative_integer
+        inclusive_bounds: [0, 15]
+    representation_rule: >
+      Every variable must occur exactly once in the node record where it is
+      declared.  Extra variables, omitted variables, nonintegers, and values
+      outside the inclusive bounds invalidate the entire symbolic input.
+symbolic_weight:
+  definition: >
+    For a leaf l with ancestor internal nodes A(l), weight(l) equals
+    residual_tag(l) plus the sum over n in A(l) of abs(w_left(n)) plus
+    abs(w_right(n)).
+  units: symbolic_weight_units
+  prohibition: >
+    This is a declared accounting quantity.  It is not polynomial degree,
+    bit length, root size, smoothness, relation probability, lattice dimension,
+    time, memory, data, or a cryptanalytic cost.
+threshold:
+  id: THRESHOLD-WT-01
+  type: symbolic_integer
+  fixed_value: 24
+  admission_predicate: 'weight(leaf) <= 24'
+  purpose: >
+    The threshold partitions finite synthetic leaves into admitted and rejected
+    accounting buckets.  It neither defines nor estimates a factor base.
+  change_control: >
+    Any different threshold requires a new additive draft specification and a
+    fresh review; it must not overwrite this contract.
+classification:
+  exhaustive_verdicts:
+    - ADMITTED_SYMBOLIC
+    - REJECTED_ABOVE_THRESHOLD
+    - INVALID_INPUT
+  precedence:
+    - INVALID_INPUT
+    - REJECTED_ABOVE_THRESHOLD
+    - ADMITTED_SYMBOLIC
+  required_leaf_record:
+    - target
+    - leaf_node_id
+    - ancestor_node_ids
+    - residual_tag
+    - ancestor_window_values
+    - declared_weight
+    - threshold_id
+    - verdict
+  uniqueness_rule: >
+    Each valid terminal leaf has exactly one record.  Its leaf_node_id may
+    occur once only, and all declared weights must recompute from the supplied
+    bounded variables.
+cost_accounting:
+  symbolic_cost_vector:
+    tree_nodes: count of supplied nodes
+    internal_nodes: count of supplied non-leaf nodes
+    terminal_leaves: count of supplied depth-3 leaves
+    window_coordinates: 2 times internal_nodes
+    admitted_leaves: count of ADMITTED_SYMBOLIC leaf records
+    rejected_leaves: count of REJECTED_ABOVE_THRESHOLD leaf records
+  accounting_identity: >
+    For valid input, terminal_leaves equals admitted_leaves plus rejected_leaves.
+  prohibited_interpretations:
+    - asymptotic complexity
+    - concrete runtime
+    - memory consumption
+    - data complexity
+    - relation yield or success probability
+    - comparison with Pollard rho or any ECDLP baseline
+controls:
+  - id: CTRL-CLEAN-ADMISSION
+    input: >
+      A complete depth-3 symbolic tree with every variable in range and a leaf
+      of declared weight exactly 24.
+    expected: ADMITTED_SYMBOLIC for that leaf, with a recomputable weight.
+  - id: CTRL-ABOVE-THRESHOLD
+    input: >
+      A complete depth-3 symbolic tree with one otherwise valid leaf of
+      declared weight 25.
+    expected: REJECTED_ABOVE_THRESHOLD for that leaf.
+  - id: CTRL-OUT-OF-RANGE-WINDOW
+    input: A tree containing w_left equal to 9.
+    expected: INVALID_INPUT for the entire input; no leaf is admitted.
+  - id: CTRL-MALFORMED-TOPOLOGY
+    input: A node set with a missing required child or duplicate node id.
+    expected: INVALID_INPUT for the entire input; no threshold classification.
+  - id: CTRL-FALSE-CRYPTOGRAPHIC-INTERPRETATION
+    input: >
+      Any synthetic record annotated as an ECDLP relation, factor-base member,
+      small root, curve point, attack success, or speedup.
+    expected: INVALID_INPUT because the abstract-input grammar admits none of
+      those fields or meanings.
+proof_search_map:
+  applies: false
+  rationale: >
+    This is a finite symbolic accounting design, not a proof-oriented proposal.
+    No theorem, asymptotic bound, reduction, certificate family, or closure
+    argument is proposed.
+  future_recheck: >
+    A later proposal that connects this grammar to elliptic-curve equations,
+    small-root conditions, or attack cost must supply a proof_search_map before
+    implementation or measurement admission.
+dependencies_and_impediments:
+  - id: IMP-SOURCES-01
+    condition: >
+      No primary sources have been retained and hash-bound for any recalled
+      Semaev or Jochemsz-May-related pointer.
+    effect: >
+      The design cannot claim mathematical applicability, duplicate status,
+      baseline comparison, cost relevance, or ECDLP significance.
+    clears_when: >
+      A separately authorized retrieval record preserves source bytes, hashes,
+      exact locators, provenance, and an independent review verifies their
+      limited use.
+  - id: IMP-IMPLEMENTATION-01
+    condition: No independent implementation-and-custody contract exists.
+    effect: No synthetic renderer or control fixture may be created or run.
+    clears_when: >
+      A source-bound implementation plan, immutable fixture plan, review, and
+      Coordinator decision authorize the narrow next stage.
+custody:
+  design_artifacts:
+    - coordination/design/BATCH-71d3ac/tasks/TASK-20260909-5e04f0/hypothesis.yaml
+    - coordination/design/BATCH-71d3ac/tasks/TASK-20260909-5e04f0/specification.yaml
+    - coordination/design/BATCH-71d3ac/tasks/TASK-20260909-5e04f0/readiness.md
+    - coordination/design/BATCH-71d3ac/tasks/TASK-20260909-5e04f0/duplication-audit.md
+  source_binding: absent
+  implementation_artifacts: forbidden
+  execution_artifacts: forbidden
+  archive_requirement: >
+    Any later implementation or execution proposal must use new immutable
+    artifacts and may not alter this BATCH-local draft.
+approval:
+  approved_by: null
+  implementation_authorized: false
+  scientific_execution_authorized: false

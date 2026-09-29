@@ -1,0 +1,160 @@
+{
+  "task_id": "validator-mono3-a20e48",
+  "role": "validator",
+  "joints_owned": ["J1-correctness"],
+  "runtime": "claude_code",
+  "resolved_model_id": "claude-sonnet-5",
+  "model_verified": false,
+  "requested_policy": "review-adversarial",
+  "requested_reasoning_effort": "xhigh",
+  "session_end_utc": "2026-08-31T00:23:35Z",
+  "repo": "/Volumes/SSD990/crypto-autoresearcher",
+  "branch": "ideas-ecdlp-20260830",
+  "snapshot_commit_validated": "1bd4cf9d0f314b447da87841683a0256c9e6b2b7",
+  "write_scope": "experiments/EXP-MONO-a20e48/reviews/validator/",
+  "no_status_change": true,
+  "no_commit_made": true,
+  "commands_and_derivations": [
+    {
+      "step": "confirm current branch and repo state",
+      "commands": [
+        "git branch --show-current",
+        "git status --short | head -20",
+        "git log --oneline -5"
+      ]
+    },
+    {
+      "step": "verify the experiment snapshot is a clean, committed record (not a working-tree-only receipt)",
+      "commands": [
+        "git log --oneline -1 -- experiments/EXP-MONO-a20e48/",
+        "git status --short experiments/EXP-MONO-a20e48/",
+        "git diff --stat HEAD -- experiments/EXP-MONO-a20e48/",
+        "git show --stat 1bd4cf9d0 | head -50"
+      ],
+      "result": "clean; commit 1bd4cf9d0 adds the exact execution/run artifact set."
+    },
+    {
+      "step": "verify the specification was frozen in a separate, earlier commit",
+      "commands": [
+        "git log --oneline --follow -- experiments/EXP-MONO-a20e48/specification.yaml | tail -20",
+        "git status --short experiments/EXP-MONO-a20e48/specification.yaml",
+        "git diff HEAD -- experiments/EXP-MONO-a20e48/specification.yaml | head -5",
+        "git log --oneline -1 -- ledger/hypotheses/H-MONO-59f6a6.yaml"
+      ],
+      "result": "specification.yaml frozen in commit 17a6da70c, strictly before the 1bd4cf9d0 execution snapshot."
+    },
+    {
+      "step": "read frozen contract, hypothesis, execution report, implementation notes and all implementation/*.py files",
+      "tool": "Read (see review_attestation.sources_read in validation-report.yaml for exact paths)"
+    },
+    {
+      "step": "check for a dedicated regression self-test on tower.py's Level1/Level2 in the committed implementation",
+      "commands": [
+        "grep -n -i \"self.test|selftest|homomorphism|order.*4|frob.*check|sanity\" implementation/*.py",
+        "grep -rn \"assert|Level2|ring.hom|order.4|frob.*order|homomorphism\" implementation/*.py"
+      ],
+      "result": "No dedicated Level2 regression test found; frobenius_two_ways_cross_check in run_experiment.py tests fieldext.FpK only, which never touches tower.py."
+    },
+    {
+      "step": "confirm tower.py has exactly one commit in repo history (the snapshot itself)",
+      "commands": [
+        "git log --oneline --follow -- experiments/EXP-MONO-a20e48/implementation/tower.py"
+      ],
+      "result": "1bd4cf9d0 only; the disclosed pre-run bug never existed in any committed state."
+    },
+    {
+      "step": "confirm sympy availability for independent recomputation",
+      "commands": ["python3 --version", "python3 -c \"import sympy; print(sympy.__version__)\""],
+      "result": "Python 3.13.1, sympy 1.14.0"
+    },
+    {
+      "step": "independently verify m_2, m_3, m_4 irreducibility over F_211 via sympy factor_list (separate from this contract's own Rabin's-test code)",
+      "script_inline": "sympy Poly(x**k - ..., x, domain=GF(211)).factor_list()",
+      "result": "x^2-2, x^3-2, x^4-x-7 all confirmed irreducible, matching the run's stage0.m_k_search winners exactly."
+    },
+    {
+      "step": "independently verify Stage-0 number-theoretic facts",
+      "script_inline": "sympy.isprime(211); is_quad_residue(2,211); pow(2,70,211); pow(2,105,211)",
+      "result": "211 prime; 211 mod 3=1; 2 nonresidue; 2^70=196!=1 (noncube); 2^105=210=p-1 (nonresidue confirmed)."
+    },
+    {
+      "step": "write a from-scratch F_{p^k} implementation (sympy Poly/GF backed), independent of fieldext.py/tower.py/polymod_fp.py",
+      "artifact": "scratchpad/indep_fpk.py",
+      "purpose": "ground truth for mul and Frobenius (x^p, x^p^2) at k=2,3,4"
+    },
+    {
+      "step": "cross-check fieldext.FpK.mul/frob_direct against indep_fpk.py on 3 random elements each at k=2,3,4",
+      "commands": ["python3 (inline script importing implementation/fieldext.py and scratchpad/indep_fpk.py)"],
+      "result": "ALL MATCH: True (9/9 mul + frob1 + frob2 comparisons)"
+    },
+    {
+      "step": "property-check tower.Level1.conj and tower.Level2.frob (ring homomorphism, order 2 / order 4) at all four ladder steps k=1..4, using the actual (post-fix) tower.py",
+      "commands": ["python3 (inline script instantiating fieldext.FpK + tower.Level1/Level2 for k=1..4, random elements)"],
+      "result": "Level1.conj: additive+multiplicative, order exactly 2, fixes F0, at every k. Level2.frob: additive+multiplicative, frob^4=id, frob^2!=id (order exactly 4, not 2), at every k."
+    },
+    {
+      "step": "reproduce the disclosed pre-run bug in a disposable copy of the implementation and observe its effect",
+      "commands": [
+        "mkdir scratchpad/buggy_replay; cp implementation/*.py scratchpad/buggy_replay/",
+        "python3 - <<EOF  # patched tower.py: self.s = L1.pow(self.e, (self.q1 - 1) // 2)  # BUG INJECTED",
+        "python3 (inline script: property check + full N1 k=1 exhaustive census through the patched code)"
+      ],
+      "result": "Patched Level2.frob has frob^2==identity (order divides 2, matching the disclosed symptom exactly). Running N1's actual k=1 exhaustive census through the patched code raises RuntimeError on the very first level-2-requiring point (e1=0, e2=9): 'N1: Frobenius image of point 0 matched no labelled point'. The bug does not silently misclassify; it crashes the census outright."
+    },
+    {
+      "step": "independently re-derive N4's R_k by pure group theory and by fresh code",
+      "derivation": "Gal(F_211^3/F_211)=Z/3 (prime order, generated by Frob_211); R_k = order of <Frob_211^k> = 3 if 3∤k else 1 => (3,3,1,3) for k=1..4.",
+      "artifact": "scratchpad/indep_n4_n2.py (finds the 3 roots of x^3-2 as {x, 14x, 196x} mod m_3(x)=x^3-2 via independently-found cube roots of unity {1,14,196} mod 211, verifies each cubes to 2, computes Frobenius^k via a fresh sympy-based field, checks generated permutation-subgroup order)",
+      "result": "R_k = (3,3,1,3) exactly, matching the run and the hand derivation."
+    },
+    {
+      "step": "independently re-derive N2's inertia argument by hand and by fresh code",
+      "derivation": "Local monodromy at e=0 and e=infinity gives only the diagonal generator sigma_1 sigma_2 (since sqrt(2e)/sqrt(e)=sqrt(2) is a single-valued constant ratio near both branch points) => L_geom=Z/2. Elementary alternative: since c=2 is a fixed quadratic nonresidue mod 211, legendre(e)*legendre(2e)=legendre(2)=-1 for every e!=0, so exactly one of {e,2e} is ever a square mod 211 -- k=1 Frobenius realizes only individual generators (never the diagonal, never identity), which together generate the full (Z/2)^2=order 4.",
+      "artifact": "scratchpad/indep_n4_n2.py (n2_realized_group_k1, n2_realized_group_k2 functions: fresh sqrt_mod via sympy + hand-rolled complex-method F_{211^2} sqrt)",
+      "commands": ["python3 scratchpad/indep_n4_n2.py"],
+      "result": "k=1: realized group order 4 (generators observed: sigma_i-only, sigma_1-only -- matches the elementary QR argument). k=2 (150 samples): realized group order 2 (generators observed: identity, diagonal sigma_1 sigma_2 only)."
+    },
+    {
+      "step": "recompute EXP-MONO-4c7479's own N1 k=1 class histogram directly from its committed raw per-point log (not from any summary claim)",
+      "commands": [
+        "python3 -c \"... Counter over per_base_point_log/p211_A1_B1.ndjson 'arm_a_class' field ...\""
+      ],
+      "result": "{block_swap_involution: 11100, sigma_i: 11100, four_cycle: 11055, identity: 6105, sigma1_sigma2: 4950, None: 211} -- exact match to the reference histogram cited by EXP-MONO-a20e48's reproduction_control."
+    },
+    {
+      "step": "recompute EXP-MONO-a20e48's own N1 k=1 class histogram directly from its raw per-point log, both runs",
+      "commands": [
+        "python3 -c \"... Counter over runs/RUN-MONO-a20e48-1/per_base_point_log/N1_k1_exhaustive.jsonl 'class' field ...\""
+      ],
+      "result": "Identical histogram to the sibling's, confirming the reproduction control on raw data from both sides."
+    },
+    {
+      "step": "write a THIRD, wholly independent implementation of N1's k=1 classification (fresh sqrt_mod via sympy, hand-rolled Fp2/Fp4 complex-method tower, no import of fp_common.py/tower.py/fieldext.py/arm_a.py/battery.py) and spot-check 10 base points spanning all 5 outcome classes",
+      "artifact": "scratchpad/indep_n1.py",
+      "commands": ["python3 scratchpad/indep_n1.py"],
+      "result": "All 10 points matched the Executor's own per-point log exactly, including full permutation tuples, not just labels."
+    },
+    {
+      "step": "verify determinism pattern: exact/exhaustive cells bit-identical across runs, sampled cells differ",
+      "commands": ["python3 -c \"... json.load both raw-result.json, compare N1/N4/N2/N2-twin exact fields and N1 k>=2 / N3 sampled fields ...\""],
+      "result": "N1 k1_exhaustive_histogram/k1_group, N4 R_k_ascending/roots, N2/N2-twin k1: identical across runs. N1 k=2,3,4 class_histogram and N3 histograms at every k: differ across runs (different seeds), while N1's group_order (R_k) still agrees across runs at every k."
+    },
+    {
+      "step": "verify labelling control directly from raw-result.json (not the execution_report summary)",
+      "commands": ["python3 -c \"... print labelling_control_k1/R_k_descending for N1,N2,N2-twin,N4 ...\""],
+      "result": "N1: 8=8, N2: 4=4, N2-twin: 4=4, N4: (3,3,1,3)=(3,3,1,3) under both labellings."
+    },
+    {
+      "step": "verify run manifests (command, commit, dirty-tree disclosure, environment, seeds, resources, budget, certificate) and that the cited implementation_commit is a real ancestor of HEAD",
+      "commands": [
+        "git cat-file -t e7f5f623b2ce42f6f56e37365ea27f2586fbab9c",
+        "git log --oneline -1 e7f5f623b2ce42f6f56e37365ea27f2586fbab9c",
+        "git merge-base --is-ancestor e7f5f623b2ce42f6f56e37365ea27f2586fbab9c HEAD && echo IS ANCESTOR",
+        "cat runs/RUN-MONO-a20e48-1/manifest.yaml, command.txt, environment.json, stdout.log",
+        "grep -E 'seed:|domain:|started_at|finished_at|commit:|dirty:' runs/RUN-MONO-a20e48-2/manifest.yaml"
+      ],
+      "result": "Commit is a real, reachable ancestor. Both runs' manifests carry distinct seeds/domains (20260830/20260831), consistent commit, disclosed dirty-tree note (unrelated concurrent-session files, not overlapping this task's write_scope), environment, resources, and certificate.kind=none (correctly, as no ECDLP claim is made)."
+    }
+  ],
+  "budget_used_estimate": "approximately 70 minutes wall clock of the 75-minute budget; no external network access used beyond local sympy computation."
+}

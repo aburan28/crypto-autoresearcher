@@ -148,6 +148,11 @@ def build_sandbox(task: EvalTask, root: Path, *, repo: Path = REPO,
     (sandbox / WORK_DIR).mkdir(exist_ok=True)
 
     shutil.copy2(repo / "AGENTS.md", sandbox / "AGENTS.md")
+    # api_direct system_prompt loads the compact runtime core before the role
+    # contract (PR #856); sandboxes must seed it or every trial errors out.
+    (sandbox / "docs").mkdir(exist_ok=True)
+    shutil.copy2(repo / "docs" / "agent-runtime-core.md",
+                 sandbox / "docs" / "agent-runtime-core.md")
     (sandbox / "agents").mkdir(exist_ok=True)
     shutil.copy2(repo / "agents" / f"{task.role}.md",
                  sandbox / "agents" / f"{task.role}.md")

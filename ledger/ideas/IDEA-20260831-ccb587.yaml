@@ -1,0 +1,215 @@
+idea:
+  id: IDEA-20260831-ccb587
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Audit which deployed protocols actually publish [x^i]P, for which i, and how
+    many -- the supply side of the auxiliary-input attack, read off specifications
+  class: audit
+
+  claim: >-
+    Cheon's algorithm needs [x^d]P for a divisor d of r±1 in the useful range.
+    Whether any real system hands that over is a question about protocol
+    specifications, not about elliptic curves, and it has a determinate answer
+    per instantiation. The claim is that the set of deployed constructions
+    releasing auxiliary powers is small, enumerable, and enumerable NOW: q-SDH
+    based schemes, Boneh-Boyen signatures, and the powers-of-tau style
+    structured reference strings used by several pairing-based systems publish
+    [x]P, [x^2]P, ..., [x^q]P as public parameters. For each, q is a fixed,
+    published number. The audit records that number and compares it against the
+    divisor d that IDEA-20260831-df4197 says would be needed.
+
+  mechanism: >-
+    The two halves of the attack fail independently, which is why this program
+    keeps meeting Cheon and concluding nothing. DEC-20260802-204 closed the
+    ordinary route by observing that acquiring [x^d]P costs rho-scale work. That
+    is a statement about ACQUISITION. It says nothing about settings where
+    acquisition is free because the powers are in the public parameters.
+
+    So the honest decomposition is: (arithmetic) does a useful d exist for this
+    curve, and (supply) does the protocol release [x^d]P or enough powers to
+    reach it. The attack bites only where both are yes. This idea measures the
+    second, by reading specifications, and its output is a table of released-power
+    counts with a citation per row -- not an experiment, not a claim, and not a
+    vulnerability report.
+
+    The critical and easily-fudged detail: releasing [x]P through [x^q]P for
+    small q does NOT supply [x^d]P for large d. Cheon's speedup wants d near
+    sqrt(r), which is astronomically larger than any q a real SRS publishes. The
+    audit must therefore record q as an integer and state plainly, per row,
+    whether the released set contains an exponent that divides r±1 in the useful
+    range. The expected answer is overwhelmingly no, and recording that clearly
+    is the point.
+
+  tracked_object: >-
+    Per deployed instantiation: the integer q of released consecutive powers, the
+    exact form of the released set, and the specification clause that fixes it.
+
+  lossy_projection_test: >-
+    PASSES, with a caveat stated rather than hidden. The projection
+    (protocol) -> (set of exponents i for which [x^i]P is public) discards the
+    entire protocol -- its security goals, its pairing, its proof, its
+    implementation -- retaining a set of integers. That set is exactly what
+    Cheon's algorithm consumes, so the retained part is the operative one. The
+    caveat: it is lossy in a direction that matters, because a protocol can leak
+    a power indirectly (through a signature, a transcript, an adaptive query)
+    without publishing it. Those channels are OUT OF SCOPE for this audit and
+    the audit must say so per row rather than implying the published set is the
+    whole leak surface.
+
+  novelty_status: known
+  novelty_note: >-
+    Nothing here is new. That q-SDH and Boneh-Boyen release powers of x, and
+    that Cheon's attack is the reason q-SDH parameters are chosen as they are,
+    is standard and is precisely why the assumption is stated with a bound on q.
+    The audit's value is not discovery; it is that THIS PROGRAM has no record of
+    it, and the joined table (curve divisor structure x released powers) is what
+    makes the divisor census interpretable instead of a curiosity.
+
+  citations:
+    - ref: ledger/decisions/DEC-20260802-204.yaml
+      provenance: internal
+      claim: >-
+        "acquisition of the auxiliary point A=[x^d]P from ordinary input
+        P,Q=[x]P remains unestablished below rho-scale work". Relied on as the
+        exact statement this idea works around by moving to protocol-supplied
+        inputs, and as the boundary no record here may cross.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: "q-SDH; Boneh-Boyen signatures; Kim-Cheon auxiliary inputs with polynomial structure"
+      provenance: recalled
+      claim: >-
+        RELAYED, NOT READ. The 2026-08-31 external coverage-gap input document
+        names q-SDH, Boneh-Boyen signatures and "some pairing/threshold schemes"
+        as the settings where auxiliary points are exposed by the protocol. No
+        agent in this program has opened any of these specifications. Every row
+        of the audit table must be re-derived from a primary specification and
+        filed as KN-LIT before it is reported; this entry only says where to
+        start looking.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The instantiation list is frozen before the audit begins. Selecting
+      protocols after seeing which ones look exposed would make the table an
+      argument rather than a census.
+    - >-
+      Public parameters are read from a primary specification or a deployed
+      parameter set, never inferred from a paper's abstract or from this
+      program's recollection of one.
+
+  predictions:
+    - metric: >-
+        q (number of released consecutive powers) per instantiation
+      direction: different
+      minimum_effect: >-
+        Expected small -- tens to low thousands for SRS-style setups. The
+        informative outcome would be an instantiation whose released set
+        contains an exponent dividing r±1 near sqrt(r), which would be
+        surprising and is the escalation trigger.
+    - metric: >-
+        number of (curve, protocol) cells where BOTH the divisor condition and
+        the supply condition hold
+      direction: different
+      minimum_effect: >-
+        Predicted zero. A nonzero count is a stop-and-escalate result requiring
+        independent validation before any further statement.
+
+  minimal_test:
+    design: >-
+      (1) Freeze the instantiation list and publish it in the contract.
+      (2) For each, locate the primary specification clause fixing the public
+      parameters; file it as KN-LIT; record q and the exact form of the released
+      exponent set.
+      (3) Mark any instantiation whose parameters are not publicly pinned as
+      UNDETERMINED. Do not estimate.
+      (4) Join against the IDEA-20260831-df4197 divisor table on curve; emit one
+      row per (curve, protocol) with an explicit reason for every not_applicable.
+      (5) State per row which leak channels were out of scope.
+    controls:
+      - >-
+        POSITIVE CONTROL: a construction known to publish powers must be
+        recorded with q > 0. If the audit procedure returns q = 0 for a
+        powers-of-tau style SRS, the procedure is not reading specifications
+        correctly and no negative row may be reported.
+      - >-
+        NULL OBJECT: plain ECDSA or Ed25519 signing, which releases no powers of
+        the private scalar, must come back q = 0 with the released set empty.
+        This is the shape of a protocol the attack cannot touch, and it is the
+        comparison every other row is read against.
+    required_metrics:
+      - q per instantiation, with the citing specification clause
+      - exact form of the released exponent set (consecutive, sparse, structured)
+      - whether any released exponent divides r±1 in the useful range
+      - count of UNDETERMINED rows, reported separately and never folded into zero
+
+  falsification_conditions:
+    - >-
+      The positive control returns q = 0 for a construction that demonstrably
+      publishes powers. The audit method is wrong.
+    - >-
+      The null object returns q > 0 for plain ECDSA. The audit is
+      over-attributing and every row is suspect.
+    - >-
+      A row is reported without a primary-source citation. That row is void.
+
+  confounders:
+    - >-
+      "Releases powers" is not the same as "releases a power at a useful
+      exponent". Conflating them would manufacture a finding out of an SRS with
+      q = 1024 on a curve whose useful d is 2^128. The table must show the
+      comparison, not just the two numbers.
+    - >-
+      Indirect leakage through transcripts and adaptive queries is a real channel
+      and is deliberately out of scope here. Recording that boundary per row
+      prevents the audit from being read as a completeness claim.
+    - >-
+      Protocols choose q-SDH parameters WITH Cheon in mind. Finding that a
+      deployed instantiation is safe is the designers doing their job, not a
+      null result about the attack.
+
+  interpretation_limits:
+    - >-
+      This is a reading of specifications. It runs nothing, recovers nothing, and
+      cannot support a claim about any deployed system's security.
+    - >-
+      An UNDETERMINED row is not a safe row. The count of UNDETERMINED rows is
+      reported prominently, because a census that quietly drops what it could not
+      read is worse than no census.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None in the audit itself. The entire heuristic content sits in the
+    literature-filing step, which is gated: no row may be reported before its
+    primary source is filed.
+
+  target_complexity:
+    time_exponent: not applicable -- document reading, not computation
+    memory_exponent: negligible
+    best_known: >-
+      This is standard knowledge in the pairing literature; the contribution is
+      the joined table against this program's own divisor census, not the facts.
+    hidden_overhead: >-
+      Locating primary specifications for deployed parameter sets is the real
+      cost and is frequently where such audits quietly substitute recollection
+      for sources. The UNDETERMINED category exists to make that substitution
+      impossible.
+    tradeoff_note: not applicable
+
+  null_object_control: >-
+    Plain ECDSA / Ed25519 signing, which releases no powers of the scalar, run
+    through the identical audit and required to return an empty released set.
+
+  dominated_by: >-
+    n/a. No attack and no result claimed.
+  sota_delta: >-
+    No attack, no speedup. Information contribution only, and deliberately
+    modest: it supplies the second column without which IDEA-20260831-df4197's
+    divisor table cannot be interpreted, and it is the column that most likely
+    closes the goal with a clean negative.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high

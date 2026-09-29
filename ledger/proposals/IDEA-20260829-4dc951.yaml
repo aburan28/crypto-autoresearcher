@@ -1,0 +1,736 @@
+idea:
+  id: IDEA-20260829-4dc951
+  question_id: RQ-MLDSA-ffa0f5
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  title: >-
+    Every prior proposal in this lane studies a signing check being REMOVED. The
+    mirror-image non-conformance is a check being ADDED, and FIPS 204 leaves the
+    only candidate wide open - the signing loop has no stated iteration bound,
+    and the two-byte mask counter imposes an implicit one at 16384 / 13107 /
+    9362 attempts whose exhaustion probability is 10^-1909. Derive the bound the
+    standard does not state, then decide by measurement whether a capped
+    signer's failure indicator is key-INDEPENDENT (leaking only its own rate) or
+    key-DEPENDENT (a public selection channel), against the exact
+    key-independence lemma for the z-norm acceptance probability.
+  class: mechanism
+
+  claim: >-
+    (A) THE SPECIFICATION CLAIM. RECALLED, NOT FETCHED THIS SESSION. FIPS 204's
+    signing algorithm is a while-loop with no stated maximum iteration count and
+    no stated termination bound. Its parameter table supplies an EXPECTED
+    repetition count - 4.25 / 5.1 / 3.85 at ML-DSA-44 / -65 / -87 - and no tail
+    bound, no worst case, and no statement of what an implementation should do
+    if the loop runs long. The verifier observes nothing whatsoever about how
+    many attempts produced a signature. So an implementation that imposes an
+    undeclared iteration cap is non-conformant in a way that NO amount of
+    sign-verify testing on its outputs can detect, for the same structural
+    reason the omitted ct0 check cannot be detected - and unlike the omitted
+    check, this one is a modification any implementer might make for a perfectly
+    ordinary engineering reason. That is a statement about a document and about
+    an interface, and it is where this record's document claim stops.
+
+    (B) THE DERIVABLE BOUND THE STANDARD DOES NOT STATE. RECALLED AND FLAGGED AS
+    THE RECORD'S PRIMARY FALSIFIER: the mask expansion function derives each
+    attempt's mask from a seed together with a counter encoded in TWO BYTES, and
+    the counter advances by l per attempt. If that is right, the counter
+    saturates after 65536/l attempts and the loop can make no further distinct
+    progress. GENERATOR-COMPUTED, RE-DERIVATION REQUIRED, from l = 4 / 5 / 7:
+      ML-DSA-44  16384 attempts
+      ML-DSA-65  13107 attempts
+      ML-DSA-87   9362 attempts
+    Under the geometric law with per-attempt acceptance 1/R the probability of
+    ever reaching that implicit ceiling is GENERATOR-COMPUTED as
+      ML-DSA-44  (1 - 1/4.25)^16384 = 10^-1908.6
+      ML-DSA-65  (1 - 1/5.10)^13107 = 10^-1242.2
+      ML-DSA-87  (1 - 1/3.85)^9362  = 10^-1222.9
+    So the implicit ceiling is a DEAD BRANCH in exactly the sense
+    IDEA-20260805-bb52fa established for the ct0 disjunct at ML-DSA-65 and -87 -
+    reachable in arithmetic, unreachable in practice - and the standard states
+    neither the ceiling nor its unreachability. IF THE COUNTER IS NOT TWO BYTES,
+    CLAIM (B) IS WITHDRAWN IN FULL and only the tail law in (C) survives; that
+    is a single-line check and it is Stage 0.
+
+    (C) THE MEASURABLE OBJECT. Define p_fail(kappa_max, sk) as the probability
+    that signing a fresh message under sk exceeds kappa_max attempts. Under the
+    geometric law it is (1 - 1/R)^kappa_max, GENERATOR-COMPUTED at ML-DSA-44 as
+    0.2615 / 0.0684 / 4.68e-3 / 2.19e-5 / 4.79e-10 for kappa_max = 5 / 10 / 20 /
+    40 / 80. A capped signer's emitted law is the conforming law FURTHER
+    CONDITIONED on the attempt count, so by the total-variation identity
+    IDEA-20260821-60ba98 establishes for a shrunken accept set - applied here
+    with the roles swapped, since capping SHRINKS rather than enlarges the
+    accept set - TV(D_cap, D_conf) = p_fail exactly, and the leak over N queries
+    is at most N * p_fail. THE NEW CONTENT IS NOT THAT IDENTITY. It is that
+    unlike an omitted check, a cap produces an OBSERVABLE EVENT - a signing
+    failure - whose incidence is public to the signer's own clients while
+    remaining invisible in every signature that is emitted. Detectability and
+    leak therefore come apart in the opposite direction from the ct0 case.
+
+    (D) THE FALSIFIABLE DISCRIMINATION, AND IT HAS A DERIVED FAVOURITE. There is
+    an EXACT lemma pushing toward key-independence and it is worth stating
+    because the corpus does not contain it. For a conforming key, z = y + c s1
+    with y uniform on 2 gamma1 integers per coefficient, and the number of y
+    values giving |z_j| < gamma1 - beta is exactly 2(gamma1 - beta) - 1
+    INDEPENDENT OF (c s1)_j, precisely because |c s1| is at most beta. So the
+    z-norm acceptance probability is EXACTLY key-independent and
+    challenge-independent - not approximately, exactly - and the same shift
+    argument makes the low-part acceptance probability key-independent under one
+    named uniformity heuristic. HYPOTHESES. E1 KEY-INDEPENDENT: the across-key
+    dispersion of the mean attempt count over 64 keys is consistent with the
+    sampling floor; a cap then leaks only its own rate, the failure indicator
+    carries nothing about the key, and the honest replacement for the standard's
+    silence is a single number per parameter set. E2 KEY-DEPENDENT: the
+    dispersion exceeds the floor; the exact lemma is then violated somewhere,
+    the violation is localised to the low-part factor or to the special top cell
+    of the decomposition by the factorised arm, and a capped signer's failure
+    indicator IS a public key-dependent bit - a selection channel that no prior
+    record in this lane has considered.
+
+    (E) THE ARTIFACT. In deterministic mode the attempt count is a DETERMINISTIC
+    FUNCTION of (sk, M) that every conformant implementation must reproduce
+    bit-for-bit. The deliverable is therefore a portable ATTEMPT-COUNT TEST
+    VECTOR SET - (seed, message, parameter set, attempt count) tuples spanning
+    counts from 1 to the largest observed - which a second implementation
+    re-derives in microseconds and which no existing conformance vector set is
+    known to contain. That is an artifact, not a verdict.
+
+    NOT A BREAK. No signature is forged, no key is recovered, every object is
+    produced by a party holding sk, and nothing is asserted about MLWE, MSIS or
+    SelfTargetMSIS in any direction.
+
+  mechanism: >-
+    (1) WHY THIS OBJECT IS NEW TO THE LANE, STATED AGAINST THE TWELVE. The filed
+    proposals track the four rejection predicates and their firing rates
+    (031ce2, bb52fa, 4f83f6, 60ba98, 6d1b97), the t0 channel and its price
+    (630606, 6109f8, 65739b, 71fc18), the signature byte fibre (e5f947), and the
+    testing and deployment volumes that would exercise them (8f3496, fa04dc).
+    Every one of them studies what happens INSIDE an attempt, or how many
+    signatures an observer needs. The tracked object here is the LOOP ITSELF -
+    the attempt count as an integer-valued random variable, followed from the
+    key through the loop to a public failure indicator. IDEA-20260821-60ba98
+    comes closest because its identity applies, but it applies with the
+    conditioning direction reversed and it never forms the attempt count as an
+    object; its own confounder list treats the attempt counter only as a
+    nuisance that decouples two signers' streams. Here the nuisance is the
+    subject.
+
+    (2) THE LOSSY PROJECTION. The projection sends the entire signing state - key,
+    message, every mask, every intermediate polynomial - to a single non-negative
+    integer, the number of attempts. The fibre over any observed value is
+    astronomically large; nothing reconstructs anything about the key or the
+    message from it. The discard is COMPATIBLE with the target's operations
+    because the loop's one-step propagation is exactly a Bernoulli trial with
+    the acceptance probability as its parameter, so the integer propagates
+    deterministically under the loop's own semantics without needing anything
+    that was discarded. THE MIRROR FAILURE - a projection so lossy it is
+    constant across instances - was checked and does NOT occur: the attempt
+    count is geometric with mean 4.25 / 5.1 / 3.85 and standard deviation about
+    3.8 / 4.6 / 3.4, so it has real spread, and a measured spread near zero is
+    the pre-registered tell of a broken instrument. Note that this is the one
+    place the projection could still be worthless in the way that matters: if
+    its PARAMETER is constant across keys, then the object separates parameter
+    sets but not keys, and deciding that is precisely hypothesis E1 against E2
+    rather than an assumption of the design.
+
+    (3) THE EXACT KEY-INDEPENDENCE LEMMA, DERIVED. Per coefficient, z_j = y_j +
+    a_j with y_j uniform on the 2 gamma1 integers and a_j = (c s1)_j satisfying
+    |a_j| <= beta = tau eta. The acceptance condition is |z_j| < gamma1 - beta.
+    The set of y_j giving acceptance is an interval of length exactly
+    2(gamma1 - beta) - 1 translated by -a_j, and because |a_j| <= beta that
+    translated interval lies entirely inside the support of y_j. Its cardinality
+    is therefore independent of a_j, hence of the key and of the challenge. This
+    is the reason the scheme's uniformity argument works at all, and it makes
+    the z-factor of the acceptance probability EXACTLY
+    ((2(gamma1 - beta) - 1)/(2 gamma1))^(256 l) for every conforming key. The
+    low-part factor is NOT exact by the same argument, because the low part of
+    w - c s2 is a shift within a bucket structure rather than within a
+    box, and whether the shift is measure-preserving depends on the low part of
+    w being uniform - which is heuristic H1 below. SO THE DERIVATION PREDICTS
+    THAT ANY MEASURED KEY-DEPENDENCE MUST SIT IN THE LOW-PART FACTOR, and the
+    factorised arm tests exactly that prediction rather than merely reporting a
+    dispersion.
+
+    (4) THE POSITIVE CONTROL, WHICH IS FORCED BY THE SAME LEMMA AND MUST FIRE.
+    The lemma's hypothesis is |c s1| <= beta. An OUT-OF-RANGE private key breaks
+    it - IDEA-20260829-a2b5d7 derives that the decodable envelope is 195 / 539 /
+    300 against beta = 78 / 196 / 120 - so for such a key the translated
+    acceptance interval no longer lies inside the support, the z-factor DROPS,
+    and the mean attempt count MUST rise. That gives this design a positive
+    control with a derived direction and a shared object with a sibling
+    proposal: if the dispersion instrument cannot see the elevated attempt count
+    of an out-of-range key, it cannot see anything, and no key-independence
+    verdict from it is reportable. A dispersion statistic that has never been
+    shown to move is not a measurement of key-independence.
+
+    (5) WHY THE CAP IS THE RIGHT NON-CONFORMANCE TO STUDY AND NOT A STRAW MAN.
+    The IETF security-considerations draft cited below states, in terms, that
+    implementations should not impose a fixed upper bound on signing loop
+    iterations, that an artificially low limit could cause signing to fail for
+    valid keys under normal operation, and that in deterministic mode it could
+    introduce a detectable failure mode that leaks information about the signing
+    key. That is a published, retrieved statement that the object exists and
+    that its consequence is UNQUANTIFIED - the draft says "could" and gives no
+    rate, no key-dependence measurement, and no threshold. This record supplies
+    the numbers, and its E1 outcome would partially contradict the draft's
+    warning while its E2 outcome would substantiate it. Both directions are
+    reportable and neither is presupposed.
+
+    (6) THE THREE ARMS AND WHAT EACH DECIDES. ARM 1, THE TAIL LAW: measure the
+    attempt-count distribution over 10^4 signatures per parameter set against
+    the geometric law, including the upper tail, which is what a cap actually
+    interacts with. ARM 2, THE DISPERSION: 64 keys per parameter set, mean
+    attempt count per key, compared against the sampling floor derived from the
+    per-key sample size. ARM 3, THE FACTORISATION: instrument the signer to
+    record which factor rejected each attempt, so that any dispersion found in
+    ARM 2 is attributed to the z-factor (which the lemma forbids) or to the
+    low-part factor (which the lemma permits). A dispersion attributed to the
+    z-factor falsifies the lemma and is the most interesting outcome available.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: >-
+        draft-connolly-cfrg-ml-dsa-security-considerations-02, IETF
+        Internet-Draft, section 3.2.6.2 (Signing Loop Bounds)
+      provenance: retrieved
+      claim: >-
+        "To remain FIPS 204 compliant, implementations should not impose a fixed
+        upper bound on the number of signing loop iterations", and an
+        artificially low limit "could cause signing to fail for valid keys under
+        normal operation, and in deterministic mode could introduce a detectable
+        failure mode that leaks information about the signing key." THE CLAIM IS
+        QUALITATIVE - no rate, no key-dependence measurement, no threshold, and
+        no statement of what the leak would be. This record's E1 outcome would
+        partially contradict it and its E2 outcome would substantiate it.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebFetch of
+        https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html
+        against a targeted extraction prompt; the section number is as reported
+        by that extraction and is a re-verification target.
+    - ref: "FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST, 2024-08-13"
+      provenance: recalled
+      claim: >-
+        NOT FETCHED THIS SESSION. Recalled: the signing loop has no stated
+        iteration bound; the mask expansion function takes a counter encoded in
+        two bytes and the counter advances by l per attempt; Table 1's
+        Repetitions column reads 4.25 / 5.1 / 3.85 and l = 4 / 5 / 7. THE
+        TWO-BYTE COUNTER IS THE RECORD'S PRIMARY FALSIFIER and is a
+        re-verification target before any of claim (B) is asserted.
+      verified_by: null
+    - ref: IDEA-20260821-60ba98
+      provenance: internal
+      claim: >-
+        Establishes TV(D_conf, D_omit) = p_R exactly when a signer's accept set
+        is ENLARGED by dropping a conjunct, with the supremum attained on the
+        dropped event, and the additive N * p_R hybrid term. This record applies
+        the same identity with the conditioning direction REVERSED, and consumes
+        it rather than restating it; it also inherits that record's warning that
+        a plug-in total-variation estimator on raw signatures is biased upward
+        and must be replaced by a declared low-dimensional statistic.
+      verified_by: "idea-generator, 2026-08-29, full read of all 863 lines."
+    - ref: IDEA-20260805-bb52fa
+      provenance: internal
+      claim: >-
+        Establishes the dead-branch pattern this record reuses - an exact
+        integer bound showing a branch cannot fire at a given parameter set - and
+        supplies the Repetitions recomputation that carries a same-sign residual
+        of +1.1 / +0.35 / +0.65 per cent against Table 1, which this record's
+        forced values must admit in their tolerance band.
+      verified_by: "idea-generator, 2026-08-29, full read of all 619 lines."
+    - ref: IDEA-20260829-a2b5d7
+      provenance: internal
+      claim: >-
+        Derives the extreme decodable magnitudes 5 / 11 / 5 and the broken
+        envelopes 195 / 539 / 300 against beta = 78 / 196 / 120 for a key that
+        skDecode accepts but KeyGen cannot produce. This record consumes those
+        numbers ONLY to construct its positive control, and the two records fail
+        independently - if a2b5d7's arithmetic is wrong, this record loses its
+        positive control's forced direction but keeps every other arm.
+      verified_by: >-
+        idea-generator, 2026-08-29, authored in the same session and read in
+        full; NOT independently re-derived, and flagged as such.
+    - ref: IDEA-20260828-8f3496
+      provenance: internal
+      claim: >-
+        Proposes to retrieve the ACVP ML-DSA test-vector counts and compare them
+        against the ct0 firing rate. Cited to mark the boundary: that record
+        COUNTS an existing vector set; this record proposes a NEW vector class -
+        deterministic attempt counts - that no existing set is known to contain.
+        The two are complementary and neither's result changes the other's.
+      verified_by: "idea-generator, 2026-08-29, read lines 1-150."
+
+  assumptions:
+    - >-
+      That the mask counter is two bytes and advances by l per attempt. If it is
+      four bytes or unbounded, claim (B) is withdrawn in full; the tail law, the
+      dispersion measurement and the artifact are unaffected. Stage 0 is the
+      gate and this is the record's single most likely failure.
+    - >-
+      That an implementation can be instrumented to report its attempt count and
+      the identity of the rejecting factor without altering the distribution it
+      samples. An instrumentation that reseeds or reorders is not measuring the
+      same loop.
+    - >-
+      That the deterministic mode is available, since the artifact in claim (E)
+      is meaningless without it. In hedged mode the attempt count is a random
+      variable rather than a function of (sk, M) and the vector set cannot be
+      built.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the conclusion is the exact
+      key-independence of the z-factor. Everything downstream - the geometric
+      tail, the identity, the cap arithmetic - is bookkeeping. The bottleneck is
+      therefore the containment of the translated acceptance interval inside the
+      mask support, and the only mechanism that breaks it is |c s1| exceeding
+      beta, which is impossible for a conforming key and forced for an
+      out-of-range one.
+    baseline_embedding:
+      parameter_slice: >-
+        The old-method boundary is kappa_max = infinity, where p_fail = 0, the
+        capped signer is bit-for-bit the conforming signer, and every statement
+        here must reduce to the known expected-repetition figures 4.25 / 5.1 /
+        3.85. The other boundary is kappa_max = 1, where p_fail = 1 - 1/R =
+        0.765 / 0.804 / 0.740 - the same three numbers IDEA-20260821-60ba98
+        pre-registers for its own positive arm, which is a free cross-check
+        between two independently motivated designs.
+      reproduction_check: >-
+        Symbolic: substitute kappa_max = infinity and check TV = 0 and byte
+        equality of transcripts on a frozen fixture of 10^3 (key, message)
+        pairs. Numeric: the measured mean attempt count must reproduce Table 1's
+        Repetitions column to within the +0.35 to +1.1 per cent same-sign
+        residual IDEA-20260805-bb52fa records.
+    observation_collision:
+      observable: >-
+        The certificate is the triple (attempt-count histogram, across-key mean
+        dispersion, rejecting-factor attribution).
+      distinct_preimage_search: >-
+        Two distinct ground-truth situations with the same observable were
+        searched for and one was found: (i) a genuinely key-independent
+        acceptance probability, and (ii) a key-dependent one whose dispersion is
+        below the sampling floor at the executed per-key sample size. BOTH
+        RETURN "consistent with the floor". The separator is not more keys but
+        more DEPTH per key, so the design fixes the per-key sample size from a
+        pre-computed power calculation and reports the smallest dispersion it
+        could have detected, rather than reporting "no dispersion found".
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry the FACTORISED acceptance probability - the z-factor and the
+          low-part factor separately - through the loop rather than the scalar
+          acceptance probability. The stronger state is what makes a measured
+          dispersion attributable rather than merely present.
+        predicted_gain: >-
+          Converts "the attempt count varies across keys" into "the variation
+          sits in the factor the lemma permits it to sit in, or it does not",
+          which is a falsification of a derived lemma rather than a descriptive
+          statistic.
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the family from conforming keys to keys with a declared excess
+          above eta, and prove the strict inward statement - that the z-factor
+          is exactly constant on the excess-0 slice and strictly decreasing in
+          the excess - rather than merely that some keys differ.
+        predicted_gain: >-
+          Supplies the positive control with a derived direction and magnitude,
+          so a null dispersion result on conforming keys is backed by a
+          demonstrated ability to detect a non-null one.
+    quantifier_order: >-
+      FOR ALL parameter sets, FOR ALL keys sk produced by KeyGen, FOR ALL
+      challenges c in B_tau and FOR ALL coefficient indices j, the number of
+      mask values giving z-norm acceptance is exactly 2(gamma1 - beta) - 1 -
+      note that this is a FOR ALL and not an expectation, which is what makes
+      the lemma exact. THEN, and only conditionally on heuristic H1, THERE
+      EXISTS a single acceptance probability per parameter set such that FOR ALL
+      keys the attempt count is geometric with that parameter. The record's
+      whole discrimination is whether the second, weaker quantifier order holds
+      empirically; the first is proved.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can certify is the law of the attempt
+        count and its dependence on the key, and hence the rate and the
+        key-dependence of a capped signer's failure indicator. It cannot certify
+        that no other channel carries key information, it cannot certify
+        anything about timing or power observation of the loop - that is
+        GOAL-MLDSA-001's territory and the boundary is stated rather than
+        assumed - and it cannot certify that a cap is safe.
+      nearby_object_control: >-
+        The nearby object where the hoped-for key-independence fails is an
+        out-of-range key, where the lemma's hypothesis is violated by
+        construction and the mean attempt count must rise. A method that could
+        not distinguish that key from a conforming one has not identified the
+        load-bearing structure, and that is exactly the mandatory positive
+        control.
+    proof_obligations:
+      - claim: "the z-factor acceptance count is exactly 2(gamma1 - beta) - 1 for every conforming key and challenge"
+        responsibility: correctness
+      - claim: "the implicit ceiling is 65536/l attempts and is reached with probability below 10^-1222"
+        responsibility: size
+      - claim: "TV(D_cap, D_conf) = p_fail exactly, by the reversed conditioning identity"
+        responsibility: correctness
+      - claim: "the dispersion instrument detects the elevated attempt count of an out-of-range key"
+        responsibility: interface
+      - claim: "the measured mean attempt count reproduces 4.25 / 5.1 / 3.85 within the recorded residual"
+        responsibility: baseline
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        implicit attempt ceiling 65536/l and its exhaustion probability
+        (1 - 1/R)^ceiling, at each parameter set
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES DERIVED BEFORE ANY RUN - ceilings 16384 / 13107 / 9362 and
+        exhaustion probabilities 10^-1908.6 / 10^-1242.2 / 10^-1222.9. If the
+        mask counter is not two bytes these are withdrawn in full rather than
+        rescaled, and the record says so.
+    - metric: >-
+        p_fail(kappa_max) at ML-DSA-44 for kappa_max in {5, 10, 20, 40, 80},
+        measured over 10^5 signing operations
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUES 0.2615 / 0.0684 / 4.68e-3 / 2.19e-5 / 4.79e-10, monotone
+        decreasing, with the first three measurable at 10^5 operations and the
+        last two reported as upper bounds with their sample size. A measured
+        curve that is not monotone falsifies the geometric law and no signed
+        statement about any cap is then made.
+    - metric: >-
+        mean attempt count per parameter set over 10^4 signatures, against
+        FIPS 204's Repetitions column
+      direction: different
+      minimum_effect: >-
+        4.25 / 5.1 / 3.85 with a tolerance band admitting
+        IDEA-20260805-bb52fa's +0.35 to +1.1 per cent same-sign residual. A
+        measurement outside that band means the instrument is not measuring the
+        loop and every other arm is unreadable.
+    - metric: >-
+        across-key dispersion of the mean attempt count over 64 conforming keys
+        per parameter set, expressed as the ratio of the observed variance to
+        the sampling floor
+      direction: different
+      minimum_effect: >-
+        The E1/E2 split is pre-registered at a variance ratio of 1.5 with a
+        bootstrap interval excluding 1.0. The design must ALSO report the
+        smallest dispersion it could have detected at the executed per-key
+        sample size; a null reported without that number is not a null.
+    - metric: >-
+        mean attempt count for an OUT-OF-RANGE key against a conforming key at
+        the same parameter set
+      direction: higher
+      minimum_effect: >-
+        Strictly higher, by a margin the boundary-lift derivation fixes in
+        advance from the excess. IF THIS DOES NOT RISE, THE INSTRUMENT CANNOT
+        SEE KEY-DEPENDENCE AT ALL AND THE E1 VERDICT IS NOT REPORTABLE. This is
+        the mandatory positive control.
+    - metric: >-
+        fraction of any measured across-key dispersion attributable to the
+        z-factor rather than the low-part factor
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUE 0 by the exact lemma. Any dispersion attributed to the
+        z-factor beyond its sampling floor falsifies the lemma, which would be
+        far more interesting than the dispersion itself, and deciding whether
+        the lemma or the instrumentation is at fault comes before anything else
+        is written.
+
+  minimal_test:
+    design: >-
+      FOUR STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE.
+      STAGE 0 (reading, zero compute, TERMINATING). Re-obtain FIPS 204 under a
+      run record; read verbatim, with pages, the signing loop and its absence of
+      an iteration bound, the mask expansion counter's byte width and increment,
+      Table 1's l and Repetitions columns. If the counter is not two bytes,
+      claim (B) is withdrawn and the batch reports that before anything runs.
+      STAGE 1 (algebra, zero compute, TERMINATING). Derive the exact
+      key-independence lemma for the z-factor symbolically; derive the ceilings
+      and exhaustion probabilities; derive the reversed conditioning identity.
+      If the lemma does not hold as stated, STOP and restate the discrimination.
+      STAGE 2 (the tail law and the cap curve, minutes). Instrument a
+      pure-Python ML-DSA on hashlib SHAKE to report the attempt count and the
+      rejecting factor per attempt. Emit 10^4 signatures per parameter set;
+      report the attempt-count histogram against the geometric law with a
+      chi-square over the first 20 bins and a separate upper-tail check; compute
+      p_fail at the five caps by post-hoc thresholding of the SAME run, so the
+      cap curve costs no additional compute.
+      STAGE 3 (dispersion and artifact, under an hour). 64 conforming keys per
+      parameter set at a per-key sample size fixed by a pre-run power
+      calculation; the out-of-range positive-control key; the factorised
+      attribution. Emit the deterministic attempt-count test-vector set and
+      re-derive every tuple under a second, independently written
+      implementation.
+      WHAT DISCRIMINATES. Stage 1 decides whether the lemma exists at all, at
+      zero cost. Stage 2 separates "the loop is geometric" from "the loop has a
+      heavier tail than the standard's expected value suggests", which is
+      exactly what a cap interacts with and which the Repetitions column cannot
+      answer. Stage 3 separates E1 from E2 with a stated detection floor and a
+      positive control that has been shown to move.
+    controls:
+      - >-
+        POSITIVE CONTROL, MANDATORY, MUST FIRE - the out-of-range key's mean
+        attempt count must exceed the conforming one. A dispersion instrument
+        that cannot see the one key-dependence that is derived to exist has not
+        been shown to fire, and its E1 verdict is void.
+      - >-
+        SECOND POSITIVE CONTROL WITH A DERIVED VALUE - a signer with kappa_max =
+        1, whose p_fail is forced to 1 - 1/R = 0.765 / 0.804 / 0.740. The same
+        three numbers IDEA-20260821-60ba98 pre-registers, obtained through a
+        different design, so a mismatch is informative about both.
+      - >-
+        CONFORMING NULL, RUN AND COMMITTED FIRST - an uncapped signer, whose
+        p_fail must be exactly 0 and whose transcripts must be byte-identical to
+        a second uncapped run at the same seed in deterministic mode.
+      - >-
+        GRADED CONTROL, FIVE POINTS, MONOTONICITY REPORTED - the cap sweep over
+        {5, 10, 20, 40, 80} spans nine orders of magnitude in p_fail and must be
+        monotone. A curve that does not decay as the cap rises is the canonical
+        artifact tell.
+      - >-
+        FACTORISED ATTRIBUTION as a structural control - any dispersion must
+        localise to the low-part factor. A dispersion in the z-factor is a
+        falsification of the derived lemma and halts interpretation.
+      - >-
+        SECOND INDEPENDENT IMPLEMENTATION for every attempt-count vector. An
+        attempt count reproduced only by the implementation that produced it is
+        not a test vector.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE - record that no prior record in this corpus
+        forms the attempt count as an object, as an ABSENCE and not a passed
+        check, and record the IETF draft's signing-loop-bounds paragraph beside
+        it as the nearest external prior art.
+    required_metrics:
+      - the signing loop, the absence of an iteration bound, and the mask counter width quoted verbatim with pages and a fetch receipt
+      - the three ceilings and three exhaustion probabilities as exact rationals and floats
+      - attempt-count histogram per parameter set with seeds, chi-square against the geometric law, and a separate upper-tail statistic
+      - measured mean attempt count against 4.25 / 5.1 / 3.85 with the residual band
+      - p_fail at five caps with Clopper-Pearson intervals, zero counts as upper bounds with sample size
+      - across-key variance ratio over 64 keys with a bootstrap interval AND the smallest detectable dispersion
+      - out-of-range positive-control mean attempt count beside the conforming one
+      - rejecting-factor attribution per parameter set
+      - the deterministic attempt-count test-vector set with two independent implementations' agreement
+
+  falsification_conditions:
+    - >-
+      The mask counter is not two bytes or does not advance by l. Claim (B) is
+      withdrawn in full; the record is superseded for that part and the
+      remaining arms proceed unchanged.
+    - >-
+      The exact key-independence lemma fails on re-derivation. The whole
+      discrimination is restated before any measurement is interpreted.
+    - >-
+      The measured mean attempt count misses 4.25 / 5.1 / 3.85 outside the
+      recorded residual band. The instrument is not measuring the loop; nothing
+      else is readable.
+    - >-
+      The out-of-range positive control does not raise the mean attempt count.
+      The dispersion instrument has no demonstrated power; the E1 verdict is not
+      reportable and the outcome is an instrument statement under AGENTS.md
+      rule 3.
+    - >-
+      The cap sweep is non-monotone in kappa_max. The geometric law is wrong as
+      applied and no signed statement about any cap is made.
+    - >-
+      The two independent implementations disagree on any attempt count in
+      deterministic mode. That is a conformance finding about one of them and it
+      halts the artifact until resolved - and it would be a more valuable
+      outcome than the dispersion measurement.
+
+  confounders:
+    - >-
+      A NULL IS COMFORTABLE AND CHEAP. "The attempt count is key-independent" is
+      the conclusion this design would produce most easily, it is what the exact
+      lemma half-predicts, and it is the conclusion a defender wants. The
+      out-of-range positive control and the stated detection floor exist to make
+      that conclusion cost something.
+    - >-
+      INSTRUMENTATION CHANGES THE LOOP. A signer modified to report its attempt
+      count may reseed, reorder, or short-circuit. The conforming null's
+      byte-identity check in deterministic mode is what catches this.
+    - >-
+      PURE-PYTHON SCALE. 10^4 signatures per parameter set is what the budget
+      buys, which puts the smallest measurable p_fail at about 3e-4 and makes
+      the kappa_max = 40 and 80 rows bounds rather than measurements. That is
+      declared in advance rather than discovered.
+    - >-
+      DETERMINISTIC AND HEDGED MODES ARE DIFFERENT OBJECTS. The artifact needs
+      deterministic mode; the dispersion measurement is cleanest in hedged mode
+      where attempts are independent across queries. Reporting a number from one
+      mode as if it held in the other is the specific error to avoid, and every
+      metric carries its mode.
+    - >-
+      SELF-CONSISTENCY IS NOT INDEPENDENCE. The forced values 0.765 / 0.804 /
+      0.740 and the Repetitions column come from one reading of one document,
+      which IDEA-20260805-bb52fa records as carrying a same-sign residual
+      against its own recomputation. Agreement with them is one reading
+      confirmed, not two.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY, NOT A VULNERABILITY REPORT. Every object is
+      emitted by a party holding sk. Nothing bears on MLWE, MSIS or
+      SelfTargetMSIS in any direction and any downstream sentence readable as
+      such is defective regardless of what was measured.
+    - >-
+      THE SPECIFICATION CLAIM AND THE MATHEMATICAL CLAIM ARE SEPARATE. "FIPS 204
+      states an expected repetition count and no tail bound" is checkable by
+      reading. "The attempt count is geometric with that mean" is checkable by
+      derivation and measurement. Neither licenses "the standard is wrong", and
+      the implicit ceiling in claim (B) is a consequence of an encoding width,
+      not a defect.
+    - >-
+      The bound covers an observer of SIGNATURES and of SIGNING FAILURES. It
+      says nothing about timing, power, EM or memory observation of the loop,
+      where the attempt count is plainly visible; that is GOAL-MLDSA-001's
+      territory and the boundary is stated rather than assumed.
+    - >-
+      An E1 result does NOT license "capping the signing loop is safe". It
+      licenses only that the failure indicator carries no key-dependence
+      detectable at the executed sensitivity, which is a bounded statement with
+      a number attached.
+    - >-
+      The IETF draft is a draft and its section numbering may change; it is
+      cited for its retrieved text, not as a normative authority, and no
+      statement here is a criticism of it.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The coefficients of LowBits(w) with w = A y and y drawn fresh by the
+        mask expansion at each attempt behave as independent uniforms on the
+        2 gamma2 integers, so that the low-part acceptance factor is
+        ((2(gamma2 - beta) - 1)/(2 gamma2))^(256 k) independently of the key.
+        LOAD-BEARING ONLY FOR THE PREDICTION THAT E1 HOLDS; the exact
+        key-independence of the z-factor needs no distributional assumption at
+        all, and the discrimination between E1 and E2 is precisely a test of
+        this assumption.
+      rigorous_support: >-
+        The rigorous half, carried over from IDEA-20260805-bb52fa: reduction of
+        a uniform element of Z_q modulo a bucket width is uniform up to a
+        1/1023 excess at a single class, because q - 1 = 1023 * 8192, and that
+        excess sits at the centre. The classical statement imitated is that a
+        linear image of a uniform mask is uniform modulo a fixed modulus. NOT
+        PROVED - that A y is close enough to uniform, which the usual argument
+        derives from an assumption this question is forbidden to touch and which
+        is therefore NOT invoked; and the independence across the 256k
+        coefficients, which is a second unproved part.
+      validation_plan: >-
+        Directly measured, at the scale where it is used, by the same run that
+        produces everything else. Compare the measured mean attempt count
+        against the closed-form product of the two factors at each parameter
+        set, and compare the measured low-part rejection rate against
+        IDEA-20260805-031ce2's pre-registered 0.570 / 0.684 / 0.610. Tail check:
+        the attempt-count upper tail against the geometric quantile at
+        1 - 1/(10^4), which is where a cap would actually bite and where a
+        dependence between coefficients would first show. Sampled parameters -
+        10^4 signatures per set, 64 keys, deterministic and hedged modes both
+        recorded. No transfer or extrapolation is claimed to other parameter
+        sets.
+    - id: H2
+      statement: >-
+        Signing attempts are independent Bernoulli trials given the key, so the
+        attempt count is geometric and p_fail(kappa_max) = (1 - 1/R)^kappa_max.
+        This requires the mask to be freshly and independently drawn at each
+        attempt, which holds in hedged mode by construction and holds in
+        deterministic mode only in the sense that distinct counter values give
+        outputs modelled as independent.
+      rigorous_support: >-
+        The geometric law for independent trials is exact; what is assumed is
+        the independence of mask expansions across counter values, which imitates
+        the classical assumption that a hash-based expander's outputs at distinct
+        inputs are independent uniforms.
+      validation_plan: >-
+        Chi-square of the attempt-count histogram against the geometric law over
+        the first 20 bins at 10^4 signatures per parameter set, plus a run test
+        on the sequence of attempt counts to detect serial correlation, plus a
+        separate check of the upper tail at the 1 - 1/(10^4) quantile. A
+        measured tail heavier than geometric would mean p_fail at the larger
+        caps is UNDERSTATED, which is the direction that matters, and it is
+        reported as such rather than absorbed.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT OF ANY HARD PROBLEM IS MOVED AND NONE IS CLAIMED. This is a
+      structural derivation plus a rate and dispersion measurement about a
+      fielded standard. The quantities here with exponent-like character are the
+      exhaustion probability of the implicit ceiling, 10^-1908.6 at ML-DSA-44,
+      and the cap curve p_fail = (1 - 1/R)^kappa_max, which falls exponentially
+      in the cap with rate ln(R/(R-1)) = 0.268 / 0.218 / 0.301 per attempt.
+      Measurement cost is about 3e4 signatures for Stage 2 plus 64 keys times a
+      power-determined per-key sample for Stage 3.
+    memory_exponent: >-
+      Negligible. The statistic is one integer counter per attempt plus a
+      64-key table; peak working set under 100 MB with transcripts retained.
+    best_known: >-
+      IN CORPUS - nothing forms the attempt count as an object;
+      IDEA-20260821-60ba98 supplies the identity in the opposite conditioning
+      direction and treats the counter only as a nuisance. EXTERNAL - the IETF
+      security-considerations draft states the object and its risk
+      qualitatively and gives no number; whether any published work measures the
+      attempt-count law's key-dependence is UNKNOWN, was not searched
+      exhaustively this session, and is the most likely route to domination.
+    hidden_overhead: >-
+      The honest overhead is that claim (B) rests entirely on a recalled encoding
+      width, so the headline ceiling is a prediction and not a result until Stage
+      0 runs. The second is that the dispersion arm's null is only as strong as
+      its power calculation, and a null reported without the smallest detectable
+      dispersion is worthless however many keys were run.
+    tradeoff_note: >-
+      The trade is budget rather than time against memory. The cap curve is
+      obtained by post-hoc thresholding of a single attempt-count log, so five
+      cap values cost the same as one; the dispersion arm's only real lever is
+      keys against depth per key, and the design fixes that split by a power
+      calculation rather than by a round number. Every arm is embarrassingly
+      parallel across keys and messages.
+
+  dominated_by: >-
+    n/a (no attack, no cost triple, no Pareto point claimed). ROWS ACTUALLY
+    CHECKED BEFORE WRITING. (i) All twelve RQ-MLDSA-ffa0f5 proposals, read in
+    full or in large part this session; none forms the attempt count as a
+    tracked object, and IDEA-20260821-60ba98 - the nearest - explicitly treats
+    the counter as a confounder rather than a subject. (ii) The sibling
+    RQ-MLDSA-001, which owns hedged versus deterministic mode as an
+    ATTACKER-MODEL distinction and the fault-proof boundary; this record makes
+    no attacker-model taxonomy claim and injects no fault, and any batch that
+    finds itself doing either must hand off. (iii) Targeted greps over
+    ledger/proposals for the mask expansion function and iteration bounds, which
+    return only 60ba98's confounder paragraph and unrelated records. (iv) The
+    three cost axes - TIME (about 3e4 signatures plus a power-sized key sweep,
+    against the 10^9 a direct ct0 rate measurement would need), MEMORY
+    (negligible), DATA/QUERIES (all queries under a key the auditor holds).
+    NOT CHECKED, AND SAID SO - the published implementation-security literature
+    on rejection-sampling loop behaviour, which was not searched exhaustively;
+    if a published measurement of the attempt-count law's key-dependence exists,
+    this record's Stage 3 is dominated and its contribution reduces to the
+    ceiling derivation and the test-vector artifact.
+  sota_delta: >-
+    no attack; structural and measurement contribution only. It supplies (a) an
+    implicit attempt ceiling of 16384 / 13107 / 9362 with an exhaustion
+    probability of 10^-1908.6 / 10^-1242.2 / 10^-1222.9, neither of which the
+    standard states; (b) an exact key-independence lemma for the z-norm
+    acceptance count that the corpus does not contain; (c) a cap curve turning
+    the IETF draft's "could introduce a detectable failure mode" into
+    0.2615 / 0.0684 / 4.68e-3 / 2.19e-5 / 4.79e-10 at five named caps; and
+    (d) a portable deterministic attempt-count test-vector class that no known
+    conformance vector set contains. Against the external state of the art the
+    delta is quantification of a published qualitative warning, not an
+    improvement to any algorithm, and no exponent of any hard problem moves.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the exact key-independence lemma for the z-factor survives
+    independent re-derivation, about 0.9 - it is a counting argument about a
+    translated interval and it is the reason the scheme's uniformity argument
+    works, so it is likely folklore among implementers rather than new. (ii)
+    That the two-byte mask counter is confirmed and the ceilings stand, about
+    0.7 - this is recalled and not read, and it is the record's single most
+    likely failure. (iii) That the measured mean attempt count reproduces
+    4.25 / 5.1 / 3.85 within the recorded residual, about 0.85. (iv) That the
+    out-of-range positive control raises the attempt count as derived, about
+    0.85, limited by whether IDEA-20260829-a2b5d7's envelope arithmetic holds.
+    (v) That the outcome is E1 rather than E2, about 0.7 - the exact lemma
+    covers one of two factors and the other is only heuristically
+    key-independent, so E2 is a live and reportable possibility rather than a
+    formality.

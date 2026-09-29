@@ -1,0 +1,43 @@
+draft_protocol_amendment:
+  id: EXP-ECDLP-df24c3-draft-v4-comparison-hash-envelope
+  supersedes_draft: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v3-comparison-binding.yaml
+  triggering_review: TASK-20260909-63ab7d
+  disposition: >-
+    Additive zero-run hash-envelope repair. It makes a valid comparison row
+    constructible by defining a digest preimage that excludes the digest field.
+  comparison_row_hash_v4:
+    hash_envelope_version: scope-comparison-row-envelope-v1
+    required_outer_fields: [comparison_row_id, comparison_row_sha256, hash_envelope_version, payload]
+    payload_required_fields:
+      - source_commit
+      - record_path
+      - record_blob_id
+      - statement_path
+      - statement_boundary_version
+      - cited_artifact_identities
+      - conclusion_vector
+      - coverage_vector
+      - field_relations
+      - comparator_version
+    canonical_preimage: >-
+      RFC 8785 canonical UTF-8 JSON for the closed payload mapping only. The
+      outer comparison_row_sha256 field is never in this preimage. Reject an
+      outer extra key, a payload extra/missing key, a noncanonical payload, a
+      wrong envelope version, or a digest mismatch.
+    construction: >-
+      First canonicalize and hash payload to comparison_row_sha256; then set
+      comparison_row_id to the v3 identity hash derived from the same payload
+      identity fields; then emit the closed outer envelope. Verification repeats
+      this order and never searches for a hash fixed point.
+    comparison_evidence_bound_update: >-
+      A row is valid only when exactly one outer envelope has a matching v3
+      identity, its payload digest matches comparison_row_sha256, and payload
+      has every required vector/relation/artifact field. Missing, duplicate,
+      mismatched, or invalid envelopes make the predicate false.
+  controls_v4:
+    valid_payload_envelope: expected constructible valid comparison_evidence_bound true
+    digest_in_payload: expected reject as payload extra key
+    changed_payload_after_digest: expected reject digest mismatch
+    duplicate_valid_envelopes: expected comparison_evidence_bound false
+  does_not: [authorize_corpus_traversal, authorize_implementation, authorize_execution,
+    create_canonical_records, create_scientific_evidence]

@@ -1,0 +1,256 @@
+idea:
+  id: IDEA-20260816-699a0f
+  question_id: RQ-ALECF-001
+  added: '2026-08-16'
+  title: Three imported ALECF packages carry different scores, and the committed logs show their difference
+    is partly a snapshot-time difference rather than a circuit difference; build a differencing procedure
+    that splits a fork-to-fork score delta into circuit term, benchmark term, and unattributable residual,
+    and measure the residual.
+  class: control
+  claim: '(A) Comparability is the prior question to scoring, and this repository already contains
+    a worked instance. EXP-ALECF-001 (source ecdsafail-challenge), EXP-ALECF-002 (ecdsafail-frontier-jul23)
+    and EXP-ALECF-003 (ecdsafail-q1141-old-jul24) are three benchmark forks whose committed results.tsv
+    files share a byte-identical seven-row prefix, then diverge: 001 has eight data rows, 002 has
+    one hundred fourteen, 003 has eight. The final row of 001 and the final rows of 002 record the
+    same measurement (commit d484caa, toffoli 1316080.523, peak qubits 1152, ops 9759245), which is
+    exactly why their score.json files are byte-identical. The final row of 003 is a different commit
+    (370fc31, toffoli 1423722.774, qubits 1141, ops 10122449). (B) The claim is that the delta between
+    the 003 score and the 001/002 score is therefore not attributable to a circuit design difference
+    without further evidence, because at least one alternative explanation is fully consistent with
+    the committed artifacts: the packages were snapshotted at different points of one shared run history.
+    (C) The claim is that this is generic, not incidental, and that a fork-comparison should always
+    emit a three-way decomposition of any score delta into a circuit term (same benchmark, different
+    implementation), a benchmark term (same implementation, different scoring or validation rules),
+    and an unattributable residual, with the residual reported as a first-class number rather than
+    absorbed. (D) The claim is that the residual is measurable on these three packages today with
+    zero compute, using only file-level evidence: shared prefixes, commit identifiers, row counts,
+    and the arithmetic relation between the log rows and score.json. (E) WHAT IS NOT CLAIMED: no claim
+    that either circuit is better, that any score is wrong, that the import was done incorrectly,
+    or that the Autolab source campaign made an error. The import is explicitly recorded at claim
+    tier toy with certificates not re-verified (EV-ALECF-001), and this proposal takes that at face
+    value rather than disputing it. Nothing about quantum attack feasibility follows.'
+  mechanism: 'STAGE 1: extract the evidence schema. For each package, parse source/results.tsv into
+    rows keyed by (timestamp, commit, toffoli, clifford, qubits, ops, correct, note), parse source/score.json,
+    and hash both. Record which rows are shared across packages by exact byte match. STAGE 2: reconstruct
+    the scoring relation. Verify per package that score equals round(final-row toffoli) times final-row
+    qubits: 1316081 times 1152 equals 1516125312 for 001 and 002, and 1423723 times 1141 equals 1624467943
+    for 003. Where the relation holds, score.json is a derived artifact of one specific log row, which
+    is the fact that makes attribution possible. STAGE 3: classify each pairwise delta. For a pair
+    of packages, the delta is circuit-attributable only if the two packages'' authoritative rows share
+    the benchmark identity (same declared spec text, same validation sample count, same scoring formula)
+    and differ in commit; benchmark-attributable if the spec text or scoring rule differs; unattributable
+    if the shared-prefix structure admits a snapshot-time explanation that the artifacts cannot exclude.
+    STAGE 4: quantify the residual as the fraction of the score delta whose explanation is not uniquely
+    determined by the committed evidence, together with the enumeration of surviving explanations.
+    STAGE 5: run the null arm on synthetic package triples where the ground-truth attribution is known
+    by construction. STAGE 6: report the decomposition table and the residual, without adjudicating
+    which explanation is true.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Confirmed zero proposals reference RQ-ALECF-001 via 'grep -rl RQ-ALECF-001 ledger/proposals/'.
+      Read all three specification.yaml files under experiments/EXP-ALECF-00{1,2,3}/, ledger/evidence/EV-ALECF-001.yaml,
+      and docs/autolab-port-inventory-20260731.md lines around the ALECF table. Compared the three
+      source/ directories by md5sum and by line count, and read the head and tail of each results.tsv.
+      Grepped ledger/proposals/ for 'comparability', 'benchmark fork', 'attribution', and for the
+      strings EXP-ALECF and ecdsafail.
+    results: No proposal in ledger/proposals/ mentions EXP-ALECF, ecdsafail, or benchmark-fork comparability.
+      The nearest thing in the corpus is IDEA-20260809-5de637, 'Pre-register a tolerance, then try
+      to reproduce two published totals from their own inputs', which treats reproduction failure
+      as a first-class result. That record is about reproducing published headline totals from stated
+      inputs under RQ-QRE-6dba8c; it is not about attributing a delta between two forks of one benchmark,
+      and it has no three-way decomposition. IDEA-20260809-63fc4a (pipeline as an auditable artifact
+      where the build fails if a constant lacks provenance) is adjacent in spirit but concerns constants
+      inside a costing pipeline, not scores across benchmark forks. EV-ALECF-001 itself already records
+      'Historical import; certificates not re-verified' as a boundary, which is the standing acknowledgement
+      this proposal would turn into a number.
+    verdict: 'UNVERIFIED. No external literature can be consulted here, so nothing is asserted about
+      published work on benchmark comparability or on attribution of performance deltas, a topic that
+      plausibly has substantial prior art in empirical computer science. What is claimed new is the
+      specific application to this repository''s three imported ALECF packages, the three-way decomposition
+      with an explicitly reported unattributable residual, and the synthetic-triple null. Assembled
+      from known parts: file hashing, log differencing, and the general discipline of attributing
+      measured differences to controlled causes.'
+  object_first_candidate:
+    tracked_object: 'The provenance tuple of a benchmark score: (fork identifier, authoritative log
+      row, commit identifier, scoring-formula text, validation sample count, snapshot time). This
+      is the object followed, and it is followed through the operation of comparing two packages,
+      which is where it either determines the delta''s cause or fails to.'
+    lossiness: 'The projection is genuinely lossy and in a way that matters. From a full benchmark
+      campaign it discards the circuit source code (which is not committed here at all: source/ contains
+      only README.md, results.tsv and score.json), the intermediate design decisions, the machine,
+      and the wall-clock cost, retaining only identifiers and counts. It is compatible with the comparison
+      operation because comparison consumes exactly identifiers and counts. The retained part propagates
+      deterministically: a shared byte-identical log prefix is preserved under any subsequent appends,
+      so ancestry survives edits to the tail, and the derived relation score = round(toffoli) times
+      qubits is preserved by re-derivation. What is discarded is precisely what would settle the residual,
+      which is why the residual exists and can be reported rather than closed.'
+    propagation: 'One step of the target operation is ''compare package A to package B''. Acting on
+      the provenance tuple, it produces either an attributed delta (when the tuples agree on benchmark
+      identity and differ on exactly one coordinate) or a residual (when they differ on more than
+      one, or when the shared-prefix structure permits a snapshot-time explanation). Chaining steps
+      across three packages is where the structure shows itself: 001 versus 002 gives a delta of exactly
+      zero with different fork identifiers and different row counts, which already demonstrates that
+      fork identity does not determine score; 001 versus 003 and 002 versus 003 give the same nonzero
+      delta, so the three-package comparison graph is consistent and its residual can be read off.'
+    survival_score: 'The provenance tuple survives exactly as far as the committed artifacts go, and
+      it dissolves at the point where the circuit source would be needed. Concretely, it survives
+      all pairwise comparisons among the three packages and yields a definite answer for the 001 versus
+      002 pair (delta zero, explained by identical authoritative rows). It dissolves for the 001 versus
+      003 pair, where at least two explanations survive: a genuine circuit difference, and a snapshot
+      taken at a different point of a shared run history. That is one comparison of survival, and
+      the number is the deliverable.'
+  null_object_control: 'The null object is a synthetic triple of benchmark packages constructed so
+    that the ground-truth attribution is known: build three results.tsv files and three score.json
+    files from a scripted generator in which the differences are, by construction, purely snapshot-time
+    (identical circuit, different truncation point of one log), then a second triple in which they
+    are purely circuit (different final rows appended to identical prefixes with a declared spec change),
+    then a third in which they are random. The identical differencing procedure runs on all of them
+    in the same invocation. For the signal arm to mean anything, the null must show the procedure
+    assigning nearly all delta to the correct term in the two constructed cases and nearly all delta
+    to the residual in the random case. If the procedure assigns a confident circuit attribution to
+    a purely snapshot-time triple, it is broken and the measurement on the real packages means nothing.'
+  discriminated_from:
+  - 'IDEA-20260809-5de637 (pre-register a tolerance and try to reproduce published totals): reproduces
+    a headline number against its own stated inputs; this proposal never reproduces a number and instead
+    decomposes a delta between two artifacts that already exist here, with an explicit unattributable
+    term.'
+  - 'IDEA-20260809-63fc4a (auditable pipeline where a constant without provenance fails the build):
+    concerns provenance of constants inside a costing pipeline; this concerns provenance of a score
+    across forks of a benchmark, and its output is a residual fraction rather than a build gate.'
+  - 'EV-ALECF-001 (the existing evidence record): already states ''Historical import; certificates
+    not re-verified'' as a boundary. This proposal does not dispute that record; it converts the standing
+    qualitative caveat into a measured decomposition, which the evidence record does not contain.'
+  - 'General regression-testing practice: a regression test asks whether a number changed; this asks
+    whether a change is attributable, and reports the part that is not.'
+  assumptions:
+  - The committed source/ directories are faithful copies of the Autolab artifacts at the pinned commit
+    dca04ac33e9ffcfc51edb3ae7e7bd558b1962d95, as the specification files state.
+  - A byte-identical prefix of two append-only logs is evidence of shared ancestry rather than coincidence,
+    which is safe for logs of this length but is an assumption.
+  - score.json is derived from one specific log row rather than from an aggregate, which the arithmetic
+    check supports for all three packages but does not prove.
+  - The README.md text committed under each package is the scoring specification actually in force
+    for that package's final row.
+  predictions:
+  - metric: fraction of the 001-versus-003 score delta that the procedure can attribute uniquely to
+      a circuit difference using only committed artifacts
+    direction: lower
+    minimum_effect: 0.5
+  - metric: attribution accuracy of the procedure on the synthetic snapshot-time null triple
+    direction: higher
+    minimum_effect: 0.9
+  - metric: residual fraction assigned on the random synthetic triple
+    direction: higher
+    minimum_effect: 0.9
+  - metric: number of surviving explanations enumerated for the 001-versus-003 delta
+    direction: higher
+    minimum_effect: 2
+  minimal_test:
+    design: 'This is a zero-compute audit and the minimal test is the whole experiment. Write one
+      script that reads the nine committed files under experiments/EXP-ALECF-00{1,2,3}/source/, hashes
+      them, computes the longest byte-identical row prefix across the three results.tsv files, verifies
+      the score relation for each package, and emits the pairwise decomposition table with its residual.
+      In the same invocation, generate the three synthetic package triples with known ground truth
+      and run the identical decomposition code on them. The discriminating outputs are two numbers:
+      the residual fraction on the real 001-versus-003 comparison, and the attribution accuracy on
+      the synthetic snapshot-time triple. If accuracy on the synthetic triple is below 0.9 the procedure
+      is not trustworthy and the real-package number is not reported. Runtime is seconds; the entire
+      cost is the hour of care needed to define the decomposition rules precisely enough that they
+      can be applied mechanically rather than by narrative.'
+    controls:
+    - Three synthetic package triples with known ground-truth attribution (pure snapshot-time, pure
+      circuit, random), all run through the identical decomposition code in the same invocation as
+      the real packages.
+    - 'Hash-first discipline: every input file''s sha256 is recorded before parsing, so the audit
+      is re-runnable against the exact bytes examined.'
+    - 'Arithmetic self-check: the score relation must be re-derived per package and a package where
+      it fails is reported as such rather than silently excluded.'
+    - A permuted-label control in which the three real packages' fork identifiers are shuffled, which
+      must leave the decomposition unchanged because the procedure must not read the fork name.
+    required_metrics:
+    - sha256 of every committed source artifact
+    - longest byte-identical row prefix across results.tsv files
+    - row count per package log
+    - verified score relation per package
+    - pairwise score delta
+    - circuit-attributable fraction
+    - benchmark-attributable fraction
+    - unattributable residual fraction
+  falsification_conditions:
+  - The score relation fails to reproduce for any package, meaning score.json is not a simple derivative
+    of a log row and the decomposition's premise is wrong.
+  - The synthetic snapshot-time triple is attributed to a circuit difference at above 0.1 rate, falsifying
+    the procedure.
+  - The permuted-label control changes the decomposition, proving the procedure reads the fork name.
+  - The residual on the real 001-versus-003 comparison is below 0.1, meaning the committed artifacts
+    do determine the attribution and there is nothing to report beyond the answer.
+  - The three results.tsv files turn out to share no common prefix, contradicting the shared-ancestry
+    reading.
+  confounders:
+  - The Autolab source repository is not reachable from this environment, so an explanation that would
+    be settled by one look at the upstream history stays open here; that is a property of the environment
+    and must be reported, not treated as evidence.
+  - README.md files may be identical across forks while the underlying harness differed, in which
+    case declared-spec equality is a weak proxy for benchmark identity.
+  - Row counts differ by more than an order of magnitude between 002 (114 rows) and the others (8
+    rows each), which may reflect the import tool's truncation rather than campaign length.
+  - The note field 'sync-check baseline' on the final row of 001 suggests a row that may not be a
+    scored submission at all, which would change which row is authoritative.
+  interpretation_limits:
+  - A high residual is a statement about what the committed artifacts determine, not a claim that
+    the original campaign was ambiguous or careless.
+  - Nothing here evaluates the circuits, and no conclusion about circuit quality, benchmark quality,
+    or quantum attack cost is licensed.
+  - The result is scoped to these three packages and to the file-level evidence they contain; it does
+    not generalize to other imports without running the same procedure on them.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is an attribution decomposition
+      of a benchmark score delta.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the current practice recorded in EV-ALECF-001, which cites the three
+      packages side by side with the qualitative boundary 'certificates not re-verified' and no attribution
+      decomposition. That qualitative caveat is what a residual fraction would replace.
+    hidden_overhead: 'The whole cost is human and definitional: the decomposition rules must be precise
+      enough to be applied by a script, and the temptation is to let a narrative do the attribution
+      instead, at which point the residual disappears by construction. A second hidden cost is that
+      reporting a large residual creates downstream work for every record that cited the three packages
+      as comparable.'
+  dominated_by: n/a (no result claimed). I checked the only committed cost frontier in this bucket,
+    the two-point set from the three ALECF score.json files at (1316081, 1152) and (1423723, 1141),
+    and this proposal adds no circuit and therefore no frontier row. No attack is proposed, so there
+    is no time/memory/data frontier to sit on.
+  sota_delta: no attack; conceptual/measurement contribution only. The one quantitative statement
+    available today is that the 003 score exceeds the 001/002 score by 7.15 percent (1624467943 versus
+    1516125312), and the point of the proposal is that this figure currently has no attributed cause.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (A), the file-level facts (shared seven-row prefix, byte-identical
+    score.json for 001 and 002, verified score relation, differing row counts): 0.97, since all were
+    recomputed directly from committed bytes. Part (B), that the 001-versus-003 delta has more than
+    one surviving explanation on committed evidence alone: 0.85, with the residual risk being that
+    a file I did not read, such as the analysis.md in each package, uniquely settles it. Part (C),
+    that a mechanical decomposition procedure achieves above 0.9 attribution accuracy on synthetic
+    triples: 0.6, because the rules may be harder to make mechanical than they look. Part (D), that
+    the resulting residual changes how downstream records cite these packages: 0.35.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-002
+  - EXP-ALECF-003
+  - RUN-ALECF-001-import
+  - EV-ALECF-001
+  - IDEA-20260809-5de637
+  - IDEA-20260809-63fc4a
+  - docs/autolab-port-inventory-20260731.md
+  - docs/evidence-and-reproducibility.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-04d97b

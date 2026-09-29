@@ -1,0 +1,160 @@
+review_plan_record:
+  task_id: TASK-20260820-affeff
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-312472
+  target: >-
+    The frozen BCP-2 (protocol/BCP-2.yaml at the snapshot commit) together with
+    the implemented md5_collision_pair certificate kind and wrapper-measured
+    wall_seconds in harness/runner.py at the same commit. The claim under
+    review: BCP-2 makes the blind calibration run DISPATCHABLE — its
+    pre-dispatch gate mechanically decidable, its certificate rule
+    enforceable, its firewall at least as strong as BCP-1's, and its success
+    record carrying the confound caveat.
+  written_before_reviewer_ran: '2026-08-20 (committed in the batch opening commit, before TASK-20260820-affeff may run)'
+  coordinator_prior:
+    recorded_before_any_report_returns: true
+    expectations:
+      - 'J1 (pinned serialization) is expected to be the joint most likely to BREAK: yaml.safe_dump is PyYAML-version-dependent in output formatting; a serialization that bytes differently across PyYAML releases makes the pre-dispatch gate session-dependent. I expect the finding "the pin needs a version-pinned interpreter or a version-independent serialization" rather than a clean pass.'
+      - 'J2 (certificate independence) is expected to HOLD if TASK-20260820-e4405b implemented the spec (two distinct imports, four digest comparisons, m1 != m2), but the attack I expect to land is on the PIN MECHANISM: nothing in a name-based pin stops a future edit from aliasing the second implementation to the first code path. I expect a finding demanding a hash-pinned import or a library-level check.'
+      - 'J3 (null-object decidability) is expected to come out "decidable, but the tolerance constant is an unjustified declaration" — there is no measured cost data yet, so the named tolerance cannot be empirically grounded in this batch. That is an acceptable state IF the protocol says so; I expect the finding to check whether it does.'
+      - 'J4 (firewall regression) I expect to PASS: the carry-forward is verbatim by task-card instruction, and a regression is a batch-halting finding, not a negotiation.'
+      - 'J5 (evidential asymmetry) I expect to hold at the wording level, with the live question whether the confound caveat block is MACHINE-CHECKABLE in the evidence record or merely advisory prose. Advisory is a partial pass at best.'
+      - 'J6 (charging) I expect to hold for the new wrapper path, with a finding on any legacy code path that still accepts caller-supplied timing — for NEW runs only (existing records are immutable and were written under the old API; that is policy, not a defect).'
+    if_the_review_overturns_the_prior: 'A prior overturned by the review is one of the most informative results this program can produce; the overturn is recorded as a result, not absorbed.'
+
+  joints:
+    - joint: >-
+        J1 Canonical serialization: is BCP-2's pinned serialization unique,
+        decidable, and stable across the sessions that will use it?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Take the pinned command as written. Run it under the available
+        interpreter and record the byte sequence. Then vary the one axis that
+        can matter: PyYAML version (pip-free check of the installed version,
+        plus a structural reading of whether the pinned block contains any
+        value whose dump formatting is version-sensitive — multi-line
+        strings, quoted scalars, non-ASCII). Construct two synthetic path
+        blocks that are logically identical and dump each; if the pin cannot
+        in principle produce identical bytes across environments, that is the
+        break. Where the Coordinator expects it to break: the PyYAML
+        version-dependence of safe_dump's formatting.
+    - joint: >-
+        J2 Certificate independence enforceability: can a caller or a future
+        edit make verified:true without two genuinely independent
+        implementations both agreeing?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Read the implemented kind in harness/runner.py at the snapshot commit.
+        Trace the digest computation: which imports, which objects, how many
+        comparisons, what sets verified:false and on what. Build a known-false
+        object (two messages, different digests, tampered claimed digest) and
+        run it. Then attack the pin: name the mechanism that keeps IMPL-1 and
+        IMPL-3 distinct (import paths, library linkage), and state whether a
+        future single-line edit could alias them without any test in this
+        repository catching it. Where the Coordinator expects it to break:
+        the pin mechanism, not the comparison logic.
+    - joint: >-
+        J3 Null-object control decidability: with the named tolerance and
+        named baseline, is every outcome row of the comparison labelled with
+        what it shows and what it does not show?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Take the decision table as written. Enumerate the outcome space
+        (target success/fail x variant success/fail, each at/beyond the
+        tolerance) and check every row is labelled. Look for a row whose
+        label is "comparable cost" with no tolerance applied, or a success
+        row that carries no confound caveat. Test the tolerance for vacuity:
+        if the constant is so wide that any plausible cost difference falls
+        inside it, the discriminator decides nothing. Where the Coordinator
+        expects it to break: the tolerance constant, not the table's shape.
+    - joint: >-
+        J4 Firewall carry-over / regression: is any BCP-2 firewall element
+        looser than BCP-1's — CONSUMPTION rule, closed hash-manifested input
+        set, pre-registered digest workflow, ordering guarantee, quarantine
+        marker, or the declared-not-checked list?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Section-by-section diff of BCP-1's firewall against BCP-2's, element
+        by element, each change labelled tightened / held / loosened. A
+        loosening anywhere is a batch-halting finding: name the element, quote
+        both texts, state the contamination it admits. Check the declared-
+        not-checked list did not SHRINK: every channel BCP-1 declared
+        not-checked must appear in BCP-2's list, and the parametric channel
+        with its named obstruction must be among them.
+    - joint: >-
+        J5 Evidential asymmetry: does BCP-2 record a confounded success with
+        the caveat (not as an unqualified pass), and does a truthful halt
+        still rule out both search and recall?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Find the evidence-record schema block BCP-2 fixes for a success. Ask:
+        if a solver produces a REDISCOVERY-eligible certificate and its input
+        manifest is clean, what EXACTLY lands in the evidence record — quote
+        the required fields. Is the confound caveat a required field the
+        record is invalid without (machine-checkable), or prose the writer
+        may omit (advisory)? Then check the failure direction: a truthful
+        halt must be recorded identically whether the halt came from search
+        or from the solver recognizing the answer — if the record can
+        distinguish those, the asymmetry is broken.
+    - joint: >-
+        J6 Charging independence: is wall_seconds wrapper-measured for new
+        runs on every code path the wrapper exposes?
+      assigned_to: TASK-20260820-affeff
+      attack_plan: >-
+        Read the new wrapper API in harness/runner.py at the snapshot commit.
+        Enumerate every entry point that produces a run record and check each
+        one measures wall time itself (monotonic clock around the call)
+        rather than reading caller-supplied started/finished. Build the
+        tamper object: a caller that supplies started/finished brackets
+        around nothing and check the recorded wall_seconds reflects the
+        actual call. Where the Coordinator expects it to break: a legacy
+        convenience path that still trusts the caller for new runs.
+
+  proves_too_much:
+    objects:
+      - 'OBJECT A (known non-collision certificate): a md5_collision_pair certificate whose m1 and m2 do not actually collide (different MD5 digests) with a claimed digest. The rule''s verdict is known: verified must be false, and the failing check named.'
+      - 'OBJECT B (known CONSUMPTION manifest): a synthetic run manifest whose input_manifest contains the sha256 of the quarantined payload (e44a3fed…, taken from the committed MANIFEST, not from the payload). The rule''s verdict is known: CONSUMPTION under BCP-2''s carried-forward rule — recorded invalid, never a weaker pass.'
+      - 'OBJECT C (known serialization mismatch): one logical path block, serialized four ways (the pinned command; JSON sort-keys; safe_dump without sort_keys; the pinned command with a trailing newline stripped). Under BCP-2''s pin, exactly one byte sequence is canonical; the pre-dispatch gate must accept the pre-registered digest for that one and reject the other three.'
+    failure_signature: >-
+      An argument (or gate) that verifies A, accepts B as scorable, or accepts
+      more than one of C's four serializations as canonical has proved too
+      much and is wrong somewhere it has not been read closely enough.
+    assigned_to: TASK-20260820-affeff
+
+  blind_rederivation:
+    required: true
+    quantity: >-
+      The CONSUMPTION predicate as a function of its two declared inputs:
+      input_manifest (closed hash-manifested set) and quarantine MANIFEST
+      per-file sha256 list, plus the invalidity condition it triggers —
+      derived from BCP-2's blind_scoring_rule section ONLY.
+    parameters: >-
+      BCP-2 section (b) equivalent (blind scoring rule) as the sole source of
+      the quantity's statement; the synthetic manifests of proves_too_much
+      objects B and C as test inputs.
+    blind_from:
+      - the self_report section of coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/BCP-2.yaml (the author's execution notes; the protocol sections remain fair game as the quantity's own statement)
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/task-cards/TASK-20260820-3d26df.md
+      - ledger/handoffs/TASK-20260820-3d26df.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/task-cards/TASK-20260820-e4405b.md
+      - ledger/handoffs/TASK-20260820-e4405b.yaml
+    assigned_to: TASK-20260820-affeff
+
+  blindness:
+    within_round: >-
+      Single-reviewer round for this joint set. The validator
+      (TASK-20260820-047039) is a SIBLING reviewer running concurrently in the
+      same round; its report must not be read by this reviewer, and the
+      attestation says so. Lifting blindness in a later hardening round
+      requires review-plan record amendment with rationale, never drift.
+    no_quarantine_reads: >-
+      No reviewer in this round reads the quarantined payload. Object B uses
+      the MANIFEST's sha256; object C uses synthetic structures.
+    attestation_required: >-
+      The report carries review_attestation: task_id, joints_owned,
+      sources_read, read_sibling_reports (must be false), blind_from_respected
+      (with a note if false), per-joint verdicts, and the resolved model with
+      requested policy review-adversarial at xhigh.
+
+  procedure_deviations: []

@@ -1,0 +1,376 @@
+experiment:
+  id: EXP-ECDLP-adb267
+  hypothesis_id: H-ECDLP-ff38dc
+  question_id: RQ-ECDLP-165d4b
+  goal_id: null
+  version: 1
+  status: draft
+  claim_tier: toy
+  title: >-
+    Finite-size calibration ladder for the charged rho instrument from 12 to 26
+    bits, with per-rung run counts computed from the predicted bias rather than
+    fixed at 576, a nested model comparison because the declared exponent band
+    cannot exclude a logarithmic overhead, and a sabotage control whose recovery
+    magnitude is stated in advance
+
+  objective: >-
+    Measure the matched-baseline residual R(N) of the charged rho instrument
+    across a bit-size ladder, fit its decay law, and emit a per-bit-size
+    calibration table plus the minimum admissible bit size at which the
+    instrument's own bias falls below a target effect. Deliver the census
+    coverage audit as a standalone zero-compute artifact. THIS CALIBRATES AN
+    INSTRUMENT. IT MAKES NO MATHEMATICAL CLAIM ABOUT ANY CURVE FAMILY AND
+    ESTABLISHES NOTHING ABOUT THE ECDLP.
+
+  independent_variables:
+    - name: rung_bit_size
+      values: [12, 14, 16, 18, 20, 22, 24, 26]
+    - name: family
+      values: [matched_random, j0_adjacent, high_conductor]
+    - name: ladder_condition
+      values: [clean, sabotaged_with_50_step_overhead]
+
+  inputs:
+    normalisation: 0.886 times the square root of N
+    sd_log_T: 0.6413
+    predicted_c_from_a_10_step_overhead: 11.3
+    predicted_bias_per_rung:
+      bits_12: 0.176
+      bits_14: 0.0882
+      bits_16: 0.0441
+      bits_18: 0.0220
+      bits_20: 0.0110
+      bits_22: 0.00552
+      bits_24: 0.00276
+      bits_26: 0.00138
+    required_runs_per_rung_for_three_sigma:
+      bits_12: 119
+      bits_14: 476
+      bits_16: 1903
+      bits_18: 7610
+      bits_20: 30440
+      bits_22: 121760
+      bits_24: 487000
+      bits_26: 1948000
+    curves_per_rung: 12
+    cost_model: one frozen model with its hash asserted identical at every rung
+    exact_N: required per curve, by exhaustive count or certified BSGS
+
+  metrics:
+    primary:
+      - name: baseline_residual_R
+        unit: dimensionless ratio (charged work divided by charged work)
+        definition: >-
+          The seed-averaged normalised charged work of the matched control arm
+          divided by 0.886 times the square root of N, per rung, with a
+          bootstrap interval. BOTH SIDES OF THE RATIO ARE CHARGED WORK UNDER THE
+          SAME FROZEN COST MODEL.
+      - name: fitted_c_and_exponent
+        unit: c is dimensionless; the exponent is dimensionless
+        definition: >-
+          Weighted least squares of log(R minus 1) against log N over the
+          RESOLVABLE rungs only, reported with intervals, a residual-curvature
+          test and leave-one-rung-out prediction error.
+      - name: nested_model_preference
+        unit: categorical, one of power_law, log_corrected, indeterminate
+        definition: >-
+          Comparison of R minus 1 equal to c N^(-e) against R minus 1 equal to
+          (c0 plus c1 ln N) N^(-1/2), by an F-test on the nested pair, with the
+          verdict recorded.
+      - name: minimum_admissible_bit_size
+        unit: bits
+        definition: >-
+          The smallest N at which the fitted bias falls below a target effect,
+          for targets 0.02, 0.05, 0.10 and 0.20, with intervals.
+    secondary:
+      - name: census_coverage_table
+        unit: declared rows against executed measurements (counts)
+        definition: >-
+          The declared census bit rows against this program's actually-executed
+          prime-field measurements, with the empty cells marked.
+      - name: measured_sd_log_T
+        unit: dimensionless
+        definition: >-
+          Measured per rung. If it differs materially from 0.6413, every
+          required run count must be recomputed from the measured value and the
+          recomputation recorded as a protocol amendment.
+      - name: family_specific_c
+        unit: dimensionless
+        definition: c fitted per family at one fixed bit size, with intervals.
+
+  controls:
+    - name: C-POWER-BY-RUNG
+      kind: computed sample-size gate replacing a fixed seed count
+      blocking: true
+      description: >-
+        EACH RUNG EITHER MEETS ITS REQUIRED RUN COUNT OR IS DECLARED
+        UNDERPOWERED AND EXCLUDED FROM THE FIT. With sd(log T) equal to 0.6413
+        the standard error of R at n runs is 0.6413/sqrt(n), and the predicted
+        bias is 11.3 N^(-1/2), so resolving the bias at three sigma requires n
+        at least 0.0290 times N. At the source proposal's 12 curves times 48
+        seeds, i.e. 576 runs per rung, ONLY THE 12- AND 14-BIT RUNGS QUALIFY.
+        The required counts are 119, 476, 1903, 7610, 30440, 121760, 487000 and
+        1948000. THE THRESHOLD IS NOT LOWERED TO ADMIT THE OTHER RUNGS; the run
+        count is raised, or the rung is declared underpowered with its required
+        count recorded.
+    - name: C-SABOTAGE
+      kind: positive control with predicted magnitude, blocking
+      blocking: true
+      description: >-
+        An identical ladder with a known injected fixed overhead of 50 extra
+        charged steps per run. The fit must recover the exponent near 1/2 with c
+        inflated by 50/0.886 = 56.4 within 25 percent. At 12 bits this moves the
+        residual from 0.176 to 1.057, a change of 33 standard errors at 576
+        runs, so the control has demonstrated range at the smallest rung. A
+        method returning the same c on the clean and the sabotaged ladder is
+        measuring nothing and every number is void.
+    - name: C-NESTED-MODEL
+      kind: model-adequacy control repairing a degenerate band
+      blocking: true
+      description: >-
+        THE DECLARED EXPONENT BAND CANNOT EXCLUDE THE ALTERNATIVE IT NAMES. If a
+        finite-size term grows like log N, then R minus 1 is proportional to
+        N^(-1/2) log N and the local log-log slope runs from 0.380 at 12 bits to
+        0.445 at 26 bits, so a single power law fits with an exponent near 0.41,
+        comfortably inside 0.30 to 0.70. THE BAND IS NOT WIDENED OR NARROWED; a
+        nested comparison is added, and its discriminating signature is
+        computed: the two models differ by 0.773 in log(R minus 1) across the
+        12-to-26-bit ladder, which requires log(R minus 1) resolved to better
+        than about 0.25 at both endpoints. At the required run counts that is
+        15 percent relative precision at 12 bits and 33 percent at 26 bits, so
+        the comparison is feasible AT THE REQUIRED COUNTS AND NOT AT 576 RUNS
+        PER RUNG.
+    - name: C-SEED-ONLY-NULL
+      kind: reproducibility control
+      blocking: true
+      description: >-
+        Re-run one rung with a fresh independent seed set and confirm the two R
+        estimates agree within their intervals, establishing reproducibility
+        before any cross-rung comparison is made.
+    - name: C-FAMILY
+      kind: curve-bound arm
+      blocking: false
+      description: >-
+        Matched-random against j = 0 adjacent against high-conductor families at
+        one fixed bit size, testing whether c is a single constant. THIS IS THE
+        ONLY CURVE-BOUND ARM IN THE DESIGN.
+    - name: C-COST-MODEL-FREEZE
+      kind: instrument freeze, blocking
+      blocking: true
+      description: >-
+        A hash of the cost-model version recorded on every rung and asserted
+        identical across the ladder. A per-rung change in what is charged is
+        INDISTINGUISHABLE from a decay law and is the single easiest way to
+        manufacture a clean-looking exponent.
+    - name: C-EXACT-N
+      kind: normalisation gate, blocking
+      blocking: true
+      description: >-
+        An exact-N certificate per curve, so no rung's normalisation rests on an
+        estimated order. This is why the ladder stops at 26 bits.
+    - name: C-BSGS-ROW
+      kind: independent-scaling check
+      blocking: false
+      description: >-
+        A BSGS row alongside rho at each rung, as the question's mandatory
+        matched Pareto control and as an independent check that a DIFFERENT
+        algorithm scales as its own theory predicts.
+    - name: C-SELECTION-RULE-DECLARED
+      kind: selection-bias gate, blocking
+      blocking: true
+      description: >-
+        The curve generation and rejection rule is declared and fixed before any
+        run and every rejection reason is logged. If the no-structure curves are
+        chosen by a rule correlating with work, the calibration measures the
+        selection rule.
+
+  heuristic_under_test: HEUR-001
+
+  preregistered_prediction:
+    quantity: >-
+      The matched-baseline residual R(N) minus 1 across the ladder, and the
+      fitted pair (c, e).
+    formula: >-
+      R minus 1 equals c N^(-e) with e equal to 1/2 and c near 11.3, giving
+      predicted residuals 0.176, 0.0882, 0.0441, 0.0220, 0.0110, 0.00552,
+      0.00276 and 0.00138 at 12 through 26 bits.
+    source: >-
+      A fixed additive O(1) overhead against a square-root-growing collision
+      time contributes a relative term of order N^(-1/2); the constant follows
+      from an overhead of about 10 charged steps divided by the 0.886
+      normalisation. The 12-bit and 28-bit values quoted in the source proposal,
+      about 16 percent and about 0.06 percent, are reproduced exactly by this
+      formula.
+
+  band_non_degeneracy_analysis: >-
+    COMPUTED BEFORE THE LADDER AND THE BANDS WERE FIXED.
+    (1) THE DECLARED EXPONENT BAND ACCEPTS THE ALTERNATIVE IT IS MEANT TO
+    EXCLUDE. Under a logarithmically growing overhead, R minus 1 is proportional
+    to N^(-1/2) log N, whose local log-log slope is 1/2 minus 1/ln N. Over the
+    ladder ln N runs from 8.317 to 18.02, so the slope runs from 0.380 to 0.445
+    and a single power law fits at about 0.41, inside the proposed 0.30 to 0.70
+    band. The band cannot discriminate O(1) from O(log N) overhead. IT IS NOT
+    LOOSENED OR TIGHTENED; a nested model comparison is added, with its
+    discriminating signature computed as a 0.773 difference in log(R minus 1)
+    across the ladder and its required precision stated.
+    (2) MOST RUNGS CANNOT SEE THEIR OWN PREDICTED BIAS AT THE PROPOSED SEED
+    COUNT. The standard error of R at n runs is 0.6413/sqrt(n), which is 0.0267
+    at the proposed 576 runs per rung. The predicted bias is 11.3 N^(-1/2),
+    which exceeds three standard errors only when the square root of N is at
+    most 141, i.e. below about 14.3 bits. AT 576 RUNS PER RUNG ONLY THE 12- AND
+    14-BIT RUNGS RESOLVE THEIR OWN BIAS; the 16-bit rung sits at 1.65 sigma, the
+    18-bit at 0.83, the 20-bit at 0.41, and the 26-bit at 0.05. Fitting a decay
+    law across eight rungs of which six carry no resolvable signal would be
+    fitting noise.
+    (3) THE REPAIR IS A COMPUTED RUN COUNT, NOT A WIDER INTERVAL. Resolving the
+    bias at three sigma requires n at least 0.0290 times N, giving 119, 476,
+    1903, 7610, 30440, 121760, 487000 and 1948000 runs at the eight rungs. The
+    top rung costs about 1948000 times 0.886 times 8192, i.e. about
+    1.4 times 10^10 group operations, and the whole ladder about
+    1.6 times 10^10, which is a real but bounded cost. Each rung must either
+    meet its count or be DECLARED UNDERPOWERED with the count recorded.
+    (4) THE POSITIVE CONTROL HAS DEMONSTRATED RANGE AT A STATED MAGNITUDE. An
+    injected 50-step overhead raises c by 56.4 and the 12-bit residual from
+    0.176 to 1.057, a 33 standard error change even at the small seed count. A
+    control this large cannot be missed, which is exactly what a blocking
+    positive control should look like.
+    (5) THE CENSUS COVERAGE PREDICTION IS ALREADY CONFIRMED AND IS CARRIED AS A
+    FORCED VALUE. The declared bit rows are 16, 20, 24, 28, 32 and 36; the
+    lane's specified hypothesis runs at 12 to 15 bits; and the nearest executed
+    prime-field evidence runs at p at most 100057, i.e. 16.6 bits. All three
+    were read verbatim by the coordinating session, so the coverage table is a
+    zero-compute deliverable whose expected value is 1 of 6.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      12 to 26 bits with exactly known N. The ladder stops at 26 bits because N
+      is no longer exactly certifiable above it under this harness, so a fit
+      that continued would rest on an estimated order. Transfer assumption:
+      NONE past 26 bits and none to any instrument other than charged rho. Any
+      use of the fit at the declared 32- and 36-bit rows is an extrapolation and
+      must be labelled as one.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      The residual sequence across rungs must be strictly monotone decreasing,
+      with the smallest rung showing the largest residual. A non-monotone
+      sequence is the artifact tell applied to this experiment's OWN instrument
+      and is reported as such rather than smoothed.
+    - >-
+      The measured sd(log T) is reported per rung against the assumed 0.6413,
+      and where it is larger the required run count is recomputed and the
+      increase recorded rather than absorbed silently.
+
+  replication:
+    seeds: >-
+      independent across rungs; seed reuse across rungs creates correlated
+      residuals and narrows intervals spuriously, and the independence is
+      asserted in the manifest
+    independent_instances: 12
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 12
+    maximum_memory_gb: 8
+    maximum_runs: 2600000
+    maximum_workers: 1
+
+  stopping_rules:
+    - >-
+      STAGE A, the coverage audit and the term decomposition, is zero compute
+      and is a deliverable on its own, reviewable with no runs.
+    - >-
+      STAGE B runs the 12-, 14- and 16-bit rungs at their required counts. If
+      the residuals show curvature there, STOP and report the model as
+      inadequate rather than extending the ladder; more rungs cannot rescue a
+      wrong model.
+    - >-
+      STAGE C extends to 18 through 26 bits only if the budget covers their
+      required run counts. Any rung that cannot be run at its required count is
+      DECLARED UNDERPOWERED and excluded from the fit, not fitted at a smaller
+      count.
+    - If C-SABOTAGE does not recover the injected overhead, stop; every number
+      is void.
+
+  invalidation_rules:
+    - Any rung fitted below its required run count without an underpowered
+      declaration.
+    - Any cost-model hash differing between rungs.
+    - Any rung whose N is estimated rather than exactly certified.
+    - Any seed reused across rungs.
+    - Any use of the fit above 26 bits without an explicit extrapolation label.
+    - Any conclusion drawn about a curve family from R itself, which is
+      curve-free by construction.
+
+  success_criterion: >-
+    Stage A emits the coverage table and the term decomposition; the sabotage
+    control recovers 56.4 within 25 percent; the seed-only null reproduces one
+    rung; every fitted rung meets its required run count and every excluded rung
+    carries an underpowered declaration with its count; the fit reports c, the
+    exponent and R_inf with intervals plus residual curvature, leave-one-out
+    error and the nested model verdict; and the calibration table with the
+    minimum admissible bit size per target effect is emitted as a committed,
+    reusable artifact.
+
+  falsification_criterion: >-
+    HEUR-001 is falsified if the fitted exponent falls outside 0.30 to 0.70, or
+    the nested comparison prefers the log-corrected model, or residual curvature
+    is significant, or leave-one-rung-out prediction fails; in any of those
+    cases cross-cell comparison at toy scale is declared invalid until a better
+    model exists. The instrument is VOID if the sabotage control does not
+    recover the injected bias, or if R_inf differs significantly from 1, which
+    would be a finding about the 0.886 normalisation rather than about finite
+    size. A 12-bit residual below 0.01 refutes the bias claim and STRENGTHENS
+    every existing toy cell in this lane, and is reported as such.
+
+  required_artifacts:
+    - the census coverage table, declared rows against executed measurements
+    - the named term decomposition with each term's predicted exponent
+    - per-rung record of R with a bootstrap interval, runs used, required runs,
+      the underpowered flag, seeds, curves, exact N and the cost-model hash
+    - the fitted c, exponent and R_inf with intervals, residual-curvature test
+      and leave-one-rung-out error
+    - the nested model comparison and its verdict
+    - the minimum admissible bit size for targets 0.02, 0.05, 0.10 and 0.20
+    - the per-family c values at one fixed bit size
+    - the sabotage ladder's recovered overhead against the injected 56.4
+    - the seed-only null's two R estimates
+    - the BSGS row per rung
+    - the curve generation and rejection rule with all rejection reasons logged
+    - the committed calibration table artifact itself
+    - run manifest per AGENTS.md artifact policy
+
+  limitations:
+    - >-
+      R IS CURVE-FREE BY CONSTRUCTION AND THAT IS RECORDED AS A PROOF, NOT RUN
+      AS AN ARM. Normalised charged work over its own birthday-time prediction
+      is a property of a pseudorandom walk on ANY group of order N. This
+      contract therefore calibrates an INSTRUMENT and its output may never be
+      cited as a statement about elliptic curves or the ECDLP. The only
+      curve-bound arm is the family-dependence comparison.
+    - >-
+      UNDERPOWERED RUNGS ARE DECLARED WITH THEIR REQUIRED COUNTS, NOT FITTED
+      SMALL. At the source proposal's 576 runs per rung only 12 and 14 bits
+      resolve their own predicted bias.
+    - >-
+      THE EXPONENT BAND ALONE CANNOT EXCLUDE A LOGARITHMIC OVERHEAD, which fits
+      at about 0.41. The nested comparison is part of the criterion and the band
+      must never be read as sufficient on its own.
+    - >-
+      Nothing extrapolates past 26 bits, where N is no longer exactly
+      certifiable under this harness, and nothing transfers to
+      decomposition-rate, index-calculus or isogeny-transport instruments. The
+      constraint on any non-decaying observation from a different instrument is
+      by analogy only.
+    - >-
+      A calibration constant makes cells comparable; it does not make any of
+      them positive or negative, and no mathematical claim about any curve
+      family follows from it.
+    - >-
+      This measures BIAS in the null and not variance or Type II error. A cell
+      needs both and neither substitutes for the other.
+
+  assigned_to: executor
+  approved_by: null

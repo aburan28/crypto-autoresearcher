@@ -1,0 +1,236 @@
+{
+  "$schema_meta": {
+    "experiment_id": "EXP-CRYPTO-3759c6",
+    "task_id": "TASK-20260907-da9b67",
+    "purpose": "Exact schemas for every admitted artifact row family in spec.artifacts.admission_files/run_files/summary_files. Schemas are frozen contracts, not populated data: no instance in this task satisfies these schemas against real corpus/label/query content.",
+    "note": "denominator checks in each schema describe an invariant the future admission/run pass must maintain; they are documentation of the invariant, not an executed validator in this preparation task."
+  },
+  "admission": {
+    "description": "admission.json: realized corpus/exclusions/labels/queries/incumbent modules/config/executable/environment hashes frozen before retrieval scoring (spec.execution_gate).",
+    "type": "object",
+    "required": ["source_commit", "corpus_manifest_sha256", "candidate_pairs_sha256", "query_manifest_sha256", "labels_adjudicated_sha256", "incumbent_source_sha256", "executable_hashes", "environment", "certificate"],
+    "properties": {
+      "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+      "corpus_manifest_sha256": {"type": "string"},
+      "candidate_pairs_sha256": {"type": "string"},
+      "query_manifest_sha256": {"type": "string"},
+      "labels_adjudicated_sha256": {"type": "string"},
+      "incumbent_source_sha256": {"type": "object", "description": "map of pinned kb source file path -> sha256, from source-packet.json"},
+      "executable_hashes": {"type": "object", "properties": {"rg_version": {"type": "string"}, "rg_binary_sha256": {"type": "string"}, "python_version": {"type": "string"}}},
+      "environment": {"type": "object", "description": "dirty-tree state, host, cgroup memory limit, no fabricated runtime values"},
+      "certificate": {"type": "object", "properties": {"kind": {"const": "none"}}, "description": "pure measurement study; no discrete-log/factor-base certificate applies"}
+    }
+  },
+  "corpus_manifest_row": {
+    "description": "one row of corpus-manifest.jsonl (spec.corpus.manifest_fields).",
+    "type": "object",
+    "required": ["path", "git_blob_id", "byte_length", "sha256", "filename_id", "declared_id", "route_chain", "parse_status", "payload_status", "view_hashes", "eligibility_reason"],
+    "properties": {
+      "path": {"type": "string"},
+      "git_blob_id": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+      "byte_length": {"type": "integer", "minimum": 0},
+      "sha256": {"type": "string"},
+      "filename_id": {"type": ["string", "null"]},
+      "declared_id": {"type": ["string", "null"]},
+      "route_chain": {"type": "array", "items": {"type": "string"}},
+      "parse_status": {"enum": ["ok", "malformed", "unresolved_route", "missing_blob"]},
+      "payload_status": {"enum": ["present", "lfs_pointer", "absent", "decode_error"]},
+      "view_hashes": {"type": "object", "properties": {"full_body": {"type": "string"}, "title_abstract": {"type": "string"}}},
+      "eligibility_reason": {"type": ["string", "null"], "description": "non-null iff excluded from scoring"}
+    }
+  },
+  "route_audit_row": {
+    "description": "one row of route-audit.jsonl (spec.corpus.routes).",
+    "type": "object",
+    "required": ["source_path", "source_hash", "target_path", "target_hash", "route_kind", "cycle_detected", "resolved_effective_id"],
+    "properties": {
+      "source_path": {"type": "string"},
+      "source_hash": {"type": "string"},
+      "target_path": {"type": "string"},
+      "target_hash": {"type": "string"},
+      "route_kind": {"type": "string"},
+      "cycle_detected": {"type": "boolean"},
+      "resolved_effective_id": {"type": ["string", "null"]}
+    }
+  },
+  "census": {
+    "description": "census.json: full denominator reconciliation (spec.corpus.denominators).",
+    "type": "object",
+    "required": ["raw_paths", "distinct_raw_ids", "effective_ids", "routes", "duplicates", "missing_payloads", "malformed_records", "reference_occurrences", "unique_candidate_pairs", "unresolved_references", "exclusion_categories"],
+    "properties": {
+      "raw_paths": {"type": "integer", "minimum": 0},
+      "distinct_raw_ids": {"type": "integer", "minimum": 0},
+      "effective_ids": {"type": "integer", "minimum": 0},
+      "routes": {"type": "integer", "minimum": 0},
+      "duplicates": {"type": "integer", "minimum": 0},
+      "missing_payloads": {"type": "integer", "minimum": 0},
+      "malformed_records": {"type": "integer", "minimum": 0},
+      "reference_occurrences": {"type": "integer", "minimum": 0},
+      "unique_candidate_pairs": {"type": "integer", "minimum": 0},
+      "unresolved_references": {"type": "integer", "minimum": 0},
+      "exclusion_categories": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+    },
+    "denominator_check": "raw_paths == distinct_raw_ids_plus_duplicates_and_unresolved (reconciled by explicit row IDs, not by this schema alone)."
+  },
+  "candidate_pair": {
+    "description": "one row of candidate-pairs.jsonl (spec.candidates.definition).",
+    "type": "object",
+    "required": ["proposal_id", "effective_kn_lit_id", "source_field", "source_path", "source_line", "original_token", "unresolved_reason"],
+    "properties": {
+      "proposal_id": {"type": "string"},
+      "effective_kn_lit_id": {"type": ["string", "null"]},
+      "source_field": {"type": "string"},
+      "source_path": {"type": "string"},
+      "source_line": {"type": ["integer", "null"]},
+      "original_token": {"type": "string"},
+      "unresolved_reason": {"type": ["string", "null"]}
+    }
+  },
+  "query_manifest_row": {
+    "description": "one row of query-manifest.jsonl (spec.query_extraction).",
+    "type": "object",
+    "required": ["proposal_id", "raw_locator", "raw_text", "fidelity", "compiled_predicate", "path_filters", "leakage", "rejection_reason"],
+    "properties": {
+      "proposal_id": {"type": "string"},
+      "raw_locator": {"type": "object", "properties": {"path": {"type": "string"}, "line": {"type": ["integer", "null"]}, "field": {"type": "string"}}},
+      "raw_text": {"type": "string"},
+      "fidelity": {"enum": ["exact", "reconstructed", "unsupported"]},
+      "compiled_predicate": {"type": ["object", "null"]},
+      "path_filters": {"type": "array", "items": {"type": "string"}},
+      "leakage": {"type": "object", "properties": {"contaminated": {"type": "boolean"}, "matching_bytes": {"type": ["string", "null"]}, "reason": {"enum": ["target_id", "target_doi", "target_full_title", null]}}},
+      "rejection_reason": {"type": ["string", "null"]}
+    }
+  },
+  "blind_label_row": {
+    "description": "one row of labels-pass1.jsonl / labels-pass2.jsonl / labels-adjudicated.jsonl (spec.labels).",
+    "type": "object",
+    "required": ["pair_kind", "proposal_id", "document_id", "assessor_id", "label", "rationale", "excerpt_locator", "pass"],
+    "properties": {
+      "pair_kind": {"enum": ["known_reference", "null_sample"]},
+      "proposal_id": {"type": "string"},
+      "document_id": {"type": "string"},
+      "assessor_id": {"type": "string"},
+      "label": {"enum": ["relevant", "not_relevant", "unresolved"]},
+      "rationale": {"type": "string"},
+      "excerpt_locator": {"type": "string"},
+      "pass": {"enum": ["first", "second", "adjudicated"]},
+      "adjudicator_id": {"type": ["string", "null"]}
+    }
+  },
+  "null_slot_row": {
+    "description": "one row of null-slots.jsonl (spec.nulls).",
+    "type": "object",
+    "required": ["proposal_id", "seed", "slot_j", "rejection_counter", "sampled_document_id", "label", "duplicate_of_slot", "membership_na"],
+    "properties": {
+      "proposal_id": {"type": "string"},
+      "seed": {"enum": [20260904, 20260905, 20260906]},
+      "slot_j": {"type": "integer", "minimum": 0, "maximum": 19},
+      "rejection_counter": {"type": "integer", "minimum": 0},
+      "sampled_document_id": {"type": "string"},
+      "label": {"enum": ["relevant", "not_relevant", "unresolved", null]},
+      "duplicate_of_slot": {"type": ["integer", "null"]},
+      "membership_na": {"type": "boolean", "description": "true iff proposal has no scoreable query"}
+    },
+    "denominator_check": "count of rows per proposal per seed == 20 exactly (spec.nulls.draws_per_proposal_per_seed)."
+  },
+  "control_result": {
+    "description": "control-results.json: six obligation results per seed invocation (spec.controls.obligations, spec.controls.report_order).",
+    "type": "object",
+    "required": ["seed", "obligation_results", "all_passed"],
+    "properties": {
+      "seed": {"enum": [20260904, 20260905, 20260906]},
+      "obligation_results": {
+        "type": "array",
+        "minItems": 6,
+        "maxItems": 6,
+        "items": {
+          "type": "object",
+          "required": ["obligation_id", "passed", "expected", "observed"],
+          "properties": {
+            "obligation_id": {"enum": ["fixed_string_case_sensitivity", "boolean_and_or", "empty_and_nonexistent_queries", "sparse_tie_on_identical_documents", "leakage_flag_triggers", "view_routing_and_tie_fixture"]},
+            "passed": {"type": "boolean"}
+          }
+        }
+      },
+      "all_passed": {"type": "boolean"}
+    },
+    "denominator_check": "len(obligation_results) == 6 (spec.controls.obligations_count); 18 total obligation executions across 3 seeds (spec.experimental_unit.controls)."
+  },
+  "arm_result_row": {
+    "description": "one row contributing to retrieval-output.jsonl / positive-results.jsonl (spec.arms).",
+    "type": "object",
+    "required": ["arm", "proposal_id", "returned_document_ids", "returned_bytes", "view", "k"],
+    "properties": {
+      "arm": {"enum": ["full_all", "title_abstract_all", "title_abstract_boolean20", "title_abstract_sparse20"]},
+      "proposal_id": {"type": "string"},
+      "returned_document_ids": {"type": "array", "items": {"type": "string"}},
+      "returned_bytes": {"type": "integer", "minimum": 0},
+      "view": {"enum": ["full_body", "title_abstract"]},
+      "k": {"type": ["integer", "null"], "description": "null for full_all/title_abstract_all (no truncation)"}
+    }
+  },
+  "rank_and_term_row": {
+    "description": "one row of rank-and-term-results.jsonl (spec.metrics.failed_terms).",
+    "type": "object",
+    "required": ["proposal_id", "target_document_id", "recorded_term", "compiled_predicate", "term_level_match_counts", "target_level_match_flag", "boolean_composition", "failure_reason", "rank_if_ranked"],
+    "properties": {
+      "proposal_id": {"type": "string"},
+      "target_document_id": {"type": "string"},
+      "recorded_term": {"type": "string"},
+      "compiled_predicate": {"type": "object"},
+      "term_level_match_counts": {"type": "object"},
+      "target_level_match_flag": {"type": "boolean"},
+      "boolean_composition": {"type": "string"},
+      "failure_reason": {"type": ["string", "null"]},
+      "rank_if_ranked": {"type": ["integer", "null"]}
+    }
+  },
+  "metric_row": {
+    "description": "metrics.json top-level primary/secondary metric fields (spec.metrics.primary/secondary).",
+    "type": "object",
+    "required": ["known_reference_micro_hit_rate_full_all", "known_reference_micro_hit_rate_boolean20", "known_reference_micro_hit_rate_sparse20", "signed_paired_delta_sparse20_minus_boolean20", "null_weighted_hit_rates", "exact_null_expectation", "margin_factor3_and_absolute_0_20"],
+    "properties": {
+      "known_reference_micro_hit_rate_full_all": {"type": ["string", "null"], "description": "exact fraction as 'numerator/denominator' string, or null if NA"},
+      "known_reference_micro_hit_rate_boolean20": {"type": ["string", "null"]},
+      "known_reference_micro_hit_rate_sparse20": {"type": ["string", "null"]},
+      "signed_paired_delta_sparse20_minus_boolean20": {"type": ["string", "null"], "description": "NA (null) if the common exact/uncontaminated/representable pair set is empty"},
+      "null_weighted_hit_rates": {"type": "object", "additionalProperties": {"type": "string"}, "description": "per seed q_seed"},
+      "exact_null_expectation": {"type": "string"},
+      "margin_factor3_and_absolute_0_20": {"type": "object", "additionalProperties": {"type": "object", "properties": {"factor_three_ok": {"type": "boolean"}, "absolute_margin_ok": {"type": "boolean"}}}}
+    }
+  },
+  "bootstrap_resample_row": {
+    "description": "one row of bootstrap-resamples.jsonl (spec.bootstrap).",
+    "type": "object",
+    "required": ["resample_index", "drawn_proposal_indices", "recomputed_micro_rate", "recomputed_signed_delta"],
+    "properties": {
+      "resample_index": {"type": "integer", "minimum": 0, "maximum": 1999},
+      "drawn_proposal_indices": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+      "recomputed_micro_rate": {"type": ["string", "null"]},
+      "recomputed_signed_delta": {"type": ["string", "null"]}
+    },
+    "denominator_check": "exactly 2000 rows (spec.bootstrap.resamples); NA for all rows if P<2 (spec.bootstrap.interpretation)."
+  },
+  "resource_sample_row": {
+    "description": "one row of resource-samples.jsonl (spec.runtime.protection/.costs).",
+    "type": "object",
+    "required": ["timestamp_utc", "peak_rss_bytes", "cpu_seconds", "stage"],
+    "properties": {
+      "timestamp_utc": {"type": "string"},
+      "peak_rss_bytes": {"type": ["integer", "null"], "description": "null/unknown if telemetry unavailable, never fabricated as zero"},
+      "cpu_seconds": {"type": ["number", "null"]},
+      "stage": {"enum": ["controls", "null_membership", "positive_results", "bootstrap", "checking"]}
+    }
+  },
+  "failure_or_na_row": {
+    "description": "shared shape for any reported failure/NA stratum across artifacts (spec.stopping_rules, spec.invalidation_rules).",
+    "type": "object",
+    "required": ["scope", "reason_code", "detail", "recorded_at_stage"],
+    "properties": {
+      "scope": {"type": "string", "description": "e.g. proposal_id, comparison name, or 'study'"},
+      "reason_code": {"enum": ["insufficient_pairs", "corpus_admission_failure", "unresolved_reference", "unreplayable_query", "control_failure", "unauthorized_access", "deterministic_mismatch", "empty_matched_set", "watchdog_checkpoint", "memory_protection"]},
+      "detail": {"type": "string"},
+      "recorded_at_stage": {"enum": ["census", "labeling", "query_compilation", "controls", "null_membership", "positive_results", "bootstrap", "summary"]}
+    }
+  }
+}

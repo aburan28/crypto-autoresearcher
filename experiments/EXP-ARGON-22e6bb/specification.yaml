@@ -1,0 +1,219 @@
+experiment:
+  id: EXP-ARGON-22e6bb
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-2c1f20; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-2c1f20
+  question_id: RQ-ARGON-141710
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Throughput and reuse-distance profile of a reduced-parameter Argon2id evaluation across a
+    memory-capacity sweep, against a matched-traffic uniform-in-window null and a no-reference sequential-chain
+    arm, on one declared machine
+  objective: The one uncertainty a run reduces is whether the gap between AT-charged cost and achieved
+    cost on real hardware is (i) large enough to measure at all at reduced parameters, (ii) predictable
+    in advance from a machine-independent object computed from the address trace, and (iii) attributable
+    to Argon2's indexing function or only to the size of the array being touched. (i) is answered
+    by whether a throughput knee appears in the sweep with a magnitude exceeding the repetition spread.
+    (ii) is answered by whether the exactly-computed reuse-distance histogram, combined with the declared
+    cache capacity, places the predicted miss-fraction crossing within one sweep step of the measured
+    knee -- a prediction registered before the timing runs execute, not fitted afterward. (iii) is
+    answered only by the matched-traffic null arm, which holds array size, operation count and per-block
+    arithmetic fixed and varies only the index-selection rule; without it, any knee is trivially explained
+    by array size and the run carries no information about Argon2 specifically. The run reduces no
+    uncertainty whatsoever about Argon2's security, about any parameter set's adequacy, or about any
+    adversary's cost, and the contract does not permit a record asserting otherwise.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: on the one declared machine,
+      with the declared compiler and flags, at the declared reduced (t, m, p) grid, the achieved evaluation
+      throughput of this Argon2id implementation departs from a linear-capacity charge by the measured
+      factor, with a knee at the measured m, and the difference between the real and matched-traffic
+      null arms is the measured quantity with the reported error bars. WHAT DOES NOT FOLLOW: nothing
+      about Argon2''s security, nothing about the adequacy or inadequacy of any RFC 9106 recommended
+      parameter set, nothing about any adversary''s cost or advantage, nothing about any other machine
+      or compiler, and nothing about behaviour at the recommended m values, which are outside the
+      tested range.'
+  inputs:
+    procedure: 'STAGE 0 (cost: hours of human time, no compute): write and freeze the parameter grid,
+      the arm definitions, the interleaving order, and the predicted knee location as a pre-registration
+      file, before any timing code runs. STAGE 1 (cost: low): implement a self-contained Argon2id
+      block-fill evaluator in C from KN-LIT-7f3c21, plus the matched-traffic uniform-in-window null
+      arm and the no-reference sequential-chain arm, in one source file behind a compile-time arm
+      selector so that all three receive identical optimization treatment. STAGE 2 (cost: minutes
+      of compute, gigabytes of disk): run each arm once per m in trace-capture mode, writing the ordered
+      index trace to disk. STAGE 3 (cost: minutes of compute): compute the exact reuse-distance histogram
+      per trace by a streaming stack-distance pass, and emit the predicted miss fraction at the declared
+      cache capacity. STAGE 4 (cost: a few core-hours): execute the timed sweep, nine interleaved
+      repetitions per cell, tracing disabled, with the smallest m re-run at the end. STAGE 5 (cost:
+      low): assemble the throughput table, the histograms, the predicted-versus-measured knee comparison,
+      and the between-arm differences with error bars. No stage implements, approximates, or evaluates
+      any attack.'
+    instrument: C11 for the three evaluator arms, single source file with a compile-time arm selector,
+      declared compiler and optimization flags recorded in the run manifest; a Python 3 driver under
+      harness/runner.py handling the interleaved repetition schedule, seeding and manifest capture;
+      a streaming stack-distance analyzer written in C for the trace pass; matplotlib only for figures,
+      with all figures regenerable from the emitted CSV. No computer-algebra system and no Sage anywhere.
+      No external Argon2 library is linked, so that the null and real arms are provably compiled the
+      same way.
+    parameters: t fixed at 3, p fixed at 1, variant Argon2id. m swept over eight geometrically spaced
+      values from 2^10 to 2^17 blocks of 1024 bytes each, that is 1 MiB to 128 MiB of array, chosen
+      so the sweep spans from inside to well outside a typical last-level cache; the exact machine's
+      cache capacities are measured and recorded first, and the sweep is re-centred if the declared
+      capacity falls outside the middle of the range. Three arms per m. Nine repetitions per (arm,
+      m) cell, interleaved. Trace capture at every m for the real and null arms, one repetition each.
+      All seed material synthetic and generated in-run from a declared PRNG seed; no password, credential
+      or third-party dataset at any stage.
+  controls:
+  - Matched-traffic uniform-in-window null arm, same array size, same operation count, same invocation.
+  - Pure sequential-chain degenerate arm with no reference reads, establishing the throughput ceiling
+    where reuse distance is 1 everywhere.
+  - Interleaved rather than blocked repetition ordering, so drift is not confounded with arm.
+  - A no-op arm that allocates and touches the same array once and does nothing else, bounding the
+    allocation and page-fault contribution.
+  - Re-running the smallest m at the end of the sweep and checking it reproduces the beginning-of-sweep
+    value within error bars.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A synthetic evaluator, compiled from the same source file and run in
+    the same invocation from the same driver, performing exactly the same count of block reads, block
+    writes, and per-block arithmetic operations, over an array of exactly the same size, but selecting
+    its reference index uniformly at random from the same candidate window W(j) rather than by the
+    RFC 9106 transform. The null must show a throughput-versus-m curve whose knee lies at the SAME
+    m as the real arm and whose miss fraction at each m is statistically indistinguishable from the
+    real arm, for the null to be doing its job of holding working-set size fixed. If the null and
+    real arms differ, the difference is attributable to the indexing function. If they do not differ,
+    the correct record is a controlled null: the knee is a property of the array size and the machine,
+    and Argon2''s indexing contributes nothing measurable to it at these parameters. Either outcome
+    is a usable measured obstruction.'
+  independent_variables:
+  - m, the array size in 1024-byte blocks
+  - arm, in {real Argon2id, matched-traffic uniform-in-window null, no-reference sequential chain}
+  metrics:
+    primary:
+    - blocks per second per (arm, m) cell with median and interquartile range
+    - exact reuse-distance histogram per arm and m
+    - predicted fully-associative-LRU miss fraction at declared cache capacity
+    - measured knee location in m, defined as the sweep step with the largest log-throughput decrement
+    secondary:
+    - ratio of measured seconds to AT-charged seconds under the linear-capacity model
+    - between-arm throughput difference at each m with error bars
+    - beginning-versus-end re-run agreement at the smallest m
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The location in m of the throughput knee for each arm, and the miss fraction at that
+      m, both registered before the timed sweep executes.
+    formula: Predicted knee at the smallest swept m for which F(C) exceeds 0.5, where F(C) is the
+      fraction of reads in the exactly-computed reuse-distance histogram whose distance exceeds C,
+      and C is the measured last-level-cache capacity of the test machine expressed in 1024-byte blocks.
+      Predicted throughput ratio between the smallest and largest swept m of at least 1.5.
+    source: Pre-registered in the parent proposal IDEA-20260816-2c1f20 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at m from 2^10 to 2^17 blocks, t=3, p=1, which is two to eleven binary
+      orders below the 2^16 KiB second recommended tuple''s per-lane block count and far below the
+      2^21 KiB first recommended tuple. The sweep is chosen to straddle the test machine''s cache
+      capacity, which is the only scale that matters for the question asked; it is NOT chosen to approach
+      recommended parameters and no extrapolation to them is performed. The single transfer assumption
+      made explicit: the reuse-distance histogram''s SHAPE as a function of position within a pass
+      is expected to be parameter-scalable because the candidate window grows proportionally with
+      position, but this expectation is neither tested nor relied upon by any reported number.'
+    correspondence: null
+  tail_checks:
+  - Inspect the slowest and fastest repetition in every cell individually rather than only the median,
+    and report any cell whose extremes differ by more than a factor of two as instrument-unstable.
+  - Inspect the far tail of the reuse-distance histogram, above the largest declared cache capacity,
+    since a small mass there can dominate the miss fraction.
+  - Check the first hundred and last hundred blocks of each pass separately, where the candidate window
+    is anomalously small or the pass boundary resets structure.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop the sweep and report partial results if total wall clock exceeds four hours, recording which
+    cells completed; an incomplete sweep is a budget outcome and is never recorded as a negative result
+    about the hierarchy.
+  - Abort and re-run the entire session if the end-of-sweep smallest-m re-run disagrees with its beginning-of-sweep
+    value beyond error bars.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: All three arms complete every cell, the beginning-and-end re-run agrees within
+    error bars, the reuse-distance histograms are emitted exactly, and the predicted-versus-measured
+    knee comparison and the between-arm difference are reported with error bars -- irrespective of
+    whether the arms differ.
+  falsification_criterion:
+  - Throughput flat in m to within error bars across the full sweep.
+  - Predicted knee misses measured knee by more than two sweep steps.
+  - Sequential-chain arm reproduces the real arm's knee within error bars, attributing it entirely
+    to array size.
+  - Within-cell repetition spread exceeds every between-arm difference at every m.
+  - End-of-sweep re-run disagrees with beginning-of-sweep beyond error bars.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-2c1f20
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The declared cache capacity C must be established by the Coordinator as a measured property of
+    the specific test machine, not read from a datasheet, and the measurement method must be named
+    in the contract before approval.
+  - The prefetcher's contribution is not separated from capacity misses by this design; a Coordinator
+    must decide whether that separation is required for the result to be interpretable or whether
+    it is an acknowledged limitation.
+  - The definition of matched traffic for the null arm needs pinning down at the instruction level
+    -- identical block reads and writes is specified, but identical arithmetic per block requires
+    an agreed index-generation shape for the null.

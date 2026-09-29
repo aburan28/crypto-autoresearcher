@@ -1,0 +1,536 @@
+idea:
+  id: IDEA-20260828-6e79b4
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    Fold a sub-full-rank fault hint and the always-free t0-truncation hint into
+    ONE lattice: does the fault-recovery boundary this program computes by rank
+    alone (IDEA-20260805-818196) understate danger once the public key's own t0
+    hint (IDEA-20260808-5a748c) is charged alongside it, at zero extra faults?
+  class: composition
+  claim: >-
+    (A) THE GAP. IDEA-20260805-818196 defines, for a fault class F, its
+    constraint rank r(F): the number of independent F_q-linear functionals of
+    (s1, s2) that one faulty signature makes computable, and derives
+    N_LA = ceil(256*l / r) and N_IT = ceil(256*l*log2(2*eta+1) / (r*log2 q)) as
+    the linear-algebra and information-theoretic faulty-signature counts for
+    FULL recovery. IDEA-20260808-5a748c separately prices t0: a key-only
+    adversary's effective MLWE error is s2 - t0 rather than s2, and the
+    resulting core-SVP block-size gap Delta_beta(t0) is the "security value of
+    t0" — available from the PUBLIC KEY ALONE, with ZERO faults and ZERO
+    signatures. Neither record combines the two. Published fault-recovery
+    literature does the same separation implicitly: Islam et al.'s Signature
+    Correction Attack (arXiv:2203.00637, abstract fetched this session) states
+    it "recover[s] 1,851 bits out of 3,072 bits of secret key s1... reduc[ing]
+    lattice strength from 2^128 to 2^81 (quantum) / 2^141 to 2^89 (classical)"
+    at Dilithium security level 2, using "faulty signatures and the public
+    key" — but its abstract does not state whether that reported block-size
+    drop is attributable to the fault hints alone, to t0's own contribution
+    alone, or to a synergy between them; that attribution is exactly this
+    record's object, and its full text was NOT read this session (only the
+    abstract was fetched), so the attribution gap is a gap in THIS PROGRAM's
+    knowledge, not a claim that no paper anywhere ever separates them.
+    (B) THE OBJECT. Fix a reduced, certifiable ML-DSA-shaped instance. Define
+    three quantities at that instance, under one pinned, memory-charged
+    cost model: Delta_beta(F) — the block-size drop from N_F faulty signatures
+    of class F alone, at a DECLARED rank r(F) chosen strictly below the
+    single-signature full-recovery threshold (818196's r = 256*l case) so the
+    fault alone does not already win; Delta_beta(t0) — the block-size drop from
+    the public t0 hint alone (5a748c's construction, recomputed here rather
+    than inherited); and Delta_beta(combined) — the block-size drop when BOTH
+    hint sets are integrated into ONE lattice via KN-TECH-047 / KN-LIT-118's
+    sequential hint-integration framework (perfect linear hints from the fault,
+    via hyperplane intersection; the t0 hint as a modular/approximate
+    reshaping of the error on s2), then reduced once.
+    (C) THE DISCRIMINATION, THREE-WAY. ADDITIVE: Delta_beta(combined) ~
+    Delta_beta(F) + Delta_beta(t0) within measurement noise — hints compose
+    independently, and 818196's rank-only fault boundary remains the right
+    first-order account even once t0 is charged. SUPER-ADDITIVE:
+    Delta_beta(combined) exceeds the sum by more than measurement noise — the
+    fault and the free public-key hint interact, meaning a fault BELOW the
+    "single-signature full recovery" threshold that looks individually benign
+    is more dangerous than either hint's own price sheet says, once combined
+    with information every deployment already has for free. SUB-ADDITIVE:
+    Delta_beta(combined) is measurably below the sum — the two hints partially
+    overlap in what they constrain (plausible if both bear on s2 in
+    correlated ways: the fault path may touch y and hence s1 predominantly,
+    while t0 bears on s2, in which case near-additivity would itself be a
+    correctness check, not a surprise; correlated OR anti-correlated deviation
+    is reported either way).
+    (D) WHAT IS NOT CLAIMED. No attack at FIPS 204 parameters, no forgery, no
+    exponent improvement. This is a margin/calibration measurement serving
+    GOAL-MLDSA-001's fault-boundary completion criterion, not a break of MLWE,
+    MSIS or SelfTargetMSIS. A super-additive finding at toy scale is a
+    reason to re-scope the fault-proof-boundary question, not a claim that any
+    fault attack currently succeeds at FIPS 204 scale.
+  mechanism: >-
+    STAGE 0, INSTRUMENT AND BASELINE (no compute past exact arithmetic). Pick a
+    reduced ML-DSA-shaped instance at a scale small enough that direct BKZ
+    reduction terminates in minutes and a recovered candidate secret can be
+    independently checked against the true public key. Implement three
+    embeddings under ONE pinned, memory-charged cost model and ONE reduction
+    backend/block-size convention: (i) baseline MLWE/MSIS instance, no hints;
+    (ii) baseline plus the fault hints only; (iii) baseline plus the t0 hint
+    only. (i)-(iii) reproduce 818196's and 5a748c's constructions at THIS
+    record's own reduced scale (neither is inherited numerically, both are
+    recomputed here so the comparison is apples-to-apples under one backend).
+    STAGE 1, THE FAULT SURROGATE. Choose a concrete partial-leak fault model
+    with a DECLARED rank r per faulty signature (e.g. a fault that zeroes or
+    fixes a bounded number of ExpandMask output coefficients), and a faulty-
+    signature count N_F chosen so N_F * r is strictly below 256*l (below
+    818196's single-shot full-recovery threshold at the reduced scale) —
+    i.e. the fault ALONE must NOT already determine the secret by linear
+    algebra; this is a forced pre-condition checked before any lattice run.
+    STAGE 2, THE COMBINED EMBEDDING. Using KN-TECH-047 / KN-LIT-118's
+    integration steps in the declared order (perfect-hint hyperplane
+    intersection for the N_F*r fault functionals, then the t0 modular/error
+    hint), build ONE lattice and reduce it once at the SAME block size used
+    for (ii) and (iii). Attempt secret recovery; every claimed recovery emits
+    an independently re-verified certificate (recompute the candidate's public
+    key from the candidate secret and compare to the true pk, per
+    docs/claims-and-verification.md — the verifier is separate code from the
+    solver).
+    STAGE 3, CONTROLS (see null_object_control) and the excess statistic
+    E = Delta_beta(combined) - [Delta_beta(F) + Delta_beta(t0)], reported with
+    an interval from >= 10 independent reduced instances per cell.
+    STAGE 4, ORDER-INDEPENDENCE CHECK. Re-run stage 2 integrating the t0 hint
+    BEFORE the fault hints. KN-TECH-047's framework is not proven to be
+    order-invariant for mixed hint types; if E differs materially by order,
+    that is reported as a property of the integration procedure, not of
+    ML-DSA, and no single E is reported as "the" answer.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      Corpus: read IDEA-20260805-818196 and IDEA-20260808-5a748c in full this
+      session (both are RQ-MLDSA-001 proposals already summarized above);
+      grepped ledger/ and knowledge/ for "super-addit|combined hint|hint
+      integration|Langlois" (30 and 67 file hits respectively; the ledger
+      hits were enumerated by path and none composes a fault hint with a
+      t0 hint — they are unrelated FrodoKEM/SLH-DSA/ML-KEM hint-integration
+      proposals and one ML-DSA hypothesis, H-MLDSA-12f563, read to its header
+      and found to concern zeta/|B_tau| decomposition, not hint composition).
+      Read KN-TECH-047 and KN-LIT-118 (Dachman-Soled, Ducas, Gong, Rossi,
+      CRYPTO 2020 / ePrint 2020/292) in full: both state the framework
+      integrates hints "progressively" and covers side-channel, decryption-
+      failure and scheme-structural hints, but KN-TECH-047's own text records
+      that "nothing was run or reproduced" in this program and does not
+      mention fault-plus-public-key composition for ML-DSA specifically.
+      Web: fetched arXiv:2203.00637 (Islam et al., Signature Correction Attack)
+      abstract verbatim this session — it reports a concrete block-size drop
+      (2^128->2^81 quantum, 2^141->2^89 classical at Dilithium level 2) "using
+      faulty signatures and the public key," which is the closest published
+      precedent found. Attempted to fetch eprint.iacr.org/2024/138 (Correction
+      Fault Attacks on Randomized CRYSTALS-Dilithium) and eprint.iacr.org/2023/
+      1796 (Fault Attacks Sensitivity of Public Parameters in Dilithium
+      Verification) for the exact attribution; both attempts returned HTTP 429
+      (IACR rate limit) and neither was read beyond the WebSearch snippet
+      already quoted in claim (A), which itself turned out on inspection to
+      describe FIPS 204's OWN MakeHint/UseHint verification mechanism, not an
+      attacker-side t0 hint — that misreading is disclosed here rather than
+      carried into the claim.
+    results: >-
+      Combining fault-derived partial secret information with public-key-
+      informed lattice reduction is NOT new: Islam et al. (SAC/TCHES lineage,
+      arXiv:2203.00637) already does exactly this and reports concrete bit
+      drops. What their fetched abstract does not state, and what this
+      program's own ledger does not compute anywhere, is the MARGINAL,
+      ISOLATED contribution of the t0-truncation hint specifically (as 5a748c
+      decomposes it) combined with a DECLARED sub-threshold fault rank, nor
+      any additivity/super-additivity test between two independently-priced
+      hint sources. No internal record (818196, 5a748c, KN-TECH-047,
+      H-MLDSA-12f563) performs this composition or this test.
+    verdict: >-
+      ADAPTATION for the mechanism (hint composition in one lattice via
+      KN-TECH-047 is an established, precedented technique, and combining
+      fault information with public-key information specifically for
+      Dilithium/ML-DSA has a direct published precedent in Islam et al., not
+      independently re-derived here). SPECULATIVE for the specific
+      deliverable: the isolated t0-marginal-contribution-plus-sub-threshold-
+      fault additivity/super-additivity test, which was not found in the
+      corpus or in the literature actually read (as opposed to searched)
+      this session. External novelty is NOT fully established: the two most
+      likely competing primary sources (eprint 2024/138, eprint 2023/1796)
+      were rate-limited and not read past search snippets; either could
+      already contain this exact attribution and this record would then be a
+      transcription exercise, which is an acceptable but different outcome
+      and is flagged as the first thing a follow-up session should check
+      before running any lattice reduction.
+  object_first_candidate:
+    tracked_object: >-
+      The COMBINED HINT LATTICE: one joint embedding carrying both the
+      fault-induced affine constraint subspace (rank r(F) per faulty
+      signature, up to N_F faults) and the t0-truncation error-reshaping hint
+      on s2, followed from the two source instances (fault-only, t0-only)
+      through KN-TECH-047's sequential integration to one reduced block size.
+    lossiness: >-
+      Genuinely lossy in the direction that matters: the combined lattice
+      discards the PROVENANCE of each constraint (which came from a fault and
+      which came from the public key) and retains only their joint effect on
+      the reduced basis. That discard is compatible with BKZ's own operation,
+      which only ever sees a lattice and a target, never a provenance label —
+      so the projection is exactly what an actual attacker's reduction step
+      would see. It is not a change of coordinates: the fault-only and
+      t0-only lattices are recoverable as sub-cases (N_F=0 or "no t0 hint"),
+      but the combined lattice's reduced basis cannot be decomposed back into
+      "the part BKZ spent on the fault" versus "the part it spent on t0" —
+      that decomposition is exactly the additivity question this record asks.
+    propagation: >-
+      One step is one hint integrated (one hyperplane intersection for a
+      fault functional, or one error-law substitution for t0). The one-step
+      observable is the resulting lattice volume/dimension after each
+      integration step, which KN-TECH-047's framework computes explicitly; the
+      framework's OWN additive-in-log-volume prediction for sequential,
+      independent hints is the null hypothesis this record tests against the
+      measured combined block size.
+    survival_score: >-
+      The object survives intact through both individual embeddings (that is
+      just 818196's and 5a748c's own constructions, recomputed). It is
+      EXPECTED to survive the combined embedding too (KN-TECH-047 explicitly
+      supports mixed hint types), so "does the object survive" is not the
+      open question here — "does the FRAMEWORK'S OWN volume-additivity
+      prediction survive contact with measurement" is, and that is reported
+      as the excess statistic E.
+  null_object_control: >-
+    (1) INDEPENDENT-T0 NULL: repeat the combined embedding with a t0 value
+    resampled independently of the true key (uncorrelated with s1, s2). The
+    combined Delta_beta here must equal Delta_beta(F) alone within noise; any
+    residual gain is an accounting artefact of the integration code, not a
+    finding. (2) ZERO-FAULT NULL: N_F = 0, t0 hint only — must reproduce
+    Delta_beta(t0) from stage 0's standalone embedding exactly. (3) ZERO-HINT
+    BASELINE: no hints at all — must reproduce the reduced instance's own
+    unhinted block size. (4) MONOTONICITY FORCED VALUE: Delta_beta(combined)
+    must be >= max(Delta_beta(F), Delta_beta(t0)) always (more information
+    cannot make an attacker's job harder); a violation voids the run. (5)
+    ORDER-SWAP CHECK (stage 4): fault-then-t0 versus t0-then-fault; a large
+    discrepancy is reported as a property of the integration procedure.
+  discriminated_from:
+    - >-
+      IDEA-20260805-818196 derives r(F), N_LA and N_IT for a fault ALONE and
+      explicitly states its off-limits list excludes lattice cryptanalysis
+      combination with any other lane; this record is the first to actually
+      perform that combination, using 818196's rank arithmetic as one of its
+      two hint sources, not as a competing account of the same quantity.
+    - >-
+      IDEA-20260808-5a748c prices t0 alone, at Q_S = 0, with an explicit
+      "independent-t0 null" of its own; this record imports that construction as
+      its OTHER hint source and reuses its null as component (1) above rather
+      than re-deriving it.
+    - >-
+      Islam et al. (arXiv:2203.00637) already combines fault information with
+      the public key and reports concrete bit drops (2^128->2^81 quantum,
+      2^141->2^89 classical at level 2); this record does not reproduce their
+      attack. It differs in asking a narrower, compositional question — the
+      ISOLATED marginal value of the t0-truncation hint specifically, and
+      whether it composes additively or super-additively with a DECLARED
+      sub-threshold fault rank — which their fetched abstract does not state
+      and which this program cannot currently answer for either paper without
+      reading full text blocked this session by rate limiting.
+    - >-
+      KN-TECH-047 / KN-LIT-118 supply the integration MACHINERY; neither
+      performs or reports an ML-DSA-specific fault-plus-t0 composition or an
+      additivity test, per KN-TECH-047's own "nothing was run or reproduced"
+      disclosure.
+  citations:
+    - ref: IDEA-20260805-818196
+      provenance: internal
+      claim: >-
+        Defines r(F), N_LA = ceil(256*l/r), N_IT = ceil(256*l*log2(2*eta+1)/
+        (r*log2 q)), and the forced consequence that single-signature full
+        recovery requires r = 256*l.
+      verified_by: "idea-generator subagent (read in full in repository)"
+    - ref: IDEA-20260808-5a748c
+      provenance: internal
+      claim: >-
+        Prices t0 as a core-SVP block-size gap Delta_beta between the t1-only
+        and full-t MLWE instances, with an independent-t0 null and a d-sweep
+        control.
+      verified_by: "idea-generator subagent (read in full in repository)"
+    - ref: "KN-TECH-047 and KN-LIT-118 (Dachman-Soled, Ducas, Gong, Rossi, \"LWE with Side Information\", CRYPTO 2020 / ePrint 2020/292)"
+      provenance: internal
+      claim: >-
+        Generalises the primal attack to integrate hints (perfect, modular,
+        approximate) progressively via sparsification, projection/intersection,
+        and secret-distribution modification, with a toolkit predicting the
+        resulting cost. "Nothing was run or reproduced" in this program.
+      verified_by: "idea-generator subagent (both read in full in repository)"
+    - ref: "arXiv:2203.00637 (Islam, Zheng, et al.), \"Signature Correction Attack on Dilithium Signature Scheme\""
+      provenance: retrieved
+      claim: >-
+        Verbatim from the abstract: "we ... successfully recover 1,851 bits out
+        of 3,072 bits of secret key s1 for security level 2. The lattice
+        strength against quantum attackers is reduced from 2^128 to 2^81 while
+        the strength against classical attackers is reduced from 2^141 to 2^89,"
+        using "faulty signatures and the public-key," with faults induced via
+        Rowhammer, applicable to both deterministic and randomized Dilithium.
+        Full text NOT read; attribution of the bit-drop between fault
+        information and public-key information is not stated in the abstract.
+      verified_by: "idea-generator subagent (fetched https://arxiv.org/abs/2203.00637 and read the abstract verbatim)"
+    - ref: "IACR ePrint 2024/138 (\"Correction Fault Attacks on Randomized CRYSTALS-Dilithium\") and ePrint 2023/1796 (\"Fault Attacks Sensitivity of Public Parameters in the Dilithium Verification\")"
+      provenance: recalled
+      claim: >-
+        Search-result-level only: reported to combine faulty-signature
+        correction values with lattice reduction and to discuss public
+        parameters in verification; a WebSearch synthesis attributed a
+        "hints... compensate for the missing term ct0" sentence to this
+        cluster, which on inspection describes FIPS 204's own MakeHint/UseHint
+        mechanism, not an attacker-side t0 hint. Both PDFs returned HTTP 429
+        this session and were NOT fetched or read. Any experiment derived from
+        this record must read both primary texts before citing a number from
+        either.
+      verified_by: null
+  assumptions:
+    - >-
+      A reduced ML-DSA-shaped instance exists at which the unhinted, fault-only,
+      t0-only and combined lattices are all solvable by direct BKZ in minutes
+      and a recovered secret is independently checkable against a true public
+      key generated for the instance.
+    - >-
+      KN-TECH-047's hint-integration framework accepts a DECLARED partial-fault
+      linear-hint set jointly with a t0 modular/error hint without requiring
+      modification; if it does not, that failure is itself reported as a
+      finding about the framework's applicability, not absorbed silently.
+    - >-
+      A single pinned reduction backend, block-size convention, and memory-
+      charging convention is used across all four embeddings (baseline, fault
+      only, t0 only, combined); any cross-convention comparison is void.
+    - >-
+      The chosen fault surrogate's rank r and count N_F are declared BEFORE any
+      lattice is built, and N_F * r is checked strictly below 256*l at the
+      reduced scale before stage 2 runs.
+  proof_search_map:
+    bottleneck: >-
+      The hint-integration step where the fault's affine subspace and the
+      t0 error-reshaping are both folded into ONE lattice before the single
+      reduction call; this is the step whose output (the combined block size)
+      the whole record measures.
+    baseline_embedding:
+      parameter_slice: >-
+        N_F = 0 with no t0 hint reproduces the unhinted baseline exactly;
+        N_F = 0 with the t0 hint reproduces 5a748c's construction exactly;
+        the t0 hint absent with N_F, r at the single-signature threshold
+        (r = 256*l) reproduces 818196's forced full-recovery case exactly.
+        All three are exact boundaries of the combined construction.
+      reproduction_check: >-
+        Frozen fixture: each of the three boundary cases above must return
+        the corresponding standalone construction's block size to within the
+        run-to-run spread of the fixed backend, before the combined case is
+        run at all.
+    observation_collision:
+      observable: "Delta_beta(combined) and the excess statistic E."
+      distinct_preimage_search: >-
+        A combined lattice with E > 0 could arise either from genuine
+        interaction between the two hint types, or from a bug in the
+        integration order that double-counts information already implied by
+        one hint in the other. NULL (1), the independent-t0 arm, is the
+        additional condition that separates them: if E > 0 persists with an
+        UNCORRELATED t0 value (which shares nothing with the fault's target),
+        double-counting is ruled out and the interaction is real; if E
+        collapses to 0 there, the positive E in the headline arm was an
+        artefact of shared, correlated structure between the two hint
+        sources, not a synergy.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The combined hint lattice replacing two separate lattices, moving the
+          question "do independent hints compose additively" into "what is the
+          measured gap between the framework's predicted combined volume
+          reduction and the empirically reduced block size."
+        predicted_gain: >-
+          Diagnostic, not computational: no speedup over either published
+          attack is claimed. The predicted deliverable is the sign and
+          magnitude of E, with no directional prior stated (an honest open
+          question, not a bet).
+    quantifier_order: >-
+      FOR the declared reduced instance and the declared fault surrogate
+      (rank r, count N_F strictly below the single-signature threshold),
+      THERE EXISTS a measured Delta_beta(combined) under the declared backend;
+      the additivity claim is an empirical statement about THIS instance and
+      THIS backend, not a universal statement over all fault classes, all
+      instances, or all reduction algorithms.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At the reduced instance, under the declared backend, the measured
+        excess E is [value] with interval [a,b]; sign and magnitude reported,
+        controls passed/failed named individually." The method can never
+        certify that E's sign or magnitude transfers to FIPS 204 scale, and
+        cannot certify anything about attacks that do not use this specific
+        hint-integration procedure.
+      nearby_object_control: >-
+        The independent-t0 null (uncorrelated t0) is the nearby object on
+        which E is expected to collapse to zero if the headline E is real
+        synergy rather than double-counting; a method that reports the same
+        E in both arms has not identified the load-bearing structure.
+    proof_obligations:
+      - claim: "The three boundary cases (fault-only, t0-only, unhinted) reproduce their standalone constructions exactly."
+        responsibility: baseline
+      - claim: "N_F * r is strictly below 256*l at the reduced scale before stage 2 runs."
+        responsibility: scope
+      - claim: "Every claimed secret recovery is independently re-verified by recomputing the candidate public key."
+        responsibility: correctness
+      - claim: "Delta_beta(combined) >= max(Delta_beta(F), Delta_beta(t0)) always."
+        responsibility: strictness
+      - claim: "The independent-t0 null collapses E to zero if the headline E is not double-counting."
+        responsibility: interface
+      - claim: "No statement about FIPS 204 parameters follows from any reduced-instance result."
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: "excess statistic E = Delta_beta(combined) - [Delta_beta(F) + Delta_beta(t0)], in bits, at the reduced instance"
+      direction: different
+      minimum_effect: "no directional prior; |E| exceeding the measured cross-instance standard deviation (>=10 instances) is the reportable finding in either direction"
+    - metric: "E measured with an independent (uncorrelated) t0 value, NULL (1)"
+      direction: lower
+      minimum_effect: "must collapse to within noise of zero if the headline E is genuine synergy rather than double-counting"
+    - metric: "Delta_beta(combined) relative to max(Delta_beta(F), Delta_beta(t0))"
+      direction: higher
+      minimum_effect: "must be >= 0 (monotonicity); a negative value voids the run"
+    - metric: "order-swap discrepancy: E(fault-then-t0) minus E(t0-then-fault)"
+      direction: different
+      minimum_effect: "a discrepancy exceeding the cross-instance standard deviation is reported as a property of the integration procedure, not of ML-DSA"
+  minimal_test:
+    design: >-
+      One reduced ML-DSA-shaped instance, four embeddings (unhinted,
+      fault-only, t0-only, combined), one pinned backend and block-size
+      convention, >=10 independent instances per cell. Verify the three
+      boundary-reproduction checks first (cheap, must pass before anything
+      else is trusted). Then measure Delta_beta(F), Delta_beta(t0),
+      Delta_beta(combined), the independent-t0 null, and the order-swap
+      check. Report E with its interval. THIS DISCRIMINATES because the
+      three-way outcome (additive / super-additive / sub-additive) has
+      distinct, pre-declared consequences for the fault-boundary criterion,
+      because the independent-t0 null can independently falsify a positive
+      E as double-counting, and because monotonicity is a forced value that
+      can catch an accounting bug before any interpretation is attempted.
+      Cost: pure lattice-reduction arithmetic at reduced dimension, well
+      under an hour of single-core compute; the implementation cost is
+      writing the fault surrogate and the two-hint integration code, not
+      the compute itself.
+    controls:
+      - "Independent-t0 null (uncorrelated t0 value)."
+      - "Zero-fault null (t0 hint only, must reproduce standalone 5a748c-style construction)."
+      - "Zero-hint baseline."
+      - "Monotonicity forced value: combined >= max(fault, t0)."
+      - "Order-swap check: fault-then-t0 versus t0-then-fault."
+      - "Independent certificate verifier for any claimed secret recovery."
+    required_metrics:
+      - "Delta_beta(F), Delta_beta(t0), Delta_beta(combined), and E, each with an interval over >=10 instances"
+      - "independent-t0 null value of E"
+      - "order-swap discrepancy"
+      - "reduction backend, block size, and memory-charging convention used"
+  falsification_conditions:
+    - "Any boundary-reproduction check fails: the combined-embedding code is not correctly generalizing the standalone constructions, and no E is reportable."
+    - "Delta_beta(combined) < max(Delta_beta(F), Delta_beta(t0)): monotonicity violated, instrument bug, nothing interpretable."
+    - "E > 0 in the headline arm but also E > 0 (comparably) in the independent-t0 null: the positive result is double-counting, not synergy, and is reported as such."
+    - "E is within noise of zero in both the headline and null arms: additivity holds at this instance; a scoped, complete, useful negative for the fault-boundary criterion."
+    - "E is materially negative (sub-additive) and survives the independent-t0 null: the two hints partially overlap in what they constrain, itself a finding about which secret coordinates each hint type bears on."
+    - "The order-swap discrepancy is large: KN-TECH-047-style sequential integration is order-sensitive for this hint-type mix, a finding about the framework reusable outside this record."
+  confounders:
+    - "Reduction-backend and block-size variance across the four embeddings; mitigated by one pinned backend and >=10 instances per cell."
+    - "Correlated randomness between the surrogate fault model and the t0 sampling if both are drawn from the same PRNG stream without independent seeding — checked by the independent-t0 null."
+    - "The fault surrogate may not resemble any published fault mechanism; the record is scoped to the declared surrogate class and does not transfer to any specific named fault attack without restating the surrogate as that attack."
+    - "Toy-scale block sizes may not exhibit the same additivity structure as cryptographic-scale ones; no transfer is asserted."
+  interpretation_limits:
+    - "Toy-tier only (docs/claims-and-verification.md). No statement about FIPS 204 parameters, no forgery, no break of MLWE/MSIS/SelfTargetMSIS."
+    - "A positive E at reduced scale does not establish that any published fault attack under-counts its faulty-signature requirement at FIPS 204 scale; it establishes that the composition CAN synergize at the tested scale under the tested surrogate."
+    - "This record does not read the full text of eprint 2024/138 or 2023/1796; a future session may find this exact attribution already published, in which case this record becomes a transcription exercise rather than a new measurement."
+    - "No claim about which specific published fault attack (Jendral, Shin et al., Islam et al.) the surrogate corresponds to; that mapping is explicitly out of scope here and belongs to whichever record places a specific paper against 818196's rank taxonomy."
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        KN-TECH-047's sequential hint-integration framework predicts a combined
+        block-size reduction from log-volume additivity: if hint type A alone
+        reduces log-volume by V_A and hint type B alone by V_B, integrating both
+        sequentially reduces log-volume by approximately V_A + V_B, provided the
+        two hints act on coordinates that are not already correlated by the
+        lattice's own structure.
+      rigorous_support: >-
+        The rigorous ingredient is that lattice covolume is exactly
+        multiplicative under successive orthogonal-projection / hyperplane-
+        intersection steps when the steps act on independent subspaces (an
+        exact linear-algebra fact); the framework's own predicted cost model
+        is built on this multiplicativity. The classical statement being
+        imitated is the additivity of independent information sources' entropy
+        reduction under successive conditioning — here transposed to lattice
+        volume under successive projection.
+      validation_plan: >-
+        At the reduced instance, compute the framework's OWN predicted combined
+        log-volume reduction (V_A + V_B, from the two standalone constructions'
+        own stated volume drops) and compare it against the EMPIRICALLY
+        measured Delta_beta(combined) converted back to a volume figure via the
+        same GSA/root-Hermite-factor relation used throughout this ledger
+        (591f9d, 5a748c). TAIL CHECK: report the discrepancy at the smallest
+        and largest N_F on a declared sweep, and at the smallest and largest t0
+        truncation depth d on a declared sweep; a discrepancy that GROWS with
+        either sweep parameter indicates the independence assumption degrades
+        at scale rather than holding uniformly. Sampled parameters: n in
+        {32, 64}, N_F in {1, 2, 4, 8} at fixed r, d in {2, 6, 10, 13} (partial
+        to full compression). TRANSFER ASSUMPTION, stated and NOT discharged:
+        that this behaviour at toy n predicts behaviour at n = 256 with the
+        true FIPS 204 module ranks.
+  target_complexity:
+    time_exponent: >-
+      No attack exponent improvement is claimed. The quantity reported is a
+      constant/margin shift, E, in bits of core-SVP block size at reduced
+      scale; time cost of the two attack arms individually is unchanged from
+      818196's and 5a748c's own figures, and E is additive/negative overhead
+      on top of whichever is measured.
+    memory_exponent: >-
+      2^{0.2075*beta} for the reduction at whichever beta the combined
+      lattice reaches, charged identically across all four embeddings; no
+      separate memory cost is introduced by hint integration itself beyond
+      the reduced lattice's own dimension and volume.
+    best_known: >-
+      The incumbent account treats fault cost (818196) and t0 cost (5a748c)
+      as separately priced, uncombined quantities; the incumbent numbers
+      (rank-based faulty-signature counts, standalone Delta_beta(t0)) are
+      exactly the two ADDENDS this record tests for additivity against a
+      jointly measured value.
+    hidden_overhead: >-
+      The o(1) here hides the fault surrogate's realism (does any published
+      fault mechanism actually deliver a rank strictly below the full
+      threshold in the declared, clean linear-functional form this record
+      assumes) and the toy-to-FIPS-204 transfer of the additivity structure
+      itself, neither of which is measured or forced by any control here.
+    tradeoff_note: >-
+      No time-memory interpolation is introduced beyond what each standalone
+      attack already carries; the record's own cost is dominated by
+      implementation effort, not compute (compute is well under an hour).
+  dominated_by: >-
+    n/a (no attack result claimed; the compositional quantity E is not
+    computed anywhere in this program's ledger). Rows checked: (i)
+    IDEA-20260805-818196's rank-only fault account; (ii)
+    IDEA-20260808-5a748c's standalone t0 pricing; (iii) KN-TECH-047 /
+    KN-LIT-118's general hint-integration framework, which supplies the
+    method but reports no ML-DSA-specific composition; (iv) Islam et al.
+    (arXiv:2203.00637), the closest published precedent for combining fault
+    and public-key information on Dilithium, whose fetched abstract does not
+    isolate t0's marginal contribution or test additivity. None of these
+    rows computes E, so none dominates a measurement of it; two candidate
+    rows (eprint 2024/138, eprint 2023/1796) could not be checked this
+    session due to IACR rate limiting and are named as the first thing a
+    follow-up must verify.
+  sota_delta: >-
+    No attack; margin-measurement contribution only. If E is measured near
+    zero (additive), sota_delta = 0 beyond the sum of the two already-known
+    individual prices, and 818196's rank-only fault boundary is confirmed
+    adequate even once t0 is charged. If |E| is measured materially above
+    zero at reduced scale (either sign), the quantitative delta reported is
+    E itself in bits at the tested instance, with NO transfer asserted to
+    FIPS 204 scale; the smallest change this record would flag as
+    "interesting enough to warrant a scale-up study" is |E| exceeding the
+    combined measurement noise by a factor of 3 across the >=10-instance
+    ensemble.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  source_refs:
+    - RQ-MLDSA-001
+    - IDEA-20260805-818196
+    - IDEA-20260808-5a748c
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

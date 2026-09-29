@@ -1,0 +1,110 @@
+diff --git a/docs/claims-and-verification.md b/docs/claims-and-verification.md
+index 7eede5574..0699f3eb6 100644
+--- a/docs/claims-and-verification.md
++++ b/docs/claims-and-verification.md
+@@ -30,7 +30,7 @@ marking the run `completed_valid`.
+ 
+ ```yaml
+ certificate:
+-  kind: discrete_log | decomposition | none
++  kind: discrete_log | decomposition | key_recovery | none
+   # discrete_log: claim that k solves Q = k*P on the named curve
+   curve_id: TOY-P<bits>-<hash>
+   statement:
+@@ -40,6 +40,14 @@ certificate:
+     # decomposition:
+     target: [x, y]
+     summands: [[x, y], ...]
++  # key_recovery: claim that `key` is the AES key producing the named
++  # ciphertexts from the named plaintexts, at the named key size and full
++  # round count. Full-round only; a reduced-round claim is not this kind.
++  key_bits: 128 | 192 | 256
++  rounds: 10 | 12 | 14
++  # statement.pairs:              # >= 2 for 128/192, >= 3 for 256
++  #   - {plaintext: <hex128>, ciphertext: <hex128>}
++  # statement.key: <hex, exactly key_bits/4 hex characters>
+   verified: true
+   verifier: independent-recompute   # NOT the solver's own code path
+   verifier_commit: <git-sha>
+@@ -54,6 +62,25 @@ Rules:
+   solver claimed success but the witness is wrong) — it is NOT a
+   `negative_observation`. A negative observation is a *valid* run that
+   correctly reports "no solution found within budget."
++- **`kind: key_recovery`** certifies a claimed AES key recovery. The statement
++  names the key size, the round count, the exact plaintext/ciphertext pairs and
++  the recovered key. THE VERIFIER RE-ENCRYPTS EACH NAMED PLAINTEXT UNDER THE
++  CLAIMED KEY WITH BOTH pycryptodome AND THE openssl CLI AND COMPARES AGAINST
++  THE NAMED CIPHERTEXTS, in the run wrapper and never in the attack code. Both
++  implementations must agree and both must match; a disagreement between them is
++  an instrument failure, not a result. `rounds` is REQUIRED to match the key size
++  (128/10, 192/12, 256/14); a claim at any other round count is not this kind.
++  Added by protocol-amendment-GOAL-AES-002-001 (RQ-AES-002 BLK-1); purely
++  additive, and no existing record is re-scored by it.
++- **KNOWN DISCREPANCY, RECORDED RATHER THAN HIDDEN.** `check_run` in
++  tools/validate_ledger.py accepts `key_recovery` but its rejection message
++  still reads `discrete_log|decomposition|none` and therefore under-enumerates
++  the accepted vocabulary. That string is held byte-for-byte on purpose:
++  tools/validate_ledger_baseline.txt suppresses errors by exact line match and
++  112 grandfathered entries end in that literal, and the baseline is prune-only,
++  so rewording it stales all 112 and re-emits them freshly worded. THIS
++  DOCUMENT, not that message, is the authoritative vocabulary. See
++  DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
+ - **`kind: none`** is used for pure measurement runs (e.g. recording Gröbner
+   solving degree without claiming a solve); those have nothing to certify, and
+   that is stated explicitly rather than left blank.
+diff --git a/docs/evidence-and-reproducibility.md b/docs/evidence-and-reproducibility.md
+index fe8f91de4..a2ffc9e12 100644
+--- a/docs/evidence-and-reproducibility.md
++++ b/docs/evidence-and-reproducibility.md
+@@ -116,7 +116,7 @@ run:
+     valid: true
+     invalid_reason: null
+     certificate:              # see docs/claims-and-verification.md
+-      kind: discrete_log | decomposition | none
++      kind: discrete_log | decomposition | key_recovery | none
+       verified: null          # true once independently re-checked; a failed
+                               # check invalidates the run (invalid_measurement)
+       verifier: null
+diff --git a/tools/validate_ledger.py b/tools/validate_ledger.py
+index 58e05d88e..3cd784a24 100644
+--- a/tools/validate_ledger.py
++++ b/tools/validate_ledger.py
+@@ -53,6 +53,12 @@ import yaml
+ 
+ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
++
++# Certificate kinds a run may CLAIM, each of which carries a verification duty
++# (certificate.verified must be true). A run that claims nothing records
++# `kind: none`, which is accepted without a certificate and is not listed here.
++# Authoritative prose: docs/claims-and-verification.md.
++CERTIFICATE_KINDS = ("discrete_log", "decomposition", "key_recovery")
+ LEGACY_LEDGER_INVENTORY = os.path.join(
+     REPO, "tools", "legacy_ledger_inventory.yaml"
+ )
+@@ -623,7 +629,24 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
+     result = body.get("result") or {}
+     cert = result.get("certificate") or {}
+     kind = cert.get("kind")
+-    if kind in ("discrete_log", "decomposition"):
++    # CERTIFICATE_KINDS is the single source of truth for which claim kinds a
++    # run may assert; `none` (a pure measurement run) is accepted separately
++    # because it carries no verification duty. `key_recovery` was added here
++    # for the AES line of work (RQ-AES-002 BLK-1).
++    #
++    # DISCLOSED COST OF THIS WORDING. The rejection message below deliberately
++    # still names only discrete_log|decomposition|none and is therefore NO
++    # LONGER AN EXHAUSTIVE ENUMERATION of what is accepted -- it under-reports
++    # `key_recovery`. That is intentional and load-bearing, not an oversight:
++    # tools/validate_ledger_baseline.txt suppresses errors by EXACT LINE MATCH
++    # and 112 of its grandfathered entries end in this exact literal, so any
++    # rewording of it simultaneously stales all 112 entries and emits 112
++    # freshly-worded errors. The baseline is prune-only, so it cannot absorb
++    # them. Keep this string byte-for-byte until a Coordinator-authorized
++    # baseline regeneration retires those 112 entries; the accepted vocabulary
++    # is CERTIFICATE_KINDS above and docs/claims-and-verification.md, not this
++    # message. See DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
++    if kind in CERTIFICATE_KINDS:
+         if cert.get("verified") is not True:
+             ctx.err(path, f"run claims a {kind} but certificate.verified "
+                           f"is not true")

@@ -452,6 +452,12 @@ model in `orchestration/adapter/langchain_model.py` wraps our own transport, so
 every backend in `providers.yaml` works through `langchain-core` alone and
 every request keeps going through one recorded HTTP path.
 
+Tasks now derive a compact context and default retrieval scope when one is
+not declared. File tools cap responses and report partial coverage. Optional
+`--sparse-worktree` execution keeps a small set of working files while retaining
+full Git history. See [Task context and sparse workspaces](task-context-workspaces.md)
+for defaults, dependency retrieval, and the standalone native-runtime helper.
+
 **Scope is enforced, not requested.** Under a CLI runtime, "write only inside
 your `write_scope`" is an instruction an agent is asked to follow. Here the
 tools refuse: writes outside the declared scope, path traversal, absolute

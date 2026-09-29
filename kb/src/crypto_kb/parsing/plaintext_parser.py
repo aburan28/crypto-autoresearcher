@@ -22,6 +22,20 @@ RECORD_VERSION = "native-record-v1"
 _MAX_HEADING_DEPTH = 3
 
 
+def render_record(value: Any) -> str:
+    """Render a nested record into headed markdown.
+
+    Public because ``MarkdownParser`` needs exactly this for a note whose whole
+    content is YAML frontmatter with no body: without it such a note produces
+    no chunks and is silently unretrievable. Sharing one renderer keeps the
+    section paths of a frontmatter-only note identical in shape to those of a
+    ``.yaml`` record, so a match points at the field it came from either way.
+    """
+    lines: list[str] = []
+    _render(value, lines, depth=1)
+    return "\n".join(lines).strip()
+
+
 class PlaintextParser:
     name = "native-plaintext"
     version = PLAINTEXT_VERSION

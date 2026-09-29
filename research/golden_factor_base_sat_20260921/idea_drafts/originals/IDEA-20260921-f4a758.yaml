@@ -1,0 +1,171 @@
+id: IDEA-20260921-f4a758
+related_question: RQ-KIC-7502b9
+title: Frobenius-closed affine flats as a jointly selected factor base and SAT domain
+class: representation
+claim: >-
+  On the public Koblitz E(F_2^19) finite control, a factor base made from two
+  affine two-dimensional F_2 flats and all of their Frobenius images may give
+  a better exact three-point decomposition cost/coverage pair than matched-size
+  unstructured orbit bases. This is a prediction to test, not a speedup claim.
+mechanism: >-
+  Fix and record a normal basis beta_0,...,beta_18 with beta_(j+1)=beta_j^2.
+  For each candidate choose two distinct affine flats A_t=a_t+span_F2{b_t,c_t},
+  where b_t,c_t are independent and t is 0 or 1. Define X as the union of
+  tau^j(A_t) for 0<=j<19, with tau(x)=x^2. Admit a nonzero x only when the
+  Koblitz equation has both rational y lifts and the resulting points pass the
+  declared subgroup/cofactor test. The point base B contains both signs of
+  every admitted point. A selector (t,j,u,v) gives
+  x=tau^j(a_t+u*b_t+v*c_t); duplicate selectors are canonically merged while
+  preserving all point lifts. This is an exact product of two Boolean flat
+  coordinates inside each frame, and Frobenius closure makes a whole-orbit
+  factor base. Select flats using only a fixed public training set of targets;
+  compare exact at-most-three coverage and cost on disjoint confirmation
+  targets. Encode the selector-to-polynomial-coordinate map as explicit gated
+  XOR equations before the existing S4 relation constraints. The current S4
+  encoder accepts the polynomial-basis low-l span; an arbitrary flat is not
+  obtained by changing l. The proposed encoder modification must substitute
+  each polynomial coordinate by the affine normal-basis selector equation and
+  account for its CNF/XOR gates. Every returned x tuple must recover rational
+  y choices and verify P1+P2+P3=Q in the full group, including repeated points
+  and exceptional intermediate sums.
+novelty_status: unverified
+citations:
+  - ref: inputs/source_bindings.json and src/cryptanalysis/semaev_sat.rs at source commit 09cd8ce98457e2d7b36ad81bc7e7ff53a52b2921
+    provenance: internal
+    claim: The current S4 encoder constrains x coordinates to a polynomial-basis low-l span and exposes native-XOR/CNF choices.
+    verified_by: coordinator
+  - ref: https://eprint.iacr.org/2019/313.pdf
+    provenance: retrieved
+    claim: Subspace, XOR and symmetry choices can affect SAT point-decomposition performance; that paper does not establish a generic-method win for this construction.
+    verified_by: coordinator
+assumptions:
+  - The public field representation, Koblitz curve parameter a, group order and subgroup are frozen before candidate selection.
+  - A normal basis and its conversion to the repository polynomial basis are built and verified exactly; their construction cost is charged.
+  - The factor base is target-independent; no individual target may change its flats or admitted points.
+  - The primary n=19 comparison fixes three summands and either the full group or the odd-order subgroup for all arms; the latter uses an explicit [262543]P=O admission test when #E=525086.
+  - A candidate with a different admitted cardinality is not compared as if matched; use exact equal-size orbit controls or report a size-stratified frontier.
+proof_search_map:
+  bottleneck: >-
+    Whether flat selector equations create early logical pruning and retain
+    three-point relation yield after exact curve and subgroup admission.
+  baseline_embedding:
+    parameter_slice: >-
+      K1/F_2^19, field polynomial z^19+z^5+z^2+z+1, three summands, the
+      frozen four-orbit pool with 152 points and 6257/6909 at-most-three
+      quotient-target coverage, plus exact MITM on each identical point domain.
+    reproduction_check: >-
+      Re-enumerate the frozen pool's 6224 exact-three and 33 additional
+      two-point targets before making any comparison; replay its points and
+      quotient weighting independently.
+  observation_collision:
+    observable: SAT conflict count or a small CNF after flat substitution.
+    distinct_preimage_search: >-
+      Produce two equal-size bases with similar clause counts but different
+      exact coverage, and two equivalent encodings of the same base; test
+      whether an apparent clause or conflict gain survives identical
+      decomposition answers and charged construction time.
+  constructive_transforms:
+    - transform: Close two affine flats under Frobenius and canonicalize duplicates.
+      proposed_object: A target-independent point base B with exact selector-to-x lookup.
+      predicted_gain: Fewer live selector/frame choices under partial XOR assignments.
+    - transform: Substitute selector equations into S4 and retain native XOR where supported.
+      proposed_object: SAT encoding with reversible x and point-witness decoding.
+      predicted_gain: Earlier unit/XOR propagation than a table of unrelated x values.
+  quantifier_order: >-
+    Freeze curve and training/confirmation partition; choose flats from
+    training data; for every confirmation Q run every declared arm to its cap;
+    independently verify each witness. No Q-specific flat is permitted.
+  method_ceiling:
+    strongest_certifiable_claim: >-
+      A finite n=19 cost/coverage improvement at the exact tested base size,
+      subgroup, solver versions, and three-point relation; no exponent claim.
+    nearby_object_control: >-
+      Two random affine flats with the same admitted orbit count, and a
+      random orbit base of the same point count; permute the normal-basis
+      coordinate map while preserving the point set to expose encoding effects.
+  proof_obligations:
+    - claim: Frobenius closure and duplicate canonicalization preserve exact point-base membership.
+      responsibility: Prove the selector map is onto B and that every decoded point passes the curve and subgroup checks.
+    - claim: The substituted S4 encoding is sound and complete on the admitted x domain.
+      responsibility: Exhaustively compare SAT, direct point sums and group-law witnesses on a smaller binary field before n=19.
+    - claim: Smallest formal obligation is selector membership equivalence.
+      responsibility: >-
+        A Lean lemma over an explicit finite binary field should show
+        x in union_j tau^j(A_0 union A_1) iff a canonical selector exists;
+        exact finite-field/curve libraries and coordinates must first be
+        identified. This dependency is unresolved and is not a proof claim.
+  not_applicable_reason: null
+predictions:
+  - metric: Pre-last-point pruning rate, defined as search nodes closed before all three point selectors are fixed divided by visited nodes.
+    direction: increase
+    minimum_effect: At least 10 percentage points over equal-size random-orbit encoding on confirmation targets, with identical branch policy.
+  - metric: Exact at-most-three target coverage under symmetry-weighted independent group replay.
+    direction: nondecrease
+    minimum_effect: No lower than the matched-size frozen-pool control; otherwise the cost/coverage Pareto tradeoff must be stated.
+  - metric: End-to-end CPU seconds per verified target, including base construction amortized over the declared batch.
+    direction: decrease
+    minimum_effect: At least 20 percent relative to both the current S4 domain encoding and exact MITM on the identical point set, with uncertainty intervals.
+minimal_test:
+  design: >-
+    Coordinator freezes a finite, deterministic enumeration of two-flat
+    candidates, target split, solver seeds, caps and cardinality strata.
+    Enumerate candidate point sets exactly at n=19; rank by training
+    at-most-three coverage and charged solve cost; select one before opening
+    confirmation targets. Compare SAT with direct exact MITM on the same B.
+    Include a smaller exhaustive field where all Q and all decompositions
+    can be enumerated. Use independent CNF/XOR model replay and point-addition
+    replay, with exact SAT and constructed true-UNSAT instances. Record
+    exceptional x=0, infinity, repeated points, equal abscissae, and subgroup
+    exclusions. UNKNOWN at a cap is censored, never UNSAT.
+  controls:
+    - Frozen four-orbit n=19 base and its at-most-three, exact-three, and two-point branches.
+    - Equal-size random orbit bases and equal-size random affine-flat bases with the same subgroup rule.
+    - Identical point set represented as an explicit orbit table to isolate the flat selector encoding.
+    - Exact MITM using the identical B, targets, subgroup, and amortization batch.
+    - Constructed SAT witnesses and true UNSAT targets checked by exhaustive smaller-field enumeration.
+  required_metrics:
+    - Exact admitted points, Frobenius orbits, duplicate selectors, rational-lift and subgroup rejection counts.
+    - Selection and holdout coverage by exact 2 and 3 terms with symmetry weights.
+    - Base construction, field conversion, S4 construction, CNF/XOR encoding, solve and verification CPU/wall time.
+    - Clause/XOR counts, conflicts, decisions, live frame choices by depth, pre-last-point pruning rate, and peak RSS.
+    - SAT, independently certified UNSAT where feasible, UNKNOWN, timeout, crash, and exceptional-case counts.
+falsification_conditions:
+  - No matched-cardinality two-flat base reaches the frozen control's exact at-most-three coverage on confirmation targets.
+  - Flat constraints do not improve pre-last-point pruning by the preregistered threshold after point-set and branch-policy controls.
+  - Any apparent solve gain vanishes when conversion, base construction, encoding, verification and exact MITM are charged.
+  - A replay finds a false SAT witness or a solver UNSAT result contradicted by exhaustive group enumeration.
+confounders:
+  - Normal-basis conversion, duplicated orbit selectors, target split leakage and unequal subgroup admission can mimic a gain.
+  - Native XOR handling and solver version may dominate the base geometry.
+  - A low-dimensional flat that intersects the curve unusually often changes base size and relation yield.
+interpretation_limits:
+  - This is a finite fixed-domain, coordinate-dependent/partial-action search; no full translation invariance or global optimum is asserted.
+  - The 6257/6909 frozen-pool result is an exact prior finite control, not a global base optimum or a SAT extraction result.
+  - Formula size, membership degree and early propagation are not verified decomposition throughput.
+  - A gain at n=19 does not establish a generic ECDLP exponent change or transfer to prime fields.
+heuristic_assumptions:
+  - id: H-FLAT-1
+    statement: >-
+      Across held-out public targets, the distribution of first-conflict depth
+      for structured flats is stable enough that a training-selected base
+      retains its measured advantage.
+    rigorous_support: >-
+      No distribution theorem is claimed; exact finite enumeration on a
+      smaller field gives only that field's distribution. Treat transfer as
+      an unproved heuristic.
+    validation_plan: >-
+      Compare full conflict-depth distributions on disjoint targets and
+      multiple normal-basis coordinate choices, with confidence intervals
+      and a target-permutation null.
+target_complexity:
+  time_exponent: No new asymptotic exponent asserted.
+  memory_exponent: No new asymptotic exponent asserted.
+  best_known: Exact same-domain MITM and the current S4 SAT encoding are direct finite baselines; generic ECDLP comparison is separate.
+  hidden_overhead: Normal-basis search/conversion, flat enumeration, orbit closure, subgroup tests, XOR/CNF substitution, solving, decoding, and independent verification.
+  tradeoff_note: A smaller structured B may reduce SAT branches while losing relation coverage; report both axes and amortization batch size.
+estimated_cost:
+  implementation: Moderate; requires a verified normal-basis substitution path and selector decoding in the S4 encoder.
+  compute: Bounded finite candidate screen and held-out n=19 solves; Coordinator must freeze counts, caps and watchdog before dispatch.
+dominated_by: Unresolved; exact same-domain MITM and the frozen four-orbit base are named frontier comparators, pending measured time-memory-data rows.
+sota_delta: 0 proven exponent improvement; finite relative time, memory, and coverage deltas are unmeasured until the frozen test.
+recommended_priority: high

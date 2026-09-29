@@ -1,0 +1,263 @@
+idea:
+  id: IDEA-20260816-fa2fe6
+  question_id: RQ-FNDSA-001
+  added: '2026-08-16'
+  title: 'Audit the load-bearing heuristic instead of the sampler: H-FNDSA-6a9cbb''s divergence bound
+    rests on leaf centers being near-uniform and near-independent modulo one, and that assumption
+    is directly measurable at toy scale, so measure the center distribution and report by how much
+    the heuristic moves the bound it carries.'
+  class: control
+  claim: '(A) The closed-form divergence result recorded in this corpus as H-FNDSA-6a9cbb derives
+    a per-signature Kullback-Leibler divergence from a Poisson-summation expansion whose leading term
+    is a sum over leaves of eps_i times cosine of two pi times the leaf center c_i, and it converts
+    that into a divergence by an explicitly named heuristic that the centers are near-uniform on the
+    unit interval modulo one and near-independent across leaves. Under that heuristic the expectation
+    of the cosine is zero and the expectation of its square is one half, which is exactly where the
+    factor in the divergence comes from. (B) Both parts of that heuristic are DIRECTLY MEASURABLE
+    at toy scale with no exact arithmetic and no enumeration: run the sampler, record the leaf centers
+    modulo one, and test uniformity and cross-leaf independence with standard statistics on 10^6 signatures.
+    (C) The claim is that the audit returns a CORRECTION FACTOR, not a verdict: the divergence formula''s
+    dependence on the center law is explicit, so measured deviations from uniformity and independence
+    propagate to a multiplicative correction on the divergence, and that correction is the deliverable.
+    If the centers are uniform and independent to within measurement error, the correction is one
+    and the heuristic is confirmed at toy scale, which is a genuine strengthening of an existing internal
+    result. If they are not, the correction quantifies how much the existing bound moves and in which
+    direction. (D) WHAT IS NOT CLAIMED: nothing about whether the corrected bound is attained, nothing
+    about deployed parameters, nothing about any specification, no attack, and no claim that H-FNDSA-6a9cbb
+    is wrong, since a heuristic explicitly labeled as such is not an error. Toy-scale center statistics
+    do not establish deployed-scale center statistics and the record says so. (E) The negative outcome,
+    centers measurably non-uniform or correlated, is the more valuable one, because it would identify
+    a structural property of the recursion that the existing derivation averages away.'
+  mechanism: 'STAGE ONE fixes the definition of a leaf center as the quantity the recursion feeds
+    to the one-dimensional sampler at each leaf, reduced modulo one, and instruments the toy sampler
+    to emit the full vector of centers alongside each signature. STAGE TWO tests uniformity: for each
+    leaf position, a chi-square goodness-of-fit against uniform on the unit interval with a frozen
+    bin count, and separately the magnitude of the first Fourier coefficient of the center distribution,
+    since that coefficient is the exact quantity the divergence formula''s cosine term integrates
+    against. Reporting the Fourier coefficient rather than a generic goodness-of-fit statistic is
+    what makes the audit produce a correction factor instead of a p-value. STAGE THREE tests independence:
+    pairwise mutual information and pairwise first-Fourier cross-moments across leaf pairs, both within
+    a subtree and across subtrees, since the recursion couples siblings more tightly than cousins
+    and the two should differ if the coupling is real. STAGE FOUR propagates the measured first and
+    second Fourier moments through the divergence formula symbolically and reports the correction
+    factor with its confidence interval. STAGE FIVE is the null: run the identical measurement on
+    centers drawn from an independent uniform generator of the same shape, which must return correction
+    factor one, and a positive control on centers deliberately biased by a known amount, which must
+    return the corresponding known correction.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read H-FNDSA-6a9cbb in full, including its statement, mechanism, assumptions and proof_search_map
+      blocks, and located the heuristic by name in its cost-bookkeeping paragraph. Read RQ-FNDSA-001
+      in full. Extracted all twelve RQ-FNDSA-001 proposal titles. Read IDEA-20260805-2bbfb2, the proposal
+      that H-FNDSA-6a9cbb formalizes. Ran grep -ril for heuristic, uniform, independent and center
+      over ledger/proposals/ and ledger/hypotheses/.
+    results: 'H-FNDSA-6a9cbb states the heuristic explicitly and labels it, which is why it is auditable
+      at all; it does not propose measuring it, and its empirical arm runs at sigma between 0.45 and
+      0.70 to validate the amplitude law rather than the center law. IDEA-20260805-2bbfb2 is the proposal
+      behind that hypothesis and carries the same expansion. IDEA-20260813-2d839b is titled sibling-copula
+      defect probe, a public cross-node interaction statistic for sampler errors that preserve every
+      marginal and the full second moment, which is the nearest record: it concerns cross-node dependence,
+      but of the ERROR, not of the CENTER, and it is aimed at building a detector rather than at auditing
+      an existing derivation''s assumption. No record measures the leaf-center distribution.'
+    verdict: 'UNVERIFIED. No claim about outside literature; testing uniformity and independence is
+      elementary statistics. What is claimed new HERE is the target: auditing the specific named heuristic
+      of an existing internal hypothesis and reporting a propagated CORRECTION FACTOR on that hypothesis''s
+      own formula, rather than a p-value or a detector. The expansion and the heuristic are entirely
+      assembled from H-FNDSA-6a9cbb and IDEA-20260805-2bbfb2, which is stated plainly; the cross-node
+      dependence machinery is adjacent to IDEA-20260813-2d839b. The novel part is small and is a service
+      to an existing result rather than a new object, and the record does not dress it up as more.'
+  object_first_candidate:
+    tracked_object: 'The VECTOR OF LEAF CENTERS MODULO ONE, one coordinate per leaf, followed as a
+      random vector on the unit torus across many signatures under one key. Not the signature, not
+      the sampler''s output, not its divergence: the input centers the recursion hands to its leaves,
+      considered as a distribution on a torus.'
+    lossiness: 'The projection discards the integer part of every center and the entire output of
+      the sampler, keeping only fractional parts. That loses a great deal: the signature itself is
+      not recoverable from the center vector, and neither is the lattice point. The retained part
+      propagates because the divergence formula depends on the centers ONLY through their fractional
+      parts, entering through cosine of two pi times c, which is a function on the torus by construction;
+      the integer parts are annihilated by that function exactly. So the projection is lossy and is
+      compatible with the operation the derivation performs, which is the precise condition section
+      2 asks for.'
+    propagation: One step is one leaf of the recursion. Acting on the tracked object, a leaf consumes
+      its own center coordinate, draws an integer, and the recursion then updates the centers of all
+      leaves below it by an affine function of that draw, so the center vector evolves as a sequentially
+      generated process on the torus in which each coordinate's law is conditioned on the draws above
+      it. That conditioning is exactly the mechanism by which uniformity and independence could fail,
+      and it is why sibling and cousin pairs are predicted to behave differently.
+    survival_score: 'The object survives to any dimension the sampler runs at, since centers exist
+      at every leaf regardless of size, so the limit is statistical rather than structural. Concretely:
+      detecting a first Fourier coefficient of magnitude a needs order a^-2 signatures, so 10^6 signatures
+      resolve a down to about 10^-3 per leaf, and pooling across d leaves under an exchangeability
+      assumption pushes that to about 10^-3 divided by sqrt(d). Pairwise independence at 10^6 signatures
+      resolves cross-moments down to about 10^-3. The honest survival score is that deviations above
+      10^-3 are visible and deviations below 10^-4 are not, at this budget.'
+  null_object_control: The null arm replaces the recursion's centers with coordinates drawn independently
+    and uniformly on the unit interval by the standard library generator, and runs the IDENTICAL uniformity,
+    independence and propagation pipeline on them. The null must return a first Fourier coefficient
+    consistent with zero at every leaf, pairwise cross-moments consistent with zero, and a propagated
+    correction factor consistent with one. Only then does any deviation measured in the signal arm
+    mean anything rather than reflecting the estimator's own bias at finite sample size. The positive
+    control injects a known deterministic tilt, centers pushed by a fixed offset with probability
+    delta, and must return the correction factor that the formula predicts for that tilt.
+  discriminated_from:
+  - H-FNDSA-6a9cbb derives the divergence under the heuristic and validates the amplitude law by sampling
+    at small sigma. This measures the heuristic itself, which that record names but does not test,
+    and returns a correction to its formula rather than a check of it.
+  - 'IDEA-20260805-2bbfb2 is the proposal behind that hypothesis and carries the same expansion. Same
+    relationship: this audits its assumption rather than restating its expansion.'
+  - IDEA-20260813-2d839b probes cross-node dependence of sampler ERRORS to build a public detector.
+    This measures cross-node dependence of the CENTERS, which exist and are structured even when the
+    sampler is exact, and it builds no detector.
+  - IDEA-20260805-4a6dc7 moves goodness-of-fit testing to the one-dimensional leaf output. This tests
+    the leaf INPUT, which is a different variable and one that is never observable in a signature.
+  - The three-role ablation entry in this batch varies precision. This entry runs entirely at reference
+    precision and has no precision content, because the heuristic it audits is a statement about exact
+    arithmetic.
+  assumptions:
+  - The leaf center as defined here matches the quantity that enters the divergence formula's cosine
+    term; if the definitions differ by an affine shift the correction factor changes and the audit
+    measures something else.
+  - Toy-scale center statistics are estimated on toy bases constructed in-run and are not claimed
+    to describe FN-DSA keys or deployed dimensions.
+  - Leaves are exchangeable enough that pooling across leaf positions is legitimate for the pooled
+    estimate; the per-leaf estimates are reported separately so this can be checked rather than assumed.
+  - 10^6 signatures per key suffice to resolve first Fourier coefficients at the 10^-3 level, which
+    follows from the standard error of a bounded-mean estimator.
+  - The correction factor propagates multiplicatively through the divergence formula, which holds
+    to the order at which the formula was derived and not beyond.
+  predictions:
+  - metric: magnitude of the first Fourier coefficient of the leaf-center distribution, pooled across
+      leaves, signal arm
+    direction: different
+    minimum_effect: 'no pre-committed value. Refusal reason: the heuristic under audit asserts this
+      is zero, and pre-committing a nonzero value would prejudge the audit; what is pre-committed
+      is the resolution, namely that a magnitude above 3e-3 would be detected at 10^6 signatures.'
+  - metric: first Fourier coefficient in the null arm with independent uniform centers
+    direction: different
+    minimum_effect: consistent with zero within two standard errors, that is below 3e-3 in magnitude
+  - metric: pairwise cross-moment between sibling leaves versus between cousin leaves
+    direction: higher
+    minimum_effect: siblings exceed cousins by at least a factor of two if the recursion's coupling
+      is real; equality of the two would indicate no depth-dependent coupling
+  - metric: propagated correction factor on the H-FNDSA-6a9cbb divergence formula
+    direction: different
+    minimum_effect: reported with a confidence interval; the audit is informative if that interval
+      has half-width below 10 percent, whatever the central value
+  minimal_test:
+    design: 'The cheapest discriminating measurement needs no exact arithmetic and no emulator at
+      all. Take d = 16, sigma = 2, one toy key, and 10^6 signatures at native double precision. Record
+      the 16 leaf centers modulo one for each signature. Compute, per leaf, the first Fourier coefficient
+      of the center distribution and its standard error; compute, for the 120 leaf pairs, the first-Fourier
+      cross-moment; classify pairs as sibling or cousin by tree distance. Run the independent-uniform
+      null arm on the same pipeline in the same invocation. This is minutes of compute and it discriminates
+      the whole design: a null arm with nonzero coefficients voids the estimator; a signal arm consistent
+      with zero at 3e-3 confirms the heuristic to that resolution and yields a correction factor of
+      one with a stated error bar; a signal arm with a coefficient above 3e-3, or with sibling cross-moments
+      exceeding cousin ones, identifies exactly where the heuristic fails and by how much. Only then
+      is the sweep over dimension, width and keys worth its compute.'
+    controls:
+    - Independent-uniform null arm through the identical pipeline, must return coefficients and cross-moments
+      consistent with zero and a correction factor consistent with one.
+    - Injected-tilt positive control with a known offset applied with probability delta, must return
+      the correction factor the formula predicts for that tilt.
+    - Sibling versus cousin stratification, which is a within-experiment control on whether any measured
+      dependence tracks tree distance as the recursion structure would require.
+    - Key-resampling control across ten independent toy keys, since a center-law deviation that is
+      a property of one key is not a property of the sampler.
+    - 'Bin-count robustness: recompute the uniformity statistics at three bin counts to confirm the
+      reading is not an artifact of binning.'
+    required_metrics:
+    - first Fourier coefficient magnitude and phase of the leaf-center distribution, per leaf and
+      pooled, with standard errors
+    - chi-square uniformity statistic per leaf at three bin counts
+    - pairwise first-Fourier cross-moments, stratified by tree distance
+    - pairwise mutual information estimates with a bias-corrected estimator
+    - propagated correction factor on the divergence formula with confidence interval
+    - across-key variance of the pooled Fourier coefficient
+  falsification_conditions:
+  - The independent-uniform null arm returns a Fourier coefficient above 3e-3, which voids the estimator.
+  - The injected-tilt positive control does not return the predicted correction factor within its
+    confidence interval.
+  - The correction factor's confidence half-width exceeds 25 percent, meaning the audit is too imprecise
+    to be useful at this budget.
+  - Sibling and cousin cross-moments are indistinguishable AND both are nonzero, which would indicate
+    a global artifact rather than a recursion-structural coupling.
+  - Per-leaf Fourier coefficients vary across leaf positions by more than their standard errors, falsifying
+    the exchangeability assumption that licenses pooling.
+  - Uniformity statistics change qualitatively across bin counts, indicating a binning artifact.
+  confounders:
+  - A center definition that differs by an affine shift from the one in the derivation, which changes
+    the correction factor without changing any measurement.
+  - Finite-sample bias in mutual information estimation, which reliably manufactures apparent dependence;
+    addressed by a bias-corrected estimator and the null arm.
+  - Native double precision itself perturbing the centers, which is a precision effect intruding on
+    an exact-arithmetic audit; bounded by rerunning one cell at higher emulated precision.
+  - Key-specific Gram-Schmidt profiles producing key-specific center laws, mistaken for a property
+    of the sampler.
+  - Multiple testing across d leaves and d choose two pairs, which at d = 64 is thousands of tests
+    and will produce apparent detections unless the reporting is corrected.
+  interpretation_limits:
+  - Center statistics measured at d in {8, 16, 32, 64} on toy bases say nothing about the center law
+    at deployed dimension, and the record performs no extrapolation.
+  - A confirmed heuristic at toy scale strengthens an internal derivation at toy scale only; H-FNDSA-6a9cbb's
+    deployed-parameter values remain derivations conditional on its own stated assumptions.
+  - The correction factor applies to the divergence formula to the order at which that formula was
+    derived, and higher-order terms are outside its scope.
+  - A measured deviation in the center law is not a defect in the sampler and not an attack; the centers
+    of an exactly correct sampler have whatever law the recursion gives them.
+  target_complexity:
+    time_exponent: 'No attack exponent is claimed. Instrument cost only: linear in signatures and
+      quadratic in the number of leaves for the pairwise statistics, so d = 64 gives about 2000 pairs
+      and remains cheap.'
+    memory_exponent: No attack memory exponent is claimed. Instrument memory is O(d^2) for the pairwise
+      cross-moment table plus O(d) streaming accumulators.
+    best_known: Inside this repository the incumbent is H-FNDSA-6a9cbb itself, whose divergence values
+      this audit would correct or confirm, together with IDEA-20260805-2bbfb2 which proposed them.
+      No claim is made about anything outside this repository.
+    hidden_overhead: 'Multiple testing is the hidden cost and it is easy to get wrong: at d = 64 there
+      are 64 marginal tests and 2016 pairwise tests per key and per cell, so an uncorrected pipeline
+      will report detections at the nominal rate no matter what the sampler does. The human cost is
+      reconciling the center definition with the one in the derivation, which is a careful reading
+      task with no compute and a high chance of a silent off-by-an-affine-shift error.'
+  dominated_by: 'n/a (no attack result claimed). Pareto check across instrument axes: this is the
+    cheapest entry in the batch on every axis, needing no exact arithmetic, no emulator and no enumeration,
+    and it is correspondingly the narrowest, since it audits one assumption of one existing record
+    rather than measuring divergence. Against the enumeration entry it is dominated on what it can
+    conclude and dominates on cost by orders of magnitude. Against IDEA-20260813-2d839b it measures
+    a different variable and neither dominates. No attack frontier is engaged.'
+  sota_delta: 'No attack; conceptual and measurement contribution only. The quantitative delta is
+    on an existing internal number: H-FNDSA-6a9cbb''s divergence carries a factor arising from the
+    assumed expectation of the squared cosine being one half, and this audit replaces that assumed
+    one half with a measured value plus an interval, moving the derived divergence by the measured
+    correction factor. If the correction is one, the delta is zero and the existing values stand at
+    toy scale with an error bar they did not previously have.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separate parts. That the null arm passes and the estimator is unbiased
+    at the stated resolution: about 0.85, since this is standard estimation. That the centers are
+    uniform to within 3e-3 per leaf: about 0.7, because the recursion generates them through affine
+    updates that generically equidistribute. That siblings show measurably stronger dependence than
+    cousins: about 0.45, genuinely uncertain and the most interesting single reading. That the resulting
+    correction factor is distinguishable from one: about 0.3, and a correction of one is a perfectly
+    good outcome that this record would report as such.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FNDSA-001
+  - H-FNDSA-6a9cbb
+  - IDEA-20260805-2bbfb2
+  - IDEA-20260813-2d839b
+  - IDEA-20260805-4a6dc7
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FALCON-047e31

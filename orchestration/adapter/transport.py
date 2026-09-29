@@ -239,13 +239,25 @@ def build_request(config, resolution: Resolution, *, system: str | None,
             "max_tokens": limit,
             "messages": render_messages(messages, resolution.wire, system),
         }
-        if temperature is not None:
-            body["temperature"] = temperature
+        # OpenAI's newer reasoning models (gpt-5 family) reject the legacy
+        # `max_tokens` parameter and require `max_completion_tokens`, and they
+        # reject `temperature` alongside a reasoning_effort. OpenAI-compatible
+        # servers (fireworks, zai, local) only know `max_tokens`, so the
+        # parameter name is opt-in per provider via `max_tokens_param`.
+        token_param = (backend.get("max_tokens_param")
+                       or protocol.get("max_tokens_field")
+                       or "max_tokens")
+        if token_param != "max_tokens":
+            body.pop("max_tokens")
+            body[token_param] = limit
         if reasoning.get("mode") == "openai_effort":
             effort_map = reasoning.get("effort_map") or {}
             mapped = effort_map.get(resolution.reasoning_effort)
             if mapped:
                 body["reasoning_effort"] = mapped
+                body.pop("temperature", None)
+        elif temperature is not None:
+            body["temperature"] = temperature
     else:
         raise TransportError(f"unsupported wire protocol {resolution.wire!r}")
 

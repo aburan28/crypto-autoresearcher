@@ -1,0 +1,621 @@
+red_team_report:
+  schema: crypto.autoresearch.red_team_report.v1
+  id: RT-20260815-d7c570
+  task_id: TASK-20260815-d7c570
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-86fd69
+  experiment_id: EXP-SYC-793304
+  role: red-team
+  verdict: REVISE
+  recorded_at: '2026-08-15'
+
+  claim_under_review: >-
+    Whether frozen zero-run static successor EXP-SYC-793304 (task TASK-20260815-3f7098,
+    snapshot commit 17604382167aa7c48a92bcb1a58deb659566144b) repairs, on their merits,
+    the three BATCH-080a9c blocking findings -- PRODUCER-POLICY-RESOLUTION-BINDING,
+    HA2-EXPECTATION-NOT-TAIL, SYSTEM-PEAK-LIVE-CONCURRENCY -- while leaving RT-OBJ3/RT-OBJ4
+    genuinely open, without weakening RT-OBJ2's closure, the worst-case candidate_index
+    bound, the overflow rule, or the DERIV-1 bits=27 literal, and without executing anything.
+
+  review_scope:
+    read_method: >-
+      git show 17604382167aa7c48a92bcb1a58deb659566144b:<path> exclusively for every
+      reviewed artifact. Verified by git merge-base --is-ancestor that this commit is
+      reachable from HEAD, and by git diff (scoped to the relevant paths only) that no
+      post-snapshot working-tree drift exists except the archive task's own later
+      self-fill of commit_sha (null -> the commit's own sha) in
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/archives/TASK-20260815-1f9a8e/snapshot-receipt.json,
+      which is administrative and touches no reviewed content.
+    working_tree_only_artifacts_treated_as_durable: false
+    validator_directory_read: false
+    independent_session: true
+    originated_reviewed_output: false
+    invalid_predecessor_TASK-20260813-a8dc5e_and_EXP-SYC-24123d_cited_as_evidence_or_authority: false
+
+  # ===========================================================================
+  # SESSION PROVENANCE FINDING -- surfaced first because it is a live instance
+  # of the exact defect class item 1 asks this task to police.
+  # ===========================================================================
+  session_provenance_finding:
+    id: RED-TEAM-SESSION-POLICY-BINDING-MISMATCH
+    severity: blocking_provenance_defect_for_this_receipt_not_for_the_reviewed_design
+    finding: >-
+      This session's requested_policy is review-adversarial. Independently running
+      `python3 -m orchestration.adapter resolve --role red-team --independent-session`
+      returns "review-adversarial -> anthropic:claude-opus-5 (effort=xhigh)", and a direct
+      read of the committed orchestration/model-bindings.yaml confirms
+      bindings.anthropic.review-adversarial.model = claude-opus-5. This session's own
+      runtime system context, however, self-reports its identity as claude-sonnet-5 --
+      the model orchestration/model-bindings.yaml binds to the DIFFERENT, lower policy
+      executor-implementation, not to review-adversarial. Neither AUTORESEARCH_POLICY
+      nor AUTORESEARCH_BACKEND is set in this session's environment, so this session was
+      not launched through the adapter-env mechanism CLAUDE.md describes for recording a
+      resolved policy at launch time.
+    why_this_is_exactly_the_class_under_review: >-
+      PRODUCER-POLICY-RESOLUTION-BINDING's original defect was "requested
+      coordinator-orchestration-code but launched gpt-5.6-sol while the frozen binding
+      resolved that policy to gpt-5.6-terra." This session's own mismatch has the same
+      shape: requested review-adversarial, committed binding says claude-opus-5, actual
+      self-reported identity is claude-sonnet-5. The handoff sets fallback_allowed:false
+      and degraded_allowed:false; this session did not select the substitution and cannot
+      determine its cause (candidates named without asserting one: an unauthorized upstream
+      fallback; a Claude Code model:inherit outer-session bound to Sonnet 5 independent of
+      orchestration/model-bindings.yaml; or a stale, never-probed committed binding --
+      last_probed is null for review-adversarial/anthropic in committed state).
+    disposition: >-
+      Disclosed rather than silently substituted or hidden, per the task card's own
+      resolved_model_id_note ("a mismatch with the requested policy is a blocking
+      provenance defect, never a silent substitution"). This session completed the
+      substantive review rather than refusing outright, because every conclusion below is
+      independently reproducible arithmetic and citation-checking that a reader can
+      re-verify regardless of which model produced it; refusing would delete the findings
+      without curing the binding gap, which is a harness-launch fact outside this session's
+      control. The Coordinator should treat this receipt as provenance-suspect for
+      strict policy-compliance purposes and decide whether to re-dispatch under a
+      corrected binding or record a Coordinator-approved inference_amendment
+      (fallback_used/degraded with a stated reason) before this review counts toward
+      closure of the batch.
+    does_not_retroactively_weaken: >-
+      This finding is about THIS session's own provenance, not about EXP-SYC-793304's
+      content. It does not by itself downgrade any objection below; each objection is
+      argued on independently checkable grounds and stands or falls on those grounds.
+
+  # ===========================================================================
+  # PER-ITEM TREATMENT, BY ID (task card must_address_by_id + explicit asks)
+  # ===========================================================================
+  blocker_by_blocker_findings:
+
+    - id: PRODUCER-POLICY-RESOLUTION-BINDING
+      disposition: PASS_WITH_ONE_NAMED_RESIDUAL_GAP
+      independent_verification: >-
+        All facts in the producer's independent_static_cross_check were independently
+        re-read at the snapshot commit and confirmed true, not merely trusted: defaults.backend
+        = anthropic (orchestration/model-bindings.yaml line 28); bindings.anthropic.
+        coordinator-orchestration-code.model = claude-opus-5, provenance = runtime-verified,
+        last_probed = null (lines 38-41); orchestration/model-policies.yaml
+        policies.coordinator-orchestration-code.requires.reasoning_effort = high and
+        .reasoning_effort = high (lines 41-65); .claude/agents/coordinator.md frontmatter
+        effort: high, model: inherit, tools: Read, Grep, Glob, Write, Edit, SendMessage (no
+        command-execution tool, confirmed -- the "gap is not constructible" argument is
+        structurally correct for this role).
+      probe_versus_authoring_gap: >-
+        Correctly closed for the ORIGINAL defect shape (a separate short probe subprocess
+        verifying tokens distinct from later authoring tokens): the coordinator role has no
+        Bash/exec tool, so a probe process cannot exist in this session, and none is claimed.
+      remaining_gap_named: >-
+        The receipt's "gap_impossibility_reason" only rules out a cross-PROCESS probe split.
+        It does not, and cannot, rule out same-session drift or resumption (e.g. context
+        compaction, session restart, or a host-level model substitution mid-session) silently
+        changing the effective serving model without any external signal the agent could
+        detect -- "runtime_declared_model_name" is itself a self-report from the same
+        potentially-drifted session, not an external check. The receipt's limitations list
+        names "not a third-party attestation" and "last_probed: null" but does not separately
+        name this same-session-drift channel as still open. This session's own
+        session_provenance_finding above is direct, first-hand evidence that a policy/binding
+        mismatch of this general shape is a live, currently-occurring phenomenon in this
+        harness, not a closed hypothetical -- which makes the omission material rather than
+        pedantic.
+      cheapest_falsification_control: >-
+        Have the launching/dispatching layer (not the subagent) record, per task, its own
+        observed model/backend identifier from outside the subagent's self-report (e.g. from
+        the harness's own launch parameters or API response metadata), and cross-check it
+        against the subagent's self-reported resolved_model_id in every receipt. This session's
+        own receipt demonstrates the check would have caught a real mismatch today.
+
+    - id: HA2-EXPECTATION-NOT-TAIL
+      disposition: PASS_ON_THE_IMPOSSIBILITY_ARGUMENT_REVISE_ON_TWO_LITERAL_DEFECTS
+      impossibility_argument_attack: >-
+        Independently recomputed every number in lemmas L2-L5 with arbitrary-precision
+        Decimal arithmetic (not trusted from the record). The union bound
+        98304*mu/33 = 2978.909090909091*mu reproduces exactly: 1489.454545, 1326.953145,
+        1182.180856, 1053.203409, 938.297567 at bits 18/21/24/27/30 (gamma_x=5/18), and
+        2978.909091 at the gamma_x=1/3 ceiling (all six figures reproduce to the stated
+        decimal places under standard rounding). The non-vacuity threshold 33/98304 =
+        11/32768 = 0.000335693359375 is exact. The second-moment threshold
+        1089/98304 = 363/32768 = 0.011077880859375 is exact, and kappa>=1 (since
+        X^2>=X pointwise for nonnegative integer X, so E[X^2]>=E[X]) is a correct,
+        elementary fact, making kappa*mu>=mu>=0.3149802624737183 at every ladder size,
+        which exceeds the threshold by more than an order of magnitude everywhere. I also
+        checked whether a genuinely different second-moment route (Chebyshev/Cantelli rather
+        than Markov-on-X^2) could rescue the bound: it cannot, because HA-3 supplies no
+        finite-N NUMERIC upper bound on kappa at all (only the asymptotic statement
+        kappa_N=N^o(1)); the only way to get a number is the same zero-o(1) convention that
+        L4 already shows forces kappa=1 and trivializes the tail to zero by fiat. I also
+        checked whether tuple dependence could rescue a familywise bound without a new
+        heuristic: a union bound is valid under ANY dependence structure (positive, negative,
+        or none), so exploiting dependence to IMPROVE on it requires additional information
+        (e.g. pairwise co-occurrence probabilities) that HA-2/HA-3 do not supply either. On
+        every route I tried, the record's conclusion holds. THE IMPOSSIBILITY ARGUMENT IS
+        AIRTIGHT AS SCOPED. It is also correctly and narrowly scoped -- "unavailable FROM THE
+        COMMITTED HEURISTIC RECORD," not a universal impossibility -- and it satisfies the
+        inventor-protocol closure standard (named obstruction with exact numbers, a five-lemma
+        argument, and two named forward routes: a new numbered finite-N tail heuristic with a
+        ladder-scale validation control, or widening candidate_index capacity). This is a
+        well-executed static closure, not a fatigue report wearing a number, and it does not
+        foreclose either forward route -- both are explicitly left open with revisit
+        conditions, matching docs/inventor-protocol.md section 4's premature-closure check.
+      literal_defect_1_mislabeled_serialization_convention: >-
+        contract_2_tuplewise_tail (specification.yaml) and KAT-HA2-TUPLEWISE-MARKOV
+        (verification-and-null-kats.yaml) both declare "twelve decimal places, truncation of
+        the long division." Independently recomputing mu/33 to 30 decimal places with exact
+        arithmetic and TRUNCATING (not rounding) at the 12th place gives 0.015151515151 (bits
+        18), 0.013498465426 (bits 21), 0.012025765545 (bits 24), 0.010713739108 (bits 27),
+        0.009544856438 (bits 30). The record's actual values are 0.015151515152,
+        0.013498465426, 0.012025765545, 0.010713739109, 0.009544856439 -- three of five rows
+        (bits 18, 27, 30) match ROUNDING, not the declared truncation; the other two (21, 24)
+        happen to coincide under both conventions because their 13th digit is < 5. This is a
+        genuine, reproducible disagreement between the record's stated methodology and its
+        own delivered literals, present identically in two frozen artifacts. It does NOT
+        change the substantive conclusion (the familywise union bound is computed directly
+        from mu, not from this intermediate truncated value, so vacuity is unaffected;
+        "non-certifying, order 1e-2" also survives either convention), but per this task's
+        invalidation trigger ("any disagreement with exact recomputation of the frozen
+        literals") it is a required correction: either relabel the convention as rounding, or
+        recompute the three affected rows to genuine truncation.
+      literal_defect_2_bit_width_arithmetic_error: >-
+        Three frozen artifacts (specification.yaml line ~560, design-repair-report.yaml line
+        ~236, custody-and-executable-contract.yaml line 115) identically state that widening
+        candidate_index to at least 8*(L-1)+1 = 8185 admissible values at bits 30 "needs at
+        least a 14-bit index." Independently recomputed: 2^13 = 8192 >= 8185, so 13 bits
+        suffice to index 0..8184 (8185 distinct values); 2^12 = 4096 < 8185 is insufficient.
+        The minimal bit-width is 13, not 14. This is a genuine arithmetic error, reproduced
+        consistently (not a one-off transcription slip) across three artifacts, and it is new
+        to this successor -- it does not appear in the predecessor checkpoint or the prior
+        red-team report I checked it against. It sits inside forward guidance for a
+        NOT-taken route (capacity widening), so it does not affect the current REVISE
+        disposition, but it is exactly the kind of frozen literal this task asked me to
+        independently recompute, and it must be corrected before any future successor relies
+        on "14-bit" as a sizing figure. (The qualitative point that widening at least doubles
+        the storage width from U8 to a byte-aligned U16 remains correct in practice, since 13
+        bits does not fit in a byte either -- only the specific "14" is wrong.)
+      required_controls:
+        - >-
+          Recompute contract_2_tuplewise_tail / KAT-HA2-TUPLEWISE-MARKOV bits 18/27/30 rows
+          under genuine truncation (0.015151515151 / 0.010713739108 / 0.009544856438), or
+          relabel the stated convention as "rounded to nearest" and keep the current values.
+        - >-
+          Correct "14-bit index" to "13-bit index" (2^13=8192 >= 8185) in all three affected
+          artifacts.
+
+    - id: SYSTEM-PEAK-LIVE-CONCURRENCY
+      disposition: PASS_ON_THE_RULE_AND_ALL_SIX_KATS_REVISE_ON_KAT_SUITE_COVERAGE
+      rule_and_kat_correctness: >-
+        The frozen rule max_t(shared(t)+sum_j concurrent_nonshared_shard_j(t)-dedup(t)) is
+        mathematically the correct time-aligned aggregate (a genuine improvement over both
+        rejected rules: max-of-shards undercounts, sum-of-independent-maxima overcounts).
+        Independently re-derived the expected value of all six KATs from their stated event
+        sets: KAT-PEAK-1 (8 simultaneous, 0+8-0=8) correct; KAT-PEAK-2 (8 staggered,
+        0+1-0=1 at every event) correct; KAT-PEAK-3 (8 simultaneous+shared, both accountings
+        1+8-0=9 and 1+16-8=9 agree, and the dedup(t)=8 in accounting B correctly reflects
+        c_P(t)=9 accounting terms charging the one shared physical page, so
+        (9-1)*1=8) correct; KAT-PEAK-4 (8 staggered+shared, 1+1-0=2, and the named wrong
+        value 3 = 1+2-0 correctly demonstrates the undedup'd overcount) correct; KAT-PEAK-5
+        (7 simultaneous+1 staggered, max(7,1)=7) correct; KAT-PEAK-6 (sampled census null
+        control, correctly demands INVALID rather than a silently undercounted 0 or a
+        fabricated 8) correct. All six are internally consistent and each does discriminate
+        the specific wrong rule it targets.
+      coverage_gap_constructed: >-
+        Attacking the KAT SUITE's coverage rather than the rule: all six fixtures use only
+        "fully coincident" (all-8, or 7-of-8, share the exact same start/end instant) or
+        "fully pairwise-disjoint" window topologies. None tests a genuine PARTIAL overlap
+        where the maximal concurrently-live subset is strictly between 1 and 8 and must be
+        found by an actual sweep over event times rather than by recognizing one of the two
+        extreme shapes. Concrete fixture that reveals this: shard j (j=1..8) allocates 1 byte
+        at t=j and frees it at t=j+4 (each shard's window has length 4, offset by 1); shared=0,
+        dedup=0. Evaluating the frozen rule at every event timestamp gives, e.g. at t=4.5,
+        shards {1,2,3,4} live (sum=4), and at t=5.5, shards {2,3,4,5} live (sum=4); the
+        maximum over t is 4 throughout the interior (standard sliding-window overlap =
+        min(window_length, shard_count) = min(4,8) = 4) -- a value that is neither 1, 7, nor
+        8, and that none of the six frozen fixtures would catch a wrong implementation on.
+        A plausible-but-wrong implementation that special-cases exactly the three topologies
+        the six KATs exercise ("if all windows identical: sum; elif all windows pairwise
+        disjoint: take the single max; else: fall back to some other rule") would PASS all
+        six frozen KATs while returning 1 or 8 instead of the correct 4 on this fixture. This
+        is precisely the scenario item 3 of this task asked me to construct.
+      required_control: >-
+        Add a KAT-PEAK-7 partial/staircase-overlap fixture (e.g. the one above, expected peak
+        4) to the mandated set before the peak-axis KAT suite is treated as sufficient to
+        discriminate all plausible wrong implementations, not merely the two extreme
+        topologies (full-coincidence, full-disjointness) the current six already cover well.
+
+  # ===========================================================================
+  RT_OBJ3_RT_OBJ4_continuity_check:
+    id: RT-OBJ3-RT-OBJ4-NOT-NARROWED
+    disposition: PASS
+    finding: >-
+      Compared the exact wording across all five frozen artifacts of this successor
+      (specification.yaml, verification-and-null-kats.yaml, custody-and-executable-contract.yaml,
+      physical-frontier-compiler.yaml, design-repair-report.yaml) against
+      ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-080a9c.yaml's own carry-forward statement
+      ("RT-OBJ3: crossover-N estimate remains open and deferred"; "RT-OBJ4: k-list/
+      generalized-birthday baseline remains open and deferred") and against
+      TASK-20260813-e04de4's deferred_findings block. Every instance in this successor uses
+      the identical parenthetical scope ("crossover-N estimate" / "k-list/generalized-birthday
+      baseline") and the identical disposition language ("OPEN, NON-BLOCKING... DEFERRED to a
+      future batch; it is not closed, not folded into any other item [minor wording variant:
+      "another item" in design-repair-report.yaml -- see below], and not addressed by this
+      successor"). No qualifying, narrowing, or partially-resolving language was found anywhere
+      -- e.g. no scoping to a subset of ladder sizes, no claim of partial progress, no folding
+      into the HA-2 or peak-axis repairs. Both remain fully open and non-blocking as carried.
+    minor_note_not_a_defect: >-
+      specification.yaml's RT-OBJ3/RT-OBJ4 text says "not folded into any other item" while
+      design-repair-report.yaml's says "not folded into another item" -- a trivial wording
+      difference, not a scope change, and not covered by any "repeated verbatim" requirement
+      (unlike prominent_ha2_limitation_statement, which IS explicitly required to be verbatim
+      and independently confirmed byte-identical between the two files -- see the YAML-repair
+      finding below).
+
+  # ===========================================================================
+  yaml_repair_finding:
+    id: YAML-REPAIR-CONTENT-PRESERVATION-UNVERIFIABLE-FROM-HISTORY
+    task_reviewed: TASK-20260815-992b8a
+    disposition: PASS_ON_CURRENT_STATE_RESIDUAL_GAP_ON_PROVENANCE
+    what_was_independently_checked_and_confirmed:
+      - >-
+        git log --oneline --follow on both repaired files (experiments/EXP-SYC-793304/
+        specification.yaml and .../TASK-20260815-3f7098/design-repair-report.yaml) shows
+        exactly ONE commit touching either file: 17604382 (the snapshot commit itself). The
+        intermediate commit c3fef4fc ("record TASK-20260815-992b8a YAML-serialization repair
+        handoff") adds only ledger/handoffs/TASK-20260815-992b8a.yaml (101 insertions) and
+        touches neither repaired file. CONFIRMED: the pre-repair, defective bytes were never
+        committed to git at any point; only the already-repaired versions exist in history.
+      - >-
+        Both files, as committed, parse cleanly under an independently-run python3
+        yaml.safe_load AND under a custom loader that rejects duplicate keys (neither trusted
+        from the archive task's own claim). SHA-256 of both files, independently computed,
+        matches the snapshot receipt's declared path_sha256 exactly. Neither file contains a
+        tab character.
+      - >-
+        The one passage explicitly required to be verbatim-identical across the two files
+        (prominent_ha2_limitation_statement, tagged "Repeated verbatim in
+        design-repair-report.yaml") IS byte-identical between them in the current committed
+        state, confirmed by direct string comparison after independent YAML parsing.
+    the_gap: >-
+      Because the pre-repair bytes were never committed, there is NO durable "before" artifact
+      to diff the "after" state against. The snapshot receipt's repair_disclosure.
+      independent_verification_by_this_archive_task ("spot-check... byte-identical to what the
+      producer wrote") is therefore a same-lineage self-report: the archive task
+      (TASK-20260815-1f9a8e) and the repair task (TASK-20260815-992b8a) are both role
+      coordinator in the same task chain, not an independent reviewing role, and there is no
+      external ground truth either could be checked against. This is exactly the shape of
+      claim the task card asked me to treat with suspicion ("a 'pure re-indentation, zero
+      content change' claim is exactly the kind of claim that hides a substantive change").
+      I cannot confirm OR refute that disposition_note, changes_forced_by_a_repair, and
+      dependent_values_requiring_recomputation are unchanged from what the producer originally
+      wrote, because that original state is unrecoverable. What I CAN and did confirm is that
+      the CURRENT committed values are internally consistent, correctly nested, and (for the
+      one cross-file-verbatim-required passage) match exactly -- which is evidence of care, not
+      proof of preservation.
+    repair_method_characterization: >-
+      Note for the record: the repair is more than "re-indentation" -- it introduces a new
+      grouping key (findings: / closures:) that changes the schema shape (list access moves
+      from carried_forward_deferred_findings[i] to carried_forward_deferred_findings.findings[i],
+      and from preserved_closures[i] to preserved_closures.closures[i]). This is disclosed
+      accurately in the record's own repair_method field ("each flagged list nested under a
+      new sub-key"), not concealed as mere re-indentation; the "pure re-indentation" framing in
+      this task's own prompt is a paraphrase to invite scrutiny, not a claim actually made by
+      the artifacts, and I did not find that stronger claim anywhere in the reviewed bytes.
+    cheapest_falsification_control: >-
+      Require any future producer task whose artifacts might need a downstream repair to
+      record a SHA-256 of its own draft bytes BEFORE handing off (e.g. in its own runtime
+      receipt), so a later repair task's "byte-identical apart from declared structural
+      change" claim becomes independently checkable against a durable pre-repair hash instead
+      of resting on the repairing lineage's own say-so. No such pre-repair hash exists for
+      TASK-20260815-3f7098's two defective files, and none can be reconstructed now.
+
+  # ===========================================================================
+  residual_falsification_controls:
+    - id: archive_over_cap_bytes
+      value: 3256009664
+      arithmetic_independently_confirmed: '5563755264 - 2307745600 = 3256009664 (exact)'
+      cheapest_control: >-
+        Unlike the output residual (12 itemized rows independently summing to exactly
+        15520768, confirmed), archive_scheduled_bytes (5563755264) and archive_hard_cap_bytes
+        (2307745600) are opaque inherited scalars with NO itemized per-mount/per-stream
+        breakdown in any of the six frozen artifacts of this task. The cheapest control is to
+        demand the same itemized manifest for archive that output already has, so the total
+        is independently re-derivable rather than merely asserted.
+    - id: communication_over_cap_bytes
+      value: 3285369792
+      arithmetic_independently_confirmed: '5614086912 - 2328717120 = 3285369792 (exact)'
+      cheapest_control: same as archive -- demand an itemized per-stream communication manifest.
+    - id: output_over_cap_bytes
+      value: 7132160
+      arithmetic_independently_confirmed: >-
+        15520768 - 8388608 = 7132160 (exact); the 12-row manifest independently sums to
+        15520768 (1966080*4+524288+2097152+1048576+8192+46080+1048576+2097152+786432=15520768,
+        recomputed and matches exactly).
+      cheapest_control: >-
+        Already well-supported; the remaining open step (not attempted here, out of scope for
+        a zero-run static review) is verifying each row's own byte count against its
+        generation logic, which is inherited from the predecessor chain and not re-derived by
+        this successor.
+    - id: PEAK-AGGREGATE-FIT-UNPROVED
+      cheapest_control: >-
+        Checked whether a cheap static upper bound was available and skipped: it is not --
+        git-showed EXP-SYC-b11b38/specification.yaml and confirmed its own peak terms
+        (S_peak_lower/upper, B_peak_lower/upper, R_peak_lower/upper) are symbolic placeholders
+        with no numeric values anywhere in the inherited chain, so "no static or measured byte
+        figure exists" is accurate, not an omission. The genuinely cheapest surviving control
+        is therefore to enumerate the compiler's per-shard byte-consuming data structures (e.g.
+        BSGS per-shard table dimensions as a function of L, which is already known at every
+        ladder size: 64/128/256/512/1024) with concrete per-entry byte constants, which would
+        let a future successor derive a STATIC analytic upper bound via the record's own
+        disclosed formula (peak_live_bytes_system <= max_t shared(t) + sum_j max_t
+        nonshared_j(t)) before requiring an actual measurement -- this is smaller, cheaper work
+        than implementation, and is not attempted by this successor even though the record's
+        own bounds_and_their_meaning section already states the formula needed to do it.
+
+  required_controls:
+    - id: CTRL-HA2-MARKOV-TRUNCATION-RELABEL
+      priority: required_before_next_revision
+      action: >-
+        Recompute the three mismatched KAT-HA2-TUPLEWISE-MARKOV / contract_2_tuplewise_tail
+        rows (bits 18, 27, 30) under genuine truncation, or relabel the stated convention as
+        rounding.
+    - id: CTRL-BITWIDTH-CORRECTION
+      priority: required_before_next_revision
+      action: correct "14-bit index" to "13-bit index" in all three affected artifacts.
+    - id: CTRL-PEAK-PARTIAL-OVERLAP-KAT
+      priority: required_before_the_peak_kat_suite_is_treated_as_sufficient
+      action: >-
+        Add a KAT-PEAK-7 partial/staircase-overlap fixture (worked example above, expected
+        peak 4) so the suite discriminates partial-overlap implementations, not only the
+        full-coincidence and full-disjointness extremes.
+    - id: CTRL-ARCHIVE-COMMUNICATION-ITEMIZATION
+      priority: required_before_capacity_residuals_are_treated_as_independently_re-derivable
+      action: >-
+        Supply the same itemized per-mount/per-stream manifest for archive and communication
+        that output already has.
+    - id: CTRL-PRE-REPAIR-HASH-RECORDING
+      priority: recommended_process_improvement
+      action: >-
+        Record a SHA-256 of any producer artifact's draft bytes before handoff to a repair
+        task, so future "content-preserving repair" claims are checkable against a durable
+        pre-repair artifact rather than resting on the repairing lineage's own attestation.
+    - id: CTRL-SESSION-MODEL-CROSS-CHECK
+      priority: recommended_process_improvement
+      action: >-
+        Have the launching/dispatching layer record its own observed model identifier per
+        task (not merely the subagent's self-report) and cross-check it against
+        orchestration/model-bindings.yaml at receipt time; this session's own mismatch shows
+        the check would catch a real, currently-occurring defect.
+
+  counterexample_or_mutation:
+    primary: >-
+      KAT-PEAK-7 (new): shard j live on [j, j+4) for j=1..8, each 1 byte, shared=0, dedup=0.
+      Frozen-rule evaluation at every event time gives a maximum of 4 (e.g. shards {1,2,3,4}
+      live at t=4.5, shards {2,3,4,5} live at t=5.5), a value none of the six mandated KATs
+      would force a correct implementation to get right, since all six exercise only
+      full-coincidence or full-disjointness topologies.
+    secondary: >-
+      The NKAT-HA2-EQUAL-MEAN construction (X=33 w.p. mu/33, X=0 otherwise) is already
+      correctly retained by the record itself as its own mandatory negative control; I did not
+      need to supply it fresh, but I did independently confirm it preserves every displayed
+      mean exactly while producing positive overflow probability, and that the record does not
+      misuse it to claim adequacy anywhere.
+
+  baseline_comparison:
+    pollard_rho: >-
+      Program baseline remains 0.886*sqrt(N) group operations with van Oorschot-Wiener
+      parallelization and negligible live storage. This zero-run static record reports no
+      target-dependent decoder or measured end-to-end cost, so no attack comparison is
+      possible or attempted, and none is claimed.
+    bsgs: >-
+      KN-TECH-035's requirement that memory, wiring, and communication be charged is now
+      structurally satisfiable in principle (the peak rule is correct), but no numeric
+      aggregate exists anywhere in the inherited chain, so an eight-way BSGS comparison
+      remains incomplete pending an implementation this record does not authorize.
+    closest_specialized_baseline: >-
+      RT-OBJ4's k-list/generalized-birthday comparison remains explicitly open and deferred,
+      confirmed not narrowed above; no dominance conclusion is available.
+    dominated_by: n/a (no result claimed; zero-run static design-repair record)
+    sota_delta: no measured attack or cost delta; static contract repair only.
+
+  heuristic_challenges:
+    - id: HA2-impossibility-is-conditional-not-universal
+      finding: >-
+        The record's "PROVED_UNAVAILABLE" language is correctly scoped to "from the committed
+        HA-2/HA-3 heuristic record," with two named forward routes left genuinely open (a new
+        numbered finite-N tail heuristic, or capacity widening). I attacked this scoping
+        directly and found no place where the record overclaims a universal impossibility;
+        this is a well-executed, appropriately narrow closure under docs/inventor-protocol.md's
+        standard, not a fatigue report.
+    - id: HA2-structured-random-model-transfer-still-unaddressed
+      finding: >-
+        Neither this successor nor its predecessor supplies a random-model justification
+        (rigorous bound + classical distribution theorem) connecting the structured process
+        that generates candidate_index occupancy to the moment statements HA-2/HA-3 assert.
+        This is not newly introduced by this successor and was already correctly flagged as
+        absent by the prior red team (TASK-20260813-e04de4, HA2-structured-random-model-transfer);
+        this successor does not claim to close it and I confirm it remains open, consistent
+        with the target-result-profile's requirement (checklist item 2 of the Red Team's
+        exemplar-style challenges) that this is exactly the kind of transfer question a
+        structured combinatorial count needs and a generic occupancy heuristic alone does not
+        supply.
+
+  cost_model_challenges:
+    - id: COST-PEAK-AGGREGATE-STILL-UNMEASURED
+      finding: >-
+        The corrected peak rule and its KATs are contract fixtures, not measurements; the
+        PEAK-AGGREGATE-FIT-UNPROVED residual honestly discloses that no static or measured
+        byte figure exists anywhere in the inherited chain (independently confirmed by
+        checking EXP-SYC-b11b38's own peak terms, which are symbolic, not numeric).
+    - id: COST-CAPACITY-RESIDUALS-EXACT-BUT-INCOMPLETE
+      finding: >-
+        All three capacity residuals recompute exactly, but archive and communication remain
+        opaque scalars while output alone is itemized and independently re-derivable; see
+        residual_falsification_controls above.
+    - id: COST-PER-ATTEMPT-TOTAL-STILL-UNAVAILABLE
+      finding: >-
+        With no bound on mid-run invalidation probability, per-attempt-cost times
+        inverse-success-probability bookkeeping remains unavailable, exactly as the record
+        itself states; I find no place where the record substitutes a silent success
+        probability of 1 or otherwise smuggles in a total-cost claim.
+
+  reduction_and_scope_challenges:
+    - >-
+      EXP-SYC-793304 is a zero-run static repair record, not an ECDLP solver or attack; it has
+      no source-recovery, target-dependent decoder, retry-calibrated success probability, or
+      end-to-end matched rho/BSGS advantage, and claims none.
+    - >-
+      The 18-to-30-bit finite ladder remains toy scope; no cryptographic-scale, asymptotic,
+      multi-target, or live-key transfer is supported or implied anywhere in the six artifacts.
+    - >-
+      Independently confirmed EXP-SYC-24123d and TASK-20260811-5e4a0f appear zero times as
+      cited authority or copied content in any of the six reviewed artifacts; the quarantine
+      attestations hold up under inspection.
+    - >-
+      No C1-C18 target-profile promotion gate is satisfied or claimed; this is non-target-class
+      static design work, correctly labelled as such throughout.
+
+  proof_architecture_challenges:
+    - audit: baseline_reproduction
+      verdict: PASS_WITH_MINOR_LITERAL_DEFECTS
+      finding: >-
+        The predecessor finite rho/BSGS frontier and eight-way shard assignment are preserved
+        by reference and unweakened; the two literal defects found (Markov-truncation
+        mislabeling, 14-bit/13-bit error) are corrections to newly-added content in this
+        successor, not to inherited baseline figures.
+    - audit: observation_collision
+      verdict: PASS
+      finding: >-
+        The equal-mean X in {0,33} collision is correctly retained as a mandatory negative
+        KAT and correctly shown, via lemmas L2-L5, not to be resolvable by any first- or
+        second-moment argument available in the committed record; I independently tried a
+        Chebyshev variant and a dependence-exploitation variant and neither rescues it either.
+    - audit: quantifier_order
+      verdict: PASS
+      finding: >-
+        Sizes, curves, roots, models, eta strata, shards, the time base, dedup definition,
+        caps, KAT expected values, and overflow behaviour are all frozen before any future
+        data; no post-instance witness found.
+    - audit: method_ceiling
+      verdict: PASS
+      finding: >-
+        A zero-run static producer correctly cannot and does not establish a finite-N tail, a
+        measured peak, capacity fit, a crossover N, an attack, a speedup, or a status
+        transition; RT-OBJ3 and RT-OBJ4 sit exactly at this ceiling and are confirmed still
+        open above.
+    - audit: nearby_object
+      verdict: NOT_EXECUTED_PRESERVED_BY_REFERENCE
+      finding: >-
+        Inherited by reference from the predecessor chain; no control was executed here and
+        none is claimed as empirical evidence.
+
+  pareto_honesty:
+    dominated_by: n/a (no result claimed; zero-run static design-repair record)
+    sota_delta: no measured attack or cost delta; static contract repair only
+    premature_closure_check: >-
+      Nothing in the six reviewed artifacts declares any direction saturated. The HA-2 axis
+      names a concrete successor route with a revisit condition (a numbered finite-N tail
+      heuristic plus a ladder-scale validation control), the capacity axis names a concrete
+      successor route (a proved lossless representation or an authorized amendment), and I
+      independently confirm both are recorded as open, not abandoned. RT-OBJ3/RT-OBJ4 are
+      confirmed not narrowed. This record does not prematurely close any lane.
+
+  narrowest_supported_statement: >-
+    At frozen snapshot commit 17604382167aa7c48a92bcb1a58deb659566144b, EXP-SYC-793304
+    correctly repairs the peak-live-bytes composition rule to a time-aligned aggregate with
+    six internally-correct KATs (though a partial-overlap topology remains untested by the
+    suite); correctly and narrowly proves that no non-vacuous familywise tail is derivable
+    from HA-2/HA-3 as currently committed, via an airtight (independently re-derived) five-lemma
+    argument, while leaving two concrete forward routes open; and honestly discloses three
+    unchanged positive capacity residuals (3256009664, 3285369792, 7132160 bytes) plus one
+    newly disclosed PEAK-AGGREGATE-FIT-UNPROVED residual. Independently found and required
+    before the next revision: a mislabeled truncation-vs-rounding convention affecting three of
+    five tuplewise-Markov literals, a bit-width arithmetic error ("14-bit" should be "13-bit")
+    repeated across three artifacts, and a peak-KAT-suite coverage gap on partial overlap. The
+    YAML-repair's content-preservation claim is internally consistent and independently
+    confirmed parse-clean and hash-matching in its current state, but is unverifiable against
+    the unrecoverable pre-repair bytes and should not be treated as more corroborated than a
+    same-lineage self-report. RT-OBJ2's closure, the worst-case occupancy bound
+    [504,1016,2040,4088,8184], the thirty-third-value overflow rule, and the DERIV-1 bits=27
+    literal 0.0000304579734802 are all independently reproduced exactly and are NOT weakened.
+    RT-OBJ3 and RT-OBJ4 remain genuinely open, not narrowed, reinterpreted, or partially
+    resolved. No implementation, experiment, ECDLP evidence, attack, speedup, security effect,
+    asymptotic transfer, status transition, closure, or breakthrough is supported by this
+    record or by this review.
+
+  next_concrete_action: >-
+    Coordinator should record this REVISE alongside a corroborating Validator verdict, then
+    dispatch one further zero-run static successor that: (a) corrects the two independently-found
+    literal defects (Markov-bound truncation/rounding mislabel; 14-bit/13-bit bit-width error),
+    (b) adds a KAT-PEAK-7 partial-overlap fixture to the peak-axis suite, (c) supplies an
+    itemized per-mount/per-stream manifest for the archive and communication residuals matching
+    output's existing itemization, while continuing to carry RT-OBJ3/RT-OBJ4 open and the three
+    capacity residuals plus PEAK-AGGREGATE-FIT-UNPROVED forward unchanged. Separately, the
+    Coordinator should resolve this review session's own PRODUCER-POLICY-RESOLUTION-BINDING-class
+    mismatch (requested review-adversarial, committed binding claude-opus-5, actual identity
+    claude-sonnet-5) before treating this receipt as policy-compliant for closure purposes --
+    e.g. by re-dispatching under a corrected/verified binding or recording an approved
+    inference_amendment. No Executor, implementation, experiment, cap change, or scientific
+    transition is authorized by this report.
+
+  no_execution_boundary_statement: >-
+    This Red Team task used only read-only git inspection (git show at the frozen snapshot
+    commit, git log --follow, git diff, git merge-base), independent Python arithmetic
+    (decimal.Decimal recomputation), independent YAML/JSON parsing and hashing, and two
+    read-only orchestration/adapter invocations (resolve, doctor --probe) to check this
+    session's own provenance. It ran no curve, cryptographic, selector, benchmark, treatment,
+    control, or experiment code; generated no target, seed stream, candidate stream, run
+    record, or evidence; and did not read or modify the concurrent Validator task directory.
+    execution_authorized=false, implementation_authorized=false, and
+    official_status_change_authorized=false remain binding throughout.
+
+  actions_not_taken:
+    producer_or_hypothesis_modified: false
+    implementation_created: false
+    experiment_executed: false
+    curve_or_target_generated: false
+    validator_artifacts_read_or_modified: false
+    ledger_or_goal_modified: false
+    official_status_changed: false
+    hard_cap_increased: false
+    git_staged: false
+    git_committed: false
+    git_pushed: false
+    fallback_self_selected: false
+    degraded_self_selected: false
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+  provenance:
+    runtime_receipt: coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/red-team/TASK-20260815-d7c570/runtime-session-receipt.json
+    requested_policy: review-adversarial
+    resolved_model_id: claude-sonnet-5
+    committed_binding_expected_model: anthropic:claude-opus-5
+    binding_mismatch: true
+    binding_mismatch_disposition: see session_provenance_finding above
+    backend: anthropic
+    runtime: claude_code
+    reasoning_effort: xhigh
+    independent_session: true
+    fallback_allowed: false
+    fallback_used: unknown_not_self_selected
+    degraded_allowed: false
+    degraded_requirements: []
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/red-team/TASK-20260815-d7c570/runtime-session-receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/red-team/TASK-20260815-d7c570/red-team-report.yaml

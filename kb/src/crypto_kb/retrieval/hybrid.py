@@ -159,14 +159,37 @@ class KnowledgeRetriever:
 
         query_filter = filter_module.build_filter(filters, identity_tokens=tokens)
         try:
-            records = self.index.scroll(query_filter=query_filter, limit=top_k * 4)
+            # Scroll order is point-ID order, not identity quality. A heavily
+            # cited experiment can have more than ``top_k * 4`` reference
+            # chunks, so a fixed window can omit the actual specification (or
+            # the second canonical document in a multi-ID query) before the
+            # priority sort below ever sees it. The closed exact filter bounds
+            # this count to matching payload rows; fetch all of those, then
+            # sort and prune to the normal per-source/result limits.
+            exact_count = self.index.count(query_filter=query_filter)
+            if exact_count == 0:
+                return []
+            records = self.index.scroll(query_filter=query_filter, limit=exact_count)
         except Exception as exc:  # noqa: BLE001 - a failed lookup must not fail the search
             log.warning("exact_lookup_failed", error=str(exc))
             return []
 
         per_source: dict[str, int] = {}
         chosen: list[dict[str, Any]] = []
-        for record in sorted(records, key=lambda r: r["payload"].get("chunk_index", 0)):
+        # A token can be both a document's own identity and another document's
+        # experiment/run reference.  The named document must win that tie;
+        # otherwise querying EXP-X can place an evidence record that cites
+        # EXP-X ahead of the specification itself. Legacy ``supersedes``
+        # aliases have the same primary standing as a canonical source ID.
+        records = sorted(
+            records,
+            key=lambda record: (
+                _exact_identity_priority(record.get("payload", {}), tokens),
+                record.get("payload", {}).get("chunk_index", 0),
+                record.get("payload", {}).get("source_id", ""),
+            ),
+        )
+        for record in records:
             source_id = record["payload"].get("source_id", "")
             if per_source.get(source_id, 0) >= self.caps.max_per_source:
                 continue
@@ -278,6 +301,8 @@ class KnowledgeRetriever:
             authority=first.get("authority"),
             superseded=bool(first.get("superseded", False)),
             superseded_by=first.get("superseded_by"),
+            supersedes=list(first.get("supersedes") or []),
+            verification_artifacts=list(first.get("verification_artifacts") or []),
             experiment_id=first.get("experiment_id"),
             run_ids=list(first.get("run_ids") or []),
             git_commit=first.get("git_commit"),
@@ -358,6 +383,34 @@ class KnowledgeRetriever:
         metrics.query_latency.labels(tool=tool).observe(latency_ms / 1000.0)
         if kept == 0:
             metrics.empty_results.inc()
+
+
+def _exact_identity_priority(payload: dict[str, Any], tokens: list[str]) -> int:
+    """Order own canonical/legacy identities before cross-reference handles."""
+    queried = {token.lower() for token in tokens}
+    source_id = str(payload.get("source_id") or "").lower()
+    namespace, separator, bare = source_id.partition(":")
+    primary = {source_id} if source_id else set()
+    if separator and bare:
+        primary.add(bare)
+    for predecessor in payload.get("supersedes") or []:
+        alias = str(predecessor).strip().lower()
+        if not alias:
+            continue
+        primary.add(alias)
+        _, alias_separator, alias_bare = alias.partition(":")
+        if alias_separator and alias_bare:
+            primary.add(alias_bare)
+        elif namespace:
+            primary.add(f"{namespace}:{alias}")
+    if queried & primary:
+        return 0
+
+    references = {
+        str(payload.get("experiment_id") or "").lower(),
+        *(str(run_id).lower() for run_id in payload.get("run_ids") or []),
+    }
+    return 1 if queried & references else 2
 
 
 def _chunk_ids(hits: list[dict[str, Any]]) -> set[str]:

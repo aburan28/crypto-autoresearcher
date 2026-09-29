@@ -13,7 +13,7 @@ tags: [certicom-challenge, ecc2k-130, record-computation, binary-field, koblitz-
 confidence: reported
 citation_verified: read
 added: 2026-07-24
-superseded_by: null
+superseded_by: KN-LIT-661e97
 ---
 
 ## Contribution

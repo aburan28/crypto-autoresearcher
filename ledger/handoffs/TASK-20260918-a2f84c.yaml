@@ -1,0 +1,127 @@
+# =============================================================================
+# TASK-20260918-a2f84c -- Coordinator-only SNAPSHOT ARCHIVE of the
+# TASK-20260918-7d15e6 review report.
+#
+# Exists so that the review round's deliverable is OWNED BY EXACTLY ONE
+# ARCHIVAL TASK from the moment it exists, which is what `archived_by` on that
+# card binds to. It runs ALONE, after the validator returns and BEFORE the
+# Coordinator composes a decision on the verdicts.
+# =============================================================================
+handoff:
+  id: TASK-20260918-a2f84c
+  from: coordinator
+  to: coordinator
+  archive_kind: snapshot
+  opened_by_decision: DEC-20260918-4b7e21
+  source_task_ids:
+    - TASK-20260918-7d15e6
+  goal_id: GOAL-DREG-001
+  batch_id: null
+
+  objective: >-
+    Commit the exact review artifacts produced by TASK-20260918-7d15e6 -- report,
+    attestation and the independently computed ord/ceil table -- before any
+    Coordinator composition reads them into a decision, and record a
+    verifiable post-commit snapshot receipt.
+
+  uncertainty_reduced: >-
+    Whether the review's verdicts are durable and reviewable by someone other
+    than the session that received them. A verdict that exists only in an
+    agent's return message never happened; this task is what converts it into
+    an artifact a later reader can check against the composition built on it.
+
+  inputs:
+    - the declared artifact paths of TASK-20260918-7d15e6
+    - origin/main
+
+  constraints:
+    - id: SC-1
+      text: >-
+        STAGE ONLY THE DECLARED PATHS. Do not stage any ledger record. This is a
+        SNAPSHOT of a producer's output, not a ledger archive, and it performs
+        no research-state transition.
+    - id: SC-2
+      text: >-
+        DO NOT EDIT THE REPORT OR THE ATTESTATION. Not for wording, not for
+        formatting, not to resolve a disagreement with the Coordinator's
+        recorded prior. An attestation is a personal statement about what one
+        agent read and when; altering one is recording an attestation that was
+        not obtained.
+    - id: SC-3
+      text: >-
+        Snapshot whatever came back, including an UNDETERMINED verdict, a
+        partial report, or a refusal. An incomplete review is committed as
+        incomplete. Do not re-dispatch to get a cleaner artifact and then
+        snapshot only that.
+    - id: SC-4
+      text: >-
+        MERGE origin/main, never rebase. Record the base commit and merge
+        outcome in the receipt.
+    - id: SC-5
+      text: >-
+        Bind no shared append-only registry in `path_sha256` (see
+        DEC-20260918-4b7e21, archive_binding_defect).
+
+  deliverables:
+    - one commit naming TASK-20260918-a2f84c and TASK-20260918-7d15e6
+    - a post-commit snapshot receipt at the declared receipt path
+
+  artifact_paths:
+    - coordination/review/icperf-20260918-7d15e6/validator/report.md
+    - coordination/review/icperf-20260918-7d15e6/validator/attestation.yaml
+    - coordination/review/icperf-20260918-7d15e6/validator/ord-table.json
+    - coordination/archives/TASK-20260918-a2f84c/snapshot-receipt.json
+  write_scope:
+    - coordination/archives/TASK-20260918-a2f84c
+  write_scope_note: >-
+    The review artifacts are STAGED by this task but not WRITTEN by it; they
+    belong to TASK-20260918-7d15e6's write scope. This task writes only its own
+    receipt, which is why the two scopes do not overlap.
+  archived_by: TASK-20260918-a2f84c
+
+  depends_on:
+    - TASK-20260918-7d15e6
+  depends_on_note: >-
+    Eligible only on a terminal receipt from the review task. A failed,
+    cancelled or unserved review blocks this snapshot until the Coordinator
+    creates a scoped successor -- an unserved review is an infrastructure stop
+    and is never a verdict.
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1200
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - the commit changes exactly the declared paths and no others
+    - the receipt's path_sha256 covers every declared artifact path
+    - the receipt records the origin/main base commit and merge outcome
+    - >-
+      the report and attestation are committed byte-identical to what the
+      validator produced, verified by hash against the working tree before
+      staging
+
+  post_archive_duties:
+    - >-
+      Push the branch and refresh the PR naming TASK-20260918-a2f84c. A snapshot
+      of review artifacts adds no new ledger record, so no new `DEC-*`/`EV-*` is
+      named -- but the branch still moves and the PR still tracks it.
+    - >-
+      Only after this receipt verifies may a Coordinator compose the verdicts
+      into a decision. Composing from an uncommitted report is the thing this
+      task exists to prevent.
+
+  return_format: >-
+    The receipt plus a one-line statement of the review's terminal verdict per
+    joint, quoted from the report and not paraphrased. The composition is a
+    separate act and is not performed here.
+
+  handoff_record: ledger/handoffs/TASK-20260918-a2f84c.yaml
+  state: written_not_executed

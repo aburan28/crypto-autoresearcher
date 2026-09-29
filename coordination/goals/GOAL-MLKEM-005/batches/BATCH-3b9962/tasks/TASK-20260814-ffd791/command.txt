@@ -1,0 +1,38 @@
+# TASK-20260814-ffd791 -- exact commands run, in order, from this task's
+# own write_scope directory:
+#
+# coordination/goals/GOAL-MLKEM-005/batches/BATCH-3b9962/tasks/TASK-20260814-ffd791/
+
+# 0. Dependency installation (fpylll had no prebuilt install in this
+#    environment before this task; a prebuilt manylinux wheel WAS available
+#    on PyPI, so no from-source GMP/MPFR/NTL/fplll/fpylll build was needed --
+#    well under the <=1800s fpylll budget line):
+pip3 install fpylll
+# -> fpylll-0.6.4 (manylinux_2_17_x86_64 wheel), installed in ~1.5s
+pip3 install cysignals psutil
+# -> cysignals-1.12.5, psutil-7.2.2 (fpylll's own import chain requires
+#    cysignals, which the fpylll wheel does not pull in as a transitive
+#    dependency automatically in this environment; psutil is this task's
+#    own choice for Stage-0 peak-RSS measurement, not an fpylll dependency)
+
+# 1. Section 1: infrastructure re-verification (PREREG-8 section 1)
+python3 infra_verification.py
+# -> writes infra_verification_results.json; exit 0 iff all three checks pass
+
+# 2. Section 2: Stage 0 feasibility benchmark (PREREG-8 section 2), run
+#    ONLY because step 1 exited 0 (overall_pass: true)
+python3 stage0_feasibility.py
+# -> writes stage0_results.json; internally launches 10 further subprocesses
+#    (6 main-grid cells + 4 toy-floor-sweep points), each as:
+#      python3 stage0_feasibility.py --worker-cell <d> <beta> <out.json>
+#      python3 stage0_feasibility.py --worker-toyfloor <d> <eta> <beta_toy> <cap> <out.json>
+#    each externally wall-clock-capped by the parent (PER_BASIS_FEASIBILITY_CAP=3600s
+#    per main-grid cell, TOY_FLOOR_FEASIBILITY_CAP=900s per toy-floor point) via
+#    subprocess.Popen + psutil RSS polling + a hard terminate/kill on cap expiry.
+
+# Sanity pre-checks run before committing to the full Stage-0 sweep (NOT part
+# of the recorded run's own timing budget, but run from the same directory
+# with the same code, seeds derived from the same SEED_ROOT):
+#   python3 stage0_feasibility.py --worker-cell 40 10 /tmp/test_cell.json
+#   python3 stage0_feasibility.py --worker-toyfloor 8 2 4 900 /tmp/test_toy8.json
+#   python3 stage0_feasibility.py --worker-toyfloor 12 2 6 900 /tmp/test_toy12.json

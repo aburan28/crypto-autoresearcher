@@ -1,0 +1,217 @@
+experiment:
+  id: EXP-SHATHREE-75d3f1
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-b7f4f7; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-b7f4f7
+  question_id: RQ-SHATHREE-cd2cb2
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Construct the column-parity projection of the Keccak state, verify its exact 320-by-320 propagation
+    law through theta, measure its dissolution at rho by fiber entropy, and check whether iota injects
+    inside or outside the parity kernel
+  objective: 'The uncertainty a run reduces is whether a genuinely lossy 320-bit representation of
+    the 1600-bit Keccak state carries its own deterministic propagation law, and if so how far into
+    the round function it survives. (i) It verifies, against 10^5 random states rather than by argument,
+    that the column-parity vector propagates through theta by an explicit fixed 320x320 GF(2) matrix
+    derived from the step definition and the parity of five, and that theta acts as the exact identity
+    on the 1280-dimensional column-parity kernel -- two facts this repository has never checked for
+    any permutation. (ii) It computes the rank, kernel dimension, order and minimal polynomial of
+    that matrix, and computes the column parity of all 24 iota injection vectors to determine whether
+    the round constants inject asymmetry inside or outside the kernel, which decides whether theta
+    amplifies the injection on the very next step. (iii) It measures the point of dissolution: for
+    fixed values of the projection, it samples the fiber and records the entropy and distinct-value
+    count of the projection after rho, applying the observation-collision test of KN-TECH-080 audit
+    2 to this observable and reporting a survival score in steps, with a random-projection null establishing
+    that the theta propagation law is specific to column parity rather than generic to any 320-dimensional
+    projection.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''the column-parity projection of
+      the Keccak-f[1600] state propagates through theta by the following explicit matrix with the
+      following rank and kernel; theta is the identity on the column-parity kernel; the 24 iota injection
+      vectors have the following column parities, all (or not all) nonzero; and the projection dissolves
+      at rho with the following measured fiber entropy, while a random projection of the same dimension
+      admits no such law.'' What does NOT follow: that column parity is exploitable, that a different
+      iota placement would be better or worse, any attack or complexity, anything about full 24-round
+      SHA-3, and any security consequence.'
+  inputs:
+    procedure: 'STAGE 0 (cost: minutes). Import the hashlib-validated Keccak transcription; reconfirm
+      digests for all four sizes. STAGE 1 (cost: seconds). Build P as a 320x1600 GF(2) matrix; compute
+      rank; confirm the CP-kernel has dimension 1280. STAGE 2 (cost: ~5 min CPU). Build Theta_P from
+      the derived law; test P(theta(A)) = Theta_P(P(A)) on 10^5 uniform random states; halt on any
+      disagreement and report the disagreeing state. STAGE 3 (cost: seconds). Compute rank, kernel
+      dimension, multiplicative order and minimal polynomial of Theta_P; evaluate theta on 10^4 states
+      drawn from ker(P) and confirm it is the identity on every one. STAGE 4 (cost: seconds). Compute
+      P(eps_i) and its weight for i = 0..23; record any vanishing case. STAGE 5 (cost: ~40 min CPU).
+      For 100 target values p, draw 10^4 states from the coset P^{-1}(p) using a validated coset sampler;
+      compute P(rho(A)); record distinct-value counts and empirical entropy with its saturation ceiling.
+      STAGE 6 (cost: ~1h CPU). Run NULL-PARITY (1000 random surjective 320x1600 projections through
+      stages 1-2), NULL-RHO (1000 random offset sets through stage 5) and the all-column iota nearby
+      object through the whole pipeline; emit the run manifest with seeds.'
+    instrument: Python 3.11; numpy bit-packed GF(2) linear algebra with hand-written rank, minimal-polynomial
+      and coset-sampling routines; the hashlib-validated pure-Python Keccak-f[1600] exposing individual
+      steps; hashlib for digest validation; a simple plug-in entropy estimator with an explicit saturation
+      ceiling. No Sage. Manifests, seeds and the inference block via harness/runner.py.
+    parameters: 'State 1600 bits, projection to 320 bits. Verification sample 10^5 random states for
+      stage 2; 10^4 CP-kernel states for stage 3. Fiber measurement: 100 target values p, 10^4 samples
+      each, i.e. 10^6 draws. Round constants: all 24 FIPS values. Nulls: 1000 random surjective projections;
+      1000 random rho offset sets. Nearby object: iota XORing the constant into all five lanes of
+      column x = 0. PCG64 seeds 1..3000 declared in advance.'
+  controls:
+  - 'NULL-PARITY: a random surjective 320x1600 projection put through stages 1-4; stage 2 must fail
+    for it.'
+  - 'NULL-RHO: 1000 random offset sets, fiber-entropy measurement repeated.'
+  - 'CP-kernel identity control: theta must act as the exact identity on 10^4 random states drawn
+    from ker(P), by direct evaluation.'
+  - 'All-column iota variant as the nearby object: injection inside the CP-kernel, whole pipeline
+    rerun.'
+  - 'Digest control: the transcribed theta must participate in a full permutation that reproduces
+    hashlib digests before any projection is computed.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): NULL-RHO: replace the 25 rho offsets by uniformly random offsets, 1000
+    draws, and repeat the fiber-entropy measurement; the death at rho must occur for random offsets
+    too, and if Keccak''s offsets give visibly LESS dissolution than random ones that is a specific
+    measured property worth recording. NULL-PARITY: replace P by a random surjective 320x1600 GF(2)
+    map and repeat stages 1-4; a random projection should NOT propagate through theta by any 320x320
+    matrix, and stage 2 must fail for it. That second null is the sharper one: it establishes that
+    the propagation law in claim (A) is a fact about column parity specifically and not an artifact
+    of projecting to 320 dimensions. Both nulls run in the same invocation by the same code path with
+    only the projection or offsets swapped.'
+  independent_variables:
+  - projection arm in {column parity, random surjective}
+  - rho offset arm in {FIPS, random}
+  - iota placement in {lane (0,0), all of column 0}
+  - round constant index i in 0..23
+  metrics:
+    primary:
+    - rank of P and CP-kernel dimension
+    - agreement rate of the theta propagation law over 10^5 states
+    - rank, kernel dimension and minimal polynomial of Theta_P
+    - weight of P(eps_i) for i = 0..23
+    - empirical entropy and distinct-value count of P(rho(A)) per fiber
+    secondary:
+    - theta-identity verdict count on CP-kernel samples
+    - NULL-PARITY agreement rate distribution
+    - NULL-RHO entropy distribution
+    - multiplicative order of Theta_P
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The agreement rate of the theta column-parity propagation law, and the number of rounds
+      i with P(eps_i) = 0.
+    formula: 'P(theta(A))[x][z] = P(A)[x][z] XOR P(A)[x-1][z] XOR P(A)[x+1][z-1], indices mod 5 for
+      x and mod 64 for z. The derivation: theta adds D[x][z] = C[x-1][z] XOR C[x+1][z-1] identically
+      to all five lanes of column x, and XORing the same value into an odd number of lanes flips the
+      column parity by that value, so the parity update is C -> C XOR D, which is exactly the stated
+      law. Predicted agreement rate 1.0 over 10^5 states. Since eps_i is supported in lane (0,0) alone
+      and column x = 0 contains lanes (0,y) for y = 0..4 of which only (0,0) is nonzero, P(eps_i)[0][z]
+      = eps_i[z]; predicted number of rounds with P(eps_i) = 0 is exactly 0, given that no eps_i is
+      itself the zero vector.'
+    source: Pre-registered in the parent proposal IDEA-20260816-b7f4f7 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Full-width 1600-bit state, the real theta, rho and iota, and the real 24 round
+      constants -- nothing is reduced. Labelled toy because the deliverable is a one-step representation
+      result rather than an executed attack, and because the fiber-entropy measurement is sample-limited.
+      Transfer assumption stated explicitly: none. Results are scoped to the steps evaluated and the
+      sample sizes used, and nothing extrapolates to more rounds or to any attack.'
+    correspondence: null
+  tail_checks:
+  - Every fiber draw must satisfy P(A) = p exactly, validating the coset sampler.
+  - The empirical entropy must be reported alongside its saturation ceiling log2(10^4) = 13.3 bits
+    per fiber, aggregated across fibers to reach the claimed 100-bit scale, with the aggregation rule
+    stated.
+  - rank(P) must be exactly 320.
+  - theta must be the identity on 100 percent of CP-kernel draws.
+  - The all-column iota variant must give P(eps_i) = 0 for every i by construction, which is a hard
+    correctness check on the nearby object.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt on the first disagreement in stage 2 and report the state rather than continuing.
+  - Fixed sample sizes with no adaptive extension.
+  - Total wall-clock ceiling 3 hours; a timeout is a budget outcome and never negative mathematical
+    evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if the propagation law is verified or cleanly refuted with
+    a concrete disagreeing state, the spectrum of Theta_P and the 24 injection parities are emitted,
+    the fiber-entropy measurement completes with its sampler validated, and both nulls plus the nearby
+    object are reported.
+  falsification_criterion:
+  - Stage 2 agreement rate is below 1.0.
+  - theta is not the identity on some CP-kernel state.
+  - P(eps_i) vanishes for some i.
+  - P(rho(A)) is constant over any fixed fiber.
+  - A random surjective projection also admits a 320x320 propagation law through theta.
+  - rank(P) is not 320.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-b7f4f7
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The action of pi on the column-parity vector is asserted to be a coordinate permutation but is
+    not derived here; a Coordinator must require it be computed in stage 2 before the survival score
+    is stated as 'one step'.
+  - The aggregation rule converting per-fiber entropy estimates into the claimed >100-bit dissolution
+    figure is not specified and must be fixed before approval, since sample-limited estimators make
+    this easy to overstate.
+  - Whether the all-column iota variant is a legitimate nearby object or an unmotivated design change
+    needs a Coordinator judgement; it is proposed as a control, not as a recommendation.

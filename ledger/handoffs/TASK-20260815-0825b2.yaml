@@ -1,0 +1,175 @@
+handoff:
+  id: TASK-20260815-0825b2
+  recorded_at: '2026-08-15'
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-11dc7b
+  task_card: coordination/goals/GOAL-ECDLP-001/batches/BATCH-11dc7b/task-cards/TASK-20260815-0825b2/task_card.yaml
+  role: validator
+  from: coordinator
+  to: validator
+  objective: >-
+    Independently validate, by recomputation from the frozen snapshot bytes,
+    whether EXP-SYC-edf98d genuinely fixes items A-D of BATCH-86fd69
+    (A-MARKOV-SERIALIZATION-MISLABEL, B-BITWIDTH-14-VS-13-ERROR,
+    C-PEAK-KAT-PARTIAL-OVERLAP-COVERAGE-GAP,
+    D-ARCHIVE-COMMUNICATION-ITEMIZATION-GAP), that nothing else changed, and
+    that every other finding is carried forward unweakened.
+  uncertainty_reduced: >-
+    Whether the fresh successor is internally valid, exactly hash-bound,
+    reproducibly specified, and provenance-complete -- the precondition
+    before this narrow repair chain can be treated as closed.
+  inputs:
+    - EXP-SYC-edf98d
+    - TASK-20260815-8cb1c0
+    - TASK-20260815-54a10d
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-11dc7b/archives/TASK-20260815-54a10d/snapshot-receipt.json
+    - ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-86fd69.yaml
+    - ledger/decisions/DEC-20260815-23d3bd.yaml
+    - ledger/evidence/EV-ECDLP-fe122c.yaml
+    - ledger/hypotheses/H-SYC-b854f4.yaml
+    - experiments/EXP-SYC-793304/specification.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/tasks/TASK-20260815-3f7098/verification-and-null-kats.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/tasks/TASK-20260815-3f7098/custody-and-executable-contract.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/reviews/TASK-20260815-9b0fb4/review-report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/red-team/TASK-20260815-d7c570/red-team-report.yaml
+  constraints:
+    - >-
+      INDEPENDENT SESSION. Use a fresh, non-originating session. A
+      continuation of the producer's session carries the producer's context
+      and is exactly what independent_session_required exists to prevent.
+    - >-
+      Review only immutable snapshot bytes obtained with git show at the
+      TASK-20260815-54a10d commit. Do not use working-tree-only bytes as
+      evidence and do not read or modify the concurrent Red Team task
+      directory.
+    - >-
+      RECOMPUTE RATHER THAN TRUST for ITEM A: independently recompute mu/33 to
+      high precision for bits 18/21/24/27/30 and confirm whether the stored
+      values (0.015151515152 / 0.013498465426 / 0.012025765545 /
+      0.010713739109 / 0.009544856439) match half-up rounding (they should,
+      after the fix) and confirm the label now reads "half-up rounding" (or
+      equivalent) rather than "truncation" identically in both
+      specification.yaml and verification-and-null-kats.yaml, with all five
+      values byte-identical to EXP-SYC-793304's.
+    - >-
+      RECOMPUTE ITEM B: confirm 2^13=8192 >= 8185 and 2^12=4096 < 8185, and
+      that all three occurrences ("14-bit") in specification.yaml,
+      design-repair-report.yaml, and custody-and-executable-contract.yaml now
+      read "13-bit", with the byte-alignment qualitative point (13 bits still
+      needs a U16) preserved.
+    - >-
+      RECOMPUTE ITEM C: verify KAT-PEAK-7 exists with the exact fixture (shard
+      j live on [j, j+4) for j=1..8, shared=0, dedup=0), independently
+      re-derive the aggregate at t=4.5 (shards {1,2,3,4}, sum 4) and t=5.5
+      (shards {2,3,4,5}, sum 4), confirm expected_peak_live_bytes=4, and
+      confirm the fail_meaning names the specific wrong-rule class this KAT
+      rejects (topology-special-casing that returns 8 or 1). Confirm all six
+      inherited KATs (KAT-PEAK-1 through KAT-PEAK-6) are byte-identical to
+      EXP-SYC-793304's.
+    - >-
+      CHECK ITEM D: if an itemized archive/communication manifest is
+      supplied, independently re-sum every row and confirm archive sums to
+      exactly 5563755264 and communication to exactly 5614086912, and judge
+      whether each row is attributable to something the inherited design
+      (physical-frontier-compiler.yaml, custody-and-executable-contract.yaml,
+      EXP-SYC-b11b38, EXP-SYC-12de89) actually states, or whether it is an
+      unjustified partition dressed up as a decomposition. If instead an
+      explicit ITEM-D-ITEMIZATION-NOT-ACHIEVABLE-WITHOUT-FABRICATION residual
+      is recorded, confirm this Coordinator's own claim that no genuine basis
+      exists anywhere in the inherited chain, by independently searching the
+      same six artifacts plus EXP-SYC-b11b38 and EXP-SYC-12de89. Either way,
+      confirm scheduled_bytes/hard_cap_bytes/over_cap_bytes for archive,
+      communication, and output are byte-identical to EXP-SYC-793304's
+      (5563755264/2307745600/3256009664, 5614086912/2328717120/3285369792,
+      15520768/8388608/7132160).
+    - >-
+      Confirm RT-OBJ2's closure, the worst-case candidate_index occupancy
+      bound [504, 1016, 2040, 4088, 8184] against capacity 32, the
+      thirty-third-distinct-value overflow-invalidation rule, the DERIV-1
+      bits=27 literal 0.0000304579734802, the HA-2 tail-unavailability proof
+      (lemmas L2-L5), the PEAK-AGGREGATE-FIT-UNPROVED residual, and RT-OBJ3 /
+      RT-OBJ4 (open, non-blocking, deferred) are ALL still present and
+      byte-identical in substance to EXP-SYC-793304, wherever not explicitly
+      targeted by items A-D.
+    - >-
+      Adjudicate the producer's own inference provenance: whether this
+      session's resolved_model_id is recorded by genuine self-report,
+      separately labelled from the adapter's committed binding target for
+      coordinator-orchestration-code, with no conflation of the two. A
+      receipt that presents the binding target as a live check of the
+      authoring session's identity fails this gate.
+    - >-
+      The invalid predecessor review TASK-20260813-a8dc5e is an
+      ARTIFACT-INTEGRITY PRECEDENT ONLY; never cite it as scientific evidence
+      or authority. Confirm EXP-SYC-24123d and TASK-20260811-5e4a0f are not
+      cited as evidence or used as authoritative sources.
+    - >-
+      Always execution_authorized=false. Run no experiment, generate no
+      curve, create no evidence or decision record, and change no status.
+    - >-
+      Commit nothing, stage nothing, push nothing. Your report is
+      uncommitted and is the sole carrier of its own evidence until
+      TASK-20260815-b6d12a archives it.
+    - >-
+      No fallback, no degradation, no Amazon Bedrock. Do not request
+      review-breakthrough: this is a narrow, mechanical-content static
+      repair, not a claimed breakthrough, closure, or contradiction.
+    - >-
+      Never fabricate a command, output, timing, statistic, citation, or run.
+      A timeout, crash, or missing dependency is infrastructure signal and
+      never negative mathematical evidence.
+  deliverables:
+    - runtime-session-receipt.json
+    - review-report.yaml
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-11dc7b/reviews/TASK-20260815-0825b2/runtime-session-receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-11dc7b/reviews/TASK-20260815-0825b2/review-report.yaml
+  archived_by: TASK-20260815-b6d12a
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model_id: recorded_by_the_reviewing_session_in_its_own_receipt
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    review_breakthrough_required: false
+    review_breakthrough_rationale: >-
+      Narrow, mechanical-content static repair with a dual-REVISE history;
+      not a claimed breakthrough, closure, or contradiction between validated
+      evidence records, so AGENTS.md rule 12 does not fire.
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 3
+    maximum_runs: 1
+    experiment_maximum_runs: 0
+  completion_gate:
+    - >-
+      Every figure, literal, hash, and byte count is INDEPENDENTLY
+      RECOMPUTED from the frozen snapshot bytes read with git show at the
+      TASK-20260815-54a10d commit; state per artifact whether it was read
+      committed or uncommitted.
+    - >-
+      Items A, B, C, D are each addressed BY ID with an explicit
+      fixed/not-fixed adjudication, confirming the fix is correct AND that
+      nothing else in the six artifacts changed relative to EXP-SYC-793304.
+    - >-
+      RT-OBJ3, RT-OBJ4, the three capacity residual totals, the
+      PEAK-AGGREGATE-FIT-UNPROVED residual, RT-OBJ2's closure, the
+      occupancy bound, the overflow rule, the DERIV-1 literal, and the HA-2
+      proof are all confirmed present and unweakened.
+    - >-
+      EXACT task-specific inference provenance is recorded for both the
+      reviewed producer session and this review session, using genuine
+      self-report for each -- never a binding-lookup presented as a live
+      check.
+    - >-
+      The verdict is PASS, REVISE, or REJECT; execution_authorized remains
+      false; and no experiment, curve, control, or measurement was produced.
+  return_format: >-
+    A summary naming review-report.yaml and the receipt path, the terminal
+    verdict, the per-item (A/B/C/D) adjudication, the recomputed KAT-PEAK-7
+    values, the item-D outcome and row sums (or the not-achievable finding),
+    the carry-forward confirmation, the producer-provenance adjudication, and
+    this session's own requested policy and resolved model as separate
+    fields.

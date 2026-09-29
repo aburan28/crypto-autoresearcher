@@ -1,0 +1,178 @@
+hypothesis:
+  id: H-MTGT-48f3a3
+  question_id: RQ-MTGT-2cabee
+  derived_from_idea: IDEA-20260807-0e8977
+  added: '2026-08-25'
+  statement: >-
+    A retention rate - the fraction of a preprocessing table's value that survives being moved from
+    one curve to another - is only interpretable if the instrument measuring it has been shown to
+    distinguish "a map was applied" from "no map was applied". The hypothesis is that a five-arm
+    battery with an exact dose-response calibration does exactly that, and that its behaviour is
+    predicted in advance in every arm.
+    (A) THE ARMS AND THEIR FORCED VALUES. ARM P, the identity map, must return retention exactly
+    1.000 by construction. ARM T, a certified isogeny of degree coprime to the subgroup order, is
+    predicted to return 1.000 for a group-valued predicate. ARM N1, a uniformly random size-matched
+    relabelling with the same scalars and the same certification code, must return the chance
+    baseline, one over the subgroup order. ARM N2, the same points with scrambled scalars, and ARM
+    N3, a table built from an independently chosen generator with no correspondence to the original,
+    must both return the same chance baseline and must be statistically indistinguishable from ARM
+    N1.
+    (B) THE EXACT CALIBRATION CURVE, WHICH IS ARITHMETIC AND NOT A PREDICTION. Define ARM T at
+    mixing fraction alpha as a table in which a uniformly random alpha fraction of entries is
+    transported by the true isogeny and the rest is relabelled at random. Then the expected retention
+    equals alpha plus one minus alpha, times one over the subgroup order - an AFFINE function of
+    alpha with slope one minus one over the subgroup order and intercept one over the subgroup order.
+    The battery is accepted only if the fitted slope lies in a pre-declared band, the intercept lies
+    below twice the chance baseline, and the fit quality exceeds a pre-declared threshold.
+    (C) THE SECOND DOSE AXIS. For an encoding-valued predicate the claim is DESTRUCTION, which needs
+    its own dose-response or it cannot be distinguished from "no map was applied". Sweeping the
+    isogeny degree, at degree 1 the map is a field isomorphism and a dilation-invariant predicate
+    must retain EXACTLY; at higher degrees retention must fall to the chance baseline and stay there.
+    A predicate already at chance at degree 1 PROVES no map was applied.
+    (D) WHAT THE BATTERY IS FOR. Passing it proves the instrument works and proves nothing about
+    transport, about any isogeny class, or about the ECDLP. Its entire value is that a later negative
+    from this lane becomes citable and a later positive becomes suspect until it passes.
+  mechanism: >-
+    Retention rates are the most artifact-prone quantity available here for a structural reason - the
+    true answer sits at one of two endpoints. Group-valued preprocessing retains everything;
+    encoding-valued preprocessing retains the chance baseline. An instrument that compares an object
+    with itself returns 1.000, and an instrument that silently fails to apply any map returns the
+    chance baseline, so BOTH failure modes produce exactly the expected number while measuring
+    nothing. Neither a same-curve positive control nor a uniform-random negative can catch this,
+    because neither varies whether a map was applied.
+    The battery breaks the degeneracy in two independent ways. First, by including an arm that is
+    identical to the treatment in every respect EXCEPT that no map is applied (the random relabelling
+    of ARM N1), so the treatment-minus-null gap directly measures map application. Second, by making
+    the mixture fraction alpha a dose parameter whose response is known exactly by linearity of
+    expectation, so the instrument must reproduce a whole curve rather than two endpoints; a
+    self-comparing instrument returns 1.000 at every alpha and a map-free instrument returns the
+    chance baseline at every alpha, and both are excluded by a nonzero slope. The certificate layer
+    closes the remaining hole - every retention count is a count of entries passing an INDEPENDENT
+    check that does not call the transport routine, so an entry cannot be counted as retained merely
+    because the transport code believed it produced it.
+  assumptions:
+    - >-
+      A uniformly random bijection between the two groups is samplable at toy scale by permuting an
+      explicit list of group elements. At crypto scale it is not, so this is a toy-scale instrument
+      and the record says so rather than pretending otherwise.
+    - >-
+      The chance baseline for a known-logarithm pairing is one over the subgroup order. At the
+      smallest sizes that is not negligible against the table size, so the battery reports EXACT
+      COUNTS rather than rounded rates, and the minimum size is set so the table-size-to-order ratio
+      is below a declared threshold.
+    - >-
+      Retention is measured by a certificate path that does NOT call the transport routine. This is
+      enforced by code review as part of the completion gate, not assumed.
+    - >-
+      Separate seed streams are used for the isogeny and for the random bijection. Drawing both from
+      the instance seed would correlate the treatment and the null.
+    - >-
+      Toy scale, claim tier toy. The instrument validates itself at toy scale and licenses no
+      crypto-scale statement.
+  test_boundary:
+    instances: >-
+      Toy prime-field curves at roughly 12, 16 and 20 bits with an enumerable isogeny class, so that
+      paths can be found by breadth-first search and the explicit group-element list needed for the
+      exact uniform null is materialisable.
+    parameters: >-
+      Table size declared per instance subject to the table-size-to-order threshold; mixing fraction
+      alpha over six declared values from 0 to 1; isogeny degree over six declared values starting at
+      1; composite path lengths 1, 2 and 3; five seeds per cell; both a group-valued and an
+      encoding-valued predicate.
+    implementation: >-
+      Every arm run on identical instances with identical table size, identical value predicate and
+      identical certification code path; the isogeny certified before ARM T runs; the nulls
+      implemented and run BEFORE the treatment.
+    out_of_scope: >-
+      Crypto scale; any claim about whether preprocessing advice does or does not transfer, which is
+      what the battery exists to make measurable rather than to decide; any statement about the
+      ECDLP.
+  distinguishable_outcomes:
+    - outcome: >-
+        ARM P returns exactly 1.000; ARM N1's exact pass count is consistent with the binomial null at
+        the declared level and ARM N2 and ARM N3 are indistinguishable from it; the ARM T minus ARM
+        N1 gap exceeds the declared threshold; the alpha fit's slope, intercept and quality all fall
+        inside their pre-declared bands; the degree-1 dilation control retains exactly; and every
+        deliberately broken map is caught by the isogeny certificate.
+      means: >-
+        The battery is validated as an instrument. Retention numbers produced by this lane become
+        citable, and any later retention number that has not passed this battery is not. This is an
+        instrument result and it proves nothing about transport.
+    - outcome: >-
+        ARM P returns anything other than exactly 1.000.
+      means: >-
+        The instrument is broken before any curve is changed. Nothing downstream is admitted and no
+        other arm is run.
+    - outcome: >-
+        ARM N1's pass count exceeds the binomial null at the declared level.
+      means: >-
+        The certificate path is LEAKING - most likely it calls the transport routine, so entries are
+        counted as retained by construction. The battery is INVALID, not negative.
+    - outcome: >-
+        The ARM T minus ARM N1 gap falls below the declared threshold.
+      means: >-
+        The instrument cannot see transport at all. This closes the lane on INSTRUMENT grounds rather
+        than on mathematics, and it must be reported as exactly that - a statement about the
+        measuring device, not about isogeny transport.
+    - outcome: >-
+        The alpha fit misses its pre-declared band.
+      means: >-
+        Retention is not the mixture statistic it is claimed to be. Every downstream retention figure
+        is void, because the quantity being reported does not compose the way the reading of it
+        assumes.
+    - outcome: >-
+        The encoding-valued predicate is already at the chance baseline at degree 1, under a field
+        isomorphism.
+      means: >-
+        NO MAP WAS APPLIED. This is the specific prior failure mode the battery exists to detect, and
+        detecting it would show that a previously recorded scoped negative on transfer was a reading
+        of an instrument that applied no map.
+    - outcome: >-
+        A deliberately broken map goes undetected by the isogeny certificate.
+      means: >-
+        The certificate is not load-bearing; retention counts computed under it carry no guarantee
+        that the object transported was what it was claimed to be.
+  prior_evidence_refs:
+    - RQ-MTGT-2cabee
+    - RQ-INSTR-f8faa0
+    - H-MTIC-001
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - KN-TECH-035
+    - KN-TECH-056
+    - KN-LIT-013
+  falsification_conditions:
+    - ARM P returns anything other than exactly 1.000. Instrument broken.
+    - ARM N1 passes above the binomial null at the declared level. Certificate path leaking; battery INVALID.
+    - The ARM T minus ARM N1 gap falls below the declared threshold. The instrument cannot see transport.
+    - The alpha fit misses its pre-declared slope, intercept or quality band.
+    - Any deliberately broken map goes undetected by the isogeny certificate.
+    - >-
+      The degree-1 dilation-invariant control is at the chance baseline, which proves no map was
+      applied.
+    - >-
+      Runs exceed budget before the battery completes. INFRASTRUCTURE outcome under AGENTS.md rule 5,
+      recorded as such and never as a negative on transport.
+  interpretation_limits:
+    - >-
+      Passing the battery proves the instrument works. It proves nothing about transport, about the
+      isogeny class, or about the ECDLP.
+    - >-
+      Toy scale only. A crypto-scale null cannot be sampled by this design, because a uniformly
+      random bijection on a crypto-sized group is not materialisable, and the record does not pretend
+      otherwise.
+    - >-
+      Reconstructing a prior experiment's chance-baseline result inside this battery is not a
+      criticism of that experiment's execution. It is a correction of the READING recorded downstream
+      of it, and the distinction must survive into every citation.
+    - >-
+      A failure of the treatment-minus-null gap closes this lane on instrument grounds. That is a
+      different and weaker statement than closing it on mathematics, and the two must never be
+      conflated in a later summary.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-25'

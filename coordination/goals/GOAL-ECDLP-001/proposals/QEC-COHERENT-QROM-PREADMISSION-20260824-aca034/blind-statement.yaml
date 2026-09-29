@@ -1,0 +1,150 @@
+schema_version: "1.0"
+statement_id: BLIND-QEC-COHERENT-QROM-20260824-aca034
+recorded_at: "2026-08-24"
+purpose: self-contained blind quantity statement
+assigned_task: TASK-20260824-caf255
+
+blindness:
+  may_read_only:
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/blind-statement.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/handoffs/TASK-20260824-caf255.yaml
+  blind_from:
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/packet.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/review-plan.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/dispatch_queue.json
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-aca034
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/archives/TASK-20260824-74edc9
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-7a6b70
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-4105e3
+    - coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/tasks/TASK-20260824-01b12b
+  prohibited_information:
+    - producer implementation or operation list
+    - producer tests or control matrix
+    - producer resource accounting
+    - producer results, stdout, stderr, or receipt
+    - snapshot receipt or hashes
+    - sibling review assignments, reports, verdicts, or messages
+    - Coordinator prior or expected failure location
+  no_contact_with_producer_or_siblings: true
+
+abstract_circuit:
+  parameters:
+    n: point-coordinate bit width
+    w: signed-window width with w >= 2
+    a: "w-1 address bits"
+  immutable_labels:
+    - address q in {0,...,2^a-1}
+    - sign s in {0,1}
+    - external enable e in {0,1}
+    - zero-digit flag z in {0,1}
+  clean_targets:
+    - effective-enable bit f initialized to 0
+    - qROM coordinate target Q initialized to all-zero
+    - exceptional-mask target M initialized to all-zero
+    - arithmetic workspace W initialized to all-zero
+  accumulator:
+    symbol: R
+    domain: frozen encoded points including explicit off-curve encoding O
+  fixed_table:
+    symbol: T
+    unsigned_row: "T(q)"
+    signed_row: "T_s(q) = T(q) when s=0 and -T(q) when s=1"
+    masks: "m_s(q,R) includes the exceptional cases O, A, -A, and -2A"
+  effective_enable:
+    definition: "f := e AND NOT z"
+    negative_control: z
+  intended_basis_action: >-
+    U: |q,s,e,z,R,0_f,0_Q,0_M,0_W> maps to
+    |q,s,e,z,R plus f*T_s(q),0_f,0_Q,0_M,0_W>, where f=e AND NOT z,
+    plus denotes the frozen exception-aware point-accumulator action, and q,s,e,z
+    are unchanged.
+  permitted_primitive_form:
+    - X
+    - CX
+    - MCX with explicitly declared positive and negative controls
+    - an explicit elementary decomposition preserving the same permutation
+  required_sequence:
+    - compute f
+    - load Q and M coherently from q,s,f
+    - use Q and M in the controlled accumulator primitive
+    - unload Q and M by the exact inverse load
+    - uncompute f
+
+derivation_questions:
+  unitary:
+    - >-
+      Derive why an X/CX/MCX circuit implementing the required sequence is a
+      permutation of computational basis states and therefore extends linearly
+      to a unitary on arbitrary address/sign superpositions.
+    - >-
+      Derive the block decomposition U = direct_sum_(q,s,e,z) U_(q,s,e,z)
+      with unchanged label registers, including the identity blocks e=0 or z=1.
+    - >-
+      State exactly what must hold of the exception-aware accumulator primitive
+      for the composed block to equal R -> R+T_s(q).
+  cleanup:
+    - >-
+      Prove, in sequence order, that Q, M, W, and f return to zero and that no
+      label register changes. Identify the liveness interval of every clean target.
+    - >-
+      Explain why unloading before the arithmetic use or omitting unload does
+      not satisfy the same unitary/cleanup statement.
+  counts:
+    count_convention: >-
+      Count only the coherent signed-window/qROM correction layer, excluding the
+      internal cost of the supplied exception-aware point-addition primitive;
+      report that primitive separately as one controlled invocation per use.
+    required_symbols:
+      L_X: X gates in effective-enable and negative-control sandwiches
+      L_CX: CX gates in direct target toggles
+      L_MCX: MCX gates grouped by positive-control count and negative-control count
+      L_load: qROM truth-table target toggles in the forward load
+      L_unload: qROM truth-table target toggles in the inverse unload
+      L_qrom: "L_load + L_unload"
+      A_clean: peak clean ancillae in the correction layer
+      A_dirty: peak dirty ancillae in the correction layer
+    required_relations:
+      - "L_unload = L_load for an exact inverse-load construction"
+      - "L_qrom = 2*L_load"
+      - >-
+        Every table/mask output bit whose Boolean truth table has hamming weight
+        h contributes h controlled target toggles per load before decomposition.
+      - >-
+        Negative controls must either remain a declared MCX polarity or contribute
+        exactly two X gates per opened-and-closed control sandwich at its liveness
+        scope; no pre-map cleanup may remove a live exceptional predicate.
+      - >-
+        The leading 3n+O(log n) statement is admissible only as a conditional
+        composition with separately supplied upstream arithmetic primitive bounds;
+        it cannot be derived from this blind correction layer alone.
+  sparse_amplitude_check:
+    - >-
+      Give an independent sparse-state procedure that evolves a map from basis
+      tuples to exact amplitudes gate by gate without consulting any producer code.
+    - >-
+      Specify checks for label preservation, per-block accumulator action, exact
+      amplitude preservation, absence of cross-block keys, and zero final work.
+
+known_false_reasoning_controls:
+  - object: no-op Protocol
+    known_false_property: non-identity enabled blocks are incorrectly identity
+  - object: classical address loop
+    known_false_property: no single coherent permutation acts on address superpositions
+  - object: missing unload
+    known_false_property: Q or M remains correlated with q,s
+  - object: pre-map flag cleanup
+    known_false_property: an exceptional predicate is dead before its use
+  - object: zero-digit omission
+    known_false_property: z=1 blocks are not identity
+  - object: partial arithmetic
+    known_false_property: at least one O/A/-A/-2A block violates the stated accumulator map
+
+deliverable_ceiling:
+  allowed: independent derivation of the abstract unitary, cleanup, and symbolic counts
+  forbidden:
+    - validating producer code
+    - reviewing J1, J2, or J3
+    - claiming empirical agreement
+    - claiming an exact numeric coefficient
+    - claiming a practical speedup or ECDLP advance
+    - changing scientific status

@@ -1,0 +1,158 @@
+schema_version: '1.0'
+record_kind: batch_local_zero_run_specification
+id: EXP-ECDLP-0cad85
+status: draft
+title: Deferred-lane minimum-viable-batch typed accounting gate
+hypothesis_id: H-ECDLP-a8ad36
+source_idea: IDEA-20260815-143d6e
+authorization:
+  implementation_authorized: false
+  scientific_execution_authorized: false
+  maximum_runs: 0
+  allowed_work: []
+  prohibited_work:
+    - inspect_live_lanes
+    - inspect_live_goals
+    - inspect_live_costs
+    - inspect_live_queues
+    - inspect_live_claims
+    - estimate_live_cost
+    - compare_live_cost
+    - rank_or_change_priority
+    - retire_or_close_branch
+    - create_canonical_record
+    - execute_measurement
+    - make_cryptanalytic_or_security_claim
+purpose: >
+  Define the future input and output types required before a source-bound
+  minimum-viable-batch cost record can be considered. This is a static contract,
+  not a cost computation and not a statement about any real deferred lane.
+input_contract:
+  source_binding:
+    required_fields:
+      - source_id
+      - source_kind
+      - immutable_locator
+      - sha256
+      - retrieved_provenance
+    source_kind_enum: [lane_definition, baseline_definition, calibration_record, consumer_contract]
+    immutable_locator: exact byte-addressed locator; null is invalid for COMPARABLE
+    sha256: lowercase SHA-256 digest of the exact retained source bytes
+    retrieved_provenance_enum: [retrieved, internal]
+    refusal: UNESTIMABLE
+  cost:
+    required_fields: [quantity_id, value, unit, accounting_boundary, source_id]
+    unit_enum: [cpu_second, wall_second, byte, query, oracle_call, batch]
+    accounting_boundary_enum: [offline_preparation, online_batch, total_batch]
+    value: nonnegative finite decimal encoded as a string
+    refusal: UNESTIMABLE
+  comparable:
+    required_fields: [baseline_id, baseline_cost, baseline_unit, comparison_relation, source_id]
+    comparison_relation_enum: [same_unit_ratio, same_unit_difference]
+    baseline_unit_must_equal_cost_unit: true
+    refusal: UNESTIMABLE
+  range:
+    required_fields: [parameter_name, lower_inclusive, upper_inclusive, unit, source_id]
+    parameter_name_enum: [batch_size, instances, targets, trials]
+    lower_inclusive: nonnegative integer
+    upper_inclusive: integer greater_than_or_equal_to_lower_inclusive
+    refusal: UNESTIMABLE
+  count:
+    required_fields: [count_id, value, domain, source_id]
+    count_id_enum: [minimum_batch_count, observed_batch_count, consumer_count]
+    value: positive integer
+    domain_enum: [synthetic_fixture, source_bound_future_record]
+    refusal: UNESTIMABLE
+  ratio:
+    required_fields: [numerator_quantity_id, denominator_quantity_id, value, unitless, source_ids]
+    unitless_must_be_true: true
+    denominator_must_be_positive: true
+    value: positive finite decimal encoded as a string
+    refusal: UNESTIMABLE
+  calibration:
+    required_fields: [calibration_id, method_id, environment_id, source_id, status]
+    status_enum: [calibrated]
+    prohibited_statuses: [assumed, recalled, inferred, unavailable]
+    refusal: UNESTIMABLE
+  consumer:
+    required_fields: [consumer_id, consumer_contract_source_id, consumes_quantity_ids]
+    consumes_quantity_ids: nonempty unique list
+    refusal: NO_CONSUMER
+cross_binding_rules:
+  - every referenced source_id resolves exactly once to source_binding
+  - every cost and baseline pair has the same unit and accounting_boundary
+  - every ratio references exactly one declared numerator and denominator quantity
+  - every consumer consumes the declared minimum_batch_count quantity
+  - every calibration binds the environment and method for every cost quantity
+  - every source byte hash, locator, and provenance must be present before COMPARABLE
+classification:
+  precedence:
+    - INVALID_INTERFACE
+    - UNESTIMABLE
+    - NO_CONSUMER
+    - COMPARABLE
+  INVALID_INTERFACE: >
+    Any unknown field, duplicate identity, malformed type, nonfinite value,
+    incompatible unit, inconsistent cross-binding, or forbidden effect.
+  UNESTIMABLE: >
+    Any missing, unread, unbound, unavailable, or uncalibrated required source or
+    numeric input. This output carries no numerical estimate, ratio, ranking,
+    retirement, priority, approval, or state effect.
+  NO_CONSUMER: >
+    All estimability inputs are complete but no source-bound consumer contract
+    consumes the declared quantity. This output carries no numerical estimate,
+    ranking, retirement, priority, approval, or state effect.
+  COMPARABLE: >
+    All required typed source and cross-binding rules hold. It only authorizes a
+    future accounting observation with the exact disclosed boundary; it does not
+    establish desirability, priority, cryptanalytic value, or scientific result.
+no_state_change_contract:
+  output_fields: [schema_version, classification, reason_codes, effects]
+  schema_version: '1.0'
+  classification_enum: [INVALID_INTERFACE, UNESTIMABLE, NO_CONSUMER, COMPARABLE]
+  reason_codes: sorted unique scalar strings
+  effects_must_equal: []
+  forbidden_recursive_tokens:
+    - priority
+    - rank
+    - retire
+    - close
+    - approve
+    - status
+    - goal
+    - lane
+    - claim
+    - archive
+    - execute
+    - run
+    - canonical
+controls:
+  complete_synthetic_fixture:
+    purpose: tests schema coherence only
+    expected: COMPARABLE
+    asserts_nothing_about: any real lane or cost
+  missing_source_binding:
+    mutation: omit sha256 from a referenced source
+    expected: UNESTIMABLE
+  incompatible_baseline_unit:
+    mutation: set baseline_unit unequal to cost unit
+    expected: UNESTIMABLE
+  absent_consumer:
+    mutation: remove consumer contract after all other source bindings hold
+    expected: NO_CONSUMER
+  uncalibrated_quantity:
+    mutation: replace calibration status with unavailable
+    expected: UNESTIMABLE
+  forbidden_effect:
+    mutation: add a nested priority or retirement object to output
+    expected: INVALID_INTERFACE
+artifacts_required_before_future_execution:
+  - exact source byte inventory and hashes
+  - frozen schema and validator implementation hash
+  - source-bound synthetic controls
+  - environment manifest
+  - immutable refusal or result receipt
+  - independent implementation and result reviews
+stopping_rule: >
+  Stop at static design. A future task may not create a fixture, validator, cost
+  estimate, or run without a fresh Coordinator decision and independent review.

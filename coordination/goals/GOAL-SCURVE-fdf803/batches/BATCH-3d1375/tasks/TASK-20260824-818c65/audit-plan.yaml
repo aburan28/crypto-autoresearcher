@@ -1,0 +1,897 @@
+audit_plan:
+  id: PLAN-TASK-20260824-818c65-M383
+  task_id: TASK-20260824-818c65
+  goal_id: GOAL-SCURVE-fdf803
+  question_id: RQ-SCURVE-2552cf
+  curve: M-383
+  produced_by: idea-generator
+  produced_at: '2026-08-25'
+  status: proposed_plan_only
+  authorization_note: >-
+    A PLAN. Nothing here has been executed. It assigns no work; the Coordinator alone
+    approves and dispatches. No lane may be read as a verdict, and no lane's completion
+    authorizes a statement that M-383 is safe, unsafe, vulnerable, or free of
+    vulnerabilities.
+  depends_on_capsule: coordination/goals/GOAL-SCURVE-fdf803/batches/BATCH-3d1375/tasks/TASK-20260824-818c65/parameter-capsule.yaml
+  reuses:
+    - id: IDEA-20260807-98a970
+      relation: >-
+        SPECIALIZED, NOT DUPLICATED. Lane 5 (transfer) and diagnostic D4 are the M-383
+        instantiation of that record's certified embedding-degree audit: its EXACT-k
+        certificate form, its LOWER-BOUND certificate form, its three degenerate flags
+        (p = 1 mod l; l = p; l^2 | #E), its planted positives (toy BN k=12, toy k=1,
+        toy supersingular k=2), and its decay parameter K. This plan mints no new
+        mechanism for those and inherits that record's confounders and
+        interpretation_limits verbatim.
+      m383_specific_addition: >-
+        For M-383 the mirror publishes k = (l-1)/1, i.e. p is claimed to be a PRIMITIVE
+        ROOT mod l - which is precisely the case where IDEA-20260807-98a970's EXACT-k
+        certificate is shortest and where the honest fallback bound is not needed. Lane
+        5 therefore targets the exact certificate, not the bound, and says so in advance.
+
+  # ===========================================================================
+  # 0. THE REFERENCE PREDICATES
+  # ===========================================================================
+  reference_predicate_source:
+    file: inputs/SAFECURVES-20260825/pages/verify.txt
+    sha256: 9e4acd23f53a27c13410f3fcb7225de74095306d22529c8b13c60c9586151b79
+    provenance: 'retrieved (staged mirror SAFECURVES-20260825)'
+    why_it_matters: >-
+      This is the verify.sage script SafeCurves states was used to generate the tables.
+      Every lane below reproduces or challenges the EXACT predicate the script applies,
+      so a disagreement is attributable to a definition, an input, or an arithmetic
+      error rather than to a vague notion of the criterion. Reproducing SafeCurves'
+      predicate is NOT the same as endorsing it; lanes 8, 10 and 11 explicitly record
+      where the script's predicate is weaker than the prose on the corresponding page.
+    load_bearing_extraction:
+      rigid: "saferigid &= (rigid == 'fully rigid' or rigid == 'somewhat rigid') - `rigid` is READ FROM A FILE. The rigid column is an INPUT, not a computed output."
+      transfer: "movsafe = ((l-1)/d <= 100) where d = ord_l(p), computed by dividing out prime powers of l-1 using the published prime list; gcd(l,p)==1 is the additive-transfer check."
+      rho: "rho = log(pi4*l)/log(4) with pi4 = 0.78539816339744830961566084581987572105; requirement rho >= 100."
+      disc: "D from t^2-4p with square factors removed, times 4 unless D = 1 mod 4; requirement D < -2^100."
+      twist: "twistl = largest prime factor of p+1+t; requirements twistrho >= 100, gcd(twistl,p)==1, (twistl-1)/d <= 100, and jointrho >= 100 from an explicit greedy small-subgroup-plus-kangaroo loop."
+      complete: "numorder4 == 2 and numorder2 == 1."
+      ladder: "montladder = exists r with r^3+ar+b = 0 and 3r^2+a a square in F_p."
+      ind: "indistinguishability = ((p+1-t) even) and (b != 0)."
+
+  # ===========================================================================
+  # 1. CONTROL REGISTRY - DEFINED BEFORE ANY INTERPRETATION, BLOCKING
+  # ===========================================================================
+  control_policy:
+    blocking: true
+    rule: >-
+      For every lane, the positive, parameter-matched negative, and same-shape null
+      controls listed in that lane MUST run through the identical code path, in the same
+      process, BEFORE the M-383 measurement is interpreted or recorded as reproduced. A
+      positive control that fails to fire VOIDS that lane's M-383 result; the lane is
+      reported as instrument failure (AGENTS.md rule 5) with no mathematical content.
+    decay_requirement: >-
+      Where a lane has a tunable bound (K in lane 5, the search ceiling in lane 7, the
+      sample count in the null lanes), the lane must report the measurement at at least
+      three settings and show the expected monotone behaviour. A non-monotone response
+      indicates an arithmetic bug and voids the lane.
+    parameter_source_rule: >-
+      Every control curve's parameters come from the SAME staged mirror as M-383's
+      (pages/field.txt, pages/equation.txt, pages/base.txt), cited with file and sha256.
+      No control parameter may be typed from memory. A control whose parameters cannot
+      be sourced is reported UNRESOLVED, not omitted.
+  controls:
+    - id: CTRL-ANOM
+      curve: Anomalous
+      role: positive control for additive transfer and for small |D|
+      sourced_property: 'l = p (pages/base.txt vs pages/field.txt); D = -11 ~ -2^3.5 (pages/disc.txt); ladder False, complete False, ind False (pages/{ladder,complete,ind}.txt)'
+      caveat: >-
+        Per the goal's claim_boundaries this is a POSITIVE-CONTROL CANDIDATE for the
+        described behaviour, not a newly discovered attack. Its parameters and behaviour
+        still require sourced reproduction inside the lane before it counts as a control.
+    - id: CTRL-BN254
+      curve: BN(2,254)
+      role: positive control for multiplicative transfer (k = 12) and small |D| (D = -3)
+      sourced_property: 'embedding degree 12 (pages/transfer.txt); D = -3 ~ -2^1.6 (pages/disc.txt); twist combined cost 2^47.5 (pages/twist.txt)'
+      caveat: same claim_boundaries caveat as CTRL-ANOM
+    - id: CTRL-SECP
+      curve: secp256k1
+      role: second positive control for small |D| (D = -3) with a DIFFERENT k
+      sourced_property: 'D = -3 (pages/disc.txt); embedding degree (l-1)/6, large (pages/transfer.txt)'
+      why: >-
+        Discriminates "the disc lane detects small D" from "the disc lane is really
+        detecting small k": CTRL-BN254 has both, CTRL-SECP has only small D.
+    - id: CTRL-P224
+      curve: NIST P-224
+      role: positive control for rigidity (manipulatable), ladder absence, incompleteness, ind absence, and a fragmented twist cofactor
+      sourced_property: "rigid = manipulatable with the seed bd713447 99d5c7fc dc45b59f a3b9ab8f 6a948bc5 (pages/rigid.txt); Montgomery ladder False, cofactor 1 (pages/ladder.txt); numorder2 = 0, numorder4 = 0 (pages/complete.txt); Elligator 2: No (pages/ind.txt); twist cofactor 3^2 * 11 * 47 * 3015283 * 40375823 * 267983539294927 (pages/twist.txt); combined attack 2^58.4"
+    - id: CTRL-BP256T1
+      curve: brainpoolP256t1
+      role: positive control for the combined twist attack (published cost 2^44.0 twist rho, 2^44.0-class combined)
+      sourced_property: 'twist rho 2^44.0 and twist l-prime 401601867518226318515439169 (pages/twist.txt); rigid "somewhat rigid" (pages/rigid.txt)'
+      why: >-
+        The only control whose twist FAILS while its own-curve ECDLP cells pass. Without
+        it, lane 9 cannot show it is measuring the twist rather than the curve.
+    - id: CTRL-383187
+      curve: Curve383187
+      role: PARAMETER-MATCHED NEGATIVE CONTROL for every lane
+      sourced_property: 'identical p = 2^383-187 (pages/field.txt), identical Montgomery shape, identical cofactor 2^3 and twist cofactor 2^2 (pages/twist.txt), A = 229969 (pages/equation.txt); all eleven cells True (pages/index.txt)'
+      why: >-
+        Identical field, shape, size and cofactor structure; only A differs. This is the
+        sharpest available discriminator between "the lane measures the curve" and "the
+        lane measures the prime". A lane returning IDENTICAL intermediate quantities
+        (not just identical verdicts) for M-383 and Curve383187 is measuring p and must
+        say so.
+      matching_assumptions_stated: >-
+        Matched on: prime, field size, curve shape, cofactor, twist cofactor, rigidity
+        rating, published verdict. NOT matched on: A, l, l', t, D, embedding degree.
+    - id: CTRL-25519
+      curve: Curve25519
+      role: structural-twin negative control at a different size
+      sourced_property: 'Montgomery y^2 = x^3+486662x^2+x, p = 2^255-19, cofactor 2^3, twist cofactor 2^2, numorder2 = 1, numorder4 = 2, Elligator 2: Yes, fully rigid WITH a published generation transcript (pages/rigid.txt)'
+      why: >-
+        The only mirror curve whose rigidity comment cell is populated with a full
+        constraint list of the same FORM the M-383 rule is conjectured to have. Lane 7
+        uses it as the transcript-reproduction positive control: if the search harness
+        cannot re-derive A = 486662 for Curve25519, it cannot be trusted about M-383.
+    - id: NULL-MONT-RAND
+      curve: synthetic
+      role: SAME-SHAPE NULL for lanes 1-6 and 8-11
+      construction: >-
+        Generate p~ = a random 383-bit prime with p~ = 3 mod 4 (rejection sampling with
+        Miller-Rabin, 64 rounds, seed recorded); pick A~ uniform in [3, 2^24) with
+        A~ = 2 mod 4; take B = 1. The SHAPE (Montgomery, 383-bit prime field, small A) is
+        preserved; the tested structure (a chosen prime of the form 2^383-c, a chosen A
+        producing cofactor {8,4}, a certified prime subgroup order) is DELIBERATELY
+        REMOVED. Ten independent draws, seeds recorded.
+      expected_behaviour: >-
+        For most draws the group order will NOT be 8 * prime, so cofactor-dependent lanes
+        must report UNRESOLVED or a different cofactor rather than silently succeeding.
+        A null draw that reproduces M-383's exact reported structure indicates the lane
+        is not reading its input.
+    - id: NULL-PRIMELIST-SHUFFLE
+      role: SAME-SHAPE NULL for every lane that consumes the published prime list
+      construction: >-
+        Take the M-383 relevant-primes list from pages/primeproofs.txt and (a) shuffle its
+        order, (b) in a separate run, delete one randomly chosen large prime, (c) in a
+        third run, replace one prime by a same-bit-length composite.
+      expected_behaviour: >-
+        (a) must change NOTHING (the algorithms sort internally). (b) must cause the
+        factorization completeness check to FAIL and the affected quantity to be reported
+        Unverified - exactly as verify.sage does. (c) must be caught by the Pocklington
+        verifier. Any run in which (b) or (c) still yields a verdict means the pipeline
+        is trusting the list instead of checking it, and voids every lane that uses it.
+    - id: NULL-TRANSCRIPT-SHUFFLE
+      role: SAME-SHAPE NULL for lane 7 (rigidity)
+      construction: >-
+        Present the search harness with the same constraint list in a shuffled order, and
+        separately with one constraint dropped.
+      expected_behaviour: >-
+        Shuffling must not change the minimal A found. Dropping a constraint MUST change
+        it (otherwise that constraint was never binding, which is itself the finding).
+
+  # ===========================================================================
+  # 2. SHARED ENVIRONMENT ASSUMPTIONS AND THE COST PIVOT
+  # ===========================================================================
+  environment_assumptions:
+    - id: ENV-1
+      statement: 'Pure Python 3, arbitrary-precision ints, no Sage, no PARI. Inherited from IDEA-20260807-98a970 assumption [environment].'
+      consequence: >-
+        383-bit modular arithmetic is fast (order 10^-5 s per modexp); 383-bit point
+        arithmetic is fast; GENERAL POINT COUNTING (SEA) AND GENERAL 380-BIT
+        FACTORIZATION ARE OUT OF REACH. Any lane needing either is costed and bounded
+        accordingly, or scaled down with a declared transfer assumption.
+    - id: ENV-2
+      name: THE COST PIVOT
+      statement: >-
+        pages/primeproofs.txt publishes, for M-383, the COMPLETE list of relevant proven
+        primes: per pages/verify.txt these are all prime divisors of p, of p+1-t, of
+        p+1+t and of t^2-4p, and recursively all prime divisors of q-1 for every q in the
+        list. The M-383 block runs from small primes up to and including l, l' and p.
+      consequence: >-
+        No lane needs to FACTOR anything. Every factorization becomes trial division
+        against a published candidate list plus a re-multiplication check, and every
+        primality claim becomes a Pocklington chain verified bottom-up in the list's own
+        order. This converts lanes 5, 6, 9 and diagnostics D1, D4, D5 from
+        "computationally out of reach in pure Python" to "seconds".
+      the_price_stated_honestly: >-
+        The list is an INPUT FROM THE AUDITED PARTY. Using it means the audit verifies
+        SafeCurves' factorizations rather than discovering them independently. That is a
+        real reduction in independence and every lane using it must label its certificate
+        "complete factorization VERIFIED against a supplied candidate list", never
+        "independently factored". NULL-PRIMELIST-SHUFFLE exists precisely to prove the
+        pipeline checks the list rather than trusting it.
+    - id: ENV-3
+      statement: 'No live private keys, no key-dependent inputs. Only public parameters from the staged mirror and controls this program generates with recorded seeds.'
+    - id: ENV-4
+      statement: >-
+        Infrastructure errors, timeouts, missing dependencies and budget stops are
+        operational observations and are recorded as such. They are never negative
+        mathematical evidence about M-383 or any control.
+
+  # ===========================================================================
+  # 3. THE ELEVEN CRITERION LANES
+  # ===========================================================================
+  criterion_lanes:
+
+    - lane: L1
+      criterion: field
+      category: basic_parameter_requirements
+      priority: 1
+      mechanism: >-
+        SafeCurves requires a PRIME field. The predicate is `p in V`, i.e. p appears in
+        the set of primes for which the pipeline itself constructed a Pocklington proof.
+        Reproduce by verifying the published Pocklington chain for p bottom-up: for each
+        q in the M-383 prime list in ascending order, find the base b (smallest prime
+        < 10000 with b^(q-1) = 1 mod q), exhibit the partial factorization F of q-1 built
+        from already-proven smaller primes with F^2 > q, and check gcd(b^((q-1)/v)-1, q) = 1
+        for each v | F.
+      quantitative_prediction: >-
+        p = 2^383-187 is prime; the Pocklington chain closes with every intermediate
+        prime in the published list and no prime outside it; the number of chain links
+        needed for p is at most the number of distinct primes dividing p-1 that appear in
+        the list.
+      certificate: >-
+        A Pocklington certificate file for p (and, transitively, for every prime the chain
+        consumes): (q, b, [(v_i, e_i)], witnesses u_i = b^((q-1)/v_i)-1 and inverses).
+        Third-party verification cost: one modexp per link, order 10^3 modexps total,
+        milliseconds. This meets docs/claims-and-verification.md re-verifiability.
+      controls:
+        positive: >-
+          Insert a KNOWN COMPOSITE of the same bit length (e.g. p+2, or p*(p+2) truncated
+          - any 383-bit composite with a recorded construction) and require the verifier
+          to REJECT it. Also require it to reject a Carmichael number, so the check is
+          not merely a Fermat test.
+        negative: 'CTRL-383187 (same p) - must verify identically, and the fact that it is the SAME NUMBER must be reported explicitly rather than counted as a second success.'
+        'null': 'NULL-PRIMELIST-SHUFFLE variants (a),(b),(c); NULL-MONT-RAND primes must each get their own chain or be reported Unverified.'
+      budget: '120 s wall clock, < 0.5 GB'
+      stopping_rule: >-
+        Stop when the chain for p closes, or after 120 s, or on the first chain link that
+        cannot be closed from the published list - in which case report the exact link and
+        stop; do NOT attempt a general primality proof.
+      falsifier: >-
+        p fails Miller-Rabin at 64 rounds; or the Pocklington chain cannot be closed using
+        only the published list; or the composite positive control is ACCEPTED.
+      limitation: >-
+        Verifies primality of the SUPPLIED p. It says nothing about whether 2^383-187 is a
+        good choice of prime, and the "special prime" question (pages/field.txt: special
+        primes help index calculus but ECC avoids index calculus) is a design question
+        outside this lane.
+
+    - lane: L2
+      criterion: equation
+      category: basic_parameter_requirements
+      priority: 1
+      mechanism: >-
+        The predicate is `elliptic = B*(A^2-4) != 0` in F_p. Recompute from A = 2065150,
+        B = 1 and compare to the published 4264844522496 (capsule CHECK-1), then reduce
+        mod p and check nonzero.
+      quantitative_prediction: 'B*(A^2-4) = 4264844522496 exactly as an integer, and 4264844522496 mod p = 4264844522496 != 0 since the value is far below p.'
+      certificate: 'Three integers (A, B, B*(A^2-4)) and the reduction; re-verifiable by one multiplication. Trivially succinct.'
+      controls:
+        positive: 'The excluded Montgomery curve A = 2 (A^2-4 = 0) and A = -2, which the predicate MUST reject; plus y^2 = x^3+x (A = 0), the single curve Elligator 2 excludes, to confirm the equation lane accepts it while lane L11 does not - showing the two lanes are independent.'
+        negative: 'CTRL-383187 (A = 229969, expected 52885740957 per pages/equation.txt - a DIFFERENT value, which is the point: it proves the lane reads A).'
+        'null': 'NULL-MONT-RAND: ten random A~, each yielding a distinct A~^2-4; the lane must return ten distinct values.'
+      budget: '5 s'
+      stopping_rule: single pass; no iteration
+      falsifier: 'the recomputed value differs from 4264844522496; or the predicate accepts A = 2.'
+      limitation: >-
+        Establishes only that the equation defines an elliptic curve. It does not check
+        the model conversion to short Weierstrass, which is diagnostic D6.
+
+    - lane: L3
+      criterion: base
+      category: basic_parameter_requirements
+      priority: 1
+      mechanism: >-
+        Two predicates: (i) `level1 = B*y1^2 - x1^3 - A*x1^2 - x1 = 0` in F_p, i.e. the base
+        point is on the curve; (ii) `l` is prime (chain from L1's verifier) and
+        `l * (x1,y1) = O`. Compute (ii) by converting to short Weierstrass per
+        pages/verify.txt (a = (3-A^2)/(3B^2), b = (2A^3-9A)/(27B^3), x -> (x+A/3)/B,
+        y -> y/B) and running a double-and-add ladder with l.
+      quantitative_prediction: >-
+        level1 = 0 exactly; l is prime with a closing Pocklington chain; l*(x1,y1) = O;
+        and the order of (x1,y1) is exactly l, not a proper divisor - which follows since
+        l is prime and (x1,y1) != O.
+      certificate: >-
+        (x1, y1, l, the short-Weierstrass image, the final ladder state = O) plus the
+        Pocklington chain for l. Re-verifiable in ~380 point operations, milliseconds.
+        Additionally emit (x0,y0) - a generator of the full group of order 8l, which
+        SafeCurves consumes but does not publish (capsule UNRETRIEVED-3) - constructed by
+        sampling x until x^3+Ax^2+x is a nonzero square, lifting, and checking that
+        (8l/2)*P != O and (8l/4)*P != O, i.e. P has full order 8l; record the seed.
+      controls:
+        positive: 'A deliberately off-curve point (x1, y1+1) which MUST be rejected; and an on-curve point of order 2 (x = 0, y = 0) for which l*P != O must be detected.'
+        negative: "CTRL-383187's own base point (5, 4759...455) with its own l - must verify; and M-383's base point tested against Curve383187's equation, which MUST FAIL. This cross-test is the sharpest check that the lane reads A."
+        'null': 'NULL-MONT-RAND with a random point: l*P is a uniformly distributed non-identity point with overwhelming probability; the lane must report failure, not success.'
+      budget: '60 s'
+      stopping_rule: 'stop on first predicate failure and report which; do not attempt to repair a failing point.'
+      falsifier: 'level1 != 0; or l*(x1,y1) != O; or the off-curve positive control is accepted; or M-383''s base point is accepted on Curve383187.'
+      limitation: >-
+        Establishes membership and order for THIS base point. It says nothing about how
+        the base point was chosen (x1 = 12 is conspicuously small and unexplained in the
+        retrieved sources - that is a rigidity question, lane L7, not a base-point defect).
+
+    - lane: L4
+      criterion: rho
+      category: ecdlp_security_requirements
+      priority: 2
+      mechanism: >-
+        Reproduce the exact published formula rho = log(pi4 * l)/log(4) with
+        pi4 = 0.78539816339744830961566084581987572105, i.e. log2(0.886*sqrt(l)), and
+        compare with the requirement rho >= 100. Use exact integer bit-length arithmetic
+        plus a bounded-error mantissa so the reported figure carries an error bar rather
+        than a float artefact.
+      quantitative_prediction: >-
+        rho = 189.8 to one decimal place, matching pages/rho.txt, with the recomputed
+        value inside [189.75, 189.85]. Margin over the 2^100 requirement: 89.8 bits.
+      certificate: '(l, bitlength(l), the rational bound on log2(0.886) used, the interval [lo, hi] containing rho). Re-verifiable by one square root bound; microseconds.'
+      controls:
+        positive: 'A curve whose rho is BELOW 100 must exist in the harness and be flagged. The mirror supplies no such own-curve row (every listed curve passes rho), so the positive control is CTRL-BP256T1''s TWIST rho of 2^44.0 run through the identical formula, plus a synthetic l of 160 bits which must return ~2^79.5 and FAIL.'
+        negative: 'CTRL-383187 - published 2^189.8, i.e. the SAME value. Because l and l'' differ between the two curves this is a real (if weak) discrimination: identical to one decimal is expected, identical to full precision would indicate the lane read the wrong l.'
+        'null': 'NULL-MONT-RAND: ten random 383-bit-field curves; the reported rho must track the actual subgroup order used, so a null with cofactor 24 must report a rho about log2(sqrt(24)) = 2.3 bits lower.'
+      budget: '10 s'
+      stopping_rule: single pass
+      falsifier: 'recomputed rho outside [189.75, 189.85]; or the 160-bit synthetic passes the >= 100 requirement.'
+      limitation: >-
+        This is an ARITHMETIC REPRODUCTION of a formula, not a security measurement. It
+        assumes the 0.886*sqrt(l) model of pages/rho.txt (batched-affine short-Weierstrass
+        additions, negation speedup, parallelizable, no memory bottleneck) and inherits
+        every one of that model's assumptions. It ignores the multi-target square-root
+        effect that the same page describes, and it says nothing about non-generic attacks.
+
+    - lane: L5
+      criterion: transfer
+      category: ecdlp_security_requirements
+      priority: 2
+      specializes: IDEA-20260807-98a970
+      mechanism: >-
+        Two predicates from pages/verify.txt: (i) additive - gcd(l, p) = 1, equivalently
+        l != p; (ii) multiplicative - compute d = ord_l(p) by starting from l-1, dividing
+        out each prime power of l-1 (factorization VERIFIED against the published prime
+        list per ENV-2) whenever the corresponding power of p is still 1, and requiring
+        (l-1)/d <= 100. Additionally run IDEA-20260807-98a970's three degenerate flags:
+        p = 1 mod l; l = p; l^2 | #E (here #E = 8l, so l^2 | 8l iff l | 8).
+      quantitative_prediction: >-
+        d = l-1 exactly, i.e. (l-1)/d = 1 <= 100, matching the "(l-1)/1" published on
+        pages/transfer.txt - equivalently p is a primitive root modulo l. All three
+        degenerate flags CLEAR. Predicted count of standardized-curve degenerate flags:
+        ZERO, restated here from IDEA-20260807-98a970 prediction (D) so that confirming it
+        is a controlled result and not a retrospective rationalization.
+      certificate: >-
+        EXACT-k certificate in IDEA-20260807-98a970 form: the complete factorization
+        l-1 = prod r_i^{e_i} (with the source of each r_i in the published list and a
+        Pocklington chain for each), plus one witness p^{(l-1)/r_i} mod l per distinct r_i.
+        If every witness differs from 1, k = l-1 exactly. Verification cost: omega(l-1)
+        modexps at 380 bits - a few dozen, milliseconds. NO LOWER-BOUND FALLBACK IS
+        EXPECTED to be needed; if the factorization does not close against the list, the
+        lane degrades to the honest non-succinct k > K bound with K = 10^6 and SAYS SO.
+      controls:
+        positive: >-
+          CTRL-BN254 must return k = 12 exactly through the identical code path;
+          CTRL-ANOM must FIRE the l = p additive flag; plus IDEA-20260807-98a970's planted
+          positives - a toy curve with p = 1 mod l (must return k = 1 and flag) and a toy
+          supersingular curve with t = 0 (must return k = 2). If any positive fails to
+          fire, the lane is void.
+        negative: >-
+          CTRL-383187 must return (l-1)/15, NOT (l-1)/1. This is the decisive
+          discrimination: the two curves share p, so a lane returning the same relation
+          for both is computing something independent of the curve.
+        'null': >-
+          NULL-MONT-RAND with random (p~, l~): ord_l~(p~) is a random-element order in a
+          cyclic group of order l~-1, so (l~-1)/d should be a small integer distributed
+          like the index of a random element - concentrated on 1, 2, 3, ... A null run
+          that always returns 1 indicates the divide-out loop is not executing.
+          NULL-PRIMELIST-SHUFFLE (b): deleting one prime of l-1 must force the lane to
+          report Unverified, exactly as verify.sage does.
+      budget: '300 s including all controls; < 1 GB'
+      stopping_rule: >-
+        Stop when the exact-k certificate is emitted or when the factorization fails to
+        close against the published list. If it fails, fall back to the K = 10^6 bound
+        pass (about 10^6 modular multiplications at 380 bits; budget 200 s) and stop
+        there - do NOT attempt to factor l-1.
+      falsifier: >-
+        Any witness p^{(l-1)/r_i} = 1 mod l for a prime r_i | l-1 (which would mean
+        k < l-1 and contradict the published cell); or gcd(l,p) != 1; or any degenerate
+        flag firing; or CTRL-BN254 not returning 12. Any of the first three would be a
+        material finding requiring independent review-breakthrough scrutiny BEFORE any
+        statement leaves this repository, per IDEA-20260807-98a970's pre-commitment.
+      limitation: >-
+        Inherited verbatim from IDEA-20260807-98a970: a k value is scoped to the pairing
+        transfer only; it says nothing about rho, index calculus, or implementation
+        attacks. Additionally, "k = l-1" is not a security claim by itself without the
+        representability wall - k*ceil(log2 p) bits per F_{p^k} element, here about
+        2^380 * 383 bits, which is the binding obstruction and must be stated alongside.
+
+    - lane: L6
+      criterion: disc
+      category: ecdlp_security_requirements
+      priority: 2
+      mechanism: >-
+        Recompute t = p+1-l*round((p+1)/l) (valid because l^2 > 16p: l ~ 2^380 so
+        l^2 ~ 2^760 >> 2^387), then D0 = t^2-4p, strip square factors using the published
+        prime list, and set D = D0/s^2 if that is 1 mod 4 else 4*D0/s^2. Requirement
+        D < -2^100. Cross-check against capsule CHECK-2, which already reproduces t
+        exactly by hand from p, l and h.
+      quantitative_prediction: >-
+        t = -1329890207450988128841758359484337226464313875646092906354 (exact match to
+        pages/disc.txt); D matches the published 116-digit value; the printed factorization
+        re-multiplies to D exactly; |D| ~ 2^383.0, i.e. 283 bits of margin over the 2^100
+        requirement.
+      certificate: >-
+        (t, D0, s, D, the factor list with a Pocklington chain per factor, and the
+        re-multiplication product). Re-verifiable by one multiplication chain and one
+        comparison; milliseconds.
+      controls:
+        positive: 'CTRL-ANOM (D = -11) and CTRL-BN254 (D = -3) must both be FLAGGED as failing |D| > 2^100 through the identical path; CTRL-SECP (D = -3, large k) must also flag, discriminating small-D detection from small-k detection.'
+        negative: 'CTRL-383187 must return its own published D (a DIFFERENT 116-digit value with a different factorization) - same magnitude class, different number.'
+        'null': "NULL-MONT-RAND: t^2-4p for a random curve is a random negative integer of ~2^384; its squarefree kernel is large with high probability, so the null must PASS the |D| > 2^100 test. A null that fails indicates the square-stripping loop is over-stripping. NULL-PRIMELIST-SHUFFLE (b) must force 'Unverified' for D exactly as verify.sage does."
+      budget: '180 s'
+      stopping_rule: 'stop when D re-multiplies exactly, or when the factor list fails to account for the squarefree kernel - then report Unverified and stop; do not attempt to factor the kernel.'
+      falsifier: 'recomputed t differs from published; or the printed factorization does not re-multiply to D; or |D| <= 2^100; or CTRL-ANOM/CTRL-BN254 are not flagged.'
+      limitation: >-
+        pages/disc.txt itself states the honest scope: small |D| gives rho speedups via
+        fast endomorphisms and is "not a complete break", and there is "no evidence of
+        serious problems with either small |D| or large |D|". A large-|D| result therefore
+        REMOVES a known speedup route; it does not add security. The class-number condition
+        Brainpool imposes is explicitly NOT computed by SafeCurves and is not computed here
+        (see diagnostic D5).
+
+    - lane: L7
+      criterion: rigid
+      category: ecc_security_beyond_ecdlp
+      priority: 3
+      status: DEFERRED_WITH_BOUND
+      mechanism: >-
+        This is the ONE lane that cannot be reproduced from the retrieved sources, and the
+        reason is structural rather than computational: per pages/verify.txt the `rigid`
+        value is READ FROM A FILE and the script only checks that the string is "fully
+        rigid" or "somewhat rigid". It is an editorial annotation, not a computed output.
+        Compounding this, pages/rigid.html shows M-383's comment cell is EMPTY (capsule
+        CONFLICT-2), so SafeCurves publishes no generation rule for M-383. The audit
+        therefore has two parts: (7a) reproduce the CONJECTURED rule on a curve where the
+        rule IS published, and (7b) test M-383's A against the conjectured rule as far as
+        the environment allows.
+        7a: on CTRL-25519, whose transcript IS published in full (prime near a power of 2;
+        Montgomery shape; (A-2)/4 small; curve and twist orders {4*prime, 8*prime};
+        A = 486662 smallest positive integer meeting these), re-run the minimal-A search
+        and require the harness to return 486662.
+        7b: for M-383, the conjectured rule is the same family - p = 2^383-187 the largest
+        prime below 2^383, B = 1, A = 2 mod 4, A > 2 minimal subject to curve order 8*prime
+        and twist order 4*prime. Observation supporting the family membership, computed here
+        by hand and to be re-derived: 2065150 = 2 mod 4, matching Curve25519's A = 486662
+        = 2 mod 4 and M-221's A = 117050 = 2 mod 4, and the published cofactors {2^3, 2^2}
+        match the Curve25519 pattern.
+      quantitative_prediction: >-
+        (7a) the harness returns A = 486662 for Curve25519, and returns 358990 and 464586
+        as the two candidates rejected only by the "l above 2^252" rule stated on
+        pages/rigid.txt - reproducing THAT detail is the sharp test.
+        (7b) A = 2065150 satisfies A = 2 mod 4, and no A' with 2 < A' < 2065150, A' = 2 mod 4
+        yields cofactors {8, 4} with both orders prime - PREDICTED but NOT REPRODUCIBLE in
+        this environment, because deciding it needs a point count over a 383-bit prime field
+        for each of ~516000 candidates.
+      certificate: >-
+        (7a) the ordered candidate list with the rejecting constraint per candidate, plus
+        the returned minimum. (7b) NO CERTIFICATE IS CLAIMED. The honest deliverable is an
+        EXPLICIT BOUND: "for the first N candidates A = 2 mod 4 in increasing order, the
+        cheap necessary conditions were checked and M candidates survived", with N set by
+        the budget, plus the scaled-down full search at a 64-bit prime where pure-Python
+        point counting via BSGS on the group order is feasible.
+      controls:
+        positive: 'CTRL-P224, whose generation is "manipulatable" from a published unexplained seed - the harness must NOT be able to derive its coefficients from a stated constraint list, and must report that.'
+        negative: 'CTRL-25519 (7a) - the one curve where the transcript is published and the search must succeed. CTRL-383187 shares p and the same conjectured rule but a DIFFERENT A; the harness must explain why 229969 is not 2 mod 4 and therefore not in the M-family search space at all, which is itself a checkable prediction about the two curves.'
+        'null': 'NULL-TRANSCRIPT-SHUFFLE - shuffling the constraint list must not change the minimum; dropping a constraint must change it or reveal that constraint was never binding.'
+      budget: >-
+        7a: 600 s at 255 bits IS ALSO out of reach for full point counting in pure Python;
+        7a must therefore itself be run in the scaled-down regime unless a point-counting
+        dependency is approved. Budget as stated: 300 s for the scaled-down search at
+        <= 64 bits, 300 s for the cheap-necessary-condition sieve at 383 bits.
+      stopping_rule: >-
+        Stop at the budget and report N and M as measured. A partial sieve is a legitimate
+        bounded output; an extrapolated claim about all A < 2065150 is NOT and must not be
+        written.
+      falsifier: >-
+        (7a) the harness returns an A other than 486662 for Curve25519 under the published
+        constraints - which would falsify the conjectured rule FORM and therefore invalidate
+        7b's premise. (7b) finding any A' < 2065150, A' = 2 mod 4, that passes every cheap
+        necessary condition AND is confirmed to have cofactors {8,4} - which would mean the
+        conjectured minimality rule is not the rule that produced M-383.
+      limitation: >-
+        Rigidity is a claim about a PROCESS, and processes are not verifiable from
+        artifacts alone. Even a perfect reproduction of the minimal-A search would show only
+        that A = 2065150 is CONSISTENT with the conjectured rule, not that the rule is what
+        the designers ran. Per the goal's claim_boundaries, a rigidity failure is not an
+        ECDLP break. Nothing in this lane may be phrased as a suspicion about the designers.
+      successor_condition: >-
+        Executable in full once (i) ePrint 2013/647 is staged (capsule UNRETRIEVED-1),
+        supplying the actual transcript, and (ii) a point-counting dependency (Sage, PARI,
+        or a vetted pure-Python SEA) is approved by the Coordinator. Until both, this lane
+        stays DEFERRED_WITH_BOUND and its published cell stays unreproduced.
+
+    - lane: L8
+      criterion: ladder
+      category: ecc_security_beyond_ecdlp
+      priority: 3
+      mechanism: >-
+        The verify.sage predicate is montladder = "there exists a root r of z^3+az+b in F_p
+        with 3r^2+a a square". For M-383 this must hold trivially, because the curve is
+        GIVEN in Montgomery form and the conversion of pages/ladder.txt runs backwards:
+        the Montgomery x-coordinate maps to the Weierstrass root r = -A/3. Reproduce by
+        (i) computing a, b from A, B; (ii) checking r = -A/(3B) is a root of z^3+az+b;
+        (iii) checking 3r^2+a = 1/B^2 is a square (immediate for B = 1); (iv) independently
+        running the predicate as a root-finding problem via a Cantor-Zassenhaus split, so
+        the answer does not depend on knowing the curve was Montgomery to begin with.
+      quantitative_prediction: >-
+        montladder = True by both routes; the cubic z^3+az+b has at least one root in F_p;
+        3r^2+a is a nonzero square; cofactor 8 = 2^3 matching pages/ladder.txt. Step (iv)
+        must return the SAME r as step (ii).
+      certificate: '(a, b, r, the verification r^3+ar+b = 0, and a square root s with s^2 = 3r^2+a). Re-verifiable by two modular multiplications and one squaring; microseconds.'
+      controls:
+        positive: >-
+          CTRL-P224, CTRL-ANOM, CTRL-BN254 and CTRL-SECP must all return montladder = FALSE
+          through the identical path (published cofactor 1 and "Montgomery ladder: False").
+          A harness that finds a ladder for a prime-order curve is broken - pages/ladder.txt
+          proves the impossibility: Montgomery curves always have order divisible by 4.
+        negative: 'CTRL-383187 and CTRL-25519 must both return True with their own r values, which must DIFFER from M-383''s.'
+        'null': 'NULL-MONT-RAND must return True for every draw (they are Montgomery by construction) - so the null here is deliberately non-discriminating and its role is the opposite one: a null draw returning False proves the root-finder is broken.'
+      budget: '60 s'
+      stopping_rule: single pass per curve; stop on disagreement between routes (ii) and (iv)
+      falsifier: 'montladder = False for M-383; or route (ii) and route (iv) disagree; or any prime-order positive control returns True.'
+      limitation: >-
+        The verify.sage predicate tests only whether a Montgomery-form ladder EXISTS. The
+        SafeCurves prose requires "simple, fast, constant-time single-coordinate
+        single-scalar multiplication" and explicitly declines to quantify "much" in "much
+        faster"/"much more concise". THE PREDICATE IS THEREFORE STRICTLY WEAKER THAN THE
+        STATED CRITERION, and this lane reproduces the predicate only. No timing or
+        constant-time property is measured here; asserting one would exceed the evidence.
+
+    - lane: L9
+      criterion: twist
+      category: ecc_security_beyond_ecdlp
+      priority: 2
+      mechanism: >-
+        Four sub-predicates from pages/verify.txt, all reproduced: (i) l' = largest prime
+        factor of p+1+t, with the factorization verified against the published list;
+        (ii) gcd(l', p) = 1 (twist additive-transfer check); (iii) twist embedding degree
+        d' = ord_{l'}(p) with (l'-1)/d' <= 100; (iv) twistrho = log(pi4*l')/log(4) >= 100;
+        and (v) the JOINT cost - reproduce the exact greedy loop: for each small prime v
+        dividing p+1-t or p+1+t, while v + sqrt(pi4*joint/v) < sqrt(pi4*joint), add v to
+        precomp and divide joint by v; report log2(precomp + sqrt(pi4*joint)).
+      quantitative_prediction: >-
+        l' = 2^381 - 332472551862747032210439589871084306616078468911523226635 with twist
+        cofactor 4; twist embedding degree relation (l'-1)/2; twistrho = 190.3;
+        jointrho = 188.3, all matching pages/twist.txt. Cross-check: 8l + 4l' = 2p+2
+        (capsule CHECK-3, already verified by hand) - this must be re-derived mechanically
+        and is the single strongest integrity check in the plan, because it ties l, l', p
+        and both cofactors through one identity.
+      certificate: >-
+        (t, p+1+t, its complete factorization verified against the published list, l', the
+        twist Pocklington chain, the ord_{l'}(p) witness set, and the greedy-loop trace as
+        an ordered list of (v, precomp, joint) triples). Re-verifiable in a few dozen modexps
+        plus one multiplication chain.
+      controls:
+        positive: >-
+          CTRL-BP256T1 must return twistrho = 44.0 and FAIL the >= 100 requirement;
+          CTRL-P224 must return combined 2^58.4 and FAIL; CTRL-BN254 must return twistrho
+          2^47.5 and FAIL. These are the only curves in the mirror whose twist fails while
+          their own-curve ECDLP cells pass, so without them the lane cannot show it measures
+          the twist.
+        negative: 'CTRL-383187 - same p, same twist cofactor 2^2, published twistrho also 2^190.3 and joint also 2^188.3, but a DIFFERENT l''. Identical costs with different l'' is the expected outcome; identical l'' would be a transcription error.'
+        'null': 'NULL-MONT-RAND: p~+1+t~ for a random curve factors with many medium primes, so the greedy loop must consume several and the reported jointrho must be VISIBLY BELOW the naive rho. A null whose jointrho equals its rho proves the greedy loop never executes.'
+      budget: '400 s including controls'
+      stopping_rule: 'stop when all five sub-predicates emit or when the factorization of p+1+t fails to close against the list - then report Unverified per sub-predicate and stop.'
+      falsifier: >-
+        8l + 4l' != 2p+2; or l' is not the largest prime factor of p+1+t; or twistrho < 100;
+        or (l'-1)/d' > 100; or jointrho < 100; or CTRL-BP256T1 is not flagged.
+      limitation: >-
+        Reproduces SafeCurves' attack model exactly, including its own stated assumptions:
+        best case for the attacker, group assumed cyclic, kangaroo assumed as efficient as
+        rho. It evaluates the model, not the world. Per pages/twist.txt, some twist
+        requirements are "overkill for DH on the original curve"; a pass here is a statement
+        about the model's output on these parameters and nothing more.
+
+    - lane: L10
+      criterion: complete
+      category: ecc_security_beyond_ecdlp
+      priority: 3
+      mechanism: >-
+        The predicate is numorder2 == 1 and numorder4 == 2. For a Montgomery curve
+        By^2 = x^3+Ax^2+x the 2-torsion x-coordinates are x = 0 and the roots of x^2+Ax+1,
+        so numorder2 = 1 exactly when A^2-4 is a NON-SQUARE in F_p - one Legendre symbol.
+        Compute it two ways: (i) the closed form, one Euler exponentiation
+        (A^2-4)^((p-1)/2) mod p; (ii) the generic route verify.sage uses - enumerate
+        E(0).division_points(4) - reimplemented as: solve the 2-division and 4-division
+        conditions directly and count. Require agreement.
+      quantitative_prediction: >-
+        (4264844522496)^((p-1)/2) = p-1 mod p (i.e. Legendre symbol -1), giving numorder2 = 1
+        and numorder4 = 2, matching pages/complete.txt. Since B = 1 this is also exactly the
+        2006 Bernstein condition quoted on pages/complete.txt for Montgomery-ladder
+        completeness ("A^2-4 not a square").
+      certificate: '(A^2-4, the Euler witness (A^2-4)^((p-1)/2) mod p, numorder2, numorder4) plus the enumerated 4-torsion x-coordinates. Re-verifiable by one modexp.'
+      controls:
+        positive: 'CTRL-ANOM, CTRL-P224, CTRL-BN254, CTRL-SECP, CTRL-BP256T1 all published numorder2 = 0, numorder4 = 0 - all must return False through the identical path.'
+        negative: 'CTRL-383187 and CTRL-25519 must return (1, 2). CTRL-383187 shares p, so the Legendre symbol is computed in the SAME field with a different argument - a lane returning the same symbol for 4264844522496 and 52885740957 is not reading A.'
+        'null': 'NULL-MONT-RAND: A~^2-4 is a square for about half the draws, so about five of ten nulls must return numorder2 = 3 (or the corresponding failure). A null run in which all ten agree with M-383 indicates the Legendre computation is degenerate.'
+      budget: '30 s'
+      stopping_rule: 'stop on disagreement between routes (i) and (ii).'
+      falsifier: 'A^2-4 is a square mod p; or the two routes disagree; or any zero-2-torsion positive control returns (1,2).'
+      limitation: >-
+        Establishes the ARITHMETIC PRECONDITION for complete formulas (a unique point of
+        order 2). pages/complete.txt is explicit that curve completeness does not guarantee
+        addition-law completeness - the dual Edwards law is the counterexample it gives.
+        This lane therefore certifies that completeness is AVAILABLE, not that any
+        implementation is complete. Multi-scalar completeness is asserted by verify.sage
+        from the same two counts and is reproduced only at that same strength.
+
+    - lane: L11
+      criterion: ind
+      category: ecc_security_beyond_ecdlp
+      priority: 3
+      mechanism: >-
+        The verify.sage predicate is ((p+1-t) even) and (b != 0) in the short Weierstrass
+        model. Reproduce it, and SEPARATELY reproduce the STRONGER prose condition of
+        pages/ind.txt for Elligator 2: y^2 = x^3+Ax^2+Bx with AB(A^2-4B) nonzero, all
+        Montgomery curves except y^2 = x^3+x, all curves with points of order 2 except
+        j-invariant 1728. Report both, and report where they differ, since only the first
+        produced the published table.
+      quantitative_prediction: >-
+        Script predicate: p+1-t = 8l is even and b = (2A^3-9A)/(27B^3) != 0 (b = 0 would
+        need 2A^2 = 9 in F_p; 2A^2 = 8529689045000 != 9 and both are far below p) - so
+        True, matching "Elligator 2: Yes". Prose predicate: A*B*(A^2-4B) =
+        2065150 * 1 * 4264844522496 != 0, and j != 1728 requires a != 0, i.e. A^2 != 3;
+        A^2 = 4264844522500 != 3. Both predicates predicted True and predicted to AGREE.
+      certificate: '(p+1-t mod 2, b, A*B*(A^2-4B), a, j-invariant) - five field elements; re-verifiable in a handful of multiplications.'
+      controls:
+        positive: 'CTRL-P224, CTRL-ANOM, CTRL-BN254, CTRL-SECP, CTRL-BP256T1 published "Elligator 2: No" - all must be rejected. CTRL-SECP is the sharp one: b = 7 != 0 but p+1-t is ODD (cofactor 1), so it must be rejected by the FIRST conjunct, proving both conjuncts are live. Add the excluded curve y^2 = x^3+x (b = 0 in Weierstrass form after A = 0) which must be rejected by the SECOND.'
+        negative: 'CTRL-383187 and CTRL-25519 must both return True with their own b values.'
+        'null': 'NULL-MONT-RAND: all draws are Montgomery with A~ != 0 so all should pass - again a deliberately non-discriminating null whose role is to catch a broken conjunct. Add a null with A~ = 0 forced, which must be rejected.'
+      budget: '30 s'
+      stopping_rule: single pass; report both predicates regardless of agreement
+      falsifier: 'either predicate returns False for M-383; or the two predicates DISAGREE (which would be a finding about SafeCurves'' script, not about M-383, and must be reported as such); or CTRL-SECP is accepted.'
+      limitation: >-
+        Certifies that an Elligator-2 map EXISTS for these parameters. It measures no
+        implementation, no constant-time property, and no actual indistinguishability
+        against any adversary. Per the goal's claim_boundaries an ind failure would not be
+        an ECDLP break, and an ind pass is not a security claim.
+
+  # ===========================================================================
+  # 4. THE EIGHT DECLARED ADDITIONAL DIAGNOSTICS
+  # ===========================================================================
+  additional_diagnostics:
+
+    - id: D1
+      name: complete curve and twist order factorization with checkable certificates
+      status: planned
+      priority: 2
+      mechanism: >-
+        Factor #E = p+1-t = 8l and #E' = p+1+t = 4l' completely by trial division against
+        the published M-383 prime list (ENV-2), re-multiply to confirm, and attach a
+        Pocklington chain per factor. Report the cofactor factorizations as verify.sage
+        does (2^3 and 2^2) and confirm no factor outside {2, l} and {2, l'} respectively.
+      quantitative_prediction: '#E = 2^3 * l exactly; #E'' = 2^2 * l'' exactly; residue after dividing out the list is 1 in both cases; 8l + 4l'' = 2p+2 (capsule CHECK-3).'
+      certificate: 'the two factorizations, the two re-multiplication products, and the two Pocklington chains. Milliseconds to verify.'
+      controls:
+        positive: 'CTRL-P224 twist cofactor 3^2 * 11 * 47 * 3015283 * 40375823 * 267983539294927 must be reproduced factor-for-factor - a six-factor cofactor is a much harder target than 2^2 and proves the trial division works.'
+        negative: 'CTRL-383187 - same p, cofactors also {2^3, 2^2}, different l and l''.'
+        'null': 'NULL-PRIMELIST-SHUFFLE (b) must force Unverified.'
+      budget: '120 s'
+      stopping_rule: stop when the residue reaches 1 or the list is exhausted
+      falsifier: 'residue != 1 after exhausting the list; or the product != p+1-t; or CTRL-P224''s cofactor is not reproduced.'
+      limitation: 'VERIFIED AGAINST A SUPPLIED LIST, not independently factored (ENV-2 price). Must be labelled that way in every downstream citation.'
+
+    - id: D2
+      name: subgroup, cofactor, and invalid-curve confinement costs
+      status: planned
+      priority: 2
+      mechanism: >-
+        Quantify, from the reproduced cofactors, exactly what a small-subgroup or
+        invalid-curve adversary learns: (i) with h = 8, a point of order 8 reveals n mod 8
+        (3 bits) at cost 8 trials; (ii) with h' = 4 on the twist, n mod 4 at cost 4 trials;
+        (iii) since gcd(8,4) != 1 the CRT combination is n mod 8 only, NOT n mod 32 - a
+        detail the generic argument on pages/twist.txt glosses; (iv) the residual kangaroo
+        cost on l/8 candidates. Reproduce SafeCurves' greedy loop and, separately, compute
+        the loop's decision by hand for these specific cofactors so the two agree.
+      quantitative_prediction: >-
+        Total leakage bounded by 3 bits; residual kangaroo about sqrt(pi4 * l/8) giving
+        jointrho = 188.3 as published - the 1.5-bit gap below rho = 189.8 is exactly
+        log2(sqrt(8)) = 1.5, which is a closed-form prediction the lane must reproduce to
+        one decimal.
+      certificate: '(h, h'', gcd, the greedy-loop trace, the closed-form 1.5-bit accounting).'
+      controls:
+        positive: 'CTRL-P224 (twist cofactor with six coprime factors, published combined 2^58.4) and CTRL-BP256T1 (2^44.0) - both must show LARGE leakage.'
+        negative: 'CTRL-25519 (h = 8, h'' = 4, identical cofactor structure at a different size) must show the SAME 1.5-bit gap: rho 125.8 vs a joint cost the lane must predict as 124.3, matching the published 2^124.3 on pages/twist.txt. THIS IS A CROSS-SIZE PREDICTION MADE BEFORE COMPUTATION.'
+        'null': 'NULL-MONT-RAND with a deliberately fragmented cofactor must show leakage growing with the number of usable small primes.'
+      budget: '90 s'
+      stopping_rule: single pass
+      falsifier: 'the reproduced gap is not 1.5 bits; or the Curve25519 cross-size prediction of 124.3 fails; or the gcd detail is wrong.'
+      limitation: >-
+        A cost model, not an attack. It assumes the adversary model of pages/twist.txt
+        (Bob does not check membership, does not multiply by the cofactor, chooses n < l).
+        A deployment that does any of those has different numbers.
+
+    - id: D3
+      name: automorphism- and endomorphism-adjusted rho cost
+      status: planned
+      priority: 3
+      mechanism: >-
+        The published 0.886*sqrt(l) already includes the sqrt(2) negation speedup. Determine
+        whether any FURTHER automorphism discount applies by checking j-invariant: extra
+        automorphisms exist only for j = 0 (D = -3) and j = 1728 (D = -4). Compute j from
+        (a,b) and compare. Separately, check whether the large |D| ~ 2^383 admits any
+        efficiently computable endomorphism of small norm - it cannot, because a GLV-style
+        endomorphism of norm N requires |D| small, and the lane states the quantitative
+        threshold rather than asserting the conclusion.
+      quantitative_prediction: >-
+        j != 0 and j != 1728, so the automorphism group is {+-1} and the discount is exactly
+        the sqrt(2) already in 0.886. Additional speedup predicted ZERO bits. The nearest
+        efficiently computable endomorphism has norm at least of order sqrt(|D|) ~ 2^191.5,
+        which is larger than the rho cost itself and therefore yields no speedup.
+      certificate: '(a, b, j, D, the norm bound). One modexp and a comparison.'
+      controls:
+        positive: 'CTRL-SECP (D = -3, j = 0) MUST show the extra sextic-automorphism discount of log2(sqrt(6)/sqrt(2)) = 0.79 bits, and CTRL-BN254 (D = -3) the same. If the lane reports no discount for a j = 0 curve it is not measuring automorphisms.'
+        negative: 'CTRL-383187 (large |D|, j generic) must show zero discount.'
+        'null': 'NULL-MONT-RAND: j should be uniform-ish and never 0 or 1728; a null hitting either indicates a computation error.'
+      budget: '60 s'
+      stopping_rule: single pass
+      falsifier: 'j = 0 or j = 1728 for M-383; or CTRL-SECP shows no discount.'
+      limitation: >-
+        Bounds only the KNOWN automorphism/endomorphism discounts as described on
+        pages/disc.txt, which itself says the limits "are reasonably well understood" but
+        makes no impossibility claim. This lane makes none either. It does not and cannot
+        rule out an unknown speedup mechanism.
+
+    - id: D4
+      name: embedding-degree certificate or explicit search bound
+      status: planned
+      priority: 2
+      specializes: IDEA-20260807-98a970
+      mechanism: 'Identical to lane L5. Recorded here as a diagnostic so the goal''s declared list is covered; NOT a second computation and NOT a second proposal.'
+      quantitative_prediction: 'as L5: k = l-1 exactly, (l-1)/k = 1.'
+      certificate: 'as L5 (EXACT-k certificate), plus the twist embedding degree from L9.'
+      controls: 'as L5'
+      budget: 'covered by L5; 0 additional'
+      stopping_rule: 'as L5'
+      falsifier: 'as L5'
+      limitation: 'as L5, plus IDEA-20260807-98a970''s interpretation_limits verbatim.'
+
+    - id: D5
+      name: CM discriminant and conductor structure
+      status: partially_planned
+      priority: 3
+      mechanism: >-
+        Beyond lane L6's |D| magnitude, report the CONDUCTOR structure: s with t^2-4p = D*s^2,
+        the factorization of s against the published prime list, and whether the order
+        Z[(t+sqrt(D))/2] is maximal. Attempt the Brainpool-style CLASS NUMBER condition
+        (h(D) > 10^6) only through the GRH heuristic pages/disc.txt states - h(D) is "not far
+        from sqrt(|D|)" - reporting sqrt(|D|) ~ 2^191.5 as a HEURISTIC estimate, explicitly
+        labelled as such, since exact class numbers at |D| ~ 2^383 are far out of reach.
+      quantitative_prediction: >-
+        s is small (the published D at ~2^383.0 versus t^2-4p at ~2^385 implies s^2 is a
+        small power of 2 times small factors); the heuristic class-number estimate is
+        ~2^191.5, exceeding 10^6 by 171 bits.
+      certificate: '(s, its factorization, D*s^2 = t^2-4p re-multiplied). The class-number figure carries NO certificate and is labelled heuristic.'
+      controls:
+        positive: 'CTRL-ANOM (D = -11, h = 1) and CTRL-BN254 (D = -3, h = 1) must both fail the 10^6 condition, and their s values must be LARGE - which tests the conductor computation, since for those curves almost all of t^2-4p is square.'
+        negative: 'CTRL-383187 - same field, different D, expected similar structure.'
+        'null': 'NULL-MONT-RAND: s should be small for random curves; a null with a huge s indicates the square-stripping is inverted.'
+      budget: '120 s'
+      stopping_rule: 'stop after the conductor; do NOT attempt an exact class number.'
+      falsifier: 'D*s^2 != t^2-4p; or CTRL-ANOM''s s is not large.'
+      limitation: >-
+        THE CLASS NUMBER IS NOT COMPUTED. Only a GRH-conditional heuristic estimate is
+        reported, and it is conditional on GRH exactly as pages/disc.txt states. This is a
+        declared partial coverage, not a completed diagnostic.
+      successor_condition: 'exact h(D) becomes reachable only with a class-group dependency the Coordinator would have to approve; not proposed here.'
+
+    - id: D6
+      name: model-conversion exceptional sets
+      status: planned
+      priority: 3
+      mechanism: >-
+        Enumerate exactly where the Montgomery <-> short Weierstrass <-> Edwards maps used
+        by verify.sage and by any implementation are undefined, and check M-383 against each:
+        (i) Montgomery -> Weierstrass x -> (x+A/3)/B needs B != 0 and 3 invertible - both hold;
+        (ii) Edwards -> Montgomery needs d != 1 - not applicable, M-383 is not Edwards;
+        (iii) Montgomery -> twisted Edwards needs A^2-4 non-square (lane L10) and the point
+        (0,0) of order 2 maps to the Edwards point at infinity - enumerate the exceptional
+        point set explicitly; (iv) the x-only ladder's exceptional inputs x = 0 and the two
+        roots of x^2+Ax+1 (which are NOT in F_p here, by L10).
+      quantitative_prediction: >-
+        The exceptional set for M-383 is exactly {O, (0,0)} for the birational maps, of size
+        2, i.e. the 2-torsion; the roots of x^2+Ax+1 contribute nothing because A^2-4 is a
+        non-square. Predicted exceptional-set size: 2.
+      certificate: 'the explicit list of exceptional points with the map each breaks, verified by evaluating each map at each point.'
+      controls:
+        positive: 'CTRL-P224 (numorder2 = 0) has no Montgomery model at all - the conversion must FAIL, and the harness must report that rather than producing a spurious model. CTRL-ANOM likewise.'
+        negative: 'CTRL-25519 must return the same size-2 exceptional set.'
+        'null': 'a synthetic Montgomery curve with A~^2-4 a SQUARE must return a size-4 exceptional set - the discriminating null for this diagnostic.'
+      budget: '60 s'
+      stopping_rule: single pass
+      falsifier: 'the exceptional set has size other than 2; or CTRL-P224 yields a Montgomery model.'
+      limitation: 'Enumerates exceptional sets of the maps as WRITTEN in pages/verify.txt and pages/equation.txt. Other implementations may use other maps with other exceptional sets; this is not a survey.'
+
+    - id: D7
+      name: scalar and multiscalar formula exceptional-case search
+      status: planned_with_declared_scope_cut
+      priority: 3
+      mechanism: >-
+        Search for inputs on which specific published formulas fail, on M-383 itself, using
+        generated public points only. Scope: (i) the Montgomery ladder differential-addition
+        formula - search for Z = 0 states over a bounded random scalar/point sample;
+        (ii) the standard incomplete short-Weierstrass affine addition - deliberately trigger
+        Q = P and Q = -P and confirm failure (this must fire, it is the known case); (iii) the
+        complete Edwards law on the birationally equivalent twisted Edwards model - search for
+        a failure and predict NONE, since completeness is a theorem given L10's non-square
+        condition.
+      quantitative_prediction: >-
+        (i) zero ladder failures in 10^5 random (n, P) trials, since 2006 Bernstein's theorem
+        applies once A^2-4 is a non-square (L10); (ii) 100% failure rate on the two planted
+        Weierstrass cases; (iii) zero Edwards failures in 10^5 trials. A single (i) or (iii)
+        failure would contradict a theorem and is far more likely an implementation bug -
+        the lane pre-commits to treating it as a bug until independently reproduced.
+      certificate: 'the seeded sample list, the failure counts, and the two planted failures with their inputs. Re-runnable from the seed.'
+      controls:
+        positive: 'the planted Weierstrass Q = P and Q = -P cases (ii) - if they do not fail, the harness is not exercising the formula.'
+        negative: 'CTRL-25519 - identical structure, must also show zero ladder failures.'
+        'null': 'run the identical search on a synthetic Montgomery curve with A~^2-4 a SQUARE, where the completeness theorem does NOT apply; failures must appear there. THIS IS THE DISCRIMINATING NULL: a search that finds nothing everywhere has no resolving power.'
+      budget: '600 s (10^5 trials x 3 formula families in pure Python at 383 bits)'
+      stopping_rule: 'stop at 10^5 trials per family or at 600 s; report the count reached.'
+      falsifier: 'any ladder or Edwards failure on M-383; or zero failures on the square-A^2-4 null; or the planted Weierstrass cases not failing.'
+      limitation: >-
+        A BOUNDED RANDOM SEARCH, not a proof of absence. 10^5 samples cannot exclude a
+        failure set of density below ~10^-5, and the report must state that bound rather
+        than saying "no exceptional cases found". No timing or side-channel property is
+        measured.
+      declared_scope_cut: >-
+        Multi-scalar formulas are covered only for the Edwards law (iii). A survey of
+        published multi-scalar algorithms is out of budget and is NOT attempted; recorded as
+        untested scope rather than silently omitted.
+
+    - id: D8
+      name: deterministic parameter-generation transcript audit
+      status: DEFERRED_WITH_BOUND
+      priority: 3
+      mechanism: 'Identical to lane L7 parts 7a/7b. Recorded here for coverage of the declared list; not a second proposal.'
+      quantitative_prediction: 'as L7'
+      certificate: 'as L7 - none claimed for M-383; explicit bound (N, M) only.'
+      controls: 'as L7'
+      budget: 'covered by L7'
+      stopping_rule: 'as L7'
+      falsifier: 'as L7'
+      limitation: 'as L7'
+      deferral_reason: >-
+        The generation transcript for M-383 is not in any retrieved source: SafeCurves'
+        rigid cell for M-383 is empty (capsule CONFLICT-2) and the rigid value is a script
+        INPUT, not an output. The only located primary source is ePrint 2013/647, which this
+        role could not retrieve faithfully (capsule UNRETRIEVED-1).
+      successor_condition: >-
+        (i) a Bash-capable staging task mirrors ePrint 2013/647 with per-file sha256;
+        (ii) the Coordinator approves a point-counting dependency or accepts the scaled-down
+        64-bit reproduction with its declared transfer assumption. Both are cheap and
+        neither requires new mathematics.
+
+  # ===========================================================================
+  # 5. EXECUTION ORDER, TOTAL BUDGET, AND WHAT WOULD STOP THE CAMPAIGN
+  # ===========================================================================
+  execution_order:
+    rationale: >-
+      Cheapest decisive first, controls before belief, and every lane that consumes the
+      published prime list gated behind the lane that verifies it.
+    sequence:
+      - 'Stage 0 (BLOCKING, ~150 s): the control registry - build every control curve from the mirror, run NULL-PRIMELIST-SHUFFLE (a),(b),(c). If (b) or (c) does not break the pipeline, STOP: every list-consuming lane is void.'
+      - 'Stage 1 (~215 s): L1, L2, L3 - field, equation, base. These establish the tuple is internally consistent and produce (x0,y0). Nothing downstream is meaningful if L3 fails.'
+      - 'Stage 2 (~30 s): L10, L11, L8 - three closed-form Legendre/root checks, the cheapest criteria in the plan and the ones with the sharpest single-modexp certificates.'
+      - 'Stage 3 (~10 s): L4 - rho arithmetic.'
+      - 'Stage 4 (~880 s): L5/D4, L6, L9, D1, D2 - the certificate-heavy ECDLP lanes, all gated on Stage 0.'
+      - 'Stage 5 (~840 s): D3, D5, D6, D7 - the remaining diagnostics.'
+      - 'Stage 6 (~600 s, may be dropped): L7/D8 in its bounded form.'
+    total_estimated_compute: '~2725 s across all stages, within the goal campaign budget of 18000 s with room for two full re-runs.'
+    cheapest_decisive_subset: >-
+      Stage 0 plus Stage 1 plus Stage 2, about 400 s. That subset already settles whether the
+      parameter tuple is self-consistent and reproduces four of the eleven criteria
+      (equation, base, complete, ind) with succinct certificates, and it exercises every
+      positive control that the later lanes depend on.
+  campaign_stop_conditions:
+    - 'Any positive control failing to fire: the affected lanes are void and report instrument failure, not mathematics.'
+    - 'NULL-PRIMELIST-SHUFFLE (b) or (c) not breaking the pipeline: all list-consuming lanes void.'
+    - 'A material finding under L5 or L6 (a degenerate flag firing, or |D| <= 2^100): STOP and route to independent review-breakthrough scrutiny before any statement leaves the repository, per IDEA-20260807-98a970''s pre-commitment.'
+    - 'Budget exhaustion: report measured coverage, name the untested lanes, do not extrapolate. An operational stop, never mathematical evidence.'
+  what_this_plan_cannot_conclude:
+    - 'Nothing here can conclude that M-383 is safe, unsafe, vulnerable, or free of vulnerabilities, and no lane''s success authorizes such a statement.'
+    - 'Full reproduction of all eleven cells would establish that this program''s independent recomputation AGREES with SafeCurves'' published outputs on these parameters. It would not establish that the SafeCurves criteria are the right criteria.'
+    - 'Lane L7/D8 is deferred with a named successor condition; until it is met the rigid cell stands unreproduced and must be reported as such in any dossier.'
+    - 'Every factorization is verified against a list supplied by the audited party (ENV-2), and every citation must carry that qualifier.'

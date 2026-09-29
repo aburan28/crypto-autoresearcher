@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-BLAKE-57a74e
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-e4d944; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-e4d944
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Solve for minimum trail weight on six arms -- two primitives and one random null, each with
+    message words free and with message words held constant -- at matched rounds and seeds, and report
+    the message-freedom contribution F(r) with its null comparator.
+  objective: 'The one uncertainty a run reduces is how much of a per-round trail-weight bound is carried
+    by message freedom rather than by the ARX layer. Decomposed: (i) whether message freedom is cleanly
+    separable in the encoding, established by a structural diff showing the constant arm differs from
+    the free arm only in message-variable declarations and injection constraints -- because if it
+    is not separable, F(r) is a difference between two different models rather than between two configurations
+    of one; (ii) what F(r) = W_constant(r) - W_free(r) is for each real parameterisation over the
+    round range where both arms return rows of matched optimality status, with the seed band carried
+    through and with the sign control (F >= 0) treated as an impossibility test on the encoding rather
+    than as a finding; (iii) whether the instrument registers message freedom at all and how much
+    a schedule grants by chance, established by running the identical free/constant pair on three
+    random-parameter ARX nulls in the same invocation. A run does NOT reduce uncertainty about ChaCha,
+    about attack cost, about full-round behaviour, or about whether any round count is adequate.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: under encoding E at hash H,
+      solver S version V, ceiling C, machine M, the message-freedom contribution to the minimum trail
+      weight is F_BLAKE3(r) and F_BLAKE2s(r) over the matched-optimality round range [r_lo, r_hi],
+      with seed bands b(r), against null contributions F_null(r) with spread s_null(r), and with solve-time
+      ratios T(r) recorded. What does NOT follow: any statement about ChaCha, whose quarter-round
+      shape the constant arm resembles and whose constants, word permutation, round count and mode
+      it does not share; any statement about attack cost, security margin, or full-round BLAKE3; any
+      reading of F(r) as a security decomposition rather than as a decomposition of one bound in one
+      model; and any value of F outside [r_lo, r_hi].'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time): reuse the pinned, vector-validated references and the
+      parameter-only generator from the transfer-curve experiment; confirm hashes. STAGE 1 (cost:
+      minutes, zero solver): add the null-schedule argument (constant injected word); structural-diff
+      the constant-arm constraint set against the free-arm one and require the difference to be confined
+      to message declarations and injection constraints; HALT on failure. STAGE 2 (cost: minutes):
+      solve r = 2,3 on all six arms at three seeds; run the sign control, the degeneracy diagnostic
+      and the null-nonzero check; HALT on any failure. STAGE 3 (cost: bulk of compute): sweep r upward
+      on all six arms, three seeds, per-point ceiling enforced, recording optimality status per row.
+      STAGE 4 (cost: low): second-constant re-run -- repeat the constant arms with a nonzero injected
+      constant at the same rounds. STAGE 5 (cost: low): compute F, dF/dr, bands, null comparison;
+      restrict to matched-status rows; write the run record with all hashes, seeds, ceilings, statuses
+      and the discarded-row count.'
+    instrument: Python 3.11 with PySAT and CaDiCaL, reusing the transfer-curve experiment's CNF generator
+      unchanged except for one added argument selecting the schedule table or a constant-injection
+      null schedule. Pinned BLAKE3 and BLAKE2s C references via ctypes for the vector gate; pure-Python
+      re-implementations for encoding ground truth. Orchestration, seeds, manifests and the inference
+      block via harness/runner.py. No Sage. No arm-specific solver tuning.
+    parameters: 'Six arms: {BLAKE3, BLAKE2s, random-null} x {message free, message constant}; the
+      random null instantiated at three independent parameterisations, giving 3 extra arm-pairs. Rounds
+      swept from 2 upward, ceiling-bound; expected matched-status range 2 to 5. Three seeds per (arm,
+      r). Injected constant: zero for the primary constant arm, and one nonzero constant (0x9E3779B9
+      repeated) for the second-constant control. Per-point wall-clock ceiling 1800 seconds, identical
+      across arms; memory cap 8 GB. Total: up to 12 arm-configurations x 3 seeds x up to 5 rounds,
+      plus the second-constant subset.'
+  controls:
+  - Random-parameter ARX null run in BOTH free and constant configurations in the same invocation,
+    three parameterisations, giving F_null and its spread.
+  - 'Structural diff at stage one: the constant-arm constraint set must differ from the free-arm one
+    only in message-variable declarations and injection constraints.'
+  - 'Sign control: F(r) >= 0 on any pair of rows with matched optimality status; a negative value
+    halts analysis as an encoding defect.'
+  - 'Degeneracy diagnostic: solve-time ratio between arms recorded per round and required to exceed
+    2x before F(r) at that round is interpreted.'
+  - 'Optimality-status matching: F is computed only between rows of identical status, with proved
+    and lower-bound ranges reported on separate lines.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The null is a random-parameter ARX permutation of the same shape (random
+    rotation constants, random schedule table) run in BOTH configurations -- free and message-constant
+    -- in the same invocation, at the same rounds, ceilings and seeds, yielding F_null(r). What the
+    null must show for the signal arm to mean anything: F_null(r) must be nonzero somewhere in the
+    reached range, establishing that the instrument registers message freedom at all, AND the real
+    F(r) values must be read against F_null(r)''s spread rather than against zero. If F_null(r) equals
+    F(r) within the band for both primitives, the message-freedom contribution is a property of ARX-with-a-schedule
+    generally and not of either design''s schedule, which is a complete and reportable result but
+    not an attribution. If F_null(r) is identically zero while the real F(r) is not, the null''s random
+    schedule failed to grant freedom for a structural reason that must be found before the real numbers
+    are trusted. Three independent null parameterisations are run so F_null has its own measured spread.'
+  independent_variables:
+  - message configuration (free | constant-zero | constant-nonzero)
+  - design parameterisation (BLAKE3 | BLAKE2s | null-1 | null-2 | null-3)
+  - round count r
+  - solver seed
+  metrics:
+    primary:
+    - W_free(r) and W_constant(r) per arm with optimality status
+    - F(r) per arm per round
+    - F_null(r) and its spread
+    - solve-time ratio free/constant per round
+    - matched-optimality round range [r_lo, r_hi]
+    secondary:
+    - dF/dr per arm
+    - seed band per point
+    - F under the nonzero injected constant
+    - count of rows discarded by the status-matching rule
+    - constraint counts per arm
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: the sign of F(r) on matched-status rows, and the rule by which a difference
+      between the two primitives'' F curves would be called resolved.'
+    formula: 'F(r) = W_constant(r) - W_free(r) >= 0 is predicted for every pair of rows sharing optimality
+      status, as a strict consequence of removing a source of slack from the model; a measured F(r)
+      < 0 falsifies the encoding, not the design. Frozen reading rule for the cross-primitive comparison:
+      DeltaF(r) = F_BLAKE3(r) - F_BLAKE2s(r) is reported as resolved if and only if |DeltaF(r)| >
+      2*sqrt(b3(r)^2 + b2(r)^2) AND |DeltaF(r)| > max over null parameterisations of |F_null(r) -
+      median F_null(r)|; otherwise it is printed as unresolved with all comparators shown.'
+    source: Pre-registered in the parent proposal IDEA-20260816-e4d944 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at round counts 2 to roughly 5 against designs shipping at 7 and 10 rounds;
+      a toy tier, labelled as such. NO EXTRAPOLATION beyond the matched-status range is performed
+      or implied, and the record states that the rounds a design argument concerns are rounds this
+      run did not reach. The only within-run transfer assumed is that both message configurations
+      of the same parameterisation experience the same solver regime at the same r, which is checked
+      by comparing constraint counts and optimality status rather than assumed -- and the solve-time
+      ratio prediction exists partly to detect when it fails.
+    correspondence: null
+  tail_checks:
+  - Inspect the largest matched-status round individually, since the free arm's ceiling sets the range
+    and its last row is the most fragile.
+  - Check whether the constant arm's easy rows tempted any mismatched differencing, by auditing the
+    discarded-row count against the total.
+  - Compare F under the zero and nonzero injected constants at every shared round; a large discrepancy
+    means F is constant-specific.
+  - Verify that no null parameterisation accidentally drew a schedule granting near-zero freedom,
+    which would deflate F_null.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - HALT at STAGE 1 if the structural diff shows differences beyond message declarations and injection
+    constraints.
+  - HALT at STAGE 2 if F(2) or F(3) is negative on matched-status rows, or if F_null is identically
+    zero.
+  - Stop the sweep at the first round where the free arm returns no comparable row; that sets r_hi.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if the structural diff is clean, F(r) is non-negative on every
+    matched-status pair, F_null is nonzero somewhere in range, and F(r) is reported for both primitives
+    over a stated matched-status range of at least two rounds with bands, null comparators and solve-time
+    ratios printed -- regardless of whether the cross-primitive difference resolves.
+  falsification_criterion:
+  - Structural diff shows an unclean ablation.
+  - F(r) < 0 on matched-status rows.
+  - Solve-time ratio near 1 across the whole range.
+  - F_null identically zero.
+  - Empty matched-status round range.
+  - F differs materially between the zero and nonzero injected constants, making the result constant-specific.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-e4d944
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The exact injection form (additive into which state words, at which point in the round) is read
+    from pinned primary text that is not yet filed as KN-LIT; RQ-BLAKE-584719's first constraint blocks
+    approval.
+  - This control does NOT satisfy GOAL-BLAKE-001's stated ChaCha-frontier gate; a Coordinator must
+    decide explicitly whether it stands alongside that gate or whether the gate remains blocking,
+    and this record does not presume to relax it.
+  - The choice of nonzero injected constant is arbitrary and a Coordinator should either accept it
+    or specify a principled second value.
+  - Whether the transfer-curve experiment has run, since this one reuses its generator and its structural-diff
+    identity proof; sequencing must be set.

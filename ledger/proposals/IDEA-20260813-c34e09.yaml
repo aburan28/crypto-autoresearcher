@@ -1,0 +1,225 @@
+idea:
+  id: IDEA-20260813-c34e09
+  title: >-
+    Orbit-quotient continuous-time quantum walk over the Z_n automorphism of
+    the ISD search graph -- a per-instance graph-quotienting screen
+  class: control
+  claim: >-
+    Quotienting the quantum-walk search graph used by Kachigar-Tillich-style
+    algorithms (vertices = candidate information sets / representation-
+    technique list states) by the size-n cyclic automorphism group Z_n of
+    the quasi-cyclic code does NOT yield a valid smaller search graph for
+    the walk, because the marked-vertex predicate (does this information set
+    avoid the fixed, non-symmetric error support) is not Z_n-invariant for
+    any single instance, so orbit-quotienting breaks the walk's correctness
+    rather than shrinking its state space for free. This discriminates
+    between "the cyclic automorphism gives a free n-fold graph-size
+    reduction" and "it does not, because the per-instance marked set is
+    generically asymmetric" -- a closure-shaped candidate.
+  mechanism: >-
+    A continuous-time or Szegedy discrete-time quantum walk searches a graph
+    G for marked vertices; if G carries a group action and the marked set is
+    a UNION of full orbits, one can legitimately search the smaller quotient
+    graph G/Aut(G) instead, exactly as symmetry-reduction techniques do in
+    classical search. HQC's quasi-cyclic code has cyclic automorphism group
+    Z_n (n prime) acting on the coordinate set, inducing an action on the
+    Johnson-graph-like search space of size-p information sets. The
+    mechanism under test: does the marked set (information sets L that
+    avoid the ACTUAL, FIXED error support e) form a union of Z_n-orbits,
+    which would let the walk search the n-times-smaller quotient graph for a
+    free polynomial factor-n speedup on top of Kachigar-Tillich's existing
+    walk?
+  novelty_status: unverified
+  assumptions:
+    - >-
+      HQC's ring is R = F_2[X]/(X^n - 1) with n prime, giving cyclic
+      automorphism group Z_n acting freely and transitively on the n
+      coordinates.
+  proof_search_map:
+    bottleneck: >-
+      The single fact determining whether orbit-quotienting is valid: is
+      the marked predicate "L avoids supp(e)" invariant under the shift
+      generator of Z_n? Equivalently, is supp(e) itself Z_n-invariant?
+    baseline_embedding:
+      parameter_slice: not_applicable
+      reproduction_check: >-
+        not_applicable -- this is a structural yes/no question about the
+        existing Kachigar-Tillich walk's marked set, not a family extension
+        with an old-method boundary case.
+    observation_collision:
+      observable: >-
+        The marked-set indicator function 1[L avoids supp(e)] as a function
+        on the vertex set of the search graph.
+      distinct_preimage_search: >-
+        AUDIT PERFORMED, COLLISION FOUND, DIRECT FALSIFIER. supp(e) is a
+        SPECIFIC, FIXED subset of the n coordinates chosen once per problem
+        instance (uniformly at random among weight-w supports, but FIXED
+        for the given challenge). For n prime, the only subsets fixed
+        setwise by the full cyclic group are the empty set and the full
+        coordinate set (since every nontrivial orbit under a free
+        transitive action of Z_n has size exactly n, so any invariant
+        subset's size is a multiple of n; no multiple of n lies strictly
+        between 0 and n). Therefore the marked set 1[L avoids supp(e)] is
+        emphatically NOT invariant under the shift for the actual, single
+        instance being attacked (0 < w < n), and orbit-quotienting the
+        graph would silently search a quotient graph whose vertices no
+        longer correspond to a well-defined yes/no answer: some
+        representatives of an orbit would be marked and others not. This is
+        a direct, cheap, algebraic falsifier requiring no compute.
+    constructive_transforms: []
+    quantifier_order: >-
+      The claim under test was: THERE EXISTS a valid smaller search graph
+      G/Z_n on which the SAME marked-item search problem can be run. The
+      audit shows that for the actual (fixed, single) instance under
+      attack, no such consistent quotient exists, because invariance would
+      require the instance's error support to be a union of Z_n-orbits,
+      which happens only for the two trivial (weight 0 or n) supports --
+      directly contradicting the needed existential witness for any
+      nontrivial weight w.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        None for the direct per-instance orbit-quotient construction;
+        ceiling is zero.
+      nearby_object_control: >-
+        Applied the same question to DOOM's actual construction
+        (IDEA-20260813-a46301's tracked object): DOOM does NOT quotient the
+        search graph -- it keeps the FULL graph and instead runs ONE search
+        against n DIFFERENT target syndromes in parallel (an amplitude/list-
+        amortization gain, not a graph-size reduction). The nearby-object
+        comparison shows exactly why DOOM works and orbit-quotienting does
+        not: DOOM changes what counts as "marked" (any of n shifted
+        targets) without changing the graph, while this proposal tried to
+        change the GRAPH ITSELF assuming the marked set was already
+        symmetric, which it is not. This sharpens the boundary between the
+        two proposals rather than duplicating IDEA-20260813-a46301.
+    proof_obligations:
+      - claim: >-
+          supp(e) is Z_n-invariant only for weight 0 or n, for n prime.
+        responsibility: correctness
+      - claim: >-
+          This closure is scoped to the per-instance orbit-quotienting
+          construction and does not address multi-instance/DOOM-style
+          folding (that is IDEA-20260813-a46301's separate, surviving
+          object).
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        Fraction of randomly sampled weight-w supports (w in HQC's actual
+        sparse weight regime) that are Z_n-invariant
+      direction: lower
+      minimum_effect: >-
+        Predicted exactly 0 for all 0 < w < n, n prime, matching the
+        group-theoretic argument with no sampling required.
+  minimal_test:
+    design: >-
+      A one-line combinatorial check (not requiring simulation): for n
+      prime and 0 < w < n, a weight-w subset of Z_n fixed setwise by the
+      generator of Z_n must be a union of orbits of size n (since Z_n acts
+      freely and transitively on itself), so any invariant subset has size
+      that is a multiple of n; since 0 < w < n, no such subset can be
+      invariant. This is verified symbolically, not empirically, and is
+      offered as the entirety of the required test.
+    controls:
+      - >-
+        None needed beyond the symbolic argument itself, since the claim is
+        a deterministic combinatorial fact, not a statistical one; a toy
+        n=7 brute-force enumeration of all C(7,w) subsets for w=1..6 is
+        included as a redundant sanity check against transcription error in
+        the group-theory argument, not as independent evidence.
+    required_metrics:
+      - >-
+        Count of Z_n-invariant weight-w subsets for toy n=7, w=1..6
+        (predicted 0 for all)
+  falsification_conditions:
+    - >-
+      The toy n=7 brute-force enumeration finds ANY Z_n-invariant weight-w
+      subset for 0<w<7 -- this would indicate an error in the group-
+      theoretic argument itself (extremely unlikely given its elementary
+      nature, but included per the falsification requirement) and would
+      require withdrawing the closure.
+  confounders:
+    - >-
+      This closure addresses only the DEFAULT random-error-generation
+      setting; it says nothing about a hypothetical adversarial or
+      degenerate instance where an attacker or a faulty implementation
+      happened to produce a shift-invariant error pattern -- such an
+      instance is a measure-zero, off-path scenario and is explicitly out
+      of scope.
+  interpretation_limits:
+    - >-
+      This is a closure-shaped proposal, held to docs/inventor-protocol.md
+      section 4's standard: a named obstruction (weight-w subsets can't be
+      Z_n-invariant for prime n, 0<w<n), an argument (orbit-size
+      divisibility under a free transitive action), and forward guidance
+      (DOOM-style multi-target folding, IDEA-20260813-a46301, is the
+      surviving way to use the SAME cyclic structure; a per-instance graph-
+      quotient is not).
+    - >-
+      Says nothing about non-prime-n quasi-cyclic constructions, which some
+      code-based schemes use (not HQC, which uses prime n) -- explicitly
+      out of scope.
+  heuristic_assumptions: []
+  target_complexity:
+    time_exponent: not_applicable
+    memory_exponent: not_applicable
+    best_known: >-
+      Kachigar-Tillich (2017, KN-LIT-80202e), stated for comparison only.
+    hidden_overhead: not_applicable
+    tradeoff_note: not_applicable
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: low
+
+object_first_screen:
+  established_families_forbidden_as_primary_lens:
+    - >-
+      Grover-only exhaustive search over information sets (Bernstein 2010,
+      KN-LIT-4144).
+    - >-
+      Quantum-walk-accelerated MMT/BJMM representation-technique ISD
+      (Kachigar-Tillich 2017, KN-LIT-80202e).
+    - >-
+      Circuit/qubit/memory-resource-axis refinements of the above (see
+      IDEA-20260813-a46301's list).
+  tracked_object: >-
+    The Z_n-orbit (equivalence class under cyclic coordinate shift) of a
+    candidate information set L, in place of L itself.
+  novelty_axis: >-
+    A genuinely distinct object from both IDEA-20260813-a46301 (shift-label
+    REGISTER, graph unchanged) and IDEA-20260813-5a2aaa (field-residue
+    projection) -- this one asks about quotienting the GRAPH itself; no
+    corpus hit found addressing this specific construction for ISD search
+    graphs.
+  testability_axis: >-
+    Directly testable, symbolically, at zero compute cost, as shown in
+    minimal_test.
+  survival_axis: >-
+    Survives zero steps past the observation-collision audit -- the object
+    dissolves immediately on the algebraic argument. This is exactly the
+    KN-TECH-056 pattern of a cheap, purely algebraic "is this actually
+    new/valid" check catching a dead end before any compute is spent.
+  lossy_projection_test: >-
+    FAILS the lossy-projection test directly, in the spirit of docs/
+    inventor-protocol.md section 2 (though not the identical (Delta, Pi)
+    example): the orbit-quotient projection L -> [L] discards which
+    specific shift representative was tested, and this discarding is NOT
+    compatible with the target's actual marked-predicate operation, because
+    that predicate depends on the FIXED, non-symmetric supp(e) and
+    therefore does NOT factor through the quotient map. This is precisely
+    "what discarded state must be discarded compatibly with the target's
+    operations" failing -- except here the failure is even more direct: the
+    quotient isn't merely uninformative, it produces an ILL-DEFINED marked
+    set.
+
+dominated_by: n/a (no result claimed)
+sota_delta: no attack; conceptual/measurement contribution only
+
+novelty_check:
+  corpus_status: >-
+    No corpus entry addressing per-instance automorphism-orbit graph
+    quotienting for ISD-style quantum-walk search was found.
+  web_status: >-
+    WebSearch tool failed on all three queries attempted in this task
+    (infrastructure error, not a null result); not independently checked.

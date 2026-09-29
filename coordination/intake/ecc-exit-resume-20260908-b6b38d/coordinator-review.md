@@ -1,0 +1,15 @@
+The three proposed schema views preserve the meaning of their source records. I conditionally approve only the exact replacement bytes bound by DEC-20260908-ae1929.
+
+The canonical schema represents an absence of knowledge promotion with `promoted: []` and a reason in `not_warranted`. Each original value is already such a reason. Keeping that value verbatim loses no information and adds no finding:
+
+- DEC-20260908-5bb3bb: `not_applicable_completeness_check` becomes the unchanged `not_warranted` value, with an empty `promoted` list.
+- DEC-20260908-f0cdca: `not_applicable_protocol_filing` becomes the unchanged `not_warranted` value, with an empty `promoted` list.
+- DEC-20260908-f19752: `not_applicable_authorization` becomes the unchanged `not_warranted` value, with an empty `promoted` list.
+
+I directly read all three complete originals and their proposed replacements. The current originals match the packet text and declared original hashes. Every replacement hash matches, each original contains exactly one targeted field, and replacing that one line produces the proposed text exactly. The inverse replacement restores every original byte. Thus all content outside this field is byte-identical; root will additionally verify parsed-field equality and schema acceptance using its canonical tools. These were administrative byte checks through the Node tool, not shell commands or scientific experiments.
+
+The scope distinctions are preserved. DEC-20260908-f0cdca files a protocol without authorizing its execution; DEC-20260908-5bb3bb records completeness without authorizing the 4096-spare execution; DEC-20260908-f19752 already authorizes its stated Stage 14 scope. The mapping leaves each record's own authorization, exclusions and historical status statements intact. This review neither grants those permissions again nor withdraws or expands them. It does not independently confirm the scientific or operational assertions quoted in those originals.
+
+Approval remains conditional on root creating the exact bound views, preserving original records, registering only the governed schema supersessions, verifying all fields and hashes, obtaining scoped and full-ledger PASS, and completing the isolated archive under TASK-20260908-22a6aa. Root owns the replacement files, registry, commands, Git, global validation, archive receipt and publication. Only this review and DEC-20260908-ae1929 were written by this Coordinator. No future validation or commit receipt is invented, and the prerequisite is not declared cleared by this review alone.
+
+The native Coordinator session was available to produce this review. The exact serving model identity has not been independently resolved or verified by an adapter probe in this task; the decision records `resolved_model_id: null` and `model_verified: false`. I make no account-wide availability claim, no independent scientific-review attestation, and no claim that a required review tier was tested. No fallback, degradation, scientific run or Lean run occurred.

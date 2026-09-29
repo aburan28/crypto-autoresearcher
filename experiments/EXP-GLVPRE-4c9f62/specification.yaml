@@ -1,0 +1,247 @@
+experiment:
+  id: EXP-GLVPRE-4c9f62
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    Multi-target amortization experiment. It measures reuse of target-independent
+    algebra and GLV character blocks; it does not assert that preprocessing
+    changes single-target ECDLP complexity.
+  question_id: RQ-EQIC-8cb959
+  related_question_ids:
+    - RQ-ICPERF-94c86e
+    - RQ-EQJ-001
+    - RQ-EQLA-0d3f40
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    GLV-aware algebraic preprocessing reuse: target-specialized F4/function-first
+    solves from a cached character-block template
+
+  objective: >-
+    Measure how much of the point-decomposition workload on a fixed j=0 curve
+    and fixed GLV-closed factor base can be computed once and reused across many
+    non-GLV-equivalent targets. The experiment separates ordinary target-independent
+    preprocessing from any additional reuse enabled by the C3 decomposition, and
+    reports the break-even target count at which stored preprocessing pays for itself.
+
+  scope_boundary:
+    multi_target_only: >-
+      This is a fixed-curve, many-target workload. Precomputation time, memory,
+      serialized bytes, and cache-build I/O are fully charged and reported.
+    no_free_advice: >-
+      No target-derived object may enter the reusable cache. Cache keys contain
+      only curve parameters, factor-base definition, decomposition size, term
+      order/solver version, and GLV representation metadata.
+    no_relation_cache: >-
+      Exact target solutions/relations are not reusable preprocessing. Storing
+      them is a different experiment and is forbidden in the primary arms.
+
+  reusable_objects:
+    ordinary_static: >-
+      Target-independent factor-base membership equations, monomial dictionaries,
+      term-order metadata, fixed Macaulay row templates, function-first fixed-span
+      elimination, and solver-specific immutable setup that is valid for every target.
+    GLV_static: >-
+      Exact C3 action matrices, character projectors/block maps, GLV-closed support
+      polynomial representation, block monomial orderings, and reconstructed
+      target-independent row-reduction state whose target validity can be proved.
+    target_specialization: >-
+      Only target coordinates/right-hand sides and equations that mathematically
+      depend on them are computed online. Every cached object is audited to prove
+      target independence.
+
+  arms:
+    - id: ARM_COLD
+      description: >-
+        Rebuild every legal static object for every target, then solve.
+    - id: ARM_PRE_GENERIC
+      description: >-
+        Cache and reuse all target-independent objects available without GLV
+        character decomposition.
+    - id: ARM_PRE_GLV
+      description: >-
+        Cache ARM_PRE_GENERIC objects plus certified GLV character-block setup,
+        block row-reduction state, and function-first fixed-span quotients.
+    - id: ARM_ORBIT_CACHE
+      description: >-
+        Canonicalize only GLV-equivalent target orbits as in EXP-GLVCAN-468fb2.
+        This isolates trivial exact-target reuse from preprocessing that transfers
+        to non-equivalent targets.
+    - id: NULL_BAD_KEY
+      description: >-
+        Deliberately omit one frozen semantic cache-key field such as factor-base
+        hash on a test-only fixture. The verifier must detect incompatible reuse
+        before accepting any relation.
+
+  inputs:
+    procedure: >-
+      Stage 0 classifies every candidate cached artifact as target-independent or
+      target-dependent and archives a dependency manifest. Stage 1 runs ARM_COLD
+      on the frozen target stream and records phase boundaries. Stage 2 builds the
+      generic cache once and replays the same targets. Stage 3 builds the GLV cache
+      once and replays the same targets, recording cache reads and reconstructing
+      the exact specialized system hash before each solve. Stage 4 runs the orbit
+      cache arm. Stage 5 repeats with fresh non-equivalent targets to ensure no
+      target solution leaked into preprocessing. Stage 6 computes break-even T*
+      from measured setup and online costs without extrapolating beyond the
+      measured target-count ladder.
+    target_count_ladder: [1, 3, 10, 30, 100, 300, 1000]
+    parameter_grid:
+      bit_sizes: [10, 12, 14, 16]
+      decomposition_sizes: [3, 4]
+      seeds: [20260918, 20260919, 20260920]
+      solver_families:
+        - strongest_matched_F4_backend
+        - current_function_first_backend
+      cache_backends: >-
+        Primary scientific comparison uses an in-process immutable cache to
+        measure mathematical reuse. If Redis/ElastiCache integration is available,
+        repeat serialization/I/O measurements as an engineering sub-arm; never
+        attribute network/cache-service effects to GLV mathematics.
+
+  controls:
+    - >-
+      Target-independence audit: perturb only the target and require every cache
+      object hash to remain unchanged.
+    - >-
+      Specialized-system equality: ARM_COLD, ARM_PRE_GENERIC, and ARM_PRE_GLV
+      must emit algebraically identical target-specialized systems before solving.
+    - >-
+      Fresh-target replay: no cache entry may contain target coordinates, target
+      hashes, solver assignments, learned clauses tied to assumptions, or relations.
+    - >-
+      NULL_BAD_KEY must be rejected by semantic verification.
+    - >-
+      ARM_ORBIT_CACHE quantifies the separate benefit of exact GLV target
+      canonicalization so it cannot be mislabeled preprocessing reuse.
+    - >-
+      Every returned relation is independently curve-verified.
+
+  metrics:
+    primary:
+      - preprocessing_build_seconds
+      - preprocessing_bytes
+      - preprocessing_peak_rss_bytes
+      - cache_serialization_seconds
+      - cache_load_seconds
+      - target_specialization_seconds
+      - solver_seconds_per_target
+      - total_online_seconds_per_target
+      - total_charged_seconds_at_each_target_count
+      - break_even_target_count_T_star
+      - verified_relations
+      - seconds_per_verified_relation
+    secondary:
+      - reusable_macaulay_rows
+      - reusable_macaulay_nnz
+      - reusable_character_block_bytes
+      - reusable_fixed_span_rank
+      - target_dependent_row_count
+      - target_dependent_nnz
+      - specialized_system_hash_matches
+      - cache_hit_rate
+      - cache_miss_reason_histogram
+      - Redis_round_trip_seconds_if_run
+      - Redis_bytes_if_run
+      - charged_ratio_PRE_GLV_over_PRE_GENERIC
+      - charged_ratio_PRE_GLV_over_COLD
+
+  benchmark_contract:
+    incumbent: ARM_COLD
+    generic_reuse_control: ARM_PRE_GENERIC
+    exact_orbit_reuse_control: ARM_ORBIT_CACHE
+    icperf_reference: RQ-ICPERF-94c86e
+    decision_metric: >-
+      Charged total time at each measured target count and break-even T*. A lower
+      online time with uncharged preprocessing is not a result.
+    success_threshold: >-
+      ARM_PRE_GLV must beat ARM_PRE_GENERIC by at least 20% in online
+      specialization-plus-solve time on non-equivalent targets and reach a
+      measured break-even T* no larger than 100 targets at two consecutive
+      bit sizes. If it only reduces cache bytes or setup memory, report that
+      separately without a time-speedup label.
+    single_target_rule: >-
+      At target_count=1 all preprocessing is charged in full. Any treatment that
+      loses there is recorded honestly; multi-target amortization does not imply
+      a single-target attack improvement.
+
+  preregistered_predictions:
+    - >-
+      Ordinary preprocessing will capture much of the target-independent work;
+      GLV can add benefit only where character/block decomposition makes that
+      reusable state smaller or cheaper to specialize.
+    - >-
+      F4 may permit less safe reuse than function-first fixed-span elimination,
+      because target specialization can change critical pairs and pivot structure.
+    - >-
+      Exact GLV-orbit target caching can approach a 3x solver-call reduction on a
+      synthetic orbit-expanded stream, but it should not help genuinely
+      non-equivalent targets; this experiment separates those effects.
+
+  scale_relevance:
+    tier: toy
+    transfer_note: >-
+      Fixed-curve preprocessing is operationally relevant to standardized curves
+      such as secp256k1, but storage and online-solve scaling are measured only on
+      the declared toy ladder. No cryptographic-size amortized complexity is inferred.
+
+  stopping_rules:
+    - Stop if specialized-system equality fails before solver timing.
+    - Stop if any target-dependent object appears in a reusable-cache dependency audit.
+    - Preserve cold and warm phase timings separately.
+    - Do not tune the target-count ladder after observing T*.
+    - Keep cache-service failures separate from mathematical preprocessing outcomes.
+
+  invalidation_rules:
+    - Any cache hit changing the specialized mathematical system invalidates the run.
+    - Any cache containing target solutions or relations invalidates the primary experiment.
+    - Any comparison omitting preprocessing build time/bytes is invalid.
+    - Any returned relation failing independent curve verification invalidates the run.
+    - Timeout, crash, cache outage, or memory exhaustion is infrastructure, never negative mathematical evidence.
+
+  success_criterion: >-
+    Produce an audited dependency split and matched cold/generic-preprocessed/
+    GLV-preprocessed/orbit-cached cost curves over the frozen target-count ladder,
+    with exact specialized-system equality and independent relation verification.
+
+  falsification_criterion:
+    - >-
+      Generic preprocessing captures essentially all reusable work, leaving less
+      than 20% incremental GLV benefit.
+    - >-
+      GLV block state is expensive to build or load and T* lies beyond the frozen
+      target-count ladder.
+    - >-
+      Target specialization changes enough algebraic state that the proposed GLV
+      F4 cache cannot be reused safely.
+    - >-
+      Apparent reuse comes only from exact GLV-equivalent targets and vanishes on
+      fresh non-equivalent targets.
+
+  required_artifacts:
+    - specification.yaml
+    - manifest.yaml
+    - command.txt
+    - environment.json
+    - raw-result.json
+    - dependency-manifest.json
+    - cache-key-schema.json
+    - cache-object-index.json
+    - specialized-system-hashes.jsonl
+    - target-costs.jsonl
+    - break-even-table.csv
+    - verification-report.json
+
+  source_refs:
+    - EXP-GLVCAN-468fb2
+    - EXP-GLVFF-3b7a1c
+    - EXP-GLVF-8dee36
+    - RQ-EQIC-8cb959
+    - RQ-ICPERF-94c86e
+    - research/ideas/glv_index_calculus_experiment_matrix.md
+
+  assigned_to: executor
+  approved_by: null

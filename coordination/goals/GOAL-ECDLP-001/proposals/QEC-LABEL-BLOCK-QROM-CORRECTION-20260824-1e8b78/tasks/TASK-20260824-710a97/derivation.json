@@ -1,0 +1,109 @@
+{
+  "schema": "crypto.autoresearch.blind_derivation.v1",
+  "task_id": "TASK-20260824-710a97",
+  "statement_id": "BLIND-QEC-LABEL-BLOCK-QROM-1e8b78",
+  "derivation_type": "independent_abstract_rederivation",
+  "producer_comparison": false,
+  "joints_owned": [],
+  "basis_permutation": {
+    "load": "L(l,q)=(l,q xor A(l))",
+    "requirements": [
+      "generic and exceptional bodies are total reversible permutations",
+      "case selectors are disjoint and exhaustive on enabled code-space inputs",
+      "all compute steps are reversed after use"
+    ],
+    "clean_subspace_action": "(l,R,0_work) -> (l,T_A(l)(R),0_work)",
+    "linear_extension": "A computational-basis permutation has a permutation matrix and therefore extends linearly to a unitary."
+  },
+  "direct_sum": {
+    "unitary": "U=sum_l |l><l| tensor T_A(l)",
+    "block_invariant": "address/sign label is never a target",
+    "equal_payload_block_merge": false,
+    "active_translation_multiplicity_per_basis_branch": 1
+  },
+  "exception_mask_transport": {
+    "input_mask": "mu=e_l(R_in)",
+    "output": "R_out=T_l(R_in)",
+    "pullback_mask": "e_bar_l(R_out)=e_l(T_l^{-1}(R_out))=mu",
+    "cleanup": "XOR e_bar_l(R_out) into stored mu, then reverse pullback scratch",
+    "invalid_shortcut_unless_invariant": "recomputing e_l(R_out) directly",
+    "invariance_condition_for_shortcut": "e_l composed with T_l equals e_l"
+  },
+  "alias_controls": {
+    "positive": {
+      "input": "alpha|2,0,R> + beta|3,1,R>",
+      "equal_payload": "+3A",
+      "output": "alpha|2,0,R+3A> + beta|3,1,R+3A>"
+    },
+    "mirror_negative": {
+      "input": "alpha|2,1,R> + beta|3,0,R>",
+      "equal_payload": "-3A",
+      "output": "alpha|2,1,R-3A> + beta|3,0,R-3A>"
+    },
+    "labels_unchanged": true,
+    "relative_phase_unchanged": true,
+    "work_zero_at_exit": true,
+    "exactly_one_translation_per_branch": true,
+    "payload_row_iteration_failure": "An alias branch matches more than one equal-payload row and is translated more than once."
+  },
+  "liveness": {
+    "boundaries": [
+      "t0 clean entry",
+      "t1 qROM record loaded",
+      "t2 comparison and exception mask computed",
+      "t3 mux selectors prepared",
+      "t4 selected translation completed and arithmetic-local work reversed",
+      "t5 mux work reversed",
+      "t6 pullback comparison completed and stored input mask cleared",
+      "t7 pullback scratch reversed",
+      "t8 inverse unload completed"
+    ],
+    "intervals_half_open": {
+      "qrom_record_Q": {"interval": "[t1,t8)", "width": "q(n,w)"},
+      "comparison_C": {"interval": "[t2,t6)", "width": "c(n,w)"},
+      "exception_mask_E": {"interval": "[t2,t6)", "width": "e(n,w)"},
+      "mux_M": {"interval": "[t3,t5)", "width": "m(n,w)"},
+      "arithmetic_W": {"interval": "[t3,t4)", "width": "a_b(n,w), b uniquely generic or exceptional"},
+      "pullback_P": {"interval": "[t5,t7)", "width": "p(n,w)"}
+    },
+    "exit_zero": ["Q", "C", "E", "M", "W", "P"]
+  },
+  "counts": {
+    "qrom_load_invocations": 1,
+    "qrom_inverse_unload_invocations": 1,
+    "active_body_invocations_per_enabled_label_block": 1,
+    "active_body_choice": "generic xor exceptional",
+    "fixed_mcx_layer": {"count": 272, "controls": 18},
+    "gate_kinds": ["X", "CX", "MCX_k"],
+    "comparison_polarities": "sum over every polarity word sigma for every comparison j",
+    "static_formula": "N_g=2Q_g+sum_j sum_sigma C_j,g,sigma+S_g+E_g+M_g+P_g+G_g+X_g+H_g+272*I[g=MCX_18]",
+    "remaining_mcx": "arity-indexed N_MCX_k after separating the fixed MCX_18 layer",
+    "numeric_limit": "Component functions are not present in the blind statement; no additional numeric X, CX, remaining-MCX, or absolute ancilla coefficient is derivable."
+  },
+  "ancilla": {
+    "body_clean": "b_c=max(a_G_c,a_X_c,a_18_c)",
+    "body_dirty": "b_d=max(a_G_d,a_X_d,a_18_d)",
+    "peak_clean": "max(q_c, q_c+c_c+e_c, q_c+c_c+e_c+m_c+b_c, q_c+c_c+e_c+p_c)",
+    "peak_dirty": "max(q_d, q_d+c_d+e_d, q_d+c_d+e_d+m_d+b_d, q_d+c_d+e_d+p_d)",
+    "mux_pullback_overlap_adjustment": "Add m_c or m_d to the final term if mux work survives into pullback cleanup.",
+    "mcx_primitive_condition": "a_18_c=a_18_d=0 only when MCX is treated as a primitive; otherwise insert decomposition ancillae and expanded gate counts."
+  },
+  "peak_width": {
+    "persistent_baseline": "B(n,w)=3n+lambda(w)+O(log n)",
+    "total": "W_peak(n,w)=B(n,w)+A_extra_peak(n,w)",
+    "preservation_condition": "w=O(log n) and A_extra_peak=O(w+log n), after counting every non-borrowed dirty register",
+    "hidden_n_bit_register_absent_iff": "Every extra Theta(n) live object aliases an already-counted n-bit lane with compatible liveness and proved restoration; qROM and pullback do not materialize an independent n-bit record or saved input.",
+    "conditional_only": true,
+    "reason": "The blind statement does not specify component widths or a baseline alias map."
+  },
+  "known_false_controls": [
+    "payload-row iteration double-translates equal-payload aliases",
+    "no-op behavior fails nonidentity blocks",
+    "single-classical-label evaluation does not define a coherent direct sum",
+    "missing inverse unload leaves qROM work correlated with labels",
+    "irreversible label canonicalization is noninjective and damages coherence",
+    "partial generic or exceptional arithmetic fails at least one code-space block"
+  ],
+  "claim_ceiling_respected": true,
+  "scope_result": "Abstract identities and conditional symbolic accounting derived; concrete component coefficients remain underdetermined by the frozen statement."
+}

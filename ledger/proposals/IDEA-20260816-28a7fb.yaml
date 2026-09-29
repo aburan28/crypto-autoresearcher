@@ -1,0 +1,229 @@
+idea:
+  id: IDEA-20260816-28a7fb
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: A parameter set's security number is computed for an adversary given m samples, but a homomorphic
+    evaluation releases ciphertexts throughout a circuit; write down the sample count a circuit actually
+    publishes as a function of its shape and compare it, as a pure counting exercise, with the m the
+    derivation assumed.
+  class: theory
+  claim: '(A) A concrete-security number attached to an FHE parameter set is the output of a cost
+    model evaluated at a stated instance: a dimension, a modulus, an error distribution, a secret
+    distribution, and a number of samples m. The claim is that m is a modelling input like any other,
+    that it is frequently left implicit or set to a convention, and that a levelled homomorphic computation
+    determines an entirely different count: every ciphertext that exists under the key, including
+    intermediate ones an evaluator holds, is a set of samples under that key, and the total is a function
+    of the circuit''s shape that can be written down exactly and counted by walking a circuit description.
+    (B) The claim is that this is a zero-compute symbolic audit with a small counting instrument attached:
+    for a stated circuit family, produce the exact sample count as a closed form in the circuit''s
+    parameters, then produce the same count for the modulus chain after switching, where a switched
+    ciphertext is a sample at a different modulus and the counts do not simply add. The deliverable
+    is a counting function and a table, not a security estimate. (C) NOT CLAIMED: that any parameter
+    set is insecure, that a larger sample count reduces any security level by any amount, that the
+    cost model''s dependence on m is significant, or that anything follows for a real system. The
+    relationship between sample count and attack cost is a property of the attack and the cost model
+    and is deliberately not entered here; producing the count is the whole deliverable, and asserting
+    a consequence would be exactly the overclaim this program''s rules forbid.'
+  mechanism: 'STAGE 1 fixes definitions: what counts as a sample under a key, whether a ciphertext
+    at a switched modulus counts as a fresh sample or a transformed one, and whether both components
+    of a ring ciphertext count. These are stated as declared conventions, with the alternatives named,
+    because the count is convention-dependent and hiding that would make the number meaningless. STAGE
+    2 derives, for three circuit families (balanced multiplication tree, sequential chain, and a matrix-vector
+    product), the closed-form count as a function of depth and width. STAGE 3 implements a small circuit
+    walker that takes a circuit description and emits the count directly, and checks it against the
+    closed forms on random circuit instances; disagreement is a derivation error and is the audit''s
+    main falsifier. STAGE 4 tabulates the counts against the conventional m values a derivation might
+    use, presenting both without computing any cost. STAGE 5 runs the null: apply the identical walker
+    to circuits whose gates are replaced by no-ops that produce ciphertexts without homomorphic structure,
+    confirming the walker counts structure-independently and is therefore a counter and not a heuristic.
+    The whole audit is cheap and its negative outcome, that the counts coincide with the conventional
+    m, is a clean measured statement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -rl 'RQ-FHE-001' ledger/proposals/; grep -ril 'IND-CPA' and 'modulus switch'
+      over ledger/proposals/; ls experiments/ | grep -i fhe; read RQ-FHE-001's methods and constraints,
+      KN-TECH-082, KN-OPEN-026 and KN-OPEN-016.
+    results: '''modulus switch'' hits IDEA-20260808-0eb075, IDEA-20260816-00b29e, IDEA-20260805-574cd0
+      and IDEA-20260805-2b94fe, the last two attached to RQ-MLKEM-001 and concerned with scoring functionals
+      and compression for a KEM rather than with sample accounting. IDEA-20260805-2b94fe replaces
+      a Euclidean norm by a per-coordinate log-likelihood in ML-KEM attack scoring, which is a different
+      modelling input entirely. No proposal in ledger/proposals/ treats the sample count m as an audited
+      modelling input for any scheme. RQ-FHE-001''s own methods list names estimator recomputation
+      with the cost model pinned and recorded, and its constraints require the estimator commit, cost
+      model and memory model to be stated, but the sample count is not among the slots it enumerates.
+      KN-TECH-082 describes hybrid attacks whose cost depends on available samples but frames no audit.
+      No experiments/EXP-FHE-* exists.'
+    verdict: 'UNVERIFIED. No assertion is made about the external literature, where sample-count accounting
+      for FHE is plausibly standard. What is claimed new is internal: RQ-FHE-001 enumerates estimator
+      commit, cost model and memory model as the slots a security number must declare and does not
+      include the sample count, and no ledger record audits m for any scheme. The parts are entirely
+      known: a counting argument over a circuit, and a declared-conventions table.'
+  object_first_candidate:
+    tracked_object: The integer count of distinct samples under a single key that a stated circuit
+      publishes, as a function of the circuit's shape and of the declared convention for what a sample
+      is, together with the modulus each sample lives at.
+    lossiness: 'Genuinely lossy. The full object is the entire multiset of ciphertexts a circuit produces,
+      each an element of a large ring with its own noise and message; the count retains one integer
+      per modulus level. Discarded: every ciphertext''s content, its noise, its message, and any dependence
+      among them. What survives propagates because the modelling input being audited is itself an
+      integer with no other structure: a cost model consumes m and nothing about which samples they
+      are. The projection is compatible with the operation because circuit composition adds counts,
+      so the retained coordinate has a composition rule matching the operation being tracked. It is
+      not a coordinate change: the count cannot reconstruct the ciphertexts, and the whole point is
+      that a cost model never needed them.'
+    propagation: Composing two circuits adds their counts at each modulus. One multiplication consumes
+      two ciphertexts and produces one, so a tree of depth d over 2^d leaves publishes 2^(d+1) - 1
+      ciphertexts if every intermediate is held, and only the leaves plus the root if intermediates
+      are discarded, which is exactly the convention that must be declared. One modulus switch moves
+      a ciphertext from one modulus to the next, producing a sample at the new modulus while the old
+      one may or may not remain in the adversary's view. The counting function therefore has one term
+      per convention choice and the audit's output is the whole vector of choices, not a single number.
+    survival_score: 'The count is exact and does not dissolve; it is a combinatorial fact about a
+      circuit. What has limited survival is its usefulness: the count stops being informative once
+      the cost model''s dependence on m saturates, which for most lattice cost models happens quickly,
+      and stating that saturation honestly is part of the deliverable rather than a caveat appended
+      to it.'
+  null_object_control: 'Null arm: run the identical circuit walker over circuits whose gates are replaced
+    by structure-free no-ops that emit ciphertext-shaped objects with no homomorphic relationship,
+    and over randomly generated directed acyclic graphs of matched shape. The count produced must
+    be identical to the signal arm''s for matched shapes, because a counter must depend only on shape.
+    For the audit to mean anything the null must show exactly this identity: a discrepancy would prove
+    the walker is inferring something from gate semantics and is therefore not a counter. This is
+    the inverse of the usual null, and stating it that way is deliberate: for a counting instrument
+    the null must MATCH, not differ, and any measurement whose null must differ is not a counting
+    instrument.'
+  discriminated_from:
+  - IDEA-20260807-a06996 (RQ-FHE-001) censuses shipped parameter tuples (N, log q, h) from library
+    source; this audits a different slot, the sample count, which appears in no census and is not
+    a library-source artifact but a circuit property.
+  - 'RQ-FHE-001''s own stated method of pinned Lattice Estimator recomputation: this contract runs
+    no estimator, produces no bit count, and deliberately does not enter the map from m to cost.'
+  - IDEA-20260805-2b94fe and IDEA-20260805-574cd0 (RQ-MLKEM-001) concern scoring functionals and compression
+    in KEM attacks; neither counts samples nor audits a modelling input.
+  - KN-TECH-082's hybrid-attack accounting depends on samples but is an attack cost analysis; this
+    is a pre-attack counting exercise that explicitly declines to compute a cost.
+  - 'A code audit of a library''s parameter tables: nothing is read from any library here, and the
+    object is a circuit shape rather than a shipped constant.'
+  assumptions:
+  - A sample under a key can be defined unambiguously once a convention is declared, and the plausible
+    conventions are few enough to enumerate.
+  - A circuit walker can count exactly and can be checked against closed forms on random instances.
+  - Circuit families of interest can be described in a small enough language that the closed forms
+    are derivable by hand and checkable mechanically.
+  - The audit's value does not depend on the cost model's sensitivity to m, which is explicitly not
+    evaluated; if that sensitivity is nil the audit still produces a correct and reusable count.
+  predictions:
+  - metric: count produced by the walker versus the derived closed form, over 1000 random circuit
+      instances per family
+    direction: different
+    minimum_effect: 0 discrepancies; any discrepancy is a derivation error and is the audit's primary
+      falsifier
+  - metric: ratio of the counted samples to a conventional m of 1 sample per key, for a depth-8 balanced
+      tree with intermediates retained
+    direction: higher
+    minimum_effect: at least 2^9 - 1, which is arithmetic rather than an empirical prediction and
+      is labelled as such
+  - metric: number of distinct declared conventions under which the count differs by more than a factor
+      of 2
+    direction: higher
+    minimum_effect: at least 2, i.e. the count is genuinely convention-dependent and reporting a single
+      number would be misleading
+  - metric: count produced on the structure-free null circuits of matched shape
+    direction: different
+    minimum_effect: exactly equal to the signal arm; the null must match, and any difference invalidates
+      the instrument
+  minimal_test:
+    design: 'Write the three closed forms by hand for the balanced tree, the sequential chain and
+      the matrix-vector product, each under three declared conventions (leaves only; leaves plus root;
+      all intermediates), giving nine expressions. Implement a 150-line circuit walker over a minimal
+      DAG description that emits the count per modulus level. Generate 1000 random instances per family
+      with random depth and width, run the walker, and compare with the closed forms; require exact
+      agreement. Then run the walker on structure-free DAGs of matched shape and require identical
+      counts. Tabulate the nine expressions against the conventional m values a derivation might use.
+      Total cost is a few hours of writing and seconds of compute. This discriminates completely:
+      either the closed forms and the walker agree, in which case the counting function is established
+      and reusable, or they disagree, in which case the derivation is wrong and the audit has found
+      the thing it exists to find.'
+    controls:
+    - Structure-free null circuits of matched shape, where the count must match exactly.
+    - Closed-form cross-check against the walker on 1000 random instances per family.
+    - All three conventions reported side by side, so no single convention can be selected after seeing
+      the numbers.
+    - 'Degenerate-circuit control: depth 0 and width 1, where the count is known by inspection.'
+    - An independently written second walker for one family, required to agree with the first.
+    required_metrics:
+    - exact sample count per modulus level, per circuit family, per convention
+    - closed-form expression for each of the nine family-convention pairs
+    - number of walker-versus-closed-form discrepancies over the random instances
+    - count on structure-free null circuits of matched shape
+    - the conventional m values tabulated alongside, with their source stated as a convention rather
+      than as a fact
+  falsification_conditions:
+  - Walker and closed form disagree on any random instance, meaning one derivation is wrong.
+  - The two independently written walkers disagree.
+  - Counts on structure-free null circuits differ from the signal arm, meaning the walker is not a
+    counter.
+  - The count is identical under all three declared conventions, in which case the convention-dependence
+    claim is false and the audit reduces to a single arithmetic identity.
+  - Degenerate-circuit counts disagree with inspection.
+  confounders:
+  - Convention choice dominates the number and there is no principled default; presenting all three
+    bounds but does not eliminate this.
+  - Whether both components of a ring ciphertext count as samples is a definitional choice that changes
+    counts by a factor of 2.
+  - Whether an adversary sees intermediates depends on the deployment, which is outside the circuit
+    description entirely.
+  - Modulus switching creates samples at different moduli that are not interchangeable, so a single
+    total is already a simplification.
+  - A cost model that saturates in m would make the entire count uninformative for security purposes,
+    and this contract does not evaluate that saturation.
+  interpretation_limits:
+  - No security consequence follows from a sample count; the map from m to attack cost is not entered
+    here and must not be inferred.
+  - The counts are properties of stated circuit families, not of any application anyone runs.
+  - Convention-dependence means the count is a family of numbers, and quoting one of them without
+    its convention would misrepresent the audit.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The walker is linear in circuit size.
+    memory_exponent: No attack memory exponent is claimed. The walker is linear in circuit size.
+    best_known: The incumbent is the practice of evaluating a cost model at a conventional sample
+      count without stating it. This proposal beats nothing and offers no security estimate; it supplies
+      a counting function and makes the convention explicit.
+    hidden_overhead: 'The whole cost is human and it is in the definitions: deciding what counts as
+      a sample is the hard part and is where a reviewer will spend their attention. There is essentially
+      no compute cost and therefore no compute overhead to hide.'
+  dominated_by: 'n/a (no result claimed). Checked: this contract produces no attack cost in time,
+    memory or data/queries, so there is no frontier row it could sit on or be dominated by; and no
+    FHE experiment directory exists in this repository to compare against internally.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a counting function
+    and a convention table; it is stated in no unit any attack cost is stated in.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the closed forms and the walker can be written and agree: 0.9, since
+    this is elementary combinatorics and the main risk is a convention inconsistency between the two.
+    That the count differs by more than a factor of 2 across at least two declared conventions: 0.85,
+    essentially arithmetic. That the audit turns out to matter, i.e. that some cost model of interest
+    is sensitive to m in the relevant range: 0.3, and the contract deliberately does not test this,
+    so the audit''s value is mostly as a reusable definition rather than as a finding. That a reviewer
+    accepts the convention set as complete: 0.5.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-TECH-082
+  - KN-OPEN-026
+  - KN-OPEN-016
+  - IDEA-20260807-a06996
+  - IDEA-20260805-2b94fe
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-6d8dcf

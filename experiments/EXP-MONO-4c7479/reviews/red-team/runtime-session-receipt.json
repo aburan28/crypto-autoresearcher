@@ -1,0 +1,67 @@
+{
+  "schema": "crypto.autoresearch.red_team_session_receipt.v1",
+  "task_id": "red-team-mono-4c7479",
+  "role": "red-team",
+  "joints_owned": ["J2-ordered-base-adjudication", "J3-density-anomaly-adjudication"],
+  "started_at_utc": "2026-08-30T19:20:00Z",
+  "ended_at_utc": "2026-08-30T20:16:30Z",
+  "budget": {
+    "wall_clock_seconds_cap": 5400,
+    "memory_gb_cap": 4,
+    "attempts_allowed": 1
+  },
+  "write_scope": "experiments/EXP-MONO-4c7479/reviews/red-team/",
+  "no_commit_performed": true,
+  "no_status_change_performed": true,
+  "sibling_review_directory_check": {
+    "path_checked": "experiments/EXP-MONO-4c7479/reviews/",
+    "contents_before_this_task_created_its_own_dir": [],
+    "note": "No sibling review directory (e.g. a Validator J1 report) existed at task start; none was read at any point, consistent with the blindness requirement."
+  },
+  "sources_read": [
+    "AGENTS.md",
+    "agents/red-team.md",
+    "ledger/proposals/IDEA-20260830-1a08f9.yaml",
+    "ledger/hypotheses/H-MONO-0b3def.yaml",
+    "experiments/EXP-MONO-4c7479/specification.yaml (targeted read, lines 255-294: matched_ordered_base_control and random_quartic_null_control sections)",
+    "experiments/EXP-MONO-4c7479/execution_report.yaml (full)",
+    "experiments/EXP-MONO-4c7479/implementation.md (full)",
+    "experiments/EXP-MONO-4c7479/implementation/ordered_base_control.py (full)",
+    "experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json (cells[*].class_density_report; top-level keys)",
+    "knowledge/findings/KN-FIND-a8990a.md (full, all sections including Theorem A/B/C and corollaries)",
+    "coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json (full, including out_of_band_edit_disclosure)"
+  ],
+  "commands_run": [
+    {
+      "purpose": "Independently compute, for each of the 6 tested curves, the trace t, 2-torsion-root count Z, and square/nonsquare-of-f counts S,N over F_p, then compare the elementary combinatorial prediction S(S-1):2SN:N(N-1) (normalized) for the identity/sigma_i/sigma1_sigma2 split-regime class proportions against the exact per-cell figures reported in execution_report.yaml, and separately compute the leading-order linear-in-t approximation to expose the non-cancelling term. This is the core computation supporting both the J2 (S,N)-based cross-check of arm(a)'s classifier and the J3 O(t/p) mechanism.",
+      "script_path": "scratchpad/curve_analysis.py (session scratchpad; copied inline below, not part of any experiment write_scope)",
+      "command": "python3 /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/curve_analysis.py",
+      "stdout_summary": "For each (p,A,B) in {(101,1,1),(101,2,3),(101,4,1),(211,1,1),(211,2,3),(211,4,1)}: printed #E(F_p), t, Z, S, N, and the split-regime identity/sigma1_sigma2/sigma_i fractions both exactly (via S(S-1):2SN:N(N-1) normalized by (p-Z)(p-Z-1)) and via the leading linear-in-t approximation (0.5-x)^2/(0.5+x)^2 with x=t/(2(p-Z)); the two agree to within ~0.002 at every curve, confirming the linearization is accurate at this scale.",
+      "exit_status": 0
+    },
+    {
+      "purpose": "Read the raw class_density_report block from the first completed run's raw-result.json to obtain the exact observed_count/observed_density/expected_count/binomial_se_count/deviation_in_se figures for all 6 cells x 5 classes, used to numerically check the J3 deviation-in-SE ~ -0.756*t prediction against the actual reported deviations.",
+      "command": "python3 -c \"import json; d=json.load(open('experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json')); [print(c['p'],c['A'],c['B'],json.dumps(c['class_density_report'],indent=2)) for c in d['cells']]\"",
+      "exit_status": 0
+    },
+    {
+      "purpose": "Attempt to resolve this session's actual serving model / policy binding for disclosure in review_attestation.",
+      "command": "python3 -m orchestration.adapter resolve --role red-team --independent-session",
+      "stdout": "review-adversarial -> anthropic:claude-opus-5 (effort=xhigh)",
+      "note": "This tool's resolution (anthropic:claude-opus-5) differs from the model identity given to this agent by its own runtime environment description (claude-sonnet-5). Disclosed as a discrepancy in review_attestation.model_resolution_note rather than silently reconciled; adapter doctor --probe was not run (out of scope, not requested, and not needed to reach the mathematical J2/J3 verdicts).",
+      "exit_status": 0
+    }
+  ],
+  "core_derivations": {
+    "J2_delta_quotient_argument": "Gal(k(t1,t2,y1,y2)/k(t1,t2)) = (Z/2)^2 = <sigma1,sigma2> acting on {P1,-P1,P2,-P2} with cycle types id->1^4, sigma1/sigma2->2.1.1 (2 group elements, same cycle type), sigma1*sigma2->2^2. KN-FIND-a8990a Theorem A's Gal(S_3/L)=(Z/2)^2/Delta (Delta=<sigma1 sigma2>) is a QUOTIENT of this group by Delta, corresponding to the fixed field of Delta = the splitting field of the degree-2 T-polynomial S_3(t1,t2,T). The quotient map sends {id,sigma1sigma2} to the trivial coset (T-roots fixed, S_3 splits: Theorem B's c(t1)=c(t2) case) and {sigma1,sigma2} to the nontrivial coset (T-roots swapped, S_3 irreducible: Theorem B's c(t1)!=c(t2) case). Theorem B is therefore a correct, but coarser, statement about a strictly smaller/different Galois object (order 2, not order 4), and does not by itself constrain the finer 4-point cycle type beyond the coset it belongs to. Full write-up in red-team-report.yaml full_j2_derivation.",
+    "J2_internal_consistency_check": "H-MONO-0b3def's own S6 Frobenius recipe, specialized to chi(e1^2-4e2)=+1 (automatic for any literal ordered pair of distinct field elements t1,t2, since e1^2-4e2=(t1-t2)^2 is always a nonzero square), already predicts identity/sigma_i/sigma1_sigma2 all three occur -- directly contradicting the same document's S5 claim of only two types. This is an internal inconsistency in IDEA-20260830-1a08f9 independent of any external theorem-reading dispute.",
+    "J3_exact_algebra": "S=(p-t-Z)/2, N=(p+t-Z)/2 (standard point-count identity, also given in HEUR-WREATH-3's own rigorous_support). S(S-1)+N(N-1) and 2SN are both even functions of t (Theorem B's proven O(1/p) cancellation applies to these merged quantities). S(S-1)-N(N-1) = -t*(p-Z-1) is exactly linear and odd in t: this is the non-cancelling term responsible for the identity/sigma1_sigma2 anomaly. Leading order: identity_density ~ 1/8 - t/(4(p-Z)), sigma1_sigma2_density ~ 1/8 + t/(4(p-Z)); deviation-in-SE ~ -0.756*t and +0.756*t respectively (SE_density ~ sqrt((1/8)(7/8))/(p-Z) for an exhaustive (p-Z)^2-scale census). Full write-up and 6-cell numeric comparison in red-team-report.yaml full_j3_derivation."
+  },
+  "verdicts": {
+    "J2": "HOLDS (for H-MONO-0b3def's central D_4 claim; the control's stated forced value was a citation/derivation error, independently corrected)",
+    "J3": "BREAKS (HEUR-WREATH-3 and falsification_conditions item 5, scoped to identity/sigma1_sigma2 densities)"
+  },
+  "resolved_model_id": "claude-sonnet-5",
+  "requested_policy": "review-adversarial",
+  "requested_reasoning_effort": "xhigh"
+}

@@ -1,0 +1,525 @@
+report_metadata:
+  role: red-team
+  report_type: adversarial_code_review
+  task_id: TASK-20260821-78e283
+  snapshot_commit: e0c4f9384e6db209065660756b425617d78d6b08
+  snapshot_tree: 25238f59e12b205e046582439a73debca6b4c355
+  snapshot_parent: 231ab571faa8a0890f77bac45d4c4a07c5b3c2c1
+  authoritative_base_commit: 76b860c1ba1364b6a74695a09d1ae995a6ba8ebe
+  independent_session: true
+  validator_report_read: false
+  merge_approval: not_authorized
+  status: blocking_objection_found
+  recorded_at: '2026-08-22T07:07:03Z'
+
+review_boundary:
+  task_class: adversarial_infrastructure_code_review
+  scientific_or_rank_claim_reviewed: false
+  experiments_run: 0
+  reviewed_object: >-
+    The random-suffix GOAL-ID allocation, combined historical validation, and
+    base-versus-candidate prospective enforcement in immutable snapshot
+    e0c4f9384e6db209065660756b425617d78d6b08.
+  excluded_authority:
+    - merge approval
+    - goal or hypothesis status changes
+    - rank, novelty, security, or scientific conclusions
+  inspected_snapshot_confirmation:
+    object_type: commit
+    commit: e0c4f9384e6db209065660756b425617d78d6b08
+    tree: 25238f59e12b205e046582439a73debca6b4c355
+    parent: 231ab571faa8a0890f77bac45d4c4a07c5b3c2c1
+    subject: 'snapshot(TASK-20260821-2a2411): archive random GOAL ID implementation'
+
+executive_disposition:
+  blocking_objection_count: 1
+  nonblocking_objection_count: 3
+  semantic_mechanism_disposition: breaks_on_tracked_sharded_symlink_alias
+  narrowest_supported_statement: >-
+    For ordinary regular-file goal heads, the snapshot correctly admits a new
+    random six-hex ID, rejects newly introduced three-digit flat and sharded
+    IDs from staged or committed candidate state, and preserves an existing
+    legacy ID across a flat-to-sharded migration. It does not enforce that
+    policy for every Git-representable goal head: a tracked symlink directory
+    can introduce a new legacy sharded semantic goal without entering the
+    candidate semantic-ID set, while the ledger validator follows the alias.
+  next_concrete_action: >-
+    Add one shared plain-source invariant for goal heads, enforce it in both
+    merge hygiene and whole-ledger validation, add the sharded-symlink bypass
+    regression below, archive a successor implementation snapshot, and rerun
+    the independent review round.
+
+blocking_objections:
+  - id: B1
+    title: A tracked sharded-directory symlink bypasses new-legacy rejection
+    affected_claims:
+      - Newly introduced legacy flat and sharded goal forms are rejected.
+      - Candidate-minus-base semantic GOAL identities are complete for Git candidate state.
+      - Whole-ledger acceptance and campaign projection acceptance agree on a goal head.
+    severity: blocking_for_coordinator_merge_decision
+    mechanism: >-
+      Git records a directory symlink as one index entry named
+      ledger/goals/GOAL-BYPASS-002, not as the syntactic head path
+      ledger/goals/GOAL-BYPASS-002/goal.yaml. tracked_files() therefore supplies
+      no matching head to goal_id_from_head_path(), so the candidate semantic
+      set omits the new legacy ID. Python globbing in load_goal_documents()
+      follows the symlink into a committed target directory and validates the
+      target goal as if it were a normal sharded head. The campaign projection
+      correctly rejects every symlink component, producing an end-to-end split.
+    immutable_snapshot_evidence:
+      - file: tools/check_merge_hygiene.py
+        lines: 79-82
+        observation: >-
+          Only literal flat *.yaml and sharded */goal.yaml paths define a
+          semantic head.
+      - file: tools/check_merge_hygiene.py
+        lines: 89-145
+        observation: >-
+          Candidate IDs are derived from git ls-files path strings; neither Git
+          modes nor symlink aliases are inspected before candidate-minus-base.
+      - file: tools/validate_ledger.py
+        lines: 1369-1420
+        observation: >-
+          Flat and sharded documents are discovered with glob and passed to
+          load_yaml without a lstat/plain-source check.
+      - file: orchestration/campaign/projection.py
+        lines: 114-163
+        observation: >-
+          The committed projection deliberately rejects both a symlink head and
+          any symlink component in its path.
+      - file: tests/test_campaign_projection.py
+        lines: 333-353
+        observation: >-
+          The projection's tracked-symlink refusal is already an explicit
+          regression invariant.
+      - file: tools/test_goal_id_random_suffix.py
+        lines: 17-99
+        observation: >-
+          Prospective-policy tests create only regular heads and contain no
+          symlink-directory alias control.
+    worked_reproducer:
+      base_fixture:
+        - Create and commit regular ledger/goals/GOAL-BASE-001.yaml.
+        - Tag that commit base-tree.
+      candidate_fixture:
+        - >-
+          Create committed regular target docs/legacy-alias/goal.yaml whose
+          research_goal.id is GOAL-BYPASS-002 and whose required goal fields are complete.
+        - >-
+          Create tracked symlink ledger/goals/GOAL-BYPASS-002 pointing to
+          ../../docs/legacy-alias and commit both candidate paths.
+      executed_command: >-
+        PYTHONPATH=/tmp/goalid-rt-src.hlCvJw:/tmp/goalid-rt-src.hlCvJw/tools
+        python3 - [inline deterministic tempfile Git fixture invoking the
+        snapshot modules check_merge_hygiene, validate_ledger, and projection]
+      exact_observations:
+        git_ls_files:
+          - docs/legacy-alias/goal.yaml
+          - ledger/goals/GOAL-BASE-001.yaml
+          - ledger/goals/GOAL-BYPASS-002
+        derived_candidate_semantic_ids:
+          - GOAL-BASE-001
+        prospective_problems: []
+        full_merge_hygiene_exit_code: 0
+        full_merge_hygiene_output: >-
+          PASS: no conflict markers, no unparseable records, no identifier
+          collisions, no new legacy GOAL identifiers
+        ledger_goal_errors: []
+        projection_result: >-
+          ProjectionError: goal projection source may not traverse symlink
+          component ledger/goals/GOAL-BYPASS-002
+    second_alias_control:
+      setup: >-
+        A tracked flat random head implemented as a symlink to a committed
+        in-repository YAML target.
+      prospective_problems: []
+      merge_parse_errors: []
+      ledger_goal_errors: []
+      projection_result: >-
+        ProjectionError: goal projection source may not be a symlink
+      interpretation: >-
+        Even when the suffix policy is satisfied, whole-ledger validation and
+        projection disagree about whether the record is an admissible source.
+    why_it_matters: >-
+      The stronger fixture is not merely a projection availability issue: it
+      commits a genuinely new three-digit sharded goal while the new
+      prospective gate announces that no new legacy GOAL exists. That is the
+      exact policy the repair is intended to make impossible. The same alias
+      also means a goal accepted by the authoritative ledger pass cannot be
+      materialized by the campaign observer or MCP status path.
+    cheapest_literal_fix:
+      - >-
+        In tools/check_merge_hygiene.py, inspect Git index/tree modes (or lstat
+        every tracked ledger/goals/GOAL-* candidate path) and reject a goal head
+        whose head or parent goal directory is a symlink. Do not infer sharded
+        heads solely from git ls-files names.
+      - >-
+        In tools/validate_ledger.py load_goal_documents(), require every goal
+        head and path component below ledger/goals to be a regular non-symlink
+        source before load_yaml, matching projection._assert_plain_source_path.
+      - >-
+        Add a regression that commits the exact GOAL-BYPASS-002 directory
+        symlink fixture and requires nonzero prospective/full-gate and ledger
+        outcomes; add a random flat-symlink control requiring the same source
+        invariant, while retaining the regular flat-to-sharded legacy control.
+    resolution_gate:
+      - Successor snapshot rejects the symlink-directory fixture before projection.
+      - Regular historical flat and sharded goals still validate.
+      - Regular flat-to-sharded migration of the same base semantic ID still passes.
+      - Independent Reviewer and Validator rerun against the successor snapshot.
+
+semantic_base_candidate_disposition:
+  verdict: breaks
+  holds_for:
+    - case: staged_new_legacy_flat_regular
+      expected: reject
+      observed: one prospective problem naming GOAL-NEW-002
+    - case: committed_new_legacy_sharded_regular
+      expected: reject
+      observed: one prospective problem naming GOAL-NEW-003
+    - case: staged_new_random_flat_and_sharded_regular
+      expected: accept_prospective_policy
+      observed: no prospective problem
+    - case: existing_legacy_flat_to_sharded_regular
+      expected: preserve_same_semantic_id
+      observed: no prospective problem and no whole-goal validation error
+    - case: rename_existing_legacy_to_distinct_legacy_id
+      expected: reject_new_semantic_id
+      observed: one prospective problem naming GOAL-RENAMED-001
+  breaks_for:
+    - case: committed_new_legacy_sharded_directory_symlink
+      expected: reject
+      observed: >-
+        Full merge hygiene exit 0 and whole-goal validation emitted no error;
+        projection rejected the alias later.
+  interpretation: >-
+    Set subtraction is the right abstraction for regular heads, but the
+    function collecting the semantic set is incomplete over Git path modes.
+
+attack_matrix:
+  - attack: new legacy flat regular head
+    candidate_state: staged
+    prospective: rejected
+    ledger_combined_grammar: accepted_as_historical_form
+    disposition: holds_because_prospective_gate_rejects
+  - attack: new legacy sharded regular head
+    candidate_state: committed
+    prospective: rejected
+    ledger_combined_grammar: accepted_as_historical_form
+    disposition: holds_because_prospective_gate_rejects
+  - attack: new legacy flat regular head
+    candidate_state: untracked
+    prospective: not_observed
+    ledger_combined_grammar: accepted
+    disposition: >-
+      Outside the documented tracked index/worktree promise. It becomes visible
+      and is rejected when staged, before it can be committed.
+  - attack: existing legacy flat head deleted
+    candidate_state: staged_deletion
+    prospective: no_problem
+    ledger_goal_errors: []
+    disposition: >-
+      A deletion is not new minting and is outside this prospective check's
+      stated purpose; it remains a separate repository-integrity residual risk.
+  - attack: existing legacy flat renamed to same-ID sharded regular head
+    candidate_state: staged
+    prospective: no_problem
+    ledger_goal_errors: []
+    disposition: known_valid_proves_too_much_control_holds
+  - attack: existing legacy flat renamed to different legacy semantic ID
+    candidate_state: staged
+    prospective: rejected
+    disposition: holds
+  - attack: duplicate regular flat and sharded heads with same legacy ID
+    prospective: no_problem_because_semantic_set_deduplicates
+    ledger_result: duplicate ID error
+    projection_result: ambiguous layout error
+    disposition: rejected_by_preserved_downstream_identity_checks
+  - attack: random path containing a legacy research_goal.id
+    prospective: no_problem_for_random_path
+    ledger_result:
+      - filename must match id
+      - goal directory must be named the content id
+    disposition: rejected_by_preserved_path_content_checks_for_regular_files
+  - attack: legacy path containing a random research_goal.id
+    prospective: rejected_for_legacy_path
+    ledger_result:
+      - filename must match id
+      - goal directory must be named the content id
+    disposition: rejected_twice
+  - attack: four-character suffix GOAL-NEW-abcd
+    prospective: rejected
+    ledger_result: invalid goal id
+    disposition: holds
+  - attack: seven-character suffix GOAL-NEW-abcdef0
+    prospective: rejected_by_random_pattern
+    ledger_result: invalid goal id
+    disposition: holds
+  - attack: uppercase suffix GOAL-NEW-ABCDEF
+    prospective: rejected
+    ledger_result: invalid goal id
+    disposition: holds
+  - attack: lowercase area GOAL-new-a1b2c3
+    prospective: rejected
+    ledger_result: invalid goal id
+    disposition: holds
+  - attack: digit-bearing area GOAL-P13-a1b2c3
+    prospective: accepted
+    ledger_result: accepted
+    disposition: >-
+      Matches the frozen GOAL-specific [A-Z0-9]+ area grammar and historical
+      P13 compatibility; this is not a bypass.
+  - attack: committed sharded directory symlink for GOAL-BYPASS-002
+    prospective: accepted_in_error
+    ledger_result: accepted_in_error
+    projection_result: rejected
+    disposition: blocking_B1
+
+candidate_state_coverage:
+  committed: >-
+    Regular committed flat/sharded paths are covered by git ls-files and the
+    exact-base comparison. A committed directory symlink is not represented as
+    */goal.yaml and is the B1 hole.
+  staged: >-
+    git ls-files reflects staged additions and removals; the ordinary staged
+    legacy flat fixture is rejected. Content is not used to derive semantic
+    identity, so authoritative path/content validation is a required companion.
+  untracked: >-
+    Not covered by git ls-files and explicitly outside the implementation's
+    tracked candidate promise. An untracked legacy head passes both this
+    prospective function and the combined historical ledger grammar, but it
+    cannot enter a commit without first becoming staged, where the ordinary
+    path is rejected.
+  rename: >-
+    A rename to a distinct legacy ID is rejected as candidate-minus-base; a
+    flat-to-sharded rename with the same ID is correctly preserved.
+  deletion: >-
+    Deletions reduce the candidate set and generate no prospective problem.
+    This is consistent with a newness gate but does not enforce general goal
+    immutability or anti-deletion policy.
+
+proves_too_much_controls:
+  - control: flat_to_sharded_same_legacy_id
+    known_valid: true
+    observed: passes prospective and whole-goal validation
+  - control: checkpoint_path_bearing_existing_goal_id
+    known_valid: true
+    evidence: >-
+      goal_ids_from_paths recognizes only the two head patterns; the committed
+      test excludes ledger/goals/GOAL-Z-001/checkpoints/BATCH-001.yaml.
+    observed: not classified as a new goal
+  - control: handoff_queue_and_reference_text_naming_existing_legacy_goal
+    known_valid: true
+    evidence: >-
+      Semantic newness is path-head based, not a content/reference scan;
+      dispatch keeps goal_id as opaque nonempty text at
+      tools/research_dispatch.py lines 519-529.
+    observed: not classified as a new goal
+  - control: duplicate_same_semantic_id
+    known_invalid: true
+    observed: >-
+      Prospective set subtraction alone is silent, but the whole-goal registry
+      emits a duplicate-ID error and projection rejects ambiguous layout.
+
+allocator_validator_consumer_consistency:
+  canonical_random_path:
+    allocator_command: python3 tools/allocate_id.py --next goal --area ERANK --seed 11
+    allocator_output: GOAL-ERANK-eee65f
+    allocator_exit: 0
+    check_command: python3 tools/allocate_id.py --check GOAL-FREE-a1b2c3
+    check_exit: 0
+    ledger_random_regular: accepted
+    projection_random_regular: accepted_and_preserved
+    mcp_random_regular: accepted_and_preserved
+    dispatch_random: propagated_unchanged
+  historical_legacy_regular:
+    allocator_well_formed: accepted_by_combined_reference_grammar
+    whole_ledger_flat: accepted
+    whole_ledger_sharded: accepted
+    projection: accepted_when_plain_committed_source
+    prospective_newness: allowed_only_if_semantic_id_exists_on_base
+  malformed_regular:
+    allocator: rejected_for_case_alphabet_or_length
+    whole_ledger: rejected
+    projection_and_mcp: >-
+      Deliberately use a broader safe-path grammar and are not authoritative
+      allocators; merge hygiene plus whole-ledger validation remain required.
+    dispatch: opaque_nonempty_text_by_design
+  source_alias:
+    allocator: path_collision_scan sees a literal flat file or directory name
+    prospective: incomplete_for_sharded_directory_symlink
+    whole_ledger: follows_symlink_and_accepts
+    projection_and_mcp: reject_or_report_projection_unavailable
+    disposition: blocking_B1
+
+historical_compatibility:
+  legacy_flat_three_digit: pass
+  legacy_sharded_three_digit: pass
+  flat_to_sharded_same_id: pass
+  immutable_legacy_records_rewritten: false
+  new_legacy_regular_heads: rejected_prospectively
+  new_legacy_symlinked_sharded_head: not_rejected_blocking_B1
+
+inventory_and_scope_reconciliation:
+  frozen_implementation_path_count: 16
+  frozen_paths_missing_from_snapshot: []
+  unexpected_snapshot_paths_beyond_16_implementation_3_executor_reports_1_archive_receipt: []
+  no_source_change_consumers_changed: []
+  note: >-
+    tools/check_merge_hygiene.py was intentionally promoted from the inventory's
+    compatible-no-source-change list into the Coordinator's frozen 16-path
+    implementation because prospective enforcement was added there.
+  fixed_campaign_or_historical_fixture_paths_changed: []
+  generated_adapter_surfaces_changed: []
+  concrete_missed_semantic_dependency: >-
+    The inventory correctly identified projection's permissive identifier
+    transport, but it did not reconcile projection's existing plain-source
+    requirement with validate_ledger and merge hygiene. That omitted dependency
+    is exposed by B1.
+
+documentation_and_skill_review:
+  operator_contract_disposition: no_legacy_mint_instruction_found
+  evidence:
+    - >-
+      .claude/skills/coordinate-research-goal/SKILL.md lines 30-35 require
+      --next goal --area AREA, --check, and prohibit manual/max scanning.
+    - >-
+      .claude/skills/launch-research-harness/SKILL.md lines 74-81 gives the same
+      new-goal path.
+    - >-
+      templates/research-records.md lines 58-62 labels six hex as a placeholder
+      and preserves legacy IDs only as existing history.
+    - >-
+      CLAUDE.md and both lifecycle documents use GOAL-<AREA>-<tok> for new goals.
+  historical_examples_disposition: >-
+    Remaining three-digit examples in fixed campaigns, compatibility fixtures,
+    and the shard_goal conversion utility describe existing records rather than
+    a new allocation path.
+
+unrelated_semantics_regression_review:
+  implementation_diff_scope: >-
+    No existing goal, question, evidence, decision, experiment, run, knowledge,
+    or coordination-goal artifact changed in the implementation snapshot.
+  closure_and_quorum: >-
+    validate_ledger changes are limited to GOAL grammar constants; the focused
+    suite exercises both enforced and suspended quorum modes and passed.
+  archive_and_dispatch: >-
+    Only random goal_id echo fixtures changed in research_dispatch tests; all
+    115 focused allocator, prospective, closure, and dispatch tests passed.
+  run_immutability: no_snapshot_run_path_changed
+  conclusion: no_accidental_weakening_observed_outside_B1_source_alias_gap
+
+nonblocking_objections:
+  - id: N1
+    title: --check labels a free legacy GOAL ID as OK
+    evidence:
+      - file: tools/allocate_id.py
+        lines: 185-218
+      - command: python3 tools/allocate_id.py --check GOAL-FREE-001
+        exit_code: 0
+        output: >-
+          well-formed YES; zero occurrences; OK: well-formed and free across
+          the union.
+    boundary: >-
+      Ordinary staging/commit still triggers the prospective rejection, and
+      every new-goal document forbids manual suffix choice. This therefore does
+      not independently bypass the regular-file merge path.
+    cheapest_falsification_control: >-
+      Add a test for an unused three-digit GOAL and either return nonzero or
+      emit an explicit non-authoritative legacy-history warning; verify an
+      existing legacy ID remains recognized as historical/taken.
+  - id: N2
+    title: The goal allocator does not enforce its area option channel
+    evidence:
+      - file: tools/allocate_id.py
+        lines: 337-373
+      - command: python3 tools/allocate_id.py --next goal --date 20260821 --seed 11
+        exit_code: 0
+        output: GOAL-20260821-eee65f
+      - command: >-
+          python3 tools/allocate_id.py --next goal --area ERANK --date 20260821 --seed 11
+        exit_code: 0
+        output: GOAL-ERANK-eee65f; the date was silently ignored
+    boundary: >-
+      Both outputs satisfy the frozen alphanumeric GOAL area grammar and use a
+      random suffix, so this does not mint a legacy ID. It violates the declared
+      area-scoped CLI contract and can misclassify the campaign area.
+    cheapest_falsification_control: >-
+      Make --area and --date mutually exclusive and require the option mapped
+      to the selected type; add wrong-option and both-option tests.
+  - id: N3
+    title: Untracked additions and deletions are not policy-covered
+    evidence:
+      - file: tools/check_merge_hygiene.py
+        lines: 89-92
+      - observation: >-
+          An untracked GOAL-NEW-004 regular head and a staged deletion of
+          GOAL-BASE-001 each produced no prospective problem.
+    boundary: >-
+      git ls-files coverage is documented as tracked index/worktree state;
+      untracked content must be staged before commit and then becomes visible.
+      A deletion is not new minting. Neither condition independently breaks the
+      stated regular-path newness policy.
+    cheapest_falsification_control: >-
+      Document these two exclusions in the CLI help and add explicit tests so
+      later users do not mistake the gate for general goal immutability.
+
+residual_risks:
+  - >-
+    The 24-bit random space still permits chance collision; allocation/check
+    plus cross-branch collision checks remain mandatory. No uniqueness proof is
+    implied by one random draw.
+  - >-
+    Projection, MCP, and dispatch intentionally do not duplicate the
+    authoritative identifier grammar. Their acceptance of safe opaque strings
+    remains dependent on merge and ledger gates operating before committed use.
+  - >-
+    A semantic set cannot expose duplicate layouts because it deduplicates by
+    definition; the separate whole-ledger registry and projection ambiguity
+    checks must remain required.
+  - >-
+    The base Python environment lacks the optional FastMCP dependency. The
+    isolated dependency command passed 10 MCP tests, but dependency availability
+    remains an operational property, not evidence that aliases are safe.
+
+required_controls:
+  - id: C1
+    purpose: Close blocking B1.
+    test: >-
+      Commit docs/legacy-alias/goal.yaml and a tracked directory symlink
+      ledger/goals/GOAL-BYPASS-002 -> ../../docs/legacy-alias; require both
+      merge hygiene and whole-ledger validation to fail before projection.
+  - id: C2
+    purpose: Preserve legitimate migration.
+    test: >-
+      Replace a base regular flat GOAL-BASE-001 head with a regular sharded head
+      of the same semantic ID; require prospective and whole-ledger passes.
+  - id: C3
+    purpose: Align source-kind semantics.
+    test: >-
+      Commit a random flat goal-head symlink to an in-repository YAML target;
+      require merge hygiene, ledger validation, and projection all to reject it.
+  - id: C4
+    purpose: Prevent misleading legacy confirmation.
+    test: >-
+      Check a free GOAL-FREE-001 and an existing historical GOAL; require a
+      distinction between prohibited new legacy use and compatible history.
+  - id: C5
+    purpose: Enforce area-scoped CLI selection.
+    test: >-
+      Require --next goal --date and simultaneous --area/--date to fail while
+      --next goal --area P13 remains valid under the frozen area grammar.
+
+review_attestation:
+  role: red-team
+  task_id: TASK-20260821-78e283
+  independent_session: true
+  snapshot_read:
+    - e0c4f9384e6db209065660756b425617d78d6b08
+  validator_report_read: false
+  read_sibling_reports: false
+  merge_approval: not_authorized
+  verdict_scope: blocking_objection_to_infrastructure_repair_only
+  rank_or_scientific_verdict: not_issued
+  inbox_checked: true
+  inbox_result: no_unread_for_red_team

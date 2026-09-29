@@ -1,0 +1,513 @@
+idea:
+  id: IDEA-20260906-a3d6ae
+  question_id: RQ-ECDLP-78dbc5
+  goal_id: null
+  added: '2026-09-06'
+  id_allocation_provenance: >-
+    Minted by the coordinator with `python3 tools/allocate_id.py --next idea
+    --date 20260906`, confirmed free with `--check`, and relayed in the
+    in-session handoff TASK-20260906-ideation-RQ-ECDLP-78dbc5. Not derived by
+    scanning state.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-09-06'
+
+  title: >-
+    THE BATCH-GROWN TABLE WITH RELATION-GRAPH ACCOUNTING: precompute only
+    T_0 < T_BL selected entries, let the U targets' own terminal distinguished
+    points (solved or not) join the table as (point, affine-in-unknowns
+    scalar) entries, resolve targets through a weighted union-find of
+    relations, and measure the recurrence T_0(U) at fixed per-target budget L
+    and success epsilon -- predicted to fall linearly in U with slope set by
+    the below-threshold basin mass, reaching T_0 = 0 (pure Kuhn-Struik /
+    Fouque-Joux-Mavromati) at U of order N/(k W^2)
+  class: composition
+
+  claim: >-
+    (A) SETTING (U > 1, one table, one group). Targets Q_1..Q_U are processed
+    sequentially (or in rounds); target u runs at most k online walks from
+    Q_u + [c]P, each ending at a DP d after about W steps, so the per-target
+    budget is L <= k W group operations. Outcomes of a walk at d:
+      (i)   d in the precomputed table X_0 (known log): u is SOLVED, certificate
+            [k_u]P == Q_u checked;
+      (ii)  d is a batch entry owned by an already-solved target: u SOLVED;
+      (iii) d is a batch entry owned by an unsolved target v: the walks give
+            (a_u + b_u k_u) = (a_v + b_v k_v) mod N, a RELATION; u and v are
+            merged in a weighted union-find over Z/N and u stops walking;
+      (iv)  d is new: d is stored with (a_u, b_u, u) and u walks again (up to k).
+    Whenever a component's root becomes solved, every member is solved and
+    certified. At the end of the batch, unresolved components are failures.
+    This composes Bernstein-Lange (KN-LIT-3060), Kuhn-Struik reuse of earlier
+    walks' DPs (retrieved), and the Fouque-Joux-Mavromati relation graph
+    (retrieved). NOTHING in the composition is new; the new content is the
+    QUANTITY it asks for and the accounting rule that makes the quantity
+    honest.
+    (B) THE QUANTITY. T_0(U; L, epsilon): the smallest precomputed table
+    (built with the same selection rule and the same P per entry as the
+    U = 1 baseline) such that the batch of U targets achieves per-target
+    success at least epsilon at budget L, averaged over the batch and ALSO
+    reported for the first 10% of targets (who see the smallest table).
+    Report the ratio T_0(U)/T_BL(1) with a bootstrap CI over seeds, and the
+    peak stored set S_peak (precomputed + batch entries) beside it, because a
+    batch that stores its DPs is trading online memory for precomputed
+    entries and the RQ definition requires that to be shown on the
+    (P, S, L, epsilon, U) frontier rather than hidden.
+    (C) THE MODEL PREDICTION (H1, H2 of IDEA-20260906-aed829, plus H4). The
+    precomputed selected table covers the basins above a size threshold
+    x*_0 W^2 with coverage C_sel(T_0). Every batch walk is a fresh uniform
+    start, so after m batch walks the union of the batch's stored basins
+    (which live below the threshold) covers
+      C_batch(m) = (2 pi)^{-1/2} * integral_0^{x*_0} x^{-1/2} (1 - e^{-a_m x}) e^{-x/2} dx,
+      a_m = m W^2 / N,
+    and the known-set coverage seen by the next target is C_sel + C_batch(m).
+    Two brackets follow for the solved fraction: LOWER = only outcomes (i)-(ii)
+    count at the time of the hit; UPPER = any hit on a known DP counts (as if
+    all pendings resolve). The measured solved fraction must lie between
+    them; the gap is the deferred-resolution loss, predicted small while
+    C_sel >= 0.2 (most components touch the table within k walks) and large
+    as T_0 -> 0, where the batch is pure Kuhn-Struik and resolution is the
+    whole game. Consequences stated as predictions: (C1) T_0(U) decreases in
+    U; in the linear regime U k W^2 / N <= 1 the slope dT_0/dU is about
+    -beta k with beta = (mean basin of a stored batch DP)/(mean basin of a
+    precomputed selected entry), i.e. beta about 0.886 x-bar_batch / x-bar_sel,
+    predicted in [0.3, 0.7] at a = 1/4, r = 2; (C2) T_0(U) reaches 0 at
+    U_0 of order N/(k W^2) times a constant of order 1-3 for epsilon = 0.9,
+    which at T_BL = N^{1/3}, a = 1/4, k = 4 is U_0 of order T_BL to 3 T_BL;
+    (C3) the first-10% success is strictly below the batch average and is
+    the binding constraint whenever the batch is not re-run. GENERIC,
+    CONSTANT-FACTOR: no exponent moves; the per-target cost at U >= U_0
+    matches the known Kuhn-Struik / FJM sqrt(2 U N)/U per target only in
+    order of magnitude and the record claims nothing beyond the measured
+    T_0(U) curve.
+
+  mechanism: >-
+    STEP 1. Build X_0 with T_0 entries by the count rule at r = 2, a = 1/4
+    (Bernstein-Lange point), P charged; also with the length rule of
+    IDEA-20260906-05ffb8 as a second arm.
+    STEP 2. Draw U targets with seeded known logs (for certification only;
+    never read by the solver). Process sequentially with the four outcomes
+    of claim (A); weighted union-find with path compression storing, per
+    node, the affine relation to its root.
+    STEP 3. Record per target: number of walks used, group operations,
+    outcome type, time-of-resolution (immediately, later in the batch, or
+    never); certificate check at resolution.
+    STEP 4. Sweep T_0 in T_BL * {0, 1/8, 1/4, 1/2, 3/4, 1} and U in
+    {1, 8, 64, 512, 4096, 32768} at N in {2^24, 2^27, 2^30}, k in {2, 4, 8};
+    interpolate T_0(U) at epsilon in {0.8, 0.9} for the batch average and for
+    the first-10% slice.
+    STEP 5. Two memory arms: UNCAPPED (all batch DPs stored) and CAPPED
+    (S_peak <= T_BL; once full, new batch DPs are stored only if a relation
+    can be recorded, otherwise dropped), so the frontier point is reported
+    at equal peak memory as well.
+    STEP 6. Controls and nulls below; every solved log certified by an
+    independent scalar multiplication on the curve arm.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Corpus and web search as in IDEA-20260906-aed829, plus: Kuhn-Struik
+      (SAC 2001; PDF fetched, summary read), Fouque-Joux-Mavromati (ASIACRYPT
+      2014; search summary), Hitchcock-Montague-Carter-Dawson (IJIS 2004;
+      search summary), Corrigan-Gibbs-Kogan multi-DL statements (abstract-
+      level only; PDF unparsed), Yun 2015 (KN-LIT-4091), Ying-Kunihiro 2017,
+      Hhan-Yamakawa-Yun 2024 (arXiv 2402.11269, listing), Auerbach-Giacon-
+      Kiltz 2020 (KN-LIT-3717 title-only; search summary), May-Ostuzzi PKC
+      2025 (search summary), KN-LIT-5040 (Kim, multiple DL with auxiliary
+      inputs), KN-LIT-097 (batch remark).
+    results: >-
+      Corpus: no record grows a Bernstein-Lange table during a batch or
+      states a T_0(U) recurrence; H-MTIC-001 uses the Kuhn-Struik figure as
+      a comparator only; TASK-20260904-e87737 names Kuhn-Struik as the
+      correct batch baseline for index calculus. External: Kuhn-Struik reuse
+      DPs of solved instances (about sqrt(2 L N) total, per the fetched
+      summary); FJM build the relation graph among users and recover all
+      keys when it connects (O~(sqrt(N L))); Corrigan-Gibbs-Kogan's abstract
+      announces "a new generic preprocessing attack for the multiple-
+      discrete-log problem" whose content this session COULD NOT READ -- it
+      is the single most likely place where this exact composition already
+      exists, and Stage 0 is a reading of it; May-Ostuzzi give the group-
+      action analogue (hint s, online t, and sqrt(m) N^{1/2} for m instances)
+      but, per the summary, treat precomputation and multi-instance
+      separately. The coordinator's scratch (internal, unverified) shows the
+      any-known-DP hit rate rising from 0.69 to 0.87 across 40000 sequential
+      targets at N = 2^30 with T_0 = 1024 -- the UPPER bracket only, with no
+      resolution accounting, no null, no certificate.
+    verdict: >-
+      ADAPTATION. Every ingredient is published; the composition is
+      natural and may be in Corrigan-Gibbs-Kogan's multi-DL attack or in
+      Auerbach-Giacon-Kiltz. What this program lacks and this record
+      supplies is the charged T_0(U) curve with the resolution accounting
+      and the peak-memory arm.
+
+  discriminated_from:
+    - >-
+      Kuhn-Struik (retrieved): P = 0, no selected table; this record's
+      T_0 = 0 arm IS Kuhn-Struik and is a mandatory control, not the claim.
+    - >-
+      Fouque-Joux-Mavromati (retrieved): the relation graph among L users
+      without precomputation; adopted here as the resolution structure.
+    - >-
+      IDEA-20260807-ea3915: M GROUPS with advice; this record is one group,
+      U targets.
+    - >-
+      IDEA-20260726-001 / H-MTIC-001: multi-target index calculus; different
+      algorithm, shares only the Kuhn-Struik comparator.
+    - >-
+      IDEA-20260906-05ffb8: selection statistic of the PRECOMPUTED part;
+      used here as an arm, not duplicated.
+    - >-
+      IDEA-20260906-aed829: supplies C_sel and the (B1)-type law used in the
+      model prediction (C).
+
+  object_first_candidate:
+    tracked_object: >-
+      THE KNOWN-DP SET WITH ITS RELATION FOREST: entries (d, a, b, owner) and
+      the union-find over owners, followed target by target.
+    lossiness: >-
+      GENUINELY LOSSY: forgets every intermediate walk point; retains DPs,
+      affine scalars and the component structure.
+    propagation: >-
+      LOSSY-PROJECTION TEST, PASSED. One more walk updates the set by one of
+      the four outcomes, each computable from the retained data alone
+      (lookup, relation solve, union). Not a change of coordinates: the
+      walks are not recoverable from the set.
+    survival_score: >-
+      Survives arbitrary batch length; its usefulness saturates when the
+      known coverage approaches 1 (a_m large). Dies if walks are not
+      functions of the point (then basins are not well defined and the
+      relation from a shared DP still holds, but the coverage model does
+      not).
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING. NULL 1 (phantom batch): store batch DPs but
+    disable lookups against them; T_0(U) must equal T_BL for every U within
+    CI. NULL 2 (random points): replace each stored batch DP by a uniformly
+    random group element with the same bookkeeping; hits on batch entries
+    must occur at the chance rate (stored entries)/N, i.e. zero at every
+    toy size. NULL 3 (relation scramble): permute the (a, b) scalars among
+    batch entries; every certificate on a batch-resolved target must fail,
+    which audits the union-find. DECAY PARAMETER phi: store only a fraction
+    phi of the batch DPs (phi in {0, 0.25, 0.5, 0.75, 1}); the T_0 reduction
+    must increase monotonically with phi, and the T_0 = 0 arm at phi = 0
+    must be pure per-target rho with no reuse. STRUCTURAL TELL: the
+    first-10% success must stay BELOW the batch average; a batch whose
+    early targets do as well as its late ones is not using the growth.
+
+  assumptions:
+    - >-
+      Basin model of IDEA-20260906-aed829 (H1, H2). The batch coverage law
+      in claim (C) is a derivation of this record, not a cited result.
+    - >-
+      Kuhn-Struik's sqrt(2 L N) figure is relayed from a WebFetch summary of
+      the SAC 2001 PDF and is used only as the T_0 = 0 comparator; the
+      summary tool's reliability is limited and the figure must be re-read.
+    - >-
+      Corrigan-Gibbs-Kogan's multi-DL preprocessing lower bound and attack
+      were NOT read; the record does not claim to be inside or outside them.
+    - >-
+      Targets are independent uniform; the batch is non-adaptive; no target
+      is a live key (RQ constraint).
+
+  proof_search_map:
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: null
+      reproduction_check: null
+    observation_collision:
+      observable: null
+      distinct_preimage_search: null
+    constructive_transforms: []
+    quantifier_order: null
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations: []
+    not_applicable_reason: >-
+      Empirical composition record; the model used for predictions is the
+      derivation of IDEA-20260906-ac100b applied below the selection
+      threshold.
+
+  predictions:
+    - metric: T_0(U)/T_BL(1) at epsilon = 0.9, k = 4, a = 1/4, r = 2, batch average
+      direction: lower
+      minimum_effect: >-
+        Below 0.75 with CI excluding 1.0 by U = T_BL/2, and below 0.25 by
+        U = 4 T_BL; predicted shape: linear in U with slope about
+        -beta k / T_BL, beta in [0.3, 0.7], then a tail to 0.
+    - metric: T_0(U)/T_BL(1) for the FIRST 10% of targets at the same epsilon
+      direction: lower
+      minimum_effect: >-
+        Strictly above the batch-average ratio at every U (CI-separated
+        for U >= T_BL), and above 0.5 until U >= 4 T_BL; this is the
+        binding number for a non-repeatable batch.
+    - metric: measured solved fraction relative to the LOWER and UPPER brackets of claim (C)
+      direction: different
+      minimum_effect: >-
+        Inside the brackets at every cell; the gap (UPPER - measured) below
+        0.05 when C_sel >= 0.2 and growing as T_0 -> 0.
+    - metric: peak stored entries S_peak in the UNCAPPED arm
+      direction: higher
+      minimum_effect: >-
+        Grows with U as the number of new-DP outcomes, predicted about
+        U k (1 - C_known) integrated; the CAPPED arm at S_peak = T_BL must
+        still show T_0(U)/T_BL below 0.75 by U = 2 T_BL (a weaker but
+        frontier-honest claim).
+    - metric: T_0(U) under NULL 1 and at phi = 0
+      direction: different
+      minimum_effect: Equal to T_BL within CI at every U.
+    - metric: T_0 = 0 arm per-target cost at U = 32768
+      direction: different
+      minimum_effect: >-
+        Within a factor 2 of sqrt(2 N / U) group operations per target
+        (Kuhn-Struik order), reported as the P = 0 comparator; a larger
+        deviation flags a bookkeeping problem, not a finding.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (reading, HARD GATE): read Corrigan-Gibbs-Kogan's multiple-
+      discrete-log preprocessing attack and lower bound (KN-LIT-013 records
+      the paper as not read), Kuhn-Struik and Fouque-Joux-Mavromati; state
+      the multi-instance bound form and whether the composition here is
+      already one of their attacks. Absence recorded as absence.
+      STAGE 1 (minutes, THE CHEAPEST VALID DISCRIMINATOR): N = 2^24, a = 1/4,
+      r = 2, k = 4, T_0 in {T_BL, T_BL/2, 0}, U in {1, 512, 4096}, 3 seeds:
+      solved fraction with full resolution accounting, the two brackets, and
+      NULL 1. This separates "the batch supplies coverage" from "the batch
+      supplies only pending relations that never resolve" in one run.
+      STAGE 2 (hours): the full sweep of Step 4 at N in {2^24, 2^27}, 5
+      seeds, both memory arms, all nulls and the phi decay.
+      STAGE 3 (hours): N = 2^30, 3 seeds, the largest cells only, for the
+      N-independence of the T_0(U)/T_BL curve.
+      STAGE 4 (hours): toy prime-order curve at N about 2^24, r-adding walk
+      r = 32, every resolved logarithm certified. Seeds and CIs as in
+      aed829.
+    controls:
+      - Bernstein-Lange selected table with no batch growth (NULL 1) at every U
+      - Kuhn-Struik / T_0 = 0 arm at every U (P = 0 comparator)
+      - per-target rho with DPs and no reuse (phi = 0, T_0 = 0)
+      - NULL 2 random-point batch entries; NULL 3 relation scramble
+      - CAPPED memory arm at S_peak = T_BL
+      - first-10% slice beside the batch average
+    required_metrics:
+      - solved fraction per target index, per cell, with Wilson CIs
+      - T_0(U) at epsilon in {0.8, 0.9}, batch average and first-10%, bootstrap CI
+      - group operations per target (online) and P for X_0
+      - S_peak per arm; bits per entry, frozen
+      - outcome-type histogram (i)-(iv) and time-of-resolution histogram
+      - component-size distribution of the relation forest at batch end
+      - certificate pass count on the curve arm
+
+  falsification_conditions:
+    - >-
+      T_0(U)/T_BL is not below 1 with CI at U = 4 T_BL, k = 4: the batch's
+      own DPs do not substitute for precomputed entries at this budget;
+      the record is rejected in its stated regime (explanation B of the
+      report).
+    - >-
+      The measured solved fraction falls below the LOWER bracket: the
+      accounting or the union-find is wrong; invalid run set.
+    - >-
+      NULL 1 shows a T_0 reduction: lookups are leaking; invalid.
+    - >-
+      The first-10% slice matches the batch average within CI at U >= T_BL:
+      the growth is not what drives the gain; a mechanism claim is withdrawn.
+    - >-
+      The CAPPED arm shows no reduction while the UNCAPPED does: the gain is
+      a memory trade, to be reported as a frontier point and not as a T
+      reduction.
+
+  confounders:
+    - >-
+      Memory accounting: batch entries ARE table entries; the RQ's T is the
+      precomputed count and S_peak must always be reported beside it.
+    - >-
+      Order effects: sequential processing favours late targets; the
+      first-10% slice and a round-robin arm (all targets walk once, then
+      again) guard this.
+    - >-
+      Pending targets stop walking after a relation; a variant that keeps
+      walking could resolve faster at higher L and must not be pooled.
+    - >-
+      Certification must use the seeded true logs only at check time;
+      any leakage into the solver voids the run.
+    - >-
+      Cap and cycle losses as in aed829.
+
+  interpretation_limits:
+    - >-
+      Toy scale, claim_tier toy. Generic; constant-factor; the exponent
+      1/3 (or the Kuhn-Struik 1/2 with U-amortisation) does not move.
+    - >-
+      The reduction is in PRECOMPUTED entries at fixed per-target L and
+      epsilon; it is bought with online memory in the UNCAPPED arm and the
+      CAPPED arm is the frontier-honest version.
+    - >-
+      Applies to a non-adaptive batch of independent targets on one curve;
+      says nothing about multi-curve settings (RQ-MTGT-2cabee).
+
+  heuristic_assumptions:
+    - id: H4
+      statement: >-
+        BATCH COVERAGE LAW. The union of the basins of the DPs reached by m
+        independent uniform-start batch walks, restricted to basins of size
+        below x*_0 W^2, covers C_batch(m) as in claim (C), with relative
+        error at most 10% for N >= 2^24, a_m <= 16.
+      rigorous_support: >-
+        Follows from H1-H2 of IDEA-20260906-aed829 by the same integration
+        as the unselected law (B1), truncated at the selection threshold;
+        imitates the coupon-collector / size-biased coverage of a random
+        partition by random samples.
+      validation_plan: >-
+        Sample: at N = 2^24 with exact basins, m in T_BL * {1/4 .. 16} batch
+        walks after a selected table at a = 1/4, r = 2; compare the exact
+        below-threshold coverage with the integral at each m; tail check:
+        the largest below-threshold basin stored versus the threshold
+        x*_0 W^2 (must be below it in every seed, which audits the
+        selection). Transfer: same law at cryptographic N, not tested.
+    - id: H1-H2
+      statement: Inherited from IDEA-20260906-aed829.
+      rigorous_support: As in IDEA-20260906-aed829.
+      validation_plan: As in IDEA-20260906-aed829.
+
+  target_complexity:
+    time_exponent: >-
+      ONLINE per target 1/3 in N at T_BL = N^{1/3} with L = k W fixed;
+      unchanged. PRECOMPUTATION 2/3 in N at U = 1, falling to 0 at
+      U >= U_0; the record targets the constant of that fall.
+    memory_exponent: >-
+      Precomputed 1/3 in N at U = 1, falling with U; peak stored entries
+      up to 1/3 (CAPPED arm) or growing with U (UNCAPPED arm, reported).
+    best_known: >-
+      U = 1: Bernstein-Lange selected table (KN-LIT-3060). P = 0: Kuhn-Struik
+      about sqrt(2 U N) total (retrieved summary); Fouque-Joux-Mavromati
+      O~(sqrt(N U)) (retrieved summary); tight generic bounds without advice
+      Theta(sqrt(U N)) (Yun, KN-LIT-4091; Ying-Kunihiro; Hhan-Yamakawa-Yun,
+      listings). With advice and U targets: Corrigan-Gibbs-Kogan state a
+      bound and an attack (abstract-level; NOT READ).
+    hidden_overhead: >-
+      Union-find is O(U alpha(U)); lookups O(1); the restart scalar
+      multiplications O(k log N) per target. The UNCAPPED arm's memory
+      growth is the overhead most likely to be understated and is reported
+      as S_peak.
+    tradeoff_note: >-
+      Interpolates between the Bernstein-Lange point (P = 1.24 N^{2/3},
+      S = N^{1/3}) and the Kuhn-Struik point (P = 0, S = batch DPs) on the
+      (P, S, L, epsilon, U) frontier; whether the interpolation lies strictly
+      inside the convex hull of the two endpoints at fixed (L, epsilon) is
+      exactly what T_0(U) measures. Parallelisation: targets' walks are
+      independent until a relation; the union-find is a serial bottleneck of
+      negligible cost.
+
+  dominated_by: >-
+    CHECKED ROW BY ROW. Bernstein-Lange at U = 1: this record IS that point
+    at U = 1 (tie). Kuhn-Struik / FJM at P = 0: dominates this record on P
+    for U >= U_0 and on precomputed memory always; does not dominate on
+    per-target L for U < U_0 at the same peak memory (to be measured).
+    Rho with DPs per target: dominated by both on time. CGK single-instance
+    bound: respected. CGK multi-instance bound: form NOT READ; the record
+    may be dominated by their attack -- Stage 0 decides. May-Ostuzzi: group
+    actions, not this group. dominated_by on the (T_0 at fixed L, epsilon,
+    U, S_peak <= T_BL) axis: null after this check, conditional on Stage 0.
+  sota_delta: >-
+    Predicted precomputed-table reduction T_0(U)/T_BL below 0.75 by
+    U = T_BL/2 and below 0.25 by U = 4 T_BL at k = 4, epsilon = 0.9, at equal
+    per-target L and equal peak memory in the CAPPED arm; exponents unchanged.
+    Against Kuhn-Struik the delta is a lower per-target L for U < U_0 at the
+    price of P; against Bernstein-Lange it is lower P at the price of online
+    memory growth (UNCAPPED) or nothing (CAPPED, if the capped arm fails).
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.8 that T_0(U) falls with U with a CI-separated margin by U = 4 T_BL
+    (the mechanism is the same reuse Kuhn-Struik already rely on). 0.5 that
+    the CAPPED arm keeps most of the reduction. 0.5 that the composition is
+    already Corrigan-Gibbs-Kogan's multi-DL attack in some form, which would
+    make the record `known` and leave only the charged curve as the
+    contribution. 0.7 that the resolution loss stays below 0.05 while
+    C_sel >= 0.2.
+
+  citations:
+    - ref: KN-LIT-3060
+      provenance: kb
+      claim: Bernstein-Lange constants; U = 1 baseline.
+      verified_by: KN-LIT-3060 record read 2026-09-06
+    - ref: "Kuhn-Struik, Random walks revisited: extensions of Pollard's rho algorithm for computing multiple discrete logarithms, SAC 2001, LNCS 2259"
+      provenance: retrieved
+      claim: >-
+        Reuse of distinguished points across instances; expected total cost
+        of approximately sqrt(2 L N) per the WebFetch summary of the PDF
+        (summary reliability limited; to be re-read).
+      verified_by: WebFetch of ac.informatik.uni-freiburg.de sac01.pdf 2026-09-06
+    - ref: "Fouque-Joux-Mavromati, Multi-user collisions: applications to discrete logarithm, Even-Mansour and PRINCE, ASIACRYPT 2014 (eprint 2013/761)"
+      provenance: retrieved
+      claim: Relation graph among users; all keys recovered when connected; O~(sqrt(N L)) for L users.
+      verified_by: WebSearch summary 2026-09-06 (not opened)
+    - ref: "Hitchcock-Montague-Carter-Dawson, The efficiency of solving multiple discrete logarithm problems and the implications for the security of fixed elliptic curves, IJIS 3, 2004"
+      provenance: retrieved
+      claim: Lower bound for a rho variant solving multiple ECDLPs; fixed-curve precomputation framing.
+      verified_by: WebSearch summary 2026-09-06 (not opened)
+    - ref: KN-LIT-013
+      provenance: kb
+      claim: >-
+        S T^2 = Omega~(eps N); the abstract (search summary) also announces
+        multi-DL lower bounds and a new generic preprocessing attack for
+        multi-DL, NOT READ.
+      verified_by: KN-LIT-013 record read 2026-09-06; WebSearch summary 2026-09-06
+    - ref: KN-LIT-4091
+      provenance: kb
+      claim: Yun, tight generic lower bound for the multiple DL problem (no advice).
+      verified_by: KN-LIT-4091 record read 2026-09-06
+    - ref: "Ying-Kunihiro, Bounds in various generalized settings of the discrete logarithm problem, ACNS 2017"
+      provenance: retrieved
+      claim: k-out-of-n multiple DL generic bounds (no advice).
+      verified_by: WebSearch summary 2026-09-06
+    - ref: "Hhan-Yamakawa-Yun, A new approach to generic lower bounds: classical/quantum MDL, quantum factoring, and more, arXiv 2402.11269"
+      provenance: retrieved
+      claim: Asymptotically tight multi-instance DL bound in the classical GGM (no advice), per listing.
+      verified_by: WebSearch listing 2026-09-06 (not opened)
+    - ref: KN-LIT-3717
+      provenance: kb
+      claim: >-
+        Auerbach-Giacon-Kiltz; the search summary reports Omega(sqrt(m p))
+        for m-out-of-n gap DL; the corpus record is title-only.
+      verified_by: KN-LIT-3717 record read 2026-09-06; WebSearch summary
+    - ref: "May-Ostuzzi, Multiple group action dlogs with(out) precomputation, PKC 2025 (eprint 2024/564)"
+      provenance: retrieved
+      claim: Group-action analogue with hint s, online t (s = t = N^{1/3}) and sqrt(m) N^{1/2} for m instances.
+      verified_by: WebSearch summary 2026-09-06 (not opened)
+    - ref: KN-LIT-5040
+      provenance: kb
+      claim: Kim, multiple DL with auxiliary inputs -- a different problem (auxiliary powers), cited to mark the boundary.
+      verified_by: KN-LIT-5040 record read 2026-09-06
+    - ref: KN-LIT-097
+      provenance: kb
+      claim: Notes that batch techniques make subsequent keys cheaper (sect113r2 paper).
+      verified_by: KN-LIT-097 record read 2026-09-06
+    - ref: "coordinator scratch bl_sweep_30.log (scratchpad, not in repo)"
+      provenance: internal
+      claim: >-
+        UNVERIFIED: any-known-DP hit rate 0.69 -> 0.87 across 40000
+        sequential targets at N = 2^30, T_0 = 1024, W = 1024 (UPPER bracket
+        only; no resolution accounting, no null, no certificate).
+      verified_by: file read 2026-09-06; not evidence
+
+  source_refs:
+    - RQ-ECDLP-78dbc5
+    - KN-LIT-3060
+    - KN-LIT-013
+    - KN-LIT-4091
+    - KN-LIT-3717
+    - KN-LIT-5040
+    - KN-LIT-097
+    - KN-LIT-012
+    - KN-TECH-001
+    - KN-TECH-056
+    - H-MTIC-001
+    - IDEA-20260807-ea3915
+    - IDEA-20260906-aed829
+    - IDEA-20260906-05ffb8

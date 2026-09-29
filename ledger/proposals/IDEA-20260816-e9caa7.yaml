@@ -1,0 +1,261 @@
+idea:
+  id: IDEA-20260816-e9caa7
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-16'
+  title: Every nonce-leakage attack takes (l bits, error rate e) as an input nobody in this program
+    produces; build the missing map by running a SIMULATED Hamming-weight-plus-Gaussian-noise channel
+    over an instrumented nonce-consuming routine and reporting, per assumed noise level, the induced
+    posterior entropy of the nonce's top bits.
+  class: mechanism
+  claim: '(A) THE MISSING LINK. Lattice and Fourier nonce-recovery attacks are parameterised by two
+    numbers: l, the count of known nonce bits per signature, and e, the probability a claimed bit
+    is wrong. Every cost model in this lane consumes (l, e). Nothing in this program PRODUCES (l,
+    e); they arrive as assumptions. The map from a channel description to (l, e) is a distinct object,
+    and it is computable here. (B) THE OBJECT. Fix an instrumented nonce-consuming routine over a
+    toy curve. Define a simulated observation: for each limb of the nonce as it is processed, the
+    observer receives HW(limb) + N(0, sigma^2), a real number. Compute exactly, by enumeration at
+    small limb width, the posterior distribution over the nonce given the observation vector, and
+    from it the posterior entropy of the top-l bits. The deliverable is the function sigma -> (l_eff(sigma),
+    e(sigma)), where l_eff is the largest l for which the MAP estimate of the top l bits is correct
+    with probability at least 1-e, computed over a target e grid. (C) THE PROPERTY THAT MAKES IT WORTH
+    DOING. Because limbs are small the posterior is exact, not estimated: at 8-bit limbs the sum over
+    256 values per limb is trivial, so there is no sampling error anywhere in the pipeline and the
+    resulting curve carries only the uncertainty of the CHANNEL MODEL, which is declared rather than
+    measured. (D) WHAT IS NOT CLAIMED, AND THIS IS THE LOAD-BEARING PART. The Hamming-weight-plus-Gaussian
+    channel is an ASSUMED model. This environment has no physical measurement capability whatsoever:
+    no power trace, no EM probe, no cache observation on real hardware. Nothing here demonstrates
+    that any device emits HW(limb) at any sigma, and no sigma measured here corresponds to any real
+    signal-to-noise ratio. The output is a conditional statement -- IF an adversary observes this
+    channel at this sigma, THEN the induced HNP parameters are these -- and the antecedent is unverified
+    and unverifiable here. (E) NOT CLAIMED EITHER: any key recovery, any attack cost, any statement
+    about deployed ECDSA, and any statement about what the published literature assumes. The curve
+    is an input to a cost model, not a cost.'
+  mechanism: 'STAGE 1: fix the nonce representation as L limbs of b bits (b=8, L in {2,4}) so that
+    the total nonce width stays enumerable and the posterior is exact. STAGE 2: define the channel
+    formally: observation o_i = HW(k_i) + eta_i with eta_i ~ N(0, sigma^2) independent across limbs,
+    and the observer receives (o_1..o_L). This is written down as the assumption, in the record, in
+    the run manifest, and in every reported number. STAGE 3: compute the exact posterior P(k | o)
+    by Bayes over the 2^b values per limb, using the fact that limbs are independent under the model
+    so the posterior factorises -- this makes the computation O(L * 2^b) per observation rather than
+    O(2^{Lb}). STAGE 4: from the factorised posterior derive the posterior distribution of the TOP
+    l bits of the reconstructed integer, which does NOT factorise, and evaluate it exactly by convolution
+    over limb carries at L<=4. STAGE 5: for each sigma on a grid and each l, compute the MAP accuracy
+    of the top l bits and hence e(sigma, l); read off l_eff at target e values. STAGE 6: run the null
+    arm and report the curve with its channel assumption printed alongside every point.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-ECDSA-87625f in full, including its constraints on memory-charged frontiers and
+      certificate discipline. Grepped ledger/proposals/ for 'Hamming weight' (six hits), 'SNR', 'noise
+      sigma', 'erroneous leakage', 'leakage model'. Read titles and question_id of IDEA-20260815-1ac849
+      (lattice/Fourier one-axis frontier, class cost-model, RQ-ECDSA-87625f) and of the erroneous-leakage
+      claw proposal surfaced by the title grep. Checked the CLAUDE.md blacklist entries for RQ-ECDSA-87625f
+      (deterministic nonce generator substitution, nonce-bias window shape).
+    results: IDEA-20260815-1ac849 puts the lattice and Fourier families on one memory-charged frontier
+      and looks for the bias level where the winner changes -- it CONSUMES (l, e) and does not produce
+      them. A second existing proposal treats erroneous leakage as a claw problem, arguing pairwise
+      HNP consistency makes subset selection a meet-in-the-middle rather than a (1-e)^m guess -- again
+      taking e as given. Another proposal identifies the dual-lattice integer combination vector as
+      the shared tracked object of both families with an exact sinc product rule for bias propagation.
+      'Hamming weight' hits six proposals, none of which surfaced as an ECDSA nonce channel-to-(l,e)
+      map. The blacklist covers deterministic-nonce substitution and nonce-bias window shape; neither
+      is this.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature in either direction. Assembled
+      from known parts: Hamming-weight leakage models and exact Bayesian posteriors over small alphabets
+      are standard; the HNP parameterisation by (l, e) is already the frame of RQ-ECDSA-87625f and
+      of IDEA-20260815-1ac849. Claimed new only within this repository: producing (l_eff, e) as the
+      OUTPUT of a declared simulated channel rather than accepting them as inputs, and reporting the
+      resulting curve as a conditional object whose antecedent this environment cannot verify.'
+  object_first_candidate:
+    tracked_object: The posterior distribution P(k | o) over the nonce, carried from the per-limb
+      factorised form through the carry convolution into the distribution of the top l bits. What
+      is followed is the posterior, not the nonce.
+    lossiness: 'Genuinely lossy. The observation vector retains only limb Hamming weights corrupted
+      by noise: at b=8 the map k_i -> HW(k_i) collapses 256 values onto 9, so even at sigma=0 the
+      observation discards at least log2(256/9) bits per limb and the posterior is genuinely spread.
+      The retained part propagates because the channel is memoryless across limbs under the stated
+      model, so the posterior factorises exactly and each additional limb observation multiplies in
+      without reference to the others. The carry structure of the integer reconstruction is where
+      the factorisation ends, and that is precisely the step the exact convolution handles rather
+      than approximating -- which is why L is capped at 4.'
+    propagation: One limb processed appends one real observation and multiplies the posterior by the
+      likelihood factor exp(-(o_i - HW(k_i))^2 / 2 sigma^2). One step of the target operation -- consuming
+      a limb of the nonce inside the scalar-multiplication routine -- therefore acts on the tracked
+      object by a pointwise multiplication over a 256-element vector, which is deterministic given
+      the observation. The propagation to the top-l-bit distribution is the carry convolution, which
+      acts on the joint by a fixed linear map.
+    survival_score: Stated as the largest sigma at which l_eff is still at least 1 at e=0.1 -- the
+      noise level beyond which the object carries less than one usable nonce bit and dissolves. Also
+      reported as the l_eff(sigma) curve itself, whose shape is the survival profile rather than a
+      single number. At sigma=0 the object is maximally informative and l_eff is bounded only by the
+      Hamming-weight collapse; the interesting content is where the curve crosses l_eff=1, 2 and 3.
+  null_object_control: 'The identical posterior computation run on an observation vector generated
+    INDEPENDENTLY of the nonce: o_i drawn from the marginal distribution of HW(uniform b-bit value)
+    plus the same Gaussian noise, but not from the actual nonce. Executed in the same invocation,
+    with the same code path and the same sigma grid. For the signal arm to mean anything the null
+    must show l_eff = 0 at every sigma and every target e, and the posterior entropy of the top l
+    bits must equal the prior entropy l to within numerical tolerance. A null that yields l_eff >
+    0 means the MAP-accuracy estimator is biased by the top-bit prior -- for instance because uniform
+    nonces truncated to a curve order are not uniform in their top bits -- and no signal number is
+    reportable until that is fixed. A second null uses sigma = infinity operationally (observations
+    replaced by pure noise) and must reproduce the same result.'
+  discriminated_from:
+  - 'IDEA-20260815-1ac849 (lattice and Fourier on one memory-charged frontier, find the bias level
+    where the winner changes): that proposal takes (l, e) or a bias level as an input axis and produces
+    attack costs; this produces the axis and produces no cost. They compose rather than compete, and
+    neither substitutes for the other.'
+  - 'The existing erroneous-leakage claw proposal (pairwise HNP consistency as a checkable predicate
+    making subset selection a meet-in-the-middle): it reasons about how to EXPLOIT a given error rate
+    e; this computes what e a declared channel induces. Nothing in its argument depends on where e
+    came from, and nothing here depends on how e is exploited.'
+  - 'The blacklisted deterministic-ECDSA nonce-generator substitution work and the nonce-bias window-shape
+    proposals under RQ-ECDSA-87625f: those concern how the nonce is GENERATED and what its distribution
+    is; this concerns what is OBSERVED about an arbitrary nonce, and holds the generator fixed and
+    uniform throughout.'
+  - 'The dual-lattice integer-combination-vector proposal with the sinc product bias rule: its object
+    is a vector in the dual of the HNP lattice and its propagation rule is a product of sinc factors
+    over combination coefficients; this object is a posterior over a nonce and its propagation is
+    a likelihood multiplication. Different objects, different one-step actions.'
+  - 'Any real side-channel measurement: this makes none, assumes its channel, and grades every claim
+    accordingly.'
+  assumptions:
+  - The Hamming-weight-plus-independent-Gaussian channel is ASSUMED, not measured; this environment
+    has no physical measurement capability and cannot validate the model.
+  - Limb observations are independent given the nonce, which is the model's own statement and is false
+    for many real leakage sources.
+  - Nonces are uniform over [1, n-1] and the top-bit prior induced by truncation to the curve order
+    is handled explicitly rather than ignored.
+  - An adversary is assumed to know which observation corresponds to which limb, i.e. perfect alignment;
+    misalignment is a separate and untreated cost.
+  - The instrumented routine actually processes the nonce limb by limb in the order the channel assumes,
+    which is a property of the specific implementation and is verified by tracing rather than assumed.
+  predictions:
+  - metric: l_eff at sigma = 0 and target e = 0.01, for b=8 and L=4
+    direction: higher
+    minimum_effect: 'forced value: strictly greater than 0, because at zero noise the top limb''s
+      Hamming weight alone constrains the top bits; the exact value is computed, not pre-committed'
+  - metric: l_eff at target e = 0.01 as sigma increases across the grid
+    direction: lower
+    minimum_effect: 'forced: monotonically non-increasing in sigma; any increase is a numerical or
+      estimator fault, not a finding'
+  - metric: l_eff on the independent-observation null arm at every sigma
+    direction: lower
+    minimum_effect: forced value 0 at every sigma and every target e
+  - metric: posterior entropy of the top l bits on the null arm, in bits
+    direction: different
+    minimum_effect: 'forced value: equal to the prior entropy of the top l bits to within 1e-6, which
+      for uniform nonces is l minus the truncation correction that the run computes separately'
+  minimal_test:
+    design: 'Do the whole thing at L=2, b=8 -- a 16-bit nonce -- where the joint posterior over all
+      65536 values can be computed by brute force AND by the factorised-plus-convolution route, so
+      the fast method is checked against exhaustive ground truth in the same run. Sweep sigma over
+      {0, 0.25, 0.5, 1, 2, 4} and compute l_eff at e in {0.01, 0.1} for l = 1..8, on 20000 random
+      nonces per cell with recorded seeds. Run the independent-observation null at every cell. That
+      is a few core-minutes with numpy and settles three things at once: whether the factorised computation
+      agrees with brute force to numerical tolerance, whether the null returns exactly zero, and whether
+      the l_eff(sigma) curve has a usable shape at all. If the null is not zero the idea is refuted
+      cheaply; if the curve is flat the channel model carries no gradient and the larger L=4 run is
+      not worth its cost.'
+    controls:
+    - Independent-observation null arm at every (sigma, l, e) cell, same code path.
+    - 'Pure-noise null: observations replaced by draws unrelated to any nonce.'
+    - 'Exhaustive ground truth at L=2: brute-force joint posterior compared to the factorised-plus-convolution
+      posterior, agreement required to 1e-9.'
+    - 'Top-bit prior control: l_eff computed for a hypothetical observer given zero observations,
+      which must return exactly 0 and quantifies the truncation-induced prior.'
+    - 'Alignment control: a run in which limb observations are randomly permuted before inference,
+      which must collapse l_eff toward the null.'
+    - Trace verification that the instrumented routine consumes nonce limbs in the assumed order.
+    required_metrics:
+    - l_eff(sigma) at each target error rate e
+    - posterior entropy of the top l bits, in bits, per (sigma, l)
+    - MAP accuracy of the top l bits per (sigma, l)
+    - null-arm l_eff and posterior entropy at every cell
+    - maximum absolute deviation between factorised and brute-force posteriors at L=2
+    - the truncation-induced top-bit prior, reported separately
+  falsification_conditions:
+  - 'The null arm returns l_eff greater than 0 at any sigma: the estimator is reading the prior rather
+    than the observation and no number is reportable.'
+  - 'Factorised and brute-force posteriors disagree beyond 1e-9 at L=2: the fast path is wrong and
+    the L=4 results are void.'
+  - l_eff is non-monotone in sigma beyond numerical tolerance.
+  - The alignment control fails to collapse l_eff, indicating the inference is not using limb order
+    and the channel model is not what is being computed.
+  - Trace verification shows the routine does not consume the nonce in limbs at all, making the channel
+    model inapplicable to this artifact.
+  confounders:
+  - Nonce truncation to the curve order makes top bits non-uniform, which can masquerade as leakage;
+    the zero-observation control isolates it.
+  - Numerical underflow in the likelihood product at small sigma biases the posterior; log-domain
+    arithmetic is required and its use must be verified.
+  - Choosing e as a target and reading l_eff off a grid quantises the answer; the grid resolution
+    must be reported.
+  - The independence assumption across limbs makes the posterior sharper than any correlated real
+    channel would, so the curve is optimistic for the adversary by construction.
+  - MAP accuracy over 20000 nonces has its own binomial error, which at e=0.01 is comparable to the
+    effect being read.
+  interpretation_limits:
+  - The channel is assumed. No sigma here corresponds to any measured physical quantity, and no point
+    on the curve licenses any statement about a real device.
+  - The curve is an input to a cost model; it is not a cost, not an attack, and not a recovery.
+  - Results at 16- and 32-bit nonces do not transfer to 256-bit nonces without an argument about how
+    the carry structure scales, which this proposal does not supply.
+  - An optimistic independence assumption means the curve upper-bounds what this channel family gives
+    an adversary and does not bound any other family.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The computation itself is O(L * 2^b) per observation
+      plus an exact carry convolution, which is polynomial in the nonce width at fixed limb size and
+      is not an attack.
+    memory_exponent: No attack exponent is claimed. Working memory is O(L * 2^b) plus the convolution
+      table, a few megabytes at the tested parameters.
+    best_known: 'Within this repository the incumbent for anything in this lane is IDEA-20260815-1ac849''s
+      memory-charged lattice-versus-Fourier frontier, together with the HNP pipeline recorded as KN-TECH-019
+      and the foundational entries KN-LIT-043, KN-LIT-044 and KN-LIT-045 named in RQ-ECDSA-87625f.
+      For the channel-to-(l,e) map specifically the incumbent is nothing: the parameters are assumed
+      everywhere and derived nowhere in this corpus.'
+    hidden_overhead: 'The lower-order term that matters is alignment: every real attack pays for locating
+      which observation belongs to which limb, and this computation assumes that away entirely. The
+      human cost is the temptation to read a sigma as if it were an SNR someone measured, which it
+      is not, and guarding against that misreading in every downstream citation is a permanent tax
+      on the result.'
+  dominated_by: 'n/a (no result claimed). No attack cost is produced, so there is no row on any time/memory/data
+    frontier for this to occupy; all three axes were considered and none applies. Explicitly NOT null:
+    the claim is that the frontier question does not arise, not that this beats the frontier. The
+    nearest cost-bearing object is IDEA-20260815-1ac849''s frontier, to which this supplies an input
+    axis.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: the contribution
+    is a function sigma -> (l_eff, e) computed exactly at 16- and 32-bit nonce widths under a declared
+    channel, where the current state of this corpus is that (l, e) are free parameters with no derivation.
+    No attack time, memory or sample count is claimed to change by any amount.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the exact posterior computation is correct and agrees with brute
+    force at L=2: 0.9, because it is a small well-posed numerical problem. That the null arm returns
+    exactly zero: 0.75, with the residual risk concentrated in the nonce-truncation prior contaminating
+    the top-bit MAP accuracy. That the resulting l_eff(sigma) curve is non-degenerate, i.e. shows
+    a usable gradient rather than jumping from full to zero: 0.6, since Hamming-weight channels are
+    known to be informative at low noise and useless at high noise and the transition could be sharp.
+    That the curve is later cited by a record making a cost claim in this lane: 0.35, because its
+    conditional antecedent is unverifiable here and a careful downstream author may prefer to keep
+    (l, e) as declared parameters.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ECDSA-87625f
+  - IDEA-20260815-1ac849
+  - KN-TECH-019
+  - KN-LIT-043
+  - KN-LIT-044
+  - KN-LIT-045
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/toycurve.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-58efa3

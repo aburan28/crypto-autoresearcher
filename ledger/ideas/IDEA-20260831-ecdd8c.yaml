@@ -1,0 +1,195 @@
+idea:
+  id: IDEA-20260831-ecdd8c
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Add a certificate-bearing auxiliary-input resistance row to the SafeCurves
+    audit family, so the divisor census lands in the twenty audits already running
+  class: tooling
+
+  claim: >-
+    This program runs twenty certificate-bearing SafeCurves parameter audits
+    (GOAL-SCURVE-*), each reproducing eleven published criteria and then
+    "prioritized additional parameter-level weakness diagnostics". The divisor
+    structure of r-1 and r+1 is exactly such a diagnostic, it is not one of the
+    eleven, and it is computable from data those audits already hold. The claim
+    is that the auxiliary-input census belongs as a standard audit row rather
+    than as a one-off table -- computed per curve, certified like every other
+    row, and reported with the same explicit statement that a structural
+    condition is necessary and not sufficient.
+
+  mechanism: >-
+    The SafeCurves criteria gate transfer attacks by curve invariants: embedding
+    degree for MOV/Frey-Rueck, trace for anomalous, discriminant, twist security.
+    Each is a computable property of published parameters with a checkable
+    certificate. The auxiliary-input condition has the identical shape --
+    "does r±1 admit a divisor in the band that makes O(sqrt(r/d) + sqrt(d))
+    bite" -- and differs only in that it gates a PROTOCOL-CONDITIONAL attack
+    rather than an unconditional one.
+
+    That difference is the whole design problem and must be built into the row
+    rather than papered over. A curve failing the embedding-degree criterion is
+    weak. A curve whose r-1 has a convenient divisor is NOT weak: it is weak
+    only if it is used in a protocol that publishes auxiliary powers, which most
+    are not. So the row must be two-valued by construction -- the arithmetic
+    fact, and the explicit statement that it is inert absent a named protocol --
+    and the audit tooling must refuse to emit the first without the second.
+
+    Mechanically this is small: the audits already parse curve parameters and
+    already emit certificates. The row adds a factorization with its certificate
+    and a fixed interpretive clause.
+
+  tracked_object: >-
+    One additional audit row per curve: (largest divisor of r±1 below sqrt(r),
+    E(r), protocol-conditionality clause), with a factorization certificate.
+
+  lossy_projection_test: >-
+    PASSES. The projection (curve) -> (one audit row) discards everything except
+    the divisor fact and its interpretation, and is compatible with the
+    operation the audit family performs, since every other SafeCurves row is the
+    same kind of projection. Non-injective in the standard way: many curves share
+    a row value, which is what makes the audit table comparable across curves.
+
+  novelty_status: known
+  novelty_note: >-
+    Neither the criterion nor its computation is novel. This is tooling: it puts
+    a known diagnostic where this program's existing machinery will keep
+    computing it, instead of in a document that goes stale. No record under this
+    idea may claim novelty for the criterion.
+
+  citations:
+    - ref: ledger/goals/GOAL-SCURVE-137bd9/goal.yaml
+      provenance: internal
+      claim: >-
+        The audit family's objective -- "Independently reproduce and source the
+        eleven SafeCurves criteria for NIST P-224 (field, equation, base, rho,
+        transfer, discriminant, rigidity, ladder, twist, completeness, and
+        indistinguishability), then measure prioritized additional
+        parameter-level weakness diagnostics". Relied on for the existence of an
+        "additional diagnostics" slot this row fits, and for the audit family's
+        certificate discipline.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: IDEA-20260831-df4197
+      provenance: internal
+      claim: >-
+        The divisor census this row operationalizes, including its exact cost
+        expression, its controls (planted-divisor positive, safe-prime null) and
+        its standing prohibition on reporting a divisor as a vulnerability.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record authored in the same
+        session (no TASK id issued)
+
+  assumptions:
+    - >-
+      HARD DEPENDENCY on IDEA-20260831-df4197 completing with its controls
+      passing. Wiring an uncontrolled computation into twenty audits would
+      propagate an error twenty times instead of once, which is strictly worse
+      than not wiring it at all.
+    - >-
+      The audit family accepts an added diagnostic row without disturbing the
+      eleven reproduced criteria. The eleven are the audits' contract with the
+      published source and must not be renumbered or reordered.
+
+  predictions:
+    - metric: >-
+        number of audited curves for which the row emits a non-inert arithmetic
+        value
+      direction: different
+      minimum_effect: >-
+        Predicted zero or near zero for the standardized prime-order curves. A
+        non-inert value is an escalation trigger, not a publication.
+    - metric: >-
+        number of audit outputs emitting the arithmetic fact WITHOUT the
+        protocol-conditionality clause
+      direction: lower
+      minimum_effect: >-
+        Exactly zero, enforced by the tooling rather than by review. This is the
+        row's main design requirement and is itself a testable property.
+
+  minimal_test:
+    design: >-
+      (1) Wait for IDEA-20260831-df4197 to pass its controls.
+      (2) Implement the row in the audit tooling: factorization plus certificate,
+      E(r), and a fixed conditionality clause emitted together as one unit.
+      (3) Add a tooling test asserting the clause cannot be emitted without the
+      value and vice versa.
+      (4) Run across the twenty existing SCURVE audits; diff the outputs to
+      confirm the eleven criteria are byte-identical to before.
+      (5) Report the new column.
+    controls:
+      - >-
+        REGRESSION: the eleven reproduced criteria must be unchanged for every
+        audited curve. Any diff there means the row perturbed the audit and must
+        be reverted.
+      - >-
+        NULL OBJECT: a safe-prime-order synthetic curve added to the audit set
+        must emit the inert value, exercising the row end to end.
+      - >-
+        COUPLING TEST: attempt to emit the arithmetic value with the
+        conditionality clause suppressed; the tooling must refuse.
+    required_metrics:
+      - per-curve row value and factorization certificate
+      - diff of the eleven existing criteria before and after (must be empty)
+      - coupling test outcome
+      - count of curves with unfactored cofactors, reported not hidden
+
+  falsification_conditions:
+    - >-
+      The eleven existing criteria change for any curve. Revert.
+    - >-
+      The coupling test passes when it should refuse, i.e. the value can be
+      emitted without its conditionality clause.
+    - >-
+      The null-object safe-prime curve emits a non-inert value.
+
+  confounders:
+    - >-
+      An audit row reads as a verdict. A curve marked with a convenient divisor
+      will be read as "weaker" by anyone skimming the table, regardless of the
+      clause. This is the primary risk of the whole idea and is the reason the
+      clause is coupled at the tooling level rather than left to prose.
+    - >-
+      Pairing-friendly curves will light up this row by construction and by
+      design intent. Including them without a per-family note would generate a
+      false pattern.
+
+  interpretation_limits:
+    - >-
+      Tooling only. Computes no new mathematics and establishes no result.
+    - >-
+      The row reports a necessary condition. It is not a vulnerability finding
+      and the audits must not accumulate it into a security score.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None. Deterministic computation with certificates, plus a coupling
+    constraint enforced in code.
+
+  target_complexity:
+    time_exponent: >-
+      Per curve, the cost of factoring r±1, already bounded by
+      IDEA-20260831-df4197's contract.
+    memory_exponent: negligible
+    best_known: not applicable -- tooling
+    hidden_overhead: >-
+      Unfactored cofactors turn a value into a bound; the row must carry that
+      distinction into twenty audits without losing it.
+    tradeoff_note: not applicable
+
+  null_object_control: >-
+    A safe-prime-order synthetic curve in the audit set, required to emit the
+    inert value.
+
+  dominated_by: >-
+    n/a. Tooling; no result claimed.
+  sota_delta: >-
+    No attack, no speedup, no novelty. Contribution is durability: the diagnostic
+    is computed by the machinery that already runs rather than by a document
+    that ages, and the conditionality that keeps it honest is enforced in code.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: low

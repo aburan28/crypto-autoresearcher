@@ -1,0 +1,298 @@
+idea:
+  id: IDEA-20260816-3949c8
+  question_id: RQ-FRODO-3260cc
+  added: '2026-08-16'
+  title: A Fujisaki-Okamoto argument wants a worst-case correctness error but a published delta is
+    an average, so track the whole map from message to failure probability and measure its spread
+    in an unstructured Frodo-shaped encoding, where translation invariance predicts a flat map, against
+    a compressed encoding where it does not.
+  class: theory
+  claim: '(A) OBJECT. Instead of the scalar delta, track the FUNCTION m maps to delta(m), the decryption
+    failure probability conditioned on the encrypted message, over the whole message space, summarized
+    by its maximum, its mean, and the ratio of the two. The scalar that a specification prints is
+    the mean of this function under the message distribution; the quantity a transform''s correctness
+    hypothesis wants is closer to its maximum; the ratio is therefore the exact size of the gap between
+    the number that is published and the number that is used. (B) STRUCTURAL CLAIM. For an encoding
+    that embeds message bits as a TRANSLATION of a coordinate, and a decoding that thresholds distance
+    to the nearest codeword, the failure event is invariant under that translation, so delta(m) is
+    exactly constant and the max-to-mean ratio is exactly one. This is provable symbolically at zero
+    compute, and FrodoKEM''s shape is the natural carrier for it: unstructured, no ciphertext compression,
+    one message bit per matrix entry. FrodoKEM is therefore the FREE CONTROL for this question, in
+    the strong sense that its ratio is predicted to be exactly one by an argument that can be written
+    down before any run. (C) BREAKING CLAIM. Introduce ciphertext compression or a rounding step whose
+    quantization grid does not commute with the message translation, and the invariance breaks: the
+    failure event now depends on where the translated codeword sits relative to the grid, so delta(m)
+    varies and the max-to-mean ratio exceeds one by an amount that is a computable function of the
+    compression parameters. The claim is that this ratio is measurable at toy dimension and that its
+    growth with compression aggressiveness is monotone. (D) WHAT IS NOT CLAIMED. No attack, no failure-boosting
+    procedure, no claim that any published delta is wrong, and no claim that any scheme''s correctness
+    hypothesis is violated. A max-to-mean ratio above one means a published average understates a
+    worst case by that factor; whether any transform''s hypothesis actually requires the maximum depends
+    on the transform''s statement, which this program has not transcribed and which this proposal
+    does not assert. Nothing here says anything about ML-KEM or FrodoKEM at real parameters.'
+  mechanism: 'STAGE 1, symbolic. Write the encoding and decoding maps explicitly for the unstructured
+    arm and prove the translation invariance of the failure event, producing an exact prediction of
+    ratio one that is registered before any run. Write the same for the compressed arm and identify
+    precisely which step breaks commutation with the translation. This costs no compute and is the
+    load-bearing part; a run that agrees with a prediction derived after the fact would establish
+    much less. STAGE 2, rig. Implement both arms sharing one noise core, one key generator and one
+    sampler, differing only in the compression step, so any measured difference is attributable to
+    that step. STAGE 3, per-message measurement. For each message in a frozen enumerated subset, draw
+    many ciphertexts and estimate delta(m) with a binomial interval, then report max, mean and ratio
+    with intervals that account for the multiplicity of messages tested, because a maximum over many
+    estimates is biased upward and that bias must be corrected rather than reported as an effect.
+    STAGE 4, null. Draw the failure indicator from a fixed Bernoulli independent of the message, run
+    the identical max-mean-ratio estimator, and confirm the estimated ratio is one within the multiplicity-corrected
+    interval. This null is the whole guard against the maximum-selection artifact and is not optional.
+    STAGE 5, sweep compression aggressiveness and check monotonicity of the ratio. STAGE 6, structural
+    tell: increase the sample budget per message and confirm the null''s apparent ratio falls toward
+    one as it must, while a genuine ratio does not.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-FRODO-3260cc's decryption-failure target and its exact-arithmetic constraint,
+      and RQ-FRODO-a2dbe2's delta term describing how the failure rate enters the reduction. Ran grep
+      -ril over ledger/proposals/ for correctness error, worst-case, average-case, decryption failure,
+      compression, HHK, Fujisaki, and read the titles of every hit; read IDEA-20260808-d21021 and
+      IDEA-20260808-4854f8 in title form and their question ids.
+    results: 'IDEA-20260808-d21021 (RQ-HQC-001) is the closest record in the corpus and it is explicitly
+      the same shape of argument on a different scheme: HQC''s error vector has an exactly-invariant
+      marginal and an adversarially steerable covariance, so the ciphertext''s additive energy is
+      a key-independent dial, and the FO or HHK bound needs worst-case rather than average-case correctness.
+      That record''s mechanism is a STEERABLE DIAL controlled by an adversary; this proposal''s object
+      is a per-message function measured over an enumerated message set with no adversary anywhere,
+      and its distinguishing content is the translation-invariance argument that forces the ratio
+      to exactly one on the unstructured arm. IDEA-20260808-4854f8 (RQ-MLKEM-001) argues the failure
+      rate is consumed in two directions and that only the upper-bound use is licensed by a union
+      bound; that is about direction of use, not about message dependence. IDEA-20260805-f16b44 (FRODO)
+      separates scale from tail-shape error in a failure rate, a distributional question with no message
+      argument. No record measures a per-message failure map or a max-to-mean ratio, and no record
+      uses an unstructured encoding as a forced-value control for such a ratio.'
+    verdict: 'UNVERIFIED. External literature is unreachable here, so nothing is asserted about published
+      worst-case correctness treatments. Claimed new inside this repository: the per-message failure
+      map as a tracked object, the translation-invariance argument that forces a ratio of exactly
+      one on the unstructured arm and thereby makes FrodoKEM''s shape a zero-parameter control, and
+      the multiplicity-corrected estimator with a Bernoulli null that separates a genuine ratio from
+      the upward bias of a maximum over many estimates. Assembled from known parts: the worst-versus-average
+      correctness concern in an FO-style argument is IDEA-20260808-d21021''s, on HQC, and is cited
+      rather than restated; multiplicity correction of a maximum is standard statistics; the shared-core
+      two-arm rig is the matched-null discipline of docs/inventor-protocol.md section 3.'
+  object_first_candidate:
+    tracked_object: The per-message decryption failure probability map, m maps to delta(m), over a
+      frozen enumerated message subset, summarized by its maximum, its mean under the uniform message
+      distribution, and the ratio of maximum to mean.
+    lossiness: 'The projection discards the noise realization, the key, the ciphertext and the identity
+      of which coordinate failed, keeping one probability per message. It is genuinely lossy: every
+      key and every noise draw that produces the same conditional failure probability collapses to
+      the same point, and the entire joint structure across coordinates, which the neighbouring correlation
+      proposal tracks, is gone here. What survives propagates because conditioning on the message
+      is exactly the operation the encoding acts on: applying the encoding to a different message
+      translates the codeword and leaves everything else in the pipeline unchanged, so the map is
+      closed under the operation of changing the message, which is the only operation this object
+      needs.'
+    propagation: 'One step of the target operation is changing the encrypted message by one bit. On
+      the unstructured arm this translates one coordinate''s codeword by a fixed offset and, because
+      the decoding threshold is defined by distance to the nearest codeword, carries the failure region
+      along with it, leaving delta unchanged: the object is constant under the step, which is the
+      strongest possible propagation statement and is exactly why it is a control. On the compressed
+      arm the same step also moves the codeword relative to a fixed quantization grid, so the failure
+      region is deformed rather than translated, and delta moves by an amount determined by the codeword''s
+      position modulo the grid. The object therefore has a one-step rule on both arms, trivial on
+      one and computable on the other.'
+    survival_score: 'The flatness of the unstructured map is exact and survives at every dimension,
+      modulus and noise distribution for which the encoding is a translation and the decoder thresholds
+      distance to the nearest codeword. It dissolves the moment any of those three conditions fails:
+      a non-translation encoding, a decoder with message-dependent tie-breaking, or a modulus that
+      does not divide the codeword spacing so that translation wraps unevenly. Each of those is named
+      in advance and each is a testable rig condition rather than a discovery. On the compressed arm
+      the ratio is predicted to grow with compression aggressiveness until the quantization grid is
+      coarse enough that decoding fails for most messages, at which point the ratio collapses toward
+      one again for a trivial reason, and that non-monotone endpoint is stated in advance so it is
+      not misread.'
+  null_object_control: 'A MESSAGE-INDEPENDENT BERNOULLI arm: failure indicators drawn from a fixed
+    Bernoulli at the measured mean rate, independent of the message, passed through the IDENTICAL
+    per-message estimator, the identical multiplicity correction and the identical max-to-mean summary,
+    in the same invocation. The null must return an estimated ratio of one within the multiplicity-corrected
+    interval. This is the essential control because a maximum over many noisy estimates always exceeds
+    the mean, so a naive ratio above one is the DEFAULT outcome of the estimator rather than a finding;
+    if the null''s apparent ratio is comparable to the compressed arm''s, the measurement has shown
+    nothing. A second null is the unstructured arm itself, whose predicted ratio is exactly one by
+    the symbolic argument, so it serves simultaneously as a forced-value check on the whole pipeline:
+    a ratio significantly above one there indicates a rig defect, not a discovery.'
+  discriminated_from:
+  - 'IDEA-20260808-d21021 (RQ-HQC-001): worst-case versus average-case correctness via an adversarially
+    steerable ciphertext energy dial in HQC. Same underlying concern, different object and different
+    scheme: that record''s quantity is controlled by an adversary and lives in the ciphertext, this
+    one is a function of the MESSAGE with no adversary in the design at all, and the unstructured
+    translation-invariance argument has no HQC analogue.'
+  - 'IDEA-20260808-4854f8 (RQ-MLKEM-001): the failure rate consumed with opposite required directions
+    and the union bound licensing only one. That is an argument about which inequality direction a
+    number supports; this measures a different number entirely, namely the max-to-mean ratio of a
+    per-message map.'
+  - 'IDEA-20260805-f16b44 (FRODO): scale error versus tail-shape error in a failure rate. Both concern
+    what a printed delta conceals, but that record varies the DISTRIBUTION''s shape while holding
+    the scalar, and this one holds the distribution and varies the MESSAGE; neither rig produces the
+    other''s quantity.'
+  - 'IDEA-20260805-411b60 (FRODO): a derived-magnitude mutation control predicting the failure rate''s
+    response to a table perturbation. Its object is the response of the scalar to a table entry; this
+    object is a function over messages and is invariant to which table produced it.'
+  - An ordinary decryption-failure simulation that reports one aggregate rate. That is the mean of
+    this map. The entire content here is that the map may be non-constant, that the unstructured encoding
+    forces it to be constant, and that a maximum over noisy estimates needs multiplicity correction
+    before any non-constancy may be claimed.
+  assumptions:
+  - The unstructured arm's encoding is a translation and its decoder thresholds distance to the nearest
+    codeword; both are rig conditions that are asserted in code and verified, not assumed of any real
+    scheme.
+  - The frozen message subset is representative enough that a maximum over it approximates the maximum
+    over the full space; because the full space is exponential this is a stated limitation, and the
+    subset is chosen to include structured extremes such as all-zero, all-one and alternating patterns
+    rather than only random draws.
+  - Multiplicity correction of the maximum is applied and the correction method is fixed before the
+    run; without it the estimator produces a ratio above one on pure noise.
+  - Toy dimensions are legitimate carriers for a structural invariance argument, since the invariance
+    is dimension-independent when it holds at all.
+  - Compression aggressiveness can be swept continuously enough to observe monotonicity before the
+    trivial collapse at the coarse end.
+  predictions:
+  - metric: max-to-mean ratio of the per-message failure map, unstructured translation-encoded arm
+    direction: lower
+    minimum_effect: forced value exactly 1.0 up to the multiplicity-corrected interval; a significantly
+      larger value indicates a rig defect rather than a finding, and the defect is the deliverable
+  - metric: max-to-mean ratio, message-independent Bernoulli null after multiplicity correction
+    direction: lower
+    minimum_effect: 1.05
+  - metric: max-to-mean ratio, compressed arm at the most aggressive compression before decoding collapse
+    direction: higher
+    minimum_effect: 1.3
+  - metric: monotonicity of the ratio in compression aggressiveness, measured as the fraction of adjacent
+      sweep steps that increase
+    direction: higher
+    minimum_effect: 0.8
+  - metric: apparent ratio of the Bernoulli null as sample budget per message increases
+    direction: lower
+    minimum_effect: no numeric pre-commitment beyond the requirement that it decrease toward 1.0;
+      the reason for refusing a value is that the decay rate depends on the multiplicity correction
+      chosen, and pre-committing would smuggle that choice into the prediction
+  minimal_test:
+    design: 'The symbolic half costs nothing and should be done first: write the encoding, the decoder
+      and the translation argument, and register the forced value of one for the unstructured arm.
+      The measurement half then needs one dimension, one noise setting, three arms and a frozen message
+      subset of 64 messages including the structured extremes. Draw 2^16 ciphertexts per message per
+      arm, estimate delta(m) with binomial intervals, apply the fixed multiplicity correction, and
+      report max, mean and ratio. The discriminating comparison is the unstructured arm against its
+      own forced value of one and against the Bernoulli null: if the unstructured arm''s corrected
+      ratio is significantly above one, the rig or the correction is wrong and nothing else is interpretable.
+      Only then does the compressed arm''s ratio mean anything. This costs a few CPU-hours, needs
+      no primary source, and returns a bounded negative if no ratio above one is resolvable.'
+    controls:
+    - Message-independent Bernoulli null through the identical estimator and multiplicity correction,
+      in the same invocation.
+    - Unstructured translation-encoded arm as a forced-value control with a symbolically derived expected
+      ratio of exactly one.
+    - Structured-extreme messages included in the frozen subset, so a message-dependence concentrated
+      at extremes is not missed by random sampling.
+    - Sample-budget ladder, confirming the null's apparent ratio decays toward one while a genuine
+      ratio does not.
+    - Shared noise core and shared key generator across arms, verified bitwise on the pre-compression
+      path.
+    - Decoder tie-breaking audit, confirming no message-dependent tie-break exists on the unstructured
+      arm.
+    required_metrics:
+    - delta(m) per message with binomial confidence interval, per arm
+    - maximum, mean and max-to-mean ratio per arm, before and after multiplicity correction
+    - ratio as a function of compression aggressiveness
+    - apparent null ratio as a function of sample budget per message
+    - identity of the maximizing message, reported rather than only its value
+    - verification result of the shared-core bitwise check
+  falsification_conditions:
+  - The unstructured arm's multiplicity-corrected ratio is significantly above one, contradicting
+    the symbolic translation argument and indicating a rig defect or a flaw in the argument, either
+    of which is the result to report.
+  - The Bernoulli null's corrected ratio is comparable to the compressed arm's, showing the estimator
+    manufactures the effect.
+  - The compressed arm's ratio does not exceed the null's at any compression level, which is a clean
+    measured obstruction with a stated resolution and is reported as such.
+  - The ratio is non-monotone in compression aggressiveness before the decoding-collapse endpoint,
+    refuting the growth prediction.
+  - The maximizing message is different on every seed, indicating the maximum is selecting noise rather
+    than a message property.
+  - The null's apparent ratio does not decay as the sample budget grows, indicating the multiplicity
+    correction is wrong.
+  confounders:
+  - 'Maximum-selection bias: a maximum over 64 noisy estimates exceeds the mean by construction, so
+    every number here is meaningless without the multiplicity correction and the Bernoulli null, and
+    reporting an uncorrected ratio would be the central error.'
+  - 'Frozen message subset composition: including structured extremes raises the chance of finding
+    a genuine maximum but also makes the subset unrepresentative of the uniform message distribution,
+    so max and mean are computed over different populations unless this is stated.'
+  - Compression aggressiveness interacts with the marginal failure rate, so the arms drift apart in
+    mean as the sweep proceeds; the ratio is scale-free by construction but the interval widths are
+    not.
+  - A decoder with message-dependent tie-breaking would break the invariance for an implementation
+    reason rather than a structural one, which the tie-break audit exists to exclude.
+  - At coarse compression the decoding collapses and the ratio returns toward one for a trivial reason,
+    which would be misread as absence of an effect if the endpoint were not declared in advance.
+  interpretation_limits:
+  - A max-to-mean ratio above one says a published average understates a worst case over the tested
+    message subset by that factor. It does not say any transform's hypothesis is violated, because
+    this program has not transcribed any transform's statement.
+  - The maximum is over a frozen subset of an exponentially large message space and is therefore a
+    lower bound on the true maximum, never an estimate of it.
+  - All results are at toy dimension and toy compression settings; no number transfers to any real
+    scheme, and no failure rate is claimed for anything.
+  - The unstructured arm's flatness is a property of the rig's encoding as implemented, and its agreement
+    with the symbolic argument certifies the rig, not any real scheme's encoding.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The rig costs O(M times S) decryptions for M messages
+      and S samples per message, at M = 64 and S = 2^16 per arm.
+    memory_exponent: No attack memory exponent is claimed. Storage is one counter per message per
+      arm; kilobytes.
+    best_known: The incumbent is the practice, identified in this repository by IDEA-20260808-d21021
+      for HQC, of using an average correctness error where a worst-case one is wanted. This proposal
+      does not beat that record or contradict it; it supplies the missing measured quantity on a different
+      object and adds a forced-value control that record does not have.
+    hidden_overhead: 'The multiplicity correction is the hidden cost and it is conceptual rather than
+      computational: choosing it wrongly makes every ratio wrong in the same direction, and the Bernoulli
+      null is the only thing that catches it. The frozen message subset is the second: 64 messages
+      out of an exponential space means the reported maximum is a lower bound whose looseness is unknown
+      and unbounded, and no amount of compute inside this design fixes that.'
+  dominated_by: 'n/a (no result claimed on any cost frontier). Pareto check actually performed: grep
+    -ril frodo across ledger/ returns no evidence record, so this program holds no FrodoKEM cost rows
+    in time, memory or data and there is no frontier row here. IDEA-20260808-d21021, the nearest record,
+    likewise produces no cost figure, so no Pareto comparison between them exists in any axis.'
+  sota_delta: no attack; conceptual and measurement contribution only. The deliverable is a per-message
+    failure map, a multiplicity-corrected max-to-mean ratio per arm, and a monotonicity curve. No
+    bit-security figure, no attack cost, and no failure rate for any real scheme.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Claim (B), the symbolic translation-invariance forcing a ratio of exactly
+    one on the unstructured arm: 0.85 as an argument, and about 0.7 that the rig actually reproduces
+    it, with the gap owed to tie-breaking and modulus-wrap details that are easy to get wrong. Claim
+    (C), that a compressed arm shows a ratio above 1.3 that is resolvable above the multiplicity-corrected
+    null: 0.45, honestly below even odds, because the effect size depends on compression parameters
+    I am choosing myself and the estimator''s bias is a serious competitor. Monotonicity in compression
+    aggressiveness before collapse: 0.6. Probability the whole exercise ends as a bounded negative,
+    that is, no ratio resolvable above the null at any setting: 0.35, and I regard that outcome as
+    an acceptable deliverable provided the resolution bound is stated.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FRODO-3260cc
+  - RQ-FRODO-a2dbe2
+  - GOAL-FRODO-001
+  - IDEA-20260808-d21021
+  - IDEA-20260808-4854f8
+  - IDEA-20260805-f16b44
+  - IDEA-20260805-411b60
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FRODOFO-7a2724

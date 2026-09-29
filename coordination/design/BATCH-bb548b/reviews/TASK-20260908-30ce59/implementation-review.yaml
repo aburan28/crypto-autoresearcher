@@ -1,0 +1,739 @@
+implementation_review:
+  id: VAL-20260908-30ce59
+  task_id: TASK-20260908-30ce59
+  reviewer_role: validator
+  objective: >-
+    Independent implementation review (not a scientific-run validation) of the
+    zero-run EXP-CRYPTO-9225d2 GOE-ruler-successor implementation produced
+    under TASK-20260907-ecd3a2 and snapshotted under TASK-20260907-3928a8.
+    Verifies specification coverage of the frozen field-arithmetic formulas,
+    the 40-job scope, the three-process rho schedule, the nine-row
+    conditional-256-bit-resource model, and the planted multiplication-
+    overhead detection mechanism; independently re-checks the disclosed
+    authorship gap between independent_checker.py/count_predictor.py and
+    arithmetic.py; traces admission-template.json and driver.py's guard logic
+    for genuine (not merely claimed) refusal; and confirms absence of invented
+    provenance or scientific execution. Certifies preparation/implementation
+    correctness and disclosed-independence status only; authorizes no
+    scientific run, launch, or ECDLP claim.
+
+  snapshot_verification:
+    commit_reviewed: cfe0739f72f4d173315a9ae348885646f62a2357
+    parent_commit_expected: 78b1503c297b12156b713fbd035c45e9132c63fd
+    parent_commit_actual: 78b1503c297b12156b713fbd035c45e9132c63fd
+    parent_matches: true
+    commit_is_ancestor_of_current_head: true
+    current_head_at_review_time: 86fdf352cf977a00c481f6e0f1e316ade1f4d57f
+    branch: claude/run-experiments-uq9jiv
+    working_tree_vs_snapshot_diff: >-
+      For each of the ten declared files, `git diff
+      cfe0739f72f4d173315a9ae348885646f62a2357 --
+      experiments/EXP-CRYPTO-9225d2/implementation/<file>` produced no output:
+      the on-disk implementation directory is byte-identical to the frozen
+      snapshot commit, so reading the working tree for this review is
+      equivalent to reading the commit directly.
+    path_sha256_recheck: >-
+      All ten path_sha256 entries in
+      coordination/design/BATCH-bb548b/archives/TASK-20260907-3928a8/snapshot.json
+      were independently recomputed with `sha256sum` over the exact bytes of
+      each file as extracted with `git show <commit>:<path>` (driver.py,
+      arithmetic.py, independent_checker.py, count_predictor.py,
+      fixture_generator.py, rho.py, schemas.json, admission-template.json,
+      implementation-manifest.yaml, preparation-report.yaml) and matched
+      exactly, byte for byte. No drift between the committed snapshot and the
+      reviewed content.
+    approval_chain_spot_check: >-
+      ledger/decisions/DEC-20260907-1ccb1a.yaml exists, decision: approve,
+      target_ids include H-CRYPTO-830d47/EXP-CRYPTO-9225d2/
+      TASK-20260907-ecd3a2, approval_scope.scientific_execution_authorized:
+      false, immediate_work: "TASK-20260907-ecd3a2 prepares exactly ten
+      implementation/schema/report files, with maximum_runs zero". Consistent
+      with specification.yaml's own approved_by/approval_decision_id fields
+      and scientific_execution_authorized: false.
+    verdict: passed
+
+  static_analysis_performed:
+    - "python3 -m py_compile on each of the six .py files individually (see py_compile_results below); __pycache__ created as a side effect was removed afterward, leaving git status clean."
+    - "python3 -c 'import json; json.load(open(...))' against schemas.json and admission-template.json; both parsed."
+    - "grep for 'import arithmetic'/'from arithmetic' and a full import-statement grep across independent_checker.py, count_predictor.py, arithmetic.py, fixture_generator.py, rho.py, driver.py, to check the checker/predictor do not import producer internals."
+    - "grep for 'planted' across the whole implementation/ directory to trace whether a full planted scalar routine exists anywhere, not only the low-level primitive."
+    - "grep for 'genuinely_independent'/'NOT INDEPENDENT'/'not independent' across the implementation directory to check the authorship disclosure is not contradicted anywhere."
+    - "Manual line-by-line reading of every .py file, schemas.json, admission-template.json, implementation-manifest.yaml and preparation-report.yaml against specification.yaml, cross-checking every M/S/I count and every named formula term against the frozen spec's own arithmetic prose."
+    - "Pure symbolic algebra (paper check, no code executed): compared arithmetic.py's point_add common-Z formula term-by-term against specification.yaml's literal common_z_formula text (see C6 below) -- this is a textual/symbolic comparison, not an invocation of any function."
+    - "Confirmed no experiments/EXP-CRYPTO-9225d2/runs/ directory exists on disk (ls: No such file or directory) -- zero scientific-run artifacts of any kind."
+
+  no_execution_performed: >-
+    No function from arithmetic.py, fixture_generator.py, rho.py,
+    independent_checker.py, or count_predictor.py was ever called, imported
+    into a REPL, or otherwise invoked on real or synthetic input during this
+    review. All findings below come from reading source text, running
+    `python3 -m py_compile` (which compiles but does not execute module-level
+    function bodies), and independent pen-and-paper/symbolic comparison of
+    formula text that does not depend on any generated curve, scalar, or
+    fixture value.
+
+  py_compile_results:
+    - {file: driver.py, result: pass}
+    - {file: arithmetic.py, result: pass}
+    - {file: independent_checker.py, result: pass}
+    - {file: count_predictor.py, result: pass}
+    - {file: fixture_generator.py, result: pass}
+    - {file: rho.py, result: pass}
+
+  checks:
+    - id: C1-forty-job-scope
+      area: driver.py / specification.experimental_unit
+      finding: >-
+        driver.py:57-62 declares LOGICAL_JOBS_TOTAL=40, ARITHMETIC_JOBS=10,
+        RHO_JOBS=30, MODELED_ROWS=9, with an in-module assertion
+        ARITHMETIC_JOBS+RHO_JOBS==LOGICAL_JOBS_TOTAL. enumerate_arithmetic_jobs
+        (99-101) yields one ArithmeticJobSpec per seed (10, in the listed seed
+        order, matching ordering.jobs); enumerate_rho_jobs (104-110) yields
+        one RhoJobSpec per (k_bits, seed) pair in the order k=40 then 48 then
+        56, seeds in listed order (30, matching ordering.jobs "rho by
+        increasing rung and listed seed order"); enumerate_all_logical_jobs
+        (113-122) concatenates both and asserts the result is exactly 40.
+        ArithmeticJobSpec.routine_cells (73-81) yields 3 environments x 3
+        routines = 9 cells in the order A_boot_1,B_boot_1,A_boot_2 then
+        reference,planted,null, matching ordering.arithmetic_cells exactly;
+        primitive_cells (83-88) yields 3x3=9 cells similarly. This matches
+        experimental_unit.logical_jobs=40, arithmetic_jobs=10, rho_jobs=30,
+        modeled_rows=9 and the accounting_note ("nine routine cells and nine
+        primitive cells across all three environments").
+      verdict: confirmed
+
+    - id: C2-three-process-rho-schedule
+      area: rho.py / specification.rho.schedule / controlled_variables
+      finding: >-
+        rho.py:35-36 declares RHO_PROCESSES_PER_JOB=3 (coordinator + two
+        workers) and RHO_LANES=2, matching
+        controlled_variables.rho_processes_per_job=3, rho_lanes=2.
+        CoordinatorBarrier (263-292) implements exactly one transition per
+        lane per round, processes endpoints in lane order 0 then 1
+        (`ordered = [self.received[lane] for lane in range(RHO_LANES)]`,
+        line 289), and refuses a missing/repeated/out-of-order round in
+        `accept` (272-280: raises ValueError if msg.round_id !=
+        self.expected_round, or if the lane already has a message for that
+        round) -- matching spec.rho.schedule's "refuse a missing, repeated,
+        or out-of-order round" literally. run_worker/run_coordinator (295-314)
+        are guarded to raise rather than spawn a real process.
+      verdict: confirmed
+
+    - id: C3-nine-row-model-scope
+      area: driver.py / specification.model_256.scenarios
+      finding: >-
+        driver.py:54-55 declares MODELED_WORKERS=[1,2,256],
+        MODELED_DP_BITS=[104,112,120]; enumerate_model_rows (125-133) yields
+        the cartesian product ordered by m then d (9 rows), matching
+        model_256.scenarios "Cartesian product m=[1,2,256],d=[104,112,120],
+        ordered by m then d" exactly, and asserts exactly 9 rows. driver.py's
+        own docstring/comment (114-116) correctly states model rows are a
+        summary-level computation, not additional logical jobs, matching
+        summary_ownership's "Exactly nine model rows occur here...never
+        duplicated modeled observations."
+      verdict: confirmed
+
+    - id: C4-field-api-separate-counters
+      area: arithmetic.py OperationCounters / specification.field_api
+      finding: >-
+        arithmetic.py:93-134 (OperationCounters) tallies M, S, I separately
+        from linear_ops, integer_work, branch_copy_ops, hash_calls,
+        sink_bytes, exactly matching field_api's distinction between the
+        GOE-ruler-relevant M/S/I and the excluded-but-charged linear/
+        integer/branch/hash bookkeeping (goe_ruler.
+        excluded_from_scalar_ruler_but_charged). FieldElement.mul/sqr each
+        increment exactly one of M/S per call (158-166); inv (168-187)
+        increments I exactly once at the API boundary and logs three
+        integer_work increments per Euclidean step (quotient, remainder
+        update, coefficient update), never M/S, matching field_api.I's "Charge
+        one I at the API boundary; internal integer multiplications/divisions
+        are separately logged integer work, never additional field M/S
+        counts." scale_small (203-221) implements the 2/3/8 constants via
+        explicit repeated addition (linear_ops), never a counted M, matching
+        field_api.linear_operations. No operand-is-one shortcut exists
+        anywhere in FieldElement (confirmed by full read of mul/sqr/inv),
+        matching field_api.validation.
+      verdict: confirmed
+
+    - id: C5-doubling-formula-and-specializations
+      area: arithmetic.py point_double / specification.arithmetic.doubling
+      finding: >-
+        arithmetic.py:321-360 was hand-traced against
+        specification.arithmetic.doubling.polynomial/specializations term by
+        term. Exceptional branches (330-335): identity input and Y=0 both
+        return O via branch_copy_ops only, before any field call, matching
+        "finite Y=0 returns O before polynomial calls." Polynomial path
+        (337-358): XX=S(X), YY=S(Y), YYYY=S(YY), ZZ=S(Z) are four S calls;
+        V=2*(S(X+YY)-XX-YYYY) uses one more S call (for S(X+YY)) plus
+        scale_small(2) (a linear op, not S), matching spec's V formula
+        exactly; for a=0, W=3*XX via scale_small(3) (0 extra S/M, matching
+        "omit only ZZ^2"); for a=1, an additional Z4=S(ZZ) (one more S) then
+        W=3*XX+Z4 via a linear add. T=S(W)-2*V is one more S call (S(W)) plus
+        scale_small(2) (linear). Y3=W.mul(V-T)-8*YYYY is exactly one M call
+        (scale_small(8) for the 8*YYYY term is a linear op, not M). Z3=S(Y+Z)
+        -YY-ZZ is one more S call. Total tally: a=0 gives 7 S
+        (XX,YY,YYYY,ZZ,S(X+YY),S(W),S(Y+Z)) and 1 M -- matches spec's "one M
+        and seven S" exactly; a=1 adds the Z4=S(ZZ) call for 8 S and the same
+        1 M -- matches spec's "one M and eight S" exactly. No multiplication
+        by the curve constant `a` is introduced in either specialization,
+        matching the spec's explicit disclaimer.
+      verdict: confirmed
+
+    - id: C6-addition-rescale-and-common-z-formula
+      area: arithmetic.py point_add / specification.arithmetic.addition (critical check)
+      finding: >-
+        THIS IS A CONFIRMED CORRECTNESS DEFECT, NOT MERELY A STYLE OR COUNT
+        ISSUE. specification.yaml lines 156-160 (common_z_formula) state
+        literally: "h=U2-U1; j=V2-V1; A=S(h); B=M(U1,A); C=M(U2,A); D=S(j);
+        X3=D-B-C; Y3=M(j,B-X3)-M(V1,C-B); Z3=M(Z,h)." -- the first product of
+        Y3 is j multiplied by (B-X3), and the second is V1 multiplied by
+        (C-B); these are two DIFFERENT subtrahend expressions.
+        arithmetic.py:302-311 instead computes:
+            CB = C.sub(B, counters)                              # line 309
+            Y3 = j.mul(CB, counters).sub(
+                     V1.mul(C.sub(B, counters), counters), counters)  # line 310
+        i.e. Y3 = j*(C-B) - V1*(C-B), using the SAME expression (C-B) for
+        BOTH multiplications, where the spec requires (B-X3) for the first
+        one. Since X3 = D-B-C (line 308, correctly matching spec), B-X3 =
+        2B+C-D, which is algebraically a different value from C-B in general
+        (equal only in the degenerate case D=3B). This is therefore a genuine
+        formula-transcription error, not an equivalent rearrangement: every
+        generic (non-doubling, non-identity) point addition computed by this
+        module produces a mathematically WRONG Y-coordinate. The rescale
+        block (280-289: z1sq,z2sq,z1cube,z2cube,U1,V1,U2,V2,Z -- 7 M + 2 S)
+        and the U1==U2/V1==V2 exceptional-branch handling (291-298) were
+        separately hand-checked and DO match spec exactly (see rescale_finite
+        and exceptional_after_rescaling text). The bug is isolated to the Y3
+        line of the generic (non-exceptional) branch only.
+        Count impact: the M/S TALLY is unaffected (still exactly 12 M + 4 S
+        for a generic full ADD, since the buggy line still performs exactly
+        the same two M calls the correct formula would) -- so this defect
+        would NOT be visible in the GOE-ruler count metrics themselves, only
+        in output_correctness / the independent affine-checker cross-check.
+        Scope impact: this generic branch is exercised by essentially every
+        nonzero-bit ADD step of scalar_multiply and by branches 0 and 2 of
+        every rho transition (2/3 of all rho steps), so if this code were run
+        as-is under a future scientific-execution task, it would fail the
+        spec's own required output-correctness/exceptional-control checks
+        against independent_checker.py's (correct, independently re-derived)
+        affine formulas on virtually the first non-trivial input.
+      verdict: >-
+        DEFECT -- confirmed spec-conformance failure. Drives the
+        REVISE verdict below; must be fixed before this arithmetic is used
+        for any scientific run.
+
+    - id: C7-normalization
+      area: arithmetic.py normalize / specification.arithmetic.normalization
+      finding: >-
+        arithmetic.py:368-383: zi=I(Z) [1 I], z2=S(zi) [1 S], z3=M(z2,zi)
+        [1 M], x=M(X,z2) [1 M], y=M(Y,z3) [1 M] -- exactly 3 M, 1 S, 1 I in
+        the same order the spec states them (zi,z2,z3,x,y); identity returns
+        (None,None) via branch_copy_ops with no inversion, matching "O has no
+        inversion."
+      verdict: confirmed
+
+    - id: C8-scalar-routine
+      area: arithmetic.py scalar_multiply / specification.arithmetic.scalar_algorithm
+      finding: >-
+        arithmetic.py:391-406 implements exactly 256 iterations MSB-first
+        (`for i in range(255,-1,-1)`), always doubling R then conditionally
+        adding the base point when the bit is 1, matching "Start R=O; for
+        every bit set R=DOUBLE(R), then if bit=1 set R=ADD(R,(Gx,Gy,1))" and
+        the "not constant-time, not a co-Z ladder" disclaimer. However, the
+        function RETURNS the raw Jacobian point without calling `normalize`;
+        the spec's scalar_algorithm text explicitly states "Normalize the
+        final R once" as part of this same routine's definition, and no
+        caller composes normalize() with scalar_multiply anywhere in this
+        delivery (driver.py does not import point-arithmetic functions at
+        all yet, consistent with the zero-run scope). As written,
+        scalar_multiply's own charged-count contract is incomplete relative
+        to the spec's literal text: the mandated final 3M+1S+1I
+        normalization charge is not part of this function's own behavior and
+        must be added explicitly by whatever future caller invokes it.
+      verdict: >-
+        minor gap -- not a value-correctness defect (any caller can
+        still call normalize() on the returned point), but the spec assigns
+        normalization to the scalar routine itself and this implementation
+        does not.
+
+    - id: C9-planted-variant-completeness
+      area: arithmetic.py planted_mul / specification.arithmetic.planted (critical check)
+      finding: >-
+        arithmetic.py:420-457 correctly implements the low-level planted_mul
+        PRIMITIVE (two separate M evaluations of the same operands, a value
+        comparison that raises on disagreement, and an ordered SHA-256
+        integrity sink over both serialized products -- matching
+        planted.definition exactly) and planted_expected_factor (an exact
+        rational (2*M+S+100*I)/(M+S+100*I), matching planted.expected_factor
+        verbatim). This primitive is correct in isolation. However, a grep
+        for "planted" across the whole implementation/ directory (see
+        static_analysis_performed) finds NO function anywhere named or
+        shaped like `scalar_multiply_planted`, `point_add_planted`, or
+        `point_double_planted` -- i.e. no complete "planted" scalar-
+        multiplication routine that threads planted_mul into point_add's and
+        point_double's M call sites exists, unlike the 'reference'
+        (scalar_multiply) and 'null' (scalar_multiply_null) routines, which
+        both DO exist as complete, ready-to-call functions mirroring each
+        other (arithmetic.py:465-475). driver.py's SCALAR_ROUTINES = ["reference",
+        "planted", "null"] (line 50) names all three symmetrically, but only
+        two of the three have a corresponding complete callable in
+        arithmetic.py today. Per specification.independent_variables,
+        "planted" is one of the three required scalar_routines cells (spec:
+        arithmetic_physical_routine_cells=90, one third of which is
+        "planted"); a future scientific-execution task would need to WRITE a
+        new function (not merely wire an existing one) to realize the
+        planted routine's exact_count_identity (M_planted=2*M_reference) at
+        the level of a full 256-bit scalar multiplication, since no such
+        function exists yet. preparation-report.yaml's own gap note for this
+        requirement ("Not benchmarked or run against any real scalar/operand
+        in this task; no exact-count agreement with a predictor has been
+        checked") does not mention this specific completeness gap.
+      verdict: >-
+        partial implementation -- the planted PRIMITIVE and its exact
+        count-identity/expected-factor FORMULA are both correct and complete;
+        the planted SCALAR ROUTINE required to actually populate the
+        "planted" cells of the nine routine cells does not yet exist as a
+        callable. Not previously disclosed by the executor's own
+        preparation-report.yaml gap note.
+
+    - id: C10-rho-partition-dp-branch-collision-formula
+      area: rho.py / specification.rho.transition / endpoint_collision
+      finding: >-
+        partition_branch (rho.py:50-70) implements the exact rejection-
+        sampled hash-mod-3 draw (threshold=(2**256//3)*3, domain
+        "GOE9225/rho/partition", h mod 3), matching spec.rho.transition.
+        partition verbatim, including rejection recording. is_distinguished_point
+        (79-88) checks the first d bits of SHA256(domain||walk_key||point)
+        are zero, matching spec.rho.transition.dp. apply_branch (106-130)
+        implements the three coefficient-recurrence branches exactly:
+        branch 0 -> (X+Q, a, b+1), branch 1 -> (2X, 2a, 2b), branch 2 ->
+        (X+G, a+1, b), all coefficients reduced mod N -- matching
+        spec.rho.transition.branches literally. resolve_endpoint_collision
+        (217-231) computes diff=(d-b) mod N; if diff==0 returns None
+        (useless collision, matching endpoint_collision's "if d=b, retain the
+        useless collision"), else returns (a-c)*inverse(d-b) mod N -- matching
+        the spec's stated "(a-c)/(d-b) mod N" exactly. long_trail_threshold
+        (239-243) returns 20*2**d_bits, matching long_trails' "20*2^d". All
+        four formulas independently hand-checked term by term against the
+        frozen spec text with no deviation found.
+      verdict: confirmed
+
+    - id: C11-rho-endpoint-table-collision-detection
+      area: rho.py EndpointTable.insert_if_absent / specification.rho.table (critical check)
+      finding: >-
+        THIS IS A CONFIRMED CORRECTNESS DEFECT IN THE CORE MECHANISM OF THE
+        WHOLE RHO EXPERIMENT. rho.py:181-209:
+            idx = self._probe_index(key_hash)
+            probes = 0
+            while idx in self.slots:
+                if probes >= self.capacity: raise RuntimeError(...)
+                idx = (idx + 1) % self.capacity
+                probes += 1
+            if idx in self.slots:
+                return False, self.slots[idx]
+            ...
+            self.slots[idx] = slot
+            self.count += 1
+            return True, slot
+        The `while idx in self.slots` loop only terminates once `idx` refers
+        to an EMPTY slot (or the capacity guard fires), so the `if idx in
+        self.slots: return False, self.slots[idx]` line immediately after the
+        loop (line 198-199) is UNREACHABLE DEAD CODE -- it can never execute,
+        because loop exit is defined exactly by that condition being false.
+        Consequently, this function can never return (False, existing_slot):
+        every call that reaches an occupied starting index (i.e. every case
+        where the SAME key_hash -- meaning candidate SAME endpoint -- was
+        already inserted, since `_probe_index` is a deterministic function of
+        key_hash) is treated identically to an ordinary linear-probe
+        collision at a DIFFERENT key, silently probed past to the next empty
+        slot and inserted there as a brand-new entry (`return True, slot`).
+        There is no code anywhere in this class that compares the actual
+        endpoint bytes (TableSlot.x/y) of an occupied slot against the
+        endpoint being inserted; occupancy alone drives probing. This means
+        the table, as written, can NEVER report that "the same affine
+        endpoint" (spec.rho.table's stated key) has been seen twice --
+        which is precisely the mechanism the entire Pollard-rho distinguished-
+        point method depends on to find a discrete-log-recovering collision
+        (spec.rho.endpoint_collision's caller-side logic, which reads
+        insert_if_absent's `inserted_new` flag, would never see it go False
+        for a genuine repeat visit). This is not a hypothetical: it is a
+        control-flow defect reachable on the very first repeated key_hash.
+      verdict: >-
+        DEFECT -- confirmed, severe. Drives the REVISE verdict below.
+        No walk has been executed under this zero-run task (preparation-
+        report.yaml correctly states EndpointTable "have not been exercised
+        against real transitions"), so this defect has not yet produced a
+        false scientific result, but it must be fixed (compare the occupant's
+        stored endpoint to the candidate endpoint at each probed index, and
+        only continue probing on an actual mismatch) before any rho job is
+        authorized to run.
+
+    - id: C12-cgroup-admission-guard-completeness
+      area: driver.py check_cgroup_admission / specification.runtime.contract
+      finding: >-
+        driver.py:197-269 genuinely refuses (returns admitted=False with a
+        specific refusal_reason, never a fabricated pass) when: no
+        cgroup_path is supplied or it does not exist (205-213); memory.max
+        readback != 8*2^30 exactly (243-249); memory.swap.max readback != 0
+        (250-256); or pids.max readback is None or > 3 (257-263). This is
+        real, reachable refusal logic, not a stub. Two gaps against
+        spec.runtime.contract were found by tracing every field the function
+        reads: (a) cpu_max is read (`_read_str_file("cpu.max")`, line 241)
+        and stored in the returned CgroupAdmissionResult, but is NEVER
+        compared against the spec's required "300000 100000" (rho) or
+        "100000 100000" (arithmetic) values anywhere in this function -- any
+        cpu.max string, including one belonging to the wrong job type or an
+        arbitrary value, passes admission unexamined; the function also takes
+        no job_type/process_count parameter that would let it choose which of
+        the two required cpu.max values to check against. (b) the pids_max
+        check (`pids_max is None or pids_max > REQUIRED_PIDS_MAX`) only
+        rejects values ABOVE 3; it accepts any value <= 3, including 1 or 2,
+        which would be insufficient to run the required three single-threaded
+        processes (coordinator + two workers) concurrently. Spec.runtime.
+        contract's "Freeze pids.max=3" reads as an exact fixed value, not a
+        one-sided ceiling, so a delegated cgroup with pids.max=1 would pass
+        this guard today despite being unable to run the declared workload.
+      verdict: >-
+        partial guard -- the refusal path is genuine and reachable for
+        the fields it checks (memory.max, memory.swap.max, an upper bound on
+        pids.max, and cgroup-path presence), but it is not a complete
+        realization of spec.runtime.contract -- cpu.max is read but unchecked,
+        and pids.max accepts values that are too low, not only values that
+        are too high. Not itself invoked against any real cgroup in this
+        task, so this gap has not fabricated a false admission anywhere yet.
+
+    - id: C13-admission-template-null-and-host-guest-separation
+      area: admission-template.json / specification.hosts.required
+      finding: >-
+        Every leaf value field in admission-template.json is null:
+        physical_hosts.host_A/host_B (physical_host_id: null, each with a
+        distinct, accurate blocking_reason), guest_environments.A_boot_1/
+        B_boot_1/A_boot_2 (physical_host_id_ref/guest_boot_id: null, each with
+        a blocking_reason), cgroup_delegation, image_and_executable,
+        os_and_clock, source_and_dependency_hashes, fixture_certificate_hashes,
+        measured_resources, preflight_results, and implementation_review_refs
+        all null with an explicit blocking_reason string. physical_hosts (two
+        entries: host_A, host_B) is a structurally separate top-level key
+        from guest_environments (three entries: A_boot_1, B_boot_1, A_boot_2),
+        with an explicit `_note` distinguishing them ("Two containers on the
+        same physical host do not satisfy this... None of these is itself a
+        physical host") -- matching spec.hosts.required and the artifact_
+        contract's "distinguish two physical hosts from three guest
+        environments." No boot ID, image digest, cgroup readback, or measured
+        resource value anywhere in the file is non-null. The top-level
+        `_disclosure` and `not_authorized_by_this_template` fields correctly
+        state this is an unfilled template, not an admission record.
+      verdict: confirmed
+
+    - id: C14-independent-checker-authorship-disclosure
+      area: independent_checker.py / count_predictor.py / specification.arithmetic.checker (the central check)
+      finding: >-
+        The disclosure is present, accurate, and prominent in three
+        independent locations that this review read separately: (1)
+        independent_checker.py's module docstring (lines 4-40, headed
+        "AUTHORSHIP / INDEPENDENCE DISCLOSURE", stating "STATUS: NOT
+        INDEPENDENT" in the first sentence of the substantive text) and its
+        INDEPENDENT_CHECKER_PROVENANCE dict (72-90,
+        genuinely_independent_author: False, with reason/what-this-provides/
+        what-this-does-not-provide fields); (2) implementation-manifest.yaml's
+        independent_checker_provenance block (79-96, genuinely_independent:
+        false, with an explicit author_identity_relationship_to_producer and
+        what_remains_before_scientific_admission); (3) preparation-
+        report.yaml's source_and_authorship_limitations (152-159), which
+        explicitly states this is "the single most important limitation in
+        this delivery" and notes it is "repeated in three places... so it
+        cannot be missed by a later reader who opens only one of the three
+        files." count_predictor.py's own docstring (4-13) carries the
+        matching disclosure for the predictor half. A targeted grep for
+        "independent"/"INDEPENDENT" and "genuinely_independent"/"NOT
+        INDEPENDENT"/"not independent" across the entire implementation
+        directory (see static_analysis_performed) found no occurrence
+        anywhere that implies or could be read as implying independence HAS
+        been achieved; every hit is consistent with the disclosure. driver.py
+        and admission-template.json's own references to "independent
+        checker/predictor review" (driver.py:377,
+        admission-template.json's implementation_review_refs.blocking_reason)
+        are phrased prospectively ("after independent checker/predictor
+        review", "No independent...review... has occurred"), not as an
+        achieved-state claim. Structural-separation re-check: `grep -n
+        "^import|^from" independent_checker.py count_predictor.py` shows both
+        modules import only `__future__`, `hashlib`, `dataclasses`, `typing`
+        -- zero import of arithmetic.py, and no shared function/class
+        definition was found between independent_checker.py's AffinePoint/
+        affine_add/affine_scalar_multiply (slope-form, Fermat-inverse via
+        pow(value, p-2, p)) and arithmetic.py's JacobianPoint/point_add/
+        point_double/scalar_multiply (Jacobian/EFD, extended-Euclid inverse)
+        -- these are genuinely two separately-written algorithms operating on
+        separately-defined data structures, satisfying the STRUCTURAL half of
+        independence even though the AUTHORSHIP half is honestly disclosed as
+        not satisfied.
+      verdict: >-
+        confirmed on all three sub-questions -- (a) disclosure present,
+        accurate, prominent, not buried; (b) independent_checker.py does not
+        import arithmetic.py's internals and is structurally a separate
+        implementation, not a re-export; (c) no misleading claim of achieved
+        independence exists anywhere in this delivery.
+
+    - id: C15-no-invented-provenance
+      area: implementation-manifest.yaml / preparation-report.yaml
+      finding: >-
+        implementation-manifest.yaml:137-143 sets `claimed_future_commit:
+        null` and `claimed_measured_run: null` with an explicit note that
+        these are "deliberately left null" -- no future git commit hash or
+        measured run is claimed as already having happened.
+        preparation-report.yaml:7-25 (no_scientific_run_attestation) states
+        plainly that no fixture, curve, scalar/primitive input, measurement
+        table, rho walk, proof certificate, or scientific test result was
+        generated or executed, and names the specific guard functions
+        (construct_pocklington_certificate, construct_reduced_curve_fixture
+        in fixture_generator.py; run_worker, run_coordinator in rho.py;
+        driver.main) that would need to be exercised to do so. This review
+        independently confirms each of those five guarded functions actually
+        raises RuntimeError unconditionally (read directly: fixture_generator.py
+        153-159 and 224-230; rho.py 298-303 and 309-314; driver.py 372-380) --
+        none of them is a stub that could silently succeed, and none is
+        called anywhere else in this delivery (confirmed by grep: no
+        `construct_pocklington_certificate(`, `construct_reduced_curve_fixture(`,
+        `run_worker(`, `run_coordinator(`, or `main(` call site exists outside
+        each function's own `if __name__ == "__main__"` guard in driver.py,
+        which is not itself executed at import). No experiments/EXP-CRYPTO-
+        9225d2/runs/ directory exists on disk.
+      verdict: confirmed
+
+    - id: C16-schemas-json-structural-disclosure
+      area: schemas.json / artifact_contract
+      finding: >-
+        schemas.json defines eleven named JSON-Schema (draft 2020-12)
+        categories (inputs, admission_hashes, field_operation_counts,
+        blinded_prediction_report, fixture_certificate,
+        pocklington_certificate, job_artifact_record, summary_model_row,
+        checkpoint, incomplete_or_failure_outcome, plus shared definitions),
+        each with required/properties matching the corresponding artifact
+        named in specification.artifacts.required_files, and carries a
+        top-level `disclosure` field stating structural validity is
+        necessary, not sufficient, for arithmetic correctness, checker
+        independence, or scientific validity. field_operation_counts
+        (123-148) requires the same M/S/I/linear_ops/integer_work/
+        branch_copy_ops/hash_calls/sink_bytes/raw_goe_rational fields
+        arithmetic.py's OperationCounters actually produces. No schema is
+        populated with example/fixture data anywhere in this file.
+      verdict: confirmed
+
+    - id: C17-bedrock-status
+      area: Bedrock prohibition
+      finding: >-
+        implementation-manifest.yaml:151 and preparation-report.yaml:231 both
+        record bedrock_status: "NOT_SELECTED, NOT_CONFIGURED, NOT_PROBED,
+        NOT_CONTACTED, NOT_USED". A repository-wide case-insensitive grep for
+        "bedrock" restricted to experiments/EXP-CRYPTO-9225d2/implementation/
+        found no other occurrence. This review's own session likewise
+        selected, configured, probed, contacted, and used no provider,
+        backend, endpoint, or model identifier containing "bedrock"; the
+        AWS_* environment variables observed in this sandbox
+        (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY = "proxy-injected") are
+        pre-existing sandbox/proxy scaffolding unrelated to any model
+        selection made by this review and were not read, used, or acted on.
+      verdict: confirmed
+
+  fixed_counts_arithmetic_recheck:
+    method: >-
+      Pure hand arithmetic from specification.yaml's own declared per-cell
+      counts; no fixture, curve, scalar, or rho function was invoked to
+      obtain any of these numbers.
+    results:
+      - {quantity: arithmetic_physical_routine_cells, spec_value: 90, recomputed: "10 arithmetic jobs * 9 routine cells (3 environments * 3 routines) = 90", match: true}
+      - {quantity: primitive_physical_cells, spec_value: 90, recomputed: "10 arithmetic jobs * 9 primitive cells (3 environments * 3 primitives) = 90", match: true}
+      - {quantity: timed_scalar_invocations, spec_value: 115200, recomputed: "256 scalars/cell * 10 seeds * 3 routines * 3 environments * 5 timed repeats = 115200", match: true}
+      - {quantity: timed_primitive_invocations, spec_value: 1843200, recomputed: "4096 operand pairs/cell * 10 seeds * 3 primitives * 3 environments * 5 timed repeats = 1843200", match: true}
+      - {quantity: model_256_mean_goe_per_transition, spec_value: "22/3", recomputed: "(2*(15M+5S+1I) + (4M+8S+1I))/3 = (34M+18S+3I)/3; GOE=(34+18+300)/(3*16) = 352/48 = 22/3", match: true}
+    not_rechecked: >-
+      The three fixture-dependent quantities (which N/p are selected for k=40,
+      48, 56; the exact rho-lane transition trajectories; and any per-cell
+      raw_goe_rational value) were NOT recomputed, because doing so requires
+      either running fixture_generator.py's guarded construct_* functions or
+      arithmetic.py's counted operations against a real scalar/curve --
+      prohibited scientific execution under this task's budget. This is
+      recorded as a limitation, not papered over as checked.
+
+  independence_and_no_execution_summary:
+    checker_predictor_authorship_disclosure: confirmed accurate, prominent, not contradicted (see C14)
+    checker_structural_separation_from_producer: confirmed -- no import of arithmetic.py by independent_checker.py or count_predictor.py (see C14)
+    no_computation_on_import: >-
+      confirmed by reading every module-level statement in all six .py files:
+      only constant/dataclass/class/function definitions, docstrings, and (in
+      driver.py only) a single module-level `assert` comparing declared
+      integer constants -- no fixture/kernel/curve/rho function is called at
+      module scope anywhere, and each module's own trailing NOTE comment
+      states only `python3 -m py_compile` was run against it.
+    no_run_artifacts_exist: >-
+      confirmed -- experiments/EXP-CRYPTO-9225d2/ contains only
+      specification.yaml and implementation/; no runs/ directory exists.
+
+  limitations:
+    - >-
+      This review is a static implementation/independence/correctness-of-
+      transcription check, not a scientific validation: no fixture, curve,
+      scalar, primitive, or rho function was computed or spot-checked against
+      real or synthetic input, per the task's explicit prohibition on invoking
+      these modules' functions.
+    - >-
+      C6 and C11 (the two DEFECT-level findings) were confirmed by symbolic/
+      textual comparison of the code against the frozen specification text,
+      not by running the code and observing a wrong numeric output -- because
+      this task authorizes no execution. A future execution-authorized task
+      running the current code against a real input would be expected to
+      surface both defects immediately via the spec's own required output-
+      correctness and independent-checker cross-checks; this review did not,
+      and could not under its own budget, perform that run to confirm the
+      failure empirically.
+    - >-
+      The fixture-dependent quantities listed under
+      fixed_counts_arithmetic_recheck.not_rechecked were not independently
+      verified for the reason stated there.
+    - >-
+      This review does not and cannot certify that a real future invocation
+      of driver.py by a later scientific-execution task would be safe; it
+      certifies only what the current code actually does (C1-C13), which for
+      C6, C9, C11, and C12 is materially weaker than what specification.yaml
+      and the artifact_contract describe.
+    - >-
+      independent_session isolation from the TASK-20260907-ecd3a2 executor
+      session is attested at the role/harness-architecture level (separate
+      Validator subagent dispatch per orchestration/roles.yaml); this review
+      has no mechanism to cryptographically prove session-level isolation
+      beyond that architectural separation.
+
+  recommendations_for_revise:
+    - >-
+      Fix arithmetic.py's point_add Y3 computation (line 310) to use
+      `B.sub(X3, counters)` (i.e. B-X3, matching X3 already computed at line
+      308) as the first multiplicand of the first product, rather than
+      reusing `C.sub(B, counters)` for both products, per
+      specification.arithmetic.addition.common_z_formula's literal
+      "Y3=M(j,B-X3)-M(V1,C-B)" (C6). This does not change the M/S counts
+      already produced, only the Y-coordinate value.
+    - >-
+      Fix rho.py's EndpointTable.insert_if_absent to compare the occupant's
+      stored endpoint (TableSlot.x/y, or an equivalent full-endpoint key) at
+      each probed index against the endpoint being inserted, and return
+      (False, existing_slot) exactly when they match, continuing to probe
+      only on an actual mismatch (a genuine table-hash collision at a
+      different endpoint) -- per spec.rho.table's "keyed by the full
+      canonical affine endpoint" and "distinguish full point equality from
+      table-hash collision" (C11). As written the function can never surface
+      a real collision.
+    - >-
+      Either write a complete `scalar_multiply_planted` (or equivalent
+      point_add_planted/point_double_planted composition) in arithmetic.py
+      that threads planted_mul into every top-level M call site of a full
+      256-bit scalar multiplication, mirroring scalar_multiply and
+      scalar_multiply_null, or explicitly amend the artifact_contract/
+      preparation-report.yaml gap note to name this as an outstanding
+      completeness item before any "planted" routine cell is treated as
+      implemented (C9).
+    - >-
+      Extend check_cgroup_admission to compare the cpu.max readback against
+      the two spec-required values ("300000 100000" for rho, "100000 100000"
+      for arithmetic, selected by an added job-type/process-count parameter)
+      and to require pids_max == 3 exactly rather than merely <= 3 (C12).
+    - >-
+      Either add an explicit `normalize()` call inside scalar_multiply so the
+      routine's own charged-count contract includes the mandated final
+      3M+1S+1I normalization per spec.arithmetic.scalar_algorithm, or
+      document explicitly (in arithmetic.py's docstring and the artifact_
+      contract) that normalization is deliberately a separate caller
+      responsibility (C8, minor).
+
+  verdict: REVISE
+  verdict_rationale: >-
+    No invented provenance, no unauthorized execution, and no misleading
+    independence claim was found anywhere in this delivery: the disclosed
+    authorship gap for independent_checker.py/count_predictor.py is accurate,
+    prominent in three separate files, and not contradicted anywhere (C14);
+    admission-template.json leaves every actual-value field null with a
+    concrete blocking reason and correctly separates two physical hosts from
+    three guest environments (C13); the zero-scientific-execution attestation
+    is independently confirmed by reading every guard function (C15); the
+    40-job/9-cell/3-process/9-row structural scope is implemented exactly
+    (C1-C3); most of the field-arithmetic formulas (doubling in both
+    specializations, normalization, the M/S/I counting infrastructure, the
+    rho partition/DP/branch/collision-resolution formulas) are correct and
+    match the frozen specification term for term (C4, C5, C7, C10); and all
+    six .py files compile cleanly (py_compile_results). However, this review
+    independently confirmed two DEFECT-level findings that must be fixed
+    before this implementation is trustworthy for any scientific
+    measurement: (1) arithmetic.py's point_add computes a mathematically
+    wrong Y3 coordinate for the generic (non-doubling) addition branch,
+    reusing (C-B) where the frozen spec requires (B-X3) for the first product
+    term (C6) -- this does not corrupt the GOE-ruler M/S counts but would
+    corrupt virtually every real scalar multiplication and 2/3 of rho
+    transitions were this code executed as-is; and (2) rho.py's
+    EndpointTable.insert_if_absent contains unreachable dead code and can
+    never actually detect a repeated endpoint, which is the single mechanism
+    the entire rho experiment depends on to recover a discrete logarithm
+    (C11). Two further partial-implementation gaps were found and disclosed
+    beyond what the executor's own preparation-report.yaml gap notes
+    identified: the "planted" scalar routine exists only as a low-level
+    primitive with no complete scalar-multiplication composition (C9), and
+    driver.py's cgroup admission guard does not enforce cpu.max or an exact
+    pids.max=3 (C12). None of these four findings involves fabrication,
+    invented provenance, or unauthorized execution -- they are implementation
+    defects in code that, by design under this zero-run task, has not yet
+    been run against real data -- so FAILED is not warranted. All four are
+    concrete, localized, and actionable, so REVISE rather than PASSED is the
+    correct verdict.
+
+  bedrock_status: "NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED"
+
+  review_attestation:
+    task_id: TASK-20260908-30ce59
+    joints_owned: []
+    review_plan: null
+    note: >-
+      This task's own handoff carries review_plan: null; it is an ordinary
+      single-reviewer independent implementation check, not a multi-reviewer
+      claim-changing round under the review architecture in AGENTS.md, so no
+      joints/blindness/review_plan fields apply. sources_read below is
+      recorded in the same spirit regardless.
+    sources_read:
+      - ledger/handoffs/TASK-20260908-30ce59.yaml
+      - agents/validator.md
+      - AGENTS.md
+      - CLAUDE.md
+      - experiments/EXP-CRYPTO-9225d2/specification.yaml
+      - ledger/handoffs/TASK-20260907-ecd3a2.yaml
+      - experiments/EXP-CRYPTO-9225d2/implementation/driver.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/independent_checker.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/count_predictor.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/fixture_generator.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/rho.py
+      - experiments/EXP-CRYPTO-9225d2/implementation/schemas.json
+      - experiments/EXP-CRYPTO-9225d2/implementation/admission-template.json
+      - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml
+      - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+      - coordination/design/BATCH-bb548b/archives/TASK-20260907-3928a8/snapshot.json
+      - ledger/decisions/DEC-20260907-1ccb1a.yaml
+      - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/implementation-review.yaml (prior-precedent format reference only; different experiment, no content relied upon as evidence for this review's findings)
+      - git show/diff/log/rev-parse on commit cfe0739f72f4d173315a9ae348885646f62a2357 and its parent
+    read_sibling_reports: false
+    blind_from_respected: null
+    verdict: REVISE
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_used: false
+    degraded_used: false
+    independent_session_required: true
+    independent_session_attested: true
+    resolved_model_id: claude-sonnet-5
+    self_report_note: >-
+      Genuine self-report: this session identifies itself as Sonnet 5 (model
+      id claude-sonnet-5) per its own runtime environment information. No
+      probe of any external model registry was performed or needed to answer
+      this field.
+
+  artifact_paths:
+    - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/runtime-session-receipt.json

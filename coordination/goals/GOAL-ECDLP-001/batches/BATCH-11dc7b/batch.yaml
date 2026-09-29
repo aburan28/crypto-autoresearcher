@@ -1,0 +1,347 @@
+schema: crypto.autoresearch.batch.v2
+batch_id: BATCH-11dc7b
+goal_id: GOAL-ECDLP-001
+recorded_at: '2026-08-15'
+recorded_by: coordinator
+opened_by_task: TASK-20260815-de2514
+opened_by_decision: DEC-20260815-23d3bd
+parent_batch: BATCH-86fd69
+parent_checkpoint: ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-86fd69.yaml
+parent_checkpoint_verdict: REVISE
+parent_checkpoint_outcome: revise_repaired_three_blockers_new_literal_and_coverage_findings
+parent_decision: DEC-20260815-23d3bd
+parent_evidence: EV-ECDLP-fe122c
+hypothesis_id: H-SYC-b854f4
+scientific_predecessor_experiment_id: EXP-SYC-793304
+intended_successor_experiment_id: EXP-SYC-edf98d
+supersedes_experiment_id: EXP-SYC-793304
+supersedes_queue: coordination/goals/GOAL-ECDLP-001/batches/BATCH-86fd69/dispatch_queue.json
+claim_ceiling: zero_experiment_static_falsification_and_pre_implementation_review_only
+
+objective: >-
+  Author ONE fresh maximum_runs=0 static successor EXP-SYC-edf98d that fixes
+  exactly items A, B, C, D recorded in committed checkpoint BATCH-86fd69
+  (A-MARKOV-SERIALIZATION-MISLABEL, B-BITWIDTH-14-VS-13-ERROR,
+  C-PEAK-KAT-PARTIAL-OVERLAP-COVERAGE-GAP,
+  D-ARCHIVE-COMMUNICATION-ITEMIZATION-GAP), carries every other finding of
+  EXP-SYC-793304 forward unchanged, and states its own provenance honestly;
+  then snapshot, independently validate, red-team, and ledger-dispose the
+  result. Implement nothing and execute nothing. Item E
+  (SNAPSHOT-RECEIPT-PROVENANCE-MISLABELS) was already corrected directly by
+  the BATCH-86fd69 archive (CORR-20260815-092c9f) and is NOT reopened here.
+
+bound_next_action_from_parent_checkpoint: >-
+  Quoted verbatim from ledger/goals/GOAL-ECDLP-001/checkpoints/BATCH-86fd69.yaml
+  next_action: "Author one fresh maximum-runs-zero static successor that (a)
+  relabels or recomputes the three Markov-bound rows under genuine truncation
+  vs. rounding (item A), (b) corrects '14-bit' to '13-bit' in all three
+  affected artifacts (item B), (c) adds KAT-PEAK-7 (the exact partial-overlap
+  fixture: shard j live on [j,j+4) for j=1..8, shared=0, dedup=0, expected
+  peak 4) to the peak-axis KAT suite (item C), (d) supplies itemized
+  per-mount/per-stream manifests for the archive and communication residuals
+  matching output's existing itemization (item D), while continuing to carry
+  RT-OBJ3/RT-OBJ4 open and the three capacity residuals plus
+  PEAK-AGGREGATE-FIT-UNPROVED forward unchanged, and (e) states its own
+  resolved_model_id honestly by self-report rather than by quoting the
+  adapter's committed-binding lookup, cross-checking against the session's own
+  runtime system context before writing any provenance claim."
+
+required_successor_repairs:
+  - id: A-MARKOV-SERIALIZATION-MISLABEL
+    severity: required_before_next_revision
+    checkpoint_statement_verbatim: >-
+      specification.yaml's contract_2_tuplewise_tail and
+      verification-and-null-kats.yaml's KAT-HA2-TUPLEWISE-MARKOV both state
+      the twelve-decimal-place values are "truncation of the long division."
+      Independent recomputation shows 3 of 5 rows (bits 18, 27, 30) actually
+      match half-up ROUNDING, not truncation (true truncated values:
+      0.015151515151 / 0.010713739108 / 0.009544856438, one ULP below
+      stored). Numbers are correct and in fact slightly more conservative;
+      only the stated derivation method is wrong.
+    requirement: >-
+      Relabel the stated convention as "half-up rounding" and keep the
+      current stored values, applied identically in both files. Recomputing
+      the three rows to true truncation was considered and rejected as this
+      task's chosen approach (see the producer handoff for the reasoning).
+    unaffected_rows: {bits_21: '0.013498465426', bits_24: '0.012025765545'}
+  - id: B-BITWIDTH-14-VS-13-ERROR
+    severity: required_before_next_revision
+    checkpoint_statement_verbatim: >-
+      Three artifacts (specification.yaml ~line 560,
+      design-repair-report.yaml ~line 236, custody-and-executable-contract.yaml
+      line 115) state widening candidate_index to 8185 admissible values
+      "needs at least a 14-bit index." 2^13=8192 >= 8185, so 13 bits suffice;
+      2^12=4096 is insufficient. Minimal width is 13, not 14.
+    requirement: >-
+      Correct "14-bit index" to "13-bit index" in all three affected
+      artifacts. Preserve the byte-alignment point that 13 bits still needs a
+      U16.
+  - id: C-PEAK-KAT-PARTIAL-OVERLAP-COVERAGE-GAP
+    severity: required_before_the_peak_kat_suite_is_treated_as_sufficient
+    checkpoint_statement_verbatim: >-
+      All six current KATs test only full-coincidence or full-disjointness
+      shard topologies. Red Team constructed a concrete counterexample: shard
+      j (j=1..8) live on [j,j+4), shared=0, dedup=0 -- correct peak is 4
+      throughout the interior, a value none of the six KATs would catch a
+      wrong implementation missing.
+    requirement: >-
+      Add KAT-PEAK-7 (this exact fixture, expected peak 4) to the peak-axis
+      KAT suite before it is treated as sufficient. State explicitly what
+      wrong-rule/wrong-implementation class it rejects: any implementation
+      that special-cases only the two extreme topologies (full-coincidence
+      returning the shard count, full-disjointness returning 1) and falls
+      back to an incorrect default elsewhere would fail this KAT while
+      passing all six existing ones.
+    fixture:
+      events: shard j allocates 1 byte at t=j and frees it at t=j+4, for j = 1..8
+      shared_t: 0
+      dedup_t: 0
+      sample_point_1: {t: 4.5, live_shards: [1, 2, 3, 4], aggregate: 4}
+      sample_point_2: {t: 5.5, live_shards: [2, 3, 4, 5], aggregate: 4}
+      expected_peak_live_bytes: 4
+  - id: D-ARCHIVE-COMMUNICATION-ITEMIZATION-GAP
+    severity: required_before_capacity_residuals_are_treated_as_independently_re-derivable
+    checkpoint_statement_verbatim: >-
+      The output residual has a 12-row itemized manifest independently
+      re-summed by both reviewers to exactly 15520768. Archive (5563755264
+      scheduled, 2307745600 cap) and communication (5614086912 scheduled,
+      2328717120 cap) are opaque scalars with no itemized breakdown anywhere.
+    requirement: >-
+      Supply the same itemized per-mount/per-stream manifest for archive and
+      communication that output already has, so the totals are independently
+      re-derivable rather than merely asserted -- UNLESS no genuine,
+      non-fabricated decomposition exists in the inherited design, in which
+      case record ITEM-D-ITEMIZATION-NOT-ACHIEVABLE-WITHOUT-FABRICATION
+      honestly as an incomplete residual repair rather than fabricate
+      plausible-looking row values. Do not change scheduled_bytes,
+      hard_cap_bytes, or over_cap_bytes for archive, communication, or
+      output either way.
+    coordinators_own_pre_check: >-
+      No named archive/communication mount, stream, or per-shard/per-stage
+      byte-attribution basis was found anywhere in the six frozen
+      EXP-SYC-793304 artifacts or the inherited EXP-SYC-b11b38/EXP-SYC-12de89
+      chain by this Coordinator's own read; only output_manifest has actual
+      named per-file rows. The producer task must independently confirm or
+      refute this before deciding between the two branches above.
+
+items_not_reopened_this_batch:
+  - id: E-SNAPSHOT-RECEIPT-PROVENANCE-MISLABELS
+    status: >-
+      already corrected directly by the BATCH-86fd69 archive itself via
+      CORR-20260815-092c9f, not by a producer successor task. Not
+      re-addressed by this batch.
+
+carried_forward_deferred_not_dropped:
+  - id: RT-OBJ3
+    status: open_non_blocking_deferred
+    statement: crossover-N estimate remains open and deferred.
+  - id: RT-OBJ4
+    status: open_non_blocking_deferred
+    statement: k-list/generalized-birthday baseline remains open and deferred.
+  disposition_note: >-
+    Both must appear as explicit visible lines in the successor. Neither may
+    be closed, silently omitted, or folded into another item.
+
+carried_forward_capacity_residuals:
+  basis: unchanged hard caps; no cap is raised anywhere in this batch
+  archive_over_cap_bytes: 3256009664
+  communication_over_cap_bytes: 3285369792
+  output_over_cap_bytes: 7132160
+  capacity_fit: false
+  status: OPEN_CARRIED_FORWARD
+  note: >-
+    These totals are unchanged by any item-D itemization attempt; only a
+    breakdown, never a change to these totals, is authorized.
+
+carried_forward_peak_residual:
+  id: PEAK-AGGREGATE-FIT-UNPROVED
+  status: OPEN_CARRIED_FORWARD
+  statement: >-
+    No numeric peak_live_bytes figure exists anywhere in the inherited
+    chain; disclosed honestly, not concealed, by EXP-SYC-793304 and carried
+    forward unchanged.
+
+preserved_do_not_weaken:
+  rt_obj2_closure: eight-way rho and BSGS shard equalization, preserved from EXP-SYC-12de89
+  worst_case_candidate_index_occupancy_bound: [504, 1016, 2040, 4088, 8184]
+  candidate_index_capacity: 32
+  overflow_invalidation: thirty_third_distinct_value_invalidates_without_truncation
+  deriv1_bits27_literal: '0.0000304579734802'
+  ha2_tail_unavailability_proof: >-
+    lemmas L2-L5, established by EXP-SYC-793304 and independently confirmed by
+    both TASK-20260815-9b0fb4 and TASK-20260815-d7c570; items A and B are
+    label/arithmetic fixes only and MUST NOT touch this proof's logic,
+    numbers, or conclusion.
+  source_of_preserved_closures: EXP-SYC-12de89 and EXP-SYC-793304
+
+invalid_review_provenance:
+  quarantined_ids: [EXP-SYC-24123d, TASK-20260811-5e4a0f, TASK-20260813-a8dc5e]
+  status: preserved_artifact_integrity_failure
+  usable_as: artifact_integrity_precedent_only
+  cited_as_scientific_evidence: false
+  cited_as_authority: false
+
+research_tasks:
+  static_producer: TASK-20260815-8cb1c0
+  producer_snapshot: TASK-20260815-54a10d
+  validator: TASK-20260815-0825b2
+  red_team: TASK-20260815-4f54d6
+  ledger_archive: TASK-20260815-b6d12a
+
+reserved_disposition_ids:
+  evidence: EV-ECDLP-7caba0
+  decision: DEC-20260815-d83212
+  note: >-
+    Both are FORWARD REFERENCES written by TASK-20260815-b6d12a, not before
+    it. Minted with tools/allocate_id.py and confirmed free with --check.
+
+review_tier:
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  independent_session_required: true
+  review_breakthrough_requested: false
+  rationale: >-
+    This batch is a narrow, mechanical-content static repair with a
+    dual-REVISE history. It is not a claimed breakthrough, a proposed
+    closure, or a contradiction between validated evidence records, so
+    AGENTS.md rule 12 does not fire and review-breakthrough must NOT be
+    requested. Paying the top tier for an ordinary design review would price
+    review out of the loop.
+
+scope:
+  admitted:
+    - one fresh zero-run static successor EXP-SYC-edf98d to EXP-SYC-793304
+    - exact repair of items A, B, C, or an honest REVISE with exact residuals
+    - item D repaired with a genuine itemization, or honestly declared not achievable without fabrication
+    - visible carry-forward of RT-OBJ3, RT-OBJ4, and PEAK-AGGREGATE-FIT-UNPROVED as open, non-blocking, deferred
+    - exact disclosure of the three unchanged-hard-cap residuals
+    - fresh independent Validator and Red Team review at review-adversarial xhigh in independent sessions
+    - Coordinator snapshot archive before review and ledger archive after both reviews
+  excluded:
+    - any implementation, curve generation, selector, treatment, control, benchmark, or experiment run
+    - any edit to EXP-SYC-793304, EXP-SYC-b11b38, EXP-SYC-12de89, EXP-SYC-24123d, or any BATCH-86fd69, BATCH-080a9c, or BATCH-68ea16 artifact
+    - any use of EXP-SYC-24123d, TASK-20260811-5e4a0f, or TASK-20260813-a8dc5e as scientific evidence or authority
+    - any increase above 988 planned or 1235 hard CPU hours
+    - any increase above 450000 planned or 562500 hard wall seconds
+    - any increase to archive_hard_cap_bytes, communication_hard_cap_bytes, or output_caps.total_bytes
+    - any increase to campaign_budget.maximum_batches
+    - any hypothesis, research-question, experiment, or goal scientific status transition
+    - any evidence promotion above the zero-run static ceiling
+    - any ECDLP attack, speedup, security-impact, asymptotic, cryptographic-scale, closure, novelty, or breakthrough claim
+    - review-breakthrough escalation, fallback, degradation, and Amazon Bedrock
+    - fabricating an archive/communication decomposition to satisfy item D if no genuine basis exists
+
+budget:
+  design_batch_wall_clock_seconds: 12600
+  design_batch_wall_clock_breakdown: 3600 producer + 900 snapshot + 3600 validator + 3600 red team + 1800 ledger
+  design_batch_maximum_memory_gb: 3
+  design_batch_maximum_experiment_runs: 0
+  max_concurrent: 2
+  dispatcher_run_bound_note: >-
+    tools/research_dispatch.py requires handoff.budget.maximum_runs to be a
+    positive integer, which is a task-invocation bound and not an
+    experiment-run allowance. Every handoff therefore carries
+    budget.maximum_runs >= 1 for that purpose alone, plus
+    budget.experiment_maximum_runs: 0 and a task-level
+    execution_boundary.maximum_runs: 0. ZERO EXPERIMENT RUNS ARE AUTHORIZED.
+  inherited_prospective_experiment_budget_spent: false
+  inherited_prospective_experiment_planned_cpu_hours: 988
+  inherited_prospective_experiment_hard_cpu_hours: 1235
+  inherited_prospective_experiment_planned_wall_seconds: 450000
+  inherited_prospective_experiment_hard_wall_seconds: 562500
+budget_change_from_parent_batch: >-
+  Producer wall-clock budget reduced from the predecessor's 5400 seconds to
+  3600 seconds, reflecting a narrower fix list (four items, three of them
+  mechanical label/arithmetic/coverage fixes, versus the predecessor's three
+  substantive blocker repairs). No other budget or cap changed.
+
+campaign_budget_position:
+  campaign_budget_maximum_batches: 51
+  checkpoint_files_present_at_authoring: 49
+  path_counted: ledger/goals/GOAL-ECDLP-001/checkpoints/
+  this_batch_checkpoint_will_be: 50th
+  remaining_authorized_batches_after_this_one: 1
+  counting_assumption: >-
+    One checkpoint file per batch. That is the observed layout of this
+    goal's sharded checkpoint directory; if any historical batch closed
+    without a checkpoint shard, the true consumed count is higher than 49
+    and the remaining headroom is smaller than 1. This is stated as an
+    assumption rather than asserted as a fact.
+  maximum_batches_raised_by_this_batch: false
+  authorization_note: >-
+    campaign_budget.maximum_batches = 51 stands as set by
+    BUDGET-AMEND-20260812-001 on explicit user authorization. A 52nd batch
+    would require its own budget amendment on its own explicit user
+    authorization. The Coordinator does not self-grant one.
+
+opening_session_provenance:
+  role: coordinator
+  requested_policy: coordinator-orchestration-code
+  self_reported_resolved_model_id: claude-sonnet-5
+  self_reported_resolved_model_id_source: >-
+    Direct self-report from this authoring (batch-opening) session's own
+    runtime system context, which identifies itself as "Sonnet 5" / exact
+    model id claude-sonnet-5. This is a self-report, not a third-party or
+    cryptographic attestation.
+  committed_binding_target_for_coordinator_orchestration_code: anthropic:claude-opus-5
+  committed_binding_target_source: >-
+    Read directly (Read/Grep tool, not a live command execution -- this role
+    carries no Bash/exec tool) from
+    orchestration/model-bindings.yaml (bindings.anthropic.
+    coordinator-orchestration-code.model = claude-opus-5, effort=high per
+    orchestration/model-policies.yaml). This is the COMMITTED BINDING
+    TARGET for the policy, not a live confirmation of what model served
+    this session's tokens.
+  these_are_two_distinct_facts: true
+  conflation_forbidden_note: >-
+    This session does not assert that the committed binding target
+    describes itself, and does not assert that its own self-report proves
+    what the adapter would resolve if run. CORR-20260815-092c9f corrected
+    exactly this kind of conflation in the BATCH-86fd69 archive receipt;
+    this record deliberately keeps the two facts separate and separately
+    labelled.
+  mismatch_disclosed: true
+  mismatch_disposition: >-
+    This is the same harness-wide SESSION-MODEL-PROVENANCE-GAP standing risk
+    already disclosed and accepted via a Coordinator-approved
+    inference_amendment in DEC-20260815-23d3bd (degraded_allowed: true,
+    fallback_used: true, reason: native Claude Code remote/mobile session not
+    launched through orchestration/adapter's env mechanism). This batch does
+    not self-grant a new amendment; it discloses the same standing condition
+    plainly rather than concealing or normalizing it, and defers to the
+    Coordinator's ledger-archive task (TASK-20260815-b6d12a) to decide
+    whether the amendment's acceptance extends to this batch's own review and
+    archive sessions.
+
+activation_gates:
+  - Strict JSON and YAML parsing passes for batch.yaml, dispatch_queue.json, and all five task cards.
+  - tools/validate_ledger.py passes with no new violations on the merged tree.
+  - tools/research_dispatch.py renders dispatch_queue.json with all ten gates passing and selects EXACTLY ONE ready task, TASK-20260815-8cb1c0.
+  - Every non-archive task is claimed by exactly one archive task, and both archive tasks are coordinator-owned and isolated.
+  - Write scopes are exclusive and non-overlapping across all five tasks.
+  - origin/main is fetched and MERGED (never rebased) into the working branch before the first archive, with the base commit and merge outcome recorded in the archive receipt.
+  - Each independent review records exact task-specific review-adversarial, xhigh, independent-session provenance with requested policy and resolved model as separate fields, no fallback, no degradation, and no Bedrock.
+
+authorization:
+  authorized_by: DEC-20260815-23d3bd
+  fresh_zero_run_static_design_repair_batch_authorized: true
+  implementation_review_batch_authorized: false
+  experiment_design_approved: false
+  implementation_authorized: false
+  experiment_execution_authorized: false
+  evidence_promotion_authorized: false
+  scientific_status_change_authorized: false
+  hard_cap_increase_authorized: false
+  budget_increase_authorized: false
+  review_breakthrough_authorized: false
+  fallback_authorized: false
+  degradation_authorized: false
+  amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+next_action: >-
+  Dispatch exactly TASK-20260815-8cb1c0 to author the six declared
+  EXP-SYC-edf98d artifacts fixing items A-D. On its terminal receipt, run
+  TASK-20260815-54a10d alone to snapshot them, then dispatch
+  TASK-20260815-0825b2 and TASK-20260815-4f54d6 in independent sessions, then
+  run TASK-20260815-b6d12a alone to ledger-dispose. Never dispatch
+  implementation or experiment execution from this batch.

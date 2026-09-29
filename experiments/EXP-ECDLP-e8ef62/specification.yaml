@@ -1,0 +1,389 @@
+experiment:
+  id: EXP-ECDLP-e8ef62
+  hypothesis_id: H-ECDLP-63d136
+  question_id: RQ-ECDLP-165d4b
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-360318
+  supersedes_experiment: EXP-ECDLP-2ebd6c
+  version: 5
+  title: Typed-map, bounded-calibration charged automorphism-quotiented Pollard-rho census
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  approved_by: null
+  approval_decision_id: null
+  objective: >-
+    Repair the remaining deterministic statistical and baseline-fixture findings in the prior successor by making
+    automorphism/stabilizer admission executable, source/random pairing and
+    calibrations deterministic, charged work exclusive and complete, the
+    held-out test attainable, and the observation-collision fixture executable
+    before any implementation or execution.
+  metrics:
+    primary:
+      - normalized_charged_work_W_div_sqrt_n
+      - held_out_paired_median_ratio_full_to_negation
+      - recovered_scalar_certificate_success
+    secondary:
+      - raw_exclusive_counter_vector
+      - wall_seconds
+      - peak_memory_bytes
+      - serialized_bytes
+      - retry_count
+      - cycle_failure_count
+      - descriptive_finite_size_slope
+  budget:
+    wall_clock_seconds_per_run: 180
+    total_cpu_hours: 6
+    maximum_memory_gb: 8
+    maximum_runs: 104
+  inputs:
+    source_scope: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808
+    superseded_specification: experiments/EXP-ECDLP-a76937/specification.yaml
+    field_arithmetic: >-
+      F_p short-Weierstrass E:y^2=x^3+a*x+b, p prime and p < 2^18 for direct
+      exhaustive toy point counting; all point encodings are fixed-width,
+      little-endian (p.bit_length()+7)//8 coordinates with 0xff as infinity.
+  certificate_schema:
+    instance_manifest_fields:
+      - instance_id
+      - pair_id
+      - seed
+      - role
+      - p
+      - p_primality_witness
+      - curve_a
+      - curve_b
+      - discriminant_nonzero_witness
+      - curve_order
+      - curve_order_count_method
+      - subgroup_order
+      - subgroup_primality_witness
+      - cofactor
+      - base_point_P
+      - base_point_order_certificate
+      - twist_order
+      - twist_cofactor
+      - non_anomalous_certificate
+      - embedding_degree
+      - automorphism_kind
+      - automorphism_formula
+      - automorphism_field_witness
+      - automorphism_order
+      - declared_generators
+      - map_entry_schema_version
+      - generated_group_maps
+      - composition_table
+      - group_closure_witness
+      - group_order_certificate
+      - subgroup_eigenvalue_lambda
+      - eigenvalue_certificate
+      - allowed_stabilizer_sizes
+      - effective_orbit_size
+      - stabilizer_certificate
+    map_entry_schema:
+      version: map-entry-v1
+      required_fields:
+        - map_index
+        - generator_word
+        - formula
+        - field_witness
+        - composition_row
+        - map_on_P
+        - certified_scalar_lambda
+        - scalar_certificate
+        - replay_witness
+      semantics: >-
+        Each map entry is a typed immutable object. map_index is contiguous from
+        zero; generator_word is the exact word in declared_generators; formula
+        and field_witness replay the map on every curve point; composition_row
+        binds left and right composition to the indexed closure element;
+        map_on_P and certified_scalar_lambda bind the subgroup action; and
+        replay_witness records the independent recomputation result. A selected
+        canonicalization map must reference its map_index and its own
+        certified_scalar_lambda.
+    acceptance_predicates:
+      - p is prime by deterministic Miller-Rabin bases [2,3,5,7,11,13,17] for p < 2^18
+      - 4*a^3 + 27*b^2 is nonzero modulo p
+      - exhaustive point count equals h*n, n is prime, h <= 4, and n.bit_length() >= p.bit_length()-2
+      - P is on E, nP=O, and P is not O
+      - twist count is independently enumerated, its cofactor is recorded, and the twist is not silently used as primary data
+      - #E != p and the smallest k in [1,12] with p^k mod n=1 does not exist for ordinary primary rows
+      - every generated group map has coefficients in F_p, maps every curve point to the curve, and preserves <P>
+      - declared_generators is a typed, duplicate-free list of formulas with field witnesses and declared generator orders
+      - every generated_group_maps entry satisfies map_entry_schema and has a unique contiguous map_index
+      - generated_group_maps is the complete closure of declared_generators; composition_table is total, duplicate-free, and agrees with every composition witness
+      - group_closure_witness replays every generator word and every composition_table row, and its length equals automorphism_order
+      - automorphism_order is independently recomputed by closure and group_order_certificate
+      - each map entry has its own certified_scalar_lambda and replay_witness; the singular source-level lambda is not reused for other maps
+      - the declared primary generator's certified scalar is the unique scalar in [0,n) satisfying phi(P)=lambda*P, checked by recomputation; every other map uses its own certified scalar and replay witness
+      - every emitted stabilizer_size is in allowed_stabilizer_sizes, divides automorphism_order, and effective_orbit_size equals automorphism_order // stabilizer_size
+      - every emitted orbit has exactly effective_orbit_size distinct encodings and its replayed stabilizer has exactly stabilizer_size maps
+    allowed_stabilizer_rule: >-
+      allowed_stabilizer_sizes is the complete positive-divisor list of the
+      recomputed automorphism_order. Any missing, extra, non-divisor, or
+      state-inconsistent value rejects the row; no value is called unexpected
+      without this explicit set comparison.
+    rejection: >-
+      Any missing, malformed, inconsistent, or unverifiable field rejects the
+      row before a rho walk; rejected rows are infrastructure/invalidity
+      records, never mathematical negative evidence.
+  deterministic_generation:
+    serialization: >-
+      Every hash input uses domain-separated UTF-8 tags and unsigned big-endian
+      u32 fields with length prefixes: tag || seed || group_id || field_bits ||
+      attempt. The exact byte preimage is emitted in the manifest.
+    prime_candidate: >-
+      Let u be the first four digest bytes. Candidate p is the least prime at
+      least 2^(field_bits-1)+(u mod 2^(field_bits-1)); reject if p >= 2^field_bits.
+      Trial division is the deterministic next-prime procedure and every
+      candidate/rejection is retained.
+    source_family_rule: >-
+      Source rows use the declared j=0 family when p mod 3=1 and j=1728 when
+      p mod 4=1, with exact a,b construction; a source attempt failing its
+      family or any certificate predicate is rejected and logged.
+    random_match_rule: >-
+      For each accepted source row, the random row uses the same p, target n,
+      pair_id, pair seed, and exact same-order requirement but a separate
+      deterministic control stream. Candidate curves and all rejection reasons
+      are retained until the first exact n match or the fixed 256-attempt limit
+      records random_match_unavailable and invalidates the group.
+    calibration_rule:
+      max_attempts_per_row: 256
+      terminal_no_candidate: calibration_unavailable_and_package_invalid
+      terminal_misdetected: calibration_detector_mismatch_and_package_invalid
+      receipt_fields: [calibration_id, attempt_count, candidate_hashes, rejection_reasons, terminal_outcome, detector_observation]
+      replacement_policy: no_replacement_after_registration_or_outcome
+    pair_token_rule: >-
+      pair_id is the registered group_id. pair_token is SHA-256 of the exact
+      domain-separated serialization of (seed, pair_id, field_bits). target_x
+      is 1 + int(pair_token[0:32], big-endian) mod (n-1). Every source and
+      matched-random variant in the pair uses this same target_x, pair_token,
+      walk seed, stopping rule, and cost-model version; instance_id is never an
+      input to target derivation.
+  controls:
+    - id: C-BASE
+      object: source curve
+      construction: unquotiented rho with the fixed three-way partition
+      expected_behavior: birthday-scale collision and valid scalar certificate
+    - id: C-NEG
+      object: source curve
+      construction: canonicalization by {+1,-1}, lambda=-1 certificate
+      expected_behavior: same pair token and stopping semantics; negation baseline
+    - id: C-FULL
+      object: source curve
+      construction: canonicalization by the complete verified subgroup generated by phi and negation
+      expected_behavior: candidate mechanism; no result assumed
+    - id: C-RELABEL
+      object: source curve
+      construction: >-
+        Apply the registered Fisher-Yates permutation of encoded state bytes
+        before partition selection; record permutation and inverse. Group
+        arithmetic, pair token, target, and stopping rule remain unchanged; no
+        quotient certificate is supplied.
+      expected_behavior: no claimed structural advantage; any gain is an artifact warning
+    - id: C-RAND-BASE
+      object: matched random ordinary curve
+      construction: same C-BASE walk with the identical pair token and cost model
+      expected_behavior: matched generic null
+    - id: C-RAND-NEG
+      object: matched random ordinary curve
+      construction: same C-NEG walk with the identical pair token and cost model
+      expected_behavior: matched negation null
+    - id: C-POS-ANOMALOUS
+      object: registered calibration row
+      construction: deterministic curve with #E=p; run only detector calibration and exclude from primary aggregation
+      expected_behavior: detector labels anomalous and excludes the row
+    - id: C-POS-LOW-EMBEDDING
+      object: registered calibration row
+      construction: deterministic curve with embedding degree <=12; run only detector calibration and exclude from primary aggregation
+      expected_behavior: detector labels low_embedding and excludes the row
+  walk_contract:
+    point_partition: SHA-256("PART-v3" || pair_token || encoded_point || u64(step_index)) modulo 3
+    transitions: >-
+      Three fixed public additions (A_i,B_i) update (a,b) to (a+A_i,b+B_i)
+      modulo n; every point and coefficient is emitted before and after a step.
+    canonicalization: >-
+      For each verified group element in generated_group_maps, compute its
+      image, choose the lexicographically smallest encoding, and transform
+      coefficients by its certified scalar. Emit the complete orbit, selected
+      map index, stabilizer_size, effective_orbit_size, and all map charges.
+    collision: >-
+      A repeated canonical encoding is a candidate collision only when the two
+      coefficient pairs differ. Recover x=(a1-a2)/(b2-b1) modulo n when the
+      denominator is nonzero, verify xP=Q independently, and otherwise charge
+      and record a fruitless collision/retry.
+    stopping: >-
+      Stop at the first valid certificate or at 8*ceil(sqrt(n)) accepted
+      transitions, whichever comes first. A cap without a certificate is
+      right-censored and cannot satisfy the positive criterion.
+  cost_model:
+    id: COST-ECDLP-e8ef62-v4
+    schema: experiments/EXP-ECDLP-e8ef62/protocol/cost_model.yaml
+    accounting_rule: >-
+      Each executed operation is owned by exactly one instrumentation wrapper.
+      Point addition/doubling and automorphism internals are expanded into
+      field counters; no point-operation counter is charged separately.
+  run_matrix:
+    independent_groups: 16
+    train_groups: [G01, G02, G03, G04, G05, G06, G07, G08]
+    held_out_groups: [G09, G10, G11, G12, G13, G14, G15, G16]
+    group_row: >-
+      Each group has one source row and one matched random row, one pair token,
+      one target x, and one seed. Execute exactly six variants = 96 primary
+      runs. Eight registered calibration rows add eight runs, giving
+      maximum_runs=104; a failed certificate consumes its declared slot and
+      invalidates the affected group.
+    maximum_runs: 104
+    cpu_estimate: >-
+      104 runs * 180 seconds worst-case = 18,720 seconds or 5.2 CPU hours;
+      the declared six-hour budget includes bounded setup and verification. No
+      unregistered reruns are allowed.
+  replication_statistics:
+    observations:
+      per_comparison: >-
+        For each held-out group i in the fixed order G09..G16, read the
+        positive integer W_FULL_i and the positive integer W_CONTROL_i from
+        recomputed exclusive raw counters. Reduce r_i=W_FULL_i/W_CONTROL_i
+        as an exact rational; define d_i=log(r_i) only as an order/sign label.
+      no_float_rule: >-
+        No floating-point logarithm, ratio, or p-value is used for a decision.
+        Rational cross multiplication determines every ratio comparison,
+        reciprocal-magnitude comparison, tie, threshold, and p numerator.
+    effect_estimator:
+      name: lower_hodges_lehmann_geometric_ratio
+      walsh_definition: >-
+        Emit all 36 exact Walsh values g_ij=sqrt(r_i*r_j), 1 <= i <= j <= 8,
+        sorted by exact comparison of g_ij^2=r_i*r_j. The estimator is the
+        lower median g_18, the 18th value in one-indexed sorted order; no
+        even-sample interpolation is allowed.
+      threshold: >-
+        The effect gate is g_18 <= 9/10, checked exactly as g_18^2 <= 81/100.
+      required_outputs: [ratio_numerator, ratio_denominator, walsh_pair_indices, walsh_squared_values, lower_median_index, lower_median_squared, effect_pass]
+    exact_signed_rank_permutation:
+      statistic_name: paired_signed_rank_T2
+      zero_rule: >-
+        A row with W_FULL_i=W_CONTROL_i has d_i=0, contributes S_i=0, remains
+        in comparison.json, and is not removed from the eight-row family.
+      magnitude_order: >-
+        For nonzero rows, order |d_i| exactly: if r_i and r_j are on the same
+        side of one, compare r_i with r_j or their reciprocals; opposite-side
+        magnitudes tie exactly when r_i*r_j=1. Equal magnitudes are one tie
+        group.
+      rank_rule: >-
+        Assign the average of the one-indexed ranks occupied by each exact tie
+        group. Set S_i=2*midrank_i, which is an integer. The observed statistic
+        is T2_obs=sum_i sign(d_i)*S_i.
+      sign_vector_order: >-
+        Enumerate exactly k=0..255. For bit position i in the fixed order
+        [G09,G10,G11,G12,G13,G14,G15,G16], epsilon_i=+1 when ((k >> i)&1)=1
+        and epsilon_i=-1 otherwise.
+      permuted_statistic: T2_k=sum_i epsilon_i*sign(d_i)*S_i
+      tail_rule: >-
+        The inclusive two-sided tail is abs(T2_k) >= abs(T2_obs), including the
+        observed assignment and all ties. p_numerator is the count of such k;
+        p_denominator=256; p_value is the exact rational p_numerator/256.
+      threshold: >-
+        Each comparison passes its test only when p_numerator <= 6, which is
+        exactly p_value <= 0.025 because 7/256 > 0.025 >= 6/256.
+      required_outputs: [signs, absolute_magnitude_tie_groups, midranks, S_i, observed_T2, sign_vector_table_256, p_numerator, p_denominator, p_value_exact]
+    paired_decision:
+      full_neg: >-
+        FULL/NEG passes only when its lower Hodges-Lehmann ratio is <= 0.90
+        and its exact p_numerator is <= 6.
+      full_base: >-
+        FULL/BASE passes only when its lower Hodges-Lehmann ratio is <= 0.90
+        and its exact p_numerator is <= 6.
+      family_rule: >-
+        Both comparisons must pass, all eight held-out groups and all six
+        primary rows per group must be valid, every certificate and raw counter
+        replay must pass, and no invalid/stopping rule may fire.
+    slope: >-
+      Fit ordinary least squares to log(W) against log(n) separately for BASE,
+      NEG, and FULL on all eight held-out sizes; emit slope, standard error,
+      residuals, and no-exponent-claim scope. Any FULL slope estimate below
+      0.5 is descriptive and triggers review-breakthrough review if proposed as
+      anything more.
+    censoring: >-
+      Right-censored rows use a preregistered Kaplan-Meier table only for
+      description and cannot satisfy the positive criterion; any held-out
+      censoring invalidates the family under validity above.
+  stopping_rules:
+    - stop before walks on any failed certificate and classify the row invalid
+    - stop the affected group after two consecutive cycle-failure windows of 32 steps with cycle rate > 0.25; classify family invalid if this occurs in two groups
+    - stop after the exact 104-run matrix; no candidate-family tuning or replacement rows
+    - stop and classify invalid if raw counter recomputation or certificate replay differs from the run summary
+  invalidation_rules:
+    - missing command, commit, environment, seed, pair token, instance manifest, raw walk, cost vector, or recovery certificate
+    - any mismatch in paired target, pair token, partition seed, success rule, or cost-model version
+    - any primary row admits a non-F_p automorphism, anomalous curve, low embedding degree, or unverified group/stabilizer witness
+    - any post-outcome selection, replacement, or unregistered rerun
+  required_artifacts:
+    - experiments/EXP-ECDLP-e8ef62/implementation/rho_census.py with sha256 in the run manifest
+    - experiments/EXP-ECDLP-e8ef62/protocol/instance_manifest.schema.yaml
+    - experiments/EXP-ECDLP-e8ef62/protocol/cost_model.yaml
+    - experiments/EXP-ECDLP-e8ef62/protocol/seed_register.yaml
+    - experiments/EXP-ECDLP-e8ef62/protocol/proof_audits.yaml
+    - one run directory per matrix row containing command.txt, environment.json, stdout.log, stderr.log, manifest.yaml, raw-walk.ndjson, cost-vector.json, recovery-certificate.json, and result.yaml
+    - comparison.json with all 104 rows including invalid/calibration rows
+    - validation_report.yaml with raw recomputation, control matching, and scope limits
+  comparison_artifact_schema:
+    required_fields:
+      - comparison_id
+      - control
+      - held_out_group_order
+      - exact_raw_W_rows
+      - exact_reduced_ratios
+      - d_signs
+      - absolute_magnitude_tie_groups
+      - midranks
+      - S_i
+      - observed_T2
+      - sign_vector_table_256
+      - p_numerator
+      - p_denominator
+      - p_value_exact
+      - walsh_pairs_36
+      - lower_median_index
+      - lower_median_squared
+      - effect_pass
+      - validity
+    sign_vector_table_rule: >-
+      The table has exactly 256 rows, k=0..255, the explicit epsilon bit vector,
+      T2_k, abs(T2_k), and tail_indicator. It is rechecked from exact integers
+      by the validator; an omitted, reordered, or floating-point-derived row
+      invalidates the comparison family.
+  proof_search_map_binding:
+    baseline_fixture: experiments/EXP-ECDLP-e8ef62/protocol/proof_audits.yaml#baseline_reproduction
+    observation_collision_fixture: experiments/EXP-ECDLP-e8ef62/protocol/proof_audits.yaml#observation_collision
+    audit_gate: >-
+      Both fixtures are required pre-compute checks; a failed or inapplicable
+      audit is recorded with its reason and blocks approval until Coordinator
+      disposition. They are not empirical support for the hypothesis.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Direct finite-field walks at p < 2^18 validate controls and accounting
+      only; no crypto-scale security or exponent claim is licensed.
+    correspondence: null
+  preregistered_prediction:
+    quantity: held_out median normalized charged work ratio
+    formula: FULL/NEG <= 0.90 and FULL/BASE <= 0.90 with exact paired 2^8
+      sign-permutation p_NEG <= 0.025 and p_BASE <= 0.025 under Bonferroni
+      family-wise alpha 0.05
+    source: birthday collision model plus explicit overhead charge; heuristic only
+  tail_checks:
+    - cycle-rate window counts by variant
+    - right-censoring and retry tails by group
+    - orbit-size/stabilizer distribution against certificate ceiling
+  success_criterion: >-
+    The exact eight-group held-out success threshold passes for both
+    FULL/NEG and FULL/BASE under the Bonferroni rule, all primary rows are
+    valid, all certificates replay, raw W recomputes, and no
+    stopping/invalidation rule fires. This supports only the declared toy
+    finite-scope comparison.
+  falsification_criterion: >-
+    The exact held-out threshold fails on a valid complete matrix, or the
+    quotient certificate/recovery/control checks fail. Infrastructure-invalid
+    or backend-unavailable outcomes are not falsification.
+  assigned_to: executor

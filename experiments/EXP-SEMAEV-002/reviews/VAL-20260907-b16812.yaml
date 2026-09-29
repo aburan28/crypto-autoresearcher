@@ -1,0 +1,558 @@
+validation_report:
+  id: VAL-20260907-b16812
+  task_id: null   # No TASK-* handoff / review_plan was supplied with this
+                   # dispatch; reviewed per the direct operating instructions
+                   # in the prompt against the Coordinator-committed snapshot
+                   # at 54aa83b92 (experiments/EXP-SEMAEV-002/ is byte-identical
+                   # at HEAD: `git diff 54aa83b92 HEAD -- experiments/EXP-SEMAEV-002`
+                   # is empty).
+  claim_under_review: >-
+    EXP-SEMAEV-002 (H-SEMAEV-002, GOAL-CRYPTO-001, claim_tier: toy), across
+    8 exhaustive (m,p,E) cells (m in {3,4}; p in {101,103,107,211}): (1)
+    nonexceptional_full_box_fraction = 1.0 at every cell; (2) exceptional-set
+    cardinality exactly m-1 at every cell under two independent
+    classification methods; (3) the observed exceptional set equals the
+    predicted {x([r]P0): 1<=r<=m-1} exactly at every cell; (4) m=3
+    calibration identities match exactly on all 4 tested m=3 curves,
+    verified against a full-expansion coefficient dictionary; (5)
+    cross-method classification agreement is 1.0 on the full exhaustive
+    sweep.
+  run_ids:
+    - RUN-SEMAEV-002-a
+    - RUN-SEMAEV-002-b
+    - RUN-SEMAEV-002-c
+    - RUN-SEMAEV-002-d
+
+  artifact_checks:
+    - check: All required_artifacts from specification.yaml present at the
+        Coordinator-committed snapshot.
+      result: pass
+      detail: >-
+        specification.yaml, analysis.md, execution-report.yaml, all three
+        implementation/*.py classification modules, run_experiment.py, and
+        every run's {manifest.yaml, command.txt, environment.json,
+        raw-result.json, summary.json, stdout.log, stderr.log} exist under
+        experiments/EXP-SEMAEV-002/. harness/semaev.py and harness/toycurve.py
+        (cited dependencies) exist and are unchanged between the pinned
+        implementation_commit (53aac6d88...) and current HEAD (`git diff
+        53aac6d88 HEAD -- harness/semaev.py harness/toycurve.py` is empty).
+    - check: Snapshot freeze — no drift between the cited Coordinator commit
+        and the tree being reviewed.
+      result: pass
+      detail: >-
+        `git diff 54aa83b92 HEAD -- experiments/EXP-SEMAEV-002` is empty;
+        commit 54aa83b92 is reachable from HEAD (verified by git log).
+    - check: run.code.commit is real, well-formed, and reachable.
+      result: pass
+      detail: >-
+        53aac6d8875a3c5badd66cbd753a25027621f0f3 is a 40-hex-char SHA,
+        `git cat-file -t` reports `commit`, and `git log --oneline -1` shows
+        it as a real, reachable commit
+        ("research(GOAL-CRYPTO-001, RQ-JMV-001): enact re-approval status...").
+    - check: sha256 hashes in each run manifest's
+        execution_relevant_files_sha256 match the actual implementation files
+        at HEAD.
+      result: pass
+      detail: >-
+        `sha256sum experiments/EXP-SEMAEV-002/implementation/*.py` matches
+        every manifest's recorded hash exactly (newton_sections.py
+        67c56b65..., corner_classes.py ab4a0e1f..., exception_sets.py
+        a2691d07..., run_experiment.py 561148f0...).
+    - check: Each run manifest carries the required top-level fields (id,
+        experiment_id, status, code, environment, inputs, timing, result)
+        with a genuine inline `environment:` mapping, not an
+        `environment_ref` pointer (the defect this same archiving commit
+        fixed for the companion EXP-HZM-001 runs).
+      result: pass
+      detail: >-
+        All four manifests carry a fully inline `environment:` block
+        (operating_system, architecture, python_version, sage_version,
+        dependencies.sympy). `python3 tools/validate_ledger.py` reports zero
+        errors under any experiments/EXP-SEMAEV-002/ path (the 18 new errors
+        it reports on the current tree all belong to unrelated concurrent
+        work: EXP-CSIDH-c65945, EXP-JMV-001, EXP-JMV-004, and three
+        ledger/handoffs records).
+    - check: Dispatch authorization (DEC-20260906-1c8b5d) is a real, committed
+        Coordinator decision that actually approves this experiment.
+      result: pass
+      detail: >-
+        ledger/decisions/DEC-20260906-1c8b5d.yaml exists, is committed
+        (commit 3622f4d90), decision:approve, target_ids includes
+        EXP-SEMAEV-002/H-SEMAEV-002/TASK-20260727-010/GOAL-CRYPTO-001, and its
+        context/rationale independently document why the handoff's own
+        `authorized_by: "DEC-20260727-002"` field is false and why this
+        decision re-runs the approval act. H-SEMAEV-002.status is `approved`
+        (unchanged by this run, correctly — only the Coordinator may promote
+        it).
+    - check: Reproducibility — re-executing the pinned, sha256-verified
+        implementation reproduces the committed raw-result.json.
+      result: pass
+      detail: >-
+        Re-ran `run_experiment.py {a,b,c,d}` from the checked-out tree end to
+        end; every stage's output is identical to the committed
+        raw-result.json byte-for-byte except the `wall_seconds` timing field
+        (verified programmatically, keys stripped of timing before
+        comparison).
+    - check: Dirty-tree state vs. the frozen contract's own invalidation rule.
+      result: FINDING — unresolved contract inconsistency
+      detail: >-
+        specification.yaml's invalidation_rules states unconditionally "Any
+        run with a dirty code revision in its manifest is invalid." All four
+        run manifests record `code.dirty: true`, yet all four carry
+        `status: completed_valid` / `result.valid: true` with no
+        `protocol_deviations` entry addressing this specific tension, and no
+        Coordinator amendment or waiver. `run_experiment.py`'s own `stage_d`
+        falsification scan does not check `code.dirty` at all — nothing in
+        the pipeline evaluated this rule mechanically. The companion
+        experiment EXP-HZM-001, archived in the SAME Coordinator commit by
+        (per resolved_model_id) the same session, faced the identical
+        shared-worktree situation and recorded it with a different, more
+        precise field — `code.dirty_tracked_files: false` plus an itemized
+        `untracked_files_present_at_run_time` list and an explicit
+        `git diff --stat` claim of zero tracked-file modification — which
+        would have satisfied this contract's rule under the canonical
+        definition of "dirty" used elsewhere in this repository
+        (`harness/runner.py:git_state()`: "'dirty' means tracked source
+        differs from HEAD... untracked files... are intentionally ignored").
+        EXP-SEMAEV-002's manifests instead set the canonical `code.dirty`
+        field itself to `true`, computed (per the `dirty_detail` prose) from
+        a broader `git status --porcelain` reading that includes untracked
+        files — i.e. a non-canonical, stricter methodology that trips the
+        contract's literal text using the very field name
+        (`code.dirty`) the rule is written against. Substantively: no
+        evidence was found that any TRACKED file differed from the pinned
+        commit (harness/semaev.py and harness/toycurve.py are byte-identical
+        between commit 53aac6d88 and HEAD; every execution-relevant
+        implementation file is pinned by sha256 and verified to match); the
+        disclosed dirty_detail narrative and my own commit-diff check both
+        point toward "no tracked file touched, only new disjoint untracked
+        paths" — the same substantive state EXP-HZM-001 recorded as
+        `dirty_tracked_files: false`. But this is inference from a
+        prose narrative, not from the same kind of itemized, checkable field
+        EXP-HZM-001 used, and the frozen contract's own rule was not
+        evaluated against it. This is a receipt-admissibility /
+        contract-conformance defect, not a demonstrated defect in the
+        underlying computation.
+
+  metric_recomputations:
+    - metric: Curve selection, m in {3,4}, p in {101,103,107,211}
+      method: >-
+        Wrote an independent selection routine from scratch (own
+        balanced-residue "radius" function, own group arithmetic, own
+        sqrt_mod via sympy) reproducing the frozen selection rule's text,
+        not importing exception_sets.py.
+      result: >-
+        Exact match at all 8 cells: (A,B)=(1,1), beta=1, and ord(P0) = 21,
+        87, 21, 223 for p = 101, 103, 107, 211 respectively — identical to
+        RUN-SEMAEV-002-a/raw-result.json.
+    - metric: "predicted_exception_set = {x([r]P0): 1<=r<=m-1}"
+      method: >-
+        Own from-scratch short-Weierstrass point add/double/scalar-mul (not
+        harness/toycurve.py), evaluated at the independently re-derived
+        curves above.
+      result: >-
+        Exact match at all 8 cells: {0,76}/{0,26}/{0,27}/{0,53} (m=3),
+        {0,72,76}/{0,26,72}/{0,27,72}/{0,53,72} (m=4) — identical to the
+        raw-result.json predicted sets.
+    - metric: observed_exception_set (hull-based, Method 1)
+      method: >-
+        Independently typed the literature S3 formula in sympy from memory
+        (not copied from harness/semaev.py — the resulting expression is
+        byte-identical to harness/semaev.py's s3_expr, which is expected
+        since both instantiate the same well-known closed form), expanded
+        once per curve, and classified SATURATED/EXCEPTION over the full
+        exhaustive sweep of every t in F_p at all 8 cells by exact box-corner
+        presence (not support_fill).
+      result: >-
+        Exact match to the predicted set at all 8 cells (identity=True
+        everywhere); nonexceptional_full_box_fraction (computed correctly,
+        i.e. against the predicted set) = 1.0 at all 8 cells. Full script and
+        output reproduced in this review's working notes; see
+        `sources_read`/artifact_paths below is not applicable — this was
+        Validator-authored code, not a repository artifact.
+    - metric: observed_exception_set (corner-based, Method 2), full
+        exhaustive sweep at m=4, p=101
+      method: >-
+        Independently re-typed the disclosed recursion (c_{4,1}=c3_0^2,
+        c_{4,2}=t^4, c_{4,3}=1) and the disclosed early-zero-substitution
+        route for c_{4,0}(t) = S4(0,0,0,t), from scratch, and compared
+        against the independently-built hull method over every t in F_101.
+      result: >-
+        0 disagreements across the full 101-target sweep; both methods'
+        exceptional sets are exactly {0,72,76}. c_{4,0}'s early-substitution
+        coefficients [0,0,0,-72,1] match exactly the (0,0,0)-slice pulled
+        from the independently-built full multivariate expansion —
+        confirming the two computational ROUTES agree (as claimed), while
+        also confirming (independently of the concurrent red-team report,
+        see below) that they are mathematically forced to agree because both
+        ultimately evaluate the same S4 object, so this specific
+        cross-method check for m=4's genuinely novel corner class detects
+        expansion/evaluation bugs, not construction-level bugs in
+        `harness/semaev.py:s4_expr`.
+    - metric: m3_calibration_identity_match (c_{3,0}=A^2-4Bt, c_{3,1}=t^2,
+        c_{3,2}=1)
+      method: >-
+        Sliced the independently-built full-expansion coefficient
+        dictionary at the three corner monomials (as a polynomial in t,
+        before any t-substitution) and compared against the literature
+        closed forms, at all 4 tested m=3 primes.
+      result: >-
+        Exact match at all 4 primes (101, 103, 107, 211): e.g. at p=101,
+        c3_0 = [1, 97] = [A^2 mod p, -4B mod p]; c3_1 at both weight-1
+        corners = [0,0,1] = t^2; c3_2 = [1]. Identical to
+        RUN-SEMAEV-002-a/raw-result.json's m3_calibration block.
+    - metric: nonexceptional_full_box_fraction as ACTUALLY IMPLEMENTED in
+        implementation/run_experiment.py's `_exhaustive_cell`
+      method: >-
+        Traced the exact set-membership logic (not merely re-running the
+        code): `observed_hull_set = {t : not saturated_flags[t]}`, then
+        `nonexceptional_targets = {t : t not in observed_hull_set}`, which by
+        construction equals `{t : saturated_flags[t] is True}`, then
+        `nonexceptional_saturated_count = sum(saturated_flags[t] for t in
+        nonexceptional_targets)`. Wrote and ran a from-scratch mutation test
+        with a fabricated `saturated_flags` dict injecting a genuine
+        falsifying instance (t=50, outside the predicted set {0,76}, forced
+        non-saturated — i.e. exactly the falsification_criterion's first
+        clause).
+      result: >-
+        CONFIRMED DEFECT (independently reproduced, not merely accepted from
+        the concurrent red-team report that first surfaced it — see
+        `review_attestation` below): the metric as implemented is
+        tautologically 1.0 (or None) regardless of the actual polynomial
+        support, because `nonexceptional_targets` is defined using the very
+        classification (`observed_hull_set`) being tested, not the
+        independently predicted set. With the injected falsifying instance,
+        the buggy formula still reports 1.0, while the same formula computed
+        correctly (partitioning against `predicted_exception_set`, per
+        specification.yaml's actual metric definition and success_criterion)
+        correctly reports 0.98990 and the sibling
+        `exception_set_identity_hull` check correctly reports False. This is
+        the canonical artifact tell named in `docs/inventor-protocol.md` §3
+        and required by AGENTS.md's "controls before belief": a quantity
+        that cannot decay under the parameter meant to expose a failure is
+        not a check. `nonexceptional_full_box_fraction` is a NAMED PRIMARY
+        METRIC in specification.yaml's metrics.primary with its own "target
+        exactly 1" pass condition; reported alone it carries zero
+        evidentiary weight. The genuinely discriminating check —
+        `exception_set_identity_hull`/`exception_set_identity_corner`,
+        comparing the observed set against the INDEPENDENTLY (group-
+        arithmetic) predicted set — is sound, is NOT circular, and I
+        independently re-derived and confirmed it holds genuinely (not
+        tautologically) across the full 8-cell exhaustive sweep from
+        first-principles code (see metric_recomputations above). This is a
+        SECOND, undisclosed defect distinct from the one protocol_deviations
+        entry that does describe a metric-definition bug (the earlier
+        support_fill-vs-saturated confusion, which was genuinely fixed);
+        this circularity was introduced by that same fix and was never
+        caught or disclosed by the Executor.
+    - metric: CTRL-SEM-CONSISTENCY-BKK001 plausibility claim
+      method: >-
+        Read EV-BKK-001.yaml and experiments/EXP-BKK-001/specification.yaml/
+        analysis.md to confirm the "2 targets per instance, not exhaustive"
+        characterization is accurate (EV-BKK-001: "per-instance support fill
+        1.0 (m=3)..."; EXP-BKK-001 spec: "Per config two targets: R_main...
+        R_wit"; analysis.md: "27 configs x 2 targets = 54 measured
+        instances"). Went further than the Executor's own disclosed scope:
+        extracted EV-BKK-001's actual raw sampled target x-coordinates at
+        m=3, p=101 from experiments/EXP-BKK-001/runs/RUN-BKK-001-a/raw.json
+        (3 seeds x 2 targets = {2, 9, 13, 16, 96, 98}) and compared them
+        directly against EXP-SEMAEV-002's exceptional set {0, 76} at the
+        same cell.
+      result: >-
+        Genuinely disjoint: {2,9,13,16,96,98} does not intersect {0,76}.
+        This means the "no contradiction" finding holds under the STRONGER
+        literal target-for-target replay reading too, not merely under the
+        weaker plausibility-consistency reading the Executor disclosed as
+        the actual check performed. The Executor's disclosure that it did
+        NOT perform this stronger check is accurate and honestly scoped
+        (execution-report.yaml protocol_deviations, third entry).
+
+  control_checks:
+    - id: CTRL-SEM-M3-CALIBRATION
+      result: pass (independently recomputed, see metric_recomputations)
+    - id: CTRL-SEM-CROSS-METHOD
+      result: >-
+        pass for the discriminating content (exception_set_identity), but
+        see the nonexceptional_full_box_fraction finding above for a
+        circularity in a different, named metric that shares this control's
+        stage; also see the m=4 c_{4,0} partial-independence finding below —
+        the "3 of 4 m=4 classes independent" framing is accurate but a
+        concurrent red-team review (independently confirmed here) shows the
+        practical discriminating value is narrower still: c_{4,1} and c_{4,2}
+        only ever catch targets already independently exercised at m=3
+        (t=A^2/(4B) and t=0 respectively), so m=4's one genuinely novel
+        detection (t=72, the r=3 target) is caught only by c_{4,0}, the one
+        class not independent of `harness/semaev.py:s4_expr`. This does not
+        break CTRL-SEM-CROSS-METHOD's stated pass_condition (100% agreement
+        on the sample, which held, verified independently by me at m=4,
+        p=101's full sweep), but the disclosed "3-of-4 partial independence"
+        undersells how little of m=4's own discriminating power is
+        independent of the object under test.
+    - id: CTRL-SEM-PREDICTED-SET
+      result: pass (independently recomputed from scratch; see
+        metric_recomputations — this is the control that actually carries
+        the falsifiable content, and it is sound)
+    - id: CTRL-SEM-CONSISTENCY-BKK001
+      result: >-
+        pass — honestly scoped as "plausibility check, not literal replay"
+        by the Executor, and independently confirmed to also hold under the
+        stronger literal-replay reading (see metric_recomputations)
+
+  heuristic_validation_checks:
+    - applicable: false
+      reason: >-
+        H-SEMAEV-002.heuristic_under_test is null and
+        H-SEMAEV-002.asymptotic_claim is null; this is exact exhaustive
+        enumeration over a finite field, not a random-model / distributional
+        claim, so docs/target-result-profile.md's heuristic-validation
+        checklist (pre-registered Dickman-de Bruijn-style prediction, sample
+        integrity, correspondence validity) does not bind this record.
+        Confirmed the record does not misuse or smuggle in heuristic
+        language anywhere in analysis.md or execution-report.yaml.
+
+  cost_model_checks:
+    - applicable: false
+      reason: >-
+        No cost model or asymptotic claim is made (asymptotic_claim: null).
+        budget_actuals in execution-report.yaml (3.98s total wall clock
+        against a 6300s budget) is disclosed as a toy-scale measurement only;
+        peak_memory_measured: false is disclosed explicitly as unmeasured
+        rather than asserted. No concrete-cost table is present, correctly —
+        none is claimed.
+
+  proof_architecture_checks:
+    - applicable: partial
+      note: >-
+        This is a computational base-case check, not a novel proof/reduction
+        claim (the underlying corner-coefficient induction is credited to
+        EV-CRYPTO-009/DEC-20260724-001, a prior record this experiment does
+        not re-litigate). Confirmed baseline reproduction: the m=3
+        calibration identities are the cited literature closed forms,
+        independently recomputed and matched exactly. Confirmed quantifier
+        fidelity on the curve-selection procedure: `select_curve` (both the
+        shipped implementation and my own independent re-derivation) is a
+        pure, deterministic function of (m,p) that terminates on
+        pre-declared algebraic conditions (nonsingularity, B a QR,
+        ord(P0)>=2m-1), never on the outcome of the later Newton-polytope
+        computation — no post-hoc witness selection found.
+
+  limitations:
+    - >-
+      MOST SIGNIFICANT: `nonexceptional_full_box_fraction`, a named primary
+      metric with its own pass condition in specification.yaml, is
+      tautologically 1.0 by construction in the delivered implementation and
+      does not decay under a genuine injected falsifying instance
+      (independently confirmed by this Validator via a from-scratch mutation
+      test). It must not be cited as independent confirmation of claim (1)
+      in isolation. The genuinely discriminating check for the same
+      underlying question — exception_set_identity_hull/corner, compared
+      against the independently group-arithmetic-predicted set — is sound
+      and was independently re-derived and confirmed by this Validator from
+      first principles across the full 8-cell exhaustive sweep, with zero
+      disagreements and zero counterexamples. This defect was not caught or
+      disclosed by the Executor (whose one protocol_deviations entry on this
+      code path describes a different, earlier, genuinely-fixed bug) and
+      requires a corrected re-implementation (partitioning against the
+      predicted, not observed, set) or an explicit contract note before this
+      record's primary-metric table is cited further.
+    - >-
+      SECOND MOST SIGNIFICANT: specification.yaml's own frozen
+      invalidation_rules item ("Any run with a dirty code revision in its
+      manifest is invalid") is textually triggered by all four run
+      manifests' `code.dirty: true` field. This was not evaluated by the
+      Executor's own falsification scan, not disclosed as a
+      protocol_deviation, and not resolved by Coordinator amendment. The
+      substantive evidence (disclosed dirty_detail narrative; harness/
+      semaev.py and harness/toycurve.py byte-identical to the pinned commit;
+      every execution-relevant file sha256-pinned and verified) points
+      toward "no tracked file was actually modified," which is the
+      substantive state the companion EXP-HZM-001 (archived in the identical
+      commit) recorded correctly and precisely via a different field
+      (`dirty_tracked_files: false`). As WRITTEN, EXP-SEMAEV-002's manifests
+      do not establish this the same way, and the frozen contract's rule, on
+      its face, is unresolved.
+    - >-
+      specification.yaml's metrics.secondary lists
+      `degenerate_specializations` ("count and list of t inducing degree
+      drops or vanishing normalization factors"); this Validator confirmed
+      (by grep across every artifact under experiments/EXP-SEMAEV-002/) that
+      this specified deliverable was never computed or reported anywhere,
+      and this gap was not disclosed as a protocol_deviation. Minor,
+      non-blocking (a secondary, non-pass/fail metric), but a specified
+      deliverable silently going unmet is exactly what the deviation-
+      disclosure discipline exists to catch.
+    - >-
+      Curve-shape diversity across the 8 tested cells is much lower than the
+      cell count suggests: all 8 cells select (A,B)=(1,1), and (confirmed
+      independently by this Validator via exact symbolic computation over Q)
+      x(3*P0) = 72 exactly as an integer on y^2=x^3+x+1, so the one m=4-
+      specific exceptional target reduces to the identical literal value 72
+      at every one of the 4 tested m=4 primes (all > 72). analysis.md's
+      "anomalies" section discloses the (A,B) coincidence and correctly
+      argues it is not a hardcoded-return defect, but does not surface how
+      structurally determined the recurrence is (the point (0,1) on
+      y^2=x^3+1 is 3-torsion for every p>3 by an algebraic identity, not a
+      per-prime coincidence) or the resulting m=4-specific-target collapse.
+      Does not change the correctness of the 8 tested cells, but the
+      8-cell count should not be read as 8 structurally independent curve
+      draws when this record (or a future one built on it) is cited for a
+      broader claim.
+    - >-
+      This review encountered a concurrent red-team report already present
+      in the shared worktree, RT-20260907-823b5e.yaml, and read it (see
+      review_attestation). It independently arrived at overlapping findings
+      through its own, different methodology (an executed 27+20-cell
+      extension across untested primes/curves, plus its own independent
+      mutation test) before this report was drafted. Every finding cited
+      from it in this report (the nonexceptional_full_box_fraction
+      circularity, the degenerate_specializations gap, the x(3P0)=72
+      structural collapse) was independently re-derived and confirmed by
+      this Validator with its own from-scratch code, not merely copied.
+      Both reports concur that none of these findings falsifies the
+      underlying claim at the tested (and, in the red team's case,
+      reviewer-extended) scope.
+    - >-
+      claim_tier: toy and scope discipline are honest and consistent
+      throughout specification.yaml, analysis.md, execution-report.yaml, and
+      H-SEMAEV-002.yaml (interpretation_limits, mechanism, and boundaries
+      all agree: no m>=5 claim, no crypto-scale claim, no sub-rho or
+      cryptographic-advantage claim). H-SEMAEV-002.status remains `approved`
+      and GOAL-CRYPTO-001 is untouched by this record, correctly — only the
+      Coordinator may change either.
+
+  verdict: incomplete
+  verdict_rationale: >-
+    Every independently, first-principles recomputable claim in the record
+    (curve selection, the predicted and observed exceptional sets at all 8
+    cells, the m=3 calibration identities at all 4 tested primes, the m=4
+    corner-recursion consistency, and the full exhaustive cross-method
+    sweep at m=4/p=101) reproduced exactly under Validator-authored code
+    that never imported the Executor's own implementation modules, and the
+    Executor's own pinned, sha256-verified code independently re-executed
+    reproduces the committed raw-result.json bit-for-bit. No falsifying
+    instance was found anywhere, corroborated further by a concurrent
+    red-team review's independent 20+27-cell extension. This is real,
+    admissible evidence for the narrow toy-tier base-case claim it makes.
+    However, the receipt as currently written is not yet a clean `passed`:
+    (1) a NAMED PRIMARY METRIC (nonexceptional_full_box_fraction) is
+    tautological by construction and was independently confirmed (via a
+    from-scratch mutation test, not merely accepted from a sibling report)
+    not to decay under an injected falsifying instance — the canonical
+    artifact-tell this program's controls-before-belief rule exists to
+    catch — and must not be cited as independent confirmation until
+    corrected or annotated; (2) the frozen contract's own unconditional
+    invalidation rule on dirty code revisions is textually triggered by
+    every run manifest's own `code.dirty: true` field and was neither
+    evaluated by the pipeline, disclosed as a deviation, nor resolved by
+    Coordinator amendment, unlike the companion EXP-HZM-001 record archived
+    in the identical commit; (3) a specified secondary metric
+    (degenerate_specializations) was silently never delivered. None of
+    these findings amounts to a demonstrated falsification of the
+    underlying mathematical claim at the tested scope — the genuinely
+    discriminating checks are sound and independently reproduce — so
+    `failed` is not warranted; but the record cannot be certified fully
+    admissible without the Coordinator/Executor resolving (1) and (2)
+    (and, ideally, (3)) first. Per AGENTS.md core rule 1, this report
+    changes no hypothesis, experiment, or goal status.
+
+  review_attestation:
+    joints_owned: []   # whole-record independent validation; no review_plan
+                        # with per-joint assignment was supplied with this
+                        # dispatch
+    sources_read:
+      - experiments/EXP-SEMAEV-002/specification.yaml
+      - experiments/EXP-SEMAEV-002/analysis.md
+      - experiments/EXP-SEMAEV-002/execution-report.yaml
+      - experiments/EXP-SEMAEV-002/implementation/newton_sections.py
+      - experiments/EXP-SEMAEV-002/implementation/corner_classes.py
+      - experiments/EXP-SEMAEV-002/implementation/exception_sets.py
+      - experiments/EXP-SEMAEV-002/implementation/run_experiment.py
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/manifest.yaml
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/summary.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/manifest.yaml
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/summary.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/manifest.yaml
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/summary.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/manifest.yaml
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/summary.json
+      - harness/semaev.py
+      - harness/toycurve.py
+      - harness/runner.py (git_state() only, to confirm the canonical dirty
+        semantics used elsewhere in this repository)
+      - AGENTS.md
+      - agents/validator.md
+      - templates/research-records.md (review_attestation / Coordinator
+        archive receipt sections only)
+      - ledger/decisions/DEC-20260906-1c8b5d.yaml
+      - ledger/hypotheses/H-SEMAEV-002.yaml
+      - ledger/EV-BKK-001.yaml
+      - experiments/EXP-BKK-001/specification.yaml (targets/independent_
+        instances fields only)
+      - experiments/EXP-BKK-001/analysis.md (header only)
+      - experiments/EXP-BKK-001/runs/RUN-BKK-001-a/raw.json (m=3,p=101
+        target fields only)
+      - experiments/EXP-SEMAEV-002/reviews/RT-20260907-823b5e.yaml
+        (concurrent red-team report; see disclosure below)
+      - tools/validate_ledger.py (RUN_REQUIRED_TOP and check_run() only)
+      - tools/allocate_id.py (--help and PREFIX_TYPE only, to check for a
+        VAL- id convention)
+    read_sibling_reports: true
+    read_sibling_reports_disclosure: >-
+      No review_plan or blindness declaration governed this task (task_id:
+      null, same as the concurrent red-team report). Partway through this
+      review — after independently reproducing the curve selection, the
+      predicted/observed exceptional sets at all 8 cells (full from-scratch
+      exhaustive sweep, both classification methods), the m=3 calibration
+      identities, the m=4 corner-recursion consistency, the dirty-tree
+      finding, and the DEC-20260906-1c8b5d/commit-reachability checks — this
+      Validator discovered an already-present, uncommitted red-team report
+      (experiments/EXP-SEMAEV-002/reviews/RT-20260907-823b5e.yaml) in the
+      shared worktree and read it. It surfaced one finding
+      (nonexceptional_full_box_fraction's circularity, its OBJ-5) this
+      Validator had not yet independently found by that point, and one minor
+      finding (degenerate_specializations never computed, its OBJ-6) this
+      Validator also had not yet checked. Both were then independently
+      re-derived and confirmed by this Validator with its own, separately
+      written code (a from-scratch mutation test for OBJ-5; a direct grep
+      plus re-reading specification.yaml's metrics.secondary for OBJ-6)
+      before being cited in this report, rather than being accepted on the
+      red team's word. This report's other findings (dirty-tree/
+      invalidation-rule conflict; the full 8-cell exhaustive recomputation
+      of curve selection, predicted/observed exceptional sets, m=3
+      calibration, and m=4 cross-method agreement; the BKK-001
+      literal-target check) were produced independently before this
+      Validator read the red-team report, using different Validator-authored
+      code and a different check (the literal-target extraction) than the
+      red team performed. Disclosed per agents/validator.md's instruction to
+      report an encountered sibling report rather than proceed quietly.
+    blind_from_respected: null   # not a blind_rederivation task
+    verdict: incomplete
+
+  artifact_paths:
+    - experiments/EXP-SEMAEV-002/specification.yaml
+    - experiments/EXP-SEMAEV-002/analysis.md
+    - experiments/EXP-SEMAEV-002/execution-report.yaml
+    - experiments/EXP-SEMAEV-002/implementation/newton_sections.py
+    - experiments/EXP-SEMAEV-002/implementation/corner_classes.py
+    - experiments/EXP-SEMAEV-002/implementation/exception_sets.py
+    - experiments/EXP-SEMAEV-002/implementation/run_experiment.py
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/raw-result.json
+    - harness/semaev.py
+    - harness/toycurve.py
+    - harness/runner.py
+    - ledger/decisions/DEC-20260906-1c8b5d.yaml
+    - ledger/hypotheses/H-SEMAEV-002.yaml
+    - ledger/EV-BKK-001.yaml
+    - experiments/EXP-BKK-001/runs/RUN-BKK-001-a/raw.json
+    - experiments/EXP-SEMAEV-002/reviews/RT-20260907-823b5e.yaml

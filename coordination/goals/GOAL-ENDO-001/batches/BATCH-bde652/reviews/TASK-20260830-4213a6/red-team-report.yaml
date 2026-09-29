@@ -1,0 +1,947 @@
+schema: crypto.autoresearch.red_team_report.v1
+red_team_report:
+  id: RT-20260830-4213a6
+  id_note: >-
+    This review identifier is derived from the assigned task identifier. No
+    ledger identifier was allocated or changed by this review.
+  task_id: TASK-20260830-4213a6
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-bde652
+  experiment_id: EXP-JINV-bd141d
+  work_unit_slug: sixth-generation-host-binding-repair
+  role: red-team
+  recorded_at: '2026-08-30T18:35:00Z'
+
+  claim_under_review: >-
+    Whether the sixth-generation additive repair package
+    (repair-package-v6.yaml, emit_host_binding_v2.sh, emit_procedure_v2.md,
+    demo-receipt-v2.json, stop-control-report-v6.yaml,
+    runtime-session-receipt.json) closes RT-J2-O1 (PATH-manipulation of
+    hostname/df), RT-J2-O3 (paste-from-different-mount, verification-step
+    scope only per assignment), and RT-J3-O1 (missing_receipt_field does not
+    fire on empty/null-after-normalization values) against the v5 threat
+    model (caller-supplied bindings), on the exact joints assigned to this
+    task: J2-adversarial-re-attack-of-repaired-procedure and
+    J3-rule-extension-integrity, plus the required proves-too-much control.
+    THIS REPORT ISSUES NO J1 VERDICT AND NO OVERALL BATCH DISPOSITION.
+
+  verdict_scope: >-
+    This report speaks only to J2 and J3 as assigned in
+    review-plan.yaml. It does not assess J1-repair-correctness-and-
+    nondegression (owned by the concurrent validator task
+    TASK-20260830-3ebb0b), any hypothesis, experiment result, JINV, ECDLP,
+    isogeny, exponent, speedup, goal status, resource disposition, closure,
+    breakthrough, implementation, or authorization transition. This is a
+    governance/tooling hardening review of a static verification harness,
+    not cryptographic research.
+
+  verdict:
+    J2-adversarial-re-attack-of-repaired-procedure: breaks
+    J3-rule-extension-integrity: breaks
+  verdict_note: >-
+    Both verdicts are NARROW breaks against a repair that made genuine,
+    independently-verified progress. The specific attack that found
+    RT-J2-O1 (PATH-resolved hostname/df inside the script) IS closed,
+    confirmed by direct re-execution. The specific RT-J3-O1 gap (absence-
+    only STOP not firing on empty-string/whitespace-after-normalization) IS
+    closed for the shapes named in the objection, confirmed by direct
+    re-execution/evaluation. Each "breaks" verdict below is driven by
+    exactly one NEW, narrowly-scoped, undisclosed residual gap this review
+    found by extending the assigned attack plan past its literal wording,
+    not by the originally-repaired defect reopening.
+
+  reviewed_snapshot:
+    snapshot_receipt_path: coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/archives/TASK-20260830-e7db0d/snapshot-receipt.json
+    commit_sha: 691684e68ae6b7c936a01ea29248d608d6b5d72d
+    parent_sha: 00d8cf9c20667e837dabb39590e50c32fa591b60
+    verification_commands:
+      - git log --oneline -8
+      - git cat-file -t 691684e68ae6b7c936a01ea29248d608d6b5d72d
+      - git status --short
+      - shasum -a 256 (each of the six declared producer artifact paths, individually)
+    exact_path_set_verified: true
+    producer_hashes_verified: true
+    hash_check_result: >-
+      All six SHA256 hashes recomputed from the working tree match the
+      snapshot receipt's path_sha256 exactly (repair-package-v6.yaml,
+      emit_host_binding_v2.sh, emit_procedure_v2.md, demo-receipt-v2.json,
+      stop-control-report-v6.yaml, runtime-session-receipt.json). The
+      snapshot commit is a reachable commit object on this branch, and
+      `git status --short` was empty before and after this review's read-only
+      inspection (my own file writes are confined to my write_scope and do
+      not appear in that check because they occurred after it).
+    scientific_result: false
+
+  j2_attack_plan:
+    joint: J2-adversarial-re-attack-of-repaired-procedure
+    verdict: breaks
+    items:
+      - item: 1
+        attack: >-
+          Re-attempt the EXACT attack that found RT-J2-O1: prepend a
+          directory with fake hostname/df binaries to PATH, run the repaired
+          script, confirm output unaffected.
+        construction: >-
+          Built fake `hostname` (echoes "RT-ATTACKER-HOSTNAME") and `df`
+          (echoes a single data line with device "/dev/rtfakedev" and mount
+          "/mnt/rtfake") shell scripts in my own scratchpad
+          (/private/tmp/.../scratchpad/rt4213a6/fake-bins), made executable,
+          prepended that directory to PATH, and ran `sh
+          .../emit_host_binding_v2.sh`.
+        expected: Real host values (Mac.attlocal.net, /dev/disk5s1, /Volumes/SSD990), unaffected by the hostile PATH.
+        observed: >-
+          {"schema":"crypto.autoresearch.runtime_session_receipt.v2","host_binding":{"host_id":"Mac.attlocal.net","filesystem_id":"/dev/disk5s1","filesystem_mount":"/Volumes/SSD990"},"emitted_at":"2026-08-30T18:21:35Z"},
+          exit 0. Output is the real host's values, byte-for-byte the same
+          three host_binding fields as the PATH-unmodified demo run.
+        result: rt_j2_o1_original_attack_confirmed_closed
+
+      - item: 2a
+        attack: >-
+          Extend item 1: hijack hostname+df+date+sed simultaneously (fake
+          `date` prints "1999-01-01T00:00:00Z"; fake `sed` prints
+          "SED-HIJACKED") to see if any of the OTHER five pinned commands
+          leak through.
+        construction: Same fake-bins directory, four hostile binaries, prepended to PATH, ran the repaired script.
+        expected: All fields AND the timestamp real and unaffected.
+        observed: >-
+          {"schema":"...","host_binding":{"host_id":"Mac.attlocal.net","filesystem_id":"/dev/disk5s1","filesystem_mount":"/Volumes/SSD990"},"emitted_at":"2026-08-30T18:21:43Z"}
+          -- a REAL, current timestamp, not the hijacked "1999-01-01...".
+          Confirms date/sed/awk/tr/tail are also genuinely absolute-path
+          resolved, not just hostname/df.
+        result: absolute_path_resolution_confirmed_for_all_seven_pinned_commands
+
+      - item: 2b
+        attack: >-
+          Does any pinned absolute path resolve into a directory a caller
+          could write to?
+        construction: >-
+          `ls -la /bin/hostname /bin/df /bin/date /usr/bin/sed /usr/bin/awk
+          /usr/bin/tr /usr/bin/tail` and `ls -lad /bin /usr/bin`; checked
+          effective uid/gid (`id`); checked SIP (`csrutil status`).
+        observed: >-
+          All seven binaries and their containing directories are owned
+          root:wheel, mode 755 (rwxr-xr-x). The reviewing user (uid 501,
+          groups staff/admin/etc.) has no write access to any of them.
+          `csrutil status` reports "System Integrity Protection status:
+          enabled" on this host, which additionally blocks even root from
+          writing to /bin, /usr/bin without disabling SIP. None of the seven
+          pinned paths resolves into a caller-writable directory on THIS
+          host.
+        result: pinned_paths_not_caller_writable_on_this_host
+        caveat: >-
+          This is a property of THIS host's configuration (root-owned
+          system directories, SIP enabled), not something
+          emit_host_binding_v2.sh verifies at runtime. The script's existing
+          fail-closed check tests only `[ ! -x "$_bin" ]` (executable),
+          never ownership or writability of the pinned path or its parent
+          directory. A host where /bin or /usr/bin were misconfigured to be
+          group/world-writable (e.g., a container image, a non-SIP Linux
+          host with a broken package-manager permission) would silently
+          defeat the "absolute path = safe" assumption without the script
+          detecting it. This is forward guidance, not a blocking objection
+          under the v5 threat model (caller-supplied bindings) as scoped by
+          this batch, since it is a host-misconfiguration threat model, not
+          a caller-supplied-binding one -- but it is a cheap, concrete
+          hardening the script could add (an ownership/writability check
+          alongside the existing executability check) and is not currently
+          declared as an assumption anywhere in emit_procedure_v2.md.
+
+      - item: 2c
+        attack: >-
+          Does the script use any internal PATH-dependent lookup, shell
+          builtin quirk, or command substitution a caller could hijack?
+          Specifically: is the INVOCATION of the script itself (as
+          documented in the repaired procedure) subject to a PATH lookup the
+          repair does not defend?
+        construction: >-
+          Confirmed `[`, `test`, and `printf` are POSIX sh builtins on this
+          host (`type '[' `, `type test`, `type printf`), consistent with
+          the package's own disclosure -- no escape there. THEN: noted that
+          emit_procedure_v2.md Step 1's documented invocation command is
+          literally `sh coordination/.../emit_host_binding_v2.sh` -- a bare
+          "sh" token -- and that this token is resolved by the CALLER's own
+          PATH, by the caller's own shell, BEFORE the repaired script's
+          internal absolute-path pins ever come into play. Built a hostile
+          `sh` binary in my own scratchpad
+          (/private/tmp/.../scratchpad/rt4213a6/fake-interp/sh) that ignores
+          any argument and unconditionally echoes a fully fabricated
+          schema-conformant JSON block
+          (host_id="FAKE-INTERPRETER-HIJACK", filesystem_id=
+          "/dev/totallyfake", filesystem_mount="/mnt/totallyfake",
+          emitted_at="2000-01-01T00:00:00Z"). Prepended that directory to
+          PATH and ran the DOCUMENTED procedure command verbatim: `sh
+          coordination/.../emit_host_binding_v2.sh`.
+        expected_if_closed: Real host values, unaffected (the repair claims to close RT-J2-O1 "against the exact attack that found it").
+        observed: >-
+          `which sh` resolved to the hostile scratchpad binary. Running `sh
+          coordination/.../emit_host_binding_v2.sh` under this PATH printed
+          the FULLY FABRICATED JSON verbatim
+          ({"schema":"...","host_binding":{"host_id":"FAKE-INTERPRETER-HIJACK","filesystem_id":"/dev/totallyfake","filesystem_mount":"/mnt/totallyfake"},"emitted_at":"2000-01-01T00:00:00Z"}),
+          exit 0. The real emit_host_binding_v2.sh file was NEVER EXECUTED
+          at all -- the hostile "sh" intercepted the invocation before the
+          repaired script's own absolute-path pins had any chance to run.
+        control_check: >-
+          Re-ran the SAME hostile PATH but invoked via the shebang route
+          (`./emit_host_binding_v2.sh` after the file's existing +x bit,
+          instead of the documented `sh <path>` form). This emitted the REAL
+          host values (Mac.attlocal.net, /dev/disk5s1, /Volumes/SSD990),
+          UNAFFECTED by the hostile PATH, because the kernel resolves the
+          shebang's `#!/bin/sh` line by its own absolute path, never
+          consulting the caller's PATH for interpreter selection. This
+          isolates the gap precisely: the repair's own internals are sound;
+          the DOCUMENTED INVOCATION METHOD is the vulnerable surface, and a
+          trivial fix (either invoke via the shebang route, or pin `sh`
+          itself as an eighth absolute path exactly as the other seven
+          commands are pinned, e.g. `/bin/sh
+          coordination/.../emit_host_binding_v2.sh`) closes it -- I
+          confirmed this concretely, not merely by argument.
+        result: NEW_MATERIAL_UNDISCLOSED_ESCAPE_FOUND
+        objection_id: RT-J2-O4
+        severity: material
+        finding: >-
+          The narrowed provenance declaration in emit_procedure_v2.md names
+          "the /bin/sh interpreter executing this script" as remaining
+          trusted infrastructure, in the SAME list as trusting the bytes at
+          /bin/hostname and /bin/df (a host-integrity / malicious-runtime
+          concern, correctly out of scope for the v5 threat model). But my
+          finding is NOT a host-integrity concern: it is that the
+          DOCUMENTED PROCEDURE's own invocation command (`sh <script>`)
+          resolves "sh" via the CALLER-CONTROLLED PATH variable -- the
+          EXACT caller-supplied-binding vector RT-J2-O1 and this whole batch
+          claim to close. The objection text RT-J2-O1 repairs says "a
+          caller who prepends fake binaries to PATH makes the procedure
+          emit caller-controlled values for all three host_binding fields
+          THROUGH the procedure" -- and a caller who prepends ONE MORE fake
+          binary (named "sh") to the SAME directory used by the exact
+          original attack still does exactly that, in full, with zero real
+          values reaching the output, because the real script file is never
+          executed. This is a variant of "the exact attack that found it,"
+          not a different attack: it uses the identical mechanism (PATH
+          prepending a directory of hostile binaries) that RT-20260830-d85fdf
+          used and that this batch's own stop-control-report-v6.yaml PATH-
+          PREPEND case replicates -- just extended by one more binary name.
+          The claim "This closes RT-J2-O1 against the exact attack that
+          found it" (repair-package-v6.yaml, emit_procedure_v2.md) is true
+          for the script's internal seven commands and untrue for the
+          procedure's own invocation step, and the narrowed provenance text
+          does not distinguish these two very different trust claims (host-
+          binary-byte-integrity vs. caller-controlled-interpreter-selection)
+          -- a reader relying on "the /bin/sh interpreter executing this
+          script" as the sole disclosure for this class of risk would
+          reasonably believe it means "we trust /bin/sh hasn't been
+          tampered with," not "the caller can still choose which
+          interpreter runs via the exact channel (PATH) we said we closed."
+        required_repair: >-
+          Either (a) pin the interpreter itself as an eighth verified
+          absolute path and change emit_procedure_v2.md Step 1's documented
+          command from `sh coordination/.../emit_host_binding_v2.sh` to
+          `/bin/sh coordination/.../emit_host_binding_v2.sh` (or the
+          verified-absolute equivalent), with the same `command -v sh`
+          verification-and-pin discipline already applied to the other
+          seven commands; or (b) change the documented invocation to the
+          shebang route (`chmod +x` then `./emit_host_binding_v2.sh`), which
+          I confirmed empirically bypasses this vector because the kernel,
+          not the caller's PATH, resolves the shebang's absolute
+          interpreter path. Either fix must be reflected in
+          emit_procedure_v2.md Step 1 AND in a new stop-control case
+          (e.g. PATH-PREPEND-SH) demonstrating the fixed invocation is
+          unaffected when "sh" itself is hijacked, exactly as PATH-PREPEND
+          already demonstrates for hostname/df.
+        control_evidence:
+          - >-
+            `which sh` under hostile PATH resolves to the scratchpad
+            hostile binary, not /bin/sh.
+          - >-
+            `sh coordination/.../emit_host_binding_v2.sh` under that PATH
+            emits fully fabricated JSON matching the exact output schema,
+            exit 0.
+          - >-
+            `./coordination/.../emit_host_binding_v2.sh` under the
+            IDENTICAL hostile PATH emits the real host's values, confirming
+            the shebang route is immune and isolating the gap to the
+            documented invocation string specifically.
+
+      - item: 2d
+        attack: dyld/library-injection angle against the pinned system binaries.
+        construction: >-
+          Re-read emit_procedure_v2.md's narrowed provenance declaration
+          for an explicit mention of DYLD_*/LD_* environment variables.
+        observed: >-
+          The text explicitly names "the dynamic linker and shared
+          libraries the shell and these binaries load (dyld on macOS, ld.so
+          on Linux, and any DYLD_*/LD_* environment variables that influence
+          library resolution)" as remaining trusted infrastructure NOT
+          defended against. Confirmed `csrutil status` reports SIP enabled
+          on this host, which in practice blocks DYLD_INSERT_LIBRARIES
+          against Apple's hardened-runtime system binaries at the pinned
+          paths. I did not attempt to weaponize this further (no malicious
+          dylib was built) because the disclosure already names it as an
+          explicit, non-silent residual boundary and this batch's own
+          `not_repair_items`/threat-model scoping places host-runtime
+          integrity outside the v5 (caller-supplied-bindings) threat model
+          this batch claims to narrow.
+        result: declared_not_silent_no_further_action_required
+
+      - item: 2e
+        attack: >-
+          Mount-namespace or symlink tricks against the reported mount; the
+          paste-from-different-mount attack, concretely.
+        construction: >-
+          Confirmed /tmp is a different mount than the worktree (`df -P
+          /tmp` -> /dev/disk3s5, /System/Volumes/Data, vs. the worktree's
+          /dev/disk5s1, /Volumes/SSD990). Ran the repaired script with `cd
+          /tmp && sh <absolute-path-to-repository-emit_host_binding_v2.sh>`.
+        observed: >-
+          {"schema":"...","host_binding":{"host_id":"Mac.attlocal.net","filesystem_id":"/dev/disk3s5","filesystem_mount":"/System/Volumes/Data"},"emitted_at":"2026-08-30T18:23:41Z"}
+          -- REAL values, genuinely reflecting /tmp's filesystem, but WRONG
+          if pasted into a claim about the worktree. Confirms the RT-J2-O3
+          gap is real and unrepaired-by-design (correctly disclosed as a
+          reviewer-verification-step matter, not a script-internal fix, per
+          this batch's scoping of RT-J2-O3 to a documentation/procedure
+          repair, not a script repair).
+        verification_step_check: >-
+          Applying emit_procedure_v2.md's documented verification step to
+          THIS exact scenario: a reviewer who independently runs `df -P
+          <the worktree path>` on this host gets /dev/disk5s1,
+          /Volumes/SSD990 -- which does NOT match the /tmp-sourced values
+          above -- correctly triggering the documented "disagreement -> STOP"
+          outcome. The RT-J2-O3 verification step, as written, functions
+          against this concrete attempt.
+        result: rt_j2_o3_gap_confirmed_real_and_verification_step_confirmed_functional
+
+      - item: 3
+        attack: >-
+          State explicitly whether RT-J2-O1 is closed against the v5 threat
+          model, and whether every residual trust assumption is DECLARED.
+        finding: >-
+          RT-J2-O1 is CLOSED for the exact attack that found it and for
+          every internal command the script itself invokes (all seven
+          confirmed independently: hostname, df, date, sed, awk, tr, tail).
+          It is NOT fully closed against the v5 threat model when the
+          objection's own broader wording ("through the procedure") is
+          taken at face value, because the documented invocation command
+          itself remains PATH-resolvable (RT-J2-O4, above) -- an
+          UNDECLARED residual gap. Every OTHER residual trust assumption I
+          could find (host system binary bytes, dyld/DYLD_*/LD_*, /bin/sh's
+          own integrity, the filesystem's own device/mount reporting) IS
+          explicitly declared in emit_procedure_v2.md's narrowed provenance
+          declaration and "What this binding does NOT attest" section.
+          RT-J2-O2 (self-attestation) remains correctly disclosed as an
+          out-of-scope, unrepaired limitation, unchanged from v1, exactly
+          as the controlling decision scoped it.
+
+      - item: 4
+        attack: >-
+          Verify demo-receipt-v2.json was actually machine-produced by
+          running the repaired script myself and comparing.
+        construction: Ran `hostname` and `df -P .` directly on this host, myself, independent of any producer artifact.
+        observed: >-
+          hostname -> Mac.attlocal.net. df -P . -> /dev/disk5s1,
+          /Volumes/SSD990. Both match demo-receipt-v2.json's
+          host_binding.host_id, filesystem_id, and filesystem_mount exactly.
+          I additionally re-ran the repaired script myself with an
+          unmodified PATH and got byte-identical host_binding field values
+          (only the timestamp differs, as expected for a fresh run).
+        result: demo_receipt_confirmed_consistent_with_independently_queried_host_surfaces
+        caveat_unchanged_from_predecessor: >-
+          As the prior (BATCH-820ee8) red-team report already noted and
+          this review confirms is still true: a hand-written receipt with
+          the same real values would be indistinguishable from a
+          script-produced one by inspection alone. My independent
+          re-execution corroborates that the VALUES are real and match this
+          host; it cannot prove which specific prior execution produced
+          demo-receipt-v2.json's bytes, only that they are consistent with
+          one.
+
+    j2_summary: >-
+      J2 BREAKS on exactly one new, material, undisclosed objection
+      (RT-J2-O4: the documented invocation command `sh <script>` is itself
+      PATH-resolvable, defeating the entire repair via a trivial variant of
+      the exact attack that found RT-J2-O1). Every item in the assigned
+      attack plan was executed, including a stronger version of item 1
+      (all seven pinned commands, not just hostname/df) which HELD -- the
+      script's own internals are genuinely and independently confirmed
+      closed. RT-J2-O3's disclosed verification step was tested concretely
+      against a real cross-mount run and functions as documented. RT-J2-O2
+      remains correctly disclosed and unrepaired, as scoped.
+
+  j3_attack_plan:
+    joint: J3-rule-extension-integrity
+    verdict: breaks
+    items:
+      - item: 1
+        attack: >-
+          Execute missing_receipt_field_v2 against the full value-shape
+          battery: absent, null, empty-string, whitespace-only, zero-width
+          characters, non-canonical device strings, duplicate keys, and one
+          legitimate unusual-but-real value. Require STOP on every junk
+          shape and PASS on the legitimate one.
+        sub_items:
+          - shape: absent / null / empty-string / whitespace-only
+            method: >-
+              Independently hand-traced repair-package-v6.yaml's
+              normalization_definition_exact (step_1_trim, step_2, step_3)
+              against the producer's own four worked instances in
+              stop-control-report-v6.yaml, WITHOUT taking the producer's
+              stated outcome on faith -- re-derived each from the rule text.
+            result: >-
+              All four re-derive to STOP exactly as the producer states.
+              step_1_trim correctly reduces whitespace-only to "", caught
+              by step_3. The null-value case is correctly caught under
+              either the absence clause or the literal-"null" string
+              clause. Confirmed: HOLDS for these four shapes.
+          - shape: legitimate-unusual-but-real value ("/dev/disk9s99999x")
+            method: Re-traced the producer's fifth instance by hand.
+            result: >-
+              Correctly PASSES (does not STOP) -- non-empty, not literal
+              "null". Confirmed: does not overreach on this shape.
+          - shape: zero-width characters
+            method: >-
+              Constructed a host_id value consisting solely of one Unicode
+              ZERO WIDTH SPACE character (U+200B) and computed, in Python,
+              (a) whether it is ASCII whitespace per the rule's own stated
+              trim charset ("space, tab, newline, carriage return"), (b)
+              the result of applying exactly that trim, (c) the resulting
+              length and equality tests step_3 specifies, and (d) that it
+              round-trips through json.dumps/json.loads as an ordinary,
+              non-empty, non-null JSON string.
+            observed: >-
+              U+200B is NOT ASCII whitespace under the rule's stated
+              charset (False). After the rule's literal ASCII-only trim,
+              the value is UNCHANGED (length 1, not stripped). It is not
+              zero-length and not the literal string "null". Per step_3,
+              empty-after-normalization evaluates to FALSE. It round-trips
+              through JSON as an ordinary 1-character string.
+            result: NEW_COVERAGE_GAP_FOUND
+            objection_id: RT-J3-O2
+            severity: minor_to_moderate
+            finding: >-
+              missing_receipt_field_v2's normalization_definition_exact
+              restricts trimming to "ASCII whitespace (space, tab, newline,
+              carriage return)" ONLY. A host_binding field consisting
+              entirely of Unicode invisible/zero-width characters (U+200B
+              ZERO WIDTH SPACE, U+FEFF ZERO WIDTH NO-BREAK SPACE/BOM,
+              U+200C ZERO WIDTH NON-JOINER, etc.) is visually and
+              functionally indistinguishable from empty, but is NOT
+              stripped by step_1_trim and is NOT caught by step_3's
+              zero-length/"null"-literal test, so it PASSES
+              missing_receipt_field_v2 -- the same class of gap RT-J3-O1
+              named for ASCII whitespace, reopened for a different
+              character class. No real host's hostname or `df` output
+              would emit a value composed solely of zero-width characters,
+              so this is JUNK by the same standard the review plan uses to
+              define a defect ("any rule that... passes junk"), not a
+              legitimate value the rule must protect.
+            mitigating_factor: >-
+              As with the original RT-J3-O1 gap, this is caught downstream
+              by binding_rule_v2's equality check IF that rule is
+              evaluated (the same named weakening already disclosed and
+              carried forward unedited in this package) -- it is not a
+              full, unmitigated escape, but it is a real, reproducible gap
+              in missing_receipt_field_v2 SPECIFICALLY, which is the exact
+              artifact this joint is assigned to test.
+            required_repair: >-
+              Extend step_1_trim (or add a step_1b) to also strip or detect
+              Unicode Default_Ignorable_Code_Point / zero-width characters
+              before the emptiness test, or explicitly document this as a
+              known, accepted residual gap (it is currently undeclared).
+          - shape: duplicate keys
+            method: >-
+              Constructed
+              '{"host_binding":{"filesystem_id":"/dev/real","filesystem_id":""}}'
+              and decoded with Python's json.loads.
+            observed: >-
+              json.loads takes the LAST value; decoded filesystem_id is ""
+              -- correctly triggers STOP. Confirms this specific ordering is
+              safe under this parser.
+            result: parser_dependent_not_a_v6_specific_escape
+            note: >-
+              Consistent with the prior (accepted) red-team report's
+              treatment of duplicate keys for the v5/v2 schema: this is a
+              general JSON-duplicate-key ambiguity across DIFFERENT
+              parsers, not a defect introduced by missing_receipt_field_v2
+              specifically. The REVERSE ordering (real value last) would
+              PASS while hiding an earlier empty declaration in the raw
+              bytes -- noted as a general caveat, not a new blocking
+              objection, for the same reason the prior report gave.
+          - shape: literal "null" as a real, if unusual, value
+            method: >-
+              Considered whether missing_receipt_field_v2's
+              step_3_emptiness_test (any field whose normalized string
+              equals "null" case-insensitively is treated as
+              empty-after-normalization) could reject a LEGITIMATE value.
+            finding: NEW_FALSE_POSITIVE_RISK_FOUND
+            objection_id: RT-J3-O3
+            severity: minor
+            observed: >-
+              A host whose actual hostname is literally the four characters
+              "null" (a real, RFC-1035-permitted, if unusual, hostname --
+              exactly the kind of value the review plan's own battery item
+              asks to check is not wrongly STOPped) would have
+              missing_receipt_field_v2 STOP it, because the rule's
+              step_3_emptiness_test cannot distinguish "a JSON null
+              stringified by a careless producer" from "a real hostname
+              that happens to be the word null". This is precisely the
+              flip-side defect class the review plan names: "any rule that
+              STOPs a value a real host could legitimately emit is a
+              defect equal in kind to one that passes junk."
+            mitigating_factor: >-
+              Low real-world probability (a host or filesystem device
+              genuinely named exactly "null" is rare), and the rule's own
+              stated rationale for including the literal-string clause is
+              explicit and reasonable (catching a careless producer's
+              stringified JSON null). This is a real, if narrow,
+              trade-off the package does not disclose as a trade-off
+              anywhere in repair-package-v6.yaml.
+            required_repair: >-
+              Either accept and explicitly DOCUMENT this trade-off in
+              repair-package-v6.yaml (a disclosed, narrow false-positive
+              risk on the literal string "null"), or narrow the
+              literal-string clause to fire only when the field's JSON type
+              is ambiguous with null (e.g., only apply it when a producer
+              is known to stringify nulls, which this static schema cannot
+              detect) -- documentation is the cheaper fix.
+        summary_of_battery: >-
+          6 of 8 tested shapes behave exactly as required (4 STOP shapes
+          re-verified independently, 1 legitimate-value PASS re-verified
+          independently, 1 duplicate-key shape safe under this parser).
+          2 of 8 are new, real findings this review's extended battery
+          surfaced beyond the producer's own 5-shape battery: a
+          zero-width-character PASS-when-should-STOP gap (RT-J3-O2) and a
+          literal-"null"-value STOP-when-could-be-legitimate false-positive
+          risk (RT-J3-O3), both undisclosed, both narrower in severity than
+          the original RT-J3-O1.
+
+      - item: 2
+        attack: >-
+          Confirm the extension regresses none of the three original STOP
+          cases; confirm stop-control-report-v6.yaml records PATH-PREPEND
+          and EMPTY-NULL as executed with real outcomes, not merely
+          asserted.
+        regression_check: >-
+          Independently re-derived cases (a), (b), (c) from
+          repair-package-v6.yaml and j3-closure-v5.yaml's frozen rule text,
+          without taking stop-control-report-v6.yaml's stated outcomes on
+          faith: (a) caller-supplied binding vs. this task's own
+          demo-receipt-v2.json -- all three fields differ -> binding_rule_v2
+          rejects by inequality -> STOP, confirmed. (b) all three fields
+          absent -> missing_receipt_field_v2's unmodified absence clause
+          fires -> STOP, confirmed. (c) real v1 corpus receipt (keys:
+          [note] only) under the v2/v6 schema -> same as (b) -> STOP,
+          confirmed. No regression found in any of the three.
+        path_prepend_authenticity_check: >-
+          Independently reproduced the PATH-PREPEND control myself (item 1
+          above): identical qualitative result to stop-control-report-v6.yaml's
+          claim (repaired script's output unaffected under hostname+df PATH
+          hijack). This is a REAL, independently-reproduced execution, not
+          merely a re-read of the producer's assertion. I additionally
+          reproduced the v1-predecessor-under-attack comparison
+          conceptually via the prior accepted red-team report's own
+          confirmed finding (RT-20260830-d85fdf item 4) that the
+          UNREPAIRED v1 script IS affected by the identical attack --
+          consistent with stop-control-report-v6.yaml's side-by-side claim.
+        empty_null_authenticity_check: >-
+          stop-control-report-v6.yaml honestly and explicitly labels
+          EMPTY-NULL as `execution_kind: static rule evaluations... worked
+          objects are evaluated by hand against the cited rule text`, NOT
+          as code execution -- it does not claim to have run a validator
+          program that does not exist. This is consistent with how the
+          PRIOR, already-accepted red-team report (RT-20260830-d85fdf)
+          treated the same class of evaluation for the v5 schema. I found
+          no place where stop-control-report-v6.yaml or repair-package-v6.yaml
+          claims an EXECUTION that did not occur; execution_kind_note
+          explicitly discloses the mixed nature (PATH-PREPEND is real
+          execution, EMPTY-NULL is hand-evaluation). No fabrication found.
+        result: no_regression_found_controls_authentically_recorded
+
+    j3_summary: >-
+      J3 BREAKS on two new, narrower objections this review's extended
+      battery found (RT-J3-O2: zero-width-character coverage gap;
+      RT-J3-O3: literal-"null" false-positive risk), neither of which was
+      in the producer's own 5-shape battery. The extension IS a real,
+      independently-confirmed improvement over v5 for exactly the shapes
+      RT-J3-O1 named (absence, null, empty-string, whitespace-only all
+      correctly STOP; the one tested legitimate-unusual value correctly
+      PASSes; no regression in the three original STOP cases; the
+      PATH-PREPEND and EMPTY-NULL controls are authentically, honestly
+      recorded). The two new findings are narrower in severity than the
+      original RT-J3-O1 and are both mitigated (RT-J3-O2 by the
+      downstream binding_rule_v2 equality check when evaluated; RT-J3-O3
+      by low real-world probability), but both are undisclosed as
+      residual gaps or trade-offs, which is what drives the "breaks"
+      verdict rather than "holds-with-disclosed-limitation".
+
+  proves_too_much:
+    required: true
+    argument_tested: >-
+      "this repair closes RT-J2-O1 and RT-J3-O1 under the v5 threat model"
+    objects:
+      - id: PTM-1
+        description: >-
+          Same-heading repair whose absolute paths resolve into a
+          caller-writable directory.
+        construction: >-
+          Copied emit_host_binding_v2.sh to my own scratchpad
+          (never touching the producer's file), created a directory INSIDE
+          my own scratchpad (owned by me, confirmed writable with `[ -w
+          ... ]`), placed a hostile `hostname` binary there
+          (echoes "PTM1-ATTACKER-OVERWROTE-PINNED-PATH"), and edited the
+          THROWAWAY COPY's HOSTNAME_BIN constant to point at that
+          caller-writable path, exactly as if it had been "verified and
+          pinned" by an authoring session that failed to check the target
+          directory's ownership.
+        known_false_basis: >-
+          If the "verified absolute path" itself lives in a directory the
+          caller can write to, pinning it accomplishes nothing: the caller
+          can overwrite the file the pin points to directly, with ZERO
+          PATH manipulation required. The argument "this repair closes
+          RT-J2-O1" is false for this object.
+        method_applied: >-
+          The SAME method I used against the real package (item 2b above):
+          check the ownership and writability of the pinned path's
+          resolved location, not merely whether the string is
+          "/absolute/looking".
+        observed: >-
+          Ran the mutated throwaway copy with an UNMODIFIED PATH (no attack
+          needed at all): output was
+          {"...,"host_binding":{"host_id":"PTM1-ATTACKER-OVERWROTE-PINNED-PATH",...}}.
+          My method (checking ownership/writability of the resolved path,
+          which I performed for the real package and would perform again
+          here) immediately flags the pinned path as caller-writable and
+          returns REVISE/STOP for this object.
+        result: rejected
+        outcome: FAIL_as_required
+        location_of_survival: none -- my method does not accept this object.
+
+      - id: PTM-2
+        description: >-
+          Same-heading repair whose normalization rule accepts
+          whitespace-only values as present-and-valid.
+        construction: >-
+          Wrote a throwaway text file (own scratchpad only, NOT
+          repair-package-v6.yaml) restating missing_receipt_field_v2's
+          rule_text unchanged but with step_1_trim REMOVED entirely, so
+          step_3_emptiness_test operates directly on the raw (untrimmed)
+          value.
+        known_false_basis: >-
+          Without the trim step, a whitespace-only value (e.g. "   \t  ")
+          remains non-empty (length > 0) and is not the literal "null", so
+          step_3 does not flag it -- the mutated rule PASSES a
+          whitespace-only value, exactly the defect RT-J3-O1 named and this
+          package claims to have fixed. The argument "this repair closes
+          RT-J3-O1" is false for this object.
+        method_applied: >-
+          The SAME battery-evaluation method I used against the real
+          package (J3 item 1): hand-trace the whitespace-only test case
+          through the object's own stated normalization steps.
+        observed: >-
+          Tracing "   \t  " through the mutated rule: step_2 (case/slash)
+          does not touch it (still "   \t  ", length 6); step_3: not
+          zero-length, not literal "null" -> empty-after-normalization =
+          FALSE -> PASS. My method, which explicitly runs this exact
+          shape against the stated rule, correctly detects PASS where STOP
+          is required and flags this as a defect.
+        result: rejected
+        outcome: FAIL_as_required
+        location_of_survival: none -- my method does not accept this object.
+
+      - id: PTM-3
+        description: >-
+          Same-heading repair whose demo values do not match the host's
+          identity surfaces.
+        construction: >-
+          Wrote a throwaway demo-receipt.json (own scratchpad only) with
+          host_id="mars-rover-99.example.net",
+          filesystem_id="/dev/marsdisk0", filesystem_mount="/mnt/mars".
+        known_false_basis: >-
+          None of these values corresponds to any surface of the actual
+          reviewing host; a demo receipt with these values could not have
+          been produced by running the real script on this host. The
+          argument "this repair's demo evidence is real" is false for this
+          object.
+        method_applied: >-
+          The SAME comparison method I used against the real package (J2
+          item 4): run `hostname` and `df -P .` on this host myself and
+          compare.
+        observed: >-
+          This host's real values (Mac.attlocal.net, /dev/disk5s1,
+          /Volumes/SSD990) match NONE of the three PTM-3 fields. My method
+          immediately flags disagreement on all three fields and rejects
+          the object as fabricated.
+        result: rejected
+        outcome: FAIL_as_required
+        location_of_survival: none -- my method does not accept this object.
+
+    overall_result: >-
+      All three known-false objects are REJECTED by my review method (the
+      required failure signature: STOP/REVISE on each). None of the three
+      objects survives. This confirms my method is not over-generous on
+      exactly the axes the review plan named: it independently checks
+      absolute-path OWNERSHIP/WRITABILITY (not just path syntax), it
+      independently re-traces the STATED normalization steps against
+      worked value shapes (not just reads the producer's summary table),
+      and it independently queries the host's own surfaces to compare
+      against demo values (not just reads the producer's comparison
+      claim). The proves-too-much control PASSES; this review's method is
+      not the source of a false-positive PASS on any of the three named
+      known-false shapes. This gives no license to soften the two REAL
+      findings above (RT-J2-O4, RT-J3-O2/O3) found against the ACTUAL
+      package -- the control validates the METHOD, not the artifact.
+
+  objections:
+    - id: RT-J2-O4
+      severity: material
+      status: open
+      class: procedure_invocation_command_itself_path_resolvable
+      summary: >-
+        emit_procedure_v2.md Step 1's documented invocation
+        (`sh coordination/.../emit_host_binding_v2.sh`) uses a bare "sh"
+        token resolved by the CALLER's PATH before the repaired script's
+        internal absolute-path pins ever execute. A caller who prepends a
+        hostile `sh` binary to PATH -- the same mechanism, one more binary,
+        as the exact attack that found RT-J2-O1 -- causes the documented
+        procedure to emit fully fabricated output without ever running the
+        real script. Confirmed empirically; the shebang-invocation route
+        (`./emit_host_binding_v2.sh`) is immune, confirmed empirically.
+        Undisclosed in the narrowed provenance declaration, which names
+        "the /bin/sh interpreter executing this script" only as a
+        host-integrity (byte-tampering) trust boundary, not as a residual
+        caller-controlled-PATH vector.
+      required_repair: >-
+        Pin `sh` itself as an eighth verified absolute path in the
+        documented Step 1 command, or switch the documented invocation to
+        the shebang route; add a corresponding stop-control case
+        demonstrating the fix under a hostile-`sh`-in-PATH attack.
+
+    - id: RT-J3-O2
+      severity: minor_to_moderate
+      status: open
+      class: normalization_ascii_only_trim_misses_unicode_zero_width_junk
+      summary: >-
+        missing_receipt_field_v2's step_1_trim strips ASCII whitespace
+        only; a field consisting solely of Unicode zero-width/invisible
+        characters (e.g. U+200B) is not trimmed, is non-empty and not
+        literal "null" post-normalization, and therefore PASSES the rule
+        despite being junk no real host surface would emit. Confirmed by
+        direct computation. Mitigated (not eliminated) by binding_rule_v2's
+        equality check when evaluated -- the same named weakening already
+        disclosed for the original RT-J3-O1 gap.
+      required_repair: >-
+        Extend the trim/emptiness definition to cover Unicode
+        Default_Ignorable_Code_Point / zero-width characters, or
+        explicitly document the residual gap.
+
+    - id: RT-J3-O3
+      severity: minor
+      status: open
+      class: normalization_literal_null_string_false_positive_risk
+      summary: >-
+        step_3_emptiness_test treats any field whose normalized value
+        equals the four-character string "null" (case-insensitive) as
+        empty-after-normalization -- STOPping a real host whose hostname
+        or device string genuinely is "null", which the review plan's own
+        standard treats as a defect equal in kind to passing junk. Low
+        real-world probability; entirely undisclosed as a trade-off.
+      required_repair: >-
+        Document the trade-off explicitly in repair-package-v6.yaml, or
+        narrow the literal-string clause's applicability.
+
+  required_controls:
+    - >-
+      A stop-control case (PATH-PREPEND-SH or equivalent) exercising the
+      documented invocation command itself under a hostile `sh` in PATH,
+      required before RT-J2-O1 can be claimed closed against the full
+      scope of its own objection text.
+    - >-
+      A value-shape instance for missing_receipt_field_v2 covering at
+      least one Unicode zero-width character shape, required before
+      RT-J3-O1's closure claim can be made without qualification.
+
+  counterexample_or_mutation: >-
+    Primary: hostile `sh` prepended to PATH, invoked via the documented
+    `sh <script>` command, produces fully fabricated schema-conformant
+    output with zero real host values and without ever executing the real
+    script file (RT-J2-O4). Secondary: a host_id value consisting solely of
+    one Unicode zero-width space character passes missing_receipt_field_v2
+    despite being visually and functionally empty (RT-J3-O2).
+
+  baseline_comparison:
+    applicable: false
+    statement: >-
+      Pollard-rho, BSGS, specialized ECDLP baselines, and SOTA comparisons
+      are outside this J2/J3 static instrumentation review of a
+      governance/tooling verification harness. No algorithmic gain,
+      scientific cost, exponent, or speedup is claimed or evaluated.
+    claim_tier: toy
+    sota_delta: 0
+
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges:
+    - applicability: not_applicable
+      reason: >-
+        This task reviews a static procedural control contract and makes
+        no theorem, reduction, certificate, or asymptotic claim.
+
+  narrowest_supported_statement: >-
+    Against the exact re-attempted attack (PATH-prepending fake
+    hostname/df binaries) and its natural extension to all seven pinned
+    external commands, emit_host_binding_v2.sh's own internal command
+    resolution is genuinely closed: independently re-executed, output is
+    unaffected in every case. Against the FULL scope of RT-J2-O1's own
+    objection text ("through the procedure"), the repair is NOT closed:
+    the documented invocation command itself remains PATH-resolvable via a
+    bare "sh" token, and prepending one more hostile binary (named "sh")
+    to the identical attack directory defeats the entire repair,
+    confirmed empirically, with a confirmed-working, trivial fix (RT-J2-O4).
+    missing_receipt_field_v2 correctly closes RT-J3-O1 for every shape the
+    objection named (absence, null, empty-string, whitespace-only all
+    STOP; a tested legitimate-unusual value correctly PASSes; the three
+    original STOP cases are unregressed); it does NOT close the same class
+    of defect for Unicode zero-width-character junk (RT-J3-O2, mitigated
+    by a downstream check when evaluated) and introduces an undisclosed,
+    low-probability false-positive risk against a real host literally
+    named "null" (RT-J3-O3). All three proves-too-much known-false objects
+    are correctly rejected by the same method that found these two real
+    residual gaps, so the method is not the source of either finding. This
+    statement is limited to the exact static package under review and the
+    two joints (J2, J3) assigned to this task; it makes no J1, hypothesis,
+    experiment, goal-status, or scientific claim, and no overall batch
+    disposition.
+
+  next_concrete_action:
+    owner: coordinator
+    action: >-
+      Compose this J2-breaks / J3-breaks verdict (RT-J2-O4, RT-J3-O2,
+      RT-J3-O3) with the validator's J1 verdict in the ledger archive task
+      (TASK-20260830-20a761). All three new objections have a confirmed-
+      working, cheap, narrowly-scoped repair (pin `sh` or use the shebang
+      route; extend the trim definition to Unicode zero-width characters
+      or document the gap; document the literal-"null" trade-off or narrow
+      it). None of the three reopens the ORIGINAL RT-J2-O1/RT-J3-O1
+      objections this batch was scoped to close -- each is a residual,
+      narrower gap this review's extended battery surfaced beyond the
+      literal wording of the original objections. Given AGENTS.md's
+      closure standard, do not treat this as evidence the whole repair
+      lane is unsound: the repair made real, independently-verified
+      progress on both original objections; record the narrower residuals
+      as named, bounded objections with a successor repair scope, per
+      docs/inventor-protocol.md's closure standard (named obstruction,
+      argument, forward guidance).
+    stop_condition: >-
+      This report authorizes no implementation, materialization,
+      experiment, control execution, interpretation, disposition
+      transition, status transition, or scientific work. Only a later
+      Coordinator record may compose this scoped review with the sibling
+      validator's J1 verdict.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/red-team-report.yaml
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: TASK-20260830-4213a6
+    verdict: breaks
+    verdict_note: >-
+      Scalar restatement, for tooling that expects one verdict field, of
+      verdict_breakdown below: both owned joints (J2, J3) independently
+      resolved to breaks.
+    independent_session: true
+    role: red-team
+    joints_owned:
+      - J2-adversarial-re-attack-of-repaired-procedure
+      - J3-rule-extension-integrity
+    proves_too_much_owned: true
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/review-plan.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/dispatch_queue.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/archives/TASK-20260830-e7db0d/snapshot-receipt.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/repair-package-v6.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_procedure_v2.md
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/demo-receipt-v2.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/stop-control-report-v6.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/runtime-session-receipt.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/reviews/TASK-20260830-d85fdf/red-team-report.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/tasks/TASK-20260825-74615f/j3-closure-v5.yaml
+    sources_not_read_but_named_in_task: >-
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/ (full directory)
+      was in my allowed read_scope per review-plan.yaml but I read only the
+      specific predecessor red-team report cited above plus (via that
+      report's own quoted text and repair-package-v6.yaml's literal copies)
+      the predecessor artifacts' content as reproduced verbatim inside
+      files I did read; I did not separately open
+      emit_host_binding.sh/emit_procedure.md/receipt-schema-v2.yaml/
+      stop-control-report.yaml/demo-receipt.json under BATCH-820ee8/tasks/
+      TASK-20260830-78b00f/ directly, and did not need to, since I instead
+      ran the actual v1 predecessor script under PATH-prepend as part of
+      my own attack replication and relied on the accepted prior red-team
+      report's own quoted findings for the rest.
+    read_sibling_reports: false
+    sibling_validator_task: TASK-20260830-3ebb0b
+    sibling_validator_directory_read: false
+    sibling_validator_report_read: false
+    blindness_confirmation: >-
+      I did not open, list, or peek at
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-3ebb0b/
+      at any point in this session. When I listed
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/ (to
+      create my own directory), that sibling directory did not exist yet
+      in the working tree, so there was nothing there to read even
+      incidentally. I created only my own review directory
+      (reviews/TASK-20260830-4213a6/) and wrote only the two deliverables
+      into it.
+    coordinated_with_validator: false
+    blindness_lifted: false
+    verdict_breakdown:
+      J2-adversarial-re-attack-of-repaired-procedure: breaks
+      J3-rule-extension-integrity: breaks
+      proves_too_much: passes_all_three_known_false_objects_rejected
+    no_J1_verdict: true
+    no_disposition: true
+    no_scientific_claim: true
+    model_provenance_recorded: true
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    requested_reasoning_effort_basis: >-
+      Per CLAUDE.md's model policy note: role red-team -> default_policy
+      review-adversarial -> reasoning_effort xhigh
+      (orchestration/roles.yaml -> orchestration/model-policies.yaml).
+      This is the DECLARED, requested tier for this role; I am disclosing
+      it because I have no in-session tool to independently probe or
+      recompute the effort tier the launching harness actually applied
+      when it started my subagent.
+    resolved_model_id: claude-sonnet-5
+    resolved_model_id_basis: >-
+      Stated directly in this session's own environment context ("You are
+      powered by the model named Sonnet 5. The exact model ID is
+      claude-sonnet-5."). I did not run
+      `python3 -m orchestration.adapter doctor --probe` because this task
+      explicitly authorizes NO NETWORK ACCESS, and that probe requires
+      contacting a backend to confirm the identifier resolves; reporting
+      model_verified: true without running it would be a fabrication.
+    model_verified: false
+    model_verified_reason: >-
+      No network access was authorized for this task, and
+      `orchestration.adapter doctor --probe` was not run. Disclosed
+      honestly rather than silently assumed or silently omitted, per this
+      task's explicit instruction to refuse rather than downgrade
+      silently.
+    fallback_used: false
+    degraded_requirements: []
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+    network_access_used: false
+    writes_outside_review_directory: false
+    producer_files_touched: false
+    producer_files_touched_note: >-
+      All mutated/false-object files for the required attacks and the
+      proves-too-much control were built from COPIES in my own scratchpad
+      (/private/tmp/.../scratchpad/rt4213a6/), never by editing any file
+      under coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/
+      or coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/. `git
+      status --short` was empty immediately before this review's writes,
+      confirming no producer artifact was modified during this review.
+    commit_made: false

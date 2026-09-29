@@ -71,3 +71,24 @@ def test_marker_changes_when_the_base_moves():
 
 def test_marker_distinguishes_pull_requests():
     assert sync.marker(7, "a" * 40) != sync.marker(8, "a" * 40)
+
+
+# Conflicts on a generated path are resolved by REMOVAL, so a false positive
+# here deletes a tracked research artifact on a six-hourly schedule. Both
+# directions are pinned: the generated files must still be recognised.
+
+
+def test_generated_paths_are_recognised():
+    assert sync.is_generated("knowledge/INDEX.md")
+    assert sync.is_generated("coordination/goals/G/batches/B/dispatch_plan.json")
+    assert sync.is_generated("coordination/goals/G/batches/B/plan/dispatch_plan.md")
+
+
+def test_a_name_merely_ending_in_a_generated_name_is_not_generated():
+    # Twenty of these are tracked reconciliation-campaign artifacts. A bare
+    # endswith() matched every one of them and would have removed them.
+    assert not sync.is_generated(
+        "coordination/reconciliation/R/enforceability_repair_dispatch_plan.json")
+    assert not sync.is_generated(
+        "coordination/reconciliation/R/live_probe_dispatch_plan.md")
+    assert not sync.is_generated("knowledge/OTHER_INDEX.md")

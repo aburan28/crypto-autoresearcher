@@ -1,0 +1,508 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type=text/css>
+body{font-family:sans-serif;font-size:1em}
+h1{font-size:1.7em;}
+h2{font-size:1.4em;}
+h3{font-size:1.1em;}
+p{font-size:0.8em;line-height:1.5em;}
+blockquote{font-size:0.8em;line-height:1.5em;}
+ul{font-size:0.8em;line-height:1.5em;}
+ol{font-size:0.8em;line-height:1.5em;}
+pre{font-family:monospace,monospace;font-size:0.8em;}
+tt{font-family:monospace,monospace;font-size:1em;}
+</style>
+<title>
+SafeCurves:
+Completeness
+</title>
+</head>
+<body>
+<table width="100%">
+  <tr valign=top width=100%>
+    <td align=left><h1>SafeCurves:<br>choosing safe curves for elliptic-curve cryptography</h1></td>
+  </tr>
+</table>
+<hr>
+<table width="100%"><tr>
+<td width="12%" align=left valign=top><table border width="100%" bgcolor="#aaaaff"><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><a href="index.html" style="text-decoration:none"><font size=2 color="#000080">Introduction</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>Curve parameters:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="field.html" style="text-decoration:none"><font size=2 color="#000080">Fields</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="equation.html" style="text-decoration:none"><font size=2 color="#000080">Equations</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="base.html" style="text-decoration:none"><font size=2 color="#000080">Base points</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="primeproofs.html" style="text-decoration:none"><font size=2 color="#000080">Prime proofs</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECDLP security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rho.html" style="text-decoration:none"><font size=2 color="#000080">Rho</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="transfer.html" style="text-decoration:none"><font size=2 color="#000080">Transfers</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="disc.html" style="text-decoration:none"><font size=2 color="#000080">Discriminants</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rigid.html" style="text-decoration:none"><font size=2 color="#000080">Rigidity</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECC security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="ladder.html" style="text-decoration:none"><font size=2 color="#000080">Ladders</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="twist.html" style="text-decoration:none"><font size=2 color="#000080">Twists</font></a></td></tr>
+<tr><td width="100%" bgcolor="#ffff80"><font size=2 color="#000000">Completeness</font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="ind.html" style="text-decoration:none"><font size=2 color="#000080">Indistinguishability</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>More information:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="refs.html" style="text-decoration:none"><font size=2 color="#000080">References</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="verify.html" style="text-decoration:none"><font size=2 color="#000080">Verification</font></a></td></tr>
+</table></td></tr></table>
+</td><td align=left valign=top>
+<h2>Completeness</h2>
+<p>
+The simplest inner loop for scalar multiplication,
+computing the curve point nP given an integer n and a curve point P,
+looks like this:
+<ul>
+<li>Q &larr; Q+Q.
+<li>Q &larr; Q+P if current bit of n is set.
+</ul>
+<p>
+The simplest way to implement + is to copy
+the "addition formulas" from an ECC book.
+But <i>for Weierstrass curves</i> this doesn't work:
+the scalar-multiplication formulas consistently fail random tests.
+The problem
+is that the standard Weierstrass "addition formulas" don't always work:
+in particular, they fail for the doublings Q+Q.
+<p>
+Because this implementation fails random tests, it will be fixed.
+The simplest fix is as follows:
+<ul>
+<li>Q &larr; dbl(Q).
+<li>Q &larr; Q+P if current bit of n is set.
+</ul>
+<p>
+This passes random tests, but it still fails if Q happens to match P.
+This will <i>not</i> be caught by random tests.
+<p>
+Maybe the implementor instead has "+" check for its inputs being equal.
+But this is less likely as an implementation strategy:
+it produces a slower and <i>more complicated</i> implementation.
+Furthermore, it does not catch all the failure cases.
+For example,
+the standard Weierstrass addition formulas
+fail if Q happens to match -P.
+This will <i>not</i> be caught by random tests.
+<p>
+Attackers can trigger these failure cases inside typical ECC protocols,
+and in some cases can learn part of all of n
+by analyzing the responses.
+See, e.g.,
+<a href="refs.html#2003/izu-exceptional">2003 Izu&ndash;Takagi</a>.
+<h3>Complete addition laws</h3>
+<p>
+<a href="refs.html#2007/bernstein-newelliptic">2007 Bernstein&ndash;Lange</a>
+showed that the Edwards addition law is <b>complete</b>
+for every complete Edwards curve E.
+This means that,
+for <i>every</i> rational point P on E,
+and for <i>every</i> rational point Q on E,
+the Edwards addition law for inputs P and Q produces as output exactly P+Q.
+There are no exceptional cases.
+The Edwards addition law can be used for complete single-scalar multiplication,
+complete double-scalar multiplication, etc.
+<p>
+<a href="refs.html#2006/bernstein-curve25519">2006 Bernstein</a>
+had shown a more limited form of completeness
+for the <a href="ladder.html">Montgomery ladder</a>
+on Montgomery curves y^2=x^3+Ax^2+x with a unique point of order 2,
+i.e., with A^2-4 not a square.
+Specifically,
+given X0(P) as input,
+the Montgomery ladder always produces X0(nP) as output;
+here X0(P) means 0 if P=0, and otherwise the x-coordinate of P.
+It is possible that ladders provide completeness for other curves,
+but the analysis is not easy;
+the only literature is a second
+<a href="refs.html#2006/bernstein-curvezero">2006 Bernstein</a> paper on this topic.
+<p>
+Subsequent research has introduced
+other complete scalar-multiplication formulas.
+However,
+many of these formulas are considerably slower and more complicated
+than standard incomplete scalar-multiplication formulas,
+creating major conflicts between simplicity, efficiency, and security.
+<p>
+SafeCurves requires curves to support
+simple, fast, <i>complete</i>, constant-time
+single-coordinate single-scalar multiplication.
+This includes the SafeCurves
+<a href="ladder.html">ladder</a> requirement
+but goes further by requiring completeness.
+SafeCurves also requires curves to support
+simple, fast, <i>complete</i>, constant-time multi-scalar multiplication.
+<h3>Does completeness of a curve guarantee completeness of the addition law?</h3>
+<p>
+No.
+For example,
+on complete Edwards curves,
+the original Edwards addition law is complete,
+but the dual addition law introduced in
+<a href="refs.html#2008/hisil">2008 Hisil&ndash;Wong&ndash;Carter&ndash;Dawson</a> is not.
+The SafeCurves requirement ensures that completeness is a viable option
+but does not ensure that it is the only option.
+<h3>Specific curves</h3>
+<p>
+The following table reports the support
+for complete scalar multiplication
+on various existing curves:
+<table border>
+<tr>
+<th><p>Curve</p></th>
+<th><p>Complete single-scalar formulas?</p></th>
+<th><p>Complete multi-scalar formulas?</p></th>
+<th><p>Number of points of order 2</p></th>
+<th><p>Number of points of order 4</p></th>
+</tr>
+<tr>
+<td><p>
+Anomalous
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-221
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-222
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-224
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve1174
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve25519
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+BN(2,254)
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP256t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+ANSSI FRP256v1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-256
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+secp256k1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-382
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-383
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve383187
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP384t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-384
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+0
+</p></td>
+<td><p>
+0
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve41417
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+Ed448-Goldilocks
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-511
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-521
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+1
+</p></td>
+<td><p>
+2
+</p></td>
+</tr>
+</table>
+<hr><font size=1><b>Version:</b>
+This is version 2013.10.14 of the complete.html web page.
+</td></tr></table>
+</body>
+</html>

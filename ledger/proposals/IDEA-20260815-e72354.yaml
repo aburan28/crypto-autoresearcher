@@ -1,0 +1,231 @@
+idea:
+  id: IDEA-20260815-e72354
+  question_id: RQ-SQISIGN-39f231
+  added: '2026-08-15'
+  title: >-
+    THE SQIsign SIGNING PATH IS SECRET-DEPENDENT AND ITS FAILURE-AND-RETRY
+    BEHAVIOUR IS PUBLIC: measure whether the retry count correlates with the
+    secret, since retries are observable in any deployment that reports
+    latency
+  class: control
+
+  claim: >-
+    SQIsign signing can fail and retry depending on the secret data it is
+    working with. Retry count is not part of the signature but is observable
+    through latency in any real deployment. Whether it correlates with a
+    secret invariant is measurable directly in the reference implementation
+    and determines whether latency is a leakage channel independent of any
+    microarchitectural effect.
+
+  mechanism: >-
+    Instrument the reference implementation to count retries per signature.
+    Generate many signatures across many keys, record retries and secret
+    invariants, and test correlation against matched random-ideal and
+    shuffled-label nulls.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-SQISIGN-001; grep 'retry', 'rejection', 'transcript
+      leakage' (2), 'signing failure'.
+    results: >-
+      The goal targets transcript-level leakage; no record measures retry-
+      count correlation, which is a distinct and cheaper channel than the
+      compressed-length one.
+    verdict: >-
+      UNVERIFIED. Rejection-sampling leakage is a known concern in
+      signature schemes generally; whether SQIsign's retry behaviour has
+      been measured against secret invariants is a blocking stage-one
+      check.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE RETRY COUNT per signature, as a function of the secret ideal.
+    lossiness: >-
+      Retry count is a single integer summarising the whole signing
+      attempt sequence, which is exactly the projection an observer gets
+      from latency.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while the implementation exposes retry counts; if retries
+      are not distinguishable from other latency sources the channel is
+      real but this measurement cannot isolate it.
+
+  null_object_control: >-
+    NULL 1 -- shuffled secret labels, destroying the pairing while
+    preserving both marginals. NULL 2 -- matched random ideals, giving the
+    correlation expected with no secret dependence. STRUCTURAL TELL: any
+    correlation must persist across keys, not only within one.
+
+  discriminated_from:
+    - >-
+        The compressed-length leakage record in this series, which
+        measures a different public statistic; the two channels are
+        independent and both should be measured.
+    - >-
+        Microarchitectural side-channel work, which concerns
+        implementation artifacts; retry count is an algorithmic property
+        present in any correct implementation.
+
+  assumptions:
+    - >-
+        The reference implementation exposes retry counts in a test-only
+        build kept clearly separate from production paths.
+    - >-
+        Retry count is determined by the algorithm rather than by
+        implementation-specific parameter choices; if it is tunable, the
+        result binds those choices.
+
+  predictions:
+    - metric: >-
+        shuffled-label null
+      direction: different
+      minimum_effect: >-
+        FORCED no correlation; a correlation voids the measurement.
+    - metric: >-
+        retry-count correlation with secret invariants across keys
+      direction: different
+      minimum_effect: >-
+        The measurement; must exceed the matched-random-ideal null to
+        count.
+    - metric: >-
+        persistence across keys
+      direction: different
+      minimum_effect: >-
+        A within-key-only effect is a fixed-key artifact, not leakage.
+
+  minimal_test:
+    design: >-
+      One parameter set, one thousand signatures across at least twenty
+      keys, both nulls.
+    controls:
+      - >-
+          Shuffled-label null.
+      - >-
+          Matched random-ideal null.
+      - >-
+          Across-key persistence check.
+      - >-
+          Test-only instrumentation kept separate from production paths.
+    required_metrics:
+      - >-
+          Retry count and secret invariant per signature.
+      - >-
+          Correlation against both nulls with intervals.
+      - >-
+          Across-key persistence outcome.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        The shuffled null correlates. Measurement void.
+    - >-
+        No correlation beyond nulls. A clean scoped negative for this
+        channel.
+    - >-
+        A persistent across-key correlation appears. Route to independent
+        review before characterising it as leakage or estimating any
+        advantage.
+    - >-
+        Retries are not instrumentable. The channel cannot be isolated
+        here and the record reports that rather than approximating.
+
+  confounders:
+    - >-
+        FIXED-KEY ARTIFACTS: within-key correlations can arise from one
+        key's particular ideal.
+    - >-
+        PARAMETER TUNABILITY: if retry behaviour depends on implementation
+        parameters, the result binds those settings rather than the
+        scheme.
+
+  interpretation_limits:
+    - >-
+        Measures an algorithmic observable; establishes no key recovery
+        and no attack.
+    - >-
+        Scoped to the tested implementation, version and parameter set.
+    - >-
+        A correlation would be a leakage observation requiring separate
+        work to convert into any advantage.
+
+  heuristic_assumptions:
+    - id: HEUR-SQI-RETRY-1
+      statement: >-
+        SQIsign's retry count is independent of the secret ideal beyond
+        what public parameters already determine.
+      rigorous_support: >-
+        Rigorous ingredient: the signing procedure's failure condition
+        is defined by norm and smoothness constraints whose parameters
+        are public. THE GAP: whether a particular attempt fails depends
+        on the actual secret ideal being worked with, and no argument in
+        the design rules out a residual dependence -- which is precisely
+        what the measurement tests.
+      falsification_condition: >-
+        A retry-count correlation with a secret invariant persisting
+        across keys and exceeding the matched-random-ideal null.
+      validation_plan: >-
+        SAMPLE: >= 1000 signatures over >= 20 keys. COMPARISON:
+        correlation against both nulls. TAIL CHECK: the signatures with
+        the highest retry counts, reported with their secret invariants.
+        TRANSFER: none beyond the tested implementation.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is bulk signature generation with retry
+      instrumentation.
+    memory_exponent: >-
+      Negligible per signature.
+    best_known: >-
+      The incumbent baseline is the matched endomorphism-ring problem
+      cost, against which any leakage must be scored to matter at all.
+    hidden_overhead: >-
+      Separating algorithmic retries from other latency sources is the
+      main instrumentation difficulty and bounds what the measurement
+      isolates.
+    tradeoff_note: >-
+      A large sample buys sensitivity to weak correlations and costs
+      generation time; the plan fixes the sample before looking at any
+      data.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As cryptanalysis: nothing is mounted. As a
+    retry-channel measurement: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: a measured correlation
+    between SQIsign retry counts and secret-ideal invariants, with matched
+    nulls and an across-key persistence check, covering a channel observable
+    through latency in any deployment.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.7 that retries are instrumentable in the reference implementation.
+    0.85 that the nulls behave. 0.2 that a persistent across-key correlation
+    appears, which is higher than for the length channel because retry
+    behaviour is more directly secret-dependent.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-SQISIGN-39f231
+    - RQ-SQISIGN-001
+    - GOAL-SQISIGN-001
+    - KN-OPEN-013
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

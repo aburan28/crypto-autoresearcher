@@ -171,6 +171,96 @@ Monitor({command: "python3 tools/agent_bus.py watch --as executor --sync --inter
 Without a wake mechanism the floor is simply: **check your inbox when you wake,
 and before you report done.** That is enough, and it is what a feed asks for.
 
+## The consolidation pass
+
+The bus above is point-to-point: a sender picks a recipient. That is right for
+"your dependency failed, hold", and it has a blind spot. When several sessions
+work one goal in separate lanes, **nobody is looking across them.** Two
+Executors can spend a day measuring the same thing, each correctly addressing
+its own Coordinator, and no inbox anywhere shows both messages — because
+`inbox --as X` answers *what is waiting for X*, which is a worker's question,
+not a portfolio's.
+
+Continuous cross-talk is not the fix. It collapses the diversity that running
+separate lanes was for: once every session sees every message, they converge
+early on whichever line was loudest first, and `max_concurrent` buys nothing.
+
+So: **let lanes diverge, and periodically run one pass that reads across them
+and carries pointers.**
+
+```sh
+# 1. the cross-cutting read -- by SENDER, over a window, across every address
+python3 tools/agent_bus.py digest --since 36h --unconsolidated
+
+# 2. carry what is worth carrying, as pointers, with provenance
+python3 tools/agent_bus.py consolidate --from consolidator --to executor-2 \
+    --subject "executor-3 is already measuring the variant you queued" \
+    --source MSG-20260908-36b691 --source MSG-20260908-45404b \
+    --ref EXP-RT1476-001 \
+    --body "Both lanes point at the same experiment. Read the run record
+before re-running. I have not read either result."
+```
+
+### `digest` — read-only, and read-only on purpose
+
+Groups traffic by sender rather than recipient, so a lane collision is visible
+as two senders carrying the same `--ref`. It writes nothing, acks nothing and
+marks nothing: reading a peer's traffic is not participating in it, and a
+consolidator that acked what it read would hide mail from the session the
+message was actually for.
+
+`--unconsolidated` hides traffic some consolidation already drew on, so a
+recurring pass sees only what is new. That state is **derived** from the
+consolidation records — the same discipline as read receipts. Nothing is
+written back into a source message, so two consolidators never race on the same
+bytes.
+
+### `consolidate` — the one writer that reports on work it did not do
+
+That position is exactly where a finding gets laundered: a tentative
+intermediate result from lane A is summarised by a consolidator, lands in lane
+B's inbox as a confident sentence with no receipt, and B builds on it. The rule
+at the top of this document already forbids it. Leaving it in prose meant
+nothing checked it, so three things are now arguments rather than etiquette:
+
+| | |
+|---|---|
+| `--source` | the messages this drew on. At least one, and each must exist. Provenance: a reader can diff the consolidation against its inputs. |
+| `--ref` | at least one pointer into committed state. A summary with nothing to point at is chatter, and it costs every recipient a wake. |
+| ref check | every ref whose prefix `allocate_id.py` can settle must resolve, or the write is refused. A typo'd ref is *worse* than no ref — it reads as a pointer and leads nowhere. |
+
+`--allow-unresolved-refs` records a ref that names nothing yet, for the real
+case of pointing at state a peer is being asked to create. It is recorded as
+unresolved in the message, never as resolved.
+
+`KN-*`, `SRC-*` and bare paths are outside that prefix map, so they land in
+`not_checkable_by_path_scan`. **An unchecked ref is reported as unchecked**, and
+is never folded into the resolved set — asserting a check that never ran is the
+same defect as an invented run.
+
+The record carries `kind: consolidation` so a reader knows the author observed
+none of it: the body is a claim *about the messages in `sources`*, and the next
+move is to follow the refs, not to act on the prose.
+
+**What this does not do, stated plainly:** nothing reads the body. A
+consolidator determined to restate a finding instead of pointing at it can, and
+the refs will pass. This makes provenance auditable; it does not make a summary
+true.
+
+### Who consolidates
+
+`consolidator` is an ordinary address — roles outlive sessions here like any
+other. Two constraints are worth stating:
+
+- **It must not be a session working inside a lane it reads.** A lane's own
+  session consolidating its neighbours is not a cross-cutting pass, it is that
+  lane arguing its case with extra steps.
+- **A consolidation confers no authority, exactly like every other message.** It
+  cannot approve an experiment, move a hypothesis, or stand in as evidence. Real
+  work still travels as a `TASK-*` handoff through the dispatcher. A
+  consolidation that reads as an instruction is a request for someone to create
+  committed state, and should say so in those words.
+
 ## Choosing
 
 | Situation | Use |
@@ -182,6 +272,8 @@ and before you report done.** That is enough, and it is what a feed asks for.
 | It should survive the session | `agent_bus.py` |
 | A reviewer will need to see it | **neither** — a record |
 | Assigning real research work | **neither** — a `TASK-*` handoff |
+| Seeing what every lane said, not just yours | `agent_bus.py digest` |
+| Carrying one lane's pointer to another lane | `agent_bus.py consolidate` |
 
 That last row is the common mistake. The bus is for *coordination about* work:
 "contract is frozen", "batch reranked", "your dependency failed, hold". The work

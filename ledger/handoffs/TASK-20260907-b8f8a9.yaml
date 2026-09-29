@@ -1,0 +1,125 @@
+handoff:
+  id: TASK-20260907-b8f8a9
+  from: coordinator
+  to: validator
+  objective: >-
+    Independently validate the EXP-ECDLP-869870 v2 successor-cell runs
+    against PA-ECDLP-869870-v1-to-v2 and DEC-20260907-f394f5. Own joints
+    J1 (mixer and walk-index fidelity; splitmix seeds 1-5 determinism
+    vs v1) and J2 (per-mixer published-weight and top-T-share gates,
+    raw and O(theta)-corrected). Do not read the red-team report.
+    Do not transition H-ECDLP-3550b8. Observations and integrity only.
+  inputs:
+    - experiments/EXP-ECDLP-869870/amendments/v2_rekeyed_fixture.yaml
+    - experiments/EXP-ECDLP-869870/specification.yaml
+    - experiments/EXP-ECDLP-869870/execution-report-v2.yaml
+    - experiments/EXP-ECDLP-869870/source_v2/
+    - ledger/decisions/DEC-20260907-f394f5.yaml
+    - ledger/decisions/DEC-20260906-1f5b71.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-289698/tasks/TASK-20260906-7ec3ea/src/j2_rederive.py
+    - experiments/EXP-ECDLP-869870/runs/RUN-ECDLP-869870-S-s1/receipt.yaml
+    - experiments/EXP-ECDLP-869870/runs/RUN-ECDLP-869870-S-s2/receipt.yaml
+    - experiments/EXP-ECDLP-869870/runs/RUN-ECDLP-869870-S-s3/receipt.yaml
+    - experiments/EXP-ECDLP-869870/runs/RUN-ECDLP-869870-S-s4/receipt.yaml
+    - experiments/EXP-ECDLP-869870/runs/RUN-ECDLP-869870-S-s5/receipt.yaml
+  constraints:
+    - Own J1 and J2 only. Do not write a whole-claim verdict.
+    - Blindness: do not read TASK-20260907-9f3c12 artifacts.
+    - Do not copy the prior sealed murmur3 1.6814 / -0.109 numbers as
+      this cell's result. Recompute from this cell's receipts.
+    - Do not edit specification.yaml, source/, or source_v2/.
+    - Timeouts, OOM, and crashes are failed_infrastructure, not
+      negative mathematical evidence.
+    - Core rules 4, 5, 9. No fabricated checks.
+    - Bedrock prohibited.
+    - Worker does not commit.
+    - review-adversarial; independent_session_required true.
+    - H-ECDLP-3550b8 stays specified.
+  deliverables:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-1e7251/tasks/TASK-20260907-b8f8a9/validation_report.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-1e7251/tasks/TASK-20260907-b8f8a9/TASK-20260907-b8f8a9.receipt.yaml
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-1e7251/tasks/TASK-20260907-b8f8a9/validation_report.yaml
+  archived_by: TASK-20260907-c264db
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - validation_report.yaml covers J1 and J2 with cited run IDs
+    - splitmix seeds 1-5 determinism check recorded
+    - both mixers, both gates, raw and O(theta)-corrected recorded
+    - attested sources listed; no sibling red-team read
+  review_plan:
+    claim_under_review: 'The executor''s v2 run records: whether each mixer (splitmix64, murmur3_fmix64)
+      with 8 keys at N = 2^24 meets or misses fixture_gate_v2 EXACTLY as the amendment states, and whether
+      v1 bytes were left untouched. This round does not promote H-ECDLP-3550b8 and does not score V2-V5
+      / M1-M5.
+  
+      '
+    coordinator_prior: 'Recorded BEFORE any reviewer runs. Expected: splitmix64 8-key mean scaled cost near
+      the validator''s 5-key 1.7323 (inside 0.10 of 1.79 raw); murmur3 8-key mean near the validator''s
+      sealed 1.6814 (raw FAIL of the 0.10 band by ~0.009). The O(theta) correction, if instantiable from
+      the v1 (B4) note, may move murmur3 inside the band -- I do not pre-judge that. Seeds 1-5 splitmix64
+      should match v1 receipts bit-for-bit on the shared (N, a, cap, rule) fields; disagreement is IV-determinism.
+      Where a failure would hide: (i) silently substituting the validator''s sealed numbers for an executor-owned
+      re-run; (ii) pooling both mixers into one gate; (iii) editing v1 source or re-scoring RUN-001..024.
+  
+      '
+    joints:
+    - joint: J1 run-record integrity, key count, mixer separation, no v1 rewrite
+      assigned_to: TASK-20260907-b8f8a9 (validator)
+      attack_plan: 'Re-parse every v2 run manifest. Confirm 8 seeds x 2 mixers, no missing/duplicate seed,
+        walk-projection label present, cycle_mass and capped-mass reported. Confirm v1 specification.yaml
+        and source/ hashes match origin/main. Confirm no v1 run directory was rewritten (mtime/hash vs HEAD
+        at batch open).
+  
+        '
+    - joint: J2 blind re-derivation of one mixer's 2^24 scaled-cost mean
+      assigned_to: TASK-20260907-b8f8a9 (validator)
+      attack_plan: 'Re-derive the scaled-cost mean for murmur3_fmix64 (8 keys) at N = 2^24, a = 1/4, T =
+        256 from the amendment''s statement of the quantity and the mixer definition, WITHOUT reading source_v2/
+        or the executor''s report bodies (blind_from those paths). Compare to the executor''s raw-result
+        after sealing.
+  
+        '
+    - joint: J3 scope, O(theta) honesty, fixture-gate bookkeeping
+      assigned_to: TASK-20260907-9f3c12 (red-team)
+      attack_plan: 'Attack any language that scores V2-V5 / M1-M5 or moves H-ECDLP-3550b8. Check raw vs
+        corrected residuals are both present and not collapsed. Check the two mixers were not pooled into
+        one pass/fail.
+  
+        '
+    - joint: J4 proves-too-much
+      assigned_to: TASK-20260907-9f3c12 (red-team)
+      attack_plan: 'A permutation of the walk (or a mixer that is the identity) must NOT pass fixture_gate_v2.
+        If the pipeline reports a 1.79-band hit for a known-unstructured walk, the argument proves too much
+        and the round fails regardless of the real mixers'' residuals.
+  
+        '
+    blindness:
+      within_round: 'Validator (b8f8a9) and red-team (9f3c12) may not read each other''s reports. Both read
+        the snapshot commit of the executor artifacts. The Coordinator composes joint-level verdicts.
+  
+        '
+      lifted_for: []
+    proves_too_much:
+      failure_signature: fixture_gate_v2 PASSES for an identity or permutation walk.
+      objects:
+      - A walk f(x) = x + 1 (mod N), same DP predicate: must miss 1.79.
+    blind_rederivation:
+      blind_from:
+      - experiments/EXP-ECDLP-869870/source_v2/
+      - the executor's execution-report-v2.yaml and run report bodies
+      what: 'murmur3_fmix64 8-key mean scaled cost at N = 2^24, a = 1/4, T = 256.
+  
+        '
+    procedure_deviations: []
+  write_scope:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-1e7251/tasks/TASK-20260907-b8f8a9/

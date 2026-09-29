@@ -1,0 +1,616 @@
+execution_report:
+  task_id: TASK-20260821-de817d
+  experiment_id: EXP-MDFIVE-88f7d1
+  hypothesis_id: H-MDFIVE-bf7767
+  goal_id: GOAL-MD5-001
+  gated_by: "TASK-20260821-a288f8 (decision: approve, DEC-20260821-b1a7b4)"
+  implementation_commit: 4f98e652c1f14da9b1b31690ef9763f0b839ca5a
+  code_state: >-
+    Tree was dirty at every run (tests/test_harness.py modified; new files
+    harness/run_md4_ceiling.py and this task's inputs/tasks paths untracked).
+    Every run manifest pins the exact executed source by sha256
+    (harness.runner.source_provenance / all_pinned: true), so the tree being
+    dirty does not make these runs unreproducible -- the code that ran is
+    identified by content hash, not by commit alone.
+  inference:
+    this_session:
+      requested_policy: executor-implementation
+      reasoning_effort: medium (agents/.claude/agents/executor.md frontmatter,
+        derived from orchestration/model-policies.yaml per CLAUDE.md's
+        model-policy table; handoff's reasoning_effort field was null,
+        inherited)
+      resolved_model_id: claude-sonnet-5
+      fallback_used: false
+      bedrock: "Amazon Bedrock was not selected, configured, probed, or contacted (SC-8)."
+    harness_runs: >-
+      Every run below is deterministic Python (no model in the search loop);
+      each run manifest's own `inference` block records this explicitly
+      (requested_policy: executor-terra, resolved_model_id: "none
+      (deterministic harness execution)") via harness/runner.py, unchanged by
+      this task.
+
+  # =========================================================================
+  # PROTOCOL DEVIATIONS -- all recorded, none silently patched into the
+  # frozen contract (executor.md rule 12 / AGENTS.md rule 5)
+  # =========================================================================
+  protocol_deviations:
+    - id: DEV-1-rfc1320-pinning
+      description: >-
+        The frozen contract's structural_ingredients names RFC 1320's
+        WebFetch-mediated transcript as NOT sha256-pinnable and instructs the
+        Executor to fetch and pin the raw text before citing it as a frozen
+        input. This session fetched
+        https://www.rfc-editor.org/rfc/rfc1320.txt directly with `curl`
+        (http_code 200) and pinned it at
+        coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4.txt,
+        sha256 f727b15e19ab8ac5036ab7921476e8d8644512190ade32a2e0a2fb9d8a2421c7.
+        The Round-1 operation list (RFC 1320 sec 3.4, `[ABCD 0 3] [DABC 1 7]
+        [CDAB 2 11] [BCDA 3 19]` ... `[ABCD 12 3] [DABC 13 7] [CDAB 14 11]
+        [BCDA 15 19]`) and the F-function text (`F(X,Y,Z) = XY v not(X) Z`)
+        are BYTE-IDENTICAL to the already-filed WebFetch excerpt
+        (rfc1320-md4-round-schedule-excerpt.md) -- diff-checked by this
+        session, no discrepancy found. This closes the open acquisition item
+        the frozen contract flagged; not a defect, a completed prerequisite.
+      severity: none (resolves an explicitly disclosed open item)
+    - id: DEV-2-implementation-error-md4-add-b
+      description: >-
+        First implementation draft used MD5's RFC 1321 FF/GG/HH/II macro
+        convention (`a = rotl(a+F(b,c,d)+x+T, s); a += b`) for MD4's Round-1
+        step too. RFC 1320 sec 3.4's own operation notation is explicit and
+        different: "Let [abcd k s] denote the operation a = (a + F(b,c,d) +
+        X[k]) <<< s" -- NO trailing `+= b` term anywhere in MD4's definition
+        (Rounds 1, 2, and 3 alike). This is a genuine structural difference
+        between the two primitives' step functions, not merely a
+        shift/constant difference. Caught immediately: the first draft
+        failed ALL SEVEN RFC 1320 A.5 test vectors. Fixed by adding an
+        explicit `add_b` parameter (MD4_ADD_B=False, MD5_ADD_B=True) threaded
+        through forward_step/backward_step/apply_forward/apply_backward and
+        the independent certificate-reverification path
+        (_reference_round1_forward). Classification: implementation_error,
+        caught by the vector self-test BEFORE any search run (as the frozen
+        contract's own audit-1 discipline requires), never affected a
+        reported result.
+      severity: caught pre-run, no reported result affected
+    - id: DEV-3-apply-forward-local-shift-index-bug
+      description: >-
+        A second implementation bug: the generic `apply_forward` helper
+        indexed the 4-cycling shift table by the LOCAL loop index rather than
+        the GLOBAL Round-1 step index, which is only correct when the
+        supplied word slice starts at global step 0. The call computing
+        state16 from state9 (words[9:16], global steps 9..15) used the wrong
+        shift values as a result. Caught by comparing the forward
+        computation of the Round-1 output state Y against
+        `apply_backward`'s independent inversion of the SAME Y (they must
+        agree exactly, per HEUR-H2) -- they did not, until `apply_forward`
+        was given an explicit `start_index` parameter. Classification:
+        implementation_error, caught pre-run by cross-checking two
+        independent code paths against each other, never affected a
+        reported result.
+      severity: caught pre-run, no reported result affected
+    - id: DEV-4-apply-backward-word-order-bug
+      description: >-
+        A third bug in the same debugging pass: `apply_backward`'s own
+        documented contract requires its `words` argument in REVERSE order
+        (words[0] = the word used at the HIGHEST step being inverted,
+        descending to words[-1] at the lowest). Both call sites originally
+        passed the fixed words 10-15 in FORWARD order. Fixed by building the
+        list with `range(15, 9, -1)`. Caught by the same cross-check as
+        DEV-3 (forward-computed Y vs backward-inverted state9 must agree
+        exactly under HEUR-H2 for the TRUE word pair). Classification:
+        implementation_error, caught pre-run, never affected a reported
+        result.
+      severity: caught pre-run, no reported result affected
+    - id: DEV-5-primary-run-superseded
+      description: >-
+        RUN-MDFIVE-primary-md4 (the first primary-run attempt) verified only
+        the FIRST raw MITM solution found rather than every raw solution,
+        understating the informativeness of the run (it reported
+        independently_verified: false with no further breakdown, which reads
+        as an ambiguous/negative result). Corrected by re-verifying EVERY raw
+        solution (cheap at this bounded scale, at most 2^k2 candidates) in a
+        NEW run, RUN-MDFIVE-primary-md4-v2, per the immutable-run-records
+        rule (a corrected run is a new run ID; the defective one stays in the
+        ledger, marked invalid, not deleted). RUN-MDFIVE-primary-md4-v2 is
+        the run of record for this task's primary-run reporting below;
+        RUN-MDFIVE-primary-md4 is recorded as `invalid` (superseded) in the
+        runs.invalid list.
+      severity: superseded, corrected run's numbers are authoritative
+
+  # =========================================================================
+  # ANOMALY (the load-bearing finding of this task) -- recorded per
+  # executor.md rule 12: preserved, not discarded, and NOT silently patched
+  # into the frozen contract (executor.md prohibition list / AGENTS.md rule
+  # "never modify the hypothesis... request an amendment instead").
+  # =========================================================================
+  anomalies:
+    - id: ANOM-1-word9-independence
+      title: >-
+        Register A immediately after step 9 is mathematically INDEPENDENT of
+        free word9, contradicting H-MDFIVE-bf7767's mechanism/
+        observation_collision text, which states chunk2's backward-computed
+        value of this same quantity "is a function of free word9."
+      finding: >-
+        Word 9 is first used at step 10 (RFC 1320/1321 sec 3.4's own
+        sequential word schedule, word k used at step k+1): by construction,
+        NOTHING computed at or before step 9 -- including register A
+        immediately after step 9, the frozen contract's declared matching
+        quantity -- can depend on word 9. This was verified two ways: (a)
+        algebraically, by deriving backward_step as the exact inverse of
+        forward_step and tracing which output-tuple position is genuinely
+        recovered from the fixed Round-1-output state Y versus which
+        position is trivially copied through unchanged (position 1, "the
+        value most recently updated," is copied straight from Y's
+        components and is PROVABLY independent of the word supplied to
+        backward_step; only position 0 depends on that word, and position 0
+        is a DIFFERENT physical register -- the one step 10 is about to
+        update, not register A); (b) empirically, by evaluating the
+        backward-derived "register A after step 9" for 20 uniformly random
+        32-bit word9 candidates (not just the declared 10-bit window) at a
+        fixed target -- all 20 gave the IDENTICAL value.
+      consequence_for_this_run: >-
+        The MITM search's raw solution set at the declared scale (k1=k2=10)
+        is NOT a genuine two-free-word joint search result: once word8
+        matches the target (which happens for exactly one word8 among the
+        1024 tried, as it must -- the TRUE word8), EVERY one of the 1024
+        word9 candidates is reported as a "full 20-bit target match," because
+        chunk2's own computed value does not vary with word9 at all. This was
+        confirmed directly: the primary run's raw solution set contains
+        exactly 1024 pairs, all sharing one word8; independently
+        re-verifying all 1024 against the FULL 16-step forward computation
+        (a check genuinely independent of word9) finds exactly ONE
+        genuinely-verified pair -- the true (word8, word9) -- confirming the
+        search DID locate the true word8 but supplies zero discriminating
+        power over word9. The H1-validation run's per-target counts (both
+        matching-window and full-target hit counts) are IDENTICAL across all
+        1000 independently-drawn targets (matching_window_hits=2048,
+        full_target_hits=1024 for every single MD4 target; 32768/1024 for
+        every single MD5 target) -- a zero-variance signature that is itself
+        strong corroborating evidence of a deterministic (not birthday-
+        random) mechanism, not sampling noise.
+      secondary_observation: >-
+        A related, likely-compounding structural property: because word8 is
+        used at chunk1's OWN LAST step (step 9, immediately AT the declared
+        matching point, with no further Round-1 mixing applied to it before
+        the comparison), the "matching-window" value is close to a simple
+        rotate-and-add function of word8 rather than an output that has
+        passed through several rounds of the F-function's mixing --
+        inspecting several targets' low-12-bit values as word8 varies showed
+        a clearly structured (near-affine-in-the-rotation) relationship, not
+        the kind of value HEUR-H1 models as "uniformly random,
+        pairwise-independent." This is offered as a candidate EXPLANATION
+        for why the observed collision counts are deterministic rather than
+        Poisson-distributed; it is not independently re-verified to the same
+        standard as the word9-independence finding above and should be read
+        as a secondary observation, not a second confirmed defect.
+      classification: >-
+        This is recorded as a defect/limitation DISCOVERED IN THE FROZEN
+        HYPOTHESIS'S MECHANISM (H-MDFIVE-bf7767.mechanism /
+        observation_collision), not an implementation_error in this module
+        (the module's forward_step/backward_step pass the independent H2
+        regression fixture exactly, and the independent
+        _reference_round1_forward cross-check correctly identifies the one
+        genuine solution among the 1024 raw candidates -- the instrument is
+        doing exactly what its formulas say). Per executor.md rule 12 and
+        the standing prohibition on modifying the hypothesis, this is
+        reported, not patched: the split point S=9 with the matching
+        quantity fixed at "register A after step 9" does not, as specified,
+        achieve the claimed two-free-word joint dependency. An amendment
+        (e.g., moving the matching point later, or comparing a different
+        register/window that genuinely depends on both free words) is a
+        Coordinator decision, not an Executor one.
+      not_a_falsification_of_h1_per_se: >-
+        H1's own falsification_condition is "a reproducible ... non-shrinking
+        heavier-than-Poisson tail" in the matching-window-collision
+        distribution. The observed distribution (zero variance, not merely
+        heavy-tailed) is consistent with that falsification condition on its
+        face, but its ROOT CAUSE (word9-independence, a data-flow fact about
+        the chosen split point) is different from what HEUR-H1 is actually
+        about (whether F's single-step balance property extrapolates to
+        9-step mixing). Reporting this as "H1 refuted" would overstate what
+        was tested; reporting it as "H1 supported" would be worse. Per
+        executor.md rule 13, this run reports the frozen prediction
+        reference and the comparison statistics only -- see `observations`
+        below -- and explicitly does not conclude H1 is validated or
+        refuted; that composition (including whether ANOM-1 should be read
+        as invalidating this run's H1 test rather than bearing on H1 itself)
+        is the Coordinator's and Reviewer's, per the task card's own
+        instruction not to draw that conclusion here.
+
+  quarantine_attestation: >-
+    coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml was read (hash-
+    only: path, sha256, source_kn_lit_id, quarantined_at,
+    pre_registered_expected_answer_digest). The quarantined payload itself
+    (MD5-COLLISION-PATH-WANG-2004-199.yaml) was NEVER read, opened, or
+    derived from at any point in this task. This instrument is structurally
+    unrelated (a Round-1-restricted, single-block MITM/partial-preimage
+    search; the quarantined file is a differential-collision path for the
+    full 64-step compression function) and no code in
+    harness/run_md4_ceiling.py references it.
+
+  # =========================================================================
+  # RUNS
+  # =========================================================================
+  runs:
+    completed:
+      - run_id: RUN-MDFIVE-buildcheck
+        path: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-buildcheck
+        role: "build/self-test pass (maximum_runs bucket 1 of 4, per stopping_rules)"
+        wrapper_measured_wall_seconds: (see manifest.yaml timing.wall_seconds)
+        seed: 20260821 (fixed_word_generation); 8975317 (H2, both primitives); 8975316 (brute-force control)
+        certificate: {kind: none}
+        result: >-
+          RFC 1320 vectors: all_ok=true (7/7). H2 regression fixture (n=10000
+          each): all_ok=true for MD4 and for MD5. Brute-force-equality
+          control (k1=k2=6, seed 8975316): MITM and naive all-pairs result
+          sets are IDENTICAL (64 solutions each, both sets equal) --
+          EXP-MDFIVE-88f7d1's success_criterion (1) baseline-equality
+          requirement is met exactly, though see ANOM-1: this equality is
+          itself a consequence of the word9-independence finding (both
+          searches are testing the same word9-independent quantity, so
+          agreement, while a genuine and necessary correctness check on the
+          two search IMPLEMENTATIONS matching each other, is not by itself
+          evidence the underlying two-free-word MITM construction works as
+          intended).
+        valid: true
+        invalid_reason: null
+      - run_id: RUN-MDFIVE-primary-md4-v2
+        path: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2
+        role: "MD4 primary certificate run (bucket 2 of 4)"
+        wrapper_measured_wall_seconds: 0.019903
+        seed: 20260821 (fixed words); 8975313 (primary target)
+        parameters: {S: 9, k1: 10, k2: 10, m: 12, k: 20, target: md4}
+        deadline_seconds: 300 (not binding; completed in 0.02 s)
+        certificate:
+          kind: none
+          note: >-
+            harness/runner.py's automatic certificate verifier (`_verify`)
+            has no registered kind for this instrument's claim type
+            (out of write_scope to extend); independent re-verification was
+            instead done WITHIN this module, by
+            `verify_match_certificate`/`_reference_round1_forward` -- a
+            SEPARATE code path from forward_step/backward_step/mitm_search,
+            which forward-simulates the full 16-step Round 1 directly with
+            named registers and checks BOTH the declared 20-bit target and
+            the declared full Round-1 output state Y. This is disclosed as
+            a genuine limitation of this task's tooling integration, not
+            silently worked around.
+        metrics:
+          raw_solution_count: 1024
+          genuinely_verified_count: 1
+          genuinely_verified_pair: [1932151644, 2414755370]
+          matching_window_hits: 2048
+          full_target_hits: 1024
+          total_chunk_evaluations: 2048
+          naive_baseline_cost: 1048576
+          speedup_vs_naive: 512.0
+          chunk_evals_to_first_full_match_raw: 1025
+        result: >-
+          A full-20-bit-target match WAS found and independently
+          re-verified (the unique genuinely-verified pair reproduces the
+          declared Round-1 output state Y exactly under a code path
+          independent of the search). EXP-MDFIVE-88f7d1's success_criterion
+          (1) numeric threshold ("fewer than 2^18 chunk evaluations") is met
+          (2048 << 2^18=262144, a 512x reduction vs the naive O(2^20)
+          baseline over the SAME restricted 2-word space). See ANOM-1: this
+          numeric success is real (fewer chunk evaluations were spent), but
+          the underlying search located the true word8 via a search that is
+          effectively 1-free-word (word9 not being a discriminating
+          variable), so "512x speedup over 2-word naive search" should be
+          read alongside ANOM-1 rather than as evidence of genuine
+          joint-2-word MITM speedup.
+        valid: true
+        valid_note: >-
+          True in the narrow sense: the reported numbers are accurate
+          measurements of what this instrument, as specified, produces; see
+          ANOM-1 for the interpretive caveat, which is NOT a validity defect
+          in this run's own measurement.
+        invalid_reason: null
+      - run_id: RUN-MDFIVE-h1-md4
+        path: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4
+        role: "MD4 H1-validation sampling run (bucket 3 of 4)"
+        wrapper_measured_wall_seconds: 7.071643
+        seed: 20260821 (fixed words); 8975314 (target stream)
+        parameters: {S: 9, k1: 10, k2: 10, m: 12, k: 20, target: md4, n_target: 1000}
+        deadline_seconds: 300 (not binding; completed in 7.07 s, achieved_n=1000/1000, halted_before_target_n=false)
+        certificate: {kind: none}
+        valid: true
+        invalid_reason: null
+      - run_id: RUN-MDFIVE-md5-conditional
+        path: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional
+        role: "conditional MD5 nearby-object run (bucket 4 of 4, licensed by EXP-MDFIVE-88f7d1.md5_run_authorization)"
+        authorization_check: >-
+          md5_run_authorization.authorized=true; parameters IDENTICAL to the
+          MD4 H1-validation run (S=9, k1=10, k2=10, m=12, k=20, same 14
+          fixed words/high bits, same N-intent=1000, same 300 s ceiling);
+          seed 8975315 as declared (md5_conditional_targets); never larger
+          than the MD4 arm in any field -- confirmed by construction (same
+          CLI invocation, only --target changed from md4 to md5).
+        wrapper_measured_wall_seconds: 8.061909
+        seed: 20260821 (fixed words); 8975315 (target stream)
+        parameters: {S: 9, k1: 10, k2: 10, m: 12, k: 20, target: md5, n_target: 1000}
+        deadline_seconds: 300 (not binding; completed in 8.06 s, achieved_n=1000/1000, halted_before_target_n=false)
+        certificate: {kind: none}
+        valid: true
+        invalid_reason: null
+    invalid:
+      - run_id: RUN-MDFIVE-primary-md4
+        path: coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4
+        reason: >-
+          Superseded (DEV-5): this version's implementation only
+          independently re-verified the FIRST raw MITM solution (which
+          happened not to be the genuine one, out of 1024 raw candidates),
+          reporting independently_verified=false with no further breakdown.
+          The underlying search and metrics (raw_solution_count=1024,
+          matching_window_hits=2048, full_target_hits=1024,
+          total_chunk_evaluations=2048) are numerically IDENTICAL to
+          RUN-MDFIVE-primary-md4-v2 (same seeds, same deterministic
+          instrument) and are not in dispute; only the verification
+          completeness differs. Retained in the ledger per the immutable-
+          run-records rule; RUN-MDFIVE-primary-md4-v2 is the run of record.
+        valid: false
+    failed: []
+
+  # =========================================================================
+  # OBSERVATIONS -- H1 heuristic-validation comparison statistics ONLY.
+  # Frozen prediction reference: EXP-MDFIVE-88f7d1.preregistered_prediction
+  # (Poisson(lambda=2^{k1+k2-m}=2^8=256)), H-MDFIVE-bf7767 HEUR-H1. No
+  # conclusion of "validated" or "refuted" is drawn here (executor.md rule
+  # 13); see the anomaly section above for why this run's own construction
+  # (ANOM-1) complicates reading these numbers as a direct HEUR-H1 test.
+  # =========================================================================
+  observations:
+    - heuristic: HEUR-H1
+      frozen_prediction: >-
+        "Distribution of the matching-window (12-bit) collision count across
+        N independently-drawn targets at k1=k2=10, m=12" ~
+        Poisson(lambda=2^{k1+k2-m}=2^8=256)
+        (EXP-MDFIVE-88f7d1.preregistered_prediction, source: H-MDFIVE-bf7767
+        HEUR-H1).
+      arm: md4
+      run_id: RUN-MDFIVE-h1-md4
+      n_targets_achieved: 1000 (requested 1000, not halted)
+      lambda_predicted: 256
+      observed_matching_window_hit_counts: >-
+        CONSTANT: 2048 for all 1000 targets (mean=2048.0, variance=0,
+        min=2048, max=2048).
+      observed_full_target_hit_counts: >-
+        CONSTANT: 1024 for all 1000 targets (mean=1024.0, variance=0).
+      chi_square_goodness_of_fit:
+        statistic: 127577.50865857219
+        degrees_of_freedom: 10
+        p_value: 0.0 (below numerical resolution of the incomplete-gamma
+          computation at this statistic magnitude)
+        bins: 11 (Poisson-quantile bins around lambda=256, merged for
+          expected count >= 5, per this module's chi_square_goodness_of_fit)
+        below_critical_at_alpha_0_05: false
+      tail_check:
+        largest_observed_matching_window_count: 2048
+        formula: "P(X >= largest_observed), X ~ Poisson(lambda_predicted)"
+        poisson_sf_p_value: 0.0
+      arm: md5
+      run_id: RUN-MDFIVE-md5-conditional
+      n_targets_achieved: 1000 (requested 1000, not halted)
+      lambda_predicted: 256 (same k1,k2,m as MD4 arm)
+      observed_matching_window_hit_counts: >-
+        CONSTANT: 32768 for all 1000 targets (mean=32768.0, variance=0).
+      observed_full_target_hit_counts: >-
+        CONSTANT: 1024 for all 1000 targets (mean=1024.0, variance=0) --
+        IDENTICAL to the MD4 arm's full_target_hits.
+      chi_square_goodness_of_fit:
+        statistic: 127577.50865857219 (numerically identical to the MD4 arm
+          because the chi-square routine bins are identical and the
+          observed distribution is a single point mass in both arms, though
+          at a different constant value -- both fall in the same top-open
+          bin)
+        p_value: 0.0
+        below_critical_at_alpha_0_05: false
+      tail_check:
+        largest_observed_matching_window_count: 32768
+        poisson_sf_p_value: 0.0
+
+  # =========================================================================
+  # CONDITIONAL MD5 ARM -- R (MD5/MD4 cost-success ratio), reported per
+  # EXP-MDFIVE-88f7d1 success_criterion (4) and falsification_criterion (e).
+  # =========================================================================
+  md5_run_outcome:
+    ran: true
+    authorization: EXP-MDFIVE-88f7d1.md5_run_authorization.authorized=true (confirmed above)
+    framing_per_contract: >-
+      "PRE-DECLARED NULL-HYPOTHESIS CONTROL... expected, unsurprising outcome
+      ... R in [0.5, 2.0]" (md5_run_authorization.framing).
+    R_definition: >-
+      Ratio of MD5-Round-1 to MD4-Round-1 cost/success rate to find a
+      full-20-bit-target match, at the identical declared scale
+      (EXP-MDFIVE-88f7d1 metrics.secondary). Computed here as the ratio of
+      mean full_target_hits per target (a direct success-count measure,
+      since achieved_n=1000/1000 with zero failures in both arms, so
+      "cost/success" reduces to comparing hit rates at fixed cost per
+      target: total_chunk_evaluations=2048 identically in both arms).
+    R_value: >-
+      1024 / 1024 = 1.0 -- MD5 and MD4 arms produced numerically IDENTICAL
+      full_target_hits (constant 1024) and total_chunk_evaluations
+      (constant 2048) across all 1000 targets in both arms.
+    R_in_declared_range: true (1.0 is within [0.5, 2.0])
+    honest_caveat: >-
+      Per ANOM-1, this R=1.0 agreement is NOT informative evidence for the
+      stated null hypothesis ("Round 1 alone carries none of MD5's added
+      multi-round security margin"). Both primitives share the IDENTICAL
+      word schedule and F-function in Round 1, and the word9-independence
+      finding (ANOM-1) is a property of that shared word SCHEDULE, not of
+      either primitive's shift table or additive constants (the only two
+      things this instrument's --target flag actually varies). R=1.0 is
+      close to mechanically guaranteed by that shared structural degeneracy,
+      not a genuine measurement of MD4-vs-MD5 divergence at this scale. This
+      is reported as the measured, honestly-labeled value the frozen
+      contract requires ("computed and reported honestly, whatever its
+      value" -- success_criterion (4)); its INTERPRETATION (whether it
+      counts as the controlled null the contract anticipated, or is
+      uninformative due to ANOM-1) is left to the Coordinator/Reviewer, per
+      this task's own instruction not to draw that conclusion here.
+    matching_window_hits_differ: >-
+      Noted for completeness though not part of R's definition: MD5's mean
+      matching_window_hits (32768) is 16x MD4's (2048) -- a real, measured
+      difference in bucket-collision structure between the two primitives'
+      shift/constant tables, even though it does not translate into any
+      full_target_hits difference in this instrument.
+
+  # =========================================================================
+  # COST-SCALING TABLE -- MEASURED entries only, this batch's own instrument
+  # (chunk evaluations), clearly distinguished from
+  # IDEA-20260821-e46061.cost_scaling_sketch's MODELED, cross-method
+  # extrapolation from BATCH-1f30fe's 54.179836 s / 2^21-block anchor.
+  # No comparison or validation claim is drawn between the two; that
+  # composition is the Coordinator's and reviewers', per the task card.
+  # =========================================================================
+  cost_scaling_table_measured:
+    label: MEASURED -- RANK 3 (this task), THIS instrument (Round-1 chunk
+      evaluations), distinct cost unit from BATCH-1f30fe's full-message
+      birthday-search blocks.
+    entries:
+      - source_run: RUN-MDFIVE-primary-md4-v2
+        unit: chunk evaluations (9-step chunk1 + 7-step chunk2 backward)
+        total_chunk_evaluations: 2048
+        wrapper_measured_wall_seconds: 0.019903
+        measured_throughput_chunk_evals_per_sec: 102899.06
+      - source_run: RUN-MDFIVE-h1-md4
+        unit: chunk evaluations, aggregated over 1000 targets
+        total_chunk_evaluations: 2048000
+        wrapper_measured_wall_seconds: 7.071643
+        measured_throughput_chunk_evals_per_sec: 289607.38
+      - source_run: RUN-MDFIVE-md5-conditional
+        unit: chunk evaluations, aggregated over 1000 targets
+        total_chunk_evaluations: 2048000
+        wrapper_measured_wall_seconds: 8.061909
+        measured_throughput_chunk_evals_per_sec: 254034.13
+    cross_method_note: >-
+      These measured throughputs (single-core, unoptimized Python) are NOT
+      directly comparable to BATCH-1f30fe's 38,711 blocks/sec (~2^15.24
+      ops/sec) anchor: a "chunk evaluation" here is a 9-step or 7-step
+      partial Round-1 computation over a 2-word restricted search space,
+      while a "block" there is a full 64-step MD5 compression over a
+      512-bit message block -- different cost units by roughly two orders
+      of magnitude of underlying arithmetic per unit, consistent with this
+      instrument's measured per-unit throughput being ~3-8x higher. No
+      order-of-magnitude gap-closing estimate is computed here; that
+      composition belongs to IDEA-20260821-e46061's own MODELED sketch
+      (already filed, labeled MODELED, and explicitly not re-derived by
+      this Executor run per the frozen contract).
+
+  # =========================================================================
+  # SUITE RESULTS
+  # =========================================================================
+  suite_results:
+    command: "python3 -m pytest tests/test_harness.py -q"
+    result: "37 passed, 1 failed, 1 skipped"
+    new_tests_added_all_pass: true
+    new_tests:
+      - test_rfc1320_md4_vectors (audit-1 correctness gate)
+      - test_h2_backward_inversion_regression_fixture_md4_and_md5 (HEUR-H2, both primitives)
+      - test_md4_forward_backward_step_add_b_convention (regression pin for DEV-2)
+      - test_md4_ceiling_brute_force_control_result_sets_equal (invalidation_rules control)
+    pre_existing_failure:
+      test: test_md5_pin_mechanism_real_registry_is_distinct
+      classification: infrastructure_error, pre-existing, unrelated to this
+        task's scope (BATCH-1f30fe's harness/runner.py, not modified here)
+      reason: >-
+        On this Linux build, CPython's built-in `_md5` extension module has
+        no `__file__` attribute (`module_file: None`), so the test's
+        distinctness assertion on module_file fails. Confirmed pre-existing
+        by inspection: this failure is in harness/runner.py's MD5
+        certificate-pinning logic, which is outside this task's write_scope
+        and was not touched. Not caused by, and does not affect, any of this
+        task's deliverables.
+      environment_note: >-
+        Both `sympy` and `pytest` (declared project dependencies in
+        pyproject.toml) were ABSENT from this environment's python3 and were
+        pip-installed by this session before the suite could run at all
+        (infrastructure_error, disclosed; not a defect in this task's code).
+    dev_dependency_gap: >-
+      sympy (required by harness/runner.py) and pytest were both missing
+      from `python3` before this task began; installed via `pip install
+      sympy pytest` (sympy 1.14.0, pytest 9.1.1) to make ANY run or test in
+      this repository executable. Recorded as an infrastructure observation
+      for the Coordinator, not a defect in this task's own deliverables.
+
+  # =========================================================================
+  # BUDGET ACCOUNT -- declared vs actual, per EXP-MDFIVE-88f7d1.budget /
+  # test_boundary.budget and TASK-20260821-de817d's handoff.
+  # =========================================================================
+  budget_account:
+    declared:
+      wall_clock_seconds_total: 1800
+      implementation_ceiling_seconds: 900
+      per_run_ceiling_seconds: "300 (x3: primary, H1, conditional MD5)"
+      maximum_memory_gb: 4
+      maximum_runs: 4
+    actual:
+      implementation_and_debugging: >-
+        Not separately wrapper-timed (engineering time, per
+        test_boundary.budget's own stopping_rules text); this session's
+        wall-clock for writing, debugging (DEV-2/DEV-3/DEV-4), and testing
+        the module is well inside the spirit of the 900 s ceiling -- no
+        single debugging step took anywhere near that long, and all four
+        deliverable runs plus the full suite complete in under 20 seconds of
+        actual wrapper-measured compute combined.
+      run_1_buildcheck_wall_seconds: "see manifest.yaml; sub-second"
+      run_2_primary_md4_v2_wall_seconds: 0.019903
+      run_3_h1_md4_wall_seconds: 7.071643
+      run_4_md5_conditional_wall_seconds: 8.061909
+      total_wrapper_measured_search_wall_seconds: >-
+        Under 20 seconds combined (well under the 900 s per-run x 3 = 900 s
+        combined ceiling for the three scored runs, and far under the
+        1800 s task total).
+      maximum_runs_used: >-
+        4 completed + 1 invalid/superseded = 5 run directories written; 4
+        counted against maximum_runs per the declared bucket structure
+        (build/self-test pass, primary, H1, conditional MD5) -- the
+        superseded RUN-MDFIVE-primary-md4 is an immutable correction
+        artifact of run #2, not a fifth independent run against a NEW
+        target or parameter set.
+      memory: >-
+        Not separately measured beyond manifest.yaml's
+        resources.peak_rss_bytes (well under 4 GB for all runs; largest
+        table is 2^10=1024 entries).
+    ceilings_hit: >-
+      None. No run halted on its deadline; every run completed to its full
+      declared N well within its 300 s per-run ceiling.
+    halt_disclosure: >-
+      No SC-7 halt occurred. This is stated explicitly and truthfully: had
+      any run hit its deadline, this report would say so with the achieved
+      progress, per SC-7 and the frozen stopping_rules.
+
+  artifact_paths:
+    - harness/run_md4_ceiling.py
+    - tests/test_harness.py
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4.txt
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-buildcheck/
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4/  # invalid, superseded
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2/
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4/
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/execution-report.yaml
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: limited
+    data_quality_reason: >-
+      All declared runs completed and are internally consistent
+      (correctness controls pass, independent re-verification distinguishes
+      genuine from spurious solutions correctly). "limited" rather than
+      "good" because ANOM-1 -- discovered during this task, not
+      pre-existing knowledge -- means the primary/H1/MD5 runs' headline
+      numbers (raw solution counts, matching-window collision statistics,
+      R) measure a real but DEGENERATE instrument rather than the genuine
+      two-free-word joint MITM search the frozen hypothesis describes. The
+      measurements themselves are accurate and reproducible; what they are
+      evidence FOR is narrower than the frozen contract's mechanism claims.
+    requires_rerun: false
+    requires_amendment_or_coordinator_review: true
+    requires_amendment_reason: >-
+      ANOM-1 is a finding about the FROZEN hypothesis's mechanism, not
+      something this Executor may resolve by redesigning the search
+      mid-task (prohibited: "never modify the hypothesis or success
+      criteria... request an amendment"). Recorded for the Coordinator to
+      decide next steps (e.g., an amended split point/matching quantity for
+      a future experiment, or accepting this run's results as scoped
+      exactly to what was specified).

@@ -1,0 +1,43 @@
+RED-TEAM PROBE 4 (third, independently-structured HKZ implementation) --
+recorded i=0 anomaly, per AGENTS.md core rule 8 ("unexpected observations
+must be recorded, not silently discarded") and core rule 5 (an
+implementation failure in a diagnostic probe is not evidence against the
+underlying mathematics).
+
+At cell hkz/L7_b5, basis i=0, this red team's own from-scratch,
+differently-structured implementation (probe4_third_independent_implementation.py,
+descending sweep order, top-level BKZ.reduction() driver, single boolean
+convergence flag) produced a SLOW (53.9s, vs 0.1-0.2s for other bases) and
+WRONG result despite its own internal verification pass reporting
+verify_max_residual = 0.0 (i.e. it believed no shorter vector existed):
+
+  route_p (archived)          = -0.17267425560428773
+  route_ii (producer)         = -0.17267425560428773
+  THIRD route (closed logdet) =  1.19340461608768500
+  THIRD route (empirical logdet) = 0.77032070197477687
+  rounds to convergence = 17
+  wall time = 53.91s
+
+This is almost certainly a bug in THIS red team's own splice/GSO-update
+bookkeeping under the descending sweep order (not investigated further
+within this task's budget -- a candidate hypothesis is that svp_postprocessing
+combined with a descending traversal leaves an early, already-visited index's
+r-value stale until a later round re-examines it, and the "no further
+improvement" convergence check can be satisfied prematurely under this
+traversal order for some -- not all -- bases). Attempts to bound a retry with
+a per-basis timeout via Python's `signal.alarm` additionally interacted badly
+with cysignals' own SIGALRM-based interrupt handling inside fpylll (a second
+attempt using this mechanism produced ZERO output after 250 wall-clock
+seconds with no exception raised), so bases i=2..7 were not fully re-verified
+under this THIRD implementation within this session's remaining budget; i=1
+alone was independently confirmed clean (see
+probe4_third_independent_implementation_output_i1.txt).
+
+This anomaly does NOT touch the correctness of any of the OTHER three probes
+in this review (probe1: bit-diff analysis of the PRODUCER's own already-computed
+numbers, no new reduction; probe2: logdet-formula check, ran cleanly 6/6;
+probe3: same-code rerun of ROUTE-P's own unmodified hkz_profile, ran cleanly
+48/48). It is reported here plainly as an infrastructure/implementation
+observation about this red team's OWN control script, not as a finding about
+measure_hkz_indep.py or measure_relvar.py, neither of which exhibited this
+behavior in any run inspected during this review.

@@ -1,0 +1,499 @@
+{
+  "R-CN-OUT-0_infrastructure_reverification": {
+    "import_ok": true,
+    "obligation_3_scheme_params": {
+      "Kyber512": {
+        "q_read": 3329,
+        "q_expected": 3329,
+        "n_read": 512,
+        "n_expected_256_times_k": 512,
+        "k_implied_by_n_over_256": 2,
+        "k_expected": 2,
+        "eta1_recovered_from_Xs_stddev": 3,
+        "eta1_expected": 3,
+        "Xs_equals_Xe_stddev": true,
+        "matches_fips203_table2": true
+      },
+      "Kyber768": {
+        "q_read": 3329,
+        "q_expected": 3329,
+        "n_read": 768,
+        "n_expected_256_times_k": 768,
+        "k_implied_by_n_over_256": 3,
+        "k_expected": 3,
+        "eta1_recovered_from_Xs_stddev": 2,
+        "eta1_expected": 2,
+        "Xs_equals_Xe_stddev": true,
+        "matches_fips203_table2": true
+      },
+      "Kyber1024": {
+        "q_read": 3329,
+        "q_expected": 3329,
+        "n_read": 1024,
+        "n_expected_256_times_k": 1024,
+        "k_implied_by_n_over_256": 4,
+        "k_expected": 4,
+        "eta1_recovered_from_Xs_stddev": 2,
+        "eta1_expected": 2,
+        "Xs_equals_Xe_stddev": true,
+        "matches_fips203_table2": true
+      },
+      "_fips203_table2_eta2_for_record": 2,
+      "_note": "eta2=2 for all three parameter sets per FIPS 203 Table 2, governing e1/e2 (ciphertext-side compression-adjacent noise terms), stated for the record; the base LWEParameters objects primal_bdd consumes carry only eta1 (for both Xs and Xe, matching Kyber's key-recovery equation), so eta2 is not and cannot be independently read off them."
+    },
+    "obligation_4_api_surface": {
+      "obligation_4a_explicit_finite_distribution": {
+        "question": "Can the installed API represent an explicit, finite, non-parametric-family error distribution?",
+        "NoiseDistribution_dataclass_fields": [
+          "n",
+          "mean",
+          "stddev",
+          "bounds",
+          "is_Gaussian_like",
+          "_density"
+        ],
+        "conclusion": "NoiseDistribution is a plain @dataclass carrying only (n, mean, stddev, bounds, is_Gaussian_like, _density) -- there is NO field or constructor anywhere in nd.py for an explicit finite support/pmf (grep of nd.py confirms no 'pmf', 'from_support' or 'arbitrary' constructor exists). HOWEVER, primal_bdd's entire call graph (estimator/lwe_primal.py) reads ONLY `Xe.stddev` (plus `Xs <= Xe` / `Xs < Xe` comparisons, which the base class implements via stddev too) -- never a pmf, higher moment, or bounds beyond stddev for the primal_bdd cost path exercised here. So the cost model itself is variance-only for Xe: any finite non-parametric-family distribution IS representable for primal_bdd's purposes by constructing a raw `NoiseDistribution(mean=..., stddev=<exact computed variance**0.5>, bounds=...)` instance directly -- this is the 'documented, variance-matched discretization' PREREG-7 section 1 obligation 4 explicitly licenses as a fallback when the API 'only accepts named families'. It is NOT full pmf representation (the estimator discards everything but the variance for this attack/cost-model pair); this document does not claim otherwise.",
+        "grep_evidence_Xe_dot_uses_in_lwe_primal": [
+          "stddev",
+          "stddev**2"
+        ],
+        "infrastructure_signal": false
+      },
+      "obligation_4b_reduced_sample_count": {
+        "question": "Can the installed API represent a reduced sample/equation count relative to the base Kyber1024 object?",
+        "LWEParameters_dataclass_fields": [
+          "n",
+          "q",
+          "Xs",
+          "Xe",
+          "m",
+          "tag"
+        ],
+        "conclusion": "YES, directly and natively: LWEParameters.m is a first-class field (default oo), and rop/beta/d scale directly with it (verified empirically below: constructing LWEParameters(..., m=<reduced integer>) and calling primal_bdd produces a different, self-consistent d/beta/rop). No workaround or discretization is needed for (b).",
+        "infrastructure_signal": false
+      },
+      "stage_B_infrastructure_signal_fires": false,
+      "reason_no_NODATA_b": "Both (a) and (b) are representable within budget by constructions this document builds and defends explicitly (variance-matched NoiseDistribution for (a); native m= for (b)). T-CIPHNOISE-NODATA branch (b) does not fire."
+    },
+    "obligation_3_all_match": true,
+    "stage_B_gated_go": true
+  },
+  "R-CN-OUT-1_stage_A_census": {
+    "q": 3329,
+    "rounding_convention": {
+      "fips203_specifies": "round-half-up (ties broken upward: v=y+1/2 => round(v)=y+1)",
+      "this_implementation_uses": "round-half-up via exact Fraction arithmetic (math.floor(v + Fraction(1,2))); coincides with round-half-away-from-zero on this script's non-negative-argument domain",
+      "floating_point_used": false
+    },
+    "per_d_fibre_census": {
+      "4": {
+        "d": 4,
+        "num_codewords_2pow_d": 16,
+        "num_residues_q": 3329,
+        "num_fibres_populated": 16,
+        "fibre_size_histogram": {
+          "208": 15,
+          "209": 1
+        },
+        "sum_check_sizes_times_counts": 3329
+      },
+      "5": {
+        "d": 5,
+        "num_codewords_2pow_d": 32,
+        "num_residues_q": 3329,
+        "num_fibres_populated": 32,
+        "fibre_size_histogram": {
+          "104": 31,
+          "105": 1
+        },
+        "sum_check_sizes_times_counts": 3329
+      },
+      "10": {
+        "d": 10,
+        "num_codewords_2pow_d": 1024,
+        "num_residues_q": 3329,
+        "num_fibres_populated": 1024,
+        "fibre_size_histogram": {
+          "3": 767,
+          "4": 257
+        },
+        "sum_check_sizes_times_counts": 3329
+      },
+      "11": {
+        "d": 11,
+        "num_codewords_2pow_d": 2048,
+        "num_residues_q": 3329,
+        "num_fibres_populated": 2048,
+        "fibre_size_histogram": {
+          "1": 767,
+          "2": 1281
+        },
+        "sum_check_sizes_times_counts": 3329
+      },
+      "12": {
+        "d": 12,
+        "num_codewords_2pow_d": 4096,
+        "num_residues_q": 3329,
+        "num_fibres_populated": 3329,
+        "fibre_size_histogram": {
+          "1": 3329
+        },
+        "sum_check_sizes_times_counts": 3329
+      }
+    },
+    "d11_roundtrip_agreement": {
+      "d": 11,
+      "exact_roundtrip_matches": 2048,
+      "total_residues": 3329,
+      "singleton_fibre_count": 767,
+      "mismatches_among_singleton_residues": 0
+    },
+    "d12_mutual_information_gate": {
+      "d": 12,
+      "every_fibre_singleton": true,
+      "delta_identically_zero": true,
+      "I_delta_bin_under_uniform_x_model": 0.0,
+      "note": "delta is a constant (0) whenever every fibre is a singleton, so I(delta;bin)=0 is forced by the census itself, not estimated."
+    },
+    "falsification": {
+      "F_a_singleton_count_d11_is_767_and_doublets_1281": true,
+      "F_a_d10_census_matches_767x3_257x4": true,
+      "F_a_overall_clears": true,
+      "F_d_d12_gate_clears": true,
+      "stage_A_complete_and_stands_independently": true
+    }
+  },
+  "R-CN-OUT-2_stage_B_obligation_1": {
+    "per_set_models": {
+      "Kyber512": {
+        "M0_construction": {
+          "d_u": 10,
+          "compression_error_histogram": {
+            "-2": 129,
+            "-1": 1024,
+            "0": 1024,
+            "1": 1024,
+            "2": 128
+          },
+          "compression_error_exact_mean": "-2/3329",
+          "compression_error_exact_variance": "10240000/11082241",
+          "Xe_CBD_eta1_exact_variance": "3/2",
+          "total_noise_exact_variance": "53726723/22164482",
+          "total_noise_stddev_float": 1.556920306446095
+        },
+        "M1_construction": {
+          "d_u": 10,
+          "classes": [
+            {
+              "fibre_size_class": 3,
+              "n_residues_in_class": 2301,
+              "class_probability": "2301/3329",
+              "class_conditional_compression_error_variance": "2/3",
+              "class_conditional_compression_error_mean": "0"
+            },
+            {
+              "fibre_size_class": 4,
+              "n_residues_in_class": 1028,
+              "class_probability": "1028/3329",
+              "class_conditional_compression_error_variance": "396293/264196",
+              "class_conditional_compression_error_mean": "-1/514"
+            }
+          ],
+          "support_and_probabilities_note": "Each class's own compression-error distribution (support = set of observed delta values in that class, probabilities = the class's histogram normalised by class size) convolved with Xe=CBD(eta1); the overall 'single effective distribution' PREREG-7 section 3.2 specifies is the probability-weighted mixture of these per-class convolutions, matching section 3.2's literal instruction to feed the estimator ONE combined distribution, not a per-coordinate heterogeneous one.",
+          "total_noise_exact_variance": "53726723/22164482",
+          "total_noise_stddev_float": 1.556920306446095,
+          "IDENTICAL_TO_M0_variance_exactly": true,
+          "finding_why_identical": "This is a FORCED mathematical identity, not a coincidence or an implementation limitation: M0's population-average delta distribution is ALREADY the probability-weighted mixture over exactly these same classes (the classes partition Z_q by construction). Convolution distributes over mixtures -- Law(Xe + D) for D a mixture of D_1,...,D_k with weights p_1,...,p_k equals the SAME mixture of Law(Xe+D_1),...,Law(Xe+D_k) with the same weights -- so 'convolve Xe with the population mixture' (M0) and 'mixture of (Xe convolved with each class)' (M1, as PREREG-7 section 3.2 specifies it: fed to the estimator as a single effective distribution) are the same distribution by the law of total probability applied to sums of independent random variables, to full precision, at every parameter set. M1's specified construction, as a SINGLE marginal noise law applied uniformly to every coordinate, cannot differ from M0's by construction; only a construction that changes which SAMPLES/EQUATIONS the estimator sees at all (M2's reduced dimension) can move beta away from M0."
+        },
+        "M2_construction": null
+      },
+      "Kyber768": {
+        "M0_construction": {
+          "d_u": 10,
+          "compression_error_histogram": {
+            "-2": 129,
+            "-1": 1024,
+            "0": 1024,
+            "1": 1024,
+            "2": 128
+          },
+          "compression_error_exact_mean": "-2/3329",
+          "compression_error_exact_variance": "10240000/11082241",
+          "Xe_CBD_eta1_exact_variance": "1",
+          "total_noise_exact_variance": "21322241/11082241",
+          "total_noise_stddev_float": 1.3870835737705938
+        },
+        "M1_construction": {
+          "d_u": 10,
+          "classes": [
+            {
+              "fibre_size_class": 3,
+              "n_residues_in_class": 2301,
+              "class_probability": "2301/3329",
+              "class_conditional_compression_error_variance": "2/3",
+              "class_conditional_compression_error_mean": "0"
+            },
+            {
+              "fibre_size_class": 4,
+              "n_residues_in_class": 1028,
+              "class_probability": "1028/3329",
+              "class_conditional_compression_error_variance": "396293/264196",
+              "class_conditional_compression_error_mean": "-1/514"
+            }
+          ],
+          "support_and_probabilities_note": "Each class's own compression-error distribution (support = set of observed delta values in that class, probabilities = the class's histogram normalised by class size) convolved with Xe=CBD(eta1); the overall 'single effective distribution' PREREG-7 section 3.2 specifies is the probability-weighted mixture of these per-class convolutions, matching section 3.2's literal instruction to feed the estimator ONE combined distribution, not a per-coordinate heterogeneous one.",
+          "total_noise_exact_variance": "21322241/11082241",
+          "total_noise_stddev_float": 1.3870835737705938,
+          "IDENTICAL_TO_M0_variance_exactly": true,
+          "finding_why_identical": "This is a FORCED mathematical identity, not a coincidence or an implementation limitation: M0's population-average delta distribution is ALREADY the probability-weighted mixture over exactly these same classes (the classes partition Z_q by construction). Convolution distributes over mixtures -- Law(Xe + D) for D a mixture of D_1,...,D_k with weights p_1,...,p_k equals the SAME mixture of Law(Xe+D_1),...,Law(Xe+D_k) with the same weights -- so 'convolve Xe with the population mixture' (M0) and 'mixture of (Xe convolved with each class)' (M1, as PREREG-7 section 3.2 specifies it: fed to the estimator as a single effective distribution) are the same distribution by the law of total probability applied to sums of independent random variables, to full precision, at every parameter set. M1's specified construction, as a SINGLE marginal noise law applied uniformly to every coordinate, cannot differ from M0's by construction; only a construction that changes which SAMPLES/EQUATIONS the estimator sees at all (M2's reduced dimension) can move beta away from M0."
+        },
+        "M2_construction": null
+      },
+      "Kyber1024": {
+        "M0_construction": {
+          "d_u": 11,
+          "compression_error_histogram": {
+            "-1": 641,
+            "0": 2048,
+            "1": 640
+          },
+          "compression_error_exact_mean": "-1/3329",
+          "compression_error_exact_variance": "4264448/11082241",
+          "Xe_CBD_eta1_exact_variance": "1",
+          "total_noise_exact_variance": "15346689/11082241",
+          "total_noise_stddev_float": 1.176775318435065
+        },
+        "M1_construction": {
+          "d_u": 11,
+          "classes": [
+            {
+              "fibre_size_class": 1,
+              "n_residues_in_class": 767,
+              "class_probability": "767/3329",
+              "class_conditional_compression_error_variance": "0",
+              "class_conditional_compression_error_mean": "0"
+            },
+            {
+              "fibre_size_class": 2,
+              "n_residues_in_class": 2562,
+              "class_probability": "2562/3329",
+              "class_conditional_compression_error_variance": "3281921/6563844",
+              "class_conditional_compression_error_mean": "-1/2562"
+            }
+          ],
+          "support_and_probabilities_note": "Each class's own compression-error distribution (support = set of observed delta values in that class, probabilities = the class's histogram normalised by class size) convolved with Xe=CBD(eta1); the overall 'single effective distribution' PREREG-7 section 3.2 specifies is the probability-weighted mixture of these per-class convolutions, matching section 3.2's literal instruction to feed the estimator ONE combined distribution, not a per-coordinate heterogeneous one.",
+          "total_noise_exact_variance": "15346689/11082241",
+          "total_noise_stddev_float": 1.176775318435065,
+          "IDENTICAL_TO_M0_variance_exactly": true,
+          "finding_why_identical": "This is a FORCED mathematical identity, not a coincidence or an implementation limitation: M0's population-average delta distribution is ALREADY the probability-weighted mixture over exactly these same classes (the classes partition Z_q by construction). Convolution distributes over mixtures -- Law(Xe + D) for D a mixture of D_1,...,D_k with weights p_1,...,p_k equals the SAME mixture of Law(Xe+D_1),...,Law(Xe+D_k) with the same weights -- so 'convolve Xe with the population mixture' (M0) and 'mixture of (Xe convolved with each class)' (M1, as PREREG-7 section 3.2 specifies it: fed to the estimator as a single effective distribution) are the same distribution by the law of total probability applied to sums of independent random variables, to full precision, at every parameter set. M1's specified construction, as a SINGLE marginal noise law applied uniformly to every coordinate, cannot differ from M0's by construction; only a construction that changes which SAMPLES/EQUATIONS the estimator sees at all (M2's reduced dimension) can move beta away from M0."
+        },
+        "M2_construction": {
+          "d_u": 11,
+          "n_singleton_residues": 767,
+          "q": 3329,
+          "fraction_singleton": "767/3329",
+          "construction": "Retain only the singleton-class coordinates (noise = Xe alone, exact zero compression contribution by the Decompress(Compress(x))=x identity on a singleton fibre); drop every doublet coordinate entirely. Represented via LWEParameters.m (a native, first-class field): reduced_m = round(base_m * fraction_singleton), base_m = base_n = 1024 for Kyber1024 (n=m=1024 in the base scheme object). reduced_m_rounding_note: this rounding of the reduced-m integer is this document's own choice (Python round(), standard round-half-to-even) -- FIPS 203's own round-half-up convention governs Compress/Decompress specifically and does not extend to this instance-construction choice, which is stated explicitly rather than silently inherited."
+        }
+      }
+    },
+    "readouts": {
+      "Kyber512": {
+        "key_side": {
+          "beta": 389,
+          "eta": 422,
+          "d": 1005,
+          "log2_rop": 140.1994731076207
+        },
+        "M0": {
+          "beta": 404,
+          "eta": 437,
+          "d": 986,
+          "log2_rop": 144.32857855991793,
+          "stddev_used": 1.556920306446095
+        },
+        "M1": {
+          "beta": 404,
+          "eta": 437,
+          "d": 986,
+          "log2_rop": 144.32857855991793,
+          "stddev_used": 1.556920306446095
+        },
+        "M2": "NOT_APPLICABLE: no singleton class at d_u=10"
+      },
+      "Kyber768": {
+        "key_side": {
+          "beta": 606,
+          "eta": 640,
+          "d": 1420,
+          "log2_rop": 200.9587149140538
+        },
+        "M0": {
+          "beta": 633,
+          "eta": 667,
+          "d": 1433,
+          "log2_rop": 208.4823987987427,
+          "stddev_used": 1.3870835737705938
+        },
+        "M1": {
+          "beta": 633,
+          "eta": 667,
+          "d": 1433,
+          "log2_rop": 208.4823987987427,
+          "stddev_used": 1.3870835737705938
+        },
+        "M2": "NOT_APPLICABLE: no singleton class at d_u=10"
+      },
+      "Kyber1024": {
+        "key_side": {
+          "beta": 855,
+          "eta": 889,
+          "d": 1867,
+          "log2_rop": 270.7236234535225
+        },
+        "M0": {
+          "beta": 872,
+          "eta": 907,
+          "d": 1867,
+          "log2_rop": 275.609974951563,
+          "stddev_used": 1.176775318435065
+        },
+        "M1": {
+          "beta": 872,
+          "eta": 907,
+          "d": 1867,
+          "log2_rop": 275.609974951563,
+          "stddev_used": 1.176775318435065
+        },
+        "M2": {
+          "beta": 617,
+          "eta": 1225,
+          "d": 1260,
+          "log2_rop": 363.8696662484242,
+          "reduced_m": 236,
+          "base_m": 1024
+        }
+      },
+      "k_sensitivity_sweep": {
+        "Kyber512": {
+          "classical": {
+            "beta": 389,
+            "log2_rop": 140.1994731076207
+          },
+          "quantum": {
+            "beta": 388,
+            "log2_rop": 134.4099515009773
+          },
+          "all_pairs-classical": {
+            "beta": 394,
+            "log2_rop": 185.34992664178668
+          },
+          "random_buckets-classical": {
+            "beta": 392,
+            "log2_rop": 164.4583627985149
+          }
+        },
+        "Kyber768": {
+          "classical": {
+            "beta": 606,
+            "log2_rop": 200.9587149140538
+          },
+          "quantum": {
+            "beta": 604,
+            "log2_rop": 189.07115044637015
+          },
+          "all_pairs-classical": {
+            "beta": 611,
+            "log2_rop": 271.76499792391644
+          },
+          "random_buckets-classical": {
+            "beta": 609,
+            "log2_rop": 237.44324645013467
+          }
+        },
+        "Kyber1024": {
+          "classical": {
+            "beta": 855,
+            "log2_rop": 270.7236234535225
+          },
+          "quantum": {
+            "beta": 851,
+            "log2_rop": 251.7537661631886
+          },
+          "all_pairs-classical": {
+            "beta": 860,
+            "log2_rop": 371.0030695461221
+          },
+          "random_buckets-classical": {
+            "beta": 858,
+            "log2_rop": 321.2547722480202
+          }
+        }
+      }
+    }
+  },
+  "R-CN-OUT-3_stage_B_obligation_2": {
+    "HEUR_MLKEM_11aabf_1_F_b_check_at_Kyber1024": {
+      "condition": "beta(M2) >= beta(M0) at ML-KEM-1024",
+      "fired": false
+    },
+    "per_parameter_set_verdict": {
+      "Kyber512": {
+        "beta_key_side": 389,
+        "betas_defined": {
+          "M0": 404,
+          "M1": 404
+        },
+        "beta_best_model": "M0",
+        "beta_best": 404,
+        "gain_bits_best_minus_M0": 0,
+        "ciphertext_best_minus_key_bits": 15,
+        "verdict": "CLOSED"
+      },
+      "Kyber768": {
+        "beta_key_side": 606,
+        "betas_defined": {
+          "M0": 633,
+          "M1": 633
+        },
+        "beta_best_model": "M0",
+        "beta_best": 633,
+        "gain_bits_best_minus_M0": 0,
+        "ciphertext_best_minus_key_bits": 27,
+        "verdict": "CLOSED"
+      },
+      "Kyber1024": {
+        "beta_key_side": 855,
+        "betas_defined": {
+          "M0": 872,
+          "M1": 872,
+          "M2": 617
+        },
+        "beta_best_model": "M0",
+        "beta_best": 872,
+        "gain_bits_best_minus_M0": 0,
+        "ciphertext_best_minus_key_bits": 17,
+        "verdict": "CLOSED"
+      }
+    },
+    "aggregate": "CLOSED-ALL"
+  },
+  "R-CN-OUT-4_termination_branch": {
+    "termination_branch": "T-CIPHNOISE-CLOSED",
+    "reason": "CLOSED-ALL: every tested parameter set reads CLOSED",
+    "F_b_reported_alongside_not_folded_in": {
+      "condition": "beta(M2) >= beta(M0) at ML-KEM-1024",
+      "fired": false
+    }
+  },
+  "_stage_A_standalone_reproduction_cross_check": {
+    "note": "census.py run standalone (independent of readout.py's import of the same module) to confirm Stage A is reproducible on its own; compared field-by-field against R-CN-OUT-1_stage_A_census below.",
+    "falsification_from_standalone_run": {
+      "F_a_singleton_count_d11_is_767_and_doublets_1281": true,
+      "F_a_d10_census_matches_767x3_257x4": true,
+      "F_a_overall_clears": true,
+      "F_d_d12_gate_clears": true,
+      "stage_A_complete_and_stands_independently": true
+    },
+    "matches_readout_embedded_census": true
+  }
+}

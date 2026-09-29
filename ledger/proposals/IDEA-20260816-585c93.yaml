@@ -1,0 +1,254 @@
+idea:
+  id: IDEA-20260816-585c93
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: Count MD5's remaining degrees of freedom and its unsatisfied sufficient conditions as two
+    separate running totals indexed by step, computed once under collision boundary conditions and
+    once under preimage boundary conditions, and locate the exact step index where the two accountings
+    first diverge.
+  class: measurement
+  claim: '(A) The collision-versus-preimage gap recorded in RQ-MDFIVE-6870c1 is currently held in
+    this program only as prose. This proposal replaces the prose with a step-indexed pair of integers.
+    For each step t = 0..63 of MD5, define F_t as the number of message bits not yet consumed by any
+    step at or before t, and C_t as the number of sufficient conditions a chosen path skeleton imposes
+    at or before t. The pair (F_t, C_t) is computed twice under two different boundary conditions:
+    the collision setting, where the input is two messages, the IV is fixed, and the terminal requirement
+    is a zero output difference; and the preimage setting, where the input is one message, the IV
+    is fixed, and the terminal requirement is a fixed 128-bit output value. (B) The claim under test
+    is that there exists a specific step index t* at which the two curves separate, that t* is computable
+    from MD5''s schedule and step structure alone, and that t* is not an artefact of the word-multiplicity
+    profile shared by any schedule of the same shape. (C) The claim further asserts that the separation
+    is driven by the direction in which the terminal requirement can be pushed backwards into the
+    message: a difference requirement is satisfiable by local modification of an unconsumed word,
+    a value requirement is not, and the accounting must show this as a divergence in C_t rather than
+    in F_t. (D) EXPLICITLY NOT CLAIMED: no preimage attack, no improvement on any quoted preimage
+    complexity, no assertion that MD5 is or is not preimage-resistant, and no assertion about what
+    the published literature contains. A divergence index is a description of an accounting, not a
+    cryptanalytic result, and a failure to find one is a measured property of this accounting rather
+    than evidence that no mechanism exists.'
+  mechanism: 'STAGE 1 fixes an RFC 1321 implementation and validates it against the published test
+    vectors, so that every downstream count refers to the real function. STAGE 2 encodes the message
+    schedule sigma: {0..63} -> {0..15} and the per-step rotation amounts as data, and derives F_t
+    directly: F_t = 512 minus 32 times the number of distinct words consumed at or before step t.
+    This half is exact and needs no path. STAGE 3 supplies C_t, which does need a path skeleton, and
+    the skeleton is generated rather than assumed: for the collision setting the skeleton is a state-difference
+    trajectory that must return to zero at step 63; for the preimage setting the skeleton is a chunk
+    assignment in which a forward segment and a backward segment each avoid a word the other uses.
+    STAGE 4 computes both curves and reports t*, defined as the smallest t where the two settings''
+    ratios C_t / F_t differ by more than the null band. STAGE 5 runs the identical pipeline on schedules
+    drawn from the null family. The refutation route is direct: if t* falls inside the null band,
+    the divergence belongs to the shape of any four-round schedule with four uses per word and not
+    to MD5, and the record says so.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril for md5, md4, merkle-damgard and merkle over ledger/proposals/, ledger/hypotheses/,
+      ledger/questions/ and knowledge/. Ran grep -rl MDFIVE over ledger/proposals/, ledger/hypotheses/
+      and experiments/. Ran grep -ril preimage and grep -ril 'biclique|meet-in-the-middle' over ledger/proposals/
+      and knowledge/techniques/. Read ledger/questions/RQ-MDFIVE-6870c1.yaml in full, ledger/goals/GOAL-MD5-001.yaml,
+      knowledge/techniques/KN-TECH-066.md, docs/inventor-protocol.md sections 1-5 and 8, and ledger/proposals/IDEA-20260808-95a21c.yaml.
+    results: 'grep -rl MDFIVE over ledger/proposals/, ledger/hypotheses/ and experiments/ returned
+      nothing: the bucket has zero proposal coverage. grep -ril for md5 or md4 over ledger/proposals/
+      also returned nothing. The only ledger proposal touching Merkle-Damgard structure is IDEA-20260808-95a21c,
+      which is a per-attempt cost-model audit of FAEST challenge derivation and concerns prefix amortisation,
+      not freedom accounting. knowledge/techniques/KN-TECH-066 already states that in the unkeyed
+      setting the resource spent is degrees of freedom and that the central question is how many remain
+      after path constraints; it states this as a general principle and gives no step-indexed count
+      for MD5 and no separate preimage-side accounting. KN-TECH-062, KN-TECH-063 and KN-TECH-064 are
+      the differential technique chain KN-TECH-066 builds on.'
+    verdict: 'UNVERIFIED. The freedom-versus-conditions frame is assembled from known parts and is
+      stated as an established principle in KN-TECH-066; the message schedule and rotation constants
+      are public data from RFC 1321. What is claimed new here is only the two-sided instantiation:
+      computing the same accounting twice under two different terminal boundary conditions on one
+      primitive and reporting a single divergence index with a null band around it. This program cannot
+      read external literature, so whether such a two-sided count has been published is not adjudicable
+      here in either direction, and nothing in this record asserts that it has not.'
+  object_first_candidate:
+    tracked_object: The running pair (F_t, C_t) of unspent message freedom and imposed sufficient
+      conditions, indexed by step t = 0..63, carried alongside the computation rather than inside
+      it.
+    lossiness: Genuinely lossy. The projection discards every state value, every message value, and
+      the identity of which particular bits are constrained, retaining only two integers per step
+      plus the free/consumed bitmask over the 16 words. Enormously many concrete (message, state)
+      pairs share one (F_t, C_t) trace. What survives propagates because the schedule fixes which
+      word each step consumes independently of any value, so the free/consumed mask evolves deterministically;
+      C_t does not evolve deterministically without a path skeleton, and that dependence is the honest
+      weak point of the object, recorded as such rather than hidden. The counts are upper bounds on
+      usable freedom whenever conditions are algebraically dependent, and the size of that gap is
+      itself one of the reported quantities.
+    propagation: One step of MD5 consumes exactly one message word under sigma. If that word is still
+      free, the step's conditions can be forced by choosing the word, so C_t rises while F_t falls
+      by up to 32 bits and the conditions are paid at amortised cost near 1. If the word was already
+      consumed at an earlier step, choosing it now would break the earlier forcing, so the step's
+      conditions are paid probabilistically instead and F_t does not fall. The pair therefore moves
+      along one of exactly two arcs per step, decided entirely by the schedule.
+    survival_score: The deterministic arc survives cleanly through steps 0..15, where MD5's round-1
+      schedule is the identity on the 16 words and every step meets a fresh one. It degrades through
+      steps 16..31, where each word is met a second time under a stride pattern and forcing decisions
+      interact. It dissolves once every word has been consumed at least once, which happens at step
+      15, so past step 31 the object carries only the probabilistic arc and the record will say the
+      structure has dissolved rather than extrapolate it.
+  null_object_control: The identical pipeline is run on 1000 random schedules drawn uniformly from
+    permutations of the 64-slot sequence preserving the multiplicity profile of four uses per word,
+    and additionally on a fresh-word idealisation where every step meets an independent 32-bit word.
+    The null must show a distribution of divergence indices whose central 90 percent band is reported
+    before MD5's own index is looked at. For the signal arm to mean anything MD5's t* must fall outside
+    that band; if it falls inside, the record states a controlled null, namely that the divergence
+    is a property of the multiplicity profile shared by all such schedules and not of MD5.
+  discriminated_from:
+  - 'KN-TECH-066 message modification and freedom-degree accounting: that note states the principle
+    that freedom is the spent resource in the unkeyed setting, for hash cryptanalysis generally. This
+    proposal is not that principle restated; it is a per-step numeric instantiation on one primitive
+    under two boundary conditions, whose deliverable is one integer plus a null band.'
+  - 'IDEA-20260808-95a21c, the FAEST Merkle-Damgard per-attempt cost audit: that record is about amortising
+    a hashed prefix when the varied field sits late, a mode-level unit-of-account question. It counts
+    hash calls; this record counts message bits and conditions inside one compression function.'
+  - 'KN-TECH-062, KN-TECH-063 and KN-TECH-064, the keyed differential technique chain: those concern
+    collected pairs and Markov-model probability accounting under a key. The unkeyed two-sided accounting
+    here has no data-collection axis at all.'
+  - 'The RQ-INSTR-f8faa0 cost-model and machine-variance audit family named on this session''s blacklist:
+    those audit this program''s own timing and cost model. Nothing here times anything; the deliverable
+    is a symbolic count derived from RFC 1321 constants.'
+  - 'Generic complexity statements of the form collisions cost 2^{n/2} and preimages cost 2^n: those
+    are mode-level generic bounds independent of MD5''s schedule. This object is schedule-specific
+    and would take different values for two hashes with identical output length.'
+  assumptions:
+  - MD5 as specified in RFC 1321, with its published schedule permutation and rotation constants,
+    is the object; the implementation used is validated against the published test vectors before
+    any count is produced.
+  - A sufficient-condition count relative to a fixed path skeleton is a meaningful proxy for attack
+    difficulty only up to algebraic dependence among conditions; the dependence residual is measured,
+    not assumed to be zero.
+  - The collision-side skeleton generator and the preimage-side chunk-assignment generator are of
+    comparable strength, so a divergence reflects the settings rather than one generator being better
+    tuned than the other.
+  - Free message bits are treated as fully usable when unconsumed, which overstates usable freedom
+    whenever padding or a target constrains a word; that overstatement is deliberately excluded here
+    and is the subject of a separate proposal in this set.
+  predictions:
+  - metric: divergence index t* between the collision-setting and preimage-setting C_t/F_t curves
+    direction: different
+    minimum_effect: t* is predicted to lie at or before step 16, i.e. within round 1, with the prediction
+      failing if t* exceeds 24 or does not exist
+  - metric: fraction of null schedules whose divergence index equals or precedes MD5's
+    direction: lower
+    minimum_effect: 0.1
+  - metric: algebraic dependence residual, measured as the ratio of exhaustively verified satisfiable
+      assignments to the count predicted by independent conditions, on the scaled-down analogue
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit: this program has no prior measurement of condition
+      dependence on any ARX primitive, so any number stated here would be invented rather than estimated;
+      the value is reported as an observed baseline'
+  minimal_test:
+    design: 'The cheapest discriminating measurement needs no hash evaluation at all for its first
+      half. Encode MD5''s schedule as a 64-entry table and compute F_t exactly; this is a few lines
+      and runs in milliseconds. The discriminating half is C_t, and the cheapest honest version restricts
+      the collision-side skeleton to a single-block, single-difference trajectory and the preimage-side
+      to a two-chunk split, and computes both by exhaustive search over the small space of splits
+      rather than by any solver. The whole computation is deterministic and repeats exactly. The null
+      arm is the same code over 1000 sampled schedules, which is the same cost multiplied by 1000
+      and still under a minute. Discrimination comes from where MD5 sits in the null distribution:
+      a divergence index inside the null band closes the schedule-specific reading of the mechanism,
+      an index outside it opens a measured quantity that every later proposal in this bucket can reuse.'
+    controls:
+    - Null schedules preserving the four-uses-per-word multiplicity profile, run through the identical
+      code path in the same invocation.
+    - A fresh-word idealisation in which no word is ever reused, giving the upper bound of the freedom
+      curve.
+    - The identical accounting applied to MD4's 48-step schedule, so the instrument is seen to produce
+      different numbers on a different primitive rather than a constant.
+    - A shuffled-rotation ablation in which the rotation constants are permuted but the schedule is
+      held fixed, separating schedule effects from rotation effects.
+    - A recomputation of F_t by two independent implementations written against the RFC text separately,
+      so a transcription error in the schedule table cannot pass as a result.
+    required_metrics:
+    - F_t for t = 0..63 in both settings
+    - C_t for t = 0..63 in both settings, relative to the declared skeleton
+    - divergence index t*
+    - null distribution of t* over 1000 sampled schedules, with its 5th and 95th percentiles
+    - count of distinct words consumed at or before each step
+    - algebraic dependence residual on the scaled-down analogue
+  falsification_conditions:
+  - No divergence index exists because the two C_t/F_t curves stay within the null band at every step.
+  - MD5's divergence index falls inside the central 90 percent of the null distribution, making the
+    effect a property of the multiplicity profile rather than of MD5.
+  - The divergence index moves by more than 8 steps when the collision-side skeleton generator is
+    replaced by an equally simple alternative, showing the number measures the generator and not the
+    primitive.
+  - The dependence residual is large enough that condition counts do not predict satisfiability on
+    the scaled-down analogue, invalidating C_t as a proxy.
+  - The same pipeline applied to MD4 produces a divergence index indistinguishable from MD5's, in
+    which case the quantity fails the paired-control filter.
+  confounders:
+  - 'Skeleton-generator strength: a better-tuned collision skeleton would lower C_t on the collision
+    side for reasons having nothing to do with the setting.'
+  - 'Condition dependence: counting dependent conditions as independent inflates C_t asymmetrically
+    if the two settings induce different dependence patterns.'
+  - Definitional freedom in what counts as a sufficient condition, which can be tuned after seeing
+    the answer unless it is fixed before the run.
+  - Multiplicity-profile effects that any four-round schedule shares, which the null arm exists to
+    absorb.
+  - 'Selection of the null family: sampling permutations that are too structured or too unstructured
+    moves the band and therefore the verdict.'
+  interpretation_limits:
+  - A divergence index is an accounting landmark, not a complexity; it converts to no attack cost
+    and must never be quoted as one.
+  - The result is scoped to single-block skeletons of the declared shape and says nothing about multi-block
+    strategies.
+  - Any statement about why the historical preimage frontier moved little is outside what this measurement
+    can support, because the measurement observes a specification and not a research community.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a step-indexed integer pair and
+      one divergence index.
+    memory_exponent: No attack memory exponent is claimed. The computation itself holds a 64-entry
+      table and a 1000-sample null distribution.
+    best_known: The incumbent is the prose account carried in RQ-MDFIVE-6870c1, which names the collision
+      and preimage frontiers as far apart but names no quantity separating them. The quantitative
+      incumbent is the UNVERIFIED figure of about 2^123.4 for a full-MD5 preimage quoted in that record's
+      provenance block, which this proposal neither reproduces nor improves.
+    hidden_overhead: 'The lower-order term here is entirely human. F_t is free, but C_t requires a
+      path skeleton, and writing two skeleton generators of genuinely comparable strength is a judgement
+      call that no amount of compute settles; a session that tunes the collision generator harder
+      than the preimage generator will produce a divergence index that measures its own effort. The
+      second hidden cost is definitional drift: sufficient condition admits several reasonable definitions
+      and each gives a different curve, so the record must carry its definition forever or its number
+      becomes unreusable. Third, the dependence residual is measured on a scaled-down analogue, and
+      the human cost of designing that analogue honestly exceeds the compute cost of running it by
+      a wide margin.'
+  dominated_by: 'n/a (no result claimed). Checked against every frontier row this program has on record
+    for MD5, which is exactly two: the UNVERIFIED 2^123.4 preimage figure and the seconds-on-a-laptop
+    collision figure, both in RQ-MDFIVE-6870c1. This proposal emits no time, memory or data figure
+    that could occupy either row, so there is no Pareto comparison to lose rather than a favourable
+    one to report.'
+  sota_delta: no attack; conceptual/measurement contribution only. Numerically the deliverable is
+    one integer in 0..63 with a null band; it stands in no ratio to 2^123.4 or to any collision cost.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Split by part. That the F_t curve is computable exactly and reproducibly:
+    about 0.97, since it is arithmetic over a published table. That a divergence index exists and
+    is stable under a change of skeleton generator: about 0.4, because C_t depends on a skeleton and
+    skeleton choice is the least constrained part of the design. That MD5''s divergence index falls
+    outside the null band, i.e. the effect is MD5-specific rather than profile-generic: about 0.25,
+    and this is the part most likely to close the idea. That the resulting number survives the MD4
+    paired-control filter in the correct direction: about 0.15, conditional on the previous two.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-066
+  - KN-TECH-062
+  - KN-TECH-056
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-1f842a

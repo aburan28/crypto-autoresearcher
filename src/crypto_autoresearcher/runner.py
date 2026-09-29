@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from orchestration.research_budget import enforce_research_budget
+
 from .records import (
     RecordValidationError,
     canonical_json_bytes,
@@ -66,6 +68,21 @@ POST_RUN_CHECK_KEYS = (
     "protocol_hashes_unchanged",
 )
 LOCKED_DESCENDANT_POLICY = "forbidden-via-rlimit-nproc-zero"
+
+# A locked run may fan out across cores, but only by declaring how far. The
+# declaration lives in budget.maximum_workers (absent == 1 == the run process
+# alone), is echoed into the approval lock's resource_policy, and is re-checked
+# against the runtime at launch. Slot 0 keeps the historical string byte for
+# byte, so every approval lock written before this field existed still matches.
+DEFAULT_MAXIMUM_WORKERS = 1
+BOUNDED_DESCENDANT_POLICY_PREFIX = "bounded-via-rlimit-nproc"
+
+# Headroom over the uid's process count at launch. RLIMIT_NPROC counts every
+# process of the real uid, not just this run's tree, so the limit is set
+# relative to the count observed in the parent. The margin absorbs the
+# short-lived processes a shared machine creates between the count and the
+# fork; without it a pool fails closed at startup rather than running.
+DESCENDANT_SLOT_HEADROOM = 8
 
 
 @dataclass(frozen=True)
@@ -326,6 +343,19 @@ def _max_rss_bytes(usage: resource.struct_rusage) -> int:
     return int(usage.ru_maxrss) * 1024
 
 
+def _no_claim_certificate() -> dict[str, Any]:
+    """Schema-required result.certificate when this wrapper makes no claim.
+
+    `schemas/run-manifest.schema.json` requires `result.certificate` with
+    `kind`, `verified`, and `verifier`. This runner does not independently
+    re-verify a child-declared discrete_log, decomposition, or key_recovery
+    witness (docs/claims-and-verification.md). A claimed solve stays in
+    raw-result.json; the wrapper record is `kind: none` so a missing field
+    cannot be read as an implicit success.
+    """
+    return {"kind": "none", "verified": None, "verifier": None}
+
+
 def _parse_stdout(stdout: str) -> tuple[dict[str, Any], str | None]:
     try:
         value = loads_json_strict(stdout, "child stdout")
@@ -357,7 +387,7 @@ def _finite_number(value: Any, name: str, *, positive: bool = False) -> float:
 
 
 def _planned_run(
-    experiment: dict[str, Any], run_id: str, wall_clock_limit: float
+    experiment: dict[str, Any], run_id: str, wall_clock_limit: float | None
 ) -> tuple[dict[str, Any] | None, set[str]]:
     execution_plan = experiment.get("execution_plan")
     if execution_plan is None:
@@ -367,7 +397,7 @@ def _planned_run(
 
     runs = execution_plan["runs"]
     maximum_runs = experiment["budget"]["maximum_runs"]
-    if len(runs) > maximum_runs:
+    if enforce_research_budget(experiment["budget"]) and maximum_runs is not None and len(runs) > maximum_runs:
         raise RecordValidationError(
             "execution_plan contains more runs than budget.maximum_runs"
         )
@@ -388,7 +418,7 @@ def _planned_run(
             f"execution_plan run {planned_id} timeout_seconds",
             positive=True,
         )
-        if planned_timeout > wall_clock_limit:
+        if wall_clock_limit is not None and planned_timeout > wall_clock_limit:
             raise RecordValidationError(
                 f"execution_plan run {planned_id} timeout_seconds exceeds "
                 "budget.wall_clock_seconds_per_run"
@@ -704,7 +734,7 @@ def _load_approval_context(
                 "Python isolation flags -I -S -B"
             )
 
-    resource_policy = _locked_resource_policy()
+    resource_policy = _locked_resource_policy(_worker_slots(experiment))
     if canonical_json_bytes(approval["resource_policy"]) != canonical_json_bytes(
         resource_policy
     ):
@@ -1009,7 +1039,43 @@ def _limit_value(resource_name: int, requested: int) -> int:
     return min(requested, int(inherited_hard))
 
 
-def _locked_resource_policy() -> dict[str, Any]:
+def _descendant_policy(descendant_slots: int) -> str:
+    if descendant_slots <= 0:
+        return LOCKED_DESCENDANT_POLICY
+    return f"{BOUNDED_DESCENDANT_POLICY_PREFIX}-{descendant_slots}"
+
+
+def _worker_slots(experiment: dict[str, Any]) -> int:
+    """Descendant processes a locked run may create, from its declared budget."""
+    declared = experiment.get("budget", {}).get(
+        "maximum_workers", DEFAULT_MAXIMUM_WORKERS
+    )
+    if isinstance(declared, bool) or not isinstance(declared, int):
+        raise RecordValidationError("budget.maximum_workers must be an integer")
+    if declared < 1:
+        raise RecordValidationError("budget.maximum_workers must be at least 1")
+    return declared - 1
+
+
+def _uid_process_count() -> int:
+    """Processes of the real uid, for sizing RLIMIT_NPROC relative to now."""
+    try:
+        real_uid = os.getuid()
+        count = 0
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                if os.stat(f"/proc/{entry}").st_uid == real_uid:
+                    count += 1
+            except OSError:
+                continue
+        return count
+    except OSError:
+        return 0
+
+
+def _locked_resource_policy(descendant_slots: int = 0) -> dict[str, Any]:
     nproc_resource = getattr(resource, "RLIMIT_NPROC", None)
     if os.name != "posix" or not hasattr(os, "geteuid") or nproc_resource is None:
         raise RecordValidationError(
@@ -1022,26 +1088,43 @@ def _locked_resource_policy() -> dict[str, Any]:
             "RLIMIT_NPROC"
         )
     return {
-        "descendant_policy": LOCKED_DESCENDANT_POLICY,
+        "descendant_policy": _descendant_policy(descendant_slots),
         "effective_uid": effective_uid,
     }
 
 
+def _nproc_limit(descendant_slots: int | None) -> int | None:
+    """RLIMIT_NPROC value for a slot count: None leaves the limit untouched.
+
+    Computed in the parent because /proc is not safe to walk between fork and
+    exec. Slot 0 yields a hard zero -- fork() fails outright, the historical
+    behaviour. Above zero the limit is relative to the uid's current process
+    count, since RLIMIT_NPROC is a per-uid ceiling rather than a per-tree one.
+    """
+    if descendant_slots is None:
+        return None
+    if descendant_slots <= 0:
+        return 0
+    return _uid_process_count() + descendant_slots + DESCENDANT_SLOT_HEADROOM
+
+
 def _resource_limiter(
-    memory_bytes: int, cpu_seconds: float, forbid_descendants: bool
+    memory_bytes: int, cpu_seconds: float, descendant_slots: int | None
 ) -> Any:
+    nproc_limit = _nproc_limit(descendant_slots)
+
     def apply_limits() -> None:
-        if forbid_descendants:
+        if nproc_limit is not None:
             nproc_resource = getattr(resource, "RLIMIT_NPROC", None)
             if nproc_resource is None:
                 raise RuntimeError("RLIMIT_NPROC is unavailable")
-            resource.setrlimit(nproc_resource, (0, 0))
+            resource.setrlimit(nproc_resource, (nproc_limit, nproc_limit))
         address_space = getattr(resource, "RLIMIT_AS", None)
         if address_space is not None and sys.platform != "darwin":
             memory_limit = _limit_value(address_space, memory_bytes)
             resource.setrlimit(address_space, (memory_limit, memory_limit))
         cpu_resource = getattr(resource, "RLIMIT_CPU", None)
-        if cpu_resource is not None:
+        if cpu_resource is not None and math.isfinite(cpu_seconds):
             cpu_limit = _limit_value(cpu_resource, max(1, math.ceil(cpu_seconds)))
             resource.setrlimit(cpu_resource, (cpu_limit, cpu_limit))
 
@@ -1164,17 +1247,18 @@ def _kill_monitored_processes(
 
 def _wait_for_child(
     process: subprocess.Popen[Any],
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     memory_bytes: int,
     cpu_seconds_limit: float,
 ) -> tuple[int, bool, bool, bool, float, int, bool, float]:
     started = time.monotonic()
     if hasattr(os, "wait4"):
-        deadline = started + timeout_seconds
+        deadline = started + timeout_seconds if timeout_seconds is not None else math.inf
         timed_out = False
         memory_killed = False
         cpu_killed = False
         observed_peak_rss = 0
+        reaped_ru_maxrss = 0
         cpu_by_process: dict[int, float] = {}
         tracked_process_ids = {process.pid}
         parent_reaped = False
@@ -1203,7 +1287,16 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # ru_maxrss from a forked child includes the parent's
+                    # pre-exec RSS on Linux (fork() copies it before exec()
+                    # overwrites the image), so it is not a reliable peak for
+                    # a *small* child launched from a *large* parent. The
+                    # /proc-sampled `current_rss` above already observes the
+                    # post-exec child directly and is what memory decisions
+                    # are based on; ru_maxrss is kept only as an
+                    # informational upper bound, never folded into
+                    # observed_peak_rss. See issue #702.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
 
@@ -1246,7 +1339,11 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # Informational only — see the comment on the matching
+                    # reap above (issue #702): a forked child's ru_maxrss can
+                    # read back the parent's pre-exec RSS, so it must never
+                    # feed observed_peak_rss / the memory-limit decision.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
                     parent_reaped = True
@@ -1294,12 +1391,12 @@ def _wait_for_child(
 def _run_child(
     command: list[str],
     cwd: Path,
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     memory_bytes: int,
     cpu_seconds: float,
     stdout_path: Path,
     stderr_path: Path,
-    forbid_descendants: bool = False,
+    descendant_slots: int | None = None,
 ) -> _ChildResult:
     infrastructure_error: str | None = None
     return_code: int | None = None
@@ -1323,7 +1420,7 @@ def _run_child(
                 start_new_session=os.name == "posix",
                 preexec_fn=(
                     _resource_limiter(
-                        memory_bytes, cpu_seconds, forbid_descendants
+                        memory_bytes, cpu_seconds, descendant_slots
                     )
                     if os.name == "posix"
                     else None
@@ -1472,13 +1569,20 @@ def run_experiment(
     canonical_json_bytes(parameters)
 
     budget = experiment["budget"]
-    wall_clock_limit = _finite_number(
-        budget["wall_clock_seconds_per_run"],
-        "budget.wall_clock_seconds_per_run",
-        positive=True,
+    try:
+        enforce_budget = enforce_research_budget(
+            budget, repo_root=repo_root, target_id=experiment["id"])
+    except ValueError as exc:
+        raise RecordValidationError(str(exc)) from exc
+    wall_clock_limit = (
+        _finite_number(budget["wall_clock_seconds_per_run"],
+                       "budget.wall_clock_seconds_per_run", positive=True)
+        if enforce_budget else None
     )
-    total_cpu_seconds = 3600 * _finite_number(
-        budget["total_cpu_hours"], "budget.total_cpu_hours", positive=True
+    total_cpu_seconds = (
+        3600 * _finite_number(budget["total_cpu_hours"],
+                             "budget.total_cpu_hours", positive=True)
+        if enforce_budget else math.inf
     )
     maximum_memory_gb = _finite_number(
         budget["maximum_memory_gb"], "budget.maximum_memory_gb", positive=True
@@ -1532,7 +1636,7 @@ def run_experiment(
         effective_timeout = _finite_number(
             timeout_seconds, "caller timeout_seconds", positive=True
         )
-        if effective_timeout > wall_clock_limit:
+        if wall_clock_limit is not None and effective_timeout > wall_clock_limit:
             raise RecordValidationError(
                 "caller timeout_seconds exceeds budget.wall_clock_seconds_per_run"
             )
@@ -1553,7 +1657,7 @@ def run_experiment(
                 "existing runs are absent from execution_plan: " + ", ".join(unplanned)
             )
     maximum_runs = budget["maximum_runs"]
-    if len(existing_runs) >= maximum_runs:
+    if maximum_runs == 0 or (enforce_budget and maximum_runs is not None and len(existing_runs) >= maximum_runs):
         raise RecordValidationError(
             f"budget.maximum_runs exhausted: {len(existing_runs)} of {maximum_runs}"
         )
@@ -1599,7 +1703,7 @@ def run_experiment(
     runs_dir.mkdir(parents=True, exist_ok=True)
     temp_dir = Path(tempfile.mkdtemp(prefix=f".{run_id}.", dir=runs_dir))
     run_directories = [path for path in runs_dir.iterdir() if path.is_dir()]
-    if len(run_directories) > maximum_runs:
+    if enforce_budget and maximum_runs is not None and len(run_directories) > maximum_runs:
         shutil.rmtree(temp_dir)
         raise RecordValidationError("budget.maximum_runs exhausted during launch reservation")
     competing_runs = [
@@ -1621,7 +1725,7 @@ def run_experiment(
         cpu_seconds=remaining_cpu_seconds,
         stdout_path=temp_dir / "stdout.log",
         stderr_path=temp_dir / "stderr.log",
-        forbid_descendants=planned is not None,
+        descendant_slots=_worker_slots(experiment) if planned is not None else None,
     )
     child_elapsed = time.monotonic() - child_started
     finished_at = _utc_now()
@@ -1640,11 +1744,16 @@ def run_experiment(
         total_cpu_seconds,
     )
     wall_limit_hit = (
-        child.timed_out or process_group_wall_seconds > effective_timeout
+        child.timed_out or (effective_timeout is not None and process_group_wall_seconds > effective_timeout)
     )
 
     (temp_dir / "command.txt").write_text(command_text + "\n", encoding="utf-8")
     environment = _environment()
+    environment["research_budget_policy"] = {
+        "enforcement": "stagnation" if enforce_budget else "advisory",
+        "process_watchdog_seconds": effective_timeout,
+        "cpu_accounting": "measured",
+    }
     write_json(temp_dir / "environment.json", environment)
     write_json(temp_dir / "raw-result.json", raw_result)
     _remove_appledouble(temp_dir)
@@ -1769,6 +1878,7 @@ def run_experiment(
                 "metrics": metrics,
                 "valid": status == "completed_valid",
                 "invalid_reason": invalid_reason,
+                "certificate": _no_claim_certificate(),
             },
             "artifacts": core_artifacts,
         }

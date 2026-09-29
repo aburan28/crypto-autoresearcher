@@ -1,0 +1,349 @@
+schema: crypto.autoresearch.validation_report.v1
+task_id: TASK-20260901-91adc1
+batch_id: BATCH-2f12ac
+goal_id: GOAL-AES-003
+idea_record: IDEA-20260901-363851
+role: validator
+validated_package:
+  snapshot_commit: 162597e93f3d01be40433a2fa9c632141e36df4b
+  snapshot_parent: d56d457de02a3aafc81b792523aaafad9a7b07ff
+  snapshot_receipt: coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/archives/TASK-20260901-13dfed/snapshot-receipt.json
+  producer_task: TASK-20260901-7e0b71
+  producer_claim: S0-CARRIER-ALIVE (IDEA-20260901-363851 Stage-0 decision rule)
+
+verdict: VALIDATED
+verdict_statement: >-
+  Every Stage-0 gate and reading in the producer package survived independent re-derivation
+  with fresh code and zero discrepancies. Under the record's preregistered decision rule
+  (evaluation order: gate fail -> p_large <= 0.05 -> p_small <= 0.05 -> weak -> dead),
+  Gate 0 passes and the exactly recomputed p_small = 6.802657658796063e-59 <= 0.05, so the
+  Stage-0 arm is S0-CARRIER-ALIVE, as reported by the producer. The r=6 known-dead reference
+  reads 3 hits, inside the dead band (<= 8), F6 tripwire (>= 9) NOT fired.
+
+stage0_verdict_arm_rendered: S0-CARRIER-ALIVE
+decision_rule_application:
+  rule_source: IDEA-20260901-363851 preregistered_decision_rule (STAGE 0), operational order pinned in PREREGISTRATION.md section 4
+  step_1_gate0_fail: false
+  step_2_p_large_le_0.05: false   # p_large ~ 1.0
+  step_3_p_small_le_0.05: true    # p_small ~ 6.8e-59
+  arm: S0-CARRIER-ALIVE
+  matches_producer_reported_arm: true
+
+re_derived_values:
+  gate0_field_by_field:
+    derivation: >-
+      Fresh python comparison (validator script /tmp/val_v1.py, no producer code) reading BOTH
+      receipts directly: committed coordination/goals/GOAL-AES-003/batches/BATCH-015/tasks/
+      TASK-20260805-d408ac/runs/L1-AES-R5-P30.json and producer runs/R4_gate0_j5.json.
+    committed_fields_missing_in_new: []
+    fields_mismatched_outside_allowed: {}
+    allowed_diffs_observed_exactly_preregistered_set: [arm, elapsed_seconds_measured, measured_rate_trials_per_sec, oracle, probe]
+    added_fields_observed: [arm_table_concat_sha256, ewbithist_all, ewbithist_hit, ewbithist_miss,
+      ewhist_all, ewhist_hit, ewhist_miss, hit_e_detail, key_hex, sbox, sbox_bijective, sbox_k,
+      sbox_positions, sbox_table_hex, zhist]
+    added_fields_all_in_preregistered_added_set: true
+    n_hit_indices: {committed: 14, new: 14}
+    all_14_hit_indices_identical_ordered: true
+    trial_map_fields_all_identical: true
+    trial_map_fields_checked: [sbox_is_aes, sbox_first8, amask, smask, trials, log2N, seed, arm_id,
+      threads, thread_seeds, key_stream_seeds, stream_gap_min_log2_plaintext_threads,
+      stream_gap_min_log2_key_threads, key_stream_seed_equals_any_plaintext_stream_seed,
+      trivial_swaps_excluded, nontrivial_trials, W_ge1_nontrivial, W_ge1_by_word, whist,
+      null_expectation_analytic, plaintext_stream_digest, hit_trials_logged, hit_log_overflow,
+      hit_log_cap, hit_trials]
+    whist_identical: [1073741810, 14, 0, 0, 0]
+    W_ge1_by_word_identical: [4, 4, 2, 4]
+    plaintext_stream_digest_identical: ["de8dee29c9310a13", "01089d650f48ca1b"]
+    thread_seeds_identical: [11400714758317678269, 4354685486758533762]
+    hit_trials_logged_quirk_reproduced: 6   # thread-0 hit count, committed semantics
+    gate0_pass_re_derived: true
+    perturbation_conclusion: >-
+      Receipt identity on every trial-map field (14 hit indices, all histograms, seeds, stream
+      digest) proves the logging-ON derivative changed nothing observable at the full 2^30
+      exposure -- any perturbation of stream, key, round function, or existing counters would
+      have moved at least one of the 14 indices or one count. Non-perturbation established.
+
+  source_diff_audit:
+    derivation: >-
+      Validator's OWN fresh `diff -u` of coordination/goals/GOAL-AES-003/batches/BATCH-fe0bdc/
+      tasks/TASK-20260901-f5d3a4/src/affarm046.c vs producer src/affarm046e.c, plus manual read
+      of all 765 diff lines and mechanical classification of every deleted line.
+    n_hunks: 17
+    deleted_lines_total: 65
+    deleted_line_classification:
+      comment_or_banner: 47
+      table_surface_widen_sub_shift_inv_sub_shift: 3
+      main_arm_surface_widen_identity_only_to_aes_or_identity: 4
+      aggregation_loop_rewrite_adding_new_counters_only: 2
+      receipt_printf_block_rewiden: 8
+      receipt_printf_line_moved_sbox_table_hex_reappears_verbatim_in_added_fields_section: 1
+    unclassified_deleted_lines: []
+    trial_stream_rng_existing_counters_unchanged: true
+    detail: >-
+      sm64 RNG, gmul, build_sbox, key_expand, add_rk, mix_columns, inv_mix_columns, enc_r/dec_r,
+      build_geom, the trial decision code (p1 re-randomisation/rejection, swap, trivial detection,
+      Z and W computation) are unchanged context. sub_shift/inv_sub_shift read TPOS[p][v] /
+      INV_TPOS[dst][v] instead of SBOX[v]/INV_SBOX[v]: at the k=16 seat TPOS[j] == SBOX for all
+      j (verified by fresh digest recomputation), bit-identical mapping (category i, widened
+      table surface). Worker additions: FNV-1a plaintext digest update (pure read of p0/p1, no
+      RNG) and the e-logging block placed AFTER all trial decisions and AFTER the trivial
+      `continue`, writing only new counters (categories ii/iii). One benign addition outside the
+      three named categories: `return 0;` appended to geom_mode (info mode, never executed by
+      any arm; fixes a missing return in the lineage) -- recorded as an observation, not a
+      perturbation. pinidentity gains set_diluted_tables(0) which, with the identity global
+      SBOX, makes TPOS the identity table, i.e. the original round function. Logging-only
+      (table-surface + pure-read logging + receipt widening) CONFIRMED.
+    optional_smoke_rerun: >-
+      Not run, deliberately: the Gate-0 field-identity at full 2^30 exposure is a strictly
+      stronger non-perturbation proof than any small smoke; budget conserved (2 of 4 runs used).
+
+  carrier_test_t1_seed531001:
+    derivation: >-
+      BLIND fresh-code re-derivation: written from the test definition in IDEA-20260901-363851
+      carrier_statistic.test_statistic and PREREGISTRATION.md section 5 only; the producer's
+      implementation src/decision_analysis.py was NOT read. Inputs taken from the RAW run
+      receipt runs/R4_gate0_j5.json (ewhist_miss 17-bin counts and per-hit wt(e) from
+      hit_e_detail), whose equality with the emitted test_inputs_for_validator was itself
+      re-verified. Three mutually independent exact implementations: (A) iterative DP
+      convolution over 14 draws, (B) polynomial exponentiation by squaring (full exact
+      distribution), (C) multinomial closed form over all count vectors. All three agree
+      on both tails, and both match the producer's rationals EXACTLY (string equality of the
+      reduced fractions).
+    inputs_reverified_from_raw_receipt:
+      F_miss_17bin: [0,0,0,0,0,0,0,0,0,0,0,3,432,34223,1863245,63277324,1008566583]
+      F_miss_sum_equals_n_miss: true   # 1073741810
+      hit_weights_multiset: [11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 16, 16, 16, 16]
+      hit_bit_weights_from_detail: {40: 1, 41: 2, 43: 1, 44: 1, 45: 1, 46: 1, 47: 1, 48: 1, 49: 1, 55: 1, 64: 1, 67: 1, 68: 1}
+      n: 14
+      T_obs_recomputed: 181
+    re_computed_exact:
+      favorable_tuples_sum_le_181: "184194524287648988210363551227588780485162861770363056668640243971871"
+      strict_favorable_tuples_sum_le_180: "2455826577712067067782072339454376280141778953041942314609572955813"
+      denominator: "2707684753906134422338019556021811957671563916258448839666782354608994265489597121296311825936271463145560383492100000000000000"
+      denominator_equals_1073741810_pow_14: true
+      p_small_rational: "184194524287648988210363551227588780485162861770363056668640243971871/2707684753906134422338019556021811957671563916258448839666782354608994265489597121296311825936271463145560383492100000000000000"
+      p_small_float: 6.802657658796063e-59
+      p_large_rational: "2707684753906134422338019556021811957671563916258448839666779898782416553422529339223972371559991321366607341549785390427044187/2707684753906134422338019556021811957671563916258448839666782354608994265489597121296311825936271463145560383492100000000000000"
+      p_large_float: 1.0
+    rational_equality_with_producer:
+      p_small_exact_string_match: true
+      p_large_exact_string_match: true
+    low_tail_check:
+      miss_lower_median_recomputed: 16
+      hit_weights_strictly_below_median: 10 of 14
+      miss_mass_at_weight_16_fraction: 1008566583/1073741810 (~0.939)
+      mean_wt_e_hit_recomputed: "181/14"
+      mean_wt_e_miss_recomputed: "8556380367/536870905"
+      mean_wt_e_all_recomputed: "17112760915/1073741824"
+      conclusion: hit weights sit in the low tail of F_miss as the carrier direction predicts
+    histogram_conservation_re_derived:
+      ewhist_hit_sum: 14
+      ewhist_miss_sum: 1073741810
+      ewhist_all_sum: 1073741824
+      hit_plus_miss_equals_all_binwise: true
+      ewhist_hit_rebuilt_from_detail_equals_receipt: true
+      detail_thread_index_pairs_equal_hit_trials_in_order: true
+
+  r6_known_dead_reference:
+    derivation: fresh recount from raw receipt runs/R5_r6_reference.json
+    hits_recounted: 3
+    cross_field_consistency: W_ge1_nontrivial == whist[1] == len(hit_trials) == len(hit_e_detail) == sum(ewhist_hit) == 3
+    whist: [1073741821, 3, 0, 0, 0]
+    dead_band: "<= 8"
+    in_dead_band: true
+    tripwire: ">= 9 (F6)"
+    tripwire_fired: false
+    escalation_required: false
+    r6_hit_weights_report_only: [16, 16, 12]
+    mean_wt_e_miss_r6_recomputed: "17112759836/1073741821"
+
+  frozen_family_digests:
+    derivation: >-
+      Fresh independent construction of the AES S-box in validator code (GF(2^8) multiplicative
+      inverse + FIPS-197 affine transform; no producer code, no producer tables), then fresh
+      sha256 over the pinned definition S_k(j) = AES if j in P_k else identity, P_k = first k of
+      [0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15], concat in position order j=0..15 (the definition
+      pinned by the construction pin and the freeze artifact).
+    aes_sbox_first8_match_FIPS197: true
+    aes_table_sha256_fresh_equals_freeze: true   # c2d8e5eed6cbebd8625fc18f81486a7733c04f9b0129ffbe974c68b90308b4f2
+    identity_table_sha256_fresh_equals_freeze: true  # 40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880
+    concat_digests_recomputed_match:
+      k0: "c8f5d0341d54d951a71b136e6e2afcb14d11ed8489a7ae126a8fee0df6ecf193"
+      k1: "d466f062234d1b2d75d4fec40abbe892936a0b261db7a917a52bc3ba176cec14"
+      k8: "edeccfb9edc4ff4ad6f4a146466927ea4acc17ec4c47eaa2ab036e57177f0ace"
+      k16: "06cddbbf3976bc5e003b3169c92c6d85085731e2517908e3bf4363a8cae6f286"
+    points_required_two_actual_four_plus_base_tables: 4 points + 2 base tables recomputed
+    arm_table_binding: R4 and R5 arm_table_concat_sha256 both equal the frozen k=16 digest
+    R4_sbox_table_hex_equals_FIPS197_AES_fresh: true
+    R7_rerun_digests_equal_R3_freeze: true
+    family_closure: all 7 points k in {0,1,2,4,8,12,16} present, pinned order matches record
+
+  snapshot_integrity:
+    derivation: fresh sha256 of every declared path + git verification of commit 162597e93
+    paths_hash_checked: 41
+    sha256_mismatches_worktree_vs_queue_archive: {}
+    worktree_equals_commit_for_all_declared_paths: true
+    commit_changed_set_equals_declared_set: true
+    commit_parent_verified: d56d457de02a3aafc81b792523aaafad9a7b07ff
+    commit_reachable_from_HEAD: true
+
+  determinism_double:
+    derivation: fresh field-by-field and line-stripped text comparison of runs/R6_det_a.json vs runs/R6_det_b.json
+    seat: (aes, r5, amask=1, smask=1, log2N=20, seed=531001, armid=1, threads=4)
+    differing_fields_modulo_two_timing_fields: []
+    text_identical_modulo_timing_lines: true
+    determinism_pass_re_derived: true
+
+  preregistration_chronology:
+    derivation: >-
+      Original file mtimes are preserved in this worktree (the snapshot commit was made in the
+      producing worktree; git does not rewrite mtimes), so the chronology was re-checked from
+      os.stat directly, plus the budget-stamp epoch sequence.
+    PREREGISTRATION_md_mtime_epoch: 1788294225   # 20:23:45Z -- equals DEV-3's disclosed edit epoch exactly
+    first_arm_R4_mtime_epoch: 1788294541         # 20:29:01Z
+    prereg_mtime_before_first_arm: true
+    DEV3_disclosure_consistency: >-
+      DEV-3's epochs are internally consistent and match the file evidence: original write
+      claimed epoch 1788293976 < R1 pin mtime 1788294180 (20:23:00Z, first runs/ output) <
+      disclosed edit 1788294225 (== actual PREREGISTRATION.md mtime) < R3 freeze artifact
+      acceptance mtime 1788294243 < R4 arm 1788294541. The edit postdates the R1/R2 pin runs
+      and the R3 raw C output, as disclosed.
+    decision_relevant_content_predates_data: >-
+      All decision-relevant content (gates, predictions both hypotheses, r=6 band/tripwire,
+      decision rule and its operational reading, seat tuples, allowed-diff list, closed family,
+      test definition) is present in the committed file; the disclosed late edit touched only
+      the folded-smoke hit-detail cap wording (DEV-2, per-thread vs global), which is an
+      instrument self-test assertion, not a Stage-0 decision input. The per-thread cap reading
+      matches the committed L1-AES-R5-P30 convention (hit_trials_logged = 6 = thread-0 hits).
+    residual_limitation: the pre-edit file version is not recoverable from git (single commit), so the original-write epoch rests on the disclosed stamp sequence, which is self-consistent
+    stamp_batch_write_disclosure_verified: >-
+      budget_stamps.jsonl discloses that R5/R6/R7/analysis stamps were batch-written at epoch
+      1788294693; per-section times independently recovered here from file mtimes
+      (R5 1788294658, R6 1788294668, R7 1788294673, analysis 1788294677), all before the
+      batch-write stamp, consistent with the disclosure.
+
+  budget_compliance_producer:
+    binding_stop_utc: "2026-09-01T22:11:01Z"
+    last_activity_stamp_utc: "2026-09-01T20:32:44Z"
+    within_budget: true
+    runs_at_cap_disclosed: 7 record runs, 8 binary invocations of 8 (DEV-1 aborted attempt removed, rule 5)
+    DEV5_root_stamp_file_removed_verified: git status shows no root budget_stamps.jsonl (only an untracked bus message, not this task's)
+
+discrepancies: []
+discrepancy_statement: >-
+  ZERO discrepancies. Every producer-reported value re-derived here matched exactly: the 14 hit
+  indices, all trial-map fields, the allowed-diff set, T_obs = 181, hit weights
+  {11,11,11,12x7,16x4}, p_small and p_large as exact rationals (string equality), r=6 = 3 hits,
+  all digest values, determinism, and the decision-rule arm. No value had to be named twice.
+
+controls_checked_with_evidence:
+  - control: Gate-0 anchor reproduction (BLOCKING; also perturbation check)
+    evidence: re_derived_values.gate0_field_by_field (both receipts read by validator; 14/14 indices identical; 0 mismatches outside allowed list)
+    result: PASS
+  - control: source-diff audit (logging-only, no trial-stream/counter change)
+    evidence: re_derived_values.source_diff_audit (validator's own diff; 65/65 deleted lines classified)
+    result: PASS
+  - control: KAT pins (R1) and pinidentity (R2)
+    evidence: runs/R1_pin.json pin_pass true, runs/R2_pinidentity.json pin_pass true (read; pin content not re-executed -- external-constant KATs, receipt-attested)
+    result: PASS as recorded
+  - control: table freeze of the full closed family before arms (R3) + post-arm re-verify (R7)
+    evidence: re_derived_values.frozen_family_digests (4 concat digests + 2 base-table digests recomputed fresh from the pinned definition; R7 == R3)
+    result: PASS
+  - control: r=6 known-dead reference in-block (band <= 8, tripwire >= 9)
+    evidence: re_derived_values.r6_known_dead_reference (3 hits recounted from raw receipt)
+    result: IN BAND, tripwire NOT fired
+  - control: determinism double (log2N=20, identical command line twice)
+    evidence: re_derived_values.determinism_double (byte-identical modulo the two timing fields)
+    result: PASS
+  - control: snapshot hash-binding before review
+    evidence: re_derived_values.snapshot_integrity (41/41 paths)
+    result: PASS
+  - control: preregistration before first arm (digest-commit discipline, V-804-2)
+    evidence: re_derived_values.preregistration_chronology (mtime 1788294225 < first arm 1788294541; DEV-2/DEV-3 disclosed, checked)
+    result: PASS with disclosed deviation
+  - control: carrier-test null is the run's own miss-only reference (exchangeability)
+    evidence: F_miss rebuilt from the raw receipt equals the emitted inputs; hits excluded by construction (ewhist_miss sum == whist[0])
+    result: PASS
+
+outcome_ruling: >-
+  The Stage-0 package is VALIDATED. Rendered under the record's decision rule: S0-CARRIER-ALIVE
+  (Gate 0 pass AND p_small = 6.802657658796063e-59 <= 0.05 at seed 531001). The decision rule's
+  consequence "Stage 1 dispatched" is now the condition of record; dispatch itself, any status
+  assignment, evidence strength, and the interior-k SubWord pin are Coordinator acts outside
+  validator authority. No F6 escalation is required. DEV-4 (interior arm refusal pending the
+  SubWord pin) is a scope disclosure for the Coordinator, confirmed accurate against the source.
+
+batch_level_outcome: >-
+  BATCH-2f12ac Stage 0: all gates PASS, no tripwire, no halt, zero discrepancies on independent
+  re-derivation; the producer's S0-CARRIER-ALIVE reading stands as validated. The batch's
+  remaining step is the ledger archive (TASK-20260901-4c0410) after the concurrent red-team
+  review (TASK-20260901-6efcd8) lands.
+
+power_and_scope_statement: >-
+  TOY TIER. The validated reading is: at the single anchor seat (sbox=aes k=16, r=5, amask=1,
+  smask=1, 2^30 trials, seed 531001, armid 1, 2 threads), n = 14 hit trials concentrate in the
+  low-wt(e) tail of the run's own miss distribution (exact one-sided exchangeability
+  p_small ~ 6.8e-59). Power is limited by the preregistered disclosure: n = 14 hits at ONE seed
+  (comparator-side seed variance is on record, 14 vs 19 hits at 531002); second-seed
+  replication, interior ramp points, and the known-false amask=15 control are Stage 1, not
+  executed here. The r=6 reference (3 hits) is one arm at one seed. Nothing in this validation
+  is a statement about full-round or deployed AES, about any S-box outside the frozen nested
+  position family, or about e being the only carrier; no published-frontier comparison in
+  either direction. The p-value is exact under its stated null but the null is the run's own
+  miss distribution at one seed; whether low-wt(e) concentration is tautological given the
+  trial-map geometry is an interpretation question assigned to the concurrent red-team review,
+  not settled by this integrity validation.
+
+independence_attestation:
+  independent_session: true
+  role: validator
+  read_list:
+    - dispatch_queue.json task card TASK-20260901-91adc1 (whole handoff)
+    - ledger/proposals/IDEA-20260901-363851.yaml (whole)
+    - producer package in full via snapshot (RESULTS.json, PREREGISTRATION.md, budget_stamps.jsonl, all 29 runs/ artifacts, src/affarm046e.c, src/BUILD.md not read, src/INDEPENDENCE_AUDIT.md not read, src/*.py NOT read except never-opened -- see blind note)
+    - committed L1-AES-R5-P30.json (BATCH-015 TASK-20260805-d408ac) whole
+    - lineage source coordination/goals/GOAL-AES-003/batches/BATCH-fe0bdc/tasks/TASK-20260901-f5d3a4/src/affarm046.c via validator-run diff (read scope note below)
+    - snapshot-receipt.json (TASK-20260901-13dfed) whole
+    - bus message MSG-20260901-2fa819 (executor-to-coordinator notification; no task content taken from it)
+  NOT_read_blindness: >-
+    I did NOT read coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/tasks/TASK-20260901-6efcd8/
+    or any red-team artifact; the red-team review runs concurrently and this report is written
+    without knowledge of it.
+  blind_rederivation_note: >-
+    The p_small/p_large re-derivation was written from the frozen test definition in
+    IDEA-20260901-363851 and PREREGISTRATION.md section 5 only; the producer's implementation
+    src/decision_analysis.py was never opened, and no producer python was executed or reused.
+    All validator code was fresh (/tmp/val_v1.py, /tmp/val_v2.py).
+  read_scope_note: >-
+    The lineage path BATCH-fe0bdc/.../src/affarm046.c is not in this card's read_scope list but
+    is named explicitly in the handoff objective ("diff the worker against its lineage") and in
+    the Coordinator's dispatch instruction; read on that authority, attested here.
+  attested_only_what_was_read: true
+
+budget_and_runs:
+  declared_wall_clock_seconds: 3600
+  declared_maximum_runs: 4
+  start_utc: "2026-09-01T20:38:10Z"
+  runs_used: 2   # V1 integrity/receipt/digest/diff/mtime script; V2 exact carrier-test re-derivation (3 implementations)
+  runs_budget_halted: false
+  stamps_file: budget_stamps.jsonl (this task directory)
+
+inference:
+  policy: review-adversarial
+  requested_policy: review-adversarial
+  resolved_model_id: fireworks-ai/accounts/fireworks/models/qwen3p8-max
+  model_verified: false
+  fallback_used: true
+  fallback_reason: session-backend transport under inference amendment DEC-20260831-0d1eeb
+  degraded_requirements: []
+  amendment: DEC-20260831-0d1eeb
+  standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+  independent_session: true
+
+parse_attestation: >-
+  This file was parsed WHOLE with python3 yaml.safe_load after writing (zero errors); the
+  attestation is stated inside the file as required. All producer structured artifacts consumed
+  here (RESULTS.json, all runs/*.json, snapshot-receipt.json, dispatch_queue.json) were parsed
+  whole with python3 json.load by the validator's own scripts.
+
+generated_utc: "2026-09-01T20:47:00Z"

@@ -1,0 +1,273 @@
+idea:
+  id: IDEA-20260816-ac9263
+  question_id: RQ-ALPF-001
+  added: '2026-08-16'
+  title: 'Nothing in this lane can be re-run, because the archived meter is Sage and the harness has
+    no first-fall implementation: build a dependency-free Macaulay-rank meter validated against the
+    published control rows, wired so every cell it reports ships with its matched null from the same
+    invocation.'
+  class: tooling
+  claim: '(A) The ALPF lane is 32 imported packages that were archived without re-execution; EV-ALPF-001
+    records the import as historical and states certificates were not re-verified. The metering code
+    is Sage-based (the repository''s only first-fall implementation, src/ic_first_fall_fast.py, imports
+    sage.all at module scope), so no ALPF cell can be reproduced, extended, or given a control inside
+    this harness as it stands. Every other entry in this batch depends on a meter that does not exist
+    here. (B) The claim is that a dependency-free replacement is buildable and, more importantly,
+    that its acceptance test is already written down: the archived analyses publish three control
+    rows -- planted shared-quadratic-factor cubics firing at d_ff = 4 against D_reg = 7, generic quadrics
+    quiet at 4/4, generic cubics quiet at 7/7 -- and a fourth, harder fixture in EXP-ALPF-006''s failed
+    gate where three positive controls did NOT fire. A re-implementation that reproduces both the
+    passing and the FAILING published tables is validated against evidence the program already holds.
+    (C) The claim is further that the tool should make the null structural rather than optional: the
+    module''s public entry point takes a system and returns a verdict together with the verdict of
+    a shape-matched null drawn in the same call, so that a cell without its control is not expressible
+    in the API. This is a design claim about how instruments should be packaged in this program, and
+    it is testable by whether downstream entries can produce an uncontrolled number at all. (D) NOT
+    CLAIMED: that the re-implementation is faster than Sage; that it reproduces Sage exactly outside
+    the tested fixtures; that any ALPF result changes; that any decomposition is feasible. A tool
+    is validated on its fixtures and nowhere else, and this one''s fixtures are toy-scale homogeneous
+    systems.'
+  mechanism: 'STAGE 1: transcribe the published control tables from experiments/EXP-ALPF-010/analysis.md,
+    EXP-ALPF-011/analysis.md, EXP-ALPF-007/analysis.md and EXP-ALPF-006/analysis.md into machine-readable
+    fixtures, including the failing gate rows, since a meter that reproduces only successes is not
+    validated. STAGE 2: implement D_reg_pred from a degree profile via the positive-truncated semiregular
+    Hilbert series, in integer arithmetic, with the truncation convention recorded as an explicit
+    parameter rather than a hidden choice. STAGE 3: implement the Macaulay matrix builder and a rank
+    routine over F_p in pure Python, with the degree ceiling and column cap as declared parameters.
+    STAGE 4: implement the paired entry point measure_with_null(system, profile, seed) returning both
+    the system''s verdict and a shape-matched null''s verdict from one call, so the control cannot
+    be omitted. STAGE 5: run the fixture suite and report per-row agreement, including on the rows
+    the archived campaign reported as gate FAILURES. STAGE 6: publish the module with its fixture
+    suite as a regression test so any future change to the meter is caught by the same published rows.
+    Refutation: if no truncation convention reproduces all fixture rows simultaneously, the archived
+    meter''s convention is not recoverable from the committed artifacts, and that is a concrete, reportable
+    limit on what the entire ALPF import can support.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rn 'sage' src/ic_first_fall_fast.py ; grep -n '^def |^class ' harness/semaev.py
+      harness/toycurve.py harness/rho.py src/macaulay_export.py ; grep -ril 'ALPF' ledger/proposals/
+      ; read experiments/EXP-ALPF-006/analysis.md gate table, EXP-ALPF-010/analysis.md and EXP-ALPF-011/analysis.md
+      meter self-validation tables, EXP-ALPF-007/analysis.md METER VALIDATED False row, ledger/evidence/EV-ALPF-001.yaml
+      boundaries.
+    results: Zero proposals reference ALPF. src/ic_first_fall_fast.py line 23 reads 'from sage.all
+      import GF, Matrix' at module scope and defines first_fall_degree(dpolys, nvars, max_D=4) --
+      so the repository does have first-fall logic, it is Sage-bound, and its default max_D of 4 is
+      far below the D_reg values of 7, 10 and 12 that appear throughout the archived ALPF tables.
+      src/macaulay_export.py exists and is consulted for serialisation conventions. harness/semaev.py,
+      harness/toycurve.py and harness/rho.py are pure Python with sympy and provide the curve, Semaev
+      and rho pieces but no degree meter. Four distinct published control tables exist across EXP-ALPF-006,
+      007, 010 and 011, including two that report validation FAILURE (EXP-ALPF-006 gate FAIL with
+      0 of 3 positives firing; EXP-ALPF-007 METER VALIDATED False), which together form a stronger
+      fixture set than the passing rows alone.
+    verdict: 'UNVERIFIED. No literature claim. Assembled from known parts: Macaulay matrices, semiregular
+      Hilbert series, rank over a finite field, and the archived control tables. Claimed new relative
+      to this repository: (i) a dependency-free first-fall meter, which does not exist here, with
+      a degree ceiling adequate to the archived D_reg values rather than the max_D = 4 default of
+      the Sage version; (ii) validating it against the archived FAILING gate rows as well as the passing
+      ones, so the fixture set constrains the truncation convention from both sides; (iii) the paired
+      measure_with_null entry point, which makes an uncontrolled measurement inexpressible in the
+      API rather than merely discouraged by policy -- a packaging claim about instruments in this
+      program that is itself testable downstream.'
+  object_first_candidate:
+    tracked_object: 'The meter''s convention vector: the small set of implementation choices -- Hilbert-series
+      truncation rule, first-fall tie-breaking at equality, degree ceiling, treatment of positive-dimensional
+      ideals -- followed through the fixture suite to see which settings reproduce which published
+      rows.'
+    lossiness: 'Genuinely lossy. The convention vector retains only the handful of discrete choices
+      that change a verdict, discarding the entire implementation, the linear algebra, the field arithmetic
+      and the data structures. It is compatible with the operation of interest -- reproducing a published
+      control row -- because a row''s verdict is a function of the conventions and the input system
+      alone, everything else being an implementation detail that cannot move an integer degree. The
+      projection is non-injective across implementations by design: many different codebases share
+      a convention vector, which is exactly what makes ''reproducing the archived meter'' a well-posed
+      target rather than a demand to rewrite Sage.'
+    propagation: 'One step of the target operation is fixing one more convention. Acting on the tracked
+      object it partitions the fixture suite: each convention choice either changes some fixture row''s
+      verdict or does not, so the propagation is a decision tree over the fixture set. The measurable
+      consequence is that the number of fixture rows still consistent with the remaining conventions
+      shrinks monotonically as conventions are fixed, and the experiment reports that shrinkage explicitly.
+      If the set of consistent convention vectors becomes empty before all rows are matched, the archived
+      conventions are not recoverable and the propagation terminates in a stated obstruction.'
+    survival_score: 'The convention vector survives while fixture rows remain to constrain it: there
+      are roughly a dozen published control rows across the four analyses, which is enough to pin
+      two or three binary conventions and not enough to pin many more. Concretely, the object dissolves
+      as soon as the number of free conventions exceeds the number of discriminating rows, and the
+      experiment reports both counts so the reader can see whether the reproduction is constrained
+      or merely fitted. That distinction is the honest core of this entry: matching a dozen rows with
+      a dozen free choices is curve fitting and is reported as such if it happens.'
+  null_object_control: 'The null object is a shape-matched random homogeneous system, and its role
+    here is structural rather than merely comparative: the module''s paired entry point draws it in
+    the same call as the signal system, from a derived seed, and returns both verdicts, so a caller
+    cannot obtain a signal verdict without its null. For the tool to be accepted, the null arm must
+    reproduce the archived NEGATIVE control rows -- generic quadrics quiet at d_ff = 4, D_reg = 4
+    and generic cubics quiet at 7/7 -- and must fire at a rate consistent with the companion null-ensemble
+    measurement across repeated draws. A second null is a shuffled-coefficient control: the same system
+    with its coefficients randomly permuted within each generator, which must change the verdict no
+    more often than the shape-matched null does, confirming the meter reads structure rather than
+    coefficient layout.'
+  discriminated_from:
+  - src/ic_first_fall_fast.py is the repository's existing first-fall implementation. It imports sage.all
+    at module scope, so it cannot run under the stated no-Sage instrument constraint, and its max_D
+    default of 4 is below the D_reg values of 7 to 12 in the archived ALPF tables. This is a replacement
+    with a different dependency profile and an adequate ceiling, not a wrapper.
+  - src/macaulay_export.py handles Macaulay serialisation. This entry consumes its conventions and
+    adds ranking, the semiregular predictor and the verdict logic, none of which serialisation provides.
+  - harness/semaev.py supplies Semaev polynomials and decomposition certificates but contains no degree
+    meter of any kind, so there is nothing here to duplicate.
+  - The archived Autolab meter is validated by three control rows per campaign round and reported
+    as a binary flag. This tool is validated against roughly a dozen rows spanning four analyses INCLUDING
+    the two that report validation failure, and reports per-row agreement rather than a flag.
+  - The null-ensemble and planted-positive entries in this batch measure the meter's operating characteristics.
+    This entry builds the meter they need and makes the null structural in its API; it measures no
+    operating characteristic itself and says so.
+  assumptions:
+  - The published control tables in the four analyses are complete enough to specify their input systems
+    unambiguously; rows whose inputs cannot be reconstructed are excluded and listed.
+  - Rank over F_p at Macaulay dimensions up to the stated column cap is feasible in pure Python within
+    the time budget at toy primes.
+  - The semiregular Hilbert series predictor can be computed exactly in integer arithmetic from a
+    degree profile.
+  - sympy, already a dependency of harness/toycurve.py and harness/semaev.py, is sufficient for polynomial
+    manipulation, so no new dependency is introduced.
+  - A paired API can be enforced by construction rather than by convention, i.e. there is no reasonable
+    way for a downstream caller to obtain a signal verdict alone.
+  predictions:
+  - metric: fraction of published control rows reproduced exactly under some single convention vector
+    direction: higher
+    minimum_effect: 0.8
+  - metric: number of free conventions required to reach that fraction
+    direction: lower
+    minimum_effect: 4
+  - metric: reproduction of the EXP-ALPF-006 gate-failure rows (0 of 3 positives firing)
+    direction: different
+    minimum_effect: 'forced: these rows must be reproduced as failures, not as successes; a meter
+      that fires on them has a different convention than the archived one and must be reported as
+      such'
+  - metric: downstream ability to obtain a signal verdict without a null from the module's public
+      API
+    direction: lower
+    minimum_effect: 0.0
+  minimal_test:
+    design: Three rows, one convention sweep. Implement the Macaulay builder, the rank routine and
+      the semiregular predictor with the truncation rule and the equality tie-break as two explicit
+      binary parameters. Run the four combinations against the three EXP-ALPF-011 control rows --
+      planted shared-quadratic-factor cubics expected to fire at d_ff = 4 versus D_reg = 7, generic
+      quadrics expected quiet at 4/4, generic cubics expected quiet at 7/7 -- and report which combinations
+      reproduce all three. Then run the same four combinations against EXP-ALPF-006's three non-firing
+      positive controls and report which combinations reproduce those as non-firing too. If exactly
+      one combination satisfies both tables, the archived convention is pinned by two bits of published
+      evidence; if none does, the conventions are not recoverable and that is the finding. Cost is
+      minutes.
+    controls:
+    - Shape-matched null drawn in the same call as every signal measurement, enforced by the API.
+    - Shuffled-coefficient control on the same systems, which must change the verdict no more often
+      than the shape-matched null.
+    - Archived negative control rows reproduced as negatives, not only positives reproduced as positives.
+    - Archived FAILING gate rows reproduced as failures, which is the strongest available constraint
+      on the convention vector.
+    - Convention sweep with every free convention enumerated, so the reader can count conventions
+      against discriminating rows.
+    - Regression fixture suite committed with the module, so the same rows guard future changes.
+    required_metrics:
+    - per-row agreement with each published control table
+    - the set of convention vectors consistent with all reproduced rows
+    - count of free conventions versus count of discriminating rows
+    - list of rows excluded because their inputs could not be reconstructed
+    - shape-matched null fire rate on repeated draws
+    - shuffled-coefficient verdict change rate
+    - wall-clock seconds and peak Macaulay dimensions at the highest fixture degree
+  falsification_conditions:
+  - No convention vector reproduces all reconstructable rows simultaneously, establishing that the
+    archived meter's conventions are not recoverable from committed artifacts -- a concrete limit
+    on what the ALPF import can support.
+  - The number of free conventions equals or exceeds the number of discriminating rows, in which case
+    the reproduction is fitting rather than validation and must be reported as such.
+  - The module's public API permits obtaining a signal verdict without a null, falsifying the packaging
+    claim in (C).
+  - The shuffled-coefficient control changes verdicts more often than the shape-matched null, indicating
+    the meter reads coefficient layout rather than structure.
+  - Rank computation at the archived D_reg values of 10 to 12 exceeds the time or memory budget in
+    pure Python, in which case the tool is reported as usable only below a stated degree.
+  - More than a third of published rows cannot have their input systems reconstructed, leaving the
+    fixture suite too thin to validate anything.
+  confounders:
+  - The published tables describe their control systems in prose ('3 cubics, shared quadratic leading
+    factor'), so reconstructing the exact inputs involves interpretation that can move a verdict.
+  - Sage's rank and Groebner routines may make internal choices the pure-Python version cannot see,
+    so agreement on fixtures does not imply agreement elsewhere.
+  - A convention that reproduces the toy fixtures may diverge at degrees or profiles not represented
+    among them.
+  - The gate-failure rows are the strongest fixtures but also the most likely to be sensitive to unrecorded
+    details of the original implementation.
+  - Enforcing the paired API constrains downstream code and may be worked around by callers, which
+    the entry can test only within its own repository.
+  interpretation_limits:
+  - A tool is validated on its fixtures and nowhere else; reproducing a dozen toy rows licenses no
+    claim about behaviour on unseen profiles or larger degrees.
+  - Agreement with the archived meter on fixtures does not make the two implementations equivalent,
+    and the entry claims only fixture agreement.
+  - No ALPF scientific result changes; the tool enables re-running and controlling future cells and
+    revises nothing archived.
+  - The packaging claim about structural nulls is a design assertion tested only within this repository's
+    own downstream usage.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The tool's own cost is the Macaulay rank at the
+      requested degree, reported per fixture; it computes no attack and solves no instance.
+    memory_exponent: No attack memory exponent is claimed. Peak memory is the largest Macaulay matrix
+      held, with the column cap as an explicit parameter.
+    best_known: The incumbent inside this repository is src/ic_first_fall_fast.py, which is Sage-bound
+      and defaults to max_D = 4, below the archived ALPF D_reg values of 7 to 12; and the archived
+      Autolab Sage meter itself, which is not runnable here at all. No dependency-free first-fall
+      meter exists in the repository. The underlying-problem incumbent, Pollard rho at roughly sqrt(n)
+      group operations, is untouched.
+    hidden_overhead: 'Reconstructing control systems from prose descriptions is the real work and
+      it is invisible in any success metric; a reconstruction that is subtly wrong produces confident
+      fixture agreement on the wrong systems. Lower-order term: pure-Python rank over F_p at the archived
+      degrees is slow enough that the degree ceiling becomes a practical constraint downstream, and
+      every entry depending on this tool inherits that ceiling.'
+  dominated_by: 'n/a (no attack result claimed). Pareto check performed across time, memory and data/queries:
+    the tool produces no attack point, so no frontier row applies. Against src/ic_first_fall_fast.py
+    it is strictly dominated on speed -- Sage''s linear algebra over F_p will be substantially faster
+    than pure Python -- and strictly dominates on availability, since the incumbent cannot run under
+    the no-Sage constraint at all, and on reachable degree, since its ceiling is a parameter rather
+    than a default of 4.'
+  sota_delta: 'No attack; tooling contribution only. Quantitatively: the incumbent in-repository meter
+    is unavailable under the stated instrument constraint and caps at max_D = 4 by default, below
+    the archived D_reg values of 7, 10 and 12; this provides a runnable meter with a parameterised
+    ceiling validated against roughly a dozen published control rows spanning four analyses including
+    two validation failures, and an API in which a signal verdict without a null is not expressible.
+    Zero change to any ECDLP time or memory exponent.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That a working dependency-free Macaulay-rank meter is built: 0.85 --
+    this is ordinary engineering and sympy plus integer arithmetic suffices. That it reproduces the
+    three EXP-ALPF-011 passing control rows under some convention vector: 0.6, since the control systems
+    are described in prose and must be reconstructed. That it ALSO reproduces the EXP-ALPF-006 gate-failure
+    rows: 0.35, and this is the honest weak point, because those rows depend on subtle Hilbert-series
+    cancellation behaviour that the archived text explains but does not pin. That the convention count
+    stays below the discriminating-row count, making the reproduction validation rather than fitting:
+    0.4. That the paired-null API survives contact with downstream callers: 0.7. Overall probability
+    the entry delivers a tool other entries in this batch can actually use: 0.7, and delivers a stated
+    obstruction about convention recoverability if not.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALPF-001
+  - EV-ALPF-001
+  - EXP-ALPF-006
+  - EXP-ALPF-007
+  - EXP-ALPF-010
+  - EXP-ALPF-011
+  - src/ic_first_fall_fast.py
+  - src/macaulay_export.py
+  - harness/semaev.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALPF-b123eb

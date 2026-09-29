@@ -1,0 +1,243 @@
+idea:
+  id: IDEA-20260816-725f05
+  question_id: RQ-MLKEM-003
+  added: '2026-08-16'
+  title: 'The waterfall-floor as a tracked object: measure whether a dual distinguisher''s success
+    probability plateaus below one as the dual-vector budget grows, and whether that plateau survives
+    the one control that can distinguish a real floor from a scoring artifact'
+  class: mechanism
+  claim: '(A) KN-OPEN-016 records that the objection to the improved dual attack was confirmed experimentally
+    and included an unpredicted waterfall-floor phenomenon: a success probability that stops improving
+    as resources grow. This program has never observed it. The object tracked here is the success
+    curve itself, P(success | N), as a function of the retained dual-vector count N at fixed everything
+    else, and specifically its asymptote as N grows within the reachable band. (B) The claim is that
+    a floor, if real, is a per-instance property rather than a per-parameter one: some instances become
+    recoverable and some never do, and the ensemble success probability plateaus at the fraction that
+    can. That is a testable mechanism and it is distinguishable from the alternative - that the plateau
+    is a property of the scoring pipeline''s finite precision or of the reduction''s quality saturating
+    - by exactly one measurement: whether the SAME instances succeed at every large N. If the identity
+    of the succeeding instances is stable as N grows, the floor is instance-borne; if the identity
+    churns while the fraction stays constant, the plateau is a rate phenomenon and the instance explanation
+    is refuted. (C) The entry therefore commits to reporting the per-instance success indicator matrix
+    over the N grid, not only its column means, and to computing the churn statistic before interpreting
+    any plateau. (D) NOT CLAIMED: no attack, no speedup, no security consequence, no claim that any
+    floor observed here is the same phenomenon named in KN-OPEN-016, no assertion about what any publication
+    reported, and no extrapolation from the reachable band to any deployed parameter set. A plateau
+    observed at n = 40 and N <= 512 is a statement about that grid.'
+  mechanism: 'STAGE 1. Generate LWE instances with retained secret at fixed (n, m, q, k_fft), each
+    with a large pool of reduced dual vectors sorted by norm. STAGE 2. For N over a geometric grid,
+    score the candidate space using the N shortest pool vectors and record a per-instance success
+    indicator (true candidate ranked first). Because the pool is shared, the N grid is nested by construction
+    and the indicator matrix is directly comparable across N. STAGE 3. Compute column means to obtain
+    P(success | N) and locate any plateau. STAGE 4. Compute the churn statistic: among instances succeeding
+    at the largest N, the fraction that also succeeded at half that N, and the reverse. STAGE 5. Run
+    the finite-precision arm: rescore the plateau region at doubled fixed-point precision; if the
+    plateau moves, it is a precision artifact. STAGE 6. Run the reduction-quality arm: extend the
+    pool with vectors from a longer reduction and rescore; if the plateau moves, it is a reduction-quality
+    artifact. STAGE 7. Run the b-uniform null through the identical path. Refutation: a plateau that
+    dissolves under either arm is recorded as an artifact of that arm, with the mechanism named.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'grep -rilE ''waterfall'' ledger/ knowledge/ (hits: H-MLKEM-0c0a6e, IDEA-20260805-5a4409,
+      DEC-20260802-15cadd, DEC-20260731-008, KN-LIT-111, KN-OPEN-016, KN-TECH-039); grep -rilE ''dual.?attack|dual.?sieve''
+      ledger/proposals/. Read KN-OPEN-016 in full. Read title and claim head of IDEA-20260805-5a4409
+      and IDEA-20260808-0eb075.'
+    results: 'The word waterfall appears in seven records, and the corpus''s engagement with it is
+      analytic rather than observational. IDEA-20260805-5a4409 derives a Parseval energy budget forcing
+      the across-candidate second moment - a score-scale identity that constrains the distinguisher
+      without running it. IDEA-20260808-0eb075 computes N_eff from the Fourier support, which is a
+      correction to the false-positive floor and is therefore adjacent in name but opposite in direction:
+      it concerns wrong candidates scoring high, whereas a waterfall floor concerns the right candidate
+      failing to score highest however much budget is spent. KN-FIND-012, KN-FIND-013 and KN-FIND-014
+      are audits of archived figures and score scales, not success curves. A hypothesis record H-MLKEM-0c0a6e
+      exists in the same neighbourhood and was not read in full. No record found measures a success
+      curve against a nested dual-vector budget with a per-instance indicator matrix.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature, and in particular nothing
+      is asserted about what KN-LIT-111 reported beyond what KN-OPEN-016 relays. Claimed new relative
+      to this repository: the nested-pool design that makes the per-instance indicator matrix comparable
+      across budgets, and the churn statistic that separates an instance-borne floor from a rate phenomenon.
+      Assembled from known parts: the distinguisher, exact-integer reduction, the b-uniform null already
+      used elsewhere in this batch, and ordinary precision and quality ablations.'
+  object_first_candidate:
+    tracked_object: The per-instance success indicator matrix X[i][N], one bit per (instance, dual-vector
+      budget) pair, generated from a single nested pool of reduced dual vectors per instance so that
+      increasing N strictly adds information.
+    lossiness: 'Genuinely lossy. The full state is, for each instance and each N, the entire vector
+      of q^{k_fft} candidate scores. X retains one bit per cell and discards every score. The discard
+      is compatible with the operation of interest because success is by definition a threshold event
+      on the score ordering, so the bit is exactly the quantity the success curve is built from; and
+      because the bits are nested-comparable by construction, the retained object supports the churn
+      statistic, which the column means alone do not. What is discarded and matters: the margin by
+      which a success or failure occurred, so an instance sitting one quantisation step from success
+      is indistinguishable from one far from it. Margin is therefore retained as a secondary metric
+      precisely because the primary object cannot see it.'
+    propagation: One step of the target operation is doubling N. Under that step each instance's true-candidate
+      score gains the contribution of the newly added dual vectors, which are the next-shortest in
+      the pool and therefore contribute less advantage per vector than their predecessors; the wrong-candidate
+      maximum also grows, but as an extreme of a larger sample. X[i][2N] therefore dominates X[i][N]
+      only if the signal gain exceeds the extreme-value gain. A floor is precisely the regime where
+      those two growths cancel for a subset of instances, and the churn statistic measures whether
+      that subset is fixed.
+    survival_score: 'The nested-pool design survives while the pool can be built and the candidate
+      space enumerated: n <= 48, q <= 769, k_fft <= 2, pool size up to about 2048 dual vectors. Across
+      that band N spans three decades geometrically, which is enough to see a plateau if the plateau
+      lies inside it. Above n = 48 the pool cannot be reduced to useful norms in pure Python and the
+      object dissolves; below N = 8 the curve is uninformative. The honest boundary is that a plateau
+      outside the band is invisible to this design, and the entry reports the band rather than the
+      asymptote.'
+  null_object_control: 'The b-uniform null, in the same invocation from the same seed stream: identical
+    A, identical dual-vector pool, identical scoring, but b drawn uniformly at random and a nominal
+    secret drawn independently. The null must show P(success | N) flat at the chance level 1/q^{k_fft}
+    across the entire N grid, with no plateau above chance, and a churn statistic consistent with
+    independent coin flips. If the null exhibits a plateau above chance, the pipeline manufactures
+    apparent success without a planted secret and every signal-arm curve is an artifact, recorded
+    as a controlled null under inventor-protocol section 3. This null is what makes the observation
+    meaningful: a floor is only interesting if the same code shows no floor when there is nothing
+    to find.'
+  discriminated_from:
+  - 'IDEA-20260808-0eb075: computes N_eff from the score polynomial''s Fourier support, correcting
+    the false-positive floor - wrong candidates scoring too high. A waterfall floor is the right candidate
+    failing to win; the two run in opposite directions and 0eb075 says so about itself.'
+  - 'IDEA-20260805-5a4409: a Parseval second-moment identity constraining the distinguisher analytically
+    without running it. This entry runs it and reports an indicator matrix.'
+  - 'KN-FIND-012 / KN-FIND-014: audits of archived Pwrong CDFs and score scales from someone else''s
+    figures, where the operating point was outside the measured range. Here the operating point is
+    generated, so no coverage gap can arise.'
+  - 'The rank-statistic entry in this same batch: that measures the distribution of the true candidate''s
+    rank at fixed budget; this measures the success indicator''s behaviour as the budget grows, with
+    a nested pool. They share a pipeline and differ in the independent variable and in the object.'
+  - 'Any claim to have reproduced the phenomenon KN-OPEN-016 names: explicitly disclaimed. A plateau
+    observed here is a plateau observed here, and no identification with any externally reported phenomenon
+    is made.'
+  assumptions:
+  - A single nested pool per instance makes the N grid comparable; vectors are added in nondecreasing
+    norm order and the order is recorded.
+  - Success is exact-rank-one against retained ground truth, not a threshold on a score.
+  - Doubling the fixed-point precision is a sufficient probe of precision artifacts in the plateau
+    region; if the plateau moves at all, the precision is inadequate and the run reports that rather
+    than a floor.
+  - Extending the pool by longer reduction probes reduction-quality saturation; a plateau that moves
+    under it is a quality artifact.
+  - A plateau observed within the band carries no implication for larger n, and none is drawn.
+  predictions:
+  - metric: P(success | N) at the largest N, signal arm, at the hardest grid point
+    direction: lower
+    minimum_effect: 0.9
+  - metric: P(success | N) at every N, null arm, minus chance level
+    direction: different
+    minimum_effect: 'forced value: 0.00, interval must contain zero. A null arm above chance voids
+      the experiment.'
+  - metric: 'churn: fraction of largest-N successes that already succeeded at N/2'
+    direction: higher
+    minimum_effect: 0.85
+  - metric: shift in the plateau level under doubled fixed-point precision
+    direction: lower
+    minimum_effect: 0.05
+  minimal_test:
+    design: One grid point, one nested pool, three arms. Fix q = 257, n = 32, m = 64, k_fft = 2 (66049
+      candidates), eta = 2. Build for each of 120 seeds a pool of 512 reduced dual vectors sorted
+      by norm. Score at N in {8, 16, 32, 64, 128, 256, 512} using pool prefixes, recording the success
+      bit per (seed, N). In the same invocation run the b-uniform null through the identical pool
+      and code path. Rescore the two largest N at doubled precision. Report the success curve with
+      binomial intervals, the indicator matrix, the churn statistic between N = 256 and N = 512, and
+      the null curve. This is the cheapest design that discriminates because the nested prefix structure
+      gives seven budget points for the price of one reduction per seed, and the churn statistic -
+      which needs the matrix, not the means - is what separates an instance-borne floor from a rate
+      phenomenon. The precision rescore is two extra scoring passes.
+    controls:
+    - b-uniform null arm through the identical pool and code path, in the same invocation.
+    - Doubled fixed-point precision rescore of the plateau region.
+    - Extended-pool arm with vectors from a longer reduction, testing reduction-quality saturation.
+    - Zero-error positive control where success must be attained at the smallest N.
+    - 'Pool-order shuffle control: rescore with the pool prefix chosen at random rather than by norm,
+      confirming that the nesting order is what produces monotonicity.'
+    required_metrics:
+    - per-instance success indicator matrix X[i][N]
+    - P(success | N) with binomial intervals, signal and null arms
+    - churn statistic between consecutive large N
+    - plateau level and the N at which it begins
+    - success margin per instance at each N
+    - plateau shift under doubled precision
+    - plateau shift under extended pool
+    - pool vector norms per instance
+  falsification_conditions:
+  - 'Null arm rises above chance at any N: the pipeline manufactures success and no signal-arm curve
+    is interpretable.'
+  - 'Plateau shifts by more than 0.05 under doubled precision: the plateau is a finite-precision artifact
+    and is reported as such with the precision named.'
+  - 'Plateau shifts materially under the extended pool: the plateau is reduction-quality saturation
+    and is reported as such.'
+  - 'Churn is high while the plateau level is stable: the floor is not instance-borne and the entry''s
+    mechanism claim in part (B) is refuted.'
+  - 'P(success | N) reaches 1.0 within the band at every grid point: no floor exists in the reachable
+    regime and the entry reports that as a measured absence with its band.'
+  - 'Zero-error positive control fails: the scoring code is wrong and the run is void.'
+  confounders:
+  - Pool quality varies by seed, so an instance that never succeeds may have a bad pool rather than
+    be a hard instance; pool norms are recorded and the curve is conditioned on them.
+  - Nested prefixes make successive N highly correlated, so binomial intervals understate uncertainty
+    across N; intervals are reported per N and no across-N test assumes independence.
+  - Quantisation ties near the plateau can freeze the indicator artificially, which the precision
+    arm probes but does not fully exclude.
+  - Small q makes the chance level large, inflating the null and compressing the dynamic range of
+    the curve.
+  - Instances with unusually short secrets succeed at every N and dilute any floor.
+  interpretation_limits:
+  - A plateau observed at n <= 48 with a pure-Python reduction is a statement about that pipeline
+    at those parameters, not about the dual attack in general.
+  - No identification is made between anything observed here and the phenomenon named in KN-OPEN-016;
+    the names coincide, the objects have not been shown to.
+  - The design cannot distinguish an instance-borne floor from a pool-borne one beyond the extended-pool
+    arm's reach.
+  - Nothing here bears on ML-KEM, on FIPS 203 parameters, or on any deployed system.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement costs O(seeds * (reduction + |N
+      grid| * q^{k_fft})) counted operations.
+    memory_exponent: No attack memory exponent is claimed. The measurement holds one pool of at most
+      2048 integer vectors and one score array of at most 6.6e4 entries per instance.
+    best_known: No incumbent is challenged. The nearest incumbent claim in this corpus is KN-FIND-015
+      / EV-MLKEM-015's finding that the pinned public dual instrument does not beat primal_bdd at
+      Kyber parameters; this entry makes no comparison to it and produces no cost.
+    hidden_overhead: 'The pool construction dominates and is human-expensive: getting exact-integer
+      reduction to produce 512 usefully short dual vectors at n = 32 in pure Python is the bulk of
+      the work, and the quality achieved silently determines whether any plateau observed is about
+      instances or about the reducer. That coupling is the entry''s principal hidden cost and the
+      extended-pool arm only partially exposes it.'
+  dominated_by: n/a (no result claimed). Every frontier row in this corpus's dual-attack lane was
+    checked for relevance - KN-FIND-015's primal versus dual comparison, KN-FIND-016's Carrier table
+    arithmetic, KN-FIND-012's Pwrong coverage, KN-FIND-013's brittleness bound - and none is a cost
+    frontier this entry could sit on, because this entry produces a success curve rather than a cost.
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a success curve
+    with a per-instance indicator matrix, a churn statistic, two ablation arms and a null.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Three separable parts. (i) That the pipeline runs with a clean null:
+    about 0.75, same reduction risk as elsewhere in this batch. (ii) That any plateau below 1.0 is
+    observed at all within the reachable band: about 0.5 - plateaus are easy to produce accidentally
+    through precision or pool limits, which is why two ablation arms exist, and genuinely hard to
+    produce for the reason the mechanism names. (iii) That an observed plateau survives both ablation
+    arms and shows low churn, i.e. is instance-borne: about 0.2, and I decline to raise it, because
+    the two most likely causes of a plateau in a hand-rolled pipeline are exactly the two the ablations
+    are designed to catch.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - KN-OPEN-016
+  - KN-LIT-111
+  - KN-TECH-039
+  - KN-FIND-012
+  - KN-FIND-013
+  - KN-FIND-014
+  - IDEA-20260805-5a4409
+  - IDEA-20260808-0eb075
+  - RQ-MLKEM-003
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-LATDUAL-89afec

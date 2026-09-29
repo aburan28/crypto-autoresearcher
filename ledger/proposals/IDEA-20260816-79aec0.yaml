@@ -1,0 +1,242 @@
+idea:
+  id: IDEA-20260816-79aec0
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: 'Take Merkle-Damgard strengthening as the object: count exactly which message words the padding
+    and length encoding pin in the final block, cross-reference them against the schedule to see which
+    side of a split loses neutral words, and show the same pinning costs a collision path nothing.'
+  class: composition
+  claim: '(A) Merkle-Damgard strengthening pins bits in the last block: a one bit, zeros, and a 64-bit
+    length field. In the collision setting two messages of equal length share those pinned bits exactly,
+    so the pinned words carry zero DIFFERENCE freedom that the attacker wanted and the constraint
+    costs nothing at all. In the preimage setting the same pinned bits remove usable words outright.
+    This is an asymmetry that lives entirely in the mode, is fully symbolic, and can be counted rather
+    than argued. (B) The claim under test is quantitative and has two halves. First, that MD5''s length
+    encoding pins message words 14 and 15 of the final block plus part of one more depending on message
+    length, so at least 2 of 16 words are unavailable, and that these specific words appear at specific
+    steps under MD5''s schedule. Second, that this pinning is not neutral with respect to a meet-in-the-middle
+    split: the pinned words fall predominantly on one side of the best available split, so the achievable
+    chunk separation drops by a measurable amount when the pinning constraint is imposed compared
+    with when it is lifted. The measurement is an ablation on a symbolic quantity: compute the best
+    split with the padding constraint and without it, and report the difference in steps. (C) The
+    claim also asserts the collision-side null: computing the same ablation with the constraint expressed
+    as a difference constraint rather than a value constraint must show a drop of zero, because equal-length
+    messages agree on every pinned bit. If that arm shows a nonzero drop the model of the collision
+    setting is wrong and the whole record is invalid. (D) EXPLICITLY NOT CLAIMED: that removing the
+    padding constraint would produce a preimage attack, that the drop in chunk separation converts
+    to any complexity, that the length field is the reason any historical frontier stalled, or anything
+    about MD5''s preimage resistance. The deliverable is a count of pinned words and a difference
+    of two split lengths.'
+  mechanism: 'Everything here is arithmetic on tables and needs no hash evaluation. STAGE 1 enumerates,
+    for each message length modulo 512 bits, exactly which bits of the final block are fixed by MD5''s
+    padding rule and therefore which of the 16 words are wholly pinned, partly pinned, or free. STAGE
+    2 computes the best chunk separation over MD5''s 64-step schedule under three constraint regimes:
+    no pinning, value-pinning of the padded words as in a preimage, and difference-pinning as in an
+    equal-length collision pair. STAGE 3 reports the drop in separation between the unpinned regime
+    and each pinned regime, per message length class. STAGE 4 runs the null over shape-matched random
+    schedules with the same pinning, giving the drop a random schedule would show. STAGE 5 repeats
+    on MD4, which uses the same strengthening. Refutation is immediate if the value-pinning drop is
+    zero, meaning the pinned words happen to lie where a split does not need them, or if the drop
+    is indistinguishable from the null, meaning any schedule with any pinning loses the same amount
+    and MD5 is unremarkable.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rl MDFIVE over ledger/proposals/, ledger/hypotheses/, experiments/, empty. grep
+      -ril md5, md4 over ledger/proposals/, empty. grep -ril merkle over ledger/proposals/ and knowledge/techniques/,
+      returning IDEA-20260731-003, IDEA-20260731-004, IDEA-20260808-95a21c and KN-TECH-066. Inspected
+      IDEA-20260808-95a21c in detail. Read RQ-MDFIVE-6870c1 in full, especially the opening about
+      whether the asymmetry belongs to the mode or to the compression function.
+    results: 'The three Merkle-Damgard matches in ledger/proposals/ are all mode-level cost or transcript
+      questions on other primitives: IDEA-20260808-95a21c is the FAEST per-attempt prefix-amortisation
+      audit, and the two IDEA-20260731 records matched on incidental mentions in a different scheme
+      context. None counts padding-pinned words, none computes a chunk separation, and none contrasts
+      the value-pinning and difference-pinning regimes. KN-TECH-066 discusses freedom degrees but
+      treats padding only in passing and defines no pinned-word mask. This bucket''s opening list
+      explicitly names the mode-versus-compression-function question, and no record in the repository
+      addresses it for any primitive.'
+    verdict: 'UNVERIFIED. The observation that equal-length messages share padding, and that a preimage
+      must satisfy the length field, is immediate from the definition of Merkle-Damgard strengthening
+      and is assembled from known parts. What is claimed new is only the ablation: computing chunk
+      separation with and without the pinning, under both a value regime and a difference regime,
+      against a shape-matched null, and reporting the drop as the mode''s contribution to the asymmetry.
+      Nothing is asserted about what the literature contains.'
+  object_first_candidate:
+    tracked_object: The pinned-word mask, a 16-bit indicator over the final block's message words
+      recording which are fixed by padding and length encoding, carried together with the best chunk
+      separation achievable under that mask.
+    lossiness: 'Lossy. The mask discards the actual padding bit values, the message length itself
+      beyond its residue class, and every state value, keeping only which words are unavailable. Many
+      distinct messages share one mask. The retained part propagates because the schedule determines,
+      without reference to any value, which steps meet a pinned word, so the mask induces a fixed
+      pattern of unusable steps that a split-finding enumeration reads directly. The honest limit:
+      partial pinning, where a word is only partly fixed, is coarsened to fully pinned in the primary
+      arm, which overstates the loss; a secondary arm treats partial words as free, and the true answer
+      lies between the two, which is reported as a band rather than a point.'
+    propagation: The tracked operation is imposing the constraint, not advancing a step. Imposing
+      the mask removes each pinned word from the pool a chunk may use as a neutral word. Under the
+      schedule that removal deletes a fixed set of step indices from eligibility on whichever side
+      of a split needed them, which can only shrink the achievable separation and never grow it. The
+      monotonicity is what makes the drop well defined and is checked as a consistency condition in
+      the run.
+    survival_score: 'The object survives exactly as long as the final block is the one being solved,
+      which for a single-block preimage is the whole computation and for a multi-block preimage is
+      only the last block. The record states this boundary explicitly: for multi-block messages the
+      mask constrains one block out of many and the drop measured here applies to that block alone,
+      with the freedom added by earlier blocks neither measured nor claimed to compensate.'
+  null_object_control: Two nulls, both in the same invocation. First, shape-matched random schedules
+    with the identical pinned-word mask, giving the distribution of separation drops that any four-uses-per-word
+    schedule suffers from pinning two words; MD5's drop must exceed the central band of that distribution
+    for the effect to be schedule-specific. Second, a random-mask null in which two arbitrary words
+    are pinned instead of words 14 and 15, giving the drop that pinning any two words causes; MD5's
+    actual drop under its actual mask must exceed that band for the effect to belong to the padding
+    position rather than to pinning in general. If either null envelops the signal, the record states
+    a controlled null and says which of the two readings is closed.
+  discriminated_from:
+  - 'IDEA-20260808-95a21c, the FAEST Merkle-Damgard per-attempt cost audit: that record is about amortising
+    a hashed prefix when the varied field sits late and counts hash calls. This one counts which words
+    a length field makes unusable and how that changes a split length; the two share only the construction
+    name.'
+  - 'The schedule-statistic record in this batch, which computes chunk separation with no constraint
+    at all: this one is the ablation of that same statistic under a mode-imposed mask, and its deliverable
+    is the difference rather than the level.'
+  - 'Classical length-extension observations about Merkle-Damgard: those concern appending to an unknown
+    message and are about the mode''s behaviour under extension, not about which words a final-block
+    length field removes from a split.'
+  - 'KN-TECH-066 message modification: that spends freedom along a path within the compression function
+    and does not attribute any part of the freedom budget to the mode.'
+  - 'Generic multi-block collision constructions: those exploit the mode to gain freedom, which is
+    the opposite direction of the effect measured here, and the record reports the collision-side
+    arm precisely so the two directions are not conflated.'
+  assumptions:
+  - MD5's padding rule as specified in RFC 1321, transcribed and validated, determines the mask; two
+    independent transcriptions are required.
+  - Chunk separation as defined by the sibling record in this batch is the quantity the mask should
+    be measured against, and its definition is inherited unchanged rather than redefined here.
+  - Treating a partly pinned word as fully pinned overstates the loss and treating it as free understates
+    it, so the true drop is bracketed rather than pointed.
+  - The collision-side regime is correctly modelled by requiring only that the two messages agree
+    on the pinned bits, which holds when the two messages have equal length and is stated as a scope
+    restriction rather than a general claim.
+  predictions:
+  - metric: number of MD5 final-block words wholly pinned by padding and length for a message whose
+      length is a multiple of 512 bits
+    direction: different
+    minimum_effect: forced value 3 wholly pinned words in the appended-block case, namely the word
+      carrying the one bit and the two length words; falsified if the enumeration yields a different
+      count
+  - metric: drop in best chunk separation under value-pinning versus no pinning, in steps
+    direction: higher
+    minimum_effect: 2
+  - metric: drop in best chunk separation under difference-pinning versus no pinning, in steps
+    direction: different
+    minimum_effect: forced value 0; any nonzero drop invalidates the model of the collision setting
+      and the record
+  - metric: MD5's value-pinning drop relative to the random-mask null distribution
+    direction: higher
+    minimum_effect: 'explicit refusal to pre-commit a percentile: the number of ways two pinned words
+      can sit relative to a split is small and the null may be coarse, so the percentile is reported
+      as observed rather than predicted'
+  minimal_test:
+    design: 'A single program with no hash evaluation. Encode MD5''s padding rule and enumerate the
+      pinned-word mask for each of the 512 possible message-length residues modulo the block size,
+      which is a direct computation. Encode the schedule. Implement the chunk-separation enumeration
+      once, parameterised by a set of forbidden words, and call it three times per mask: with no forbidden
+      set, with the pinned set forbidden to the side that needs them as neutral words, and with the
+      pinned set treated as agreeing between two executions so that nothing is forbidden. Report the
+      three separations and the two drops. Run both nulls at 10^4 samples each. The whole computation
+      is seconds. It discriminates because the difference-pinning arm must yield a drop of exactly
+      zero, which is a hard check on the model, and because the value-pinning drop either exceeds
+      both null bands or does not.'
+    controls:
+    - Shape-matched random schedules with MD5's actual mask, 10^4 samples, same invocation.
+    - Random-mask null pinning two arbitrary words of MD5's actual schedule, 10^4 samples.
+    - Difference-pinning arm, which must produce a drop of zero and is a correctness check on the
+      model rather than a comparison.
+    - Partial-word bracketing, running the whole ablation twice with partly pinned words counted as
+      pinned and as free.
+    - MD4 with the same strengthening, checking the instrument moves between primitives.
+    required_metrics:
+    - pinned-word mask per message-length residue class
+    - best chunk separation with no pinning
+    - best chunk separation under value-pinning
+    - best chunk separation under difference-pinning
+    - drop in steps for each regime
+    - null distributions of the drop for both nulls
+    - the same set for MD4
+  falsification_conditions:
+  - The difference-pinning arm shows a nonzero drop, which invalidates the model of the collision
+    setting and therefore the record.
+  - The value-pinning drop is below 2 steps.
+  - MD5's drop sits inside the central band of the shape-matched schedule null.
+  - MD5's drop sits inside the central band of the random-mask null, meaning padding position is irrelevant
+    and any two pinned words would do the same.
+  - The partial-word bracketing is so wide that the pinned and free readings fall on opposite sides
+    of every null band, leaving the result undetermined.
+  confounders:
+  - 'Definitional inheritance: chunk separation is defined by a sibling record and a change in that
+    definition changes every number here.'
+  - Message-length residue class, since different lengths pin different words and pooling across classes
+    could average away the effect.
+  - Partial-word treatment, addressed by bracketing rather than by choosing.
+  - Coarseness of the random-mask null, since there are only 120 ways to choose two of sixteen words
+    and the null distribution may be nearly discrete.
+  - Single-block scope, since a multi-block preimage strategy changes which block the mask constrains
+    and the record must not be read as covering that case.
+  interpretation_limits:
+  - A drop in chunk separation is a change in a necessary-condition statistic and converts to no complexity
+    whatsoever.
+  - The result is scoped to single-block final-block solving; multi-block strategies are outside it.
+  - The collision-side zero drop is a modelling consequence of equal-length messages and does not
+    extend to chosen-prefix or unequal-length settings, which are not modelled here.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a count of pinned words and a
+      difference of two integers in steps.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the informal observation, stated here from the definition rather
+      than cited, that equal-length collision pairs share their padding while a preimage must match
+      the length field. No repository record quantifies its effect on any split statistic, as the
+      novelty screen records.
+    hidden_overhead: 'The compute is seconds, so every real cost is definitional and inherited. The
+      chunk-separation definition comes from a sibling record, and this record''s entire deliverable
+      is a difference of two of its values, so any later revision of that definition silently invalidates
+      every number here; the content-hash check makes that visible but does not prevent it. Partial-word
+      pinning is the second hidden term: the bracket between counting a partly fixed word as pinned
+      and as free may be wider than the effect, and closing it requires a modelling decision no measurement
+      supplies. Third, the single-block scope is easy to forget when the result is quoted, and a multi-block
+      reading would need a different mask and a different enumeration entirely.'
+  dominated_by: n/a (no result claimed). Both MD5 frontier rows this program holds, the UNVERIFIED
+    2^123.4 preimage figure and the seconds-scale collision figure in RQ-MDFIVE-6870c1, were checked.
+    A step-count drop occupies no axis on either, so no Pareto comparison exists; recording null would
+    be a fabrication.
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a difference of two
+    small integers with null bands, incomparable with any complexity.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Split by part. That the pinned-word mask can be enumerated exactly for
+    every length residue: about 0.95, it is a direct reading of the padding rule. That the difference-pinning
+    arm yields exactly zero, confirming the model: about 0.85, and a failure here would be highly
+    informative about the model rather than about MD5. That the value-pinning drop is at least 2 steps:
+    about 0.5, since it depends on where words 14 and 15 sit relative to the best split and that is
+    not known before running. That the drop exceeds the random-mask null band, meaning padding position
+    specifically matters: about 0.3, and I expect this to be the part that closes. Joint survival:
+    about 0.2.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-066
+  - KN-TECH-056
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-835cd4

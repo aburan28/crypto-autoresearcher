@@ -2,12 +2,16 @@ name: kb
 
 # The retrieval layer, kept separate from validate.yml on purpose.
 #
-# Two different things need checking on two different populations of PR:
+# Three things need checking over two different populations of PR:
 #
 #   * The frozen evaluation slice names ~625 repository paths. Deleting one
 #     silently invalidates every question label that references it, and the
 #     campaign that deleted it is the one that can fix it. That check is pure
 #     stdlib and sub-second, so it runs on any PR that touches the corpus.
+#   * The staging rules must still reach every family of record, and the
+#     disclosed staging debt must not grow. That measures the *repository*,
+#     not kb/, so it also runs on any PR that touches the corpus -- see the
+#     step below for why gating it behind kb/ was a mistake.
 #   * The suite itself builds a 610-document corpus and queries it. That is a
 #     kb/ concern, and making every research PR wait on it is exactly the
 #     coupling this repository removes elsewhere.
@@ -84,6 +88,24 @@ jobs:
           else
             echo "kb=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # This one measures the repository, so it has to run on the PRs that
+      # change the repository. Gating it behind `touched` is why four of its
+      # pins drifted unnoticed to 10,922/76/75/103 against a live
+      # 11,014/80/79/105: the corpus grows through research PRs, which skip
+      # the suite, so the drift only ever surfaced on an unrelated kb/ PR and
+      # landed on whoever opened it. Root validate.yml does not close the gap
+      # either -- its pytest discovery is scoped to tests/, never kb/tests/.
+      #
+      # Deliberately not an editable install: five wheels and PYTHONPATH cover
+      # the whole import chain (no docling, no qdrant, no model download), so
+      # this costs ~20s on a research PR instead of the full suite's minutes.
+      # Skipped when the full suite runs below and already covers it.
+      - name: Corpus staging coverage and disclosed debt
+        if: steps.touched.outputs.kb != 'true'
+        run: |
+          pip install --quiet pyyaml pydantic pydantic-settings structlog pytest
+          PYTHONPATH=kb/src python3 -m pytest kb/tests/unit/test_repo_corpus.py -q
 
       - name: Install crypto-kb
         if: steps.touched.outputs.kb == 'true'

@@ -1,0 +1,544 @@
+idea:
+  id: IDEA-20260829-34f3ed
+  question_id: RQ-ECDLP-165d4b
+  added: '2026-08-29'
+  title: >-
+    NO CELL OF THIS CENSUS IS COMPARABLE TO ANY OTHER UNTIL THE INSTRUMENT'S OWN
+    FINITE-SIZE BIAS IS MEASURED: the RQ declares bit sizes 16 through 36 while
+    every prime-field measurement this program owns sits at or below 17 bits, so
+    calibrate the null - fit the decay law of the matched-baseline residual
+    across 12 to 26 bits and pre-register the exponent, which is the ONLY thing
+    that makes "a quantity that should decay and does not" a usable artifact
+    tell in this lane rather than an unanchored phrase
+  class: tooling
+
+  claim: >-
+    (A) THE GAP, STATED AS A FACT ABOUT THIS PROGRAM'S RECORDS.
+    RQ-ECDLP-165d4b declares bit_sizes 16, 20, 24, 28, 32 and 36. Its only
+    specified hypotheses (H-ECDLP-80fceb, H-ECDLP-f6d060, H-ECDLP-e42bda) run at
+    field_bits 12, 13, 14 and 15. The nearest executed prime-field evidence,
+    EV-ENDO-10109d, runs at p at most 100057, i.e. 16.6 bits. FIVE OF THE SIX
+    DECLARED CENSUS ROWS ARE EMPTY, AND THE ONE THAT IS NOT IS POPULATED BY
+    MEASUREMENTS TAKEN BELOW IT. A census whose rows are not comparable is a
+    list, not a map.
+
+    (B) THE TRACKED OBJECT - the baseline residual. Define
+    R(N) = Wbar_BASE(N) / (0.886 * sqrt(N)), the seed-averaged normalised
+    charged work of the MATCHED CONTROL arm - the arm with no claimed structural
+    advantage - divided by its own asymptotic prediction. R is a genuinely lossy
+    projection of the run: it discards the curve, the seeds, the walk, the
+    collision, everything except one ratio; and what it discards is discarded
+    compatibly with the census's operation, which is comparing cells, because
+    two cells are comparable exactly when their R values are drawn from the same
+    calibrated law. R is not a change of coordinates - no run is recoverable
+    from it.
+
+    (C) THE CLAIM WITH A NUMBER. R(N) = 1 + c*N^(-e) + o(N^(-e)) with a fitted
+    e near 1/2, because the dominant finite-size terms - cycle-detection
+    overhead, the additive setup and certificate charges, the walk's deviation
+    from a uniformly random function on a partition of fixed branch count, and
+    fruitless-cycle escapes - are all O(1) STEP counts added to a collision time
+    that grows as sqrt(N). Concretely - an O(10)-step fixed overhead is a 16
+    percent bias at 12 bits (sqrt(N) about 63) and a 0.06 percent bias at 28
+    bits (sqrt(N) about 1.6e4). THEREFORE, AT THE BIT SIZES WHERE THIS LANE
+    ACTUALLY MEASURES, THE INSTRUMENT'S OWN BIAS IS OF THE SAME ORDER AS THE 10
+    PERCENT EFFECT H-ECDLP-e42bda PRE-REGISTERS, AND IS LARGER THAN IT AT THE
+    SMALLEST DECLARED SIZE.
+
+    (D) THE DISCRIMINATION, WHICH IS WHY THIS IS NOT BOOKKEEPING. Two mutually
+    exclusive readings, and they carry opposite consequences for the whole lane.
+      READING 1 - e fits cleanly in [0.3, 0.7] with a stable c across curve
+      families and seeds. Then finite-size bias is a KNOWN, SUBTRACTABLE
+      function; the census gets a calibration constant per bit size, a declared
+      minimum admissible bit size at which bias falls below any target effect,
+      and - crucially - a CALIBRATED DECAY LAW. Only then does
+      docs/inventor-protocol.md section 3's structural tell ("a quantity that
+      should decay and does not is the signature of an artifact") become
+      operational here, because "should decay" acquires a rate. EV-ENDO-10109d
+      reports monotonic_decay FALSE for a different instrument and records the
+      cause as the campaign's most important open question; that report cannot
+      currently be weighed against a calibrated expectation, because none exists.
+      READING 2 - e does not fit, or c varies with curve family, or R is
+      non-monotone in N, or the seed-to-seed variance dominates the bias at every
+      tested size. Then CROSS-CELL COMPARISON AT TOY SCALE IS INVALID, and the
+      census must be redesigned so that every comparison is within a single bit
+      size and a single family - which is exactly the design
+      IDEA-20260829-20b05f adopts by construction, and which would become
+      mandatory rather than merely prudent.
+
+    (E) WHAT IS NOT CLAIMED. No exponent moves; this is instrument calibration
+    and is offered explicitly as a building block. It does not claim that any
+    census cell contains or lacks a real effect. It claims only that the
+    comparability of cells is currently an untested assumption with a computable
+    magnitude.
+
+  mechanism: >-
+    STEP 1 (zero compute). Enumerate the census's declared bit rows against the
+    program's actually-executed prime-field measurements, and emit the coverage
+    table with the empty cells marked. This is a five-minute artifact and it is
+    the census's first honest deliverable.
+
+    STEP 2 (zero compute). Decompose the predicted bias into named additive
+    terms - cycle-detection overhead, fixed setup and certificate charge,
+    partition-branch discretisation, fruitless-cycle escape cost - and write the
+    predicted exponent for each. All four are O(1) step counts against a
+    sqrt(N) denominator, hence e = 1/2 for each; a fifth term with a different
+    exponent would show up as a poor fit and is the pre-registered alternative.
+
+    STEP 3 (low-to-medium compute, THE CALIBRATION LADDER). For bit sizes
+    12, 14, 16, 18, 20, 22, 24 and 26, take 12 matched-random ordinary
+    prime-order curves each (no automorphism, no anomalous, declared embedding
+    degree and twist checks), 48 seeds each, one frozen cost model, and measure
+    R(N) with a bootstrap CI. Cost grows as sqrt(N) per run - 12*48*sqrt(N)
+    group operations per row, so the 26-bit row is about 12*48*8.2e3 = 4.7e6
+    group operations. The whole ladder is dominated by its top row and stays
+    well inside a single-digit CPU-hour budget with harness/toycurve.py.
+
+    STEP 4 (zero compute). Fit log(R - 1) = log c - e*log N by weighted least
+    squares across the ladder, report e and c with CIs, and test the residuals
+    for curvature. Then invert - emit N_min(delta), the smallest N at which the
+    fitted bias falls below a target effect delta, for delta in 0.02, 0.05,
+    0.10 and 0.20.
+
+    STEP 5 (zero compute, THE ARTIFACT). Emit the calibration table as a
+    committed, reusable file - per bit size, R_hat with CI, c, e and
+    N_min(delta) - so that any future cell in this lane, including every cell of
+    IDEA-20260829-172151 and IDEA-20260829-2dc43c, can state whether it is
+    comparable to any other, and so that any future "does not decay" observation
+    can be scored against a rate instead of against an intuition.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: RQ-ECDLP-165d4b
+      provenance: internal
+      claim: >-
+        Declares bit_sizes 16, 20, 24, 28, 32 and 36, and the constraint that toy
+        and medium runs cannot be promoted to cryptographic-scale claims.
+      verified_by: this idea-generator session, 2026-08-29, read in full
+    - ref: H-ECDLP-e42bda
+      provenance: internal
+      claim: >-
+        field_bits 12, 13, 14 and 15; effect target Hodges-Lehmann paired median
+        ratio at most 0.90; budget 18720 wall-clock seconds, 104 maximum runs.
+      verified_by: this idea-generator session, 2026-08-29, read in full
+    - ref: EV-ENDO-10109d
+      provenance: internal
+      claim: >-
+        Executed prime-field measurements at p in 4001, 6007, 50021, 60013 and
+        100057, i.e. at most 16.6 bits; the density sweep's variance ratio stays
+        in [1.3, 3.6] with monotonic_decay False at both primes, which the
+        Validator explicitly flagged as "exactly the canonical artifact tell the
+        operating rules warn about" and which the synthesis reports honestly
+        rather than hiding.
+      verified_by: this idea-generator session, 2026-08-29, read in full
+    - ref: KN-TECH-018
+      provenance: internal
+      claim: >-
+        The 0.886*sqrt(n) convention is the negation-included rho baseline
+        constant against which normalised work is measured.
+      verified_by: this idea-generator session, 2026-08-29, read in full
+    - ref: docs/inventor-protocol.md
+      provenance: internal
+      claim: >-
+        Section 3 - "an excess that stays constant across rounds is instead the
+        signature of an artifact", because genuine structure should decay as the
+        parameter meant to destroy it increases; the null-object control is
+        mandatory before belief.
+      verified_by: this idea-generator session, 2026-08-29, read in full
+    - ref: null
+      provenance: recalled
+      claim: >-
+        The 0.886 constant and the sqrt(pi*N/2) mean collision time derive from
+        the standard birthday and random-mapping analysis of rho; van
+        Oorschot-Wiener give the distinguished-point variant whose per-run
+        overhead is one of the named finite-size terms. Not opened this session.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The matched-random control arm has NO structural advantage, so its
+      residual is instrument bias by construction. Any curve family with a real
+      effect is excluded from the calibration ladder; the calibration is
+      measured on the null, not on the treatment.
+    - >-
+      One frozen cost model across the entire ladder. A cost-model change
+      mid-ladder makes the fitted exponent meaningless and is a blocking
+      protocol failure, not a caveat.
+    - >-
+      N is known EXACTLY at every rung (by exhaustive count or certified BSGS),
+      so no estimation error in N enters R. This is why the ladder stops at 26
+      bits rather than continuing to the declared 32 and 36.
+    - >-
+      A fitted power law is a MODEL. Its adequacy is tested by residual
+      curvature and by leave-one-rung-out prediction, and a failed adequacy test
+      is READING 2, not an excuse to widen the CI.
+
+  proof_search_map:
+    bottleneck: >-
+      The step "compare a measurement taken at one bit size or family against a
+      measurement taken at another". Every census statement that spans cells
+      passes through it, and no record in this program measures the bias it
+      introduces.
+    baseline_embedding:
+      parameter_slice: >-
+        The asymptotic limit - R(N) tends to 1 as N tends to infinity. The fit
+        must reproduce the known constant, i.e. the fitted intercept of R at
+        infinite N must be 1.000 within its CI, recovering the 0.886*sqrt(N)
+        convention of KN-TECH-006 and KN-TECH-018 as the limiting boundary of
+        the fitted family.
+      reproduction_check: >-
+        Frozen fixture plus an asymptote test - on a single declared curve at 20
+        bits with a fixed seed set, the committed R value must be reproduced
+        bit-for-bit by a re-run; and the fitted three-parameter model
+        R = R_inf + c*N^(-e) must return R_inf = 1.000 with a CI containing 1.
+        An R_inf significantly different from 1 means the normalisation constant
+        itself is wrong, which would be a finding about KN-TECH-006's convention
+        rather than about finite size.
+    observation_collision:
+      observable: the baseline residual R(N) minus 1
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED - find two runs with the SAME R, one at
+        a small N with pure instrument bias and no structure, one at a larger N
+        with a genuine 5 percent structural effect. Such a pair exists whenever
+        the bias at the small size equals the effect at the large one, which by
+        (C) happens around 14-16 bits for a 5 percent effect. Exhibiting it is
+        the cheapest proof that R is not interpretable without its scale, and it
+        is precisely why the deliverable is a per-bit-size table rather than a
+        single number. Failure to construct such a pair would refute (C).
+    constructive_transforms:
+      - transform: telescoping_potential
+        proposed_object: >-
+          The fitted decay law R(N) - 1 = c*N^(-e) as a global budget against
+          which each cell's residual is charged, so that a residual is
+          decomposed into a predicted decaying part and a non-decaying remainder.
+        predicted_gain: >-
+          Makes the non-decaying remainder - the quantity that
+          docs/inventor-protocol.md section 3 calls the artifact tell - a
+          measured number with a CI rather than a qualitative impression, so a
+          report like EV-ENDO-10109d's monotonic_decay False becomes scorable.
+      - transform: specialization_pack
+        proposed_object: >-
+          N_min(delta), the minimum admissible bit size at which instrument bias
+          falls below a target effect delta.
+        predicted_gain: >-
+          Converts the census's bit-size axis from a wish list into a schedule
+          with an admissibility rule per target effect size.
+    quantifier_order: >-
+      Claimed - FORALL bit sizes N in the tested ladder and FORALL matched-random
+      ordinary prime-order curves in the tested families, EXISTS a single pair
+      (c, e) fitting R(N) - 1 within the reported CIs. EXPLICITLY NOT CLAIMED -
+      that a single (c, e) holds across DIFFERENT curve families or cost models;
+      family-dependence of c is a pre-registered alternative and is tested, not
+      assumed away. Also not claimed - any extrapolation of the fit past 26 bits,
+      which is refused because N is no longer exactly certifiable there under
+      this harness.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "On the tested families and cost model, the matched-baseline residual
+        follows R(N) - 1 = c*N^(-e) with e = e_hat +/- CI over 12 to 26 bits, and
+        the minimum admissible bit size for a target effect delta is
+        N_min(delta)." It can NEVER certify that a cell contains no effect, that
+        the fit extends to 32 or 36 bits, or that a different instrument (index
+        calculus, decomposition rate) obeys the same law - and the last of these
+        matters, because EV-ENDO-10109d's non-decaying quantity is measured with
+        a different instrument, so this calibration constrains it only by
+        analogy and the record says so.
+      nearby_object_control: >-
+        A DELIBERATELY BIASED INSTRUMENT - the same ladder run with an injected
+        fixed overhead of 50 extra charged steps per run. The fit must recover
+        e = 1/2 with a c inflated by the known amount, i.e. the method must
+        MEASURE a bias it was told to expect. A method that returns the same c
+        on the clean and the sabotaged ladder is measuring nothing, and every
+        number is void.
+    proof_obligations:
+      - claim: "R_inf = 1, recovering the 0.886 convention at infinite N."
+        responsibility: baseline
+      - claim: "The four named finite-size terms are each O(1) steps, hence e = 1/2."
+        responsibility: correctness
+      - claim: "The fitted c and e have adequate residuals and leave-one-out prediction."
+        responsibility: correctness
+      - claim: "N is exactly known at every rung."
+        responsibility: feasibility
+      - claim: "The sabotage control recovers the injected bias."
+        responsibility: strictness
+      - claim: "The ladder cost is dominated by its top rung and fits the budget."
+        responsibility: runtime
+      - claim: "No extrapolation past 26 bits is asserted."
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        number of RQ-ECDLP-165d4b declared bit rows with any executed
+        prime-field measurement in this program
+      direction: different
+      minimum_effect: >-
+        Predicted 1 of 6 (the 16-bit row, via EV-ENDO-10109d at p at most
+        100057), with the lane's own specified designs sitting BELOW even that
+        row at 12-15 bits. A different count means the coverage audit is wrong
+        and is itself the finding.
+    - metric: fitted decay exponent e in the law R(N) minus 1 equals c times N to the minus e
+      direction: different
+      minimum_effect: >-
+        READING 1 requires e in [0.30, 0.70] with a CI half-width below 0.15 and
+        no significant residual curvature. Anything outside, or a CI that wide,
+        is READING 2.
+    - metric: matched-baseline residual R(N) minus 1 at 12 bits
+      direction: higher
+      minimum_effect: >-
+        Predicted at least 0.05, i.e. at least a 5 percent bias, which is at
+        least half the 10 percent effect H-ECDLP-e42bda pre-registers. A measured
+        residual below 0.01 at 12 bits refutes (C) and means the instrument is
+        far cleaner at toy scale than argued - a genuinely good outcome that
+        strengthens every existing cell.
+    - metric: >-
+        N_min(0.10), the smallest bit size at which fitted bias falls below the
+        lane's own pre-registered 10 percent effect
+      direction: different
+      minimum_effect: >-
+        Reported as an exact bit size with a CI. If N_min(0.10) exceeds 15 bits,
+        the lane's specified designs run entirely inside the regime where their
+        own instrument bias is comparable to their target effect, and that is a
+        decision-relevant fact about a contract not yet frozen.
+    - metric: >-
+        family-dependence of c across matched-random, j=0-adjacent and
+        high-conductor families at a fixed bit size
+      direction: different
+      minimum_effect: >-
+        READING 1 predicts the three c values agree within overlapping CIs. A
+        significant family effect means the calibration is not a single constant
+        and cells must be compared within family as well as within size.
+    - metric: sabotage-control recovery of an injected 50-step overhead
+      direction: higher
+      minimum_effect: >-
+        The fitted c must increase by the injected amount within 25 percent. A
+        flat c voids every number in the run.
+
+  minimal_test:
+    design: >-
+      STAGE A (zero compute, one hour): the coverage audit of STEP 1 and the
+      term decomposition of STEP 2. Deliverable on its own, reviewable with no
+      runs, and it settles the first prediction. STAGE B (low compute): the
+      calibration ladder at 12, 14, 16, 18 and 20 bits only - 12 curves times 48
+      seeds per rung, one frozen cost model - which already spans a 64-fold range
+      in sqrt(N) and is enough to fit e. STAGE C (medium compute, conditional on
+      STAGE B's fit being adequate): extend to 22, 24 and 26 bits and run the
+      family-dependence and sabotage controls. If STAGE B's residuals show
+      curvature, STOP and report READING 2 rather than extending the ladder -
+      more rungs cannot rescue a wrong model.
+    controls:
+      - >-
+        SABOTAGE CONTROL - identical ladder with a known injected fixed overhead;
+        the fit must recover it. This is the instrument's positive control and
+        it is blocking.
+      - >-
+        SEED-ONLY NULL - re-run one rung with 48 fresh seeds and confirm the two
+        R estimates agree within their CIs, establishing that the measurement is
+        reproducible before any cross-rung comparison is made.
+      - >-
+        FAMILY CONTROL - matched-random versus j=0-adjacent versus
+        high-conductor families at a fixed bit size, testing whether c is a
+        single constant.
+      - >-
+        COST-MODEL FREEZE CHECK - a hash of the cost-model version recorded on
+        every rung, asserted identical across the ladder.
+      - >-
+        EXACT-N CERTIFICATE per curve, so no rung's normalisation rests on an
+        estimated order.
+      - >-
+        BSGS row alongside rho at each rung, as the RQ's mandatory matched
+        Pareto control and as an independent check that the scaling of a
+        DIFFERENT algorithm behaves as its own theory predicts.
+    required_metrics:
+      - the coverage table - declared census rows versus executed measurements
+      - per rung - R_hat with bootstrap CI, seeds, curves, exact N, cost-model hash
+      - fitted c, e and R_inf with CIs, residual curvature test, leave-one-rung-out error
+      - N_min(delta) for delta values 0.02, 0.05, 0.10 and 0.20
+      - family-dependence test statistic and per-family c
+      - sabotage-control recovered overhead versus injected overhead
+      - the committed calibration table artifact itself
+
+  falsification_conditions:
+    - >-
+      The fitted exponent falls outside [0.30, 0.70], or residual curvature is
+      significant, or leave-one-rung-out prediction fails. The power-law model
+      is wrong; READING 2 holds and cross-cell comparison at toy scale is
+      declared invalid until a better model exists.
+    - >-
+      R_inf differs significantly from 1. The normalisation constant, not the
+      finite size, is wrong - a finding about the 0.886 convention as
+      implemented here, and blocking for every normalised number in this lane.
+    - >-
+      The sabotage control does not recover the injected overhead. The
+      instrument cannot measure bias it was told to expect; every number void.
+    - >-
+      The 12-bit residual is below 0.01. Claim (C) is refuted, the instrument is
+      much cleaner at toy scale than argued, and every existing toy cell in this
+      lane is strengthened - which is a good outcome and is reported as such
+      rather than buried.
+    - >-
+      c depends significantly on curve family. A single calibration constant
+      does not exist and the census's comparability rule must be per family, not
+      per bit size.
+
+  confounders:
+    - >-
+      SELECTION OF THE MATCHED-RANDOM FAMILY. If the "no structure" curves are
+      chosen by a rule that correlates with work (for example, rejecting curves
+      whose first run was slow), the calibration measures the selection rule.
+      The generation rule must be declared and fixed before any run and the
+      rejection reasons logged.
+    - >-
+      SEED REUSE ACROSS RUNGS creates correlated residuals and narrows CIs
+      spuriously. Seeds must be independent across rungs and the independence
+      stated.
+    - >-
+      COST-MODEL DRIFT is the single easiest way to manufacture a clean-looking
+      exponent, because a per-rung change in what is charged is
+      indistinguishable from a decay law. The frozen hash check is the only
+      defence and it is blocking.
+    - >-
+      CONFLATING THIS WITH A POWER ANALYSIS. This record measures BIAS in the
+      null; IDEA-20260829-172151 measures VARIANCE and Type II error at fixed
+      size. A cell needs both, and neither substitutes for the other - a
+      perfectly unbiased instrument can still be blind, and a well-powered one
+      can still be systematically shifted.
+    - >-
+      TREATING THE FIT AS LICENSE TO EXTRAPOLATE. The declared census rows at 32
+      and 36 bits are outside the ladder and outside what this harness can
+      certify N for. Any use of the fit there is an extrapolation and must be
+      labelled as one.
+
+  interpretation_limits:
+    - >-
+      Toy to low-medium scale, 12-26 bits. Nothing extrapolates to the declared
+      32- and 36-bit rows, let alone to cryptographic scale, and the record
+      refuses the extrapolation explicitly.
+    - >-
+      The calibration is for the CHARGED RHO instrument only. It does not
+      transfer to decomposition-rate, index-calculus, or isogeny-transport
+      instruments, so it constrains EV-ENDO-10109d's non-decaying observation
+      only by analogy, which is stated rather than implied.
+    - >-
+      A calibration constant makes cells comparable; it does not make any of
+      them positive or negative. No mathematical claim about any curve family is
+      made here.
+    - >-
+      The fit is a model. Its parameters are conditional on the model being
+      adequate, and the adequacy tests are reported alongside, not after.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For matched-random ordinary prime-order curves over F_p with exactly
+        known N, the seed-averaged normalised charged work satisfies
+        R(N) = 1 + c*N^(-1/2) + o(N^(-1/2)) with c independent of N and of the
+        curve family, uniformly over 2^12 at most N at most 2^26.
+      rigorous_support: >-
+        Pairs (i) the rigorous asymptotic E[T] = sqrt(pi*N/2), i.e. the mean
+        collision time grows exactly as sqrt(N) with the 0.886 convention of
+        KN-TECH-006 and KN-TECH-018 absorbing the negation factor, with (ii) the
+        classical statement it imitates - a fixed additive O(1) overhead against
+        a sqrt(N)-growing quantity contributes a relative term of order
+        N^(-1/2), which is the same first-order finite-size correction structure
+        as any additive-overhead-over-birthday-time ratio. The heuristic step is
+        that the four named overhead terms are jointly O(1) in N rather than
+        growing.
+      validation_plan: >-
+        SAMPLING - 12 matched-random ordinary prime-order curves per rung at
+        bit sizes 12, 14, 16, 18, 20, 22, 24 and 26, with 48 independent seeds
+        each and N verified exactly. COMPARISON DISTRIBUTION - the fitted power
+        law, assessed by weighted least squares on log(R-1) versus log N, with a
+        residual-curvature F-test and leave-one-rung-out prediction error as the
+        adequacy criteria; the pre-registered expectation is e = 1/2. TAIL
+        CHECKS - the smallest rung (12 bits, largest predicted bias) must show
+        the largest residual and the largest rung the smallest, with a strictly
+        monotone sequence; a non-monotone sequence is the section-3 artifact
+        tell applied to this record's OWN instrument and is reported as such.
+        SABOTAGE CHECK - the same fit on a ladder with a known injected overhead
+        must recover it within 25 percent. SAMPLED PARAMETERS RECORDED - prime
+        list, N per curve, seeds, branch count, cost-model hash, generation and
+        rejection rules. TRANSFER ASSUMPTION, STATED - none past 26 bits, and
+        none to any instrument other than charged rho.
+    - id: H2
+      statement: >-
+        The seed-averaged estimator Wbar over s = 48 seeds has standard error
+        sd(log T)/sqrt(s), so that R is estimated to a relative precision of
+        about 0.093 per curve and about 0.027 per 12-curve rung, which is smaller
+        than the predicted 12-bit bias of at least 0.05 and therefore sufficient
+        to resolve it.
+      rigorous_support: >-
+        The central limit theorem applied to log T, with sd(log T) = 0.6413 taken
+        from the Rayleigh limit law derived in IDEA-20260829-172151 claim (B).
+        Rigorous given the limit law; heuristic in that the limit law itself is
+        asymptotic and is least accurate at the smallest rung, which is exactly
+        where the bias is largest.
+      validation_plan: >-
+        Measure sd(log T) empirically at every rung and check that the estimator
+        precision actually achieved matches the predicted 0.093 per curve; where
+        it does not, increase s at that rung until the achieved precision is at
+        least three times finer than the residual being measured, and record the
+        increase rather than absorbing it silently.
+
+  target_complexity:
+    time_exponent: >-
+      1/2, unchanged. NO EXPONENT IS CLAIMED OR MOVED. This is explicitly a
+      building block under the search heuristics - on its own it is instrument
+      calibration and would rank low, and its priority rests entirely on the
+      fact that every cross-cell statement this census can make, including any
+      future exponent-relevant one, is currently uncalibrated.
+    memory_exponent: >-
+      O(1) for rho, unchanged. The calibration stores O(rungs times curves times
+      seeds) scalars.
+    best_known: >-
+      Parallel rho at 0.886*sqrt(N) with O(1) memory (KN-TECH-001, KN-TECH-006),
+      which is the very prediction R is measured against; BSGS at sqrt(N) time
+      and memory (KN-TECH-031), carried as a matched control at each rung.
+    hidden_overhead: >-
+      Disclosed - the fitted law is measured on a null family and at bit sizes
+      where the underlying asymptotic law is least accurate, so c and e are
+      themselves finite-size estimates. The record cannot rule out a term with a
+      different exponent that is invisible below 26 bits, and the leave-one-out
+      test is a weak detector of exactly that.
+    tradeoff_note: >-
+      No tradeoff is introduced; rho remains O(1) memory throughout the ladder.
+      The ladder is embarrassingly parallel over (rung, curve, seed) and its top
+      rung dominates total cost, so wall-clock scales with the largest N alone.
+
+  dominated_by: >-
+    AS AN ATTACK: none is proposed; rows checked individually rather than left
+    null. TIME - Pollard rho at 0.886*sqrt(N) dominates, and is the thing being
+    calibrated rather than beaten. MEMORY - rho at O(1) dominates. DATA/QUERIES -
+    none consumed. CM-SPECIFIC - automorphism-discounted rho (KN-TECH-018), not
+    engaged, since the calibration deliberately excludes automorphism-rich
+    curves from the null family. MEMORY-RICH - BSGS (KN-TECH-031), carried as a
+    control. All rows checked; none beaten.
+    AS A CALIBRATION ARTIFACT: not dominated by any record in this repository -
+    no committed record fits a finite-size decay law for this program's rho
+    instrument, and EV-ENDO-10109d reports a non-decaying quantity for a
+    different instrument without any calibrated expectation to score it against.
+    External literature on finite-size corrections to rho is not searched and no
+    priority is claimed, hence novelty_status unverified.
+
+  sota_delta: >-
+    Zero on every attack axis: time exponent delta 0, memory exponent delta 0,
+    data/query delta 0, security bits reduced 0. Non-zero deltas, quantified:
+    (i) the coverage table converts "five of six declared census rows are empty"
+    from an unstated situation into a committed artifact; (ii) the fitted decay
+    law supplies N_min(delta) so the census's bit-size axis acquires an
+    admissibility rule per target effect - and if the predicted 12-bit bias of
+    at least 5 percent holds, it shows the lane's specified 12-15 bit designs run
+    inside a regime where instrument bias is at least half their 10 percent
+    target effect; (iii) it makes "should decay and does not" a scorable test in
+    this lane by supplying the rate, which is currently missing and which
+    EV-ENDO-10109d's open question needs.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: medium
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-29'

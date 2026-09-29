@@ -1,0 +1,262 @@
+idea:
+  id: IDEA-20260816-08eda1
+  question_id: RQ-MLKEM-003
+  added: '2026-08-16'
+  title: 'Treat the lattice estimator as an instrument under calibration rather than as a source of
+    measurements: measure the signed residual between its predicted cost and the directly observed
+    cost on instances whose recovery is run to completion, and report the residual''s drift with dimension'
+  class: tooling
+  claim: '(A) Every cost figure this program has recorded for lattice attacks passes through an estimator,
+    and KN-FIND-015 (EV-MLKEM-015) is explicitly a statement about what a pinned estimator says, not
+    about what a sieve does. The object this proposal tracks is the estimator''s own error: the signed
+    residual r(I) = log2(observed cost on instance I) - log2(estimator-predicted cost on instance
+    I), measured only on instances where the observed cost exists because recovery was run to completion
+    against retained ground truth. (B) The claim is that r is a measurable property of the instrument,
+    that its distribution and its drift with dimension are the two things anyone citing an estimator
+    figure needs and nobody in this corpus has, and that measuring it requires no new mathematics,
+    only the discipline of never citing an estimator number without the residual measured at the nearest
+    reachable dimension. The deliverable is a calibration table: for each instance family, the median
+    r, its interquartile range, and the fitted slope of r against dimension, each with an interval,
+    over the band where recovery is observable. (C) The entry insists on one point that separates
+    it from an estimator rerun: the estimator is called, but every primary number is a comparison
+    against a run that completed, and no grid point contributes a row unless its observed cost exists.
+    An estimator call with no matching completed run produces no row. (D) NOT CLAIMED: no attack,
+    no speedup, no statement that any estimator is wrong at cryptographic dimensions, no security
+    consequence, no claim about ML-KEM parameter sets, and no assertion about what any publication
+    contains. A residual measured at n <= 56 is a statement about the instrument at n <= 56. Extrapolating
+    r to dimension 700 is exactly the move this entry exists to make visible, and it is not made here.'
+  mechanism: 'STAGE 1. Fix instance families and generate instances with retained secret and error.
+    STAGE 2. For each instance obtain the observed cost by running progressive BKZ plus Babai to exact
+    recovery, instrumenting an operation count in a single stated unit, counted rather than timed.
+    STAGE 3. For the same instance obtain the predicted cost by calling the estimator with the instance''s
+    exact parameters under a pinned commit and a named cost model, converting its output into the
+    same unit by an explicitly written and committed conversion. STAGE 4. Record r and every input
+    that could move it, including the estimator''s own selected attack and parameters. STAGE 5. Fit
+    median r and its slope against dimension per family, with intervals. STAGE 6. Run the forced-value
+    calibration arm: instances constructed so the true cost is analytically forced, a planted vector
+    short enough that LLL alone recovers it, where r must be near zero or the conversion is wrong.
+    STAGE 7. Report the calibration table, the conversion and the pinned commit. Refutation: r indistinguishable
+    from zero with a flat slope is a measured statement that the instrument is calibrated in the tested
+    band, which is a usable and reportable result.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rilE 'estimator.*(disagree|instrument)|instrument.*estimator' ledger/proposals/
+      (10+ files); grep -rilE 'dual.?attack|dual.?sieve' ledger/proposals/. Read KN-OPEN-016 in full
+      including its record of KN-FIND-015 / EV-MLKEM-015. Read RQ-MLKEM-003, whose named targets include
+      lattice-estimator reproducibility. Read titles of IDEA-20260805-a102ec, IDEA-20260805-bb4488,
+      IDEA-20260805-c8524f.
+    results: 'The corpus contains estimator-facing work of two kinds, neither of which is calibration
+      against completed runs. First, source-audit work: IDEA-20260805-a102ec audits three constants
+      inside MATZOV.Nf and derives a correction factor; KN-FIND-016 / EV-MLKEM-016 checks Carrier
+      Table 5.1 arithmetic against a theorem and an optimizer pickle and identifies a transcription
+      error. Second, estimator-output work: KN-FIND-015 / EV-MLKEM-015 records what a pinned estimator
+      says about primal_bdd versus dual_hybrid+fft on Kyber-512/768/1024, explicitly as an instrument''s
+      output. Separately IDEA-20260805-bb4488 and IDEA-20260805-c8524f argue that an exponent estimator
+      can carry a constant-factor bias its own confidence interval cannot see, the same epistemic
+      move applied to this program''s ICEX exponent estimator rather than to a lattice estimator.
+      No record found compares an estimator prediction to a completed recovery on the same instance.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Claimed new relative to this
+      repository: pairing every estimator call with a completed run on the same instance and reporting
+      the signed residual as the deliverable, so the estimator is on trial rather than testifying.
+      Assembled from known parts: the pinned-estimator discipline already used in KN-FIND-015, the
+      instrument-bias framing of IDEA-20260805-bb4488, progressive BKZ with retained ground truth,
+      and ordinary residual regression.'
+  object_first_candidate:
+    tracked_object: r(I) = log2(observed operation count to exact recovery on instance I) - log2(estimator-predicted
+      operation count for I under a pinned commit and named cost model), together with the full parameter
+      vector of I and the conversion used.
+    lossiness: 'Genuinely lossy. The full state comprises the entire reduction trajectory on one side
+      and the estimator''s whole internal optimisation on the other, its chosen attack, blocksize,
+      sample count and guessing dimension. r retains one signed real number and discards both. The
+      discard is compatible with the operation of interest because the use to which estimator numbers
+      are put is always a single scalar cost comparison, so the scalar residual is exactly the error
+      term that propagates into every such comparison. The blind spot is stated and is severe: r cannot
+      tell whether the estimator erred by choosing the wrong attack or by mispricing the right one,
+      and the secondary metrics retain the estimator''s chosen parameters precisely so a later reader
+      can begin to separate those without rerunning anything.'
+    propagation: One step of the target operation is incrementing the dimension. Under that step the
+      observed cost grows by the measured slope of the run instrumentation and the predicted cost
+      grows by the estimator's own model slope. r propagates additively as the difference of two slopes,
+      which is why the drift of r, rather than its level, determines whether an estimator figure quoted
+      far outside the calibrated band is trustworthy. A level offset is absorbable by a conversion
+      constant; a slope difference is not.
+    survival_score: 'Observable while exact recovery is reachable: n up to about 56 with blocksize
+      ceiling near 28 in pure Python, roughly a factor 2^20 in observed cost across the band. Above
+      that every instance is censored and r ceases to exist rather than becoming noisy, a clean dissolution
+      boundary. Below n = 20 the estimator''s own model is outside its intended regime and r is dominated
+      by the conversion constant. The usable band is therefore roughly n in [24, 56], and the entry
+      states that a slope fitted there is being asked to speak about dimensions an order of magnitude
+      away, which it cannot do without a stated and widening interval.'
+  null_object_control: 'The forced-cost arm, run in the same invocation: instances constructed with
+    a planted vector so short relative to the lattice determinant that LLL alone provably recovers
+    it, so the observed cost is bounded by a known polynomial and the predicted cost should be too.
+    On this arm r must lie within a stated tolerance of zero. If it does not, the unit conversion
+    is wrong and every r on the signal arm is an artifact of the conversion rather than a property
+    of the estimator, and the whole table is recorded as a controlled null under inventor-protocol
+    section 3. A second null runs the identical pipeline on instances whose secret is resampled after
+    b is fixed, so no recovery is possible: the observed-cost side must be uniformly censored, confirming
+    the recovery detector cannot fire without a planted secret.'
+  discriminated_from:
+  - 'KN-FIND-015 / EV-MLKEM-015: reports what a pinned estimator says about primal versus dual at
+    Kyber parameters. That is the instrument testifying; this entry puts the instrument on trial by
+    pairing it with completed runs, and does not reproduce or contest that record''s content.'
+  - 'IDEA-20260805-a102ec: audits constants inside a cost script by algebra, producing a correction
+    with no run. This entry never opens the estimator''s source; it treats it as a black box and measures
+    its output error.'
+  - 'IDEA-20260805-bb4488 and IDEA-20260805-c8524f: argue that an exponent estimator carries a constant-factor
+    bias invisible to its own interval, for this program''s ICEX estimator. Same epistemic move, different
+    instrument, and those records argue analytically while this one measures a residual.'
+  - A bare lattice-estimator rerun, which the bucket forbids and which is forbidden precisely because
+    it produces predictions with nothing to compare them to. Here no grid point produces a row unless
+    a completed recovery exists for it, which is the structural difference.
+  - 'KN-OPEN-3f7a21, which owns auditing the corpus''s citation_verified markings: a provenance audit
+    of the corpus, not a calibration of a computational instrument.'
+  assumptions:
+  - A single stated operation unit can be defined that both the run instrumentation and the estimator
+    output convert into; the conversion is written and committed before any run and is itself checked
+    by the forced-cost arm.
+  - The estimator is available and pinnable in this environment; it is not installed here, and provisioning
+    it is a declared derivation gap rather than an assumption that it will work.
+  - Progressive BKZ plus Babai is a legitimate realisation of the attack the estimator is asked to
+    price; where the estimator selects a different attack the row records the mismatch and is analysed
+    separately rather than silently compared.
+  - Exact recovery against retained ground truth defines the observed cost's stopping point.
+  - A residual measured at n <= 56 carries no automatic implication for the estimator's accuracy at
+    cryptographic dimensions, and none is drawn.
+  predictions:
+  - metric: median r on the forced-cost calibration arm
+    direction: different
+    minimum_effect: 'forced value: 0.0 bits, with the interval required to contain zero within a tolerance
+      of 2 bits. A larger residual indicts the conversion, not the estimator.'
+  - metric: interquartile range of r on the signal arm at a fixed dimension
+    direction: higher
+    minimum_effect: 2.0
+  - metric: fitted slope of median r against dimension, bits per dimension
+    direction: different
+    minimum_effect: 'refusal to pre-commit on sign: whether an estimator is optimistic or conservative
+      in a given band is the quantity being measured, and KN-FIND-015 already found this class of
+      instrument behaving conservatively at its own parameters, so a pre-committed sign would import
+      that finding into a different regime. An interval excluding zero is the threshold for reporting
+      drift.'
+  - metric: fraction of grid points producing no row because recovery was censored
+    direction: lower
+    minimum_effect: 0.5
+  minimal_test:
+    design: 'Two dimensions, one family, both arms. Fix q = 3329, plain LWE, n in {32, 48}, m = 2n,
+      eta = 2, 40 instances each. For every instance run progressive BKZ plus Babai to exact recovery,
+      instrumenting a counted operation total, and separately call the pinned estimator on the identical
+      parameters and convert its output through the committed conversion. Record r. In the same invocation
+      run 40 forced-cost instances per dimension, where a planted vector is short enough for LLL alone,
+      and record r there too. Report median r and its interquartile range at both dimensions on both
+      arms, plus the two-point slope with an interval. This discriminates because the forced-cost
+      arm tests the conversion and the two-dimension contrast tests the drift, and those are the only
+      two things that can make an estimator figure quoted far outside its calibrated band untrustworthy:
+      a wrong constant or a wrong slope. Everything else is detail.'
+    controls:
+    - Forced-cost calibration arm where LLL alone provably recovers and r must be near zero.
+    - No-secret null where b is fixed before s is resampled, so the observed-cost side must be uniformly
+      censored.
+    - 'Pinned-commit control: the estimator commit hash and cost-model name recorded in every row,
+      with a rerun of ten rows at the end confirming bit-identical predictions.'
+    - 'Attack-agreement control: rows where the estimator''s selected attack differs from the one
+      actually run are flagged and reported separately rather than pooled.'
+    - 'Unit-conversion control: the committed conversion applied in both directions on a synthetic
+      pair with a known answer.'
+    required_metrics:
+    - observed operation count to exact recovery per instance
+    - estimator-predicted operation count per instance under the pinned commit
+    - r per instance
+    - median r and interquartile range per family per dimension
+    - fitted slope of median r against dimension with interval
+    - censoring fraction per grid point
+    - estimator's selected attack, blocksize and sample count per row
+    - estimator commit hash and cost-model name
+  falsification_conditions:
+  - 'Forced-cost arm''s median |r| exceeds 2 bits: the conversion is wrong and no signal-arm residual
+    is a statement about the estimator.'
+  - 'The no-secret null produces a non-censored observed cost: the recovery detector fires without
+    a planted secret and every observed cost is void.'
+  - 'Censoring exceeds 0.5 at every dimension: the residual is unmeasurable at reachable parameters
+    and the entry reports a calibration floor.'
+  - 'The pinned-commit rerun does not reproduce predictions bit-identically: the instrument is not
+    pinned and the table is not reproducible.'
+  - 'Median r is within interval of zero with a flat slope at every dimension: the estimator is measured
+    to be calibrated in the tested band, refuting the entry''s motivating expectation and supplying
+    a usable result.'
+  - 'Every row is an attack-mismatch row: the estimator never prices the attack that was run, and
+    the residual measures two different things rather than one instrument''s error.'
+  confounders:
+  - The unit conversion carries a free constant that trades directly against the level of r, so only
+    the slope is conversion-independent; both are reported and the distinction is stated.
+  - Progressive BKZ's operation count depends on implementation choices the estimator's model does
+    not represent, inflating r for reasons unrelated to the estimator.
+  - Censoring selects easy instances at large n, biasing median r downward exactly where the drift
+    is read.
+  - The estimator's internal optimisation may pick parameters unreachable by the run harness, making
+    the comparison partly apples-to-oranges; the attack-agreement control exposes this but does not
+    remove it.
+  - Small-dimension rows sit outside the estimator's intended regime, where its model is not meant
+    to be accurate, so the low end of the band may show a residual that means nothing about the instrument's
+    intended use.
+  interpretation_limits:
+  - A calibration table measured to n = 56 describes the instrument in that band only, and the entry's
+    central point is that quoting a figure at dimension 700 from a table ending at 56 is an extrapolation
+    that should be visible rather than silent.
+  - r cannot separate a wrong attack choice from a mispriced right one; it is a scalar error and is
+    reported as one.
+  - Nothing here claims any estimator is wrong at cryptographic dimensions, and nothing bears on ML-KEM,
+    FIPS 203 or any deployed system.
+  - The comparison is against one realisation of one attack in pure Python and is not a statement
+    about what an optimised implementation would cost.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The calibration's own cost is dominated by the recovery
+      runs, O(instances * BKZ) counted operations.
+    memory_exponent: No attack memory exponent is claimed. One basis of O(n^2) integers per instance
+      plus the estimator's own footprint.
+    best_known: No incumbent attack is challenged. The incumbent here is the practice recorded in
+      KN-FIND-015 / EV-MLKEM-015 of reporting pinned-estimator output as the cost figure; this entry
+      does not contest that record's numbers and instead measures how far such output sits from a
+      completed run where both exist.
+    hidden_overhead: 'The conversion constant is the hidden term and it is load-bearing: it can absorb
+      any level offset, so the entry''s honest content is the slope, and a reader who takes the level
+      at face value has been misled by a quantity the design cannot pin. Human cost: provisioning
+      and pinning an estimator with its dependency closure in an environment that has none of it.'
+  dominated_by: 'n/a (no result claimed). Checked against the corpus''s estimator-facing rows for
+    whether this entry sits on any frontier: KN-FIND-015''s primal versus dual comparison, KN-FIND-016''s
+    Carrier table arithmetic, IDEA-20260805-a102ec''s derived correction factor, and IDEA-20260805-bb4488''s
+    ICEX bias argument. None is a cost frontier this entry occupies, because the deliverable is a
+    residual distribution for an instrument, not a cost.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a calibration
+    table of signed residuals with intervals and a drift slope, plus a forced-cost arm that tests
+    the conversion and a no-secret null that tests the detector.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'Three separable parts. (i) That an estimator can be provisioned, pinned
+    and made to reproduce bit-identically in this environment: about 0.5, and it is the binding risk
+    since nothing of the sort is installed here. (ii) That enough rows survive censoring at three
+    or more dimensions to fit a slope: about 0.6. (iii) That the forced-cost arm passes, i.e. the
+    conversion is right: about 0.5, and I decline to raise it, because converting an estimator''s
+    cost unit into a counted-operation unit is exactly the kind of undeclared step that this corpus''s
+    KN-FIND-014 found breaking a different comparison.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - KN-OPEN-016
+  - KN-FIND-015
+  - KN-FIND-016
+  - EV-MLKEM-015
+  - EV-MLKEM-016
+  - KN-TECH-040
+  - IDEA-20260805-a102ec
+  - IDEA-20260805-bb4488
+  - RQ-MLKEM-003
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-LATDUAL-269788

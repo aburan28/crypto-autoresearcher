@@ -1,0 +1,1761 @@
+#!/usr/bin/env python3
+"""Author BATCH-e0a0c1's dispatch queue -- the SECOND, ZERO-COMPUTE lane on
+GOAL-SEMBIN-fcb7a2, opened while BATCH-cbb416 holds the machine.
+
+WHY THIS LANE EXISTS AND WHY IT IS SEPARATE. The goal head ranks a zero-compute
+read of Nagao 2013/549 and Semaev 2015/310 as item (2), and says in terms that it
+"needs no compute and competes with the batch for nothing, so it may run
+concurrently in a separate lane rather than waiting behind it". BATCH-cbb416 has
+max_concurrent 1 because its executing task is a degree-by-degree GF(2) rank
+computation with a 10 GB watchdog; two readers of frozen PDF text cost that
+nothing. Putting them in cbb416 would have forced them behind its executor for
+no reason, and raising that batch's concurrency to let them in would have put
+readers in the same slot pool as the measurement.
+
+WHAT IS AT STAKE, since a "read two papers" batch can look like make-work. The
+instrument EXP-SEMBIN-4fa22c builds measures the FAKE first fall degree d'_F.
+Every inference from it to anything of Nagao's runs through 2015/984's Lemma 4,
+d_F <= d'_F, which that paper ASSERTS WITHOUT PROOF and derives from its Lemma 3,
+which it attributes to [11] = 2013/549 and declines to prove ("Proof of this
+Lemma is complicated and not constructive"). The program has already verified by
+exhaustive search over F_2 that the LITERAL form of Lemma 4, field equations
+outside, is FALSE. So the campaign's central inference rests on a lemma whose
+only proof sits in a paper nobody in this program had opened before 2026-09-13,
+in a form nobody has checked against the statement that consumes it. This lane
+reads it. The answer cannot change DC-1 and cannot refute Proposition 5; it
+changes how conditional a confirmation would be, which the contract records as a
+dependency rather than a footnote.
+
+One-shot authoring script. It writes the queue and does not read it, so
+re-running it after the batch moves would overwrite recorded state -- unless the
+state is declared in EXECUTED/REVISIONS below, which is exactly why that table
+exists (BATCH-cbb416's lesson, carried forward).
+"""
+
+import collections
+import json
+import pathlib
+
+BATCH = "BATCH-e0a0c1"
+GOAL = "GOAL-SEMBIN-fcb7a2"
+BASE = f"coordination/goals/{GOAL}/batches/{BATCH}"
+REVIEW = "coordination/review/sembin-20260916-e0a0c1"
+NAGAO_DIR = f"{BASE}/read-nagao-2013-549"
+SEMAEV_DIR = f"{BASE}/read-semaev-2015-310"
+RULING_DIR = f"{BASE}/ruling"
+
+OPEN = "TASK-20260916-7ecd0f"
+OPEN_SNAPSHOT = "TASK-20260916-b88c5a"
+READ_NAGAO = "TASK-20260916-9da6e0"
+READ_SEMAEV = "TASK-20260916-64a93b"
+READS_SNAPSHOT = "TASK-20260916-92128f"
+RULING = "TASK-20260916-a8e5b5"
+LEDGER = "TASK-20260916-d4fb62"
+# The ruling's NA-1, ranked first among its six next actions. Minted with
+# allocate_id.py --next handoff and confirmed with --check. It is a SUCCESSOR
+# rather than part of the ledger archive because the amendment cites
+# EV-SEMBIN-1ca3c8, which does not exist until that archive lands.
+AMEND = "TASK-20260921-d61759"
+AMEND_ARCHIVE = "TASK-20260921-d3d13a"
+AMENDMENT = "AMD-EXP-SEMBIN-4fa22c-20260921-lemma4"
+
+DECISION = "DEC-20260916-441cd5"
+CLOSING = "DEC-20260916-87fc5c"
+ROUND = "REVIEW-SEMBIN-20260916-e0a0c1"
+EVIDENCE = "EV-SEMBIN-1ca3c8"
+# Minted by the ruling, which decided on the merits that this round produces a
+# knowledge entry even though `synthesize` does not trigger the coordinator
+# contract's KN-FIND rule. Confirmed free with allocate_id.py --check before use.
+KNOWLEDGE = "KN-FIND-936151"
+
+NAGAO_TEXT = "inputs/NAGAO-2013-549/paper_fulltext.md"
+NAGAO_PDF = "inputs/NAGAO-2013-549/eprint-2013-549.pdf"
+SEMAEV_TEXT = "inputs/SEMAEV-2015-310/paper_fulltext.md"
+SEMAEV_PDF = "inputs/SEMAEV-2015-310/eprint-2015-310.pdf"
+CONSUMER = "inputs/NAGAO-2015-984/paper_fulltext.md"
+
+
+def od(pairs):
+    return collections.OrderedDict(pairs)
+
+
+open_artifacts = [
+    f"ledger/decisions/{DECISION}.yaml",
+    f"ledger/goals/{GOAL}/goal.yaml",
+    f"ledger/goals/{GOAL}/checkpoints/{BATCH}.yaml",
+    f"{BASE}/dispatch_queue.json",
+    f"{BASE}/build_queue.py",
+    f"{BASE}/opening-report.md",
+    f"{REVIEW}/read-plan.yaml",
+]
+
+# goal.yaml is declared here AND by TASK-20260916-141f76 in BATCH-cbb416's queue.
+# That is not double ownership: ownership is checked within a queue, and each
+# lane binds the head's bytes AT ITS OWN COMMIT under content_at_commit, so two
+# lanes' bindings of a file both of them append to cannot contradict each other.
+# Before CORR-20260915-654160 this was impossible and the earlier of two lanes
+# had to disown the file.
+GOAL_HEAD_SHARED_NOTE = (
+    f"ledger/goals/{GOAL}/goal.yaml is declared by BOTH open lanes on this goal and is the only "
+    "file they share. This lane APPENDS an open_batches entry, one next_action prefix paragraph "
+    "and one amendment_history entry, and rewrites nothing: BATCH-cbb416 keeps current_batch_id, "
+    "dispatch_queue_path and its own entry untouched. Each lane binds the head at its own commit "
+    "under content_at_commit, which is what makes concurrent appends verifiable "
+    "(docs/concurrent-goal-lanes.md, CORR-20260915-654160)."
+)
+
+# WIDENED after CORR-20260921-942a62. Both cards originally declared three files
+# apiece and both readers filed far more -- seventeen and twelve -- because a
+# reader that checks its own claim writes a recheck, and a reader that distrusts a
+# frozen extraction re-extracts the PDF. All of it was lost with the machine,
+# INCLUDING the recheck that carried the counterexample to Lemma 4's inside form,
+# which was the single most valuable thing either read produced.
+#
+# tools/producer_landing.py commits the DECLARED set and nothing else, on purpose.
+# So an undeclared artifact is an unlanded artifact, and the declaration has to
+# anticipate what a reader legitimately produces rather than record the minimum.
+# These names are therefore REQUIRED OUTPUT PATHS in the cards below, not a guess
+# at what might appear: a reader that has nothing to put in recheck.py writes the
+# file saying so, which is a cheaper convention than a per-file negotiation.
+#
+# `--check` still sweeps each write_scope for anything undeclared, so a reader
+# that files beyond even this set is visible before the turn ends.
+nagao_artifacts = [
+    f"{NAGAO_DIR}/report.md",
+    f"{NAGAO_DIR}/statement-map.json",
+    f"{NAGAO_DIR}/attestation.yaml",
+    f"{NAGAO_DIR}/recheck.py",
+    f"{NAGAO_DIR}/recheck.out",
+    f"{NAGAO_DIR}/reextract.md",
+]
+
+semaev_artifacts = [
+    f"{SEMAEV_DIR}/report.md",
+    f"{SEMAEV_DIR}/statement-map.json",
+    f"{SEMAEV_DIR}/attestation.yaml",
+    f"{SEMAEV_DIR}/recheck.py",
+    f"{SEMAEV_DIR}/recheck.out",
+    f"{SEMAEV_DIR}/reextract.md",
+]
+
+# The ruling task DRAFTS; the ledger archive WRITES THE OFFICIAL DECISION and
+# commits it. That split is not a style choice: research_dispatch.py requires a
+# ledger archive to own an exact artifact under ledger/decisions/
+# (`_validate_ledger_archive`), because a decision that is authored by one task
+# and committed by another has a window in which it exists and is not official.
+# Same shape as BATCH-cbb416's TASK-20260916-6a2fcf.
+ruling_artifacts = [
+    f"{RULING_DIR}/composition.md",
+    f"{RULING_DIR}/scored-priors.json",
+]
+
+# Widened 2026-09-21, BEFORE this card was dispatched. The card was written on
+# 2026-09-16, when whether this round would produce an evidence record was an
+# OPEN QUESTION the read plan deliberately left to the ruling: the identifier was
+# reserved, not promised. The ruling answered yes, split — the machine-checkable
+# counterexample certificate becomes evidence, the textual reads do not — and it
+# separately judged a KN-FIND warranted on the merits. Both of those records name
+# THIS task as the one that writes them (`ruling/composition.md` sections 7 and
+# 9's `knowledge_promotion.committed_with`), so leaving them out of the declared
+# set would have dispatched an archive that must either write outside its scope
+# or leave two records the ruling promised unowned. Widening the card before
+# launch is the compliant order; widening it afterwards would have been a remedy.
+ledger_artifacts = [
+    f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
+    f"ledger/decisions/{CLOSING}.yaml",
+    f"ledger/evidence/{EVIDENCE}.yaml",
+    f"knowledge/findings/{KNOWLEDGE}.md",
+]
+
+# The blind_from list every reader in this round is held to. It names the
+# Coordinator's own documents, because those are where the expected answers are.
+BLIND_FROM = [
+    f"{REVIEW}/read-plan.yaml",
+    f"ledger/decisions/{DECISION}.yaml",
+    f"{BASE}/opening-report.md",
+    f"ledger/goals/{GOAL}/checkpoints/{BATCH}.yaml",
+    "the sibling reader's task directory in this batch",
+]
+
+READER_INFERENCE = od([
+    ("policy", "review-adversarial"),
+    ("reasoning_effort", None),
+    ("fallback_allowed", True),
+    ("fallback_note",
+     "TRUE and declared up front. No adapter backend is credentialed in this checkout, so the "
+     "runtime-native binding permitted by core rule 16 is the only route; `false` would be a claim "
+     "every dispatch here breaks (DEC-20260916-7b2235, DEC-20260916-bec4b8)."),
+    ("degraded_allowed", False),
+    ("degraded_requirements_expected", [
+        "model_verified false: `doctor --probe` has no usable backend here, so the resolved "
+        "identifier is self-reported and is unverified configuration.",
+    ]),
+    ("independent_session_required", True),
+    ("independent_session_note",
+     "review-adversarial requires it, and this round needs it for a second reason: the value of a "
+     "read that overturns the Coordinator comes entirely from the reader not having been told what "
+     "the Coordinator expects. CORR-20260916-96f47d is this campaign's precedent -- that read "
+     "overturned the Coordinator's reading of Proposition 5 and the campaign's objective changed."),
+])
+
+tasks = []
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", OPEN),
+    ("title",
+     "Open BATCH-e0a0c1: the zero-compute source read the goal head ranks second, as its own lane "
+     "rather than behind BATCH-cbb416's executor"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 96),
+    ("review_required", False),
+    ("depends_on", []),
+    ("read_scope", ["ledger", "inputs", "coordination/goals/" + GOAL, "experiments"]),
+    ("write_scope", [BASE, REVIEW, f"ledger/decisions/{DECISION}.yaml",
+                     f"ledger/goals/{GOAL}/checkpoints/{BATCH}.yaml",
+                     f"ledger/goals/{GOAL}/goal.yaml"]),
+    ("artifact_paths", open_artifacts),
+    ("artifact_paths_note", GOAL_HEAD_SHARED_NOTE),
+    ("handoff", od([
+        ("objective",
+         "Open a second, disjoint lane on GOAL-SEMBIN-fcb7a2 for ranked item (2), with the "
+         "Coordinator's prior on all five joints recorded BEFORE either reader is dispatched."),
+        ("uncertainty_reduced",
+         "none; this is a ranking and control-plane act. It reads two papers only far enough to "
+         "form a falsifiable prior, and asserts nothing about either."),
+        ("inputs", [
+            f"ledger/goals/{GOAL}/goal.yaml (next_action item (2), and its note that this item may "
+            "run concurrently in a separate lane)",
+            "experiments/EXP-SEMBIN-4fa22c/specification.yaml (records Lemma 4 as a dependency)",
+            "ledger/corrections/CORR-20260916-96f47d.yaml (the precedent: a blind read of this "
+            "paper family overturned the Coordinator)",
+            "ledger/corrections/CORR-20260916-292e53.yaml (the precedent for how a protective "
+            "document leaks what it protects)",
+            NAGAO_TEXT,
+            CONSUMER,
+        ]),
+        ("constraints", [
+            "Zero runs, zero measurements.",
+            "Record the prior BEFORE dispatching either reader, including the predictions the "
+            "Coordinator's own checking already refuted. A prior listing only surviving beliefs "
+            "overstates the Coordinator's calibration.",
+            "Edit the goal head ADDITIVELY and inside this lane's archive only. BATCH-cbb416 is "
+            "open on the same goal and its checkpoint owns the operative next_action.",
+            "Never edit the frozen inputs, their sha256 sidecars, EXP-SEMBIN-4fa22c or "
+            "H-SEMBIN-a7e721.",
+        ]),
+        ("deliverables", [DECISION, f"{BATCH} checkpoint", "dispatch_queue.json",
+                          "opening-report.md",
+                          f"{ROUND} read plan with the prior, written before any reader runs"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note",
+             "TRUE and declared up front rather than amended after the work runs, for the reason "
+             "recorded on every card in BATCH-cbb416."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 3600),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "the opening decision is committed",
+            "the read plan records a prior for every joint, and predates both readers",
+            "the queue renders with all gates passing and no inference advisory",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", OPEN_SNAPSHOT),
+    ("title", "Snapshot-archive BATCH-e0a0c1's control plane before either reader reads it"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 95),
+    ("review_required", False),
+    ("depends_on", [OPEN]),
+    ("read_scope", [BASE, REVIEW, "ledger"]),
+    ("write_scope", [f"{BASE}/archives/{OPEN_SNAPSHOT}"]),
+    ("artifact_paths", [f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json"]),
+    ("archive", od([
+        ("kind", "snapshot"),
+        ("source_task_ids", [OPEN]),
+        ("record_ids", [DECISION, GOAL, BATCH]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_at_commit"),
+        ("binding_mode_note",
+         "content_at_commit from the outset, as BATCH-cbb416 did. It is what lets this archive bind "
+         "the QUEUE AND ITS GENERATOR at its own commit rather than disowning them, since both "
+         "necessarily change after it (CORR-20260915-654160, and BATCH-a33cda's forward pointer "
+         "which cbb416 discharged)."),
+        ("receipt_note",
+         "Both readers depend on this archive so that the read plan they are blind FROM is "
+         "committed and immutable before they run. A blind_from list that could still be edited "
+         "afterwards is not a declared blindness."),
+    ])),
+    ("handoff", od([
+        ("objective", "Commit the control plane, including the prior, before any reader runs."),
+        ("uncertainty_reduced", "none; durability before dispatch"),
+        ("inputs", open_artifacts),
+        ("constraints", [
+            "stage only declared paths",
+            "commit message names the task id and every record id",
+            "runs alone",
+        ]),
+        ("deliverables", ["snapshot-receipt.json"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As OPEN's card."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 1800),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "post-commit receipt verified by research_dispatch.py",
+            "the read plan is committed and its bytes are hash-bound",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", READ_NAGAO),
+    ("title",
+     "BLIND READ, joints J-1/J-2/J-3: does Nagao 2013/549 actually contain and prove the lemma "
+     "2015/984 cites as its Lemma 3, and does it support Lemma 4 in the INSIDE form the campaign "
+     "depends on?"),
+    ("role", "validator"),
+    ("state", "queued"),
+    ("priority", 90),
+    ("review_required", False),
+    ("review_required_note",
+     "FALSE, and the reason is structural rather than an exemption. This card IS the independent "
+     "review: role validator, review-adversarial, independent session, blind from the Coordinator's "
+     "prior and from its sibling. Setting it true would demand a reviewer of the reviewer, which "
+     "buys nothing here and would leave the round with no owner for its actual joints. What "
+     "composes it is the Coordinator ruling at " + RULING + ", which is a separate card with its "
+     "own ledger archive, and the sibling read is a second independent session on a disjoint "
+     "joint. Same disposition, same reasoning, as the collision audit in BATCH-cbb416."),
+    ("depends_on", [OPEN_SNAPSHOT]),
+    ("read_scope", [
+        NAGAO_TEXT, NAGAO_PDF, "inputs/NAGAO-2013-549",
+        CONSUMER, "inputs/NAGAO-2015-984",
+        "experiments/EXP-SEMBIN-4fa22c/specification.yaml",
+        "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
+        "ledger/corrections/CORR-20260916-96f47d.yaml",
+        "AGENTS.md", "agents/validator.md", "templates/research-records.md",
+        "docs/inventor-protocol.md",
+        NAGAO_DIR,
+    ]),
+    ("read_scope_note",
+     "DELIBERATELY NARROW ON ONE SIDE AND WIDE ON THE OTHER. Both papers are fully in scope, "
+     "including the PDFs and the extraction script -- the 2013/549 extraction is materially worse "
+     "than the 2015/984 one and its own frozen note says to read the PDF alongside it, so a reader "
+     "confined to the markdown would be confined to mangled formulas. What is OUT of scope is every "
+     "document in which the Coordinator has written down what it expects: see blind_from."),
+    ("write_scope", [NAGAO_DIR]),
+    ("artifact_paths", nagao_artifacts),
+    ("handoff", od([
+        ("objective",
+         "Establish what the upstream source actually says and proves, and whether it carries "
+         "2015/984's Lemma 4 in the form EXP-SEMBIN-4fa22c depends on."),
+        ("uncertainty_reduced",
+         "How conditional a d'_F measurement's bearing on Nagao's d_F statements really is. The "
+         "contract records Lemma 4 as a dependency; nobody has checked its provenance."),
+        ("inputs", [
+            f"{CONSUMER} -- Lemma 3 as quoted at :461-507, Lemma 4 at :510-515, Example 1 at "
+            ":495-505, and the sentence declining to reproduce the proof at :507",
+            f"{NAGAO_TEXT} plus {NAGAO_PDF}",
+            "inputs/NAGAO-2013-549/extract_text.py -- re-runnable with different LAParams",
+            "experiments/EXP-SEMBIN-4fa22c/specification.yaml -- what the campaign consumes",
+        ]),
+        ("constraints", [
+            "ZERO RUNS AND ZERO MEASUREMENTS. maximum_runs is 0. This is a read.",
+            "A small hand-check of an algebraic step, written into your own task directory and "
+            "labelled a recheck rather than a measurement, is PERMITTED and encouraged -- the "
+            "precedent is coordination/review/sembin-20260916-propquant/coordinator-recheck.py.",
+            "MATCH STATEMENTS ON CONTENT, NEVER ON NUMBER. The upstream paper has its own Lemma 3 "
+            "and it may not be the one 2015/984 means. Enumerate the numbered statements and match "
+            "the CONTENT of the quoted lemma.",
+            "The served 2013/549 PDF is the LAST OF TWO REVISIONS and its abstract note records "
+            "that a lemma of the first version was FALSE and a section deleted. The first revision "
+            "is NOT in inputs/ and is not fetchable here; say so where it matters instead of "
+            "reasoning about a version you cannot see.",
+            "Report an honest 'cannot determine, because the extraction destroys this formula and "
+            "re-extraction also failed' rather than a confident reading of mangled text. The "
+            "extraction is known bad in Sections 2-3.",
+            "You may NOT read the files in blind_from. Attest to what you read.",
+            "Do not rule on what the campaign should do. You report; the Coordinator rules.",
+            "Cite with provenance (templates/research-records.md): a paper you OPENED is "
+            "`retrieved`; one you recall is `recalled`, a pointer and never support.",
+        ]),
+        ("questions", [
+            "J-1: Which numbered statement in 2013/549 is the one 2015/984 quotes as its Lemma 3? "
+            "Give its number, its exact statement, every hypothesis it carries, and every "
+            "definition it depends on. Is 2015/984's restatement faithful, weaker or stronger?",
+            "J-2: Is that statement PROVED in 2013/549, and is the proof complete on its own "
+            "terms? If it runs by induction, is the measure well-founded, is there a base case, "
+            "does the inductive step preserve the degree bound, and does it use a hypothesis the "
+            "statement does not carry?",
+            "J-3: Does it support 2015/984's Lemma 4 (d_F <= d'_F) in the INSIDE form -- d'_F taken "
+            "of {f_1..f_M} UNION S_fe, which is how Lemma 4 is written? Derive Lemma 4 from it "
+            "step by step, or show where the derivation fails. Name every upstream hypothesis the "
+            "derivation consumes, because the campaign must record those as its own dependencies.",
+            "J-5 (PROVES-TOO-MUCH, REQUIRED): this program has verified by exhaustive "
+            "two-polynomial search over F_2 that the OUTSIDE form of Lemma 4 -- field equations "
+            "outside the fake system -- is FALSE. Run your J-3 derivation against that object. If "
+            "it also goes through with S_fe outside, YOUR DERIVATION IS WRONG SOMEWHERE, and "
+            "locating that is worth more than the derivation. Report the outcome either way.",
+        ]),
+        ("deliverables", [
+            "report.md -- one section per joint, with the answer, the evidence by file and line, "
+            "and what you could not determine and why. Include your inference provenance: "
+            "requested_policy review-adversarial, the model identifier your session self-reports, "
+            "fallback_used true with its reason, model_verified false.",
+            "statement-map.json -- machine-readable: every numbered statement in 2013/549 with its "
+            "line range and a one-line content summary; which one matches the quoted Lemma 3 and "
+            "with what confidence; the hypotheses each carries; and a `could_not_determine` list.",
+            "attestation.yaml -- what you read (exact paths), that you did not read blind_from, "
+            "your verdict per joint, and the J-5 control's outcome.",
+            "recheck.py + recheck.out -- an EXECUTABLE check of whatever claim in your "
+            "report carries the most weight, and its captured output. If your finding is a "
+            "counterexample, this is the file that makes it survive you: the last reader to "
+            "run this card produced one and it was lost with the machine "
+            "(CORR-20260921-942a62), and the Coordinator had to rebuild it from scratch. "
+            "If nothing in your report is mechanically checkable, write both files saying "
+            "so and why -- an empty required file is a cheaper convention than a "
+            "negotiation.",
+            "reextract.md -- if you re-extract the PDF because you distrust the frozen "
+            "markdown, the result and what differed. READ inputs/NAGAO-2013-549/"
+            "errata-extraction-20260921.md FIRST: that package orphans 63 of its 73 large "
+            "operators, so Lemma 2's GRADED monomial-order hypothesis reads as a vacuous "
+            "per-variable one in paper_fulltext.md, and paper_fulltext.pymupdf.txt beside "
+            "it is intact. If the errata answers your extraction question, record that "
+            "here instead of re-doing it.",
+        ]),
+        ("artifact_paths_note",
+         "SIX files, all inside " + NAGAO_DIR + ". Create nothing outside it and check with "
+         "`git status --porcelain` before reporting done. Every one of the six is REQUIRED: "
+         "the Coordinator lands exactly the declared set on your return "
+         "(tools/producer_landing.py), so a file you produce and do not declare is a file "
+         "that is not committed, and an undeclared artifact is what was lost last time."),
+        ("blindness", od([
+            ("blind_from", BLIND_FROM),
+            ("why",
+             "The Coordinator has recorded, in the read plan, its expected answer to J-1 through "
+             "J-4 -- including the exact upstream lemma number it believes is the match. A reader "
+             "who reads that file is confirming rather than checking. The declared limit of this "
+             "blind is stated in the plan and repeated here: the J-1 answer is a lemma number in a "
+             "public paper, derivable in minutes by grep, so blindness buys real independence on "
+             "J-2 and J-3 and much less on J-1."),
+            ("sibling", READ_SEMAEV),
+            ("sibling_rule",
+             "Do not read the sibling's task directory. Your joints and its joints are disjoint by "
+             "construction."),
+        ])),
+        ("inference", READER_INFERENCE),
+        ("budget", od([
+            ("wall_clock_seconds", 7200),
+            ("memory_gb", 2),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "all SIX declared artifacts exist under the write scope -- the Coordinator lands "
+            "exactly the declared set, so an undeclared file is an uncommitted file",
+            "J-1, J-2, J-3 and the J-5 control each have an answer or an explicit "
+            "'cannot determine, because ...'",
+            "the attestation names every path read and asserts blind_from was respected",
+            "git status --porcelain shows nothing outside the write scope",
+            "no measurement was performed",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", READ_SEMAEV),
+    ("title",
+     "BLIND READ, joint J-4: what does Semaev 2015/310's ARGUMENT deliver, as against what his "
+     "STATEMENT claims?"),
+    ("role", "validator"),
+    ("state", "queued"),
+    ("priority", 89),
+    ("review_required", False),
+    ("review_required_note", "As " + READ_NAGAO + "'s card: this IS the independent review."),
+    ("depends_on", [OPEN_SNAPSHOT]),
+    ("read_scope", [
+        SEMAEV_TEXT, SEMAEV_PDF, "inputs/SEMAEV-2015-310",
+        CONSUMER, "inputs/NAGAO-2015-984",
+        "experiments/EXP-SEMBIN-4fa22c/specification.yaml",
+        "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
+        "AGENTS.md", "agents/validator.md", "templates/research-records.md",
+        "docs/inventor-protocol.md",
+        SEMAEV_DIR,
+    ]),
+    ("write_scope", [SEMAEV_DIR]),
+    ("artifact_paths", semaev_artifacts),
+    ("handoff", od([
+        ("objective",
+         "Separate what Semaev's argument establishes from what his statement asserts, for the "
+         "statement this campaign consumes."),
+        ("uncertainty_reduced",
+         "Whether the campaign's second recorded residual is a gap between statement and argument, "
+         "and if so, of what shape: quantifier order, a heuristic step, or experiments offered in "
+         "support of a general claim."),
+        ("inputs", [
+            f"{SEMAEV_TEXT} plus {SEMAEV_PDF} and inputs/SEMAEV-2015-310/tables.yaml",
+            "inputs/SEMAEV-2015-310/source_record.yaml -- which statement the program recorded as "
+            "the one it consumes",
+            f"{CONSUMER} -- for how the neighbouring literature uses the same quantities",
+        ]),
+        ("constraints", [
+            "ZERO RUNS AND ZERO MEASUREMENTS. maximum_runs is 0.",
+            "A small labelled hand-check in your own task directory is permitted.",
+            "IDENTIFY THE CONSUMED STATEMENT FIRST, and say how you identified it. If the "
+            "program's own records are ambiguous about which statement it depends on, that "
+            "ambiguity is itself a finding worth reporting -- do not resolve it by choosing.",
+            "Attend to QUANTIFIER ORDER specifically: 'for all instances there is a bound' and "
+            "'for a typical instance there is a bound' are different claims and the difference is "
+            "what this joint exists to find. The same distinction is what the last read of this "
+            "paper family turned on (CORR-20260916-96f47d).",
+            "Distinguish what is PROVED, what is argued heuristically, and what is supported only "
+            "by the paper's own experiments. Report the strongest claim the argument supports.",
+            "You may NOT read the files in blind_from, or your sibling's task directory.",
+            "Do not rule on what the campaign should do.",
+            "Cite with provenance.",
+        ]),
+        ("questions", [
+            "J-4a: Which statement of 2015/310 does this program consume, and how did you "
+            "determine that?",
+            "J-4b: What does the argument for it actually establish? Quantifier order, hypotheses, "
+            "and any step asserted rather than proved.",
+            "J-4c: Is there a gap between statement and argument? If so, name it precisely and say "
+            "which side a consumer must rely on.",
+            "J-5 (PROVES-TOO-MUCH, REQUIRED): apply the argument to a parameter regime or object "
+            "where its conclusion is known or strongly believed FALSE, and report whether it still "
+            "runs. An argument that survives its own known-false object has an error nobody has "
+            "located yet. If you cannot construct such an object, say so and say why.",
+        ]),
+        ("deliverables", [
+            "report.md -- one section per sub-joint plus the control, evidence by file and line, "
+            "what you could not determine, and your inference provenance.",
+            "statement-map.json -- the numbered statements you examined with line ranges, which is "
+            "the consumed one, what is proved versus argued versus experimental, and a "
+            "`could_not_determine` list.",
+            "attestation.yaml -- paths read, blind_from respected, verdict per sub-joint, control "
+            "outcome.",
+            "recheck.py + recheck.out -- an EXECUTABLE check of whichever claim in your report "
+            "carries the most weight, and its captured output. The last reader to run this card "
+            "produced rechecks and they were lost with the machine (CORR-20260921-942a62); a "
+            "finding that exists only as prose does not survive its session. If nothing in your "
+            "report is mechanically checkable, write both files saying so and why.",
+            "reextract.md -- if you re-extract the PDF because you distrust the frozen markdown, "
+            "the result and what differed. inputs/NAGAO-2013-549/errata-extraction-20260921.md "
+            "records a CONFIRMED case of this in the sibling package: 63 of 73 large operators "
+            "detached from their operands, so a graded hypothesis reads as a vacuous one. "
+            "SEMAEV-2015-310 was audited and shows no operator detachment, but it does show "
+            "line-splitting, so check any formula you rely on against the PDF and record the "
+            "outcome here either way.",
+        ]),
+        ("blindness", od([
+            ("blind_from", BLIND_FROM),
+            ("why",
+             "The Coordinator's prediction for this joint is recorded in the read plan at LOW "
+             "confidence and is close to a guess about a genre of gap. That is exactly the kind of "
+             "prior a reader would anchor on if shown it."),
+            ("sibling", READ_NAGAO),
+            ("sibling_rule", "Do not read the sibling's task directory."),
+        ])),
+        ("inference", READER_INFERENCE),
+        ("budget", od([
+            ("wall_clock_seconds", 7200),
+            ("memory_gb", 2),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "all SIX declared artifacts exist under the write scope -- the Coordinator lands "
+            "exactly the declared set, so an undeclared file is an uncommitted file",
+            "every sub-joint and the J-5 control has an answer or an explicit "
+            "'cannot determine, because ...'",
+            "the attestation names every path read and asserts blind_from was respected",
+            "git status --porcelain shows nothing outside the write scope",
+            "no measurement was performed",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", READS_SNAPSHOT),
+    ("title", "Snapshot-archive both reader packages before the Coordinator composes them"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 80),
+    ("review_required", False),
+    ("depends_on", [READ_NAGAO, READ_SEMAEV]),
+    ("read_scope", [NAGAO_DIR, SEMAEV_DIR, BASE]),
+    ("write_scope", [f"{BASE}/archives/{READS_SNAPSHOT}"]),
+    ("artifact_paths", [f"{BASE}/archives/{READS_SNAPSHOT}/snapshot-receipt.json"]),
+    ("archive", od([
+        ("kind", "snapshot"),
+        ("source_task_ids", [READ_NAGAO, READ_SEMAEV]),
+        ("record_ids", [ROUND, BATCH]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_first"),
+        ("binding_mode_note",
+         "content_first HERE, unlike the opening archive, and the difference is the point. A "
+         "reader's filed report is IMMUTABLE: it must read identically at HEAD forever, and if it "
+         "does not, something edited a producer's artifact after filing. This campaign's sibling "
+         "has had that happen TWICE (CORR-20260916-5166fe, CORR-20260916-2e9bc3), both times by a "
+         "concurrent session fixing something in place. content_first is the mode that catches it; "
+         "content_at_commit would not."),
+        ("receipt_note",
+         "Records both readers' attestations and whether either declares a blindness breach. A "
+         "breach does not invalidate the read -- it changes what the read is evidence of, and the "
+         "composition must say so."),
+    ])),
+    ("handoff", od([
+        ("objective", "Fix both reports in an immutable commit before the Coordinator reads them "
+                      "together."),
+        ("uncertainty_reduced", "none; evidence integrity before composition"),
+        ("inputs", nagao_artifacts + semaev_artifacts),
+        ("constraints", [
+            "NEVER edit a reader's filed artifact. If one is wrong, the correction is a new record "
+            "under a new id in a Coordinator-owned path -- the disposition CORR-20260916-2e9bc3 "
+            "records after the alternative was tried.",
+            "stage only declared paths; runs alone",
+            "commit message names the task id and every record id",
+        ]),
+        ("deliverables", ["snapshot-receipt.json"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As OPEN's card."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 1800),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "post-commit receipt verified by research_dispatch.py",
+            "both attestations are committed unedited",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", RULING),
+    ("title",
+     "Compose " + ROUND + ": score every prior, name every joint's verdict, and rule on what the "
+     "campaign's Lemma 4 dependency now costs"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 70),
+    ("review_required", False),
+    ("depends_on", [READS_SNAPSHOT]),
+    ("read_scope", [NAGAO_DIR, SEMAEV_DIR, BASE, REVIEW, "ledger", "inputs", "experiments"]),
+    ("write_scope", [RULING_DIR]),
+    ("artifact_paths", ruling_artifacts),
+    ("handoff", od([
+        ("objective",
+         "Turn two independent reads into one committed ruling about how conditional a d'_F "
+         "measurement's bearing on Nagao's d_F statements is."),
+        ("uncertainty_reduced",
+         "Whether EXP-SEMBIN-4fa22c's recorded Lemma 4 dependency is supported upstream, and at "
+         "what strength; and whether the Semaev residual is a statement-argument gap."),
+        ("inputs", nagao_artifacts + semaev_artifacts + [f"{REVIEW}/read-plan.yaml"]),
+        ("constraints", [
+            "Zero runs.",
+            "SCORE EVERY PREDICTION P-1..P-6 as confirmed, refuted or untested, and record a "
+            "refuted prior at least as prominently as a confirmed one. P-4 is the one the "
+            "Coordinator said it would rather lose.",
+            "Name EVERY joint with its verdict. A joint no reader owned is reported as unowned, "
+            "not quietly dropped.",
+            "If either reader declares a blindness breach, record it in procedure_deviations and "
+            "say what the read is then evidence of.",
+            "Do NOT change H-SEMBIN-a7e721's status, EXP-SEMBIN-4fa22c's status, or any goal "
+            "criterion on the strength of a read of external sources. Whether this round produces "
+            f"{EVIDENCE} at all is this ruling's decision to make and to justify.",
+            "If the reads bear on EXP-SEMBIN-4fa22c's dependency record, the change is an ADDITIVE "
+            "amendment under a new id, never an edit to the frozen contract.",
+            "The goal head edit is additive and stays inside this lane; BATCH-cbb416's checkpoint "
+            "owns the operative next_action.",
+        ]),
+        ("deliverables", [
+            "composition.md -- the ruling in full: every joint named with its verdict, every "
+            f"prior scored, and the text that {LEDGER} commits as {CLOSING}",
+            "scored-priors.json -- machine-readable P-1..P-6 with confirmed | refuted | untested "
+            "and the evidence for each, so a later reader can measure this Coordinator's "
+            "calibration without re-reading the prose",
+        ]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As OPEN's card."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+            ("escalation_condition",
+             "IF EITHER READER FINDS THE UPSTREAM LEMMA UNPROVED OR INSUFFICIENT FOR THE INSIDE "
+             "FORM, the resulting claim -- that a published subexponential ECDLP bound rests on an "
+             "unsupported lemma -- is a contradiction of established evidence in the sense of core "
+             "rule 12 and requires review-breakthrough at max, which is UNDEGRADABLE and CANNOT BE "
+             "SERVED in this environment. The ruling then records the finding at its narrowest "
+             "supported scope and leaves the CLAIM un-promoted while the campaign stays active. "
+             "That is a limit on the claim, never on the campaign, and never a reason to soften the "
+             "finding so a servable tier will carry it."),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 5400),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "every prior P-1..P-6 is scored",
+            "every joint J-1..J-5 is named with a verdict or an explicit 'unowned'",
+            "tools/check_review_independence.py raises no problem against the round",
+            "no status transition rests on a read of an external source alone",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", LEDGER),
+    ("title", "Ledger-archive the ruling and close this lane"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 60),
+    ("review_required", False),
+    ("depends_on", [RULING]),
+    ("read_scope", [RULING_DIR, BASE, REVIEW, "ledger"]),
+    ("write_scope", [f"{BASE}/archives/{LEDGER}", f"ledger/decisions/{CLOSING}.yaml",
+                     f"ledger/evidence/{EVIDENCE}.yaml",
+                     f"knowledge/findings/{KNOWLEDGE}.md",
+                     f"ledger/goals/{GOAL}/checkpoints/", f"ledger/goals/{GOAL}/goal.yaml"]),
+    ("artifact_paths", ledger_artifacts),
+    ("archive", od([
+        ("kind", "ledger"),
+        ("source_task_ids", [RULING]),
+        ("record_ids", [CLOSING, EVIDENCE, KNOWLEDGE, ROUND, BATCH, GOAL]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_at_commit"),
+        ("binding_mode_note",
+         "content_at_commit: this archive stages the goal head, which every later checkpoint "
+         "reranks. Binding it at HEAD would report this archive corrupt at the next rerank."),
+    ])),
+    ("handoff", od([
+        ("objective",
+         f"Write {CLOSING} from the composition and make it official in one isolated commit."),
+        ("uncertainty_reduced", "none; durability"),
+        ("inputs", ruling_artifacts + [f"{REVIEW}/read-plan.yaml"]),
+        ("constraints", [
+            "stage only declared paths; runs alone",
+            "commit message names the task id and every record id",
+            "fetch origin/main and MERGE it before committing; never rebase pushed records",
+            "The decision's content is the composition's, not a fresh judgement: this card "
+            "COMMITS a ruling that was already reasoned and reviewable, and a divergence between "
+            f"{CLOSING} and composition.md is a defect rather than a refinement.",
+            "The closing checkpoint shard is write-once and additive; the goal head edit is "
+            "additive and must not touch BATCH-cbb416's fields.",
+            f"{EVIDENCE} is scoped to the COUNTEREXAMPLE CERTIFICATE and not to either textual "
+            "read, per the ruling's section 7 split. An evidence record that claims the readings "
+            "as observations of a research object would overstate what this round produced.",
+            f"{KNOWLEDGE} carries all five items the ruling's knowledge_promotion.must_carry "
+            "names, including the '>=' reading under which its target statement is TRUE. An "
+            "entry that omits that scope note is a worse pointer than no entry.",
+            "The ruling's NA-3 lands HERE, in the closing checkpoint: the naming defect that put "
+            "the inside/outside distinction on the FAKE side in four committed documents. None of "
+            "those four is edited. Recording it in the checkpoint keeps it inside this write "
+            "scope, which a separate CORR record would not be.",
+            "NA-1's contract amendment is NOT this task's. It cites "
+            f"{EVIDENCE}, which does not exist until this commit lands, so it is a successor.",
+        ]),
+        ("deliverables", ["ledger-receipt.json", f"{CLOSING}", f"{EVIDENCE}", f"{KNOWLEDGE}",
+                          f"{BATCH}.closing.yaml checkpoint",
+                          "an additive goal-head rerank recording this lane's outcome",
+                          "the NA-3 naming defect, recorded in the closing checkpoint"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As OPEN's card."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 1800),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "post-commit receipt verified by research_dispatch.py",
+            "validate_ledger.py adds no new error on the paths this commit stages",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+# The ruling's NA-1. Ranked first of its six next actions, and appended here
+# rather than left for the next coordinating session because the ruling's own
+# `why_first` is that the frozen contract currently instructs an executor to
+# lean on a statement this round showed is false. That is a live defect in a
+# dispatchable contract, so leaving it unqueued would be the make-work rule's
+# mirror image: declining to queue ranked work that costs no compute.
+tasks.append(od([
+    ("id", AMEND),
+    ("title", "NA-1: additively amend EXP-SEMBIN-4fa22c for the refuted Lemma 4"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 55),
+    ("review_required", False),
+    ("depends_on", [LEDGER]),
+    ("depends_on_note",
+     f"Hard dependency, not sequencing preference: the amendment CITES {EVIDENCE} as the record "
+     "that refutes S-5's premise, and an amendment citing a record that does not yet exist is a "
+     "dangling reference in an immutable artifact."),
+    ("read_scope", [RULING_DIR, "experiments/EXP-SEMBIN-4fa22c", "ledger", "inputs/SEMAEV-2015-310",
+                    f"{BASE}/read-semaev-2015-310", f"{BASE}/read-nagao-2013-549"]),
+    ("write_scope", [f"experiments/EXP-SEMBIN-4fa22c/amendments/{AMENDMENT}.yaml"]),
+    ("artifact_paths", [
+        f"experiments/EXP-SEMBIN-4fa22c/amendments/{AMENDMENT}.yaml",
+    ]),
+    ("archived_by", AMEND_ARCHIVE),
+    ("archived_by_note",
+     "Bound BEFORE dispatch, per AGENTS.md's first standing dispatch precondition. This card "
+     "writes the amendment and commits NOTHING; the archive below owns the commit. That split is "
+     "the batch's established shape -- the ruling wrote two files and ran no git command -- and it "
+     "is what keeps a record from existing as an unowned working-tree artifact for the length of a "
+     "task, which is exactly how this round lost its first attempt (CORR-20260921-942a62)."),
+    ("handoff", od([
+        ("objective",
+         "Write the four clauses the ruling's NA-1 specifies as an ADDITIVE amendment, so the "
+         "next executor of EXP-SEMBIN-4fa22c is not instructed to lean on a refuted statement."),
+        ("uncertainty_reduced",
+         "none mathematically; it removes a defect from what the next run is told to do"),
+        ("inputs", ruling_artifacts + [
+            f"ledger/decisions/{CLOSING}.yaml",
+            f"ledger/evidence/{EVIDENCE}.yaml",
+            "experiments/EXP-SEMBIN-4fa22c/specification.yaml",
+            "experiments/EXP-SEMBIN-4fa22c/amendments/"
+            "AMD-EXP-SEMBIN-4fa22c-20260916-collision.yaml",
+        ]),
+        ("constraints", [
+            "ADDITIVE ONLY. The frozen contract at experiments/EXP-SEMBIN-4fa22c/"
+            "specification.yaml is NOT edited. Its S-5 text is historically accurate for "
+            "2026-09-16 and stays exactly as written; the amendment records that its premise is "
+            "now refuted, which is a different act from correcting it.",
+            "Follow the form of AMD-EXP-SEMBIN-4fa22c-20260916-collision, including its "
+            "does_not_rewrite and supersedes_fields discipline. `decision_id` is "
+            f"{CLOSING}, which is the decision that ranks this action and supplies its authority; "
+            "this task mints no new decision and holds no authority the ruling did not record.",
+            "Clause (a) records S-5's 'UNPROVEN' as REFUTED AT THE CONTRACT'S OWN DECLARED "
+            "EQUALITY CONVENTION, and states the '>=' scope note in the same breath. The "
+            "refutation is void under the literal '>=' reading and an amendment that omits that "
+            "overstates the finding.",
+            "Clause (b) is the operative one: a per-instance U-4 bookkeeping requirement. For "
+            "every reported d'_F the run records the UNREDUCED total degree of each product "
+            "g_i f_i of the realising fake witness and states whether max_i deg(g_i f_i) <= d'_F "
+            "at THAT instance. Only where it holds may the report state the d_F <= d'_F "
+            "consequence, and then as discharged by that bookkeeping, never by citing Lemma 4.",
+            "Clause (c) adds the 2015/310 citation anchor -- section, line range, provenance -- "
+            "that J-4a found absent from every record of this campaign, plus the LINK 1 "
+            "characterisation qualification.",
+            "Clause (d) records control C-6 as STRUCTURALLY UNINFORMATIVE for d'_F, because "
+            "inertness makes the two things it compares identical. C-6 is NOT REMOVED -- removing "
+            "a declared control is a rewrite -- and its verdict is reported as structurally forced "
+            "rather than as a passed check.",
+            "Do NOT change EXP-SEMBIN-4fa22c's status, do not approve or dispatch a run, and do "
+            "not promote the claim. IMP-SEMBIN-FCB7A2-LEMMA4-TIER stands.",
+            "State which SIDE -- fake or true -- every placement mentioned is on. The ruling's "
+            "section 4.1 naming defect propagated through four committed documents precisely "
+            "because that was left implicit.",
+        ]),
+        ("deliverables", [f"{AMENDMENT}"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As OPEN's card."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 2700),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "all four clauses (a)-(d) present, each naming the side of every placement",
+            "the frozen specification.yaml is byte-identical to its pre-task state",
+            "no git command is run: this card produces, it does not commit",
+        ]),
+        ("dispatch_preconditions", [
+            f"{LEDGER} has a completed receipt and {EVIDENCE} exists at its committed path",
+            f"archived_by names {AMEND_ARCHIVE} on this card before the launch, not after",
+            "a lane is claimed for this task before the subagent is launched",
+            f"the amendment is landed with tools/producer_landing.py --task {AMEND} the moment "
+            "the subagent returns, before anything else in the session",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", AMEND_ARCHIVE),
+    ("title", "Snapshot-archive the NA-1 amendment"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 54),
+    ("review_required", False),
+    ("depends_on", [AMEND]),
+    ("read_scope", ["experiments/EXP-SEMBIN-4fa22c", f"{BASE}/archives/{AMEND_ARCHIVE}"]),
+    ("write_scope", [f"{BASE}/archives/{AMEND_ARCHIVE}"]),
+    ("artifact_paths", [f"{BASE}/archives/{AMEND_ARCHIVE}/snapshot-receipt.json"]),
+    ("archive", od([
+        ("kind", "snapshot"),
+        ("source_task_ids", [AMEND]),
+        ("record_ids", [AMENDMENT, CLOSING, "EXP-SEMBIN-4fa22c"]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_first"),
+        ("binding_mode_note",
+         "content_first: the amendment is write-once and nothing reranks it, so binding its hash "
+         "against HEAD is the stricter choice and catches a later in-place edit to a filed record. "
+         "The goal head is not staged here, which is why this archive does not need "
+         "content_at_commit as the ledger archive does."),
+    ])),
+    ("handoff", od([
+        ("objective", f"Commit {AMENDMENT} in one isolated commit and verify the receipt."),
+        ("uncertainty_reduced", "none; durability"),
+        ("inputs", [f"experiments/EXP-SEMBIN-4fa22c/amendments/{AMENDMENT}.yaml"]),
+        ("constraints", [
+            "stage only declared paths; runs alone",
+            "commit message names the task id and every record id",
+            "fetch origin/main and MERGE it before committing; never rebase pushed records",
+            "If the amendment was already landed by producer_landing.py, this commit stages only "
+            "its own receipt and the receipt says so, as TASK-20260916-92128f's does. That is "
+            "expected under the post-loss remedy and is not a missing artifact.",
+            "Verify the frozen specification.yaml is unchanged before committing. An amendment "
+            "that arrives alongside an edit to the contract it amends is a rewrite wearing an "
+            "amendment's name, and this is the last point at which that is cheap to catch.",
+        ]),
+        ("deliverables", ["snapshot-receipt.json"]),
+        ("inference", od([
+            ("policy", "executor-mechanical"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note",
+             "executor-mechanical at low effort: staging declared paths and verifying a receipt is "
+             "judgement-free by construction. The judgement was spent writing the amendment."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 900),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "post-commit receipt verified by research_dispatch.py",
+            "validate_ledger.py adds no new error on the paths this commit stages",
+            "experiments/EXP-SEMBIN-4fa22c/specification.yaml is unchanged by this commit",
+        ]),
+        ("runs_launched", 0),
+    ])),
+]))
+
+
+# ---------------------------------------------------------------------------
+# Post-execution facts, applied to the cards. See BATCH-cbb416's builder for why
+# this table exists rather than hand edits to the generated JSON.
+EXECUTED = {
+    OPEN_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit 84f25affa595e433b34fc8d774fbaf5dda5701a8. Staged exactly "
+         "the seven declared source artifacts, its own receipt, and the lane side file; nothing "
+         "else. The concurrently running collision audit of BATCH-cbb416 was writing into its own "
+         "untracked directory at the time and was deliberately NOT staged -- a producer's artifacts "
+         "are committed by the archive that owns them, and staging a running producer's partial "
+         "output would bind bytes it has not finished writing."),
+        ("archive_binding", od([
+            ("commit_sha", "84f25affa595e433b34fc8d774fbaf5dda5701a8"),
+            ("parent_sha", "de6c804682fe138a63e4c9cb4d2c224c4c42430d"),
+            ("path_sha256", od([
+                # The archive's own artifact first. A receipt cannot contain its
+                # own hash, so this is the one value a reader takes from the
+                # queue rather than from the receipt.
+                (f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json",
+                 "46cda209dcfa01756f7b76704318b2e3cf42a53fa0e8fee0938b384213afba86"),
+            ] + list(zip(open_artifacts, [
+                "f063851780a5423aacad539156397cc62710cb87774cb30d1735fd34e8c0e509",
+                "b8e3fdbf22c22100f7afc9d28c7ed5c48341adf6adc10905a85bde09e74f5920",
+                "8605c51728bb35f957fe12f50f43afe8fddaf9a94dbb6106c443da0d802e8776",
+                "fe433b8e666729343d3e779728d9697036d902ca60f0d52b0fbdead20f17ea37",
+                "5bc45d68e23b0421b919fba598b0b83d416089813bc7df77daa72c8fb19c8a90",
+                "450207237b2462eb2b14a8da31d6c2ea11f54080aeb415bc22263f2926a27eeb",
+                "3e3c6555e8078f647e1935b29f045b0a5ded596f57a97202c798500641181c62",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "EIGHT entries: the receipt plus the seven sources, INCLUDING THE GOAL HEAD, THIS "
+             "QUEUE AND ITS GENERATOR. All three legitimately change after this commit -- the head "
+             "at every rerank and whenever the other open lane appends, the queue and generator as "
+             "this table records what has executed. Under content_at_commit that is verification "
+             "working; under content_first each of those moves would report this archive corrupt "
+             "(CORR-20260915-654160)."),
+        ])),
+    ]),
+    OPEN: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16. The prior was formed by the Coordinator opening both Nagao papers "
+         "directly for about twenty minutes and is recorded at REVIEW-SEMBIN-20260916-e0a0c1 with "
+         "six predictions, confidences, and falsification conditions -- including P-3, which the "
+         "Coordinator's own checking REFUTED while forming it (the first reading was that "
+         "2015/984 had dropped a locality hypothesis; the definition at NAGAO-2013-549 "
+         "paper_fulltext.md :180 shows `local polynomial` names the ambient ring). Zero runs."),
+    ]),
+    READ_NAGAO: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at epoch 2, re-dispatched after the first attempt's package was "
+         "destroyed uncommitted with the machine (CORR-20260921-942a62). Six declared artifacts "
+         "filed and landed at c31504e97 the moment the reader returned. Zero runs, zero "
+         "measurements. J-1 holds and the match is 2013/549's LEMMA 2, not its Lemma 3 -- "
+         "matching on number would have found an unrelated statement about deg(wd(m)), which is "
+         "exactly the failure the card's match-on-content constraint anticipated. J-2 holds: "
+         "Lemma 2 is proved and its induction is well-founded under a graded order. J-3 BREAKS -- "
+         "the derivation requires the field equations as MEMBERS of the true system, which Lemma 4 "
+         "does not supply, and the reader filed a second counterexample (f_1 = X^2 Y, "
+         "f_2 = XY + X over F_2[X,Y]: d'_F = 2, d_F = 3). The J-5 proves-too-much control PASSES. "
+         "The reader additionally reports that this batch's INSIDE-versus-OUTSIDE distinction is "
+         "INERT on the fake side, which if it stands means the campaign's recorded residual was "
+         "drawn in the wrong place; the Coordinator reproduced both that claim and the "
+         "counterexample in tools/lemma4_inside_form.py, which the reader never read, and pinned "
+         "them in tools/test_lemma4_inside_form.py. Ruling at TASK-20260916-a8e5b5."),
+        ("disclosed_independence_qualifications",
+         "The reader's own attestation, not a Coordinator finding: the J-1 answer LEAKED from an "
+         "in-scope, program-authored document -- inputs/NAGAO-2013-549/errata-extraction-20260921.md "
+         "names Lemma 2, and the card directed the reader to read it first. The reader derived the "
+         "match independently by enumerating statements and matching content, and recorded the leak "
+         "rather than claiming a blindness it did not have. J-1 is therefore corroboration; the "
+         "blind bought its real value on J-2 and J-3. It also read CORR-20260916-96f47d only after "
+         "building its counterexample, and saw the sibling directory's file names via `ls` without "
+         "opening any file in it. Both disclosed."),
+    ]),
+    READ_SEMAEV: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at epoch 2, re-dispatched for the same reason as its sibling. Six "
+         "declared artifacts filed and landed at c0a107514. Zero runs, zero measurements. J-4a "
+         "answered WITH A RECORDED AMBIGUITY the card told it not to resolve by choosing: the "
+         "campaign consumes Semaev's 4.5 first-fall-degree result through Nagao's Propositions 2 "
+         "and 5, and NO record of this campaign cites 2015/310 directly at all -- the statement "
+         "exists only as unanchored prose in a `mechanism` field. J-4b: the argument proves the "
+         "FAKE degree of the NON-TERMINAL links only, by a uniform witness, which the reader is "
+         "careful to call a genuine strength of quantifier order rather than dress up. J-4c BREAKS "
+         "in three separable components -- quantity, coverage (t-2 of t-1 equations, so one is "
+         "uncovered at every t and the count is zero at t = 2, which Assumption 1's range "
+         "includes), and quantifier. The J-5 proves-too-much control FAILS: the paper supplies its "
+         "own known-false object at 4.5.1 and the argument runs there unchanged because k appears "
+         "nowhere in it. Ruling at TASK-20260916-a8e5b5."),
+    ]),
+    READS_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 4b7edadfbd42489f1a120157c1d29558fa992cce. Staged exactly "
+         "its own receipt and nothing else, because the twelve source artifacts were already "
+         "committed by tools/producer_landing.py when each reader returned. That inverts the "
+         "historical order deliberately and is the CORR-20260921-942a62 remedy: the gap between "
+         "production and archival is what destroyed this round's first attempt. content_first "
+         "verifies the declared hashes at HEAD rather than against a changed-path set, so the "
+         "binding is unaffected by the inversion."),
+        ("archive_binding", od([
+            ("commit_sha", "4b7edadfbd42489f1a120157c1d29558fa992cce"),
+            ("parent_sha", "d67aa9e61cb675f6dc67196b7a01bb17ac634e17"),
+            ("path_sha256", od([
+                # The receipt's own hash, which it cannot contain itself.
+                (f"{BASE}/archives/{READS_SNAPSHOT}/snapshot-receipt.json",
+                 "e8db5c325c32af4908a2121873aaa4720967f8a8564e30e884f9c06912182864"),
+            ] + list(zip(nagao_artifacts, [
+                "9a90c0a338ff8debedad4f89308f21d8668c7b9fb4a716733a5cff87ce6f5317",
+                "3b5b93f7541011df6c6260bcd2b6c527c78177b030953587cd42db14e313b2cc",
+                "d167a49b867b1c9c4272f9c952370bb892e6688deeca8606cc0c0d6557175921",
+                "5398d1745bbc01c8a2db337c19ca585b9ca6571f64f80a025cceee653b6e55ee",
+                "e8fa485a1bd917ed8f51f1dba0889be1a4a9096cc9422501a4655e403209204c",
+                "56aa696d494ef6f66871879504a8c9370be7118d4f4ea0922f5f6002a8ce794d",
+            ], strict=True)) + list(zip(semaev_artifacts, [
+                "d6ac3d96ff8604a246550d002fb9976580d7f751275e20f0ea7b7c903ce534ac",
+                "f78faf3849c6f1ebe56f89243a63c403856726937c63b81108e5fd8a9dfc771b",
+                "3d1a92cf56ed986ddca02f3a9687c1b20b773801b6de4563fda1ef9e290e5707",
+                "bfc84f94e164ad7ecf266549aa73208029a8272a65a11ecd082fee23cf085bba",
+                "b83a413e042adee1a5f41d2aeb3d9ca63542822dd51c44d206d8c2458b02e116",
+                "2e1443502d229e8b41f8691388d8711a5d975b64019f6ca33b82ac20673714ea",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "THIRTEEN entries: the receipt plus twelve reader artifacts, six per reader. Six and "
+             "not three because the cards were widened after the first attempt produced six and "
+             "lost the three it had not declared. Unlike the opening archive, nothing bound here "
+             "is allowed to change: a filed report is immutable, which is why this archive binds "
+             "content_first and that one binds content_at_commit."),
+        ])),
+    ]),
+    RULING: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21. Both declared artifacts filed and landed at 757ac827f. Zero runs. "
+         "THREE OF SIX PRIORS REFUTED, and one of the three confirmations was not a live "
+         "prediction: P-1's answer was already in the goal head's own criterion-4 status line "
+         "before the plan was written. P-4 -- the prior the predecessor Coordinator named as "
+         "load-bearing and said it would rather lose -- is REFUTED on three independently "
+         "sufficient grounds, the sharpest being that the distinction it is built on does not "
+         "exist, so as written it asserts that one statement is both licensed and not licensed. "
+         "P-5 refuted: the Semaev quantifier order is the STRONGEST available, the opposite of "
+         "what the plan guessed, and the real gap is quantity and coverage. No joint went "
+         "unowned. J-5 SPLITS -- the Nagao half's proves-too-much control passes and the Semaev "
+         "half FAILS. Inertness ruled established. EV-SEMBIN-1ca3c8 is produced, resting only on "
+         "the counterexample certificates and the inertness measurement and explicitly NOT on the "
+         "textual reads."),
+        ("escalation_honoured_without_softening",
+         "The card's escalation condition fired, and the ruling records the finding at full "
+         "strength while leaving the CLAIM un-promoted: review-breakthrough at max is undegradable "
+         "and unservable in this checkout, and no servable tier was substituted for it. The GOAL "
+         "stays active with IMP-SEMBIN-FCB7A2-LEMMA4-TIER recorded against the claim rather than "
+         "the campaign, drafted as text for the ledger archive to apply. The ruling also states "
+         "concretely what a session with a second resolvable backend must do to promote it."),
+        ("completion_gate_reported_NOT_satisfied",
+         "RECORDED AS COMPLETED WITH ITS GATE OPEN, deliberately, and the distinction matters. The "
+         "gate item `tools/check_review_independence.py raises no problem against the round` is "
+         "UNSATISFIABLE for this round: of the six problems the checker reports, two are properties "
+         "of an IMMUTABLE plan -- J-5 double-owned, and proves_too_much.objects left empty -- so no "
+         "fix to the tool and no permitted edit can ever turn them green. The ruling adjudicated all "
+         "six, classified four as checker limitations and two as genuine procedure deviations, "
+         "specified the checker fix WITH the negative tests that must keep failing, and declined to "
+         "apply it. It recommends leaving the empty control field exactly as it is: an unfilled "
+         "required control is the thing that check exists to find, and it found it. The task is "
+         "complete in substance -- every deliverable filed, every joint and prior scored, every "
+         "checker problem adjudicated -- and reporting the gate as met would have destroyed the only "
+         "information the failure carries. Its successor is NOT unblocked on a pretence: "
+         "TASK-20260916-d4fb62 inherits an open gate and must say so."),
+    ]),
+    LEDGER: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 80242e204f9c393ec4353ad9dde5409c930c1665. Staged six "
+         "paths: its own receipt, the three ledger and knowledge records it declared, the "
+         f"write-once closing checkpoint shard {BATCH}.closing.yaml, and an additive rerank of the "
+         "goal head. Zero runs, zero measurements. The ruling is now official: three of six priors "
+         "refuted, the campaign's inside-versus-outside residual dead in both halves, and the "
+         "mathematics recorded at full strength with the derived CLAIM un-promoted."),
+        ("archive_binding", od([
+            ("commit_sha", "80242e204f9c393ec4353ad9dde5409c930c1665"),
+            ("parent_sha", "fbf611c2970b5259e548695c782a81c48db430c9"),
+            ("path_sha256", od([
+                # The receipt's own hash, which it cannot contain itself.
+                (f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
+                 "4ab3cc460785addc958cb2cb7ef0f5705e736eb2aaf1dacf9bdc6192fadf88dc"),
+                (f"ledger/decisions/{CLOSING}.yaml",
+                 "1f81d806f8b764635fe990d2ea425ada210e16662301ac14e1af67e3ff2d45d8"),
+                (f"ledger/evidence/{EVIDENCE}.yaml",
+                 "d8b443001514beeca1978e79d7d30d624199925450c016d7a9a7fd2ba615cf80"),
+                (f"knowledge/findings/{KNOWLEDGE}.md",
+                 "a17623ab3189cba00089ce095950dd182e165c3be545af97869b49720af96a13"),
+                (f"{RULING_DIR}/composition.md",
+                 "a86e2efad24ec2992deed652907f8004093d9faa2f5092cd53aeeb7ed1658299"),
+                (f"{RULING_DIR}/scored-priors.json",
+                 "7df17d92d898988e83dc212a4033bdd587ce57652a06f5f8a869ac00fd3ee3a2"),
+            ])),
+            ("path_sha256_note",
+             "SIX entries: the receipt, the three declared records, and the ruling's two source "
+             "artifacts. Computed by the dispatching session from the blobs in commit 80242e204 "
+             "with `git show <commit>:<path>`, NOT from the working tree, and the three ledger "
+             "hashes agree with the ones the archivist reported independently. content_at_commit "
+             "rather than content_first because this commit stages the goal head, which every "
+             "later checkpoint reranks: binding it at HEAD would report this archive corrupt at "
+             "the next rerank of a file it is allowed to change."),
+        ])),
+        ("two_staged_paths_are_NOT_in_this_binding_and_that_is_a_CARD_DEFECT", od([
+            ("what",
+             "The commit also staged "
+             f"ledger/goals/{GOAL}/checkpoints/{BATCH}.closing.yaml (sha256 ddbc94532f1b86a221e932"
+             "2406cdb65c00a30bc9d6d91029d89e216250405603) and "
+             f"ledger/goals/{GOAL}/goal.yaml (sha256 673f18cb81b9864b523d8fb5d5caadba63a76837e2b4e"
+             "55397ec05a511a9d8b5). Both were required by the card's own write_scope and "
+             "deliverables, and neither was ever in its artifact_paths."),
+            ("why_they_are_not_added_to_path_sha256",
+             "research_dispatch.py restricts path_sha256 to artifact_paths union the source tasks' "
+             "artifact_paths, so adding them would fail the render as `paths outside its commit "
+             "scope`. Widening artifact_paths instead would mean editing a card AFTER its agent "
+             "acted on it, to make the dispatch look more completely declared than it was. That is "
+             "the edit AGENTS.md forbids by name, and the fact that both files were genuinely "
+             "produced does not convert a post-hoc declaration into a pre-dispatch one."),
+            ("whose_defect",
+             "MINE, as the dispatching session. The card's artifact_paths was narrower than its own "
+             "deliverables from the day it was written, and I HAD IT OPEN on 2026-09-21 to widen it "
+             "for the evidence record and the knowledge entry. I widened it for the two records the "
+             "ruling had just assigned and did not notice the two the card had always under-"
+             "declared. The lesson is narrower than `read the card`: a card's artifact_paths and "
+             "its deliverables are two lists that must agree, and nothing checks that they do."),
+            ("where_the_hashes_are_durable",
+             "The receipt's own `staged_but_not_declared_artifacts` block, written by the archivist "
+             "before the commit and committed inside it, and the lane release record. Both hashes "
+             "above were recomputed by this session from commit 80242e204 and agree. So the full "
+             "staged set IS verifiable; what it is not is verifiable BY THE DISPATCHER, which is a "
+             "real loss of automated coverage and not a bookkeeping quibble."),
+            ("successor_check_this_earns",
+             "Before dispatching TASK-20260921-d61759 or TASK-20260921-d3d13a, diff each card's "
+             "artifact_paths against its deliverables and write_scope and reconcile them in the "
+             "card, not afterwards."),
+        ])),
+        ("the_hold_lapsed_before_this_commit_landed", od([
+            ("what",
+             "The lane claim's expires_at was 2026-09-21T18:01:55Z; the commit is timestamped "
+             "18:02:52Z. For its final 57 seconds this archive held its write scope under an "
+             "EXPIRED claim, and the dispatcher now reads that claim file as "
+             "`expired -> queued_after_expiry`."),
+            ("what_was_actually_at_risk",
+             "Nothing was contested: no competing claim file exists at any epoch, the tree was "
+             "clean, and the push was a fast-forward. An expired claim does not make a commit "
+             "wrong; it makes the interval unprotected, which is a different and smaller thing."),
+            ("and_it_is_still_a_defect",
+             "A precondition is not waived by the work turning out fine. Judging a hold by whether "
+             "anyone happened to collide with it is how the hold stops being a hold."),
+            ("whose_defect",
+             "MINE, not the agent's. I set a 45-minute TTL on a card declaring wall_clock_seconds "
+             "1800, which left fifteen minutes of headroom over a budget the task then overran "
+             "anyway, and I did not watch the clock. The agent could not renew it: claims/ is "
+             "outside its write scope, correctly, because renewing a hold is the dispatching "
+             "session's job. It flagged the imminent expiry in its receipt, which predates the "
+             "lapse."),
+            ("budget_overrun_recorded_separately",
+             "The task ran roughly 46 minutes against a declared wall_clock_seconds of 1800. Zero "
+             "runs and zero measurements, so this is budget accounting and is categorically NOT "
+             "evidence about anything mathematical. It is recorded because an exhausted budget is "
+             "reported as such rather than absorbed, and because it is the direct cause of the "
+             "lapse above: the TTL was sized against a budget the work did not fit in."),
+            ("remedy",
+             "For both successor cards: size the TTL above the card's own wall_clock budget with "
+             "real headroom, and renew rather than assume. Recorded here and in the lane release "
+             "record; not recorded as a correction, because a CORR-* is a ledger record needing an "
+             "archival owner and this is a scheduling fact about a coordination side file, fully "
+             "carried by the two committed records that already describe it."),
+        ])),
+        ("divergences_from_the_drafts_the_archivist_disclosed", od([
+            ("three_standing",
+             "DIV-1 added `decided_by: coordinator`, a required field of coordinator_decision the "
+             "draft omitted, so the draft as written could not have validated. DIV-2 added "
+             "`knowledge_promotion.promoted: [KN-FIND-936151]` beside the draft's verbatim "
+             "`entry_id`, because validate_ledger.py reads `promoted` as the list and a decision "
+             "that does promote an entry would otherwise have validated as one that does not. Both "
+             "are schema repairs that assert nothing new and are disclosed in the record itself. "
+             "DIV-4 is the one that is judgement: the knowledge entry's own title carries `under "
+             "the equality reading of condition (1)`, which the draft's title does not, because "
+             "the title is the only part of the entry that reaches knowledge/INDEX.md and is read "
+             "there with no body -- and the entry's own body says the inequality HOLDS under the "
+             "literal `>=`. The decision's copy of the title was left exactly as composed, so the "
+             "two records differ visibly rather than being quietly reconciled. A reviewer may "
+             "legitimately object to that and the disagreement is recoverable from the records."),
+            ("three_reverted_before_the_commit_and_why_that_is_recorded",
+             "DIV-R1 invented a `discharged_by` field on NA-3 that no drafted next_action carries. "
+             "DIV-R2 copied four bookkeeping fields onto the evidence record from a sibling record "
+             "-- house style is not a schema, and none was required. DIV-R3 is the serious one: the "
+             "closing shard's prior_scores had binned P-6 into BOTH the confirmed and refuted "
+             "lists, reflecting its genuine consequent/mechanism split, inside a block that "
+             "declares itself a POINTER to scored-priors.json. Re-binning a prior in a pointer is a "
+             "re-adjudication of the composition's scoring, which this task may not perform, even "
+             "though the headline `three of six refuted` came out the same either way. Replaced "
+             "with the canonical lists verbatim plus the composition's own split_headline_vs_"
+             "mechanism block. Recorded because a divergence caught and removed says as much about "
+             "the failure mode as one that stands, and the receipt is now the only place these "
+             "three exist."),
+        ])),
+        ("what_this_archive_did_NOT_do",
+         "It moved no hypothesis and no experiment: H-SEMBIN-a7e721 and EXP-SEMBIN-4fa22c are "
+         "unchanged, and EXP-SEMBIN-4fa22c is still `approved` and unrun. It discharged no "
+         "completion criterion -- criterion 4 remains the only one met, by DEC-20260913-8d19e5 -- "
+         "and it did not close the goal, whose status stays `active`. It did not promote the claim: "
+         "review-breakthrough at max is undegradable and unservable here, no servable tier was "
+         "substituted, and nothing in the finding was softened to fit one. It did not close the "
+         "independence gate, which it inherits NOT SATISFIED with two permanent deviations, "
+         "recorded in three places. It did not touch the frozen contract, the read plan, the "
+         "opening report, the opening checkpoint, either reader's package, current_batch_id, "
+         "dispatch_queue_path, or any BATCH-cbb416 field."),
+        ("one_inconsistency_left_standing_deliberately",
+         f"The goal head's open_batches entry for {BATCH} still reads `status: open` while the "
+         "closing shard committed alongside it records closed_at 2026-09-21. The card forbade "
+         "touching existing open_batches entries and that prohibition is right -- it is the one "
+         "field two concurrent lanes both write. The shard is the authority, the goal head's new "
+         "amendment_history entry states the mismatch and names the shard so a later reader finds "
+         "the reason rather than inferring a defect, and nothing schedules work off the stale flag "
+         "because current_batch_id still names BATCH-cbb416. Clearing it is a successor edit."),
+    ]),
+    AMEND: od([
+        ("state", "completed"),
+        ("outcome",
+         f"Completed 2026-09-21. {AMENDMENT} written and LANDED at 852a3c5d2 by "
+         "tools/producer_landing.py in the turn the producer returned, which reported declared 1, "
+         "on disk 1, to land 1, and NO undeclared files in the write scope. All four NA-1 clauses "
+         "present. The frozen specification.yaml is byte-identical, verified by the producer and "
+         "again by the dispatching session, three ways including a sha256 match across two "
+         "independent working trees. Zero runs."),
+        ("the_two_findings_worth_more_than_the_deliverable", od([
+            ("T_1_raised_and_since_adjudicated",
+             "The producer was directed to state the '>=' scope note as DEC-20260916-87fc5c states "
+             "it, did so verbatim, and recorded the discrepancy it noticed as `recorded_tension` "
+             "T-1 rather than quietly fixing it: the decision concedes the refutation to the "
+             "literal '>=' reading without qualification, while the Nagao reader's own table shows "
+             "witness A refuted under BOTH readings with S_fe OUTSIDE the true system. It declined "
+             "to adjudicate, correctly, holding no decision that could. THE DISPATCHING SESSION "
+             "CONFIRMED IT INDEPENDENTLY for both witnesses with tools/lemma4_inside_form.py and "
+             "by hand for the load-bearing cell, and recorded CORR-20260921-896b22: the void "
+             "covers the inside-the-true-system placement ONLY. The amendment is not edited and "
+             "its caution is vindicated. A producer that had silently corrected the limitation it "
+             "was told to quote would have hidden the disagreement inside an amendment, where "
+             "nobody compares it against the decision."),
+            ("S_1_a_residual_contract_defect_left_unrepaired",
+             "S-1's criterion text gives as its reason `because Lemma 4 runs d_F <= d'_F`, so a run "
+             "satisfying S-1 as frozen prints a reason invoking a premise the amendment records as "
+             "refuted. The producer's first draft forbade citing Lemma 4 as a theorem anywhere, "
+             "which would have put the amendment in direct contradiction with a frozen success "
+             "criterion -- an executor could only have resolved that by treating the amendment as "
+             "overriding the contract, which is a rewrite by another route. It narrowed the "
+             "prohibition to the consequence statements L-2 governs and said so explicitly. The "
+             "defect stands and is stated rather than repaired: NA-1 directs nothing about S-1 and "
+             "changing a frozen success criterion needs its own decision."),
+        ])),
+        ("three_self_corrections_during_its_own_adversarial_read_back",
+         "It had claimed the U-4 bookkeeping block would be re-derivable from the rank series M-3 "
+         "(false: M-3 records ranks, not kernel vectors, so the realising witness must be recorded "
+         "or it is gone); it had written that DC-1 restates the Lemma 4 premise (it does not, "
+         "DC-1's argument is structural blindness); and L-4's reporting sentence presupposed C-6 "
+         "agreement rather than saying agreement is the only outcome a correct implementation can "
+         "produce. All three were fixed before it reported. Recorded because the read-back earned "
+         "its place in the loop."),
+    ]),
+    AMEND_ARCHIVE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 0007133725e5e75b8ac22629761a8a01d176cba3. Staged only its "
+         "own receipt, because the amendment was already committed at 852a3c5d2 by "
+         "producer_landing.py. Verified the frozen specification.yaml byte-identical across the "
+         "ENTIRE NA-1 task and across a ten-commit origin/main merge, by two git diffs and a "
+         "sha256 comparison against the producing agent's independently reported value."),
+        ("archive_binding", od([
+            ("commit_sha", "0007133725e5e75b8ac22629761a8a01d176cba3"),
+            ("parent_sha", "95b32a64b4f1298d96f25cdff719dcfba6d663d6"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{AMEND_ARCHIVE}/snapshot-receipt.json",
+                 "fba162a16afd6c02e6ebeb819d9eeff0f693b8bd102a10b50ba001b4920866e3"),
+                (f"experiments/EXP-SEMBIN-4fa22c/amendments/{AMENDMENT}.yaml",
+                 "681eb96be7b234ed3bb8b94e78442a7b7b0df376fd993a4c43b1db75cea285a3"),
+            ])),
+            ("path_sha256_note",
+             "TWO entries: the receipt, whose hash it cannot contain itself, and the source task's "
+             "single declared artifact. Both computed from blobs with `git show <commit>:<path>` "
+             "rather than from the working tree. The amendment's hash agrees with the value its "
+             "producer reported independently, which is the point of computing it twice."),
+        ])),
+        ("executed_by_the_coordinator_session_rather_than_a_dispatched_subagent", od([
+            ("what",
+             "The card expected an agent at executor-mechanical. The dispatching coordinator "
+             "session executed it directly."),
+            ("why",
+             "The card is judgement-free by construction -- stage one path, verify one hash, "
+             "confirm one file unchanged -- and its only substantive check had already been "
+             "performed independently twice, once by the producing agent and once by this session. "
+             "Archive tasks are coordinator-owned and this session holds that role."),
+            ("what_is_lost_by_it",
+             "An independent pair of eyes on the staging step. That is a real reduction in "
+             "redundancy and is recorded rather than glossed: the check that mattered was done "
+             "twice by two parties, but the COMMIT itself was reviewed only by its author. A "
+             "reader who thinks a snapshot archive should always be a separate session has a "
+             "legitimate objection, and the record is here to be objected to."),
+            ("what_is_not_affected",
+             "research_dispatch.py verifies the receipt against Git mechanically, and content_first "
+             "binding catches a later edit to the amendment regardless of who committed it."),
+        ])),
+        ("effort_was_above_the_requested_tier_not_below",
+         "The card requests executor-mechanical, whose policy default is `low`; this session runs "
+         "at the coordinator policy's effort. A stronger tier than a card asks for is permitted "
+         "under AGENTS.md rule 11; a weaker one is not. Recorded so the receipt's inference block "
+         "is not read as a silent substitution."),
+    ]),
+}
+
+REVISIONS = [
+    od([
+        ("at", "2026-09-16T11:40:00Z"),
+        ("task_id", OPEN),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "Recorded as a transition rather than written `completed` from the start, which is what "
+         "BATCH-cbb416's opening card did and had to disclose afterwards: that card read "
+         "`completed` while three of its declared artifacts did not exist. This one is marked "
+         "completed only now, with all seven present and committed at 84f25affa."),
+    ]),
+    od([
+        ("at", "2026-09-16T11:42:00Z"),
+        ("task_id", OPEN_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "Snapshot archive executed at 84f25affa under binding_mode content_at_commit, binding "
+         "eight paths. Both readers are now unblocked and the read plan they are blind FROM is a "
+         "fixed, hash-bound object."),
+    ]),
+    od([
+        ("at", "2026-09-21T14:30:00Z"),
+        ("task_id", f"{READ_NAGAO}, {READ_SEMAEV}"),
+        ("from_state", "queued"),
+        ("to_state", "queued"),
+        ("what_changed",
+         "artifact_paths widened from three files to six on each card, with the two new "
+         "deliverables (recheck.py + recheck.out, reextract.md) stated as REQUIRED and the "
+         "completion gate updated from 'all three' to 'all SIX'."),
+        ("reason",
+         "BOTH CARDS ALREADY RAN ONCE AND THEIR OUTPUT WAS LOST (CORR-20260921-942a62). They are "
+         "queued here because the queue edits recording their execution were lost along with the "
+         "artifacts, not because they were never dispatched. This revision is the one thing that "
+         "attempt teaches which can be fixed before the next: each card declared three files and "
+         "each reader filed far more -- seventeen and twelve -- including the recheck that carried "
+         "the counterexample to Lemma 4's inside form, which was the most valuable single artifact "
+         "either read produced. tools/producer_landing.py commits the DECLARED set and nothing "
+         "else, by design, so under the new mechanism those extras would STILL have been lost. "
+         "Declaring them is what closes that."),
+        ("what_this_revision_does_not_do",
+         "It does not change either card's objective, joints, questions, blindness, budget or "
+         "inference, and it does not touch the read plan. The scientific content of the round is "
+         "unchanged and its prior is still the one recorded before any reader ran, so the "
+         "re-dispatch inherits the round's independence in full. It also does not pretend the "
+         "first attempt did not happen: the correction records it, and no artifact from it is "
+         "cited anywhere."),
+        ("cost_stated_plainly",
+         "A reader with nothing mechanically checkable now has to write two files saying so. That "
+         "is a real if small tax on every future run of these cards, accepted because the "
+         "alternative -- negotiating the declared set per reader, after the fact -- is what "
+         "produced an undeclared-artifact dispatch error on the first attempt and a total loss on "
+         "the second."),
+    ]),
+    od([
+        ("at", "2026-09-21T15:40:00Z"),
+        ("task_id", READS_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         "Both reads and their snapshot archive recorded as executed in EXECUTED, with the "
+         "archive's commit, parent and thirteen path hashes bound."),
+        ("reason",
+         "The widened cards ran at epoch 2 and both filed all six declared artifacts. Each set was "
+         "landed by tools/producer_landing.py at the moment its reader returned -- c31504e97 and "
+         "c0a107514 -- so for the first time in this round the output was in the repository before "
+         "anything could take the machine away. The re-claim used the "
+         "`--supersedes-lost-completion` path added to tools/goal_lanes.py, which refuses unless "
+         "the declared artifacts are verifiably absent, so the epoch-1 completions could not have "
+         "been overwritten by mistake."),
+        ("the_ordering_inversion_this_records",
+         "The archive commit stages only its receipt, because the artifacts it binds were already "
+         "committed. Every previous archive in this batch created the files it bound. That change "
+         "is deliberate and is the correction's remedy, but it has a cost worth stating where a "
+         "later reader will meet it: the archive commit is no longer where you learn when an "
+         "artifact first existed, and a reader reconstructing the timeline must read the landing "
+         "commit instead. The receipt says so in its own "
+         "`the_source_artifacts_were_ALREADY_COMMITTED_when_this_archive_ran` block."),
+        ("what_this_revision_does_not_do",
+         "It records no verdict. Both readers broke their joints -- J-3 on the derivation, J-4c on "
+         "the statement-versus-argument gap -- and the Semaev reader's proves-too-much control "
+         "FAILED, which is the strongest single result of the round. None of that is a program "
+         "conclusion until TASK-20260916-a8e5b5 composes the joints and a ledger archive commits "
+         "the decision. In particular the reader's report that this batch's inside-versus-outside "
+         "residual was drawn on the inert side is a claim the Coordinator has reproduced "
+         "arithmetically and has NOT yet ruled on."),
+    ]),
+    od([
+        ("at", "2026-09-21T17:20:00Z"),
+        ("task_id", LEDGER),
+        ("from_state", "queued"),
+        ("to_state", "queued"),
+        ("what_changed",
+         f"write_scope and artifact_paths widened by two records -- ledger/evidence/{EVIDENCE}.yaml "
+         f"and knowledge/findings/{KNOWLEDGE}.md -- record_ids widened from three ids to six, and "
+         "four constraints plus three deliverables added. A successor card was appended for the "
+         "ruling's NA-1 contract amendment."),
+        ("reason",
+         "This card was written on 2026-09-16, when whether the round would produce an evidence "
+         "record was an OPEN QUESTION the read plan deliberately left to the ruling: the "
+         f"identifier {EVIDENCE} was RESERVED, NOT PROMISED. The ruling answered it on 2026-09-21 "
+         "-- yes, split, scoped to the counterexample certificate and not to either textual read "
+         "-- and separately judged a KN-FIND warranted on the merits, on a ground the coordinator "
+         "contract's trigger does not cover. Both records name THIS task as their writer. A card "
+         "whose write_scope omits a record the ruling assigned it dispatches an archive that must "
+         "either write outside its scope or leave a promised record unowned, and under AGENTS.md "
+         "'Durable research commits' every ledger record and knowledge item belongs to exactly one "
+         "archival task."),
+        ("why_this_is_not_the_forbidden_kind_of_card_edit",
+         "AGENTS.md forbids editing a card to make a PAST dispatch look compliant. This card has "
+         "NOT been dispatched: it is `queued`, its lane is unclaimed, and no agent has read it. "
+         "The prohibition protects the historical accuracy of a card an agent already acted on; "
+         "widening an undispatched card is the ordinary way a queue absorbs a decision its "
+         "predecessor deferred, and it is the compliant ORDER -- before launch, not after. The "
+         "dispatch-preconditions rule exists because the opposite order was taken once in this "
+         "program (CORR-20260915-6708e4) and was caught by the dispatched agent rather than the "
+         "dispatcher."),
+        ("what_this_revision_does_not_do",
+         "It does not change the card's objective, its binding_mode, its zero-run budget, its "
+         "completion gate, or the decision's content -- which remains the composition's, not a "
+         "fresh judgement. It does not promote the claim: IMP-SEMBIN-FCB7A2-LEMMA4-TIER still "
+         "stands and the escalation is still unservable. It does not close the independence gate, "
+         "which the ruling reported NOT SATISFIED with two permanent deviations, and the closing "
+         "checkpoint inherits that open gate rather than resolving it."),
+        ("cost_stated_plainly",
+         "One archive commit now carries four records across three trees -- ledger/decisions, "
+         "ledger/evidence and knowledge/findings -- plus the goal head and a checkpoint shard. "
+         "That is a larger isolated commit than this batch's earlier archives, and a single "
+         "malformed record blocks all four. The alternative, splitting into separate archives per "
+         "tree, would leave the decision official while the evidence record it cites in "
+         "`evidence_refs` did not yet exist, which is the window the ledger-archive split exists "
+             "to close in the first place."),
+    ]),
+    od([
+        ("at", "2026-09-21T18:20:00Z"),
+        ("task_id", LEDGER),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         "The ledger archive recorded as executed at 80242e204, with parent and six path hashes "
+         "bound under content_at_commit. BATCH-e0a0c1's ruling is now official."),
+        ("reason",
+         f"Four records committed in one isolated commit: {CLOSING}, {EVIDENCE}, {KNOWLEDGE}, and "
+         f"the write-once closing shard {BATCH}.closing.yaml, plus an additive goal-head rerank "
+         "carrying IMP-SEMBIN-FCB7A2-LEMMA4-TIER. validate_ledger.py's output is byte-identical "
+         "before and after the commit -- 94 pre-existing errors, none on any path it touches -- "
+         "established by stashing exactly the staged paths rather than by reading the count."),
+        ("two_defects_this_revision_records_rather_than_absorbs",
+         "The lane claim expired 57 seconds before the commit landed, and the task overran its "
+         "declared wall_clock_seconds of 1800 by roughly sixteen minutes. Both are mine as the "
+         "dispatching session: I sized a 45-minute TTL against a 30-minute budget and did not "
+         "renew. Nothing was contested and no run or measurement is affected, and neither fact is "
+         "waived by that. See the EXECUTED entry's own blocks, which state the cause and the "
+         "remedy for the two successor cards."),
+        ("what_this_revision_does_not_do",
+         "It does not promote the claim, close the independence gate, move a hypothesis or an "
+         "experiment, discharge a completion criterion, or close the goal. It also does not add the "
+         "closing shard or the goal head to the card's artifact_paths, though both were staged and "
+         "both were in its deliverables: editing a card after its agent acted on it, to make the "
+         "dispatch look better declared than it was, is forbidden by name. The under-declaration is "
+         "recorded as a card defect instead, with the hashes carried in the receipt and the release "
+         "record so the full staged set stays verifiable by hand -- but NOT by the dispatcher, "
+         "which is a genuine loss of automated coverage."),
+        ("what_is_now_ready",
+         "TASK-20260921-d61759, the ruling's NA-1 amendment, unblocked by this commit because it "
+         f"cites {EVIDENCE} and {EVIDENCE} now exists at a committed path."),
+    ]),
+    od([
+        ("at", "2026-09-21T18:50:00Z"),
+        ("task_id", f"{AMEND}, {AMEND_ARCHIVE}"),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         f"The NA-1 amendment written and landed at 852a3c5d2, and archived at 0007133725e5. "
+         "BATCH-e0a0c1 is now fully drained: nine tasks, all completed, nothing ready and nothing "
+         "blocked, with all four of its archives content-verified and all eleven gates passing."),
+        ("reason",
+         "NA-1 was ranked first of the ruling's six next actions because the frozen contract "
+         "instructed an executor to lean on a statement this round showed is false. It no longer "
+         "does: the amendment records S-5's premise as refuted at the contract's declared "
+         "convention and, in clause L-2, replaces the citation of Lemma 4 with a per-instance U-4 "
+         "bookkeeping requirement an executor can implement without further interpretation."),
+        ("the_round_corrected_its_own_decision_forty_minutes_after_committing_it",
+         "The producer's recorded_tension T-1 caught DEC-20260916-87fc5c's third limitation "
+         "conceding the '>=' reading without naming a placement. This session confirmed it for "
+         "both witnesses and recorded CORR-20260921-896b22. That is the single most valuable thing "
+         "this pair of tasks produced and it was not any card's deliverable: it came out of a "
+         "producer being told to quote a limitation verbatim and choosing to record its "
+         "disagreement instead of resolving it silently. The direction matters -- the correction "
+         "STRENGTHENS the round's central finding, which is the direction where a Coordinator must "
+         "be most careful, and the claim is still not promoted."),
+        ("one_error_of_mine_caught_by_the_dispatcher",
+         "My first attempt at this entry recorded the archive's commit_sha as "
+         "000713372cd32b3e2bb1b6e4c39a1dcb4fbb0b06, which is not a commit: I extended the "
+         "abbreviated sha from the push output into a full-length string instead of resolving it "
+         "with git rev-parse. research_dispatch.py refused the render -- `declared content_first "
+         "binding requires archive.commit_sha to resolve to a commit` -- and the real value is "
+         "0007133725e5e75b8ac22629761a8a01d176cba3. Recorded because a fabricated identifier that "
+         "looks right is exactly what core rule 5 is about, and because the check that caught it is "
+         "the reason the binding is worth declaring at all."),
+        ("what_this_revision_does_not_do",
+         "It does not change EXP-SEMBIN-4fa22c's status, which stays `approved` and unrun, and the "
+         "amendment adds, removes or resizes no arm, budget, control or stopping rule. It does not "
+         "promote the claim. It does not repair the S-1 defect the producer found and deliberately "
+         "left: a frozen success criterion whose stated reason invokes the refuted premise. It "
+         "does not close the independence gate, and it does not close GOAL-SEMBIN-fcb7a2, whose "
+         "current_batch_id still names BATCH-cbb416."),
+        ("what_remains_open_after_this_batch",
+         "FG-1 from CORR-20260921-896b22, a narrow zero-compute read settling which placement Lemma "
+         "4 as printed uses on the true side, which would convert the correction's conditional "
+         "consequence into an unconditional one; the ruling's NA-2 through NA-6, of which NA-6's "
+         "bus message is the cheapest and reaches four other goals that consume first-fall-degree "
+         "quantities; the S-1 defect; and the stale open_batches flag on the goal head. None is "
+         "this batch's to do, and each is ranked work rather than an impediment."),
+    ]),
+]
+
+for _task in tasks:
+    _applied = EXECUTED.get(_task["id"])
+    if not _applied:
+        continue
+    _binding = _applied.get("archive_binding")
+    if _binding is not None:
+        for _field, _value in _binding.items():
+            _task["archive"][_field] = _value
+    for _field, _value in _applied.items():
+        if _field == "archive_binding":
+            continue
+        _task[_field] = _value
+
+
+# ---------------------------------------------------------------------------
+queue = od([
+    ("schema", "crypto.autoresearch.dispatch_queue.v1"),
+    ("goal_id", GOAL),
+    ("batch_id", BATCH),
+    ("objective",
+     "Read the two frozen sources the campaign's central inference actually rests on. "
+     "EXP-SEMBIN-4fa22c measures the FAKE first fall degree d'_F; every step from there to a "
+     "statement of Nagao's runs through 2015/984's Lemma 4 (d_F <= d'_F), which that paper asserts "
+     "WITHOUT PROOF, derives from its Lemma 3, attributes to [11] = 2013/549, and declines to "
+     "prove. The program has separately verified by exhaustive search over F_2 that Lemma 4's "
+     "LITERAL form with the field equations OUTSIDE is FALSE. So this lane asks whether the "
+     "upstream source contains and proves what the consumer says it does, in the form the consumer "
+     "needs -- and, in parallel, what Semaev 2015/310's argument delivers as against what his "
+     "statement claims. Neither answer can change DC-1 or refute Proposition 5. Both change how "
+     "conditional a confirmation is, which the contract records as a dependency."),
+    ("max_concurrent", 2),
+    ("max_concurrent_basis",
+     "TWO, because the two producers here are readers of frozen PDF text with maximum_runs 0 and "
+     "no engine between them, and their joints are disjoint by construction. This is machine "
+     "headroom, not a research budget: the same machine is concurrently running BATCH-cbb416, "
+     "whose max_concurrent is 1 because ITS producer is a degree-by-degree GF(2) rank computation "
+     "with a 10 GB watchdog. Two readers alongside it cost that measurement nothing, which is the "
+     "whole reason this is a separate lane rather than two more cards in that batch."),
+    ("notes", [
+        od([
+            ("at", "2026-09-16T11:10:00Z"),
+            ("kind", "why_this_lane_is_not_make_work"),
+            ("text",
+             "An unlimited ECC budget is the strongest invitation to make-work this program has, so "
+             "the ranking is stated rather than assumed. This is ranked item (2) of the goal head, "
+             "which says in terms that it needs no compute and competes with the batch for nothing "
+             "and may therefore run concurrently in a separate lane. It is ranked ahead of doing "
+             "nothing on a concrete ground: EXP-SEMBIN-4fa22c is approved and about to spend "
+             "compute measuring a quantity whose only route to any claim of Nagao's is a lemma "
+             "with no proof in the consuming paper and no reader in this program. Learning that "
+             "the upstream proof is absent or insufficient is cheaper before the run than after, "
+             "and the run's own contract cannot discover it."),
+        ]),
+        od([
+            ("at", "2026-09-16T11:10:00Z"),
+            ("kind", "the_prior_is_recorded_first_and_here_is_why"),
+            ("text",
+             "This campaign has one precedent for exactly this shape of task and it is decisive: on "
+             "2026-09-16 a blind read of Nagao 2015/984's Proposition 5 OVERTURNED the "
+             "Coordinator's reading, and the goal's objective changed as a result "
+             "(CORR-20260916-96f47d, DEC-20260916-88ac73). It was informative because the "
+             "Coordinator's expectation was written down first and the reader could not see it. "
+             "The prior for this round is at coordination/review/sembin-20260916-e0a0c1/"
+             "read-plan.yaml, both readers are blind from it, and one of its six predictions is "
+             "recorded specifically because the Coordinator's own checking refuted it."),
+        ]),
+        od([
+            ("at", "2026-09-16T11:10:00Z"),
+            ("kind", "what_this_lane_cannot_reach"),
+            ("text",
+             "It cannot refute Proposition 5, cannot promote or weaken H-SEMBIN-a7e721 (no "
+             "measurement exists), and cannot discharge a completion criterion by itself -- all "
+             "four of this goal's criteria need a committed decision on run or read evidence, and "
+             "a report is not a decision. It also cannot decide anything about the FIRST revision "
+             "of 2013/549, which is not served and not in inputs/. AND IF A READER FINDS THE "
+             "UPSTREAM LEMMA UNPROVED, the resulting claim needs review-breakthrough at max, "
+             "which is undegradable and unservable here: the finding is recorded at its narrowest "
+             "scope and the CLAIM stays un-promoted while the campaign stays active."),
+        ]),
+        od([
+            ("at", "2026-09-16T11:10:00Z"),
+            ("kind", "two_binding_modes_on_purpose"),
+            ("text",
+             "The opening archive binds content_at_commit and the reader archive binds "
+             "content_first, and the difference is not an oversight. The control plane contains the "
+             "goal head and this queue, which legitimately change after the archive; a reader's "
+             "filed report never does. content_first is what catches an in-place edit to a filed "
+             "artifact, which the sibling campaign has suffered twice (CORR-20260916-5166fe, "
+             "CORR-20260916-2e9bc3). Choose the mode by asking what the archive is protecting."),
+        ]),
+        od([
+            ("at", "2026-09-16T11:10:00Z"),
+            ("kind", "concurrency"),
+            ("text",
+             "SECOND OPEN LANE on GOAL-SEMBIN-fcb7a2. BATCH-cbb416 is open and holds the operative "
+             "next_action in its own checkpoint; this lane touches none of its paths and edits the "
+             "goal head only additively inside its own archives "
+             "(docs/concurrent-goal-lanes.md). Check `tools/goal_lanes.py lanes "
+             "GOAL-SEMBIN-fcb7a2` after a fetch rather than assuming this session knows who else "
+             "is here."),
+        ]),
+    ]),
+    ("tasks_state_revisions", REVISIONS),
+    ("tasks", tasks),
+])
+
+# Resolve against the REPOSITORY ROOT, never the caller's cwd. `BASE` is a
+# repository-relative path, and `mkdir(parents=True)` made a wrong cwd silently
+# succeed: run from inside the batch directory this wrote a nested
+# BATCH-e0a0c1/coordination/goals/.../dispatch_queue.json, reported success, and
+# left the real queue untouched -- so a widened declaration looked applied and
+# was not. A builder that cannot find its own repository must fail, not guess.
+def _repository_root() -> pathlib.Path:
+    for candidate in [pathlib.Path(__file__).resolve(),
+                      *pathlib.Path(__file__).resolve().parents]:
+        if (candidate / "AGENTS.md").exists() and (candidate / ".git").exists():
+            return candidate
+    raise SystemExit("cannot locate the repository root above this build script")
+
+
+path = _repository_root() / BASE / "dispatch_queue.json"
+if not path.parent.is_dir():
+    raise SystemExit(f"{path.parent} does not exist; refusing to create a queue "
+                     f"directory from a path that may be wrong")
+path.write_text(json.dumps(queue, indent=1) + "\n")
+print(f"wrote {path.relative_to(_repository_root())} with {len(tasks)} tasks")

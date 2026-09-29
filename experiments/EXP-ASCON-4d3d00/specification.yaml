@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-ASCON-4d3d00
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-a14ea4; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-a14ea4
+  question_id: RQ-ASCON-2dfd8b
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Extract the per-bit dependency relation of the permutation by probing, verify it exactly
+    against the linear layer, and measure duplex controllability closure depth against matched-density,
+    sparsified and fully connected wiring controls
+  objective: 'The one uncertainty a run reduces is how many permutation rounds it takes, under a sound
+    over-approximation of adversary ignorance, for every trace of attacker-set and attacker-known
+    state to vanish in a duplex session. Concretely: (i) what is the closure depth D from a mid-session
+    absorb and from a fresh initialization, computed by propagating a frozen three-element label lattice
+    over a dependency relation extracted from the pinned implementation, reported alongside the full
+    set-size trajectories at every round and session step; (ii) is that depth a property of the design''s
+    wiring or merely of dependency-set cardinality, tested by running the identical accountant over
+    a matched-cardinality random wiring in the same invocation, with coincidence recorded as a controlled
+    null; (iii) is the extracted dependency relation sound, tested by exact comparison against the
+    GF(2) matrix row supports of the linear layer and by exhaustive enumeration within one substitution
+    bit slice, where any disagreement halts the run because it would make the accountant unsound in
+    the dangerous direction. No cryptanalysis is attempted and the output can bound controllability
+    only from above.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: for the pinned implementation,
+      under the declared adversary label assignment and the frozen ternary lattice, controllability
+      closure occurred at depth D from a mid-session absorb, against D_random for a matched-cardinality
+      random wiring, D_sparse and D_full for the two calibration wirings, with the extracted dependency
+      relation verified exactly against the linear layer. WHAT DOES NOT FOLLOW: that anything is controllable
+      in an algebraic or exploitable sense at any depth below D -- the accountant over-reports controllability
+      by construction; that D bears on any published result; that D says anything about the security
+      of Ascon, SP 800-232, or any device.'
+  inputs:
+    procedure: 'STAGE 0 (human time, blocking): pin the permutation, the rate/capacity split and the
+      inter-block round count, or declare the candidate sets. STAGE 1 (half a day): implement the
+      permutation and its GF(2) linear-layer matrix; run the test-vector gate. STAGE 2 (about 160000
+      evaluations, seconds): extract dependency sets by single-bit probing over 512 random base states,
+      unioning results. STAGE 3 (minutes): verify extracted sets exactly against GF(2) matrix row
+      supports for the linear layer and by exhaustive enumeration within one substitution bit slice;
+      halt on any disagreement. STAGE 4 (negligible CPU): implement and freeze the ternary lattice,
+      initialise labels from the declared adversary model, and propagate through initialization plus
+      three absorb/permute/squeeze steps, recording set sizes per round. STAGE 5 (negligible, same
+      invocation): repeat the propagation over matched-cardinality random, half-cardinality sparsified
+      and fully connected wirings. STAGE 6 (minutes): run the all-UNKNOWN, all-SET-no-squeeze and
+      degenerate controls, then emit closure depths, trajectories, dependency-cardinality distributions
+      and seeds to the run record.'
+    instrument: Python 3.11 with numpy for the permutation, the GF(2) matrix representation and the
+      dependency bitsets; the ternary lattice and propagation in plain Python since it is linear-time;
+      pytest for the test-vector gate, the exactness checks and the tail controls; harness/runner.py
+      for the manifest, seeds and inference block. No Sage, no computer algebra system, no MILP or
+      SAT solver -- avoiding a solver is the design choice that makes the coarse lattice worth having.
+    parameters: 'State 320 bits. Probing sample 512 random base states per input bit, giving about
+      163840 single-round evaluations. Session configurations: fresh initialization at the full round
+      count, plus three absorb/permute/squeeze steps at the inter-block round count, swept over candidate
+      counts if unpinned. Adversary label assignments: the nominal model (key UNKNOWN, nonce SET,
+      IV KNOWN) plus a nonce-misuse configuration and a known-key configuration as separate declared
+      configurations. Four wiring arms. Rate/capacity candidates swept if unpinned. Seeds recorded
+      for probing and for each synthetic wiring.'
+  controls:
+  - Matched-cardinality random-wiring null, identical accountant, same invocation, seed recorded.
+  - Half-cardinality sparsified wiring, whose closure depth must be strictly larger.
+  - Fully connected wiring, whose closure depth must be exactly 1.
+  - Exact GF(2) verification of extracted dependency sets for the linear layer, plus exhaustive verification
+    within one substitution bit slice.
+  - All-UNKNOWN initial labels, where closure depth must be 0 by definition.
+  - All-SET initial labels with no squeezing, where no bit may ever become UNKNOWN, confirming labels
+    do not decay spuriously.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A RANDOM-WIRING NULL: a synthetic round function whose per-bit dependency
+    sets are drawn uniformly at random with cardinality matched, bit for bit, to the extracted dependency
+    sets of the real round function, in the same invocation and through the identical accountant.
+    If the closure depth D coincides with the signal''s, the accountant is measuring dependency-set
+    cardinality and state size rather than the design''s wiring, and the correct record is a controlled
+    null. A SECOND null uses a deliberately sparsified wiring at half the matched cardinality, whose
+    closure depth must be strictly larger, confirming the accountant is sensitive to wiring at all.
+    A THIRD control, in the opposite direction, uses a fully connected wiring, whose closure depth
+    must be exactly one.'
+  independent_variables:
+  - wiring arm (pinned design / matched-cardinality random / half-cardinality sparsified / fully connected)
+  - session step index across the absorb/permute/squeeze sequence
+  - round count applied per permutation call (inter-block candidates versus the full count)
+  - adversary label assignment configuration (nominal / nonce-misuse / known-key)
+  metrics:
+    primary:
+    - closure depth D per arm and configuration
+    - SET, KNOWN and UNKNOWN set sizes per round and per session step
+    - agreement rate between probed and exact dependency sets for the linear layer
+    - closure depths of the three calibration wirings
+    secondary:
+    - dependency-set cardinality distribution across output bits
+    - depth at which the SET set alone becomes empty, separately from KNOWN
+    - sensitivity of D to the probing sample size, measured at 128 and 512 base states
+    - probe evaluations and wall-clock
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: D, the controllability closure depth from a mid-session absorb, and the gap D - D_random
+      against the matched-cardinality random wiring.
+    formula: 'Label propagation is L_out[j] = join over i in dep(j) of L_in[i], with the lattice order
+      SET < KNOWN < UNKNOWN and join the maximum. D = min { d : after d rounds, L[i] = UNKNOWN for
+      every state position i }, starting from the label vector produced by a mid-session absorb. Forced
+      predictions: D_full = 1 for the fully connected wiring; D_sparse > D_random strictly; D = 0
+      for an all-UNKNOWN start; no UNKNOWN ever appears from an all-SET start with squeezing disabled.
+      D itself and the gap D - D_random are NOT pre-committed to values, since this program has never
+      computed either for any permutation.'
+    source: Pre-registered in the parent proposal IDEA-20260816-a14ea4 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The tested object is the full 320-bit state at the specification''s own round
+      counts, so nothing about the primitive is scaled down; what is approximate is the DEPENDENCY
+      RELATION, obtained by finite probing and verified exactly only for the linear layer and one
+      substitution slice. The transfer assumption is stated plainly: closure depth computed from a
+      superset dependency relation is an upper bound on closure depth under the true relation, so
+      the number transfers in the conservative direction only, and any residual probing unsoundness
+      would move it in the unsafe direction -- which is why disagreement with the exact GF(2) check
+      halts the run rather than being noted.'
+    correspondence: null
+  tail_checks:
+  - All-UNKNOWN initial labels, where D must be 0.
+  - All-SET initial labels with squeezing disabled, where no UNKNOWN may ever appear.
+  - A single SET bit in an otherwise UNKNOWN state, the slowest case, where D should be smallest.
+  - A single UNKNOWN bit in an otherwise SET state, the fastest-spreading case, where D measures pure
+    diffusion of ignorance.
+  - Zero rounds per permutation call, where the label vector must be unchanged except for the mode's
+    own absorb and squeeze edits.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before propagation if the permutation fails a declared test vector or if any probed dependency
+    set disagrees with the exact GF(2) support.
+  - Halt and report an instrument defect if any of the forced calibration predictions fails.
+  - Stop at the declared probing sample size; do not increase it after seeing D, since a larger union
+    only grows dependency sets and would let D be tuned.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The test-vector gate passes, probed dependency sets agree exactly with the GF(2)
+    supports for the linear layer and with exhaustive enumeration within the checked substitution
+    slice, all forced calibration predictions hold, and D is reported per arm, per session step and
+    per adversary configuration together with the full set-size trajectories and the gap against the
+    matched-cardinality random wiring.
+  falsification_criterion:
+  - Any probed dependency set disagrees with the exact GF(2) support.
+  - The fully connected control does not close at depth exactly 1, or the all-UNKNOWN control does
+    not close at depth 0.
+  - The all-SET-no-squeeze control produces an UNKNOWN label.
+  - The sparsified wiring closes no later than the matched-cardinality random wiring.
+  - D equals D_random at every configuration, forcing a controlled-null record.
+  - D changes materially between probing sample sizes 128 and 512, showing the extraction has not
+    converged and the reported relation is sample-dependent.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-a14ea4
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The rate/capacity split and inter-block round count are unpinned here; a Coordinator must file
+    the specification as a KN-LIT entry or ratify the candidate sweep, noting the RQ constraint against
+    experiment design before both documents are filed.
+  - The adversary label assignment encodes a threat model that the Coordinator must ratify explicitly,
+    since D is meaningless without it and three configurations are offered without a stated default.
+  - Residual unsoundness of probing in the substitution layer is bounded only by exhaustive enumeration
+    within ONE bit slice; the Coordinator must decide whether all slices must be enumerated before
+    the accountant may be called sound.
+  - Whether a three-element lattice is the right coarseness, or whether a four-element lattice separating
+    attacker-set-this-session from attacker-set-earlier is needed, is unresolved and must be frozen
+    before the run rather than tuned during it.

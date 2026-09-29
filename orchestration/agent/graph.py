@@ -24,8 +24,11 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from .progress import repeated_tool_failure
+
 STEP_BUDGET = "step_budget_exhausted"
 CLOCK_BUDGET = "wall_clock_budget_exhausted"
+TOOL_FAILURE = "repeated_tool_failure"
 COMPLETED = "completed"
 
 
@@ -33,6 +36,7 @@ class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     steps: int
     stop_reason: str | None
+    stop_detail: dict[str, Any] | None
 
 
 def build_agent(model: Any, tools: Sequence[Any], *, max_steps: int = 40,
@@ -47,6 +51,11 @@ def build_agent(model: Any, tools: Sequence[Any], *, max_steps: int = 40,
             return {"stop_reason": STEP_BUDGET}
         if deadline is not None and clock() >= deadline:
             return {"stop_reason": CLOCK_BUDGET}
+        failure = repeated_tool_failure(state["messages"])
+        if failure is not None:
+            # Preserve the failed rounds and stop BEFORE paying for another
+            # request with the same unchanged operational prerequisites.
+            return {"stop_reason": TOOL_FAILURE, "stop_detail": failure}
         response = bound.invoke(state["messages"])
         return {"messages": [response], "steps": state["steps"] + 1}
 

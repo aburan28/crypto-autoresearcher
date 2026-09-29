@@ -74,6 +74,32 @@ When generating ideas, apply the following search biases:
    OneEnd cascading to EndRing and Isogeny). When proposing a core algorithm,
    name the corollaries it would cascade to and cite the specific reductions
    relied on.
+6. **Representation-and-operation pairs on a rigid group action.** On a
+   prime-order subgroup every projection that propagates deterministically
+   under the full translation action is constant or injective
+   (IDEA-20260806-c5d183; the homomorphism form is confirmed as Theorem C of
+   KN-FIND-ffe1df), and the lossy objects that propagate under a chosen
+   operation set Σ are exactly the block systems of ⟨Σ⟩ acting on the
+   subgroup (IDEA-20260901-863e36). "New arithmetic" for the ECDLP is
+   therefore never a new projection of the group by itself. Search over
+   PAIRS: a representation of the point (a field representation of the
+   coordinates, a curve model or embedding, or a non-function representation
+   — the R1–R3 classes of RQ-ECDLP-623a32) together with the operation set
+   the tracked object must survive (endomorphisms, isogenies, Frobenius on an
+   extension, a walk step composed with re-canonicalisation — anything other
+   than translation, which is closed). Place every candidate in the
+   trichotomy of IDEA-20260806-c5d183 — partial-action, branching, or
+   coordinate-dependent — and say why; then price it by the one number the
+   classification leaves open: the cost of canonicalising an orbit for a
+   quotient object, or the measured loss and branching (L, b) of
+   IDEA-20260802-002 for a branching one. Index calculus is Class I,
+   partial-action: the relation vector propagates deterministically only
+   under translation by factor-base elements (IDEA-20260806-c5d183), and
+   whether a decomposition exists at all is the branching event the meter
+   prices. A candidate factor base that escapes KN-OPEN-020 must be a
+   high-degree, implicit, or target-dependent description and must say so. Run the lossy-projection test against the NAMED operation set, not
+   against translation. The reusable handoff block for this search is
+   `docs/object-frame-ideation.md`.
 
 ## Proof-architecture search
 
@@ -133,6 +159,42 @@ The agent must distinguish:
 
 When literature has not been checked, write `novelty_status: unverified`. Do not claim novelty from memory alone.
 
+Before writing any ECDLP idea, read the known-results map
+(`knowledge/frontiers/ecdlp/`, or the rendering pasted into the handoff). An
+idea whose claim or mechanism matches a row's `claim` or `forecloses` phrases
+is `known` (or `adaptation` if it changes the setting) and cites the row. Every
+idea records the comparison in a `prior_art` block
+(`templates/research-records.md`, "Prior art on ideas"): the rows checked, the
+nearest prior work with its relation and delta, or the searches that found
+nothing. From IDEA-20261001-* onward the validator requires the block. A missing
+row is not evidence of novelty — the map is curated, not exhaustive.
+
+Mark every reference with its provenance — `recalled | retrieved | kb |
+internal` (`templates/research-records.md`, "Citation provenance"). Name the
+nearest work you can remember even when you cannot open it: a hedged
+`recalled` entry is how a reviewer with retrieval tools finds the paper that
+settles the claim, and this program's referees are expected to chase them. What
+rule 9 forbids is presenting a recollection as a checked source. A proposal
+whose only literature is `recalled` is `novelty_status: unverified` — that is
+the honest label, not a weakness in the proposal.
+
+## Obstructions as generative material
+
+`python3 tools/obstruction_registry.py --unexamined` lists what the program has
+measured and cannot get past. Read it as a source of objects, not a list of
+closed doors: an obstruction is a quantity someone established over a stated
+scope, and the theory that wants it is frequently not the theory that measured
+it. The generative question is not "can this be overcome" but "what is this
+quantity the hypothesis of" — a growth rate that blocks elimination bounds the
+object it grows in; a defect that blocks a global bound localises where the
+global bound was the wrong target. `--debt` lists negative results whose
+obstruction was recorded only as prose; their measurements are still in the
+cited runs, and recovering one is itself a proposal.
+
+A resource reading is an ordinary proposal and carries the ordinary burden:
+claim, mechanism, discriminating test, falsification criteria. It gets no
+standing for having come from the registry.
+
 ## Prohibitions
 
 The Idea Generator must not:
@@ -157,6 +219,12 @@ idea:
   claim: falsifiable statement
   mechanism: causal or mathematical explanation
   novelty_status: known | adaptation | speculative | unverified
+  citations:                     # every external work this idea leans on;
+                                 # schema in templates/research-records.md
+    - ref: null                  # arXiv id, DOI, KN-LIT-* id, or record ID
+      provenance: recalled | retrieved | kb | internal
+      claim: null                # the specific theorem or bound relied on
+      verified_by: null          # required unless provenance is `recalled`
   assumptions: []
   proof_search_map:              # required for proof-oriented proposals
     bottleneck: null             # exact step whose removal changes the theorem/cost

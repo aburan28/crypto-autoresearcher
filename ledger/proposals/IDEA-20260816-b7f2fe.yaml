@@ -1,0 +1,280 @@
+idea:
+  id: IDEA-20260816-b7f2fe
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: 'In-degree zero is a free eviction: compute exactly, on the real per-lane reference DAG,
+    the oracle-lookahead live-set profile -- how many blocks a clairvoyant evaluator must retain at
+    each step -- and compare its time-integral against the peak-times-duration rectangle the AT model
+    charges.'
+  class: mechanism
+  claim: '(A) The AT accounting charges an evaluator for peak memory held for the whole duration:
+    a rectangle of area m times T. The actual memory an evaluator is forced to hold at step j is the
+    set of already-computed blocks that some future step will still read -- the live set at j. Every
+    block whose last reader has passed is dead and can be discarded with no recomputation and no strategy,
+    only knowledge of the future reference indices. (B) The claim is that this live-set profile is
+    an exactly computable finite object for the real Argon2 per-lane DAG at reduced parameters --
+    one pass to record each block''s last reader, one pass to accumulate -- and that its time-integral,
+    divided by m times T, is a dimensionless number strictly less than one that quantifies exactly
+    how much of the charged rectangle is never actually occupied. It is further claimed that this
+    number is materially smaller for the real DAG than for a null DAG with the same in-degree distribution
+    but uniformly placed reference targets, because the RFC 9106 within-window offset transform concentrates
+    references toward recent blocks and therefore shortens block lifetimes. (C) A companion exactly-computable
+    quantity is the orphan fraction: the proportion of blocks whose in-degree from reference edges
+    is zero, which are read exactly once by the chain successor and are dead immediately after. (D)
+    WHAT IS NOT CLAIMED: this is not a tradeoff attack, and clairvoyance is not an attack capability
+    -- an evaluator that knows the whole reference sequence in advance is available for Argon2i, where
+    addressing is data-independent, but is not available for the data-dependent portion of Argon2d
+    or Argon2id without already having computed the blocks in question. No claim is made that any
+    evaluator can achieve the integral, that memory can be reduced in practice, that any recomputation-free
+    strategy exists at deployed parameters, or that any parameter set is unsafe. The integral is a
+    LOWER bound on the area an evaluator must occupy, not an achievable operating point, and the gap
+    between it and the rectangle is a statement about the accounting, not about any adversary. (E)
+    The named way the model flatters the defender: charging the full rectangle credits the defender
+    with area that no evaluator, honest or otherwise, ever occupies.'
+  mechanism: 'STAGE 1: build the per-lane reference DAG for a declared (variant, t, q) grid at p=1,
+    directly from KN-LIT-7f3c21, as an array r[j] giving each block''s single reference target plus
+    the implicit chain edge j-1. STAGE 2: single reverse pass computing last[i] = max over j of {j
+    : r[j] = i or j = i+1}, the index of the last step that reads block i. This is exact and linear.
+    STAGE 3: forward accumulation of L(j) = |{i < j : last[i] >= j}|, the live-set size at step j,
+    again exact and linear. STAGE 4: report peak L, the integral of L over j, and the ratio of that
+    integral to m times T where m is the array size in blocks and T is t*q-1, plus the orphan fraction,
+    the in-degree histogram, and the block-lifetime distribution. STAGE 5: rebuild the identical pipeline
+    on two nulls in the same invocation -- a window-matched uniform-reference null and a degree-preserving
+    rewiring of the real graph -- and report the same five quantities. STAGE 6: check the structural
+    tell required by inventor-protocol section 3: the ratio should MOVE in a specific direction as
+    t increases, because later passes reference blocks written in earlier passes and therefore lengthen
+    lifetimes. A ratio that is identical at t=1, t=3 and t=6 would be the signature of an artifact
+    in the accumulation rather than a property of the graph, and is checked explicitly rather than
+    assumed away.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for the terms live set, in-degree, orphan, cumulative memory, pebbl, antichain
+      across ledger/proposals/, ledger/hypotheses/ and knowledge/; grep -l RQ-ARGON-141710 ledger/proposals/*.yaml
+      and read all ten titles and classes; read H-ARGON-ef2f0b in full and experiments/EXP-ARGON-2608c2/specification.yaml
+      objective block; read docs/inventor-protocol.md sections 1 to 5 and 8.
+    results: 'The term in-degree returns zero hits anywhere in the repository. The term live set hits
+      exactly one record, IDEA-20260808-46d7ef, which is an AES integral-cryptanalysis contraction-schedule
+      proposal under RQ-AES-003 and shares no object with this. The term orphan hits several IDEA-20260807
+      records under ECDLP questions, in an unrelated sense. Cumulative memory hits knowledge/literature/KN-LIT-3385,
+      whose title is Depth-Robust Graphs and Their Cumulative Memory Complexity and whose content
+      is recorded elsewhere in this repository as unverified past the title, and IDEA-20260813-27df0c
+      under RQ-SDITH-001, an ISD baseline proposal. Under RQ-ARGON-141710 itself, all ten existing
+      proposals were checked: a915ea and 318db8 measure depth-reducing-set size, bcf891 calibrates
+      that measurement, ac5947 implements a tradeoff attack, ac98b5 draws a frontier, b17238 compares
+      variants, b9e9cc studies parallelism, bf5139 and c059a7 build cost models, c13b8b builds a query
+      artifact. None computes a live-set profile, an in-degree histogram, or a lifetime distribution.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature; the pebbling and cumulative-memory-complexity
+      vocabulary plainly exists outside this repository and no claim is made here about what it does
+      or does not already contain. What is claimed new WITHIN this repository is the specific object
+      -- an oracle-lookahead live-set profile computed exactly in two linear passes on the real Argon2
+      reference DAG, with its integral-to-rectangle ratio as the reported number, and with a degree-preserving
+      rewiring as one of its two nulls. Assembled from known parts: last-use analysis is a compiler-textbook
+      technique, and the rectangle-versus-integral distinction is the standard peak-versus-cumulative
+      contrast. The assembly and its application to this DAG is the contribution.'
+  object_first_candidate:
+    tracked_object: 'The live set: for each step j of the evaluation, the set of block indices already
+      computed whose last reader lies at or after j. Followed through the computation as the integer-valued
+      function L(j), together with the per-block lifetime last[i] - i from which it is derived.'
+    lossiness: 'The projection discards block contents entirely, discards the identity of which blocks
+      are live and keeps only the count, and discards the order in which references arrive within
+      a step. It is genuinely lossy: from L(j) alone one cannot reconstruct r[j], the graph, or the
+      evaluation. What survives is exactly the quantity the cost model claims to charge for -- how
+      much must be held -- and it propagates deterministically because liveness at step j+1 is liveness
+      at step j, minus blocks whose last reader was j, plus block j itself. That one-step rule is
+      the whole propagation and it is exact, which is what makes the object usable rather than merely
+      defined.'
+    propagation: 'One step of the target operation writes block j and reads blocks j-1 and r(j). The
+      live set updates by exactly three rules: block j enters; block j-1 leaves if and only if no
+      future reference targets it, that is last[j-1] = j; and block r(j) leaves if and only if last[r(j)]
+      = j. So L(j+1) = L(j) + 1 - d(j), where d(j) in {0,1,2} is the number of blocks whose last reader
+      is step j. The whole profile is therefore the running sum of a sequence taking three values,
+      and the death sequence d(j) is a direct readout of the indexing function''s recency structure:
+      a recency-biased indexing function produces deaths soon after births and keeps L small, while
+      a uniform-over-full-history indexing function delays deaths and keeps L near j.'
+    survival_score: 'The object is defined and exact at every step from 2 to t*q-1, with no dissolution:
+      two linear passes give it in full. Where it dissolves is in ATTAINABILITY rather than in definition
+      -- the clairvoyance the object presumes is available for Argon2i, is available for the Argon2i-style
+      prefix of Argon2id, and is NOT available for the data-dependent portions, where knowing r(j)
+      requires having computed block j-1. That boundary is sharp, is stated as part of the result
+      rather than discovered later, and means the Argon2d number is a lower bound on a quantity no
+      evaluator can plan for, while the Argon2i number is a lower bound an evaluator could in principle
+      plan against.'
+  null_object_control: 'Two nulls, both built and measured by the identical pipeline in the same invocation.
+    NULL ONE: a window-matched uniform-reference DAG -- same chain, same candidate window W(j) at
+    every j, reference target drawn uniformly from W(j) instead of by the RFC transform. NULL TWO,
+    and this is the one the bucket directive requires: a degree-preserving rewiring of the real graph
+    -- the same in-degree multiset, the same number of edges, the same node count, with reference
+    targets permuted subject to remaining backward-pointing. For the signal arm to mean anything,
+    both nulls must produce integral-to-rectangle ratios that are computed by the same code path and
+    reported alongside, and the real arm''s ratio must sit outside the spread of a declared number
+    of independent null draws. If the real ratio lies inside the null spread, the correct record is
+    a controlled null: the live-set profile is fully explained by the in-degree distribution and the
+    window structure, and the RFC offset transform contributes nothing to it -- which is itself a
+    clean, reusable measured obstruction against the recency-bias mechanism narrative.'
+  discriminated_from:
+  - 'IDEA-20260809-a915ea and IDEA-20260812-318db8 / H-ARGON-ef2f0b measure depth-reducing-set size,
+    a quantity about node REMOVAL and longest paths, computed by a greedy heuristic whose approximation
+    ratio is unknown. This proposal removes no nodes, computes no paths, and its two passes are exact
+    rather than heuristic. The two objects can disagree: a graph can be shallow and still have a large
+    live set.'
+  - IDEA-20260809-ac5947 implements a tradeoff attack -- a strategy that trades recomputation for
+    memory. This proposal contains no strategy and no recomputation; the live set is what remains
+    after only free evictions.
+  - IDEA-20260809-bf5139 replaces the abstract AT product with a hardware-costed model. This proposal
+    keeps the AT model exactly as it is and measures how much of its rectangle is empty.
+  - IDEA-20260808-46d7ef uses the phrase live set for an AES contraction schedule under RQ-AES-003;
+    different object, different question, no shared machinery beyond the English words.
+  - IDEA-20260809-bcf891 calibrates a heuristic measurement against known families. There is no heuristic
+    here to calibrate -- the two-pass computation is exact -- so the relevant control is a null object
+    rather than a calibration family, and this record supplies two.
+  assumptions:
+  - KN-LIT-7f3c21's description of the chain structure, the single reference edge per block, and the
+    candidate window is accurate; this was independently spot-checked against the primary text per
+    EV-ARGON-209ece.
+  - The p=1 single-lane construction is the object of study, as in H-ARGON-ef2f0b; cross-lane edges
+    in a real p>1 run can only lengthen lifetimes and therefore only raise the integral, making the
+    p=1 number conservative in the direction of a small live set.
+  - A degree-preserving rewiring that keeps edges backward-pointing is a fair null; the rewiring procedure
+    must be declared and its convergence checked, since naive edge swaps on a DAG can fail to mix.
+  - Synthetic in-run seed material suffices and no credential data is used anywhere.
+  - Exact integer arithmetic throughout; no sampling and no estimation in the two passes, so the only
+    error is in the null draws.
+  predictions:
+  - metric: ratio of the integral of L(j) to m times T, for the real Argon2i DAG at p=1
+    direction: lower
+    minimum_effect: at most 0.75 at every tested (t, q) cell
+  - metric: same ratio for the real DAG minus the same ratio for the degree-preserving rewiring null
+    direction: lower
+    minimum_effect: at least 0.05 in absolute terms, and outside the range spanned by twenty independent
+      null draws
+  - metric: orphan fraction, the proportion of blocks with zero incoming reference edges
+    direction: higher
+    minimum_effect: at least 0.30 at t=1, on the grounds that a single uniform-ish reference per block
+      leaves a constant fraction of blocks untargeted; this is a forced value derived from the one-edge-per-block
+      structure and it is a falsifier if the measurement lands far below it
+  - metric: the integral-to-rectangle ratio as t increases from 1 to 3 to 6
+    direction: higher
+    minimum_effect: 'REFUSAL TO PRE-COMMIT on magnitude, but the DIRECTION is pre-committed: later
+      passes must reference earlier-pass blocks and therefore lengthen lifetimes. A ratio that does
+      not move with t is the structural tell of an artifact under inventor-protocol section 3 and
+      invalidates the accumulation code rather than teaching anything about Argon2.'
+  minimal_test:
+    design: 'Build the per-lane DAG for variants Argon2i, Argon2d and Argon2id at p=1, t in {1, 3,
+      6}, and q in {1024, 4096, 16384}. For each cell compute, exactly and in two linear passes: last[i]
+      for all i, the profile L(j), its peak, its integral, the integral-to-rectangle ratio, the in-degree
+      histogram, the orphan fraction, and the lifetime distribution. In the same invocation, run the
+      identical code path over twenty independent draws of the window-matched uniform null and twenty
+      independent draws of the degree-preserving rewiring null, and report the same statistics with
+      their spread. Report the ratio as a function of t to check the structural tell. Everything here
+      is linear in q per draw, so the entire grid including forty null draws per cell costs seconds
+      to minutes on one core; the dominant implementation cost is the rewiring procedure and its mixing
+      check, not the measurement.'
+    controls:
+    - Window-matched uniform-reference null, same chain and same window, uniform target selection.
+    - Degree-preserving rewiring of the real graph, same in-degree multiset, backward-pointing preserved,
+      with a declared mixing check.
+    - Chain-only degenerate graph with no reference edges, whose live set is exactly 1 at every step,
+      verifying the accumulation code against a case with a known closed form.
+    - Complete-backward graph in which every block references block 0, whose live set has a second
+      known closed form, checking the code in the opposite extreme.
+    - The t-monotonicity structural tell, run as a control on the measurement rather than as a result.
+    required_metrics:
+    - peak live-set size
+    - integral of L(j) over the evaluation
+    - integral-to-rectangle ratio
+    - orphan fraction
+    - in-degree histogram from reference edges
+    - block-lifetime distribution with its tail
+    - null spread over twenty draws per null family per cell
+  falsification_conditions:
+  - The real DAG's integral-to-rectangle ratio lies inside the spread of the degree-preserving null
+    draws at every tested cell, which reports the live-set structure as fully explained by degree
+    and window rather than by the offset transform.
+  - The ratio exceeds 0.95 everywhere, meaning almost none of the charged rectangle is empty and the
+    premise that free eviction matters is wrong at these parameters.
+  - The chain-only or complete-backward control disagrees with its known closed form, invalidating
+    the accumulation code.
+  - The ratio is constant in t to within exact arithmetic, which is the artifact signature and disqualifies
+    the run.
+  - The orphan fraction differs between the real graph and the degree-preserving rewiring, which would
+    mean the rewiring failed to preserve in-degrees and the null is broken.
+  confounders:
+  - A degree-preserving rewiring that has not mixed will resemble the real graph for reasons of insufficient
+    shuffling rather than of structure; addressed by a declared mixing check and by reporting the
+    rewiring's edge-displacement statistics.
+  - The p=1 construction is not the induced single-lane subgraph of a real p=4 run; cross-lane edges
+    are excluded by construction, which biases lifetimes short.
+  - Slice and pass boundaries reset the candidate window, producing sawtooth structure in L(j) that
+    can be mistaken for a trend if only the integral is reported; the profile itself must be plotted.
+  - For Argon2d the graph depends on the synthetic input, so a single draw is not the object; multiple
+    input draws are required and their spread reported.
+  - Small-q boundary effects, where the window is a large fraction of the array and every graph looks
+    alike.
+  interpretation_limits:
+  - The integral is a lower bound on occupied area under clairvoyance, not an achievable operating
+    point for any evaluator, and clairvoyance is unavailable for the data-dependent portions of Argon2d
+    and Argon2id.
+  - p=1 and toy q only; no number here is at a recommended parameter set and none is extrapolated
+    to one.
+  - A gap between integral and rectangle is a property of the accounting, not evidence that any adversary
+    can exploit it, and no such exploitation is proposed or measured.
+  - Exactness of the two passes says nothing about whether the live set is the right cost currency;
+    that is a modelling question this record does not settle.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement itself is O(t*q) per graph and O(t*q)
+      per null draw.
+    memory_exponent: No attack exponent is claimed for any adversary. The measurement holds O(q) integers.
+      The reported integral-to-rectangle ratio is a dimensionless number, not a memory exponent, and
+      must not be read as one.
+    best_known: The incumbent is the peak-memory-times-duration rectangle used by the AT accounting
+      summarized in KN-LIT-7f3c21, together with, inside this repository, the depth-reducing-set framing
+      of IDEA-20260809-a915ea and H-ARGON-ef2f0b, which is the nearest measured quantity anyone here
+      has proposed for the same graph.
+    hidden_overhead: 'The rewiring null hides most of the real work: constructing a uniformly random
+      degree-preserving backward-pointing rewiring is a nontrivial sampling problem, and a poorly
+      mixed sampler silently weakens the control. Beyond that, the Argon2d arm requires many input
+      draws, multiplying a cheap computation by a factor nobody budgets for.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed, not asserted: every frontier row
+    available in this repository for RQ-ARGON-141710 was enumerated -- ten proposals, one evidence
+    record (EV-ARGON-209ece, a proposal review with no measurement), one experiment directory (EXP-ARGON-2608c2)
+    whose runs/ directory is empty. There is no measured time, memory or data/query point anywhere
+    under this question, so there is nothing on any axis for this measurement to be dominated by.'
+  sota_delta: No attack; measurement contribution only. Against the incumbent accounting the delta
+    is a single dimensionless number -- the fraction of the AT rectangle that is provably never occupied
+    under free eviction -- which the incumbent does not compute at all. Against the nearest in-repository
+    quantity, the depth-reducing-set ratio, the delta is that this is exact rather than heuristic
+    and concerns retention rather than depth; the two are not comparable on a common axis and no claim
+    of improvement over it is made.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the live-set profile is exactly computable in two linear passes
+    and the code validates against both closed-form controls: very high, around 0.95, since this is
+    elementary. That the integral-to-rectangle ratio comes in below 0.75 for the real graph: moderate-high,
+    around 0.7, because one reference edge per block plus recency bias should kill blocks quickly.
+    That the real graph separates from the degree-preserving rewiring null by at least 0.05: genuinely
+    uncertain, around 0.35 -- degree-preserving rewiring is a strong null and may absorb most of the
+    effect, and if it does, that is the most valuable single outcome here because it would remove
+    the offset transform from the live-set story entirely and redirect the lane''s mechanism narrative.
+    That the t-monotonicity tell behaves: around 0.85.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - H-ARGON-ef2f0b
+  - IDEA-20260809-a915ea
+  - IDEA-20260809-bcf891
+  - IDEA-20260812-318db8
+  - EV-ARGON-209ece
+  - KN-TECH-056
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-8357f3

@@ -1,0 +1,437 @@
+idea:
+  id: IDEA-20260813-28cf9c
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  title: >-
+    Publicly detectable CRT-rank weak matrices: select ML-KEM keys whose
+    SampleNTT matrix loses rank in a quadratic slot, then price the resulting
+    exact error-only equations as lattice hints
+  class: algorithm
+  claim: >-
+    Under the standard random-function model for the XOFs in FIPS 203, the
+    public ML-KEM matrix A is uniform in R_q^(k by k), where
+    R_q = F_q[X]/(X^256+1), q = 3329. Because ord_512(q)=2, this ring has 128
+    quadratic CRT slots. A uniform k by k matrix over any one F_(q^2) slot is
+    singular with probability 1-product_(j=1)^k(1-q^(-2j)); hence a key has at
+    least one singular slot with predicted probability about 128/q^2, roughly
+    2^-16.40 for each standardized k in {2,3,4}. The event is detectable from
+    the public seed rho before lattice reduction. In a singular slot, a public
+    nonzero left-kernel vector w gives w^T t = w^T e, eliminating the secret in
+    that slot and yielding two exact modular linear hints on the coefficient
+    error. The falsifiable algorithmic claim is that integrating all such hints
+    before a primal or hybrid attack reduces matched key-recovery cost by at
+    least 2 bits for the selected-key population after charging public-key
+    screening, hint integration, reduction, decoding, verification, memory,
+    and retries. If the exact hint-aware optimizer gives less than 2 bits, or
+    if the same gain appears for a rank-matched unstructured null, this
+    candidate is not material. No standardized key is claimed weak and no
+    deployed key is to be searched.
+  mechanism: >-
+    The tracked object is the tuple (public CRT rank profile of A, left-kernel
+    basis in every deficient slot, exact modular error-hint system). The map is
+    genuinely lossy: it discards t and all nonsingular-slot entries and cannot
+    reconstruct A or the secret. It nevertheless propagates deterministically
+    through t=A*s+e: multiplying a deficient slot by a left-kernel vector
+    cancels A*s exactly and leaves an error-only equation. This is not a
+    secret-norm weak-key effect. It is public-matrix geometry and is observable
+    before attacking a key. Nor is it an algebraic instance multiplication or
+    automorphism orbit: the proposal consumes a rare non-invertibility event,
+    does not manufacture derived samples, and must pay the roughly 2^16.40-key
+    selection population. The putative gain is geometric only if the resulting
+    hint-aware lattice or decoder is cheaper after full accounting.
+  object_studied: >-
+    Public CRT rank deficiencies and their induced error-only equations, not
+    secret norms, ciphertext tails, implementation leakage, or failure oracles.
+  depth_of_verified_structure: >-
+    Proposal only. The factor-count, rank probability, hint identity, and cost
+    delta are derivation obligations; none is recorded here as evidence or as
+    an experimental observation.
+  why_not_a_renamed_known_approach: >-
+    Nearest neighbor IDEA-20260805-1d76e9 proves an A-oblivious public-key law
+    cannot select unusually short secrets except at secret-slot degeneracy and
+    explicitly leaves A-aware screening open. This proposal varies A itself,
+    selects an exactly public rank event, and obtains error-only equations; it
+    makes no attempt to infer ||(s,e)||. IDEA-20260805-e805b6 studies the
+    determinant ideal of the full q-ary module lattice and argues that a
+    determinant-only PIP pipeline is A-independent. Here the observable is the
+    complete per-CRT rank profile and kernel vectors, which the determinant
+    ideal intentionally forgets. IDEA-20260805-530869 supplies a ring-deleted
+    null protocol but no attack. This proposal instantiates that discipline
+    with a specific rank-matched null and a decoder-facing hint interface.
+  assumptions:
+    - >-
+      Passive multi-user oracle model only: the attacker receives independently
+      generated, valid public encapsulation keys and selects one target; there
+      is no key-generation influence, chosen-ciphertext oracle, failure signal,
+      side channel, fault, or malformed-key path.
+    - >-
+      FIPS 203 SampleNTT/XOF output is modeled as independent uniform field
+      elements for the rank-frequency prediction; any real-XOF deviation is a
+      separate pseudorandomness claim and cannot be inferred from a small sample.
+    - >-
+      A hint reduces attack cost only through a frozen, explicit hint-aware
+      primal or hybrid construction; dimension subtraction without an encoding,
+      decoder, and verification path is inadmissible.
+  proof_search_map:
+    bottleneck: >-
+      Convert a public rank deficiency into a strict reduction of the optimized
+      end-to-end ML-KEM key-recovery cost, rather than merely into two true
+      equations about the unknown error.
+    baseline_embedding:
+      parameter_slice: >-
+        Rank-deficiency count r=0 and an empty hint matrix must reproduce the
+        pinned single-key primal-uSVP and hybrid baseline at each of
+        ML-KEM-512/768/1024 under the same estimator commit and cost model.
+      reproduction_check: >-
+        Symbolically delete the hint rows and verify exact equality of lattice
+        dimension, determinant, secret/error distribution, optimized sample
+        count, block size, reduction calls, and verification work; retain a
+        frozen r=0 regression fixture.
+    observation_collision:
+      observable: >-
+        The multiset of deficient CRT slots, their coranks, and canonical
+        left-kernel bases.
+      distinct_preimage_search: >-
+        Construct two public matrices with the same rank profile and kernel
+        dimensions but different kernel orientations, then two planted
+        (s,e) pairs giving the same error-hint syndrome but different decoding
+        hardness. A collision forbids rank count alone from carrying the cost
+        claim and forces the full kernel-oriented hint system into the model.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Exact CRT kernel equations encoded as modular hints and integrated
+          using the side-information lattice operations of the DDGR framework.
+        predicted_gain: >-
+          At least 2 bits in matched optimized key-recovery time for r>=1, with
+          no greater memory, after paying all stages; otherwise no material gain.
+      - transform: boundary_lift
+        proposed_object: >-
+          The r=0 baseline lifted to r=1,2,... exact-hint families while keeping
+          estimator, attack family, and cost convention fixed.
+        predicted_gain: >-
+          A monotone non-increasing block-size/cost curve in r whose first step
+          exceeds numerical and estimator resolution.
+    quantifier_order: >-
+      For every standardized k and every valid public key with r deficient CRT
+      slots, there exists a publicly computable hint system H(A,t); the claimed
+      material improvement requires that for each k there exists an r>=1 and a
+      frozen hint-aware attack whose expected end-to-end cost over keys
+      conditioned on that r is at least 2 bits below the matched r=0 baseline.
+      The attack and thresholds may depend on k and r but not on the hidden s,e.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A selected-key, passive, model-relative constant-bit cost reduction for
+        public matrices with a declared CRT corank; never an exponent change or
+        a claim about ordinary ML-KEM keys.
+      nearby_object_control: >-
+        A plain-LWE matrix with the same ambient dimension, modulus, total rank
+        deficiency, and planted-error law but no cyclotomic CRT decomposition.
+        If matched linear hints buy the same cost, the effect is generic rank
+        deficiency rather than an ML-KEM ring mechanism.
+    proof_obligations:
+      - claim: X^256+1 factors into exactly 128 irreducible quadratics over F_3329.
+        responsibility: baseline
+      - claim: The per-slot and at-least-one-slot singular probabilities follow from uniform matrix counting.
+        responsibility: success_probability
+      - claim: Every canonical kernel row yields exactly two independent coefficient-level modular hints after CRT pullback.
+        responsibility: correctness
+      - claim: The hint encoding neither double-counts equations already present nor changes the target distribution.
+        responsibility: interface
+      - claim: The optimized hint-aware construction reproduces r=0 and strictly improves a declared r>=1 slice.
+        responsibility: strictness
+      - claim: Screening, expansion, kernel computation, reduction, decoding, verification, memory, and inverse-success costs are all charged.
+        responsibility: runtime
+      - claim: The conclusion is limited to valid generated keys in the passive selected-key oracle model.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: per_key_any_singular_slot_probability
+      direction: different
+      minimum_effect: >-
+        Must equal 1-(product_(j=1)^k(1-q^(-2j)))^128 under the random-function
+        model, approximately 2^-16.40 for all three k values. A mismatch in
+        exact enumeration at toy parameters falsifies the derivation.
+    - metric: error_hint_residual
+      direction: lower
+      minimum_effect: >-
+        Exactly zero modulo q for every derived kernel equation. Any nonzero
+        residual is an implementation or CRT-orientation failure and blocks
+        all cost interpretation.
+    - metric: matched_end_to_end_cost_delta_bits_at_r1
+      direction: lower
+      minimum_effect: >-
+        At least 2.0 bits below the r=0 attack at one standardized parameter set
+        after all listed costs; less than 2.0 bits falsifies materiality.
+    - metric: treatment_minus_rank_matched_null_delta_bits
+      direction: different
+      minimum_effect: >-
+        At least 0.5 bit beyond the unstructured rank-matched null. Within
+        0.5 bit means the observed benefit is generic linear-hint value, not
+        ring-specific structure.
+  minimal_test:
+    design: >-
+      Phase 0 is symbolic and decisive: verify the factorization, rank-counting
+      formula, CRT pullback, and r=0 baseline embedding. Phase 1 uses exhaustive
+      toy rings with the same factor-degree pattern to enumerate every matrix,
+      confirm the predicted rank histogram, and validate zero residuals. Phase
+      2 samples only synthetic FIPS-shaped public matrices, never deployed
+      keys, until a preregistered number of r=1 cases is reached, and integrates
+      their hints into a frozen hint-aware estimator/decoder. Run the
+      rank-matched plain-LWE null and randomly relabeled-null verdict first.
+      Stop before BKZ if symbolic accounting or the estimator ceiling is below
+      2 bits. This proposal does not authorize any phase.
+    controls:
+      - >-
+        R0 baseline: valid FIPS-shaped matrices with no deficient CRT slots;
+        the hint interface is empty and must reproduce the pinned baseline.
+      - >-
+        Rank-matched ring-deleted null: an unstructured matrix with the same
+        coefficient dimension, modulus, corank and CBD planted error; this
+        distinguishes ring-specific orientation from generic rank loss.
+      - >-
+        Random-label null: permute r labels over otherwise identical instances
+        before cost prediction. Any surviving delta is selection or optimizer
+        leakage.
+      - >-
+        Planted deficient-slot positive control with a known kernel and error;
+        it must yield exactly the preregistered two-hint increment per slot.
+      - >-
+        Decay control: destroy the deficiency by adding a rank-one slot update.
+        The residual must cease to vanish and the cost delta must return to the
+        r=0 interval; a non-decaying signal is an artifact.
+    required_metrics:
+      - exact factor degrees and exact rank histogram at toy parameters
+      - singular-slot count and corank distribution per k
+      - number and rank of nonredundant modular hints after coefficient pullback
+      - r=0 baseline reproduction residuals for dimension, determinant, beta, time, and memory
+      - preprocessing, screening, hint-integration, reduction, decoding, verification, and retry work separately
+      - optimized time and memory delta versus r=0 and versus the rank-matched null
+  falsification_conditions:
+    - >-
+      The factorization or uniform-matrix probability formula fails under exact
+      toy enumeration, or SampleNTT does not map to the assumed uniform slot law.
+    - >-
+      CRT pullback produces redundant equations already implied by the baseline
+      lattice, so the nonredundant hint rank is zero.
+    - >-
+      The optimized fully charged delta is less than 2 bits at every declared
+      parameter slice, even if the hint identity is correct.
+    - >-
+      The ring-deleted rank-matched null gives the same delta within 0.5 bit;
+      then ring structure is not the mechanism.
+    - >-
+      The positive control fails or the rank-one repair does not erase the
+      signal; no treatment-arm result is interpretable.
+  confounders:
+    - Correlated CRT slots induced by treating the XOF as a finite deterministic function rather than a random function.
+    - Kernel-basis orientation changing coefficient-space hint quality at fixed corank.
+    - Counting a modular equation twice when the baseline q-ary lattice already encodes it.
+    - Optimizer noise or discontinuous beta rounding masquerading as a two-bit change.
+    - Screening a selected-key population while comparing with an unconditional single-key baseline.
+    - Treating public-key count as free data or omitting rejection/retry probability.
+  interpretation_limits:
+    - >-
+      This is core Module-LWE key recovery in a passive multi-key oracle model;
+      it is not implementation leakage, chosen ciphertext, decryption failure,
+      invalid-key handling, or a claim about any observed deployed key.
+    - >-
+      Exact rank arithmetic would establish only the existence and frequency
+      of hints. Attack value remains heuristic and model-relative until an
+      approved end-to-end run and independent review exist.
+    - >-
+      Toy enumeration validates algebra and software, not transfer of BKZ or
+      decoding behavior to ML-KEM dimensions. Every extrapolation must name the
+      estimator, commit, and success condition.
+    - >-
+      Even a two-bit conditional gain is a constant-bit selected-population
+      effect, not a break, category change, exponent improvement, deployment
+      recommendation, or research-state transition.
+  heuristic_assumptions:
+    - id: H1-slot-uniformity
+      statement: >-
+        For k in {2,3,4}, the 128 CRT-slot matrices expanded by SampleNTT from a
+        uniformly random FIPS 203 seed are jointly indistinguishable, for the
+        rank-profile statistic, from independent uniform matrices over F_(q^2).
+      formal_statement: >-
+        For every polynomial-time rank-profile test T, the advantage between
+        T(SampleNTT(rho)) and T(U), U uniform in product_(i=1)^128
+        M_k(F_(q^2)), is negligible in the XOF security parameter.
+      rigorous_support: >-
+        FIPS 203 Algorithm 7 rejection-samples uniform coefficients; conditional
+        on uniform independent coefficients, CRT is an exact bijection and the
+        finite-field matrix rank count is exact. XOF pseudorandomness, not a
+        distribution theorem about real keys, is the remaining assumption.
+      validation_plan: >-
+        First exhaust a toy XOF domain and compare the full rank histogram with
+        exact counting; then, only as a generator check, sample synthetic FIPS
+        seeds and report confidence intervals, inter-slot covariance, and the
+        extreme count. Statistical agreement cannot prove pseudorandomness.
+      falsification_condition: >-
+        Exact toy enumeration disagrees with uniform counting after accounting
+        for finite-domain collisions, or a reproducible real generator bias
+        exceeds the preregistered multiple-testing bound.
+    - id: H2-hint-cost-transfer
+      statement: >-
+        At fixed k and r, the hint-aware estimator's block-size and success
+        probability predict the relative cost of the same algorithm at the
+        declared FIPS-shaped dimensions closely enough to resolve a 2-bit delta.
+      formal_statement: >-
+        For every tested toy dimension d in the preregistered ladder, the sign
+        of measured log2 cost(r)-log2 cost(0) equals the predicted sign and the
+        absolute ratio error is at most 25 percent; transfer to standardized d
+        is explicitly assumed, not observed.
+      rigorous_support: >-
+        Modular hints are exact linear constraints and DDGR supplies valid
+        lattice transforms; no theorem currently connects those facts to BKZ
+        cost at ML-KEM dimensions, so support is structural only.
+      validation_plan: >-
+        Exhaust the smallest shape, then run a dimension ladder with the same
+        algorithm and compare measured ratios with predictions, including r=0,
+        rank-matched null, and repaired-rank controls. Report all failures and
+        the transfer assumption separately.
+      falsification_condition: >-
+        Wrong sign at two adjacent dimensions, ratio error above 25 percent,
+        or no monotone response to added independent hints.
+  target_complexity:
+    time_exponent: >-
+      Unchanged from the selected primal/hybrid LWE baseline; no exponent
+      improvement is claimed.
+    memory_exponent: >-
+      Unchanged or lower is required; any extra exponential hint table makes
+      the candidate dominated.
+    best_known: >-
+      Pinned best of primal-uSVP and independently scoped hybrid/dual rows under
+      one matched lattice-estimator cost model; the exact row is a prerequisite,
+      not asserted by this proposal.
+    hidden_overhead: >-
+      Public-key expansion, 128 slot decompositions, kernel bases, CRT pullback,
+      rational/integer hint integration, estimator optimization, decoder lists,
+      verification, and inverse success probability.
+    tradeoff_note: >-
+      Report high-memory sieve and polynomial-memory enumeration endpoints,
+      data N of public keys separately, and parallel screening scaling. No
+      memory or data axis may be collapsed into a time-only core-SVP number.
+  cost_boundary:
+    oracle_model: passive public keys from independent valid ML-KEM key generations
+    samples_or_queries: >-
+      Expected about 2^16.40 public keys per r>=1 target under H1; report the
+      full distribution and any cap. Zero decapsulation queries.
+    preprocessing: >-
+      Expand every public rho, perform 128 CRT rank tests, canonicalize kernels,
+      and form coefficient-space hints; no precomputation is free.
+    memory: >-
+      Store screened-key metadata, lattice basis, reduction state, hint matrices,
+      decoder/list state, and verification buffers; report peak bytes and
+      asymptotic exponent.
+    reduction_and_decoding: >-
+      Charge all BKZ calls, SVP-oracle work, progressive stages, hint transforms,
+      enumeration/sieving, list decoding, restarts, and unsuccessful targets.
+    verification: >-
+      Reconstruct s, check t=A*s+e with the CBD support/law, and verify the
+      corresponding ML-KEM key relation; false candidates and retries are paid.
+    success_and_retry: >-
+      Total expected work is screening plus per-attempt work divided by measured
+      or modeled success probability; selection probability and attack success
+      remain separate factors.
+    standardized_sets:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+    optimistic_assumptions:
+      - Random-function slot independence.
+      - Exact rank hints integrate without coefficient blowup.
+      - Estimator ratios transfer from toy dimensions.
+    scope: >-
+      Affected only if a fully charged selected-key row beats the matched
+      baseline. Ordinary keys, ciphertext recovery, failure oracles, and all
+      deployments are outside the claim.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+    note: >-
+      Symbolic and toy exhaustive checks are cheap; acquiring enough synthetic
+      FIPS-shaped r=1 cases and running matched lattice ladders is the dominant
+      cost. No run is authorized here.
+  dominated_by: >-
+    n/a (no attack result claimed). Frontier check performed across the 19
+    RQ-MLKEM-001 proposals: IDEA-20260805-1d76e9 dominates secret-norm
+    selection but explicitly leaves A-aware geometry open; IDEA-20260805-e805b6
+    dominates determinant-only PIP information; IDEA-20260805-530869 dominates
+    generic null design; IDEA-20260805-cdc87d dominates cost-model-only memory
+    reranking; none supplies per-slot kernel hints or prices selected CRT-rank
+    deficient matrices. The pinned primal/hybrid baseline will dominate this
+    proposal unless the preregistered >=2-bit fully charged delta is met.
+  sota_delta: >-
+    No present attack delta. Proposed threshold: at least -2.0 bits of expected
+    selected-key recovery time at one standardized set, memory no worse, with
+    about 2^16.40 public keys of data and zero oracle queries. Exponent delta is
+    exactly 0. A result below 2 bits is a scoped non-materiality finding.
+  recommended_priority: high
+  novelty_status: unverified
+  novelty_screen:
+    local_kb_status: zero manifests and zero indexed points; direct committed-corpus screen used
+    screened_proposals:
+      - IDEA-20260722-001
+      - IDEA-20260805-0e65c3
+      - IDEA-20260805-1d76e9
+      - IDEA-20260805-2b94fe
+      - IDEA-20260805-3d71ca
+      - IDEA-20260805-530869
+      - IDEA-20260805-574cd0
+      - IDEA-20260805-690de8
+      - IDEA-20260805-866eca
+      - IDEA-20260805-cd6e1e
+      - IDEA-20260805-cdc87d
+      - IDEA-20260805-e805b6
+      - IDEA-20260806-7c1ae4
+      - IDEA-20260807-05e12c
+      - IDEA-20260807-1f5f89
+      - IDEA-20260807-331ae5
+      - IDEA-20260807-abacec
+      - IDEA-20260808-4854f8
+      - IDEA-20260808-90632c
+    adjacent_corpus:
+      - KN-TECH-038
+      - KN-TECH-047
+      - KN-OPEN-026
+      - GOAL-MLKEM-005 inherited algebraic-closure boundary
+    nearest_neighbors:
+      - id: IDEA-20260805-1d76e9
+        precise_delta: A-aware public-matrix rank selection and error hints replace A-oblivious secret-norm selection.
+      - id: IDEA-20260805-e805b6
+        precise_delta: Full CRT rank/kernel data replace the A-independent determinant ideal.
+      - id: IDEA-20260805-530869
+        precise_delta: A concrete hint-aware mechanism and rank-matched null instantiate the generic ring-deleted control.
+    external_screen: >-
+      Primary sources read: FIPS 203 Algorithms 7 and 13 and Table 2; DDGR,
+      LWE with Side Information (CRYPTO 2020) via the authors' CWI record and
+      artifact; Postlethwaite-Virdia, On the Success Probability of Solving
+      uSVP via BKZ (PKC 2021/ePrint 2020/1308); the lattice-estimator authors'
+      repository. No primary source located in the bounded search states this
+      ML-KEM CRT-rank selected-key mechanism. Absence is not novelty evidence.
+  source_refs:
+    - https://doi.org/10.6028/NIST.FIPS.203
+    - https://eprint.iacr.org/2020/292
+    - https://eprint.iacr.org/2020/1308
+    - https://github.com/lducas/leaky-LWE-Estimator
+    - https://github.com/malb/lattice-estimator
+    - ledger/proposals/IDEA-20260805-1d76e9.yaml
+    - ledger/proposals/IDEA-20260805-e805b6.yaml
+    - ledger/proposals/IDEA-20260805-530869.yaml
+  enumerated_closures:
+    - >-
+      If the kernel hints are redundant in the baseline lattice, the exact
+      rank event is real but this attack interface is closed; nonlinear uses of
+      the same event remain open.
+    - >-
+      If fully charged gain is under 2 bits, the selected CRT-rank linear-hint
+      lane is non-material at the declared sets; other A-aware geometry and
+      ciphertext/failure mechanisms remain open.
+  open_directions:
+    - Kernel-orientation statistics beyond corank if rank count collides.
+    - Nonlinear small-error recovery from one CRT error evaluation.
+    - Continuous public GSO-quality screening, kept separate from the exact rank event.

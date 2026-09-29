@@ -1,0 +1,524 @@
+idea:
+  id: IDEA-20260829-07fd5f
+  question_id: RQ-ECQ-80f23c
+  goal_id: GOAL-ECQ-e72c0b
+  title: >-
+    Change the instrument, not the family: lattice-reduction point search as the
+    tracked object, and a measured cost exponent alpha for recovering a rational
+    point of canonical height h at record coefficient size
+
+  class: algorithm
+
+  claim: >-
+    This program's certification instrument is 2-descent (PARI ellrank), and its
+    measured behaviour is that cost is driven by COEFFICIENT SIZE, not by rank: a
+    Spearman correlation of +0.765 between log of the absolute a6 and timeout, 84
+    of 140 attempted descents censored at an 8 s alarm, and 31 of 31 upper-bound
+    descents timing out at a4 of order 1e19 -- while the current world-record curve
+    has coefficients of size about 10^66 and 10^100. CLAIM: the binding step is not
+    descent at all but the recovery of rational points of large canonical height,
+    and for that step a lattice-reduction search in the style of Elkies' ANTS-IV
+    method has an empirically fittable cost law cost = exp(alpha * hhat + c) with
+    alpha STRICTLY BELOW 1, against alpha = 1 for the naive scan over x (whose cost
+    is proportional to the x-range, that is exp(hhat)). The number under test is
+    alpha. If alpha is at most 0.75 with a 95 percent confidence interval excluding
+    1, the program's reach in canonical height improves by the factor 1/alpha and
+    points that no descent in this repository has ever produced become reachable at
+    fixed budget. If alpha is statistically indistinguishable from 1, lattice
+    reduction is a constant-factor tool here, the censoring recorded in
+    EV-ECQ-0d142e UC-3 is not curable by changing the search, and the program
+    should stop attributing its rank ceiling to solver budget.
+
+  mechanism: >-
+    A rational point on y^2 = x^3 + a4 x + a6 with x = p/q^2 and y = r/q^3 is an
+    integer lattice point (p, r, q) lying ON a surface; the naive search enumerates
+    q and tests whether a cubic is a square, costing one test per candidate and
+    therefore time proportional to the x-range, which is exponential in the
+    canonical height. The lattice-reduction alternative changes the tracked object:
+    inside a small box around a point of the real curve, the curve is well
+    approximated by its linearisation, and integer solutions lying within distance
+    delta of the curve are exactly the short vectors of an explicit rank-3 lattice
+    built from the box's linear data. Enumerating short vectors is polynomial in
+    the bit-size after LLL, so the exponential cost migrates from "test every
+    candidate" to "cover the curve by boxes", and the number of boxes grows more
+    slowly than the number of candidates because each box is handled in one
+    reduction. That is the same generic conversion the target profile names --
+    replace a bottleneck scan with a structure that enumerates only the
+    near-solutions -- and it is the reason the step can have an exponent below 1 at
+    all. Nothing about the group law is used, which is exactly what makes the
+    object new to this program: every search this repository has run tracks the
+    Mordell-Weil group or the Selmer group, both of which are destroyed by large
+    coefficients.
+
+  tracked_object:
+    object: >-
+      The rank-3 integer lattice of near-solutions attached to a box on the real
+      curve, and its short vectors. NOT E(Q), NOT the Selmer group, NOT the fibre.
+    lossy_projection_test: >-
+      PASSES. The projection sends the arithmetic of E/Q -- its group law, its
+      torsion, its Selmer group, its reduction data, every point outside the box --
+      to a single rank-3 integer lattice describing linear approximation inside one
+      box. The loss is enormous and one-directional: from the box lattice one
+      cannot recover E, cannot add two points, and cannot decide independence. It
+      is discarded COMPATIBLY with the operation the algorithm actually performs,
+      which is box subdivision: refining a box transforms its lattice by an
+      explicit integral change of basis, so the retained data propagates
+      deterministically under refinement even though the group structure has been
+      thrown away. That asymmetry -- deterministic under refinement, useless under
+      addition -- is exactly what distinguishes this from a change of coordinates
+      on E(Q).
+    consequence_of_the_loss: >-
+      The method finds POINTS and proves NOTHING. It yields rank lower bounds only
+      through subsequent independence certification, and it can never produce an
+      upper bound. Any evidence record must keep those two roles separate.
+
+  novelty_status: unverified
+  novelty_note: >-
+    The METHOD IS PUBLISHED AND IS NOT CLAIMED AS NEW. A WebSearch this session
+    confirmed the existence and venue of Elkies, "Rational points near curves and
+    small nonzero |x^3 - y^2| via lattice reduction", ANTS-IV 2000, LNCS 1838,
+    pages 33-63 (arXiv math/0005139), and its stated purpose. What is new is
+    internal and measurable: this repository has NO implementation, no measured
+    cost exponent for point recovery at any coefficient size, and a documented
+    instrument failure exactly where the method would apply. A corpus grep this
+    session over ledger/ideas for "lattice reduction", "LLL" and "point search"
+    returned no proposal tracking this object. Classified as an adaptation -- a
+    known technique in a setting where this program has only ever used the other
+    one -- and NOT as known, because the specific quantity claimed (a fitted alpha
+    on high-rank curves at record coefficient size) is not something this session
+    verified anyone has measured.
+
+  citations:
+    - ref: "arXiv:math/0005139"
+      provenance: retrieved
+      claim: >-
+        Elkies, "Rational points near curves and small nonzero |x^3-y^2| via
+        lattice reduction", Proceedings of ANTS-IV, Springer LNCS 1838 (2000),
+        pages 33-63. The method uses linear approximation plus lattice reduction to
+        find all rational points of small height near a given plane curve, is
+        described as having essentially optimal computational cost with logarithmic
+        space, and is parallelisable.
+      verified_by: >-
+        idea-generator session 2026-08-29, WebSearch result summary listing title,
+        venue, pagination and stated purpose. THE PAPER ITSELF WAS NOT OPENED. No
+        theorem statement, no complexity exponent and no constant from it is relied
+        on as verified, and the alpha claimed in this proposal is to be MEASURED
+        here, not taken from the paper.
+    - ref: EV-ECQ-0d142e
+      provenance: internal
+      claim: >-
+        The measured instrument failures this idea targets. OBS-5: 140 descents
+        attempted on 137 distinct fibres, 84 timeouts, mean descent cost 7.5 s at
+        an 8 s alarm; certification, not scoring, is the binding cost (1.59 s to
+        score the whole tier-2 domain against 327 s of descent in one arm). OBS-6:
+        a Spearman correlation of +0.765 between log of the absolute a6 and
+        timeout, while the score-to-timeout correlation is -0.104. Boundary B-6
+        part (i): the Mestre route's rank 13 has NO upper bound available at all --
+        its RUN-008 recorded 31 of 31 ellrank timeouts at a4 of order 1e19. UC-3
+        names re-descending the censored fibres at a longer alarm as the single
+        highest-value unrun measurement of that round. B-4: 12 is a maximum over
+        the 56 fibres actually descended, not over the family.
+      verified_by: >-
+        idea-generator session 2026-08-29; FULL record read at
+        ledger/evidence/EV-ECQ-0d142e.yaml
+    - ref: KN-FIND-6b3e17
+      provenance: internal
+      claim: >-
+        The certificate for the in-repo ground-truth object: t = -65/22,
+        y^2 = x^3 - 518228207838672723 x + 141005837549331272675978478, 20
+        exhibited points (8 specialised sections plus 12 from 2-descent), 12
+        independent, a 12 by 12 regulator of about 5.833522605e9, least eigenvalue
+        about 0.3462, and rank EXACTLY 12 by an unconditional ellrank upper bound
+        in a blind re-derivation. This gives 12 known points of known canonical
+        height on a known curve -- the ground truth against which alpha is fitted.
+      verified_by: >-
+        idea-generator session 2026-08-29; FULL knowledge record read at
+        knowledge/findings/KN-FIND-6b3e17.md
+    - ref: GOAL-ECQ-e72c0b
+      provenance: internal
+      claim: >-
+        Completion criterion 3 requires an unconditional machine-checkable
+        independence certificate publishing the exact character basis, good primes,
+        exact F2 matrix, matrix rank, torsion-row rank and any halving witnesses --
+        that is, a certification route that does NOT require descent. The goal also
+        records the public source reference for the exact torsion-aware
+        Cremona-Brumer quadratic-character method at github.com/icarm/elliptic-rank
+        commit 4c9ef362, path src/verify.ts. The point search proposed here is the
+        missing FIRST half of that pipeline: the certificate certifies points it is
+        given and finds none.
+      verified_by: >-
+        idea-generator session 2026-08-29; FULL goal record read at
+        ledger/goals/GOAL-ECQ-e72c0b/goal.yaml. The verify.ts source was NOT opened
+        by this session.
+    - ref: >-
+        Cremona and Brumer style independence testing by quadratic characters at
+        good primes over F2
+      provenance: recalled
+      claim: >-
+        RECALLED. Independence modulo torsion and 2-divisibility can be certified
+        by an exact F2 matrix of quadratic character values at good primes, with
+        cost essentially independent of the coefficient size and of the rank, in
+        contrast to descent. Used here only to argue that the CERTIFICATION half is
+        not the bottleneck once points exist; it is not load-bearing for alpha.
+      verified_by: null
+
+  assumptions:
+    - >-
+      Canonical heights of the 12 known non-section points on the in-repo rank-12
+      curve span at least three e-folds, so a two-parameter cost law can be fitted.
+      If they do not, the design extends the ground-truth set using the 137
+      certified fibres, which give hundreds of known points across a wide height
+      range.
+    - >-
+      A correct reference implementation of the naive baseline exists and is run
+      under the identical budget accounting, so alpha is a MEASURED RATIO against a
+      baseline rather than an extrapolation.
+    - >-
+      The search is judged only on recovering points KNOWN to exist. Nothing here
+      assumes any point exists on any curve where none is known.
+
+  proof_search_map:
+    bottleneck: >-
+      Recovering a rational point of canonical height hhat on a curve whose
+      coefficients are too large for 2-descent. This is the step whose cost decides
+      whether the pipeline sees a fibre's true rank or reports the section floor,
+      and EV-ECQ-0d142e records the programme reporting exactly the section floor
+      on all 83 timed-out fibres.
+    baseline_embedding:
+      parameter_slice: >-
+        The naive scan: enumerate q up to Q and p up to P and test squareness. Its
+        cost law is exp(1.0 * hhat + c) by construction, so alpha = 1 IS the
+        baseline as an exact parameter slice of the same fitted model, not a
+        lookalike curve on a plot.
+      reproduction_check: >-
+        Frozen fixture. Both searches must recover the same known points on the
+        same five ground-truth curves under the same wall-clock accounting, and the
+        naive arm's fitted alpha must come out at 1.00 plus or minus 0.05 or the
+        fitting procedure itself is broken and no comparison is reportable.
+    observation_collision:
+      observable: >-
+        "Point of canonical height hhat recovered within budget B."
+      distinct_preimage_search: >-
+        THE COLLISION IS BETWEEN "the point is hard to find" AND "the point is not
+        there". Both produce an empty output, and this program has already recorded
+        the damage that confusion does: EV-ECQ-0d142e OBS-4 notes all 83 timed-out
+        fibres claiming exactly the section floor and not one point more. The
+        separation condition is that alpha is fitted ONLY on curves where the
+        target point is known in advance, so an empty output is always a measured
+        failure of the search and never a statement about the curve. Applications
+        to unknown curves report "found" or "not found within budget B", and the
+        second is never evidence of rank.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the group-theoretic model (E(Q), Selmer) by the metric model
+          (near solutions of a linearised curve in a box) where the hypothesis
+          becomes a short-vector condition in a rank-3 lattice.
+        predicted_gain: >-
+          The exponent of the point-recovery step drops from 1 to alpha; the
+          reachable canonical height at fixed budget scales by 1/alpha.
+      - transform: specialization_pack
+        proposed_object: >-
+          Cover the real curve by boxes; charge cost only over provably disjoint
+          boxes so the total is a sum with no double counting.
+        predicted_gain: >-
+          A cost model whose measured constant is meaningful rather than a fitted
+          artefact of overlapping work.
+    quantifier_order: >-
+      FOR ALL curves E in the declared ground-truth set and FOR ALL known points P
+      on them with canonical height in the declared window, THERE EXISTS a
+      box-covering schedule (which may depend on E and on the window but NOT on P)
+      such that P is recovered within cost exp(alpha*hhat(P) + c). The schedule
+      must not depend on the point being sought -- a schedule tuned per target
+      point would make alpha meaningless -- and the contract freezes the schedule
+      before the points are revealed to the search.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A measured cost exponent for POINT RECOVERY on the declared curves and
+        height window. It certifies no rank, gives no upper bound, and cannot show
+        a point does not exist. The strongest downstream claim it enables is a rank
+        LOWER bound, and only after an independent independence certificate.
+      nearby_object_control: >-
+        A curve of rank 0 or 1 with the same coefficient size and the same real
+        shape, where the desired conclusion (a point of that height exists) FAILS.
+        The method must return nothing there at every budget. If it returns
+        "points" on a rank-0 curve, it is producing near-solutions rather than
+        solutions and the exactness of the final check has failed.
+    proof_obligations:
+      - claim: Every returned triple is an exact rational point, verified in exact arithmetic on the exact curve.
+        responsibility: correctness
+      - claim: The box lattice's short vectors contain every rational point in the box below the height bound.
+        responsibility: correctness
+      - claim: Cost is measured against a matched naive baseline under identical accounting.
+        responsibility: baseline
+      - claim: The alpha confidence interval accounts for the box-schedule freedom.
+        responsibility: success_probability
+      - claim: No empty output is reported as a rank statement anywhere.
+        responsibility: interface
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        fitted alpha in cost = exp(alpha*hhat + c) for recovering a known point of
+        canonical height hhat, over a ground-truth set spanning at least three
+        e-folds in hhat
+      direction: lower
+      minimum_effect: >-
+        alpha at most 0.75 with a 95 percent confidence interval excluding 1.00.
+        The matched naive arm must fit alpha = 1.00 plus or minus 0.05 in the same
+        procedure.
+    - metric: >-
+        number of the 12 known non-section points on the in-repo rank-12 curve
+        recovered within a fixed 60 s per-curve budget
+      direction: higher
+      minimum_effect: at least twice the count recovered by the matched naive arm
+    - metric: >-
+        independent points found within 300 s on the two certified rank-13 Mestre
+        curves at a4 of order 1e19, where 31 of 31 ellrank calls timed out
+      direction: higher
+      minimum_effect: >-
+        at least one point that the descent instrument has never produced; zero is
+        a clean pre-declared negative for those objects at that budget
+    - metric: rank-0 or rank-1 nearby-object control, points returned
+      direction: different
+      minimum_effect: >-
+        exactly zero after exact on-curve verification, at every budget. Any
+        nonzero count voids the arm.
+    - metric: >-
+        re-search of a random 20 of the 84 censored fibres of EV-ECQ-0d142e, with
+        the new searcher supplying candidate points to an independence certificate
+        instead of running descent
+      direction: higher
+      minimum_effect: >-
+        at least 5 of the 20 receive a certified rank strictly above the section
+        floor of 8, which would show the published histogram is censored DOWNWARD
+        and by how much
+
+  minimal_test:
+    design: >-
+      STEP 0 (ground truth, about 1 h). Assemble the declared point set: the 12
+      known non-section points on the in-repo rank-12 curve plus known points
+      across the 137 certified fibres, with canonical heights computed at 60
+      digits, binned to span at least three e-folds. FREEZE the box-covering
+      schedule and the budget accounting before any search runs.
+      STEP 1 (baseline arm, about 2 CPU-hours). Implement and run the naive scan on
+      the ground-truth set; fit alpha; require 1.00 plus or minus 0.05.
+      STEP 2 (treatment arm, about 4 CPU-hours). Implement the lattice searcher;
+      run it on the identical set under identical accounting; fit alpha with a
+      confidence interval.
+      STEP 3 (controls, about 2 CPU-hours). Run both arms on the rank-0 or rank-1
+      nearby object and on a deliberately perturbed curve (a6 shifted by 1) and
+      require zero exact points from both.
+      STEP 4 (the consequential application, about 4 CPU-hours). Point-search 20
+      randomly chosen censored fibres from EV-ECQ-0d142e's 84 and certify
+      independence of whatever is found by an exact route that does not use
+      descent. Report the certified ranks against the section floor of 8.
+    controls:
+      - >-
+        MATCHED NAIVE BASELINE under identical wall-clock accounting -- the ratio,
+        not the absolute time, is the measurement.
+      - >-
+        NEARBY OBJECT WHERE THE CONCLUSION FAILS: a rank-0 or rank-1 curve of the
+        same coefficient size. Must return zero exact points.
+      - >-
+        PROVES-TOO-MUCH: perturb a6 by 1 and rerun. A searcher that still returns
+        "points" is returning near-solutions.
+      - >-
+        SCHEDULE-INDEPENDENCE: rerun the treatment arm with a second frozen
+        box-covering schedule. If alpha moves by more than 0.1 between schedules,
+        alpha is a property of the schedule and not of the method, and must be
+        reported as an interval over schedules.
+      - >-
+        EXACTNESS: every returned point re-verified on the exact curve in exact
+        rational arithmetic by an implementation that shares no code with the
+        searcher.
+    required_metrics:
+      - fitted alpha and c per arm, with confidence intervals and the fitted height range
+      - points recovered per arm per budget, per curve
+      - exact on-curve verification pass and fail counts for every returned point
+      - the two frozen box schedules and the alpha under each
+      - certified rank versus section floor on the 20 re-searched censored fibres
+      - wall clock, peak RSS, and any timeout, recorded as operational and never as a rank
+
+  falsification_conditions:
+    - >-
+      If the naive arm does not fit alpha = 1.00 plus or minus 0.05 the fitting
+      procedure is broken and NO comparison may be reported.
+    - >-
+      If the treatment arm's alpha confidence interval includes 1.00, the exponent
+      claim is falsified at this scale and the correct conclusion is that lattice
+      reduction is a constant-factor tool here.
+    - >-
+      If alpha differs by more than 0.1 between the two frozen schedules, alpha is
+      not a well-defined property of the method as implemented.
+    - >-
+      If any returned point fails exact on-curve verification, or if the rank-0
+      control returns a point, the implementation is unsound and every number from
+      it is void.
+    - >-
+      A timeout, OOM or crash is an OPERATIONAL condition under AGENTS.md rule 3
+      and is never evidence that a point does not exist.
+
+  confounders:
+    - >-
+      IMPLEMENTATION QUALITY MASQUERADING AS AN EXPONENT. A poorly optimised naive
+      arm makes any treatment look good. Controlled by requiring the naive arm to
+      reproduce its own theoretical alpha = 1 exactly, which is a strong check on
+      the accounting.
+    - >-
+      SELECTION ON KNOWN POINTS. The ground-truth points were themselves found by
+      2-descent, so they are biased toward whatever descent finds easily -- which
+      may be systematically the low-height points. Reported as a range restriction:
+      alpha is fitted only over the height window actually covered and is NOT
+      extrapolated past it.
+    - >-
+      HEIGHT VERSUS COEFFICIENT SIZE. The cost of the search plausibly depends on
+      both the canonical height and log of the absolute a6, and in the in-repo data
+      these are correlated. The design therefore fits a two-variable model and
+      reports the partial exponent in the height at fixed coefficient size; if the
+      data cannot separate them, that is reported as a collinearity limit rather
+      than resolved by assumption.
+    - >-
+      SCHEDULE TUNING. Any freedom to adapt the boxes after seeing the target point
+      would make alpha meaningless. Controlled by freezing two schedules before the
+      points are revealed and reporting both.
+
+  interpretation_limits:
+    - >-
+      This idea EXHIBITS NO CURVE AND CERTIFIES NO RANK. It measures an instrument.
+      Even total success leaves rank 32 over Q exactly as far away as before,
+      changing only how many fibres per hour the program can see the truth about.
+    - >-
+      The published method is Elkies'. This program would be measuring its own
+      implementation, and a poor alpha is evidence about that implementation, not
+      about the method.
+    - >-
+      Scoped to the declared ground-truth curves, the declared height window, the
+      two declared schedules, and this hardware. Nothing transfers to the record
+      curve's coefficient regime without an explicit extrapolation, which the
+      report must state.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (BOX-COVERING COST LAW.) For curves in the declared class and canonical
+        heights in the declared window, the number of boxes a frozen schedule must
+        process before covering the arc containing a point of height hhat grows as
+        exp(alpha*hhat) with a constant alpha in the interval from 0 to 1,
+        depending on the schedule but not on the individual point, and the per-box
+        cost is polynomial in the bit-size after LLL.
+      rigorous_support: >-
+        RIGOROUS PART: LLL runs in time polynomial in the bit-size, and
+        short-vector enumeration in a fixed rank-3 lattice below a fixed bound is
+        polynomial, so the per-box cost genuinely is polynomial and the entire
+        exponential lives in the box count. DISTRIBUTION IMITATED: the standard
+        heuristic that rational points of bounded height are distributed on the
+        curve like a random set of the predicted density, so the number of boxes to
+        inspect scales like the reciprocal of the density -- the same shape of
+        argument that makes smoothness-splitting cost analyses work. Nothing here
+        is proved and the published near-optimality claim of Elkies' paper is NOT
+        relied on, since this session did not read the paper.
+      validation_plan: >-
+        Sample: every known point in the ground-truth set (target at least 120
+        points spanning three e-folds of canonical height) across at least 5 curves
+        with coefficient size ranging over at least two orders of magnitude.
+        Shortcut making this feasible: the points are already exhibited and
+        content-hashed in certified_curves.json, so no search is needed to obtain
+        ground truth. Compare: fitted alpha against the null alpha = 1 established
+        by the matched naive arm in the same procedure, and against the second
+        frozen schedule. Tail checks: the HIGHEST-height points are where the law
+        must hold if it is to matter, so report the residual at the top decile
+        separately, and report whether the fitted law predicts the observed cost of
+        the single hardest recovery within a factor of 3. TRANSFER ASSUMPTION,
+        STATED: extrapolating alpha from coefficient sizes of order 1e26 in the
+        ground-truth set to about 1e100 at the record curve is an extrapolation of
+        two orders of magnitude in the exponent of the coefficient and is not
+        licensed by anything measured here.
+    - id: H2
+      statement: >-
+        (NO SILENT INCOMPLETENESS.) For the frozen schedules and height bound,
+        every rational point of the declared height in the covered arc appears
+        among the enumerated short vectors, so an empty output within a completed
+        schedule means "not present in the covered region below the bound", not
+        "missed".
+      rigorous_support: >-
+        Imitates the completeness of Fincke-Pohst enumeration below an explicit
+        norm bound; the heuristic content is only that the linearisation error over
+        a box is bounded by the declared delta, which is checkable per box.
+      validation_plan: >-
+        Sample: all 120 or more ground-truth points. Compare: recall, that is the
+        fraction of known points recovered once the schedule is run to completion
+        at a budget exceeding the fitted cost. Prediction: recall 1.00. Tail check:
+        any missed point is investigated individually and its box's linearisation
+        error reported; a recall below 1.00 falsifies H2 and downgrades every "not
+        found" to "not found and completeness unestablished".
+
+  target_complexity:
+    time_exponent: >-
+      Point recovery at canonical height hhat: TARGET exp(alpha*hhat) with alpha at
+      most 0.75 to be MEASURED, against exp(1.0*hhat) for the naive scan.
+      Equivalently, at fixed budget the reachable canonical height improves by the
+      factor 1/alpha, that is at least 1.33 times. This is a claim about ONE STEP
+      of the pipeline, not about the rank problem, and it must never be quoted as a
+      speedup on rank.
+    memory_exponent: >-
+      Polynomial and small: a rank-3 lattice per box, streamed. Space is
+      logarithmic in the search range in the published description; this program
+      will MEASURE peak RSS rather than assert it.
+    best_known: >-
+      Published: Elkies' ANTS-IV 2000 lattice method, described as essentially cost
+      optimal with logarithmic space. Available tooling: PARI and mwrank style
+      point search with a sieve. IN THIS REPOSITORY: no implementation of either
+      exists and no cost exponent for point recovery has ever been measured, at any
+      coefficient size.
+    hidden_overhead: >-
+      The constant c may dominate exp(alpha*hhat) over the entire window this
+      program can measure, so a genuine asymptotic gain could be invisible or even
+      negative at the tested scale. That is disclosed in advance and is the most
+      likely way this measurement returns "no effect" while the method is
+      nevertheless correct. LLL preprocessing per box is the concrete carrier of
+      that constant.
+    tradeoff_note: >-
+      Space is small, so there is no van Oorschot-Wiener style time-memory
+      interpolation to state. The method is embarrassingly parallel over boxes,
+      which matters because the campaign runs at max_concurrent 1 and any measured
+      alpha is a single-core number that would improve linearly with cores.
+
+  dominated_by: >-
+    DOMINATED ON THE ALGORITHM ITSELF: Elkies' published ANTS-IV method dominates
+    any reimplementation here, and nothing algorithmically new is claimed. Also
+    dominated, for the specific job of finding all points on a curve small enough
+    to descend, by 2-descent plus saturation as implemented in PARI ellrank and in
+    mwrank -- which are strictly better where they terminate, since they also give
+    an UPPER bound that this method can never give. Frontier rows checked across
+    time, memory and data: 2-descent (dominates on information, loses
+    catastrophically on coefficient size, measured at 31 of 31 timeouts at a4 of
+    order 1e19); naive scan (dominated on time by construction, wins on
+    implementation simplicity); the Mestre-Nagao prefilter (a different job -- it
+    orders fibres, it finds no points). On the axis "recover a point of large
+    height on a curve too big to descend", which is the axis EV-ECQ-0d142e shows
+    this program failing on, no row in this repository dominates it, because no row
+    exists.
+  sota_delta: >-
+    QUANTITATIVELY, AGAINST THIS PROGRAM'S MEASURED INSTRUMENT, NOT AGAINST THE
+    WORLD. Current: 84 of 140 attempted descents censored at an 8 s alarm; mean
+    completed descent 7.5 s; 31 of 31 ellrank timeouts at a4 of order 1e19; all 83
+    censored fibres reported at the section floor of 8. Target: alpha at most 0.75
+    giving at least a 1.33 times extension in reachable canonical height at fixed
+    budget, and a pre-declared minimum of 5 of 20 re-searched censored fibres
+    certified above the floor. Against published art the delta is ZERO OR NEGATIVE
+    -- the method exists and this program would merely be acquiring it. Delta on
+    rank over Q: zero. Delta on the world record: zero.
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+    basis: >-
+      Implementation is the expensive part and is honestly high: a correct
+      box-covering schedule with a bounded linearisation error, an LLL and
+      enumeration backend, exact rational verification, and a matched naive
+      baseline are four separate pieces, and getting the accounting matched between
+      arms is where such comparisons usually fail. Compute is roughly 13 CPU-hours
+      across four steps.
+
+  recommended_priority: medium

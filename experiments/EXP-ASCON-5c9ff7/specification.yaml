@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-ASCON-5c9ff7
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-36e10a; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-36e10a
+  question_id: RQ-ASCON-2dfd8b
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate exhaustively whether any two of the standard's four sibling algorithms can be driven
+    to the same initial state and absorb-sequence prefix, and measure the minimum IV Hamming distance
+    that empties the cross-mode table
+  objective: 'The one uncertainty a run reduces is whether four algorithms sharing one permutation
+    are separated by their initialization words and separator conventions at the level of what the
+    permutation actually consumes. Concretely: (i) over a declared class of short inputs and a declared
+    prefix depth, does any ordered pair of the four modes admit inputs producing an identical (initial
+    state, absorb prefix) fingerprint, and if so what is the explicit certificate, re-verified by
+    direct byte comparison; (ii) sweeping candidate IV sets across Hamming distances 0 to 16, what
+    is the minimum distance at which the cross-mode table becomes empty over that class -- the record''s
+    primary deliverable precisely because it needs no pinned constants and is therefore computable
+    in an environment that cannot read the standard; (iii) does the collapsed-IV null, run in the
+    same invocation with two modes sharing an IV, produce certificates that the search actually finds,
+    without which an empty signal table would be evidence about the search rather than about the modes.
+    The permutation is stubbed and no cryptographic computation occurs.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: over the declared per-mode
+      input classes, at prefix depths 1 to 3, with the four encoders pinned to declared test vectors,
+      the cross-mode fingerprint table was empty / contained the attached certificates for the listed
+      ordered pairs, and became empty at minimum IV Hamming distance d; the collapsed-IV null produced
+      N certificates, all re-verified. WHAT DOES NOT FOLLOW: nothing about inputs outside the class
+      or prefixes beyond depth 3; nothing about the full alphabet if a reduced one was used; nothing
+      about output distinguishability even given a fingerprint coincidence; nothing about the security
+      of Ascon, of any of its four algorithms, or of any deployed device; and no design recommendation
+      from the measured distance d.'
+  inputs:
+    procedure: 'STAGE 0 (human time, blocking): obtain the standard and its test vectors for all four
+      algorithms; the least-documented mode gates the run. STAGE 1 (about two days): implement the
+      four initialization constructors and four absorb encoders with the permutation stubbed, plus
+      one independent re-implementation used for cross-checking a sample. STAGE 2 (minutes): run the
+      test-vector gate through all four full modes; halt on any mismatch. STAGE 3 (seconds to minutes
+      of CPU): enumerate each mode''s declared input class, canonicalise to fingerprints at prefix
+      depths 1, 2 and 3, and insert into one mode-tagged table; extract candidate certificates. STAGE
+      4 (minutes): re-verify every certificate by direct byte comparison outside the table and record
+      it individually with its prefix depth. STAGE 5 (minutes): sweep candidate IV sets over Hamming
+      distances 0 to 16 and record the minimum distance emptying the table, checking monotonicity.
+      STAGE 6 (seconds, same invocation): run the collapsed-IV null and the matched-distance random-IV
+      null, plus the self-pair control; then emit the four-by-four table, the minimum distance, class
+      boundaries, unenumerated regions and seeds.'
+    instrument: Python 3.11 standard library for the four encoders and the enumeration; a pinned pure-Python
+      Ascon permutation used ONLY at the test-vector gate and never inside the enumeration; hashlib
+      for fingerprint keys; pytest for the gate, the self-pair control and the tail checks; harness/runner.py
+      for the manifest, seeds and the inference block. No Sage, no computer algebra system, no solver,
+      no network access.
+    parameters: 'Four modes. Per-mode variable-length fields each in 0..2 bytes over a declared 4-symbol
+      alphabet, with nonces and keys held at declared fixed values for the AEAD mode so its class
+      stays comparable. Prefix depths 1, 2 and 3 blocks. IV-set sweep across Hamming distances 0 to
+      16, with 32 random IV sets drawn per distance. Collapsed-IV null: one declared pair of modes
+      sharing an IV. Cross-check sample 1 percent of fingerprints against the independent re-implementation.
+      Seeds recorded for every random IV draw.'
+  controls:
+  - 'Collapsed-IV null: two modes given the same IV word, where certificates must be found and re-verified.'
+  - Random-IV null at matched Hamming distance, separating structural separation from accidental separation.
+  - 'Test-vector gate: all four modes must reproduce every declared vector through the full mode before
+    enumeration.'
+  - Independent re-verification of every certificate by direct byte comparison outside the table.
+  - 'Self-pair control: each mode against itself must produce coincidences only for genuinely equal
+    inputs, confirming the table is not collapsing distinct inputs.'
+  - Prefix-depth sweep at 1, 2 and 3 blocks, so an emptiness verdict is never reported for one depth
+    as though it held at all depths.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A COLLAPSED-IV NULL: the identical enumeration run with two of the
+    four modes assigned the SAME IV word, in the SAME invocation, where the cross-mode table MUST
+    be non-empty and the certificates must be found and re-verified. If the collapsed null returns
+    nothing, the enumeration cannot see a cross-mode coincidence and the signal arm''s emptiness is
+    a property of the search. A SECOND null assigns all four modes random IV words at matched Hamming
+    distance, whose table should be empty at the same rate as the signal arm if the separation comes
+    from distance rather than from the specific constants -- distinguishing a structural separation
+    from an accidental one.'
+  independent_variables:
+  - mode pair (ordered, across the four algorithms)
+  - prefix depth (1, 2, 3 blocks)
+  - IV set (swept by Hamming distance 0 to 16, 32 draws per distance)
+  - arm (signal / collapsed-IV null / matched-distance random-IV null)
+  metrics:
+    primary:
+    - cross-mode certificate count per ordered mode pair, per prefix depth, per IV set
+    - minimum IV Hamming distance emptying the table over the declared class
+    - collapsed-IV null certificate count
+    - test-vector agreement per mode at the gate
+    secondary:
+    - matched-distance random-IV null certificate count
+    - enumerated class size per mode, stated exactly
+    - self-pair control outcome
+    - cross-implementation agreement rate on the 1 percent fingerprint sample
+    - wall-clock and peak memory
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: d_min, the smallest IV-word Hamming distance at which the cross-mode fingerprint table
+      is empty over the declared input class at prefix depth 2; and N_collapsed, the certificate count
+      in the collapsed-IV null.
+    formula: 'Define fingerprint F(mode, input) = (initial_state_bytes, absorb_sequence_bytes truncated
+      at D blocks). A cross-mode certificate is a pair (m1, x1), (m2, x2) with m1 not equal to m2
+      and F(m1, x1) = F(m2, x2). Then d_min = min { h : for every IV set with pairwise Hamming distance
+      at least h, no cross-mode certificate exists over the declared class at D = 2 }, estimated over
+      32 random IV sets per distance. Forced predictions: N_collapsed strictly greater than zero;
+      d_min monotone in the sense that no distance above d_min admits a certificate -- a non-monotone
+      sweep is an enumeration defect and halts interpretation. d_min itself is not pre-committed to
+      a value.'
+    source: Pre-registered in the parent proposal IDEA-20260816-36e10a before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are very short inputs over a reduced alphabet at prefix depths
+      of at most three blocks, chosen so the cross product of any two modes'' classes is literally
+      enumerable rather than sampled. The transfer assumption is asymmetric and stated: a certificate
+      found at short lengths is a genuine encoder-level coincidence independent of scale, whereas
+      emptiness at short lengths transfers to longer inputs only under the untested assumption that
+      separator and padding behaviour does not change at deeper block boundaries -- which is why the
+      prefix-depth sweep deliberately spans a block boundary and the unenumerated region is named
+      explicitly in the deliverable.'
+    correspondence: null
+  tail_checks:
+  - Empty inputs in every mode, the most likely place for two modes to coincide.
+  - Inputs whose total length lands exactly on a rate block boundary, where padding rules fire differently
+    per mode.
+  - IV Hamming distance 0 for a pair of modes, which must reproduce the collapsed-IV null's behaviour
+    exactly.
+  - Prefix depth 1, where coincidence is easiest and the table should be fullest if it is ever non-empty.
+  - Maximum-length inputs in the declared class, confirming no truncation in the encoders or the table
+    keys.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before enumeration if any of the four modes fails a declared test vector.
+  - Halt and report a detector defect if the collapsed-IV null returns zero certificates or if the
+    self-pair control shows distinct inputs colliding.
+  - Stop at the declared class and prefix depths; do not extend either after seeing the table, since
+    post-hoc extension turns a declared coverage statement into an unbounded search.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: All four modes pass their declared test vectors, the self-pair control passes,
+    the collapsed-IV null yields re-verified certificates, the enumeration covers the declared class
+    exhaustively at all three prefix depths, and the four-by-four table and d_min are reported with
+    class boundaries and unenumerated regions named -- whichever values they take.
+  falsification_criterion:
+  - The collapsed-IV null returns zero certificates.
+  - Any certificate fails independent byte re-verification.
+  - Any mode fails a declared test vector.
+  - The self-pair control shows distinct inputs sharing a fingerprint.
+  - The IV-distance sweep is non-monotone.
+  - The cross product cannot be enumerated within memory, in which case the exhaustive claim is withdrawn
+    and coverage reported as partial.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-36e10a
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - None of the four modes' encoders or IV words is pinned in this environment; a Coordinator must
+    file the standard as a KN-LIT entry with test vectors for all four algorithms, and RQ-ASCON-2dfd8b
+    forbids designing an experiment until both documents are filed.
+  - How to read a certificate that holds at prefix depth 2 but not at depth 3 is a judgement the Coordinator
+    must fix in advance, since deciding it after seeing certificates would let the reading follow
+    the result.
+  - Whether holding the AEAD mode's key and nonce at fixed declared values makes its class fairly
+    comparable to the keyless modes' classes needs a Coordinator ruling.
+  - The ten domain-separation-matched proposals were seen by filename only and must be read to confirm
+    none already occupies this cross-mode surface.

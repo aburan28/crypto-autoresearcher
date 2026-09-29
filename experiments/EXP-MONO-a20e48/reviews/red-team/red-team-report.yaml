@@ -1,0 +1,431 @@
+red_team_report:
+  id: RT-20260830-a20e48j2
+  task_id: red-team-mono3-a20e48
+  claim_under_review: >-
+    EXP-MONO-a20e48 execution_report.yaml's headline observation: the
+    base-change-ladder protocol (H-MONO-59f6a6) reproduced every forced
+    value on the six-object battery in both replication runs, with no
+    drop on N1 (R_k=8 at k=1..4) and a pre-run implementation bug (wrong
+    Frobenius exponent in tower.Level2) disclosed as caught and fixed
+    before any official run. J2 scope only: adversarial verification that
+    this clean multi-object pass is real, independent of J1 (arithmetic
+    correctness / re-derivation of bounds / determinism), which is owned
+    by a concurrent Validator session whose report was not read.
+
+  verdict: holds
+
+  objections:
+    - >-
+      OBJECTION 1 (process gap, not a break): the disclosed "pre-run bug
+      caught by a self-test" (implementation.md, execution_report.yaml
+      anomalies) has ZERO artifact trail in the committed record. Git
+      history for this experiment has exactly one commit that adds
+      tower.py (1bd4cf9d0), already containing the CORRECTED exponent;
+      there is no earlier buggy commit, no diff, no retained self-test
+      script, and no self-test output anywhere in raw-result.json or the
+      run manifests. The claim "an initial implementation used the
+      level-1 field's own order... caught by the required
+      ring-homomorphism self-test... before any battery member was run"
+      is asserted in prose only. This does not mean it is false -- see
+      the reconstruction below, which shows the claimed mechanism is
+      mathematically coherent and would in fact fail loudly -- but the
+      record currently asks a reviewer to trust a narrative about
+      pre-run development history that the archive cannot corroborate.
+      required_artifacts should have included the self-test's own code
+      and a pass/fail transcript; it did not.
+    - >-
+      OBJECTION 2 (real methodological weak point, not specific to this
+      run): "closure(observed Frobenius permutations) == structural
+      upper bound U" is a WEAKER witness of correctness than the record
+      implicitly treats it as. I constructed a maximally-broken variant
+      of tower.Level2.frob (identity map -- i.e. "forget to implement
+      level-2 Frobenius") and ran it against N1's actual k=2,3,4 sampling
+      procedure (same seeds, same field construction). Result: every
+      point that should land in the "four_cycle" class (order-4 rotation,
+      requiring a level-2 lift) instead gets silently reclassified as
+      "identity" (the broken frob is a no-op, so the point maps to
+      itself). Despite this, `subgroup_closure` on the surviving
+      generators (both order-2 reflection classes + the central order-2
+      element, still classified correctly because they only ever need
+      level 0/1) STILL closes to the full order-8 group, because two
+      reflections from different D4 conjugacy classes already generate
+      the whole group by composition -- the four_cycle stratum is never
+      independently needed to reach closure order 8. A record that
+      reported only "group_order: 8" and "labelling_control: agrees"
+      would have been unable to distinguish this broken run from the
+      real one; both close to 8. See `verification_scripts` for the
+      reproducing code and counts.
+    - >-
+      OBJECTION 3 (minor, disclosed): measured wall-clock (~450-460s per
+      run) exceeded the frozen contract's own cost_note estimate ("seconds
+      to low tens of seconds") by roughly 15-30x. This is honestly
+      disclosed as a protocol_deviation and stayed inside the 1800s
+      budget cap, so it is not a validity problem, but it means the
+      contract's own pre-registered cost model for this exact battery was
+      wrong by more than an order of magnitude -- worth naming so it is
+      not silently trusted for the next sibling record's budget.
+    - >-
+      OBJECTION 4 (minor, disclosed): the labelling-control's per-point
+      logs were deliberately not retained (only the aggregate
+      "matches_primary: true" flag survives). This is disclosed
+      (protocol_deviations item 4) rather than hidden, but it means the
+      labelling control -- unlike every other primary metric -- cannot be
+      independently re-derived from archived raw data the way I did for
+      N1/N2/N2-twin/N4's primary R_k values below; it must be taken on
+      the Executor's summary alone.
+
+  required_controls:
+    - >-
+      For any future record making a "generated-subgroup order equals
+      structural bound U" claim on a group with more than 2 generators'
+      worth of structure (D4, S4, S5, ...): report explicitly which named
+      conjugacy classes / strata were independently realized, and require
+      ALL forced classes present (not just closure-order == U). Closure
+      order alone is satisfiable from a strict subset of the true
+      generator set whenever the missing classes are products of
+      surviving ones -- demonstrated concretely above for D4's four_cycle
+      class. This is a strictly stronger, cheap-to-add check that would
+      have caught the constructed identity-frob bug immediately (it would
+      report four_cycle: 0 observed, structurally inconsistent with a
+      genuine D4 realization even though closure = 8).
+    - >-
+      When a record discloses a pre-run bug catch, require the self-test
+      script and its transcript (failing-then-passing output) as a named
+      required_artifact, exactly as m_k(x)'s search transcript and the
+      Frobenius-two-ways cross-check already are for other components of
+      this same contract. The frobenius_two_ways_cross_check that IS
+      preserved in stage0 only exercises `fieldext.FpK` (level-0 fields);
+      it never touches `tower.Level1`/`Level2`, which is exactly where
+      the disclosed bug lived. That is a real coverage gap in the
+      contract's own required Stage-0 self-checks, independent of whether
+      the specific disclosed bug is true as narrated.
+
+  counterexample_or_mutation: >-
+    Two constructed mutations of tower.py, run against the real battery
+    with the real seeded sampling procedure (not toy inputs), reported in
+    `verification_scripts`:
+    (a) `tower_buggy.py` -- reproduces the LITERALLY DISCLOSED bug
+    (Level2's automorphism exponent computed from q1=q0^2 instead of
+    q0). Outcome: ~25-26% of N1's k=2,3,4 samples (exactly those needing
+    a level-2 lift, i.e. the four_cycle stratum) raise an uncaught
+    RuntimeError ("Frobenius image matched no labelled point"), which in
+    the ACTUAL shipped run_experiment.py (no try/except anywhere around
+    n1_classify_point) would crash the whole run outright, not silently
+    misreport a number. This makes the "caught before any official run"
+    narrative mechanistically plausible: this exact bug is self-evidently
+    loud, not something that would need a bespoke unit test to notice --
+    any attempted run on real data would have crashed within the first
+    handful of k>=2 samples. This is corroborating (not proof) of the
+    disclosed account.
+    (b) `tower_identity_bug.py` -- a maximally broken variant (level-2
+    Frobenius = identity, i.e. "forgot to implement it"). Outcome:
+    NO CRASH, and N1's k=1 EXHAUSTIVE census (44,521 points) produces a
+    histogram with four_cycle: 0 and identity inflated by exactly the
+    missing four_cycle mass (17,160 = 6,105 + 11,055), while sigma_i,
+    sigma1_sigma2, and block_swap_involution are untouched (they never
+    need level 2). Group order under this bug is STILL 8 by closure. This
+    is the proves-too-much object for Objection 2: it is a genuinely
+    broken protocol whose headline metric (closure order = U) still
+    reads DECIDED-and-correct.
+    CRITICAL POSITIVE FINDING: the archived run's own reproduction control
+    would have caught mutation (b). I independently tallied the k=1
+    exhaustive histogram straight from
+    `runs/RUN-*/per_base_point_log/N1_k1_exhaustive.jsonl` (both runs, all
+    44,521 rows, my own tally code, not the Executor's): {block_swap_involution:
+    11100, sigma_i: 11100, identity: 6105, four_cycle: 11055,
+    sigma1_sigma2: 4950} in BOTH runs, exactly matching EXP-MONO-4c7479's
+    own committed reference histogram, which I confirmed is a genuine
+    pre-existing artifact (grepped `experiments/EXP-MONO-4c7479/runs/
+    RUN-MONO-4c7479-20260830/raw-result.json`, found identity: 6105 etc.
+    verbatim there, not something invented for this contract). Since
+    mutation (b) changes the k=1 histogram detectably (four_cycle
+    disappears entirely), and the real run's k=1 histogram matches the
+    independent sibling reference exactly including a nonzero four_cycle
+    count, the real run's tower/Level2 code is NOT exhibiting mutation
+    (b)'s failure mode at k=1. Because Level2's frob formula has no
+    k-specific branch (it is parameterised only by the base field object
+    F0.q), and I independently confirmed nonzero, structurally-plausible
+    four_cycle counts (~24-26% of 10,000, matching D4's 2/8 class-size
+    density) at k=2,3,4 too (from the raw per-point logs, not the
+    summary), this is transitive evidence -- not absolute proof, since no
+    external reference exists for k>=2 -- that Level2 is genuinely correct
+    at every tested k, not merely lucky at k=1.
+
+  baseline_comparison: >-
+    Not applicable in the ECDLP-attack sense (this record makes no
+    ECDLP/cost claim; target_complexity and asymptotic_claim in both the
+    hypothesis and specification are explicitly null, and I have no
+    objection to that scoping). Within-lane baseline: the k=1 reproduction
+    control against EXP-MONO-4c7479's own committed run is the correct
+    and only available baseline for this instrument, and I independently
+    re-verified it holds from raw artifacts on both sides (see above),
+    not merely from the two experiments' own mutual say-so.
+
+  heuristic_challenges:
+    - >-
+      HEUR-AG-2 (coupon-collector sample-size floor) -- independently
+      computed, not merely trusted: at S=10,000 and worst-case per-class
+      density 1/|U| (1/8 for N1's D4, 1/4 for N2/N2-twin's (Z/2)^2), the
+      probability of failing to observe a genuinely-present class is
+      (1-1/8)^10000 ~ 10^-580 and (1-1/4)^10000 ~ 10^-1249 respectively --
+      not merely "comfortably above 0.999" as the contract states, but
+      astronomically far above it. This means the false-negative risk (a
+      real class present but unsampled, masquerading as a drop) is not a
+      live concern at this sample size for N1/N2/N2-twin; HEUR-AG-2's
+      claimed probability floor is a significant understatement of the
+      actual margin, in the safe direction. Note the asymmetric risk this
+      implies: sample size cannot explain away a GENUINE drop (if the true
+      arithmetic group really were smaller, no amount of sampling could
+      ever produce elements outside it -- the closure would deterministically
+      cap below U, not probabilistically). So "N1 held at 8" is not a
+      statistical inference that could fail with unlucky sampling; it is
+      an existence proof (closure of exhibited elements = 8) subject only
+      to the correctness objection in Objection 2/2's mutation, not to
+      sample-size risk.
+    - >-
+      HEUR-AG-1 (inertia lower bound = geometric monodromy, tame case) is
+      correctly flagged RECALLED, NOT FETCHED in both the idea and
+      hypothesis records, with the tameness gap named explicitly (p not
+      dividing a ramification index). I did not re-derive this heuristic
+      (out of J2 scope; it is a J1-adjacent arithmetic-correctness
+      question), but note it is honestly scoped and not silently treated
+      as unconditional.
+
+  cost_model_challenges:
+    - >-
+      No ECDLP cost model is claimed (target_complexity: "NO ATTACK, NO
+      EXPONENT" in both records), so the exemplar-profile cost-bookkeeping
+      challenges (per-attempt x inverse-success-probability, o(1)/polylog
+      overhead, van Oorschot-Wiener interpolation) do not apply to this
+      toy instrument record; applying them would be scope inflation in
+      the other direction. The one cost-model issue in scope is Objection
+      3 (wall-clock estimate off by 15-30x), which is disclosed and inside
+      budget.
+
+  reduction_and_scope_challenges:
+    - >-
+      No reduction chain or corollary is claimed beyond the six frozen
+      battery objects at p=211 (reduction_chain.corollaries_note in
+      H-MONO-59f6a6 disclaims exactly this). Scope is not inflated:
+      interpretation_limits explicitly states a passing battery certifies
+      nothing about any other census route, and the N5 scoping-down
+      (degree-100 -> generic quintic) is disclosed with a stated,
+      checkable reason (Lagrange: 100 does not divide 5!=120... actually
+      the record's own reason is that 100 does not divide 8!, the
+      relevant fibre-size bound for this battery's design) rather than
+      silently substituted. I did not find the scoping-down used to
+      overstate what N5 tests: the forced UNDECIDED verdict is hardcoded
+      in run_experiment.py (`n5["ladder"][k]["verdict"] = "UNDECIDED"`),
+      never derived from the density match, so there is no risk of the
+      good S5-density fit being smuggled into a DECIDED verdict.
+
+  n1_drop_reattack:
+    method: >-
+      Independently reconstructed R_k at k=2,3,4 for N1 directly from
+      `per_base_point_log/N1_k{2,3,4}_sampled.jsonl` in BOTH runs, using
+      my own from-scratch closure/permutation-order code (never importing
+      or reading `battery.subgroup_closure`), reading only the raw `perm`
+      field logged per sampled base point.
+    results: >-
+      All six (run x k) cells for N1 independently recomputed: group_order
+      = 8 in every case, with element-order profile {order-1: 1 elt,
+      order-2: 5 elts, order-4: 2 elts} -- the exact D4 signature -- in
+      every case. Smallest observed class count at k=2,3,4 across both
+      runs ranged 1193-1319 (identity/sigma1_sigma2 classes, forced
+      density ~1/8 of 10,000 = 1,250), comfortably nonzero and consistent
+      with genuine realization, not a near-miss. N2 independently
+      recomputed as 4,2,4,2 (both runs) and N2-twin as 4,4,4,4 (both runs)
+      directly from raw perm data -- the central forced contrast (M2/M3)
+      holds under an independently-written verification method, not just
+      the Executor's own subgroup_closure implementation.
+    n4_hand_derivation: >-
+      N4 has no per-point log (single exact computation by design); I
+      hand-derived it from field theory instead of trusting either the
+      Executor's code or its report. m_3(x)=x^3-2 makes the field
+      generator x itself a root of Y^3-2 (roots (0,1,0), (0,14,0),
+      (0,196,0) in coefficient-tuple form). Frobenius(x)=x^211=(x^3)^70*x
+      = 2^70*x = 196x (using the independently-verified stage0 fact
+      2^70 mod 211 = 196) = root2; Frobenius(14x)=14*196x=(14*196 mod 211)x
+      = 1*x = root0 (14*196=2744=13*211+1); Frobenius(196x)=196*196x=
+      (196^2 mod 211)x=14x=root1 (196^2=38416=182*211+14). This gives
+      perm=[2,0,1] for k=1, a genuine 3-cycle, matching the reported
+      permutation exactly. Frob^2 and Frob^3 were likewise hand-verified
+      to match the reported [1,2,0] and [0,1,2] (identity) respectively.
+      This is a full, independent, by-hand re-derivation of N4's R_1=3,
+      R_3=1 result from first principles, not a re-read of the record.
+    verdict_on_n1: >-
+      CONFIDENCE: HIGH that N1 genuinely did not drop in this run, subject
+      to the residual (and honestly disclosed) k>=2 Level2-correctness gap
+      discussed in Objection 2/counterexample (b), which I could not close
+      to absolute certainty from archived artifacts alone but for which I
+      found strong transitive evidence (nonzero, structurally-plausible
+      four_cycle counts at every k, from raw data) that the failure mode I
+      constructed is NOT present in this run. This is existence-proof-grade
+      evidence (closure of exhibited group elements), not a statistical
+      estimate, so ordinary sampling risk (item 2's coupon-collector
+      concern) is not the operative uncertainty here at all -- correctness
+      of the field-arithmetic classifier is.
+
+  proves_too_much_control:
+    protocol_variant_1: >-
+      "Always report no drop" (Level1.conj = identity, i.e. every
+      Frobenius acts trivially at level 1 and above). Run against N2's
+      real k=1..4 procedure (exhaustive at k=1, S=10,000 sampled at
+      k=2,3,4, real seeds) using MY OWN independent closure code (not
+      battery.py's). Result: R_k = 1 (trivial group) at every k, in flat
+      contradiction with the forced (4,2,4,2) -- CAUGHT at all four k,
+      immediately and unambiguously, by the exact same verification
+      method I used to certify the real run's N2 result above. This
+      confirms the method has genuine discriminating power and did not
+      merely rubber-stamp whatever the log said.
+    conclusion: >-
+      The verification method (raw-permutation extraction + independent
+      closure) is not vacuous: it correctly convicts a maximally broken
+      protocol on N2 and correctly exonerates the real run's data on
+      N1/N2/N2-twin/N4. Its one demonstrated blind spot is Objection 2's
+      class-coverage gap, which is orthogonal to (and does not undermine)
+      this specific proves-too-much result.
+
+  n3_multiple_comparisons: >-
+    Independently recomputed the flagged cell from raw data:
+    `N3_k4.jsonl` in RUN-MONO-a20e48-2, class "1^4": 56 observed / 2000
+    accepted draws, forced density 1/24 => expected 83.33, se=8.94,
+    deviation = -3.0586 se -- confirms the disclosed number exactly (not
+    fabricated). Multiple-comparisons context, computed independently:
+    across N3 (5 classes x 4 k x 2 runs = 40 cells) + N5 (7 classes x 4 k
+    x 2 runs = 56 cells) + N3's identical-object-null (2 halves x 5
+    classes x 2 runs = 20 cells) = 116 density checks at a nominal 3-se
+    (two-sided, P(|Z|>3)~=0.0027) threshold, the EXPECTED number of >=3-se
+    excursions under the null is ~0.31, and P(at least one exceedance
+    across the whole battery) ~= 27%. Using degrees-of-freedom-corrected
+    counts (each k-run cell has classes-1 independent coordinates, since
+    counts sum to a fixed n) gives ~96 effective checks, expected ~0.26,
+    P(>=1) ~= 23%. Observing exactly one ~3.06-se excursion out of ~100
+    quasi-independent checks is squarely inside the expected range under
+    pure chance -- the Executor's own "unsurprising" characterization is
+    correct, and I have now attached actual numbers to it rather than
+    leaving it as an assertion. Also directly inspected all 56 N3/N5
+    density cells across both runs (see `verification_scripts` output):
+    the full deviation spread for N5 ranges -2.58 to +2.30 se with no
+    other cell near 3, a healthy natural scatter -- not "too good to be
+    true" and not a second undisclosed excursion hiding nearby.
+
+  n5_secondary_finding: >-
+    No anomaly found. N5's Step-5 UNDECIDED verdict is hardcoded in
+    run_experiment.py independent of the measured density
+    (`n5["ladder"][k]["verdict"] = "UNDECIDED"` unconditionally), so there
+    is no path by which a good density match could have been smuggled
+    into a DECIDED verdict -- confirmed by reading the code, not just the
+    report's assertion. The density profile itself (7 classes x 4 k x 2
+    runs) shows ordinary random scatter with visibly DIFFERENT histograms
+    at each k (e.g. run1 k=1 "1^5" count 22 vs run2 k=3 "1^5" count 22 vs
+    run1 k=2 "1^5" count 13 -- genuinely different draws, not a repeated
+    or memoized histogram), which is evidence AGAINST non-independent
+    draws across k, not for it. No secondary finding to flag.
+
+  narrowest_supported_statement: >-
+    On J2 (adversarial verification that the reported clean sweep is
+    real): the six-object battery's forced values, independently
+    recomputed from raw per-point/per-draw data using my own
+    from-scratch verification code (never reusing battery.py's
+    subgroup_closure or run_experiment.py's summary numbers), match the
+    Executor's reported values exactly, in both runs, for every primary
+    metric I was able to re-derive from archived raw data (N1, N2,
+    N2-twin's R_k sequences; N4's full R_k derivation by hand; N2's
+    sample-size control; N3's flagged excursion and its
+    multiple-comparisons context; N5's verdict-hardcoding and density
+    scatter). This holds at exactly the tested scope: p=211, the six
+    frozen battery objects, k<=4, two replication runs -- nothing wider.
+    The disclosed pre-run bug claim is plausible in mechanism (my
+    reconstruction of the literally-described bug produces a loud,
+    unmissable crash on real data, consistent with "caught before any
+    official run") but is not independently verifiable from the archive
+    (no surviving test artifact); I was however able to independently
+    rule out, from raw per-point data, the specific silent-failure mode
+    (Objection 2 / mutation (b)) that a RELATED, uncaught bug in the same
+    component could plausibly have produced. The labelling control is the
+    one primary control I could not independently re-verify (its raw log
+    was not retained by design). None of this changes any hypothesis or
+    experiment status; that authority belongs to the Coordinator alone.
+
+  next_concrete_action: >-
+    Coordinator/Executor should retrofit a class-coverage assertion (all
+    forced conjugacy classes/strata observed with nonzero count, not just
+    closure order == U) as a standard required control for any future
+    generated-subgroup-order claim on a group where closure could be
+    reached from a strict subset of the true generating classes (D4, S4,
+    S5, and any group with more than one "layer" of field-extension
+    lift). Separately, any future disclosure of a "bug caught before an
+    official run" should be required to preserve the self-test script and
+    its transcript as a named artifact under `required_artifacts`,
+    exactly as the m_k(x) search transcript already is -- this is a cheap
+    process fix, not a re-run of anything.
+
+  verification_scripts:
+    location: >-
+      /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad
+      (throwaway, per instructions; not committed, not under the
+      experiment's write_scope; see runtime-session-receipt.json for the
+      exact commands run and their output).
+    files:
+      - >-
+        verify.py -- independent raw-log tally + from-scratch subgroup
+        closure + element-order computation; used to re-derive N1/N2/
+        N2-twin's R_k directly from per_base_point_log/*.jsonl.
+      - >-
+        bugtest/tower_buggy.py -- reconstructs the literally-disclosed bug
+        (Level2's automorphism exponent uses q1=q0^2 instead of q0).
+      - >-
+        bugtest/tower_identity_bug.py -- maximally broken Level2.frob
+        (identity); the proves-too-much / silent-coincidence object for N1.
+      - >-
+        bugtest/tower_conj_bug.py -- maximally broken Level1.conj
+        (identity); the proves-too-much object for N2, "always report no
+        drop".
+      - >-
+        bugtest/run_bug_n1.py, run_bug_n1_id.py, run_bug_n1_k1.py,
+        run_bug_n2.py -- drivers exercising the real seeded sampling
+        procedure against both the real and mutated tower code.
+
+  review_attestation:
+    task_id: red-team-mono3-a20e48
+    role: red-team
+    joints_owned: [J2-adversarial-verification]
+    verdict: holds
+    blindness:
+      read_sibling_reports: false
+      note: >-
+        A sibling `reviews/validator/` directory exists under this
+        experiment (J1, a concurrent independent session); per task
+        instructions its contents were never opened or read.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/proposals/IDEA-20260830-8a767e.yaml
+      - ledger/hypotheses/H-MONO-59f6a6.yaml
+      - experiments/EXP-MONO-a20e48/specification.yaml
+      - experiments/EXP-MONO-a20e48/execution_report.yaml
+      - experiments/EXP-MONO-a20e48/implementation.md
+      - experiments/EXP-MONO-a20e48/implementation/battery.py
+      - experiments/EXP-MONO-a20e48/implementation/fieldext.py
+      - experiments/EXP-MONO-a20e48/implementation/fieldpoly.py
+      - experiments/EXP-MONO-a20e48/implementation/tower.py
+      - experiments/EXP-MONO-a20e48/implementation/seed.py
+      - experiments/EXP-MONO-a20e48/implementation/run_experiment.py
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/manifest.yaml
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/raw-result.json
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/per_base_point_log/*.jsonl (all files, full contents)
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/raw-result.json
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/per_base_point_log/*.jsonl (all files, full contents)
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json (external reference cross-check)
+      - git log / git show for experiments/EXP-MONO-a20e48 (history-completeness check on the disclosed pre-run bug)
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verification_note: >-
+      No `orchestration.adapter doctor --probe` was run in this session;
+      the model identifier above is self-reported per this runtime's own
+      system context, not independently probe-verified. Recorded per
+      AGENTS.md's "never silently substitute" spirit rather than omitted.
+    procedure_deviations: []

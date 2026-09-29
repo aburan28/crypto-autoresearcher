@@ -1,0 +1,681 @@
+idea:
+  id: IDEA-20260829-083a6b
+  question_id: RQ-SYMF-5ab172
+  title: >-
+    Calibrate the frontier review pipeline against seeded defects of known
+    class, so that a "breaks" or "holds" verdict carries a measured
+    false-negative rate instead of an unmeasured one
+  class: control
+  claim: >-
+    This program currently reports review verdicts on its symmetric frontier
+    with NO estimate of what fraction of defects the review would have missed -
+    EV-SYMF-d46055 records three joint verdicts of "breaks" and eight named
+    findings, and reports no false-negative rate anywhere. Seeding a blinded
+    copy of the committed 67-row snapshot with defects of six precommitted
+    classes and re-running the identical review protocol will produce a
+    per-class detection rate, and the claim is that those rates are NOT
+    uniform - specifically, that the detection rate for STRUCTURAL defects
+    (checkable against the schema and the row's own fields - round-convention
+    swap, attacker-model relabelling, provenance-state inflation) exceeds the
+    detection rate for SOURCE-ONLY defects (requiring a return to the primary
+    text - unit swap, exponent digit transposition or borrowing from an
+    adjacent row, omission of a source-stated charged axis) by at least 0.30
+    in absolute terms, and that the overall detection rate is below 0.85. The
+    discriminating consequence - if the difference is large, review capacity
+    is best spent on source re-reading and the tooling that helps is a
+    source-binding instrument, whereas if the rates are equal, defects are not
+    separable by class and a class-targeted tool cannot help. A third possible
+    outcome is pre-declared and is the one that would invalidate the
+    instrument itself - if reviewers detect seeded defects at a rate far above
+    their measured rate on the eight REAL defects already recorded on the same
+    snapshot, seeded defects are not exchangeable with natural ones and no
+    detection-power number from the run may be reported.
+  mechanism: >-
+    TRACKED OBJECT. The object followed through the computation is the DEFECT -
+    a typed difference between a ledger row and its primary source - carried
+    through the review pipeline and projected onto (defect class, review
+    stage, detected or not). One-step propagation is defined and measurable -
+    a review stage either flags the row or does not, and the class determines
+    which check could in principle catch it (a schema check for structural
+    classes, a source re-read for source-only classes).
+    LOSSY-PROJECTION TEST (algebraic, no compute). The projection (row,
+    ground truth) -> (defect class, detected) discards the row's primitive,
+    its costs, its cryptanalytic content, and the identity of the reviewer.
+    It is strictly lossy - many distinct row-level defects map to one class.
+    The discard is compatible with the target operation (review) exactly when
+    detection probability depends on the class and not on the row - which is
+    the assumption the design must TEST rather than assume, and the design
+    tests it directly by stratifying seeds across headline rows (SHA-1, AES)
+    and obscure rows (SHA-0, MD4) and reporting detection by stratum. If
+    detection turns out to depend strongly on row salience, the projection is
+    losing something the operation consumes, and the honest report is a
+    salience-stratified table rather than a per-class rate. That contingency
+    is written into the design, not discovered afterwards.
+    WHY A NULL ARM IS MANDATORY. Without a zero-seed arm, "detections" cannot
+    be separated from reviewer over-flagging - a reviewer told that seeding
+    occurred has an incentive to flag. The zero-seed arm measures the
+    false-positive floor under identical instructions, and every detection
+    rate is reported against that floor.
+    WHY THE EIGHT REAL DEFECTS MATTER. The committed snapshot carries eight
+    independently found real defects (four J1 structural findings, four J2
+    source-transcription findings, per EV-SYMF-d46055). Re-presenting the
+    UNCORRECTED snapshot to a reviewer blind to the earlier reports gives a
+    two-source capture-recapture design over genuine defects, which is the
+    only available check on whether seeded defects behave like real ones.
+    WHY THIS IS NOT A REPACKAGING OF PEER REVIEW. Existing practice runs a
+    validator and a red team and records their findings. It measures FOUND
+    defects. It cannot measure MISSED ones, because the missed set is
+    unobserved - which is exactly the situation seeding is designed for. The
+    quantity produced here (per-class false-negative rate with a
+    capture-recapture estimate of residual real defects) is not obtainable
+    from any number of additional unseeded review passes.
+  tracked_object: >-
+    The typed defect - a difference between a ledger row and its primary
+    source - propagated through the review pipeline and projected onto
+    (class, salience stratum, detected).
+  lossy_projection_test: >-
+    PASSES conditionally, with the condition measured rather than assumed. The
+    projection is many-to-one (row identity, primitive, costs and reviewer
+    identity discarded) and therefore not a change of coordinates. Its
+    compatibility with the review operation requires detection to depend on
+    class rather than on row; the salience-stratified design measures that
+    dependence directly and the report degrades to a stratified table if the
+    condition fails.
+  novelty_status: unverified
+  citations:
+    - ref: EV-SYMF-d46055
+      provenance: internal
+      claim: >-
+        Three review joints (J1 schema and comparison-key separation, J2
+        primary-source transcription, J3 coverage and frontier overclaim) all
+        returned verdict "breaks", with four named J1 findings and four named
+        J2 findings, including "The full-MD4 no-precomputation row omits
+        source-reported memory 2^64", "The full AES-256 four-related-key row
+        omits source-reported memory 2^77 to 2^77.5", and "The four-round AES
+        row requires 2^125.72, a corrected locator, and a separate partial-key-
+        recovery result kind". No false-negative rate, detection rate, or
+        review-power estimate appears anywhere in the record.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (149 lines).
+    - ref: knowledge/frontiers/symmetric-frontier-schema.yaml
+      provenance: internal
+      claim: >-
+        The 5 verification_states (author_reported_primary_text_read,
+        independently_reproduced_internal, machine_verified_certificate,
+        secondary_pointer_only, recalled_pointer_only), the 8
+        anti_laundering_rules, the 5 allowed_null_reason values, and the
+        review_binding block naming validator TASK-20260825-bb6d5d and red
+        team TASK-20260825-9eda3a. These define the exact defect classes a
+        seeding plan can target and the exact checks a reviewer performs.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full file read
+        (137 lines).
+    - ref: knowledge/frontiers/symmetric-cryptanalysis.yaml
+      provenance: internal
+      claim: >-
+        snapshot_binding records commit
+        5fc23783da8a2e62e2b3ab8728e47c48958ce02f with 67 producer rows and 39
+        logical producer frontier flags; the canonical compilation admits 21
+        rows and leaves 30 not individually admitted. Row-level structure
+        (identity / comparison_key / method / costs / evidence / frontier /
+        canonical_review) is as read.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - header
+        blocks and the first two canonical rows read in full (lines 1-160).
+    - ref: GOAL-SYMF-c00fa1
+      provenance: internal
+      claim: >-
+        Completion criterion 4 requires that independent Validator and Red
+        Team sessions admit the schema, provenance, transcription, comparison
+        keys and dominance decisions, "including the proves-too-much controls
+        in the precommitted review plan" - i.e. the goal already contemplates
+        precommitted controls on the reviewers, which is the slot this
+        proposal fills with a measurement.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (189 lines).
+    - ref: docs/inventor-protocol.md
+      provenance: internal
+      claim: >-
+        Section 3 requires running the identical measurement against a null
+        object before believing a signal, and treats an uncontrolled
+        correlation as not positive evidence. Applied here to the reviewer -
+        the zero-seed arm is the null object.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full file read
+        (261 lines).
+    - ref: "Mutation testing in software engineering (DeMillo, Lipton and Sayward, 'Hints on Test Data Selection', IEEE Computer 11(4), 1978) - seeded faults as an estimator of a test suite's real fault detection"
+      provenance: recalled
+      claim: >-
+        Relied on for the methodological form only - deliberately seeded
+        faults of known class are used to estimate a checking process's
+        sensitivity when the real fault set is unobservable, and the coupling
+        assumption (simple seeded faults are detected by the same checks that
+        detect complex real ones) is the known weak point.
+      verified_by: null
+      note: >-
+        NOT READ THIS SESSION. Cited from recollection for method shape, not
+        for any quantitative result. The coupling assumption is carried here
+        explicitly as heuristic H1 with its own validation route.
+    - ref: "Lincoln-Petersen two-source capture-recapture estimator, N_hat = n1*n2/m, for the size of a population from two independent samples with m in common"
+      provenance: recalled
+      claim: >-
+        Relied on for the form of the residual-defect estimate in the
+        recapture arm - two independent review passes over the same
+        uncorrected snapshot, with the overlap of their findings used to
+        estimate the total defect count.
+      verified_by: null
+      note: >-
+        NOT READ THIS SESSION. The estimator's independence assumption is
+        carried explicitly as heuristic H2 with its own validation route, and
+        the executing task must verify the formula and its bias correction
+        before reporting a number.
+  assumptions:
+    - >-
+      SEEDED ARTIFACTS ARE QUARANTINED ABSOLUTELY. Every seeded copy lives
+      under a single clearly marked experiment path, is hash-bound, is never
+      written to knowledge/frontiers/, is never committed as canonical, and
+      carries a machine-readable poison marker in its top-level schema field
+      (for example schema - SEEDED_DO_NOT_USE). A seeded artifact that reaches
+      the canonical ledger would be a fabricated research record under
+      AGENTS.md rule 5; the run design must make that structurally impossible
+      rather than merely discouraged, and the run receipt must list every
+      seeded artifact with its hash and its disposition.
+    - >-
+      Reviewers are told that seeding occurred and are NOT told how many seeds
+      exist, of which classes, or in which rows. Telling them nothing would
+      make the exercise deceptive toward a collaborating agent; telling them
+      the count would let them stop at the right number.
+    - >-
+      No cryptanalytic search, attack execution, or reproduction occurs. Per
+      RQ-SYMF-5ab172 none is authorized. Seeding alters transcribed values in
+      a scratch copy; it never alters a claim about a primitive.
+    - >-
+      The MD5 collision-path content firewall of GOAL-MD5-001 binds every
+      retrieval route a reviewer uses during the arms, exactly as it binds
+      this goal.
+    - >-
+      The measured detection rates describe THIS review protocol on THIS
+      corpus with these reviewers. They are not a competence rating of any
+      agent or person and must not be recorded as one.
+  proof_search_map:
+    bottleneck: >-
+      Whether a defect that cannot be caught without returning to the primary
+      source is caught at all under the current protocol. Every claim the
+      frontier ledger makes about a published cost passes through
+      transcription, and transcription errors are invisible to any check that
+      does not re-open the paper - so the false-negative rate on that class
+      bounds the credibility of every row.
+    baseline_embedding:
+      parameter_slice: >-
+        Zero seeds. The instrument with an empty seed plan is exactly the
+        current review protocol applied to the current snapshot.
+      reproduction_check: >-
+        Frozen fixture - the zero-seed arm, run on the CORRECTED canonical
+        compilation, must return no new "breaks" on the joints that the
+        committed compilation already resolved, and its flag list is recorded
+        as the false-positive floor. Run on the UNCORRECTED snapshot, the same
+        protocol must re-find a nonzero subset of the eight already-recorded
+        real defects; re-finding none of eight would mean the protocol as
+        re-executed is not the protocol that produced EV-SYMF-d46055, and the
+        experiment halts.
+    observation_collision:
+      observable: >-
+        The reviewer's joint-level verdict string ("breaks" or "holds") per
+        joint, which is what the committed evidence record currently stores.
+      distinct_preimage_search: >-
+        COLLISION PRESENT IN THE CURRENT PROTOCOL AND DIRECTLY ACTIONABLE. A
+        joint reads "breaks" under at least three distinct ground truths -
+        (i) the reviewer caught a seeded defect, (ii) the reviewer caught a
+        real uncaught defect, (iii) the reviewer raised a false positive on a
+        correct but unusual row. The joint verdict alone does not identify
+        which, and EV-SYMF-d46055 stores exactly such verdicts. SEPARATING
+        CONDITION - the review protocol must require a per-ROW, per-FIELD flag
+        list with a reason code, not a joint-level verdict, and the
+        experiment's scoring must operate on that list. This is a concrete
+        protocol amendment and it is a prerequisite for the measurement, so
+        the experiment cannot be run without first fixing the observable -
+        which is itself a finding worth recording independently of the run.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          A per-class resource measure - each defect class is a specialization
+          whose detection count is charged only over the disjoint set of seeds
+          of that class, with the salience stratum as a second, crossed
+          blocking factor.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. A six-class by two-stratum detection table
+          with binomial confidence intervals, from which the structural
+          versus source-only contrast is computed. Charges are disjoint by
+          construction because each seed belongs to exactly one class and one
+          stratum.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the joint verdict fixed at "breaks" and vary the forgotten
+          structure (seeded / real / false positive), exhibiting three
+          preimages and motivating the per-row per-field flag list as the
+          separating invariant.
+        predicted_gain: >-
+          An identified non-identifiability in the program's current review
+          record format, plus the specific field addition that removes it.
+    quantifier_order: >-
+      CLAIMED - THERE EXISTS a defect class c (predicted to be among the
+      source-only classes) such that the review protocol's detection
+      probability on c is bounded below 0.85 with the stated confidence, and
+      the class-averaged structural detection rate exceeds the class-averaged
+      source-only rate by at least 0.30. NOT CLAIMED - FOR ALL defect classes
+      the protocol fails, nor FOR ALL reviewers, nor FOR ALL corpora. The
+      quantifier defect being hunted - a per-class rate estimated from a
+      handful of seeds and then reported as if it were a property of the
+      protocol in general; guarded by reporting confidence intervals with
+      every rate and by refusing to report a rate whose interval spans more
+      than 0.4.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For this protocol, these reviewers, and this corpus - per-class
+        detection rates with binomial confidence intervals, a false-positive
+        floor from the zero-seed arm, and a capture-recapture lower bound on
+        residual real defects in the uncorrected snapshot. The method can
+        NEVER certify that the corrected canonical compilation is
+        defect-free, can never establish an upper bound on real defects, and
+        can never be turned into a competence claim about any agent. POWER
+        CEILING, STATED HONESTLY - with 10 seeds per class (60 total), a
+        single class rate has a 95 percent binomial interval roughly plus or
+        minus 0.30 near p = 0.5, so a per-CLASS rate is nearly uninformative;
+        the design is powered for the GROUPED contrast (30 structural versus
+        30 source-only), where detecting a 0.30 difference at p1 = 0.90 versus
+        p2 = 0.60 has power in the neighbourhood of 0.7 to 0.8. Any per-class
+        number must be reported with its interval and explicitly labelled
+        underpowered.
+      nearby_object_control: >-
+        A CORRECT row that merely looks unusual - a legitimately null memory
+        field with null_reason not_stated_by_source, a qualitative success
+        probability such as the committed "one_collision_in_about_one_hour", a
+        legitimately non-integer round count. These are planted alongside the
+        seeds. If reviewers flag them at a rate comparable to the seeds, the
+        instrument is measuring SUSPICION, not defect detection, and every
+        detection rate from the run is uninterpretable.
+    proof_obligations:
+      - claim: >-
+          The review protocol emits a per-row, per-field flag list with reason
+          codes before any arm is run.
+        responsibility: interface
+      - claim: >-
+          The zero-seed arm on the corrected compilation establishes a
+          false-positive floor, and the zero-seed arm on the uncorrected
+          snapshot re-finds a nonzero subset of the eight recorded real
+          defects.
+        responsibility: baseline
+      - claim: >-
+          Every seeded artifact is quarantined, poison-marked, hash-bound and
+          itemised in the run receipt with its disposition.
+        responsibility: scope
+      - claim: >-
+          Detection rates are reported with binomial confidence intervals and
+          against the false-positive floor, never as bare fractions.
+        responsibility: success_probability
+      - claim: >-
+          The unusual-but-correct control rows are scored separately and their
+          flag rate is reported alongside every detection rate.
+        responsibility: correctness
+      - claim: >-
+          The exchangeability check (H1) is evaluated and, if it fails, the
+          detection-power numbers are withheld rather than caveated.
+        responsibility: feasibility
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        absolute difference between the grouped detection rate on STRUCTURAL
+        defect classes (round-convention swap; attacker-model relabelling of a
+        related-key row as single-key; verification-state inflation from
+        secondary_pointer_only to author_reported_primary_text_read) and the
+        grouped rate on SOURCE-ONLY classes (cost-unit swap; exponent digit
+        transposition or value borrowed from an adjacent row; omission of a
+        source-stated charged axis)
+      direction: higher
+      minimum_effect: >-
+        at least 0.30 in favour of structural. A difference below 0.10
+        falsifies the two-kinds model and means a class-targeted tool cannot
+        help.
+    - metric: >-
+        overall seeded-defect detection rate across all six classes, net of
+        the zero-seed false-positive floor
+      direction: lower
+      minimum_effect: >-
+        below 0.85, i.e. the protocol misses at least 15 percent of seeded
+        defects. A rate at or above 0.95 with a low false-positive floor is a
+        controlled positive - the pipeline is well calibrated, this lane
+        closes, and the finding is recorded as such.
+    - metric: >-
+        zero-seed false-positive floor - number of rows flagged as defective
+        in the zero-seed arm on the corrected canonical compilation
+      direction: lower
+      minimum_effect: >-
+        at most 2 of 21 rows. A floor above 5 of 21 means the instrument
+        cannot separate detection from over-flagging and every detection rate
+        from the run must be withdrawn.
+    - metric: >-
+        capture-recapture lower bound on residual real defects in the
+        uncorrected 67-row snapshot beyond the eight already recorded
+      direction: higher
+      minimum_effect: >-
+        at least 3. A bound consistent with zero would support the view that
+        the original review was close to exhaustive on that snapshot.
+    - metric: >-
+        exchangeability ratio - grouped detection rate on seeded defects
+        divided by detection rate on the eight recorded real defects in the
+        recapture arm
+      direction: different
+      minimum_effect: >-
+        must lie in [0.5, 2.0]. Outside that band, H1 fails, seeded defects
+        are not exchangeable with real ones, and NO detection-power number
+        from the run may be reported. This is the pre-declared invalidation
+        condition.
+  minimal_test:
+    design: >-
+      PILOT FIRST, then escalate, so that a broken observable is discovered
+      cheaply. STEP 0 - amend the review protocol to emit per-row, per-field
+      flags with reason codes (prerequisite; without it nothing is scoreable).
+      STEP 1 (pilot, 18 seeds, 3 per class) - build one quarantined,
+      poison-marked copy of the committed 67-row snapshot; seed 18 defects
+      stratified across the six classes and across two salience strata
+      (headline - SHA-1, AES; obscure - SHA-0, MD4, RIPEMD-160); plant 6
+      unusual-but-correct control rows; run the protocol with one independent
+      reviewer told that seeding occurred but not its size or shape. STEP 2 -
+      run the zero-seed arm on the corrected canonical compilation with the
+      same instructions, to fix the false-positive floor. STEP 3 - run the
+      recapture arm - the same protocol on the UNCORRECTED 67-row snapshot,
+      with a reviewer blind to the committed validation and red-team reports -
+      and compute the exchangeability ratio against the eight recorded real
+      defects. STEP 4 - evaluate H1. If the exchangeability ratio is outside
+      [0.5, 2.0], STOP and report only the ratio and its implications; the
+      detection-power question is not answerable with seeds on this corpus.
+      STEP 5 - only if H1 holds, escalate to 60 seeds (10 per class) with a
+      second independent reviewer, and report the grouped contrast with
+      confidence intervals. Every arm's seed plan, hashes and reviewer
+      instructions are frozen before the arm runs.
+    controls:
+      - >-
+        Zero-seed arm (null object for the reviewer) on the corrected
+        compilation, establishing the false-positive floor under identical
+        instructions.
+      - >-
+        Unusual-but-correct planted rows (legitimate nulls, qualitative
+        success probabilities, non-integer round counts) scored separately -
+        flagging these measures suspicion rather than detection.
+      - >-
+        Recapture arm on the uncorrected snapshot against the eight recorded
+        real defects, giving both the exchangeability check and the
+        Lincoln-Petersen residual bound.
+      - >-
+        Salience stratification (headline versus obscure rows), so that a
+        row-dependent detection rate is measured rather than assumed away.
+      - >-
+        Seed-order randomisation and a within-pass trend test, so that
+        alerting or fatigue during a pass is detected rather than absorbed
+        into the class rates.
+    required_metrics:
+      - "per-class detection count and rate with 95 percent binomial confidence intervals (6 classes)"
+      - "grouped structural versus source-only detection rates and their difference with a confidence interval"
+      - "zero-seed false-positive floor - flagged rows out of 21, itemised"
+      - "flag rate on the unusual-but-correct control rows, reported separately"
+      - "exchangeability ratio (seeded versus recorded-real detection), with the [0.5, 2.0] decision applied"
+      - "Lincoln-Petersen residual-defect lower bound on the uncorrected snapshot with its overlap count"
+      - "detection rate by salience stratum, and the within-pass order-trend test result"
+      - "full seed plan with per-seed class, stratum, row, field, original value, seeded value, and artifact hash"
+      - "receipt listing every seeded artifact, its hash, and its disposition (quarantined or destroyed)"
+  falsification_conditions:
+    - >-
+      Exchangeability ratio outside [0.5, 2.0] - H1 fails; seeded defects do
+      not behave like real ones on this corpus, and no detection-power number
+      may be reported. The run's deliverable becomes the ratio itself plus the
+      named obstruction "seeded-defect calibration is not transportable to
+      this review pipeline", with forward guidance toward direct
+      double-blind re-extraction as the alternative instrument.
+    - >-
+      Structural minus source-only difference below 0.10 - the two-kinds model
+      is wrong; defects are not separable by class and class-targeted tooling
+      is not indicated.
+    - >-
+      Overall detection at or above 0.95 with a false-positive floor at or
+      below 2 of 21 - the pipeline is well calibrated; this lane closes as a
+      controlled positive, and the recorded number becomes the standing
+      false-negative estimate for future frontier reviews.
+    - >-
+      Zero-seed false-positive floor above 5 of 21 - detections cannot be
+      separated from over-flagging; all detection rates withdrawn.
+    - >-
+      Unusual-but-correct control rows flagged at a rate comparable to seeded
+      defects - the instrument measures suspicion; all detection rates
+      withdrawn.
+    - >-
+      The zero-seed arm on the uncorrected snapshot re-finds none of the eight
+      recorded real defects - the re-executed protocol is not the protocol
+      that produced EV-SYMF-d46055, and the experiment halts before the
+      seeded arms.
+    - >-
+      A significant within-pass order trend in detection - H2 independence
+      fails, confidence intervals must be recomputed with pass-level
+      clustering, and any interval that then spans more than 0.4 is reported
+      as uninformative rather than as a rate.
+  confounders:
+    - >-
+      Reviewer alerting. Telling a reviewer that seeding occurred raises
+      vigilance above the operational baseline, so measured rates are an UPPER
+      bound on the rates that apply to ordinary unseeded review. This is
+      unavoidable in a seeded design and must be stated in every reported
+      number, not buried.
+    - >-
+      Seed detectability drift. Seeds constructed by someone who knows the six
+      classes may be systematically cruder than real defects (the mutation
+      testing coupling problem). The recapture arm is the direct check and the
+      exchangeability ratio is its decision rule.
+    - >-
+      Cross-arm contamination. A reviewer who sees the corrected compilation
+      before the uncorrected snapshot has learned the eight real defects.
+      Arms must be assigned to different reviewer sessions and their order
+      recorded; a single reviewer may not run both the recapture arm and the
+      seeded arm.
+    - >-
+      Small-count instability. With 3 seeds per class in the pilot, a
+      per-class rate takes only four values and its interval spans almost the
+      whole unit interval. The pilot is powered only for an all-or-nothing
+      pattern and must say so; escalation to 60 exists precisely because of
+      this.
+    - >-
+      Quarantine leakage risk. The single most serious operational hazard is a
+      seeded row reaching a committed artifact. Poison markers, a dedicated
+      path, hash binding, and an itemised disposition receipt are mandatory
+      mitigations, and their verification is a proof obligation rather than
+      good practice.
+    - >-
+      Protocol drift. The committed review used two named tasks
+      (TASK-20260825-bb6d5d validator, TASK-20260825-9eda3a red team) whose
+      exact procedure may not be fully recoverable from their reports; a
+      re-executed protocol that differs measures a different instrument. The
+      baseline re-find check exists to detect this and halt.
+  interpretation_limits:
+    - >-
+      Scoped to this review protocol, this corpus (snapshot commit
+      5fc23783da8a2e62e2b3ab8728e47c48958ce02f), and the reviewer sessions
+      actually run. It is not a general false-negative rate for peer review,
+      for this program, or for any agent.
+    - >-
+      Measured rates are upper bounds on operational (unalerted) detection,
+      because reviewers were told seeding occurred.
+    - >-
+      A capture-recapture bound is a LOWER bound on residual defects under an
+      independence assumption that is itself only partially validated; it
+      never certifies that a compilation is clean.
+    - >-
+      No statement about any published attack, cost, or primitive follows from
+      this experiment. It measures the program's own instrument.
+    - >-
+      Detection rates must never be recorded as an evaluation of a named agent
+      or model; the unit of analysis is the protocol.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Exchangeability of seeded and naturally occurring defects.) For each
+        defect class c, the probability that the review protocol detects a
+        SEEDED defect of class c equals, up to a factor in [0.5, 2.0], the
+        probability that it detects a NATURALLY OCCURRING defect of class c in
+        the same corpus.
+      rigorous_support: >-
+        Nothing is proved here and the assumption is known to be the weak
+        point of the method it imitates - mutation testing in software
+        engineering, where seeded faults estimate a test suite's real fault
+        detection under the "coupling" hypothesis that simple seeded faults
+        are caught by the same checks that catch complex real ones (recalled,
+        DeMillo-Lipton-Sayward 1978). The rigorous ingredient actually in hand
+        is unusually strong for this program - eight REAL defects of known
+        class are already recorded on the exact corpus being seeded
+        (EV-SYMF-d46055, four J1 structural and four J2 transcription), so the
+        assumption is directly checkable rather than merely assumed.
+      validation_plan: >-
+        WHAT TO SAMPLE - the recapture arm, in which the UNCORRECTED 67-row
+        snapshot is re-presented to a reviewer blind to the committed
+        validation and red-team reports, and the eight recorded real defects
+        serve as ground truth. SCALE - all eight real defects (complete
+        enumeration; the count is small and that is the binding limitation,
+        which must be reported rather than smoothed over), against 18 seeds in
+        the pilot and 60 in the escalation. SHORTCUT USED TO REACH SCALE -
+        none available; there is no way to manufacture more real defects, and
+        this hard ceiling of eight is the honest reason the exchangeability
+        check yields a coarse ratio rather than a per-class comparison.
+        PREDICTED DISTRIBUTION - the seeded and real grouped detection rates
+        agree within a factor of 2. COMPARISON - report both rates with
+        Wilson intervals and the ratio with its interval, never the ratio
+        alone. TAIL CHECK - the individual real defect with the LOWEST
+        detection (for instance the omitted 2^77 to 2^77.5 memory on the AES-256
+        four-related-key row, an omission rather than an alteration) compared
+        against the matched seeded class, since omissions are plausibly harder
+        to see than alterations and a class-averaged ratio would hide it.
+        TRANSFER ASSUMPTION, STATED - validity is claimed only for this
+        corpus and this protocol; nothing transfers to a different primitive
+        set, a different schema version, or a different reviewer population.
+    - id: H2
+      statement: >-
+        (Within-pass detection independence.) Detection events within one
+        review pass are independent across rows - a reviewer who finds one
+        seeded defect does not thereby become materially more likely to find
+        the next, and does not fatigue materially over the pass.
+      rigorous_support: >-
+        Not proved and not plausible in the strong form; it is stated because
+        the Lincoln-Petersen residual estimate and the binomial confidence
+        intervals both require it, and a required assumption must be named
+        rather than inherited silently. It imitates the independence
+        assumption of two-source capture-recapture estimation (recalled) and
+        of item-response models generally. The mitigating rigorous fact is
+        that the design randomises seed order, which makes any alerting or
+        fatigue effect show up as an order trend rather than as a bias
+        confounded with class.
+      validation_plan: >-
+        WHAT TO SAMPLE - every scored row in every arm, tagged with its
+        position in the reviewer's pass. SCALE - all 67 rows per arm, complete
+        enumeration. PREDICTED DISTRIBUTION - under independence, detection is
+        flat in pass position; a logistic regression of detection on
+        normalised position has a slope indistinguishable from zero.
+        COMPARISON - report the fitted slope with its confidence interval and
+        the flat-model comparison, not a bare p-value. TAIL CHECK - detection
+        rate in the first decile versus the last decile of each pass, which is
+        where alerting (rising) or fatigue (falling) would be most visible.
+        CONSEQUENCE IF IT FAILS, PRECOMMITTED - all intervals are recomputed
+        with pass-level clustering, and any interval then spanning more than
+        0.4 is reported as uninformative rather than as a rate. TRANSFER
+        ASSUMPTION - measured on these passes only.
+  target_complexity:
+    time_exponent: >-
+      NO CRYPTANALYTIC EXPONENT IS CLAIMED OR MOVED. Instrument cost is
+      dominated by reviewer passes, not computation - the pilot is 3 arms
+      (seeded, zero-seed, recapture) times one full 67-row review pass each;
+      the escalation adds 1 to 2 further passes. Seed generation and scoring
+      are O(R + S) for R = 67 rows and S = 18 or 60 seeds, i.e. milliseconds.
+      Statistical analysis is O(S) plus one logistic fit.
+    memory_exponent: >-
+      O(R) per arm - a few hundred kilobytes of quarantined YAML plus a seed
+      plan. Negligible, with the caveat that the storage must be isolated for
+      safety reasons rather than capacity reasons.
+    best_known: >-
+      There is no incumbent measurement. The committed review record reports
+      three joint verdicts and eight findings and reports NO false-negative
+      rate, NO false-positive floor, and NO residual-defect estimate; the
+      incumbent value on every metric here is UNDEFINED rather than worse. The
+      external method being adapted (seeded-fault / mutation-style calibration
+      and two-source capture-recapture, both recalled) supplies the shape but
+      no number for this corpus. No prior application of seeded-defect
+      calibration to a cryptanalysis frontier compilation was located this
+      session; external dominance is UNCHECKED and novelty_status is
+      unverified accordingly.
+    hidden_overhead: >-
+      The o(1) is reviewer time and it dominates absolutely - three to five
+      full independent review passes over 67 rows, each requiring primary
+      source access for the source-only classes. A second, less obvious
+      overhead is the ceiling on real defects - only eight exist on this
+      corpus, so the exchangeability check that licenses the whole measurement
+      is permanently coarse, and no amount of additional seeding improves it.
+      A third is the safety overhead of quarantining seeded artifacts, which
+      is small in effort but must never be traded away.
+    tradeoff_note: >-
+      The instrument's tradeoff is SAMPLE SIZE against REVIEWER ALERTING, and
+      it is adverse in both directions, which is why the design is a pilot
+      plus a conditional escalation rather than one large run. More seeds per
+      pass narrow the confidence intervals and simultaneously raise the
+      density of anomalies, which increases alerting and breaks H2; fewer
+      seeds per pass preserve independence and leave the intervals
+      uninformative. The escalation from 18 to 60 seeds is therefore split
+      across passes rather than concentrated, and the report must present the
+      (seeds per pass, interval width, order-trend slope) triple so the
+      tradeoff is visible. Parallelization across reviewer sessions is the one
+      genuine lever and is used - arms run in independent sessions, which also
+      serves the anti-contamination requirement.
+  dominated_by: >-
+    n/a (no result claimed) - Pareto check performed rather than asserted.
+    Checked against - (i) the COMPLETE committed required_row_fields list of
+    schema v2 (read in full this session), which has fields for
+    verification_state and review_refs but none for a detection rate, a
+    false-negative estimate, or a false-positive floor, so no frontier row can
+    dominate this proposal on its measurement axis; (ii) EV-SYMF-d46055 in
+    full, whose review_results block records verdicts and findings and no
+    power estimate; (iii) GOAL-SYMF-c00fa1's five completion criteria in full,
+    criterion 4 of which requires reviewer admission and precommitted
+    proves-too-much controls but specifies no calibration measurement; (iv)
+    the ledger's counts and headline_boundaries blocks and two canonical rows
+    read in full. DISCLOSED LIMIT - 19 canonical rows, all 9 baseline rows,
+    and the two committed review reports themselves (validation-report.yaml,
+    red-team-report.yaml) were NOT read this session; the eight real defects
+    are known to this proposal only through EV-SYMF-d46055's summaries, and
+    the executing task must read both reports in full before constructing the
+    recapture ground truth. External dominance is UNCHECKED.
+  sota_delta: >-
+    No attack, no exponent. Quantitative delta against this program's own
+    instrument - the committed symmetric-frontier review reports three joint
+    verdicts and eight findings while reporting a false-negative rate of,
+    literally, nothing; this proposal targets a six-class detection table with
+    binomial intervals, a grouped structural-versus-source-only contrast with
+    a precommitted 0.30 minimum effect, a false-positive floor out of 21
+    canonical rows, a Lincoln-Petersen lower bound on residual real defects
+    in the 67-row snapshot, and a pre-declared exchangeability decision rule.
+    None of these quantities exists anywhere in the corpus. Against the
+    target-result profile this is explicitly NON-target-class - C1 answered
+    "no", no asymptotic exponent moves - and it is proposed as a BUILDING
+    BLOCK under Idea Generator search heuristic 1 - AGENTS.md rule 6 requires
+    every conclusion to cite supporting evidence, and an evidence record whose
+    error rate is unmeasured supports a conclusion to an unknown degree.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  source_refs:
+    - RQ-SYMF-5ab172
+    - GOAL-SYMF-c00fa1
+    - EV-SYMF-d46055
+    - knowledge/frontiers/symmetric-frontier-schema.yaml
+    - knowledge/frontiers/symmetric-cryptanalysis.yaml
+  id_allocation_provenance: >-
+    Pre-minted and collision-checked by the dispatching session; this subagent
+    did not mint identifiers.

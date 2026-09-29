@@ -1,0 +1,64 @@
+inference_amendment:
+  task_id: TASK-20260822-87c429
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  reason: >-
+    At dispatch time (2026-08-22) no available runtime can serve the
+    red-team role under the full declared contract:
+    (1) api_direct refuses the role outright -- the red-team role requires
+    the web_search capability (orchestration/roles.yaml), which the
+    api_direct runtime does not provide, and AGENTS.md forbids running a
+    role with a reduced tool surface;
+    (2) codex_cli has no review-adversarial binding, its ChatGPT-login
+    model (gpt-daybreak-blue-latest) is outside the binding, and its probe
+    persistence is broken (no state row, no rollout for probe thread
+    01a02b9b-edbc-7c41-bd1c-56405e835e1e);
+    (3) claude_code has no credentials in this environment
+    ($ANTHROPIC_API_KEY unset).
+    The opencode runtime CAN serve the role: web_search is provided
+    (webfetch/websearch), and opencode.json already pins the red-team
+    subagent to zai/glm-5.2 -- the same model the zai backend binds to
+    review-adversarial (max_reasoning_effort xhigh, provenance
+    operator-supplied; doctor --probe confirms zai serves glm-5.2).
+  fallback_allowed: true
+  degraded_allowed: true
+  allowed_resolved_model: zai/glm-5.2
+  degraded_requirements:
+    - >-
+      reasoning depth: the zai binding's request config sends explicit
+      openai_effort "max" (the wire value of the declared xhigh) on the
+      api_direct path; the opencode path for this session has no verified
+      per-request reasoningEffort knob that this running session can
+      change (config is read at session start), so glm-5.2 runs at its
+      DEFAULT thinking configuration. The default depth is an operator
+      assertion, unverified. The review's findings must be read with this
+      gap, and the closing decision must weigh it in the composition.
+    - >-
+      runtime reliability: three prior long-task subagent dispatches in
+      this session (executor fresh, executor resume
+      ses_fd3ea23dfffenB6QQ0Puh5KEbm, general
+      ses_fd3b555b7ffeK13VyHWY2boDxJ -- all on the vllm session model)
+      returned empty task_results with zero bytes written. A
+      zai/glm-5.2-backed subagent is an untested path in this session. If
+      the dispatch returns an empty result or no report file, the review
+      is recorded as FAILED (infrastructure) and the red-team tier is
+      PAUSED -- not substituted, not downgraded further.
+  required_recording:
+    fallback_used: true
+    degraded_requirements: 'as listed above, restated in the red-team report header'
+    runtime: opencode-subagent
+    resolved_model_id: zai/glm-5.2
+    independent_session: true   # subagent session: separate context, separate model, did not originate the claim
+  scope:
+    - 'TASK-20260822-87c429 (red-team joints R1-R3, proves-too-much controls, blind re-derivation) under review-plan-87c429.yaml'
+    - 'no official state transition; the closing decision (TASK-20260822-554f6d) composes the round with the gap recorded'
+    - 'sibling-blind: must not read coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/reviews/TASK-20260822-40389d/'
+  approved_by: coordinator (driving session, qwen3.8-27b / vllm)
+  approved_at: '2026-08-22'
+  note: >-
+    This amendment is the machine-checked version of the pause-or-degrade
+    decision: pausing the red-team tier would block the entire batch-6
+    close on an infrastructure gap while the validator half of the round
+    completes on the fully-conformant api_direct route. The review-
+    breakthrough tier is NOT affected by this amendment and remains
+    non-degradable; this is an ordinary review-adversarial round.

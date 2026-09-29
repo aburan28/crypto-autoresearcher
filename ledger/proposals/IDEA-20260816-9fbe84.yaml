@@ -1,0 +1,264 @@
+idea:
+  id: IDEA-20260816-9fbe84
+  question_id: RQ-AEADC-8db132
+  added: '2026-08-16'
+  title: 'A second finite audit, of the header not the lengths: enumerate every string in a small
+    declared alphabet and count exactly how many distinct vectors of associated-data components four
+    serialization conventions map to the same authenticator input, so vector-input canonicalization
+    becomes a decidable count rather than a design assumption'
+  class: representation
+  claim: '(A) Several AEAD constructions authenticate a VECTOR of inputs -- a nonce, one or more associated-data
+    components, and a message -- rather than a single string, and every such construction must serialize
+    that vector into whatever its authenticator consumes. The serialization is a total function from
+    a tuple of byte strings into one input object, and whether it is injective on vectors is decidable
+    by exhaustion once the alphabet and the length bound are declared. This is a different surface
+    from the length-field audit: there the inputs were two integers, here they are a variable-arity
+    tuple of strings, and the failure mode is not field wrap but arity and separator ambiguity. (B)
+    The deliverable is an exact table over four declared serialization conventions -- naive concatenation,
+    separator-byte joining without escaping, length-prefixed component encoding, and a doubling-and-XOR
+    vector accumulator of the shape used by synthetic-IV constructions -- giving the exact number
+    of colliding vectors within a fully enumerated class, the minimal colliding vector pair emitted
+    as bytes, and the exact arity at which injectivity first fails. (C) The count is invariant under
+    replacing the underlying primitive with an ideal permutation, and demonstrating that in the same
+    run is the bucket''s natural null. For the accumulator convention the count is NOT primitive-invariant
+    in general, and separating the part that is combinatorial from the part that depends on the primitive
+    is itself a deliverable. (D) NOT CLAIMED: no attack; no assertion that any deployed construction
+    uses a non-injective serialization, since all four conventions are declared internal models not
+    identified with any named mode; no forgery, since a serialization collision is a statement about
+    a function and becomes a security statement only under conditions this record does not establish;
+    and nothing about the literature. A table of zeros for the length-prefixed convention is a complete
+    result and exactly the expected one, and its value is that it is exhaustively verified over a
+    named class rather than asserted.'
+  mechanism: 'STAGE 1, zero compute: specify each of the four serialization conventions as an explicit
+    total function from a tuple of byte strings to a single input object, with arity handling, separator
+    choice, escaping rules, empty-component handling and end-of-vector marking all written out. Empty
+    components and trailing empties are named explicitly, because that is where arity ambiguity lives.
+    STAGE 2, zero compute: derive by hand, per convention, the exact condition for injectivity on
+    vectors and the predicted collision count inside the enumeration class, and record it with a file
+    hash before enumerating. STAGE 3: enumerate exhaustively all vectors over a two-symbol alphabet
+    with total length at most L and arity at most k, compute the serialization of each, and insert
+    into an exact table keyed by the serialized object, counting collisions and storing every colliding
+    vector pair in full. STAGE 4: compare the enumerated count against the stage-2 prediction, and
+    treat a mismatch as the primary finding rather than an error. STAGE 5: run the positive control
+    -- the naive concatenation convention, which must collide abundantly and at a count predictable
+    in closed form -- so a zero elsewhere is demonstrably informative. STAGE 6: for the accumulator
+    convention, rerun the enumeration with a seeded ideal permutation and with a pinned real primitive,
+    and report which part of its collision count is combinatorial and identical across the two and
+    which part moves.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Grepped ledger/proposals/ and knowledge/ case-insensitively for: serializ, canonicaliz,
+      injectiv, length encoding. Grepped for aead, SIV, GCM-SIV, associated data, key commitment across
+      ledger/proposals/, ledger/hypotheses/ and knowledge/. Read RQ-AEADC-8db132 and RQ-POLYMAC-7c89e4
+      in full. Read titles, classes and claim heads of all eight proposals filed under RQ-AEADC-8db132,
+      and IDEA-20260809-47a08e in full. Read docs/inventor-protocol.md sections 1-5 and 8. Also checked
+      this bucket''s own first audit entry to ensure the two audits attack different surfaces: that
+      one enumerates integer length pairs, this one enumerates string vectors.'
+    results: 'The serialization and canonicalisation grep matched proposals outside this bucket only,
+      by filename: IDEA-20260806-c5d183, IDEA-20260809-2ba70c, IDEA-20260805-6eac55, IDEA-20260813-945a67,
+      IDEA-20260805-ca92fd, IDEA-20260812-b68bc0, IDEA-20260808-90c7ab, IDEA-20260813-87106b, IDEA-20260809-022eb5,
+      IDEA-20260813-16d752. None is filed under RQ-AEADC-8db132. Within the bucket, IDEA-20260809-3a5c29
+      mentions colliding on associated data, but as a certificate under two keys in the authenticator,
+      not as a serialization enumeration under no key. RQ-AEADC-8db132 names context commitment to
+      (key, nonce, associated data) as a target but does not name the serialization function as an
+      object. No corpus record enumerates vector serializations.'
+    verdict: 'UNVERIFIED. Canonical serialization of vector inputs is a standard design concern outside
+      this repository and nothing is asserted about published treatments; the four conventions are
+      declared internal models so that no attribution is made. What is claimed new is internal: the
+      corpus contains no exhaustive vector-serialization audit, and this bucket''s records are otherwise
+      entirely about commitment certificates. Assembled from known parts: the observation-collision
+      audit of inventor-protocol section 8, exact enumeration, and the primitive-substitution null
+      this bucket''s directive requires.'
+  object_first_candidate:
+    tracked_object: The serialized authenticator input -- the single object that a vector of associated-data
+      components is mapped to -- carried together with the fibre of the serialization map above it,
+      that is, the set of distinct vectors that produce it.
+    lossiness: 'Genuinely lossy. The map takes a variable-arity tuple of strings, whose description
+      length includes the arity and every component boundary, and produces one object in which the
+      boundaries may or may not be recoverable. What is discarded is precisely the boundary and arity
+      information; what is retained is the concatenated content and whatever framing the convention
+      adds. The discard is compatible with the mode''s operation because the authenticator consumes
+      only the serialized object, so anything the serialization drops is dropped for the mode too
+      -- which is exactly why the fibre size is the interesting quantity. For the length-prefixed
+      convention nothing is discarded at all, and saying so is required rather than hidden: that convention
+      is a change of representation, its predicted fibre is a singleton everywhere, and it functions
+      in this audit as the injective reference against which the other three are read.'
+    propagation: One step is appending a component to the vector. Under naive concatenation it acts
+      on the tracked object by extending the string, and it does so in a way that is confusable with
+      extending the last existing component, which is the collision mechanism. Under separator joining
+      it inserts a separator that a component may itself contain, which is the second mechanism. Under
+      length prefixing it appends a self-delimiting block and cannot confuse anything. Under the accumulator
+      it applies a doubling map and an XOR, so propagation is algebraic and the fibre depends on the
+      accumulator's group structure, not on string boundaries. Enumerating the class walks all four
+      propagations exactly.
+    survival_score: 'Injectivity survives, per convention, up to a definite arity and length, and
+      the survival score is that pair reported exactly: the smallest (arity, total length) at which
+      a collision first occurs, or an exhaustively verified statement that none occurs anywhere in
+      the class of all vectors over a two-symbol alphabet with arity at most 4 and total length at
+      most 16 symbols. For naive concatenation the first collision is expected at arity 2 and total
+      length 2, which makes it the positive control; for length prefixing the expected answer is that
+      injectivity never fails in the class.'
+  null_object_control: 'Two nulls in the same invocation. NULL ONE, positive control: naive concatenation,
+    whose collision count inside the class is computable in closed form in stage 2 and must be reproduced
+    exactly; if the enumerator does not find those collisions, every zero it reports elsewhere is
+    meaningless. NULL TWO, primitive substitution: for the accumulator convention, the entire enumeration
+    is run twice, once with a seeded ideal permutation and once with a pinned real primitive, and
+    the two collision tables are compared. The combinatorial part of the count must be identical across
+    the two; any part that differs is a primitive property and is reported separately and never as
+    a mode result. For the three non-algebraic conventions null two must produce byte-identical tables,
+    since their counts cannot depend on a primitive at all.'
+  discriminated_from:
+  - The length-encoding audit in this same bucket enumerates a map from two integers into a length
+    block. This enumerates a map from a variable-arity tuple of strings into an authenticator input;
+    the failure modes are arity and separator ambiguity rather than field wrap, and neither audit's
+    table can be derived from the other's.
+  - IDEA-20260809-3a5c29 constructs certificates that collide on associated data while the key is
+    committed. That is a keyed construction under two keys; this is an unkeyed enumeration of a serialization
+    function whose result is a fibre count.
+  - RQ-POLYMAC-7c89e4 owns polynomial-MAC forgery bounds; three of the four conventions here involve
+    no MAC at all, and the fourth is audited for its combinatorial fibre rather than its forgery probability.
+  - IDEA-20260809-4719b8's harness decides commitment properties for AEAD implementations. This decides
+    injectivity of a serialization and returns an integer, not a certificate or a derivation.
+  - A design rule that vector inputs must be encoded unambiguously. This record is not that rule;
+    it is the exhaustive count that tells you where the rule bites inside a named class, and the count
+    for the well-formed convention is expected to be zero.
+  assumptions:
+  - A two-symbol alphabet is sufficient to expose arity and separator ambiguity; a collision that
+    requires a larger alphabet would be missed, and this is stated as a limitation of the class rather
+    than a property of the conventions.
+  - Arity at most 4 and total length at most 16 symbols covers the region where a genuine ambiguity
+    first appears; the positive control is designed to confirm the class is large enough to contain
+    collisions at all.
+  - The four conventions are declared models of serialization shapes and are not identified with any
+    named mode, so a poor abstraction limits relevance but cannot corrupt the count.
+  - Exact enumeration with exact keys gives an exact integer with no sampling error.
+  - The accumulator convention's combinatorial fibre is separable from its primitive-dependent fibre,
+    which is checked by the two-primitive run rather than assumed.
+  predictions:
+  - metric: collision count for the length-prefixed convention within the declared class
+    direction: different
+    minimum_effect: 0
+  - metric: collision count for naive concatenation within the declared class
+    direction: higher
+    minimum_effect: 1
+  - metric: collision count for separator joining without escaping, at arity at least 2
+    direction: higher
+    minimum_effect: 1
+  - metric: byte-level difference between the collision tables of the three non-algebraic conventions
+      across primitive slots
+    direction: different
+    minimum_effect: 0
+  - metric: agreement between the stage-2 closed-form predicted count and the enumerated count for
+      naive concatenation
+    direction: different
+    minimum_effect: 0
+  minimal_test:
+    design: One process, no key material in the load-bearing part, minutes of compute. Implement the
+      four serialization conventions as pure functions with every rule from stage 1 made explicit,
+      including empty-component and trailing-empty handling. Pre-register the closed-form collision
+      count for naive concatenation and separator joining, and the predicted zero for length prefixing.
+      Enumerate all vectors over the alphabet {0x00, 0x01} with arity from 1 to 4 and total length
+      from 0 to 16 symbols -- a class of a few million vectors -- serialize each, and insert into
+      an exact table keyed by the serialized bytes, counting fibres of size greater than one and recording
+      the minimal colliding pair. Then run the accumulator convention twice, once per primitive slot,
+      and diff. The discriminating comparison is per-convention enumerated count against pre-registered
+      count, with naive concatenation acting as the positive control that proves the enumerator can
+      see collisions at all.
+    controls:
+    - Naive concatenation as the positive control, with a closed-form predicted count fixed in stage
+      2.
+    - 'Primitive-substitution null: identical enumeration under ideal and real primitives, requiring
+      byte-identical tables for the three non-algebraic conventions.'
+    - Pre-registered hand-derived counts recorded with a file hash before the enumerator runs.
+    - 'Round-trip deserialization: every serialization declared injective is decoded back to its vector
+      and verified componentwise.'
+    - 'Empty-component sweep: vectors containing empty components and trailing empties are enumerated
+      explicitly rather than skipped, since they are where arity ambiguity concentrates.'
+    required_metrics:
+    - exact collision count per convention within the class
+    - minimal colliding vector pair per convention, emitted as bytes
+    - first (arity, total length) at which injectivity fails, per convention
+    - signed difference between pre-registered and enumerated counts
+    - maximum fibre size per convention
+    - byte-level table diff across primitive slots per convention
+  falsification_conditions:
+  - The naive-concatenation positive control returns fewer collisions than its closed-form prediction,
+    invalidating the enumerator and every zero it reports.
+  - The length-prefixed convention returns a nonzero count, which falsifies the stage-2 injectivity
+    derivation and is the most informative outcome available.
+  - A non-algebraic convention produces different tables under the two primitive slots, which means
+    the enumerator is reading key-dependent state and the audit is not what it claims.
+  - Round-trip deserialization fails for any vector under a convention declared injective.
+  - The enumerated class contains no collisions under any convention, including the positive control,
+    meaning the class is too small to be informative and must be reported as such.
+  - The accumulator arm's combinatorial and primitive-dependent parts cannot be separated, leaving
+    that convention's count uninterpretable.
+  confounders:
+  - Any rule left implicit in stage 1 -- especially empty-component handling -- is resolved silently
+    by the implementer, so the audit measures the implementer rather than the convention.
+  - A two-symbol alphabet may hide collisions that need a richer alphabet, biasing counts downward.
+  - Arity and total length are correlated in a naive enumeration; they are crossed explicitly.
+  - Table keys of unequal length can be normalised accidentally by the hashing layer; keys are explicit
+    length-tagged tuples.
+  - The accumulator convention mixes a combinatorial fibre with a primitive-dependent one, and reporting
+    a single count for it would conflate the two.
+  interpretation_limits:
+  - A serialization collision is a statement about a function, not a forgery and not a security consequence;
+    the conversion requires conditions this record does not establish and does not assert.
+  - All counts are statements about the enumerated class -- two-symbol alphabet, arity at most 4,
+    length at most 16 -- and the class boundary is reported with every count.
+  - The four conventions are declared models and are not identified with any named or deployed construction.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The enumeration costs O(sum over arities of the
+      number of vectors in the class) exact evaluations, fully enumerated, roughly a few million operations.
+    memory_exponent: No attack exponent is claimed. Memory is linear in the class size, a few million
+      entries, with a sorted-run merge fallback recorded if that is exceeded.
+    best_known: The incumbent is the design principle that vector inputs must be encoded self-delimitingly,
+      which predicts zero collisions for the length-prefixed convention. This record does not beat
+      that principle; it verifies it exhaustively inside a named class and measures where the other
+      three conventions fail.
+    hidden_overhead: 'The human cost is the specification: the empty-component and trailing-empty
+      rules are the ones designers omit and the ones that decide the whole table, so writing stage
+      1 completely is most of the work. Lower-order compute hides in the accumulator arm, which is
+      the only one that evaluates a primitive at all.'
+  dominated_by: n/a (no result claimed). An exhaustive audit with no attack has no time, memory or
+    query frontier row. Checked against the four targets of RQ-AEADC-8db132, the four targets of RQ-POLYMAC-7c89e4,
+    all eight proposals under this question, and the companion length-encoding audit in this same
+    batch; none of them enumerates vector serializations, so there is nothing to be dominated by or
+    to dominate.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative deliverable is
+    four exact fibre counts with minimal colliding vectors and first-failure arities, plus a closed-form
+    pre-registration against each, where the corpus holds no such count.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the enumeration completes and returns exact counts: about
+    0.95, since the class is a few million vectors and the arithmetic is exact. That the naive-concatenation
+    positive control reproduces its closed-form count exactly: about 0.8, with the residual concentrated
+    in empty-component handling, which is the same place a real specification would go wrong. That
+    the length-prefixed convention returns zero: about 0.9, and the 0.1 residual is the most valuable
+    outcome in the record because a nonzero there falsifies a derivation that reads as obviously correct.
+    That the accumulator arm''s combinatorial and primitive-dependent parts separate cleanly: about
+    0.55, since that separation is asserted structurally and has not been argued in detail. That the
+    three non-algebraic conventions give byte-identical tables across primitive slots: about 0.98.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-AEADC-8db132
+  - RQ-POLYMAC-7c89e4
+  - IDEA-20260809-3a5c29
+  - IDEA-20260809-4719b8
+  - IDEA-20260809-47a08e
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  - harness/ctrl_valueshuffle.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-AEADC-db683e

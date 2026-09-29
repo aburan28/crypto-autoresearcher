@@ -1,0 +1,296 @@
+execution_report:
+  experiment_id: EXP-MONO-2a13d7
+  hypothesis_id: H-MONO-0f9170
+  handoff_id: TASK-20260830-5b8033
+  implementation_commit: a11df1c91e66d505037becae4659289adf4750a3
+  implementation_commit_note: >-
+    git dirty at run time, but only via unrelated pre-existing changes
+    (.worktrees/ssi-cost-source-20260809 pointer and untracked
+    coordination/ledger files from concurrent sessions elsewhere in this
+    shared repository); nothing under experiments/EXP-MONO-2a13d7/ was
+    dirty. See each run manifest's git_dirty_note.
+
+  protocol_deviations:
+    - >-
+      MEMORY (caught pre-archival, fixed before either archived run ran):
+      a first implementation of the Stage-0 matched-pair census
+      materialized every non-isomorphic pair found into a Python list.
+      At p=211 this produced 14,733,075 pair-tuples simultaneously in
+      memory, measured at ~3092 MB peak RSS in a throwaway smoke test --
+      a breach of the frozen 1GB budget. Fixed by tracking two running
+      lexicographic minima in a single streaming pass instead of
+      materializing the list; the exhaustive-pairwise-testing requirement
+      itself is unchanged (every pair in every (t,Z) cell is still
+      tested; exact per-cell and per-prime counts are still produced).
+      Neither RUN-MONO-2a13d7-1 nor RUN-MONO-2a13d7-2 ever ran the
+      memory-unsafe version. See implementation.md for detail.
+    - >-
+      PANEL SELECTION (caught pre-archival, fixed before either archived
+      run ran): the first working Z-coverage curve selection did not
+      exclude j=0 (A=0) / j=1728 (B=0) curves, and at p=211 selected
+      (A=0,B=1) -- a j=0 curve -- as the Z=3 coverage curve, violating
+      `curve_panel_note`'s exclusion of special curves from Stage-1 panel
+      selection generally. Fixed by applying the same is_special(A,B,p)
+      filter already used for matched-pair candidates to the Z-coverage
+      search. Neither archived run used the unfixed version; the archived
+      p211 panel instead selects (A=1,B=2) for Z=3 coverage.
+    - >-
+      INTERPRETATION (declared, not a defect): the spec's matched-pair
+      preference clause in stage0_curve_enumeration_and_prereg step 4
+      forward-references "the next step"'s Z-coverage curves. This
+      implementation resolves the forward reference by computing sibling
+      + Z-coverage curves first, then preferring (during the single
+      streaming pass over all cells) a matched-pair candidate touching
+      either set, falling back to the lexicographically smallest
+      candidate overall if none touches the preferred set. At both tested
+      primes a preferred candidate existed (touching the (A=1,B=1)
+      sibling curve), so the fallback branch was not exercised by either
+      archived run. See implementation.md for the full reasoning.
+
+  runs:
+    completed:
+      - RUN-MONO-2a13d7-1
+      - RUN-MONO-2a13d7-2
+    invalid: []
+    failed: []
+
+  observations:
+    # Frozen prediction reference: H-MONO-0f9170 `predictions` and
+    # `falsification_conditions`; EXP-MONO-2a13d7 `preregistered_prediction`.
+    # Comparison statistics and tail checks only -- no verdict on
+    # H-MONO-0f9170 is rendered here (AGENTS.md rule 1; Executor
+    # prohibition list).
+    sqrt_method: >-
+      General Tonelli-Shanks, used unconditionally for BOTH tested primes
+      (101 = 1 mod 4, requiring the general routine; 211 = 3 mod 4, where
+      the shortcut would apply but is deliberately not used, per the
+      spec's stated consistency requirement). No p%4==3 fast-path branch
+      exists anywhere in this implementation.
+    o_p_method_confirmation: >-
+      Stage 0 point-counting used the REQUIRED O(p) character-sum method
+      exclusively (a single `for x in range(p)` sweep per curve; no
+      second pass, no (x,y)-pair enumeration anywhere in
+      `stage0.curve_invariants`). Measured Stage-0 enumeration wall-clock,
+      RUN-MONO-2a13d7-1: p=101 -> 0.337s for 10,100 curves; p=211 -> 3.229s
+      for 44,310 curves -- both well under the spec's own conservative
+      O(p) cost-note estimate (30-50s at p=211) and inconsistent with an
+      O(p^2) method, which would cost roughly a further factor of p more.
+    preregistration_ordering_confirmation: >-
+      Per-curve pre-registration (closed-form seven-tuple, computed from
+      (p,t,Z) alone) is appended to the archived record BEFORE that
+      curve's Stage-1 base-point census runs, in a single per-curve loop
+      iteration (`run_experiment.preregister_and_run_stage1`); every
+      preregistration.json entry carries `ordering_marker:
+      PRE_ENUMERATION` and its own timestamp. No Stage-1 output feeds back
+      into any closed-form computation.
+
+    stage0_curve_enumeration:
+      - prime: 101
+        curves_enumerated_non_singular: 10100
+        curves_total_AB_pairs: 10201
+        singular_curves_excluded: 101
+        tz_cells_total: unspecified_not_reported_separately_from_ge2_cells
+        tz_cells_with_ge2_curves: 51
+        non_isomorphic_pairs_found_exhaustive: 1112500
+        z_raw_representative_counts: {Z0: 3400, Z1: 5050, Z3: 1650}
+        sparsest_matched_selection_cell: {t: -3, Z: 0, curve_count: 400}
+        M_identity_check: >-
+          symbolic (algebraic derivation checked at implementation time,
+          not re-derived numerically per curve beyond the R1/R3 numeric
+          consequences below); M appears correctly as an intermediate in
+          closed_form_seven_tuple and B1=M/2 was exact (integral) on
+          every panel curve at this prime -- no divisibility assertion
+          failure was raised.
+      - prime: 211
+        curves_enumerated_non_singular: 44310
+        curves_total_AB_pairs: 44521
+        singular_curves_excluded: 211
+        tz_cells_with_ge2_curves: 74
+        non_isomorphic_pairs_found_exhaustive: 14733075
+        z_raw_representative_counts: {Z0: 14840, Z1: 22155, Z3: 7315}
+        sparsest_matched_selection_cell: {t: -11, Z: 0, curve_count: 420}
+        M_identity_check: >-
+          Same disposition as p=101: no divisibility assertion failure
+          (B1=M/2 integral on every panel curve).
+
+    matched_pair_census:
+      per_prime:
+        - prime: 101
+          matched_pair_found: true
+          curve1: {A: 1, B: 1, j: 34, order3_count: 3, t: -3, Z: 0}
+          curve2: {A: 1, B: 48, j: 90, order3_count: 3, t: -3, Z: 0}
+          non_vacuity_control: {j_differs: true, order3_count_differs: false, passes: true}
+          R2_seven_tuple_diffs_all_zero: true
+        - prime: 211
+          matched_pair_found: true
+          curve1: {A: 1, B: 1, j: 46, order3_count: 1, t: -11, Z: 0}
+          curve2: {A: 1, B: 94, j: 30, order3_count: 1, t: -11, Z: 0}
+          non_vacuity_control: {j_differs: true, order3_count_differs: false, passes: true}
+          R2_seven_tuple_diffs_all_zero: true
+      instrument_outcome: >-
+        NOT triggered at either prime -- a matched non-isomorphic pair
+        with equal (t,Z), differing on at least one control invariant,
+        was found at both p=101 and p=211, so HEUR-TZ-2's matched-pair
+        half of the claim was testable (not vacuous, not an instrument
+        failure) at both tested primes.
+
+    r1_per_stratum_residuals:
+      per_prime:
+        - prime: 101
+          panel_curves_checked: 4
+          all_seven_strata_all_curves_residual_zero: true
+        - prime: 211
+          panel_curves_checked: 5
+          all_seven_strata_all_curves_residual_zero: true
+      note: >-
+        Zero measured residual on every one of the 7 strata, on every
+        panel curve (4 at p=101, 5 at p=211 -- panel sizes below the
+        `panel_size_bound` maximum of 8 per prime because sibling curves
+        already covered 2 of 3 Z values and provided the qualifying
+        matched pair at both primes), at both tested primes. See
+        `runs/RUN-MONO-2a13d7-1/p*/seven_count_tables.json` for the full
+        per-stratum measured/closed-form/residual table.
+
+    r3_internal_sum_checks:
+      - prime: 101
+        case_A_sum_equals_Cp2: true
+        case_B_sum_equals_pp1_2: true
+        double_root_count_equals_p: true
+        checked_on_all_4_panel_curves: true
+      - prime: 211
+        case_A_sum_equals_Cp2: true
+        case_B_sum_equals_pp1_2: true
+        double_root_count_equals_p: true
+        checked_on_all_5_panel_curves: true
+
+    baseline_reproduction:
+      - prime: 101
+        sibling_curves_checked: 3
+        all_agree_exactly_with_KN_FIND_a8990a_theorem_B: true
+        detail:
+          - {A: 1, B: 1, t: -3, Z: 0, closed_form: 5004, measured: 5004}
+          - {A: 2, B: 3, t: 6, Z: 1, closed_form: 4918, measured: 4918}
+          - {A: 4, B: 1, t: -10, Z: 3, closed_form: 4754, measured: 4754}
+      - prime: 211
+        sibling_curves_checked: 3
+        all_agree_exactly_with_KN_FIND_a8990a_theorem_B: true
+        detail:
+          - {A: 1, B: 1, t: -11, Z: 0, closed_form: 22110, measured: 22110}
+          - {A: 2, B: 3, t: 8, Z: 1, closed_form: 21872, measured: 21872}
+          - {A: 4, B: 1, t: 13, Z: 0, closed_form: 22134, measured: 22134}
+
+    excluded_strata_counts:
+      per_curve:
+        - prime: 101
+          panel_curve: {A: 1, B: 1}
+          double_root: 101
+          A4_ramified_A: 0
+          B2_ramified_B: 0
+          Z_of_curve: 0
+          forced_check: "Z=0 implies A4=0, B2 forced 0 -- MATCHES"
+        - prime: 101
+          panel_curve: {A: 2, B: 3}
+          double_root: 101
+          A4_ramified_A: 100
+          B2_ramified_B: 1
+          Z_of_curve: 1
+          forced_check: "Z=1 implies B2 forced exactly 1 -- MATCHES; A4 forced Z(p-Z)+C(Z,2)=1*100+0=100 -- MATCHES"
+        - prime: 101
+          panel_curve: {A: 4, B: 1}
+          double_root: 101
+          A4_ramified_A: 297
+          B2_ramified_B: 0
+          Z_of_curve: 3
+          forced_check: "Z=3 implies A4 forced 3*98+3=297 -- MATCHES; B2 forced (Zprime-Z)/2=(3-3)/2=0 -- MATCHES"
+        - prime: 211
+          panel_curve: {A: 1, B: 2}
+          double_root: 211
+          A4_ramified_A: 627
+          B2_ramified_B: 0
+          Z_of_curve: 3
+          forced_check: "Z=3 implies A4 forced 3*208+3=627 -- MATCHES; B2 forced 0 -- MATCHES"
+        - prime: 211
+          panel_curve: {A: 2, B: 3}
+          double_root: 211
+          A4_ramified_A: 210
+          B2_ramified_B: 1
+          Z_of_curve: 1
+          forced_check: "Z=1 implies B2 forced exactly 1 -- MATCHES; A4 forced 1*210+0=210 -- MATCHES"
+      note: >-
+        Every double-root count equals p exactly at every panel curve, at
+        both primes (7 panel curves total across both primes, all
+        checked). Full per-curve tables (including the Z=0 curves whose
+        A4/B2 are both forced 0 and measured 0) are in
+        runs/*/p*/seven_count_tables.json.
+
+    order3_anomalies:
+      per_prime:
+        - prime: 101
+          anomaly_count_total: 0
+        - prime: 211
+          anomaly_count_total: 0
+      note: >-
+        No order-3-root/2-torsion coincidence (f(x0)=psi_3(x0)=0) was
+        observed at either prime, on any of the 10,100 + 44,310 = 54,410
+        non-singular curves enumerated (the anomaly check applies to
+        every enumerated curve, not only panel curves, since it is a
+        free byproduct of the same Stage-0 O(p) sweep).
+
+    replication_determinism:
+      runs_compared: [RUN-MONO-2a13d7-1, RUN-MONO-2a13d7-2]
+      byte_identical_artifacts: >-
+        Every archived artifact is byte-identical between the two runs
+        EXCEPT: command.txt (differs only in the embedded run-directory
+        path), stderr.log (embeds /usr/bin/time wall-clock timing),
+        p*/timings.json (wall-clock timing), and p*/preregistration.json
+        (differs only in the preregistered_at timestamp field -- content
+        with timestamps stripped is identical). raw-result.json is
+        structurally identical once wall_clock_seconds_total, peak_rss_mb,
+        and per-prime timings are excluded. Verified directly by a
+        file-tree diff script, not asserted.
+      wall_clock_seconds_measured: {run1: 20.324, run2: 20.417}
+      peak_rss_mb_measured: {run1: 84.77, run2: 84.27}
+
+    budget_compliance:
+      wall_clock_seconds_per_run_cap: 1800
+      measured_run1_seconds: 20.32
+      measured_run2_seconds: 20.42
+      memory_gb_cap: 1
+      measured_run1_peak_rss_mb: 84.77
+      measured_run2_peak_rss_mb: 84.27
+      within_budget: true
+      note: >-
+        Both runs completed in ~1% of the wall-clock budget and ~8% of
+        the memory budget; no timeout, no memory-cap breach, no infra
+        event during either archived run (the one memory-budget-risking
+        implementation was caught and fixed in a pre-archival smoke test,
+        see `protocol_deviations`).
+
+  anomalies:
+    - >-
+      Pre-archival memory deviation in the matched-pair census (see
+      `protocol_deviations`); fixed before either archived run.
+    - >-
+      Pre-archival Z-coverage panel-selection defect (selected a j=0
+      curve, violating curve_panel_note); fixed before either archived
+      run.
+    - >-
+      No mathematically unexpected observation: every forced value (R1,
+      R3, baseline reproduction, excluded-strata forced counts, R2 on the
+      matched pairs found) matched exactly at both tested primes, on
+      every panel curve, in both runs.
+
+  artifact_paths:
+    - experiments/EXP-MONO-2a13d7/implementation.md
+    - experiments/EXP-MONO-2a13d7/implementation/fp_common.py
+    - experiments/EXP-MONO-2a13d7/implementation/stage0.py
+    - experiments/EXP-MONO-2a13d7/implementation/stage1.py
+    - experiments/EXP-MONO-2a13d7/implementation/run_experiment.py
+    - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/
+    - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-2/
+    - experiments/EXP-MONO-2a13d7/execution_report.yaml
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false

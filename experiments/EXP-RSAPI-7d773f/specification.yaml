@@ -1,0 +1,212 @@
+experiment:
+  id: EXP-RSAPI-7d773f
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-cddd6b; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-cddd6b
+  question_id: RQ-RSA-d46f02
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Sweep a per-bit error rate over a contiguous leaked window and measure the largest recoverable
+    window under a declared weight-bounded enumeration budget, against a pre-registered binomial-tail
+    prediction and an exact-leak calibration arm.
+  objective: 'The one uncertainty a run reduces is how much a small-root recovery pipeline loses when
+    the leaked bits are only mostly right, at moduli where ground truth is exact by construction.
+    Concretely: (i) whether the enumeration solver is a faithful extension of the exact construction,
+    established by requiring the e = 0 arm with a nonzero weight budget to reproduce the exact-window
+    threshold, since a solver that changes the answer at zero noise cannot measure anything at nonzero
+    noise; (ii) what the collapse curve W(e) is over a declared error grid, with the enumeration count
+    used per success and the fraction of budget-exhausted instances recorded, so that a steep collapse
+    is attributable to structure or to budget rather than left ambiguous; (iii) whether a pre-registered
+    prediction of W(e), formed before the run from the binomial tail of the flip count composed with
+    the exact-window curve, matches measurement, and if not whether the residual has a consistent
+    sign that localises the wrong term. A run also fixes whether flip weight alone is an adequate
+    description or whether flip position carries a real effect, which decides whether the tracked
+    object survives at all.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for this reproduced
+      construction, this independent-per-bit-flip noise model, this weight-bounded enumeration budget,
+      this modulus size and this per-instance cap, the measured largest recoverable window length
+      at each error rate with exact binomial intervals, together with the signed residual against
+      a pre-registered prediction and a position-stratified check of the weight-only description.
+      WHAT DOES NOT FOLLOW: nothing about any real side channel, since the noise model is a self-supplied
+      modelling choice; no claim that error-tolerant constructions beyond enumeration do not exist,
+      and this contract explicitly does not close that direction; no attack, speedup or security consequence;
+      and no extrapolation to other moduli, other noise models or other budgets.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): declare the construction, the noise model, the error grid,
+      the enumeration budget as a pattern count, seeds, the success threshold, and the PRE-REGISTERED
+      predicted W(e) computed from the binomial tail and the exact-window curve. STAGE 1 (engineering,
+      no compute): implement the enumeration solver as a wrapper that corrects the window under a
+      candidate pattern and calls the unmodified exact construction. STAGE 2 (CPU-hours): run the
+      e = 0 calibration arm with nonzero weight budget and check it reproduces the exact-window threshold.
+      GATE: stop if it does not. STAGE 3 (CPU-hours): run the signal arm over the error grid on 40
+      paired seeded instances per cell, bisecting on W, logging flip weights, flip positions and enumeration
+      counts. STAGE 4 (CPU-hours, same invocation): run the random-window null across the same grid.
+      STAGE 5 (zero compute): position-stratified re-analysis of the signal arm. STAGE 6 (zero compute):
+      report measured against pre-registered W(e) with signed residuals and exact binomial intervals.'
+    instrument: Python 3.11. fpylll 0.6.4 for reduction via the route recorded in KN-TECH-14efa5,
+      pinned to one deterministic setting and called unmodified by the enumeration wrapper. python-flint
+      or gmpy2 for exact integers and verification by exact division. Enumeration is plain Python
+      over combinations with an explicit pattern-count cap. harness/runner.py for manifests, seeds
+      and the inference block; harness/run.py as the bounded-run wrapper. No Sage.
+    parameters: Modulus bit-length n = 128 with balanced 64-bit primes. Per-bit error rate e in {0,
+      0.005, 0.01, 0.02, 0.05}. Window length W bisected over at most 9 values per cell. Enumeration
+      budget fixed at a declared maximum candidate-pattern count, with weight bound w set as the largest
+      weight whose pattern count fits that budget at the current W. 40 paired known-answer instances
+      per cell in the signal arm and 40 per cell in the null arm. Per-instance wall-clock cap 900
+      seconds, memory cap 8 GB.
+  controls:
+  - Random-window null at effective error rate one half, same budget, same verification, same invocation.
+  - e = 0 calibration arm with nonzero weight budget, which must reproduce the exact-window baseline.
+  - Paired instances shared across e values so that the collapse curve carries no instance variance.
+  - Flip positions recorded per instance so that a weight-only model can be checked against a position-sensitive
+    alternative.
+  - Verification by exact multiplication for every claimed recovery, so no success is inferred from
+    a norm bound.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical measurement runs against a null in which the revealed
+    window is drawn uniformly at random, so the error rate is effectively one half, with the same
+    enumeration budget and the same verification. The null must fail in every cell, with an exact
+    binomial upper bound; if weight-bounded enumeration ever succeeds against a random window, the
+    search is finding factors by a route unrelated to the leak and every W(e) is void. A second null,
+    and the important one, runs the enumeration solver at e = 0 with a nonzero weight budget w: it
+    must reproduce entry one''s exact-window r_hat exactly, since enumerating error patterns that
+    do not exist may cost time but must not change the answer. That arm calibrates the solver against
+    the baseline in the same invocation.'
+  independent_variables:
+  - per-bit error rate e
+  - window length W
+  - enumeration budget as a candidate-pattern count
+  - arm (signal, e = 0 calibration, random-window null)
+  metrics:
+    primary:
+    - W(e) with exact binomial interval
+    - signed residual of measured W(e) against the pre-registered prediction
+    - fraction of instances exhausting the enumeration budget per cell
+    - random-window null success rate with exact binomial upper bound
+    secondary:
+    - enumeration count used per successful instance
+    - flip weight and flip positions per instance
+    - reduction wall time and peak resident memory per cell
+    - count of time-capped instances per cell
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: W(e), the largest contiguous window length recoverable on at least 90 percent of seeded
+      instances at per-bit error rate e within the declared enumeration budget.
+    formula: W(e) < W_info(e) strictly for every e > 0, where W_info(e) is the window length at which
+      the leaked Shannon information under the declared independent-flip model equals that of an exact
+      window of length W(0). The pre-registered prediction is W_pred(e) = the largest W such that
+      the probability that the flip count over W bits is at most w(W) is at least 0.90, with w(W)
+      the largest weight whose pattern count fits the declared budget, intersected with the exact-window
+      feasibility from the baseline curve.
+    source: Pre-registered in the parent proposal IDEA-20260816-cddd6b before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: One modulus size of 128 bits with balanced 64-bit primes, five error rates, and
+      window lengths bisected around the exact-window threshold. Ground truth is exact by construction,
+      including the flip pattern, which is recorded for analysis and withheld from the solver. NO
+      TRANSFER to other moduli, other noise models or other budgets is assumed or claimed; the curve
+      is reported as a property of the tested configuration only, and the pre-registered prediction
+      is likewise checked only where it was registered.
+    correspondence: null
+  tail_checks:
+  - Distribution of flip weight per cell against the declared binomial, to confirm the noise generator
+    behaves
+  - Enumeration counts of the slowest decile of successful instances
+  - Success stratified by whether flips fell in the most significant third of the window
+  - Per-instance success at the two W values bracketing each cell's W(e)
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop at the STAGE 2 gate if the e = 0 calibration arm does not reproduce the exact-window threshold
+  - Halt an instance when the enumeration budget is exhausted and record it as budget-limited, never
+    as a mathematical negative
+  - Void the run if the random-window null recovers anywhere
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A run succeeds if the e = 0 calibration arm reproduces the exact-window threshold,
+    the null is bounded, and W(e) is reported with exact binomial intervals and a signed residual
+    against the pre-registered prediction at every cell that did not exhaust its budget in the majority
+    of instances.
+  falsification_criterion:
+  - e = 0 calibration arm failing to reproduce the baseline voids the run
+  - Any random-window null recovery voids the run
+  - Measured W(e) exceeding W_info(e) at any e refutes the central claim
+  - Unstructured residual larger than the resolution floor falsifies the binomial-tail model, leaving
+    only the raw curve reportable
+  - Majority budget exhaustion at every nonzero e makes the curve a budget measurement, which is reported
+    as such and not as a property of the construction
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-cddd6b
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The underlying exact construction must be filed as a KN-LIT entry from primary text before approval,
+    per RQ-RSA-d46f02's constraints.
+  - The exact-window baseline curve W(0) does not exist until entry one of this bucket has run; the
+    pre-registered prediction cannot be computed before it does.
+  - The error grid is proposed and may be entirely in the degenerate regime; a Coordinator should
+    place it using the baseline curve so that the expected flip count at the smallest nonzero e is
+    at least one and at most the weight bound.
+  - The enumeration budget is stated as a pattern count but its conversion to wall time depends on
+    per-candidate lattice rebuild cost, which is unmeasured; a pilot of a single cell should fix it
+    before the grid is authorised.

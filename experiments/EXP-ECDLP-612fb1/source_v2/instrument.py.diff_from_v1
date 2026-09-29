@@ -1,0 +1,148 @@
+--- experiments/EXP-ECDLP-612fb1/source/instrument.py	2026-09-06 15:36:54.536122653 +0000
++++ experiments/EXP-ECDLP-612fb1/source_v2/instrument.py	2026-09-06 22:52:38.077048371 +0000
+@@ -377,6 +377,7 @@
+     phi: float = 1.0           # PHI arms: admission probability per solved target
+     pool_cap: Optional[int] = None   # CAP arms: pool entries retained after re-selection
+     twin: Optional[str] = None       # STATIC twin for the round-0 identity check
++    fixed_table: Optional[np.ndarray] = None  # v2: externally supplied table (sampled-ORACLE at N=2^30, item a)
+ 
+ 
+ @dataclass
+@@ -395,6 +396,17 @@
+     pool_snapshots: Dict[int, dict] = field(default_factory=dict)  # U -> {dps, S, h}
+     table_at_round: List[np.ndarray] = field(default_factory=list)
+     k_found: Optional[np.ndarray] = None   # curve arm: recovered logarithm per solved target (-1 otherwise)
++    # v2 (item e): MEASURED admitted-walk count -- sum over solved (and, for
++    # resel_upper, all) targets whose walks were admitted to the pool, of the
++    # number of walks that target USED (i.e. res.used[u] at its admission),
++    # accumulated across rounds.  This is the numerator of the corrected
++    # r_eff = r + admitted_walk_count / T (definitions.r_eff, item e).
++    admitted_walks_total: int = 0
++    # v2 (item f) diagnostic: peak pool size observed at ANY point WITHIN a
++    # round (not only at round end), so CAP(c)'s S_peak <= c claim can be
++    # verified against the corrected per-admission truncation timing.
++    max_pool_within_round: int = 0
++    cap_truncations_total: int = 0
+ 
+ 
+ class Pool:
+@@ -484,7 +496,11 @@
+         table = np.zeros(0, dtype=np.int64)
+     elif cfg.mode == "oracle":
+         pool = None
+-        table = basins.top_dps(cfg.t_sel)
++        # v2 (item a, N=2^30): a fixed_table override lets ORACLE-like arms
++        # be measured through the SAME k=4-restart online walk sequence used
++        # by every other arm without requiring exact basins (basins may be
++        # None here); at N <= 2^24 the unchanged exact-basin table is used.
++        table = cfg.fixed_table if cfg.fixed_table is not None else basins.top_dps(cfg.t_sel)
+     else:
+         pool = Pool(pools[cfg.r * P.T], rng_keys)
+         if cfg.mode == "static2t":
+@@ -572,7 +588,20 @@
+         res.table_at_round.append(table.copy())
+ 
+         # ---- evidence bookkeeping (round end) -------------------------------
++        # v2 pool_admission_v2 (item f): CAP(c) truncates the pool back to its
++        # top-c entries IMMEDIATELY after each solved target's own walks are
++        # admitted -- one solved target's full set of used walks at a time --
++        # rather than once after the whole round's admissions are merged.
++        # This changes CAP(c) cells' pool CONTENTS relative to v1 (more
++        # truncation happens mid-round) and keeps CAP(c)'s own S_peak <= c
++        # claim honest at every point within a round, not only at round ends.
++        # Charging (item f note): re-selection integer operations are charged
++        # per admission (i.e. once per per-admission cap truncation), not
++        # once at round end against the whole batch.
+         resel_ops = 0
++        admitted_walks_this_round = 0
++        cap_trunc_this_round = 0
++        max_pool_seen_this_round = len(pool) if pool is not None else 0
+         if pool is not None and cfg.mode not in ("static", "static2t"):
+             pool_size_at_start = len(pool)
+             for i in range(tb.shape[0]):
+@@ -588,6 +617,7 @@
+                     walks_to_enter = range(nu)
+                 else:
+                     walks_to_enter = range(0)
++                admitted_this_target = 0
+                 for j in walks_to_enter:
+                     t = int(tb[i, j])
+                     if t < 0:
+@@ -607,7 +637,45 @@
+                             pool.add_or_credit(t, 0.0, 0, log=new_log)
+                     else:
+                         pool.add_or_credit(t, L, 1, log=new_log)
++                    admitted_this_target += 1
++                if len(walks_to_enter):
++                    admitted_walks_this_round += nu   # item e: walks USED by
++                    # this target (per definitions.admitted-walk count), not
++                    # only those that yielded an uncapped DP
++                if cfg.pool_cap is None:
++                    # uncapped arms: the pool never gets truncated, so its
++                    # size right after this target's admission IS an
++                    # observable checkpoint for the true peak.
++                    max_pool_seen_this_round = max(max_pool_seen_this_round, len(pool))
++                # v2 PER-ADMISSION cap truncation (item f): applied right here,
++                # after this target's own admissions, before the next target's.
++                # For CAP(c) arms the transient size DURING this target's own
++                # admission (before ITS OWN truncation below) is an internal
++                # step of one atomic admission event, not an observable point
++                # "between admissions" in the contract's sense -- only the
++                # POST-truncation size below is recorded as a checkpoint, so
++                # CAP(c)'s own S_peak <= c claim is checked honestly against
++                # the contract's stated invariant.
++                if cfg.pool_cap is not None:
++                    if admitted_this_target > 0 and len(pool) > cfg.pool_cap:
++                        w_i = pool.weights(P.W)
++                        keys_i = np.asarray(pool.keys, dtype=np.int64)
++                        sel_i = CountedSelector()
++                        order = sel_i.select(w_i, keys_i, cfg.pool_cap)
++                        ref_i = numpy_select(w_i, keys_i, cfg.pool_cap)
++                        if set(order) != set(ref_i):
++                            res.selector_verified = False
++                        resel_ops += sel_i.ops
++                        pool.restrict(order)
++                        cap_trunc_this_round += 1
++                    # post-admission checkpoint for CAP(c): recorded whether or
++                    # not truncation was needed this target, so a CAP(c) arm
++                    # that never exceeds c is correctly scored as never
++                    # exceeding c, not silently unmeasured.
++                    max_pool_seen_this_round = max(max_pool_seen_this_round, len(pool))
+             res.max_pool = max(res.max_pool, len(pool))
++            res.admitted_walks_total += admitted_walks_this_round
++            res.cap_truncations_total += cap_trunc_this_round
+             if reselect:
+                 sel = CountedSelector()
+                 w = pool.weights(P.W)
+@@ -616,17 +684,27 @@
+                 ref = numpy_select(w, keys, cfg.t_sel)
+                 if set(idx) != set(ref):
+                     res.selector_verified = False
+-                resel_ops = sel.ops
++                resel_ops += sel.ops
+                 res.reselection_ops_total += resel_ops
+                 table = np.asarray([pool.dps[i] for i in idx], dtype=np.int64)
+-                if cfg.pool_cap is not None and len(pool) > cfg.pool_cap:
+-                    order = numpy_select(w, keys, cfg.pool_cap)
+-                    pool.restrict(order)
++                # NOTE (item f): the old v1 round-end cap truncation is REMOVED
++                # here -- CAP(c) is now enforced per-admission above, so the
++                # pool entering this round's re-selection is already <= c
++                # entries where cfg.pool_cap is set (modulo the table-selection
++                # step above, which reads from the pool but does not grow it).
+             if (u1 in snapshot_U) and cfg.mode == "resel_lower":
+                 res.pool_snapshots[u1] = {"dps": list(pool.dps), "S": list(pool.S), "h": list(pool.h)}
++        res.max_pool_within_round = max(res.max_pool_within_round, max_pool_seen_this_round)
+         rec["reselection_int_ops"] = resel_ops
+         rec["reselection_ops_over_group_ops"] = (resel_ops / rec["group_ops"]) if rec["group_ops"] else None
+         rec["pool_size_after"] = len(pool) if pool is not None else 0
++        rec["pool_size_max_within_round"] = max_pool_seen_this_round
++        rec["admitted_walks_this_round"] = admitted_walks_this_round
++        rec["admitted_walks_cumulative"] = res.admitted_walks_total
++        rec["cap_truncations_this_round"] = cap_trunc_this_round
++        if cfg.pool_cap is not None:
++            rec["pool_cap"] = cfg.pool_cap
++            rec["pool_cap_honest_this_round"] = bool(max_pool_seen_this_round <= cfg.pool_cap)
+         res.rounds.append(rec)
+     res.S_peak_bits = int(res.max_pool * P.bits_pool_entry)
+     return res

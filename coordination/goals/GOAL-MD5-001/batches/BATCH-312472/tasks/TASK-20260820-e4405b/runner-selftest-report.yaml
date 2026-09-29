@@ -1,0 +1,557 @@
+# TASK-20260820-e4405b runner-selftest-report.yaml
+# RANK 2 producer (executor) — GOAL-MD5-001, BATCH-312472, RQ-MDFIVE-6870c1
+#
+# Deliverable 2 of the task card: the self-test suite and its results object
+# by object, the exact new API, the coverage boundary, the commands run, the
+# never-read attestation, and a truthful budget account.
+#
+# Claim ceiling: protocol_supersession_and_certificate_implementation_only.
+# This report asserts NOTHING about MD5 (SC-2). A verified:false on a test
+# object is a statement about the test object; a verified:true on a mock is a
+# statement about the decision logic, not about a real collision.
+
+selftest_report:
+  task_id: TASK-20260820-e4405b
+  goal_id: GOAL-MD5-001
+  batch_id: BATCH-312472
+  question_id: RQ-MDFIVE-6870c1
+  recorded_at: '2026-08-21'
+  recorded_by: executor (RANK 2 producer, this session)
+  claim_ceiling: protocol_supersession_and_certificate_implementation_only
+
+  # =====================================================================
+  # INFERENCE / MODEL PROVENANCE
+  # =====================================================================
+  inference:
+    requested_policy: executor-implementation
+    reasoning_effort: null            # per-task calibration; null = policy default
+    resolved_model_id: vllm/qwen3.8-27b   # the model serving this session, per
+                                          # the session environment
+    model_verified: unverified
+    model_verified_note: >-
+      vllm/qwen3.8-27b is not a backend of this repository's
+      orchestration.adapter (no vllm backend in orchestration/providers.yaml),
+      so `python3 -m orchestration.adapter doctor --probe` cannot confirm it;
+      per AGENTS.md it is recorded as unverified configuration, not
+      fabricated as verified.
+    fallback_used: false
+    degraded_requirements: []
+    note: >-
+      This session is the dispatched executor session for this task; the
+      requested policy was honoured by the session as dispatched. No
+      downgrade, fallback, or substitution occurred in this session.
+
+  # =====================================================================
+  # IMPLEMENTATION (deliverable 1: the harness/runner.py change)
+  # =====================================================================
+  implementation:
+    files_changed:
+      - harness/runner.py
+    change_type: additive
+    diff_summary: >-
+      191 insertions, 3 deletions; the 3 deleted lines are exactly the
+      replaced lines (the old write_run signature line, the old
+      completed_invalid kind tuple, the old wall_seconds formula line).
+      No existing code path was rewritten.
+    git_state_at_work:
+      branch: md5-001-927ab5-archive-20260819
+      head: 15359a58c
+      dirty: true   # this task's own uncommitted change (nothing is committed;
+                    # TASK-20260820-513ea9 snapshots these bytes)
+
+    # ------------------------------------------------------------------
+    # EXACT NEW API
+    # ------------------------------------------------------------------
+    new_api:
+      certificate_kind:
+        kind: md5_collision_pair
+        dispatch: >-
+          harness/runner.py::_verify() now routes kind == "md5_collision_pair"
+          to _verify_md5_collision_pair(cert) and returns
+          (verified, "independent-recompute"); failing checks are attached to
+          the certificate as cert["failing_checks"] and surfaced in the
+          manifest's run.result.certificate.failing_checks (additive key,
+          absent when no check fails).
+        schema:
+          kind: md5_collision_pair
+          statement:
+            messages: [m1_hex, m2_hex]     # hex strings, exact bytes
+            digest: <hex>                  # the claimed common MD5 output
+            implementations: [IMPL-1, IMPL-3]   # the pinned pair, exactly
+        rule: >-
+          MD5(m1) and MD5(m2) are computed with BOTH pinned implementations
+          (four digests). verified: true ONLY if m1 != m2 AND all four
+          digests equal the claimed digest. Otherwise verified: false with
+          every failing check named, as applicable: m1_equals_m2 /
+          digest_mismatch_impl1_m1 / digest_mismatch_impl1_m2 /
+          digest_mismatch_impl3_m1 / digest_mismatch_impl3_m2 /
+          implementations_disagree.
+        structural_check_names: >-
+          Malformed-field failures are named separately (documented in the
+          function docstring): missing_statement / invalid_messages /
+          invalid_hex:<field> / implementations_not_pinned_pair. A
+          pin-mechanism distinctness failure (BCP-2, INV-13) is named
+          pinned_pair_not_distinct.
+        pinned_implementations:
+          IMPL-1:
+            code_path: "hashlib.md5(data, usedforsecurity=False)"
+            runtime_type_observed: _hashlib.HASH
+            module_file_observed: /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/lib-dynload/_hashlib.cpython-312-darwin.so
+            links: OpenSSL libcrypto (per implementation-pin.yaml)
+          IMPL-3:
+            code_path: "_md5.md5(data)  (top-level extension module in this build)"
+            runtime_type_observed: _md5.md5
+            module_file_observed: /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/lib-dynload/_md5.cpython-312-darwin.so
+            links: libSystem only, NOT libcrypto (per implementation-pin.yaml;
+                   otool -L re-confirmed in this session)
+          distinctness: >-
+            The two are distinct imports producing distinct runtime types
+            (re-verified at run time by the pin-mechanism check, T1/T10).
+            They are not aliased: the registry maps each pinned name to its
+            own code path, and the pin-mechanism check probes those same
+            callables.
+          import_note: >-
+            The pin's `source` field says "hashlib._md5", but in this build
+            `hashlib` is a flat module (not a package), so the extension is
+            imported as the top-level module `_md5`. The loaded .so is the
+            exact file the pin's `path` field names
+            (lib-dynload/_md5.cpython-312-darwin.so); otool -L on it shows
+            libSystem.B.dylib only, matching the pin's independence claim.
+        wrapper_populated_fields:
+          verified_by: >-
+            WRAPPER-POPULATED ONLY (BCP-2 J5 fix): any solver-provided
+            verified_by is cleared and replaced exclusively with the
+            wrapper's own recomputation — per implementation,
+            {implementation, computed_digest_m1, computed_digest_m2}
+            (four digests). Lands in raw-result.json with the certificate.
+          pin_mechanism: >-
+            Recorded at run time (BCP-2 pin_mechanism_requirement): per
+            implementation, the module __file__ the import resolved to and
+            the runtime type of the produced hash object, plus the
+            distinctness assertion (distinct: true/false). A failure makes
+            the certificate verified: false (check pinned_pair_not_distinct,
+            INV-13) and the run completed_invalid.
+        failed_certificate_consequence: >-
+          A failed md5_collision_pair certificate makes the run
+          completed_invalid (valid: false, "certificate failed independent
+          verification") — the existing runner.py rule, extended to the new
+          kind per BCP-1/BCP-2 independence_rule (invalid_measurement, not a
+          negative_observation).
+        cairn_cross_check: >-
+          md5_collision_pair is not in tools/cairn_bridge.SUPPORTED_KINDS
+          ({discrete_log, decomposition}), so _cairn_cross_check returns
+          None for it: no cairn dependency, nothing recorded — same as kind
+          "none".
+      wrapper_timing:
+        new_entry_point: >-
+          run_wrapped(exp_id, exp_area, fn, *, status, command,
+                      out_root=None) -> str
+        semantics: >-
+          `fn` is the experiment's run function and must return a RunResult.
+          The wrapper samples time.monotonic() immediately before and
+          immediately after the call (BY THE WRAPPER, not the caller) and
+          writes wall_seconds = t1 - t0 into run.timing.wall_seconds with
+          run.timing.timing_source: wrapper. The wrapper's own wall-clock
+          readings (time.time()) fill started_at/finished_at. Callers of
+          run_wrapped have NO started/finished parameters to supply, so a
+          fabricated caller bracket cannot land in the record.
+        write_run_signature_change: >-
+          write_run(exp_id, exp_area, result, *, status, command, started,
+          finished, out_root=None, wall_seconds=None, timing_source=None)
+          — two new keyword-only OPTIONAL parameters. When wall_seconds is
+          None (every existing caller), the manifest timing block is
+          byte-identical to the pre-change behavior (wall_seconds =
+          round(finished - started, 6), no timing_source key). When
+          run_wrapped calls it, wall_seconds is the monotonic delta and
+          timing_source is "wrapper".
+        trust_rule: >-
+          Caller-supplied started/finished are no longer trusted for NEW
+          runs: new runs go through run_wrapped, which measures itself.
+          Existing records remain readable and immutable under the old API
+          (policy, not a defect to fix retroactively — BCP-2 legacy_records).
+
+    # ------------------------------------------------------------------
+    # BCP-2 ALIGNMENT (flagged, not silently absorbed)
+    # ------------------------------------------------------------------
+    bcp2_alignment:
+      status: >-
+        BCP-2 (coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/
+        BCP-2.yaml, authored by the concurrent task TASK-20260820-3d26df)
+        LANDED during this task, after the card was written. Per the card's
+        own instruction, the diff is flagged here rather than silently
+        re-implemented.
+      field_names: >-
+        BCP-2 fixes the exact field names (messages: [m1, m2], digest,
+        implementations: [IMPL-1, IMPL-3]) "matching the implementation
+        card" — they MATCH this implementation. No field-name mismatch.
+      additions_implemented:
+        - >-
+          verified_by WRAPPER-POPULATED ONLY (BCP-2's J5 fix): implemented
+          and covered by T9 (a solver-provided verified_by is cleared and
+          replaced by the wrapper's recomputation).
+        - >-
+          pin_mechanism_requirement (BCP-2): the wrapper records at run time
+          the module __file__ and runtime type of each implementation and
+          asserts distinctness (failure -> verified: false,
+          pinned_pair_not_distinct, INV-13). Implemented and covered by T1
+          (recording on the production path) and T10 (assertion logic,
+          including the aliased-registry negative case).
+      minor_discrepancy_flagged: >-
+        BCP-2's pinned_implementations block documents IMPL-3's runtime_type
+        as "_md5.MD5Type"; the runtime type name observed in this build is
+        "_md5.md5" (the C type object is MD5Type; the instance type's
+        __name__ is "md5"). The wrapper records the OBSERVED name
+        (type(h).__module__ + "." + type(h).__name__), which is what a
+        dispatcher verifying at dispatch should compare against. Flagged for
+        the snapshot/review; not resolved here (BCP-2 is immutable once
+        committed; a correction belongs in a superseding record).
+      not_implemented_here: >-
+        BCP-2's pre_dispatch_gate (canonical serialization,
+        pre_registered_value), null-object tolerance/baseline,
+        evidence_record_requirement (confound_caveat), and the
+        near_collision_blocks metrics requirement are protocol/dispatcher
+        obligations for the future calibration run wrapper, not part of this
+        task's two implementation requirements; they are not implemented
+        here and are named as such (SC-5).
+
+  # =====================================================================
+  # SELF-TEST SUITE (deliverable: the evidence this task produces)
+  # =====================================================================
+  selftest_suite:
+    suite_path: coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/TASK-20260820-e4405b/selftest.py
+    machine_readable_results: coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/TASK-20260820-e4405b/selftest-results.json
+    python: '3.12.8'
+    all_pass: true
+    exit_code: 0
+
+    precondition:
+      name: pinned pair distinct at runtime (re-check of the pin's independence claim)
+      observed:
+        impl1_type: HASH            # _hashlib.HASH
+        impl3_type: md5             # _md5.md5
+        distinct_types: true
+        empty_string_vector_agree: true   # d41d8cd98f00b204e9800998ecf8427e both
+      pass: true
+
+    objects:
+      - id: T1
+        name: known-false real crypto — two messages with different MD5 digests, claimed digest = the real MD5(m1)
+        label: real crypto, production dispatch (pinned pair)
+        object:
+          messages: ["68656c6c6f20776f726c64", "676f6f6462796520776f726c64"]  # "hello world" / "goodbye world"
+          digest: "5eb63bbbe01eeed093cb22bb8f5acdc3"   # real MD5("hello world")
+          implementations: [IMPL-1, IMPL-3]
+        expected: {verified: false, checks: [digest_mismatch_impl1_m2, digest_mismatch_impl3_m2]}
+        observed: {verified: false, verifier: independent-recompute,
+                   checks: [digest_mismatch_impl1_m2, digest_mismatch_impl3_m2]}
+        pass: true
+        bcp2_pin_mechanism_recorded:
+          distinct: true
+          IMPL-1: {module_file: ".../lib-dynload/_hashlib.cpython-312-darwin.so", runtime_type: _hashlib.HASH}
+          IMPL-3: {module_file: ".../lib-dynload/_md5.cpython-312-darwin.so", runtime_type: _md5.md5}
+        bcp2_verified_by_wrapper_populated:
+          entries: 2
+          impl1_digest_m1: "5eb63bbbe01eeed093cb22bb8f5acdc3"   # = real MD5(m1)
+          impl3_digest_m2: "0949f7eb1f66dad39d488d5d22531166"   # = real MD5(m2)
+
+      - id: T2
+        name: tampered digest — first hex digit of MD5(m1) flipped, claimed against the same non-colliding pair
+        label: real crypto, production dispatch (pinned pair)
+        object:
+          messages: ["68656c6c6f20776f726c64", "676f6f6462796520776f726c64"]
+          digest: "6eb63bbbe01eeed093cb22bb8f5acdc3"   # tampered (5 -> 6)
+          implementations: [IMPL-1, IMPL-3]
+        expected: {verified: false,
+                   checks: [digest_mismatch_impl1_m1, digest_mismatch_impl1_m2,
+                            digest_mismatch_impl3_m1, digest_mismatch_impl3_m2]}
+        observed: {verified: false,
+                   checks: [digest_mismatch_impl1_m1, digest_mismatch_impl1_m2,
+                            digest_mismatch_impl3_m1, digest_mismatch_impl3_m2]}
+        pass: true
+
+      - id: T3
+        name: m1 == m2 — identical messages, correct digest
+        label: real crypto, production dispatch (pinned pair)
+        object:
+          messages: ["68656c6c6f20776f726c64", "68656c6c6f20776f726c64"]
+          digest: "5eb63bbbe01eeed093cb22bb8f5acdc3"
+          implementations: [IMPL-1, IMPL-3]
+        expected: {verified: false, checks: [m1_equals_m2]}
+        observed: {verified: false, checks: [m1_equals_m2]}
+        pass: true
+
+      - id: T4
+        name: single-implementation agreement is insufficient — mock IMPL-1 agrees with the claimed digest on BOTH messages, mock IMPL-3 disagrees on m2 (3 of 4 digests match)
+        label: >-
+          MOCK implementations, logic level (documented test seam).
+          UNPRODUCIBLE with the real pinned pair: both are correct MD5 and
+          agree on every input, so no real object exists where one
+          implementation agrees and the other does not. The structure
+          (the handler unconditionally computes all four digests) makes the
+          insufficiency a property of the rule, demonstrated here with a
+          mock — not faked, and labelled as such.
+        object:
+          messages: ["68656c6c6f20776f726c64", "676f6f6462796520776f726c64"]
+          digest: "5eb63bbbe01eeed093cb22bb8f5acdc3"
+          implementations: [IMPL-1, IMPL-3]   # names as in the certificate;
+                                               # the seam substitutes mock code paths
+        expected: {verified: false, checks: [digest_mismatch_impl3_m2, implementations_disagree]}
+        observed: {verified: false, checks: [digest_mismatch_impl3_m2, implementations_disagree]}
+        pass: true
+
+      - id: T5
+        name: mock true path — two distinct mock implementations agree on a chosen digest for distinct m1/m2
+        label: >-
+          MOCK implementations, logic level ONLY. This tests the decision
+          logic (m1 != m2 AND all four digests equal claimed -> verified),
+          NOT real MD5 agreement. It is NOT evidence that any real pair
+          collides, and asserts nothing about MD5.
+        object:
+          messages: ["68656c6c6f20776f726c64", "676f6f6462796520776f726c64"]
+          digest: "abababababababababababababababab"   # chosen, not a real MD5 of either
+          implementations: [IMPL-1, IMPL-3]
+        expected: {verified: true, checks: []}
+        observed: {verified: true, checks: []}
+        pass: true
+
+      - id: T9
+        name: BCP-2 J5 fix — solver-provided verified_by cleared and replaced by wrapper recomputation
+        label: real crypto, production dispatch (pinned pair)
+        object:
+          messages: ["68656c6c6f20776f726c64", "676f6f6462796520776f726c64"]
+          digest: "5eb63bbbe01eeed093cb22bb8f5acdc3"
+          implementations: [IMPL-1, IMPL-3]
+          verified_by: "solver-provided fake (all-zero digests) — cleared by the wrapper"
+        expected: {verified: false, checks: [digest_mismatch_impl1_m2, digest_mismatch_impl3_m2],
+                   verified_by_is_wrapper_computed: true}
+        observed: {verified: false, checks: [digest_mismatch_impl1_m2, digest_mismatch_impl3_m2],
+                   verified_by_equals_fake: false,
+                   verified_by_impl1_m1: "5eb63bbbe01eeed093cb22bb8f5acdc3",
+                   verified_by_impl3_m2: "0949f7eb1f66dad39d488d5d22531166"}
+        pass: true
+
+      - id: T10
+        name: BCP-2 pin-mechanism distinctness assertion — real registry distinct, aliased registry not distinct
+        label: >-
+          Logic level: _md5_pin_mechanism called directly. The dispatch-level
+          failure path (verified: false, pinned_pair_not_distinct) is NOT
+          exercised end-to-end: it would require aliasing the real pinned
+          imports in the production registry, which this task does not do.
+          The assertion function itself is tested on both the real and the
+          aliased registry.
+        object:
+          real_registry: runner._MD5_IMPL_FUNCS
+          aliased_registry: both entries = runner._md5_impl1_hash
+        expected: {real_distinct: true, aliased_distinct: false}
+        observed:
+          real_distinct: true
+          aliased_distinct: false
+          real_record:
+            IMPL-1: {module_file: ".../lib-dynload/_hashlib.cpython-312-darwin.so", runtime_type: _hashlib.HASH}
+            IMPL-3: {module_file: ".../lib-dynload/_md5.cpython-312-darwin.so", runtime_type: _md5.md5}
+          aliased_record:
+            IMPL-1: {module_file: ".../lib-dynload/_hashlib.cpython-312-darwin.so", runtime_type: _hashlib.HASH}
+            IMPL-3: {module_file: ".../lib-dynload/_hashlib.cpython-312-darwin.so", runtime_type: _hashlib.HASH}
+        pass: true
+
+    wrapper_timing:
+      id: T7
+      name: wrapper-measured wall_seconds — the wrapped call sleeps 0.05 s; a caller that "wanted" to claim a fabricated 0.001 s bracket cannot, because run_wrapped has no started/finished parameters
+      run_id: RUN-MD5CERT-selftest-wrapper
+      manifest_path: coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/TASK-20260820-e4405b/selftest-runs/EXP-MD5CERT-e4405b/runs/RUN-MD5CERT-selftest-wrapper/manifest.yaml
+      observed:
+        wall_seconds: 0.050649        # wrapper-measured monotonic delta around fn
+        timing_source: wrapper
+        started_at: '2026-08-21T08:03:31.965704+00:00'
+        finished_at: '2026-08-21T08:03:32.016354+00:00'
+        outer_write_run_process_seconds: 1.020197   # the whole write_run call,
+                                                    # NOT what wall_seconds records
+      checks:
+        timing_source_is_wrapper: true
+        wall_seconds_ge_sleep_0p05: true
+        wall_seconds_exceeds_fabricated_0p001: true
+        wall_seconds_sane_lt_5: true
+      pass: true
+      note: >-
+        The record carries the wrapper-measured value (0.050649 s, the
+        actual wrapped call), not any caller value: the new API has no
+        caller-timing parameters at all. The outer write_run process took
+        1.02 s (git state, source provenance, manifest writing) — the
+        wrapper measures the wrapped call, not its own bookkeeping.
+
+    legacy_timing_no_regression:
+      id: T8
+      name: legacy write_run path — explicit caller started/finished still produce the old formula and the old manifest shape
+      run_id: RUN-MD5CERT-selftest-legacy
+      manifest_path: coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/TASK-20260820-e4405b/selftest-runs/EXP-MD5CERT-e4405b/runs/RUN-MD5CERT-selftest-legacy/manifest.yaml
+      caller_supplied: {started: 1000.0, finished: 1000.001}
+      observed:
+        wall_seconds: 0.001           # = round(finished - started, 6), the old formula
+        timing_source_present: false  # no new key on the legacy path
+        started_at: '1970-01-01T00:16:40+00:00'
+        finished_at: '1970-01-01T00:16:40.001000+00:00'
+      checks:
+        old_formula_finished_minus_started: true
+        no_timing_source_key: true
+        started_at_matches_caller_epoch: true
+        finished_at_matches_caller_epoch: true
+      pass: true
+
+  # =====================================================================
+  # COVERAGE BOUNDARY (stated, not hidden)
+  # =====================================================================
+  coverage_boundary:
+    id: T6
+    status: OPEN
+    statement: >-
+      The end-to-end true path — a GENUINE colliding pair (m1 != m2 with
+      MD5(m1) == MD5(m2)) verified by two real independent implementations
+      through the production dispatch — is UNTESTED within this budget.
+      Generating a genuine MD5 collision pair is infeasible here (no
+      collision search was run, and none is possible within 600 s / 2 GB /
+      2 runs), and the quarantined pair is FORBIDDEN to this task. The true
+      path is therefore tested at logic level only (T5, mock, explicitly
+      labelled), and the end-to-end true path is named OPEN. It becomes
+      testable only when a future calibration run's closed input manifest
+      declares the quarantined pair (or a genuine pair is otherwise
+      produced), per BCP-1/BCP-2.
+    also_open:
+      - >-
+        The dispatch-level pin-mechanism failure path (verified: false with
+        pinned_pair_not_distinct through _verify) is not exercised
+        end-to-end; the assertion function is tested directly (T10),
+        including the aliased-registry negative case.
+      - >-
+        The structural check names (missing_statement / invalid_messages /
+        invalid_hex:<field> / implementations_not_pinned_pair) are
+        implemented but not exercised by a dedicated object in this suite;
+        they are defensive pre-semantic guards. Named OPEN, not claimed
+        tested.
+
+  # =====================================================================
+  # NO-REGRESSION CHECK
+  # =====================================================================
+  no_regression_check:
+    method:
+      - >-
+        (a) The committed harness test suite tests/test_harness.py — which
+        exercises the existing certificate kinds (discrete_log valid and
+        invalid, decomposition, none), the legacy write_run timing path
+        (started=1.0, finished=2.0), run-record immutability, N6 source
+        pinning, and the cairn cross-check paths — was run BEFORE the
+        change (baseline) and AFTER the change, and the results are
+        identical.
+      - >-
+        (b) The diff is additive: git diff shows 191 insertions and 3
+        deletions, where the 3 deleted lines are exactly the replaced lines
+        (old write_run signature line, old completed_invalid kind tuple,
+        old wall_seconds formula line). The legacy write_run path with
+        wall_seconds=None computes round(finished - started, 6) and emits
+        no timing_source key — byte-identical manifest shape to before.
+      - >-
+        (c) T8 above writes a real run record through the legacy API and
+        verifies the old formula and the absence of new keys.
+    baseline_before_change: "28 passed in 16.20s"
+    after_change: "28 passed in 15.82s"
+    result: PASS — identical test outcomes before and after; existing
+             certificate kinds and existing run-record behavior unchanged.
+
+  # =====================================================================
+  # COMMANDS RUN
+  # =====================================================================
+  commands_run:
+    commands:
+      - "python3 -m pytest tests/test_harness.py -v            # baseline, BEFORE the change (28 passed in 16.20s)"
+      - "python3 -m py_compile harness/runner.py               # after each edit round"
+      - "python3 coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/TASK-20260820-e4405b/selftest.py   # self-test suite (final: exit 0, all_pass true)"
+      - "python3 -m pytest tests/test_harness.py               # AFTER the change (28 passed in 15.82s)"
+      - "git diff harness/runner.py                            # additive-change review"
+      - "otool -L .../lib-dynload/_md5.cpython-312-darwin.so   # linkage re-check (libSystem only)"
+      - "python3 -c \"...\" probes of hashlib.md5 vs _md5.md5  # type distinctness, RFC 1321 vectors"
+    note: >-
+      Intermediate self-test iterations (before the BCP-2 alignment and the
+      hash-object fix) also ran and wrote run records; those uncommitted
+      artifacts were removed and the suite re-run so the final artifacts
+      correspond to the final bytes. No committed record was touched.
+
+  # =====================================================================
+  # NEVER-READ ATTESTATION
+  # =====================================================================
+  never_read_attestation:
+    file: coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+    attested: true
+    statement: >-
+      I attest that this file was NOT opened, read, grepped, or otherwise
+      accessed by this session, in whole or in part. No file under
+      coordination/goals/GOAL-MD5-001/quarantine/ was read. All self-test
+      objects are known-false (two messages with different MD5 digests, a
+      tampered digest, m1 == m2) or mock (T4, T5, T10's aliased registry);
+      no genuine collision pair was used, generated, or recalled into the
+      test objects. This attestation is self-attested: the runtime does not
+      enforce or audit read history (BCP-1 firewall.
+      what_read_scope_alone_cannot_do), and a false attestation would be a
+      fabrication under AGENTS.md rule 5 and SC-1.
+
+  # =====================================================================
+  # BUDGET ACCOUNT (truthful)
+  # =====================================================================
+  budget_account:
+    declared: {wall_clock_seconds: 600, memory_gb: 2, maximum_runs: 2}
+    runs_written_under_write_scope: 2
+    runs_detail:
+      - RUN-MD5CERT-selftest-wrapper   # T7, wrapper-timing evidence
+      - RUN-MD5CERT-selftest-legacy    # T8, legacy-path no-regression evidence
+    runs_note: >-
+      Exactly 2 run records were written under this task's write scope in
+      the final state, matching maximum_runs: 2. Intermediate iterations
+      wrote and then removed their own uncommitted run records before the
+      final run (named here, not hidden). Separately, the no-regression
+      check re-ran the EXISTING committed test suite (tests/test_harness.py)
+      three times; those pytest runs write ephemeral run records to
+      pytest's tmp_path (outside this repository, auto-deleted) and are a
+      check of existing committed tests, not new experiment runs. If the
+      Coordinator reads "runs" to include those, the count is 2 (task
+      evidence) + 3 (pytest re-runs, ephemeral, outside the repo).
+    wall_clock:
+      measured_command_seconds:
+        baseline_pytest: 16.20
+        final_pytest: 15.82
+        selftest_final_run: ~1        # suite wall time, dominated by the 0.05 s sleep + write_run bookkeeping
+        other_commands: "< 1 each (compile, diff, ls, probes)"
+      total_measured_command_seconds: ~55
+      session_level_elapsed: >-
+        Not measured: this session has no timer instrumentation for its own
+        agent-level elapsed time (thinking time is not in the shell clock).
+        The measured command time (~55 s) is far below the 600 s ceiling;
+        no halt occurred and no work was dropped (SC-7 not triggered).
+    memory:
+      declared_gb: 2
+      observed_peak_rss_bytes:
+        RUN-MD5CERT-selftest-wrapper: 61997056    # ~62 MB (wrapper process)
+        RUN-MD5CERT-selftest-legacy: 87736320     # ~88 MB (wrapper process)
+      note: >-
+        Session-level peak RSS is not measured (no instrumentation); the
+        wrapper-recorded process peaks above are the measured values and are
+        far below 2 GB.
+    halt: none
+    dropped_work: none
+
+  # =====================================================================
+  # STANDING CONSTRAINTS
+  # =====================================================================
+  sc8_bedrock: >-
+    Amazon Bedrock was not selected, configured, probed, contacted, or used.
+    No Bedrock backend exists in orchestration/providers.yaml (the only
+    "bedrock" strings in orchestration/ are the guardrail's own
+    forbidden_provider_substrings list and guard comments).
+  sc6: >-
+    No hypothesis, question, experiment, or goal status was changed; no
+    experiment was approved; no knowledge was promoted; no committed record
+    was edited. harness/runner.py was extended (an authorized
+    implementation change); nothing was committed (TASK-20260820-513ea9
+    snapshots these bytes).
+  write_scope_respected: >-
+    Writes occurred only under harness/runner.py and
+    coordination/goals/GOAL-MD5-001/batches/BATCH-312472/tasks/
+    TASK-20260820-e4405b/ (selftest.py, selftest-results.json,
+    selftest-runs/). Nothing else was written.

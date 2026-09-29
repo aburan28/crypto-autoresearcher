@@ -1,0 +1,230 @@
+experiment:
+  id: EXP-SIDECH-8e197f
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-698819; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-698819
+  question_id: RQ-SLHDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure paired index-collision and sign-then-verify detection rates across a 32-cell fault
+    grade lattice on a toy stateless hash-based signer, against an unfaulted baseline and a matched-grade
+    null in a non-index-affecting field.
+  objective: 'The one uncertainty a run reduces: whether a fault assumption on a stateless hash-based
+    signer can be stated as a graded predicate with two measured rates rather than as an adjective,
+    and where those rates cross. Concretely: (i) is the harness''s simulated fault actually confined
+    to the field its grade names -- tested by injecting the identical grade into a field that cannot
+    influence index derivation and requiring the index-collision rate to match the unfaulted baseline
+    -- since without that confinement every grade''s number is measuring the harness rather than the
+    signer; (ii) do the two structurally forced detection rates appear, namely exactly 1.0 for a corrupted
+    authentication path, which cannot verify against the public root, and exactly 0.0 for a corrupted
+    message randomizer, which yields an internally consistent signature, since these are derivable
+    in advance and any deviation identifies an implementation fault; (iii) given (i) and (ii), what
+    are the index-collision and detection rates at each of the remaining grades, and at which grade
+    does collision first exceed detection. The run answers these and stops. It constructs no forgery.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''on this toy signer at these parameters,
+      under SIMULATED in-memory faults of the stated grades, the index-collision rate was p and the
+      sign-then-verify detection rate was q per grade as tabulated, with the null arm matching the
+      unfaulted baseline and both forced detection rates reproduced.'' What does NOT follow: that
+      any physical fault of any grade is achievable on any device; that SLH-DSA at FIPS 205 parameters
+      is affected in any way; that an index collision constitutes a forgery, since none is constructed
+      and the gap between the two is not measured; that sign-then-verify is or is not an adequate
+      countermeasure in deployment; and anything about what any published fault attack achieves. THE
+      FAULT IS A HARNESS-PERFORMED MEMORY MUTATION AND THIS ENVIRONMENT HAS NO PHYSICAL FAULT-INJECTION
+      CAPABILITY.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~6 hours implementation): build the toy stateless hash-based signer
+      -- hypertree over a few-time layer, explicit randomizer-driven index derivation, explicit authentication
+      paths -- with a signing-index observation hook for the harness. STAGE 1 (cost: ~2 hours): build
+      the graded mutation harness with a mutation-fidelity counter; verify that a nominal k-bit flip
+      changes exactly k bits. STAGE 2 (cost: ~1 hour): build sign-then-verify as an independent code
+      path where feasible and record where it shares code with signing. STAGE 3 (cost: minutes CPU):
+      pilot the three structural checks -- null versus baseline, authentication-path detection at
+      1.0, randomizer detection at 0.0 -- before any sweep. STAGE 4 (cost: ~2-6 core-hours): run the
+      full grade lattice, 4 fields by 4 widths by 2 persistence values, R=5000 invocations per cell,
+      interleaved with baseline and null cells, all seeds recorded. STAGE 5 (cost: minutes): compute
+      both rates per cell with binomial intervals; locate the crossing grade; plot maximum per-index
+      revealed-leaf fraction against invocation count per grade. STAGE 6 (cost: minutes): emit the
+      run record with the parameter set, the seeds, the mutation-fidelity counts, and the simulation
+      caveat attached to every table.'
+    instrument: Python 3 with hashlib for the hash primitive (truncated to the toy output width),
+      numpy for rate arithmetic and binomial intervals. The toy signer and the graded mutation harness
+      are written for this experiment; the mutation is a direct byte-level modification of a named
+      buffer inside the harness, with a fidelity counter. Run-record emission, seed recording and
+      bounded execution through harness/runner.py and src/crypto_autoresearcher/runner.py. harness/ctrl_valueshuffle.py
+      is read as the in-repository precedent for an interleaved control arm. No Sage. No physical
+      fault-injection equipment, no hardware access, no timing measurement enters any reported metric.
+    parameters: 'Hash output width truncated to 16 bits (primary) and 20 bits (secondary, to check
+      the collision-rate scaling). Hypertree: 2 layers, 4 leaves per layer. Few-time layer: 8 leaves
+      per key, 4 revealed per signature. Grade lattice: FIELD in {message randomizer, index-derivation
+      output, few-time-key seed, authentication-path node}; WIDTH in {1, 2, 4, 8} flipped bits; PERSISTENCE
+      in {transient, persistent over 4 invocations} -- 32 cells. R = 5000 signing invocations per
+      cell. Arms: signal, matched-grade null in a padding byte, unfaulted baseline; all interleaved
+      and seed-matched. Message stream: fixed and recorded. Seeds: 5 recorded master seeds.'
+  controls:
+  - Unfaulted baseline arm, run interleaved, whose own index-collision rate is measured rather than
+    assumed to be zero.
+  - Matched-grade null in a non-index-affecting field, same seeds and same mutation mechanism.
+  - Authentication-path forced-detection control, which must give detection rate exactly 1.0.
+  - Randomizer forced-non-detection control, which must give detection rate exactly 0.0.
+  - 'Seed-matched pairing: signal, null and baseline share the same message stream and the same signer
+    seeds so the arms differ only in the mutation.'
+  - 'Mutation-fidelity control: the number of bits actually changed in memory is counted and compared
+    to the nominal grade width.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Faults of the IDENTICAL grade -- same width, same persistence, same
+    harness mechanism, same seeds -- injected into a field that provably cannot affect index derivation:
+    a padding byte, or a copy of the public seed used only on the verification side and never read
+    during index selection. Executed interleaved with the signal grades in the same invocation of
+    the same code. For the signal rates to mean anything the null must show an index-collision rate
+    statistically indistinguishable from the UNFAULTED baseline, whose own collision rate is nonzero
+    at toy parameters and must be measured rather than assumed to be zero. A null that shows elevated
+    collisions means the harness''s fault mechanism is perturbing the signer through some path other
+    than the named field, and no grade''s number is reportable. The unfaulted baseline is itself a
+    required arm and is the reference both other arms are compared against.'
+  independent_variables:
+  - fault field
+  - fault width in bits
+  - fault persistence
+  - hash output width
+  - arm (signal, null, unfaulted baseline)
+  metrics:
+    primary:
+    - index-collision rate per grade with binomial interval
+    - sign-then-verify detection rate per grade with interval
+    - crossing grade
+    - maximum per-index revealed-leaf fraction versus invocation count
+    secondary:
+    - unfaulted baseline collision rate at each hash width
+    - null-arm collision rate
+    - mutation-fidelity measured versus nominal bits
+    - fraction of grades where signing and verification shared code
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The paired (index-collision rate, detection rate) per grade, with the two forced detection
+      rates and the null-versus-baseline equality as the pre-registered checks.
+    formula: 'Two exact predictions, both derivable before any run. First, a fault at an authentication-path
+      node changes a value that the verifier recomputes against the public root, so the produced signature
+      cannot verify and sign-then-verify detects it with probability exactly 1.0. Second, a fault
+      at the message randomizer changes only the input to index derivation; the signer then produces
+      a completely valid signature under the perturbed index, which verifies, so sign-then-verify
+      detects it with probability exactly 0.0. Third, a structural scaling prediction: the unfaulted
+      baseline index-collision rate over R invocations into an index space of size 2^w should follow
+      the birthday form 1 - exp(-R(R-1)/2^{w+1}), and the run checks the measured baseline against
+      that closed form at both hash widths, with agreement required within the binomial interval.
+      The rates at the remaining grades are NOT pre-committed, because they depend on how many index-derivation
+      bits a k-bit field fault actually perturbs, which is the quantity the sweep exists to measure.'
+    source: Pre-registered in the parent proposal IDEA-20260816-698819 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Hash output truncated to 16 and 20 bits, a 2-layer hypertree with 4 leaves per
+      layer, and an 8-leaf few-time layer. These are chosen so index collisions occur at rates measurable
+      in 5000 invocations and so the few-time occupancy is enumerable. FIPS 205 parameters are enormously
+      larger and the collision structure is correspondingly different: NO transfer is claimed and
+      none is attempted. The one quantity that does transfer is structural rather than numerical:
+      the two forced detection rates follow from the construction''s shape and hold at any parameter
+      set, and the birthday form for the baseline collision rate is checked at two widths precisely
+      so that the parameter-dependence of the measured rates is visible rather than hidden.'
+    correspondence: null
+  tail_checks:
+  - Inspect cells where the collision rate is within one binomial interval of the baseline, since
+    those are the cells most likely to be misread as signal.
+  - Inspect persistent-fault cells separately, since their invocations are not independent and the
+    binomial interval understates uncertainty there.
+  - Inspect the maximum per-index revealed-leaf fraction's upper tail, where a single unlucky index
+    dominates the curve.
+  - Inspect any cell where mutation fidelity deviated from nominal.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt at the STAGE 3 pilot if the null arm differs from the unfaulted baseline, or if either forced
+    detection rate is wrong; report an instrument fault and run no sweep.
+  - Stop at R=5000 per cell; do not add invocations to move a crossing grade.
+  - Halt if total wall time exceeds 8 hours, report completed cells only, and record the halt as a
+    budget event and never as evidence about any grade.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The null arm's collision rate is statistically indistinguishable from the unfaulted
+    baseline, the authentication-path detection rate is exactly 1.0 and the randomizer detection rate
+    exactly 0.0, the baseline collision rate matches the birthday closed form at both hash widths,
+    and a paired-rate table with a located crossing grade is produced for the full lattice.
+  falsification_criterion:
+  - Null-arm collision rate differs significantly from the unfaulted baseline.
+  - Authentication-path detection rate below 1.0 or randomizer detection rate above 0.0.
+  - Baseline collision rate disagrees with the birthday closed form beyond the binomial interval at
+    either hash width.
+  - Collision rate non-monotone in fault width at a fixed field beyond binomial error.
+  - Mutation-fidelity counts disagree with nominal grade widths.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-698819
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Whether sign-then-verify can be built as a genuinely independent code path in this implementation
+    is unresolved; where it shares code, a fault could mask itself and the detection rate would be
+    optimistic.
+  - Binomial intervals are used for persistent-fault cells whose invocations are not independent;
+    a Coordinator must specify the correct interval or restrict the claim to transient grades.
+  - The gap between an index collision with revealed leaves and an actual forgery is acknowledged
+    and not measured; the contract should say whether that gap is in scope for a successor run.
+  - The choice of padding byte as the null field is asserted to be index-irrelevant but not proved
+    from the implementation; that proof must be supplied before the null is trusted.

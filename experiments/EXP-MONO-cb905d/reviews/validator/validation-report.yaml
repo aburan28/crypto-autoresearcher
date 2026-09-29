@@ -1,0 +1,459 @@
+validation_report:
+  id: VAL-20260904-bb2f29
+  task_id: TASK-20260904-bb2f29
+  experiment_id: EXP-MONO-cb905d
+  hypothesis_id: H-MONO-1d50ac
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-cb905d-1, RUN-MONO-cb905d-2]
+  joints_owned: [J1-SAMPLER-MATH, J2-RERUN-CORRECTNESS]
+  note_on_scope: >-
+    Per agents/validator.md "Working under a review plan," this report gives
+    a verdict on J1 and J2 only, not on the whole claim under review (claims
+    A/B in the task card). J3-PROCESS-VIOLATION-ADEQUACY and
+    J4-HEADLINE-INTERPRETATION are the red-team's joints and are not
+    addressed here beyond incidental observations flagged as
+    out-of-scope-context.
+
+  # =====================================================================
+  # J1-SAMPLER-MATH
+  # =====================================================================
+  j1_sampler_math:
+    verdict: holds
+    method: >-
+      Direct combinatorial slot-counting derivation performed independently,
+      before reading and without relying on the amendment's own stated
+      conclusion (the amendment's prose was read for the CLAIM to check, per
+      the task's own background-reading order, but the derivation below was
+      constructed from first principles rather than by transcribing the
+      amendment's argument). Cross-validated two ways: (i) an exact,
+      non-Monte-Carlo enumeration of accepting/rejecting slots on an
+      independently-chosen toy curve (p=19, A=2, B=3, unrelated to the
+      experiment's own p=617 curves); (ii) a 2,000,000-draw Monte Carlo
+      simulation of the same four constructions on the same toy curve, run
+      from my own from-scratch code (no code shared with or copied from the
+      experiment's implementation files).
+    general_derivation: >-
+      For E: y^2 = f(x) = x^3+Ax+B over F_p, let tQ = #{x : f(x) is a
+      nonzero square} (each contributing 2 affine points), t2 = #{x : f(x)=0}
+      (each an affine 2-torsion point, t2 in {0,1,3} for a nonsingular
+      cubic), t_nqr = #{x : f(x) a non-residue} (0 points), so
+      p = tQ+t2+t_nqr and N = 1+t2+2*tQ (incl. O). This derivation is
+      general in t2 and does not depend on the experiment's own specific
+      curve parameters (p=617, N=580); the toy curve (t2=1) is a concrete
+      instance used only for numeric/empirical demonstration.
+
+      V1, AS ACTUALLY SPECIFIED AND AS ACTUALLY IMPLEMENTED (verified
+      against the literal code in
+      experiments/EXP-MONO-cb905d/implementation/run_experiment.py
+      gu_draw_point(), read AFTER this derivation and the blind
+      recomputation below, purely to confirm the historical RUN-1 code
+      matches the spec prose the amendment quotes -- confirmed
+      byte-for-byte equivalent to the described "if f==0: return (x,0) #
+      unconditional accept, no coin flip" defect): draw x uniform in F_p;
+      reject/redraw on non-residue; on a square, split 1/2-1/2 between the
+      two roots; on f(x)=0, accept UNCONDITIONALLY. Modeling the "square"
+      branch's coin flip as one of 2 equiprobable sub-units per x (2p
+      elementary units total, matching V2's own unit size for direct
+      comparability): a specific generic (two-root) point gets exactly 1
+      accepting unit out of 2p; a specific 2-torsion point gets BOTH of its
+      x's 2 units (since acceptance there does not depend on the coin),
+      i.e. 2 accepting units out of 2p. Conditional on acceptance:
+        Pr[a given 2-torsion point] = 2/N_accept, Pr[a given generic point] = 1/N_accept
+      -- exactly 2x, confirming the amendment's claim (a) exactly. Pr[O] = 0
+      always (no unit maps to O) -- confirming O is structurally
+      unreachable, independent of p or the curve, also confirming claim (a).
+
+      V2 (2p+1-slot construction): 2p+1 equiprobable elementary units (1 for
+      O, 2 per x in F_p). O's unit always accepts. Per x with f(x) a nonzero
+      square: both of its 2 units accept, landing 1-1 on its two distinct
+      points. Per x with f(x)=0: exactly 1 of its 2 units accepts (b=0),
+      landing on the 2-torsion point; the other unit (b=1) rejects. Per x
+      non-residue: both units reject. Total accepting units =
+      1 + 2*tQ + t2 = N, and this is an EXACT BIJECTION between accepting
+      units and the group's N points (verified by construction: every
+      point has exactly one accepting unit, and every accepting unit maps
+      to exactly one point). Hence conditional on acceptance every point
+      has probability exactly 1/N -- confirming claim (b) exactly, and
+      matching the amendment's own slot-counting proof via an independently
+      constructed argument.
+    toy_curve_exact_enumeration:
+      curve: "p=19, A=2, B=3 (independently chosen, unrelated to p=617)"
+      derived_group_shape: "tQ=9, t2=1, t_nqr=9, N=20"
+      v1_result: "Pr[O|accept]=0 (unreachable); ratio(2-torsion:generic)=2.0 exactly; NOT uniform"
+      v2_result: "Pr[O|accept]=1/20; ratio(2-torsion:generic)=1.0; every one of the 20 points gets exactly 1/20 -- exactly uniform"
+    toy_curve_monte_carlo_2e6_draws:
+      v1: "freq[O]=0.00000, ratio(2tors/generic)=2.000 (matches exact prediction)"
+      v2: "freq[O]=0.04999 (~1/20=0.05), ratio(2tors/generic)=1.001 (matches exact prediction)"
+    cross_check_against_actual_committed_code: >-
+      experiments/EXP-MONO-cb905d/implementation/run_experiment.py
+      gu_draw_point() (the code RUN-MONO-cb905d-1 actually ran) implements
+      exactly the biased V1 construction modeled above (unconditional
+      "return (x,0)" on f(x)==0, no O-drawing code path anywhere in the
+      function). experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+      sample_group_uniform_v2_corrected() implements exactly the V2
+      construction modeled above (draw u in [0,2p+1) for the O slot; on
+      f(x)=0, accept iff b==0, else reject/redraw). Both were read only
+      AFTER my own derivation and toy-curve checks above were complete, so
+      this is a confirmation of the historical artifacts against an
+      independently-produced model, not the source of the model.
+
+    proves_too_much_control:
+      outcome: passed
+      broken_1_omit_O_slot:
+        construction: "V2's own slot structure with the O unit deleted (2p slots total, matching v1's actual defect of never drawing O)."
+        exact_result: "Pr[O|accept]=0 (unreachable); ratio(2-torsion:generic)=1.0 exactly."
+        method_verdict: "FLAGGED AS NOT UNIFORM -- correctly, because my check tests two things separately: (i) the reachable set equals ALL N points (fails here: O is unreachable), and (ii) all reachable points have equal weight. This variant satisfies (ii) but fails (i)."
+        methodological_note: >-
+          IMPORTANT: a naive verification method that checks ONLY the
+          2-torsion:generic ratio (a plausible, simpler test, since that
+          ratio is exactly what v1's own defect broke) would have reported
+          this variant as "ratio=1.0, looks uniform" -- WRONGLY, since it
+          silently excludes O. This is exactly the proves_too_much
+          object's point: a method must check full reachability of every
+          group element, not just a pairwise ratio between two named
+          categories. My method checks both explicitly; a
+          ratio-only method would NOT have passed this control, and I flag
+          that as a real trap that a less careful J1 check could fall into.
+      broken_2_unconditional_2torsion_accept:
+        construction: "V2's own slot structure (O present) but 2-torsion x accepted unconditionally on both b=0 and b=1 (no fair-bit split)."
+        exact_result: "Pr[O|accept]=1/21 (not 1/20); each 2-torsion point gets 2/21 vs each generic point's 1/21 -- ratio 2.0 exactly."
+        method_verdict: "FLAGGED AS NOT UNIFORM -- correctly (unequal per-point weights: 2-torsion points get exactly double every other point's probability, including O's)."
+      failure_signature_avoided: >-
+        Neither broken variant is reported as uniform or looks-correct by
+        my method; both are flagged, with the specific mechanism of bias
+        named in each case. The J1 control from the task card's
+        `proves_too_much` block is satisfied.
+
+  # =====================================================================
+  # J2-RERUN-CORRECTNESS  (+ blind_rederivation)
+  # =====================================================================
+  j2_rerun_correctness:
+    verdict: holds
+    blind_rederivation:
+      required: true
+      quantity: "RUN-MONO-cb905d-2's P1, P2, P3, and the Fisher-exact p-value"
+      blind_from_declared:
+        - experiments/EXP-MONO-cb905d/execution_report.yaml
+        - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+      blind_from_respected: false
+      blindness_defect_disclosed: >-
+        NEITHER of the two paths named in blind_from was read before I
+        computed P1/P2/P3/Fisher-p independently (both were opened only
+        afterward, per the task's own "ONLY AFTER completing this blind
+        recomputation" instruction, and confirmed by tool-call order in
+        this session). HOWEVER, true blindness to the TARGET VALUE was
+        still broken: experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/manifest.yaml
+        -- which the assigning task's own background-reading step 5
+        instructed me to read alongside raw-result.json, and which is NOT
+        on the blind_from list -- contains a `result.metrics` block that
+        states P1=2.398042414355628, P2=2.063142437591777,
+        P3=1.1623251844670337, and the Fisher p-value=0.32999478969615775
+        verbatim, identical to what execution_report.yaml later states. I
+        read this manifest before performing my own computation. I am
+        disclosing this as a genuine defect in this round's blind_from
+        list, not glossing over it: the list should have named
+        manifest.yaml too (or the task should have instructed reading only
+        raw-result.json, with the manifest's own `result.metrics` block
+        redacted or deferred), since a run manifest's own metrics summary
+        is exactly the kind of "producer's own stated conclusion" the
+        blind_rederivation mechanism exists to guard against. I flag this
+        as a FINDING for the Coordinator: manifest.yaml should be added to
+        future blind_from lists whenever its own `result.metrics` restates
+        the rederivation target. I did NOT, however, copy or transcribe
+        the manifest's arithmetic -- I built the computation below from the
+        raw per-tuple/per-pair counts in raw-result.json, using my own
+        script and (for the Fisher test) scipy.stats.fisher_exact called
+        directly, not any wrapper from the experiment's own code -- so the
+        recomputation itself is methodologically independent even though
+        blindness to the NUMERIC TARGET was compromised by this leak.
+        Net effect on this joint's evidentiary value: the exact-match
+        result below can no longer be read as "an independent derivation
+        that could have disagreed and didn't"; it can only be read as "a
+        recomputation from raw counts that is internally consistent with
+        the manifest's own claim," which is a weaker (though still
+        useful) form of validation. See `limitations`.
+      independent_recomputation:
+        source: >-
+          experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json
+          `part_a.group_uniform` (raw ntuples/pair-collision counts) and
+          `part_a.transversal` (rates reused unchanged from RUN-1, see
+          cross-check below). No formula or code from
+          run_experiment_v2_part_a_corrected.py or execution_report.yaml
+          was consulted before this computation (see disclosure above for
+          the manifest.yaml caveat).
+        raw_counts_used:
+          ord_group_uniform: {ntuples: 20000, total_pairs_colliding: 1470, tuples_with_collision: 1049}
+          cm_group_uniform: {ntuples: 20000, total_pairs_colliding: 1405, tuples_with_collision: 1005}
+          ord_transversal_rate_pairs_per_tuple: 0.03065
+          cm_transversal_rate_pairs_per_tuple: 0.03405
+        formula_used: >-
+          P1 = (ord_total_pairs_colliding/ord_ntuples) / ord_transversal_rate;
+          P2 = (cm_total_pairs_colliding/cm_ntuples) / cm_transversal_rate;
+          P3 = P1/P2. This is the only computable definition, since
+          raw-result.json's `part_a.transversal` block reports ONLY a
+          pairs-per-tuple rate (no any-collision variant) for the
+          transversal arm, so the ratio's denominator admits no other
+          reading. Fisher-exact p-value: two-sided Fisher exact test
+          (scipy.stats.fisher_exact) on the 2x2 table
+          [[ord tuples_with_collision, ord 20000-that],[cm
+          tuples_with_collision, cm 20000-that]] -- i.e. the any-collision
+          (per-tuple) count, matching the table shape reported in
+          raw-result.json's own `P3_headline_comparison` block (which I
+          read only to locate the TABLE DEFINITION, i.e. which of the two
+          available per-arm counts -- pairs-colliding vs tuples-with-
+          collision -- forms the 2x2 cells; I did not read its own
+          odds_ratio/p_value fields into my calculation, I recomputed both
+          from the counts).
+        my_computed_values:
+          P1: 2.398042414355628
+          P2: 2.063142437591777
+          P3_ratio_of_ratios: 1.1623251844670337
+          fisher_exact_odds_ratio: 1.046204521690004
+          fisher_exact_p_value: 0.32999478969615775
+        archived_values_execution_report_and_manifest:
+          P1: 2.398042414355628
+          P2: 2.063142437591777
+          P3_ratio_of_ratios: 1.1623251844670337
+          fisher_exact_p_value: 0.32999478969615775
+        discrepancy: >-
+          NONE. Match is exact to full double-precision (identical to the
+          last printed digit in every field, including odds_ratio,
+          verified separately). As a sanity/consistency check on the same
+          method, RUN-MONO-cb905d-1's own P1=2.9559543230016314,
+          P2=2.6857562408223203, P3=1.100604097301318, p=0.48788099980143695
+          were independently reproduced by the identical script/formula
+          from RUN-1's own raw counts (1812/1187 collisions of 20000 for
+          ord, 1829/1221 of 20000 for cm), also an exact match -- so the
+          formula/method is confirmed consistent across both runs, not a
+          coincidence specific to RUN-2.
+        interpretation_given_the_blindness_defect: >-
+          Because a straightforward division/Fisher-exact-test computation
+          on a small, fully-determined set of integer counts is
+          essentially forced (there is no free parameter or judgment call
+          once the counts and the table shape are fixed), an exact match
+          here is expected of ANY correct implementation and does not, on
+          its own, distinguish "the raw counts and formula are correct" from
+          "I was unconsciously anchored by having seen the target." What
+          this recomputation DOES establish, independent of the blindness
+          defect: the arithmetic in execution_report.yaml's
+          part_a_corrected_rerun_2026_09_04 section is an internally
+          consistent, correctly-executed transformation of the raw counts
+          in raw-result.json -- no transcription error, no silent
+          substitution of a different table, no off-by-one in the
+          collision-count fields. What it does NOT establish (and cannot,
+          given the leak): that the raw counts themselves (1470, 1049,
+          1405, 1005) are an unbiased or bug-free product of the actual
+          v2-corrected sampler's Monte Carlo execution -- verifying THAT
+          would require independently re-running the simulation with a
+          fresh implementation, which is outside this joint's stated scope
+          ("recompute independently from raw-result.json") and is instead
+          covered indirectly by J1 (the sampler's constructive correctness)
+          and by the run's own point_uniformity_check spot-check
+          (chi_square_stat_over_df ~0.98 and ~0.90 for ord/cm respectively,
+          consistent with, but not proof of, per-point uniformity).
+    transversal_arm_reuse_cross_check:
+      verdict: confirmed_unchanged
+      method: >-
+        Direct field-by-field comparison of `part_a.transversal` between
+        RUN-MONO-cb905d-1/raw-result.json and
+        RUN-MONO-cb905d-2/raw-result.json.
+      result: >-
+        Both runs report IDENTICAL values for
+        ord.rate_pairs_per_tuple_fixed=0.03065,
+        ord.rate_pairs_per_tuple_random=0.03065, ord.identical_fixed_random=true,
+        ord.rate_pairs_per_tuple=0.03065, cm.rate_pairs_per_tuple_fixed=0.03405,
+        cm.rate_pairs_per_tuple_random=0.03405, cm.identical_fixed_random=true,
+        cm.rate_pairs_per_tuple=0.03405 -- exact match on every field, confirming
+        the transversal-arm counts were read directly from
+        RUN-MONO-cb905d-1's raw-result.json and reused byte-for-byte, not
+        redrawn, as both the amendment and RUN-2's own manifest/
+        execution_report claim.
+    curve_rederivation_cross_check:
+      verdict: confirmed
+      result: >-
+        Both runs' `part_a.curve_rederivation_check` report the identical
+        (A=340,B=362,N=580,tau=4) ordinary curve and (A=69,B=0,N=580,tau=4)
+        CM curve, matching each other and the archived
+        EXP-MONO-64aaa4 transcript. No silent curve substitution between
+        runs.
+    artifact_integrity_spot_checks:
+      - "RUN-MONO-cb905d-2/stdout.log is byte-identical in size (4933 bytes) to raw-result.json, consistent with the recorded command's stdout redirect."
+      - "RUN-MONO-cb905d-2/stderr.log is empty, consistent with status: completed_valid and no reported errors."
+      - "RUN-MONO-cb905d-1/stdout.log is byte-identical in size (107314 bytes) to its own raw-result.json, same check, same result."
+      - "RUN-MONO-cb905d-1's raw-result.json part_b.cells array contains exactly 100 entries, matching found_count/measured_count=100 (parsed via json.load, not eyeballed) -- consistent, though Part B is out of scope for J1/J2 and is not otherwise re-examined here."
+
+  # =====================================================================
+  # Artifact / provenance checks (general, supporting both joints)
+  # =====================================================================
+  artifact_checks:
+    - artifact: experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/{manifest.yaml,raw-result.json,command.txt,stdout.log,stderr.log,environment.json}
+      status: present_and_internally_consistent
+      note: "status: completed_valid; command matches artifacts; commit 70f058c9d recorded (git access was available at RUN-1 time)."
+    - artifact: experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/{manifest.yaml,raw-result.json,command.txt,stdout.log,stderr.log,environment.json}
+      status: present_and_internally_consistent_with_disclosed_gap
+      note: >-
+        status: completed_valid; command matches artifacts. `code.commit`
+        and `code.dirty` are explicitly `unavailable_git_blocked_this_session`
+        / `unknown_git_blocked_this_session`, disclosed (not fabricated) as
+        a genuine gap pending the Coordinator's own snapshot-archive
+        commit. This is an incompleteness in provenance recording, not an
+        integrity failure, and is already flagged by the run's own
+        manifest.
+    - artifact: experiments/EXP-MONO-cb905d/amendments/v1.yaml and ledger/corrections/CORR-20260831-ba2118.yaml
+      status: present_content_complete_archival_status_draft
+      note: >-
+        Both self-report `archival_status: DRAFT, NOT YET COMMITTED` at
+        time of writing. Per AGENTS.md rule 7 / CLAUDE.md, a record is not
+        official until archived and receipt-verified; this validation
+        report evaluates the CONTENT of the frozen contract, amendment, and
+        runs as presented, but the reader should note the amendment itself
+        is not yet a durable ledger record. This is a pre-existing,
+        disclosed condition of the round, not a defect I am newly
+        reporting.
+
+  metric_recomputations:
+    - metric: "RUN-MONO-cb905d-2 P1, P2, P3, Fisher-exact p-value"
+      recomputed_independently: true
+      match: exact
+      caveat: "blind_from_respected: false -- see j2_rerun_correctness.blind_rederivation.blindness_defect_disclosed."
+    - metric: "RUN-MONO-cb905d-1 P1, P2, P3, Fisher-exact p-value (consistency cross-check, not separately assigned)"
+      recomputed_independently: true
+      match: exact
+
+  control_checks:
+    - control: "J1 proves_too_much: omit-O-slot variant"
+      result: correctly_flagged_biased
+    - control: "J1 proves_too_much: unconditional-2-torsion-accept variant"
+      result: correctly_flagged_biased
+    - control: "J2: transversal-arm byte-for-byte reuse across RUN-1/RUN-2"
+      result: confirmed_unchanged
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      blind_rederivation was NOT fully blind: RUN-MONO-cb905d-2/manifest.yaml,
+      read as part of this task's own instructed background reading (step
+      5) and NOT on the round's blind_from list, states the exact target
+      P1/P2/P3/Fisher-p values before I performed my own computation. This
+      is disclosed in full above and is reported as a defect in this
+      round's blind_from list/task design, not concealed. The exact match I
+      found should be read as "internally consistent with the manifest's
+      claim," not as "an independent derivation that could have disagreed
+      and did not."
+    - >-
+      J2's recomputation verifies the ARITHMETIC transformation from raw
+      Monte Carlo counts to P1/P2/P3/Fisher-p; it does not independently
+      re-run the underlying group-uniform sampling simulation with a fresh
+      implementation, which would be required to fully rule out a bug in
+      how the reported raw counts (1470, 1049, 1405, 1005, etc.) were
+      generated. That risk is partially mitigated by J1's independent
+      confirmation that the v2 sampler construction is mathematically
+      correct, and by the run's own point_uniformity_check spot-check, but
+      neither is a full from-scratch re-simulation.
+    - >-
+      This report addresses only J1 and J2. It does not evaluate J3
+      (process-violation adequacy) or J4 (headline interpretation,
+      multiple-comparisons risk across EXP-MONO-64aaa4/RUN-MONO-cb905d-1/
+      RUN-MONO-cb905d-2 touching the same p=617 cell, or statistical power
+      at n=20000/curve) -- both are the red-team's owned joints per the
+      task card. I note, without adjudicating, that the coordinator_prior's
+      own reading of P3 as "most likely genuine sampling noise" is a
+      judgment call outside my assigned joints, and that a collision count
+      in the ~1000-1400 range (of 20000 tuples) is not obviously large
+      enough to rule out a real ~10-20% per-curve effect at conventional
+      power -- this is exactly the discriminating-power question the task
+      card assigns to J4, and I defer to that review rather than assessing
+      it here.
+    - >-
+      I did not verify RUN-MONO-cb905d-1's Part B (100 cross-prime cells)
+      beyond confirming its cell count and that it is unaffected by the
+      group-uniform sampler defect (transversal-only); Part B is explicitly
+      out of scope for J1/J2 and unchanged by this round.
+
+  verdict: passed_with_finding
+  verdict_rationale: >-
+    Both owned joints HOLD under independent derivation: J1's slot-counting
+    argument, checked exactly and via Monte Carlo on an independently
+    chosen toy curve and cross-validated against the actual committed code
+    in both implementation files, confirms the amendment's mathematical
+    claims (a) and (b) exactly, and the proves_too_much control correctly
+    discriminates both deliberately-broken variants. J2's recomputation of
+    P1/P2/P3/Fisher-p from RUN-MONO-cb905d-2's raw counts matches the
+    archived values exactly, and the transversal-arm reuse is confirmed
+    byte-for-byte unchanged from RUN-MONO-cb905d-1. The "_with_finding"
+    qualifier is because the round's blind_rederivation control was
+    compromised by manifest.yaml's own result.metrics block restating the
+    target values -- a task-design defect, not a defect in the underlying
+    science -- which the Coordinator should correct in the blind_from list
+    for any future round of this kind. This verdict is on J1 and J2 only
+    and authorizes nothing beyond AGENTS.md's evidence rules: it does not
+    itself decide H-MONO-1d50ac's status, does not adjudicate J3/J4, and
+    supports no ECDLP, speedup, or cryptographic-scale claim.
+
+  artifact_paths:
+    - experiments/EXP-MONO-cb905d/specification.yaml
+    - experiments/EXP-MONO-cb905d/amendments/v1.yaml
+    - ledger/corrections/CORR-20260831-ba2118.yaml
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/manifest.yaml
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/command.txt
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/stdout.log
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/stderr.log
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/manifest.yaml
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/command.txt
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/stdout.log
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/stderr.log
+    - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/environment.json
+    - experiments/EXP-MONO-cb905d/execution_report.yaml
+    - experiments/EXP-MONO-cb905d/implementation/run_experiment.py
+    - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+
+  review_attestation:
+    task_id: TASK-20260904-bb2f29
+    joints_owned: [J1-SAMPLER-MATH, J2-RERUN-CORRECTNESS]
+    sources_read:
+      - ledger/handoffs/TASK-20260904-bb2f29.yaml
+      - agents/validator.md
+      - experiments/EXP-MONO-cb905d/specification.yaml
+      - experiments/EXP-MONO-cb905d/amendments/v1.yaml
+      - ledger/corrections/CORR-20260831-ba2118.yaml
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/manifest.yaml
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/command.txt
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json (full: part_a printed in full; part_b's 100-cell array confirmed by count via json.load, not individually inspected -- out of scope)
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/stderr.log
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/stdout.log (size cross-check only)
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/manifest.yaml
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/command.txt
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json (full)
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/environment.json
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/stderr.log
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/stdout.log (head + size cross-check)
+      - experiments/EXP-MONO-cb905d/execution_report.yaml (part_a_corrected_rerun_2026_09_04 section only, read AFTER my own blind computation of P1/P2/P3/Fisher-p)
+      - experiments/EXP-MONO-cb905d/implementation/run_experiment.py (gu_draw_point/measure_group_uniform region, read AFTER my own J1 derivation and toy-curve checks, to cross-validate the historical code against the amendment's characterization)
+      - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py (sampler functions region, read AFTER my own J1 derivation, toy-curve checks, and blind P1/P2/P3/Fisher-p computation)
+      - "my own scratch scripts (blind_recompute.py, j1_toy_curve_check.py, j1_toy_curve_montecarlo.py), independently written, not derived from any experiment source file"
+    read_sibling_reports: false
+    sibling_report_disclosure: >-
+      experiments/EXP-MONO-cb905d/reviews/ did not exist on disk when I
+      began (verified via `find`/`ls` before writing this report); no
+      red-team-report.yaml or red-team directory was read or referenced at
+      any point in this review.
+    blind_from_respected: false
+    blind_from_defect: >-
+      See j2_rerun_correctness.blind_rederivation.blindness_defect_disclosed
+      above: neither of the two paths literally named in blind_from
+      (execution_report.yaml, run_experiment_v2_part_a_corrected.py) was
+      read before I computed P1/P2/P3/Fisher-p independently, but
+      RUN-MONO-cb905d-2/manifest.yaml -- read per the task's own
+      instructed background-reading order, and not itself on the
+      blind_from list -- already stated the exact target values in its
+      `result.metrics` block, so true blindness to the numeric target was
+      not preserved. Disclosed in full rather than silently proceeding as
+      if blind.
+    verdict: holds
+    verdict_scope: "J1-SAMPLER-MATH and J2-RERUN-CORRECTNESS only, per the joints_owned above -- not a verdict on claims (A) or (B) as a whole."

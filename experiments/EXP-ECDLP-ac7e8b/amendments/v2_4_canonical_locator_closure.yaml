@@ -1,0 +1,92 @@
+protocol_amendment:
+  id: PA-ECDLP-ac7e8b-v2-4-canonical-locator-closure-f75243
+  experiment_id: EXP-ECDLP-ac7e8b
+  version_from: '2.3'
+  version_to: '2.4'
+  recorded_at: '2026-09-08'
+  triggering_review: TASK-20260908-b2abee
+  correction_record: CORR-20260908-f75243
+  disposition: >-
+    Additive prospective custody repair. It defines canonical operating-system
+    counter locators and canonical schedule/campaign target resolution. No
+    implementation, fixture, runtime, receipt, or scientific run exists;
+    implementation and execution remain unauthorized.
+  cpu_io_interval_accounting:
+    counter_locator_registry: >-
+      Before any counter observation, a sealed registry maps exactly one
+      counter_locator_sha256 to each admissible physical counter. The hash is
+      SHA-256 of canonical UTF-8 JSON with lexicographically ordered keys and
+      no insignificant whitespace. The registry is part of the launch custody
+      packet and is immutable before the first sample.
+    canonical_locator_schema:
+      common_required: [schema_version, platform, cgroup_identity_digest, kind]
+      cpu_cgroup_v2: >-
+        kind=cpu_cgroup_v2; platform=linux; cgroup_identity_digest equals the
+        sealed launch cgroup identity; counter_file is exactly cpu.stat; and
+        field is exactly usage_usec. No path, URI, display label, or alternate
+        spelling is an identity component.
+      io_cgroup_v2: >-
+        kind=io_cgroup_v2; platform=linux; cgroup_identity_digest equals the
+        sealed launch cgroup identity; counter_file is exactly io.stat;
+        device is a canonical JSON object {major: nonnegative decimal integer,
+        minor: nonnegative decimal integer}; and field is exactly one of
+        rbytes, wbytes, rios, wios, dbytes, dios. No alternate device spelling,
+        path, URI, or display label is an identity component.
+    observation_binding: >-
+      Every raw sample carries counter_locator_sha256 and the exact registry
+      entry bytes. Admission recomputes the hash, validates the typed schema,
+      verifies equality to the launch cgroup identity, and checks that every
+      displayed counter_namespace is a non-authoritative rendering of that same
+      entry. A sample without one registry resolution is rejected before an
+      interval, trace, or aggregate exists.
+    alias_and_aggregate_rule: >-
+      counter_source_id and trace digest are representation metadata only. All
+      records resolving to one counter_locator_sha256 contribute to one complete
+      disjoint ordered partition for that locator and coordinate; the canonical
+      endpoint differences aggregate exactly once. Two textual namespaces,
+      source IDs, traces, or serializations cannot form different locators.
+    reject: [unregistered_counter_locator, malformed_counter_locator,
+      locator_hash_mismatch, counter_namespace_alias, display_name_as_identity,
+      cross_trace_locator_overlap, incomplete_locator_interval_inventory]
+  wall_interval_accounting:
+    target_registry: >-
+      Before active intervals are admitted, a sealed target registry maps every
+      eligible stage or campaign target to exactly one target_registry_sha256.
+      A stage entry is canonical UTF-8 JSON naming experiment_id, campaign_id,
+      target_kind=stage, component_id, phase_id, and its immutable schedule-node
+      identifier from the sealed protocol appendix. A campaign entry names
+      experiment_id, campaign_id, target_kind=campaign, and campaign root
+      identity. target_registry_sha256 is the SHA-256 of the entry's canonical
+      JSON and is the only target identity used for accounting.
+    observation_binding: >-
+      Every reporting scope and interval carries target_registry_sha256 plus the
+      entry bytes. Admission recomputes the hash, resolves it in the sealed
+      registry, and verifies its experiment/campaign and common-clock-domain
+      compatibility. target_id is display-only; a textual alias or path spelling
+      cannot produce a different reporting target.
+    scope_and_publication_rule: >-
+      Exactly one reporting scope resolves to each target_registry_sha256. Its
+      sealed complete interval inventory is the sole source for every published
+      report for that target, including an individually published report. A
+      duplicate target registry resolution, unregistered target, or a report
+      built from a display target is rejected even where no cross-scope sum is
+      attempted. Campaign wall remains its own common-clock inventory union.
+    sum_precondition: >-
+      Separate totals may be added only for distinct target_registry_sha256
+      values with an explicit independently checked temporal-disjointness proof
+      over their complete common-clock inventories.
+    reject: [unregistered_target_registry_entry, malformed_target_registry_entry,
+      target_registry_hash_mismatch, target_id_alias, display_target_as_identity,
+      duplicate_scope_for_target, duplicate_publication_for_target,
+      cross_scope_overlap_summed, missing_temporal_disjointness_proof]
+  future_admission_controls:
+    - cpu_stat_namespace_spelling_alias
+    - io_stat_device_or_field_spelling_alias
+    - counter_source_and_trace_representation_alias
+    - schedule_target_id_spelling_alias_without_sum
+    - overlapping_common_clock_intervals_split_by_reporting_scope
+    - direct_cross_root_timeout_replay
+    - different_launch_rank_owner_label_reuse
+    - sealed_EC_slot_omission
+  does_not: [approve_implementation, approve_execution,
+    change_hypothesis_or_goal, create_scientific_evidence]

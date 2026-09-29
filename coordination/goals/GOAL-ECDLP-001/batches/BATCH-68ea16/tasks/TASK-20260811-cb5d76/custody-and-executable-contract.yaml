@@ -1,0 +1,611 @@
+custody_and_executable_contract:
+  schema: crypto.autoresearch.custody_executable_contract.v3
+  experiment_id: EXP-SYC-12de89
+  supersedes_experiment_id: EXP-SYC-a59d02
+  predecessor_chain: [EXP-SYC-a59d02, EXP-SYC-268d6f]
+  task_id: TASK-20260811-cb5d76
+  batch_id: BATCH-68ea16
+  status: frozen_prospective_contract_no_implementation
+  implementation_authorized: false
+  execution_authorized: false
+  maximum_runs: 0
+  implementation_exists: false
+  current_executable_hashes: null
+  current_dependency_manifest: null
+  current_syscall_policy_hash: null
+  current_actual_stream_coverage: null
+  absent_future_values_are_not_static_residuals: true
+
+  inheritance_note: >-
+    All cryptographic and structural content below (commitment, AAD, envelope,
+    envelope_KAT, custody roles, receipt lifecycle, replay_receipt_KAT,
+    prospective_executable_universe, environment, descriptors, IPC/syscall
+    contract, candidate_slot_schema, actual_stream_coverage_schema, and
+    physical_noninterference_equivalence) is inherited byte-for-byte from
+    EXP-SYC-a59d02's custody-and-executable-contract.yaml (snapshot commit
+    672e08ca06031fb6f77369db5e3f2b7658e1b7ba, sha256
+    a86170da7facf0e0c94e959fa95b6f7eb11b1fb0d23bebd9ce158b83ddc381e8), already
+    independently reconfirmed byte-for-byte by both BATCH-ea56c5 reviewers
+    (the envelope_KAT under a real RFC 8439 ChaCha20-Poly1305 implementation,
+    and the replay_receipt_KAT canonicalization). This repair adds only
+    cross-reference notes closing VAL-EA56C5-OUTPUT-MANIFEST-UNDISCLOSED-SWAP's
+    "no corresponding line in the resource crosswalk" defect and one
+    cross-reference note for RT-OBJ1's candidate_index overflow rule; it
+    changes no cryptographic literal, schema field, or byte width.
+
+  immutable_predecessor:
+    snapshot_commit: 672e08ca06031fb6f77369db5e3f2b7658e1b7ba
+    custody_and_executable_contract_sha256: a86170da7facf0e0c94e959fa95b6f7eb11b1fb0d23bebd9ce158b83ddc381e8
+    validator_task: TASK-20260809-db593f
+    red_team_task: TASK-20260809-3e9c18
+
+  production_seed_commitment:
+    algorithm: SHA256
+    input: exact_32_seed_bytes
+    output: commitment_sha256_32_bytes
+    domain_prefix: none
+    target_decoy_commitments_must_differ: true
+    seed_classes: [public, target, decoy, restart, null]
+    cross_class_reuse_forbidden: true
+
+  production_AAD:
+    public_manifest_encoding: RFC8785_JCS_UTF8_no_BOM_no_trailing_newline
+    public_manifest_path: public-manifest.json
+    public_manifest_digest: SHA256_of_exact_public_manifest_file_bytes
+    authenticated_header: magic_then_version_then_seed_class_then_commitment_then_key_id_length_then_key_id
+    derivation: AEAD_AAD_is_exact_authenticated_header_bytes_then_public_manifest_digest
+    digest_width: 32_for_public_manifest_digest
+    manifest_hash_must_match_archive_manifest: true
+    manifest_mutation_after_sealing: invalidates
+    seed_envelope_excluded_from_public_manifest: true
+    circularity_avoided: >-
+      The public manifest binds public curves, targets, model rules, generator
+      parameters, experiment ID, and tuple-registry digest. It contains seed
+      commitments but neither encrypted seed envelopes nor their hashes.
+
+  production_envelope:
+    algorithm: RFC8439_ChaCha20_Poly1305
+    frame_fields_in_order:
+      - {name: magic, width: 4, encoding: ASCII, value: SYC4}
+      - {name: version, width: 1, encoding: U8, value: 1}
+      - {name: seed_class, width: 1, encoding: U8, registry: {public: 1, target: 2, decoy: 3, restart: 4, null: 5}}
+      - {name: commitment_sha256, width: 32, encoding: raw_bytes}
+      - {name: external_key_id_length, width: 2, encoding: U16BE}
+      - {name: external_key_id, width: variable, encoding: strict_UTF8}
+      - {name: nonce, width: 12, encoding: raw_bytes}
+      - {name: ciphertext_length, width: 4, encoding: U32BE, required_value: 32}
+      - {name: ciphertext, width: 32, encoding: raw_bytes}
+      - {name: authentication_tag, width: 16, encoding: raw_bytes}
+    AAD: authenticated_header_bytes_then_SHA256_exact_public_manifest_file_bytes
+    plaintext: exact_seed32
+    external_key_id_rule: >-
+      A nonempty canonical URI string naming the external key version. The
+      complete cleartext header through this key ID is an exact prefix of the
+      AEAD associated data, so commitment, seed class, and key ID are
+      authenticated by the tag. The identifier is repeated byte-identically in
+      every custody receipt. Repository files may contain the identifier but
+      never the key bytes or a decrypting token.
+    nonce_rule: unique_96_bit_CSPRNG_draw_per_key_version_and_seed_class
+    nonce_reuse: invalidates
+    commitment_check_before_decrypt: compare_envelope_commitment_to_public_manifest_commitment
+    commitment_check_after_decrypt: compare_SHA256_plaintext_to_envelope_commitment
+    parse_rule: consume_entire_frame_reject_nonminimal_or_trailing_bytes
+
+  envelope_KAT:
+    scope: test_only_key_and_empty_object_manifest_never_production
+    public_manifest_JCS_hex: '7b7d'
+    public_manifest_JCS_UTF8: '{}'
+    public_manifest_sha256_hex: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+    key_hex: a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf
+    external_key_id: kms://syc4/kat/target-v1
+    external_key_id_hex: '6b6d733a2f2f737963342f6b61742f7461726765742d7631'
+    external_key_id_length: 24
+    authenticated_header_hex: '53594334010272dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c122908400186b6d733a2f2f737963342f6b61742f7461726765742d7631'
+    AEAD_AAD_hex: '53594334010272dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c122908400186b6d733a2f2f737963342f6b61742f7461726765742d763144136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a'
+    AEAD_AAD_sha256_hex: 30ab6bcbe997ac9aa41fa18247bc40689e35251abba32d39bb34492645162b24
+    nonce_hex: c0c1c2c3c4c5c6c7c8c9cacb
+    plaintext_target_seed_hex: '202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f'
+    commitment_sha256_hex: 72dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c1229084
+    ciphertext_hex: bf9f67557f2acf51ab2f9a61253fdc25b9c4fd60f6929204b6fba58b3950b128
+    tag_hex: 34ea6ad29695b3a66dd78e864fbbe293
+    envelope_hex: '53594334010272dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c122908400186b6d733a2f2f737963342f6b61742f7461726765742d7631c0c1c2c3c4c5c6c7c8c9cacb00000020bf9f67557f2acf51ab2f9a61253fdc25b9c4fd60f6929204b6fba58b3950b12834ea6ad29695b3a66dd78e864fbbe293'
+    envelope_sha256: fd2fd0ad7d55027feaaf9959e845711a3ab8491c78b740a502c3a1e354ab62ef
+    expected_decrypt_hex: '202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f'
+    mutations:
+      - changing_any_manifest_byte_changes_AAD_and_must_fail_authentication
+      - changing_external_key_id_byte_must_fail_envelope_binding
+      - changing_commitment_must_fail_before_or_after_decrypt
+      - changing_nonce_ciphertext_tag_or_length_must_fail
+      - appending_any_byte_must_fail_parse
+
+  custody_roles:
+    required_roles: [custodian_A, custodian_B, independent_replayer, coordinator_archiver]
+    person_or_service_identifiers: populated_only_in_later_authorized_custody_open_receipt
+    independence_rule: independent_replayer_must_not_equal_either_custodian_identifier
+    signing_algorithm: Ed25519
+    public_key_manifest_path: custody/custodian-public-keys.json
+    public_key_manifest_rule: RFC8785_JCS_and_SHA256_bound_by_open_receipt
+    secret_key_material_in_repository: forbidden
+
+  receipt_common_schema:
+    canonical_encoding: RFC8785_JCS_UTF8_no_trailing_newline
+    required_fields:
+      - experiment_id
+      - receipt_id
+      - receipt_type
+      - recorded_at_UTC
+      - seed_class
+      - commitment_sha256
+      - public_manifest_sha256
+      - envelope_sha256
+      - external_key_id
+      - prerequisite_receipt_sha256
+      - payload_sha256
+      - status
+      - signatures
+    signatures_schema:
+      field_order: [actor_role, actor_identifier, signature_key_id, signature_ed25519_base64url_no_padding]
+      exact_count_and_roles: equal_to_the_receipt_lifecycle_signed_by_list
+      order: actor_role_then_actor_identifier_ascending_UTF8_bytes
+      duplicate_role_or_identifier: reject
+      unknown_fields: reject
+    signature_message: SHA256_of_ASCII_SYC4_RECEIPT_v1_then_zero_byte_then_exact_JCS_with_the_entire_signatures_field_omitted
+    unknown_fields: reject
+    duplicate_keys: reject
+    timestamps: RFC3339_UTC_second_precision_only
+    receipt_id: random_128_bit_lowercase_hex_minted_at_receipt_time
+    test_receipt_ids_forbidden_in_production: true
+
+  receipt_lifecycle:
+    - type: custody_open
+      path_template: custody/{seed_class}/01-custody-open.json
+      prerequisites: []
+      payload_fields: [custodian_A_identifier, custodian_B_identifier, custodian_public_key_manifest_sha256, envelope_sha256, external_key_id, retention_deadline]
+      signed_by: [custodian_A, custodian_B]
+    - type: snapshot_bound
+      path_template: custody/{seed_class}/02-snapshot-bound.json
+      prerequisites: [custody_open]
+      payload_fields: [producer_snapshot_commit, producer_snapshot_receipt_sha256, envelope_sha256]
+      signed_by: [coordinator_archiver]
+    - type: independent_replay
+      path_template: custody/{seed_class}/03-independent-replay.json
+      prerequisites: [snapshot_bound]
+      payload_fields: [AAD_sha256, decrypted_seed_sha256, commitment_match, public_manifest_match, replay_output_sha256, replay_verdict]
+      signed_by: [independent_replayer]
+    - type: ledger_bound
+      path_template: custody/{seed_class}/04-ledger-bound.json
+      prerequisites: [independent_replay]
+      payload_fields: [ledger_commit, ledger_archive_receipt_sha256, independent_replay_receipt_sha256]
+      signed_by: [coordinator_archiver]
+    - type: retention_close
+      path_template: custody/{seed_class}/05-retention-close.json
+      prerequisites: [ledger_bound]
+      payload_fields: [retention_deadline, key_version_state_before_destruction, all_prerequisites_verified]
+      signed_by: [custodian_A, custodian_B]
+    - type: destruction
+      path_template: custody/{seed_class}/06-destruction.json
+      prerequisites: [retention_close]
+      payload_fields: [external_key_id, destroy_operation_receipt_digest, key_version_state_after_destruction, requery_nonexistence_evidence_digest]
+      signed_by: [custodian_A, custodian_B]
+  retention_rule: >-
+    A decrypting key version remains available until immutable producer
+    snapshot, independent replay, ledger archive, and retention-close receipts
+    all validate. Destruction before then invalidates the package. After the
+    signed destruction receipt, a failed later replay is unavailable custody,
+    not negative mathematical evidence.
+
+  receipt_output_budget_crosswalk:
+    id: VAL-EA56C5-OUTPUT-MANIFEST-repair-crosswalk-reference
+    closes_partially: VAL-EA56C5-OUTPUT-MANIFEST-UNDISCLOSED-SWAP
+    note: >-
+      Up to 30 receipt files (6 lifecycle types x 5 seed classes) now have an
+      explicit, consolidated output-byte budget line in
+      physical-frontier-compiler.yaml#output_caps ("custody/all-receipt-types-
+      all-seed-classes-consolidated-line", 46080 bytes, ~1536 bytes/receipt),
+      closing the "no corresponding line in the resource crosswalk" defect
+      for custody receipts specifically. That crosswalk also discloses that
+      the FULL required output/custody/manifest byte sum (15520768) exceeds
+      the currently declared output_caps total (8388608); see that file's
+      output_caps.closure_status for the complete, honest accounting. This
+      note only records the cross-reference; it does not itself change any
+      byte figure.
+
+  replay_receipt_KAT:
+    canonical_JCS: '{"aad_sha256":"30ab6bcbe997ac9aa41fa18247bc40689e35251abba32d39bb34492645162b24","commitment_sha256":"72dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c1229084","envelope_sha256":"fd2fd0ad7d55027feaaf9959e845711a3ab8491c78b740a502c3a1e354ab62ef","external_key_id":"kms://syc4/kat/target-v1","receipt_type":"independent_replay","seed_class":"target","status":"PASS","test_only":true}'
+    canonical_length_bytes: 389
+    canonical_hex: '7b226161645f736861323536223a2233306162366263626539393761633961613431666131383234376263343036383965333532353161626261333264333962623334343932363435313632623234222c22636f6d6d69746d656e745f736861323536223a2237326462623733333663373637383030323366383364613463333535663265656561383537333362313364333437373639373931373739306331323239303834222c22656e76656c6f70655f736861323536223a2266643266643061643764353530323766656161663939353965383435373131613361623834393163373862373430613530326333613165333534616236326566222c2265787465726e616c5f6b65795f6964223a226b6d733a2f2f737963342f6b61742f7461726765742d7631222c22726563656970745f74797065223a22696e646570656e64656e745f7265706c6179222c22736565645f636c617373223a22746172676574222c22737461747573223a2250415353222c22746573745f6f6e6c79223a747275657d'
+    sha256: 3d21aa160d156cd437a0eef8471e6fdb5644ef092c73091d16d4cf1a630547c7
+    scope: canonicalization_and_binding_KAT_only_no_production_signature
+
+  prospective_executable_universe:
+    admission_stage: later_separate_implementation_only_maximum_runs_zero_snapshot
+    values_populated_now: false
+    no_current_hashes_fabricated: true
+    target_platform:
+      os: Linux
+      architecture: x86_64
+      container_rootfs: read_only_OCI_image_by_manifest_digest
+      network_namespace: none
+      user_namespace: isolated_nonroot_uid_gid
+      process_count: 1
+      thread_count: 1
+      locale: C
+      timezone: UTC
+    entrypoints:
+      selector: experiments/EXP-SYC-12de89/implementation/selector.py
+      public_verifier: experiments/EXP-SYC-12de89/implementation/verifier.py
+      post_outcome_auditor: experiments/EXP-SYC-12de89/implementation/post_outcome_auditor.py
+      dependency_scanner: experiments/EXP-SYC-12de89/implementation/dependency_scan.py
+      coverage_compiler: experiments/EXP-SYC-12de89/implementation/coverage_compile.py
+    manifest_path: experiments/EXP-SYC-12de89/implementation/attestation/executable-universe.json
+    manifest_path_output_budget_crosswalk: 'physical-frontier-compiler.yaml#output_caps row: executable-universe.json, 1048576 bytes (superseded from dependency-closure.json, absorbing executable-hashes.json)'
+    manifest_encoding: RFC8785_JCS_UTF8_no_trailing_newline
+    manifest_top_level_fields:
+      - schema
+      - experiment_id
+      - OCI_manifest_digest
+      - kernel_abi
+      - interpreter
+      - dynamic_linker
+      - shared_libraries
+      - builtins
+      - frozen_modules
+      - stdlib_modules
+      - repository_modules
+      - import_edges
+      - environment
+      - descriptors
+      - filesystem_mounts
+      - syscall_allowlist
+      - sandbox_policy_sha256
+      - scanner_sha256
+      - manifest_sha256
+    node_schema:
+      required_fields: [node_id, kind, canonical_path_or_builtin_name, byte_length, sha256, loader_kind]
+      kinds: [interpreter, dynamic_linker, shared_library, builtin_module, frozen_module, stdlib_source, stdlib_bytecode, repository_source, configuration]
+      builtin_and_frozen_hash_rule: >-
+        Their byte_length and sha256 are the containing interpreter executable
+        length and digest; canonical_path_or_builtin_name is the exact module
+        name and loader_kind is BuiltinImporter or FrozenImporter.
+      source_hash_rule: SHA256_exact_file_bytes
+      bytecode_rule: reject_unless_hash_bound_and_checked_hash_PYC_with_bound_source_hash
+    import_edge_schema: [importer_node_id, imported_module_name, resolved_node_id, loader_kind, source_line]
+    import_resolution:
+      python_version: 3.13.x_exact_patch_and_executable_hash_populated_later
+      allowed_finders: [BuiltinImporter, FrozenImporter, FileFinder]
+      allowed_loaders: [BuiltinImporter, FrozenImporter, SourceFileLoader, SourcelessFileLoader]
+      extension_loader: forbidden
+      namespace_packages: forbidden
+      zipimport: forbidden
+      user_site: forbidden
+      sitecustomize: forbidden
+      usercustomize: forbidden
+      PYTHONPATH: empty
+      literal_importlib_import_module: allowed_only_when_literal_and_resolved_statically
+      forbidden: [eval, exec, compile_dynamic_source, nonliteral___import__, nonliteral_importlib, ctypes, cffi, dlopen, pickle, marshal_external, wildcard_import]
+      scanner_fixed_point: >-
+        Parse every repository and stdlib source node with the Python 3.13 AST,
+        add import and import-from edges plus literal importlib edges, resolve
+        each through the frozen finder/loader set, and repeat until no node is
+        added. Start from all five entrypoints and the interpreter startup
+        modules. Any unresolved edge or runtime audit-hook import absent from
+        the manifest invalidates.
+    dependency_scanner_self_binding: scanner_source_and_its_own_closure_are_nodes_in_the_same_manifest
+
+  environment:
+    exact_entries:
+      LANG: C
+      LC_ALL: C
+      PYTHONHASHSEED: '0'
+      PYTHONNOUSERSITE: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONPATH: ''
+      TZ: UTC
+      PATH: /usr/bin
+      HOME: /nonexistent
+    unknown_environment_entries: reject
+    argv: [python3, -I, -S, verifier.py, --manifest, public-manifest.json, --candidates, candidates.bin]
+    cwd: /work
+    umask_octal: '077'
+
+  descriptors_and_mounts:
+    inherited_descriptors:
+      fd0: read_only_/dev/null
+      fd1: write_only_/out/stdout.txt
+      fd2: write_only_/out/stderr.txt
+    all_fd_at_or_above_3_closed_before_exec: true
+    verifier_open_paths:
+      read_only: [/work/public-manifest.json, /work/public-curves.bin, /work/public-targets.bin, /work/candidates.bin, /work/fixed-base-tables.bin]
+      write_only_create_exclusive: [/out/verifier-results.bin, /out/coverage-receipt.json, /out/stdout.txt, /out/stderr.txt]
+    secret_mounts_visible_inside_sandbox: []
+    writable_directories: [/out]
+    executable_filesystem: [/usr/bin/python3]
+    procfs: absent
+    sysfs: absent
+    devices: [/dev/null]
+    symlinks: reject_in_/work_and_/out
+    path_escape: reject
+
+  IPC_network_and_syscalls:
+    network_namespace_interfaces: [loopback_down]
+    sockets: deny
+    pipes: deny_except_preopened_stdout_stderr_descriptors
+    shared_memory: deny
+    ptrace: deny
+    process_creation: deny
+    thread_creation: deny
+    signals_from_other_processes: deny
+    linux_x86_64_syscall_allowlist:
+      - arch_prctl
+      - brk
+      - clock_gettime
+      - close
+      - exit
+      - exit_group
+      - faccessat2
+      - fcntl
+      - fstat
+      - futex
+      - getcwd
+      - getdents64
+      - getegid
+      - geteuid
+      - getgid
+      - getpid
+      - getrandom
+      - gettid
+      - getuid
+      - ioctl
+      - lseek
+      - madvise
+      - mmap
+      - mprotect
+      - munmap
+      - newfstatat
+      - openat
+      - pread64
+      - prlimit64
+      - read
+      - readlinkat
+      - rseq
+      - rt_sigaction
+      - rt_sigprocmask
+      - set_robust_list
+      - set_tid_address
+      - sigaltstack
+      - statx
+      - uname
+      - write
+    default_action: kill_process_and_mark_apparatus_invalid
+    argument_filters:
+      openat: only_declared_paths_and_flags_matching_mount_contract
+      mmap: anonymous_or_declared_read_only_files_no_PROT_EXEC_except_interpreter_mappings
+      mprotect: never_add_PROT_EXEC
+      ioctl: only_TCGETS_on_fd1_or_fd2_and_failures_not_output_dependent
+      getrandom: startup_only_before_candidate_file_open_and_bytes_never_exposed_or_branching
+    policy_encoding: canonical_seccomp_BPF_instruction_array_plus_RFC8785_metadata
+    policy_hash_rule: SHA256_exact_BPF_bytes_then_metadata_digest
+    unknown_or_unfiltered_syscall: reject
+
+  sandbox_policy:
+    layers_in_order: [read_only_OCI_rootfs, user_namespace, mount_namespace, pid_namespace, network_namespace, no_new_privs, seccomp, rlimits]
+    rlimits:
+      AS_bytes: 2147483648
+      CORE_bytes: 0
+      CPU_seconds: supplied_per_future_stage_and_bounded_by_experiment_hard_cap
+      FSIZE_bytes: 8388608
+      NOFILE: 16
+      NPROC: 1
+      STACK_bytes: 67108864
+    sandbox_manifest_path: experiments/EXP-SYC-12de89/implementation/attestation/sandbox-policy.json
+    sandbox_manifest_path_output_budget_crosswalk: 'physical-frontier-compiler.yaml#output_caps row: sandbox-policy.json, 8192 bytes (new line added by this repair)'
+    admission_rule: every_layer_and_exact_hash_independently_reviewed_before_any_candidate_generation
+
+  candidate_slot_schema:
+    file: candidates.bin
+    point_fixed5_binding: physical-frontier-compiler.yaml#fixed_point_record_encoding
+    header:
+      magic_ascii: SYC4CAND
+      version_u16be: 1
+      size_count_u16be: 5
+      slots_per_size_u32be: 3145728
+      record_width_u16be: 96
+      manifest_sha256: 32_bytes
+    record_order: bits_ascending_then_slot_index_ascending
+    record_fields_in_order:
+      - {name: occupied, width: 1, encoding: BOOL_00_or_01}
+      - {name: bits, width: 1, encoding: U8}
+      - {name: curve_id, width: 2, encoding: U16BE}
+      - {name: root_index, width: 2, encoding: U16BE}
+      - {name: candidate_index, width: 1, encoding: U8_0_through_31}
+      - {name: reserved_zero, width: 1, encoding: U8_zero}
+      - {name: scalar_fixed_4, width: 4, encoding: U32BE_zero_padded}
+      - {name: point_fixed_5, width: 5, encoding: canonical_point_right_padded_zero}
+      - {name: Q_fixed_5, width: 5, encoding: canonical_point_right_padded_zero}
+      - {name: transcript_sha256, width: 32, encoding: raw_bytes}
+      - {name: source_record_sha256, width: 32, encoding: raw_bytes}
+      - {name: checksum_truncated, width: 10, encoding: first_10_bytes_SHA256_of_preceding_86_bytes}
+    exact_record_width_check: '1+1+2+2+1+1+4+5+5+32+32+10=96'
+    empty_record_rule: occupied_zero_and_every_semantic_payload_zero_except_bits_curve_root_candidate_and_checksum
+    malformed_or_missing_slot: invalidates
+    candidate_index_capacity_note: >-
+      RT-OBJ1 repair cross-reference: candidate_index remains
+      U8_0_through_31 (this repair does NOT raise the fixed capacity of 32,
+      per physical-frontier-compiler.yaml#candidate_index_occupancy_bound's
+      cap_disposition). A tuple whose realized exact-equality candidate count
+      would exceed 32 is now governed by the explicit
+      candidate_index_overflow rule in that same section
+      (invalidates_without_truncation, symmetric with output_caps.overflow),
+      not left silent as in EXP-SYC-a59d02.
+
+  actual_stream_coverage_schema:
+    gate_order:
+      - implementation_snapshot_static_closure_and_synthetic_branch_KATs
+      - candidate_generation_and_immutable_candidate_stream_snapshot
+      - three_mount_actual_stream_counterfactual_replay_before_outcome_analysis
+    synthetic_fixture_claim_ceiling: branch_and_parser_KAT_only_not_actual_stream_coverage
+    synthetic_branch_kat_output_budget_crosswalk: 'physical-frontier-compiler.yaml#output_caps row: synthetic-branch-kat-replay.json, 786432 bytes (consolidates predecessor confidence-kats.json+byte-kats.json+null-replay.json, closing the previously-unbudgeted gate-1 output)'
+    actual_coverage_path: actual-stream/noninterference-coverage.json
+    actual_coverage_path_output_budget_crosswalk: 'physical-frontier-compiler.yaml#output_caps row: actual-stream/noninterference-coverage.json, 2097152 bytes (renamed from predecessor noninterference-coverage.json; this closes the "no corresponding line" half of VAL-EA56C5-OUTPUT-MANIFEST-UNDISCLOSED-SWAP for this specific artifact; the crosswalk''s aggregate total still exceeds output_caps.total_bytes, see that file''s closure_status)'
+    encoding: RFC8785_JCS_UTF8_no_trailing_newline
+    top_level_fields:
+      - schema
+      - experiment_id
+      - candidate_file_sha256
+      - candidate_header
+      - public_ordering_seed_hex
+      - public_ordering_seed_receipt_sha256
+      - mount_state_order
+      - per_state
+      - deterministic_identity
+      - physical_equivalence
+      - coverage_sha256
+    per_state_fields:
+      - mount_state
+      - sandbox_policy_sha256
+      - executable_universe_sha256
+      - candidate_file_sha256
+      - first_slot
+      - last_slot_exclusive
+      - slot_count
+      - occupied_count
+      - empty_count
+      - V_bitstream_path
+      - verifier_results_sha256
+      - V_bitstream_sha256
+      - S_bitstream_path
+      - S_bitstream_sha256
+      - public_transcript_sha256
+      - logical_operation_counts
+      - public_output_file_hashes
+      - stdout_sha256
+      - stderr_sha256
+      - exit_status
+      - sandbox_denial_count
+      - block_physical_counters
+    packed_bitstream_contract:
+      slot_order: bits_ascending_then_slot_index_ascending
+      bit_order_within_byte: most_significant_bit_first
+      exact_bits_per_state: {V: 15728640, S: 15728640}
+      exact_bytes_per_state: {V: 1966080, S: 1966080, combined: 3932160}
+      padding_bits: 0
+      public_state_files: inherited_public_verifier_output_charge
+      added_state_files: [actual-stream/TARGET-V-packed.bin, actual-stream/TARGET-S-packed.bin, actual-stream/DECOY-V-packed.bin, actual-stream/DECOY-S-packed.bin]
+      missing_extra_or_reordered_bit: invalidates
+    coverage_cardinality_rule: >-
+      For each state and each size, shard receipts cover disjoint half-open slot
+      intervals whose sorted union is exactly [0,3145728). No duplicate,
+      missing, reordered, or fabricated capacity slot is permitted.
+    deterministic_exact_identity_fields:
+      - candidate_file_sha256
+      - slot_count
+      - occupied_count
+      - empty_count
+      - verifier_results_sha256
+      - V_bitstream_sha256
+      - S_bitstream_sha256
+      - public_transcript_sha256
+      - logical_operation_counts
+      - public_output_file_hashes
+      - stdout_sha256
+      - stderr_sha256
+      - exit_status
+      - sandbox_denial_count
+    exact_identity_required: true
+    exact_identity_for_noisy_physical_counters: false
+
+  physical_noninterference_equivalence:
+    purpose: detect_mount_state_effect_without_demanding_impossible_counter_identity
+    block_count_per_size: 32
+    public_ordering_seed: >-
+      A fresh 32-byte OS-CSPRNG value is generated only after the candidate-file
+      snapshot is immutable and before any physical counter is read. It is
+      public, placed with its generation receipt in the future actual-stream
+      package, and may not be retried or selected. No value or digest is claimed
+      in this zero-run design record.
+    block_partition: >-
+      Split each size's 3145728 ordered slots into thirty-two contiguous blocks
+      of exactly 98304 slots. Each state processes every block once in a fresh
+      sandbox after the same fixed cooldown and cache-reset procedure. For each
+      size, order blocks and then the three states within each block by sorting
+      SHA256 keys over ASCII EXP-SYC-a59d02/NONINTERFERENCE-ORDER/v1, one zero
+      byte, the public ordering seed, bits U8, block U8, tag-length U8, and tag
+      bytes; use BLOCK for block ordering and PUBLIC, TARGET, DECOY for state
+      ordering, with digest then encoded index/tag as the collision tie-break.
+      This rule has no secret, scheduler, or observed-data input.
+    block_partition_domain_ascii_note: >-
+      The literal ASCII domain string EXP-SYC-a59d02/NONINTERFERENCE-ORDER/v1
+      is inherited unchanged as a frozen literal-vector byte (like
+      point_orbit_null_v3's domain_ascii); it is not a live identifier
+      reference and this task's constraints forbid editing already-reconfirmed
+      literal bytes.
+    charged_candidate_verifications: 47185920
+    noisy_axes: [wall_latency_ns, aggregate_cpu_ns, energy_nJ, physical_read_bytes, physical_write_bytes, peak_live_bytes]
+    normalization: divide_each_additive_counter_by_98304_and_keep_peak_live_as_bytes
+    log_ratio_rule: >-
+      For normalized nonnegative values x and y use log((x+u)/(y+u)), where u
+      is exactly one unit in that normalized axis. This prospective shared
+      offset handles genuine zero byte counters without dropping a block or
+      selecting a transform after observation.
+    comparison: >-
+      For each noisy axis and each pair of mount states, form the thirty-two
+      paired log ratios within every size and sort them ascending. Use the
+      closed interval from the fifth through the twenty-eighth order statistic
+      as a distribution-free confidence interval for the paired median. Under
+      independent blocks and a continuous distribution its exact two-sided
+      noncoverage is 2*sum(C(32,j),j=0..4)/2^32 =
+      82898/4294967296 = 0.000019301194697618484. Ties widen or preserve the
+      interval and never receive randomized breaking. No Gaussian assumption,
+      fitted trimming, sign-flip enumeration, or post-data margin is allowed.
+    sampling_assumption_and_audit: >-
+      The interval's only stochastic assumption is that the thirty-two
+      preregistered fresh-sandbox block triples are independent draws with a
+      common continuous paired-log-ratio distribution after the randomized
+      block/state order, fixed cooldown, and fixed cache reset. Raw ordered
+      ratios, reset receipts, temperatures, frequency states, and lag-one
+      plots are archived. A missing reset, adaptive rerun, cross-block mutable
+      state, or evidence against this assumption invalidates the apparatus; it
+      does not justify a narrower interval or become ECDLP evidence.
+    equivalence_margin_log: '[-log(1.05),+log(1.05)]'
+    simultaneous_family: 5_sizes_times_6_axes_times_3_state_pairs_equals_90_intervals
+    familywise_rule: >-
+      Bonferroni over all ninety fixed intervals gives total noncoverage at
+      most 90*82898/4294967296 = 0.0017371075227856636, below the preregistered
+      0.01 familywise ceiling. No independence between the ninety intervals is
+      assumed; the independent-block condition applies only within an interval.
+    pass_rule: every_simultaneous_interval_is_strictly_inside_the_equivalence_margin
+    fail_rule: >-
+      Any interval outside or touching the margin, any deterministic identity
+      mismatch, any denial, or incomplete slot coverage invalidates the
+      apparatus. It is not evidence about H-SYC-b854f4 or ECDLP.
+    physical_counters_archived_and_fully_charged: true
+    physical_counter_exact_equality_forbidden: true
+    security_claim_from_equivalence: forbidden_this_is_only_a_preregistered_apparatus_gate
+
+  static_completeness:
+    production_commitment_frozen: true
+    production_AAD_frozen: true
+    external_key_id_framed: true
+    custody_receipt_schemas_frozen: true
+    retention_and_destruction_order_frozen: true
+    envelope_and_receipt_KAT_bytes_frozen: true
+    interpreter_universe_schema_frozen: true
+    stdlib_and_import_closure_schema_frozen: true
+    environment_and_descriptor_contract_frozen: true
+    IPC_network_syscall_and_sandbox_contract_frozen: true
+    candidate_slot_schema_frozen: true
+    candidate_index_overflow_rule_cross_referenced: true
+    synthetic_and_actual_stream_gates_separated: true
+    deterministic_and_noisy_noninterference_criteria_separated: true
+    output_budget_crosswalk_present_for_every_required_artifact: true
+    future_hashes_or_evidence_fabricated: false
+    disclosed_residual_note: >-
+      This file's own required artifacts (executable-universe.json,
+      sandbox-policy.json, actual-stream/noninterference-coverage.json, up to
+      30 custody receipts) all now have a traceable output-budget line in
+      physical-frontier-compiler.yaml#output_caps; the aggregate over-cap
+      residual (15520768 required versus 8388608 declared) is disclosed and
+      tracked there, not here, since this file declares no byte totals of its
+      own.
+    static_residual_count: 0
+    status: PASS_STATIC_FOR_INDEPENDENT_REVIEW

@@ -1,0 +1,301 @@
+idea:
+  id: IDEA-20260813-5a2aaa
+  title: >-
+    CRT-residue hidden-shift screen for quasi-cyclic syndrome decoding
+  class: mechanism
+  claim: >-
+    Projecting HQC's quasi-cyclic ambient ring R = F_2[X]/(X^n - 1) (n an
+    HQC-parameter prime with 2 primitive mod n) via the CRT isomorphism R
+    isomorphic to F_2 x F_{2^(n-1)} onto ONLY the F_{2^(n-1)} factor, and
+    asking whether the resulting field-valued residues of the secret/error
+    support carry a hidden-shift or hidden-subgroup structure exploitable by
+    a quantum Fourier-sampling algorithm (Simon/Kuperberg-style) over the
+    additive or multiplicative group of F_{2^(n-1)}, does NOT yield a usable
+    period/shift oracle for decoding, because syndrome decoding's hardness
+    is a combinatorial LOW-WEIGHT-SUPPORT search, not a
+    group-homomorphism-hiding problem, under this specific construction.
+    This proposal discriminates between "the direct CRT-residue projection
+    carries hidden-shift structure" and "it does not, and here is the exact
+    algebraic obstruction" -- a closure-shaped candidate, not a positive
+    attack.
+  mechanism: >-
+    HQC uses R = F_2[X]/(X^n - 1) with n prime and 2 a primitive root mod n,
+    so X^n - 1 factors as (X-1)*Phi_n(X) with Phi_n irreducible of degree
+    n-1 over F_2, giving the CRT ring isomorphism R isomorphic to F_2 x
+    F_{2^(n-1)}. Any ring element r maps to a pair (r(1), r_bar) where r_bar
+    is the image of r in F_{2^(n-1)} = F_2[X]/Phi_n(X). HSP algorithms
+    (Simon's algorithm for XOR-shift hiding, Kuperberg's dihedral-HSP
+    algorithm for hidden shifts in cyclic groups) are efficient exactly when
+    the problem IS a group-homomorphism-hiding problem: there exists a
+    public, quantum-queryable function f and a fixed secret shift s such
+    that f(u) = f(u+s) identifies the solution. This proposal tests whether
+    a natural candidate f, built from the field-residue of decoding-relevant
+    quantities, admits such a fixed global shift s. This is a DIFFERENT
+    established family than Grover/quantum-walk search (it is an HSP
+    attempt, not a search-and-amplify algorithm), and is independent of the
+    sibling RQ-QALG-74bf20 (CSIDH) lane's use of Kuperberg for the isogeny
+    class group -- no content, mechanism, or finding transfers between them;
+    this proposal is generated independently for HQC's own algebraic
+    structure.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      HQC's ring is R = F_2[X]/(X^n - 1) with n prime AND 2 a primitive root
+      mod n, so that Phi_n(X) is irreducible of degree n-1 over F_2 and the
+      CRT decomposition applies exactly. This was NOT independently
+      re-verified against HQC's current primary specification text in this
+      task (out of scope for this budget); flagged as HEUR-adjacent H1
+      below.
+  proof_search_map:
+    bottleneck: >-
+      The single existence question: does there exist a public,
+      quantum-query-computable function f: F_{2^(n-1)} -> {0,1} (or to some
+      finite set) invariant under translation by an UNKNOWN shift s
+      determined by the secret (x,y) or the error e, with f distinguishing
+      cosets of <s>? Without this, HSP machinery (Fourier sampling,
+      Kuperberg's sieve) has nothing to act on.
+    baseline_embedding:
+      parameter_slice: not_applicable
+      reproduction_check: >-
+        not_applicable -- there is no prior HSP-based HQC attack to embed a
+        boundary case of; this is a from-scratch existence question, not a
+        family extension. Recorded per KN-TECH-080's allowance for a stated
+        reason.
+    observation_collision:
+      observable: >-
+        The candidate function f, any natural encoding of "is u a valid
+        decoding-related residue".
+      distinct_preimage_search: >-
+        AUDIT PERFORMED, COLLISION FOUND, DIRECT FALSIFIER. Syndrome
+        decoding's defining relation is an ADDITIVE relation among FOUR
+        independent secret/random quantities in the ring (s = x*r2 + r1*y +
+        e), not a two-term shift x -> x+s, and the attacker's unknown is the
+        LOW-WEIGHT SUPPORT of e (a combinatorial/Hamming-weight property),
+        not a coset representative of a subgroup. Two distinct error
+        vectors e, e' of the SAME Hamming weight, differing only in which
+        coordinates are set, generically have field-images e_bar, e'_bar in
+        F_{2^(n-1)} that are NOT related by any fixed additive shift s
+        common across the whole search space -- because the map e -> e_bar
+        is F_2-linear, the "coset structure" an HSP algorithm needs
+        (constant shift s independent of which e is queried) does not
+        exist: the shift relating e and e' is (e - e')_bar, which is
+        DIFFERENT for every pair (e,e'), not a single global secret shared
+        by the whole oracle. Two distinct ground-truth objects (different
+        low-weight e) share no common hidden-shift structure under this
+        field projection.
+    constructive_transforms: []
+    quantifier_order: >-
+      The claim under test was: THERE EXISTS a public function f on
+      F_{2^(n-1)} and a FIXED secret shift s (independent of which valid
+      low-weight error e is present) such that f(u) = f(u+s) identifies the
+      decoding solution. The audit shows that for the natural CRT-residue
+      construction, the "shift" relating differently-supported low-weight
+      error vectors depends on the PAIR (e, e'), not on a single global s --
+      the required existential witness (a single s working for all
+      instances in the family) does not exist under this construction. What
+      would be needed is "exists s such that for all e in the low-weight
+      family, f reveals s"; what the audit finds is "for all e, e' the
+      relevant shift is (e-e')_bar, which is NOT independent of the pair" --
+      a direct contradiction of the needed order.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        None -- the method ceiling is zero for THIS specific construction
+        (direct CRT-residue projection with a single global shift). No
+        HSP-style quantum algorithm can be certified to help via this exact
+        object.
+      nearby_object_control: >-
+        Applied the identical question to Regev's LWE-to-dihedral-coset-
+        problem reduction (the nearest well-known object where an
+        additive/lattice decoding problem DOES reduce to an HSP-adjacent
+        problem, cited generically, not independently reproduced here) as
+        the nearby object where a similar-looking projection DOES work. That
+        construction succeeds because LWE's oracle can be phrased as
+        sampling pairs (a, <a,s>+e) that literally encode function values at
+        points related by the secret s via a KNOWN linear structure (the
+        inner product), giving a single global s. HQC's construction has no
+        analogous single global secret playing that role for the low-weight
+        support search (the hardness-relevant secret is a discrete
+        combinatorial support pattern, not a single ring element to find via
+        periodicity) -- this structural divergence is the closure's named
+        obstruction.
+    proof_obligations:
+      - claim: e -> e_bar (CRT-residue of the error vector) is F_2-linear.
+        responsibility: correctness
+      - claim: >-
+          No single global shift s relates the field-images of distinct
+          low-weight error vectors in the family.
+        responsibility: strictness
+      - claim: >-
+          This closure is scoped to the DIRECT CRT-residue-with-global-shift
+          construction and does not rule out all conceivable algebraic
+          reformulations.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        Existence of a fixed global shift s relating field-images of
+        distinct same-weight low-weight error vectors
+      direction: different
+      minimum_effect: >-
+        A nonzero fraction of tested (e,e') pairs sharing a common
+        (e_bar - e'_bar) value across a family of more than 2 pairs would be
+        needed to even begin supporting the HSP structure; the audit's
+        linear-algebra argument predicts EXACTLY ZERO such pairs share a
+        common shift except by coincidence at the random-linear-map rate
+        2^(-(n-1)).
+  minimal_test:
+    design: >-
+      Direct symbolic/computational check at a small toy quasi-cyclic
+      parameter (n=7, w up to 3): enumerate all weight-w binary vectors e on
+      F_2[X]/(X^7-1), compute each one's CRT-projection into F_8 =
+      F_2[X]/Phi_7(X), and check by exhaustive pairwise comparison whether
+      any nontrivial subset of pairs (e,e') shares a common difference
+      e_bar - e'_bar at a rate ABOVE the random-linear-map null rate 2^(-6)
+      (F_8 has 8 elements, 3 bits).
+    controls:
+      - >-
+        Null object: a uniformly random F_2-linear map from the same-
+        dimension binary vector space to F_8 (not derived from the ring's
+        CRT structure), subjected to the identical pairwise-shift-collision
+        count; the ring-CRT map's collision rate must not exceed this null's
+        by more than sampling noise, or the "exactly zero structure" claim
+        is wrong and the idea should be reopened rather than closed.
+    required_metrics:
+      - pairwise shift-collision rate for CRT map
+      - pairwise shift-collision rate for null random linear map
+  falsification_conditions:
+    - >-
+      The toy-scale enumeration finds a common shift s relating a
+      NON-trivial fraction (more than a small constant multiple of the
+      random-null rate 2^(-(field bits))) of same-weight error-vector pairs
+      -- this would directly falsify the closure and require reopening the
+      HSP mechanism.
+    - >-
+      A different (non-CRT-residue) global function f is exhibited, outside
+      the scope of this closure, under which the shift IS global -- this
+      does not falsify the closure as scoped, but narrows what remains open.
+  confounders:
+    - >-
+      The toy n=7 case is far too small and too structurally special (F_8 is
+      the smallest nontrivial extension) to guarantee the same
+      linear-independence argument holds at HQC's actual n around 17669;
+      the linear-algebra argument itself is scale-invariant (a general fact
+      about F_2-linear maps, not a finite-size coincidence), which is why
+      the toy check is offered as a CONFIRMATION of the general argument
+      rather than its sole support.
+  interpretation_limits:
+    - >-
+      This is a NEGATIVE / closure-shaped proposal for a NARROW, precisely
+      scoped construction (direct global-shift CRT-residue HSP). It does not
+      rule out every conceivable algebraic reformulation of HQC decoding as
+      a quantum period-finding problem. Per docs/inventor-protocol.md
+      section 4, the named obstruction is the linearity argument above, and
+      forward guidance is: any future HSP-style attempt on HQC must find a
+      DIFFERENT global-secret construction where the secret truly is a
+      single group element rather than a discrete support pattern, e.g. by
+      first reducing decoding to a genuinely group-structured sub-problem
+      (no such reduction is known or attempted here).
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The CRT isomorphism R isomorphic to F_2 x F_{2^(n-1)} holds exactly
+        whenever n is prime and 2 is a primitive root mod n (both are HQC's
+        actual construction parameters, verified against SPEC's stated ring
+        choice generically, not independently re-derived from primary HQC
+        spec text in this task). This is a RIGOROUS algebraic fact, not a
+        probabilistic heuristic; it is listed here because the rest of the
+        proposal's validity is conditional on it holding for HQC's actual
+        chosen n, which was not independently re-verified against the
+        current HQC specification in this task.
+      rigorous_support: >-
+        Standard finite-field/cyclotomic-polynomial factorization theory
+        (X^n-1 = (X-1)*Phi_n(X) over F_2 when n is prime and 2 has order n-1
+        mod n, i.e. is a primitive root); textbook, not independently
+        re-derived here.
+      validation_plan: >-
+        Direct symbolic check for HQC's actual published n at each
+        parameter set (HQC-128/192/256) that n is prime and 2 is a primitive
+        root mod n -- a deterministic, zero-sampling check (compute the
+        multiplicative order of 2 mod n and compare to n-1), not a
+        probabilistic validation. This was NOT performed in this task (out
+        of scope for a from-scratch primary-spec read); flagged as an open
+        verification step for whoever picks this proposal up next.
+  target_complexity:
+    time_exponent: >-
+      not_applicable -- this proposal concludes (conditionally) that no HSP
+      speedup exists via this construction, so there is no time_exponent to
+      state for a positive claim.
+    memory_exponent: not_applicable
+    best_known: >-
+      Kachigar-Tillich (2017, KN-LIT-80202e), stated for comparison purposes
+      only since this proposal does not claim to beat it.
+    hidden_overhead: not_applicable
+    tradeoff_note: not_applicable
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: low
+
+object_first_screen:
+  established_families_forbidden_as_primary_lens:
+    - >-
+      Grover-only exhaustive search over information sets (Bernstein 2010,
+      KN-LIT-4144).
+    - >-
+      Quantum-walk-accelerated MMT/BJMM representation-technique ISD
+      (Kachigar-Tillich 2017, KN-LIT-80202e).
+    - >-
+      Circuit/qubit/memory-resource-axis refinements of the above (see
+      IDEA-20260813-a46301's list; not repeated here as this proposal does
+      not use that family at all -- it is an HSP attempt, a different family
+      entirely).
+  tracked_object: >-
+    The F_{2^(n-1)}-component of an element's CRT decomposition in R
+    isomorphic to F_2 x F_{2^(n-1)}, discarding the F_2 (parity) component.
+  novelty_axis: >-
+    Plausibly new as an HQC-specific angle (no corpus hit combining CRT/
+    idempotent ring decomposition with an HSP-style quantum mechanism for
+    HQC); the general HSP machinery (Simon, Kuperberg) is well-known and is
+    explicitly NOT claimed as new -- what would be new, had it worked, is
+    the specific reduction.
+  testability_axis: >-
+    Concretely testable via the toy-scale pairwise-shift-collision
+    enumeration in minimal_test; the one-step propagation (does the map
+    preserve a global shift) is an exact linear-algebra question, checkable
+    without any quantum simulation.
+  survival_axis: >-
+    Survives exactly zero steps past the observation-collision audit for the
+    direct construction; the audit itself IS the useful result (a named
+    obstruction: e -> e_bar is linear but the decoding-relevant secret is a
+    support pattern, not a group element), per docs/inventor-protocol.md
+    section 4's closure standard.
+  lossy_projection_test: >-
+    The projection r -> r_bar (discarding the F_2 component) IS a genuinely
+    lossy, compatibly-discarding projection: it discards exactly one bit
+    (the coordinate sum r(1)), and this discarding is compatible with R's
+    ring operations because the CRT decomposition is a ring isomorphism, so
+    +,x on R correspond exactly to coordinatewise +,x on F_2 x F_{2^(n-1)}
+    -- the F_{2^(n-1)} component alone still propagates deterministically
+    under all of R's operations used in the HQC encryption relation. So this
+    PASSES the lossy-projection test as an object; what FAILS is the
+    further, independent claim that this object carries usable hidden-shift
+    structure -- exactly the distinction the observation-collision audit is
+    built to catch, and it is recorded as its own separate failure rather
+    than conflated with a lossy-projection failure.
+
+dominated_by: >-
+  n/a (no positive result claimed; this is a screened-and-closed candidate
+  mechanism, not a competing algorithm to Pareto-rank against
+  Kachigar-Tillich).
+sota_delta: >-
+  No attack; conceptual/measurement contribution only, per
+  docs/inventor-protocol.md section 5's explicit allowance for this exact
+  answer shape.
+
+novelty_check:
+  corpus_status: >-
+    No corpus entry combining CRT/idempotent ring decomposition with an
+    HSP-style quantum mechanism for HQC or any quasi-cyclic code was found.
+  web_status: >-
+    WebSearch tool failed on all three queries attempted in this task
+    (infrastructure error, not a null result); not independently checked.

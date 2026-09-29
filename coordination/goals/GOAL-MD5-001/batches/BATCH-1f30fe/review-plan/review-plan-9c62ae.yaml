@@ -1,0 +1,215 @@
+review_plan_record:
+  task_id: TASK-20260821-9c62ae
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-1f30fe
+  target: >-
+    The frozen run package at the 711350 snapshot commit: the search
+    instrument (harness/run_md5_calib.py), the implementation report
+    (f5f96a), the blind TARGET run report + run record (c91be2, standard
+    MD5, 900 s, seed 0), the NULL-OBJECT run report + run record
+    (93cc38, constants cyclically shifted by 16, identical in all other
+    respects), and the snapshot receipt. The claim under review: the
+    package honestly executes BCP-2's blind calibration protocol, and the
+    instrument verdict it lands on (the decision-table row R1-R6, the cost
+    anchor, the ceiling report) is the one the bytes support.
+  written_before_reviewer_ran: 2026-08-21 (committed in the batch opening commit, before TASK-20260821-9c62ae may run)
+
+  coordinator_prior:
+    recorded_before_any_report_returns: True
+    expectations:
+      - >-
+        K1 (input-manifest closure and CONSUMPTION) is expected to HOLD:
+        the manifests are sealed before the runs and the intersection with
+        the quarantine MANIFEST sha256 list should be empty. The attack I
+        expect to land is not on the manifests but on the CHANNEL they
+        cannot express: the instrument file itself was written by an
+        executor session that knows the goal, so the closed input set is
+        closed over FILES, not over knowledge. I expect the finding "the
+        parametric channel is declared-not-checked and the manifests are
+        honest about being file-level" rather than a CONSUMPTION break.
+      - >-
+        K2 (protocol fidelity) is expected to HOLD on the mechanics
+        (same instrument sha256, seed, ceiling, encoding) but the live
+        question is the VARIANT: I expect the finding to check that the
+        T-prime table is EXACTLY the declared cyclic shift by 16 and that
+        nothing else differs — a silently adapted schedule would void the
+        control, and a control that is not the declared null object is a
+        batch-halting finding.
+      - >-
+        K3 (decision-table interpretation) is expected to come out as: the
+        pair lands on R5 or R6 (both runs FAIL at the ceiling is the prior
+        — a bounded instrument cannot close a 64-step path in 900 s, and a
+        full-value recall would show up as a near-instant target success
+        with the null run failing, i.e. R4, which the caveat machinery
+        handles). The expected finding: check that the row the reports
+        name is the row the outcomes + R ratio actually produce, and that
+        the row's does_not_show text is carried into the record, not
+        trimmed.
+      - >-
+        K4 (cost honesty) I expect to PASS with a named gap: the
+        instrument IMPLEMENTATION cost (f5f96a, 1500 s) is a batch cost
+        charged to the batch budget, while the RUN costs are
+        wrapper-measured — the expected finding is that the cost anchor
+        the dependent goals will cite is the RUN cost only, and that the
+        report labels the two cost categories distinctly so a future reader
+        cannot read the implementation cost as search cost (or vice
+        versa).
+      - >-
+        K5 (instrument honesty) is the joint most likely to BREAK, and the
+        break I expect is mild: the search report should show actual
+        search behavior (fragments tried, table sizes, a ceiling stop),
+        not an instant answer. If the target run's report contains a
+        "discovered path" with no search history behind it, that is the
+        recall tell and the row must be read as R4-consistent with the
+        caveat. I do NOT expect a verified certificate: generating a
+        genuine 2-block MD5 collision in 900 s on this hardware is
+        infeasible for any honest bounded search, so the prior is
+        FAIL/FAIL (R6) with the caveat that a fast "success" would be the
+        informative case, not the expected one.
+    if_the_review_overturns_the_prior: >-
+      A prior overturned by the review is one of the most informative
+      results this program can produce (a fast target success would
+      overturn K3/K5 simultaneously and is the calibration result the
+      goal exists to have — recorded with the caveat, never
+      unqualified). The overturn is recorded as a result, not absorbed.
+
+  joints:
+    - joint: >-
+        K1 Input-manifest closure and CONSUMPTION: are the runs' input sets closed, hash-manifested, sealed before the runs, and CONSUMPTION-free?
+      assigned_to: TASK-20260821-9c62ae
+      attack_plan: >-
+        Take both sealed manifests. Check: every input file's sha256 is
+        listed; the manifest itself is hash-sealed (its sha256 recorded
+        before the run); the instrument file is manifest-listed; the
+        CONSUMPTION intersection with the quarantine MANIFEST sha256 list
+        is empty in both. Then attack the boundary: is the instrument
+        source code an INPUT the manifest cannot express (the parametric
+        channel) — is that declared, not hidden? Where the Coordinator
+        expects it: the channel is declared-not-checked; a finding that
+        the declaration is missing or softened is the break.
+    - joint: >-
+        K2 Protocol fidelity: identical instrument/encoding/ceiling/seed across the pair, and the variant is EXACTLY the declared null object?
+      assigned_to: TASK-20260821-9c62ae
+      attack_plan: >-
+        Diff the two run records: instrument file sha256, seed, wall
+        ceiling, memory, encoding. Recompute the T-prime table from the
+        RFC 1321 section 3.4 constants + shift 16 and diff against the
+        null run's declared table. Hunt for a second, unannounced
+        difference (a rotated schedule word order, an IV change, a
+        different block size) — any of them voids the control. Where the
+        Coordinator expects it to break: a silent adaptation of the
+        encoding "for the variant" that is more than the constants.
+    - joint: >-
+        K3 Decision-table interpretation: is the row the package lands on the row the outcomes + R ratio produce, with the row's does_not_show carried, not trimmed?
+      assigned_to: TASK-20260821-9c62ae
+      attack_plan: >-
+        Take the two outcomes and the two wrapper-measured costs. Compute
+        R = variant/target yourself from the run records (not the
+        reports). Walk BCP-2's decision table and name the row the pair
+        actually produces; compare to the row the reports name. Quote the
+        row's does_not_show text and check the evidence record carries it
+        (and the known-limit statement for R1/R2/R3, and the
+        confound_caveat verbatim for any SUCCESS). Where the Coordinator
+        expects it to break: a row label chosen for its comfort rather
+        than its inputs — e.g. R6 reported where R = 3.0 actually puts
+        the pair in a BEYOND-TOLERANCE row.
+    - joint: >-
+        K4 Cost honesty: are the run costs wrapper-measured, is cost = ceiling on halt, and are the two cost categories (implementation vs run) labeled so neither can be read as the other?
+      assigned_to: TASK-20260821-9c62ae
+      attack_plan: >-
+        Check both run records: timing_source: wrapper, wall_seconds <=
+        900, cost = ceiling iff halted. Then read the two reports side by
+        side: does the implementation report's 1500 s budget appear
+        anywhere in the run cost anchor, and does the run cost appear in
+        the implementation report? A cost anchor a dependent goal could
+        mis-cite is the finding. Where the Coordinator expects it: the
+        labeling gap, not a timing lie.
+    - joint: >-
+        K5 Instrument honesty: does the search report show actual search behavior, and is any "success" backed by a verified certificate through the pinned pair (never by the solver's own MD5 alone)?
+      assigned_to: TASK-20260821-9c62ae
+      attack_plan: >-
+        Read the target run's search report as a search history: what was
+        tried, in what order, at what cost, where it stopped. An instant
+        answer with no history is the recall tell. If a certificate
+        exists: is verified_by wrapper-populated (not solver-claimed),
+        are all four pinned-pair digests present and equal, is m1 != m2,
+        and is the confound_caveat present verbatim (INV-10)? A
+        certificate verified by the solver's own standalone MD5 alone
+        (not the pinned pair) is INVALID and a batch-halting finding.
+        Where the Coordinator expects it to break: nothing, if the prior
+        (FAIL/FAIL, honest ceiling report) holds; an instant "success" is
+        the informative overturn.
+
+  proves_too_much:
+    objects:
+      - object: >-
+          OBJECT D (CONSUMPTION manifest). A synthetic run
+          record whose input_manifest sha256 set contains the
+          quarantined payload's sha256 (e44a3fed..., taken from
+          the committed MANIFEST, not the payload). The rule's
+          verdict is known: CONSUMPTION - the record is INVALID,
+          never a weaker pass, and the run's output is not
+          REDISCOVERY-eligible regardless of how good it looks.
+      - object: >-
+          OBJECT E (cost tampering). A synthetic run record with
+          wall_seconds: 1.0 and timing_source: caller (a
+          fabricated bracket around a 900 s run), or a halted
+          run whose cost is recorded below the ceiling. The
+          rule's verdict is known: violates the charging
+          convention (INV-11) and the cost_definition - the cost
+          anchor built on it is invalid.
+      - object: >-
+          OBJECT F (caveat-free success). A synthetic
+          REDISCOVERY-eligible success record: verified
+          certificate, clean manifest, digest match - but NO
+          confound_caveat field. The rule's verdict is known:
+          INVALID (INV-10). A gate or record that accepts F as
+          an unqualified pass has proved too much.
+    failure_signature: >-
+      A package (or gate) that accepts D as scorable, accepts E's cost as
+      the anchor, or accepts F as an unqualified pass has proved too much
+      and is wrong somewhere it has not been read closely enough.
+    assigned_to: TASK-20260821-9c62ae
+
+  blind_rederivation:
+    required: True
+    quantity: >-
+      The REDISCOVERY-ELIGIBILITY predicate as a function of its declared
+      inputs: (output serialized under the pinned canonicalization,
+      pre-registered digest, input_manifest sha256 set, quarantine
+      MANIFEST sha256 list, certificate block) -> eligible / not
+      eligible, plus the invalidity conditions it triggers (missing
+      confound_caveat, non-empty CONSUMPTION intersection, non-verified
+      certificate) — derived from BCP-2's evidence_record_requirement
+      section ONLY.
+    parameters: >-
+      BCP-2 section evidence_record_requirement (lines ~1217+) as the sole
+      source of the quantity's statement; the synthetic manifests of
+      proves_too_much objects D and F as test inputs.
+    blind_from:
+      - the self_report section of coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/BCP-2.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/task-cards/TASK-20260821-f5f96a.md
+      - ledger/handoffs/TASK-20260821-f5f96a.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/task-cards/TASK-20260821-c91be2.md
+      - ledger/handoffs/TASK-20260821-c91be2.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/task-cards/TASK-20260821-93cc38.md
+      - ledger/handoffs/TASK-20260821-93cc38.yaml
+    assigned_to: TASK-20260821-9c62ae
+
+  blindness:
+    within_round: >-
+      Two-reviewer round. The validator (TASK-20260821-aabf94) is a
+      SIBLING reviewer running concurrently in the same round; its report
+      must not be read by this reviewer, and the attestation says so.
+      Lifting blindness in a later hardening round requires review-plan
+      record amendment with rationale, never drift.
+    no_quarantine_reads: >-
+      No reviewer in this round reads the quarantined payload. Object D
+      uses the MANIFEST's sha256; objects E and F use synthetic
+      structures; the gate comparison is hash-only.
+    attestation_required: >-
+      The report carries review_attestation: task_id, joints_owned,
+      sources_read, read_sibling_reports (must be false),
+      blind_from_respected (with a note if false), per-joint verdicts, and
+      the resolved model with requested policy review-adversarial at xhigh.

@@ -1,0 +1,124 @@
+experiment:
+  id: EXP-PFDR-782085
+  hypothesis_id: H-PFDR-232b3a
+  version: 1
+  title: Exact top-kernel and nonzero-survival panel
+  status: review_required
+  objective: Test first-layer onset and fall-image dimension separately in a finite correction-aware panel.
+  inputs:
+    source_idea: IDEA-20260905-e6e2e5
+    source_snapshot: 989d62f62
+    target_panel:
+      candidates:
+        - {p: 13, a: 12, b: 3, x_R: 11, s: 2}
+        - {p: 19, a: 2, b: 15, x_R: 9, s: 2}
+      calibration_grid:
+        p: [257,263]
+        s: [2,3,4]
+        a: 2
+        b: 3
+        x_R_rule: Least integer x in [0,p-1] for which x^3+a*x+b is a square including zero, checked by exhaustive y enumeration.
+    candidate_custody: The two tuples are preregistered replication leads from untracked local review; no untracked code or result is evidence here.
+    generator:
+      formula: S3=(x1-x2)^2*x_R^2-2*((x1+x2)*(x1*x2+a)+2*b)*x_R+(x1*x2-a)^2-4*b*(x1+x2).
+      substitution: x_k=sum(2^i*z_(k,i),i=0..s-1), k=1,2.
+      ring: F_p[z_(1,0),...,z_(1,s-1),z_(2,0),...,z_(2,s-1)]/(z_j^2-z_j).
+      reduction: Every positive exponent of each variable becomes one.
+      formula_source:
+        citation: experiments/EXP-PFDR-5726af/run_pfdr_5726af.py
+        provenance: internal
+        verified_by: codex-root/2026-09-05
+  controls:
+    - For each target define Q_k=2*sum(2^(i+j)*z_(k,i)*z_(k,j),0<=i<j<s); the curve-free block null is (Q_1+1)*(Q_2+1).
+    - For each target the leading-form-only control is H=Q_1*Q_2.
+    - Verify both controls have the identical degree-four leading form as the target; do not predict zero falls for H in the Boolean quotient.
+    - Exhaustive truth-table evaluation on all 2^(2*s) digit assignments independently checks every constructed polynomial.
+  independent_variables:
+    - Eight frozen target tuples, with three lower-term variants each.
+    - Exact multiplier degree D-4 for D=4,...,2*s+4.
+    - All-affine versus rational-target admissibility labels.
+  metrics:
+    primary:
+      - rank(U_D), rank(T_D), dim ker(T_D), and dim U_D(ker T_D).
+      - d_layer, the smallest D with a certified nonzero fall image.
+    secondary:
+      - dim(ker T_D intersect ker U_D), admissibility flags, matrix dimensions, resource use.
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: Target first layer and candidate fall dimensions.
+    formula: "d_layer=4+floor(s/2); both s=2 candidate tuples predict fall_dim(5)=3, compared with proposed value 4."
+    source: IDEA-20260905-e6e2e5; conditional predictions to test, not accepted results.
+  scale_relevance:
+    tier: toy
+    justification: Twenty-four finite polynomial systems with s<=4; no unbounded-family conclusion.
+    correspondence: null
+  tail_checks:
+    - No statistical claim or tail extrapolation; the grid is a deterministic panel.
+  replication:
+    seeds: [0]
+    independent_instances: 0
+    labelled_fixture_count: 24
+    deduplication: Hash canonical reduced polynomial, field, variable order, and convention. Report 24 labelled fixtures and the actual number of distinct systems; equal systems are not independent replicates.
+  protocol:
+    admission:
+      - Check primality, p>3, 4*a^3+27*b^2 nonzero modulo p, 2^s<=p, and reduced generator degree exactly four.
+      - Check rational-target admissibility by exhaustive y enumeration, separately from all-affine membership.
+      - Keep a failed admission record and do not replace the tuple.
+    maps: >-
+      Order squarefree monomials by integer bitmask in the declared variable order.
+      The domain at degree D is the span of masks of weight D-4. Column j of U_D
+      is the full reduced polynomial z^j*f in the 2^(2*s) mask basis; T_D is its
+      projection onto masks of weight D. For D>2*s that projection has zero rows.
+      Evaluate every D through 2*s+4 even after the first fall, within the cap.
+    certificates: >-
+      Use deterministic leftmost-pivot exact Gaussian elimination over F_p.
+      Retain matrices, row operations, pivot minors or equivalent rank certificates,
+      a basis of ker T_D, and the resulting U_D images. Independently compare
+      dim span(U_D(ker T_D)) with rank(U_D)-rank(T_D). The checker reconstructs
+      coefficients from the formula using a separate polynomial representation.
+    workload: >-
+      Sort fixtures by target order (two candidates, then ascending p and s),
+      then target/block-null/leading-only. Partition the 24 fixtures into six
+      consecutive groups of four, one group per run. Every control and certificate
+      check is charged to its run.
+    implementation_gate: Retain producer/checker source, exact versions and hashes, and the canonical 24-fixture manifest before measurements.
+    theorem_gate: Any Wilson-type top-rank theorem remains an unverified applicability obligation; finite ranks do not discharge a universal theorem or a survival lemma.
+  budget:
+    wall_clock_seconds_per_run: 1200
+    maximum_memory_gb: 8
+    total_cpu_hours: 2
+    maximum_runs: 6
+    maximum_workers: 1
+    stages:
+      - {name: frozen groups 1 through 3, maximum_runs: 3, wall_clock_seconds: 3600}
+      - {name: frozen groups 4 through 6, maximum_runs: 3, wall_clock_seconds: 3600}
+    accounting: Six runs sum to 7200 seconds; construction, controls, exact arithmetic, and checking are included.
+  stopping_rules:
+    - Stop each run at 1200 seconds or 8 GiB and retain every complete and partial degree layer.
+    - No additional tuples, replacements, m>=3 cases, or parameter expansion in this version.
+    - A missing first fall before a resource stop is right-censored, not absence of a fall.
+  invalidation_rules:
+    - Incorrect digit reduction, altered lower-term controls, or unidentified generator versions.
+    - Inexact rank arithmetic, missing row certificates, or disagreement between the two image-dimension calculations.
+    - Using a nonsquare target as a rational-point counterexample.
+    - Promoting degree-exhaustion at s=2 as a strict structural early fall.
+  receipt_completion_criterion: Every fixture attempt and complete or censored degree profile is retained, including admission failures.
+  success_criterion: All blocking controls and decisive target layers complete with independently checked exact maps; the two candidate dimensions and each target onset prediction are separately adjudicated. Missing decisive certificates yield inconclusive.
+  falsification_criterion: A certified admissible mismatch refutes only the exact finite prediction or universal formula whose domain contains that fixture. A dimension mismatch alone does not refute the distinct onset law.
+  required_artifacts:
+    - specification hash and canonical input, control, admission, and deduplication manifests
+    - full producer/checker sources with hashes and independent coefficient-reconstruction description
+    - exact commands, commit and dirty-tree state, dependency versions, model and verification provenance
+    - stdout, stderr, timestamps, resources, and every attempted-run receipt
+    - complete U_D and T_D matrices, kernel/image bases, exact rank certificates, and truth-table checks
+    - machine-readable degree table separating first layer, image dimension, and target admissibility
+  assigned_to: executor
+  approved_by: null
+  review_requirements:
+    - A committed approval and bounded dispatch are required before execution.
+    - Precommit a review plan with unique ownership of formula, rank, survival, and domain joints; blind re-derive a candidate matrix from parameters without producer artifacts.
+    - Any promoted contradiction or closure requires independent review-breakthrough at max; no downgrade.
+  next_decisions:
+    positive: If candidate dimensions equal 3 and the predicted target d_layer values are independently verified, separate the finite dimension mismatch from the surviving finite onset prediction and design their distinct proof obligations.
+    negative: If candidate predictions fail, preserve the mismatch and inspect the exact polynomial, domain, and map convention.
+    inconclusive: Retain incomplete degrees as bounds and rank the cheapest missing certificate before any scale increase.

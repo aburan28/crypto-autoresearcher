@@ -1,0 +1,772 @@
+idea:
+  id: IDEA-20260829-0cbb9f
+  question_id: RQ-SYMF-5ab172
+  title: >-
+    The comparison key leaks producer identity - measure how many bits of
+    "which task wrote this row" are recoverable from the key alone, and test
+    surgical synonym MERGING of field values against blunt field DROPPING on
+    the comparability-versus-laundering frontier
+  class: representation
+  claim: >-
+    Schema v2 enumerates a closed allowed value set for allowed_null_reason
+    (5 values), verification_states (5) and canonical_dispositions (5), and
+    enumerates one for ZERO of the 11 comparison_key fields whose byte-exact
+    equality gates every dominance comparison the frontier can perform. The
+    consequence is measurable and this proposal measures it in three parts.
+    (A) The field values are house style, not cryptanalysis. Over the 30
+    canonical and verified-baseline rows read this session, round_scope takes
+    the five values full, reduced, reduced_round, full_round and
+    full_round_component, and oracle_access takes offline_computation and
+    offline among others - and these split along PRODUCER SHARD, with
+    LEGACY-prefixed hash rows using full/reduced plus offline_computation while
+    the modern-hash rows use reduced_round/full_round_component plus offline.
+    Two rows describing full-round attacks are therefore key-incompatible
+    because two different producer tasks spelled "full" differently.
+    (B) The claim is that this is a measurable provenance channel - an exact
+    rule reading only round_scope and oracle_access classifies a row's producer
+    shard with accuracy at least 0.90 over the 67 snapshot rows, against a
+    label-permutation null.
+    (C) The claim is that the repair is SURGICAL rather than blunt, and that
+    the two repairs are separable in one run. Merging adjudicated synonym
+    values WITHIN a field creates at least 2 new evaluable same-key ordered
+    pairs with ZERO adjudicated violations of the 8 anti_laundering_rules,
+    whereas dropping the same field entirely - the coarsening
+    IDEA-20260829-9aaa40 proposes - creates a strict superset of those pairs
+    containing at least one adjudicated violation, because dropping round_scope
+    merges full with reduced while merging full with full_round does not.
+    SUPPORTING OBSERVATION THAT NEEDS NO ADJUDICATION - two distinct
+    round_convention strings in the committed canonical set, "first/selected
+    consecutive Keccak-p[1600] rounds as parameterized in source Table 5" and
+    "source Table 5 Keccak-p[1600] round convention", refer to the same table
+    of the same paper, and the value not_stated_by_source - a member of the
+    cost-null vocabulary - appears as the VALUE of the comparison-key field
+    success_probability_convention on the AES chosen-key rows.
+  mechanism: >-
+    TRACKED OBJECT. The object followed through the computation is the NOTION a
+    key-field string denotes - the equivalence class of the string under
+    adjudicated synonymy within its field. One-step propagation is defined and
+    measurable - merging one adjudicated synonym pair in one field is a single
+    move that can only coarsen the induced partition, and the observable after
+    each move is the set of ordered pairs that newly share a key.
+    LOSSY-PROJECTION TEST (algebraic, no compute). The projection
+    field string -> notion discards the spelling, the casing, the separator
+    style, the producing task's house conventions and the source author's
+    phrasing. It is strictly lossy - full and full_round and "full-round" all
+    map to one notion and the string is not recoverable from the class. The
+    discard is compatible with the operation the target performs, because the
+    dominance gate tests EQUALITY of key fields and its intended semantics is
+    equality of notion; replacing string equality by notion equality preserves
+    exactly what the gate is for while destroying surface form. Not a change of
+    coordinates - the map is many-to-one and non-invertible.
+    THE ONE HONEST CAVEAT, STATED HERE RATHER THAN DISCOVERED LATER - the
+    projection is well defined only relative to an ADJUDICATED synonym map, so
+    unlike the algebraic projections in this question's other proposals it is
+    not free of judgment. That judgment's reproducibility is heuristic H1, it
+    is measured by Cohen's kappa with known-bad merges embedded in the pool,
+    and if kappa fails the projection is not established and the yield numbers
+    are withdrawn.
+    WHY MERGING AND DROPPING ARE DIFFERENT OPERATIONS AND WHY THAT IS THE
+    POINT. Both coarsen the key, so both create comparisons. Dropping a field
+    quotients by the whole field - it merges full with reduced, which is
+    anti-laundering rule 5 ("Reduced-round reach is not a full-round break")
+    violated by construction. Merging adjudicated synonyms quotients by a
+    relation that is, if the adjudication is right, ALREADY IMPLIED by the
+    field's semantics - it merges full with full_round and nothing else. The
+    two operations therefore sit at different points of the
+    comparability-versus-laundering frontier, and a single run can put both on
+    the same axes. This is the head-to-head that neither proposal can run
+    alone, and it is why this proposal is written to share a harness with
+    IDEA-20260829-9aaa40 rather than to compete with it.
+    WHY THE PROVENANCE CHANNEL IS THE RIGHT DIAGNOSTIC. If the key were a
+    function of the cryptanalysis, it would carry no information about which
+    agent wrote the row. Measuring how much producer identity IS recoverable
+    from the key is therefore a direct, quantitative test of contamination that
+    needs no synonym adjudication at all - it is a classification accuracy
+    against a permutation null - and it can be run before and independently of
+    the adjudicated arm. A high accuracy localises the contamination to named
+    fields; a chance-level accuracy falsifies the house-style claim outright
+    and means the observed value diversity tracks genuine primitive-class
+    differences instead.
+    RELATION TO THE ENCODER QUESTION. IDEA-20260829-b418f4 asks whether two
+    encoders of the SAME result produce the same key. This proposal asks
+    whether ONE corpus uses one string per notion. They are independent - a
+    corpus could be internally consistent and still not reproducible across
+    encoders, or vice versa - and they have different repairs, a canon versus
+    a synonym table. Both are consequences of the same root fact, that the
+    schema enumerates no vocabulary for any comparison-key field.
+  tracked_object: >-
+    The notion denoted by a comparison-key field value - the equivalence class
+    of the string under adjudicated within-field synonymy - propagated by
+    single synonym-pair merges through the coarsening lattice.
+  lossy_projection_test: >-
+    PASSES, with a stated caveat. field string -> notion is many-to-one and
+    non-invertible (spelling, casing and house style discarded), and what is
+    retained is exactly the equality relation the dominance gate consumes, so
+    the retained part propagates deterministically once the synonym map is
+    fixed. CAVEAT, DISCLOSED - the map is adjudicated rather than algebraic, so
+    determinism holds relative to a declared map whose reproducibility is
+    measured as H1 and not assumed.
+  novelty_status: unverified
+  citations:
+    - ref: knowledge/frontiers/symmetric-frontier-schema.yaml
+      provenance: internal
+      claim: >-
+        The file enumerates closed value sets for allowed_null_reason (5),
+        verification_states (5) and canonical_dispositions (5), lists 8
+        dominance_rules, 8 anti_laundering_rules and an 8-cell
+        sha1_required_partition, and enumerates a closed value set for NONE of
+        the 11 comparison_key fields. dominance_rules require "Compare rows
+        only when every dominance_domain_key field is identical".
+        anti_laundering_rules include "Reduced-round reach is not a full-round
+        break" and "A related-key or chosen-key result is not single-key key
+        recovery".
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, FULL file read
+        (137 lines).
+    - ref: knowledge/frontiers/symmetric-cryptanalysis.yaml
+      provenance: internal
+      claim: >-
+        Over the 30 canonical and verified-baseline rows, a field-targeted grep
+        returns round_scope values {full, reduced, reduced_round, full_round,
+        full_round_component}; oracle_access values {offline_computation,
+        offline, single_message_input, chosen_input_permutation_evaluations,
+        keyed_permutation_model, chosen_plaintext, chosen_key};
+        target_component values {hash_function, sponge_hash_construction,
+        sponge_xof_construction, permutation, keyed_permutation, block_cipher};
+        attacker_model values {classical, classical_chosen_state,
+        classical_given_first_preimage, defensive_detection}; and at least
+        twelve distinct result_kind values. round_convention includes both
+        "first/selected consecutive Keccak-p[1600] rounds as parameterized in
+        source Table 5" and "source Table 5 Keccak-p[1600] round convention".
+        success_probability_convention includes both snake_case values
+        (source_expected_work, measured_complexity,
+        expected_GPU_equivalent_work) and free prose with spaces ("expected
+        source-reported complexity", "source reports success rate one"), and
+        takes the value not_stated_by_source on two AES chosen-key rows.
+        LEGACY-SHA0-COLLISION-DEMO uses round_scope full with oracle_access
+        offline_computation; LEGACY-SHA1-IP-COLLISION-THEORY likewise.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-175 read in full, plus a field-targeted grep returning the
+        attacker_model, oracle_access, target_component, round_scope,
+        round_convention, result_kind and success_probability_convention values
+        of all 30 canonical and baseline rows in file order. The attribution of
+        value styles to PRODUCER SHARD is INFERRED from row-id prefixes and
+        file ordering and was NOT confirmed row by row this session; the
+        executing task must confirm it over all 67 rows.
+    - ref: coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+      provenance: internal
+      claim: >-
+        The 67 logical rows are composed of three shards - 20 legacy-family
+        logical rows, 27 modern normalized rows and 20 block rows (the
+        reconciliation line "20 legacy-family logical + 27 modern + 20 block =
+        67") - so producer shard is a recorded, checkable label for every row.
+        comparison_key_reconstruction reports literal_unique_keys 59,
+        target_qualified_unique_keys 63, literal_multirow_groups 7 and
+        target_qualified_multirow_groups 4, and D-KEY-001 establishes that key
+        construction has already been shown to change dominance outcomes on
+        this corpus.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-1129 of 2256 read in full; the remaining row_checks entries were NOT
+        read this session.
+    - ref: IDEA-20260829-9aaa40
+      provenance: internal
+      claim: >-
+        The sibling proposal filed earlier today proposes 11 single-field DROP
+        ablations of the comparison key with blind anti-laundering
+        adjudication, an identity-field null control, and a
+        comparability-versus-laundering Pareto curve over the 11 depth-1
+        ablations. It does not consider within-field value merging, does not
+        measure producer-shard recoverability, and its own confounder list
+        notes that depth-1 ablations measure marginal rather than independent
+        contributions.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (695 lines).
+    - ref: IDEA-20260829-b418f4
+      provenance: internal
+      claim: >-
+        A sibling proposal filed in this session measures BETWEEN-encoder key
+        reproducibility using the red team's committed blind rederivation. This
+        proposal measures WITHIN-corpus vocabulary consistency; the two share a
+        root cause (no enumerated vocabulary for any comparison-key field) and
+        have different repairs (a canon versus a synonym table).
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, authored in this session; the file
+        was written before this citation and its content is known exactly.
+    - ref: docs/inventor-protocol.md
+      provenance: internal
+      claim: >-
+        Section 2 (lossy-projection test), section 3 (null object before
+        belief), section 4 (closure standard - a named obstruction, an argument
+        and forward guidance), section 8 audits 1 to 4.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full file read
+        (261 lines).
+    - ref: "Controlled vocabularies and thesauri in structured scientific record keeping (e.g. SKOS-style synonym rings, MeSH-style entry terms)"
+      provenance: recalled
+      claim: >-
+        Relied on only for the method shape - that a curated database whose
+        matching depends on exact string equality customarily supplies a
+        controlled vocabulary with entry terms mapping surface forms to
+        concepts, and that the absence of one is a known and named defect
+        rather than a novel discovery. This is cited to AVOID overclaiming
+        novelty for the repair, not to support any number.
+      verified_by: null
+      note: >-
+        NOT READ THIS SESSION. Recalled as general practice. A bounded
+        two-query WebSearch on 2026-08-29 located no application of controlled
+        vocabulary auditing to a cryptanalysis frontier and nothing was
+        fetched, so the measurement's novelty is unverified and the repair's
+        novelty is explicitly NOT claimed.
+  assumptions:
+    - >-
+      The instrument is read-only over committed artifacts and emits a derived
+      overlay carrying, per field, the observed value multiset, the adjudicated
+      synonym classes, and per newly created relation the two rows, the merged
+      values and the adjudication outcome. It never edits a committed row and
+      never proposes a vocabulary as an accepted schema amendment.
+    - >-
+      A synonym merge is admitted only when two independent adjudicators, blind
+      to which rows it would connect and blind to this proposal's predictions,
+      both judge the two strings to denote the same notion under the 8
+      anti_laundering_rules. A merge that would connect rows across a
+      primitive, a round scope, a key relation, a quantum/classical boundary or
+      a result-kind boundary is rejected by rule, not by judgment.
+    - >-
+      No cryptanalytic search, attack execution, or reproduction occurs. Per
+      RQ-SYMF-5ab172 none is authorized. Deciding that "offline" and
+      "offline_computation" denote one notion is lexical adjudication, not
+      cryptanalysis.
+    - >-
+      The provenance-channel arm (B) requires NO adjudication and is run first,
+      so that a negative there stops the paid adjudicated arm.
+    - >-
+      This proposal depends on comparison keys being recomputable from field
+      values. If IDEA-20260829-5045bf reports that the canonicalisation cannot
+      be recovered, the merge arm operates on keys recomputed under a declared
+      canon and says so in every result.
+  proof_search_map:
+    bottleneck: >-
+      Byte-exact equality of eleven free-text strings, which is the precondition
+      for every dominance comparison the schema permits. Any information in
+      those strings that is not about the cryptanalysis - house style, producer
+      identity, author phrasing - is a false separator that blocks comparisons
+      the mathematics does not block, and no amount of additional literature
+      acquisition removes it.
+    baseline_embedding:
+      parameter_slice: >-
+        The empty synonym map. With no merges declared, the instrument computes
+        exactly the committed key classes and exactly the committed dominance
+        outcomes.
+      reproduction_check: >-
+        FROZEN FIXTURE, exact and able to fail - with the empty map, the
+        recomputed key-class partition must reproduce the validation report's
+        literal_unique_keys, target_qualified_unique_keys and its four
+        enumerated cross-target collision groups, and the recomputed
+        is_frontier vector must equal the committed one over the 21 canonical
+        and 9 baseline rows. A mismatch halts the run before any merge is
+        declared.
+    observation_collision:
+      observable: >-
+        The proposition "these two rows have the same value in this key field".
+      distinct_preimage_search: >-
+        COLLISION PRESENT IN BOTH DIRECTIONS AND BOTH ARE ALREADY EXHIBITED IN
+        COMMITTED TEXT. Direction 1 (different observable, same ground truth) -
+        "full" and "full_round" are different strings for one notion, as are
+        "offline" and "offline_computation", and two different round_convention
+        strings both name source Table 5 of one paper; each such pair is a
+        false separation and is the collision this proposal exploits.
+        Direction 2 (same observable, different ground truth) - the string
+        not_stated_by_source appears BOTH as a cost null_reason and as the
+        value of the comparison-key field success_probability_convention, so
+        one token carries two meanings in one schema, and two rows agreeing on
+        that token agree on nothing in particular. SEPARATING CONDITION - each
+        comparison-key field must carry a closed enumerated vocabulary with
+        entry terms, exactly as allowed_null_reason and verification_states
+        already do in the same file; the deliverable here is the measured size
+        of the comparability that condition would recover, not the vocabulary
+        itself.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "string equality on a free-text field" by "class equality
+          under a declared, adjudicated, closed vocabulary", making
+          comparability a function of the notion rather than of the spelling.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. Encoding obligation - the empty map must
+          reproduce the committed partition exactly. Soundness obligation - no
+          merge may create a relation that violates any of the 8
+          anti_laundering_rules under blind adjudication. Transfer obligation -
+          a vocabulary adjudicated over these 67 rows is not asserted for rows
+          outside them. Cost-loss obligation - the added cost is one entry-term
+          table per field, plus the adjudication that produced it, both
+          recorded with their kappa.
+      - transform: specialization_pack
+        proposed_object: >-
+          Charge each merge only over the disjoint set of relations IT newly
+          creates, and place the merge arm and the field-drop arm on the same
+          (new relations, adjudicated violations) axes so the two coarsening
+          strategies are directly comparable.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. A two-strategy Pareto plot in which merging is
+          predicted to lie strictly inside dropping - fewer new relations, zero
+          violations - which is the falsifiable content. If merging produces
+          violations too, the surgical claim fails and the honest conclusion is
+          that no coarsening of this key is laundering-free.
+    quantifier_order: >-
+      CLAIMED - THERE EXISTS at least one comparison-key field containing at
+      least one pair of distinct strings s, t such that FOR ALL rows carrying s
+      or t, treating them as equal creates only relations that survive blind
+      adjudication against ALL 8 anti_laundering_rules. AND - FOR the
+      round_scope and oracle_access fields, THERE EXISTS a deterministic rule
+      predicting producer shard with accuracy at least 0.90. NOT CLAIMED - that
+      every observed value pair is synonymous, that a merged key is
+      cryptographically sound in general, or that the recovered comparability
+      changes any published result's standing. The quantifier defect being
+      hunted is an existential merge sold as a universal repair, and it is
+      guarded by requiring the FOR ALL rows clause to be checked over every row
+      carrying either string, not only over the pair that motivated the merge.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For the committed snapshot - the exact observed value multiset of each
+        of the 11 comparison-key fields, an exact producer-shard classification
+        accuracy from named fields against a permutation null, an adjudicated
+        synonym map with Cohen's kappa, the exact count of newly evaluable
+        ordered pairs it creates with their adjudication outcomes, and the
+        head-to-head comparison against the same fields' drop coarsenings. The
+        method can NEVER certify that a merged key is cryptographically
+        correct, NEVER certify that two strings denote the same notion beyond
+        the adjudicators' agreement, NEVER establish anything about rows
+        outside the corpus, and NEVER convert a recovered comparison into a
+        claim that a published attack is better or worse than reported.
+      nearby_object_control: >-
+        THE KNOWN-BAD MERGE NULL OBJECT, embedded in the same blind pool as the
+        real candidates - merge full with reduced, chosen_plaintext with
+        chosen_key, and hash_function with block_cipher. These are wrong by the
+        anti_laundering_rules themselves and any competent adjudicator must
+        reject them. Required outcome - at least 0.90 of the relations created
+        by known-bad merges are adjudicated as violations, and the known-bad
+        merges themselves are rejected at a rate near 1.0. If the adjudicators
+        accept a known-bad merge, the rubric is broken and every yield number
+        from the run is void. This is the null-object requirement of
+        inventor-protocol section 3 applied to the adjudicator rather than to
+        the data, and it is deliberately the same shape as the identity-field
+        control in IDEA-20260829-9aaa40 so the two runs' adjudication quality
+        can be compared.
+    proof_obligations:
+      - claim: >-
+          With the empty synonym map the instrument reproduces the committed
+          key-class counts, the four enumerated collision groups and the
+          committed is_frontier vector.
+        responsibility: baseline
+      - claim: >-
+          The producer-shard classification accuracy is reported against a
+          label-permutation null and against the majority-class base rate, not
+          as a bare accuracy.
+        responsibility: correctness
+      - claim: >-
+          Every candidate merge is adjudicated blind by two reviewers with
+          known-bad merges mixed into the pool, and Cohen's kappa is reported.
+        responsibility: interface
+      - claim: >-
+          A merge is applied only after checking its FOR ALL clause over every
+          row carrying either string, not only over the motivating pair.
+        responsibility: strictness
+      - claim: >-
+          The merge arm and the drop arm are run on the same harness and
+          plotted on the same axes, with each arm's relations listed so the
+          set difference is inspectable.
+        responsibility: correctness
+      - claim: >-
+          All conclusions scoped to the committed snapshot and to the
+          adjudicated map, with the map itself published as an artifact.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        per-field observed value counts - the number of distinct strings taken
+        by each of the 11 comparison-key fields over the 67 snapshot rows, and
+        the number of fields containing at least one adjudicated synonym pair
+      direction: higher
+      minimum_effect: >-
+        at least 3 of the 11 fields contain at least one adjudicated synonym
+        pair. Zero such fields across all 11 falsifies the house-style claim
+        and means the corpus already uses one string per notion, which would be
+        a strong positive result about the producers' discipline.
+    - metric: >-
+        producer-shard recoverability - classification accuracy of a
+        deterministic rule using ONLY round_scope and oracle_access in
+        predicting a row's producer shard (legacy / modern / block) over the 67
+        rows
+      direction: higher
+      minimum_effect: >-
+        at least 0.90, against a label-permutation null and reported alongside
+        the majority-class base rate (20, 27 and 20 rows, so the base rate is
+        27 of 67 = 0.403). An accuracy at or below 0.60 falsifies the
+        provenance-channel claim and means the observed value diversity tracks
+        primitive class rather than producer.
+    - metric: >-
+        synonym-merge yield - the number of ordered pairs that newly share a
+        full target-qualified key after applying the adjudicated synonym map,
+        and the number of those pairs whose implied comparison is adjudicated
+        as an anti-laundering violation
+      direction: higher
+      minimum_effect: >-
+        at least 2 new pairs with EXACTLY ZERO adjudicated violations. Any
+        nonzero violation count falsifies the surgical claim for that merge and
+        the merge is withdrawn. Zero new pairs means the corpus's false
+        separations do not fall inside otherwise-matching keys, i.e. the
+        vocabulary problem is real but not currently costing comparability -
+        an informative negative that redirects effort to key granularity.
+    - metric: >-
+        head-to-head - for each field carrying an adjudicated merge, whether
+        the corresponding field-DROP coarsening creates a strict superset of
+        the merge's relations, and how many relations in the set difference are
+        adjudicated violations
+      direction: higher
+      minimum_effect: >-
+        strict superset for every such field, with at least 1 adjudicated
+        violation in the set difference for at least one field. If dropping
+        creates no violations that merging avoids, the two strategies are not
+        separable on this corpus and the surgical claim is not supported here.
+    - metric: >-
+        adjudication controls - rejection rate of the known-bad merges and
+        Cohen's kappa over the blind pool
+      direction: higher
+      minimum_effect: >-
+        known-bad rejection at least 0.90 and kappa at least 0.6. Below either
+        threshold, all yield numbers are withdrawn.
+  minimal_test:
+    design: >-
+      STAGED so that the unadjudicated arm gates the adjudicated one.
+      STEP 0 - empty-map frozen fixture against the committed key-class counts,
+      collision groups and is_frontier vector. HALT AND REPORT on mismatch.
+      STEP 1 (no adjudication, minutes) - emit the complete observed value
+      multiset of all 11 comparison-key fields over the 67 rows, with per-shard
+      breakdown; fit and report the deterministic producer-shard rule from
+      round_scope and oracle_access; run the label-permutation null.
+      STEP 2 - decide from STEP 1 whether to proceed; an accuracy at or below
+      0.60 stops the run and is reported as a clean negative.
+      STEP 3 - generate candidate merges mechanically as all within-field value
+      pairs whose rows would otherwise share a full key, plus the three
+      known-bad merges, shuffle them, and have two independent reviewers
+      adjudicate blind against the 8 anti_laundering_rules.
+      STEP 4 - apply the surviving merges, recompute key classes and dominance,
+      and record every newly created ordered pair with both rows' full cost
+      vectors and the merge responsible.
+      STEP 5 - run the same fields through a field-DROP coarsening on the same
+      harness and plot both arms on (new relations, adjudicated violations).
+      STEP 6 - report the value multisets, the shard rule, the adjudicated map
+      with kappa, both arms' yields, and the known-bad rejection rate,
+      whatever they are. A run in which no merge survives adjudication is a
+      complete result.
+    controls:
+      - >-
+        Empty-map baseline (STEP 0), which can fail and halts the run.
+      - >-
+        Known-bad merge null object - full with reduced, chosen_plaintext with
+        chosen_key, hash_function with block_cipher, mixed blind into the
+        adjudication pool; rejection at least 0.90 required.
+      - >-
+        Label-permutation null for the shard classifier - shuffle shard labels
+        100 times and report the accuracy distribution, so that a high accuracy
+        is read against chance rather than against zero.
+      - >-
+        Primitive-class confound control - refit the shard classifier with
+        primitive and primitive_class REMOVED from the row and also within
+        primitive class, so that "modern rows are sponges" cannot masquerade as
+        "modern rows were written by a different task".
+      - >-
+        Blind adjudication - reviewers see two strings and the rows they would
+        connect, never which field was targeted by this proposal's predictions
+        and never the predictions themselves.
+      - >-
+        FOR ALL check - every merge is applied corpus-wide and its full
+        consequence set is inspected, so a merge cannot be justified by the
+        pair that motivated it.
+    required_metrics:
+      - "complete observed value multiset for all 11 comparison-key fields over 67 rows, with per-shard breakdown"
+      - "count of fields containing at least one adjudicated synonym pair, with the pairs listed"
+      - "producer-shard classification rule, its accuracy, the permutation-null accuracy distribution, and the majority-class base rate"
+      - "within-primitive-class shard accuracy from the confound control"
+      - "adjudicated synonym map published as an artifact, with Cohen's kappa and per-pair votes"
+      - "known-bad merge rejection rate (must be at least 0.90)"
+      - "merge-arm yield - new ordered pairs, each with the merge responsible and its adjudication outcome"
+      - "drop-arm yield on the same fields, with the set difference against the merge arm itemised"
+      - "both arms plotted on (new relations, adjudicated violations), with the point coordinates printed"
+      - "recomputed is_frontier vector under the merged key, presented as an overlay and never as a correction"
+  falsification_conditions:
+    - >-
+      STEP 0 fixture fails - the empty-map instrument does not reproduce the
+      committed key-class counts or is_frontier vector. Run halts; the
+      discrepancy is reported and all numeric claims withdrawn.
+    - >-
+      Shard accuracy at or below 0.60, or accuracy collapsing to chance within
+      primitive class - the provenance-channel claim fails and the observed
+      value diversity is attributable to genuine primitive differences. This
+      stops the run before any adjudication is paid for.
+    - >-
+      Zero fields contain an adjudicated synonym pair - the corpus already uses
+      one string per notion; the vocabulary claim fails and the lane closes as
+      a controlled positive about producer discipline.
+    - >-
+      Zero new ordered pairs after applying the surviving merges - the false
+      separations do not sit inside otherwise-matching keys, so the vocabulary
+      defect is real but currently costs no comparability; forward guidance
+      redirects to key granularity and to acquisition.
+    - >-
+      Any adjudicated violation among the merge arm's new relations - the
+      surgical claim fails for that merge; the merge is withdrawn and reported.
+    - >-
+      Known-bad merges accepted at a rate above 0.10, or kappa below 0.6 - the
+      adjudication rubric fails its own null object and every yield number is
+      void.
+    - >-
+      The drop arm creates no violation the merge arm avoids - the two
+      coarsening strategies are not separable on this corpus; the head-to-head
+      claim fails and both proposals' Pareto points coincide.
+  confounders:
+    - >-
+      PRIMITIVE-CLASS CONFOUND, DOMINANT. The three shards partition the corpus
+      largely by primitive family - legacy hashes, modern hashes and
+      permutations, block ciphers - so a field that predicts shard may be
+      predicting primitive class instead. This is the single most likely
+      alternative explanation and it is why the within-primitive-class refit is
+      a mandatory control rather than a robustness check. round_scope is the
+      cleanest test available, because "full" versus "full_round" carries no
+      primitive-class content whatever.
+    - >-
+      Adjudicator anchoring. A reviewer who suspects the study's direction may
+      accept marginal merges. Mitigated by blinding the field, shuffling the
+      pool, embedding known-bad merges, and withholding the predictions.
+    - >-
+      Merge cascades. Merging two values can make a third value's rows share a
+      key with both, so consequences are not additive across merges. The design
+      applies merges one at a time and reports the incremental consequence set,
+      then reports the joint application separately, rather than presenting
+      per-merge numbers as an orthogonal decomposition.
+    - >-
+      Genuine distinctions dressed as synonyms. target_component hash_function
+      versus sponge_hash_construction may encode a real difference (a sponge
+      collision and a Merkle-Damgard collision are not the same object), and an
+      eager adjudicator could merge them. Mitigated by requiring the FOR ALL
+      clause and by the anti-laundering rubric, and by reporting contested
+      pairs as contested rather than resolving them.
+    - >-
+      Small yields. With 21 canonical rows the merge arm may create only one or
+      two relations, so every yield must be printed as a count with its
+      denominator and never as a percentage.
+    - >-
+      Shard labelling. Shard membership is inferred here from row-id prefixes
+      and the validation report's 20 + 27 + 20 reconciliation; the executing
+      task must take it from the recorded producer_task field instead, and any
+      row whose shard is ambiguous is excluded and reported.
+  interpretation_limits:
+    - >-
+      Scoped to snapshot commit 5fc23783da8a2e62e2b3ab8728e47c48958ce02f and
+      its 67 producer rows. It is a statement about this compilation's
+      vocabulary, never about the published literature's terminology.
+    - >-
+      An adjudicated synonym map is a candidate for schema discussion, not an
+      approved amendment; only a Coordinator decision on reviewed evidence can
+      change the schema, and the recomputed is_frontier vector under a merged
+      key is an overlay, never a correction.
+    - >-
+      A high producer-shard accuracy shows that the key CARRIES provenance
+      information. It does not show that any specific comparison was wrongly
+      blocked, which is what the merge arm measures separately.
+    - >-
+      The repair (a controlled vocabulary with entry terms) is ordinary
+      practice in curated databases and no novelty is claimed for it. What is
+      claimed as measured is its absence here and the size of what it costs.
+    - >-
+      No attack, trail, collision, cost or key recovery is reproduced,
+      verified or questioned.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Decidability of within-field synonymy.) For a comparison-key field and
+        two distinct observed values s and t, two independent adjudicators
+        blind to the field's role in this study agree on whether s and t denote
+        the same notion under the 8 anti_laundering_rules, with Cohen's kappa
+        at least 0.6 overall and at least 0.9 on the embedded known-bad merges.
+      rigorous_support: >-
+        Nothing is proved. The assumption imitates the entry-term discipline of
+        controlled vocabularies, where surface forms are mapped to concepts by
+        curators and inter-indexer consistency is measured rather than assumed
+        (recalled, general practice). The rigorous ingredients in hand are two -
+        the 8 anti_laundering_rules are enumerated, finite, and each names a
+        specific structural distinction, so the rubric is closed rather than a
+        matter of taste; and the same schema file already carries three closed
+        vocabularies applied without dispute across 266 null slots
+        (invalid_or_missing_reason_count is 0), which shows the producers can
+        apply an enumerated vocabulary consistently when one is supplied.
+      validation_plan: >-
+        WHAT TO SAMPLE - the complete blind pool of candidate merges (all
+        within-field value pairs whose rows would otherwise share a full key)
+        plus the three known-bad merges, adjudicated independently by two
+        reviewers. SCALE - complete enumeration; the pool is expected to be
+        tens of pairs at this corpus size and if it exceeds 200 a uniform
+        sample of 200 is taken and the sampling reported. SHORTCUT USED TO
+        REACH SCALE - the mechanical pre-filter (only pairs whose rows would
+        otherwise match on all remaining key fields are adjudicated) reduces
+        the pool from all value pairs to the ones that could possibly matter,
+        which is what makes the adjudication affordable. PREDICTED
+        DISTRIBUTION - kappa at least 0.6 overall, near 1.0 on the known-bad
+        subset, and lowest on target_component, where sponge versus
+        Merkle-Damgard is a genuine boundary. COMPARISON - report the per-field
+        kappa and the per-pair vote table, never a pooled kappa alone. TAIL
+        CHECK - the single pair with the widest disagreement, reported verbatim
+        with both reviewers' reasons, since one contested pair is exactly the
+        tail event a pooled kappa hides. TRANSFER ASSUMPTION, STATED - kappa
+        measured on this rubric, this corpus and these reviewers does not
+        transfer to another primitive set or a revised rule list.
+    - id: H2
+      statement: >-
+        (Producer style is separable from primitive class.) The association
+        between comparison-key field values and producer shard is not fully
+        explained by primitive class - formally, the shard classification
+        accuracy from round_scope and oracle_access remains at least 0.75 when
+        the classifier is refit WITHIN a single primitive class, or when
+        primitive and primitive_class are withheld from it.
+      rigorous_support: >-
+        Not proved and genuinely at risk, because the shards were assigned
+        largely by primitive family and the confound is structural rather than
+        incidental. The rigorous ingredient in hand is one specific field where
+        the confound cannot operate - round_scope's values full and full_round
+        both mean the whole primitive and carry no primitive-class content, so
+        a split between them along shard lines cannot be explained by what is
+        being attacked, only by who wrote the row.
+      validation_plan: >-
+        WHAT TO SAMPLE - every row, refitting the classifier (i) with primitive
+        and primitive_class withheld, and (ii) restricted to hash_function rows
+        alone, where both legacy and modern shards contribute. SCALE - complete
+        enumeration of the 67 rows; no sampling. PREDICTED DISTRIBUTION - the
+        withheld-feature accuracy stays above 0.75 while the permutation null
+        stays near the base rate 0.403; if the within-primitive-class accuracy
+        collapses to the base rate, H2 fails and the provenance-channel claim
+        must be reported as confounded rather than established. TAIL CHECK -
+        the specific rows misclassified by the round_scope rule, listed, since
+        a producer who used both spellings would appear only there.
+        CONSEQUENCE IF IT FAILS, PRECOMMITTED - the shard result is reported as
+        confounded, the merge arm still runs on its own merits, and the claim
+        that the key leaks producer identity is withdrawn rather than caveated.
+        TRANSFER ASSUMPTION - measured on these three shards only.
+  target_complexity:
+    time_exponent: >-
+      NO CRYPTANALYTIC EXPONENT IS CLAIMED OR MOVED. Instrument cost - the
+      value census is O(R * F) at R = 67 and F = 11, i.e. 737 cells. The shard
+      classifier over 11 categorical features on 67 rows is trivial, and 100
+      permutation refits add nothing measurable. Key-class recomputation and
+      pairwise dominance are O(R^2 * A) = 13266 scalar comparisons per applied
+      map; with at most a few dozen merges applied one at a time, under 1e6
+      operations total. Sub-second throughout.
+    memory_exponent: >-
+      O(R * F) plus O(R^2) relation records - kilobytes. No time-memory
+      tradeoff is relevant.
+    best_known: >-
+      There is no incumbent measurement. The committed required_row_fields list
+      (read in full this session) has no field for a vocabulary, a synonym
+      class, or a producer-style attribute, so the incumbent value on every
+      metric here is UNDEFINED rather than worse. The nearest incumbent inside
+      this program is IDEA-20260829-9aaa40's field-DROP ablation, which
+      dominates on the narrow axis "how many relations can coarsening create"
+      (dropping a field creates a superset of what merging within it creates)
+      and is dominated on the axis this proposal targets (laundering incurred
+      per relation gained), which is precisely the head-to-head the run
+      settles. Externally, controlled vocabularies with entry terms are
+      ordinary curated-database practice and the REPAIR is explicitly not
+      claimed as novel; a bounded two-query WebSearch this session located no
+      application to a cryptanalysis frontier and nothing was fetched, so
+      external dominance on the MEASUREMENT is BOUNDED-SEARCH NEGATIVE rather
+      than established absent.
+    hidden_overhead: >-
+      The o(1) is blind two-reviewer adjudication and it dominates - minutes per
+      candidate pair, scaling with the pool the mechanical pre-filter produces.
+      Compute is sub-second. A second hidden cost is that the merge arm's
+      conclusions live or die on the adjudication rubric, so a rubric failure
+      costs the whole adjudicated arm while leaving the unadjudicated shard arm
+      intact - which is exactly why the two arms are staged in that order.
+    tradeoff_note: >-
+      The instrument's analogue of a time-memory tradeoff is the same
+      COMPARABILITY-versus-LAUNDERING tradeoff IDEA-20260829-9aaa40 defines,
+      and the contribution here is a second point on it rather than a different
+      curve. Deliverable - both arms' coordinates on the identical axes (new
+      adjudicated-surviving relations, adjudicated violations), for every field
+      carrying a merge, so a reader can see whether surgical coarsening is
+      strictly inside blunt coarsening or merely cheaper. Parallelization is
+      irrelevant at this scale and is not claimed.
+  dominated_by: >-
+    Partially dominated, disclosed rather than asserted - IDEA-20260829-9aaa40
+    dominates on the axis "number of new dominance relations creatable by
+    coarsening the key", because a field DROP creates a superset of what any
+    within-field MERGE of that field creates; this proposal does not contest
+    that axis and predicts it explicitly. It is NOT dominated on the axes it
+    targets - adjudicated laundering incurred per relation gained, and producer
+    provenance recoverable from the key - and on those the incumbent value is
+    UNDEFINED. Pareto check performed against - (i) the COMPLETE committed
+    required_row_fields list of schema v2 (read in full this session), which
+    has no field for a vocabulary, a synonym class or a style attribute;
+    (ii) the J1 validation report's comparison_key_reconstruction and
+    comparison_key_collision_groups blocks, read in full this session, which
+    report unique-key counts and four cross-target collisions and no value
+    census, no synonymy and no provenance analysis; (iii) the red team report
+    read in full, which challenges notions and scope in prose and quantifies no
+    vocabulary; (iv) the other three sibling proposals under this question -
+    IDEA-20260829-0b11ab converts cost UNITS rather than key values,
+    IDEA-20260829-d29588 re-represents costs as curves, IDEA-20260829-083a6b
+    calibrates reviewers - none of which touches the key vocabulary; and
+    (v) IDEA-20260829-b418f4 filed in this session, which measures BETWEEN
+    encoders where this measures WITHIN one corpus. DISCLOSED LIMIT - half the
+    validation report and most canonical row bodies were not read this session,
+    and the shard attribution of value styles is inferred from row-id prefixes
+    and file order rather than confirmed row by row; a validator should check
+    that inference first, because it is load-bearing for prediction (B).
+  sota_delta: >-
+    No attack, no exponent. Quantitative delta against this program's own
+    instrument - the corpus gates every comparison on byte-exact equality of 11
+    free-text fields and reports the vocabulary of those fields as, literally,
+    nothing; there is no value census, no synonym map, no measurement of how
+    much producer identity the key carries, and no comparison between
+    coarsening strategies. This proposal targets a complete per-field value
+    multiset over 67 rows, a producer-shard classification accuracy against a
+    permutation null and a within-primitive-class refit, an adjudicated synonym
+    map with per-field kappa published as an artifact, an exact merge yield
+    with per-relation adjudication, and a head-to-head Pareto comparison
+    against the field-drop arm on identical axes. It also contributes three
+    observations that need no experiment - round_scope carries five spellings
+    for what appear to be two notions, two round_convention strings name one
+    source table, and the token not_stated_by_source is simultaneously a cost
+    null_reason and a comparison-key VALUE. Against the target-result profile
+    this is explicitly NON-target-class - checklist C1 is answered "no" and no
+    asymptotic exponent moves - and it is proposed as a BUILDING BLOCK under
+    Idea Generator search heuristic 1, since a frontier that cannot compare two
+    full-round attacks because two agents spelled "full" differently cannot
+    supply the matched accounting Part D of the profile requires before any
+    asymptotic claim is promoted.
+  estimated_cost:
+    implementation: low
+    compute: low
+    basis: >-
+      The value census and shard classifier are a few dozen lines over
+      committed YAML and run in seconds; STEP 1 alone can settle prediction (B)
+      before anything is paid for. The adjudicated merge arm adds two blind
+      reviewer passes over a pre-filtered pool of tens of pairs, which raises
+      overall implementation to medium if it is authorized.
+  recommended_priority: medium
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  source_refs:
+    - RQ-SYMF-5ab172
+    - GOAL-SYMF-c00fa1
+    - IDEA-20260829-9aaa40
+    - IDEA-20260829-b418f4
+    - knowledge/frontiers/symmetric-frontier-schema.yaml
+    - knowledge/frontiers/symmetric-cryptanalysis.yaml
+    - coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+  id_allocation_provenance: >-
+    Pre-minted and collision-checked by the dispatching session; this subagent
+    did not mint identifiers.

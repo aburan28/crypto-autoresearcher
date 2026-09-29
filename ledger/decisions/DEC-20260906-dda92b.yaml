@@ -1,0 +1,95 @@
+coordinator_decision:
+  id: DEC-20260906-dda92b
+  recorded_at: '2026-09-06'
+  context: >-
+    Standing harness repair of the GOAL-DREG-001 BATCH-006 queue's stale
+    lifecycle states (branch harness-dreg-queue-states-20260906, per
+    explicit user tasking). The wave-3 chain (executor 955d56, snapshot
+    ca8095, validator c7c3a9, ledger 9e7481) fully executed 2026-08-28 and
+    closed under DEC-20260828-653923 (commit fa404a9a9), but the queue
+    file still marked all four tasks queued -- which rendered a false
+    Ready (ca8095) in the portfolio sweep. Dispatching it would have
+    re-snapshotted an already-archived report: pure duplicate make-work.
+    This decision sets the four states to their evidenced terminal
+    values. No history rewritten; no artifact touched.
+  decision: approve
+  decision_label: stale_queue_states_corrected_to_evidenced_terminal_values
+  decided_by: coordinator
+  target_ids:
+    - GOAL-DREG-001
+    - BATCH-006
+    - TASK-20260828-955d56
+    - TASK-20260828-ca8095
+    - TASK-20260828-c7c3a9
+    - TASK-20260828-9e7481
+  rationale:
+    - >-
+      TASK-20260828-955d56 to completed: claimed and released completed
+      (epoch 1, owner coordinator-dreg-claude, 2026-08-28); execution
+      report committed (18KB). No archive block on the task. The
+      completed value mirrors the owner's release; the work outcome
+      itself (wholly failed_infrastructure, zero admissible ranks) is
+      recorded in the report, the head, and DEC-20260828-653923 -- this
+      state asserts lifecycle completion, never work success.
+    - >-
+      TASK-20260828-ca8095 to cancelled: the queued snapshot was never
+      dispatched (no claim ever issued for it) and never will be; custody
+      of the execution report was established directly (snapshot receipt
+      committed; producer bytes bound at executor commit b46cf30e). Its
+      queue archive block is UNFILLABLE and is left null deliberately:
+      binding the executor commit fails message-ID verification (its
+      message names 955d56, not ca8095) and path-set verification (it
+      changed run files, not the declared two paths); inventing values to
+      satisfy the checker would be fabrication. Cancelled gates its
+      successor correctly: nothing further dispatches from this chain.
+    - >-
+      TASK-20260828-c7c3a9 to completed: claimed and released completed;
+      validator report committed (38KB, PASS verdict per the head); no
+      archive block on the task so no binding verification applies. Its
+      completed dependency (955d56) holds; its cancelled dependency
+      (ca8095) gates nothing further since no non-terminal task remains.
+    - >-
+      TASK-20260828-9e7481 to cancelled: the ledger act it names DID
+      complete (released completed; DEC-20260828-653923 committed at
+      fa404a9a9 with all six message IDs verified, both artifact hashes
+      verified, parent verified, ancestor verified) -- cancelled here
+      means ONLY "this queue entry will never dispatch," which is true
+      and is the safe value: completed would demand a commit_sha binding
+      that is unfillable (the ledger receipt is absent from fa404a9a9's
+      tree, so no verifiable map covers the declared set), and queued
+      would render a false Ready on a ledger archive (duplicate-ledger
+      risk). The release, the commit, and the DEC remain the authoritative
+      record of the completed act; this state contradicts none of them
+      once read as queue-entry lifecycle, stated here explicitly.
+    - >-
+      Post-edit dispatch render exits 0 with zero dispatches and zero
+      errors (verified in the repair worktree before commit). The goal
+      moves from false-Ready to its true batch-complete posture; the
+      head's options (a)/(b)/(c) govern what comes next, unchanged.
+  evidence_refs:
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/tasks/TASK-20260828-955d56/execution-report.md
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/archives/TASK-20260828-ca8095/snapshot-receipt.json
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/reviews/TASK-20260828-c7c3a9/review-report.yaml
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-006/archives/TASK-20260828-9e7481/ledger-receipt.json
+    - ledger/decisions/DEC-20260828-653923.yaml
+  limitations:
+    - >-
+      Provenance: internal. States verified against committed artifacts,
+      claim releases, and the dispatcher's own rules (verified archive
+      checks trigger only on completed; cancelled gates successors; no
+      rule forbids the completed/cancelled mix used here).
+    - >-
+      This decision changes four lifecycle strings in one coordination
+      file. It moves no hypothesis status, closes no goal, promotes
+      nothing, and asserts no scientific claim. The cancelled values must
+      be read with this record, never as "work did not happen."
+  next_actions:
+    - >-
+      Push branch harness-dreg-queue-states-20260906 and open the PR
+      against main carrying the queue edit plus this decision.
+    - >-
+      DREG's next research action remains the head's options (a)/(b)/(c);
+      any retry needs a fresh lane contract per the head, not a re-run.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Queue lifecycle bookkeeping establishes no scientific finding.

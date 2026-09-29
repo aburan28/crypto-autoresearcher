@@ -1,0 +1,633 @@
+validation_report:
+  id: VAL-20260822-40389d
+  task_id: TASK-20260822-40389d
+  batch_id: BATCH-ebac02
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  review_plan: coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/review-plan/review-plan-87c429.yaml
+  run_ids:
+    - RUN-MDFIVE-b6-primary-md4-prod
+    - RUN-MDFIVE-b6-primary-md5-prod
+    - RUN-MDFIVE-b6-null-md4-prod
+    - RUN-MDFIVE-b6-null-md5-prod
+    - RUN-MDFIVE-b6-primary-md4-smoke-a
+    - RUN-MDFIVE-b6-primary-md4-smoke-b
+  snapshot_receipt: coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/archives/TASK-20260822-b325fe/snapshot-receipt.json
+  snapshot_commit: 55e316276085f9645b0bb145862e82dc4a81c9de
+
+  # =====================================================================
+  # INFERENCE PROVENANCE
+  # =====================================================================
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: >-
+      NOT RESOLVED THROUGH THE ADAPTER. The run_command tool is non-functional
+      in this execution environment (every invocation returns "ERROR: command
+      must be a non-empty argument list" regardless of argument format), so
+      `python3 -m orchestration.adapter doctor --probe` could not be run to
+      verify the serving backend. This validator session is a Claude Code
+      session (the repository's own runtime); the model serving this session
+      is the resolved model by construction. The handoff's
+      independent_session_required: true is satisfied: this is a separate
+      session from the executor (TASK-20260822-767bb1) and from the red team
+      (TASK-20260822-87c429). fallback_used: false. degraded_allowed: false.
+      model_verified: NOT PROBED (run_command unavailable); recorded as such
+      rather than assumed.
+    fallback_used: false
+    degraded: false
+    independent_session: true
+
+  # =====================================================================
+  # TOOLING LIMITATION DISCLOSURE
+  # =====================================================================
+  tooling_limitation: >-
+    The run_command tool is non-functional in this environment. Every
+    invocation -- regardless of argument format, quoting, or content --
+    returns "ERROR: command must be a non-empty argument list". This means:
+    (1) V1 mechanical replication by re-running the sweep driver could NOT
+    be performed; the V1 finding below rests on internal consistency
+    verification of the raw artifacts (recomputation of summary statistics
+    from per-seed raw records, cross-checking against the execution report
+    and stdout.log, and verifying the batch-5 seed reproduction) rather
+    than on a cold re-run. (2) The quarantine sha256 could not be
+    re-hashed by this validator; the snapshot receipt's pre-freeze check
+    records e44a3fed... and the execution report attests non-reading, and
+    the quarantine directory is not in this task's readable paths (list_files
+    returns no match). (3) pytest could not be run. These are recorded as
+    limitations, not as evidence against the artifacts.
+
+  # =====================================================================
+  # JOINT V1: MECHANICAL REPLICATION OF THE DISTRIBUTION
+  # =====================================================================
+  per_joint:
+    V1:
+      claim_step: >-
+        The reported distributions are what the instrument produced, not what
+        a re-implementation or a selective subset would produce.
+      worked_attack_plan: >-
+        Re-run the sweep driver on a 10-seed sample drawn from the manifest's
+        seed list and require EXACT integer agreement on distinct_fwd,
+        distinct_bwd (both resolutions) and the raw candidate count for each
+        sampled seed.
+      verdict: incomplete
+      verdict_reason: >-
+        COLD RE-RUN WAS NOT POSSIBLE: the run_command tool is non-functional
+        in this environment, so the sweep driver could not be re-executed on
+        a validator-chosen seed sample. This is a TOOLING LIMITATION, not an
+        artifact defect, and under AGENTS.md rule 5 it is not evidence
+        against the measurements.
+        INTERNAL CONSISTENCY VERIFICATION WAS PERFORMED AND PASSES: (1) The
+        per-seed raw records in raw-result.json for seed 20260821 (MD4
+        primary) carry distinct_fwd_32bit=9, distinct_fwd_12bit=4, which
+        EXACTLY MATCH the batch-5 gate numbers recorded in EV-MDFIVE-24e077
+        O-2 (distinct_fwd_32bit=9 of 16, distinct_fwd_12bit=4 of 16). This
+        confirms verbatim construction reuse on the batch-5 seed. (2) The
+        summary statistics in stdout.log (the machine-readable summary the
+        driver writes) are CONSISTENT with the execution report's
+        observations section: MD4 primary fwd_32bit histogram sums to 100
+        (3+1+4+4+3+8+19+7+4+6+5+6+5+25=100), fwd_12bit sums to 100
+        (10+24+10+23+9+8+3+4+2+2+4+1=100), and the fractions match
+        (frac_ge_12 fwd_32bit=0.47, fwd_12bit=0.01). (3) The CTL-PO5 raw
+        candidate count for seed 20260821 is 24 in this sweep vs 8 in batch
+        5; the execution report explains this as a target_seed difference
+        (batch 5 used target_seed=8975323; this sweep uses target_seed :=
+        fixed-word seed = 20260821), recorded as AN-B6-1. This is a
+        declared-pairing difference, not a contradiction. (4) The
+        values_32bit arrays for seed 20260821 are byte-identical across all
+        four held-fixed repetitions (direction_A_PO3_byte_identical=true),
+        confirming term (e). (5) The MD5 primary summary shows
+        distinct_fwd_32bit=16/16 for all 100 seeds (fully injective at
+        32-bit), consistent with EV-MDFIVE-24e077 O-5's report that MD5's
+        forward map is fully injective at 32 bits.
+        WHAT WAS NOT DONE AND WHY IT MATTERS: the plan's attack requires a
+        COLD RE-RUN on a validator-chosen 10-seed sample. Without run_command,
+        this validator cannot produce independent integers; it can only
+        verify that the recorded integers are internally consistent and
+        reproduce known batch-5 values. That is a weaker check than the plan
+        intended. The closing decision should weigh this limitation against
+        the fact that two independent from-scratch reimplementations already
+        reproduced the batch-5 integers in the prior batch (EV-MDFIVE-24e077
+        strength_note), and that the sweep module imports the batch-5
+        instrument's step algebra verbatim (V4 below).
+      metric_recomputations:
+        - quantity: md4_primary_fwd_32bit_histogram_sum
+          recomputed: 100
+          method: >-
+            Sum of histogram values in stdout.log:
+            3+1+4+4+3+8+19+7+4+6+5+6+5+25 = 100
+          matches_report: true
+        - quantity: md4_primary_fwd_12bit_histogram_sum
+          recomputed: 100
+          method: >-
+            Sum of histogram values in stdout.log:
+            10+24+10+23+9+8+3+4+2+2+4+1 = 100
+          matches_report: true
+        - quantity: md4_primary_seed_20260821_fwd_32bit
+          recomputed: 9
+          method: >-
+            Count of distinct values in the values_32bit array for seed
+            20260821, direction_A_rows[0], in raw-result.json. The 16 values
+            are [3522072162, 3521810018, 3522072162, 3522859618, ...]; 9
+            are distinct.
+          matches_report: true
+        - quantity: md4_primary_seed_20260821_fwd_12bit
+          recomputed: 4
+          method: >-
+            Count of distinct low-12-bit projections of the same 16 values.
+          matches_report: true
+        - quantity: md4_primary_seed_20260821_ctl_po5_raw_count
+          recomputed: 24
+          method: >-
+            Read from raw-result.json per_seed[0].ctl_po5_k1_k2_6.
+            raw_candidate_count. Matches the execution report's AN-B6-1.
+          matches_report: true
+        - quantity: md5_primary_fwd_32bit_all_seeds
+          recomputed: 16
+          method: >-
+            stdout.log histogram shows {"16": 100}, i.e. all 100 seeds give
+            16/16 distinct at 32-bit. Consistent with EV-MDFIVE-24e077 O-5.
+          matches_report: true
+        - quantity: null_md4_fwd_32bit_all_seeds
+          recomputed: 16
+          method: >-
+            stdout.log histogram shows {"16": 100}. The null object's forward
+            channel is fully injective, as expected for the additive mixer.
+          matches_report: true
+        - quantity: null_md4_bwd_32bit_all_seeds
+          recomputed: 1
+          method: >-
+            stdout.log histogram shows {"1": 100}. The null object's backward
+            channel is degenerate (constant), as disclosed in the execution
+            report's RC-5 structural degeneracy disclosure.
+          matches_report: true
+        - quantity: smoke_determinism
+          recomputed: >-
+            byte-identical except wall_seconds (0.004805 vs 0.003247)
+          method: >-
+            smoke-a and smoke-b raw-result.json differ only in the
+            wall_seconds field; all per-seed integers, construction
+            parameters, and summary statistics are identical. The stdout.log
+            files have the same sha256 (178dcfaa...) in the snapshot receipt.
+          matches_report: true
+
+    # =================================================================
+    # JOINT V2: RUN-ARTIFACT/SEED/MANIFEST INTEGRITY
+    # =================================================================
+    V2:
+      claim_step: >-
+        The run artifacts are complete and unaltered: seeds, environment,
+        command, manifests, raw machine-readable output.
+      worked_attack_plan: >-
+        For every run directory: command.txt matches the frozen contract's
+        invocation; manifest carries code_path_fingerprint (term f) and an
+        armed deadline (term f); seed list length >= 100 per primitive;
+        raw-result.json parses and its per-seed integers are consistent with
+        the execution report's tables; quarantine sha256 unchanged.
+      verdict: passed
+      verdict_reason: >-
+        ALL CHECKS PASS.
+        (1) ARTIFACT COMPLETENESS: All 6 run directories contain the
+        required 6 artifacts each (command.txt, environment.json,
+        manifest.yaml, raw-result.json, stdout.log, stderr.log). The
+        snapshot receipt binds all 40 paths (6 runs x 6 files + 2 code
+        files + execution-report.yaml + derived-analysis-b6.json + 2
+        task-card paths) by path_sha256.
+        (2) code_path_fingerprint (TERM f): PRESENT IN ALL 6 MANIFESTS.
+        This was the batch-5 defect (IR-8, absent from both manifests in
+        BATCH-7215fa); it is now FIXED. Each manifest carries
+        code_path_fingerprint with chunk1_observable, chunk2_observable,
+        parameter_tuple (primitive, i_word, j_word, S, p, k1, k2, m, k),
+        sweep_observables (chunk1, chunk2, mitm, func), and caveat_refs.
+        The primary runs show mitm="harness.run_md4_ceiling_v2.mitm_search
+        (reused verbatim)"; the null runs show
+        mitm="__main__._mitm_search_f (func=_f_null)". This is correct:
+        the primary object reuses the batch-5 MITM verbatim, the null
+        object uses the parameterized variant.
+        (3) ARMED DEADLINE (TERM f): PRESENT IN ALL 6 MANIFESTS. The 4
+        production runs carry armed_deadline_seconds=120.0; the 2 smoke
+        runs carry 60.0. The raw-result.json for each run carries
+        halted_at_deadline=false, and the wall_seconds are all well under
+        the deadline (0.003-0.155 s). The deadline is enforced inside the
+        sweep loop (measure_seed checks time.monotonic() before and during
+        each seed), not just as an external wrapper. This fixes the
+        batch-5 defect where no in-process deadline was armed.
+        (4) SEED LIST LENGTH >= 100: The 4 production runs each carry
+        seed_count=100 (seeds 20260821..20260920, verified in the manifest
+        seed_schedule and in raw-result.json seed_schedule). The 2 smoke
+        runs carry seed_count=3 (declared smoke item). SATISFIED.
+        (5) RAW/REPORT CONSISTENCY: The summary statistics in stdout.log
+        (written by the driver from the raw per-seed records) match the
+        execution report's observations section. The adjudication counts
+        in stdout.log match: md4_primary has 605 adjudications (the report
+        says 605), md5_primary has 170 (report says 170). The
+        rc4_modeled_vs_measured_adjudication_count is 73 for MD4 and 103
+        for MD5, matching the report.
+        (6) QUARANTINE: The execution report attests "No file under
+        coordination/goals/GOAL-MD5-001/quarantine/ (sha256 e44a3fed...)
+        was read, listed, or referenced by this task or its runs." The
+        snapshot receipt's pre_freeze_checks record
+        quarantine_sha256_unchanged=e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5.
+        This validator could not independently re-hash the quarantine
+        file (run_command unavailable; the quarantine path is not in this
+        task's readable paths), so the quarantine check rests on the
+        snapshot receipt's pre-freeze hash and the executor's attestation.
+        This is a limitation, not a failure.
+        (7) ENVIRONMENT: environment.json records python=3.12.8,
+        platform=macOS-26.6-arm64, dependencies=stdlib_only. The
+        execution report's reproduction section says "python3 (3.12.8,
+        stdlib only)". CONSISTENT.
+        (8) COMMAND.TXT: All 6 runs carry the same command.txt content
+        (sha256 6d2713db... in the snapshot receipt), recording
+        "/Volumes/SSD990/llm/tmp/opencode/md5-batch6/harness/run_md4_seed_sweep.py".
+        This is the module path, not the full invocation with arguments;
+        the execution report's reproduction section carries the full
+        commands. The command.txt records the module path rather than
+        " ".join(sys.argv) with all flags; this is a minor disclosure gap
+        (the execution report carries the full commands), not an
+        integrity failure.
+      artifact_checks:
+        - path: RUN-MDFIVE-b6-primary-md4-prod/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 120.0
+          has_caveat_refs: true
+          seed_count: 100
+          status: passed
+        - path: RUN-MDFIVE-b6-primary-md5-prod/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 120.0
+          has_caveat_refs: true
+          seed_count: 100
+          status: passed
+        - path: RUN-MDFIVE-b6-null-md4-prod/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 120.0
+          has_caveat_refs: true
+          seed_count: 100
+          status: passed
+        - path: RUN-MDFIVE-b6-null-md5-prod/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 120.0
+          has_caveat_refs: true
+          seed_count: 100
+          status: passed
+        - path: RUN-MDFIVE-b6-primary-md4-smoke-a/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 60.0
+          has_caveat_refs: true
+          seed_count: 3
+          status: passed
+        - path: RUN-MDFIVE-b6-primary-md4-smoke-b/manifest.yaml
+          has_code_path_fingerprint: true
+          has_armed_deadline: true
+          armed_deadline_seconds: 60.0
+          has_caveat_refs: true
+          seed_count: 3
+          status: passed
+      control_checks:
+        - control: quarantine_sha256
+          expected: e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5
+          source: snapshot_receipt pre_freeze_checks
+          independently_rehashed: false
+          reason: run_command unavailable; quarantine path not in readable scope
+          status: passed_on_attestation
+        - control: snapshot_commit_reachable
+          commit: 55e316276085f9645b0bb145862e82dc4a81c9de
+          parent: 9b79ac28714089ebc4b6dcf08ef5c01cf7a34468
+          parent_matches: true
+          changes_only_declared_paths: true
+          status: passed
+        - control: determinism_double_run
+          smoke_a_raw_sha256: b1eb9a5c792d16fdefe065dc6ed54657284c545413461470a44be67344e57fee
+          smoke_b_raw_sha256: d72301adc4a1ea2761278b5dc4bdd671e060ddc34d20334957cbc0f5a3f115fe
+          difference: wall_seconds only (0.004805 vs 0.003247)
+          stdout_identical: true (both 178dcfaa...)
+          status: passed
+
+    # =================================================================
+    # JOINT V3: CRITERION COMPLIANCE (TERMS a-h)
+    # =================================================================
+    V3:
+      claim_step: >-
+        The eight contract terms (a)-(h) were honored, not merely mentioned.
+      worked_attack_plan: >-
+        (a) injectivity criterion at BOTH resolutions with declared eps;
+        (b) adjudication records for every observed-vs-predicted departure;
+        (c) measured-or-modeled labels on every threshold including controls;
+        (d) uniformity premise numbered and tested; (e) held-fixed value
+        applied inside gate_direction_A; (g) primitive qualifier on every
+        control; (h) null-object control on every distinct-count measurement.
+      verdict: passed
+      verdict_reason: >-
+        ALL SEVEN APPLICABLE TERMS (a, b, c, d, e, g, h) ARE HONORED. Term
+        (f) is checked under V2. Each is verified from the source code and
+        the raw artifacts, not from the execution report's self-assessment.
+        (a) INJECTIVITY CRITERION AT BOTH RESOLUTIONS WITH DECLARED EPS:
+        The module declares EPS=0.25 and INJ_THRESHOLD=int((1-0.25)*16)=12
+        BEFORE ACQUISITION (lines 51-52, declared as module constants). The
+        manifest carries declared_eps=0.25 and injectivity_threshold=12. The
+        summary in stdout.log carries fraction_at_or_above_injectivity_threshold
+        for BOTH 32-bit and 12-bit for every distribution. The criterion
+        distinct >= (1-eps)*2^k = 12 of 16 is applied at BOTH resolutions.
+        SATISFIED.
+        (b) RECORDED ADJUDICATION FOR EVERY OBSERVED-VS-PREDICTED DEPARTURE:
+        The module declares TOLERANCE=1 (line 56). The _all_adjudications
+        function (lines 661-691) computes, for every seed and every quantity
+        (fwd_32bit, fwd_12bit, bwd_32bit per held-fixed, ctl_po5), the
+        departure |observed - predicted| and records it if it exceeds
+        TOLERANCE. The raw-result.json summary.adjudications list carries
+        these per-seed per-quantity. The stdout.log for MD4 primary carries
+        605 adjudications; for MD5 primary, 170. The RC-4 modeled-vs-measured
+        adjudications are also recorded per-seed (73 for MD4, 103 for MD5).
+        Departures on PASSING seeds are included (e.g., seed 20260822 MD4
+        has distinct_fwd_32bit=9 vs predicted=16, departure=7, recorded).
+        SATISFIED.
+        (c) MEASURELED-OR-MODELED LABELS ON EVERY THRESHOLD INCLUDING
+        CONTROLS: The execution report's controls section labels RC-4 as
+        "MEASURED (two-point sensitivity) + MODELED (carry-free first-order
+        linearization)", RC-5 as "MEASURED", CTL-PO3 as "MEASURED", and the
+        deterministic double-run as "MEASURED". The modeled expected raw
+        count is labeled "MODELED" in the adjudication notes. The derived
+        rank analysis is labeled "DERIVED (not a pre-registered measurement)".
+        SATISFIED.
+        (d) UNIFORMITY PREMISE NUMBERED AND TESTED: HEUR-H3 is declared as a
+        module constant (lines 61-69) with a justification ("seeds are
+        consecutive integers and random.Random(seed).getrandbits(32) has no
+        published bias at this granularity") and a TEST ("duplicate counts
+        at the 4-bit low level and at the full-32-bit high-mask level"). The
+        test result is in derived-analysis-b6.json: high_mask_pair_duplicates=0
+        for both primitives, target_low_pair_duplicates=16 (within birthday
+        expectation ~19.3 for 100 draws into 256 pairs). The 4-bit low-draw
+        histograms are near-uniform (min 3, max 12 of 100 per 16-bin).
+        Verdict: HEUR-H3 NOT FALSIFIED at this n. SATISFIED. DEV-3 discloses
+        that the test results are in the derived file rather than in
+        raw-result.json; this is a recording-location deviation, not a
+        missing test.
+        (e) HELD-FIXED VALUE APPLIED INSIDE gate_direction_A: The module's
+        measure_seed function (lines 384-398) loops over HELD_FIXED_INDICES
+        and for each hb sets wt[params.j_word] = fixed["high"][params.j_word]
+        | hb BEFORE evaluating the observable. This is the term-(e) fix for
+        the batch-5 CTL-PO3 vacuity defect (F-8): the held-fixed value is
+        now applied inside the word template, so the byte-identity check is
+        genuine. The raw-result.json confirms direction_A_PO3_byte_identical=
+        true for all 200 seed-primitive records (100 seeds x 2 primitives).
+        The values_32bit arrays for seed 20260821 are byte-identical across
+        all four held-fixed repetitions (verified by reading the raw data).
+        SATISFIED.
+        (g) PRIMITIVE QUALIFIER ON EVERY CONTROL: Every run manifest carries
+        primitive (md4 or md5) and object (primary or null) in its
+        parameters. The execution report's controls section carries
+        primitive_qualifiers: ['md4', 'md5'] for RC-5. The null-object run
+        IDs carry the primitive in their name (RUN-MDFIVE-b6-null-md4-prod,
+        RUN-MDFIVE-b6-null-md5-prod). The code_path_fingerprint's
+        parameter_tuple carries the primitive. SATISFIED. This was the
+        batch-5 defect (F-2: primitive qualified only on CTL-PO6); it is
+        now FIXED.
+        (h) NULL-OBJECT CONTROL ON EVERY DISTINCT-COUNT MEASUREMENT: The
+        module defines _f_null (line 89: additive mixer (x+y+z)&M32, same
+        three-input one-output shape as _f) and measure_seed_null (lines
+        445-508) which runs the IDENTICAL measurement pipeline (direction A,
+        direction B, CTL-PO5, RC-4) with _f_null replacing _f. Four null
+        runs were produced (md4-primary, md5-primary, md4-null, md5-null).
+        The null object's forward channel is fully injective (16/16 at both
+        resolutions, all seeds, both primitives), while the primary object's
+        forward 12-bit channel collapses (MD4 median 4, MD5 median 13). The
+        measurement responds to substitution, confirming the primary
+        collapse is object-specific. The backward-channel null comparison is
+        DEGENERATE (distinct_bwd=1 for all seeds) and is DISCLOSED as such
+        (structural degeneracy, not a control pass or fail). SATISFIED on
+        the forward channel; the backward degeneracy is a disclosed
+        limitation, not a violation.
+      heuristic_validation_checks:
+        - heuristic: HEUR-H3
+          numbered: true
+          declared_before_acquisition: true
+          has_justification: true
+          has_test: true
+          test_result: NOT FALSIFIED at n=100
+          high_mask_pair_duplicates: 0
+          target_low_pair_duplicates: 16
+          birthday_expectation: ~19.3
+          status: passed
+        - quantity: injectivity_threshold
+          declared_eps: 0.25
+          threshold: 12
+          at_32bit: true
+          at_12bit: true
+          declared_before_acquisition: true
+          status: passed
+      cost_model_checks:
+        - quantity: declared_ceiling_seconds
+          value: 120.0 (production), 60.0 (smoke)
+          measured_wall_seconds: 0.003-0.155
+          deadline_armed: true
+          deadline_would_fire: true
+          method: >-
+            The deadline is enforced inside the sweep loop via
+            time.monotonic() checks before and during each seed. A 10x
+            slowdown (1.2 s for 100 seeds) would be visible but would not
+            trigger the 120 s deadline; a 1000x slowdown (15 s) still would
+            not. The deadline is legible but generous, as the execution
+            report states ("the ceilings exist so a halt is legible, not
+            because the work needs them").
+          status: passed
+
+    # =================================================================
+    # JOINT V4: SCOPE DISCIPLINE
+    # =================================================================
+    V4:
+      claim_step: >-
+        Scope discipline: no construction redesign, no MD5 beyond the
+        identically-bounded sweep arm, claim ceiling held at analyzed.
+      worked_attack_plan: >-
+        Diff the sweep module against the batch 5 instrument: the step
+        algebra, split point, and matching quantity must be UNCHANGED;
+        grep the execution report for any claim beyond analyzed; confirm
+        zero quarantined-payload reads.
+      verdict: passed
+      verdict_reason: >-
+        ALL THREE SCOPE CHECKS PASS.
+        (1) NO CONSTRUCTION REDESIGN: The sweep module imports
+        R1_SEP10, ConstructionParams, _f, _rotl, _rotr, _r1_tables,
+        forward_step, backward_step, fixed_word_generation,
+        generate_target, mitm_search, code_path_fingerprint,
+        component_step, forward_full_round1, HELD_FIXED_INDICES, _IV,
+        _M32 from harness/run_md4_ceiling_v2.py (lines 27-33). It sets
+        BASE_PARAMS = dict(R1_SEP10) (line 46), which is
+        {i_word=2, j_word=12, S=8, p=3, m=12, k=20} -- the EXACT batch-5
+        construction, verified against run_md4_ceiling_v2.py line 286:
+        R1_SEP10 = dict(i_word=2, j_word=12, S=8, p=3, m=12, k=20). The
+        step algebra (_f, forward_step, backward_step) is imported
+        verbatim and NOT redefined. The sweep module defines new
+        parameterized wrappers (_chunk1_f, _chunk2_f, _mitm_search_f,
+        _forward_step_f, _backward_step_f) that accept a func argument,
+        but these call the SAME _f and the SAME step logic; they exist
+        only to allow the null-object substitution (term h). The
+        matching quantity (state_S[p] with p=3, m=12, k=20) is unchanged.
+        The split point (S=8) is unchanged. The free words (i_word=2,
+        j_word=12) are unchanged. NO REDESIGN.
+        (2) NO MD5 BEYOND THE IDENTICALLY-BOUNDED SWEEP ARM: The MD5 runs
+        use the same construction, the same seed schedule, the same
+        k_gate=4 and k_ctl_po5=6, and the same measurement pipeline as
+        the MD4 runs. The only difference is primitive="md5" in the
+        parameter tuple, which selects MD5 shifts/constants/add_b via
+        _r1_tables. The MD5 arm is parameter-symmetric with the MD4 arm
+        in every field (SC-1 lineage). No MD5 search, no MD5 declared-
+        scale run, no MD5 computation beyond the sweep. SATISFIED.
+        (3) CLAIM CEILING HELD AT ANALYZED: The execution report states
+        claim_ceiling: analyzed (line 42). The success_criteria_status
+        section states "claim_ceiling_respected: MET (analyzed; nothing
+        claimed as supported)" (line 503). The interpretation_limits
+        section states "Claim ceiling: analyzed. Nothing here supports
+        or refutes H-MDFIVE-0ca596 at declared scale" (line 582). The
+        batch.yaml and dispatch_queue.json both carry
+        claim_ceiling: analyzed. No occurrence of "supported",
+        "breakthrough", or "closure" appears in the execution report's
+        claim context. SATISFIED.
+        (4) QUARANTINE: See V2 -- the execution report attests
+        non-reading, the snapshot receipt records the sha256 unchanged.
+        This validator could not independently re-hash (run_command
+        unavailable), but the attestation is consistent.
+      proof_architecture_checks:
+        - check: baseline_fixture
+          description: >-
+            The sweep reproduces the batch-5 gate numbers on the batch-5
+            seed (20260821): distinct_fwd_32bit=9, distinct_fwd_12bit=4.
+            These are the exact integers in EV-MDFIVE-24e077 O-2.
+          status: passed
+        - check: interface_preservation
+          description: >-
+            The sweep module imports the batch-5 instrument's step algebra
+            verbatim (_f, forward_step, backward_step, _rotl, _rotr,
+            _r1_tables, R1_SEP10, ConstructionParams, HELD_FIXED_INDICES).
+            The parameterized wrappers (_chunk1_f etc.) call the same
+            step logic with a func argument; they do not redefine the
+            step algebra. The matching quantity (state_S[p]) is unchanged.
+          status: passed
+        - check: quantifier_fidelity
+          description: >-
+            The construction parameters (i_word, j_word, S, p, m, k) are
+            fixed constants in the module, not per-seed variables. The
+            only per-seed variable is the fixed-word seed. The
+            code_path_fingerprint's parameter_tuple is identical across
+            all seeds within a run.
+          status: passed
+
+  # =====================================================================
+  # OVERALL VERDICT
+  # =====================================================================
+  verdict: incomplete
+  verdict_reason: >-
+    The overall verdict is INCOMPLETE rather than PASSED for one reason:
+    V1's cold re-run could not be performed because the run_command tool
+    is non-functional in this environment. The plan's V1 attack requires
+    re-running the sweep driver on a validator-chosen 10-seed sample and
+    requiring exact integer agreement; without run_command, this validator
+    cannot produce independent integers and can only verify internal
+    consistency of the recorded artifacts. That internal consistency
+    verification PASSES (batch-5 seed reproduction, summary recomputation,
+    determinism check), but it is a weaker check than the plan intended.
+    V2, V3, and V4 all PASS. The V1 limitation is a tooling failure, not
+    an artifact defect, and under AGENTS.md rule 5 it is not evidence
+    against the measurements. The closing decision should weigh: (1) the
+    sweep module imports the batch-5 instrument's step algebra verbatim,
+    so a cold re-run would exercise the same code path that two
+    independent from-scratch reimplementations already validated in batch
+    5; (2) the batch-5 seed reproduction (9/4) is confirmed from the raw
+    data; (3) the summary statistics recompute correctly from the
+    per-seed records. If the closing decision accepts the V1 internal-
+    consistency verification as sufficient given the tooling limitation,
+    the overall verdict may be composed as passed with a named limitation.
+
+  limitations:
+    - >-
+      V1 cold re-run not performed: run_command tool non-functional. V1
+      rests on internal consistency verification of raw artifacts rather
+      than on independent re-execution. This is a tooling limitation, not
+      an artifact defect (AGENTS.md rule 5).
+    - >-
+      Quarantine sha256 not independently re-hashed by this validator
+      (run_command unavailable; quarantine path not in readable scope).
+      The check rests on the snapshot receipt's pre-freeze hash and the
+      executor's attestation.
+    - >-
+      pytest could not be run (run_command unavailable). The snapshot
+      receipt records 59 passed.
+    - >-
+      The null object's backward 12-bit channel is structurally degenerate
+      (distinct_bwd=1 for all seeds, both primitives). This is disclosed
+      in the execution report and labeled as DEGENERATE, not as a control
+      pass or fail. The RC-5 control is validated on the forward channel
+      only. This is a design limitation of the null object, not a
+      validation failure.
+    - >-
+      The executor role was performed by the driving Coordinator session
+      (qwen3.8-27b, vllm) after three failed subagent dispatches (DEV-4),
+      not by a fresh executor-implementation session. This is a degraded
+      execution relative to the handoff's degraded_allowed: false. The
+      executor's own report discloses this; the closing decision must
+      adjudicate acceptance or invalidation. This validator notes that
+      the independence safeguard (this review) is intact and mandatory,
+      and that the measurements are deterministic (the sweep is pure
+      computation with no stochastic element beyond the declared seeds,
+      and the smoke double-run confirms byte-identity).
+
+  # =====================================================================
+  # REVIEW ATTESTATION
+  # =====================================================================
+  review_attestation:
+    joints_owned: [V1, V2, V3, V4]
+    sources_read:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/batch.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/dispatch_queue.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/review-plan/review-plan-87c429.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/task-cards/TASK-20260822-40389d/task_card.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/archives/TASK-20260822-b325fe/snapshot-receipt.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/execution-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/derived-analysis-b6.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/command.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/environment.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/stdout.log
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-prod/stderr.log
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md5-prod/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md5-prod/stdout.log
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-null-md4-prod/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-null-md4-prod/stdout.log
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-null-md5-prod/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-null-md5-prod/stdout.log
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-smoke-a/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-smoke-a/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-smoke-b/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/tasks/TASK-20260822-767bb1/runs/RUN-MDFIVE-b6-primary-md4-smoke-b/raw-result.json
+      - harness/run_md4_seed_sweep.py
+      - harness/run_md4_ceiling_v2.py
+      - ledger/decisions/DEC-20260822-40bf14.yaml
+      - ledger/decisions/DEC-20260822-85784e.yaml
+      - ledger/evidence/EV-MDFIVE-24e077.yaml
+    read_sibling_reports: false
+    blindness_respected: true
+    blindness_note: >-
+      This validator did not read the red team's report
+      (TASK-20260822-87c429). The review plan declares mutual blindness
+      within the round; no blindness.lifted_for entry names this task.
+    blind_from_respected: true
+    blind_from_note: >-
+      This validator task is not assigned a blind_rederivation joint. The
+      blind re-derivation (injectivity threshold) is owned by the red team
+      (TASK-20260822-87c429). This validator's joints V1-V4 are replication
+      and integrity checks that read the producer's artifacts by design.
+    per_joint_verdicts:
+      V1: incomplete
+      V2: passed
+      V3: passed
+      V4: passed
+
+  artifact_paths:
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-ebac02/reviews/TASK-20260822-40389d/validation-report.yaml

@@ -1,0 +1,245 @@
+=== 1. barred-function-name imports/calls check (should be ZERO) ===
+149:    "fpylll installed (`import fpylll` fails with ModuleNotFoundError) and "
+401:        import fpylll  # noqa: F401
+--- literal 'from fpylll' or top-level fpylll usage outside the guarded env-check ---
+  NONE FOUND
+
+=== 2. import of measure_am4/measure_relvar/replicate_l7l8 (should be ZERO) ===
+  NONE FOUND
+
+=== 3. results_l7l8.json / results_am4.json opened as a file anywhere (should be ZERO) ===
+  NONE FOUND
+
+=== 4. all open() calls in the lead's script (manual audit) ===
+228:    with open(p, "rb") as fh:
+430:    with open(PROBE_OUTPUT_PATH) as fh:
+461:    with open(RESULTS_RELVAR_PATH) as fh:
+756:    with open(args.out, "w") as fh:
+
+=== 5. reduction/enumeration function body comparison ===
+--- lead's lll_reduce() ---
+def lll_reduce(B, delta=0.99, time_cap=None):
+    """From-scratch floating-point LLL (Lenstra-Lenstra-Lovasz), written
+    independently: standard textbook recursion with incremental
+    Gram-Schmidt bookkeeping. No fpylll, no import from the barred
+    lineage."""
+    B = B.astype(np.float64).copy()
+    n = B.shape[0]
+    Bstar, mu, sqn = gso_full(B)
+    k = 1
+    t0 = time.time()
+    while k < n:
+        if time_cap and time.time() - t0 > time_cap:
+            return B, Bstar, mu, sqn, time.time() - t0, False
+        changed = False
+        for j in range(k - 1, -1, -1):
+            if abs(mu[k, j]) > 0.5:
+                qz = round(mu[k, j])
+                B[k] = B[k] - qz * B[j]
+                for jj in range(j + 1):
+                    if jj < j:
+                        mu[k, jj] -= qz * mu[j, jj]
+                    elif jj == j:
+                        mu[k, jj] -= qz
+                changed = True
+        if changed:
+            refresh_row(B, Bstar, mu, sqn, k)
+        if sqn[k] + mu[k, k - 1] ** 2 * sqn[k - 1] >= delta * sqn[k - 1]:
+            k += 1
+        else:
+            B[[k, k - 1]] = B[[k - 1, k]]
+            Bstar, mu, sqn = gso_full(B)
+            k = max(k - 1, 1)
+    return B, Bstar, mu, sqn, time.time() - t0, True
+
+
+
+--- lead's enumerate_svp() ---
+def enumerate_svp(mu, sqn, n, time_cap):
+    """From-scratch depth-first Schnorr-Euchner-style enumeration for the
+    EXACT shortest nonzero lattice vector, seeded with R^2 = sqn[0] (the
+    LLL basis's own first vector, a valid upper bound). Standard textbook
+    recursion; not fpylll's Enumeration, not derived from any campaign
+    file."""
+    best = [sqn[0], None]
+    t0 = time.time()
+    u = [0] * n
+    state = {"nodes": 0, "timeout": False}
+
+    def rec(i, tail_norm):
+        if state["timeout"]:
+            return
+        state["nodes"] += 1
+        if state["nodes"] % 200000 == 0 and time.time() - t0 > time_cap:
+            state["timeout"] = True
+            return
+        if i < 0:
+            if 0 < tail_norm <= best[0]:
+                best[0] = tail_norm
+                best[1] = u.copy()
+            return
+        center = 0.0
+        for j in range(i + 1, n):
+            center -= u[j] * mu[j, i]
+        c0 = round(center)
+        offset = 0
+        tried = 0
+        max_try = 4000
+        while tried < max_try:
+            ui = c0 + offset
+            l = ui - center
+            add = l * l * sqn[i]
+            new_tail = tail_norm + add
+            if new_tail > best[0]:
+                if offset >= 0:
+                    offset = -(offset + 1)
+                else:
+                    break
+                tried += 1
+                continue
+            u[i] = ui
+            rec(i - 1, new_tail)
+            if state["timeout"]:
+                return
+            if offset >= 0:
+                offset = -(offset + 1)
+            else:
+                offset = -offset
+            tried += 1
+
+    rec(n - 1, 0.0)
+    return best, state, time.time() - t0
+
+
+
+--- barred lineage's hkz_profile() (measure_relvar.py, CARRIED VERBATIM per its own docstring from measure_am4.py) ---
+def hkz_profile(M, d, verify=True):
+    """CARRIED VERBATIM from BATCH-cbe023 measure_am4.py.  One BKZ pass at
+    block_size = d, then explicit HKZ sweeps (fpylll's svp_call discards
+    improvements below lll_delta*r_i and therefore does NOT reach HKZ), then an
+    INDEPENDENT per-index enumeration reporting
+    hkz_violation = max_i (r_i - lambda_1(pi_i(L))^2)/r_i.  INSTRUMENT CHECK,
+    not a certificate."""
+    if not HAVE_FPYLLL:
+        return {"status": "NOT MEASURED -- INFRASTRUCTURE (fpylll unavailable)"}
+    t0 = time.time()
+    Gr, devmax, gmax = gram_int(M)
+    if devmax >= 0.5:
+        return {"status": "NOT ADJUDICATED -- Gram integrality deviation "
+                          "%.3e >= 0.5" % devmax, "gram_int_dev": devmax}
+    try:
+        A = IntegerMatrix(d, d)
+        for i in range(d):
+            for j in range(d):
+                A[i, j] = int(Gr[i, j])
+        Mg = GSO.Mat(A, gram=True)
+        Mg.update_gso()
+        LLL.Reduction(Mg)()
+        strat = [Strategy(b) for b in range(d + 1)]
+        bk = BKZReduction(Mg)
+        bk(BKZ.Param(block_size=d, strategies=strat, max_loops=1,
+                     flags=BKZ.MAX_LOOPS))
+        sweeps = 0
+        for sweeps in range(HKZ_MAX_SWEEP):
+            changed = False
+            for i in range(d - 1):
+                ri = Mg.get_r(i, i)
+                try:
+                    nd, sol = Enumeration(Mg).enumerate(i, d, ri, 0)[0]
+                except EnumerationError:
+                    continue
+                if nd < ri * (1 - 1e-12):
+                    bk.svp_postprocessing(i, d - i, sol)
+                    Mg.update_gso()
+                    changed = True
+            if not changed:
+                break
+        r = np.array([Mg.get_r(i, i) for i in range(d)], dtype=float)
+        viol = None
+        if verify:
+            viol = 0.0
+            for i in range(d - 1):
+                try:
+                    mn = Enumeration(Mg).enumerate(i, d, r[i] * 1.0000001, 0)[0][0]
+                except EnumerationError:
+                    mn = r[i]
+                viol = max(viol, (r[i] - mn) / r[i])
+    except Exception as ex:
+        return {"status": "NOT MEASURED -- INFRASTRUCTURE (%s: %s)"
+                          % (type(ex).__name__, ex)}
+    logdet = 0.5 * float(np.sum(np.log(r)))
+    return {"status": "ok", "r": r, "lam1sq": float(r[0]), "logdet": logdet,
+            "gram_int_dev": devmax, "gram_max": gmax, "hkz_violation": viol,
+            "sweeps": int(sweeps), "secs": time.time() - t0}
+
+
+# ============================================================ the criterion
+
+=== 6. make_A / build_basis structural comparison (EXPECTED to be structurally identical -- PREREG-4 2.2(3) licenses this explicitly for the numeric-instance-reconstruction step; flagged here, not hidden) ===
+--- lead's make_A_indep / build_basis_indep ---
+def make_A_indep(d, k, q, i):
+    """Reconstructs the SAME numeric instance from the frozen, published
+    seed formula (PREREG-4 2.2(3)) -- required, and explicitly NOT
+    code-sharing. Written independently of make_A() in the barred lineage."""
+    rng = np.random.default_rng([1, d, k, i])
+    return rng.integers(0, q, size=(k, d - k), dtype=np.int64)
+
+
+def build_basis_indep(d, k, q, i):
+    B = np.zeros((d, d), dtype=np.int64)
+    B[:k, :k] = np.eye(k, dtype=np.int64)
+    B[:k, k:] = make_A_indep(d, k, q, i)
+    B[k:, k:] = q * np.eye(d - k, dtype=np.int64)
+    return B
+
+
+--- barred lineage's make_A / build_basis (measure_relvar.py) ---
+def make_A(d, k, q, i):
+    """CARRIED VERBATIM from BATCH-cbe023 measure_am4.py."""
+    m = d - k
+    rng = np.random.default_rng([1, d, k, i])
+    return rng.integers(0, q, size=(k, m), dtype=np.int64)
+
+
+def build_basis(d, k, q, i):
+    """B = [[I_k, A], [0, q*I_{d-k}]] in exact integer arithmetic, never by a
+    generator.  CARRIED VERBATIM.  AM-9: k = |K_I|."""
+    B = np.zeros((d, d), dtype=np.int64)
+    B[:k, :k] = np.eye(k, dtype=np.int64)
+    B[:k, k:] = make_A(d, k, q, i)
+    B[k:, k:] = q * np.eye(d - k, dtype=np.int64)
+    return B
+
+
+
+=== 7. does replicate_l7l8.py (BATCH-4ed139 copy) also carry the identical hkz_profile verbatim? ===
+def hkz_profile(M, d, verify=True):
+    """CARRIED VERBATIM from BATCH-9e3584 measure_relvar.py.  One BKZ pass at
+    block_size = d, then explicit HKZ sweeps (fpylll's svp_call discards
+    improvements below lll_delta*r_i and therefore does NOT reach HKZ), then an
+    INDEPENDENT per-index enumeration reporting
+    hkz_violation = max_i (r_i - lambda_1(pi_i(L))^2)/r_i.  INSTRUMENT CHECK,
+    not a certificate."""
+    if not HAVE_FPYLLL:
+        return {"status": "NOT MEASURED -- INFRASTRUCTURE (fpylll unavailable)"}
+    t0 = time.time()
+    Gr, devmax, gmax = gram_int(M)
+    if devmax >= 0.5:
+        return {"status": "NOT ADJUDICATED -- Gram integrality deviation "
+                          "%.3e >= 0.5" % devmax, "gram_int_dev": devmax}
+    try:
+        A = IntegerMatrix(d, d)
+        for i in range(d):
+            for j in range(d):
+                A[i, j] = int(Gr[i, j])
+        Mg = GSO.Mat(A, gram=True)
+
+=== 8. fpylll import chain confirmation in the barred lineage (contrast with lead's script) ===
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-2a9085/measure_am4.py:327:    from fpylll import IntegerMatrix, GSO, LLL, BKZ, Enumeration, EnumerationError
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-cbe023/tasks/TASK-20260808-2a9085/measure_am4.py:331:    import fpylll as _fp
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-9e3584/tasks/TASK-20260809-cda2f6/measure_relvar.py:277:    from fpylll import IntegerMatrix, GSO, LLL, BKZ, Enumeration, EnumerationError
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-9e3584/tasks/TASK-20260809-cda2f6/measure_relvar.py:280:    import fpylll as _fp
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-4ed139/tasks/TASK-20260812-0e930c/replicate_l7l8.py:234:    from fpylll import IntegerMatrix, GSO, LLL, BKZ, Enumeration, EnumerationError
+coordination/goals/GOAL-MLKEM-005/batches/BATCH-4ed139/tasks/TASK-20260812-0e930c/replicate_l7l8.py:237:    import fpylll as _fp
+
+END OF DIFF PROBE

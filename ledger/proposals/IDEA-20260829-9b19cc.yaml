@@ -1,0 +1,680 @@
+idea:
+  id: IDEA-20260829-9b19cc
+  question_id: RQ-MLDSA-ffa0f5
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  title: >-
+    The ML-DSA verifier never sees the context string or the pre-hash function -
+    both arrive out of band - so the ONLY thing binding a signature to its
+    interpretation is the injectivity of the message representative
+    M' = variant || len(ctx) || ctx || [OID ||] PH(M). Certify that injectivity
+    by exhaustive argument over the approved table, exhibit a WITNESSED
+    collision on each of four named ablations so the instrument is proved to
+    fire, and publish the (parameter set x pre-hash) table where FIPS 204
+    permits message binding at 2^(n/2) below the set's own 2^lambda.
+  class: measurement
+
+  claim: >-
+    (A) THE SPECIFICATION CLAIM. RECALLED, NOT FETCHED THIS SESSION. FIPS 204
+    signs not M but a message representative built by prefixing a domain
+    separator: for pure ML-DSA, a 0x00 byte, then a one-byte context length,
+    then the context, then M; for HashML-DSA, a 0x01 byte, the same length and
+    context, then a DER object identifier for the pre-hash function, then the
+    digest. Neither the context nor the identity of the pre-hash function is
+    carried in the signature. The verifier is TOLD both by its caller. So the
+    verifier checks neither, and cannot: a wrong context or a wrong pre-hash
+    produces a verification failure that is indistinguishable from an invalid
+    signature. That is a checkable statement about a document and about an
+    algorithm's interface, and it is where this record's document claim stops.
+
+    (B) THE DERIVABLE HALF, WHICH THE STANDARD APPEARS TO ASSERT RATHER THAN
+    PROVE. The security value of the prefix construction is exactly the
+    INJECTIVITY of the map (variant, ctx, payload) to M'. It is provable in two
+    lines given the one-byte length field: the first byte recovers the variant,
+    the second recovers |ctx|, and the split of the remainder is then forced.
+    An analogous but genuinely non-trivial question sits one level down inside
+    HashML-DSA: is the map (OID, M) to OID || PH(M) injective ACROSS the whole
+    approved pre-hash table? A collision needs two approved entries whose
+    identifier-plus-digest byte strings coincide, which is impossible when the
+    identifiers have equal length and possible in principle when they do not.
+    This is decided by an exhaustive comparison over the approved table - about
+    ten entries - and the resulting certificate is a machine-checkable artifact,
+    not a verdict.
+
+    (C) THE QUANTITATIVE HALF, WHICH IS THE ONE WITH AN EXPONENT. HashML-DSA's
+    message binding cannot exceed the collision resistance of the chosen
+    pre-hash. For an n-bit pre-hash output that is 2^(n/2) work, against the
+    2^lambda the parameter set advertises with lambda = 128 / 192 / 256 at
+    ML-DSA-44 / -65 / -87. CLAIM, FALSIFIABLE BY READING ONE TABLE: the set of
+    (parameter set, approved pre-hash) pairs for which n/2 is strictly less than
+    lambda is NON-EMPTY, and its size is at least 2 - because a 256-bit pre-hash
+    gives 128-bit collision resistance and is expected to be approved for use
+    with ML-DSA-65 and ML-DSA-87, whose lambda are 192 and 256. THE OPPOSITE
+    OUTCOME IS EQUALLY REPORTABLE AND EQUALLY USEFUL: if the approved table
+    forbids every mismatched pair, then the standard has DERIVED the constraint
+    rather than asserted it, and the correct deliverable is that closure with
+    its table.
+
+    (D) THE ARTIFACT, AND WHY IT IS NOT A VERDICT. For each of four named
+    ABLATIONS of the message representative - drop the variant byte; drop the
+    context length byte; drop the object identifier; truncate the pre-hash - the
+    experiment EXHIBITS a concrete witness: two distinct inputs mapping to one
+    representative, and, for the truncation ablation, an actual pair of distinct
+    messages sharing one verifying ML-DSA signature. Each witness is a byte
+    tuple a second, independently written implementation re-checks in
+    microseconds. THE INSTRUMENT IS THEREFORE PROVED TO FIRE BEFORE ANY NEGATIVE
+    IS REPORTED, which is the condition this lane has just been reminded is not
+    optional.
+
+    NOT A BREAK. No claim is made that FIPS 204's own construction collides, and
+    none is made about MLWE, MSIS or SelfTargetMSIS in any direction. The
+    truncated-pre-hash collision is exhibited on a DELIBERATELY NON-CONFORMING
+    instantiation whose only purpose is to demonstrate that the counter counts.
+
+  mechanism: >-
+    (1) WHY THIS OBJECT IS NEW TO THE LANE. All twelve filed proposals live
+    strictly inside the signing loop, the t0 channel, or the signature byte
+    string. Not one of them mentions the context string, the domain separator,
+    HashML-DSA, or the pre-hash - a targeted grep over ledger/proposals for
+    those terms returns only unrelated ML-KEM and EdDSA records. The tracked
+    object here is the MESSAGE REPRESENTATIVE as a byte string, followed
+    backwards: given M', what set of (variant, ctx, PH, M) tuples produced it.
+    That object exists entirely OUTSIDE the lattice part of the scheme and is
+    consumed before the first ring operation, which is why no prior record's
+    machinery touches it.
+
+    (2) THE LOSSY PROJECTION, STATED CAREFULLY BECAUSE IT IS THE EASIEST PLACE
+    TO FOOL ONESELF. The projection sends the whole signing input - a key, a
+    context, a message of arbitrary length, a choice of variant and pre-hash -
+    to the single byte string M'. It is severely lossy for the pure variant only
+    in that M' contains M verbatim; it is MASSIVELY lossy for HashML-DSA, where
+    an arbitrarily long M collapses to n bits. The discard is COMPATIBLE with
+    the target's operations because everything downstream of M' - mu, the
+    challenge, the whole signing loop and the whole verifier - is a function of
+    M' alone. That is exactly why the injectivity of the map INTO M' is the
+    entire security content of the construction, and why a collision in it is a
+    complete break of message binding with no lattice work at all. A projection
+    that would FAIL the test: tracking the pair (ctx, M) itself, which loses
+    nothing and is a change of coordinates. A projection that would fail
+    differently: tracking mu = H(tr || M'), which is lossy but whose fibres are
+    computationally inaccessible, so its one-step propagation cannot be measured
+    - and measurability is precisely what M' has and mu does not.
+
+    (3) THE INJECTIVITY ARGUMENT, IN THE FORM AN AUDIT CAN EXECUTE. Write M' =
+    b || L || ctx || P where b is one byte, L is one byte, |ctx| = L, and P is
+    the payload. Given M', b and L are read off, ctx is the next L bytes, and P
+    is the rest. So the decomposition is unique and the map is injective on
+    (b, ctx, P). Injectivity on (variant, ctx, PH, M) then reduces to
+    injectivity of P as a function of (PH, M), which is the identity for the
+    pure variant and is OID || PH(M) for the hashed variant. The remaining
+    obligation is therefore exactly the cross-identifier question in claim (B),
+    and it is finite.
+
+    (4) THE FOUR ABLATIONS, EACH OF WHICH MUST PRODUCE A WITNESS.
+    A1 DROP THE VARIANT BYTE. Then a pure signature over ctx || M and a hashed
+    signature over ctx || OID || PH(M) live in the same space; a witness is any
+    pure message chosen to equal an identifier-plus-digest string, which is
+    constructed directly because the pure variant accepts arbitrary M.
+    A2 DROP THE CONTEXT LENGTH BYTE. Then (ctx, M) = ("AB", "C") and ("A",
+    "BC") give the same representative. WITNESS IS IMMEDIATE AND EXACT, three
+    bytes, no search.
+    A3 DROP THE OBJECT IDENTIFIER. Then two pre-hash functions with the same
+    output length collide as soon as their digests coincide on some pair;
+    exhibited at reduced output length, and at full length reported as a cost
+    rather than a witness.
+    A4 TRUNCATE THE PRE-HASH to n bits with n in {32, 40, 48}. A birthday search
+    finds a collision in about 2^(n/2) evaluations - roughly 6.6e4, 1.0e6 and
+    1.7e7 - and the resulting pair of distinct messages shares one HashML-DSA
+    signature that VERIFIES for both. This is the arm that produces an actual
+    signature-level artifact.
+    A4 IS THE POSITIVE CONTROL FOR THE WHOLE RECORD. It is a check for a
+    property, and it is REQUIRED to trigger. If it does not, the harness cannot
+    detect a message-binding violation at all and no statement about the
+    conforming construction may be made.
+
+    (5) THE COST CURVE THAT MAKES A4 A MEASUREMENT RATHER THAN A DEMONSTRATION.
+    Running A4 at three truncation widths turns "we found a collision" into a
+    measured scaling: the number of evaluations to the first collision must grow
+    as 2^(n/2), i.e. by a factor of 4 per 4 bits and 16 per 8 bits, and its
+    distribution must match the classical birthday law with median about
+    1.177 * 2^(n/2). A search that finds collisions far too cheaply indicates a
+    degenerate truncation or a seeded-hash bug; a search that finds them far too
+    expensively indicates the collision detector is missing hits. Both are
+    instrument failures caught by the curve and invisible to a single point.
+
+    (6) WHAT EACH OUTCOME MEANS, DECLARED BEFORE THE RUN. E1 MISMATCH EXISTS:
+    the approved table contains at least one (parameter set, pre-hash) pair with
+    n/2 below lambda, and the deliverable is that table plus the statement -
+    scoped as a statement about a permitted CONFIGURATION and not about ML-DSA -
+    that HashML-DSA's message binding at that configuration is 2^(n/2). E2 NO
+    MISMATCH: every approved pair satisfies n/2 at least lambda, so the standard
+    derived the constraint; the deliverable is the closure, its table, and the
+    ablation witnesses that prove the audit could have seen a mismatch. E3
+    IDENTIFIER COLLISION: the cross-identifier check finds two approved entries
+    whose identifier-plus-digest strings can coincide, which would be a
+    first-order finding about the encoding and would be reported with its
+    witness and re-verified by a second implementation before anything else is
+    written.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: >-
+        draft-connolly-cfrg-ml-dsa-security-considerations-02, IETF
+        Internet-Draft, sections 2.2.2 and 3.2.5
+      provenance: retrieved
+      claim: >-
+        Section 2.2.2 states that "Defining a fixed context string for a given
+        protocol's use case prevents cross-protocol attacks". Section 3.2.5
+        warns that "HashML-DSA requires hash algorithm identifiers and
+        parameters to be transmitted alongside the signature. If these are
+        carried through untrusted channels, this introduces algorithm confusion
+        risks similar to those seen with JSON Web Tokens." The draft states the
+        RISK qualitatively; it gives no injectivity certificate, no approved
+        table, and no exponent.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebFetch of
+        https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html
+        against a targeted extraction prompt; not a full linear read of the
+        draft, and the section numbers are as reported by that extraction.
+    - ref: >-
+        WebSearch result summary on BUFF properties of ML-DSA (Cremers et al.,
+        "BUFFing signature schemes beyond unforgeability", eprint 2020/1525;
+        and "Exclusive Ownership of Fiat-Shamir Signatures - ML-DSA, SQIsign,
+        LESS, and More")
+      provenance: retrieved
+      claim: >-
+        SEARCH-RESULT SUMMARY ONLY; NEITHER PAPER WAS OPENED. The summary states
+        that CRYSTALS-Dilithium provides exclusive ownership, message-bound
+        signatures and non-resignability, "based tightly on the assumed
+        collision resistance of the hash function used". Cited here for the
+        BOUNDARY it draws: the key-binding and message-binding questions at the
+        LATTICE layer are treated in published work and are deliberately NOT
+        this record's object. This record's object is the ENCODING layer above
+        it - the context string, the domain separator and the pre-hash - which
+        the summary does not mention.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebSearch tool result summary; titles, URLs
+        and the quoted summary text only, no PDF opened.
+    - ref: "FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST, 2024-08-13"
+      provenance: recalled
+      claim: >-
+        NOT FETCHED THIS SESSION. Recalled: the message representative
+        construction with a leading 0x00 or 0x01 variant byte, a one-byte
+        context length, a context of at most 255 bytes, and for HashML-DSA an
+        object identifier followed by the digest; the approved pre-hash list
+        with its object identifiers; and lambda = 128 / 192 / 256 at
+        ML-DSA-44 / -65 / -87. EVERY ONE OF THESE IS A RE-VERIFICATION TARGET.
+        The record's central prediction is a property of the approved table,
+        which this session has not read, and that is exactly why the prediction
+        is stated as a count with a pre-registered floor rather than as a fact.
+      verified_by: null
+    - ref: IDEA-20260808-e5f947
+      provenance: internal
+      claim: >-
+        Counts the ML-DSA verifier's accept fibre over SIGNATURE byte strings
+        with the public key and message held fixed, by local mutation of the
+        hint region. Cited to mark the boundary: that record varies the
+        signature and holds the message representative fixed; this record holds
+        the signature fixed and varies what the representative could have come
+        from. No statistic, no mutation class and no artifact is shared.
+      verified_by: >-
+        idea-generator, 2026-08-29, full read of all 158 lines.
+    - ref: IDEA-20260805-031ce2
+      provenance: internal
+      claim: >-
+        Censuses the four Algorithm 7 rejection predicates into
+        verifier-enforced, self-enforcing and unobservable. Cited to mark that
+        the census axis here is different in population and in classification -
+        the object is the message representative, not a signing predicate.
+      verified_by: >-
+        idea-generator, 2026-08-29, full read of all 586 lines.
+
+  assumptions:
+    - >-
+      That the message representative is prefix-encoded with a one-byte context
+      length as recalled. If the context is instead fixed-length or
+      null-terminated, ablation A2's witness changes and the injectivity
+      argument must be redone; Stage 0 is the gate.
+    - >-
+      That the approved pre-hash functions are identified inside the
+      representative by a DER object identifier of entry-dependent length. If
+      identifiers are instead fixed-length, the cross-identifier obligation in
+      claim (B) is discharged in one line and the record says so rather than
+      dressing up a triviality.
+    - >-
+      That a second, independently written ML-DSA implementation is available to
+      re-verify the A4 artifact. A collision certificate checked by only the
+      implementation that produced it is not a certificate.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the theorem is the claim that everything
+      downstream of the message representative is a function of M' ALONE. If any
+      part of signing or verification consumes ctx or the pre-hash identity
+      separately from M', then injectivity of M' is not sufficient for message
+      binding and the whole audit is aimed at the wrong object. That is a
+      two-line check against the algorithm listings and it is Stage 1.
+    baseline_embedding:
+      parameter_slice: >-
+        The old-method boundary is the empty context and the pure variant, which
+        is the configuration every pre-context signature scheme implicitly used.
+        There M' = 0x00 || 0x00 || M, the map is trivially injective, and the
+        record must reproduce the classical statement that the scheme signs the
+        message itself.
+      reproduction_check: >-
+        Symbolic and by fixture - a frozen set of 10^3 (ctx, M) pairs including
+        the empty context, round-tripped through the encoder and a separately
+        written decoder that must recover (variant, ctx, M) exactly. A decoder
+        written from the encoder's source is not a check.
+    observation_collision:
+      observable: >-
+        The certificate is the pair (injectivity decision, witness set), where a
+        witness is a tuple of two distinct inputs with equal representative.
+      distinct_preimage_search: >-
+        Two distinct ground-truth situations with the same observable were
+        searched for and one was found: a construction that is genuinely
+        injective, and a construction whose collisions exist but lie outside the
+        searched input classes - for example, contexts longer than 255 bytes, or
+        pre-hash outputs of unusual length. Both return an empty witness set.
+        The separator is the ABLATION SUITE: an injective construction still
+        yields witnesses on all four ablations, whereas an under-powered search
+        yields none, and that difference is what the positive control measures.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the message-binding question from a computational statement about
+          ML-DSA to an exact combinatorial statement about a prefix code -
+          "is this map injective" - with separate encoding, completeness,
+          soundness and transfer obligations. The transfer obligation is exactly
+          the bottleneck named above.
+        predicted_gain: >-
+          Turns a property that would otherwise be argued in prose into a finite
+          check over a ten-entry table plus a two-line prefix argument, both of
+          which a second party re-executes.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the representative M' fixed and vary the forgotten structure -
+          which (variant, ctx, PH, M) produced it. The intrinsic invariant that
+          separates the resulting objects is the prefix decomposition, and where
+          that invariant is destroyed is exactly where the ablations bite.
+        predicted_gain: >-
+          Produces the witness set constructively rather than by search for
+          three of the four ablations, so only A4 needs compute.
+    quantifier_order: >-
+      FOR ALL parameter sets and FOR ALL approved pre-hash functions PH, FOR ALL
+      contexts ctx of length at most 255 and FOR ALL message pairs M != M',
+      the representatives differ - UNLESS PH(M) = PH(M'), in which case THERE
+      EXISTS a signature verifying for both. The existential is inside the
+      pre-hash and outside the lattice, which is the whole content. A claim with
+      the quantifiers reversed - one collision working for all keys - IS in fact
+      made and is correct here, because the collision is key-independent, and
+      that is unusual enough to state explicitly rather than leave implicit.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can certify is that the message
+        representative encoding is or is not injective on a declared input
+        domain, and what the message-binding work factor is for each approved
+        configuration. It cannot certify anything about EUF-CMA, about the
+        lattice assumptions, or about implementations that construct the
+        representative differently from the standard.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails is the SAME
+        construction with the context length byte removed, which is injective
+        on single-context deployments and non-injective across contexts. A
+        method that could not distinguish those two has not identified the
+        load-bearing structure, and ablation A2 is exactly that discrimination.
+    proof_obligations:
+      - claim: "everything downstream of the representative is a function of M' alone"
+        responsibility: interface
+      - claim: "the prefix decomposition of M' is unique given a one-byte length field"
+        responsibility: correctness
+      - claim: "no two approved identifier-plus-digest strings coincide"
+        responsibility: feasibility
+      - claim: "the birthday search cost scales as 2^(n/2) across n in {32, 40, 48}"
+        responsibility: runtime
+      - claim: "the exhibited A4 pair verifies under two independent implementations"
+        responsibility: baseline
+
+  predictions:
+    - metric: >-
+        number of witnesses produced by the four-ablation suite, one per
+        ablation
+      direction: higher
+      minimum_effect: >-
+        AT LEAST 4, one per ablation, each a concrete byte tuple. A2's witness
+        is FORCED and exact before any run - contexts "AB" and "A" with payloads
+        "C" and "BC". FEWER THAN 4 MEANS THE AUDIT CANNOT SEE A COLLISION AND NO
+        NEGATIVE STATEMENT ABOUT THE CONFORMING CONSTRUCTION MAY BE REPORTED.
+    - metric: >-
+        number of (parameter set, approved pre-hash) pairs FIPS 204 permits for
+        which the pre-hash collision resistance n/2 is strictly below the
+        parameter set's lambda
+      direction: higher
+      minimum_effect: >-
+        Predicted AT LEAST 2, on the reasoning that a 256-bit pre-hash yields
+        128-bit collision resistance and is expected to be permitted with
+        ML-DSA-65 (lambda 192) and ML-DSA-87 (lambda 256). A measured 0 is a
+        fully reportable opposite outcome and means the approved table derives
+        the constraint the record expected to find asserted.
+    - metric: >-
+        cross-identifier injectivity over the approved pre-hash table -
+        number of pairs whose identifier-plus-digest byte strings can coincide
+      direction: different
+      minimum_effect: >-
+        FORCED PREDICTION 0, on the argument that equal-length identifiers are
+        distinct and unequal-length ones give unequal total lengths when the
+        digest lengths match. A nonzero count is a first-order encoding finding
+        and must be exhibited with a witness and re-verified independently
+        before it is written anywhere.
+    - metric: >-
+        median number of pre-hash evaluations to the first collision at
+        truncation widths n in {32, 40, 48}
+      direction: higher
+      minimum_effect: >-
+        The classical birthday median 1.177 * 2^(n/2), i.e. about 7.7e4, 1.2e6
+        and 2.0e7, with the ratio between consecutive widths within a factor of
+        2 of 4. A measured cost more than 10x below the prediction indicates a
+        degenerate truncation; more than 10x above indicates the collision
+        detector is dropping hits. Either voids the A4 artifact.
+    - metric: >-
+        verification outcome of the A4 artifact - one signature, two distinct
+        messages - under two independently written implementations
+      direction: different
+      minimum_effect: >-
+        BOTH implementations must accept BOTH messages. A disagreement between
+        implementations is a finding about an implementation and halts the
+        package until resolved; agreement is what makes the artifact portable.
+
+  minimal_test:
+    design: >-
+      FOUR STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE.
+      STAGE 0 (reading, zero compute, TERMINATING). Re-obtain FIPS 204 under a
+      run record and transcribe verbatim, with pages, the message representative
+      construction for both variants, the maximum context length, the approved
+      pre-hash table with identifiers and output lengths, and lambda per
+      parameter set. If the representative is not prefix-encoded as recalled,
+      STOP and restate.
+      STAGE 1 (algebra and table work, zero compute, TERMINATING). Write the
+      two-line injectivity argument; execute the cross-identifier comparison
+      exhaustively over the approved table; build the (parameter set x pre-hash)
+      strength table with n/2 against lambda. If the downstream-of-M' check in
+      the proof_search_map bottleneck fails, STOP.
+      STAGE 2 (the ablation suite, seconds to minutes, MANDATORY BEFORE ANY
+      NEGATIVE). Implement the encoder and three ablated encoders; produce the
+      A1, A2 and A3 witnesses constructively; verify each with a separately
+      written decoder.
+      STAGE 3 (the artifact, minutes). Implement HashML-DSA at ML-DSA-44 with
+      the pre-hash truncated to 32, 40 and 48 bits, run a distinguished-point
+      birthday search at each width, and at each width exhibit a pair of
+      distinct messages sharing one verifying signature. Record the search cost
+      at each width against 1.177 * 2^(n/2). Re-verify every artifact under a
+      second implementation.
+      WHAT DISCRIMINATES. Stage 1's table decides E1 against E2 by reading, at
+      zero compute. Stage 2 decides whether the audit has any power at all.
+      Stage 3's three-point cost curve separates "the harness found a collision"
+      from "the harness measures collision cost correctly", which a single
+      collision cannot do.
+    controls:
+      - >-
+        POSITIVE CONTROL, MANDATORY, MUST FIRE - the four-ablation suite. Each
+        ablation MUST yield a witness, and A2's witness is forced exactly before
+        the run. An audit that reports the conforming construction injective
+        without producing all four witnesses has demonstrated nothing and its
+        negative is not reportable.
+      - >-
+        CONFORMING NULL, FORCED VALUE, CAN FAIL - the unablated encoder must
+        produce NO witness under the same search that finds all four ablation
+        witnesses, and its decoder must round-trip 10^3 frozen (variant, ctx, M)
+        triples exactly. A witness found against the conforming encoder
+        falsifies the injectivity claim and is the most interesting outcome
+        available.
+      - >-
+        GRADED CONTROL, THREE POINTS, MONOTONICITY REPORTED - the A4 birthday
+        cost at n in {32, 40, 48} must grow by about a factor of 4 per 4 bits. A
+        cost that does not grow with n is the canonical artifact tell of
+        docs/inventor-protocol.md section 3 and localises the fault in the
+        search rather than leaving "we found collisions".
+      - >-
+        SECOND INDEPENDENT IMPLEMENTATION for every artifact, per
+        RQ-MLDSA-ffa0f5's certificate-first methods clause.
+      - >-
+        SEPARATELY WRITTEN DECODER for the injectivity round-trip. A decoder
+        derived from the encoder's source makes the check self-confirming.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE - record that no prior record in this corpus
+        mentions the context string, the domain separator or the pre-hash, as an
+        ABSENCE and not as a passed check, and record the IETF draft's
+        algorithm-confusion warning beside it as the nearest external prior art.
+    required_metrics:
+      - the representative construction and the approved pre-hash table quoted verbatim with pages and a fetch receipt
+      - the injectivity argument and the exhaustive cross-identifier comparison, as a machine-checkable script with its hash
+      - the (parameter set x pre-hash) strength table with n/2 against lambda and the mismatch count
+      - the four ablation witnesses as byte tuples, each re-checked by the separately written decoder
+      - the A4 artifact at each truncation width - two messages, one signature, two independent verifier verdicts, the seed
+      - measured birthday cost at each width against 1.177 * 2^(n/2)
+
+  falsification_conditions:
+    - >-
+      The message representative is not prefix-encoded with a one-byte context
+      length. Claim (A) and the A2 witness are wrong and the record is
+      superseded rather than patched.
+    - >-
+      Any ablation fails to produce a witness. The audit has no power; nothing
+      negative is reportable; the outcome is an instrument statement under
+      AGENTS.md rule 3.
+    - >-
+      A witness IS found against the conforming encoder. The injectivity claim
+      is false, which would be far more interesting than the claim, and the
+      witness is re-verified independently before a single sentence is written
+      about it.
+    - >-
+      The approved table contains no mismatched (parameter set, pre-hash) pair.
+      Prediction 2 fails, the standard derived the constraint, and the closure
+      plus its table is the deliverable.
+    - >-
+      The A4 birthday cost does not scale as 2^(n/2) across the three widths.
+      The search is not measuring what it claims and no artifact from it is
+      reportable.
+    - >-
+      Some part of signing or verification consumes the context or the pre-hash
+      identity separately from M'. The bottleneck check fails, injectivity of M'
+      is not sufficient for message binding, and the whole record is aimed at
+      the wrong object.
+
+  confounders:
+    - >-
+      A KNOWN GENERIC FACT DRESSED AS A FINDING. "Hash-then-sign inherits the
+      hash's collision resistance" is textbook and is stated as such. What is
+      claimed as this record's content is the FIPS-204-specific table, the
+      exhaustive cross-identifier check, and the artifacts - not the principle.
+      A report that presents the principle as a discovery is defective.
+    - >-
+      AN INJECTIVITY PROOF IS COMFORTABLE. Two lines of prefix argument read as
+      rigour and cost nothing. The ablation suite exists so that the conclusion
+      costs something, and the separately written decoder exists so that the
+      round-trip is not self-confirming.
+    - >-
+      TRUNCATION IS NOT THE SAME OBJECT. A 32-bit truncated pre-hash is not an
+      approved configuration and its collision says nothing about an approved
+      one. The A4 arm is a demonstration that the harness can SEE a
+      message-binding violation, and every sentence about it must carry that
+      label.
+    - >-
+      OUT-OF-BAND IS A PROTOCOL QUESTION. Whether a relying party can be induced
+      to use the wrong context or the wrong pre-hash is a question about a
+      protocol, not about ML-DSA, and this record measures only what the ML-DSA
+      interface does and does not carry.
+    - >-
+      LAMBDA IS NOT THE CATEGORY. The parameter lambda used in the comparison is
+      the commitment-hash parameter, and equating it with the NIST security
+      category is a step this record does NOT take; the table reports n/2
+      against lambda and names both, leaving any category statement to a record
+      that has read the standard's own security-strength claims.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY. Nothing here bears on MLWE, MSIS or
+      SelfTargetMSIS in any direction, and no signature is produced under a key
+      the experiment does not hold.
+    - >-
+      THE SPECIFICATION CLAIM AND THE MATHEMATICAL CLAIM ARE SEPARATE.
+      "The verifier is told the context and the pre-hash out of band" is a
+      statement about an interface, checkable by reading. "Message binding at
+      that configuration costs 2^(n/2)" is a statement about a hash function,
+      checkable by the birthday bound. Neither licenses "FIPS 204 is wrong".
+    - >-
+      A mismatched (parameter set, pre-hash) pair in the approved table is a
+      statement about a PERMITTED CONFIGURATION, not about ML-DSA, and it may
+      well be intentional and documented; if the standard states the caveat, the
+      record's contribution is the table and the artifact, and it says so.
+    - >-
+      The A4 artifact demonstrates instrument power at a non-conforming
+      truncation width and demonstrates nothing about any approved pre-hash.
+    - >-
+      Published work on ML-DSA's exclusive ownership and message binding at the
+      lattice layer exists and was NOT read this session beyond a search
+      summary. If that work already covers the encoding layer, this record's
+      contribution reduces to independent reproduction plus the artifacts, which
+      is still worth having and must be reported as exactly that.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING FOR THE INJECTIVITY HALF. The uniqueness of the prefix
+        decomposition, the exhaustive cross-identifier comparison over a finite
+        approved table, and the four ablation witnesses are all finite and
+        deterministic; they use no distributional assumption whatsoever. This
+        entry records that the record's central structural claim is
+        unconditional and that its only assumptions are evidentiary - namely
+        that the standard is transcribed correctly.
+      rigorous_support: >-
+        Uniqueness of decomposition for a length-prefixed code; finiteness of
+        the approved table; explicit construction of each witness.
+      validation_plan: >-
+        Symbolic re-derivation by a second party, plus the 10^3-triple
+        round-trip through a separately written decoder, plus exhaustive
+        enumeration of the approved table's identifier-plus-digest lengths.
+    - id: H2
+      statement: >-
+        For a pre-hash function truncated to n bits, the outputs on distinct
+        inputs behave as independent uniform draws from 2^n values, so the
+        number of evaluations to the first collision follows the classical
+        birthday law with median 1.177 * 2^(n/2) and with the collision count
+        after m draws approximately Poisson with mean m^2 / 2^(n+1).
+      rigorous_support: >-
+        The exact birthday distribution for uniform independent draws, which the
+        truncation of a cryptographic hash is assumed to imitate. The rigorous
+        half is the exact combinatorial identity for the uniform model; the
+        assumed half is that a truncated SHA-2 or SHAKE output is close enough
+        to uniform at these widths, which is far weaker than any standard
+        assumption about the untruncated function.
+      validation_plan: >-
+        Sample the first-collision count 100 times at n = 32 with distinct seeds
+        and compare the empirical distribution against the exact birthday law by
+        a Kolmogorov-Smirnov test; check the upper tail specifically, since a
+        collision detector that drops hits shows up as a heavy upper tail.
+        Repeat at n = 40 and n = 48 with fewer replicates and check the median
+        ratio against 4 per 4 bits. Sampled parameters and seeds recorded; the
+        transfer assumption to full-width approved pre-hashes is NOT made -
+        those are reported as costs, never as measurements.
+    - id: H3
+      statement: >-
+        The DER object identifiers of the approved pre-hash functions have
+        entry-dependent byte lengths, which is what makes the cross-identifier
+        obligation non-trivial rather than a one-line consequence of equal
+        lengths.
+      rigorous_support: >-
+        DER encoding of an object identifier has a length determined by the arc
+        values, so equal length across a heterogeneous approved set is not
+        automatic. The classical statement imitated is that a prefix code over
+        variable-length tags is injective only if no tag is a prefix of another
+        followed by an admissible payload.
+      validation_plan: >-
+        Read the identifiers from the approved table in Stage 0, tabulate their
+        byte lengths and the corresponding digest lengths, and execute the
+        exhaustive pairwise comparison. If all lengths turn out equal, H3 is
+        false, the obligation is discharged in one line, and the record says so
+        rather than preserving a difficulty that does not exist.
+
+  target_complexity:
+    time_exponent: >-
+      2^(n/2) hash evaluations for a message-binding violation at a HashML-DSA
+      configuration whose pre-hash has n-bit output, against 2^lambda for the
+      parameter set, with lambda = 128 / 192 / 256. THE DELTA IS lambda - n/2
+      BITS AND IT IS A PROPERTY OF A PERMITTED CONFIGURATION, NOT OF ML-DSA. For
+      the injectivity and table halves no exponent is moved and none is claimed;
+      those are finite checks. The A4 demonstration runs at n in {32, 40, 48},
+      i.e. at most about 2e7 evaluations, which is seconds.
+    memory_exponent: >-
+      2^(n/2) for a naive stored-table birthday search, reducible to O(1) memory
+      at the same time exponent by Pollard rho or by distinguished points. The
+      A4 arm uses distinguished points so that the demonstration's memory is not
+      the thing that limits n. The injectivity and table halves are O(1).
+    best_known: >-
+      IN CORPUS - nothing; no record mentions the context string, the domain
+      separator, HashML-DSA or the pre-hash. EXTERNAL - the IETF
+      security-considerations draft states the algorithm-confusion risk
+      qualitatively; published BUFF work covers exclusive ownership and message
+      binding at the LATTICE layer and was not read beyond a search summary, so
+      whether it also treats the encoding layer is UNKNOWN and is the most
+      likely route by which this record is already dominated.
+    hidden_overhead: >-
+      The honest overhead is that the headline table cannot be produced without
+      the approved pre-hash list, which this session did not fetch, so the
+      record's central prediction is a pre-registered count and not a result.
+      Second: the A4 arm's cost model assumes the truncated hash behaves
+      uniformly, which is H2 and is validated only at the widths actually run.
+    tradeoff_note: >-
+      The relevant tradeoff is the classical parallel collision search one - van
+      Oorschot-Wiener distinguished points give time 2^(n/2)/m on m processors
+      with memory proportional to the distinguished-point table, so the A4 arm's
+      cost is stated per-processor and its parallel position is named rather
+      than left implicit. The injectivity half admits no tradeoff because it is
+      not a search.
+
+  dominated_by: >-
+    n/a on the attack axis for the injectivity and table halves (no attack, no
+    cost triple claimed); for the A4 artifact the dominating result is the
+    generic birthday bound itself, which is exactly what the arm measures rather
+    than beats. ROWS ACTUALLY CHECKED BEFORE WRITING. (i) All twelve
+    RQ-MLDSA-ffa0f5 proposals, read in full or in large part this session; none
+    mentions the context string, the domain separator, HashML-DSA or the
+    pre-hash, and a targeted grep over ledger/proposals confirms it. (ii) The
+    sibling RQ-MLDSA-001, whose scope is assumption calibration and fault
+    classes. (iii) The three cost axes - TIME (Stages 0-2 are zero to seconds of
+    compute; Stage 3 is at most about 2e7 hash evaluations), MEMORY (O(1) with
+    distinguished points), DATA/QUERIES (zero signing queries under any key the
+    experiment does not hold). NOT CHECKED, AND SAID SO - the published BUFF and
+    exclusive-ownership literature for ML-DSA, opened only as a search summary;
+    if it already contains the encoding-layer injectivity certificate, this
+    record is dominated on the structural half and retains only the artifacts.
+  sota_delta: >-
+    no attack; specification and measurement contribution only. It converts the
+    IETF draft's qualitative "introduces algorithm confusion risks similar to
+    those seen with JSON Web Tokens" into (a) an injectivity certificate for the
+    conforming construction with an exhaustive cross-identifier check, (b) a
+    (parameter set x approved pre-hash) table stating message-binding work as
+    2^(n/2) against 2^lambda with an explicit mismatch count, and (c) four
+    witnessed collisions on named ablations plus a portable two-message
+    one-signature artifact, each re-verified by a second implementation. No
+    exponent of any hard problem moves; the only exponent that appears is the
+    birthday one, and it is a property of a configuration.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    BY PART. (i) That the injectivity argument survives a fresh read of FIPS
+    204, about 0.9 - it is a prefix-code argument and the only way to lose it is
+    for the encoding to differ from what is recalled. (ii) That the mismatch
+    count is at least 2, about 0.7 - it rests on a 256-bit pre-hash being
+    permitted with ML-DSA-65 and -87, which is recalled and not read, and the
+    opposite outcome is fully reportable. (iii) That the cross-identifier check
+    returns 0, about 0.9. (iv) That the four ablation witnesses all fire, about
+    0.95 - three are constructed rather than searched. (v) That any of this is
+    NEW rather than already stated in the BUFF or exclusive-ownership
+    literature, about 0.25, and I would bet against novelty on the structural
+    half while expecting the artifacts and the table to be absent from it.

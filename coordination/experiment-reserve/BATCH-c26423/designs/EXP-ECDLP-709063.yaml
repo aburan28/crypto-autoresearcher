@@ -1,0 +1,38 @@
+design:
+  experiment_id: EXP-ECDLP-709063
+  status: prospective_incomplete_pending_portable_allocator_amendment
+  approved_by: null
+  source_binding: {path: experiments/EXP-ECDLP-709063/specification.yaml, sha256: fbb7e4a95a35b98eee07abe93828ad532301fe83e69b8ffdca67435e262a6bff}
+  preserves_mechanism: fixed-table and memory-constrained BSGS under an enforced memory ceiling against rho on identical known-solution instances.
+  exact_parameters: {subgroup_bits: [16,20,24,28], table_budgets_bytes: [4096,32768,262144], null2_budget_bytes: 8, independent_executions: 2, workers: 1, memory_cap_gb: 8}
+  shared_instance_binding:
+    required: "A pre-execution immutable instance-set manifest from EXP-ECDLP-4320a7 must list master seed, derived per-size seeds, curve/P/Q/order, known scalar, generator certificate, and SHA-256. Every arm references its instance_id and source-manifest SHA-256."
+    current_impediment: "The required EXP-ECDLP-4320a7 manifest and completion/reuse status were not supplied to this design task. This is a bounded provenance prerequisite, not scientific evidence."
+    repair: "Coordinator reads and hash-binds that manifest; if absent or unapproved, create one additive zero-measurement instance-generation contract before any BSGS/rho arm."
+  definitions:
+    representation: "Field bits are at most 28, hence p<2^28<2^32 and each affine coordinate fits uint32. Use a packed open-addressed baby table with 16-byte physical slots: uint32 x, uint32 y, uint32 exponent, uint32 state; O is represented only by scalar j=0 outside the table and never consumes a slot. Linear probing has fixed maximum load factor 0.70. For byte budget C, slots=floor(C/16), usable entries=floor(0.70*slots), exactly; record C, slots, usable entries, occupied entries, probes, and mmap length."
+    enforcement: "The table allocator first reserves exactly C bytes in one mmap extent and exposes only that extent; a request whose physical extent exceeds C is refused as AllocatorCapacityError before any second mmap. It then maps exactly 16*slots bytes from that reservation and records the actual mapping length. The enforcement probe requests 16*(slots+1), must receive AllocatorCapacityError, and independently verifies no second mapping occurred. An OS RLIMIT_AS guard is separate: a fresh Linux child sets RLIMIT_AS=base_vm_bytes+2097152+C before allocation, where 2,097,152 bytes is the frozen allowance. This design has no compatible live macOS runtime binding; portability is a required amendment, not silently assumed."
+    arms: "A=fixed-table BSGS: fail before solve when ceil(sqrt(N)) entries cannot fit; report cliff, never crossover. B=memory-constrained BSGS: capacity E=floor(table_budget_bytes/measured_table_entry_bytes) and bounded baby table; report giant/baby operations and crossover. rho uses the exact same instance."
+    crossover: "For each budget and paired instance, D=ops_B-ops_rho. A measured crossover is an adjacent tested size pair with a sign change in median D, both neighboring cells completed and not censored. Otherwise report one-sided bound only. Modeled N*=(cE)^2 is in a distinct field and never replaces measured value."
+    peak_memory: "Record peak RSS, allocator-reported table bytes, table entries, load factor, and overhead separately. Compliance is table_bytes<=budget and OS/allocator termination for an over-cap table; RSS alone is not a table ceiling."
+  cells:
+    constrained_BSGS_rows: 24
+    fixed_table_BSGS_rows: 24
+    rho_rows: 8
+    unbounded_BSGS_rows: 8
+    null2_rows: 2
+    enforcement_probe_rows: 6
+    total_algorithm_rows: 72
+    run_definition: "Two independent execution bundles each contain 12 constrained-BSGS rows, 12 fixed-table rows, four shared rho rows, four unbounded-BSGS rows, one null2 row, and three enforcement probes."
+  ordered_controls: ["Stage 0 supersession/read-scope log", "solver correctness: every BSGS and rho output must certify [k]P=Q before timing comparison", "Null 1 records unbounded BSGS and rho distributions on the bound shared instances; which has fewer operations is an observation, not a blocking forced verdict", "Null 2 fixed-table BSGS at 8 bytes", "one-entry-over-cap physical-allocation enforcement probe", "entry-cost measurement", "frozen-representation hash", "paired-cell execution"]
+  decisions:
+    positive: "A located crossover or explicit bound is a toy instrument measurement only; any downstream baseline change requires a separate Coordinator decision and independent review."
+    negative: "No crossover in range is a bounded range result, not a statement about realistic budgets."
+    inconclusive: "Failed enforcement/null/representation binding voids all crossover interpretation; a declared-limit termination is measured, while timeout/dependency failure is infrastructure."
+  costs: {time: "record operations, baby/giant split, wall time, and censoring per row", memory: "all memory fields beside each operation count", cap_gb: 8, worker: 1}
+  proof_search_map: {applicability: empirical calibration, baseline_embedding: unbounded BSGS and 8-byte null, observation_collision: "a fixed-table cliff and constrained-table crossover are separate arms", quantifier_order: "for each bound shared instance, size and budget", method_ceiling: "serial toy calibration only", nearby_object_control: deliberate over-cap allocation}
+  citations: [{ref: H-ECDLP-3ac227, provenance: internal, claim: preserved source hypothesis, verified_by: TASK-20260907-9c3566}, {ref: "KN-TECH-031/035 BSGS costs", provenance: recalled, claim: retrieval target only; no external claim is supported before Stage 0 retrieval, verified_by: null}]
+  frontier: {dominated_by: unknown, sota_delta: "No retrieved frontier rows supplied; measures incumbents and does not claim an algorithmic improvement.", novelty_status: unverified}
+  required_artifacts: [stage0-supersession-log.md, shared-instance-binding.json, representation.json, enforcement-transcript.json, null-verdicts.json, per-entry-cost.json, raw-result.json, crossover-table.json, manifest.yaml]
+  approval_gate: "Remain approved_by:null until the shared-instance manifest SHA-256, representation hash, and hard-limit mechanism/overhead are all declared and independently checkable."
+  bounded_impediment: "The stated physical reservation is Linux-specific. A portable allocator/enforcement amendment that preserves the exact slot and probe semantics is required before this candidate can be marked complete or approved."

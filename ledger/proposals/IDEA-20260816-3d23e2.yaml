@@ -1,0 +1,268 @@
+idea:
+  id: IDEA-20260816-3d23e2
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: 'Extend the injectivity audit to the OUTPUT side: enumerate whether two distinct root states,
+    output-block indices, or modes can place identical bytes at identical stream offsets within a
+    declared finite class, treating extendable output as a separate predicate from the fixed-length
+    digest rather than as one object.'
+  class: theory
+  claim: '(A) The input side of a tree hash''s domain separation and its OUTPUT side are different
+    predicates and are routinely conflated. On the output side the question is: the extendable-output
+    stream is produced by re-running the root computation with an incrementing output-block index,
+    so the object is a map O: (root state, output block index, mode) -> 64 bytes of stream, and the
+    property in question is whether two semantically distinct (root, index, mode) triples can produce
+    overlapping or identical stream regions by ENCODING rather than by hash collision. (B) The claim
+    is that this is again a finite, solver-free enumeration once the root state is held SYMBOLIC,
+    and that the property to check is stronger than input-side injectivity: it must hold not only
+    that distinct triples map to distinct tuples, but that the fixed-length digest of one input can
+    never coincide with a NON-INITIAL stream segment of another input''s extendable output -- a prefix-alignment
+    property that input-side injectivity does not imply, because it concerns how outputs are indexed
+    rather than how inputs are routed. (C) NOT CLAIMED: the audit says nothing about the probability
+    that two different root states produce the same 64 bytes, which is a compression-function question
+    it deliberately cannot see; nothing about inputs, indices or modes outside the declared class;
+    no attack, no break, and no statement about any deployed system or protocol that consumes BLAKE3
+    output at a nonzero offset. Also explicitly NOT claimed: that a protocol which reads at an offset
+    is doing anything wrong, since this record measures an encoding property and not a usage. (D)
+    The negative outcome is the intended deliverable: a statement that within the enumerated class
+    the output indexing separates every distinct (root, index, mode) triple, together with the exact
+    class boundary and the named regions outside it -- which converts a property nobody re-checks
+    into a bounded, cited completeness statement.'
+  mechanism: 'Stage one: from pinned primary text, write down O explicitly -- what exactly changes
+    between output block i and output block i+1, whether the flag word differs between the fixed-length
+    digest path and the extendable path, and whether the counter field is reused for the output index
+    or is separate. These three questions are the entire content of the audit and they are answered
+    by reading, not by computing. Stage two: define the class C_out -- root labels drawn from the
+    input-side audit''s enumerated set (so the two audits compose), output indices 0..I, and the mode
+    set {digest, extendable, keyed digest, keyed extendable, key-derivation output}. Stage three:
+    enumerate every triple in C_out through an instrumented implementation, logging the compression-function
+    input tuple that produces each output block, with the root state symbolic. Stage four: check two
+    distinct predicates separately, and report them separately: P1, distinct triples produce distinct
+    tuples; P2, the tuple producing the fixed-length digest of any enumerated input never equals the
+    tuple producing a nonzero-index output block of any other enumerated input. Stage five: run planted-breakage
+    nulls that violate P1 and P2 respectively -- one that drops the output index from the tuple, one
+    that merges the digest and extendable flag words -- and require both to be caught. Stage six:
+    state C_out''s boundary and, specifically, name the index range and root-set beyond which nothing
+    is claimed.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril 'XOF|extendable-output|keyed hashing|key-derivation mode' over ledger/proposals
+      and knowledge/techniques, which returned IDEA-20260809-2ba70c, IDEA-20260808-917e63, IDEA-20260808-25fca0,
+      IDEA-20260813-28cf9c, IDEA-20260807-331ae5, IDEA-20260809-ce875b, IDEA-20260805-7d97be, IDEA-20260809-1b5b15,
+      IDEA-20260809-dc7006, IDEA-20260809-7f2d9c; grep -ril 'length extension|domain separation' over
+      ledger/proposals; grep -ril blake over the whole repository. Read RQ-BLAKE-584719 and GOAL-BLAKE-001
+      in full, including the bucket opening that names the extendable-output and keyed modes as SEPARATE
+      PREDICATES rather than one object.
+    results: No BLAKE record exists in ledger/proposals. The XOF grep hits are dominated by ECDLP-lane
+      and post-quantum records where the term appears incidentally (IDEA-20260809-7f2d9c and IDEA-20260809-ce875b
+      are the byte-exact SHA archive-cascade lineage under RQ-ECDLP-002, an entirely different object);
+      none audits an output-indexing encoding. IDEA-20260808-95a21c is again the nearest in reasoning
+      style -- what an adversary can vary in a chained construction -- but it varies a transcript's
+      last block to cheapen a forgery search, not an output index to test an encoding predicate. The
+      distinction this record rests on (input-side injectivity does not imply output-side prefix separation)
+      appears nowhere in the corpus.
+    verdict: 'UNVERIFIED. Nothing is asserted about what has been published on BLAKE3''s extendable
+      output. Assembled from known parts: the symbolic-root enumeration technique is the sibling input-side
+      audit''s, and the notion that XOF indexing must be domain-separated is the design''s own premise
+      as relayed in RQ-BLAKE-584719. Claimed new HERE: the explicit separation of P1 (triple injectivity)
+      from P2 (digest-versus-nonzero-offset prefix alignment) as two predicates that must be reported
+      separately, the observation that P1 does not imply P2, and the composition of C_out with the
+      input-side audit''s root set so the two class boundaries compose into one statement rather than
+      two unrelated ones.'
+  object_first_candidate:
+    tracked_object: The output-side tuple (root_state_label, output_index, mode_flags, output_byte_offset),
+      carrying the semantic label of the input and the stream position it claims. The tracked object
+      is this tuple with root_state_label held opaque -- the interface between a finished tree and
+      the byte stream a caller reads.
+    lossiness: 'Lossy in the same disciplined way as the input-side audit and for the same reason.
+      Discarded: the numeric value of the root state and of every output byte. Retained: the indexing
+      structure -- which index, which flags, which offset. The discard is compatible with the operation
+      because the output index and the mode flags are chosen by the CALLER''s request (how many bytes,
+      at what offset, in which mode) and never by the numeric content of the root, so the retained
+      structure propagates deterministically under symbolic substitution. Stage one verifies exactly
+      this and the audit is void if it fails. The loss also bounds the claim precisely: a coincidence
+      in the discarded numeric component -- two different roots yielding the same 64 output bytes
+      -- is a compression-function question, and this record cannot and does not address it.'
+    propagation: 'One step of the target operation is the emission of one 64-byte output block. It
+      acts on the tracked object by incrementing the output index while holding the root label fixed,
+      producing a new tuple whose only changed field is the index (and, at the transition from the
+      first block to subsequent blocks, potentially the flag word -- whether it changes is precisely
+      question one of stage one). The propagation is therefore a one-dimensional walk indexed by output
+      block, and the enumeration walks it for every root label in the class. The interesting propagation
+      is ACROSS inputs: two different inputs'' walks are separate one-dimensional chains, and P2 asks
+      whether one chain''s first element can equal another chain''s non-first element.'
+    survival_score: 'The object survives the entire output walk for every enumerated root, without
+      dissolving at any index -- the indexing is uniform by construction. It dissolves at the class
+      boundary: beyond index I nothing is enumerated, and beyond the root set inherited from the input-side
+      audit nothing is visited. Stated concretely: with R root labels and I+1 indices and m modes,
+      the enumeration visits R*(I+1)*m tuples, a number reported exactly, and every triple beyond
+      that is named as unvisited. The honest caveat is that I is small relative to the index range
+      a real extendable output admits, so the boundary is a real and stated limitation rather than
+      a formality.'
+  null_object_control: 'Two planted-breakage nulls, each targeting one predicate, both enumerated
+    identically in the same invocation. Null-1 drops the output index from the logged tuple, which
+    must produce massive P1 violations. Null-2 merges the digest flag word with the extendable-output
+    flag word, which must produce P2 violations specifically -- a fixed-length digest tuple coinciding
+    with a nonzero-index output tuple. What the nulls must show for the real arm to mean anything:
+    null-1 must be caught by the P1 check and NOT primarily by the P2 check, and null-2 must be caught
+    by the P2 check. If both nulls are caught only by one check, the two predicates are not being
+    tested separately and the record''s central claim -- that they are different predicates -- is
+    not being exercised by its own instrument. That cross-check is the reason the nulls are specified
+    as a matched pair rather than as one broken variant.'
+  discriminated_from:
+  - 'The input-side injectivity audit in this same bucket: deliberately a sibling and deliberately
+    NOT the same record. That one enumerates the routing of inputs into the tree; this one enumerates
+    the indexing of outputs out of the root, and the record''s central claim is precisely that the
+    first does not imply the second. The two compose by sharing a root set, which is stated rather
+    than assumed.'
+  - 'IDEA-20260808-95a21c: varies a transcript''s final block to cheapen a Fiat-Shamir forgery search.
+    Adversarial variation of a chained input, not enumeration of an output-indexing encoding, and
+    its deliverable is a bit count in a cost model rather than a class boundary.'
+  - 'Generic length-extension analysis: not that. Length extension concerns appending to an input
+    under a Merkle-Damgard chaining; this concerns whether two outputs'' stream positions can coincide
+    by encoding, with the input side held fixed and symbolic.'
+  - 'IDEA-20260809-7f2d9c and IDEA-20260809-ce875b: byte-exact SHA archive-cascade records under RQ-ECDLP-002
+    that surfaced in the same grep. They concern archive-integrity cascades in this program''s own
+    provenance machinery and share no object with a hash''s output indexing.'
+  assumptions:
+  - The output index and mode flags are chosen by the caller's request and never by root-state content;
+    verified at stage one against pinned primary text and the enabling assumption of the symbolic
+    substitution.
+  - The root set inherited from the input-side audit is a valid domain to enumerate over -- i.e. the
+    two audits' class boundaries genuinely compose. If the input-side audit is not run first, this
+    record's roots are synthetic labels and the composition claim is dropped.
+  - The pinned reference implements the extendable output exactly as specified, validated against
+    published extendable-output test vectors at nonzero offsets specifically, not only at offset zero.
+  - I, the largest enumerated output index, is a budget choice with no claimed structural significance.
+  predictions:
+  - metric: P1 violations (distinct triples with identical tuples) in the real mode over C_out
+    direction: lower
+    minimum_effect: 0 -- forced value, the design's own premise
+  - metric: P2 violations (digest tuple equal to a nonzero-index output tuple) in the real mode over
+      C_out
+    direction: lower
+    minimum_effect: 0 -- forced value, and reported SEPARATELY from P1 even when both are zero, because
+      the record's point is that they are distinct predicates
+  - metric: null-1 caught by the P1 check and null-2 caught by the P2 check, each by its own check
+    direction: higher
+    minimum_effect: both must be caught by their intended check; if a single check catches both, the
+      predicates are not separated by the instrument and no separated verdict is reportable
+  - metric: number of output tuples enumerated
+    direction: different
+    minimum_effect: no pre-committed value; a descriptive count reported for reproducibility, since
+      it depends on the specification's indexing structure which is read rather than assumed
+  minimal_test:
+    design: 'The cheapest discriminating measurement is stage one alone: read the pinned specification
+      and answer three questions in writing -- does the flag word differ between the fixed-length
+      digest path and the extendable path; is the output index carried in its own field or reused
+      from the chunk counter; and does anything in the output path read root-state content. Those
+      three answers determine whether P2 is even capable of being violated by encoding, and they cost
+      reading time and zero compute. If the answers show the digest path and the nonzero-index path
+      differ in a field that is always present, P2 is settled by construction and the record''s honest
+      deliverable shrinks to that argument plus a small confirmatory enumeration. If they show the
+      paths differ only in the index value, the enumeration is worth running at full size. Either
+      way the expensive stage is gated by a reading task, which is the correct order for a finite
+      audit and is why this entry is cheap to attempt.'
+    controls:
+    - 'Matched planted-breakage nulls: null-1 (index dropped) targeting P1, null-2 (digest and extendable
+      flags merged) targeting P2, both enumerated in the same invocation with cross-check on which
+      predicate catches which.'
+    - Extendable-output test-vector precondition at NONZERO offsets, not only at offset zero, before
+      instrumentation.
+    - 'Root-label permutation control: re-run with root labels randomly relabelled; both verdicts
+      must be unchanged.'
+    - 'Composition control: the root set must be exactly the one the input-side audit enumerated,
+      verified by label matching, so the two class boundaries compose.'
+    - 'Mode-coverage control: every mode in the declared set must appear in the enumerated trace,
+      checked rather than assumed.'
+    required_metrics:
+    - P1 violation count
+    - P2 violation count, reported separately
+    - null-1 and null-2 catch rates per predicate
+    - number of output tuples enumerated
+    - declared bounds of C_out (R, I, mode set)
+    - list of regions named outside C_out
+    - the three stage-one answers recorded verbatim
+  falsification_conditions:
+  - Either null is not caught, or both nulls are caught only by the same check, so the two predicates
+    are not separately exercised.
+  - Stage one finds the output path reads root-state content, voiding the symbolic substitution.
+  - The pinned reference fails an extendable-output test vector at a nonzero offset.
+  - Either verdict changes under root-label permutation.
+  - A P1 or P2 violation is found in the real mode and survives hand re-derivation -- which becomes
+    a maintainer disclosure before it becomes any other record.
+  - The root set cannot be matched to the input-side audit's, so the composition claim is unavailable
+    and the class boundary is weaker than stated.
+  confounders:
+  - A reference implementation that reaches nonzero offsets by a different code path than the specification
+    describes, so the enumeration audits the path rather than the design.
+  - An I chosen so small that the index field never overflows into whatever adjacent field could collide,
+    producing a clean result that says less than its size implies. Mitigated by explicitly enumerating
+    indices near any field boundary the specification exposes.
+  - 'Mode set incompleteness: if key-derivation output is a distinct path and is omitted, the audit
+    is silently narrower than its stated class.'
+  - 'Labelling coarseness identical to the input-side audit''s risk: two distinct triples sharing
+    a label make a violation invisible.'
+  - Treating P1 and P2 with one code path, so that a bug in one silently produces a clean report in
+    the other -- the matched nulls exist to price exactly this.
+  interpretation_limits:
+  - Verdicts hold over C_out only, and I is small relative to the index range real extendable output
+    admits; the boundary is a genuine limitation.
+  - The root state is symbolic, so nothing here speaks to the probability that two roots produce identical
+    output bytes -- that is a compression-function question outside this object.
+  - A clean result is an encoding statement about the mode within C_out, not a proof and not a statement
+    about any protocol that consumes BLAKE3 output at an offset.
+  - If stage one settles P2 by construction, the enumeration confirms an argument rather than establishing
+    a fact, and the record must say which of the two it did.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Enumeration cost is O(R*(I+1)*m) tuple constructions,
+      reported as a measured count.
+    memory_exponent: No attack memory exponent is claimed; peak memory is the tuple table, bounded
+      by the same count.
+    best_known: The incumbent is the design's own premise that flag and counter separation covers
+      the extendable-output path, relayed unverified in RQ-BLAKE-584719. Nothing is beaten. What is
+      added is a separated pair of predicates with a stated class over which each was checked, where
+      this repository currently states neither.
+    hidden_overhead: 'The three stage-one reading questions are the whole result and produce no artifact;
+      if they settle P2 by construction, the record''s headline shrinks and the honest report is less
+      impressive than the plan, which is a real cost to whoever writes it. Also hidden: matched nulls
+      double the enumeration and their cross-check is the only thing standing between a separated
+      verdict and two identical numbers printed twice.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is emitted, so no frontier position exists to be dominated on.
+    As an audit it is dominated by any later enumeration over a strictly larger C_out -- larger I,
+    more modes, more roots -- and that is the intended supersession path.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: this repository
+    states output-side separation over a class of size zero; a run would state P1 and P2 separately
+    over R*(I+1)*m enumerated tuples with matched-null catch rates printed. The delta is two predicates
+    and one counted class.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That stage one''s three questions are answerable from primary
+    text without ambiguity: 0.75. That the symbolic substitution is valid on the output path: 0.9.
+    That P2 turns out to be settled by construction at stage one, shrinking the deliverable: 0.5 --
+    genuinely a coin flip, and the honest framing is that this outcome is a cheap win rather than
+    a failure. That the matched nulls separate the two predicates as intended: 0.7, the main engineering
+    risk. That a real violation is found within C_out: 0.02, lower than the input side because the
+    output path is simpler and has fewer moving fields. That the composed class boundary (input-side
+    plus output-side) is judged informative by a reader: 0.5, and it depends entirely on whether the
+    input-side audit ran first.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260808-95a21c
+  - IDEA-20260809-7f2d9c
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-9f61cc

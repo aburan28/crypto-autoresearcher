@@ -1,0 +1,223 @@
+experiment:
+  id: EXP-HQCX-000e81
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-6536d7; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-6536d7
+  question_id: RQ-HQC-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: 'Margin-instrumented HQC inner decoder: measured variance-reduction ratio and bias of a margin-based
+    block-failure-rate estimator against direct counting, with an analytic i.i.d. control where the
+    tail is computable'
+  objective: 'The one uncertainty a run reduces: whether the block-failure rate can be estimated from
+    the inner decoder''s decision margin at materially lower trial cost than direct counting, without
+    introducing bias. A run establishes (i) the relative bias of the margin estimator against direct
+    counting at every rate where counting is affordable, which is the gate that decides whether the
+    estimator may be used at all; (ii) the variance-reduction ratio R(p) at four rates spanning 1e-2
+    to 1e-5, measured on the same data by bootstrap rather than derived from an assumption; and (iii)
+    whether a parametric tail fit of the margin distribution recovers a computable answer on an i.i.d.
+    Bernoulli channel, which decides whether tail fitting may be trusted on the real pipeline at all.
+    The run also reports the tie rate and the instrumentation''s throughput overhead, both of which
+    are preconditions for the estimator being usable in the campaign''s existing measurement path.
+    No attack, break, speedup or security consequence is claimed here or would follow from a run.
+    No statement is made about what the published literature does or does not contain; this environment
+    cannot reach external literature. No direction is declared impossible.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'Maximal supportable scope: at the executed parameter sets and
+      rates, the margin estimator has a stated relative bias against direct counting and a stated
+      variance-reduction ratio, and a stated tail family does or does not recover the computable answer
+      on the i.i.d. control. WHAT DOES NOT FOLLOW: no value of HQC''s decryption failure rate at any
+      deployed parameter set; no validation of the specification''s analytic model; no attack and
+      no security consequence; and specifically NOT that the estimator can be extrapolated below the
+      directly countable regime - any such extrapolation is a separate, numbered heuristic requiring
+      its own approval and its own evidence.'
+  inputs:
+    procedure: 'STAGE 0 (zero compute): pre-declare the tail family, the tail threshold, the bootstrap
+      procedure and the bias tolerance. STAGE 1 (minutes): instrument the decoder to emit M_j; measure
+      throughput with and without instrumentation; verify F_j = 1{M_j < 0} holds for every block over
+      10^6 trials, which is a wiring gate. STAGE 2 (minutes, T = 10^6, p near 1e-3): compute all three
+      estimates plus bootstrap intervals; report bias and R. STAGE 3 (hours): walk the rate ladder
+      to p in {1e-2, 1e-3, 1e-4, 1e-5} by tuning weights on a disjoint seed stream, repeating STAGE
+      2 at each rung with trial counts scaled to keep direct counting affordable. STAGE 4 (minutes):
+      analytic i.i.d. Bernoulli control - compute the margin law directly, fit the tail, compare;
+      fit the mis-specified family alongside. STAGE 5 (zero compute): assemble the bias and R tables
+      and the refusal statement for any regime outside validation.'
+    instrument: Python 3.11 with numpy; NO Sage. The inner Reed-Muller ML decoder is the numpy fast
+      Walsh-Hadamard implementation shared across this batch; the margin is the difference between
+      the largest and second-largest absolute correlation, taken with numpy partition rather than
+      a full sort. Margins are accumulated into a fixed-bin streaming histogram plus a reservoir of
+      exact values near zero, so memory does not scale with T. Bootstrap by numpy resampling with
+      a frozen seed. Tail fitting by direct maximum-likelihood on the declared family, written from
+      its definition, with the analytic control's law computed by exact convolution. Recorded through
+      harness/runner.py.
+    parameters: n = 227 and n = 587 with ord_n(2) = n-1 checked at run time; inner code RM(1,5) length
+      32 and RM(1,6) length 64, duplication 1 and 3; n_e in {7, 18}. Four rate rungs with per-block
+      failure rate targets 1e-2, 1e-3, 1e-4, 1e-5, reached by tuning input weights on a disjoint seed
+      stream. Trial counts T = 10^6, 10^6, 10^7, 10^8 respectively, so direct counting retains at
+      least 1000 failure events at every rung. Tail threshold pre-declared at the 90th percentile
+      of the margin distribution measured on a separate pilot seed stream. 1000 bootstrap resamples
+      per estimate. Analytic control at matched p* on an i.i.d. Bernoulli channel.
+  controls:
+  - Direct-counting validation at every rung where counting is affordable, as a bias gate on the margin
+    estimator.
+  - Analytic i.i.d. Bernoulli control where the margin law is computable and the fitted tail has a
+    known right answer.
+  - Deliberately mis-specified tail family fitted alongside, to show the procedure can reject a family
+    rather than accommodating any.
+  - Throughput measurement with and without instrumentation, confirming the margin costs no asymptotic
+    overhead.
+  - Pre-declared tail threshold, fixed before data generation, since a threshold chosen afterward
+    would fit noise.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): TWO controls, both executable in the same invocation. NULL-ANALYTIC:
+    run the identical instrument on an i.i.d. Bernoulli(p*) channel feeding the same Reed-Muller decoder.
+    There the margin''s distribution is a sum of independent per-coordinate contributions whose law
+    can be computed directly, so the fitted tail has a known right answer; the fit must recover it
+    within a declared tolerance. NULL-COUNT: at every parameter where direct counting is affordable,
+    the margin estimator must reproduce the counted rate within intervals. FOR THE INSTRUMENT TO MEAN
+    ANYTHING BOTH MUST HOLD: a margin estimator that disagrees with direct counting inside the countable
+    regime is biased and is discarded, and a tail fit that cannot recover a computable answer on the
+    i.i.d. channel must not be applied to the real one. A third, cheaper control - a deliberately
+    mis-specified tail family - is fitted alongside to show the fit procedure can distinguish families
+    rather than accommodating any of them.'
+  independent_variables:
+  - target per-block failure rate p
+  - 'estimator: direct count / empirical margin CDF / fitted margin tail'
+  - inner block length and duplication multiplicity
+  - 'channel: HQC pipeline versus i.i.d. Bernoulli control'
+  metrics:
+    primary:
+    - relative bias of each estimator against direct counting per rung
+    - variance-reduction ratio R(p) per rung
+    - fitted versus computed tail parameter on the analytic control
+    - wiring-gate pass rate for F_j = 1{M_j < 0}
+    secondary:
+    - tie rate at M_j exactly zero
+    - throughput with and without instrumentation
+    - mis-specified-family fit quality versus correct family
+    - bootstrap interval widths per estimator
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: R(1e-5), the ratio of trials needed by direct counting to trials needed by the margin
+      estimator for equal relative standard error at per-block failure rate 1e-5, and the relative
+      bias at p = 1e-3.
+    formula: R(p) := (sigma_count / sigma_margin)^2 where each sigma is the bootstrap relative standard
+      error of the corresponding estimate at the same trial count; predicted R(1e-5) >= 10 and monotone
+      increasing in 1/p. Relative bias := |p-hat_margin - p-hat_count| / p-hat_count; predicted <=
+      0.05 at p = 1e-3. Under the null that the margin carries no extra information, R(p) = 1 at every
+      p.
+    source: Pre-registered in the parent proposal IDEA-20260816-6536d7 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Executed at n = 227 and n = 587 with inner blocks of length 32 and 64 - far below
+      deployed HQC - and at artificially elevated failure rates so that direct counting remains available
+      as ground truth at every rung. That overlap is the entire design: the estimator is only ever
+      validated where it can be checked. The transfer assumption is stated and is narrow - that the
+      measured variance-reduction ratio at these block lengths is indicative of the ratio at larger
+      ones - and it is explicitly NOT used to claim any failure-rate value outside the validated regime.
+      IDEA-20260808-5d8b39''s observation that inner block length does not scale with security level
+      is what would make such a transfer plausible, and it is cited as that record''s claim, not asserted
+      here.'
+    correspondence: null
+  tail_checks:
+  - Report the number of failure events at each rung and refuse any rung with fewer than 100.
+  - Report the margin histogram's granularity relative to the fitted tail's scale, since a lattice-valued
+    margin can defeat a continuous fit.
+  - Check R separately in the upper and lower halves of the bootstrap distribution to expose an unstable
+    ratio.
+  - Verify the reservoir of exact near-zero margins is large enough that the CDF-at-zero estimate
+    is not itself binned.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Abort if the wiring gate F_j = 1{M_j < 0} fails on any block.
+  - Abort the rung if direct counting yields fewer than 100 failure events, and report the shortfall
+    rather than an estimate.
+  - Stop at the declared rate ladder; the tail family and threshold are frozen before data generation
+    and are not revised after seeing a fit.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The wiring gate passes, the margin estimator's bias against direct counting is
+    inside the declared tolerance at every validated rung, and the run reports R(p) with bootstrap
+    intervals at all four rungs together with the analytic control's fitted-versus-computed comparison.
+  falsification_criterion:
+  - 'R(1e-5) is below 10: the instrument does not earn its complexity and the measured ratio is the
+    recorded obstruction.'
+  - 'Relative bias exceeds 5 percent at any validated rung: the estimator is biased and is discarded.'
+  - 'The fitted tail fails the analytic control: tail fitting is untrustworthy here and no fitted
+    value is reported anywhere in the campaign.'
+  - 'The mis-specified family fits as well as the correct one: the fit has no discriminating power.'
+  - 'The wiring gate fails: the instrumentation is wrong and nothing is reportable.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-6536d7
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The tail family is unspecified here; a Coordinator must fix it before approval, because choosing
+    a family after seeing the margin histogram is the single most likely way this contract would silently
+    become a claim.
+  - The treatment of exact ties differs between estimators and must be made identical or explicitly
+    separated in advance, since ties are the natural place for a low-rate bias to hide.
+  - Whether margins should be defined on absolute correlations or signed correlations depends on the
+    deployed decoder's convention and must be settled against the committed transcription.
+  - The memory strategy - streaming histogram plus near-zero reservoir - needs its reservoir size
+    derived from the target precision rather than chosen by convenience.

@@ -1,0 +1,17 @@
+# PFDR source design review
+
+This is a zero-run Coordinator design under TASK-20260908-6b47b4. H-PFDR-621852 remains proposed. DEC-20260908-dd5de1 approves the complete finite protocol under standing authorization, effective after the assigned source snapshot is verified and published. No scientific status was promoted, no experiment or Lean proof was run, and no archived source was changed.
+
+The new EXP-PFDR-fd1ae2 covers the original direct-box S4/S5 source experiment. EXP-PFDR-9b4f2a instead studies rank-r GAP substitution and polytope reach with a different trial/reducer panel. Its overlap does not discharge the original 50-plant, 100-positive-control, ten-step bisection and BKZ sensitivity requirements.
+
+The contract preserves m=3 and4, both primes at every24/32/40-bit boundary, t=1,2,3, BKZ20/30, all six source predictions, the near-demand m3 extension to t4/5 and the optionalm5 panel. It fixes actual coefficient lifts, generalized JM shift supports, integer scaling, reduction and exact rational finite-ideal recovery. A size or process checkpoint leaves required cells incomplete; no smaller diagnostic replaces them.
+
+Three source premises need prospective qualification. Unplanted equations may have valid roots, so valid incidental roots are retained beside invalid-output rates and true root-free controls. No common factor does not imply a finite common zero set, so recovery checks proper zero-dimensional ideals and includes a positive-dimensional gcd1 control. Nondecay or nonmonotonicity is a scientific outcome unless independent exact checks demonstrate a defect. Source predictions remain literal data; their overstrong interpretations are not approval premises.
+
+The positive control has100 monic quadratics perprime with allcoefficients nonzero, t4 and exactly nine lattice columns. Its determinant p^20 X^36 and finite LLL/Howgrave-Graham inequality are explicitly checked before a95/100 gate. An additional separated-system control exercises the same finite-ideal recovery module. The design charges all setup, failed sampling, matrix construction, transforms, LLL/BKZ, elimination, root verification and storage. Matched rho/BSGS targets are an explicit20-target subset percurve and are never directly compared to a decomposition recovery rate.
+
+JM2006 section2 and2.1 were directly read in the parent-retrieved extracted primary text. The related TCS2020 elliptic-generator paper was read only through retrieved primary excerpts; its fullPDF remains unavailable. This establishes related context, not novelty of the exact panel. Novelty and complete Pareto position remain unverified. The Lean proof map identifies the load-bearing shift divisibility and small-norm integer-vanishing lemma; exact toolchain/transitive pins are missing, and no proof is claimed.
+
+The parent owns structural validation, exact snapshot receipts, Git and publication. Future Executor TASK-20260908-90b4e1 is gated on fresh admission and pinned dependencies. Its output goes through snapshot33ac16, independent xhigh Validator2a7594 and Coordinator ledger9e36dd/DEC1be909. That is an integrity chain; a claim-changing review needs a separately preregistered review plan. Positive planted recovery alone establishes neither random-target yield nor an ECDLP exponent.
+
+All seven assigned files are ready for parent review. This is one source-design checkpoint in the persistent all-ideas objective.

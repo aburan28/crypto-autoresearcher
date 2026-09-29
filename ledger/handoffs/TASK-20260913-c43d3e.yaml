@@ -1,0 +1,181 @@
+handoff:
+  id: TASK-20260913-c43d3e
+  from: coordinator
+  to: executor
+  objective: >-
+    Consolidate EXP-CRYPTO-5e8beb's implementation into a single, complete,
+    end-to-end capable driver, closing the two material gaps confirmed by
+    the independent review TASK-20260908-0eabfe (verdict REVISE): C8 (no
+    panel-advantage scoring logic existed) and C10 (the guarded launch
+    admission check performed existence-only verification instead of the
+    content checks its own docstring and the specification's launch_gate
+    describe). This is still zero-run preparation, not a scientific launch:
+    scientific_execution_authorized stays false and no real fixture over the
+    frozen 272-partition panel may be generated or evaluated by this task.
+  uncertainty_reduced: >-
+    Whether a single, non-fragmented implementation of EXP-CRYPTO-5e8beb
+    exists that (a) correctly reproduces the six original modules
+    (fixtures/kernels/transcripts/reference/certificates/runtime_preflight),
+    already confirmed correct by TASK-20260908-0eabfe; (b) genuinely scores
+    the 32 restricted comparison panels and 16 paired qualifiers per
+    specification.panel_advantage, already validated as correct against
+    synthetic metadata by TASK-20260908-630c49's scorer_and_nonadmission_
+    fidelity joint; and (c) performs real content verification (not mere
+    file-existence checks) before ever admitting a scientific launch, and
+    performs real native-Linux-cgroup-v2 / Docker backend capability
+    detection instead of runtime_preflight.py's current unconditional
+    ready_for_scientific_launch=False stub.
+  inputs:
+    - experiments/EXP-CRYPTO-5e8beb/specification.yaml
+    - experiments/EXP-CRYPTO-5e8beb/implementation/ (fixtures.py, kernels.py,
+      transcripts.py, reference.py, certificates.py, driver.py,
+      runtime_preflight.py, README.md, implementation-manifest.yaml,
+      implementation-report.yaml -- read-only; already snapshot-bound under
+      coordination/design/BATCH-51d1bb/archives/TASK-20260907-c0a81d/)
+    - experiments/EXP-CRYPTO-5e8beb/implementation-v2/ (panel_scoring.py,
+      driver.py, test_correction.py, README.md -- read-only; already
+      snapshot-bound under coordination/goals/GOAL-CRYPTO-001/batches/
+      BATCH-eaf08d/archives/TASK-20260908-800b86/)
+    - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/implementation-review.yaml
+      (the REVISE verdict and its C8/C9/C10 findings this task closes)
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-eaf08d/reviews/TASK-20260908-630c49/validation-report.yaml
+      (the scorer_and_nonadmission_fidelity joint that validated panel_scoring.py
+      against synthetic metadata -- read only the `joint_verdicts[0]` /
+      `holds`-scoped material; the file's other joint concerns an unrelated
+      tools/validate_ledger.py YAML-parsing defect, already independently
+      closed under BATCH-65d449/DEC-20260908-bc4d61, and is out of this
+      task's scope entirely)
+    - >-
+      ledger/decisions/DEC-20260908-171140.yaml (scoping -- accepts the pure
+      scorer and always-refusing driver only within independently tested
+      artificial metadata scope; full scientific execution remains
+      unimplemented/unadmitted -- that is exactly this task's remaining gap)
+    - tools/goal_lanes.py, docs/concurrent-goal-lanes.md (for the launch-lock
+      content-verification semantics C10 requires this task to actually check)
+  constraints:
+    - >-
+      Write only under a new directory,
+      experiments/EXP-CRYPTO-5e8beb/implementation-v3/. Do not modify any
+      file under implementation/ or implementation-v2/ -- both are
+      snapshot-bound and independently reviewed; copy what is unchanged
+      (fixtures.py, kernels.py, transcripts.py, reference.py, certificates.py,
+      runtime_preflight.py's declared-constant table, panel_scoring.py) into
+      implementation-v3/ rather than referencing the old directories from
+      new code, so implementation-v3/ is self-contained and independently
+      snapshot-able.
+    - >-
+      Precedent for what "zero-run" permits, established by this
+      experiment's own prior tasks: implementation-v2/test_correction.py's
+      own docstring states "Deterministic artificial metadata checks; never
+      evaluates scientific fixtures" and its fixture() helper feeds
+      hand-constructed fake delta/qualifier values into panel_scoring.py,
+      never the real fixtures.py/kernels.py/transcripts.py pipeline. Testing
+      infrastructure code (preflight probes, admission-check plumbing, the
+      panel scorer, argument parsing, hashing, file I/O) against synthetic
+      or toy inputs -- including actually invoking runtime_preflight's
+      cgroup/Docker probes against this container's real filesystem to see
+      what they honestly report -- is ordinary engineering verification, not
+      scientific execution, and this task should do it rather than write
+      untested plumbing. What remains absolutely forbidden is generating or
+      evaluating a real fixture over the frozen panel (N in {11,15,17}, the
+      specific seeds 0..31, kernels R1-R4/P/U) -- i.e. never call
+      fixtures.generate_permutation / kernels.certify_kernel /
+      transcripts.propagate_real|propagate_simulator with the specification's
+      actual frozen parameters, and never write anything under
+      experiments/EXP-CRYPTO-5e8beb/runs/.
+    - >-
+      C10 close-out, concretely: driver.check_launch_admission must (a)
+      parse the approved spec file's YAML and check status=='approved' and
+      approved_by is non-null, not merely hash-compare it against a
+      caller-supplied value; (b) read implementation-manifest.yaml's
+      implementation_files_sha256 entries and compare each against the
+      actual current bytes of the corresponding file in
+      implementation-v3/, refusing on any mismatch or missing entry; (c)
+      parse the independent-review receipt as YAML, require it to contain
+      `verdict: PASSED` (or the exact passed-equivalent your reading of
+      agents/validator.md's schema uses) bound to the exact reviewed
+      commit/path, not merely check the file exists; (d) read the launch
+      lock via tools/goal_lanes.py's actual claim-file schema (a live,
+      unexpired claim naming this task's own write scope), not merely
+      Path.is_file(). Keep the function fail-closed: any parse error,
+      missing field, or expired/mismatched claim is a refusal, never a
+      default pass.
+    - >-
+      C8 close-out: verify implementation-v2/panel_scoring.py, copied
+      in unchanged, actually implements
+      specification.panel_advantage.per_panel_qualifier (mean(null_delta)
+      - coordinate_delta >= 1/8 AND >= 24/32 strict null wins),
+      paired_qualifier (same q/kernel qualifies at both N=11 and N=17,
+      enumerated over all 16 pairs), and both conjecture_positive/
+      conjecture_negative outcomes with no built-in bias -- TASK-20260908-630c49
+      already found this holds against synthetic metadata; re-derive that
+      finding yourself by reading the code and re-running (or writing your
+      own equivalent of) that synthetic check, rather than taking the prior
+      report on faith, per this program's standing rule to independently
+      re-verify rather than propagate an unread citation.
+    - >-
+      C9 minor close-out: either wire TRAP_HORIZON/REFERENCE_TRAP_HORIZON
+      into the trap distribution functions that currently hardcode two
+      steps, or remove the unused constants -- your choice, but do one of
+      them and record which.
+    - >-
+      Real preflight, concretely: runtime_preflight.py's
+      check_declared_constants and check_protection_establishable currently
+      always return ready_for_scientific_launch=False with no live probing
+      at all (confirmed by TASK-20260908-0eabfe's C11 finding, which found
+      this correct for a preparation-only task but explicitly named it as
+      the reason no real launch could ever be admitted). Add real,
+      side-effect-free capability probes appropriate to THIS container: can
+      cgroup v2 controllers actually be read at some real path (report what
+      exists, do not assume specification.runtime.native's exact production
+      path is present here); is a `docker` binary on PATH and does `docker
+      info` succeed. Record what was actually observed on this host, with
+      real command output/exit codes, never a fabricated or assumed value.
+      This function may now return ready_for_scientific_launch=True when a
+      real, complete, verified admission path exists -- that capability is
+      the whole point of this task -- but it must never claim readiness
+      without having actually performed the check on this host.
+    - >-
+      A driver.main() invocation with a fully valid admission bundle (real
+      spec, real manifest hashes, real passed review receipt, real
+      unexpired launch lock) may now proceed past admission -- implement the
+      actual end-to-end scientific execution path (fixture generation
+      through certificate/panel-score output, per specification.artifacts'
+      exact file/directory layout) as real, callable code. But do not
+      yourself supply such a bundle or invoke that path: no launch lock
+      exists for this task (scientific_execution_authorized is false and no
+      TASK claim in this write_scope constitutes a launch lock), so the
+      execution path must exist and be readable/reviewable but is not
+      exercised by this task. Prove it is at least structurally sound via
+      the synthetic-metadata testing style above (e.g. feed it a tiny,
+      clearly-labeled non-frozen toy panel -- N=3 or N=4, invented seeds,
+      explicitly NOT the specification's N in {11,15,17} -- through the
+      full fixture-to-certificate pipeline as a code-path smoke test,
+      clearly distinguished in your report from any claim about the frozen
+      scientific panel).
+    - Never select a provider, backend, endpoint, or model identifier containing Bedrock, case-insensitively.
+  deliverables:
+    - experiments/EXP-CRYPTO-5e8beb/implementation-v3/ (fixtures.py,
+      kernels.py, transcripts.py, reference.py, certificates.py,
+      panel_scoring.py, runtime_preflight.py, driver.py, README.md,
+      implementation-manifest.yaml, implementation-report.yaml)
+  artifact_paths:
+    - experiments/EXP-CRYPTO-5e8beb/implementation-v3/
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    reasoning_effort: medium
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: null
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - C10's four admission checks each perform real content verification, demonstrated against both a passing and a deliberately-broken synthetic bundle.
+    - C8's panel-scoring logic re-verified by this task's own independent re-derivation, not merely cited from TASK-20260908-630c49.
+    - Real cgroup v2 / Docker capability probing implemented and exercised against this actual container, with real observed output recorded (not assumed).
+    - The full fixture-to-certificate execution path exists as callable code and is smoke-tested only against an explicitly-labeled non-frozen toy panel, never the real N in {11,15,17} frozen panel.
+    - implementation-manifest.yaml and implementation-report.yaml state scientific_runs=0, fixtures_evaluated_on_frozen_panel=0, and disclose exactly what synthetic/toy testing was performed and on what non-frozen inputs.
+  review_plan: null

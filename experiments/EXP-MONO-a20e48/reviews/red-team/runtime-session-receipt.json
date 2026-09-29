@@ -1,0 +1,133 @@
+{
+  "task_id": "red-team-mono3-a20e48",
+  "role": "red-team",
+  "joints_owned": ["J2-adversarial-verification"],
+  "session_started_reading": "2026-08-30T23:xx (branch ideas-ecdlp-20260830, repo /Volumes/SSD990/crypto-autoresearcher)",
+  "report_written_at": "2026-08-31T00:24:00Z",
+  "scratchpad_dir": "/private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad",
+  "no_network_access": true,
+  "no_commit_made": true,
+  "producer_or_validator_files_modified": false,
+  "sibling_review_dir_read": false,
+  "sibling_review_dir_path_noted_but_not_opened": "experiments/EXP-MONO-a20e48/reviews/validator/",
+
+  "commands_run": [
+    {
+      "purpose": "Confirm branch, list experiment artifact tree and git provenance",
+      "commands": [
+        "git branch --show-current",
+        "git log --oneline -- experiments/EXP-MONO-a20e48",
+        "git log --oneline --all | grep -i a20e48",
+        "git show --stat 1bd4cf9d0",
+        "git log --all --diff-filter=A --name-only | grep -i mono-a20e48"
+      ],
+      "finding": "Exactly two commits touch this experiment: 17a6da70c (design/freeze, spec only) and 1bd4cf9d0 (snapshot, adds implementation.md + all implementation/*.py + both runs' full artifacts + execution_report.yaml in ONE commit). tower.py appears for the first and only time in 1bd4cf9d0 already containing the CORRECTED Level2 exponent (L1.q0, not q1). No earlier buggy version, no test/selftest file, ever committed on any ref."
+    },
+    {
+      "purpose": "Independent, from-scratch re-derivation of N1/N2/N2-twin R_k from raw per-point logs (never reusing battery.py's subgroup_closure)",
+      "script": "scratchpad/verify.py",
+      "commands": [
+        "python3 verify.py <run>/per_base_point_log/N1_k{2,3,4}_sampled.jsonl 4",
+        "python3 verify.py <run>/per_base_point_log/N2_k{1,2,3,4}.jsonl 4",
+        "python3 verify.py <run>/per_base_point_log/N2twin_k{1,2,3,4}.jsonl 4",
+        "python3 verify.py <run>/per_base_point_log/N2_sample_size_control_S{1000,100000}.jsonl 4"
+      ],
+      "results_summary": {
+        "N1_group_order_both_runs_k2_3_4": 8,
+        "N1_order_profile": {"1": 1, "2": 5, "4": 2},
+        "N1_smallest_class_count_range_S10000": "1193-1319",
+        "N2_R_k_both_runs": [4, 2, 4, 2],
+        "N2twin_R_k_both_runs": [4, 4, 4, 4],
+        "N2_sample_size_control_both_runs": "group_order=4 at exhaustive(211), S=1000, S=100000"
+      }
+    },
+    {
+      "purpose": "Independent hand re-derivation of N4 (single exact computation, no per-point log) from field theory",
+      "commands": [
+        "python3 -c \"...\" # extracted N4 block from raw-result.json and hand-verified Frobenius action on roots x, 14x, 196x in F_p[x]/(x^3-2)"
+      ],
+      "hand_derivation": "Frob(x)=x^211=(x^3)^70*x=2^70*x=196x=root2; Frob(14x)=14*Frob(x)=14*196x mod211=1*x=root0 (14*196=2744=13*211+1); Frob(196x)=196*196x mod211=14x=root1 (196^2=38416=182*211+14). Gives perm=[2,0,1] for k=1, matching raw-result.json exactly. Frob^2 and Frob^3 likewise hand-verified against R_k_ascending['2'] and ['3'].",
+      "result": "N4 R_1=3 (3-cycle), R_2=3, R_3=1 (identity), R_4=3 -- fully confirmed by hand, independent of both the Executor's code and its report."
+    },
+    {
+      "purpose": "Reconstruct the LITERALLY DISCLOSED pre-run bug and test its consequence on real battery data with the real seeded sampling procedure",
+      "script": "scratchpad/bugtest/tower_buggy.py + run_bug_n1.py",
+      "patch": "Level2.__init__: self.s = L1.pow(self.e, (L1.q0 - 1) // 2)  ->  self.s = L1.pow(self.e, (self.q1 - 1) // 2)",
+      "result": "At S=2000 samples per k (k=2,3,4), 25-26% of points raise an uncaught RuntimeError ('Frobenius image of point 0 matched no labelled point'), exactly matching the count of points that would have been classified 'four_cycle' by the correct code. Confirms the disclosed bug's mechanism is mathematically coherent and, under the actual shipped run_experiment.py (no try/except around classify calls), would crash the whole run rather than silently misreport -- corroborating (not proving) 'caught before any official run'."
+    },
+    {
+      "purpose": "Proves-too-much / silent-coincidence construction: a maximally broken Level2.frob that does NOT crash",
+      "script": "scratchpad/bugtest/tower_identity_bug.py + run_bug_n1_id.py + run_bug_n1_k1.py",
+      "patch": "Level2.frob(x) -> return x unchanged (identity), instead of (L1.conj(A), L1.mul(L1.conj(B), self.s))",
+      "results": {
+        "k1_exhaustive_histogram_buggy": {"block_swap_involution": 11100, "sigma_i": 11100, "identity": 17160, "sigma1_sigma2": 4950, "four_cycle": "ABSENT (0)"},
+        "k1_exhaustive_histogram_real_both_runs": {"block_swap_involution": 11100, "sigma_i": 11100, "identity": 6105, "four_cycle": 11055, "sigma1_sigma2": 4950},
+        "closure_order_under_bug_k2_3_4": 8,
+        "interpretation": "17160 = 6105 + 11055 exactly: the bug folds every four_cycle point into 'identity' (a no-op Frobenius always looks like the identity permutation), yet the CLOSURE of the surviving generators (two reflection classes + central element) still reaches the full order-8 D4, because two reflections from different conjugacy classes already generate D4 by composition. group_order==U is therefore satisfiable by this broken code with FOUR_CYCLE COMPLETELY ABSENT."
+      },
+      "exoneration_check": "Independently tallied the REAL run's N1_k1_exhaustive.jsonl (both runs, all 44521 rows) directly (not the Executor's summary): identity=6105 (not 17160), four_cycle=11055 (present, not absent) -- exactly matches EXP-MONO-4c7479's own committed reference histogram (independently grepped from experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json, confirmed identity:6105 genuinely present there, not something invented for this contract). The real run does NOT exhibit the identity-bug's fingerprint at k=1, and four_cycle counts at k=2,3,4 (from raw sampled logs, ~24-26% of 10000, matching D4's expected 2/8 class density) show the same is true at k>=2."
+    },
+    {
+      "purpose": "Proves-too-much control required by the task: a deliberately-broken 'always report no drop' protocol variant on N2, checked with MY OWN independent closure code",
+      "script": "scratchpad/bugtest/tower_conj_bug.py + run_bug_n2.py",
+      "patch": "Level1.conj(x) -> return x unchanged (identity), instead of (x[0], F0.neg(x[1]))",
+      "result": "R_k = 1 (trivial group, every Frobenius permutation = identity) at all four k on N2, run with the real seeded S=10000 sampling procedure. MISMATCH against forced (4,2,4,2) at every single k, caught immediately by the same independent verification method used to certify the real run. Confirms the method has genuine discriminating power, not just agreement-by-construction with whatever is logged."
+    },
+    {
+      "purpose": "Independent recomputation of the disclosed N3 statistical excursion and its multiple-comparisons context",
+      "commands": [
+        "python3 -c \"...\" # tallied N3_k4.jsonl (RUN-MONO-a20e48-2) class '1^4' directly from raw draw-level log"
+      ],
+      "result": "obs=56, expected=83.33, se=8.937, deviation=-3.0586 se -- confirms the disclosed number exactly from raw data.",
+      "multiple_comparisons_calc": {
+        "cells": "N3: 5 classes x 4k x 2 runs = 40; N5: 7 classes x 4k x 2 runs = 56; N3 identical-object-null: 2 halves x 5 classes x 2 runs = 20; total naive = 116, dof-corrected (classes-1 per cell) = 96",
+        "per_cell_p_exceed_3se_twosided": 0.0027,
+        "expected_exceedances_naive": 0.313,
+        "P_at_least_one_naive": 0.269,
+        "expected_exceedances_dof_corrected": 0.259,
+        "P_at_least_one_dof_corrected": 0.229,
+        "conclusion": "Observing exactly one ~3.06-se excursion out of ~100 quasi-independent checks is squarely within the null expectation (~23-27% chance of seeing >=1); not remarkable."
+      }
+    },
+    {
+      "purpose": "N5 secondary-finding check: is the density profile suspiciously perfect or evidence of non-independent draws across k?",
+      "commands": [
+        "python3 -c \"...\" # printed all N5 histograms and deviation_in_se for both runs, all k, from raw-result.json"
+      ],
+      "result": "All 56 (run x k x class) deviations range -2.58 to +2.30 se, ordinary scatter, no second near-3-se hit. Histograms differ materially across k within a run (e.g. run1 k=1 '1^5'=22 vs k=2 '1^5'=13), evidencing genuinely independent redraws, not memoized/copied data. Verdict is hardcoded UNDECIDED in run_experiment.py regardless of density match (grep-confirmed), so no risk of a good fit being smuggled into DECIDED. No anomaly found."
+    },
+    {
+      "purpose": "Coupon-collector arithmetic for N1/N2/N2-twin at S=10000",
+      "commands": [
+        "python3 -c \"S=10000; p_min=1/8; print(S*math.log10(1-p_min))\" -> -579.9",
+        "python3 -c \"S=10000; p_min=1/4; print(S*math.log10(1-p_min))\" -> -1249.4"
+      ],
+      "result": "P(miss a genuinely-present class) ~ 10^-580 (N1, worst-case density 1/8) and ~10^-1249 (N2/N2-twin, worst-case density 1/4) -- far beyond the contract's own qualitative '>=0.999' claim; the false-negative sampling risk is not a live concern at this S. The operative uncertainty for N1's headline result is field-arithmetic correctness (see tower.py mutations above), not sampling adequacy."
+    }
+  ],
+
+  "artifacts_read_in_full": [
+    "AGENTS.md",
+    "agents/red-team.md",
+    "ledger/proposals/IDEA-20260830-8a767e.yaml",
+    "ledger/hypotheses/H-MONO-59f6a6.yaml",
+    "experiments/EXP-MONO-a20e48/specification.yaml",
+    "experiments/EXP-MONO-a20e48/execution_report.yaml",
+    "experiments/EXP-MONO-a20e48/implementation.md",
+    "experiments/EXP-MONO-a20e48/implementation/battery.py",
+    "experiments/EXP-MONO-a20e48/implementation/fieldext.py",
+    "experiments/EXP-MONO-a20e48/implementation/fieldpoly.py",
+    "experiments/EXP-MONO-a20e48/implementation/tower.py",
+    "experiments/EXP-MONO-a20e48/implementation/seed.py",
+    "experiments/EXP-MONO-a20e48/implementation/run_experiment.py",
+    "experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/manifest.yaml",
+    "experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/raw-result.json",
+    "experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/per_base_point_log/*.jsonl (all 24 files, full contents)",
+    "experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/raw-result.json",
+    "experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/per_base_point_log/*.jsonl (all 24 files, full contents)",
+    "experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json (external cross-check only)"
+  ],
+
+  "verdict": "holds",
+  "confidence_note_on_N1": "HIGH confidence that N1 genuinely did not drop in this run. This rests on: (1) independent recomputation of R_k=8 at every k, both runs, from raw permutation data using from-scratch closure code; (2) a full hand re-derivation of the D4 element-order signature (1 identity + 5 order-2 + 2 order-4) matching exactly; (3) ruling out, from raw per-point data (not summary trust), the specific silent-failure mode that a broken Level2 Frobenius could plausibly produce (four_cycle present with structurally-correct density at every k, exactly matching an external sibling-experiment reference at k=1); (4) confirming the coupon-collector false-negative risk is astronomically small, so this is not a sampling-adequacy question at all. Residual, disclosed uncertainty: the pre-run bug-catch narrative itself has no artifact trail (named as Objection 1, a process gap), and the labelling control's raw data was not retained (Objection 4)."
+}

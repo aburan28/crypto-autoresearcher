@@ -295,8 +295,13 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 
 def cmd_campaign(args: argparse.Namespace) -> int:
-    """Read-only campaign observations and the local peer-MCP daemon."""
+    """Campaign observations, peer-MCP daemon, and opt-in supervisor."""
     return _delegate("orchestration.campaign.cli", args.rest)
+
+
+def cmd_formal(args: argparse.Namespace) -> int:
+    """Formalize a claim with MathCode and verify it with Lean."""
+    return _delegate("orchestration.formal.cli", args.rest)
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -389,7 +394,8 @@ def build_parser() -> argparse.ArgumentParser:
             ("adapter", cmd_adapter, "resolve policies, inspect backends"),
             ("agent", cmd_agent, "plan or run a single dispatched task"),
             ("eval", cmd_eval, "evaluation suites, baselines, comparisons"),
-            ("campaign", cmd_campaign, "read-only campaign observations and peer coordination")):
+            ("campaign", cmd_campaign, "campaign observations and opt-in autopilot"),
+            ("formal", cmd_formal, "formalize a claim in Lean and machine-check it")):
         p = sub.add_parser(name, help=help_text,
                            add_help=False)   # pass --help through to the sub-CLI
         p.add_argument("rest", nargs=argparse.REMAINDER)

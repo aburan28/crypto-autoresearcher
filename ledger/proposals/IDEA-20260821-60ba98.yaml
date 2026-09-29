@@ -1,0 +1,862 @@
+idea:
+  id: IDEA-20260821-60ba98
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-08-21'
+  title: >-
+    What a non-conforming ML-DSA signer leaks is EXACTLY the firing rate of the
+    check it omits: TV(D_conform, D_omit) = p_R identically, which turns
+    "what does the security argument lose" into the named additive term N*p_R
+    with crossover N* = 1/p_R, and reconciles in one formula the published
+    half-hour secret-key recovery from omitting a rejection test (p ~ 0.76)
+    with the essentially nil consequence of omitting the ct0 test
+    (p <= 7.3e-9 at ML-DSA-44, 0 at -65/-87)
+  class: mechanism
+
+  claim: >-
+    RQ-MLDSA-ffa0f5's third target asks what a signer that skips a signing-only
+    rejection LEAKS and what the security argument LOSES, "stated as a named
+    term". Both have an exact answer that needs no measurement of the leak
+    itself, only of the rate.
+
+    (A) THE IDENTITY. Let a conforming signer loop until predicates
+    P = P_1 AND ... AND P_m all hold, and let a non-conforming signer omit
+    exactly one predicate P_R, looping until the remaining conjunction
+    Q = AND_{i != R} P_i holds. Write D_conf for the law of the emitted
+    signature under the conforming signer and D_omit for the law under the
+    omitting one. Then D_conf is D_omit further conditioned on P_R, so for
+    p_R := Pr[NOT P_R | Q],
+        TV(D_conf, D_omit) = p_R   EXACTLY, with the supremum attained on the
+    event {NOT P_R} itself. No approximation, no heuristic, no scale limit.
+
+    (B) THE NAMED TERM. By a standard hybrid over N signing queries, ANY
+    adversary's advantage against the omitting signer exceeds its advantage
+    against the conforming signer by at most N*p_R. So what the ML-DSA security
+    argument loses when a signer omits P_R is an ADDITIVE N*p_R in every
+    EUF-CMA / SUF-CMA statement about that signer, and nothing else: the term
+    is named, it is linear in the query count, and it saturates at the
+    crossover N* = 1/p_R, beyond which the argument transfers no guarantee at
+    all. That sentence is the object RQ-MLDSA-ffa0f5 asks for and this corpus
+    does not contain it.
+
+    (C) THE BOUND IS TIGHT, NOT MERELY VALID, AND THE MATCHING DETECTOR IS
+    CONCRETE. An observer holding t0 evaluates P_R = (||<<c t0>>||_inf <
+    gamma2) on every signature it sees, so it distinguishes the two signers
+    with advantage 1 - (1 - p_R)^N, which agrees with N*p_R to first order.
+    Leak is therefore Theta(N*p_R): the rate is not an upper bound on the leak,
+    it IS the leak.
+
+    (D) WHAT THE FORMULA EXPLAINS, AND THIS IS THE DISCRIMINATING PAYLOAD.
+    Two facts about omitted ML-DSA rejection tests sit in the literature
+    looking contradictory. Azevedo-Oliveira, Calle Viera, Cogliati and Goubin
+    (eprint 2025/195, PKC 2025) state, in an abstract this session read, that
+    "an adversary with enough rejected signatures can recover Dilithium's
+    secret key in less than half an hour on a desktop computer", obtained "by
+    physically preventing one of the rejection sampling tests from happening".
+    Meanwhile RQ-MLDSA-ffa0f5 records the ct0 test as unobserved over more than
+    a billion signatures. Under (A)-(C) these are the same statement at two
+    values of one parameter: the first-stage tests (Algorithm 7 Line 23) have
+    p_R = 1 - 1/Repetitions = 0.765 / 0.804 / 0.740 at ML-DSA-44 / -65 / -87
+    from FIPS 204 Table 1's 4.25 / 5.1 / 3.85, so N*p_R exceeds 1 at N = 2 and
+    the argument transfers nothing; the Line-28 ct0 test has p_R <= 7.34e-9 at
+    ML-DSA-44 and, by IDEA-20260805-bb52fa's envelope theorem, exactly 0 at
+    ML-DSA-65 and ML-DSA-87, so N* = 1.36e8 and infinity respectively.
+    THE PREDICATE'S DEPENDENCE ON THE SECRET IS IRRELEVANT; ONLY ITS RATE
+    MATTERS. That is counterintuitive and it is the falsifiable content: a
+    reader's default intuition is that omitting a t0-DEPENDENT test leaks t0 at
+    a rate governed by that dependence, and (A) says it cannot.
+
+    NOT A BREAK. Every signature here is produced by a party holding sk; no
+    forgery is constructed; nothing is asserted about MLWE, MSIS or
+    SelfTargetMSIS in any direction. The result is about a NON-CONFORMING
+    implementation, and it says the standard's own check is worth exactly its
+    firing rate - which at two of three parameter sets is worth nothing at all,
+    and which is the honest reason a conformance test cannot find the defect.
+
+  mechanism: >-
+    (1) PROOF OF (A), THREE LINES. Let mu be the law of one signing ATTEMPT's
+    output. D_omit = mu(. | Q); D_conf = mu(. | Q AND P_R) = D_omit(. | P_R).
+    For any event S, D_conf(S) - D_omit(S) = D_omit(S AND P_R)/D_omit(P_R) -
+    D_omit(S), which is maximised at S = P_R with value 1 - D_omit(P_R) = p_R,
+    and no S exceeds it. Hence TV = p_R. The only structural fact used is that
+    the conforming signer's accept set is a SUBSET of the omitting signer's,
+    which is what "omits a rejection condition" means. It therefore applies to
+    every one of the four predicates and to any conjunction of them, and it
+    applies unchanged to the hedged and deterministic modes because it never
+    touches how y is generated.
+
+    (2) WHY THE HYBRID IS LEGITIMATE AND WHERE IT IS NOT. Signing queries are
+    independent given sk only if y is freshly random per attempt. In the hedged
+    mode this holds. In the deterministic mode (rnd = 0) repeated queries on
+    the SAME message return the same signature, so the hybrid is over DISTINCT
+    messages and N must be read as the number of distinct messages signed.
+    Stating this is part of the deliverable, because "N signatures" and
+    "N distinct messages" differ by an unbounded factor in a deployment that
+    re-signs.
+
+    (3) WHY THE LOWER BOUND MATTERS MORE THAN THE UPPER ONE. An upper bound of
+    N*p_R alone would leave open that the true leak is far smaller, which is
+    what a defender would like to argue. The t0-holding detector in (C) closes
+    that: it is an explicit adversary achieving 1 - (1-p_R)^N. So the interval
+    [1-(1-p_R)^N, min(1, N*p_R)] has ratio -> 1 as N*p_R -> 0, and the leak is
+    pinned, not bracketed loosely.
+
+    (4) THE TRANSCRIPT-VISIBLE PART IS SMALLER THAN THE LEAK, AND THE RATIO IS
+    THE TESTABILITY OBSTRUCTION. An omitted ct0 test produces a signature
+    violating the MakeHint/UseHint sufficient condition. IDEA-20260805-031ce2
+    derives (generator-computed, re-derivation required) that such a signature
+    STILL VERIFIES with probability sigma ~ 0.991 at ML-DSA-44. So the rate at
+    which the omission is visible to a party that merely verifies is
+    p_R*(1-sigma) ~ 6.6e-11, while the rate at which it leaks to a party
+    holding t0 is p_R ~ 7.3e-9. The ratio 1/(1-sigma) ~ 110 is the price of not
+    knowing t0, and it is why no amount of sign-verify testing finds the defect
+    even at the parameter set where the defect is reachable.
+
+    (5) THE EXPERIMENT IS ABOUT p_R, NOT ABOUT THE LEAK. Because (A) is a
+    theorem, the only empirical content is the rate, and the only way the
+    proposal can be WRONG in a way an experiment detects is if the identity's
+    premise fails - i.e. if the omitting signer's output law is NOT the
+    conditional law. That premise has one real failure mode, and the design
+    hunts it: an implementation that omits P_R may also change the ATTEMPT
+    COUNTER (FIPS 204 increments kappa by l per attempt), so the omitting
+    signer draws y from a different ExpandMask index sequence than the
+    conforming one would have at the same attempt. This does not change the law
+    of a single attempt (ExpandMask outputs are modelled as independent across
+    kappa), but it does mean the two signers' outputs are not COUPLED, so an
+    empirical TV estimate compares two independent streams and its finite-
+    sample floor must be derived before it is read.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX WAS UNAVAILABLE THIS SESSION (the
+      operating brief states it is configured with an in-memory Qdrant and
+      answers nothing); it was NOT called, and no result is attributed to it.
+      Retrieval instrument was grep over the repository plus WebSearch/WebFetch.
+      COMMANDS RUN from /home/user/crypto-autoresearcher, with counts:
+      (i) Grep -i "linear program|polytope|bounded noise|bounded-noise|
+      Chebyshev center" over ledger/ -> 54 files, NONE of them any of the five
+      RQ-MLDSA-ffa0f5 proposals; (ii) Grep -i "bit-plane|bit plane|per-key
+      dispersion|ACVP|interoperab" over the repository (*.yaml, *.md) -> 39
+      files, again none under RQ-MLDSA-ffa0f5; (iii) Grep "MLDSA" over
+      ledger/hypotheses -> 8 files, of which exactly two carry
+      question_id: RQ-MLDSA-ffa0f5 (H-MLDSA-2ae88d, H-MLDSA-2d4123).
+      READ IN FULL OR IN LARGE PART: ledger/questions/RQ-MLDSA-ffa0f5.yaml,
+      ledger/goals/GOAL-MLDSA-002.yaml, the lane's complete existing-proposal
+      inventory (5 rows), IDEA-20260805-bb52fa (all 619 lines),
+      IDEA-20260805-630606 (all 556 lines), IDEA-20260805-031ce2 (lines 1-120),
+      IDEA-20260808-4f83f6 (lines 1-160), IDEA-20260808-e5f947 (lines 1-140),
+      agents/idea-generator.md, docs/inventor-protocol.md,
+      docs/target-result-profile.md, knowledge/techniques/KN-TECH-1a5b7e.md,
+      ledger/proposals/IDEA-20260816-b336a3.yaml.
+      WEB QUERIES RUN (6 searches, 7 fetch attempts): S1 '"Uncompressing
+      Dilithium''s public key" eprint 2024/1373 t0 recovery signatures' (8
+      links); S2 'Dilithium t0 recovery from signatures hint bits linear
+      programming bounded noise' (8 links); S3 'Azevedo Oliveira Calle Viera
+      Cogliati Goubin "Uncompressing Dilithium" method recover t0 maximum
+      likelihood distribution hint' (10 links); S4 'ML-DSA ACVP test vectors
+      signatureVerification NIST usnistgov ACVP-Server ML-DSA-sigVer expected
+      results' (9 links); S5 'Dilithium t0 recovery "least significant" bits
+      harder more signatures per bit plane precision estimator' (8 links);
+      S6 'ML-DSA implementations differential testing disagree accept set
+      malformed hint verifier conformance liboqs PQClean' (10 links).
+      FETCHED AND READ (abstract/landing pages only, never full text):
+      https://eprint.iacr.org/2025/195 (abstract verbatim),
+      https://eprint.iacr.org/2024/1373 (abstract page),
+      https://eprint.iacr.org/2024/2046 (abstract page),
+      https://eprint.iacr.org/2026/1333 (title/authors/abstract).
+      FETCH FAILURES, RECORDED AS FAILURES: https://eprint.iacr.org/2025/195.pdf
+      and https://eprint.iacr.org/2024/1373.pdf both returned binary PDF the
+      fetch tool could not parse, so NEITHER FULL PAPER WAS READ;
+      https://link.springer.com/chapter/10.1007/978-3-032-01855-7_14 returned a
+      303 to an authentication endpoint and was not followed.
+    results: >-
+      IN-CORPUS: no record states the identity TV(D_conf, D_omit) = p_R, and no
+      record contains an additive security term for an omitted signing check.
+      The four nearest are IDEA-20260805-031ce2 (a three-cell census of the
+      predicates plus the hint-correctness fibre and sigma ~ 0.991),
+      IDEA-20260805-bb52fa (the exact reachability envelope and the derived
+      rate 7.34e-9 at ML-DSA-44, exactly 0 at -65/-87),
+      IDEA-20260808-4f83f6 (a public/secret partition of the four predicates
+      and a measurement of the induced accepted-CHALLENGE law deviation) and
+      H-MLDSA-2d4123 (the four predicates as a scope). All four are inputs
+      here; none states what is claimed.
+      EXTERNAL: eprint 2025/195 (abstract read) is the single most important
+      find of this screen and is the reason the proposal exists in this form -
+      it establishes that omitting A rejection test is catastrophic, which
+      makes the question "which one, and why is ct0 different" sharp rather
+      than rhetorical. Whether that paper already contains the total-variation
+      identity is UNKNOWN because its full text could not be read.
+    verdict: >-
+      UNVERIFIED, and specifically unverified in the one place it matters: the
+      identity in (A) is elementary enough that it may well be stated inside
+      eprint 2025/195 or in the rejection-sampling literature (Lyubashevsky's
+      original abort analysis is the obvious candidate), and this session could
+      not open either. Claimed new RELATIVE TO THIS CORPUS: the identity, the
+      named additive term N*p_R, the crossover N* = 1/p_R per parameter set,
+      the matching t0-holding lower bound, and the reconciliation of 2025/195
+      with the ct0 test's rate. ASSEMBLED FROM KNOWN PARTS: the conditioning
+      identity is a two-line exercise; the hybrid argument is textbook; p_R for
+      the ct0 predicate is IDEA-20260805-bb52fa's, and sigma is
+      IDEA-20260805-031ce2's, both generator-computed and both requiring
+      re-derivation before use.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE PAIR OF OUTPUT LAWS (D_conf, D_omit) ON SIGNATURE SPACE, tracked as a
+      single scalar - their total variation distance - through the signing
+      loop. Not the signature, not the predicate, not the secret: the DISTANCE
+      BETWEEN TWO SIGNERS. Established families declared off-limits as the
+      primary lens for this proposal: lattice reduction and any estimator
+      differencing; fault injection and physical side channels (GOAL-MLDSA-001
+      owns those and RQ-MLDSA-ffa0f5's second constraint makes the separation
+      binding - note that eprint 2025/195 realises the omission BY a fault and
+      this proposal does not, it studies the omission itself); nonce misuse and
+      the HNP family; forgery search of any kind. The lens actually used is
+      elementary probability on conditioned laws, which is not an attack family.
+    lossiness: >-
+      MAXIMALLY LOSSY AND THAT IS THE POINT. The projection sends the entire
+      pair of signing algorithms - keys, messages, randomness, every emitted
+      byte - to one number in [0,1]. The fibre over an observed value is
+      enormous. The discard is COMPATIBLE with the target's operations in the
+      precise sense the lossy-projection test requires: total variation is
+      monotone under any post-processing (data processing), so the scalar
+      propagates through encoding, transmission, verification and any
+      adversarial computation without ever needing to be recomputed - whatever
+      an adversary does to the signature, the distance between what it sees in
+      the two worlds is at most p_R. This is not a change of coordinates: p_R
+      does not determine the signature law, and no pair of laws is recoverable
+      from it. THE MIRROR FAILURE - a projection so lossy it is constant across
+      instances - is checked and does NOT occur: p_R takes four materially
+      different values across the four predicates and three parameter sets,
+      ranging from exactly 0 to 0.804, and the pre-registered tell would be a
+      projection returning the same value everywhere.
+    propagation: >-
+      One step of the target operation is one signing ATTEMPT, and the
+      propagation law is exactly the conditioning step: D_omit = mu(.|Q),
+      D_conf = D_omit(.|P_R). Across N queries the scalar composes by the
+      hybrid bound, N*p_R, sub-additively and with no independence assumption
+      beyond fresh y per attempt. Both one-step and N-step laws are measurable:
+      the one-step law by counting predicate firings, the N-step law by running
+      the explicit t0-holding detector and reading its ROC.
+    survival_score: >-
+      Survives to the end of the adversary's computation and beyond, because
+      data processing cannot increase it - this is unusually far for a tracked
+      object and is what makes the argument short. It DISSOLVES at exactly one
+      place, and the proposal names it: the bound is over the emitted SIGNATURE
+      only. It says nothing about a party that observes the signer's timing,
+      power or memory, where the omission changes the attempt-count
+      distribution and the tracked scalar is no longer the right object. That
+      boundary is also this lane's scope boundary with GOAL-MLDSA-001, which is
+      a convenient coincidence and not an argument.
+
+  null_object_control: >-
+    THREE ARMS, ALL EXECUTED ON THE IDENTICAL ESTIMATOR PATH, THE NULL FIRST.
+    NULL-1 (can fail, and is the load-bearing one): TWO CONFORMING SIGNERS,
+    different seeds, same key. The forced value of the estimated TV between
+    them is 0, so whatever the estimator returns here is its finite-sample
+    floor at the executed sample size. Because TV between empirical measures on
+    a huge alphabet is BIASED UPWARD and can approach 1 at small samples, the
+    estimator must be a declared low-dimensional statistic (the firing-
+    indicator of each predicate, plus the verification-outcome indicator), not
+    a plug-in TV on raw signatures - and NULL-1 is precisely the arm that
+    exposes it if that discipline slips. If NULL-1's floor exceeds the p_R
+    being estimated, NO measurement is reportable at that parameter set and the
+    sample size, not the scheme, is what is reported.
+    NULL-2 (structural, must AGREE with NULL-1): a conforming signer against a
+    signer that omits a predicate DECLARED UNREACHABLE at that parameter set -
+    the ct0 predicate at ML-DSA-65 or -87, where IDEA-20260805-bb52fa's
+    envelope theorem forces p_R = 0 exactly. The two signers are then
+    bit-for-bit identical on every input, so this arm's forced value is also 0.
+    NULL-1 and NULL-2 must agree within their intervals; if they do not, the
+    estimator responds to something other than the omission and no signal-arm
+    number is reportable.
+    POSITIVE ARM WITH A DERIVED, NON-ZERO FORCED VALUE (this is what makes the
+    suite able to fail in the informative direction): a signer omitting the
+    Line-23 conjunction, whose p_R is FIXED IN ADVANCE at 1 - 1/Repetitions =
+    0.765 / 0.804 / 0.740 from FIPS 204 Table 1. The estimator must return
+    those three numbers to within its interval. An estimator that cannot
+    recover a TV of 0.765 has no power to certify anything about 7e-9 and the
+    whole instrument is void.
+    GRADED ARM, FOUR INTERIOR POINTS, MONOTONICITY REPORTED (KN-TECH-1a5b7e's
+    refinement: two ends do not give a sign): a synthetic parameter cell with
+    gamma2' swept over five values so that the ct0 predicate's rate runs
+    through roughly 1e-1, 1e-2, 1e-3, 1e-4, 0. The estimated TV must track p_R
+    monotonically and hit the floor at the last point. A statistic that does
+    not decay as the threshold rises is the canonical artifact tell.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-031ce2 censuses the four predicates into verifier-enforced
+      / self-enforcing / unobservable and derives sigma ~ 0.991 for the
+      unobservable one. It answers "does a violating signature verify". This
+      answers "how much does the omitting SIGNER differ from the conforming one
+      as a distribution", which 031ce2 never forms, and it consumes 031ce2's
+      sigma only in the secondary ratio (4). If 031ce2 were withdrawn entirely
+      the identity in (A) and the term in (B) would be unaffected.
+    - >-
+      IDEA-20260805-bb52fa computes the reachability envelope and the rate
+      7.34e-9 / 0 / 0. That is the INPUT p_R to this proposal, not its content.
+      bb52fa's own deliverable is a budget argument (do not buy a 1.4e8-
+      signature campaign); this proposal's deliverable is what the rate MEANS
+      once you have it, which bb52fa explicitly does not supply.
+    - >-
+      IDEA-20260808-4f83f6 partitions the predicates into public and secret via
+      the identity w - c s2 = A z - c t and measures the accepted-CHALLENGE law
+      deviation. That is a measurement of a specific channel's width. This is a
+      theorem that CAPS every channel simultaneously, including 4f83f6's: since
+      the accepted-challenge law is a function of the emitted signature, its
+      deviation is bounded by p_R, which predicts 4f83f6's headline statistic
+      is at most 7.3e-9 at ML-DSA-44 and exactly 0 at -65/-87. That is a
+      falsifiable prediction ABOUT a sibling proposal and it is offered as one.
+    - >-
+      IDEA-20260808-e5f947 counts the verifier's accept fibre over byte
+      strings. Different domain (octets vs. distributions), different question
+      (strong unforgeability vs. signer conformance), no shared statistic.
+    - >-
+      IDEA-20260805-630606 bounds the number of signatures needed to
+      reconstruct t0. Its object is a channel capacity toward t0; this
+      proposal's object is a distance between signers, and it would be
+      unchanged if t0 were published in the public key.
+
+  citations:
+    - ref: 'eprint 2025/195 — Azevedo-Oliveira, Calle Viera, Cogliati, Goubin,
+        "Finding a polytope: A practical fault attack against Dilithium",
+        PKC 2025 (minor revision)'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT PAGE ONLY, NOT THE PAPER. Verbatim from the abstract this
+        session fetched: "In Dilithium, the rejection sampling step is crucial
+        for the proof of security and correctness of the scheme. However, to
+        our knowledge, there is no attack in the literature that takes
+        advantage of an attacker knowing rejected signatures. ... We succeed in
+        showing that an adversary with enough rejected signatures can recover
+        Dilithium's secret key in less than half an hour on a desktop computer.
+        There is one possible application for this result: by physically
+        preventing one of the rejection sampling tests from happening, we
+        obtain two fault attacks against Dilithium." WHICH test, HOW MANY
+        rejected signatures, and what solver they use are NOT established here -
+        the PDF fetch returned unparseable binary and the full text was not
+        read.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'eprint 2026/1333 — Riou, Park, Anwar, Poschmann, Hutter, "Apples,
+        Oranges, and Signatures: Pitfalls and Methodology in ML-DSA
+        Benchmarking", received 2026-06-29, revised 2026-07-06'
+      provenance: retrieved
+      claim: >-
+        ABSTRACT PAGE ONLY. The abstract concerns benchmarking methodology and
+        states that "execution-time variability of the ML-DSA signing algorithm
+        - an inherent property due to rejection sampling and other data-
+        dependent components - makes commonly used straightforward metrics ...
+        unsuitable". THE "PITFALL 12" CONTENT AND THE OVER-ONE-BILLION-
+        SIGNATURE OBSERVATION THAT RQ-MLDSA-ffa0f5 ATTRIBUTES TO THIS PAPER
+        WERE NOT VERIFIED - they are not in the abstract and the full text was
+        not read. Any downstream use of that figure must keep the relayed
+        label the RQ already put on it.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST,
+        2024-08-13 — Table 1 (Repetitions 4.25 / 5.1 / 3.85), Algorithm 7
+        Lines 23 and 28, Algorithm 8 Line 13'
+      provenance: internal
+      claim: >-
+        Every FIPS 204 figure used here is taken from the transcription in
+        IDEA-20260805-bb52fa and IDEA-20260805-031ce2, which record a fetch
+        receipt (nvlpubs.nist.gov, 3,291,746 bytes, sha256 5723...6b6b) from
+        2026-08-06. THIS SESSION DID NOT FETCH FIPS 204 and is relying on a
+        corpus transcription that those records themselves label a
+        re-verification target. Stage 0 re-reads it.
+      verified_by: >-
+        coordinator@2026-08-21 (orchestrating session read the cited TRANSCRIPTION records
+        IDEA-20260805-bb52fa / -031ce2 / -630606, not the FIPS 204 PDF itself; confirmed they carry
+        the fetch receipt nvlpubs.nist.gov 2026-08-06, HTTP 200, 3,291,746 bytes, sha256
+        57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b, and that the Table 1
+        Repetitions column is recorded there as 4.25 / 5.1 / 3.85)
+    - ref: 'Lyubashevsky, "Fiat-Shamir with Aborts" (ASIACRYPT 2009) and the
+        CRYSTALS-Dilithium specification, for the rejection-sampling
+        conditioning argument'
+      provenance: recalled
+      claim: >-
+        RECALLED, NOT OPENED. The abort framework''s standard analysis argues
+        that the ACCEPTED output law is independent of the secret; the
+        conditioning identity used in (A) is the same elementary move applied
+        to a DIFFERENT pair of laws. If that literature already states
+        TV = rejection rate for an omitted test, this proposal''s (A) is a
+        rediscovery and must be reported as one.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The conforming signer's accept set is a subset of the omitting signer's -
+      i.e. "omitting a check" means deleting a conjunct, not replacing it. An
+      implementation that replaces the check with a DIFFERENT one is outside
+      the identity and must be handled separately; the design records which
+      case each arm is.
+    - >-
+      y is freshly random per attempt (hedged mode), so signing queries are
+      independent given sk. In deterministic mode N counts distinct messages;
+      this is stated in every result sentence rather than assumed away.
+    - >-
+      p_R is well defined, i.e. the predicate order in Algorithm 7 is fixed, so
+      "rate" means Pr[NOT P_R | the other conjuncts hold] and not the
+      attributed-first-failure rate. These differ and the design reports both.
+    - >-
+      FIPS 204's Repetitions column is the reciprocal of the acceptance
+      probability of the Line-23 conjunction. IDEA-20260805-bb52fa records a
+      +0.35% to +1.1% residual between Table 1 and its own recomputation, so
+      the three positive-control forced values carry that residual and the
+      tolerance band must admit it.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the theorem is the claim that D_conf is
+      D_omit further CONDITIONED, rather than a different distribution
+      altogether. Everything else is bookkeeping. The bottleneck is therefore
+      the coupling between the two signers' loops, and the only mechanism that
+      can break it is the attempt counter kappa (FIPS 204 increments it by l
+      per attempt), which makes the two signers draw different y sequences.
+    baseline_embedding:
+      parameter_slice: >-
+        The old-method boundary is the p_R -> 1 limit, where the identity must
+        reproduce the known catastrophic case: at p_R = 0.765 (omitting the
+        Line-23 conjunction at ML-DSA-44) the bound N*p_R exceeds 1 at N = 2,
+        which must be consistent with eprint 2025/195's reported secret-key
+        recovery. At the other boundary p_R = 0 the two signers must be proved
+        bit-identical, which IDEA-20260805-bb52fa's envelope theorem supplies
+        at ML-DSA-65 and -87.
+      reproduction_check: >-
+        Symbolic: substitute p_R = 0 and check TV = 0 and the two signers'
+        transcripts are equal as byte strings on a frozen fixture of 10^3
+        (key, message) pairs. Substitute p_R = 1 - 1/4.25 and check the
+        estimator returns it on the positive arm.
+    observation_collision:
+      observable: >-
+        The certificate carrying the conclusion is the pair (p_R, estimated
+        TV). Two distinct ground-truth situations with the same observable:
+        (i) a signer that omits P_R, and (ii) a CONFORMING signer whose key
+        happens to make P_R fire at rate p_R but which never emits a violating
+        signature. Both produce the same MARGINAL rate statistic and different
+        emitted transcripts.
+      distinct_preimage_search: >-
+        The separator is the emitted transcript, not the rate: arm (ii) emits
+        no signature violating P_R by construction. The design therefore
+        certifies the signal arm by EXHIBITING a violating emitted signature
+        and re-verifying it, rather than by the rate alone - which is exactly
+        the certificate RQ-MLDSA-ffa0f5 demands, and it is why the exhibition
+        is not decorative.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry the whole conditional law rather than the leaked bit: the
+          invariant preserved through the loop is "D_conf = D_omit(.|P_R)",
+          which is strictly stronger than any statement about a particular
+          leaked quantity and is what survives the hybrid over N queries.
+        predicted_gain: >-
+          Converts an open-ended "what does it leak" into a closed-form scalar
+          per predicate, and yields the lower bound as a by-product because the
+          conditioning event is itself the optimal distinguishing set.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (p_R) fixed and vary the forgotten structure (the
+          predicate's dependence on t0 versus on z versus on nothing). The
+          intrinsic invariant that distinguishes the resulting objects is
+          whether the violating event is verifier-visible, i.e. 1 - sigma.
+        predicted_gain: >-
+          Separates "leak" from "detectability", which the rate alone conflates,
+          and produces the ratio 1/(1-sigma) ~ 110 as a named quantity.
+    quantifier_order: >-
+      FOR ALL parameter sets P in {44, 65, 87}, FOR ALL predicates R in
+      {Line23-z, Line23-r0, Line28-ct0, Line28-hint}, FOR ALL keys sk accepted
+      by skDecode, FOR ALL message distributions, THERE EXISTS a number p_R(sk)
+      such that FOR ALL adversaries A and all query counts N,
+      |Adv(A, omit_R) - Adv(A, conform)| <= N*p_R(sk); AND THERE EXISTS an
+      adversary (the t0-holding detector) achieving 1 - (1-p_R)^N. Note the
+      order: p_R depends on the KEY and the quantifier over adversaries comes
+      after it, which is what makes the bound uniform. A claim with the
+      quantifiers reversed - one p_R for all keys - is NOT made, and the per-key
+      dispersion of p_R is an explicit open item.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can certify is a bound on the
+        distinguishing advantage of an adversary that sees only SIGNATURES. It
+        cannot certify anything about an adversary that sees timing, power,
+        memory or the attempt count, and it cannot certify that the leak is
+        HARMLESS - only that it is at most N*p_R.
+      nearby_object_control: >-
+        The nearby object where the desired conclusion fails is a signer that
+        omits the Line-23 conjunction: same theorem, p_R = 0.765, and the
+        conclusion "the omission is harmless" is false there (eprint 2025/195).
+        A method that could not distinguish that signer from a ct0-omitting one
+        would not have identified the load-bearing structure. This method
+        separates them by three orders of magnitude in the same formula, which
+        is the evidence that the rate is the load-bearing quantity.
+    proof_obligations:
+      - claim: 'TV(D_conf, D_omit) = p_R exactly, with the supremum attained at
+          S = P_R'
+        responsibility: correctness
+      - claim: 'the hybrid over N queries gives the additive N*p_R and requires
+          only fresh y per attempt'
+        responsibility: scope
+      - claim: 'the t0-holding detector achieves 1 - (1-p_R)^N'
+        responsibility: feasibility
+      - claim: 'p_R = 0 exactly for the ct0 predicate at ML-DSA-65 and -87'
+        responsibility: baseline
+      - claim: 'the estimator recovers a TV of 0.765 on the positive arm at the
+          executed sample size'
+        responsibility: interface
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        estimated TV between a conforming signer and a Line-23-omitting signer,
+        from the declared low-dimensional statistic, at each parameter set
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES DERIVED BEFORE ANY RUN: 0.765 / 0.804 / 0.740, from
+        1 - 1/Repetitions with Repetitions = 4.25 / 5.1 / 3.85. Tolerance band
+        must admit IDEA-20260805-bb52fa's +0.35% to +1.1% Table-1 residual. A
+        return outside that band means the estimator is not measuring the
+        quantity and no other arm is readable.
+    - metric: >-
+        estimated TV between a conforming signer and a ct0-omitting signer at
+        ML-DSA-65 and ML-DSA-87
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: exactly 0, and moreover byte-identical transcripts, by
+        IDEA-20260805-bb52fa's envelope theorem. Any nonzero value here
+        falsifies either that theorem or this instrument, and deciding which is
+        the first job of the run.
+    - metric: >-
+        NULL-1 floor: estimated TV between two conforming signers under the same
+        key with different seeds
+      direction: different
+      minimum_effect: >-
+        Must be strictly below 0.01 at the executed sample size, otherwise no
+        rate below 0.01 is reportable and the campaign is sized wrongly. This is
+        the arm that decides whether anything can be said about the ct0
+        predicate at all, and the honest expectation is that it CANNOT be said
+        at ML-DSA-44 within budget.
+    - metric: >-
+        ratio of the verifier-visible omission rate to the t0-visible one,
+        1/(1-sigma), measured at a synthetic reachable cell
+      direction: higher
+      minimum_effect: >-
+        Strictly greater than 10. A measured ratio near 1 would mean violating
+        signatures almost always fail verification, i.e. the ct0 predicate is
+        SELF-ENFORCING after all, which would contradict
+        IDEA-20260805-031ce2's sigma ~ 0.991 and would be the single most
+        interesting outcome available from this design.
+    - metric: >-
+        crossover N* = 1/p_R per predicate per parameter set, tabulated
+      direction: different
+      minimum_effect: >-
+        FORCED, CONDITIONAL ON IDEA-20260805-bb52fa's H1 for the ct0 row:
+        Line-23 conjunction 1.31 / 1.24 / 1.35 signatures; ct0 predicate
+        1.36e8 at ML-DSA-44 and infinity at -65 and -87; hint-weight predicate
+        of order 10^2 (from IDEA-20260805-630606's derived weights sitting
+        2.16 / 2.65 / 2.40 standard deviations below omega). The hint-weight row
+        is the one most likely to be wrong and is the cheapest to measure.
+
+  minimal_test:
+    design: >-
+      FOUR STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE. TOTAL
+      SINGLE-CORE COMPUTE FOR STAGES 0-2: UNDER ONE HOUR.
+      STAGE 0 (reading and algebra, zero compute, TERMINATING): re-read FIPS
+      204 Algorithm 7 Lines 23 and 28 and Table 1's Repetitions column from the
+      primary text under a run record - this session did not fetch it and is
+      relying on a corpus transcription. Write out the three-line proof of (A)
+      and have it checked symbolically. If the conforming accept set is not a
+      subset of the omitting one for some predicate, STOP and restate for that
+      predicate.
+      STAGE 1 (measurement, minutes): instrument one reference signer to record,
+      per ATTEMPT, the truth value of all four predicates (not just the first
+      to fire) and the emitted-or-not flag. Run 10^5 attempts per parameter set.
+      Report each predicate's marginal rate, its rate conditioned on the others
+      passing, and the attributed-first-failure rate, each with a Clopper-
+      Pearson interval, and with an explicit upper bound plus sample size
+      wherever the count is zero. This alone discharges the ct0 and hint-weight
+      rows to the sensitivity 10^-5 and settles the hint-weight crossover.
+      STAGE 2 (the identity, minutes): build the Line-23-omitting signer, run
+      the NULL-1, NULL-2 and positive arms, and check the estimator returns
+      0.765 / 0.804 / 0.740 and 0 / 0.
+      STAGE 3 (the tight case, hours, and DECLARED OPTIONAL): at a synthetic
+      cell with gamma2' lowered so the ct0 predicate fires at ~1e-2, run the
+      graded sweep, exhibit a violating-but-verifying signature, re-verify it
+      under a second independent verifier, and measure 1 - sigma. The
+      ML-DSA-44 ct0 rate at TRUE parameters is DECLARED OUT OF BUDGET IN
+      ADVANCE at 1.36e8 attempts per event, rather than attempted and
+      abandoned.
+      WHAT DISCRIMINATES: Stage 1 separates "the ct0 predicate is rare" from
+      "the ct0 predicate is common and the corpus derivation is wrong" at
+      sensitivity 10^-5, at a cost of minutes. Stage 2 separates "the identity
+      holds" from "the omitting signer's law is not the conditional law"
+      because the forced value 0.765 is derived before the run and a coupling
+      failure would move it. Stage 3 separates "the omission is invisible to a
+      verifier" from "the omission is self-enforcing".
+    controls:
+      - NULL-1, two conforming signers, same key, different seeds; forced value 0; run and its verdict committed FIRST.
+      - NULL-2, ct0-omitting signer at ML-DSA-65 and -87; forced value 0 AND byte-identical transcripts; must agree with NULL-1.
+      - POSITIVE ARM with the derived non-zero forced value 0.765 / 0.804 / 0.740; if the estimator misses it, nothing else is readable.
+      - GRADED sweep of gamma2' with four interior points; monotonicity in p_R reported explicitly, per KN-TECH-1a5b7e's refinement.
+      - MULTI-KEY arm, 32 keys per parameter set, so that the per-key dispersion of p_R is reported rather than assumed away (the quantifier order above forbids a single p_R across keys).
+      - SECOND INDEPENDENT VERIFIER for the exhibited violating signature; a certificate re-verified by only one implementation is not a certificate under RQ-MLDSA-ffa0f5's methods clause.
+    required_metrics:
+      - per-predicate marginal, conditional and attributed-first rates with Clopper-Pearson intervals, per parameter set, with zero counts reported as upper bounds with sample size
+      - NULL-1 floor with its interval, committed before the signal arms
+      - estimated TV on the positive arm against the forced 0.765 / 0.804 / 0.740
+      - transcript byte-equality check on the NULL-2 arm
+      - the crossover table N* = 1/p_R with each cell labelled measured, derived-under-H1, or theorem
+      - per-key dispersion of each p_R over 32 keys
+      - the exhibited violating-but-verifying signature, its verification outcome under two implementations, and the seed that produced it
+
+  falsification_conditions:
+    - >-
+      The estimator does not return 0.765 / 0.804 / 0.740 on the positive arm
+      within its interval and the Table-1 residual. The instrument has no power
+      and no other arm may be read.
+    - >-
+      NULL-1's floor exceeds the rate being estimated at some parameter set. No
+      rate below that floor is reportable there; the outcome is a sample-size
+      statement, never evidence that the predicate does not fire.
+    - >-
+      NULL-2 returns a nonzero TV or non-identical transcripts at ML-DSA-65 or
+      -87. Either IDEA-20260805-bb52fa's envelope theorem is wrong - which
+      would be far more interesting than this proposal - or the instrument is.
+      Deciding which comes before anything else is written.
+    - >-
+      Some predicate's omission is shown to change the emitted law by MORE than
+      its firing rate. The identity in (A) is then false as applied and this
+      record is superseded. The one mechanism that could produce this is the
+      kappa/ExpandMask coupling in mechanism (5), and it is the specific thing
+      the multi-seed arms hunt.
+    - >-
+      Stage 1 measures the ct0 predicate firing at a rate above 1e-5 at any
+      parameter set. IDEA-20260805-bb52fa's envelope theorem or its H1 is then
+      wrong, the crossover table is withdrawn, and that is the result.
+    - >-
+      The graded sweep is non-monotone in p_R. The estimated TV cannot then be
+      read directionally and no signed statement about any arm is made.
+
+  confounders:
+    - >-
+      PLUG-IN TV IS BIASED UPWARD AND THE BIAS CAN APPROACH 1 ON A LARGE
+      ALPHABET. If anyone computes TV on raw signatures instead of on the
+      declared low-dimensional statistic, NULL-1 will return something near 1
+      and every arm will look significant. This is the single most likely way
+      the run produces a confident wrong number, and NULL-1 exists to catch it.
+    - >-
+      THE TWO SIGNERS ARE NOT COUPLED. Because the omitting signer's attempt
+      counter advances differently, the arms are independent streams rather
+      than paired samples, so the estimator's variance is larger than a paired
+      design would give. Where a paired design IS possible (replay the same y
+      sequence into both signers), use it and say so; the difference between
+      the paired and unpaired estimates is itself a diagnostic.
+    - >-
+      RATE AMBIGUITY. "The rate of predicate R" has at least three meanings
+      (marginal, conditional-on-the-others, attributed-first-failure) that
+      differ by up to the other predicates' rates - which for the Line-23
+      conjunction is a factor of four. A crossover table built from the wrong
+      one is wrong by that factor. All three are recorded.
+    - >-
+      SELF-CONSISTENCY IS NOT INDEPENDENCE. The forced values 0.765 / 0.804 /
+      0.740 come from the same Table 1 as everything else, and
+      IDEA-20260805-bb52fa records a systematic same-sign residual against its
+      own recomputation. Agreement between the measurement and Table 1 is
+      therefore one reading of one document confirmed, not two independent
+      confirmations.
+    - >-
+      A NEGATIVE HERE IS COMFORTABLE AND CHEAP. "Omitting the ct0 check is
+      harmless" is the conclusion a defender wants and the one this design
+      would produce most easily. The positive arm and the graded sweep exist to
+      make that conclusion cost something, and the Line-23 row is retained
+      precisely so the record cannot be read as "omitted checks are harmless".
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY, NOT A WEAKNESS IN ML-DSA AS STANDARDIZED.
+      Every object is emitted by a party holding sk. Nothing bears on MLWE,
+      MSIS or SelfTargetMSIS in any direction, and any downstream sentence
+      readable as such is defective regardless of what was measured.
+    - >-
+      The bound covers an adversary that sees SIGNATURES. It says nothing about
+      timing, power, EM, memory or the attempt count, where an omitted check is
+      plainly visible; that is GOAL-MLDSA-001's territory and the boundary is
+      stated rather than assumed.
+    - >-
+      N*p_R is an upper bound on the ADVANTAGE DIFFERENCE, not a claim that a
+      particular quantity is or is not recovered. "The omitting signer leaks at
+      most N*p_R" must never be restated as "t0 cannot be recovered".
+    - >-
+      The ct0 row is CONDITIONAL on IDEA-20260805-bb52fa's H1 at ML-DSA-44 and
+      unconditional at -65/-87, and the two must never be reported at the same
+      strength.
+    - >-
+      eprint 2025/195 was read AS AN ABSTRACT ONLY. The reconciliation in (D)
+      assumes that the test it prevents is one of the Line-23 conjuncts. If the
+      paper prevents a different test, the reconciliation is wrong and only the
+      identity survives. Obtaining that paper is Stage 0's second job.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING FOR THE IDENTITY. TV(D_conf, D_omit) = p_R follows
+        from the definition of conditioning and the subset relation between the
+        two accept sets; the hybrid bound follows from independence of signing
+        queries given sk, which holds by construction in the hedged mode. This
+        entry exists to record that the headline is UNCONDITIONAL and that its
+        only assumptions are evidentiary.
+      rigorous_support: >-
+        Elementary: for nested conditioning, sup_S |P(S|A,B) - P(S|A)| =
+        1 - P(B|A), attained at S = B. Hybrid argument over independent queries.
+      validation_plan: >-
+        Symbolic re-derivation by a second party plus the positive-arm
+        recovery of 0.765 / 0.804 / 0.740 at the executed sample size, which is
+        an empirical check of the identity at a value where it is measurable.
+    - id: H2
+      statement: >-
+        For the ct0 row at ML-DSA-44 ONLY: p_R = 7.34e-9, inherited verbatim
+        from IDEA-20260805-bb52fa, which derives it under the assumption that
+        the 256k coefficients of t0 behave as independent uniforms on the 8192
+        integers [-2^(d-1)+1, 2^(d-1)] for the purpose of two-sided exceedance
+        probabilities at gamma2. The uniformity is exact up to a 1/1023 excess
+        at the single residue class 0 (q - 1 = 1023 * 8192), an excess at the
+        centre that can only thin the tail; the INDEPENDENCE across coefficients
+        and across the tau summands is not proved.
+      rigorous_support: >-
+        The exact envelope ||<<c t0>>||_inf <= tau * 2^(d-1) (unconditional, no
+        distribution), plus the exact tau-fold discrete convolution of the
+        uniform law, plus the exact residue-class count q - 1 = 1023 * 8192.
+        The classical statement imitated is that a sum of tau independent
+        bounded uniforms has the tail of its convolution - the discrete analogue
+        of the Irwin-Hall law.
+      validation_plan: >-
+        Not validated at 10^-12 by anything affordable, and this is stated as an
+        open gap rather than papered over. What IS validated: Stage 1 measures
+        the predicate at sensitivity 10^-5 and the hint-weight distribution
+        against IDEA-20260805-630606's derived means 63.4 / 38.7 / 57.1 and
+        standard deviations 7.71 / 6.14 / 7.45, which tests the same law in the
+        bulk; a bulk failure invalidates the tail number regardless. The
+        dedicated route to the tail itself is the tilted-measure estimator
+        proposed separately as IDEA-20260821-6d1b97, which is the reason that
+        record exists.
+    - id: H3
+      statement: >-
+        sigma, the probability that a ct0-violating signature nevertheless
+        verifies, is approximately 0.991 at ML-DSA-44, inherited from
+        IDEA-20260805-031ce2, which derives it from the exceedance overshoot
+        above gamma2 being approximately exponential with mean 1693 against a
+        bucket width 2*gamma2. LOAD-BEARING ONLY FOR THE SECONDARY RATIO in
+        mechanism (4); the identity and the named term do not use it.
+      rigorous_support: >-
+        The MakeHint/UseHint correctness condition is sufficient rather than
+        necessary, so the failure set is strictly smaller than the violation
+        set; the overshoot's law is the tail of the same convolution as H2.
+      validation_plan: >-
+        Directly measurable at the synthetic reachable cell in Stage 3, where
+        violations are common: emit violating signatures and count how many
+        verify. This is the one arm that turns 0.991 from a derivation into a
+        measurement, at a parameter set that is NOT FIPS 204's, and the transfer
+        to true parameters is an explicit assumption rather than a result.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED AND NONE IS MOVED. This is a structural
+      result plus a rate measurement. The relevant cost is the measurement's:
+      Stage 1 is 10^5 signing attempts per parameter set, i.e. O(10^5 * (k+l) *
+      256 * log 256) field operations, minutes on one core; Stage 2 adds the
+      same again. The quantity with an exponent-like character is the crossover
+      N* = 1/p_R, which is 10^0 for the Line-23 conjunction and 1.36e8 for the
+      ct0 predicate at ML-DSA-44 - eight orders of magnitude, in a formula, for
+      an hour of compute.
+    memory_exponent: >-
+      Negligible. The statistic is four indicator counters per attempt plus a
+      32-key table; peak working set under 100 MB even with the transcripts
+      retained.
+    best_known: >-
+      IN-CORPUS: nothing. The area has the five proposals listed above, no
+      experiment, no run, no evidence record. EXTERNAL: eprint 2025/195 is the
+      incumbent on the question "what does omitting a rejection test cost", and
+      it answers it for one test with an attack rather than with a formula; if
+      it also states the total-variation identity then this proposal's (A) is a
+      reproduction and must be reported as one. NOT CHECKED, AND SAID SO -
+      the PDF could not be parsed by the fetch tool.
+    hidden_overhead: >-
+      The o(1)-analogue here is NULL-1's finite-sample floor, which is what
+      really decides how small a rate can be reported and which no amount of
+      cleverness in the estimator removes. Second: the ct0 row at ML-DSA-44
+      remains a derived number under H2 however much of Stage 1 is bought, and
+      calling it measured after a 10^5-attempt run would be a category error.
+    tradeoff_note: >-
+      The trade is budget, not time-memory: an hour of algebra and sampling
+      replaces the 10^9-signature campaign GOAL-MLDSA-002's first completion
+      criterion would otherwise imply, at the cost that the smallest reportable
+      rate is set by the sample size and is stated as a bound.
+
+  dominated_by: >-
+    n/a on the attack axis (no attack, no cost triple, no Pareto point claimed).
+    ROWS ACTUALLY CHECKED BEFORE WRITING THIS. In-corpus, all five
+    RQ-MLDSA-ffa0f5 proposals and both RQ-MLDSA-ffa0f5 hypotheses
+    (H-MLDSA-2ae88d, H-MLDSA-2d4123): none states the identity, the term or the
+    crossover, so none dominates on the result axis; IDEA-20260805-bb52fa
+    dominates on COST for the ct0 rate specifically, since it obtains that
+    number with zero signatures, and this proposal consumes rather than
+    competes with it. On the three cost axes - TIME (an hour against a campaign),
+    MEMORY (negligible for both), DATA/QUERIES (10^5 attempts against the 10^9
+    that a direct rate measurement of the ct0 predicate would need) - nothing in
+    the corpus is better. EXTERNALLY, THE HONEST ANSWER IS THAT DOMINANCE
+    CANNOT BE RULED OUT: eprint 2025/195 covers the same question for a
+    different predicate and its full text could not be read, and the abort
+    literature may already contain the identity. That is why novelty_status is
+    unverified rather than adaptation.
+  sota_delta: >-
+    no attack; structural and measurement contribution only. Quantitatively:
+    RQ-MLDSA-ffa0f5 asks for "a stated account of what a signer omitting the
+    check leaks and what the security argument loses" and the corpus currently
+    contains no such account in any form. This supplies a closed-form answer
+    (N*p_R), a per-predicate per-parameter-set crossover table spanning
+    1.3 signatures to infinity, a matching lower bound realised by an explicit
+    detector, and a testability ratio 1/(1-sigma) ~ 110. Against the external
+    state of the art the delta is a unification rather than an improvement: it
+    predicts that eprint 2025/195's catastrophic case and the ct0 case are one
+    formula at p_R = 0.765 and p_R <= 7.3e-9, which is a checkable claim about
+    published work and not a claim to beat it.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the identity TV = p_R survives independent re-derivation:
+    ~0.95 - it is three lines and the only way to lose it is to mis-state what
+    "omits a check" means. (ii) That it is NEW rather than already in the abort
+    literature or in eprint 2025/195: ~0.25, and I would bet against novelty
+    here; the honest value of the record is then the per-predicate table, not
+    the identity. (iii) That the positive arm recovers 0.765 / 0.804 / 0.740
+    within tolerance: ~0.85, with the Table-1 residual the main risk.
+    (iv) That NULL-2 returns byte-identical transcripts at ML-DSA-65 and -87,
+    i.e. that bb52fa's envelope theorem holds: ~0.85, limited by that record's
+    own 6.2% margin at ML-DSA-87 and its single PDF extraction. (v) That the
+    ct0 predicate is measured firing at any parameter set in Stage 1: ~0.02,
+    and a zero there is the expected, reportable, bound-shaped outcome.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-031ce2
+    - IDEA-20260805-bb52fa
+    - IDEA-20260805-630606
+    - IDEA-20260808-4f83f6
+    - H-MLDSA-2d4123
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+    - knowledge/techniques/KN-TECH-1a5b7e.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with
+    python3 tools/allocate_id.py --next idea --date 20260821 (random 6-hex
+    token, no state scanned), each id then verified free with --check before
+    assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).

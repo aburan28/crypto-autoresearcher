@@ -45,13 +45,21 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
+from pathlib import Path, PurePosixPath
 
 import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+
+# Certificate kinds a run may CLAIM, each of which carries a verification duty
+# (certificate.verified must be true). A run that claims nothing records
+# `kind: none`, which is accepted without a certificate and is not listed here.
+# Authoritative prose: docs/claims-and-verification.md.
+CERTIFICATE_KINDS = ("discrete_log", "decomposition", "key_recovery")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
@@ -130,6 +138,7 @@ def _load_duplicate_run_owners() -> dict[str, set[str]]:
 DUPLICATE_RUN_OWNERS = _load_duplicate_run_owners()
 
 ID_PATTERNS = {
+    "goal": re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX}$"),
     "research_question": re.compile(rf"^RQ-[A-Z]+-{SUFFIX}$"),
     "idea": re.compile(rf"^IDEA-\d{{8}}-{SUFFIX}$"),
     "hypothesis": re.compile(rf"^H-[A-Z]+-{SUFFIX}$"),
@@ -209,6 +218,320 @@ def field_is_satisfied(body: dict, field: str) -> bool:
 TIER_ORDER = {"toy": 0, "medium": 1, "crypto": 2}
 PROOF_STATUSES = {"certificate", "derivation", "empirical_only",
                   "not_applicable"}
+
+# Both blocks below are OPTIONAL and checked only when present, which is what
+# lets them land without a baseline entry: the baseline is prune-only, so a
+# newly-required field on immutable records could never be grandfathered and
+# would fail `main` forever. Absence is reported as schema debt instead --
+# `tools/obstruction_registry.py --debt` for the obstruction backlog. What is
+# enforced is that a record CLAIMING the new schema completes it.
+CITATION_PROVENANCE = {"recalled", "retrieved", "kb", "internal"}
+
+# `recalled` means no agent in this program opened the source. Such a reference
+# is a pointer for a reviewer, never support (AGENTS.md rule 9), so these two
+# record shapes may not rest on one. No committed record carries a provenance
+# field at all, so this can be a hard error from the start: it fires only on
+# records written against the new schema.
+PROVENANCE_ASSERTS_LITERATURE = {"known", "adaptation"}
+
+OBSTRUCTION_REQUIRED = ["statement", "quantity", "value", "scope"]
+
+# `review_plan` on a handoff follows the same optional-when-present rule. What
+# this checks is the plan's INTERNAL consistency, which is all a single record
+# can show: whether the reviewers honoured it is cross-checked against their
+# attestations by `tools/check_review_independence.py`, which needs the reports
+# and so cannot run here.
+REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
+
+
+def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate a `review_plan` block on a handoff.
+
+    The plan may be inline, or a repository-relative path to a YAML file that
+    either *is* the plan mapping or wraps it under a top-level ``review_plan``
+    key. Path form keeps one shared plan file for a multi-reviewer round
+    without duplicating the mapping into every handoff.
+    """
+    plan = body.get("review_plan")
+    if plan is None:
+        return
+    if isinstance(plan, str):
+        ref = plan.strip()
+        if not ref or ref.startswith("/") or ".." in PurePosixPath(ref).parts:
+            ctx.err(path, "review_plan path must be a repository-relative file")
+            return
+        target = os.path.join(REPO, ref)
+        if not os.path.isfile(target):
+            ctx.err(path, f"review_plan path does not exist: {ref}")
+            return
+        try:
+            loaded = load_yaml(target, ctx)
+        except Exception as error:  # noqa: BLE001 - surface as ledger error
+            ctx.err(path, f"review_plan path {ref} failed to load: {error}")
+            return
+        if not isinstance(loaded, dict):
+            ctx.err(path, f"review_plan path {ref} must load a mapping")
+            return
+        if isinstance(loaded.get("review_plan"), dict):
+            plan = loaded["review_plan"]
+        else:
+            plan = loaded
+    if not isinstance(plan, dict):
+        ctx.err(path, "review_plan must be a mapping")
+        return
+    for field in ("claim_under_review", "coordinator_prior"):
+        if not str(plan.get(field) or "").strip():
+            ctx.err(path, f"review_plan.{field} is required; the prior is "
+                          f"recorded before the round so concurrence can be "
+                          f"told apart from agreement with the Coordinator")
+    joints = plan.get("joints")
+    if not isinstance(joints, list) or not joints:
+        ctx.err(path, "review_plan.joints must be a nonempty list; a review "
+                      "with no named load-bearing step cannot show coverage")
+    else:
+        seen: dict[str, int] = {}
+        for index, entry in enumerate(joints):
+            if not isinstance(entry, dict):
+                ctx.err(path, f"review_plan.joints[{index}] must be a mapping")
+                continue
+            name = str(entry.get("joint") or "").strip()
+            if not name:
+                ctx.err(path, f"review_plan.joints[{index}].joint is empty")
+            else:
+                seen[name] = seen.get(name, 0) + 1
+            if not str(entry.get("assigned_to") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"assigned_to; an unowned joint is the coverage "
+                              f"gap this plan exists to make visible")
+            if not str(entry.get("attack_plan") or "").strip():
+                ctx.err(path, f"review_plan.joints[{index}] has no "
+                              f"attack_plan; a worked attack returns a result "
+                              f"either way, 'review this' returns an opinion")
+        for name, count in seen.items():
+            if count > 1:
+                ctx.err(path, f"review_plan joint '{name}' is listed {count} "
+                              f"times; one joint, one owner")
+    blindness = plan.get("blindness")
+    if blindness is not None:
+        if not isinstance(blindness, dict):
+            ctx.err(path, "review_plan.blindness must be a mapping")
+        elif (blindness.get("lifted_for")
+                and not str(blindness.get("rationale") or "").strip()):
+            ctx.err(path, "review_plan.blindness.lifted_for is nonempty and "
+                          "requires a rationale; blindness is lifted on "
+                          "purpose, never drifted out of")
+    control = plan.get("proves_too_much")
+    if not isinstance(control, dict) or not (control.get("objects") or []):
+        ctx.err(path, "review_plan.proves_too_much.objects is required; the "
+                      "argument is run against objects where its conclusion is "
+                      "known false, as controls-before-belief for an argument")
+    elif not str(control.get("failure_signature") or "").strip():
+        ctx.err(path, "review_plan.proves_too_much.failure_signature is "
+                      "required; state what the argument must do on a "
+                      "known-false object or the control cannot fail")
+    rederivation = plan.get("blind_rederivation")
+    if isinstance(rederivation, dict) and rederivation.get("required"):
+        for field in ("quantity", "assigned_to"):
+            if not str(rederivation.get(field) or "").strip():
+                ctx.err(path, f"review_plan.blind_rederivation.{field} is "
+                              f"required when required is true")
+        if not (rederivation.get("blind_from") or []):
+            ctx.err(path, "review_plan.blind_rederivation.blind_from is "
+                          "required; name the producer's implementation, notes "
+                          "and report, or the independence is not checkable")
+
+
+def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
+    """Validate `citations` and hypothesis `structural_ingredients` entries."""
+    groups = [("citations", body.get("citations"))]
+    if rec_type == "hypothesis":
+        groups.append(("structural_ingredients",
+                       body.get("structural_ingredients")))
+    for field, entries in groups:
+        if entries is None:
+            continue
+        if not isinstance(entries, list):
+            ctx.err(path, f"{field} must be a list")
+            continue
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict) or "provenance" not in entry:
+                continue          # pre-schema entry; reported as debt, not error
+            where = f"{field}[{index}]"
+            provenance = entry.get("provenance")
+            if provenance not in CITATION_PROVENANCE:
+                ctx.err(path, f"{where}.provenance must be "
+                              f"recalled|retrieved|kb|internal")
+                continue
+            if provenance == "recalled":
+                if rec_type == "coordinator_decision":
+                    ctx.err(path, f"{where} is provenance 'recalled'; a "
+                                  f"remembered source may not back a decision "
+                                  f"(AGENTS.md rule 9)")
+                if (rec_type == "idea" and body.get("novelty_status")
+                        in PROVENANCE_ASSERTS_LITERATURE):
+                    ctx.err(path, f"{where} is provenance 'recalled' but "
+                                  f"novelty_status is "
+                                  f"'{body.get('novelty_status')}'; use "
+                                  f"'unverified' until the source is read")
+            elif not str(entry.get("verified_by") or "").strip():
+                ctx.err(path, f"{where}.provenance is '{provenance}' and "
+                              f"requires verified_by naming the agent that "
+                              f"read the source")
+
+
+# ---- prior_art on ideas (knowledge/frontiers/ecdlp/README.md) --------------
+# The program re-derived published results because ideas were generated BEFORE
+# anyone compared them with the literature (docs/novelty-screen-20260729.md;
+# DEC-20260916-3c0cf5). A `prior_art` block records that comparison: which
+# known-result rows the idea was positioned against and the nearest prior work.
+# It follows this file's optional-when-present rule for existing records and
+# becomes REQUIRED only for ideas minted on or after the cutover, so no
+# immutable record changes state and the prune-only baseline never grows. Move
+# or remove the cutover here; nothing else keys on it.
+PRIOR_ART_CUTOVER = 20261001
+PRIOR_ART_NOVELTY = {"known", "adaptation", "speculative", "unverified"}
+PRIOR_ART_RELATIONS = {"same", "special_case", "generalizes", "adjacent",
+                       "orthogonal"}
+_IDEA_DATE = re.compile(r"^IDEA-(\d{8})-")
+_KN_REF = re.compile(r"^KN-(LIT|TECH|FIND|OPEN)-(?:\d{3,4}|[0-9a-f]{6})$")
+_KN_DIRS = {"LIT": "literature", "TECH": "techniques", "FIND": "findings",
+            "OPEN": "open-problems"}
+_FRONTIER_ROW_IDS: set[str] | None = None
+
+
+def _frontier_row_ids() -> set[str]:
+    global _FRONTIER_ROW_IDS
+    if _FRONTIER_ROW_IDS is None:
+        tools_dir = os.path.dirname(os.path.abspath(__file__))
+        if tools_dir not in sys.path:
+            sys.path.insert(0, tools_dir)
+        import build_frontier_map  # noqa: E402  (sibling tool, no package)
+        _FRONTIER_ROW_IDS = build_frontier_map.row_ids()
+    return _FRONTIER_ROW_IDS
+
+
+def _prior_art_ref_resolves(ref: str) -> bool:
+    if ref.startswith("KR-"):
+        return ref in _frontier_row_ids()
+    m = _KN_REF.match(ref)
+    if m:
+        return os.path.exists(os.path.join(REPO, "knowledge",
+                                           _KN_DIRS[m.group(1)], ref + ".md"))
+    return False
+
+
+def check_prior_art(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate an idea's `prior_art` block; require it after the cutover."""
+    rec_id = str(body.get("id") or "")
+    m = _IDEA_DATE.match(rec_id)
+    post_cutover = bool(m) and int(m.group(1)) >= PRIOR_ART_CUTOVER
+    novelty = body.get("novelty_status")
+    if post_cutover and novelty not in PRIOR_ART_NOVELTY:
+        ctx.err(path, f"novelty_status '{novelty}' must be one of "
+                      f"{sorted(PRIOR_ART_NOVELTY)} for ideas from "
+                      f"IDEA-{PRIOR_ART_CUTOVER} on (agents/idea-generator.md)")
+    block = body.get("prior_art")
+    if block is None:
+        if post_cutover:
+            ctx.err(path, "prior_art is required for ideas from "
+                          f"IDEA-{PRIOR_ART_CUTOVER} on: name the known-result "
+                          "rows checked and the nearest prior work "
+                          "(knowledge/frontiers/ecdlp/README.md)")
+        return
+    if not isinstance(block, dict):
+        ctx.err(path, "prior_art must be a mapping")
+        return
+    fmap = block.get("frontier_map")
+    if fmap == "not_applicable":
+        if not str(block.get("not_applicable_reason") or "").strip():
+            ctx.err(path, "prior_art.frontier_map is 'not_applicable' and "
+                          "requires not_applicable_reason")
+    elif isinstance(fmap, str) and fmap.startswith("knowledge/frontiers/"):
+        if not os.path.isdir(os.path.join(REPO, fmap.rstrip("/"))):
+            ctx.err(path, f"prior_art.frontier_map '{fmap}' is not a directory")
+        rows = block.get("rows_checked")
+        if not isinstance(rows, list) or not rows:
+            ctx.err(path, "prior_art.rows_checked must list the KR-* rows the "
+                          "idea was positioned against")
+        else:
+            for row in rows:
+                if not _prior_art_ref_resolves(str(row)) or \
+                        not str(row).startswith("KR-"):
+                    ctx.err(path, f"prior_art.rows_checked '{row}' is not a "
+                                  "known-result row on disk")
+    else:
+        ctx.err(path, "prior_art.frontier_map must be a knowledge/frontiers/"
+                      "... path or 'not_applicable'")
+    nearest = block.get("nearest")
+    if nearest in (None, []):
+        if not block.get("none_found_after"):
+            ctx.err(path, "prior_art needs `nearest` (>= 1 entry) or "
+                          "`none_found_after` listing the searches that found "
+                          "nothing")
+        nearest = []
+    if not isinstance(nearest, list):
+        ctx.err(path, "prior_art.nearest must be a list")
+        nearest = []
+    grounded_same = False
+    for i, entry in enumerate(nearest):
+        where = f"prior_art.nearest[{i}]"
+        if not isinstance(entry, dict):
+            ctx.err(path, f"{where} must be a mapping")
+            continue
+        ref = str(entry.get("ref") or "")
+        if not _prior_art_ref_resolves(ref):
+            ctx.err(path, f"{where}.ref '{ref}' must resolve to a KR-* row or "
+                          "a knowledge/ entry")
+        provenance = entry.get("provenance")
+        if provenance not in CITATION_PROVENANCE:
+            ctx.err(path, f"{where}.provenance must be "
+                          "recalled|retrieved|kb|internal")
+        relation = entry.get("relation")
+        if relation not in PRIOR_ART_RELATIONS:
+            ctx.err(path, f"{where}.relation must be one of "
+                          f"{sorted(PRIOR_ART_RELATIONS)}")
+        if not str(entry.get("delta") or "").strip():
+            ctx.err(path, f"{where}.delta is required: what the idea adds "
+                          "over this work, quantitatively, or 'none'")
+        if relation in ("same", "special_case") and provenance != "recalled":
+            grounded_same = True
+    if novelty == "known" and not grounded_same:
+        ctx.err(path, "novelty_status 'known' requires a prior_art.nearest "
+                      "entry with relation same|special_case whose provenance "
+                      "is not 'recalled'")
+
+
+def check_obstruction(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate an `obstruction` block: a measurement, not a verdict."""
+    block = body.get("obstruction")
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        ctx.err(path, "obstruction must be a mapping")
+        return
+    for field in OBSTRUCTION_REQUIRED:
+        if not str(block.get(field) or "").strip():
+            ctx.err(path, f"obstruction.{field} is required; an obstruction "
+                          f"recorded as prose is a verdict, not a datum")
+    measured_by = block.get("measured_by")
+    if not isinstance(measured_by, list) or not measured_by:
+        ctx.err(path, "obstruction.measured_by must be a nonempty list of "
+                      "RUN-*/EXP-* IDs the value is read from")
+    check = block.get("resource_check")
+    if not isinstance(check, dict):
+        ctx.err(path, "obstruction.resource_check is required (inventor "
+                      "protocol section 4); an unexamined obstruction asserts "
+                      "only that nobody looked")
+        return
+    if check.get("examined") is not True:
+        ctx.err(path, "obstruction.resource_check.examined must be true; the "
+                      "reversal is checked when the object is still loaded")
+    if not str(check.get("reading") or "").strip():
+        ctx.err(path, "obstruction.resource_check.reading is required; name "
+                      "the theory taking this measurement as its hypothesis, "
+                      "or state that the check found none")
+    if not isinstance(check.get("spawned_ids", []), list):
+        ctx.err(path, "obstruction.resource_check.spawned_ids must be a list")
 KNOWLEDGE_TYPES = {
     "literature": ("literature", "KN-LIT-"),
     "technique": ("techniques", "KN-TECH-"),
@@ -329,6 +652,13 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
                           "empirical_only|not_applicable")
         if not isinstance(body.get("proof_refs"), list):
             ctx.err(path, "proof_refs must be a list")
+    check_citations(path, body, rec_type, ctx)
+    if rec_type == "idea":
+        check_prior_art(path, body, ctx)
+    if rec_type in ("evidence", "coordinator_decision"):
+        check_obstruction(path, body, ctx)
+    if rec_type == "handoff":
+        check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):
@@ -374,6 +704,13 @@ def check_experiment(path: str, ctx: Ctx):
         stem = os.path.basename(os.path.dirname(path))
         ctx.legacy_aliases.add(stem)
     for field in REQUIRED["experiment"]:
+        # Compact Stage-0 contracts (REFSPLIT through EUCREM) record the
+        # required metrics list as primary_metrics. That list already
+        # names the measured gates; accepting it as the schema `metrics`
+        # field avoids rewriting frozen specification.yaml bytes whose
+        # snapshot archives already bind the file hash.
+        if field == "metrics" and field_is_satisfied(body, "primary_metrics"):
+            continue
         if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     # An approved contract must have no null approval fields.
@@ -383,6 +720,88 @@ def check_experiment(path: str, ctx: Ctx):
             if not field_is_satisfied(body, field):
                 ctx.err(path, f"approved experiment has null '{field}'")
     ctx.register(str(rec_id), path, body, "experiment")
+
+
+def check_provenance_quarantine(path: str, body: dict, entry: dict | None,
+                                ctx: Ctx) -> bool:
+    """Account for an unrecoverable historical commit without inventing one.
+
+    This does not make the run reproducible: only a Coordinator-authorized,
+    hash-pinned replacement marked invalid can carry the gap. It remains
+    ineligible for directional evidence. Ordinary/new runs retain the
+    required commit check, as do incomplete or tampered quarantine records.
+    """
+    gap = body.get("provenance_gap")
+    if gap is None:
+        return False
+    errors = []
+    code, result = body.get("code") or {}, body.get("result") or {}
+    if not isinstance(gap, dict):
+        errors.append("provenance_gap must be a mapping")
+        gap = {}
+    if (not entry or entry.get("run_id") != body.get("id")
+            or entry.get("supersession_kind") != "provenance_quarantine"
+            or entry.get("decision_id") != gap.get("decision_id")):
+        errors.append("requires an explicitly registered provenance_quarantine for this run and decision")
+    else:
+        for label in ("superseded", "superseding"):
+            file_path = entry.get(label + "_path")
+            try:
+                actual = hashlib.sha256(Path(file_path).read_bytes()).hexdigest()
+            except (OSError, TypeError):
+                actual = None
+            if actual is None or actual != entry.get(label + "_sha256"):
+                errors.append(f"{label} hash binding must verify")
+        # A quarantine may disclose an omission, never erase provenance the
+        # original manifest actually retained. Malformed originals first need
+        # their separate syntax-preserving repair, not a guessed omission.
+        try:
+            original = yaml.safe_load(Path(entry["superseded_path"]).read_text())
+            original_body = original.get("run", original)
+            original_code = original_body.get("code") or original_body.get("git") or {}
+            if original_code.get("commit") or original_code.get("dirty") is not None:
+                errors.append("original manifest already records execution provenance")
+        except (OSError, yaml.YAMLError, AttributeError, TypeError):
+            errors.append("original provenance fields must be inspectable before quarantine")
+    if (body.get("status") != "completed_invalid"
+            or result.get("valid") is not False
+            or (result.get("certificate") or {}).get("kind") != "none"
+            or result.get("status") in {"valid", "completed_valid"}
+            or result.get("validity_status") == "valid"
+            or not str(result.get("invalid_reason") or "").strip()):
+        errors.append("requires completed_invalid, result.valid=false, a reason and certificate.kind=none")
+    if ("commit" not in code or "dirty" not in code
+            or code.get("commit") is not None or code.get("dirty") is not None
+            or gap.get("missing_fields") != ["code.commit", "code.dirty"]
+            or gap.get("evidence_eligible") is not False
+            or not str(gap.get("reason") or "").strip()):
+        errors.append("must disclose null commit/dirty, exact missing fields, reason and evidence_eligible=false")
+    decision_id = gap.get("decision_id")
+    decision = ctx.records.get(decision_id, {}) if isinstance(decision_id, str) else {}
+    if (ctx.record_types.get(decision_id if isinstance(decision_id, str) else "") != "coordinator_decision"
+            or decision.get("decided_by") != "coordinator"
+            or decision.get("scope") != "administrative_integrity_only"
+            or body.get("id") not in (decision.get("target_ids") or [])):
+        errors.append("requires a Coordinator administrative decision naming this run")
+    sources = gap.get("searched_source_sha256")
+    if not isinstance(sources, dict) or not sources:
+        errors.append("requires a nonempty hash-bound inventory of searched sources")
+    else:
+        for relative, expected in sources.items():
+            try:
+                source = Path(REPO) / relative
+                if (not isinstance(relative, str) or os.path.isabs(relative)
+                        or ".." in relative.split("/")
+                        or not source.resolve().is_relative_to(Path(REPO).resolve())
+                        or not isinstance(expected, str)
+                        or not SHA256_HEX.fullmatch(expected)
+                        or hashlib.sha256(source.read_bytes()).hexdigest() != expected):
+                    raise ValueError("unbound source")
+            except (OSError, ValueError, TypeError):
+                errors.append(f"searched source does not verify: {relative!r}")
+    for error in errors:
+        ctx.err(path, "provenance quarantine: " + error, force=True)
+    return not errors
 
 
 def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None):
@@ -433,25 +852,69 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
         ctx.err(path, f"bad run id {rec_id!r}")
+    # Experiment/run lifetime is not a research conclusion.  A watchdog or
+    # estimate may checkpoint a live run, but it may never manufacture an
+    # `expired` terminal status (which would silently discard an unfinished
+    # experiment).  Use `failed` with an explicit infrastructure reason or
+    # `cancelled` under a Coordinator decision instead.
+    if str(body.get("status", "")).lower() in {"expired", "budget_expired", "time_expired"}:
+        ctx.err(path, "experiment runs may not expire; checkpoint or record an explicit failed/cancelled receipt", force=True)
     for field in RUN_REQUIRED_TOP:
         if body.get(field) in (None, ""):
             ctx.err(path, f"run missing required field '{field}'")
     # Reproducibility: commit + command must be present.
     code = body.get("code") or {}
-    if not code.get("commit"):
+    quarantined = check_provenance_quarantine(path, body, entry, ctx)
+    if not code.get("commit") and not quarantined:
         ctx.err(path, "run.code.commit missing (not reproducible)")
+    if code.get("commit_meaning") == "archival_source_only":
+        ctx.err(path, "run.code.commit is archival source only, not execution provenance; "
+                "use the canonical provenance quarantine until execution is bound", force=True)
     if not code.get("command"):
         ctx.err(path, "run.code.command missing (not reproducible)")
-    # Companion artifacts must exist in the run directory.
+    # A nonterminal observation can explicitly declare that its final raw
+    # result does not exist yet. This is not a liveness check or a result:
+    # terminal/unknown statuses and certificate-bearing records still owe it.
+    pending_body = body.get("result")
+    pending_certificate = (pending_body.get("certificate")
+                           if isinstance(pending_body, dict) else None)
+    raw_result_pending = (
+        isinstance(body.get("status"), str)
+        and body.get("status") in {"running", "in_progress"}
+        and isinstance(pending_body, dict)
+        and pending_body.get("raw_result_pending") is True
+        and isinstance(pending_certificate, dict)
+        and pending_certificate.get("kind") == "none"
+    )
+    # All other companion artifacts remain required even while a run is open.
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
+        if artifact == "raw-result.json" and raw_result_pending:
+            continue
         if not os.path.exists(os.path.join(run_dir, artifact)):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
     # Certificate discipline (docs/claims-and-verification.md).
     result = body.get("result") or {}
     cert = result.get("certificate") or {}
     kind = cert.get("kind")
-    if kind in ("discrete_log", "decomposition"):
+    # CERTIFICATE_KINDS is the single source of truth for which claim kinds a
+    # run may assert; `none` (a pure measurement run) is accepted separately
+    # because it carries no verification duty. `key_recovery` was added here
+    # for the AES line of work (RQ-AES-002 BLK-1).
+    #
+    # DISCLOSED COST OF THIS WORDING. The rejection message below deliberately
+    # still names only discrete_log|decomposition|none and is therefore NO
+    # LONGER AN EXHAUSTIVE ENUMERATION of what is accepted -- it under-reports
+    # `key_recovery`. That is intentional and load-bearing, not an oversight:
+    # tools/validate_ledger_baseline.txt suppresses errors by EXACT LINE MATCH
+    # and 112 of its grandfathered entries end in this exact literal, so any
+    # rewording of it simultaneously stales all 112 entries and emits 112
+    # freshly-worded errors. The baseline is prune-only, so it cannot absorb
+    # them. Keep this string byte-for-byte until a Coordinator-authorized
+    # baseline regeneration retires those 112 entries; the accepted vocabulary
+    # is CERTIFICATE_KINDS above and docs/claims-and-verification.md, not this
+    # message. See DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
+    if kind in CERTIFICATE_KINDS:
         if cert.get("verified") is not True:
             ctx.err(path, f"run claims a {kind} but certificate.verified "
                           f"is not true")
@@ -528,6 +991,19 @@ def check_cross_refs(ctx: Ctx):
                 if run_id not in ctx.ids and run_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"run '{run_id}'")
+                run_record = ctx.records.get(run_id, {})
+                if run_record.get("provenance_gap") is not None:
+                    disclosures = body.get("unresolved_run_provenance") or {}
+                    if (body.get("direction") not in {"neutral", "inconclusive"}
+                            or body.get("strength") not in {"unverified", "inconclusive"}
+                            or body.get("proof_status") not in {"empirical_only", "not_applicable"}
+                            or body.get("proof_refs")
+                            or not isinstance(disclosures, dict)
+                            or not str(disclosures.get(run_id) or "").strip()):
+                        ctx.err(ctx.ids[rec_id],
+                                f"run '{run_id}' has unresolved execution provenance; "
+                                "only neutral/inconclusive evidence with an explicit "
+                                "unresolved_run_provenance disclosure may cite it")
             for exp_id in body.get("experiment_ids") or []:
                 if exp_id not in ctx.ids and exp_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
@@ -641,10 +1117,34 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
                 raise ValueError(f"run supersession {label} must be 64 hex "
                                  f"characters: {raw[label]!r}")
             digests[label] = digest
+        # A malformed historical YAML file can still have an unambiguous
+        # root run_id header. The opt-in locator is checked only after the
+        # archived bytes pass their hash, never on the replacement record.
+        id_line = raw.get("superseded_id_line")
+        if id_line is not None and (type(id_line) is not int or id_line < 1):
+            raise ValueError("run supersession superseded_id_line must be a positive integer")
+        # Narrow null-id binding (TASK-20260909-cb6cc7): an archived manifest
+        # that PARSES with a null run id can only be bound through an explicit
+        # registry declaration with provenance. Both fields are optional; when
+        # present they must be well-formed. Absent on every other entry.
+        id_null = raw.get("superseded_id_null")
+        if id_null is not None and id_null is not True:
+            raise ValueError("run supersession superseded_id_null must be "
+                             "true when present")
+        id_null_provenance = raw.get("superseded_id_null_provenance")
+        if id_null_provenance is not None and (
+                not isinstance(id_null_provenance, str)
+                or not id_null_provenance.strip()):
+            raise ValueError("run supersession "
+                             "superseded_id_null_provenance must be a "
+                             "non-empty string when present")
         key = os.path.abspath(os.path.join(REPO, superseded))
         if key in entries:
             raise ValueError(f"run supersession registry lists {superseded} "
                              f"more than once")
+        extraction = raw.get("superseded_id_extraction")
+        if "superseded_id_extraction" in raw:
+            _validate_superseded_id_extraction(extraction, str(raw["run_id"]).strip())
         entries[key] = {
             "run_id": str(raw["run_id"]).strip(),
             "superseded_path": key,
@@ -652,7 +1152,14 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
             "superseding_path": os.path.abspath(
                 os.path.join(REPO, superseding)),
             "superseding_sha256": digests["superseding_sha256"],
+            "superseded_id_line": id_line,
+            "superseded_id_null": id_null,
+            "superseded_id_null_provenance": id_null_provenance,
+            "supersession_kind": raw.get("supersession_kind"),
+            "decision_id": raw.get("decision_id"),
         }
+        if extraction is not None:
+            entries[key]["superseded_id_extraction"] = dict(extraction)
     return entries
 
 
@@ -797,12 +1304,296 @@ def check_schema_redirects(ctx: Ctx,
                     "record", force=True)
 
 
-def _run_id_of(path: str) -> str | None:
+def _validate_superseded_id_extraction(extraction: object, run_id: str) -> None:
+    """Validate an explicit identity binding, never a permissive YAML parser."""
+    headers = {
+        "unique_first_line_run_id_header": (1, f"run_id: {run_id}"),
+        "unique_nested_run_id_duplicate_process": (2, f"  id: {run_id}"),
+    }
+    kind = extraction.get("kind") if isinstance(extraction, dict) else None
+    expected = headers.get(kind) if isinstance(kind, str) else None
+    if (not isinstance(extraction, dict)
+            or set(extraction) != {"kind", "line_number", "exact_line"}
+            or expected is None
+            or type(extraction.get("line_number")) is not int
+            or extraction.get("line_number") != expected[0]
+            or not RUN_ID.fullmatch(run_id)
+            or extraction.get("exact_line") != expected[1]):
+        raise ValueError("invalid superseded_id_extraction binding")
+
+
+def _safe_identity_scalar_key(node):
+    """Resolve a scalar key using only SafeLoader scalar constructors.
+
+    Compare these values with ordinary Python mapping equality (including
+    bool/int/float equality), while callers retain their textual restrictions.
+    Non-reflexive values such as NaN cannot provide an unambiguous key.
+    """
+    if not isinstance(node, yaml.ScalarNode):
+        raise yaml.YAMLError("non-scalar key in run identity record")
+    if node.tag not in {
+        "tag:yaml.org,2002:" + name
+        for name in ("str", "null", "bool", "int", "float", "binary", "timestamp")
+    }:
+        raise yaml.YAMLError("unsupported scalar key tag in run identity record")
+    loader = yaml.SafeLoader("")
+    try:
+        value = loader.construct_object(node, deep=True)
+        hash(value)
+        if value != value:
+            raise ValueError("non-reflexive scalar key")
+        return value
+    except (ValueError, TypeError, OverflowError, KeyError, AttributeError,
+            IndexError) as exc:
+        raise yaml.YAMLError("ambiguous scalar key in run identity record") from exc
+    finally:
+        loader.dispose()
+
+
+def _nested_run_id_with_duplicate_process(text: str, run_id: str) -> str | None:
+    """Recover only an unambiguous ID, not the duplicate process observations.
+
+    Called only behind a registry opt-in and whole-file hash check. Ordinary
+    identity parsing continues to reject every duplicate mapping key.
+    """
+    lines = text.splitlines()
+    if lines[:2] != ["run:", f"  id: {run_id}"]:
+        return None
+    if any(line.strip() in {"---", "..."} for line in lines):
+        return None
+    try:
+        root = yaml.compose(text)
+        if not isinstance(root, yaml.MappingNode) or len(root.value) != 1:
+            return None
+        key, body = root.value[0]
+        if not isinstance(key, yaml.ScalarNode) or key.value != "run":
+            return None
+        if not isinstance(body, yaml.MappingNode):
+            return None
+        identities = [(key, value) for key, value in body.value
+                      if isinstance(key, yaml.ScalarNode)
+                      and key.value in {"id", "run_id", "run"}]
+        if (len(identities) != 1 or identities[0][0].value != "id"
+                or not isinstance(identities[0][1], yaml.ScalarNode)
+                or identities[0][1].tag != "tag:yaml.org,2002:str"
+                or identities[0][1].value != run_id):
+            return None
+        seen: set[int] = set()
+        duplicates = []
+
+        def inspect(node, path=()):
+            if id(node) in seen:
+                raise ValueError("alias")
+            seen.add(id(node))
+            if isinstance(node, yaml.MappingNode):
+                keys = set()
+                resolved_keys = set()
+                for key, value in node.value:
+                    resolved_key = _safe_identity_scalar_key(key)
+                    if key.value == "<<":
+                        raise ValueError("ambiguous key")
+                    if key.value in keys or resolved_key in resolved_keys:
+                        if (path != ("run",) or key.value != "process"
+                                or resolved_key != "process"
+                                or key.tag != "tag:yaml.org,2002:str"):
+                            raise ValueError("unexpected duplicate")
+                        duplicates.append(path + (key.value,))
+                    keys.add(key.value)
+                    resolved_keys.add(resolved_key)
+                    if path == ("run",) and key.value == "process":
+                        if (key.tag != "tag:yaml.org,2002:str"
+                                or resolved_key != "process"):
+                            raise ValueError("process key is not a string")
+                        if not isinstance(value, yaml.MappingNode):
+                            raise ValueError("process observation is not a mapping")
+                    inspect(key, path)
+                    inspect(value, path + (key.value,))
+            elif isinstance(node, yaml.SequenceNode):
+                for item in node.value:
+                    inspect(item, path)
+
+        inspect(root)
+        if duplicates != [("run", "process")]:
+            return None
+        return run_id
+    except (yaml.YAMLError, ValueError, TypeError):
+        return None
+
+
+def _malformed_superseded_run_id(path: str, entry: dict | None) -> str | None:
+    """Extract identity only from an opted-in, hash-pinned malformed original.
+
+    This helper cannot validate the original or replace any field check on the
+    complete superseding manifest. Recheck path and bytes here so even callers
+    outside check_run_supersessions cannot use a binding for another file.
+    """
+    if not entry or "superseded_id_extraction" not in entry:
+        return None
+    run_id = str(entry.get("run_id") or "")
+    extraction = entry["superseded_id_extraction"]
+    try:
+        _validate_superseded_id_extraction(extraction, run_id)
+        if (os.path.abspath(path) != entry.get("superseded_path")
+                or os.path.basename(os.path.dirname(path)) != run_id):
+            return None
+        with open(path, "rb") as handle:
+            content = handle.read()
+        if hashlib.sha256(content).hexdigest() != entry.get("superseded_sha256"):
+            return None
+        lines = content.decode("utf-8").splitlines()
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if extraction["kind"] == "unique_nested_run_id_duplicate_process":
+        return _nested_run_id_with_duplicate_process(content.decode("utf-8"), run_id)
+    if not lines or lines[0] != extraction["exact_line"]:
+        return None
+    identity_headers = [line for line in lines
+                        if re.match(r"^(?:run_id|id|run)\s*:", line)]
+    if identity_headers != [extraction["exact_line"]]:
+        return None
+    return run_id
+
+
+def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
+    """Read identity only from the narrowly known flat-manifest encoding defect.
+
+    The historical writer interpolated git porcelain output into an unquoted
+    dirty_summary. Quote only that field in memory, then parse the WHOLE
+    document and reject ambiguous identities. This does not make the original
+    a valid run: normal check_run still rejects it, and supersession still
+    requires both whole-file hashes and complete replacement validation.
+    """
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("run_id: "):
+        return None
+    rec_id = lines[0][len("run_id: "):]
+    if not RUN_ID.fullmatch(rec_id):
+        return None
+    starts = [i for i, line in enumerate(lines)
+              if line.startswith("  dirty_summary: ")]
+    if len(starts) != 1:
+        return None
+    start = starts[0]
+    end = start + 1
+    # Accept only literal unquoted porcelain rows, never arbitrary YAML or
+    # scalar contents as continuation. A colon in a filename is not a key.
+    statuses = re.compile(r"(?:\?\?|[MADRCU?!]|[ MADRCU?!]{2}) [^\r\n]+")
+    values = [lines[start][len("  dirty_summary: "):]]
+    while end < len(lines) and lines[end] != "environment:":
+        values.append(lines[end])
+        end += 1
+    if end == len(lines) or not all(statuses.fullmatch(v) for v in values):
+        return None
+    repaired = lines[:start] + ["  dirty_summary: " + json.dumps("\n".join(values))] + lines[end:]
+    try:
+        node = yaml.compose("\n".join(repaired))
+        seen: set[int] = set()
+        identities: list[tuple[str, str]] = []
+
+        def inspect(current, depth=0):
+            # Aliases, duplicate keys, nested identities and merge keys are
+            # deliberately outside this narrowly recoverable old format.
+            if id(current) in seen:
+                raise ValueError("alias")
+            seen.add(id(current))
+            if isinstance(current, yaml.MappingNode):
+                keys = set()
+                for key, value in current.value:
+                    if not isinstance(key, yaml.ScalarNode) or key.value in keys:
+                        raise ValueError("ambiguous mapping")
+                    keys.add(key.value)
+                    if key.value in ("id", "run_id", "run", "<<"):
+                        if depth != 0 or key.value != "run_id" or not isinstance(value, yaml.ScalarNode):
+                            raise ValueError("ambiguous identity")
+                        identities.append((key.value, value.value))
+                    inspect(value, depth + 1)
+            elif isinstance(current, yaml.SequenceNode):
+                for value in current.value:
+                    inspect(value, depth + 1)
+        inspect(node)
+        if identities != [("run_id", rec_id)]:
+            return None
+        doc = yaml.safe_load("\n".join(repaired))
+        if not isinstance(doc, dict) or not isinstance(doc.get("git"), dict):
+            return None
+        if doc["git"].get("dirty_summary") != "\n".join(values):
+            return None
+    except (yaml.YAMLError, ValueError, TypeError):
+        return None
+    return rec_id
+
+
+def _null_id_superseded_run_id(path: str, entry: dict | None) -> str | None:
+    """Bind identity for a registered superseded manifest that parses with a null id.
+
+    Narrow sibling of the malformed-YAML recovery (_malformed_superseded_run_id),
+    added by TASK-20260909-cb6cc7 for RUN-ECDLP-e962f6-007, whose archived
+    manifest is well-formed YAML that records `id: null`. It fires ONLY when
+    all of the following hold:
+
+      * the entry is a registered supersession that explicitly declares
+        `superseded_id_null: true` together with a non-empty
+        `superseded_id_null_provenance`;
+      * the file is hash-verified against the entry's `superseded_sha256`;
+      * the file's path matches the entry's `superseded_path`;
+      * the run-directory basename equals the registered run id.
+
+    It does not generalise null-id recovery: a parseable manifest with a null
+    id that is not a registered supersession -- or whose entry lacks the
+    explicit declaration -- still yields None, exactly as before this path
+    existed.
+    """
+    if not entry or entry.get("superseded_id_null") is not True:
+        return None
+    provenance = entry.get("superseded_id_null_provenance")
+    if not isinstance(provenance, str) or not provenance.strip():
+        return None
+    run_id = str(entry.get("run_id") or "")
+    if not RUN_ID.fullmatch(run_id):
+        return None
+    if (os.path.abspath(path) != entry.get("superseded_path")
+            or os.path.basename(os.path.dirname(path)) != run_id):
+        return None
+    try:
+        with open(path, "rb") as handle:
+            content = handle.read()
+    except OSError:
+        return None
+    if hashlib.sha256(content).hexdigest() != entry.get("superseded_sha256"):
+        return None
+    return run_id
+
+
+def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
-            doc = yaml.safe_load(handle)
-    except (OSError, yaml.YAMLError):
+            text = handle.read()
+    except OSError:
         return None
+    class IdentityLoader(yaml.SafeLoader):
+        pass
+
+    def unique_mapping(loader, node, deep=False):
+        keys = set()
+        resolved_keys = set()
+        for key, _ in node.value:
+            resolved_key = _safe_identity_scalar_key(key)
+            if key.value in keys or resolved_key in resolved_keys:
+                raise yaml.YAMLError("duplicate mapping keys in run identity record")
+            keys.add(key.value)
+            resolved_keys.add(resolved_key)
+        return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
+
+    IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                                   unique_mapping)
+    try:
+        doc = yaml.load(text, Loader=IdentityLoader)
+    except yaml.YAMLError:
+        # Recovery is allowed only for a hash-verified registered original
+        # with an explicit locator, never as ordinary identity parsing.
+        # Porcelain whole-document recovery stays behind superseded_id_line
+        # / _malformed_run_header_id; extraction bindings use this opt-in.
+        return _malformed_superseded_run_id(path, superseded_entry)
     body = doc.get("run") if isinstance(doc, dict) else None
     if isinstance(body, dict):
         rec_id = body.get("id")
@@ -813,7 +1604,49 @@ def _run_id_of(path: str) -> str | None:
         rec_id = doc.get("run_id") or doc.get("id")
     else:
         rec_id = None
-    return str(rec_id) if rec_id else None
+    if rec_id:
+        return str(rec_id)
+    # A parseable manifest with a null id has no ordinary identity. The only
+    # recovery is the narrow, hash-verified, registry-declared null-id binding
+    # above; it returns None for every manifest that is not such a registered
+    # supersession, so unregistered behaviour is unchanged.
+    return _null_id_superseded_run_id(path, superseded_entry)
+
+
+def _malformed_run_header_id(path: str, line_number: int) -> str | None:
+    """Read one explicitly located root ID in hash-verified malformed YAML.
+
+    This is identity recovery, not parsing the damaged record as evidence.
+    Reject duplicate/ambiguous root identity fields and require the run
+    directory to agree. A normally parseable file never needs this route.
+    """
+    if type(line_number) is not int or line_number < 1:
+        return None
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+        yaml.safe_load(text)
+        return None
+    except yaml.YAMLError:
+        pass
+    except (OSError, UnicodeError):
+        return None
+    headers = [(i, line) for i, line in enumerate(text.splitlines(), 1)
+               if re.match(r"^(?:run_id|id)\s*:", line)]
+    if len(headers) != 1 or headers[0][0] != line_number:
+        return None
+    # Accept only a literal root run_id, not aliases, tags, quotes, nested
+    # mappings or a second YAML document masquerading as the header.
+    if any(line.strip() in {"---", "..."} for line in text.splitlines()):
+        return None
+    header = re.fullmatch(r"run_id: (RUN-[A-Za-z0-9_-]+)", headers[0][1])
+    if header is None:
+        return None
+    value = header[1]
+    if not RUN_ID.fullmatch(value):
+        return None
+    if _flat_run_id_with_malformed_dirty_summary(text) != value:
+        return None
+    return value if os.path.basename(os.path.dirname(path)) == value else None
 
 
 def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
@@ -848,7 +1681,12 @@ def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
                         f"supersede it instead of editing it",
                         force=True)
                 continue
-            found = _run_id_of(file_path)
+            found = _run_id_of(
+                file_path, superseded_entry=entry if role == "superseded" else None)
+            if (found is None and role == "superseded"
+                    and entry.get("superseded_id_line") is not None):
+                found = _malformed_run_header_id(
+                    file_path, entry["superseded_id_line"])
             if found != entry["run_id"]:
                 ctx.err(file_path,
                         f"registered {role} run manifest declares run id "
@@ -990,7 +1828,7 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                     ctx.err(path, "internal finding requires internal_refs")
                 else:
                     for ref in refs:
-                        if ref not in ctx.ids:
+                        if ref not in ctx.ids and ref not in ctx.knowledge:
                             ctx.err(path, f"internal finding references unknown "
                                           f"record '{ref}'")
                 if frontmatter.get("proof_status") not in PROOF_STATUSES:
@@ -1023,13 +1861,47 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                                          f"unknown entry '{knowledge_id}'")
 
 
-GOAL_ID = re.compile(r"^GOAL-[A-Z0-9]+-\d{3}$")
+GOAL_ID = ID_PATTERNS["goal"]
+GOAL_LEGACY_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_LEGACY}$")
+GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # `closed_at_budget` is a terminal status in active use. It asserts that the
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
 # a criterion, in order to avoid the quorum, is a contract violation.
-GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
-                 "cancelled", "closed_at_budget"}
+# PAUSING A GOAL IS NOT PERMITTED. `paused` and `blocked` were removed from
+# this set on user instruction (2026-09-04): a campaign that hits an impediment
+# stays `active` and carries that impediment as a record, so the harness keeps
+# returning to it instead of parking it.
+#
+# `blocked` is refused alongside `paused` deliberately. It is the same idling
+# under another name, and leaving it available would have made the rule
+# cosmetic — the next session that wanted to stop a goal would simply have
+# written `blocked` instead.
+#
+# WHAT THIS DOES NOT RELAX. Pausing was carrying two honesty guarantees, and
+# removing the status does not remove either of them:
+#   - An infrastructure or budget impediment is STILL never negative
+#     mathematical evidence (AGENTS.md rule 3) and still never a research
+#     conclusion. It is recorded as an impediment on an active goal.
+#   - A `review-breakthrough` that cannot be served STILL may not be downgraded
+#     to a lower review tier. The goal stays active; the CLAIM stays
+#     un-promoted. "Never pause" is not permission to close, to promote, or to
+#     review at a tier the policy forbids.
+# An exhausted campaign budget likewise does not become licence to keep
+# spending: it requires a committed Coordinator budget decision before the next
+# batch. Terminal retirement remains available via `closed_at_budget` and
+# `cancelled`, both of which assert no success and both of which are deliberate
+# Coordinator acts rather than the automatic response to an impediment.
+GOAL_STATUSES = {"draft", "active", "completed", "cancelled",
+                 "closed_at_budget"}
+GOAL_STATUSES_REFUSED = {
+    "paused": ("pausing a goal is not permitted; keep status: active and record "
+               "the blocker under `impediments` with a concrete clearing "
+               "condition"),
+    "blocked": ("blocking a goal is not permitted; it is pausing under another "
+                "name. Keep status: active and record the blocker under "
+                "`impediments` with a concrete clearing condition"),
+}
 GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
                  "completion_criteria", "pause_conditions", "next_action",
                  "owner"]
@@ -1193,7 +2065,17 @@ def load_goal_documents(ctx: Ctx):
     tools/shard_goal.py. Migrating all of them at once would land a rename in
     every one of the open branches simultaneously.
     """
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*.yaml"))):
+    goals_root = os.path.join(REPO, "ledger", "goals")
+    try:
+        entries = sorted(os.scandir(goals_root), key=lambda entry: entry.name)
+    except OSError:
+        entries = []
+
+    for entry in entries:
+        if (entry.is_symlink() or not entry.name.endswith(".yaml")
+                or not entry.is_file(follow_symlinks=False)):
+            continue
+        path = entry.path
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1203,8 +2085,16 @@ def load_goal_documents(ctx: Ctx):
             continue
         yield path, goal, lambda rec_id: f"{rec_id}.yaml", os.path.basename(path)
 
-    for path in sorted(glob.glob(os.path.join(REPO, "ledger", "goals", "*",
-                                              "goal.yaml"))):
+    for entry in entries:
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            continue
+        path = os.path.join(entry.path, "goal.yaml")
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            continue
+        if not stat.S_ISREG(mode):
+            continue
         doc = load_yaml(path, ctx)
         if doc is None:
             continue
@@ -1213,7 +2103,24 @@ def load_goal_documents(ctx: Ctx):
             ctx.err(path, "missing top-level 'research_goal' mapping")
             continue
         directory = os.path.dirname(path)
-        shards = sorted(glob.glob(os.path.join(directory, "checkpoints", "*.yaml")))
+        checkpoints = os.path.join(directory, "checkpoints")
+        try:
+            checkpoint_mode = os.lstat(checkpoints).st_mode
+        except OSError:
+            checkpoint_mode = 0
+        if stat.S_ISDIR(checkpoint_mode):
+            checkpoint_entries = sorted(
+                os.scandir(checkpoints), key=lambda checkpoint: checkpoint.name
+            )
+        else:
+            checkpoint_entries = []
+        shards = [
+            checkpoint.path
+            for checkpoint in checkpoint_entries
+            if (not checkpoint.is_symlink()
+                and checkpoint.name.endswith(".yaml")
+                and checkpoint.is_file(follow_symlinks=False))
+        ]
         merged = []
         for shard in shards:
             sdoc = load_yaml(shard, ctx)
@@ -1234,7 +2141,294 @@ def load_goal_documents(ctx: Ctx):
         yield path, goal, lambda rec_id: "goal.yaml", os.path.basename(directory)
 
 
+GIT_CONTEXT_REDIRECTS = {
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_REPLACE_REF_BASE", "GIT_NO_REPLACE_OBJECTS",
+}
+
+
+def _explicit_git_environment() -> dict[str, str]:
+    """Environment stripped of caller-controlled repository redirects."""
+    return {key: value for key, value in os.environ.items()
+            if key not in GIT_CONTEXT_REDIRECTS}
+
+
+def protected_prefix_git_errors() -> tuple[bool, list[tuple[str, str]]]:
+    """Inspect bound HEAD and actual index without touching alias targets.
+
+    Git stores ordinary directories only as descendant entries, while a
+    gitlink or symlink occupies the exact protected path.  Keeping those cases
+    separate prevents an initialized gitlink's ordinary-directory filesystem
+    appearance from laundering mode 160000 into the ledger traversal.
+
+    The boolean reports whether REPO is a Git worktree.  Non-Git fixtures retain
+    the filesystem-only contract and make no Git provenance claim. Caller Git
+    redirects are removed, then the discovered top-level, Git directory, and
+    actual index are rebound explicitly for every metadata query. Protected
+    provenance is always read with replacement-object processing disabled;
+    neither default/custom replace refs nor caller environment may rewrite the
+    commit or tree objects being classified.
+    """
+    git_marker = os.path.join(REPO, ".git")
+    clean_env = _explicit_git_environment()
+    try:
+        probe = subprocess.run(
+            ["git", "-C", REPO, "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, env=clean_env,
+        )
+    except OSError as error:
+        if os.path.lexists(git_marker):
+            return True, [("ledger", "cannot inspect protected-prefix Git "
+                           f"metadata: {error}; target was not read")]
+        return False, []
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        if os.path.lexists(git_marker):
+            detail = (probe.stderr or probe.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "Git worktree probe failed"
+            return True, [("ledger", "cannot determine protected-prefix Git "
+                           f"metadata: {reason}; target was not read")]
+        return False, []
+
+    context = subprocess.run(
+        ["git", "-C", REPO, "rev-parse", "--show-toplevel",
+         "--absolute-git-dir", "--path-format=absolute", "--git-path", "index"],
+        capture_output=True, text=True, env=clean_env,
+    )
+    values = [line.strip() for line in context.stdout.splitlines() if line.strip()]
+    if context.returncode != 0 or len(values) != 3:
+        detail = (context.stderr or context.stdout).strip().splitlines()
+        reason = detail[-1] if detail else "explicit Git context query failed"
+        return True, [("ledger", "cannot bind protected-prefix Git metadata "
+                                 f"to validation root: {reason}; target was not read")]
+    top_level, git_directory, index_file = map(os.path.abspath, values)
+    try:
+        root_matches = os.path.samefile(top_level, REPO)
+    except OSError:
+        root_matches = (os.path.normcase(os.path.realpath(top_level))
+                        == os.path.normcase(os.path.realpath(REPO)))
+    if not root_matches:
+        return True, [("ledger", "protected-prefix Git top-level does not match "
+                                 "the explicit validation root; target was not read")]
+    if not os.path.isdir(git_directory) or not os.path.isfile(index_file):
+        return True, [("ledger", "protected-prefix actual Git directory or "
+                                 "index is unavailable; target was not read")]
+
+    bound_env = dict(clean_env)
+    bound_env["GIT_INDEX_FILE"] = index_file
+    # Belt and suspenders: the global option binds the individual invocation,
+    # while the environment also covers Git versions/subcommands that consult
+    # the conventional replacement-disable switch internally.  Caller values
+    # were removed above and cannot re-enable replacement processing.
+    bound_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+
+    def bound_git(*arguments: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", "--no-replace-objects", f"--git-dir={git_directory}",
+             f"--work-tree={REPO}", *arguments],
+            capture_output=True, text=True, env=bound_env,
+        )
+
+    errors: list[tuple[str, str]] = []
+    for relative in ("ledger", "ledger/goals"):
+        head = bound_git("ls-tree", "-z", "HEAD", "--", relative)
+        index = bound_git("ls-files", "--stage", "-z", "--", relative)
+        if head.returncode != 0 or index.returncode != 0:
+            failed = head if head.returncode != 0 else index
+            detail = (failed.stderr or failed.stdout).strip().splitlines()
+            reason = detail[-1] if detail else "HEAD or index query failed"
+            errors.append((relative, "cannot determine protected-prefix Git "
+                                     f"metadata: {reason}; target was not read"))
+            break
+
+        head_modes: list[str] = []
+        for entry in head.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            if candidate == relative:
+                head_modes.append(metadata.split(" ", 1)[0])
+
+        exact_modes: list[str] = []
+        descendant_count = 0
+        for entry in index.stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            metadata, candidate = entry.split("\t", 1)
+            mode = metadata.split(" ", 1)[0]
+            if candidate == relative:
+                exact_modes.append(mode)
+            elif candidate.startswith(relative + "/"):
+                descendant_count += 1
+
+        for source, modes_found in (("Git HEAD tree", head_modes),
+                                    ("Git index", exact_modes)):
+            modes = sorted(set(modes_found))
+            if modes == ["040000"] and source == "Git HEAD tree":
+                continue
+            if not modes and source == "Git index" and descendant_count:
+                continue
+            if not modes:
+                errors.append((
+                    relative,
+                    f"trusted goal prefix is missing from {source}; protected "
+                    "candidate state is indeterminate and target was not read",
+                ))
+                break
+            description = (
+                "gitlink" if modes == ["160000"] else
+                "symlink" if modes == ["120000"] else
+                "regular file" if modes == ["100644"] else
+                "non-directory object"
+            )
+            if description in {"gitlink", "symlink"}:
+                finding = f"an exact {source} {description}"
+            else:
+                finding = f"{description}; exact {source} object"
+            errors.append((
+                relative,
+                f"trusted goal prefix is {finding} "
+                f"with mode(s) {modes}; ordinary tracked descendants are "
+                "required and target was not read",
+            ))
+            break
+        if errors:
+            break
+        if descendant_count == 0:
+            errors.append((
+                relative,
+                "trusted goal prefix is missing; Git index has neither an "
+                "exact entry nor ordinary tracked descendants, so candidate "
+                "type is indeterminate and target was not read",
+            ))
+            break
+    return True, errors
+
+
+def check_trusted_goal_prefixes(ctx: Ctx) -> bool:
+    """Require ordinary ledger and ledger/goals directories without follow."""
+    in_git_worktree, git_errors = protected_prefix_git_errors()
+    if in_git_worktree and git_errors:
+        for relative, message in git_errors:
+            ctx.err(os.path.join(REPO, *relative.split("/")), message, force=True)
+        return False
+
+    for relative in ("ledger", "ledger/goals"):
+        path = os.path.join(REPO, *relative.split("/"))
+        try:
+            mode = os.lstat(path).st_mode
+        except OSError:
+            description = "missing"
+        else:
+            if stat.S_ISLNK(mode):
+                description = "symlink"
+            elif stat.S_ISDIR(mode):
+                continue
+            elif stat.S_ISREG(mode):
+                description = "regular file"
+            else:
+                description = "special file"
+        ctx.err(path, f"trusted goal prefix is {description}; required ordinary "
+                      "directory and target was not read", force=True)
+        return False
+    return True
+
+
+def check_goal_symlinks(ctx: Ctx) -> None:
+    """Reject goal-tree symlinks without opening or traversing their targets."""
+    root = os.path.join(REPO, "ledger", "goals")
+    try:
+        root_mode = os.lstat(root).st_mode
+    except OSError:
+        return
+    if not stat.S_ISDIR(root_mode):
+        return
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        try:
+            entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_symlink():
+                ctx.err(entry.path,
+                        "goal path may not be a symlink; target was not read",
+                        force=True)
+            elif entry.is_dir(follow_symlinks=False):
+                pending.append(entry.path)
+
+
+# ECC goals have an UNLIMITED campaign budget, on user instruction
+# (2026-09-04). The area set and the field list are declared once, in
+# orchestration/research-priority.yaml, and read through tools/ecc_priority.py
+# -- never re-derived here and never inferred from an identifier prefix.
+#
+# Only `active` and `draft` goals are checked. A terminal goal's budget is
+# history; rewriting it would be a retroactive edit of a closed campaign, not a
+# policy fix.
+#
+# What unlimited does NOT mean: `max_concurrent` stays bounded (it is machine
+# headroom, not a research budget), and removing the batch ceiling does not
+# remove the duty to rank -- never dispatch a task you cannot rank ahead of
+# doing nothing.
+def check_ecc_budget_is_unlimited(path, goal, status, ctx: Ctx):
+    if status not in ("active", "draft"):
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ecc_priority
+        policy = ecc_priority.load_policy()
+    except Exception:
+        return                       # policy absent or unreadable: not a ledger error
+    if not (policy.get("budget") or {}).get("ecc_unlimited"):
+        return
+    gid = str(goal.get("id") or "")
+    if not ecc_priority.is_ecc(gid, policy):
+        return
+    budget = goal.get("campaign_budget")
+    if not isinstance(budget, dict):
+        return
+    for field in ecc_priority.unbounded_fields(policy):
+        value = budget.get(field)
+        if value is not None:
+            ctx.err(path,
+                    f"ECC goal {gid} must have an unlimited campaign budget: "
+                    f"campaign_budget.{field} is {value!r}, must be null "
+                    f"(orchestration/research-priority.yaml)")
+
+
+# Frozen closures already present when the 2026-09-06 policy was adopted.
+# Never add future closures to this compatibility set.
+PRE_STAGNATION_BUDGET_CLOSURES = {
+    "GOAL-MLKEM-001", "GOAL-MLKEM-003", "GOAL-MLKEM-004",
+    "GOAL-P13-001", "GOAL-ECQ-002",
+}
+
+
+def check_budget_retirement(path, goal, ctx):
+    if goal.get("status") != "closed_at_budget" or goal.get("id") in PRE_STAGNATION_BUDGET_CLOSURES:
+        return
+    sys.path.insert(0, REPO)
+    from orchestration.research_budget import enforce_research_budget
+    from datetime import date
+    budget = goal.get("campaign_budget") or {}
+    try:
+        # Historical closures remain verifiable after their review expires.
+        # The restriction must have been current at the recorded closure date.
+        closed_at = date.fromisoformat(goal.get("closed_at", ""))
+        if closed_at > date.today():
+            raise ValueError("budget closure cannot be future-dated")
+        if not enforce_research_budget(budget, today=closed_at, repo_root=REPO, target_id=goal.get("id")):
+            raise ValueError("advisory estimates cannot retire a research goal")
+    except (ValueError, TypeError) as exc:
+        ctx.err(path, f"budget retirement requires a 90-day stagnation review: {exc}")
+
+
 def check_goals(ctx: Ctx):
+    if not check_trusted_goal_prefixes(ctx):
+        return
+    check_goal_symlinks(ctx)
     for path, goal, expected_name, identity in load_goal_documents(ctx):
         rec_id = goal.get("id")
         if not rec_id or not GOAL_ID.match(str(rec_id)):
@@ -1254,8 +2448,14 @@ def check_goals(ctx: Ctx):
                     ctx.err(path, f"missing required field '{field}'")
 
         status = str(goal.get("status", "")).strip()
-        if status and status not in GOAL_STATUSES:
+        if status in GOAL_STATUSES_REFUSED:
+            ctx.err(path, f"status {status!r} is not permitted: "
+                          f"{GOAL_STATUSES_REFUSED[status]}")
+        elif status and status not in GOAL_STATUSES:
             ctx.err(path, f"invalid status {status!r}")
+
+        check_ecc_budget_is_unlimited(path, goal, status, ctx)
+        check_budget_retirement(path, goal, ctx)
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)
@@ -1369,6 +2569,17 @@ def main() -> int:
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
     args = ap.parse_args()
+
+    # This must precede every inventory, glob, supersession, and record read.
+    # If ledger itself is an alias, even an apparently unrelated ledger glob
+    # would otherwise escape the candidate tree before check_goals runs.
+    prefix_ctx = Ctx(set())
+    if not check_trusted_goal_prefixes(prefix_ctx):
+        print(f"FAIL: {len(prefix_ctx.errors)} new validation error(s):\n",
+              file=sys.stderr)
+        for error in prefix_ctx.errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
 
     try:
         legacy_inventory = load_legacy_inventory()

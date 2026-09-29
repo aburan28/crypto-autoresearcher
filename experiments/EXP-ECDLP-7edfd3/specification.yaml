@@ -1,0 +1,618 @@
+experiment:
+  id: EXP-ECDLP-7edfd3
+  hypothesis_id: H-ECDLP-fe99ef
+  question_id: RQ-ECDLP-002
+  goal_id: null
+  version: 1
+  status: review_required
+  claim_tier: toy
+  title: >-
+    Between-instance versus within-instance spread of every EXP-LPF-001 banded
+    statistic, at k fresh curve instances per cell, decomposed across three arms
+    so that the null arms supply a DERIVABLE floor and a range-frozen null with
+    no instance dependence at all can fail
+
+  objective: >-
+    Measure, for each statistic the EXP-LPF-001 bands are applied to, the
+    BETWEEN-INSTANCE standard deviation across k fresh curve instances per cell,
+    and report its ratio to the WITHIN-INSTANCE i.i.d. standard deviation that
+    the archived 200 replicates of ONE instance were used to set the bands from.
+    The campaign named this hole itself, costed it, and never contracted it.
+    THREE ARMS, NOT ONE NUMBER: a range-frozen null with no instance dependence
+    (forced ratio 1), a uniform null whose instance dependence runs only through
+    the field prime p (derivable floor), and the real arm (the finding, reported
+    as an excess over that floor).
+    THIS MEASURES THE INSTRUMENT AND NOT THE MATHEMATICS. It supports no claim
+    about ECDLP in either direction and performs no re-scoping of any evidence
+    record.
+
+  independent_variables:
+    - name: cell_field_bits
+      values: [16, 20]
+    - name: instance_seed
+      values: >-
+        2301 first as the regression fixture, then k-1 further declared seeds;
+        target k = 32, minimum k = 20
+    - name: arm
+      values: [ARM-FROZEN, ARM-UNIF, ARM-REAL]
+    - name: statistic
+      values: >-
+        STAT-RATE-u at u_target 2, 3, 4, 5, 6; STAT-KS-DICK; STAT-TAIL-DEEP
+
+  inputs:
+    archived_source_of_record:
+      - experiments/EXP-LPF-001/results/calib/null_replicate_statistics.json
+      - experiments/EXP-LPF-001/results/measure/LPF_report.json
+      - experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/manifest.yaml
+      - experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/manifest.yaml
+      - experiments/EXP-LPF-001/implementation/lpf001_driver.py
+      - experiments/EXP-LPF-001/reading_rule.yaml
+      - experiments/EXP-LPF-001/reading_rule_v2.yaml
+      - ledger/decisions/DEC-20260801-014.yaml
+      - ledger/decisions/DEC-20260801-015.yaml
+    immutability: >-
+      EVERY PATH ABOVE IS READ-ONLY. Nothing under experiments/EXP-LPF-001/ may
+      be written, edited, moved or regenerated, INCLUDING lpf001_driver.py. The
+      sweep runs through a thin wrapper under this experiment's own write scope
+      that IMPORTS the committed driver's functions and varies only the instance
+      seed. A MODIFIED DRIVER IS A NEW IMPLEMENTATION AND VOIDS THE REGRESSION
+      CONTROL, hence the entire run.
+    archived_within_instance_reference_bits16:
+      note: >-
+        Transcribed here so a transcription error is detectable. The executor
+        RE-READS them and reports any mismatch as an invalidation, never as a
+        finding. The bits-20 values are deliberately NOT transcribed because this
+        coordinator did not read them; inventing them would be a fabrication.
+      replicates: 200
+      p: 46663
+      X_equals_p_squared: 2177435569
+      n_per_sample_set: 130816
+      means:
+        STAT-RATE-u@2: 0.35907492202788643
+        STAT-RATE-u@3: 0.07060718872309196
+        STAT-RATE-u@4: 0.010077475232387476
+        STAT-RATE-u@5: 0.0015946443860078278
+        STAT-RATE-u@6: 0.00021916279354207438
+        STAT-KS-DICK: 0.04892964163405088
+        STAT-TAIL-DEEP: 6.0840393523072365
+      iid_standard_deviations:
+        STAT-RATE-u@2: 0.0012764339776488623
+        STAT-RATE-u@3: 0.0006572626206905135
+        STAT-RATE-u@4: 0.00029057813703463163
+        STAT-RATE-u@5: 0.00011390534504310745
+        STAT-RATE-u@6: 3.8692062669095765e-05
+        STAT-KS-DICK: 0.0005886722077193331
+        STAT-TAIL-DEEP: 0.20823397143444067
+    arm_definitions:
+      ARM-FROZEN: >-
+        Uniform integers drawn on the FIXED range [1, X_0], where X_0 is the
+        ARCHIVED instance's p**2 (2177435569 at bits 16; the archived value at
+        bits 20, read not assumed), for EVERY instance, with a per-instance
+        random stream. Factorised against a FIXED prime table, also frozen at the
+        archived instance's bound. This arm depends on the instance in NO way
+        except through the random stream.
+      ARM-UNIF: >-
+        OBJ-NULL-UNIF as the committed driver defines it: uniform integers on
+        [1, p_i**2] for instance i, factorised against that instance's own
+        trial-division table. Depends on the instance ONLY through p_i.
+      ARM-REAL: >-
+        OBJ-REAL as the committed driver defines it, at instance i. The arm the
+        campaign's bands are actually applied to, and the only arm in which the
+        curve genuinely enters.
+
+  metrics:
+    primary:
+      - name: between_instance_sd_raw
+        unit: same unit as the statistic
+        definition: >-
+          Sample standard deviation across the k instances of the per-instance
+          value of each statistic, per arm, per cell. RAW AND REFERENCE-FREE FOR
+          STAT-RATE-u: p_hat(u) is a bare smoothness rate and does not involve
+          any Dickman reference, so this metric is unaffected by whatever the
+          sibling contract EXP-ECDLP-a1c262 decides about the reference. THIS IS
+          THE PRIMARY DELIVERABLE.
+      - name: between_over_iid_ratio
+        unit: dimensionless
+        definition: >-
+          between_instance_sd_raw divided by the ARCHIVED within-instance i.i.d.
+          standard deviation for the same statistic and cell, reported WITH its
+          chi-square confidence interval at the realised k.
+      - name: realised_k_per_cell
+        unit: integer
+        definition: >-
+          Instances actually completed per cell, with per-instance wall clock.
+          Every interval is computed at the REALISED k and never at the target.
+      - name: arm_frozen_ratio
+        unit: dimensionless with interval
+        definition: >-
+          The forced-value check: ARM-FROZEN's between/i.i.d. ratio, which must
+          contain 1.
+      - name: arm_unif_ratio_versus_derivable_floor
+        unit: dimensionless pair (measured, predicted)
+        definition: >-
+          ARM-UNIF's measured between-instance SD alongside the SD PREDICTED from
+          the realised p values alone, computed by propagating the spread of
+          p_i through the smooth density of [1, p_i**2] at each Bsm. The
+          prediction is computed from the p values and the reference formula
+          only, and is written down BEFORE the measured SD is read.
+      - name: arm_real_excess_over_floor
+        unit: dimensionless
+        definition: >-
+          ARM-REAL's between/i.i.d. ratio divided by ARM-UNIF's between/i.i.d.
+          ratio, per statistic per cell, with interval. THE FINDING. Only excess
+          above the floor is attributable to curve structure.
+    secondary:
+      - name: order_normalised_between_instance_sd
+        unit: same unit as the statistic
+        definition: >-
+          The same spread computed on statistics normalised by the instance's
+          group order, reported ALONGSIDE the raw ones and never instead of them,
+          because instances differ in group order and that changes some
+          statistics mechanically.
+      - name: reference_dependent_spread
+        unit: dimensionless
+        definition: >-
+          Between-instance spread of R(u) = p_hat(u)/rho(u_D) and of
+          STAT-KS-DICK. FLAGGED AS REFERENCE-DEPENDENT: these quantities embed
+          the incumbent Dickman reference, which is exactly what
+          EXP-ECDLP-a1c262 is testing. They are reported for completeness and are
+          NOT the basis of any verdict in this contract.
+      - name: seed_2301_regression_diff
+        unit: exact match | list of differing values
+        definition: >-
+          Per-statistic comparison of the regenerated seed-2301 values against
+          the archived ones. EXACT MATCH REQUIRED.
+      - name: successor_scope_report
+        unit: yes/no per statistic, with the producing module named
+        definition: >-
+          ZERO COMPUTE. Whether the committed EXP-LPF-001 driver also produces
+          STAT-CHI and STAT-KS1 of EV-EQD-001 and the EV-YIELD-e1adbf / ca4b02 /
+          7c3195 yield ratios, and if not, which module does. This converts the
+          contract's declared scope gap into an artifact so the successor
+          contract is written from a run record rather than a guess.
+      - name: realised_cost_versus_estimate
+        unit: seconds
+        definition: >-
+          Measured per-instance cost per cell against the ten-minute estimate in
+          DEC-20260801-014. An order-of-magnitude miss is REPORTED, not absorbed.
+
+  controls:
+    - name: C-C-SEED-2301-REGRESSION
+      kind: exact regression fixture, blocking, FIRST
+      blocking: true
+      description: >-
+        Instance 1 is the archived seed 2301. Regenerating it must reproduce the
+        archived per-replicate values EXACTLY - not within tolerance, exactly -
+        because the driver is deterministic given (seed, bits). The bits-16
+        targets are the seven means and seven standard deviations transcribed in
+        `inputs`, plus p = 46663, X = 2177435569 and n_per_sample_set = 130816.
+        WHAT MAKES IT FAIL, CONCRETELY: any change on main to the harness curve
+        generator, to the numpy version or its Generator stream semantics, to the
+        trial-division prime table, or to the driver's own constants since the
+        archived run. A different numpy BitGenerator stream alone changes every
+        digit while leaving the distribution intact, which is why the check is
+        for exactness and not for agreement.
+        IF IT FAILS, THE FINDING IS DRIFT AND NOT VARIANCE. That is a different
+        and more urgent result, it invalidates the archived arrays as a
+        description of the CURRENT pipeline, and it BLOCKS the sibling contract
+        EXP-ECDLP-a1c262, which reads those arrays. The run reports it and stops.
+    - name: C-C-NULL-RANGE-FROZEN
+      kind: NULL OBJECT of the same shape, blocking
+      blocking: true
+      description: >-
+        ARM-FROZEN is the identical measurement with the instance dependence
+        SURGICALLY REMOVED: the same sampler, the same statistics, the same
+        pipeline, but the range held at the archived [1, X_0] and the prime table
+        held at the archived bound, for every instance. Its between-instance
+        spread must therefore be pure sampling noise and its between/i.i.d. ratio
+        must contain 1.
+        WHAT MAKES IT FAIL, CONCRETELY AND REACHABLY: per-instance random streams
+        that are not independent. The committed driver derives its streams as
+        MASTER_SEED + STREAM_OFFSETS[name] + bits, so a wrapper that varies the
+        instance seed by adding a small integer can collide two instances'
+        streams outright, or place them at short offsets in the same generator
+        state. Either produces a between-instance SD BELOW the i.i.d. SD - a
+        ratio under 1 - which is impossible for a genuine null and is invisible
+        to any other check in this design. Equally, wrapper state carried across
+        instances (a cached factorizer, a module-level array) inflates or
+        deflates it. IF ARM-FROZEN FAILS, THE SWEEP IS MEASURING ITS OWN SEEDING
+        AND NO OTHER ARM IS READ.
+    - name: C-C-DERIVABLE-FLOOR-UNIF
+      kind: forced-value control with a pre-computed magnitude, blocking
+      blocking: true
+      description: >-
+        ARM-UNIF depends on the instance ONLY through p, because the committed
+        driver's draw_uniform is rng.integers(1, self.X + 1, ...) with
+        self.X = self.p * self.p and no other instance attribute enters. Its
+        between-instance SD is therefore PREDICTABLE from the realised p values:
+        propagate the spread of p_i through the smooth density of [1, p_i**2] at
+        each Bsm. THE PREDICTION IS COMPUTED AND WRITTEN DOWN BEFORE THE MEASURED
+        SD IS READ, and the two are compared.
+        WHAT MAKES IT FAIL, CONCRETELY: the factorizer table is rebuilt per
+        instance to a p-dependent bound, so an instance whose p is smaller
+        factors against fewer primes; if that path leaks into a statistic, the
+        measured spread exceeds the predicted one and HEUR-IVAR-2's code reading
+        is incomplete. A departure beyond a factor of 2, with ARM-FROZEN passing,
+        refutes the derivable floor and ARM-REAL loses the baseline it is read
+        against.
+    - name: C-C-NO-POOLING
+      kind: reporting control, blocking
+      blocking: true
+      description: >-
+        Bits 16 and bits 20 are reported separately, always. No statistic, ratio,
+        interval or verdict is computed over the two cells combined.
+        WHAT MAKES IT FAIL: the natural presentation. Pooling doubles k and
+        narrows every interval, which is exactly the temptation, and HEUR-IVAR-1
+        - that one size is indicative of another - is stated in the hypothesis
+        with NO support precisely so no reader inherits it. Any pooled number in
+        the deliverable invalidates the run.
+    - name: C-C-INTERVAL-MANDATORY
+      kind: reporting control, blocking
+      blocking: true
+      description: >-
+        Every standard deviation carries its chi-square confidence interval at
+        the REALISED k, and every ratio carries the interval that follows. A
+        ratio whose interval spans the 1.5 threshold is reported as UNRESOLVED
+        and is NOT rounded into either verdict.
+        WHAT MAKES IT FAIL: the sampling relative standard error of an SD from k
+        instances is about 1/sqrt(2*(k-1)) - 16 per cent at k = 20 and 13 per
+        cent at k = 32 - so at the floor k a true ratio of 1.5 sits only about
+        three standard errors from 1 and a true ratio of 1.2 is NOT resolvable at
+        all. Reporting a point ratio without its interval would present an
+        unresolvable difference as a finding, which is the specific failure this
+        control exists to prevent.
+    - name: C-C-ARM-ORDERING
+      kind: procedural control, blocking
+      blocking: true
+      description: >-
+        The three arms are computed for EVERY instance before any ratio is
+        formed, and the ratio table is formed only once all instances in a cell
+        are complete. WHAT MAKES IT FAIL: computing ARM-REAL first and stopping
+        when it looks interesting, which would make the realised k differ by arm
+        and make the excess-over-floor comparison incoherent. The run records the
+        per-arm realised k and they must be equal within a cell.
+    - name: C-C-DECISION-READBACK
+      kind: provenance control, blocking, zero compute
+      blocking: true
+      description: >-
+        Re-open DEC-20260801-015 and DEC-20260801-014 and reproduce, as a run
+        artifact, the exact sentences the source proposal quotes - including
+        "OBJ-REAL IS NOT A SAMPLE", the designation of OBJ-RT082-1 as "THE SINGLE
+        LARGEST HOLE THE CAMPAIGN HAS DECLARED", and the RT082-CTRL-1 next action
+        at k >= 20 with its ten-minute costing.
+        WHAT MAKES IT FAIL: the quotations do not appear as quoted. This
+        coordinator did NOT re-open those decisions at design time and carried
+        the quotations at the source proposal's provenance; if they do not
+        reproduce, the contract's motivating premise is misstated and the run
+        reports that before measuring anything.
+    - name: C-C-READ-ONLY-EXP-LPF-001
+      kind: procedural control, blocking
+      blocking: true
+      description: >-
+        Before-and-after sha256 of every path under experiments/EXP-LPF-001/ read
+        by the run, including lpf001_driver.py. All must be identical.
+        WHAT MAKES IT FAIL: a wrapper that monkey-patches the driver's
+        MASTER_SEED module constant in place and writes the module back, or an
+        import that leaves a compiled cache beside it. Varying the seed by
+        rebinding a module global is the obvious implementation shortcut and it
+        is exactly what must not happen to the file on disk.
+
+  heuristic_under_test: HEUR-IVAR-2
+
+  preregistered_prediction:
+    quantity: >-
+      The ratio between_instance_sd / archived_iid_sd, per statistic, per arm,
+      per cell.
+    formula: >-
+      ARM-FROZEN: ratio = 1, with the chi-square interval at the realised k.
+      ARM-UNIF: between-instance SD equals the value propagated from the realised
+      p values through the smooth density of [1, p**2] at each Bsm, within a
+      factor of 2.
+      ARM-REAL: NO POINT PREDICTION IS MADE, because none is derivable - that
+      absence is the defect under investigation. The pre-registered DECISION RULE
+      is: a ratio whose entire confidence interval lies above 1.5 invalidates the
+      corresponding band as currently stated; a ratio whose interval contains 1
+      vindicates it at the realised k; an interval spanning 1.5 is UNRESOLVED.
+      The 1.5 threshold is the source proposal's and is adopted unchanged; it is
+      fixed here and is never tuned after any instance is read.
+    source: >-
+      ARM-FROZEN's forced value follows from the arm's construction: nothing but
+      the random stream varies across instances, so between-instance and
+      within-instance spread estimate the same quantity. ARM-UNIF's prediction
+      follows from the committed driver's draw_uniform, which depends on the
+      instance only through p. The 1.5 decision threshold is from
+      IDEA-20260807-347a83, which took it from DEC-20260801-015's own phrasing
+      that a ratio of 4 would mean the detection floors are wrong by a factor of
+      sixteen in variance.
+
+  coordinator_prior:
+    recorded_before_execution: true
+    prior: >-
+      RECORDED FIRST PER AGENTS.md "Review architecture". This coordinator
+      expects (i) the seed-2301 regression to REPRODUCE EXACTLY, which is the
+      outcome that keeps the sibling contract EXP-ECDLP-a1c262 alive; (ii)
+      ARM-FROZEN's ratio to contain 1; (iii) ARM-UNIF's between-instance spread
+      to be MATERIALLY LARGER than its i.i.d. spread at the high-u rungs, because
+      p varies across instances, p_hat depends steeply on ln(p**2)/ln(Bsm), and
+      the u-ladder amplifies that dependence exactly where rho is smallest - so
+      the "floor" is expected to be well above 1 at u = 5 and 6 and near 1 at
+      u = 2; and (iv) ARM-REAL's EXCESS OVER THAT FLOOR to be the genuinely
+      uncertain quantity, at roughly even odds of exceeding 1.5. If (iii) is
+      wrong and the null floor is flat at 1 across the ladder, the code reading
+      behind HEUR-IVAR-2 is incomplete and that is more informative than the
+      headline ratio.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Two archived toy cells, a 16-bit and a 20-bit field prime, k instances
+      each. NO TRANSFER IS CLAIMED AND HEUR-IVAR-1 IS STATED WITH NO SUPPORT.
+      Both sizes are reported separately and nothing is asserted at any size not
+      measured. The result is a property of this instrument at these two sizes.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Report the MINIMUM and MAXIMUM per-instance value of every statistic across
+      the k instances, per arm, as raw numbers. A real-arm instance lying outside
+      the archived within-instance band is reported individually with its seed,
+      because a single extreme instance is exactly what a standard deviation
+      hides and exactly what a detection floor would misclassify.
+    - >-
+      Report the u_target = 5 and u_target = 6 rungs individually and never
+      inside a pooled statistic over the ladder. They are where the archived
+      i.i.d. SD is smallest relative to the mean and therefore where a ratio
+      above 1 does the most damage to a band.
+    - >-
+      Report the realised p per instance, sorted, so that the derivable floor can
+      be recomputed by a later reader without re-running the sweep.
+    - >-
+      Report the single instance whose ARM-REAL value is furthest from the
+      archived seed-2301 value, per statistic, individually.
+
+  replication:
+    seeds: >-
+      Instance 1 is seed 2301 (the archived fixture). The remaining k-1 seeds are
+      declared, listed and frozen in the run's input record before the first
+      instance is generated, and are chosen so that no two per-instance random
+      streams can collide under the driver's stream-derivation rule
+      MASTER_SEED + STREAM_OFFSETS[name] + bits - which requires seed separations
+      larger than the span of STREAM_OFFSETS plus the field-bits range, and the
+      wrapper must assert that separation rather than assume it.
+    independent_instances: 32
+    minimum_acceptable_instances: 20
+
+  budget:
+    wall_clock_seconds_per_run: 5400
+    total_cpu_hours: 6
+    maximum_memory_gb: 4
+    maximum_runs: 6
+    maximum_workers: 1
+    sizing_rationale: >-
+      SIZED TO THIS HOST, WHICH IS SMALL, AND TO A RELATED LANE THAT BURNED 11.73
+      AND 12.22 GiB AND RETURNED ZERO RANKS. MEMORY IS STRUCTURALLY TRIVIAL HERE:
+      one sample set is 130816 integers, about 1 MB, and the largest allocation
+      is a trial-division prime table - 4822 primes at bits 16 and of order
+      eighty thousand at bits 20. The 4 GB ceiling is a guard; a run approaching
+      it has a defect.
+      WALL CLOCK IS THE REAL CONSTRAINT AND THE ESTIMATE IS NOT MINE. The source
+      records cost this control at about ten minutes, but that estimate covers
+      bits 16, where trial division runs over 4822 primes. At bits 20 the table
+      is roughly seventeen times larger and each sample set costs proportionally
+      more. THE CONTRACT THEREFORE RUNS ONE CELL PER RUN, bits 16 FIRST AND
+      COMPLETELY, and treats the bits-20 cost as MEASURED rather than assumed.
+      Three arms at 130816 samples per instance, at a target of 32 instances, is
+      96 sample sets per cell - under half the 200 replicates the archived
+      calibration already completed at each cell for the uniform arm alone, so
+      the bits-16 cell is comfortably inside the window and the bits-20 cell is
+      bounded by the stopping rules rather than by an estimate.
+
+  stopping_rules:
+    - >-
+      RUN ORDER IS PART OF THE CONTRACT AND THE CHEAP CHECKS COME FIRST:
+      (0) C-C-DECISION-READBACK and the successor_scope_report - zero compute;
+      (1) C-C-SEED-2301-REGRESSION at bits 16;
+      (2) the bits-16 sweep, all three arms, instance by instance;
+      (3) C-C-SEED-2301-REGRESSION at bits 20;
+      (4) the bits-20 sweep, all three arms, instance by instance.
+      Each cell is its own run.
+    - >-
+      If C-C-SEED-2301-REGRESSION fails at a cell, STOP that cell immediately.
+      The finding is DRIFT, it is reported as such, and it blocks the sibling
+      contract EXP-ECDLP-a1c262. Do not proceed to any fresh instance.
+    - >-
+      If C-C-DECISION-READBACK cannot reproduce the quoted sentences, complete
+      the readback report and STOP before any measurement.
+    - >-
+      Instances are generated and measured ONE AT A TIME, with all three arms
+      completed per instance before the next begins, and partial results written
+      after each instance so an exhausted budget leaves a usable realised k
+      rather than nothing.
+    - >-
+      Cap each instance at 300 seconds across its three arms at bits 16 and at
+      900 seconds at bits 20. An instance exceeding its cap is stopped, recorded
+      as resource_exhaustion, EXCLUDED from the sweep with its seed named, and is
+      an infrastructure outcome under AGENTS.md rule 5 - never a data point and
+      never a variance observation.
+    - >-
+      If a cell reaches its wall-clock budget with fewer than 20 instances
+      completed, STOP that cell and report the realised k with widened intervals.
+      THE 1.5 THRESHOLD IS NOT APPLIED AT A CELL WITH k BELOW 20, because it is
+      not resolvable there. An under-k cell is reported as UNRESOLVED, not as a
+      negative.
+    - >-
+      If peak RSS exceeds 3 GB, stop and report resource_exhaustion. At these
+      parameters that indicates an implementation defect.
+    - >-
+      Stop immediately if any path under experiments/EXP-LPF-001/ changes hash.
+
+  invalidation_rules:
+    - >-
+      Any edit, write, move, regeneration or in-place monkey-patch of
+      lpf001_driver.py or any file under experiments/EXP-LPF-001/. The sweep runs
+      through a wrapper in this experiment's own write scope.
+    - >-
+      Any statistic, ratio, interval or verdict computed over bits 16 and bits 20
+      combined.
+    - >-
+      Any standard deviation or ratio reported without its confidence interval at
+      the realised k, or any ratio whose interval spans 1.5 reported as a verdict
+      rather than as UNRESOLVED.
+    - >-
+      Any application of the 1.5 threshold at a cell with realised k below 20.
+    - >-
+      Any ratio read while ARM-FROZEN's ratio lies outside its interval for 1.
+    - >-
+      Any per-arm realised k differing within a cell.
+    - >-
+      Any instance stopped for resource_exhaustion being counted as a data point.
+    - >-
+      Any new statistic defined, or any existing statistic redefined. Only the
+      committed driver's statistics are recomputed at new instances.
+    - >-
+      Any re-scoping, correction, supersession or status change applied to
+      EV-LPF-001, EV-EQD-001, any EV-YIELD-* record, H-YIELD-001, H-LPF-001, a
+      frozen band or a reading rule. THIS CONTRACT SUPPLIES A MEASUREMENT; the
+      transition is a Coordinator act on a superseding record.
+    - >-
+      Any claim about STAT-CHI, STAT-KS1 or the EV-YIELD-* ratios beyond the
+      zero-compute successor_scope_report. They are OUT OF SCOPE because their
+      pipelines were not read at design time.
+    - >-
+      Any claim about ECDLP, the Semaev map, a cost, or an exponent, in either
+      direction.
+
+  success_criterion: >-
+    C-C-DECISION-READBACK and C-C-SEED-2301-REGRESSION pass; ARM-FROZEN's ratio
+    contains 1; ARM-UNIF's measured between-instance SD is reported against its
+    pre-computed derivable floor; and for every named statistic, at every cell
+    that reached at least 20 instances, the between-instance SD, its ratio to the
+    archived i.i.d. SD, its confidence interval at the realised k, and ARM-REAL's
+    excess over ARM-UNIF's floor are all reported, with bits 16 and bits 20
+    separate. THE CONTRACT SUCCEEDS WHETHER THE RATIOS ARE 1 OR 4 - a ratio near
+    1 is a genuine and valuable negative that keeps four evidence records at their
+    stated strength. Only a failed blocking control, a pooled number, a missing
+    interval, or an unreached cell is a failure.
+
+  falsification_criterion: >-
+    DRIFT, NOT VARIANCE: seed 2301 does not reproduce the archived values
+    exactly. The archived arrays do not describe the current pipeline; this is
+    more urgent than the variance question and it blocks EXP-ECDLP-a1c262.
+    SWEEP BROKEN: ARM-FROZEN's between/i.i.d. ratio excludes 1. The sweep is
+    measuring its own seeding and no ratio is read.
+    HEUR-IVAR-2 REFUTED: ARM-UNIF's measured between-instance SD departs from its
+    derivable floor by more than a factor of 2 while ARM-FROZEN passes. The null
+    arm carries instance dependence through a path not read at design time and
+    ARM-REAL loses its baseline.
+    BANDS INVALIDATED AS STATED: ARM-REAL's ratio has its entire interval above
+    1.5 for any statistic, in excess of ARM-UNIF's floor. Every band built on
+    that statistic must be restated by supersession, and the affected evidence
+    records re-scoped by a Coordinator decision this contract does not perform.
+    BANDS VINDICATED AT THE MEASURED k: every ARM-REAL ratio's interval contains
+    1. A genuine negative, reported as a result.
+
+  required_artifacts:
+    - >-
+      Per-instance, per-arm, per-statistic values as a machine-readable table,
+      with the instance seed, the realised p, the realised group order, and the
+      per-instance wall clock and peak RSS.
+    - >-
+      The between-instance SD, the archived i.i.d. SD, the ratio and its
+      chi-square interval, per statistic, per arm, per cell, at the realised k.
+    - >-
+      ARM-UNIF's PRE-COMPUTED derivable floor, written before the measured SD was
+      read, alongside the measured value.
+    - >-
+      ARM-REAL's excess over ARM-UNIF's floor, per statistic, with interval.
+    - >-
+      The seed-2301 regression comparison, value by value, showing exact match or
+      naming every differing value.
+    - >-
+      The frozen seed list with the assertion that no two per-instance streams
+      can collide under the driver's stream-derivation rule.
+    - >-
+      Order-normalised statistics alongside the raw ones.
+    - >-
+      The reference-dependent secondary table, explicitly flagged as embedding
+      the incumbent Dickman reference that EXP-ECDLP-a1c262 is testing.
+    - >-
+      The successor_scope_report: whether the committed driver produces STAT-CHI,
+      STAT-KS1 and the EV-YIELD-* ratios, and if not, which module does.
+    - >-
+      The DEC-20260801-014 / DEC-20260801-015 readback with the quoted sentences.
+    - >-
+      Realised cost per cell against the ten-minute estimate.
+    - >-
+      The wrapper implementation, committed by exact path, with an explicit
+      statement that lpf001_driver.py was imported and not modified.
+    - >-
+      Before-and-after sha256 of every read path under experiments/EXP-LPF-001/.
+    - >-
+      A run manifest per the AGENTS.md artifact policy, with
+      certificate.kind = none and an explicit statement that this is a pure
+      measurement run claiming no solve and no relation.
+
+  limitations:
+    - >-
+      THIS MEASURES THE INSTRUMENT, NOT THE MATHEMATICS. No claim about ECDLP,
+      the Semaev map, any cost or any exponent follows from it in either
+      direction. It produces error bars, which is precisely what the cited
+      evidence records lack.
+    - >-
+      NARROWER THAN THE SOURCE PROPOSAL, DELIBERATELY AND WITH THE REASON STATED.
+      The proposal's headline is that one control re-scopes four evidence
+      records. This contract covers the statistics produced by the committed
+      EXP-LPF-001 driver, whose implementation was read at design time. STAT-CHI
+      and STAT-KS1 of EV-EQD-001 and the EV-YIELD-e1adbf / ca4b02 / 7c3195 ratios
+      are NOT covered, because their pipelines were not read and naming their
+      metrics in a frozen contract would be inventing them. The gap is a declared
+      deliverable (successor_scope_report), not a silent omission.
+    - >-
+      TWO SIZES, NEVER POOLED, NOTHING CLAIMED ELSEWHERE. HEUR-IVAR-1 is recorded
+      with no support so that no reader inherits it.
+    - >-
+      A VARIANCE ESTIMATE FROM k INSTANCES HAS ITS OWN WIDE INTERVAL. At k = 20
+      a true ratio of 1.2 is not resolvable at all and a ratio of 1.5 sits about
+      three standard errors from 1. Every number carries its interval and
+      unresolved is a reportable outcome.
+    - >-
+      NO TRANSITION IS PERFORMED. Re-scoping an evidence record, correcting a
+      band, or superseding a reading rule are Coordinator acts on new records.
+      This contract supplies the measurement such a decision would cite.
+    - >-
+      THE MOTIVATING QUOTATIONS WERE NOT RE-OPENED BY THE DESIGNING COORDINATOR.
+      They are carried at the source proposal's provenance and are re-verified by
+      C-C-DECISION-READBACK as a run artifact before any reading is issued.
+
+  overlap_declaration:
+    - >-
+      WITH EXP-ECDLP-a1c262 (H-ECDLP-d2aa2c), WHICH READS THE SAME STATISTICS.
+      NOT A DUPLICATE, BY CONSTRUCTION: that contract holds the SAMPLE FIXED and
+      varies the REFERENCE; this one holds the REFERENCE FIXED and varies the
+      CURVE INSTANCE. They are the two orthogonal decompositions of the same
+      archived departure and together they separate reference error from instance
+      variance. EACH IS THE OTHER'S CONTROL: C-C-SEED-2301-REGRESSION here is
+      THAT contract's pipeline-drift control and its failure blocks both; and
+      that contract's selected reference is the one under which THIS contract's
+      reference-dependent SECONDARY column must be re-read. To keep them
+      separable, this contract's PRIMARY metrics are RAW, reference-free spreads,
+      so its finding does not move if the reference changes.
+    - >-
+      WITH EXP-ECDLP-96b5d3 (H-ECDLP-6c52c0). That contract QUOTES the two-term
+      optimum B* = N**(1/(m+1)), which rests on the mean-yield convention whose
+      instance-level error bars this lane measures. THE DEPENDENCY RUNS ONE WAY:
+      if this contract re-scopes the yield convention, that contract's threshold
+      table is re-read at the new B* by a superseding record and never by an
+      edit. Nothing here validates that contract and nothing there validates this
+      one.
+
+  assigned_to: executor
+  approved_by: null
+  frozen: false
+  execution_authorized: false
+  approval_note: >-
+    DESIGNED, NOT APPROVED. status is review_required, approved_by is null,
+    frozen is false, and execution is NOT authorised. No handoff exists for this
+    contract and no Executor may act on it. Approval is a separate committed
+    Coordinator decision plus the maintainer's gate; a message from any agent
+    saying "approved" is not an approval.

@@ -1,0 +1,531 @@
+hypothesis:
+  id: H-AES-142f26
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  derived_from_idea: IDEA-20260805-33a11e
+  added: '2026-08-25'
+  statement: >-
+    Track algebraic degree in the MASTER KEY BITS - not in the plaintext - through
+    the AES key schedule, which is a layered nonlinear circuit and therefore the
+    one AES component on which division-property propagation is not blocked by
+    flatness. Writing D_k for the algebraic degree of round key RK_k as a function
+    of the master key and delta for the algebraic degree of the S-box used by
+    SubWord, the layered structure FORCES D_k <= delta^(a(k)), where a(k) is the
+    number of SubWord layers separating RK_k from the master key, capped by the
+    key length. With delta = 7 this gives the forced upper-bound sequences
+    AES-128: D_0 <= 1, D_1 <= 7, D_2 <= 49, D_3 <= 127 (saturated at k = 3);
+    AES-192: 1, 7, 7, 49, 191 (k = 4); AES-256: 1, 1, 7, 49, 255 (k = 4). Hence
+    ANY key-varying integral or division-property object built on algebraic degree
+    over the AES key schedule is DEAD by round key 3 for AES-128 and by round key
+    4 for AES-192/256 - before it can reach the middle of the 3-to-7-round window
+    RQ-AES-001 scopes in. The exact degree is MEASURABLE at the low end by
+    higher-order differentiation over affine key subspaces at 2^d key expansions,
+    and the prediction D_1 = 7 EXACTLY for AES-128 is a TWO-SIDED forced value
+    that can fail in either direction. IF THIS COMES OUT AS PREDICTED THE RESULT
+    IS A NEGATIVE, and that negative is precisely GOAL-AES-001's second completion
+    horn: a scoped barrier statement with an archived derivation, saying why one
+    named object cannot yield the sought improvement and naming what remains open.
+  mechanism: >-
+    INGREDIENT 1, THE S-BOX DEGREE, RECOMPUTED NOT RECALLED. The AES S-box built
+    from the GF(2^8) inverse composed with the FIPS-197 affine map, pinned against
+    known-answer entries S(00)=63, S(01)=7c, S(53)=ed, with the algebraic normal
+    form of each output bit obtained by Moebius transform: all eight coordinate
+    functions have algebraic degree EXACTLY 7. This was SCOUT-COMPUTED OUTSIDE THE
+    HARNESS and must be re-run in-harness with a committed receipt before any
+    record cites it. INGREDIENT 2, THE LAYER COUNT. For Nk in {4, 6, 8},
+    W_i = W_{i-1} XOR W_{i-Nk} for most i; W_i = SubWord(RotWord(W_{i-1})) XOR
+    Rcon XOR W_{i-Nk} when i = 0 mod Nk; and FOR Nk = 8 ONLY,
+    W_i = SubWord(W_{i-1}) XOR W_{i-Nk} when i = 4 mod 8. RotWord is a rotation
+    and Rcon a constant, so neither changes degree; XOR does not raise degree; THE
+    S-BOX IS THE ONLY DEGREE-RAISING OPERATION IN THE ENTIRE KEY SCHEDULE. Layer
+    counts follow per key size: Nk = 4 gives a(RK_k) = k; Nk = 6 gives
+    a(RK_0..RK_4) = 0, 1, 1, 2, 3; Nk = 8 gives 0, 0, 1, 2, 3. INGREDIENT 3, THE
+    CAP. The AES-128 schedule is invertible from any round key, so the map from
+    the 128-bit master key to RK_k is a bijection of F_2^128 and a coordinate of a
+    bijection of F_2^n has degree at most n-1. For AES-192/256 a single 128-bit
+    round key does NOT determine the master key, so the weaker trivial cap n is
+    used there; the saturation indices are unchanged either way because 7^3 = 343
+    exceeds 127, 191 and 255 alike. INGREDIENT 4, THE MEASURABLE DUAL. For an
+    affine subspace V of dimension d, the XOR-sum of f over V is the d-th order
+    derivative along V and vanishes for EVERY such V exactly when deg f < d. So
+    D_k is the largest d for which SOME d-dimensional affine subspace has nonzero
+    XOR-sum of RK_k, decidable at 2^d key expansions per candidate subspace. THE
+    TEST IS ONE-SIDED: a nonzero sum PROVES a lower bound; all-zero sums over a
+    sample prove NOTHING and must be reported as a sample, never as "the degree is
+    below d". INGREDIENT 5, WHAT THE BARRIER SAYS. A key-varying integral
+    distinguisher needs a d-bit affine key subspace over which a round-key-derived
+    quantity sums to zero while a random function would not, which requires
+    d > D_k. Once D_k reaches the cap, no affine subspace short of the whole space
+    is balanced and the object is dead - after three S-box layers. IT DOES NOT SAY
+    the actual degree attains the bound; upper bounds do not force saturation, and
+    the measurement programme exists because of that gap.
+  assumptions:
+    - >-
+      That the key expansion rules are FIPS-197's, in particular that Nk = 8
+      carries the ADDITIONAL SubWord at i = 4 mod 8 with no RotWord. If that extra
+      layer is misremembered the AES-256 layer count is wrong and its sequence must
+      be redone. THIS IS THE MOST LIKELY WAY THE RECORD IS WRONG and it is named
+      first. Resolved by reading FIPS-197 and, independently, by pinning the
+      implemented schedule against FIPS-197 known-answer vectors.
+    - >-
+      That the n-1 cap via invertibility requires a bijection of F_2^n. It holds
+      for AES-128; for AES-192/256 a single round key does not determine the master
+      key, so the weaker trivial cap n is used wherever the bijection argument does
+      not apply. Both readings are carried.
+    - >-
+      That exhibiting ONE nonzero subspace sum soundly measures a LOWER bound on
+      D_k. It does - a nonzero d-th derivative proves degree at least d. THE
+      CONVERSE IS NOT ASSUMED ANYWHERE.
+    - >-
+      That the S-box degree of 7 is a MEASUREMENT made in this program, not a
+      recalled literature fact. It is a standard fact in the block-cipher
+      literature, but it is NOT used in that status anywhere here; the mechanism
+      relies on the recomputation, which must be redone in-harness.
+    - >-
+      That pycryptodome, which RQ-AES-001's gate names, is ABSENT from this
+      container, so the second independent implementation for the FIPS-197 pinning
+      must be the openssl CLI or `cryptography`.
+  proof_search_map:
+    map_shared_with: H-AES-b02749
+    map_sharing_note: >-
+      The full four-audit proof_search_map for the parent proposal is carried on
+      the paired hypothesis H-AES-b02749, where the barrier statement is
+      formalised, and is NOT duplicated. The fields below are written for THIS
+      record's content specifically; a reviewer should read H-AES-b02749's map for
+      the shared material.
+    bottleneck: >-
+      The SATURATION INDEX k* - the first k at which the degree bound reaches the
+      cap and therefore stops carrying information. Everything about whether a
+      key-direction degree argument can reach the middle of the 3-to-7-round window
+      is that one integer, and it is determined entirely by the layer count and
+      delta.
+    baseline_embedding:
+      parameter_slice: >-
+        delta = 1: substitute the F_2-linear GF(2^8) map x -> x^2 for the S-box.
+        The whole key schedule becomes AFFINE in the master key, D_k = 1 for every
+        k, and every 2-dimensional affine key subspace must have zero XOR-sum at
+        EVERY round key to RK_14. That is the exact boundary at which the barrier
+        must vanish (k* = infinity).
+      reproduction_check: >-
+        Frozen fixture - exact zero, no tolerance, on every 2nd derivative in the
+        affine arm. If the instrument reports ANY nonzero 2nd derivative there, it
+        is broken and NO NEGATIVE RESULT MAY BE REPORTED FROM ANY STAGE.
+    observation_collision:
+      observable: >-
+        The degree vector (D_0, ..., D_Nr) and its measurable dual, the boolean
+        array [XOR-sum over V of RK_k is zero] indexed by (k, V).
+      distinct_preimage_search: >-
+        CHECKED, AND THE MIRROR FAILURE IS THE ONE THAT THREATENS THIS RECORD. A
+        projection this lossy could be CONSTANT across everything worth
+        distinguishing: the degree vector IS constant across all keys - it is a
+        property of the cipher, not of an instance - so AS AN INSTANCE
+        DISCRIMINATOR IT HAS ZERO SPREAD AND IS WORTHLESS, and this record says so
+        before a reviewer does. It is NOT constant across the axes actually
+        varied: it differs across key sizes (k* = 3 versus 4) and across S-box
+        degree in the graded control (k* = infinity, 5, 4, 3 for
+        delta = 1, 3, 5, 7). THE HYPOTHESIS IS THEREFORE A STATEMENT ABOUT THE
+        CIPHER'S STRUCTURE, NOT A DISTINGUISHER, and any reading of it as an
+        instance distinguisher is wrong. Separately, the lossless failure is
+        refuted: eleven integers cannot encode a 128-bit-input function, so there
+        is no map back and nothing is merely relabelled.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "can a key-varying integral object survive to round k" by the
+          integer comparison d > D_k, and D_k by the forced bound
+          min(delta^(a(k)), cap) - a pen-and-paper computation.
+        predicted_gain: >-
+          Decides the lane at ZERO COMPUTE, and produces four forced values any
+          future record in this lane must satisfy. Diagnostic, not computational;
+          no speedup is claimed.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the wiring fixed and vary only delta over {1, 3, 5, 7} using the
+          GF(2^8) power permutations x^2, x^7, x^31, x^127, reporting k* at each.
+        predicted_gain: >-
+          Converts a single barrier claim into a monotone curve, localising any
+          instrument failure to a specific degree regime rather than leaving "it
+          did not work".
+    quantifier_order: >-
+      CLAIMED - for all k, for all affine subspaces V of the master key space with
+      dim V > min(delta^(a(k)), cap), the XOR-sum of RK_k over V is zero. The
+      universal quantifier over V is what makes the barrier a barrier. SEPARATELY
+      CLAIMED, and only for AES-128 at k = 1 - there EXISTS an affine subspace of
+      dimension 7 with nonzero XOR-sum, i.e. the bound is ATTAINED there. NOT
+      CLAIMED - attainment at any k >= 2 (only lower bounds are sought there);
+      anything about the DATA direction; anything about related-key or chosen-key
+      models; and anything about the composite data-and-key object.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "No key-varying integral or division-property object built on ALGEBRAIC
+        DEGREE IN THE MASTER KEY survives past round key 3 (AES-128) or 4
+        (AES-192/256)." It certifies NOTHING about the DIVISION PROPERTY PROPER,
+        which is strictly finer than algebraic degree and can survive where a
+        degree argument dies; nothing about key-direction objects that are not
+        degree-based; nothing about the data direction; and nothing about the
+        composite object. The write-up must say "no degree-based key-direction
+        object survives past round key k*", NEVER "the key schedule is random
+        after k* rounds".
+      nearby_object_control: >-
+        A seeded random permutation of GF(2^8) whose MEASURED algebraic degree is
+        also 7, substituted for the AES S-box with every other wire identical -
+        same RotWord, same Rcon, same XOR chain, same Nk. The forced value derived
+        BEFORE the run is that the degree bounds and k* are IDENTICAL, because the
+        bound depends on the S-box only through delta. CONSEQUENCE STATED IN
+        ADVANCE SO IT CANNOT BE SPUN: if the measured sequence also matches, the
+        phenomenon is a property of THE WIRING and not of AES, and no sentence may
+        attribute it to AES specifically. If AES's sequence differs, AES's S-box
+        or Rcon structure is doing something the degree bound does not capture,
+        and THAT is a finding.
+    proof_obligations:
+      - claim: 'Every AES S-box coordinate function has algebraic degree exactly 7, recomputed in-harness'
+        responsibility: baseline
+      - claim: 'The S-box is the only degree-raising operation in the key schedule'
+        responsibility: correctness
+      - claim: 'The SubWord layer counts a(RK_k) are 0,1,2,3,... / 0,1,1,2,3 / 0,0,1,2,3 for Nk = 4/6/8'
+        responsibility: correctness
+      - claim: 'A coordinate of a bijection of F_2^n has algebraic degree at most n-1, applicable to AES-128 only'
+        responsibility: strictness
+      - claim: 'The bound is ATTAINED at AES-128 k = 1, i.e. D_1 = 7 exactly'
+        responsibility: success_probability
+      - claim: 'A nonzero d-th derivative proves degree at least d; all-zero sums over a sample prove nothing'
+        responsibility: interface
+      - claim: 'A barrier on the key schedule is not a barrier on AES'
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        The upper bound D_k <= min(delta^(a(k)), cap) is UNCONDITIONAL and rests
+        on no heuristic: composition multiplies algebraic degree, XOR and rotation
+        do not raise it, and constants do not change it. This entry records that
+        the barrier's UPPER half is a THEOREM, not a heuristic.
+      random_model_justification: >-
+        NOT APPLICABLE - no random model is invoked. deg(f . g) <= deg(f) deg(g)
+        for vectorial Boolean functions and deg(f + g) <= max(deg f, deg g) are
+        both elementary and exact.
+      supporting_results:
+        - 'Degree composition and addition bounds for vectorial Boolean functions; elementary, derived not cited'
+      validation_experiment_ids:
+        - EXP-AES-1100d7
+      falsification_condition: >-
+        A nonzero XOR-sum of AES-128 RK_1 over ANY 8-dimensional affine key
+        subspace. The one-SubWord-layer instance of the bound is then refuted,
+        which also refutes the S-box degree measurement.
+    - id: HEUR-002
+      formal_statement: >-
+        ATTAINMENT HEURISTIC, LOAD-BEARING ONLY FOR D_1 = 7 AND FOR THE CLAIM THAT
+        THE BARRIER BITES RATHER THAN MERELY BOUNDS. The top-degree terms produced
+        by a single SubWord layer are not cancelled by the subsequent XOR chain,
+        so the bound is attained at k = 1.
+      random_model_justification: >-
+        PARTIAL. The XOR chain adds words that are AFFINE in the master key at
+        that layer, and an affine function cannot cancel a degree-7 term - sound
+        for AES-128 RK_1 as written, which is why the prediction is two-sided. It
+        is NOT established for k >= 2, where the added words are themselves high
+        degree and cancellation is possible in principle. Recorded as a weakness
+        rather than smoothed over.
+      supporting_results:
+        - 'The affinity of the XOR-chain contribution at layer 1; internal argument, sound only at k = 1'
+      validation_experiment_ids:
+        - EXP-AES-1100d7
+      falsification_condition: >-
+        Measured D_1 for AES-128 STRICTLY BELOW 7. The barrier is then weaker than
+        derived, the key schedule is degenerate in the key direction, and this
+        becomes a POSITIVE LEAD rather than a barrier - the outcome that would most
+        change the campaign's direction.
+    - id: HEUR-003
+      formal_statement: >-
+        The n-1 cap from invertibility applies to AES-128 round keys. For
+        AES-192/256 a single round key does not determine the master key and the
+        weaker cap n is used instead.
+      random_model_justification: >-
+        NOT APPLICABLE - symbolic. A coordinate of a bijection of F_2^n has degree
+        at most n-1, since its ANF cannot contain the top monomial or the function
+        would be unbalanced. The AES-128 key schedule is invertible from any round
+        key; for Nk = 6, 8 the slice is not a bijection and the argument does not
+        apply.
+      supporting_results:
+        - 'Balancedness argument for the top monomial of a bijection of F_2^n; elementary'
+      validation_experiment_ids:
+        - EXP-AES-1100d7
+      falsification_condition: >-
+        No empirical falsifier - the entry is symbolic and changes NO saturation
+        index, because 7^3 = 343 exceeds 127, 191 and 255 alike. It is stated so
+        the difference between key sizes is not silently glossed.
+  structural_ingredients:
+    - description: >-
+        The AES key expansion for Nk in {4, 6, 8}, including the additional
+        SubWord at i = 4 mod 8 for Nk = 8, and the known-answer vectors the
+        implementation is pinned against.
+      citation: FIPS-197
+      provenance: recalled
+      verified_by: >-
+        NOT VERIFIED. The Nk = 8 extra layer is stated from recollection and is
+        the single most likely error in the record; csrc.nist.gov returned HTTP
+        200 in the source session, so the reading is possible but was not done.
+      role: the layer count on which every saturation index depends
+    - description: >-
+        RQ-AES-001's object list includes "the AES key schedule as a
+        differential/algebraic object: which relation between subkey words is
+        claimed, and which round pair it couples". This hypothesis instantiates
+        that declared object with an ALGEBRAIC rather than differential relation.
+      citation: RQ-AES-001
+      provenance: internal
+      verified_by: read in full by the source idea-generator session
+      role: the declared object slot this work occupies
+    - description: >-
+        GOAL-AES-001's second completion horn - a scoped barrier statement with an
+        archived derivation, saying why one named object cannot yield the sought
+        improvement and naming what remains open.
+      citation: GOAL-AES-001
+      provenance: internal
+      verified_by: read in full by the source idea-generator session
+      role: the horn the predicted negative targets
+    - description: >-
+        A relayed statement that all published division-property and integral work
+        on AES propagates over DATA with the key fixed, and that the AES key
+        schedule is one of two layered targets in the key-varying direction this
+        corpus records no attempt at.
+      citation: session ANGLE-BRIEF, section F10
+      provenance: recalled
+      verified_by: null
+      role: >-
+        NOT READ, RELAYED. A statement about THIS CORPUS from a scouting sweep,
+        NOT a claim about the literature, and it is not upgraded here. Whether the
+        key-direction degree appears in published work is UNKNOWN and is a
+        checkable step, not an assumption.
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: >-
+        sbox_algebraic_degree - maximum over the eight coordinate functions of the
+        AES S-box, recomputed in-harness by Moebius transform from the FIPS-197
+        construction
+      direction: different
+      minimum_effect: >-
+        EXACTLY 7 for every one of the eight coordinates. Any other value
+        invalidates every degree bound and the whole hypothesis is rederived. The
+        cheapest gate, and it runs first.
+    - metric: >-
+        D1_aes128 - the algebraic degree of AES-128 round key 1 in the master key
+        bits, measured as the largest d <= 8 with some d-dimensional affine key
+        subspace having nonzero XOR-sum
+      direction: different
+      minimum_effect: >-
+        EXACTLY 7, forced TWO WAYS and stated before any run. Upper bound 7
+        because RK_1 sits behind exactly one SubWord layer; lower bound 7 attained
+        because every S-box coordinate has degree exactly 7 and the XOR chain
+        cannot cancel the top-degree term of a single coordinate generically.
+        Measuring 8 refutes the upper bound and hence the S-box degree measurement;
+        measuring below 7 means the top-degree terms cancel, a genuine structural
+        degeneracy and BY FAR THE MOST INTERESTING OUTCOME AVAILABLE.
+    - metric: >-
+        D1_all_subspaces_balanced_at_8 - fraction of tested 8-dimensional affine
+        key subspaces over which the XOR-sum of AES-128 RK_1 is zero
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1.000 with no exceptions over every subspace tested. Forced by
+        deg RK_1 <= 7 < 8. A SINGLE nonzero sum falsifies the bound and therefore
+        the S-box degree. The sharpest falsifier in the hypothesis.
+    - metric: >-
+        D2_lower_bound_aes128 - the largest d in {8, 12, 16} for which some
+        d-dimensional affine key subspace gives a nonzero XOR-sum of AES-128 RK_2
+      direction: higher
+      minimum_effect: >-
+        At least 16, since RK_2 sits behind two S-box layers with bound 49. IF NO
+        NONZERO SUM IS FOUND AT d = 16 the honest report is "no witness found in
+        the sample", NEVER "the degree is below 16" - the test is one-sided and the
+        reading is fixed before the run.
+    - metric: >-
+        saturation_index_by_key_size - the first k at which the derived bound
+        reaches the cap, for AES-128 / 192 / 256
+      direction: different
+      minimum_effect: >-
+        EXACTLY (3, 4, 4), derived before any run. Purely symbolic; a disagreement
+        means a layer count is wrong, checkable against FIPS-197 and against the
+        implemented schedule.
+    - metric: >-
+        graded_saturation_monotonicity - k* as a function of the substituted S-box
+        degree delta in {1, 3, 5, 7} using x^2, x^7, x^31, x^127 over GF(2^8)
+      direction: lower
+      minimum_effect: >-
+        STRICTLY DECREASING, with forced values k* = infinity (delta = 1), 5, 4, 3.
+        Non-monotone measured behaviour is the canonical artifact tell - a quantity
+        failing to move as the parameter meant to destroy it increases - and would
+        mean the instrument is measuring something other than degree.
+  test_boundary:
+    instances:
+      - AES-128, AES-192 and AES-256 key schedules
+      - >-
+        the same wiring with a seeded random GF(2^8) permutation of measured
+        degree 7 substituted for the S-box, as the matched null
+      - >-
+        the same wiring with x^2 substituted, as the affine positive control where
+        every 2nd derivative must vanish
+      - >-
+        the same wiring with x^7, x^31, x^127 substituted, as the graded control
+    parameters:
+      subspace_dimensions_tested: '{2, 8, 12, 16}'
+      key_expansions_per_subspace: 2^d for a d-dimensional subspace
+      graded_sbox_degrees: '{1, 3, 5, 7}'
+      forced_saturation_indices: '(3, 4, 4) for AES-128 / 192 / 256'
+      subspace_families: coordinate-aligned and seeded random affine, reported separately
+    implementation: >-
+      A from-scratch key schedule for Nk = 4, 6, 8, pinned against FIPS-197
+      known-answer vectors under a SECOND INDEPENDENT implementation (openssl CLI
+      or `cryptography`, since pycryptodome is absent from this container). Moebius
+      transform for the S-box ANF. No cryptanalytic library is required.
+    budget:
+      estimated_wall_clock_seconds: 900
+      note: >-
+        2^8 = 256 key expansions per subspace at the D_1 stage and at most
+        2^16 = 65,536 at the D_2 stage, each expansion about 40-60 word
+        operations. Seconds to minutes on the declared 4-core envelope; peak
+        memory 2^16 * 16 bytes = 1 MB. The parent declares implementation low and
+        compute low.
+  distinguishable_outcomes:
+    - outcome: >-
+        The S-box degree recomputes to 7 on all eight coordinates; all
+        8-dimensional subspaces balance at RK_1; D_1 = 7 exactly; a nonzero 16th
+        derivative witness is found for RK_2; the affine positive control shows
+        exact zeros everywhere; and the graded saturation index is strictly
+        decreasing through (infinity, 5, 4, 3).
+      means: >-
+        The derived barrier stands: no key-varying integral or division-property
+        object built on ALGEBRAIC DEGREE IN THE MASTER KEY survives past round key
+        3 (AES-128) or 4 (AES-192/256). This is the PREDICTED NEGATIVE and is
+        GOAL-AES-001's second completion horn - a scoped barrier with an archived
+        derivation and explicit forward guidance.
+    - outcome: >-
+        Measured D_1 for AES-128 is STRICTLY BELOW 7, with the positive control
+        and the FIPS-197 pinning both passing.
+      means: >-
+        The top-degree terms CANCEL in the key schedule. The key schedule is
+        degenerate in the key direction, the barrier is weaker than derived, and
+        this is a POSITIVE LEAD rather than a barrier - the outcome that would most
+        change the campaign's direction. It demands independent replication before
+        any record states it.
+    - outcome: >-
+        A nonzero XOR-sum of AES-128 RK_1 over some 8-dimensional affine subspace.
+      means: >-
+        The one-SubWord-layer bound is REFUTED, which also refutes the S-box degree
+        measurement, since the two are the same statement. Halt and rederive; this
+        indicts the instrument or the arithmetic before it indicts AES.
+    - outcome: >-
+        The affine (x^2) positive control shows a nonzero 2nd derivative anywhere.
+      means: >-
+        The instrument is BROKEN and NO NEGATIVE RESULT MAY BE REPORTED FROM ANY
+        STAGE. Instrument failure, not evidence about AES.
+    - outcome: >-
+        The graded saturation index is non-monotone in delta.
+      means: >-
+        The instrument is not measuring degree - the canonical artifact tell. No
+        directional reading attaches to any verdict.
+    - outcome: >-
+        The matched null (random degree-7 permutation, identical wiring) reproduces
+        AES's measured degree sequence exactly.
+      means: >-
+        The phenomenon is a property of THE WIRING and not of AES, and NO SENTENCE
+        in the write-up may attribute it to AES specifically. This is the expected
+        outcome, and its being expected is why it is declared in advance.
+    - outcome: >-
+        AES's measured sequence DIFFERS from the matched null's.
+      means: >-
+        AES's S-box or Rcon structure is doing something the degree bound does not
+        capture. That is a finding in its own right and reopens the object.
+    - outcome: >-
+        No 16th-derivative witness is found for RK_2 within the declared sample.
+      means: >-
+        "NO WITNESS FOUND IN N SUBSPACES" - a sample result, NEVER a degree upper
+        bound. The test is one-sided and this reading is fixed before the run.
+    - outcome: >-
+        The key schedule fails to pin against FIPS-197.
+      means: >-
+        INFRASTRUCTURE SIGNAL, never negative mathematical evidence (AGENTS.md rule
+        5). The line halts and reports the failure as infrastructure.
+  prior_evidence_refs:
+    - RQ-AES-001
+    - GOAL-AES-001
+    - IDEA-20260805-33a11e
+    - IDEA-20260805-78d9bd
+    - IDEA-20260805-5b8f95
+    - H-AES-b02749
+    - EV-AES-001
+    - EV-AES-002
+    - EV-AES-003
+    - EV-AES-004
+    - EV-AES-005
+    - EV-AES-d33b1c
+    - EV-AES-d8a13e
+    - DEC-20260731-011
+    - docs/inventor-protocol.md
+  falsification_conditions:
+    - >-
+      Any S-box coordinate with algebraic degree other than 7. Every bound is void
+      and the hypothesis is rederived from the measured degree.
+    - >-
+      A nonzero XOR-sum of AES-128 RK_1 over any 8-dimensional affine key
+      subspace. The one-SubWord-layer bound is refuted.
+    - >-
+      The affine positive control shows a nonzero 2nd derivative anywhere. Nothing
+      may be reported at all.
+    - >-
+      The graded saturation index is non-monotone in delta. The instrument is not
+      measuring degree.
+    - >-
+      Measured D_1 for AES-128 strictly below 7. The barrier is weaker than
+      derived and this becomes a positive lead - named as a falsifier deliberately.
+    - >-
+      The key schedule fails to pin against FIPS-197. Infrastructure signal, never
+      negative mathematical evidence.
+  interpretation_limits:
+    - >-
+      TOY TIER, AND A BARRIER ONLY FOR THE NAMED OBJECT. The conclusion, if the
+      prediction holds, is that no key-varying integral or division-property object
+      BUILT ON ALGEBRAIC DEGREE IN THE MASTER KEY survives past round key 3
+      (AES-128) or 4 (AES-192/256). It is NOT a statement that key-varying attacks
+      are impossible, NOT about the data direction, NOT about related-key or
+      chosen-key models, and NOT about full-round or deployed AES.
+    - >-
+      BOUNDS ARE NOT DEGREES. delta^(a) is an upper bound and the actual degree may
+      be far lower. The barrier is about what a DEGREE-BASED argument can reach,
+      not about what the cipher is; the write-up must say "no degree-based
+      key-direction object survives past round key k*", NEVER "the key schedule is
+      random after k* rounds".
+    - >-
+      ONE-SIDEDNESS. Absence of a nonzero derivative in a SAMPLE is not a degree
+      upper bound. Every "no witness" outcome carries its sample size and search
+      strategy and is never phrased as a bound. This is the single most likely
+      misreporting.
+    - >-
+      SCOPE CREEP FROM KEY SCHEDULE TO CIPHER IS FORBIDDEN. A barrier on the key
+      schedule is not a barrier on AES: the round keys are XORed into a data path
+      whose own degree grows independently and nothing here bounds the composite.
+    - >-
+      FORWARD GUIDANCE, MANDATORY AND GIVEN. What remains open: (a) whether the
+      actual degrees attain their bounds, which only the low-k measurements test;
+      (b) THE DIVISION PROPERTY PROPER, strictly finer than algebraic degree and
+      able to survive where a degree argument dies, which is NOT computed here;
+      (c) key-direction objects that are not degree-based at all, such as the
+      differential relations between subkey words RQ-AES-001 names; and (d) the
+      composite data-and-key object, which no bound here touches.
+    - >-
+      THE DEGREE VECTOR IS NOT AN INSTANCE DISCRIMINATOR. It is constant across
+      all keys and has zero spread as such; it is a statement about the cipher's
+      structure. Any reading of it as a distinguisher is wrong.
+    - >-
+      NO COMPARISON IS MADE against any published AES attack cost. DEC-20260731-011
+      and RQ-AES-001 forbid comparing against a recalled number, and this record
+      contains no such comparison.
+    - >-
+      This IS the division-property / higher-order-differential FAMILY, stated
+      plainly rather than disguised. What is claimed unattempted is the ARGUMENT
+      SLOT - the key argument rather than the data argument - and only within this
+      corpus. Presenting a known family pointed at a new slot as a new family would
+      be exactly the rediscovery-in-new-notation failure RQ-AES-001 forbids.
+  status: proposed
+  proposed_by: idea-generator

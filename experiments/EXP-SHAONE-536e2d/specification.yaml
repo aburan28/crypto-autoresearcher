@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-SHAONE-536e2d
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-71d4dd; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-71d4dd
+  question_id: RQ-SHAONE-081e3a
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure achieved-versus-ideal distinguished-point collision-search efficiency on a truncated
+    compression function where the ideal denominator is exhaustively enumerated, sweeping table capacity
+    against two null arms.
+  objective: 'The one uncertainty a run reduces is how much of a parallel collision search''s work
+    is wasted by bounded memory, expressed as a ratio whose denominator is known exactly rather than
+    assumed. Stated as parts: (i) it establishes whether an exactly enumerable ideal denominator exists
+    at a truncation width where the distinguished-point search is still non-degenerate, which is a
+    precondition for the measurement having any meaning and is not currently known in this repository;
+    (ii) it measures eta as a function of table capacity at that width, with at least 20 seeds per
+    cell so the ratio carries a bootstrap interval, and with an unbounded-table arm whose eta must
+    come out near 1 as a validity check on both the denominator and the evaluation counter; (iii)
+    it runs the identical sweep against a random target set and a random iteration function in the
+    same invocation, so that any table-capacity dependence can be attributed to the search machinery
+    rather than to the structure of the target set, and reports whether the three slopes agree. A
+    run that finds eta flat, or finds the arms disagreeing, is a complete and usable outcome: the
+    first is a measured refutation of the memory-charging premise at this width, the second a measured
+    confound.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal scope a run could support is: for THIS truncated
+      compression function at THIS width, THIS distinguished-point predicate, THIS eviction policy
+      and THIS parameter grid, the achieved efficiency of the search is eta with these intervals,
+      and it depends on table capacity with this slope, matching or not matching the null arms. WHAT
+      DOES NOT FOLLOW: nothing about the cost of any real chosen-prefix collision, no correction factor
+      applicable to any published figure, nothing about full-width SHA-1 or MD5 parameters, nothing
+      about real network hardware, and nothing about the security of any system. eta is not transferable
+      across widths and the run may not be cited as though it were.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 2 human-hours): declare and freeze the truncated function, the truncation
+      widths, the distinguished-point predicate, the eviction policy, the trail length limit, the
+      target-set cardinality, the seed list, and the parameter grid. STAGE 1 (cost: minutes): implement
+      the compiled iteration kernel with an in-kernel evaluation counter and validate it against hashlib
+      reference vectors before truncation. STAGE 2 (cost: 1-6 CPU-hours per width, dominant): exhaustively
+      enumerate the truncated function graph and compute the exact ideal expected evaluations for
+      a collision inside the target set; cross-check against the analytic birthday expectation for
+      the unstructured case and abort the width if they disagree beyond a declared tolerance. STAGE
+      3 (cost: 4-12 CPU-hours): run the table-capacity sweep, 20 seeds per cell, in all three arms
+      and the unbounded-table reference, recording every counter. STAGE 4 (cost: 2-6 CPU-hours): repeat
+      the sweep across worker counts and simulated latencies at the two extreme table capacities only,
+      to sample the surface without paying for the full grid. STAGE 5 (cost: 1 CPU-hour): verify every
+      reported collision directly against the truncated function, emit certificates for the objects
+      actually computed, bootstrap all intervals, and report every disagreement with the predictions
+      as such.'
+    instrument: Python 3.11 driving a C iteration kernel through ctypes, with the evaluation counter
+      inside the C kernel so it cannot be distorted by interpreter overhead; numpy for the trail table
+      and the bootstrap; multiprocessing for worker parallelism with a queue-based table server into
+      which the simulated per-message latency is injected; hashlib for pre-truncation reference vectors;
+      harness/runner.py for run manifests and deterministic seed recording. No Sage and no computer-algebra
+      dependency; the enumeration is a flat array scan.
+    parameters: 'Truncation widths: 28, 32 and 36 bits, subject to STAGE 2 feasibility, with the largest
+      feasible width used for the main sweep. Table capacity: 6 values spanning 2^10 to 2^20 entries.
+      Distinguished-point probability: 2^-8 and 2^-12. Worker counts: 1, 4, 16. Simulated per-message
+      latency: 0, 100 and 1000 microseconds. Target-set cardinality: 2^(w/4), declared. Seeds: 20
+      per cell. Trail length limit: 20 divided by the distinguished-point probability. Arms: structured
+      target, random target, random function, unbounded table.'
+  controls:
+  - Random target-difference set of identical cardinality, same invocation.
+  - Random iteration function on the same domain, same invocation.
+  - Zero-latency arm to isolate the interconnect term from the table term.
+  - Unbounded-table arm as the efficiency ceiling reference, which should give eta close to 1 and
+    validates the denominator.
+  - Repeat every cell with at least 20 independent seeds so eta carries an error bar rather than a
+    point.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both executed in the same invocation as the signal arm.
+    (1) Random target set: replace the structured target-difference set T by a uniformly random subset
+    of identical cardinality and rerun the identical search with identical parameters. (2) Random
+    iteration function: replace the truncated compression function by a random function on the same
+    domain realised as a keyed permutation composition. The nulls must show that eta''s dependence
+    on TABLE CAPACITY is essentially unchanged -- because that dependence should be a property of
+    the search machinery, not the target -- while eta''s absolute level may differ. If eta''s table-capacity
+    dependence differs sharply between signal and null, the measurement is confounded by the target
+    set and no statement about search efficiency can be made from it.'
+  independent_variables:
+  - table capacity in entries
+  - distinguished-point probability
+  - worker count
+  - simulated per-message interconnect latency
+  - arm (structured / random target / random function / unbounded reference)
+  metrics:
+    primary:
+    - eta = exact ideal evaluations / measured evaluations, per cell, with bootstrap CI
+    - slope of eta against log table capacity, per arm
+    - fraction of evaluations spent on evicted or length-truncated trails
+    - eta of the unbounded-table reference arm as a validity check
+    secondary:
+    - trails stored, evicted, matched, truncated
+    - peak table bytes
+    - latency-induced idle fraction of wall clock
+    - seed-to-seed variance of eta at fixed parameters
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: eta(C), the achieved efficiency as a function of table capacity C, and the ratio eta(C_max)/eta(C_min)
+      in each arm.
+    formula: Predicted eta(C) is approximately 1/(1 + a/C) for a constant a determined by the trail-length
+      distribution, so that eta(C_max)/eta(C_min) >= 2 over the tested capacity range, and eta(C_max)
+      >= 0.9. eta is defined as the exhaustively enumerated expected evaluations for a collision inside
+      the declared target set, divided by the mean measured evaluations across seeds including all
+      evaluations in evicted and truncated trails.
+    source: Pre-registered in the parent proposal IDEA-20260816-71d4dd before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are truncation widths 28 to 36 bits with table capacities up
+      to 2^20 entries and up to 16 simulated workers -- chosen because 36 bits is near the largest
+      width at which the ideal denominator is exhaustively enumerable within this harness''s budget,
+      which is the entire point of the design. Transfer assumption stated explicitly: NONE of the
+      eta values transfer to full-width parameters, and no extrapolation is performed. What is argued
+      to transfer is only the FORM of the dependence eta(C) approximately 1/(1 + a/C), because the
+      trail-eviction mechanism is width-independent; even that is a conjecture the run does not establish.'
+    correspondence: null
+  tail_checks:
+  - Report the seed-to-seed distribution of eta per cell, not just its mean, and flag any cell whose
+    distribution is bimodal.
+  - Check the trail-length distribution's upper tail against the geometric expectation; a heavy tail
+    indicates the length limit is binding and silently changing the search.
+  - Check for endpoint-collision saturation by counting spurious matches, and mark any width where
+    they exceed a declared fraction as degenerate.
+  - Check that the unbounded-table arm's eta is stable across widths; drift indicates a denominator
+    error.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Abort any truncation width whose STAGE 2 enumeration disagrees with the analytic birthday expectation
+    beyond the declared tolerance, and report it as an instrument failure rather than a result.
+  - Stop the four-variable surface after the extreme-capacity sampling in STAGE 4 rather than filling
+    the grid, if wall clock exceeds the declared budget; report the surface as sampled, not mapped.
+  - Stop and report a controlled null if the table-capacity slope is statistically indistinguishable
+    from zero in all arms.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if the unbounded-table arm returns eta within a declared
+    tolerance of 1 and eta(C) is reported with bootstrap intervals across the full capacity sweep
+    in all three arms -- whichever direction the slope falls.
+  falsification_criterion:
+  - Unbounded-table eta departs materially from 1, invalidating the denominator or the counter and
+    voiding the run.
+  - eta(C) slope indistinguishable from zero in all arms, refuting the bounded-memory waste premise
+    at this width.
+  - Signal and null slopes differ beyond overlapping bootstrap intervals, showing the measurement
+    is confounded by target-set structure.
+  - Spurious endpoint matches exceed the declared degeneracy fraction at every feasible width, so
+    no usable analogue exists.
+  - Seed-to-seed variance exceeds the between-capacity effect, showing the instrument cannot resolve
+    the quantity.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-71d4dd
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The eviction policy and trail-length limit are declared inputs whose provenance the Coordinator
+    must fix before approval; different policies give different eta and the choice must not be made
+    after seeing results.
+  - Whether simulated latency is admissible as an interconnect proxy at all, or whether that axis
+    should be dropped rather than reported weakly, is a scoping decision still owed.
+  - The charging convention for memory must be reconciled with whatever GOAL-RSA-001 fixes, per the
+    non_duplication clause in GOAL-SHA1-001; this contract does not invent a second convention.
+  - The target-set cardinality rule 2^(w/4) is chosen for tractability and has no derivation; a justified
+    rule or an explicit declaration that it is arbitrary is required.

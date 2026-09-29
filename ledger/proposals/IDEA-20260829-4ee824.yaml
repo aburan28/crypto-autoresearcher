@@ -1,0 +1,859 @@
+idea:
+  id: IDEA-20260829-4ee824
+  question_id: RQ-SYMF-5ab172
+  title: >-
+    The comparable-axis set as the tracked object - exhibit that the committed
+    dominance rule admits 3-cycles when the compared axis set is pair-dependent,
+    measure whether the corpus sits in that regime, and test whether frontier
+    status is decided by the null_reason label rather than by cryptanalysis
+  class: measurement
+  claim: >-
+    Schema v2 defines dominance as "no worse on every COMPARABLE charged axis
+    and strictly better on at least one", with nulls excluded from comparison.
+    The comparable axis set is therefore a property of the PAIR, not of the
+    corpus, and this proposal makes three claims about the consequences.
+    (A) ALGEBRAIC, PROVED HERE, NO COMPUTE - the relation so defined is not a
+    strict partial order, because a pair-dependent comparable set admits
+    3-cycles. Witness over axes (time, memory, data), lower being better -
+    A = (1, 9, null), B = (2, null, 1), C = (null, 1, 2). A versus B share only
+    time, so A dominates B; B versus C share only data, so B dominates C; C
+    versus A share only memory, so C dominates A. Every row has exactly two
+    populated axes and every pair shares exactly one. Consequently
+    "nondominated" is not the Pareto frontier of any order, all three rows are
+    dominated so the nondominated set of that cell is EMPTY, and any
+    implementation that resolves dominance greedily in row order produces an
+    is_frontier vector that depends on the order rows were listed in.
+    (B) EMPIRICAL, ABOUT THE REGIME - the committed corpus sits squarely in the
+    regime where (A) can bite, because the J1 validation report recomputes 67
+    rows times 6 axes = 402 cost slots of which 266 are null and 136 populated,
+    a mean of 2.03 populated axes per row, which is exactly the witness's
+    shape. The claim is that at least 0.60 of ordered same-key pairs are
+    unresolved because of a null or an unnormalised value rather than because
+    of a genuine Pareto tradeoff.
+    (C) EMPIRICAL, ABOUT ANNOTATION - the schema gives the two most common null
+    labels OPPOSITE effects on frontier status. A not_stated_by_source null
+    SHIELDS a row, because a missing axis can never create a favourable
+    ordering against it; an unresolved_transcription null DISQUALIFIES it,
+    because anti-laundering rule 7 forbids canonical is_frontier=true on such a
+    row. The corpus carries 195 of the first and 29 of the second. The claim is
+    that flipping ONE null_reason label on ONE axis of one row flips
+    is_frontier for at least 3 rows of the 67, i.e. that frontier membership is
+    decided in measurable part by an annotator's account of WHY a number is
+    missing. The committed record already contains the mechanism - the red team
+    found (OBJ-J2-002) that the full-MD4 no-precomputation row's memory 2^64 is
+    stated explicitly in the source Table 1, while the producer recorded the
+    axis as unresolved_transcription, and the validator recorded that row as
+    frontier_eligible_under_frozen_rule false in consequence.
+  mechanism: >-
+    TRACKED OBJECT. The object followed through the computation is the
+    COMPARABLE-AXIS SET of an ordered pair of rows together with the sign
+    vector on it - the subset S of the six charged axes on which both rows
+    carry values the committed rules permit ordering, and for each axis in S
+    whether the first row is better, worse, or equal. One-step propagation is
+    defined and exactly measurable - populating an axis from the source,
+    relabelling a null_reason, or normalising a unit adds or removes exactly
+    one element of S, and the dominance verdict is recomputed from S and the
+    sign vector alone.
+    LOSSY-PROJECTION TEST (algebraic, no compute). The projection
+    (row pair) -> (S, sign vector on S) discards both rows' identities, their
+    primitives, their methods, their provenance, the magnitudes on every axis,
+    and every axis outside S. It is strictly, massively lossy - two pairs
+    forty bits apart in time map to the same object. The discard is compatible
+    with the target's operation in the strongest possible sense - schema v2's
+    dominance verdict is LITERALLY A FUNCTION OF THIS OBJECT AND NOTHING ELSE
+    ("no worse on every comparable charged axis and strictly better on at least
+    one"), so the retained part not only propagates deterministically, it is
+    exactly the operation's argument. Not a change of coordinates - the fibre
+    over one (S, sign vector) is enormous and its contents are unrecoverable.
+    WHY (A) IS A RESULT AND NOT A COMPLAINT. Pareto dominance over a FIXED axis
+    set is a strict partial order, and its nondominated set is well defined
+    independent of evaluation order. That property is not inherited when the
+    axis set varies by pair, because the relation is then not the restriction
+    of a single order. The three-row witness above is a complete proof that the
+    committed rule as written admits cycles; it costs no compute and it can be
+    checked by reading. What is NOT claimed is that the committed corpus
+    contains a cycle - that is measurement (B), and the honest prior is that at
+    the committed key granularity there are too few evaluated comparisons for
+    one to appear, which is itself the finding IDEA-20260829-9aaa40 predicts
+    from the other direction.
+    WHY (B) DISCRIMINATES BETWEEN THE TWO LIVE DIAGNOSES. The frontier compares
+    almost nothing. There are exactly two candidate explanations and they are
+    separable by counting. D1 - THERE ARE NO PEERS - most rows are alone in
+    their comparison-key cell, so no comparison is ever attempted (this is
+    IDEA-20260829-9aaa40's singleton hypothesis). D2 - THERE ARE PEERS BUT
+    EVERY COMPARISON DIES ON A NULL - pairs share a key and are then declared
+    unresolved because a charged axis is missing or unnormalised. The
+    predicted signatures are disjoint. Under D1 the count of same-key ordered
+    pairs is near zero and the null structure is irrelevant. Under D2 the count
+    is nonzero and the resolution-blocked fraction is high. The corpus's own
+    numbers make D2 live - the validator's dominance_recomputations record
+    FOUR same-key groups whose verdict is a form of "not orderable", including
+    "not mechanically orderable" for the SHA-0 pair (2^15 160-bit words versus
+    the unquantified word "negligible") and "memory unresolved" for the MD4
+    pair. Both diagnoses can hold simultaneously; the deliverable is their
+    relative size, which decides whether the repair is key normalisation or
+    source re-reading.
+    WHY (C) IS AN ABLATION AND NOT AN OPINION. The null_reason vocabulary is
+    the one enumerated vocabulary the schema does supply (five values), and the
+    choice among them is an annotator judgment about the WORLD (did the source
+    state this) that the rules convert into a judgment about the ROW (may this
+    row be frontier). Single-label relabelling is therefore a well-defined
+    one-step move on the tracked object, its effect on is_frontier is
+    mechanically recomputable, and its null object is immediate - relabelling a
+    not_applicable null (the queries axis of a hash row, 41 such slots exist)
+    must change nothing, because that axis is not charged for that primitive
+    class.
+    WHY THE MEMORY AXIS NEEDS A TYPE BEFORE ANY OF THIS IS TRUSTWORTHY. S is
+    defined by "axes the rules permit ordering", and that permission is
+    currently decided ad hoc. The J1 report states plainly that the schema does
+    not standardize populated cost encoding and that FOUR encodings occur in
+    practice - value, log2, components, lower_bound. The memory axis is the
+    worst case - the corpus and its sources carry 2^15 160-bit WORDS, 2^64 and
+    2^77 with no stated unit, "at least 1 TB RAM", "two 2-TB drives in RAID",
+    "list length 2^d with roughly n+d bits per entry", and the bare word
+    "negligible". These are not values of one axis; they are values of several.
+    This proposal therefore carries a TYPE CENSUS of every populated cost cell
+    along three coordinates - dimension (words, bits, bytes, blocks, entries,
+    devices, unstated), quantifier form (exact, lower bound, interval,
+    parameterised, qualitative, prose), and access pattern (sequential, random,
+    negligible, unstated) - and reports how many same-key pairs are
+    type-incompatible on an axis they are currently compared on. The
+    access-pattern coordinate is taken from IDEA-20260829-d29588's separating
+    condition, which proposed it as a schema recommendation; here it is
+    measured rather than recommended.
+  tracked_object: >-
+    The comparable-axis set of an ordered pair of rows, with its sign vector -
+    the exact argument schema v2's dominance verdict is a function of -
+    propagated by single-axis moves (populate a value, relabel a null_reason,
+    normalise a unit, assign a type).
+  lossy_projection_test: >-
+    PASSES, in the strongest form available in this question. The projection
+    (row pair) -> (comparable axis set, sign vector) is many-to-one and
+    non-invertible (identities, magnitudes and all non-compared axes are
+    discarded), and what it retains is not merely compatible with the target
+    operation but is precisely that operation's argument, since the committed
+    dominance rule reads nothing else. Not a change of coordinates.
+  novelty_status: unverified
+  citations:
+    - ref: coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+      provenance: internal
+      claim: >-
+        null_reason_accounting reports axis_slots 67 rows x 6 axes = 402,
+        null_axis_count 266, populated_axis_count 136, and by_reason
+        incompatible_unit_not_normalized 1, not_applicable 41,
+        not_stated_by_source 195, unresolved_transcription 29, with
+        invalid_or_missing_reason_count 0, and notes that the frozen schema
+        does not standardize populated cost encoding, observed encodings being
+        value, log2, components and lower_bound. dominance_recomputations
+        record four target-qualified same-key groups with verdicts "no
+        dominance", "not mechanically orderable" (2^15 160-bit words versus
+        unquantified "negligible") and two further "no dominance" tradeoffs.
+        Row LEGACY-MD4-PREIMAGE-NOPRECOMP carries unresolved_transcription on
+        memory, frontier_eligible_under_frozen_rule false and declared
+        is_frontier false, while LEGACY-SHA1-IP-COLLISION-THEORY carries four
+        not_stated_by_source nulls, one populated axis,
+        frontier_eligible_under_frozen_rule true and declared is_frontier true.
+        Defect D-DOM-002 records a qualitative memory ordering presented as
+        arithmetic.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-1129 of 2256 read in full (header, artifact checks, normalization,
+        count recomputations, null_reason accounting, comparison-key
+        reconstruction, all dominance_recomputations, all coverage checks, the
+        full defect list, and the first sixteen row_checks entries). The
+        remaining row_checks entries were NOT read this session.
+    - ref: knowledge/frontiers/symmetric-frontier-schema.yaml
+      provenance: internal
+      claim: >-
+        dominance_rules include "Compare time, data, memory, preprocessing,
+        queries, and success probability together", "A row dominates only if it
+        is no worse on every comparable charged axis and strictly better on at
+        least one", "Null, unresolved, qualitative, compound, or incompatible
+        units never create a favorable ordering by inference", and "A
+        qualitative value such as negligible is not ordered against a numeric
+        exponent without a source-supported bound or normalization".
+        anti_laundering_rules include "A recalled-only, secondary-only,
+        source-unavailable, or unresolved-transcription row cannot be canonical
+        is_frontier=true" and "Time-only comparisons never hide data, memory,
+        preprocessing, queries, or success probability". allowed_null_reason
+        enumerates exactly five values.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, FULL file read
+        (137 lines).
+    - ref: coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-9eda3a/red-team-report.yaml
+      provenance: internal
+      claim: >-
+        OBJ-J2-002 states that the primary table of eprint 2010/016 explicitly
+        gives time 2^99.7, memory 2^64 and a message of at least 250 blocks for
+        full MD4, while the shard left memory null with unresolved_transcription.
+        OBJ-J2-003 states that eprint 2009/317 Table 1 explicitly reports memory
+        2^77, refined in the body to 2^77.5, for the full AES-256
+        four-related-key row that the shard marks not_stated_by_source.
+        OBJ-J2-001 states that the SHA-1 chosen-prefix rows mark data, memory
+        and preprocessing unstated although the source states about 0.5 TB for
+        2^34 distinguished chains, an approximately 2^38 implicit graph,
+        multi-terabyte graph work, two 2-TB drives in RAID and at least 1 TB
+        RAM. OBJ-J3-003 states that eprint 2026/353 supplies 47-step SHA-256
+        memory 2^5 and 51-step SHA-512 memory 2^12 that the shard leaves null.
+        The blind rows record memory for a reduced SHA-1 preimage as
+        "parameter-dependent meet-in-the-middle lists ... list length 2^d with
+        roughly n+d bits per entry".
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, FULL file read
+        (858 lines).
+    - ref: knowledge/frontiers/symmetric-cryptanalysis.yaml
+      provenance: internal
+      claim: >-
+        Row LEGACY-SHA0-COLLISION-DEMO carries success_probability value
+        "one_collision_in_about_one_hour" with unit "average_PC_2008" and
+        null_reason null - a qualitative value occupying a charged axis with a
+        hardware-year unit - alongside data value 2 unit
+        message_blocks_per_message and time 2^33.6 unit
+        SHA0_hash_function_calls_measured. Two of the 30 canonical plus
+        baseline rows share the target-qualified key digest
+        732ebab776498f353bd4c6c3adcbfae2b3b5e00bb43824f04567857139786131, so at
+        least one non-singleton same-key pair exists in the canonical set.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, PARTIAL READ - lines
+        1-175 read in full plus a grep over the file's 30
+        target_qualified_key_sha256 values.
+    - ref: IDEA-20260829-9aaa40
+      provenance: internal
+      claim: >-
+        The sibling proposal filed earlier today advances the singleton
+        hypothesis (diagnosis D1) and measures key-class multiplicity and
+        single-field key coarsening. It reports evaluated-but-unresolved
+        comparisons as a secondary metric but does not decompose the blocking
+        cause, does not test the order axioms, does not ablate null_reason
+        labels, and does not type the cost axes.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (695 lines).
+    - ref: IDEA-20260829-d29588
+      provenance: internal
+      claim: >-
+        The sibling proposal filed earlier today identifies memory access
+        pattern as a separating condition for curve dominance and RECOMMENDS a
+        sequential/random/negligible/unstated qualifier on the memory axis. It
+        proposes no measurement of the axis's current type composition and
+        closes point-form dominance as a comparability instrument, which this
+        proposal does not re-open - it measures the axis types the committed
+        point-form rows already carry.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full record read
+        (666 lines).
+    - ref: docs/inventor-protocol.md
+      provenance: internal
+      claim: >-
+        Section 2 (lossy-projection test), section 3 (null object before
+        belief and the structural-tell heuristic), section 4 (closure standard),
+        section 8 audits 1 to 4.
+      verified_by: >-
+        idea-generator subagent, 2026-08-29, Read tool, full file read
+        (261 lines).
+    - ref: "Pareto dominance over a fixed objective set is a strict partial order (standard multi-objective optimization)"
+      provenance: recalled
+      claim: >-
+        Relied on only for the contrast that makes claim (A) meaningful -
+        componentwise dominance over a FIXED set of objectives is irreflexive,
+        asymmetric and transitive, so its nondominated set is order-independent.
+        The witness in the mechanism block is self-contained and does not
+        depend on any external source.
+      verified_by: null
+      note: >-
+        NOT READ THIS SESSION. Recalled as textbook background. The proposal's
+        algebraic claim is proved by the exhibited three-row witness and needs
+        no citation; this entry marks the contrast, not a borrowed theorem.
+  assumptions:
+    - >-
+      The instrument is read-only over committed artifacts and writes a derived
+      overlay. It never edits a committed row, never flips a committed
+      is_frontier value in place, and never populates a cost axis in the
+      canonical compilation - a relabelling ablation is computed on a
+      quarantined copy and its results are reported as an ablation, never as a
+      correction.
+    - >-
+      No cryptanalytic search, attack execution, or reproduction occurs. Per
+      RQ-SYMF-5ab172 none is authorized. Assigning a type to a published memory
+      figure is classification of a transcription, not verification of a cost.
+    - >-
+      The type census classifies what the ROW says, and where the row is null
+      it classifies what the SOURCE says only for the axes the red team already
+      quoted with locators (MD4 memory 2^64, AES-256 memory 2^77 to 2^77.5,
+      SHA-1 chosen-prefix storage and RAM, SHA-256 memory 2^5, SHA-512 memory
+      2^12). No new source reading is required for the minimal test, and any
+      new reading is a declared extension with its own locators.
+    - >-
+      Type assignment where the encoding is ambiguous is REVIEWER JUDGMENT, is
+      performed blind to which row is on the frontier, and is reported with an
+      inter-rater agreement statistic. An unadjudicated cell is typed
+      "unresolved" and is excluded from the type-incompatibility count.
+    - >-
+      This proposal depends on the committed comparison keys being
+      recomputable. If IDEA-20260829-5045bf reports that the key
+      canonicalisation cannot be recovered, this instrument re-bases on keys it
+      recomputes from the declared field values under a stated canon, and says
+      so in every result.
+  proof_search_map:
+    bottleneck: >-
+      The step that turns two rows into a verdict - selecting the comparable
+      axis set. Every dominance decision, every is_frontier value and every
+      dominance_reason string in the corpus is produced by this step, and the
+      step is currently governed by four prose rules with no type system, no
+      order-axiom check, and two null labels of opposite effect.
+    baseline_embedding:
+      parameter_slice: >-
+        The committed rules applied unchanged, with every null excluded and
+        every populated value taken at face value. This is the exact old-method
+        boundary and must reproduce the committed dispositions.
+      reproduction_check: >-
+        TWO-PART FROZEN FIXTURE, both exact and both able to fail. (a) The
+        recomputed is_frontier vector under the committed rules equals the
+        committed vector element for element over the 21 canonical and 9
+        verified-baseline rows. (b) The recomputed verdicts for the four
+        same-key groups the J1 report enumerates
+        (LEGACY-MD4-PREIMAGE-PRECOMP versus LEGACY-MD4-PREIMAGE-NOPRECOMP; the
+        SHA-0 52-step pair; the two AES-128 biclique tradeoff candidates; the
+        GIFT-64 low-time versus low-memory pair) reproduce that report's
+        recorded outcomes, including its "not mechanically orderable" for the
+        SHA-0 pair. A mismatch halts the run and is reported as a defect.
+    observation_collision:
+      observable: >-
+        The dominance verdict of an ordered pair - dominates, dominated,
+        incomparable, unresolved.
+      distinct_preimage_search: >-
+        COLLISION PRESENT AND DIRECTLY ACTIONABLE. The verdict "unresolved" has
+        at least four ground truths that the committed record does not
+        separate - (i) the axis is genuinely not stated by the source; (ii) the
+        axis IS stated by the source and was not transcribed (the red team
+        found four such rows); (iii) the axis is stated but in an incompatible
+        unit or a qualitative form and could be normalised; (iv) the axis is
+        not applicable to this primitive class at all. These have opposite
+        repairs - (ii) is fixed by reading, (iii) by typing, (iv) by nothing -
+        and the schema's five null_reason values map onto them only partially,
+        with not_stated_by_source covering both (i) and, in the four cases the
+        red team found, (ii). SEPARATING CONDITION - the dominance_reason must
+        carry a machine-readable BLOCKING CAUSE per unresolved pair, drawn from
+        a closed set, alongside the axis that blocked it. That is a two-field
+        addition and it converts an opaque verdict into an actionable one; this
+        proposal's minimal test computes exactly those two fields for every
+        unresolved same-key pair.
+        A SECOND COLLISION, on the other observable - is_frontier=true has the
+        preimages "won a comparison", "was alone" (IDEA-20260829-9aaa40's
+        finding) and, added here, "every comparison it was in died on a null",
+        which is distinguishable from the first two by the blocking-cause
+        field and by nothing currently committed.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry, per ordered pair, the comparable axis set and the blocking
+          cause rather than only the verdict - preserving more state than the
+          frontier's final boolean requires, because that state is what
+          survives every downstream question about why the frontier compares
+          nothing.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. A blocking-cause histogram over all same-key
+          ordered pairs, from which the resolution-blocked fraction and the
+          D1-versus-D2 decomposition follow immediately. If the histogram is
+          empty because there are no same-key pairs, that is D1 confirmed and
+          is a clean, complete result that also closes this proposal's
+          measurements (B) and part of (C).
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the verdict "unresolved" fixed and vary the forgotten structure
+          (the blocking cause), exhibiting pairs with identical verdicts and
+          opposite repairs.
+        predicted_gain: >-
+          MODELED, NOT MEASURED. A named counterexample set from the committed
+          corpus plus the two-field invariant that separates them.
+    quantifier_order: >-
+      CLAIM (A) IS UNIVERSAL AND PROVED - FOR the relation defined by schema
+      v2's dominance rules with pair-dependent comparable sets, THERE EXISTS a
+      three-element instance on which transitivity and acyclicity both fail;
+      the witness is exhibited, so the relation is not in general a strict
+      partial order. NOT CLAIMED - that the committed corpus contains such an
+      instance; that is the existential (B) measures, and its honest prior is
+      that it does not, because too few comparisons are evaluated at the
+      committed key granularity. CLAIM (C) IS EXISTENTIAL - THERE EXIST at
+      least three rows whose is_frontier value changes under a single
+      null_reason relabel. NOT CLAIMED - that most rows are so decided, or that
+      any specific label is wrong; the four labels the red team showed to be
+      wrong are cited as the mechanism's existence proof, not as its rate.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For the committed snapshot - the exact blocking-cause histogram over
+        same-key ordered pairs, the exact resolution-blocked fraction, the
+        exact count of transitivity violations and cycles at each declared
+        granularity, the exact number of is_frontier flips under each
+        single-label relabel, and a type census of all 136 populated cost cells
+        with an inter-rater statistic. The method can NEVER certify that a
+        populated value is correct, NEVER certify that a source does or does
+        not state an axis it has not read, NEVER convert a flip count into a
+        claim that any row's frontier status is wrong (only that it is
+        label-sensitive), and NEVER say anything about the literature outside
+        this corpus.
+      nearby_object_control: >-
+        TWO CONTROLS AT OPPOSITE BOUNDARIES, both mandatory.
+        (i) NULL OBJECT FOR THE ABLATION - relabel a not_applicable null on an
+        axis that is not charged for that primitive class (the queries axis of
+        a hash row; 41 not_applicable slots exist). The required outcome is
+        ZERO is_frontier flips. If relabelling an inapplicable axis flips a
+        row, the ablation is measuring implementation fragility rather than
+        null semantics and every flip count is void.
+        (ii) POSITIVE CONTROL FOR THE CYCLE DETECTOR - inject the exhibited
+        three-row witness A = (1, 9, null), B = (2, null, 1), C = (null, 1, 2)
+        into a quarantined copy under one synthetic comparison key. The
+        detector MUST report one 3-cycle. If it does not, a zero-cycle finding
+        on the real corpus means nothing, because the detector is dead. This
+        control is what converts "no cycles found" from a fatigue report into a
+        measurement.
+    proof_obligations:
+      - claim: >-
+          The recomputed is_frontier vector and the four enumerated same-key
+          group verdicts reproduce the committed values exactly.
+        responsibility: baseline
+      - claim: >-
+          Every same-key ordered pair receives a comparable-axis set, a verdict
+          and a blocking cause from a closed set, with the blocking axis named.
+        responsibility: correctness
+      - claim: >-
+          The cycle and transitivity detector reports exactly one 3-cycle on
+          the injected synthetic witness before any real-corpus count is
+          reported.
+        responsibility: correctness
+      - claim: >-
+          The not_applicable relabelling control produces zero flips.
+        responsibility: correctness
+      - claim: >-
+          Cost-cell type assignment is performed blind to frontier status by
+          two adjudicators with Cohen's kappa reported, and ambiguous cells are
+          typed unresolved rather than guessed.
+        responsibility: interface
+      - claim: >-
+          Ablations are computed on a quarantined copy that is hash-bound,
+          poison-marked and itemised in the run receipt, and no ablated value
+          reaches a canonical artifact.
+        responsibility: scope
+      - claim: >-
+          All conclusions scoped to the committed snapshot, with the number of
+          same-key pairs stated alongside every fraction so that a fraction
+          over a tiny denominator is visible as such.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        resolution-blocked fraction - of all ordered pairs sharing a full
+        target-qualified key in the 67-row snapshot, the share whose dominance
+        verdict is unresolved because of a null, an incompatible unit, or a
+        qualitative value, rather than because both rows are genuinely better
+        on different axes
+      direction: higher
+      minimum_effect: >-
+        at least 0.60, reported with its exact denominator. A value at or below
+        0.30 supports diagnosis D1 (the frontier compares nothing because there
+        are no peers) over D2 (it compares nothing because comparisons die on
+        nulls), and redirects repair effort from source re-reading to key
+        normalisation. A denominator below 5 means the metric is
+        uninformative and must be reported as such rather than as a fraction.
+    - metric: >-
+        null-shield differential - among rows ELIGIBLE for frontier status (no
+        unresolved_transcription, recalled-only or secondary-only disqualifier),
+        the mean count of not_stated_by_source nulls on is_frontier=true rows
+        minus the same mean on is_frontier=false rows
+      direction: higher
+      minimum_effect: >-
+        at least 0.75 axes in favour of frontier rows, i.e. frontier rows are
+        on average at least three quarters of an axis LESS documented than
+        eligible non-frontier rows. A differential at or below 0.0 falsifies
+        the shielding claim and means completeness of reporting is not
+        associated with frontier status in this corpus.
+    - metric: >-
+        single-label flip count - the number of rows whose is_frontier value
+        changes when exactly one null_reason label on one axis is changed
+        between not_stated_by_source and unresolved_transcription, swept over
+        all 224 such slots one at a time
+      direction: higher
+      minimum_effect: >-
+        at least 3 rows. Zero flips means the null semantics are not
+        load-bearing at this corpus size and claim (C) fails cleanly, which
+        would be a positive result about the schema's robustness.
+    - metric: >-
+        transitivity violations and directed cycles in the dominance relation,
+        counted at the committed key granularity and again under any declared
+        coarsening supplied by a sibling experiment
+      direction: different
+      minimum_effect: >-
+        Two-sided, and the honest prior is ZERO at the committed granularity
+        because too few comparisons are evaluated. Zero is reportable ONLY if
+        the injected synthetic witness was detected; otherwise the count is
+        withheld. Any nonzero count at any granularity is a first-order
+        structural defect of the instrument and is reported with the offending
+        rows and their comparable axis sets.
+    - metric: >-
+        cost-cell type diversity - the number of distinct (dimension,
+        quantifier form, access pattern) types among the 136 populated cost
+        cells, and separately among populated MEMORY cells
+      direction: higher
+      minimum_effect: >-
+        at least 6 distinct types overall and at least 3 among memory cells,
+        with at least 1 same-key pair currently compared on an axis where the
+        two rows' types differ. A finding of 1 type per axis would mean the
+        axes are already homogeneous and typing buys nothing.
+    - metric: >-
+        control outcomes - flips under not_applicable relabelling (must be 0)
+        and cycles detected on the injected synthetic witness (must be exactly 1)
+      direction: different
+      minimum_effect: >-
+        exactly 0 and exactly 1 respectively. Any other pair of values voids
+        the corresponding arm.
+  minimal_test:
+    design: >-
+      Pure recomputation over committed files plus one blind typing pass; no
+      retrieval, no network, no cryptanalysis.
+      STEP 0 - reproduce the frozen fixture (committed is_frontier vector and
+      the four enumerated same-key group verdicts). HALT AND REPORT on
+      mismatch.
+      STEP 1 - enumerate every ordered pair sharing a full target-qualified key
+      over the 67 snapshot rows and over the 30 canonical plus baseline rows
+      separately; for each, emit the comparable axis set, the verdict, and a
+      blocking cause from the closed set {no_shared_axis, null_not_stated,
+      null_unresolved_transcription, null_not_applicable, incompatible_unit,
+      qualitative_value, genuine_tradeoff, resolved}.
+      STEP 2 - compute the resolution-blocked fraction and the D1-versus-D2
+      decomposition, always with denominators printed.
+      STEP 3 - compute the null-shield differential over eligible rows, with
+      the eligibility rule applied exactly as anti-laundering rule 7 states.
+      STEP 4 - inject the synthetic three-row witness into a quarantined copy
+      and require the detector to report exactly one 3-cycle; then run the
+      detector on the real relation at the committed granularity and report the
+      count.
+      STEP 5 - sweep the single-label relabelling ablation over all
+      not_stated_by_source and unresolved_transcription slots one at a time,
+      recording flips; run the not_applicable null control and require zero.
+      STEP 6 - blind type census of all 136 populated cost cells by two
+      adjudicators along the three type coordinates, with kappa; count same-key
+      pairs compared across differing types.
+      Report every step whether or not the predictions hold. A run in which
+      there are no same-key pairs at all is a complete result and confirms D1.
+    controls:
+      - >-
+        Frozen-fixture baseline (STEP 0), which can fail and halts the run.
+      - >-
+        Positive control for the cycle detector - the exhibited synthetic
+        three-row witness must be detected as exactly one 3-cycle before any
+        zero-count is reportable.
+      - >-
+        Null object for the ablation - relabelling a not_applicable null on an
+        uncharged axis must produce zero is_frontier flips.
+      - >-
+        Order-permutation control - recompute the whole is_frontier vector
+        under 100 random permutations of row order; under a genuine partial
+        order the vector is invariant, so any variation localises an
+        order-dependent implementation and is reported as a defect.
+      - >-
+        Blind typing - adjudicators see the cost cell, its unit and its source
+        quotation but not the row's frontier status or primitive, and the cells
+        are shuffled.
+      - >-
+        Denominator disclosure - every fraction is printed with its numerator
+        and denominator, so a fraction over fewer than 5 pairs is visibly
+        uninformative rather than silently reported.
+    required_metrics:
+      - "count of ordered same-key pairs, over the 67-row snapshot and over the 30 canonical plus baseline rows separately"
+      - "blocking-cause histogram over the closed cause set, with the blocking axis named per pair"
+      - "resolution-blocked fraction with exact numerator and denominator, and the D1 versus D2 decomposition"
+      - "null-shield differential in axes, with per-group means, counts and the eligibility rule applied"
+      - "single-label flip count with the full list of (row, axis, old label, new label, old flag, new flag)"
+      - "transitivity violation count and directed cycle count at each granularity, reported only after the synthetic witness was detected"
+      - "synthetic-witness detection result (must be exactly one 3-cycle) and not_applicable relabelling control result (must be 0 flips)"
+      - "order-permutation invariance result over 100 permutations"
+      - "type census of all 136 populated cost cells along (dimension, quantifier form, access pattern), with per-axis breakdown and Cohen's kappa"
+      - "count of same-key pairs currently compared on an axis where the two rows' types differ, itemised"
+      - "receipt listing every quarantined ablation artifact with its hash and disposition"
+  falsification_conditions:
+    - >-
+      STEP 0 fixture fails - the recomputed is_frontier vector or the four
+      enumerated group verdicts do not match the committed values. The run
+      halts, the discrepancy is reported as a defect, and every numeric claim
+      is withdrawn.
+    - >-
+      The count of ordered same-key pairs is zero or near zero - diagnosis D1
+      holds outright, measurements (B) and the type-incompatibility count are
+      vacuous, and the honest report is that the corpus cannot yet exhibit the
+      structure claim (A) describes. This is a clean negative and is the single
+      most likely outcome.
+    - >-
+      Resolution-blocked fraction at or below 0.30 - nulls are not the binding
+      constraint on comparability; repair effort belongs on key granularity
+      rather than on source re-reading.
+    - >-
+      Null-shield differential at or below 0.0 - reporting completeness is not
+      associated with frontier status; the shielding claim fails.
+    - >-
+      Zero single-label flips across all 224 slots - the null semantics are not
+      load-bearing on this corpus; claim (C) fails and the schema is more
+      robust than argued, which is recorded as a positive result.
+    - >-
+      The synthetic witness is NOT detected - the cycle detector is broken and
+      no cycle count from the run may be reported in either direction.
+    - >-
+      The not_applicable control produces any flip - the ablation measures
+      implementation fragility, and all flip counts are withdrawn.
+    - >-
+      The order-permutation control shows a varying is_frontier vector - the
+      committed implementation is order-dependent, which supersedes the rest of
+      the run as the headline finding and is reported immediately.
+    - >-
+      Type-census kappa below 0.6 - typing is not reproducible and the
+      type-incompatibility count is uninterpretable.
+  confounders:
+    - >-
+      Tiny denominators, dominant. With 21 canonical rows spread over 42
+      primitives and a mean of 2.03 populated axes per row, both the same-key
+      pair count and the flip count may be single digits. Every fraction must
+      carry its denominator in the same line, and a denominator below 5 is
+      reported as uninformative rather than as a rate.
+    - >-
+      Circularity between the shield metric and eligibility. Rows disqualified
+      by unresolved_transcription are excluded from the null-shield comparison
+      by construction, which is correct but means the differential is measured
+      on a filtered population; the filtered and unfiltered numbers must both
+      be reported.
+    - >-
+      Acquisition bias in the null structure. A row's nulls reflect what one
+      bounded transcription pass recorded, and the red team showed four cases
+      where the source did state the axis. The shield metric therefore measures
+      the corpus's transcription state, not the literature's reporting
+      practice, and must be labelled that way.
+    - >-
+      Type assignment drift. An adjudicator who knows a row is on the frontier
+      may type its values more charitably. Mitigated by blinding, shuffling and
+      the kappa requirement.
+    - >-
+      Ablation semantics. Relabelling not_stated_by_source to
+      unresolved_transcription is not a claim that the label is wrong; it is a
+      sensitivity probe. A reader could mistake the flip list for a defect
+      list, so every flip row must be printed with the phrase that it is a
+      sensitivity result and not a correction.
+    - >-
+      Dependence on recoverable keys. If comparison keys cannot be recomputed
+      (IDEA-20260829-5045bf), the same-key pair enumeration rests on
+      recomputed keys under a stated canon rather than on the committed
+      digests, and every number inherits that scope.
+  interpretation_limits:
+    - >-
+      Scoped to snapshot commit 5fc23783da8a2e62e2b3ab8728e47c48958ce02f, its
+      67 producer rows and its 21 canonical plus 9 baseline rows. It is a
+      statement about this compilation, never about the published literature.
+    - >-
+      Claim (A) is about the RULE as written and holds regardless of the
+      corpus; claim (B) is about the corpus and may well come out empty. The
+      report must never present the algebraic possibility of cycles as evidence
+      that cycles are present.
+    - >-
+      A label-sensitive frontier row is not a wrong frontier row. The flip list
+      identifies where a judgment is load-bearing, and adjudicating those
+      judgments requires reading sources, which this experiment does not do.
+    - >-
+      The type census classifies transcriptions. It never asserts that a
+      published memory figure is right, wrong, or comparable to another in
+      reality.
+    - >-
+      No attack, trail, collision or key recovery is reproduced, verified or
+      questioned.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Type separability of cost cells.) Every populated cost cell in the
+        corpus can be assigned a triple (dimension, quantifier form, access
+        pattern) from the declared closed vocabularies by two independent
+        adjudicators with Cohen's kappa at least 0.6, using only the row's
+        recorded value, unit and source quotation - that is, the typing is a
+        decidable classification rather than a matter of taste.
+      rigorous_support: >-
+        Nothing is proved. The assumption imitates dimensional analysis, where
+        a physical quantity's dimension is determined by its definition and
+        conversions between units of the same dimension form a free abelian
+        group, and it imitates the inter-rater standard used wherever a
+        categorical judgment replaces a measurement. The rigorous ingredients
+        in hand are two and are real - the J1 report already partitions the
+        observed encodings into exactly four classes (value, log2, components,
+        lower_bound) mechanically, and the schema already enumerates five
+        null_reason values, so a closed vocabulary for missingness exists and
+        is applied without dispute (invalid_or_missing_reason_count is 0 over
+        266 nulls).
+      validation_plan: >-
+        WHAT TO SAMPLE - all 136 populated cost cells across the 67 snapshot
+        rows, blind and shuffled, typed independently by two adjudicators.
+        SCALE - complete enumeration; 136 is small enough that no sampling is
+        needed, which is why this validation is unusually cheap and unusually
+        strong. SHORTCUT USED TO REACH SCALE - none needed; the quantities are
+        directly readable from committed text. PREDICTED DISTRIBUTION - kappa
+        at least 0.6 overall and near 1.0 on the dimension coordinate (which is
+        usually written in the unit field) and lowest on the access-pattern
+        coordinate, which is rarely stated and is expected to be typed
+        "unstated" for a large majority; the predicted share of memory cells
+        typed access-pattern-unstated is above 0.80 and that share is itself a
+        headline number, because it bounds how much of
+        IDEA-20260829-d29588's recommended qualifier the current corpus could
+        ever populate. TAIL CHECK - the single cell with the widest
+        disagreement, reported verbatim with both adjudicators' triples, since
+        one prose memory entry ("two 2-TB drives in RAID") is exactly the tail
+        event a kappa hides. TRANSFER ASSUMPTION, STATED - typing agreement
+        measured on this corpus and this vocabulary does not transfer to a
+        different primitive set or a revised vocabulary, and the
+        access-pattern coordinate in particular is being measured here for the
+        first time in this program.
+    - id: H2
+      statement: >-
+        (Ablation locality.) Changing one null_reason label on one axis of one
+        row changes the is_frontier value of at most the rows in that row's own
+        comparison-key class - that is, the frontier computation has no global
+        coupling, so single-slot flips can be attributed to single slots.
+      rigorous_support: >-
+        This one is close to provable from the rules rather than assumed, and
+        the proposal says so plainly - schema v2's dominance gate compares rows
+        ONLY within an identical dominance_domain_key, so no comparison crosses
+        a class and locality follows directly, PROVIDED the implementation
+        obeys the gate. The assumption is therefore really about the
+        implementation, not the mathematics, and its imitation target is the
+        standard locality argument for block-diagonal computations.
+      validation_plan: >-
+        WHAT TO SAMPLE - every single-slot relabel in the sweep (up to 224
+        slots); for each, record the full set of rows whose flag changed.
+        SCALE - complete enumeration of the sweep. PREDICTED DISTRIBUTION -
+        every changed row lies in the relabelled row's own key class, and the
+        modal number of changed rows is 0 or 1. COMPARISON - report the
+        empirical distribution of changed-row counts and the count of
+        cross-class changes, which under H2 must be exactly 0. TAIL CHECK - the
+        relabel producing the largest number of changed rows, reported with the
+        class size, since a single relabel flipping many rows would indicate
+        either a large class (interesting) or a coupling bug (disqualifying).
+        CONSEQUENCE IF IT FAILS, PRECOMMITTED - any cross-class change means
+        the implementation violates the committed gate, the finding is reported
+        as an implementation defect, and every flip count from the run is
+        withdrawn until it is fixed. TRANSFER ASSUMPTION - measured on this
+        implementation only.
+  target_complexity:
+    time_exponent: >-
+      NO CRYPTANALYTIC EXPONENT IS CLAIMED OR MOVED. Instrument cost - pairwise
+      comparison over R rows on A = 6 axes is O(R^2 * A), which is 13266 scalar
+      comparisons at R = 67. Cycle and transitivity detection over the induced
+      digraph is O(V + E) per strongly connected component computation, trivial
+      at this size. The relabelling sweep repeats the frontier computation once
+      per slot - at most 224 slots times 13266 comparisons, about 3.0e6
+      operations, still under a second. The order-permutation control adds 100
+      recomputations, about 1.3e6 operations.
+    memory_exponent: >-
+      O(R^2) pair records plus O(R * A) cells - well under a megabyte. No
+      time-memory tradeoff is relevant to the computation.
+    best_known: >-
+      There is no incumbent measurement. The committed required_row_fields list
+      (read in full this session) provides is_frontier, dominated_by,
+      dominance_reason and limitations, and has NO field for a comparable-axis
+      set, a blocking cause, a cost-cell type, or an order-axiom check, so the
+      incumbent value on every metric here is UNDEFINED rather than worse. The
+      J1 report's dominance_recomputations block is the closest thing that
+      exists - it records four same-key group verdicts in prose, including two
+      that are exactly blocking-cause statements - and it reports no histogram,
+      no fraction, no flip count and no type. Externally, multi-objective
+      optimization supplies the fixed-axis theory this proposal contrasts
+      against, but a bounded WebSearch this session located no instrument that
+      audits pair-dependent Pareto comparability in a scientific-claims
+      database; nothing was fetched, so external dominance is BOUNDED-SEARCH
+      NEGATIVE rather than established absent.
+    hidden_overhead: >-
+      The o(1) is human adjudication of 136 cost-cell types by two reviewers,
+      which is hours and does not shrink with better code; everything else is
+      sub-second. A second hidden cost is intellectual rather than temporal -
+      the blocking-cause vocabulary is a design decision made before the data
+      is seen, and a cause the corpus needs but the vocabulary lacks would
+      appear as an inflated "other" bucket; the design therefore requires the
+      other bucket to be reported and itemised rather than absorbed.
+    tradeoff_note: >-
+      The instrument's analogue of a time-memory tradeoff is a
+      STRICTNESS-versus-YIELD tradeoff and the deliverable is the curve.
+      Loosening what counts as a comparable axis - ordering a lower bound
+      against an exact value, ordering "negligible" against 2^15, ordering
+      across access patterns - monotonically increases the number of resolved
+      comparisons and monotonically increases the chance that a resolution is
+      an artifact, which is exactly the defect D-DOM-002 already records.
+      Deliverable - the (strictness setting, resolved pairs, type-incompatible
+      resolutions) table over at least three settings (committed strictness;
+      allow lower-bound-versus-exact; allow qualitative-versus-numeric), so the
+      cost of each loosening is visible. Parallelization is irrelevant at this
+      scale and is not claimed.
+  dominated_by: >-
+    n/a (no result claimed) - Pareto check performed rather than asserted.
+    Checked against - (i) the COMPLETE committed required_row_fields list of
+    schema v2 (read in full this session), which has no field for a comparable
+    axis set, a blocking cause, a cost-cell type or an order-axiom property, so
+    no frontier row can dominate this proposal on its measurement axis;
+    (ii) the J1 validation report's null_reason_accounting and
+    dominance_recomputations blocks, read in full this session, which supply
+    the aggregate null counts and four prose group verdicts and no histogram,
+    fraction, flip count, cycle count or type; (iii) the red team report read
+    in full, whose cost_model_challenges name three missing-axis defects in
+    prose and quantify no rate; (iv) the four sibling proposals filed earlier
+    today - IDEA-20260829-9aaa40 advances the competing diagnosis D1 and
+    reports evaluated-but-unresolved counts without decomposing the cause,
+    IDEA-20260829-0b11ab converts across cost UNITS and does not type axes or
+    touch nulls, IDEA-20260829-d29588 RECOMMENDS an access-pattern qualifier
+    without measuring the axis and has already closed point-form dominance as a
+    comparability instrument (not re-opened here), IDEA-20260829-083a6b
+    measures reviewer detection rates rather than the dominance relation.
+    PARTIAL DOMINANCE DISCLOSED HONESTLY - on the narrow sub-metric "how many
+    same-key comparisons exist at all", IDEA-20260829-9aaa40 dominates, since
+    it measures exactly that as its Q2 and this proposal takes it as a
+    denominator; this proposal's non-dominated contribution is the blocking
+    cause, the order axioms with the exhibited witness, the null-label
+    ablation, and the type census. DISCLOSED LIMIT - half the validation report
+    and most canonical row bodies were not read this session; the domination
+    argument rests on the schema field list being exhaustive, which a validator
+    should check. Externally UNCHECKED beyond a bounded two-query search.
+  sota_delta: >-
+    No attack, no exponent. Quantitative delta against this program's own
+    instrument - the corpus reports 266 null cost slots and 136 populated ones
+    and reports the number of dominance comparisons blocked by each cause as,
+    literally, nothing; it reports no test that its dominance relation is a
+    partial order, no sensitivity of is_frontier to a null label, and no type
+    for any cost value. This proposal targets an exact blocking-cause histogram
+    over same-key ordered pairs, a resolution-blocked fraction with its
+    denominator, a null-shield differential in axes, a single-label flip list
+    over up to 224 slots, transitivity-violation and cycle counts validated by
+    an injected positive control, an order-permutation invariance result, and a
+    three-coordinate type census of 136 cost cells with kappa. It also
+    contributes one result that needs no experiment at all - the exhibited
+    three-row witness showing the committed dominance rule admits cycles, which
+    is checkable by reading and is filed here as the proposal's cheapest
+    deliverable. Against the target-result profile this is explicitly
+    NON-target-class - checklist C1 is answered "no" and no asymptotic exponent
+    moves - and it is proposed as a BUILDING BLOCK under Idea Generator search
+    heuristic 1, because Part D of the profile forbids promoting an asymptotic
+    claim without matched-accounting time and memory for the new result and the
+    previous best, and a previous best whose memory axis is 66 percent null and
+    untyped cannot supply matched accounting.
+  estimated_cost:
+    implementation: medium
+    compute: low
+    basis: >-
+      All computation is sub-second on 67 rows. The medium implementation cost
+      is the blocking-cause classifier, the quarantined ablation harness with
+      its receipt discipline, and the two-adjudicator blind typing pass over
+      136 cells, which is the only part that costs reviewer hours.
+  recommended_priority: high
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  source_refs:
+    - RQ-SYMF-5ab172
+    - GOAL-SYMF-c00fa1
+    - IDEA-20260829-9aaa40
+    - IDEA-20260829-d29588
+    - knowledge/frontiers/symmetric-frontier-schema.yaml
+    - knowledge/frontiers/symmetric-cryptanalysis.yaml
+    - coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-bb6d5d/validation-report.yaml
+    - coordination/goals/GOAL-SYMF-c00fa1/batches/BATCH-303ce8/reviews/TASK-20260825-9eda3a/red-team-report.yaml
+  id_allocation_provenance: >-
+    Pre-minted and collision-checked by the dispatching session; this subagent
+    did not mint identifiers.

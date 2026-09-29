@@ -1,0 +1,242 @@
+idea:
+  id: IDEA-20260904-772029
+  question_id: RQ-SIMSPK-f6a6c0
+  handoff_id: null
+  goal_id: GOAL-SIMSPK-001
+  added: '2026-09-04'
+
+  title: >-
+    THE SOURCE'S STRONGEST POSITIVE RESULT WAS OBTAINED IN A SETTING WHERE THE
+    EXHAUSTIVE CLASSICAL SEARCH WAS ALSO RUN AND FOUND A SUPERSET - run the
+    budget-matched null controls the neural mask generator has never faced,
+    including an untrained network and a random-mask baseline, and state the
+    state-size and Hamming-weight CROSSOVER at which the generator first earns
+    its cost, because without a crossover the method has no established regime
+
+  class: control
+
+  claim: >-
+    KN-LIT-824baa's SipHash experiment is presented as evidence that
+    differential-neural distinguishers are useful classical candidate generators:
+    the extracted Fourier masks recover 15 of the 18 Hamming-weight-<=4 masks with
+    correlation above 2^-6, including the four strongest. But the paper obtained
+    those 18 by EXHAUSTIVELY EVALUATING ALL 679,120 masks of weight <= 4. In that
+    setting the classical enumeration is not merely feasible, it was actually
+    performed and it strictly dominates - it found everything the network found
+    plus three more. A generator that is dominated by exhaustion in the only
+    setting where its recall was measured has no demonstrated regime.
+    This proposal supplies the three controls that would establish one:
+    an untrained-network arm, a budget-matched classical arm, and a crossover
+    sweep in state size and Hamming weight. Under docs/inventor-protocol.md this
+    is the lossy-projection test in its exact required form - does the learned
+    representation retain anything the cheap direct measurement does not - and it
+    is a precondition for believing any recovery statistic, not a robustness
+    check to be added later.
+
+  mechanism: >-
+    Hold the DATA BUDGET fixed and vary only the estimator. The neural pipeline
+    consumed 10^7 sample pairs on SipHash and 10^7 on Speck128/128. Give every
+    arm the same number of oracle queries:
+    ARM N (neural): train, extract via Goldreich-Levin at tau = 0.1, project the
+    first layer at Top-k; report the recovered mask set.
+    ARM U (untrained): identical architecture, RANDOM initialization, no training.
+    Project Top-k. This measures how much of the reported recovery is the
+    projection operator rather than the learning.
+    ARM D (direct measurement): spend the identical budget estimating mask
+    correlations directly. For weight-2 masks this is one Gram matrix over the
+    sample and yields ALL of them exactly; for weight 3 and 4 it is a declared
+    sampled enumeration under the same query budget.
+    ARM R (random): draw the same number of masks uniformly from the weight-k
+    space as ARM N emits, and score them.
+    Then compute, for each arm, recall against the exhaustively-established
+    ground-truth top-m by correlation. The generator earns its cost exactly where
+    ARM N's recall exceeds ARM D's at equal budget.
+    The CROSSOVER SWEEP varies the two parameters that decide whether exhaustion
+    fits: state size d (Speck32/64 at d = 32, SipHash at d = 64, Speck128/128 at
+    d = 128) and Hamming weight k (2, 3, 4). The weight-k space has C(d,k)
+    elements - 8128 for (128,2), 679,120 for (64,<=4), about 1.1 x 10^7 for
+    (128,4) - so the sweep crosses the feasibility boundary within its own range
+    and the crossover, if it exists, is INSIDE the experiment rather than
+    extrapolated from it.
+
+  novelty_status: unverified
+
+  novelty_note: >-
+    The controls proposed here are standard experimental hygiene, not a novel
+    method, and this record claims no novelty for them. What is asserted - and
+    was read directly - is that KN-LIT-824baa reports none of them: no untrained
+    baseline, no budget-matched classical arm, no random-mask arm, and no
+    crossover statement. Whether other work in differential-neural cryptanalysis
+    reports them has not been screened here.
+
+  citations:
+    - ref: KN-LIT-824baa
+      provenance: internal
+      claim: >-
+        Reports exhaustive evaluation of all 679,120 SipHash output masks of
+        Hamming weight <= 4 under a fixed input difference, finding 18 with
+        correlation above 2^-6, of which the neural Fourier terms recover 15;
+        reports no untrained-network, budget-matched-classical, or random-mask
+        control anywhere in the paper.
+      verified_by: >-
+        Top-level orchestrating session, 2026-09-04. Full text supplied by the
+        user in-session and read in full, including all tables and Appendices
+        A-E; the paper's bibliographic identifier is unresolved.
+    - ref: KN-TECH-056
+      provenance: internal
+      claim: >-
+        The inventor protocol's lossy-projection test and null-object controls
+        before belief, which this proposal instantiates.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+    - ref: KN-OPEN-7f0d85
+      provenance: internal
+      claim: This proposal is question Q5 of that open problem.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+
+  assumptions:
+    - >-
+      Ground truth for recall is available only where exhaustion fits. Outside
+      that region recall is measured against the best set any arm found, which is
+      an UNDERESTIMATE of true recall for every arm equally, and every record must
+      label it as such rather than presenting it as recall.
+    - >-
+      Equal oracle queries is the right notion of equal budget for the comparison
+      of interest. It is not the only one - the neural arm additionally consumes
+      GPU-hours the direct arm does not - so a second table reports wall-clock and
+      energy alongside, and no cost claim is made from query count alone.
+
+  predictions:
+    - >-
+      PRIMARY. ARM D (direct measurement) equals or beats ARM N (neural) at equal
+      query budget for ALL weight-2 spaces tested, including d = 128, because the
+      Gram estimator computes every weight-2 correlation exactly from the same
+      samples and cannot be beaten by a lossy summary of them.
+    - >-
+      ARM U (untrained) has recall well above ARM R (random) but well below ARM N,
+      because Top-k projection of a random layer is not uniform over masks - the
+      architecture itself carries a bias that the paper's recovery statistics
+      silently include.
+    - >-
+      Any crossover in favour of the neural arm, if one exists at all, appears
+      only at weight >= 3 and d >= 64, where direct estimation of every mask stops
+      fitting in the budget and the network's ability to pool statistics across
+      correlated masks could begin to pay.
+
+  minimal_test:
+    design: >-
+      Run the four arms at each cell of the sweep (d, k) for d in {32, 64, 128}
+      and k in {2, 3, 4}, at a single declared query budget of 10^7 pairs matching
+      the source. Ground truth by exhaustion where C(d,k) permits: (32,2), (32,3),
+      (32,4), (64,2), (64,3), (64,4) - the last being the source's own 679,120 -
+      and (128,2). For (128,3) and (128,4) report against the union of all arms and
+      label it as such.
+      Start with the SINGLE MOST INFORMATIVE CELL rather than the full grid: the
+      source's own SipHash (64, <=4) setting, where exhaustive ground truth already
+      exists in the literature and the neural recall of 15/18 is the published
+      number to be reproduced and then compared against ARM D. If ARM D matches or
+      beats 15/18 there, the crossover is not below (64,4) and the rest of the grid
+      can be pruned toward larger d and k.
+    controls:
+    - >-
+      This proposal IS the control record; its own internal control is the
+      exhaustive ground truth, which is what makes recall a number rather than an
+      opinion.
+    - >-
+      SEED VARIANCE ARM. The source reports Speck accuracy variance of +/- 0.0004
+      but ChaCha variance of +/- 0.0505. Run every neural cell over at least 10
+      seeds and report recall as a distribution; a single-seed recall figure in a
+      high-variance regime is not a measurement.
+    - >-
+      QUERY-ACCOUNTING AUDIT. Verify that ARM D is genuinely charged the same
+      queries, including any pairs consumed by validation and test sets in ARM N.
+      An unequal charge silently decides the comparison and is the most likely way
+      for this experiment to produce a wrong answer.
+    required_metrics:
+    - per-arm recall against exhaustive ground truth, per (d,k) cell, over seeds
+    - the crossover cell if one exists, or an explicit statement that none was found
+      within the swept range
+    - wall-clock and accelerator-hours per arm, reported beside query count
+    - ARM U recall, as the floor that any claimed neural recovery must clear
+
+  falsification_conditions:
+    - >-
+      ARM N beats ARM D at (128,2) or (64,2). The PRIMARY prediction is then
+      wrong, the network extracts something the exact Gram estimator does not, and
+      that is a substantive positive result about learned representations
+      deserving its own follow-up.
+    - >-
+      ARM U matches ARM N. Training then contributes nothing to recovery on that
+      cell and every recovery statistic in KN-LIT-824baa for that cell is a
+      statement about the projection operator, not about learning. This is the
+      single most consequential possible outcome and the cheapest to obtain.
+    - >-
+      No crossover exists anywhere in the swept range. The method then has no
+      established regime within these parameters, which closes the question at
+      that scope and is a complete result, not a failure.
+
+  confounders:
+    - >-
+      Recall against a top-m cutoff is sensitive to m. Report the full recall
+      curve over m rather than a single number, or the choice of m decides the
+      conclusion.
+    - >-
+      ARM D's advantage at weight 2 is partly structural (the Gram identity) and
+      does not extend to weight 3 and 4, where direct estimation needs genuine
+      higher-order moments. Do not generalize the weight-2 result across k; that
+      is exactly the extrapolation this record exists to prevent.
+    - >-
+      The neural arm's recall is measured after Goldreich-Levin extraction at
+      tau = 0.1. Threshold choice is a free parameter that moves recall; sweep tau
+      over at least {0.05, 0.1, 0.2} and report recall as a function of it.
+
+  interpretation_limits: >-
+    Scoped to the swept (d, k) cells, the declared query budget, the specific
+    architectures, and the three ciphers named. A crossover found here is a
+    statement about these estimators at these budgets and is not a general claim
+    about neural cryptanalysis. An absence of crossover is likewise not a claim
+    that no learned generator can help - only that this one, at this budget, in
+    this range, did not.
+
+  dominated_by: >-
+    Where exhaustion fits, exhaustive enumeration dominates every arm by
+    construction and this record says so plainly rather than working around it.
+    The proposal's entire value is in locating the boundary of that domination.
+
+  sota_delta: >-
+    None. This produces no distinguisher and improves no attack. It produces the
+    regime statement without which the other proposals in this batch cannot be
+    costed honestly.
+
+  estimated_cost:
+    compute: >-
+      The single pruned cell - reproducing the source's SipHash (64,<=4) setting
+      with all four arms - is the affordable entry point: one training run over 10
+      seeds plus the 679,120-mask exhaustive evaluation the source already showed
+      to be feasible. The full grid is materially larger, chiefly because of
+      (128,3) and (128,4), and must be separately authorized rather than assumed
+      inside the GOAL-SIMSPK-001 budget of 10800 s.
+    implementation: >-
+      Medium. ARM D and ARM R are trivial given the Gram estimator; ARM U is ARM N
+      with training skipped; the real work is honest query accounting across arms.
+    memory: Low; all estimators stream.
+
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    Very high that the experiment runs and yields a clean answer - it is
+    bookkeeping over an enumerable space with exact ground truth. High, perhaps
+    0.8, on the PRIMARY prediction at weight 2, where the Gram identity makes the
+    direct arm exact. Genuinely uncertain at weight >= 3, which is why the sweep
+    exists rather than a single cell.
+
+  status: proposed
+  proposed_by: top-level-session
+  proposed_at: '2026-09-04'
+  source_refs: [KN-LIT-824baa, KN-TECH-d64293, KN-OPEN-7f0d85, KN-TECH-056, KN-TECH-080]
+  scope_note: >-
+    Attached to RQ-SIMSPK-f6a6c0 because that question REQUIRES a null control
+    before any anomaly is believed and forbids reporting a measurement only where
+    an effect is expected; this record supplies that discipline for the
+    differential-linear portfolio measure specifically. It should be run BEFORE
+    IDEA-20260904-58ace7's full training replication, since a failed ARM U control
+    would make that replication pointless.

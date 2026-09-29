@@ -1,0 +1,522 @@
+red_team_report:
+  id: RT-20260904-f4c9a2
+  task_id: TASK-20260904-be7527
+  experiment_id: EXP-MONO-4e6faa
+  hypothesis_id: H-MONO-d4c511
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-4e6faa-1]
+  reviewer_role: red-team
+  reviewed_at: '2026-09-04'
+
+  review_attestation:
+    joints_owned: [J3-NEW-RESULTANT-CROSSCHECK-CODE-AUDIT, J4-MINIMAL-H-MINUS-SCOPE-CHECK]
+    proves_too_much_owned_by: validator
+    verdicts: {J3: holds_but_weak, J4: partial}
+    read_sibling_reports: true
+    sibling_report_path: experiments/EXP-MONO-4e6faa/reviews/validator/validation-report.yaml
+    disclosure: >-
+      The validator's directory did not exist when I began (checked with
+      `ls`; only reviews/validator/ existed, created moments before mine by
+      the validator's own run). I did NOT open it until after I had: (1) read
+      the task card, specification, idea, hypothesis, implementation.md, and
+      run_h_minus_stress.py in full; (2) read RC.F3/RC.qe_from_resultant/
+      RC.qe_from_ordered/RC.compile_s3/RC.to_fp/RC.qe_from_sym directly in
+      experiments/EXP-MONO-815525/implementation/run_census.py, including
+      both of that experiment's own prior usages of qe_from_resultant (its
+      Stage-0 checks (b) and (c)); (3) read derive_s4.py to establish the
+      provenance relationship between s3_monomials.json and
+      s4_symmetric_coeffs.json; (4) formed and recorded my own J3 verdict;
+      (5) read raw-result.json's stage_0/stage_1/stage_2 blocks and formed my
+      own J4 analysis and quantitative underdetermination argument; (6) ran my
+      own independent exhaustive census of all 10,100 non-singular (A,B) pairs
+      at p=101 (reusing only the archived project's own already-verified
+      chi_table/cubic_roots/h_pair_from_characters/RC.curve_order, imported
+      read-only by file path, with my own driver loop) to measure the true
+      population rate of h_->0 among Z=3 curves at this prime. Only THEN did I
+      open experiments/EXP-MONO-4e6faa/reviews/validator/validation-report.yaml,
+      to (a) satisfy the disclosure requirement and (b) check whether it bore
+      on J3/J4 at all. It does not: its own scope_note and limitations block
+      explicitly render no verdict on J3 or J4 and defer both to this report.
+      Its J1/J2 blind-rederivation (independent group-law code, no RC/UC
+      import for J1) independently reproduced R1=R2=R3=0 and every M3 value
+      bit-for-bit, which corroborates but does not substitute for my own J3/J4
+      analysis below. No content of my J3/J4 verdicts was changed after
+      reading it.
+
+  claim_under_review: >-
+    Per TASK-20260904-be7527, scoped to (d) and (e) only: (d) is the newly
+    written resultant cross-check in run_h_minus_stress.py's stage_1() a
+    genuine, non-tautological independent check of RC.qe_from_sym, or could it
+    agree even when qe_from_sym is wrong; (e) does the single found h_-=1
+    curve (p=101, A=1, B=0, n_+=48, n_-=50, h_+=0, h_-=1, R1=R2=R3=0) close
+    IDEA-20260904-4f614a's own named retrodiction-bias gap for the D-term's
+    h_- dependence, fully or only partially.
+
+  objections:
+    - id: OBJ-J3-1
+      target: J3
+      statement: >-
+        The mechanical claim in implementation.md IS correct, verified by
+        direct reading of RC.F3.mul (experiments/EXP-MONO-815525/
+        implementation/run_census.py:193-205): the reduction terms r3/r4
+        (which encode e1,e2,e3) are multiplied only by c3=a1*b2+a2*b1 and
+        c4=a2*b2, and every element ever constructed on this stratum's own
+        code path -- (t,0,0) embeddings, their pairwise products via
+        s3_coeffs, the Sylvester-matrix entries, and every tp_mul/tp_add step
+        in the recursive determinant -- has a1=a2=0 identically, so c3=c4=0
+        identically and r3/r4 are NEVER read. This is stronger than
+        implementation.md states: it means the computed qe_from_resultant
+        VALUE is provably INDEPENDENT of the (e1,e2,e3) used to build
+        F = RC.F3(p,e1,e2,e3) in this call pattern -- the ring object is
+        constructed but its identity is dead code here. So the comparison
+        genuinely exercises two DATA-INDEPENDENT paths from (t1,t2,t3) to a
+        Q_e(T) value: qe_from_sym(e1,e2,e3) [where e1,e2,e3 = elementary
+        symmetric functions of t1,t2,t3, computed once in stage_1's own new
+        loop] versus qe_from_resultant(t1,t2,t3) [bypassing e1,e2,e3
+        entirely]. This is NOT a tautology or type error, and it DOES have
+        power to catch a bug in stage_1's own new e1/e2/e3-from-t1/t2/t3
+        computation, in qe_from_sym's runtime table evaluation, or in the
+        offline symbolic descent from S4(x1..x4) to the SYMT
+        (s4_symmetric_coeffs.json) table. This part of implementation.md's
+        claim is upheld, not decorative.
+    - id: OBJ-J3-2
+      target: J3
+      statement: >-
+        BUT the two paths are not independently DERIVED, and this matters for
+        how much assurance "0 mismatches" should buy. Reading
+        derive_s4.py directly: S3 is a single symbolic object computed once
+        (by resultant-eliminating y1,y2 from the group law); S4 is then
+        computed as S4 = sp.resultant(S3(x1,x2,U), S3(x3,x4,U)) via sympy's
+        general-purpose resultant() routine, OFFLINE; s4_symmetric_coeffs.json
+        (SYMT, read by qe_from_sym) is S4 symbolically descended to
+        elementary-symmetric functions of x1,x2,x3. RC.qe_from_resultant's
+        runtime 4x4 Sylvester determinant is a HAND-CODED REDOING, at
+        runtime, of the EXACT SAME "S4 = Res_U(S3,S3)" elimination sympy
+        already performed offline to produce the table qe_from_sym reads.
+        Both paths therefore share: (i) the same underlying S3 polynomial
+        (one derivation, one symbolic object), and (ii) the same underlying
+        mathematical claim that this specific resultant construction equals
+        Q_e(T). An error in either of those two shared upstream facts is
+        INVISIBLE to this cross-check -- both sides would encode it
+        identically and agree while both being wrong. What differs, and what
+        the cross-check therefore actually verifies, is narrower: sympy's
+        resultant() (offline) vs a hand-written 4x4 determinant (runtime), and
+        whether the offline e1/e2/e3-descent step was performed correctly.
+        This is the SAME "implementation sharing" confounder
+        IDEA-20260904-4f614a's own confounder list names explicitly
+        ("At least one path must be written from the group law without
+        reading the archived classifier") -- and a check that DOES satisfy
+        that stronger bar ALREADY EXISTS and ALREADY PASSED: EXP-MONO-815525's
+        own Stage-0 check (b) (run_census.py lines ~549-606) compares
+        qe_from_sym's output DIRECTLY against real elliptic-curve group-law
+        arithmetic (RC.pt_add, i.e., x(P1 +/- P2 +/- P3) via literal point
+        addition), on exactly the same kind of stratum (triples of points
+        with 3 distinct x-coordinates), across 5 curves, and was already
+        independently reviewed. The new resultant cross-check is a weaker,
+        narrower, and largely redundant confirmation relative to evidence
+        that was already established and already passed review.
+    - id: OBJ-J3-3
+      target: J3
+      statement: >-
+        A specific corollary of OBJ-J3-1 undercuts one of the two reported
+        cross-check statistics. Because c1=c2=0 identically throughout this
+        entire computation (not merely 0 mod p, but the literal integer 0,
+        never touched by any addition or multiplication involving r3/r4),
+        RC.to_fp's "non_rational" branch (c1%p or c2%p nonzero) can NEVER
+        fire under this calling convention -- it is not an empirical finding
+        that "0 of 31 sampled points were non-rational," it is a structural
+        guarantee of the calling convention, true before any computation
+        runs. This is a minor point (it does not make the mismatch check
+        hollow) but the manifest/execution_report's "0 mismatches, 0
+        non-rational" phrasing presents both numbers as if of comparable
+        evidentiary weight; only the mismatch count carries information.
+    - id: OBJ-J3-4
+      target: J3
+      statement: >-
+        Coverage: 31 of 152,096 base points (0.0204%) were sampled, not
+        exhaustive. Since the errors this check CAN catch (a coding bug in a
+        fixed table-lookup or a fixed determinant routine) are deterministic
+        and would almost certainly be systematic across all inputs rather
+        than input-dependent, 31 samples have good power against a systematic
+        bug but essentially none against a rare, edge-case-triggered one
+        (e.g., a special coincidence among a handful of (t1,t2,t3) triples).
+        The record does not claim exhaustiveness for this check and this is
+        not by itself a defect, but it should not be cited as comparable in
+        strength to Stage 1's own exhaustive primary classification.
+    - id: OBJ-J4-1
+      target: J4
+      statement: >-
+        h_-=1 is algebraically incapable of testing the SCALING of the D-term
+        in h_- beyond its very first value, because 1^k = 1 for every k and,
+        more generally, f(1) is a single point through which infinitely many
+        functions with f(0)=0 pass. Concretely, at h_-=1 the claimed linear
+        excess h_-*n_+ = 48, the quadratic alternative h_-^2*n_+ = 48, and the
+        step/saturating alternative min(h_-,1)*n_+ = 48 are ALL IDENTICAL --
+        the observed match (R1=R2=0) is fully consistent with all three, and
+        with any f(h_-) satisfying f(0)=0, f(1)=n_+. These are not idle
+        curve-fitting alternatives: IDEA-20260904-4f614a's own proof_obligations
+        names the load-bearing step this bears on directly -- step 4's claim
+        that each halvable T' contributes "exactly ONE such pair," "exchanged
+        by the other two involutions and by nothing else." I checked directly
+        from the group law that fixed-point SETS for distinct halvable T',T''
+        are provably disjoint (2Q=T and 2Q=T'' for the same x-coordinate
+        forces T=-T''=T'' since 2-torsion points are self-negative, so
+        T'=T''), which rules out the single most obvious double-counting
+        failure mode. But this does not establish that the "ordinary pair"
+        removal accounting of step 5 (A_- = 3n_-/2 - 3h_-, i.e. exactly 3
+        ordinary-pair slots removed per unit of h_-) remains correct when TWO
+        OR MORE halvable T' coexist (h_->=2) -- a regime with zero
+        representation in this run's data, by construction, since h_-=1 has
+        only one special pair to remove and cannot exercise any accounting
+        rule for multiple simultaneous ones.
+    - id: OBJ-J4-2
+      target: J4
+      statement: >-
+        The competing predictions DO diverge sharply, and cheaply, at
+        h_->=2: at h_-=3 (a value that exists at p=101; see
+        counterexample_or_mutation) the linear form predicts excess 3*n_+,
+        quadratic predicts 9*n_+, and the step form predicts n_+ unchanged --
+        differences on the order of tens of thousands (out of a
+        C(98,3)=152,096-point exhaustive, zero-tolerance census), exactly as
+        decisive as the h_-=1 vs h_+-only discrimination this run already
+        performed. The gap is therefore cheaply closable in the SAME idiom
+        this run already validated; it has simply not been attempted.
+
+  required_controls:
+    - id: RC-J3-1
+      statement: >-
+        Do not cite "resultant_crosscheck: 31 sampled, 0 mismatch" in any
+        future manifest or evidence record as an independent verification of
+        comparable strength to a group-law-grounded check. If cited at all, it
+        should be labelled precisely as: a sampled (0.02%), symbolically
+        non-independent (shares S3 and the resultant-elimination concept with
+        qe_from_sym's own SYMT table) spot-check that mainly exercises this
+        session's own new e1/e2/e3-from-t1/t2/t3 arithmetic and qe_from_sym's
+        runtime table evaluation -- not the underlying Q_e(T) mathematics.
+    - id: RC-J3-2
+      statement: >-
+        The control that WOULD close this gap already exists in a form
+        applicable here: extend EXP-MONO-815525's own Stage-0 check (b)
+        (qe_from_sym vs real RC.pt_add group-law arithmetic on the distinct
+        x-coordinate stratum) to run on the h_->0 found curve's own stratum,
+        exhaustively or at a much larger sample than 31, since RC.pt_add is
+        already imported transitively and the check requires no new
+        derivation.
+    - id: RC-J4-1
+      statement: >-
+        Before citing this run as closing the D-term's h_- dependence
+        generally (as opposed to at the single point h_-=1), census at least
+        one Z=3, h_+=0, h_->=2 curve at the same prime and compare against
+        the linear, quadratic, and step-function predictions, which diverge
+        by tens of instances -- an exact-integer, zero-tolerance test
+        identical in kind to the one already run.
+    - id: RC-J4-2
+      statement: >-
+        Report R3 (#2+2 residual) as algebraically DEPENDENT on R1 and R2, not
+        as an independent third confirmation. Because pred(1^4)+pred(2+1+1)+
+        pred(2+2) = C(n_++n_-,3) identically by construction of the D3 formula,
+        and obs(1^4)+obs(2+1+1)+obs(2+2) = C(n_++n_-,3) identically given the
+        stratum's own already-established fact that classes "4" and "3+1" are
+        structurally impossible on the distinct-split stratum (confirmed:
+        obs["4"]=obs["3+1"]=0 in this run, and UC's own class-realizability
+        table plus the D3 derivation forces this), R3 = -(R1+R2) is forced
+        whenever R1=R2=0. "R1=R2=R3=0" is two independent zero-checks, not
+        three; future citations should not imply a third.
+
+  counterexample_or_mutation: >-
+    For J4's underdetermination: I independently enumerated (read-only,
+    reusing only the archived project's own already-verified
+    chi_table/cubic_roots/h_pair_from_characters/RC.curve_order, imported by
+    file path, with my own driver -- not part of the archived run or any
+    contract) all 10,100 non-singular (A,B) pairs at p=101. Of the 1,650 Z=3
+    curves, EXACTLY 825 (50.0%) have h_->0, and the joint (h_+,h_-)
+    distribution is precisely {(0,1): 625, (0,3): 200, (1,0): 625, (3,0): 200}
+    -- h_+ and h_- are NEVER simultaneously positive at this prime (this
+    follows from p=101 = 1 mod 4, hence chi(-1)=+1, which makes the pairwise
+    character chi(e_i-e_j) symmetric and algebraically forces a root
+    contributing to h_+ to exclude every other root from contributing to
+    h_-; a short derivation, not an empirical coincidence, and I did not
+    check whether it holds at p=3 mod 4 primes). Two consequences: (1) the
+    found curve's discovery on the very first Z=3 curve examined (curve #1 of
+    1, out of 102 total (A,B) pairs scanned) is fully explained by this 50%
+    base rate -- unremarkable, not a sign of a biased search order and not
+    evidence of a hard-won or rare find either way (see discretionary check
+    #1 below); (2) 200 of the SAME already-enumerated pairs at THIS SAME
+    PRIME have h_-=3 with h_+=0 (e.g. (A,B)=(1,33), (1,68), (2,10), (2,35),
+    (2,66), found via the same fast filter used by the archived search,
+    not yet brute-force-cross-checked by me the way the archived script
+    cross-checks its own candidate). Censusing ANY of these costs the same
+    O(p^3)~152,096-point exhaustive enumeration already performed (same p,
+    same Z, same stratum size), and would directly discriminate linear
+    (predicted excess 3*n_+ = 144, given n_+ is whatever value obtains on
+    that specific curve) from quadratic (9*n_+ = 432) from step/saturating
+    (n_+, i.e. no change from the h_-=1 result) forms of the D-term -- the
+    cheapest concrete mutation available, requiring no further search, only
+    a second run of the identical Stage-1/Stage-2 machinery already
+    validated on a different (A,B) at the same p. I did not run this census
+    myself (out of scope for a red-team pass; it would constitute a new,
+    unauthorized experiment), but I verified the candidate curves exist and
+    that the fast h_+/h_- filter's own agreement with brute-force torsion
+    counting was already established for the actually-found curve (h_-=1),
+    and the same filter/brute-force cross-check is a one-line addition for
+    any of the h_-=3 candidates.
+
+  baseline_comparison: >-
+    Not applicable in the ECDLP-attack sense, and the record is honest about
+    this: IDEA-20260904-4f614a's own `dominated_by` field is `not_applicable`
+    with a stated reason I checked rather than passed over -- no Pareto point
+    on time/memory/data axes is claimed against Pollard rho (KN-OPEN-001), and
+    the only domination claimed is O(p) (the closed form) vs O(p^3) (the
+    archived exhaustive census) for COMPUTING THIS PARTICULAR OBSERVABLE, which
+    is internally consistent and correctly scoped as a measurement-cost
+    statement, not a cryptanalytic one. `sota_delta` is stated as exactly 0 on
+    every attack axis. Neither field is a fabricated null; both are
+    substantively justified in the idea record's own text and I found no
+    inflation of scope beyond what is stated (m=4, Z=3, distinct-split
+    stratum only, toy prime range, no relation-rate or exponent claim
+    anywhere). This experiment's own claim_ceiling and scale_relevance blocks
+    correctly disclaim any transfer to cryptographic scale.
+
+  heuristic_challenges:
+    - target: H1 (IDEA-20260904-4f614a) -- step-3 exhaustiveness of the
+        ordinary/special case split
+      challenge: >-
+        H1 is explicitly labelled "not load-bearing... offered as a
+        derivation to be independently checked, NOT as a heuristic," and its
+        own validation_plan already names the correct test (exact per-cell
+        joint-table match, not just totals). This run's exhaustive census
+        does support H1 to the extent that R1=R2=0 and the joint
+        (g-factor-type x class) structure is consistent, but per OBJ-J4-1/2,
+        the run does not exercise the case where TWO OR MORE special
+        (T'-fixed-point) configurations coexist, which is exactly the regime
+        where an unnoticed second exceptional configuration (the risk H1's
+        own text names) would be most likely to surface as an interaction
+        effect rather than a per-instance one. This is not evidence AGAINST
+        H1; it is a specific, nameable domain H1 remains untested on.
+      status: partially_tested_by_this_run
+    - target: H3 (IDEA-20260904-4f614a) -- HEUR-MU-3, search satisfiability
+      challenge: >-
+        H3 worried the discriminating cell {Z=3, #E[4]=4, #E^d[4]>4} "need
+        not be populated at any particular small prime." My own exhaustive
+        census at p=101 shows this concern was, at least at this prime,
+        drastically overcautious: the cell is HALF of all Z=3 curves (825 of
+        1650), not a scarce or marginal one. H3 is not falsified by this
+        (it is an existence claim about occupancy, and the cell IS occupied,
+        which is what H3's own falsification_condition asks for) -- but the
+        framing in H3's rigorous_support ("a counting question... answered by
+        an exhaustive scan") undersold how common the object actually is,
+        which matters for how "hard-won" the resulting confirmation should be
+        read as.
+      status: confirmed_and_reframed
+
+  cost_model_challenges:
+    - statement: >-
+        No cost-model claim is made anywhere in this record (toy tier,
+        O(p)/O(p^3) measurement-cost statements only), so the o(1)/polylog
+        overhead, per-attempt-vs-total-cost, and van Oorschot-Wiener
+        interpolation checks from the exemplar profile
+        (docs/target-result-profile.md) do not apply. I checked this
+        explicitly rather than skip it silently: `target_complexity` in both
+        the idea and hypothesis records states "Not applicable; no ECDLP
+        complexity claim of any kind," and I found nothing in
+        implementation.md, run_h_minus_stress.py, or raw-result.json that
+        smuggles in a relation-rate or solver-cost framing anywhere.
+
+  reduction_and_scope_challenges:
+    - statement: >-
+        No corollary via a cited reduction (OneEnd/EndRing/Isogeny-style) is
+        claimed anywhere in this record; not applicable.
+    - statement: >-
+        Affected-vs-safe scheme scope: not applicable, no scheme is named as
+        affected or safe; this is a pure combinatorial-identity test with an
+        explicit, repeated disclaimer ("what_this_is_not") that it is not an
+        ECDLP claim. No scope inflation found.
+    - statement: >-
+        The one scope claim I did check closely (per J4) is
+        H-MONO-d4c511's own pre-registered outcome (I): "A qualifying curve
+        is found and R1=R2=0 exactly... a real upgrade in confidence for
+        IDEA-20260904-4f614a's own closed form" and the idea's own outcome
+        (I): "the m=4 symmetric-base census's curve dependence is completely
+        explained." Both are true ONLY for the tested point h_-=1 combined
+        with the algebraic disjointness fact I verified; neither is
+        established for h_->=2, and the record should not be read, or cited
+        downstream, as having established the GENERAL closed form across all
+        h_- values -- see narrowest_supported_statement.
+
+  proof_architecture_challenges:
+    - attack: observation-fiber / nearby-object
+      target: J3's cross-check
+      finding: >-
+        Holding the observable fixed (Q_e(T) at a fixed (e1,e2,e3)) and
+        varying the "ring" F=RC.F3(p,e1,e2,e3) used to evaluate
+        qe_from_resultant (i.e. constructing F with ANY e1,e2,e3, including
+        wrong ones) produces the IDENTICAL output, because F's identity is
+        never read on this stratum (OBJ-J3-1). This is the nearby-object
+        control for the cross-check's own claimed dependency: a "check" whose
+        result is invariant under corrupting one of its two stated inputs
+        (e1,e2,e3) is, on that axis, not actually checking that input -- it
+        is checking (t1,t2,t3) and the S3 table alone. This sharpens rather
+        than voids OBJ-J3-1's conclusion: the check IS still real (it depends
+        on t1,t2,t3 and on qe_from_sym's own e1,e2,e3-based output), but its
+        dependency structure differs from what the docstring/comment implies
+        ("Res_U(S_3(x1,x2,U), S_3(x3,T,U))" reads as depending on all three
+        embedded arguments symmetrically; in fact e1,e2,e3 do not enter this
+        instantiation via F at all).
+    - attack: compositional-invariant
+      target: J4's linearity claim
+      finding: >-
+        Deleting the "and by nothing else" clause of step 4 (i.e. allowing
+        special-pair sets for distinct halvable T' to overlap) is the first
+        place the derivation's linear-in-h_- claim could fail for h_->=2. I
+        checked this specific deletion directly from the group law (2Q=T,
+        2Q=T'' with the same x(Q) forces T=T'' since 2-torsion points are
+        self-negative) and found it holds -- the clause is provably true, not
+        merely asserted. This closes ONE specific failure mode for h_->=2 by
+        argument rather than by data, which is worth recording explicitly
+        since it is not stated anywhere in IDEA-20260904-4f614a's own text.
+        It does not close the broader question of whether the step-5
+        "ordinary pair" bookkeeping (A_- = 3n_-/2 - 3h_-) remains exactly
+        additive across multiple h_- values, which is a different claim not
+        addressed by disjointness alone.
+
+  narrowest_supported_statement: >-
+    On the found curve p=101, A=1, B=0 (Z=3, tau=4, n_+=48, n_-=50, h_+=0,
+    h_-=1), the exhaustive distinct-split census (152,096 base points)
+    matches IDEA-20260904-4f614a's closed form (D3) exactly (R1=R2=0, and R3=0
+    as an algebraic consequence, not a third independent check), and this
+    conclusively refutes the specific, pre-registered rival hypothesis "the
+    invariant is #E(F_p)[4] alone" (which predicts excess 0 where 48 is
+    observed) on this one curve. This is a real, decisive result on the
+    NARROW question it was designed to answer (does the h_- term contribute
+    at all, with the right sign and magnitude, at its minimal nonzero value).
+    It does NOT establish, and should not be cited as establishing, that the
+    D-term's dependence on h_- is LINEAR for h_->=2: h_-=1 is algebraically
+    incapable of distinguishing D=h_-*n_+ from D=h_-^2*n_+, D=min(h_-,1)*n_+,
+    or any f(h_-) with f(0)=0, f(1)=n_+, because all such functions agree at
+    h_-=1. The newly-written resultant cross-check in stage_1() (J3) is a
+    real, non-tautological, but narrow and largely redundant spot-check
+    (0.02% sampled, shares its upstream S3 derivation and the
+    resultant-elimination concept with qe_from_sym's own table, and is
+    strictly weaker than EXP-MONO-815525's own already-passed, group-law-
+    grounded check (b) on the same kind of stratum); it should not be cited
+    as materially strengthening confidence in RC.qe_from_sym's correctness
+    beyond what that prior check already established, though it is not
+    hollow and does test this session's own new e1/e2/e3-computation code.
+    Net: this run should be recorded as PARTIALLY closing IDEA-20260904-4f614a's
+    named retrodiction-bias gap -- the qualitative existence/sign/magnitude of
+    the h_- effect at its minimal value is now confirmed, not merely fit; the
+    functional FORM of that dependence for h_->=2 remains open and is cheaply
+    testable (a candidate h_-=3 curve at the same p=101 already exists in the
+    data this run's own search would have reached).
+
+  next_concrete_action: >-
+    Before any citation of this result as having closed the D-term's h_-
+    dependence generally, design and run a follow-up census (same
+    machinery, same p=101, no new search needed) on a Z=3, h_+=0, h_->=2
+    curve -- concretely (A,B)=(1,33) at p=101 (h_-=3 by the fast filter;
+    brute-force torsion cross-check not yet performed by me and should be
+    performed by the Executor exactly as the archived script already does
+    for its own candidate before this is treated as verified) -- and compare
+    the observed #1^4 excess against the linear (3*n_+), quadratic (9*n_+),
+    and step-function (n_+, i.e. unchanged from h_-=1) predictions, which
+    diverge by amounts the exhaustive, zero-tolerance methodology already
+    demonstrated is trivially decisive. Until this is run, H-MONO-d4c511
+    should be recorded as partially, not fully, upgraded from "fits two
+    curves" to "genuinely predictive."
+
+  artifact_paths:
+    - ledger/handoffs/TASK-20260904-be7527.yaml
+    - experiments/EXP-MONO-4e6faa/specification.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/hypotheses/H-MONO-d4c511.yaml
+    - experiments/EXP-MONO-4e6faa/implementation.md
+    - experiments/EXP-MONO-4e6faa/implementation/run_h_minus_stress.py
+    - experiments/EXP-MONO-4e6faa/execution_report.yaml
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json
+    - experiments/EXP-MONO-815525/implementation/run_census.py
+    - experiments/EXP-MONO-815525/implementation/derive_s4.py
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py
+    - experiments/EXP-MONO-4e6faa/reviews/validator/validation-report.yaml
+
+  discretionary_checks:
+    - id: DISC-1
+      question: >-
+        Does the found curve's search terminating on the very first Z=3
+        curve examined (out of 102 (A,B) pairs) indicate a biased search
+        order, or that h_->0 curves are common?
+      finding: >-
+        h_->0 curves are common, not rare, at p=101: I independently and
+        exhaustively (not sampled) census all 10,100 non-singular (A,B)
+        pairs and found 1,650 are Z=3, of which exactly 825 (50.0%) have
+        h_->0. Finding a hit on the first Z=3 curve examined is therefore
+        consistent with an unbiased coin flip, not a sign of a systematically
+        favorable search order and not, on its own, a demonstration that
+        h_->0 objects are exotic or hard to find. The deterministic
+        A-ascending-then-B-ascending order is pre-registered in the frozen
+        specification (before any result was seen), so there is no
+        post-hoc-selection concern even though the base rate is high; the
+        record's own framing ("stress test," "genuine search") should be read
+        with this base rate in mind -- it does not overclaim rarity anywhere
+        I found, but a reader unaware of the base rate could mistake "found
+        on the first candidate" for a lucky or contrived outcome, when it is
+        the expected one.
+    - id: DISC-2
+      question: >-
+        Is there a repeat of the "conditioning trap" pattern this m=4
+        sub-thread has caught before (sampling/selection choices blind to the
+        question being asked)?
+      finding: >-
+        I checked the specific spots where such a trap would most plausibly
+        recur in this run: (a) n_+/n_- are computed by direct summation over
+        ALL x in range(p) (run_h_minus_stress.py lines 250-253), matching the
+        idea's own D5 distinction that the symmetric-base census's invariant
+        is drawn from all of F_p, not from x(E(F_p)) as the sibling
+        collision-rate lane does -- verified in the code, not merely asserted
+        in the docstring; (b) the distinct-split stratum S explicitly excludes
+        roots of f (line 380) with an assert on |S|=p-Z, matching the
+        specification; (c) the Stage-0 search order and range were frozen in
+        specification.yaml before execution and the invalidation_rules
+        explicitly forbid post-hoc range widening, and the archived run used
+        that exact declared order with no restart; (d) the "ran twice, same
+        output" claim in implementation.md is a determinism check only (the
+        computation has no randomness, so two runs cannot differ without a
+        nondeterminism bug) and is correctly NOT presented as independent
+        replication evidence. I found no new instance of the conditioning-trap
+        pattern in this run at the spots I checked. I have NOT independently
+        re-read the three prior incidents in this sub-thread in enough detail
+        to confirm this run avoids every specific failure mode those incidents
+        surfaced; this is a limitation of this review, not a clean bill of
+        health against every previously-caught pattern.
+    - id: DISC-3
+      question: dominated_by / sota_delta check (per instructions, verify not read past a null)
+      finding: >-
+        Not null: `dominated_by.value: not_applicable` carries an explicit,
+        substantive reason (checked against Pollard rho on the attack axis,
+        and against the archived exhaustive census on the measurement-cost
+        axis) that I read in full and found honestly scoped, not a
+        placeholder. No axis (time, memory, data/queries) is left
+        unaddressed for a claim that was actually made; the record correctly
+        declines to make any cryptanalytic claim rather than making one and
+        omitting an axis.
+
+  overall_verdict: >-
+    J3 HOLDS BUT WEAK: the new cross-check is real (not tautological, not a
+    type error, provably independent of e1/e2/e3 in a way stronger than even
+    implementation.md claims), but it is narrow, 0.02%-sampled, shares its
+    upstream derivation with the thing it checks, and is strictly dominated in
+    evidentiary strength by EXP-MONO-815525's own already-passed group-law
+    check (b) on the same kind of stratum. It should not be cited as adding
+    material new assurance beyond what already existed. J4 PARTIAL: the
+    single h_-=1 match decisively and correctly refutes the named rival
+    invariant hypothesis and confirms the closed form's exact prediction at
+    that one point, closing a real and specific part of the retrodiction-bias
+    gap -- but it is algebraically unable to test the linear SCALING of the
+    D-term for h_->=2, which remains open, is a different and cheaper-than-
+    expected test to run (a candidate h_-=3 curve already exists at the same
+    p=101), and should be run before this record is cited as having closed
+    IDEA-20260904-4f614a's own h_- gap in general rather than at one point.
+    This experiment's own internal arithmetic, provenance (sha256 bindings),
+    and certificate labelling are all correct and were not the source of
+    either finding above; no ledger status, hypothesis field, or research
+    status was changed by this review.

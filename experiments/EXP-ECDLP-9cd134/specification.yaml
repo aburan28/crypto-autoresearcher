@@ -1,0 +1,366 @@
+experiment:
+  id: EXP-ECDLP-9cd134
+  hypothesis_id: H-ECDLP-c9e189
+  question_id: RQ-SDEG-001
+  version: 1
+  status: draft
+  approved_by: null
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    Portable field-operation counts beside wall clock for the SDEG Semaev
+    pipeline - a calibrated counter with swept dynamic range, a swept
+    machine-load discriminator, and a curve-free matched-shape arm
+
+  objective: >-
+    If separately approved, authorized and executed, measure the SDEG lane s
+    decomposition cost under two units - machine-bound wall clock and portable
+    field-operation counts by type - on one instance set, and report the
+    difference between the local cost slopes fitted under each. The primary
+    deliverable is NOT the slope comparison but a calibrated operation counter
+    with a DEMONSTRATED DYNAMIC RANGE and an explicit instrumentation boundary,
+    without which no cost unit in this lane is auditable in either direction.
+
+  what_this_is_not:
+    - Not a cost model. It changes the unit of an existing one and produces no new model.
+    - Not an asymptotic claim. The fitted slopes are descriptive statistics over a toy range.
+    - Not a discrete-logarithm computation, relation collection, or any ECDLP attack.
+    - Not a statement that operation counts are the right unit at cryptographic scale; that is untestable here and is declared so.
+    - Not approval, freezing, execution authorization, a run, an observed output, or evidence.
+
+  claim_ceiling: >-
+    Tier TOY, unraisable by any downstream citation. The exact scope a completed
+    run could support is - on one machine, one solver, and the tested prime
+    sizes, the lane s wall-clock-fitted local cost slope does or does not agree
+    with its operation-count-fitted slope within a pre-registered band, subject
+    to a stated instrumentation boundary. It cannot support a statement about any
+    other machine, any larger size, or any asymptotic behaviour.
+
+  falsifiable_prediction: >-
+    PRE-REGISTERED BEFORE EXECUTION AND NEVER TUNED TO THE DATA.
+    (1) The counter returns the closed-form operation count EXACTLY at multiplier
+    1 and EXACTLY k times it at every swept multiplier k.
+    (2) Under swept artificial machine load, wall clock rises monotonically and
+    by at least a factor 1.5 at the highest load level, while the operation count
+    is BIT-IDENTICAL at every level.
+    (3) alpha_wall minus alpha_ops is either contained in the interval from minus
+    0.05 to plus 0.05 (AGREEMENT) or has disjoint bootstrap intervals
+    (DISAGREEMENT); the region between is INCONCLUSIVE.
+    (4) The curve-free matched-shape arm either does or does not reproduce the
+    same discrepancy signature, and the consequence of the former is fixed in
+    advance (see scope_gate).
+
+  measured_quantities:
+    - name: op_count_by_type
+      definition: >-
+        Number of field operations executed in the decomposition, counted
+        separately for multiplication, squaring, inversion and addition, per
+        instance, from a counting-mode run.
+      units: operations (dimensionless integer, one integer per type)
+    - name: wall_clock
+      definition: >-
+        Elapsed wall-clock time of the decomposition, per instance, from a
+        timing-mode run with counting instrumentation DISABLED.
+      units: seconds
+    - name: instrumentation_overhead
+      definition: >-
+        Ratio of counting-mode wall clock to timing-mode wall clock on identical
+        seeds.
+      units: dimensionless ratio
+    - name: boundary_fraction
+      definition: >-
+        Fraction of timing-mode wall clock spent inside library code the counter
+        cannot instrument, measured by profiler attribution.
+      units: dimensionless fraction in [0, 1]
+    - name: alpha_wall
+      definition: >-
+        Local log-log slope of median wall clock against log of the prime size,
+        by finite differences over adjacent sizes, with a bootstrap interval over
+        instances.
+      units: dimensionless
+    - name: alpha_ops
+      definition: >-
+        The same slope computed against the weighted operation count, over the
+        identical instance set, with a bootstrap interval.
+      units: dimensionless
+    - name: op_weight_vector
+      definition: >-
+        The fixed positive weights used to combine operation types into a single
+        cost, declared before any fit and never re-tuned.
+      units: dimensionless
+
+  metrics:
+    primary: [alpha_wall, alpha_ops, op_count_by_type, wall_clock]
+    secondary: [instrumentation_overhead, boundary_fraction, op_weight_vector]
+
+  null_and_control_objects:
+    - id: NULL-KNOWNCOUNT
+      name: closed-form calibration with swept multiplier
+      construction: >-
+        Schoolbook multiplication of two dense univariate polynomials of degree d
+        over the same prime field, whose field-operation count is exact and
+        computable in closed form before the run, executed in a loop of k
+        iterations for k in the declared sweep.
+      forced_value: >-
+        The counter must return the closed-form count exactly at k = 1 and
+        exactly k times it at every k in the sweep, with zero tolerance.
+      non_vacuity: >-
+        DEMONSTRATED DYNAMIC RANGE, NOT A SINGLE FIXED POINT. Reproducing one
+        value proves only that one value is reproducible. Sweeping k forces the
+        counter to track a planted change whose size is known in advance, which
+        is what makes a later small measured count interpretable.
+      can_it_differ_from_treatment: >-
+        YES. The counter can miscount by a constant offset (passes at k = 1,
+        fails the sweep), by a per-call multiplier, or by missing a type
+        entirely; each failure mode has a distinct sweep signature.
+    - id: NULL-LOAD
+      name: swept artificial machine load discriminator
+      construction: >-
+        The identical instances re-run with 0, 1, 2 and 4 competing CPU-burner
+        processes pinned to the same cores, wall clock and operation count both
+        recorded at every level.
+      forced_value: >-
+        Wall clock rises monotonically, by at least a factor 1.5 at load level 4.
+        Operation count is bit-identical across all four levels.
+      non_vacuity: >-
+        THIS NULL IS TWO-SIDED AND BOTH SIDES CAN FAIL, WHICH IS WHY IT IS NOT
+        DEGENERATE. The wall-clock arm has genuine dynamic range and fails if the
+        load generator is inert. The operation-count arm is a forced-value
+        calibration whose failure is REAL rather than impossible - any
+        timing-dependent branch in the solver, any strategy selection driven by a
+        time budget, or any nondeterministic pivoting makes the count move under
+        load. The run must report whether the solver contains any such branch, so
+        a reader can see whether this arm was ever capable of firing.
+      can_it_differ_from_treatment: >-
+        YES on both arms, for the reasons just stated. If Stage 0 establishes
+        that the solver is provably free of timing-dependent branches, the
+        operation-count arm is declared a TAUTOLOGY at that stage and is reported
+        as a consistency check rather than as evidence.
+    - id: NULL-CURVEFREE
+      name: matched-shape curve-free polynomial system
+      construction: >-
+        A random polynomial system over the same prime field with the same
+        variable count, degree sequence and sparsity as the Semaev decomposition
+        system at each size, containing NO elliptic curve anywhere, put through
+        the identical solver and the identical counter.
+      forced_value: none - the arm is a scope gate, not a calibration
+      non_vacuity: >-
+        The arm produces its own alpha_wall, alpha_ops and boundary fraction,
+        each with intervals; it can agree with or differ from the Semaev arm and
+        both outcomes are informative.
+      consequence_pre_declared: >-
+        IF THE CURVE-FREE ARM REPRODUCES THE SEMAEV ARM S DISCREPANCY SIGNATURE -
+        the same sign and magnitude of alpha_wall minus alpha_ops within
+        overlapping intervals - THEN THE FINDING IS A PROPERTY OF THE SOLVER AND
+        THE INSTRUMENTATION, NOT OF ELLIPTIC CURVES, AND NOTHING FROM THIS
+        EXPERIMENT MAY BE QUOTED AS A STATEMENT ABOUT ELLIPTIC CURVES OR THE
+        ECDLP. Written here, before execution, so it cannot be reframed
+        afterwards.
+
+  scope_gate: >-
+    See NULL-CURVEFREE consequence_pre_declared. The gate is evaluated and
+    reported BEFORE any interpretation of the Semaev arm, and its verdict is
+    printed on the face of every quoted number.
+
+  independent_variables: [prime_size, cost_unit, machine_load_level, calibration_multiplier, arm]
+
+  preregistered_prediction:
+    quantity: alpha_wall minus alpha_ops, and every forced control value
+    formula: >-
+      alpha is the finite-difference local log-log slope of the median cost
+      against log p over adjacent sizes. The weighted operation count is the
+      declared weight vector applied to the per-type counts. Bootstrap intervals
+      are over instances within a size, 2000 resamples.
+    source: ledger/hypotheses/H-ECDLP-c9e189.yaml predictions P1 through P5
+    values_frozen_here:
+      agreement_band: alpha difference and its interval contained in [-0.05, +0.05]
+      disagreement_rule: bootstrap intervals of the two slopes disjoint
+      inconclusive_band: everything between the two above, declared before the run
+      load_wall_clock_minimum_rise: factor 1.5 at load level 4
+      load_op_count_tolerance: exactly 0
+      calibration_tolerance: exactly 0 at every multiplier
+      boundary_fraction_incompleteness_threshold: 0.5
+
+  decision_rule_that_falsifies: >-
+    THE RECORD IS FALSIFIED, and its central claim rejected in scope, IF the two
+    fitted slopes AGREE - difference and interval inside the frozen band - with
+    every control passing. That is a clean positive result for the lane s
+    existing wall-clock practice and must be reported as the headline rather than
+    buried.
+    THE RECORD IS SUPPORTED IN SCOPE IF the two slopes have disjoint intervals
+    with every control passing AND the curve-free arm does NOT reproduce the
+    signature.
+    THE RUN IS INVALID, and no verdict of either kind may be reported, if
+    NULL-KNOWNCOUNT fails at any multiplier, if the load generator fails to move
+    wall clock, or if the boundary fraction exceeds 0.5 at a size whose data
+    enter a fit.
+
+  stages:
+    - id: S0
+      name: environment, solver determinism, boundary probe
+      terminates_run: false
+      description: >-
+        Record the environment verbatim. Establish whether the solver contains
+        any timing-dependent branch and declare NULL-LOAD s operation-count arm
+        as capable-of-firing or tautological accordingly. Attribute wall clock to
+        instrumentable and uninstrumentable code and record the boundary
+        fraction per size.
+    - id: S1
+      name: counter calibration, swept
+      terminates_run: true
+      description: >-
+        NULL-KNOWNCOUNT at every declared multiplier. Exact match required at
+        every point. Failure ENDS the run; no other arm is executed.
+    - id: S2
+      name: load discrimination, swept
+      terminates_run: true
+      description: >-
+        NULL-LOAD at every load level. Wall clock must rise; operation count must
+        not move. Failure of the wall-clock arm ENDS the run as an inert null.
+    - id: S3
+      name: Semaev arm
+      terminates_run: false
+      description: >-
+        Timing-mode and counting-mode runs on identical seeds at every size.
+        Instrumentation overhead recorded.
+    - id: S4
+      name: curve-free arm
+      terminates_run: false
+      description: >-
+        The identical protocol on matched-shape random systems. Its slopes are
+        computed and the scope gate evaluated BEFORE the Semaev slopes are
+        interpreted.
+    - id: S5
+      name: fits and verdict
+      terminates_run: false
+      description: >-
+        Fit both slopes on the identical instance set, apply the frozen decision
+        rule, and report the scope-gate verdict on the face of the result.
+
+  replication:
+    seeds: [0, 1, 2, 3, 4]
+    independent_instances: 20
+    seeds_per_cell: 20
+    seeds_policy: >-
+      Every instance is addressed by (arm, size, instance_index) and its seed is
+      derived deterministically as a SHA-256 over the ASCII bytes of
+      domain, arm label, size, instance index and the declared master seed,
+      reduced to 64 bits. The domain string is EXP-ECDLP-9cd134/v1. TIMING-MODE
+      AND COUNTING-MODE RUNS USE THE IDENTICAL DERIVED SEED so the two units
+      measure the same computation; the load sweep reuses those same seeds
+      unchanged. A third party reproduces every instance bit-for-bit from the
+      tuple. The master seed is fixed in the frozen contract before any
+      execution and is never re-drawn.
+    determinism_requirement: >-
+      Re-running any (arm, size, instance_index) in counting mode must reproduce
+      the identical per-type operation counts. Any cell failing this is INVALID
+      and, separately, falsifies the determinism assumption in S0.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 60
+    maximum_memory_gb: 8
+    maximum_runs: 240
+    maximum_workers: 1
+    note: >-
+      Sized to the work rather than to a tool timeout, per the budget floors in
+      templates/research-records.md. The load sweep deliberately runs competing
+      processes; those are charged against total_cpu_hours and
+      maximum_workers is 1 for the measured process itself.
+
+  stopping_rules:
+    - NULL-KNOWNCOUNT fails at any multiplier -> STOP, instrument failure, no arm reported.
+    - The load generator does not move wall clock -> STOP, inert null, repair before any rerun.
+    - Boundary fraction above 0.5 at a size -> that size is EXCLUDED from every fit and reported as instrumentation-incomplete.
+    - Per-run wall clock ceiling exhausted -> STOP that cell, report failed_infrastructure with coverage reached.
+    - Counting-mode determinism fails at any cell -> STOP, report the solver as nondeterministic, and reclassify NULL-LOAD s operation arm.
+
+  invalidation_rules:
+    - Any slope fitted from timing-mode and counting-mode runs on non-identical seeds is invalid.
+    - Any slope fitted over a size whose boundary fraction exceeds the threshold is invalid.
+    - Any operation count reported without its per-type breakdown is invalid.
+    - Any weight vector chosen or adjusted after seeing the fits is invalid; the weights are frozen in this contract.
+    - Any quoted number lacking the curve-free scope-gate verdict on its face is invalid.
+    - Any statement about cryptographic-scale cost units drawn from this contract is invalid on its face.
+
+  success_criterion: >-
+    ALL of - (a) NULL-KNOWNCOUNT exact at every multiplier; (b) NULL-LOAD moves
+    wall clock by at least the frozen factor and moves the operation count not at
+    all; (c) boundary fraction recorded per size and below threshold at every
+    size entering a fit; (d) both slopes fitted on the identical instance set
+    with bootstrap intervals; (e) the curve-free arm completed and the scope gate
+    evaluated; (f) the frozen decision rule applied and a verdict of AGREEMENT,
+    DISAGREEMENT or INCONCLUSIVE assigned. Reaching INCONCLUSIVE is a SUCCESSFUL
+    run of this contract; only failing (a) through (e) is an unsuccessful one.
+
+  falsification_criterion: >-
+    AGREEMENT of the two fitted slopes inside the frozen band, with every control
+    passing. H-ECDLP-c9e189 s central claim is then rejected in the tested scope
+    and the lane s wall-clock practice is validated over the tested range.
+    Secondary falsifiers of the DESIGN rather than the hypothesis - calibration
+    failure, an inert load null, an over-threshold boundary fraction, or a
+    curve-free arm that reproduces the signature. In every case the failing
+    stage, arm and cell are named and forward guidance names the next object.
+
+  required_artifacts:
+    - results.json with every metric, per arm, per size, per instance, per mode
+    - the closed-form calibration count and the measured count at every multiplier
+    - wall clock and operation count at every load level, side by side
+    - boundary attribution profile per size
+    - the frozen weight vector, recorded before any fit
+    - both fitted slopes with bootstrap resamples retained
+    - the curve-free arm s full results and the scope-gate verdict
+    - exact commands, git commit, dirty-tree state, environment and dependency versions
+    - solver determinism probe transcript
+    - peak resident memory, wall clock and CPU time per cell
+    - stdout and stderr
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy prime sizes already run by the SDEG lane, on one machine, one solver.
+      Nothing transfers by extrapolation.
+    correspondence: null
+
+  limitations:
+    - >-
+      Scoped to the instrumented pipeline, the tested prime sizes, one solver,
+      one machine, and the declared instrumentation boundary.
+    - >-
+      Operation counts are portable only as far as the instrumentation is
+      complete; the boundary fraction bounds that portability and must accompany
+      every quoted count.
+    - >-
+      Operation counts are blind to memory access, cache behaviour and allocator
+      effects, which is exactly what wall clock captures and exactly what grows
+      in importance with size.
+    - >-
+      NOT TESTABLE AT REACHABLE SCALE, STATED PLAINLY RATHER THAN SILENTLY
+      SHRUNK - whether field-operation counts remain a faithful cost proxy at
+      cryptographic prime sizes cannot be tested by this or any experiment this
+      program can run, because the effects that would break the proxy appear far
+      beyond the reachable range. This contract measures the proxy over the range
+      it can reach and records the transfer as unjustified.
+    - >-
+      A single-machine measurement cannot establish machine-independence. It can
+      only establish that ONE machine s wall clock does or does not track the
+      portable unit over the tested range.
+    - >-
+      Produces no cost model, no attack and no asymptotic exponent, and changes
+      no record s status.
+
+  infrastructure_failure_disposition: >-
+    A timeout, crash, out-of-memory, missing dependency or unavailable profiler
+    is INFRASTRUCTURE SIGNAL, recorded as failed_infrastructure with its cause
+    and coverage. It is NEVER negative mathematical evidence and never counts
+    toward the falsification criterion (AGENTS.md core rule 5).
+
+  assigned_to: executor
+
+  authorization_note: >-
+    This contract is status draft, is not frozen, and carries approved_by null.
+    Only the Coordinator may approve, freeze or authorize execution (AGENTS.md
+    rule 1). Written under TASK-20260904-c0edda, which is DESIGN ONLY. It
+    supersedes no contract, edits no record and alters no goal.

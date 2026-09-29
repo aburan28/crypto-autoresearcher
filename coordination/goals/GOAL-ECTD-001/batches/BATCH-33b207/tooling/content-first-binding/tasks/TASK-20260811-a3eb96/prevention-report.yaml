@@ -1,0 +1,33 @@
+prevention_report:
+  task_id: TASK-20260811-a3eb96
+  finding_type: implementation-process observation
+  scope: archive-chain tooling only
+  root_cause: >-
+    A producing session committed the producer artifacts before the designated
+    snapshot archive task ran. The later archive then had no package to stage,
+    while the existing verifier required one exact changed-path commit covering
+    both the archive receipt and all source artifacts.
+  proposed_guard_feasibility: feasible_with_limitations
+  candidate_guard: >-
+    At queue-validation or pre-dispatch time, for a queued snapshot archive,
+    inspect each completed source task's declared artifact_paths with git log
+    or git cat-file. If all source paths already exist in HEAD before the
+    snapshot task is selected, emit a blocking or warning diagnostic that the
+    exact-commit snapshot contract may no longer be realizable.
+  implementation_cost:
+    - one Git-history query per declared source artifact, or a batched path query
+    - policy choice for whether the diagnostic is a warning or a hard rejection
+    - explicit handling for generated paths and source artifacts intentionally reused from a prior commit
+  false_positive_cost: >-
+    Nontrivial. A producer may legitimately commit a preparatory version and
+    still change the final artifact in the later snapshot commit; a shared or
+    reused artifact may also already be present in HEAD without making the
+    snapshot impossible. A hard plan-time rejection would therefore block
+    legitimate workflows unless the queue schema also records intended custody
+    topology or an explicit exception.
+  recommendation_status: not_adopted
+  reason_not_adopted: >-
+    The approved task authorizes reporting feasibility only. Choosing warning
+    versus rejection, defining exceptions, and changing queue policy are
+    Coordinator decisions and are outside this Executor write scope.
+  scientific_effect: none

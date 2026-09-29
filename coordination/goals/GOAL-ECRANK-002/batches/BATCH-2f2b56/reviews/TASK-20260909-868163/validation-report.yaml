@@ -1,0 +1,503 @@
+validation_report:
+  task_id: TASK-20260909-868163
+  review_plan: REVIEW-PLAN-BATCH-2f2b56
+  joint: J2_record_integrity_and_conformance
+  recorded_at: '2026-09-09'
+  scope_note: >
+    Validator for joint J2 only. Whole-claim verdicts, branch selection
+    (CONV-RESOLVED / TENSION-REAL / MIXED), hypothesis status, and disposition
+    are Coordinator work and are NOT made here. No research status changed, no
+    experiment executed, nothing committed to git. All recomputations use
+    fractions.Fraction / exact integer arithmetic; no network.
+
+  checks:
+    - id: J2-1
+      description: >
+        Hash-verify the v2 snapshot-bound package against the
+        TASK-20260908-9439c0 snapshot receipt (content_first, commit
+        796eed5fa06ac369f592175b55395d5853329dfa): recompute sha256 of every
+        declared path; verify receipt commit/parent against git objects.
+      method: >
+        Recomputed raw sha256 of all 63 declared staged_paths vs receipt
+        path_sha256 (62 content paths; the receipt file is excluded from its
+        own hash map) and vs the queue-archive-block pin (which also pins the
+        receipt file). Verified commit/parent via git cat-file, rev-parse ^,
+        ls-tree -r, hash-object. The receipt's own commit_sha/parent_sha are
+        null (backfilled in the queue archive block per its commit_sha_note);
+        primary commit/parent came from in-scope sources (review-plan
+        input_binding.snapshot_commit; receipt base_commit_checked note naming
+        merge 9a8403c650), queue backfill as a disclosed cross-check.
+      recomputed_value: >
+        62/62 content paths disk sha256 == receipt. Receipt self-hash
+        6e229c8604c3b0be00ac0f744e4675a451dcbf6ba6506568a761122432670a5e ==
+        queue pin. 63/63 staged paths in commit 796eed5 tree with git blob SHA
+        (hash-object of disk) == tree entry. git parent of 796eed5 ==
+        9a8403c650c4192a91f40353712fb76338a64694 (matches declared). Commit
+        reachable from HEAD; worktree clean (no tracked modifications).
+      producer_value: >
+        snapshot-receipt.json: expected_path_count 63, 63 staged_paths, 62
+        path_sha256, commit_sha null / parent_sha null (backfill note). Queue
+        archive block: commit 796eed5fa06ac369f592175b55395d5853329dfa, parent
+        9a8403c650c4192a91f40353712fb76338a64694.
+      producer_path: >
+        coordination/goals/GOAL-ECRANK-002/batches/BATCH-e3cf55/archives/TASK-20260908-9439c0/snapshot-receipt.json
+      verdict: PASS
+
+    - id: J2-2
+      description: >
+        Recompute from the R12 raw result: counts_per_H monotonicity under BOTH
+        conventions; feasibility_fraction = feasible_tuples/n_b_declared;
+        cross_tabulation consistency (33 rows; N per H re-derived from the rows
+        equals reported counts under both conventions); decade ratios (exact
+        rationals).
+      method: >
+        Loaded the R12 raw-result.json; recomputed with fractions.Fraction. N
+        per H re-derived from the cross_tabulation h_A / h_B columns as
+        cumulative counts (h_A<=H convention A, h_B<=H convention B) -- the
+        counting rule per source-v2/n2r.py reconcile(). The membership_level_A/B
+        columns are a separate field (largest H with h<=H; all 33 rows = 10000)
+        and are NOT the counting rule.
+      recomputed_value: >
+        Monotonicity non-decreasing: A [20,28,33] True; B [26,33,33] True.
+        feasibility_fraction = 22/10000 = 11/5000 = 0.0022 (== recorded). N per
+        H from rows: A {100:20,1000:28,10000:33} == recorded N_A; B {100:26,
+        1000:33,10000:33} == recorded N_B. Decade ratios (exact): A 1000/100 =
+        7/5 = 1.4, 10000/1000 = 33/28 = 1.1785714285714286, two-decade 33/20 =
+        1.65; B 1000/100 = 33/26 = 1.2692307692307692, 10000/1000 = 1,
+        two-decade 33/26 = 1.2692307692307692 -- all == recorded. out_of_box_B
+        (h_B>10000) = 0 (== recorded). found[] and cross_tab b_index multisets
+        equal (33).
+      producer_value: >
+        counts_per_H {100:20,1000:28,10000:33}; N_A {100:20,1000:28,10000:33};
+        N_B {100:26,1000:33,10000:33}; feasibility_fraction 0.0022; decade
+        ratios A [1.4,1.1785714285714286] two_decade 1.65; B [1.2692307692307692,
+        1.0] two_decade 1.2692307692307692; out_of_box_B 0; n_instances 33.
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/raw-result.json
+      verdict: PASS
+
+    - id: J2-3
+      description: >
+        Verify the n2r verbatim_predicates in the R12 raw result match the
+        ACTUAL lines of the frozen source (source/construct.py for the
+        rat_height definition and convention-A filter/count lines;
+        source-v2/n2r.py for the convention-B h_B_from_instance lines).
+      method: >
+        Re-ran the documented extraction logic (same anchor searches as
+        source-v2/n2r.py verbatim_predicates) independently against the frozen
+        source; compared line-by-line to the recorded verbatim_predicates.
+      recomputed_value: >
+        rat_height_definition (construct.py lines 23-24) MATCH; convention_A
+        filter_lines (construct.py line 85, in solve_n6) MATCH; convention_A
+        count_lines (construct.py line 415, in construct_arm) MATCH;
+        convention_B lines (n2r.py lines 103-112, h_B_from_instance) MATCH.
+        Anchor uniqueness: rat_height def 1x; conv-A count anchor 1x;
+        h_B_from_instance def 1x; conv-A filter anchor 2x (lines 85 and 332,
+        both in solve_n6) -- recorded lines match the first occurrence (85).
+      producer_value: >
+        raw-result.json n2r.verbatim_predicates (rat_height_definition,
+        convention_A filter_lines/count_lines, convention_B lines).
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/raw-result.json;
+        experiments/EXP-ECRANK-73275e/source/construct.py;
+        experiments/EXP-ECRANK-73275e/source-v2/n2r.py
+      verdict: PASS
+
+    - id: J2-4
+      description: >
+        Verify R13/R12 bit-identity by INDEPENDENT hashing of canonical
+        instance lists/counts (do not trust recorded iv2r flags); inspect
+        shared code paths; record precisely what IV-2R does and does not
+        establish.
+      method: >
+        Independent canonical hashing: sha256 of json.dumps(obj, sort_keys=True,
+        separators=(',',':')) of found[] and counts_per_H for both runs, plus
+        per-instance canonical hashes. Inspected source-v2/run_v2.py run_r12 /
+        run_r13 for shared code paths.
+      recomputed_value: >
+        found[] canonical sha256 R12 == R13 (6bfc9498abe8d07ad8e3e63847a3855e2f1464800bd9a0ed2d25c1d4b51b6b6c).
+        counts_per_H canonical sha256 R12 == R13 (2354dbd31622b8a8b1e67079560ad167b2e100c8417e57c62feb3c759969dc86).
+        Per-instance canonical hash lists identical (33/33). ops R12 == R13
+        (9447724). Full raw-result.json files differ (expected: R13 carries
+        iv2r_* fields, R12 carries the n2r block). Shared code path: BOTH
+        run_r12 and run_r13 call CV2.construct_arm_v2(E, 6, seed, N_B_N6, H6,
+        certifier=C, ec=ec, ...) with the SAME seed (SEEDS["R12"] ==
+        SEEDS["R13"] == 760906) -- identical arithmetic code path, identical
+        seed.
+      producer_value: >
+        R13 raw-result.json iv2r_instance_list_identical true,
+        iv2r_counts_identical true, iv2r_ops_identical true, iv2r_ops_r12
+        9447724, iv2r_ops_r13 9447724 (consistent with my independent hashing).
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R13-construct-n6-replay/raw-result.json;
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/raw-result.json;
+        experiments/EXP-ECRANK-73275e/source-v2/run_v2.py
+      what_iv2r_establishes: >
+        PIPELINE DETERMINISM: the same input (seed 760906, n=6, 10^4 b-tuples,
+        H levels) re-executed through the identical code path reproduces the
+        instance list, counts, and op ledger bit-for-bit.
+      what_iv2r_does_not_establish: >
+        Does NOT establish correctness of the arithmetic (a
+        wrong-but-self-consistent implementation replays identically), does NOT
+        establish independence from the producer's code (R13 reuses R12's exact
+        code path and seed -- a determinism check, not an independent
+        implementation), and does NOT test seed-sensitivity or
+        machine-dependent behavior.
+      verdict: PASS
+
+    - id: J2-5
+      description: >
+        Spot-recheck certificates of >= 3 of the 33 R12 found instances by
+        EXACT recomputation from the recorded instance fields (identity
+        s(b_i) = d_i*g(b_i)^2 with g = x + c, c recoverable from the recorded r
+        vector; deg s; nonsingularity via disc(s); class_keys / n_classes).
+        fractions.Fraction; do NOT quote producer verdict fields.
+      method: >
+        For ALL 33 found instances (superset of the required >= 3), recomputed
+        from the recorded instance fields only: c = r_0 - b_0 (b_0 = 0, so c =
+        r_0); affine check r_i == b_i + c for all i (confirms g = x + c);
+        forcing identity s(b_i) == d_i*(b_i+c)^2 == d_i*r_i^2 for all i; actual
+        degree of the recorded s vs recorded deg_s; exact discriminant of s
+        (Sylvester resultant, independent implementation) nonzero and equal to
+        recorded disc_s; class_keys == sorted distinct d_pattern values
+        (string, matching construct_v2.py sorted(str(k) for k in
+        cert["classes"])); n_classes == len(set(d_pattern)).
+      recomputed_value: >
+        33/33 instances pass every recomputed check. Named detail: b_index 649
+        c=-4, d_pattern [22,3,-3,22,3,-3], deg_s 4, disc_s
+        432281949384182666535621/9085908032656 (recomputed equal, nonzero),
+        class_keys ['-3','22','3'], n_classes 3. b_index 1299 c=8, d_pattern
+        [165,165,-165,3,3,-165], deg_s 4, disc_s 902387302899490776064/117649
+        (recomputed equal, nonzero), class_keys ['-165','165','3'], n_classes 3.
+        b_index 4995 c=-163/168, d_pattern [10,22,10,-22,22,-22], deg_s 4,
+        disc_s -20385028604921411248178412607980954278125/195092090713329023394826434518188032
+        (recomputed equal, nonzero), class_keys ['-22','10','22'], n_classes 3.
+      producer_value: >
+        found[] instance fields (b, d_pattern, r, s, deg_s, disc_s) and
+        certificate fields (class_keys, n_classes) -- recomputed, not quoted as
+        verdicts.
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/raw-result.json
+      verdict: PASS
+
+    - id: J2-6
+      description: >
+        Adjudicate IV-1C against the committed certifier source: good-prime
+        list = 60 primes all below 1500 for these tuples? ladder
+        (1500/10000/100000) a no-op because of it? closed-form prediction 7 at
+        n=8 d=(1..1) as the contract states; localize the [6,6,7,7,7,7,7,6]
+        shortfalls against the prime-set limitation; record what is verifiable
+        from committed bytes vs what needs the red team's algebra.
+      method: >
+        Verified the ladder no-op directly from the R9 and R11 raw results
+        (per-tuple/per-plant (aggregate_total, ops_cost) identical across the
+        three rungs). Verified the closed-form 7 from the frozen contract text
+        (specification.yaml IV-1; amendment IV-1C). Localized the shortfalls
+        against the verified no-op. The good-prime list itself is defined in
+        the committed exact_certify.py (coordination/goals/GOAL-ECQ-002/...),
+        OUTSIDE this validator's declared read scope; the in-scope certifier
+        source (source-v2/certify_ladder.py, source/certify76.py) only threads
+        max_prime into ec.certify.
+      recomputed_value: >
+        Ladder no-op VERIFIED from committed run bytes: R9 n=8 -- 8/8 tuples
+        identical (aggregate_total, ops_cost) at 1500/10000/100000 (e.g.
+        b_index 0: (6,34095) at all three rungs); top-rung totals
+        [6,6,7,7,7,7,7,6] (== recorded). R11 n=8 -- 9/9 plants identical
+        (total, ops) across rungs; top-rung totals [5,7,7,7,7,7,5,6,6] (==
+        recorded). Closed-form 7 VERIFIED as the contract states it:
+        specification.yaml IV-1 "certified totals must equal n - 1 (5 and 7)";
+        amendment IV-1C "the certified total equals the closed-form value n-1 =
+        7 for ALL 8 tuples at the top rung (bound 100000)". Shortfall
+        localization: because the ladder is a verified no-op, the shortfall (6
+        instead of 7 at R9 b_index 0, 1, 7) is NOT attributable to missing good
+        primes in [1500, 100000] (raising the bound changes nothing); it is
+        either (i) forced by the <=1500 good-prime set (instrument-boundary
+        reading) or (ii) a genuine within-class dependency the certifier
+        correctly refuses. Distinguishing (i) from (ii) needs the red team's
+        algebra (J3).
+      producer_value: >
+        execution-report-v2.yaml: iv1c_n8_top_rung_totals [6,6,7,7,7,7,7,6],
+        iv1c_ladder_no_op_observed "the committed certifier's good-prime list
+        is capped at 60 primes, all below 1500 for these tuples";
+        iv1c_graded_outcome CERTIFIER_LIMITED.
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R9-known-false-v2/raw-result.json;
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R11-planted-n8/raw-result.json;
+        experiments/EXP-ECRANK-73275e/specification.yaml;
+        experiments/EXP-ECRANK-73275e/amendments/v2_replication_protocol.yaml;
+        experiments/EXP-ECRANK-73275e/execution-report-v2.yaml
+      verifiable_from_committed_bytes: >
+        The ladder no-op (R9 8/8, R11 9/9), the top-rung totals, the
+        closed-form 7 as the contract states it, and the localization that the
+        shortfall is not due to missing primes in [1500,100000].
+      needs_red_team_algebra: >
+        The exact "60 primes" count (a certifier-internal good-prime-list
+        observation; the list lives in exact_certify.py, outside this
+        validator's read scope -- the verified no-op is consistent with it but
+        does not independently establish the count), and the distinction
+        between the instrument-boundary reading and a genuine within-class
+        dependency at the shortfall tuples.
+      verdict: PASS
+
+    - id: J2-7
+      description: >
+        Adjudicate the R10 (b)/(c) failures against the amendment clause text:
+        confirm (b)/(c) void ONLY the planted-height calibration reading, and
+        that the IV-3R upgrade_clause text supports upgrading R12/R14 COUNT
+        readings to MEASURED on 9/9 detection.
+      method: >
+        Verified the R10 (a)/(b)/(c) exact values against the R10 raw result;
+        read the amendment IV-3R invalidation and upgrade_clause text verbatim.
+      recomputed_value: >
+        R10 raw result: (a) detection recovered 9/9 (ratio 1.0). (b) exponent
+        gate all_in_window = False; per-plant h_A/h_B ratios [10.0, 14.3,
+        15.09433962264151, 18.181818181818183, 7.0, 1.6666666666666667,
+        1.0533807829181494, 18.88888888888889, 2.6363636363636362] against
+        window [0.699, 1.301] (only 1.053 in window). (c) per-decade
+        cumulative {100:4, 1000:9, 10000:9}, ratios [2.25, 1.0] outside window
+        [5, 20], spans_decades True. All == recorded. Amendment IV-3R
+        invalidation: "Failure of (b)/(c) is recorded with exact values and
+        voids only the planted-height calibration reading." upgrade_clause:
+        "Only on 9/9 detection do the R12 n=6 counts upgrade from LOWER BOUNDS
+        to MEASURED counts at the tested scope (discharging red-team J4a for
+        the v2 round). Otherwise counts remain lower bounds and the record says
+        so." Carried invalidation: "Failure of (a) voids the COUNT readings of
+        R12 and R14."
+      producer_value: >
+        execution-report-v2.yaml R10 observations_quoted (iv3r_a_detection 9/9,
+        iv3r_b_exponent_gate_all_in_window false, iv3r_c_per_decade_ratios
+        [2.25, 1.0], upgrade_clause note).
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R10-planted-elliptic-n6/raw-result.json;
+        experiments/EXP-ECRANK-73275e/amendments/v2_replication_protocol.yaml
+      clause_adjudication: >
+        (b)/(c) void ONLY the planted-height calibration reading: CONFIRMED
+        (verbatim amendment text). 9/9 detection upgrades the R12/R14 COUNT
+        readings to MEASURED: SUPPORTED, with a textual nuance -- the
+        upgrade_clause literally names "the R12 n=6 counts"; the R14 COUNT
+        reading coverage rests on the carried v1 IV-3 invalidation logic
+        (detection (a) governs the R12 AND R14 COUNT readings jointly), so the
+        combined IV-3R text supports upgrading both, with the R14 leg resting
+        on the invalidation clause rather than the upgrade_clause's literal
+        wording.
+      verdict: PASS
+
+    - id: J2-8
+      description: >
+        Verify the R14 ledger: n_b_done 10000, counted ops 1503696145 < 2.0e9,
+        exhaustion null, near_miss_total 0, box-disclosure text present; check
+        F3_n8's frozen text against the recorded observations; state whether it
+        fires.
+      method: >
+        Read the R14 raw result; read F3_n8's frozen text from
+        ledger/hypotheses/H-ECRANK-36d8d7.yaml and the amendment
+        n3r_n8_rescope.exhaustion_semantics / falsification_criterion_v2.
+      recomputed_value: >
+        R14 raw result: n_b_done 10000; ops 1503696145 (< 2.0e9); exhaustion
+        null; near_miss_total 0; n3r_box_disclosure present and equal to the
+        run_v2.py BOX_DISCLOSURE constant; found 0; feasible_tuples 0;
+        feasibility_fraction 0.0; n2r N_per_H A/B {100:0,1000:0}, n_instances
+        0. F3_n8 frozen text (H-ECRANK-36d8d7): "R5 exhausts with 0 certified
+        instances and the same infeasibility pattern at n = 8." The "same
+        infeasibility pattern" is the F2_n6 pattern: "feasibility fraction 0
+        with the recorded near-miss ledger, i.e. the pattern is not merely rare
+        but infeasible." Amendment: "F3_n8 can fire only on a COMPLETED
+        enumeration with the recorded infeasibility pattern."
+      producer_value: >
+        execution-report-v2.yaml R14 observations_quoted (n_b_done 10000,
+        counted_exact_ops 1503696145, ops_cap 2.0e9, ops_cap_respected true,
+        found 0, feasible_tuples 0, near_miss_total 0, exhaustion null,
+        n3r_box_disclosure).
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R14-construct-n8-rescoped/raw-result.json;
+        ledger/hypotheses/H-ECRANK-36d8d7.yaml;
+        experiments/EXP-ECRANK-73275e/amendments/v2_replication_protocol.yaml
+      f3_n8_fires: >
+        NO. R14 is a COMPLETED in-cap enumeration (n_b_done 10000, ops
+        1503696145 < 2.0e9, exhaustion null) with 0 certified instances, BUT
+        the recorded infeasibility pattern is ABSENT: near_miss_total = 0
+        (empty near-miss ledger), so there is no recorded near-miss ledger
+        showing the system infeasible in box (the F2_n6/F3_n8 pattern requires
+        "feasibility fraction 0 WITH the recorded near-miss ledger"). The
+        completed in-cap zero is therefore INERT (reported as a completed zero
+        within the disclosed integer-box convention); F3_n8 does not fire.
+      verdict: PASS
+
+    - id: J2-9
+      description: >
+        Adjudicate PD-V2-1 against IV-6 (attempt ceiling, attempts preserved)
+        and the stopping rules: verify attempt-1 preservation under
+        runs/RUN-ECRANK-73275e-R15-null-v2/attempt-1-iv4r-check-too-strict/ and
+        that the correction re-scored no result.
+      method: >
+        Listed the attempt-1 directory; read its NOTE.txt and raw-result.json;
+        compared to the R15 final raw-result.json; read the amendment IV-6
+        (carried via IV-CARRY) and the execution-report PD-V2-1 record.
+      recomputed_value: >
+        attempt-1 preserved under attempt-1-iv4r-check-too-strict/ with all
+        companions (command.txt, environment.json, manifest.yaml, NOTE.txt,
+        raw-result.json, stderr.log, stdout.log). NOTE.txt names the defect
+        (driver iv4r_pass check required disc_negative, False for the
+        degenerate null family; the correct flag is no_real_root). attempt-1
+        raw: total_solutions 0, iv4r_pass False. R15 final raw: total_solutions
+        0, iv4r_pass True, iv4r_infeasibility_flag_raised True,
+        iv4r_all_disc_negative False, proof_ledger 64 entries,
+        proof_first_b_index_0_sha256
+        816b712487358909c740babf69451026d215bf2b0ea1366fcc9d46aee6f16613. The
+        underlying observation (total_solutions 0) is identical in both
+        attempts; only the (defective) pass flag differs. Attempt ceiling: R15
+        used 2 attempts (< 12); no 13th attempt. Correction re-scored no
+        result: NOTE.txt "This attempt is preserved, not re-scored"; amendment
+        immutability_clause "Executed runs R1-R8 are NEVER re-scored";
+        execution-report protocol_binding v1_runs_rescored: none.
+      producer_value: >
+        execution-report-v2.yaml protocol_deviations PD-V2-1 (what, artifact);
+        R15 attempts note (attempt_1 preserved, attempt_2 final).
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/attempt-1-iv4r-check-too-strict/;
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/raw-result.json;
+        experiments/EXP-ECRANK-73275e/execution-report-v2.yaml
+      verdict: PASS
+
+    - id: J2-10
+      description: >
+        Verify all seven run manifests carry the nested run schema, the
+        independence disclosure, and the recorded provenance (fallback_used
+        true, resolved_model_id vllm/qwen3.8-27b, model_verified false).
+      method: >
+        Parsed all seven manifest.yaml files (R9-R15); checked the top-level
+        key is `run:` (nested schema), the RUN_REQUIRED_TOP fields (id,
+        experiment_id, status, code, environment, inputs, result, timing,
+        resources, inference, validity, stdout, stderr), the
+        independence_disclosure text, and the inference provenance fields.
+      recomputed_value: >
+        All seven manifests: nested run schema (top-level key == ['run']) True;
+        no missing required fields; independence_disclosure present ("Same-
+        machine replication: ... does NOT test machine-dependent behavior");
+        provenance fallback_used True, resolved_model_id vllm/qwen3.8-27b,
+        model_verified False. (The R15 attempt-1 manifest also carries the same
+        nested schema, disclosure, and provenance.)
+      producer_value: >
+        The seven manifest.yaml files under
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R{9,10,11,12,13,14,15}-*/.
+      producer_path: >
+        experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R9-known-false-v2/manifest.yaml
+        (and the six sibling run manifests)
+      verdict: PASS
+
+  observations:
+    - id: OBS-1
+      text: >
+        run_v2.py was modified mid-sequence. The R9, R10, R11, and R15
+        attempt-1 manifests record source_sha256_v2 run_v2.py =
+        c0eb13a099f8f59156e2faa39825806d252f8f5910fe330aae19c032dd224a03
+        (pre-fix); the R12, R13, R14, and R15-final manifests record
+        583b0b424702e94c7fc0f3b5a99a5941d4fb824a0ab172dcc50be3decefde653,
+        which equals the disk file and the snapshot-receipt pin. This is
+        consistent with the documented PD-V2-1 driver check fix (the R15
+        iv4r_pass correction from disc_negative to no_real_root), made after
+        R15 attempt-1 and before R15 attempt-2. The snapshot-bound run_v2.py is
+        the post-fix version. Consequence: R9/R10/R11 (and R15 attempt-1) were
+        executed with a run_v2.py that is NOT the snapshot-bound version -- a
+        reproducibility caveat for those runs. The documented fix was to the
+        R15 check logic (run_r15), so the R9/R10/R11 and R12/R13/R14 code
+        paths are unaffected and the scientific observations are unchanged.
+        run_v2.py is not in the amendment's bound_source_hashes (which bind
+        only source/construct.py, source/null_family.py, source/certify76.py,
+        and DEC-20260908-d361ab.yaml), so this is not a binding-source
+        violation; it is recorded here as an integrity observation.
+      severity: caveat (not a binding defect; documented via PD-V2-1)
+
+  joint_verdict:
+    verdict: holds
+    grounds: >
+      All ten J2 checks PASS. The v2 snapshot-bound package is hash-consistent
+      with the TASK-20260908-9439c0 receipt and the 796eed5 commit (62/62
+      content paths, 63/63 tree entries, parent verified, worktree clean). The
+      R12 counts, feasibility fraction, cross-tabulation, and decade ratios
+      recompute exactly under both conventions. The N2R verbatim predicates
+      match the frozen source lines. R13/R12 bit-identity is confirmed by
+      independent canonical hashing (IV-2R is a determinism check over a shared
+      code path and seed, not an independent implementation). All 33 R12
+      certificates recompute exactly from the recorded instance fields. The
+      IV-1C ladder no-op, the closed-form 7, and the shortfall localization are
+      verified from committed bytes (the exact "60-prime" count and the
+      instrument-boundary-vs-genuine-dependency distinction are deferred to the
+      red team's algebra, as the work program assigns). The R10 (b)/(c)
+      failures void only the planted-height calibration reading, and 9/9
+      detection supports upgrading the R12/R14 COUNT readings to MEASURED (R14
+      leg via the carried invalidation logic). The R14 ledger is verified and
+      F3_n8 does NOT fire (completed in-cap zero with no recorded
+      infeasibility pattern). PD-V2-1 preserves attempt-1 and re-scored no
+      result. All seven manifests carry the nested run schema, the
+      independence disclosure, and the recorded provenance. The single
+      observation (OBS-1, the mid-sequence run_v2.py modification) is a
+      documented, non-binding reproducibility caveat that does not break record
+      integrity or conformance.
+
+  review_attestation:
+    task_id: TASK-20260909-868163
+    verdict: holds
+    joints_owned:
+      - J2_record_integrity_and_conformance
+    sources_read:
+      - coordination/goals/GOAL-ECRANK-002/batches/BATCH-2f2b56/review-plan.yaml
+      - ledger/handoffs/TASK-20260909-868163.yaml
+      - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e3cf55/archives/TASK-20260908-9439c0/snapshot-receipt.json
+      - coordination/goals/GOAL-ECRANK-002/batches/BATCH-2f2b56/dispatch_queue.json
+      - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e3cf55/dispatch_queue.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/raw-result.json
+      - experiments/EXP-ECRANK-73275e/source-v2/n2r.py
+      - experiments/EXP-ECRANK-73275e/source/construct.py
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R13-construct-n6-replay/raw-result.json
+      - experiments/EXP-ECRANK-73275e/source-v2/run_v2.py
+      - experiments/EXP-ECRANK-73275e/source/ecrank_engine.py
+      - experiments/EXP-ECRANK-73275e/source/certify76.py
+      - experiments/EXP-ECRANK-73275e/source-v2/certify_ladder.py
+      - experiments/EXP-ECRANK-73275e/source-v2/construct_v2.py
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R9-known-false-v2/raw-result.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R11-planted-n8/raw-result.json
+      - experiments/EXP-ECRANK-73275e/execution-report-v2.yaml
+      - experiments/EXP-ECRANK-73275e/specification.yaml
+      - experiments/EXP-ECRANK-73275e/amendments/v2_replication_protocol.yaml
+      - ledger/hypotheses/H-ECRANK-36d8d7.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R14-construct-n8-rescoped/raw-result.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/attempt-1-iv4r-check-too-strict/NOTE.txt
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/raw-result.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/attempt-1-iv4r-check-too-strict/raw-result.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R10-planted-elliptic-n6/raw-result.json
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R9-known-false-v2/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R10-planted-elliptic-n6/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R11-planted-n8/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R12-construct-n6-replication/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R13-construct-n6-replay/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R14-construct-n8-rescoped/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/manifest.yaml
+      - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R15-null-v2/attempt-1-iv4r-check-too-strict/manifest.yaml
+    sources_read_note: >
+      The BATCH-e3cf55/dispatch_queue.json entry is disclosed as outside the
+      declared read scope; it was read only to locate the backfilled snapshot
+      commit/parent (the receipt's own commit_sha/parent_sha are null). Primary
+      commit/parent verification used in-scope sources (review-plan
+      input_binding.snapshot_commit; receipt base_commit_checked note). The
+      frozen blind report reviews/TASK-20260909-9e06b1/blind-rederivation.yaml
+      was NOT read (it is optional post-freeze; not needed for J2).
+    read_sibling_reports: false
+    requested_policy: review-adversarial
+    backend: opencode (native session)
+    resolved_model_id: vllm/qwen3.8-27b
+    resolved_model_id_source: runtime system prompt (as reported); no adapter probe claimed
+    model_verified: false
+    session: independent validator session for TASK-20260909-868163
+    independent_session: true
+    independent_session_note: >
+      Earlier dispatches of this task were cut off by infrastructure failures;
+      this is a resumed session. All scratch from the interrupted attempts was
+      re-executed from scratch before being relied on; nothing was trusted
+      without re-execution.
+    same_machine_disclosure: >
+      This validator session runs on the same machine as the producer
+      (Adams-MacBook-Pro.local). Same-machine validation tests record
+      integrity, hash consistency, and exact-arithmetic reproducibility; it
+      does NOT test machine-dependent behavior, and that limitation is
+      recorded, not interpreted away.

@@ -1,0 +1,189 @@
+red_team_report:
+  id: RT-20260909-d4548e
+  task_id: TASK-20260909-d4548e
+  claim_under_review: zero-run implementation admission for EXP-ECDLP-df24c3 under custody-contract-v2
+  review_method: static source-level adversarial review; no fixture, corpus, resolver, or experiment access
+  joint_verdicts:
+    canonical_zero_run_custody_and_refusal_v2: breaks
+  objections:
+    - id: RT-CUSTODY-V2-1
+      severity: blocking
+      finding: >-
+        The fixture inventory is self-authenticating.  It supplies each fixture's
+        path and SHA-256 but no hash or content identity is pinned by the reviewed
+        decision, source snapshot, or authorization envelope.  A producer can
+        alter a fixture, write a new inventory containing the altered digest, and
+        satisfy the stated inventory check.  The contract therefore detects a
+        change after an inventory is frozen, but cannot distinguish an altered
+        fixture from an intended one at admission time.
+      attack: >-
+        Substitute a behavior-changing fixture and regenerate inventory.json with
+        its new SHA-256 and expected_disposition.  No reviewed artifact gives the
+        resolver a prior fixture-manifest digest or expected semantic control
+        outcome against which to refuse it.
+      contract_gap: >-
+        control-fixtures/ has neither a source-bound immutable baseline nor
+        normalized-path, regular-file, symlink, and parent-directory constraints.
+    - id: RT-CUSTODY-V2-2
+      severity: blocking
+      finding: >-
+        The cross-binding rule requires every artifact row's statement_identity
+        to match corpus-index, but corpus-index rows contain only record_path,
+        record_blob_id, and source_commit.  It has no statement_identity or
+        canonical statement pointer.  Consequently a comparison or linkage row
+        can name a statement identity that is not uniquely resolvable to the
+        asserted source record/blob pair, and the specified resolver has no
+        defined equality relation with which to reject it.
+      attack: >-
+        Reuse an accepted statement_identity with a different record_blob_id, or
+        give two statements in one record the same identity, while preserving the
+        listed source_commit.  Neither case is ruled out by the corpus-index
+        schema or by a declared unique composite key.
+      contract_gap: >-
+        There is no one-to-one statement-index binding among source_commit,
+        record_path, record_blob_id, and a canonical statement pointer.
+    - id: RT-CUSTODY-V2-3
+      severity: blocking
+      finding: >-
+        The authorization envelope does not bind authorization to the reviewed
+        custody-contract-v2 bytes, the implementation plan, a review-report
+        digest, or the contents of the named Coordinator decision.  It also gives
+        no signer trust root, signature algorithm/canonical encoding, nonce
+        registry, or atomic replay rule.  The listed checks are names rather
+        than a decidable authorization protocol.
+      attack: >-
+        Present an envelope with the correct experiment id and an arbitrary
+        self-produced valid-looking signature, previously unused local nonce,
+        and DEC-20260909-57ce03 as a bare identifier.  Because the contract does
+        not define how a verifier obtains or hashes the decision, key, review, or
+        nonce state, it cannot show that coordinator_decision_allows_execution
+        refers to the reviewed decision, whose explicit implementation and
+        scientific execution fields are both false.
+      contract_gap: >-
+        source_commit_exact and coordinator_decision_allows_execution have no
+        pinned comparison value or immutable resolution algorithm; signature_valid
+        and nonce_unused have no declared trust or replay state.
+    - id: RT-CUSTODY-V2-4
+      severity: blocking
+      finding: >-
+        The refusal rule is declarative only.  A refusal receipt is emitted after
+        the resolver has processed an authorization envelope, but the contract
+        specifies no protected-input capability boundary, sandbox mount policy,
+        access trace, or pre-access counter.  A resolver could read a corpus or
+        fixture before emitting a syntactically valid refusal receipt, leaving no
+        required artifact capable of detecting the violation.
+      attack: >-
+        Use a denied authorization envelope and have the resolver inspect a
+        fixture or corpus path before returning the required refusal JSON.  The
+        receipt schema records reason, failed_check, envelope hash, and time, but
+        no proof that protected inputs were unavailable or unread.
+      contract_gap: >-
+        no corpus or fixture read on refusal is not backed by an enforceable
+        access-control boundary or an auditable zero-access assertion.
+  required_controls:
+    - >-
+      Freeze a canonical fixture manifest SHA-256 and expected dispositions in a
+      new source-bound Coordinator decision; require normalized relative paths,
+      regular files only, no symlinks or parent traversal, a closed inventory,
+      and byte hashes verified against that pinned manifest before fixture use.
+    - >-
+      Replace the corpus index with a canonical statement index whose unique key
+      is (source_commit, record_path, record_blob_id, statement_pointer), and
+      require every comparison, linkage, exclusion, and receipt row to carry and
+      resolve that same complete key before it is accepted.
+    - >-
+      Define a canonical authorization preimage and signature scheme, a pinned
+      coordinator verification key/key id, contract and plan digests, an exact
+      review-report digest, an immutable decision-content digest, and an
+      atomically updated nonce registry.  The reviewed DEC-20260909-57ce03 must
+      resolve to refusal until a later decision explicitly admits static/mock
+      work only.
+    - >-
+      Put authorization verification outside the protected corpus/fixture mount;
+      make those paths inaccessible unless a successful preflight capability is
+      issued, and bind a signed or independently auditable preflight access trace
+      with zero protected reads to every refusal receipt.
+  counterexample_or_mutation:
+    missing_fixture: >-
+      A missing named fixture has a declared refusal path, but the contract does
+      not prove which fixture inventory was intended or prevent a replacement
+      inventory from omitting it.
+    altered_fixture: >-
+      An altered fixture plus a regenerated self-authored inventory is accepted
+      under the written schemas because no prior digest is bound.
+    cross_identity_row: >-
+      A row can retain source_commit while substituting record_blob_id or an
+      ambiguous statement_identity; corpus-index lacks the field needed to
+      resolve the mismatch.
+    forged_authorization: >-
+      The envelope's unconstrained signature and nonce semantics permit a
+      producer-controlled verifier state to label an envelope allowed.
+    refusal_with_input_access: >-
+      A valid refusal receipt can be generated after an undeclared protected read;
+      no listed artifact excludes that trace.
+  baseline_comparison: null
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges:
+    - >-
+      This is a custody review, not evidence about ECDLP, a corpus conclusion, or
+      the correctness of any cited record.  The defects only block admission of
+      the proposed static/mock implementation boundary.
+  proof_architecture_challenges: []
+  proves_too_much_control:
+    object: static mock artifact with no source-bound corpus
+    expected_failure_signature: It cannot become a corpus audit or scientific result.
+    result: >-
+      The contract's does_not list preserves this limitation as policy text, but
+      the unresolved authorization and refusal boundaries do not provide a
+      mechanism that proves the policy survives a hostile resolver.  The control
+      therefore does not discharge the admission claim.
+  narrowest_supported_statement: >-
+    custody-contract-v2 documents intended schemas and a zero-run policy, but it
+    does not yet establish a verifiable, fail-closed admission boundary for even
+    static/mock implementation.  It authorizes neither implementation nor any
+    corpus traversal, scientific execution, result, or ECDLP conclusion.
+  next_concrete_action: >-
+    The Coordinator should create a v3 custody contract that repairs all four
+    blocking controls, freeze it in a new decision with exact artifact digests,
+    and obtain a fresh independent review before dispatching any executor task.
+  artifact_paths:
+    - coordination/design/BATCH-261772/reviews/TASK-20260909-d4548e/review.yaml
+  procedure_deviations:
+    - >-
+      During initial orientation I read the adjacent zero-run execution plan in
+      addition to the pinned handoff, review plan, contract, and decision.  It
+      was not a sibling report and did not change the four source-level defects
+      above; it is disclosed because it was outside the assigned packet.
+
+review_attestation:
+  task_id: TASK-20260909-d4548e
+  joint: canonical_zero_run_custody_and_refusal_v2
+  joints_owned: [canonical_zero_run_custody_and_refusal_v2]
+  verdict: breaks
+  independent_session: true
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  resolved_model_id: unavailable_in_runtime_metadata
+  model_verified: false
+  fallback_used: false
+  degraded_requirements: []
+  read_sibling_reports: false
+  paths_read:
+    - AGENTS.md
+    - agents/red-team.md
+    - ledger/handoffs/TASK-20260909-d4548e.yaml
+    - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/custody-v2-review-plan-TASK-20260909-d4548e.yaml
+    - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/custody-contract-v2.yaml
+    - ledger/decisions/DEC-20260909-57ce03.yaml
+    - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/execution-plan.json
+  reviewed_record_ids:
+    - TASK-20260909-d4548e
+    - EXP-ECDLP-df24c3
+    - TASK-20260909-117280
+    - DEC-20260909-57ce03
+  review_plan_id: scoped_negative_custody_v2_review
+  attests: >-
+    I reviewed no sibling report and performed no implementation, fixture or
+    corpus access, experiment execution, staging, or commit.  This verdict is
+    limited to the owned custody and refusal joint.

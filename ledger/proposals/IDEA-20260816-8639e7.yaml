@@ -1,0 +1,253 @@
+idea:
+  id: IDEA-20260816-8639e7
+  question_id: RQ-WFS-e776b6
+  added: '2026-08-16'
+  title: 'Measure the reusable transcript prefix as a counted object: in a multi-round public-coin
+    reference protocol, how many hash compression calls survive unchanged when a state-restoration
+    attacker rewinds to round r, and how does that amortization change the per-attempt cost the grinding
+    accounting charges?'
+  class: mechanism
+  claim: '(A) THE REUSABLE PREFIX IS A COUNTED QUANTITY, NOT A QUALITATIVE OBSERVATION. In a multi-round
+    public-coin protocol made non-interactive by hashing a growing transcript, an attacker who rewinds
+    to round r and varies only the round-r prover message recomputes the hash state from the point
+    where the transcript first differs. Part (A) claims that the number of compression-function calls
+    that survive unchanged, P(r), is exactly floor(prefix_bytes(r) / block_bytes) for a Merkle-Damgard-style
+    chaining construction and exactly 0 for a sponge-style construction absorbed in one pass only
+    if the implementation does not retain the intermediate state, and that P(r) is therefore an implementation-visible
+    quantity computable from the transcript layout alone. (B) THE AMORTIZATION CURVE IS MEASURABLE
+    AND HAS A SHAPE. Define the amortization ratio A(r) = total_calls_from_scratch / calls_after_rewind_to_r.
+    Part (B) claims A(r) is monotone non-increasing in r for a fixed transcript layout, that it exceeds
+    2 for r in the first third of the rounds at transcript sizes of a few kilobytes, and that its
+    shape is determined by the CUMULATIVE prefix length profile rather than by the round count, so
+    two protocols with the same number of rounds and different message-size profiles have different
+    curves. (C) THE OBJECT IS PARADIGM-LEVEL AND THE MEASUREMENT NEEDS NO ATTACK. Nothing here depends
+    on any relation or hard problem: the object is a transcript layout and a hash-chaining construction,
+    both shared by the whole Fiat-Shamir-with-grinding family. Part (C) claims the entire measurement
+    can be made by counting compression calls in an instrumented hash wrapper, with no forgery attempted
+    and no false statement ever produced. (D) WHAT IS NOT CLAIMED. No forgery, no break, no speedup
+    against any scheme, no security consequence. It is NOT claimed that any deployed scheme''s accounting
+    charges the wrong per-attempt cost, since no specification has been read and the transcript layouts
+    swept here are declared reference layouts built for this measurement. It is NOT claimed that a
+    large A(r) is exploitable: an attacker who rewinds to an early round obtains cheaper attempts
+    but a smaller reachable challenge set, and this record deliberately measures only the cost side
+    and refuses to combine the two into an attack estimate. It is also NOT claimed that any third-party
+    proof system, library or deployment has any property, per the standing constraint on RQ-WFS-e776b6.'
+  mechanism: 'STAGE 1 builds a reference multi-round public-coin protocol with a parameterized transcript
+    layout: round count, per-round message sizes, and a switchable chaining construction (Merkle-Damgard-style
+    with retained intermediate state, and sponge-style without). No relation is proved; the prover
+    messages are declared-seed random bytes of the specified sizes, because the object is the layout.
+    STAGE 2 wraps the hash so every compression call is counted, and verifies the wrapper against
+    a hand-counted fixture at a tiny transcript size before any sweep runs. STAGE 3 measures P(r)
+    and A(r) directly by performing the rewind: hash the full transcript, then rewind to round r,
+    change one byte of the round-r message, and count calls actually executed under an implementation
+    that retains intermediate states versus one that does not. Both implementations run in the same
+    invocation, and their difference IS the measurement. STAGE 4 runs the null object: a transcript
+    layout in which every round message is padded to a full block boundary and the chaining is re-initialized
+    each round, so P(r) must be exactly 0 for every r by construction. If the counter reports nonzero
+    survival there, it is counting something other than reuse and the signal arm is void. STAGE 5
+    runs the structural tell from inventor-protocol section 3: A(r) must DECAY toward 1 as r approaches
+    the last round, because a rewind to the final round can reuse almost everything and therefore
+    must show maximal savings, while a rewind to round 0 must show none. A curve that is flat in r
+    is the artifact signature and is reported as such. STAGE 6 sweeps message-size profiles at fixed
+    round count to test claim (B)''s assertion that the profile and not the round count sets the shape.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'grep -rli in ledger/proposals for: Fiat-Shamir, grinding, transcript, hash chaining,
+      state restoration, rewind, MPCitH. Read titles and class of IDEA-20260808-95a21c, IDEA-20260805-bf6448,
+      IDEA-20260808-e8586d, IDEA-20260809-7d450f, IDEA-20260805-2a669e, IDEA-20260805-bb4bf8. Read
+      RQ-WFS-e776b6 in full, including its grinding-curve target, its state-restoration language and
+      its constraint forbidding examination of third-party systems.'
+    results: 'IDEA-20260808-95a21c is the nearest by a wide margin: it argues that the per-attempt
+      cost charged to a Fiat-Shamir-with-grinding forger is a full transcript hash while deployed
+      hash chaining lets a forger change only the last block, estimating an overstatement of about
+      8 to 13 bits at multi-kilobyte signatures. That record is an ANALYTIC argument about the last
+      block in a FAEST-shaped setting. It was not found to instrument a hash, count compression calls,
+      or produce a curve over rewind round. No record was found measuring P(r) or A(r), and none sweeps
+      message-size profiles at fixed round count. RQ-WFS-e776b6 names a measured grinding curve as
+      an explicit target and no proposal filling it with counted compression calls was found.'
+    verdict: 'UNVERIFIED. Nothing is asserted about published literature; hash-state reuse in Fiat-Shamir
+      grinding is very plausibly standard there. Assembled from known parts: Merkle-Damgard state
+      retention, incremental hashing and rewind-based amortization are all elementary and long known,
+      and IDEA-20260808-95a21c already states the last-block observation in this repository. Claimed
+      new relative to THIS repository only: turning that observation into a counted object measured
+      over the full rewind-round axis rather than at the last block alone, the block-aligned re-initialized
+      null layout that forces P(r) to zero by construction, and the decay-in-r structural tell used
+      as an artifact detector.'
+  object_first_candidate:
+    tracked_object: The surviving-compression-call count P(r) as a function of rewind round r, together
+      with the cumulative prefix-length profile that generates it, followed as the rewind point moves
+      from round 0 to the last round.
+    lossiness: Genuinely lossy. P(r) discards the transcript's content entirely, the prover messages,
+      the challenges, the hash outputs and the protocol's meaning, retaining one integer per rewind
+      point. It propagates because the per-attempt cost the accounting charges is a function of executed
+      compression calls alone, and executed calls are exactly total minus surviving. The discard is
+      compatible with the target operation because rewinding to round r changes nothing before the
+      first differing byte, so the surviving count is determined by the prefix length and the block
+      size and by nothing that was discarded. Tracking the full hash state instead would discard nothing
+      and would be a change of coordinates.
+    propagation: One step of the target operation is moving the rewind point one round later. Under
+      it, the prefix grows by that round's message length, so P increases by the number of additional
+      whole blocks the new prefix completes, an increment of floor arithmetic that depends only on
+      the cumulative length modulo the block size. The tracked object therefore performs a staircase
+      whose step positions are set by the size profile, and measuring the staircase against the predicted
+      floor formula is the experiment.
+    survival_score: 'The staircase description survives for any chaining construction that retains
+      intermediate state, and dissolves entirely for one that does not, where P(r) is identically
+      zero. The run reports both arms, and the survival number is the fraction of the round axis over
+      which the measured P(r) matches the floor formula exactly. A construction-dependent dissolution
+      is the honest answer here: the object exists in one implementation regime and not in another,
+      and the record refuses to average them.'
+  null_object_control: 'NULL-BLOCK-ALIGNED: a transcript layout in which every round message is padded
+    to a whole number of hash blocks AND the chaining state is re-initialized at each round, so that
+    no compression call can survive a rewind and P(r) must be exactly 0 for every r by construction.
+    It runs through the identical instrumented wrapper in the same invocation. For the signal arm
+    to mean anything, the null must report exactly zero survival at every r; any nonzero value means
+    the counter is attributing calls it should not, and no P(r) from the signal arm is admissible.
+    A second null, NULL-NO-CHANGE, rewinds to round r and changes NOTHING, where the surviving count
+    must equal the total, bounding the counter from the other side.'
+  discriminated_from:
+  - 'IDEA-20260808-95a21c, per-attempt cost as last-block versus full-transcript hashing: an analytic
+    estimate at the last block in a FAEST-shaped setting. This instruments a hash, counts compression
+    calls, and produces a curve over the entire rewind-round axis, of which the last block is one
+    point.'
+  - 'IDEA-20260805-bf6448, grinding slack as an interior optimum: an exact-rational audit of whether
+    a cost term is charged, with no hash evaluated. Here the hash is the instrument.'
+  - 'IDEA-20260808-e8586d, optimal multi-stage forgery split: an optimisation over stage boundaries
+    whose per-attempt cost is an input. This measures that input and never runs the optimisation.'
+  - 'The grinding-occupancy record elsewhere in this bucket: that measures the YIELD of a counter
+    budget, how many distinct challenges are obtained. This measures the PRICE of one attempt in compression
+    calls. The two are complementary factors of the same product and are deliberately kept in separate
+    records so neither can smuggle the other''s conclusion.'
+  - Any examination of a third-party proof system or library. RQ-WFS-e776b6 forbids it explicitly,
+    and every layout here is a reference layout built for this measurement and used only here.
+  assumptions:
+  - The reference transcript layout is a declared construction, not a model of any scheme. No specification
+    has been read and none is claimed.
+  - Compression-call counting through an instrumented wrapper is faithful, verified against a hand-counted
+    fixture at a tiny transcript before any sweep.
+  - Two chaining constructions, state-retaining and re-initializing, bracket the implementations of
+    interest. Constructions outside that bracket are named as out of scope rather than assumed away.
+  - Prover messages may be declared-seed random bytes, since only their LENGTHS enter the object.
+    If content mattered, P(r) would not be a function of the profile and the run would detect that
+    as a mismatch with the floor formula.
+  - Block size is a fixed constant of the chosen construction and is recorded with every measurement,
+    since P(r) is meaningless without it.
+  predictions:
+  - metric: surviving compression calls P(r) in NULL-BLOCK-ALIGNED
+    direction: lower
+    minimum_effect: 0
+  - metric: amortization ratio A(r) at r in the first third of the rounds, state-retaining arm, at
+      transcript sizes of a few kilobytes
+    direction: higher
+    minimum_effect: 2.0
+  - metric: agreement between measured P(r) and floor(prefix_bytes(r)/block_bytes)
+    direction: lower
+    minimum_effect: 0
+  - metric: change in A(r) shape when the message-size profile is varied at fixed round count
+    direction: different
+    minimum_effect: 'refuse to pre-commit a magnitude: the shape difference depends on where the profile''s
+      cumulative lengths fall relative to block boundaries, which is a swept quantity, so any single
+      forced number would be arbitrary'
+  minimal_test:
+    design: Fix a 12-round reference layout with a declared per-round message-size profile summing
+      to about 4 kilobytes, and a state-retaining SHA-256-style chaining construction with a 64-byte
+      block. Instrument the hash to count compression calls; verify the counter against a hand-counted
+      3-block fixture. For each r from 0 to 11, hash the full transcript, rewind to round r, flip
+      one byte of the round-r message, and count the calls actually executed under state retention
+      and under re-initialization. Compute P(r) and A(r). Run NULL-BLOCK-ALIGNED, where every message
+      is block-padded and the state re-initializes each round, and require P(r) exactly zero everywhere;
+      run NULL-NO-CHANGE and require surviving equals total. Compare measured P(r) to the floor formula.
+      Then re-run with two other size profiles at the same round count. Minutes of compute, no forgery,
+      no relation, and it yields a curve, a formula check and two bounding controls.
+    controls:
+    - 'NULL-BLOCK-ALIGNED with re-initialized chaining: P(r) must be exactly zero everywhere.'
+    - 'NULL-NO-CHANGE: rewind with no modification, surviving count must equal total.'
+    - Hand-counted fixture at a 3-block transcript verifying the instrumented counter before any sweep.
+    - State-retaining versus re-initializing constructions run at identical layouts, so the construction
+      is separated from the layout.
+    - Three message-size profiles at fixed round count, separating profile effects from round-count
+      effects.
+    required_metrics:
+    - surviving compression calls P(r) per rewind round, per construction, per profile
+    - total compression calls from scratch
+    - amortization ratio A(r)
+    - measured P(r) minus floor(prefix_bytes(r)/block_bytes)
+    - null-arm P(r), required zero
+    - no-change-arm surviving count, required equal to total
+    - block size and cumulative prefix profile per layout
+  falsification_conditions:
+  - NULL-BLOCK-ALIGNED reports nonzero surviving calls, voiding the counter.
+  - NULL-NO-CHANGE reports surviving less than total, voiding the counter from the other side.
+  - Measured P(r) disagrees with the floor formula anywhere in the state-retaining arm, falsifying
+    claim (A)'s exact form.
+  - A(r) is not monotone non-increasing in r, falsifying claim (B).
+  - A(r) is flat in r, marking the measurement an artifact under inventor-protocol section 3 rather
+    than a curve.
+  - A(r) does not exceed 2 anywhere in the first third of rounds at multi-kilobyte transcripts, falsifying
+    the magnitude in claim (B).
+  - Varying the size profile at fixed round count leaves A(r) unchanged, falsifying that the profile
+    sets the shape.
+  confounders:
+  - Padding and length-encoding rules of the chosen hash construction dominating the count, so what
+    looks like reuse is finalization bookkeeping. Mitigated by the hand-counted fixture and by reporting
+    finalization calls as a separate column never merged into P(r).
+  - An implementation that caches hash state for reasons unrelated to rewinding, inflating survival.
+    Mitigated by running the re-initializing construction at the identical layout.
+  - Transcript sizes chosen so that cumulative lengths land near block boundaries, exaggerating or
+    hiding staircase steps. Mitigated by three profiles chosen to place boundaries differently and
+    by reporting cumulative length modulo block size alongside every P(r).
+  - 'Reading a large A(r) as an attack advantage. Prevented structurally: the reachable-challenge
+    side is not measured here and the record forbids combining the two.'
+  interpretation_limits:
+  - A(r) is a cost-side quantity only. Combining it with a reachable-challenge count to produce an
+    attack estimate is outside this record and is explicitly refused.
+  - Results describe declared reference layouts and two chaining constructions, not any deployed scheme,
+    library or system, per the RQ-WFS-e776b6 constraint.
+  - 'P(r) is construction-dependent by design: it is identically zero for a re-initializing construction,
+    so no single number describes the family.'
+  - No relation, witness, false statement or forgery exists anywhere in this run, so nothing here
+    bears on soundness.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement costs O(rounds times profiles) transcript
+      hashes.
+    memory_exponent: No attack exponent is claimed. Memory is one hash state plus a few kilobytes
+      of transcript.
+    best_known: The incumbent is the full-transcript-hash-per-attempt charge used in grinding cost
+      models, and within this repository the analytic last-block argument of IDEA-20260808-95a21c.
+    hidden_overhead: 'Hidden in the lower-order terms is finalization: padding, length encoding and
+      output squeezing add calls that do not amortize, and an accounting that ignores them overstates
+      A(r). Human cost hides in the instrumented wrapper, which must count exactly the compression
+      calls and nothing else, and whose correctness the hand-counted fixture only partially establishes.'
+  dominated_by: n/a (no result claimed). All frontier axes were checked; this record places no attack
+    point on time, memory or queries, because no forgery is attempted and no statement is ever proved
+    or disproved.
+  sota_delta: no attack; conceptual/measurement contribution only
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Part (A), that P(r) equals the floor formula exactly for a state-retaining
+    construction: 0.75, with the residual risk entirely in finalization bookkeeping polluting the
+    count. Part (B), that A(r) is monotone and exceeds 2 in the first third of rounds at multi-kilobyte
+    transcripts: 0.7 for monotonicity, which is close to structural, and 0.5 for the magnitude threshold,
+    which depends on the declared profiles. That profile rather than round count sets the shape: 0.8.
+    Part (C), that the whole thing needs no attack: 0.95, since nothing in the design requires a false
+    statement to exist.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-WFS-e776b6
+  - RQ-FAEST-001
+  - IDEA-20260808-95a21c
+  - IDEA-20260805-bf6448
+  - IDEA-20260808-e8586d
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-CODESD-544044

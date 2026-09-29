@@ -172,7 +172,7 @@ def contract_from_idea(idea: dict, exp_id: str) -> tuple[dict, list[str]]:
             "maximum_runs": runs,
         },
         "stopping_rules": [
-            "Stop at maximum_runs or total_cpu_hours, whichever binds first.",
+            "Stop at the frozen scientific trial boundary; record CPU usage as telemetry, not a spending gate.",
             ("Stop immediately if the instrument fails its two-directional "
              "control (EXP-INSTR-2d32ba): measurements taken with a failed "
              "instrument are attempted_and_inconclusive, never evidence."),

@@ -1,0 +1,318 @@
+receipt_and_census_contract:
+  schema: crypto.autoresearch.syc_receipt_census_contract.v1
+  experiment_id: EXP-SYC-4efcae
+  task_id: TASK-20260809-092182
+  status: REVISE
+  implementation_authorized: false
+  execution_authorized: false
+  experiment_runs: 0
+
+  custody_open_falsifier:
+    predecessor_common_required_field_count: 13
+    predecessor_unknown_fields: reject
+    predecessor_payload_container_present: false
+    predecessor_custody_open_prerequisites: []
+    predecessor_prerequisite_digest_required: true
+    predecessor_no_prerequisite_encoding: null
+    result: REJECT_NO_CONFORMING_PREDECESSOR_INSTANCE
+    reason: >-
+      Omitting lifecycle fields violates custody_open; adding them at top level
+      or adding an unlisted payload object violates unknown-field rejection;
+      prerequisite_receipt_sha256 has no selected value.
+
+  receipt_grammar:
+    schema_id: syc4.receipt.v2
+    canonical_encoding: RFC8785_JCS_UTF8_no_trailing_newline
+    exact_top_level_fields:
+      - experiment_id
+      - receipt_id
+      - receipt_type
+      - recorded_at_UTC
+      - seed_class
+      - commitment_sha256
+      - public_manifest_sha256
+      - envelope_sha256
+      - external_key_id
+      - prerequisite_receipt_sha256
+      - payload
+      - payload_sha256
+      - status
+      - signatures
+    unknown_top_level_fields: reject
+    duplicate_keys: reject
+    payload_rule: exact_closed_object_selected_by_receipt_type
+    unknown_payload_fields: reject
+    payload_sha256_preimage: exact_RFC8785_JCS_UTF8_payload_object
+    no_prerequisite_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+    prerequisite_rule: >-
+      custody_open uses the no-prerequisite sentinel; every later receipt uses
+      SHA256 of the complete preceding receipt JCS including signatures.
+    signature_algorithm: Ed25519
+    signature_message: >-
+      SHA256 of ASCII SYC4-RECEIPT-v2, one zero byte, and exact RFC8785 JCS of
+      the receipt with the entire signatures field omitted.
+    signature_order: actor_role_then_actor_identifier_ascending_UTF8
+    signatures_unknown_fields: reject
+    signatures_exact_fields:
+      - actor_role
+      - actor_identifier
+      - signature_key_id
+      - signature_ed25519_hex
+    timestamps: RFC3339_UTC_second_precision_only
+    hex_digests: lowercase_exactly_64_hex
+    receipt_id: lowercase_exactly_32_hex
+
+  lifecycle_payload_schemas:
+    custody_open:
+      fields:
+        custodian_A_identifier: nonempty_UTF8_string
+        custodian_B_identifier: nonempty_UTF8_string
+        custodian_public_key_manifest_sha256: lowercase_64_hex
+        envelope_sha256: lowercase_64_hex
+        external_key_id: nonempty_UTF8_string
+        retention_deadline: RFC3339_UTC_second_precision
+      signed_by: [custodian_A, custodian_B]
+    snapshot_bound:
+      fields:
+        producer_snapshot_commit: lowercase_40_hex
+        producer_snapshot_receipt_sha256: lowercase_64_hex
+        envelope_sha256: lowercase_64_hex
+      signed_by: [coordinator_archiver]
+    independent_replay:
+      fields:
+        AAD_sha256: lowercase_64_hex
+        decrypted_seed_sha256: lowercase_64_hex
+        commitment_match: boolean
+        public_manifest_match: boolean
+        replay_output_sha256: lowercase_64_hex
+        replay_verdict: enum_PASS_or_FAIL
+      signed_by: [independent_replayer]
+    ledger_bound:
+      fields:
+        ledger_commit: lowercase_40_hex
+        ledger_archive_receipt_sha256: lowercase_64_hex
+        independent_replay_receipt_sha256: lowercase_64_hex
+      signed_by: [coordinator_archiver]
+    retention_close:
+      fields:
+        retention_deadline: RFC3339_UTC_second_precision
+        key_version_state_before_destruction: enum_enabled_or_disabled
+        all_prerequisites_verified: boolean_true_required
+      signed_by: [custodian_A, custodian_B]
+    destruction:
+      fields:
+        external_key_id: nonempty_UTF8_string
+        destroy_operation_receipt_digest: lowercase_64_hex
+        key_version_state_after_destruction: enum_destroyed
+        requery_nonexistence_evidence_digest: lowercase_64_hex
+      signed_by: [custodian_A, custodian_B]
+
+  signed_lifecycle_KAT_chain:
+    test_only: true
+    private_key_material_archived: false
+    key_manifest_sha256: bc27d6891fd6e271c9203baf85b7e633f494cb0f9b27f7c4f8cd8917938fa679
+    public_keys:
+      - {role: custodian_A, key_id: kat-custodian-A, public_key_hex: '03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8'}
+      - {role: custodian_B, key_id: kat-custodian-B, public_key_hex: '29acbae141bccaf0b22e1a94d34d0bc7361e526d0bfe12c89794bc9322966dd7'}
+      - {role: coordinator_archiver, key_id: kat-coordinator, public_key_hex: '2543b92ff1095511476adc8369db6ddc933665a11978dda1404ee1066ca9559d'}
+      - {role: independent_replayer, key_id: kat-replayer, public_key_hex: '174553b456dddfc6908ecab1c101fe6ab21e2baa0617795b7d43a63482993fd5'}
+    fixed_common_values:
+      experiment_id: EXP-SYC-4efcae
+      seed_class: target
+      commitment_sha256: 72dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c1229084
+      public_manifest_sha256: 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+      envelope_sha256: fd2fd0ad7d55027feaaf9959e845711a3ab8491c78b740a502c3a1e354ab62ef
+      external_key_id: 'test://syc4/kat-key-v2'
+      status: PASS
+    actor_identifier_rule: 'kat:{actor_role}'
+    key_manifest_JCS: '{"keys":[{"actor_role":"custodian_A","key_id":"kat-custodian-A","public_key_ed25519_hex":"03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8"},{"actor_role":"custodian_B","key_id":"kat-custodian-B","public_key_ed25519_hex":"29acbae141bccaf0b22e1a94d34d0bc7361e526d0bfe12c89794bc9322966dd7"},{"actor_role":"coordinator_archiver","key_id":"kat-coordinator","public_key_ed25519_hex":"2543b92ff1095511476adc8369db6ddc933665a11978dda1404ee1066ca9559d"},{"actor_role":"independent_replayer","key_id":"kat-replayer","public_key_ed25519_hex":"174553b456dddfc6908ecab1c101fe6ab21e2baa0617795b7d43a63482993fd5"}],"schema":"syc4.custodian_keys.v2"}'
+    fixture_payloads:
+      custody_open:
+        custodian_A_identifier: 'kat:custodian:A'
+        custodian_B_identifier: 'kat:custodian:B'
+        custodian_public_key_manifest_sha256: bc27d6891fd6e271c9203baf85b7e633f494cb0f9b27f7c4f8cd8917938fa679
+        envelope_sha256: fd2fd0ad7d55027feaaf9959e845711a3ab8491c78b740a502c3a1e354ab62ef
+        external_key_id: 'test://syc4/kat-key-v2'
+        retention_deadline: '2026-08-16T00:00:00Z'
+      snapshot_bound:
+        producer_snapshot_commit: '0123456789abcdef0123456789abcdef01234567'
+        producer_snapshot_receipt_sha256: '1111111111111111111111111111111111111111111111111111111111111111'
+        envelope_sha256: fd2fd0ad7d55027feaaf9959e845711a3ab8491c78b740a502c3a1e354ab62ef
+      independent_replay:
+        AAD_sha256: 30ab6bcbe997ac9aa41fa18247bc40689e35251abba32d39bb34492645162b24
+        decrypted_seed_sha256: '2222222222222222222222222222222222222222222222222222222222222222'
+        commitment_match: true
+        public_manifest_match: true
+        replay_output_sha256: '3333333333333333333333333333333333333333333333333333333333333333'
+        replay_verdict: PASS
+      ledger_bound:
+        ledger_commit: 89abcdef0123456789abcdef0123456789abcdef
+        ledger_archive_receipt_sha256: '4444444444444444444444444444444444444444444444444444444444444444'
+        independent_replay_receipt_sha256: fca10270b0879c9c2ed58d8cac4c286bcbc57e32a1075e7ee11bdd5277ecbc5f
+      retention_close:
+        retention_deadline: '2026-08-16T00:00:00Z'
+        key_version_state_before_destruction: enabled
+        all_prerequisites_verified: true
+      destruction:
+        external_key_id: 'test://syc4/kat-key-v2'
+        destroy_operation_receipt_digest: '5555555555555555555555555555555555555555555555555555555555555555'
+        key_version_state_after_destruction: destroyed
+        requery_nonexistence_evidence_digest: '6666666666666666666666666666666666666666666666666666666666666666'
+    receipts:
+      - type: custody_open
+        receipt_id: '00000000000000000000000000000001'
+        recorded_at_UTC: '2026-08-09T00:00:00Z'
+        prerequisite_receipt_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
+        payload_sha256: c0e31f3f861bb2be066a4d4dc9209d4d91c6c46ad50acc62a5cbfd62453854f0
+        unsigned_jcs_sha256: 583e83dc823ce9c898120e18a8494c17ce71d67381e1bd4cfb125513ae082224
+        signature_message_sha256: 2a3109bf07daaaaedede51c00b718e25b0777e7d5beed4025da373c1ed59648c
+        full_jcs_length_bytes: 1586
+        full_receipt_sha256: 4680ee6133b5a454bd959ec3813c49f321e6920f1956cc32439044eeb004eed0
+        signature_hex_by_role:
+          custodian_A: f519f7d9babfb2660f87692d50c91807763838ae58f255a5a3113c80fb463cd9527e9e9e14af84a8e1c865282f2cd7155a4f472fbcf7db50fa6b347acfb08c06
+          custodian_B: 4e1145a8a08eb2f3026a11520625f6fe46aa31fe2b6a74789162648f6257fd670a1004b1c26d68a6bdfb38173d9983133bcc7fb79acf7b05eb14a30e6a96fb03
+      - type: snapshot_bound
+        receipt_id: '00000000000000000000000000000002'
+        recorded_at_UTC: '2026-08-09T00:00:01Z'
+        prerequisite_receipt_sha256: 4680ee6133b5a454bd959ec3813c49f321e6920f1956cc32439044eeb004eed0
+        payload_sha256: 3e4c9555886d1f02d47edad3db128d83d61500474dd1a42da906c06ea01f70f2
+        unsigned_jcs_sha256: 55dcf4c86296b568bf29f95c2549e5b0652e6980e94395b199dbab42246c696c
+        signature_message_sha256: 1c244e702f55dfb3e22373bee1564a491507760d7baf9f9d4c5b6d562a739173
+        full_jcs_length_bytes: 1241
+        full_receipt_sha256: 7ed6506f0e33cf410d89ecccabad076e8d52cc872cdf805e507a771feab2731b
+        signature_hex: 644dac5ef6d6af755f713ce2b8ed15a41e1153fd2e4bb95d1d56c5a040cec0c6841d4d5573fea7ba4f6d7c3e1795830b7361da5b7b5c899983a910abfd7ba900
+      - type: independent_replay
+        receipt_id: '00000000000000000000000000000003'
+        recorded_at_UTC: '2026-08-09T00:00:02Z'
+        prerequisite_receipt_sha256: 7ed6506f0e33cf410d89ecccabad076e8d52cc872cdf805e507a771feab2731b
+        payload_sha256: 19b5c375390ab46899270b65f9f07b349d10b12b36907e7e164b53aebd0fc9fb
+        unsigned_jcs_sha256: e662e00515a3b6a510b27d82c4c148e0d9d9920857a2abb3c941927579cd6ca0
+        signature_message_sha256: 79a5fe2860b95e8678ebc1cd1bdb0f3f5e62ff6c03c93965cf7e7337028aa170
+        full_jcs_length_bytes: 1323
+        full_receipt_sha256: fca10270b0879c9c2ed58d8cac4c286bcbc57e32a1075e7ee11bdd5277ecbc5f
+        signature_hex: 06b91a8a6ced5c2424fa51ab07b3042c15c7d2061f87f0aca7bbbe33d36ff8aff1cfd15f91ff3233742324bac21f4bb20a829228b964ff773902519a45185c04
+      - type: ledger_bound
+        receipt_id: '00000000000000000000000000000004'
+        recorded_at_UTC: '2026-08-09T00:00:03Z'
+        prerequisite_receipt_sha256: fca10270b0879c9c2ed58d8cac4c286bcbc57e32a1075e7ee11bdd5277ecbc5f
+        payload_sha256: a99d10dfd368431f8272a9248e0d53e508eb554ac652f31816533a22adfb37bf
+        unsigned_jcs_sha256: 311ea32852e6fb7df66523812db06e69b4e88cb9f399266aa501cee166b05f35
+        signature_message_sha256: a802afb90bde931ce63c42e0f6a1ca89c661928a9f55bf3172b49a21da20b264
+        full_jcs_length_bytes: 1243
+        full_receipt_sha256: 3be9f98e98d820c749241655814ad39e1c7223e15ae6683336b56fe7d7230b3d
+        signature_hex: 707cb024b4c0ebce20de44bb8c57761fc903c68851d73dbb33c4ccf20e7413aac7d17e2d8fe8df595dd0fc1cb052fcbed0e37b16b68b1bafd6a6cfeb500f9309
+      - type: retention_close
+        receipt_id: '00000000000000000000000000000005'
+        recorded_at_UTC: '2026-08-09T00:00:04Z'
+        prerequisite_receipt_sha256: 3be9f98e98d820c749241655814ad39e1c7223e15ae6683336b56fe7d7230b3d
+        payload_sha256: e489d39e1928cbf998ea9ba0372192d80c47850f553cf90a919c3ae73164e864
+        unsigned_jcs_sha256: f759a8d1a41df8d40db1914437ee1255dbd8ceb092cd1439e9ff626317eeb47b
+        signature_message_sha256: 61ea8574a8f96e95bbf1ea66f2ecf5a82ef416a51e62fbfc54df3009da91845c
+        full_jcs_length_bytes: 1352
+        full_receipt_sha256: 6ad7fe04635d543db978e081ae9abdabf810057e8df91b906e2c72376140bc91
+        signature_hex_by_role:
+          custodian_A: 6c54c6c5296e0ae41241f74e15c141beeb312abfa9bb1b58a798a0b6649f333a70c98ba37830a14a2c91049b36ca0e5ac271e167fa05ab2b1eb5190bb0770b00
+          custodian_B: 4506784ac62fcc06437005425270f70774ea67f6c444b8c9c4abada6590df91243e393645ab628f09b850d27ef63dd9df2e11e66072db6e855e52dbe1af0040c
+      - type: destruction
+        receipt_id: '00000000000000000000000000000006'
+        recorded_at_UTC: '2026-08-09T00:00:05Z'
+        prerequisite_receipt_sha256: 6ad7fe04635d543db978e081ae9abdabf810057e8df91b906e2c72376140bc91
+        payload_sha256: 5776d4b6906744e04a9c87ed1a2edbfb2aac13e1ffe51cfaa3324bf1973be401
+        unsigned_jcs_sha256: a4793d7e3d6c6e00af8ee46d7cfe5be3ea9c9ee5845288edbd91ab06ec7ab66e
+        signature_message_sha256: 72c7f53cef795cb347741df6b89c7dcafabe046519dee236be4432334f7c0b37
+        full_jcs_length_bytes: 1522
+        full_receipt_sha256: f3b89e96c1a3b611967b27adce687b9520f1e6a3c87cd260bd0528c4c632049f
+        signature_hex_by_role:
+          custodian_A: 6926d3b1fc09ae425051f2d325a92f36d2f57fa2dbed54bba520f66637e7d2fd24d56f0c15eed13cc3ff5d009abd2dc75364534518f49dda438d84b648d57b03
+          custodian_B: bf6d34860a508d8c403e78b0f634b25cd4cf427818c4207f936ca8e564628840f244a0ee5289bbffb30a778da4669ed510a69cda4a5b7dcc27cc95d9bfd5ee06
+    verdict: PASS_STATIC_KAT_CHAIN
+
+  consumer_split_census:
+    event_key_fields: [class_id, bits, consumer_id, event_index_within_consumer]
+    consumer_order: [setup, treatment, control, candidate, rho, bsgs]
+    block_identity_fields: [class_id, bits, consumer_id, consumer_block_index]
+    block_rule: >-
+      For each nonempty consumer half-open range independently, local block j is
+      [j*q,min(n_consumer,(j+1)*q)). The global event range is obtained only by
+      adding the frozen consumer prefix. A block never crosses a consumer.
+    bits18_block2231_replay:
+      q: 13108
+      predecessor_interval: '[29243948,29257056)'
+      consumer_boundary: 29255888
+      treatment_count: 11940
+      control_count: 1168
+      predecessor: REJECT
+      successor_treatment_local_last_block: '[29243948,29255888)'
+      successor_control_local_first_block_globalized: '[29255888,29268996)'
+      successor: PASS_NO_MIXED_CONSUMER_BLOCK
+    receipt_count_recomputation:
+      predecessor_total: 5660902
+      split_row_deltas:
+        treatment_and_control_group_additions: [0, 1, 0, 0, 0]
+        signed_y_and_null_labels: [0, 1, 1, 1, 1]
+        SHAKE_fixed_blocks: [1, 1, 1, 1, 1]
+      total_delta: 10
+      successor_total: 5660912
+      non_split_rows_unchanged: true
+      every_event_exactly_once: required
+
+  lossless_block_receipt_encoding:
+    encoding: fixed_width_big_endian_SYC4_BLOCK_v2
+    width_bytes: 280
+    fields:
+      - {name: version, type: uint8, bytes: 1}
+      - {name: class_code, type: uint8, bytes: 1}
+      - {name: bits_code, type: uint8, bytes: 1}
+      - {name: consumer_code, type: uint8, bytes: 1}
+      - {name: consumer_block_index, type: uint32, bytes: 4}
+      - {name: first_event_index, type: uint64, bytes: 8}
+      - {name: last_event_index_exclusive, type: uint64, bytes: 8}
+      - {name: per_shard_event_counts, type: eight_uint32_unused_zero, bytes: 32}
+      - {name: aggregate_cpu_ns_bounds, type: two_uint64, bytes: 16}
+      - {name: wall_monotonic_ns_bounds, type: two_uint64, bytes: 16}
+      - {name: energy_nJ_bounds, type: two_uint64, bytes: 16}
+      - {name: physical_read_bytes_bounds, type: two_uint64, bytes: 16}
+      - {name: physical_write_bytes_bounds, type: two_uint64, bytes: 16}
+      - {name: peak_live_bytes_bounds, type: two_uint64, bytes: 16}
+      - {name: archive_and_communication_exact, type: two_uint64, bytes: 16}
+      - {name: wiring_line_touch_bounds, type: two_uint64, bytes: 16}
+      - {name: logical_operation_counts_sha256, type: bytes32, bytes: 32}
+      - {name: input_digest, type: bytes32, bytes: 32}
+      - {name: output_digest, type: bytes32, bytes: 32}
+    width_sum_identity: 4+4+16+32+16+16+16+16+16+16+16+16+32+32+32=280
+    path_rule: 'census/{bits_code}/{class_code}/{consumer_code}/{consumer_block_index_be32_hex}.bin'
+    missing_duplicate_overflow_or_unknown_code: invalidates
+    compression_credit_before_exact_bound: forbidden
+
+  resource_residual:
+    receipt_count: 5660912
+    receipt_width_bytes: 280
+    exact_receipt_bytes: 1585055360
+    predecessor_archive_scheduled_bytes: 1854585088
+    legacy_metadata_reserve_replaced_bytes: 524288
+    successor_archive_scheduled_bytes: 3439116160
+    unchanged_archive_cap_bytes: 2307745600
+    archive_overage_bytes: 1131370560
+    predecessor_communication_scheduled_bytes: 1871362304
+    successor_communication_if_each_receipt_transmitted_bytes: 3455893376
+    unchanged_communication_cap_bytes: 2328717120
+    communication_overage_if_each_receipt_transmitted_bytes: 1127176256
+    sandbox_blocks: 480
+    sandbox_reset_counter_receipts_included_in_280_byte_census: false
+    additional_sandbox_cost_unknown: true
+    verdict: REVISE
+    limitation: >-
+      This is a conservative lossless fixed-width representation of every
+      predecessor-required receipt field. A later successor may prove a smaller
+      injective bounded encoding, but may not assume compression, drop raw
+      directed intervals or digests, coarsen the census, or enlarge a cap.
+
+  authority:
+    approved_by: null
+    implementation_authorized: false
+    execution_authorized: false
+    maximum_runs: 0
+    evidence_claimed: false
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_selected_or_contacted: false

@@ -1,0 +1,84 @@
+schema: crypto.autoresearch.ecdlp.instance-manifest.v4
+encoding: YAML-1.2
+point_encoding: fixed_width_little_endian_coordinates_with_ff_infinity
+required_fields:
+  - instance_id
+  - pair_id
+  - role
+  - seed
+  - p
+  - p_primality_witness
+  - curve_a
+  - curve_b
+  - discriminant_nonzero_witness
+  - curve_order
+  - curve_order_count_method
+  - subgroup_order
+  - subgroup_primality_witness
+  - cofactor
+  - base_point_P
+  - base_point_order_certificate
+  - twist_order
+  - twist_cofactor
+  - non_anomalous_certificate
+  - embedding_degree
+  - automorphism_kind
+  - automorphism_formula
+  - automorphism_field_witness
+  - automorphism_order
+  - declared_generators
+  - map_entry_schema_version
+  - generated_group_maps
+  - composition_table
+  - group_closure_witness
+  - group_order_certificate
+  - subgroup_eigenvalue_lambda
+  - eigenvalue_certificate
+  - allowed_stabilizer_sizes
+  - effective_orbit_size
+  - stabilizer_certificate
+  - pair_token
+  - target_derivation_preimage
+acceptance:
+  p:
+    range: 2 <= p < 2^18
+    primality: deterministic_miller_rabin_bases_[2,3,5,7,11,13,17]
+  curve:
+    equation: y^2 = x^3 + a*x + b mod p
+    nonsingular: (4*a^3 + 27*b^2) mod p != 0
+    order: exhaustive_x_count_plus_infinity
+  subgroup:
+    curve_order: h*n
+    n_prime: deterministic_trial_division_for_n_lt_2^18
+    cofactor: h <= 4
+    size: n.bit_length() >= p.bit_length()-2
+    point: P_on_curve_and_nP_is_infinity_and_P_not_infinity
+  twist:
+    count: independent_quadratic_twist_enumeration
+    disposition: certificate_recorded_but_twist_never_admitted_as_primary
+  ordinary:
+    non_anomalous: curve_order != p
+    embedding_degree: no_k_in_[1,12]_with_p^k mod n == 1
+  automorphism:
+    map_entry_schema:
+      required_fields: [map_index, generator_word, formula, field_witness, composition_row, map_on_P, certified_scalar_lambda, scalar_certificate, replay_witness]
+      index_rule: contiguous_zero_based_unique_indices
+      closure_rule: every_entry_is_the_duplicate_free_closure_of_declared_generators
+      selected_map_rule: canonicalization_receipt_references_map_index_and_that_entry_lambda
+    field: formula_coefficients_in_F_p_and_every_generated_map_replays_on_every_curve_point
+    subgroup: every_generated_map_preserves_subgroup_and_its_own_certified_scalar_lambda_is_replayed_on_P
+    closure: generated_group_maps_is_exact_duplicate_free_closure_of_declared_generators_and_composition_table_replays_every_map_pair
+    order: automorphism_order == len(generated_group_maps) == independently_recomputed_group_order_and_group_closure_witness_length
+    stabilizer: >-
+      For every emitted state, stabilizer_size is in the complete positive
+      divisor list allowed_stabilizer_sizes, the replayed fixing-map count is
+      exactly stabilizer_size, and effective_orbit_size * stabilizer_size equals
+      automorphism_order.
+  pairing:
+    pair_token: recomputed_from_seed_group_id_field_bits_only
+    target: recomputed_from_pair_token_and_subgroup_order_only
+    source_random_invariance: exact_match_required
+rejection:
+  fail_closed: true
+  disposition: invalid_infrastructure_row_not_mathematical_evidence
+

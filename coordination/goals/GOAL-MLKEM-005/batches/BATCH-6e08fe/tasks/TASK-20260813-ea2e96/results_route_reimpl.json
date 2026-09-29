@@ -1,0 +1,1358 @@
+{
+ "task_id": "TASK-20260813-ea2e96",
+ "batch_id": "BATCH-6e08fe",
+ "goal_id": "GOAL-MLKEM-005",
+ "role": "executor",
+ "claim_tier": "toy",
+ "certificate": {
+  "kind": "none",
+  "reason": "no discrete-log solve and no factor-base relation is claimed or produced anywhere in this script; the D_route' comparison is an INSTRUMENT / INDEPENDENCE CHECK, not a certificate"
+ },
+ "governed_by": {
+  "prereg": "coordination/goals/GOAL-MLKEM-005/batches/BATCH-6e08fe/tasks/TASK-20260813-cdcd88/prereg.md",
+  "sha256": "ff577564dcdbb45b1b19885297ffc512888f9442dc99f2057fdf7f86f63fbbda",
+  "notarizing_commit": "1e1acf08b151dd31b4d41b8afd287d261adce1e5"
+ },
+ "environment_check": {
+  "fpylll_available": false,
+  "fpylll_import_error": "ModuleNotFoundError: No module named 'fpylll'",
+  "alternative_lattice_libraries_checked": [
+   "sagemath (not installed)",
+   "python-flint (not installed)",
+   "any third-party BKZ/LLL package (none found via pip list)"
+  ],
+  "conclusion": "options 2.2(2)(i)/(ii) of PREREG-4 are UNAVAILABLE in this run environment; option 2.2(2)(iii) (from-scratch pure Python/numpy routine) is used"
+ },
+ "implementation_choice_declaration": "ROUTE-I' implementation choice (PREREG-4 section 2.2), declared here BEFORE any D_route' number is computed and checkable against the committed script below:\n\n1. Environment check performed FIRST: this run environment has NO fpylll installed (`import fpylll` fails with ModuleNotFoundError) and no other independently maintained lattice-reduction library is installed (checked: no sagemath, no python-flint/pari lattice routines, no third-party BKZ/LLL package). Options 2.2(2)(i) and 2.2(2)(ii) are therefore UNAVAILABLE in this environment and are not used. This is recorded as an infrastructure fact, not asserted.\n2. This script instead uses option 2.2(2)(iii): a from-scratch reduction/enumeration routine in pure Python/numpy, written without consulting make_A/build_basis/hkz_profile's source in measure_am4.py/measure_relvar.py/replicate_l7l8.py or any descendant (including BATCH-4ed139's replicate_l7l8.py). Specifically:\n   (a) basis construction reconstructs the SAME numeric matrix A from the frozen, already-public seed formula (default_rng([1,d,k,i]).integers(0,q,(k,d-k))) -- per PREREG-4 2.2(3), this is explicitly NOT code-sharing: it is producing an identical, publicly declared input independently, which is what every route in this corpus (including ROUTE-P) already does. The same [[I_k,A],[0,qI_{d-k}]] block structure is used because that is the definition of the lattice being measured, not a copied routine.\n   (b) the reduction/enumeration step itself -- the step hkz_profile() performs in the barred lineage -- is replaced by a SEPARATE, INDEPENDENTLY WRITTEN implementation: (i) a standard floating-point LLL reduction (Lenstra-Lenstra-Lovasz, delta=0.99) written from the textbook algorithm with incremental Gram-Schmidt/mu-matrix bookkeeping, using only numpy dot products and no fpylll call anywhere; and (ii) a from-scratch depth-first Schnorr-Euchner-style enumeration search (also textbook, not fpylll's Enumeration class) run on top of the LLL basis to find the EXACT shortest nonzero lattice vector (lambda_1), bounded by the LLL vector's own norm as the starting search radius, with per-basis time caps.\n3. lam1n' is computed from the EXACT enumerated lambda_1 (not merely an LLL approximation) wherever enumeration completes within its per-basis cap: lam1n'(L,i) = exp(0.5*log(lambda_1^2) - logdet/d). Because HKZ reduction's own defining property makes its first vector equal to lambda_1 exactly, an exact independent lambda_1 is mathematically the identical quantity ROUTE-P's HKZ pipeline reports at index 0, regardless of which algorithm found it -- so this is a genuine, algorithm-independent check for lam1n specifically. Where the per-basis enumeration cap is hit before an exact result is found, the LLL basis's own first-vector norm is reported instead, EXPLICITLY FLAGGED per basis as 'LLL_UPPER_BOUND (exact enumeration timed out)' and distinguished from an exact result in every output row; a flagged basis is excluded from that cell's matched-basis count for D_route' rather than silently included as if exact.\n4. hkz'(L,beta,i) is computed from the GSO tail of the SAME LLL-reduced (delta=0.99) basis: hkz'(L,beta,i) = mean_{j>=d-beta}(log||b*_j||) - logdet/d, exactly PREREG-4/PREREG-3's own formula for the observable, but evaluated on an LLL-quality reduced basis rather than a full BKZ+explicit-HKZ-sweep+verification basis. THIS IS DECLARED HERE AS AN EXPLICIT LIMITATION, NOT HIDDEN: unlike lam1n (whose index-0 value is algorithm-independent by definition once the true minimum is found), the GSO tail profile at indices 1..d-1 of a merely-LLL-reduced basis is not certified to equal the profile of an HKZ-reduced basis, so hkz' D_route' may reflect real reduction-quality differences between LLL and full BKZ/HKZ, in addition to (or instead of) genuine cross-implementation noise. This is reported as part of the result, not smoothed over: hkz' is a genuinely independent, non-code-shared measurement of the SAME lattice under a DIFFERENT (and by construction weaker) reduction depth than ROUTE-P's HKZ pipeline, and any resulting disagreement is reported as measured, without claiming it isolates code-sharing from reduction-quality as a cause.\n5. logdet(L) = (d-k)*log(q) is used as the closed-form determinant (exact for B = [[I_k,A],[0,qI_{d-k}]], independent of A and of any reduction) -- a basic linear-algebra fact, not a transcription of any barred function.\n6. No fpylll import, no fpylll call, and no import of measure_am4.py / measure_relvar.py / replicate_l7l8.py or any function from them appears anywhere in this script (checkable by grep against the committed file).\n7. results_l7l8.json and results_am4.json are NEVER read anywhere in this script (checkable by grep); they are excluded as a ROUTE-P source per PREREG-4 2.1.",
+ "R_IV_OUT_0_RC3": {
+  "text": "BATCH-fbb639's coverage table (R-C-OUT-0 of results_c3lane.json) falsely marks hkz/L9_b15 and hkz/L11_b20 as COVERED (route_i_available: true). results_am4.json's gates.hkz.G_REL1.all block reports hkz only at the two REL1_PAIR endpoint betas per lattice (L9: 7 and 22; L11: 10 and 30) -- never the middle beta either lattice's 3-point grid uses (L9: 15; L11: 20), and measure_c3lane.py never reads X_hi. hkz/L9_b15 and hkz/L11_b20 are restated as UNCOVERED, not COVERED. Two further cells, hkz/L9_b22 and hkz/L11_b30, cite the WRONG beta's value as their D_route source (the beta_lo comparison was reused instead of the true beta_hi comparison). hkz/L9_b22 and hkz/L11_b30 are restated with the corrected TRUE beta_hi-based D_route source -- am4_X_hi compared against relvar's own G_REL1 X_b at basis 0 -- numerically UNCHANGED at exactly 0.0 for both cells (probe_coverage_beta_mismatch_output.json, per_cell_beta_coverage_audit[\"hkz/L9_b22\"].TRUE_beta_hi_comparison and [\"hkz/L11_b30\"].TRUE_beta_hi_comparison, true_abs_deviation: 0.0 in both). lam1n's equivalent beta reuse is verified LEGITIMATE and is explicitly excluded from this correction: lam1n's X_lo == X_hi exactly at both lattices, so any beta's comparison genuinely is \"the\" comparison for it. GENUINE COVERAGE NARROWS FROM 18 TO 16 OF 27: lam1n 9/9 unaffected, hkz 7/9 genuinely covered (L7 all 3: b5/b10/b15; L9: b7/b22; L11: b10/b30). THIS SUPERSEDES THE 18/27 COVERAGE FRACTION and the per-cell source attribution for these 4 named cells wherever either is quoted without this correction in the same sentence.",
+  "source_path": "coordination/goals/GOAL-MLKEM-005/batches/BATCH-fbb639/reviews/TASK-20260813-6ab893/probes/probe_coverage_beta_mismatch_output.json",
+  "source_sha256": "63ea8124d898d27abb8af141ba05d9231bbc297ebbc4452fe685a329cc4f55b1",
+  "carried_not_recomputed": true,
+  "recomputed_by_this_task": false,
+  "hkz_L9_b22_true_abs_deviation": 0.0,
+  "hkz_L11_b30_true_abs_deviation": 0.0,
+  "hkz_L9_b15_restated": "UNCOVERED",
+  "hkz_L11_b20_restated": "UNCOVERED",
+  "genuine_coverage_16_of_27": true
+ },
+ "R_IV_OUT_1_coverage_audit": {
+  "source": "results_relvar.json G_REL1 block ONLY (PREREG-4 2.1)",
+  "source_sha256": "c5b2918dccf1b58261eed1e9d221f1074ae6143f2a8fc5c0f42ff475646ccd6d",
+  "results_l7l8_json_used_as_route_p_source": false,
+  "results_am4_json_used_as_route_p_source": false,
+  "n_covered_of_18": 12,
+  "per_cell": {
+   "lam1n/L7_b5": {
+    "candidate": "lam1n",
+    "lattice": "L7",
+    "beta": 5,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "lam1n/L7_b10": {
+    "candidate": "lam1n",
+    "lattice": "L7",
+    "beta": 10,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "lam1n/L7_b15": {
+    "candidate": "lam1n",
+    "lattice": "L7",
+    "beta": 15,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   },
+   "lam1n/L9_b7": {
+    "candidate": "lam1n",
+    "lattice": "L9",
+    "beta": 7,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "lam1n/L9_b15": {
+    "candidate": "lam1n",
+    "lattice": "L9",
+    "beta": 15,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "lam1n/L9_b22": {
+    "candidate": "lam1n",
+    "lattice": "L9",
+    "beta": 22,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   },
+   "lam1n/L11_b10": {
+    "candidate": "lam1n",
+    "lattice": "L11",
+    "beta": 10,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "lam1n/L11_b20": {
+    "candidate": "lam1n",
+    "lattice": "L11",
+    "beta": 20,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "lam1n/L11_b30": {
+    "candidate": "lam1n",
+    "lattice": "L11",
+    "beta": 30,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L7_b5": {
+    "candidate": "hkz",
+    "lattice": "L7",
+    "beta": 5,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L7_b10": {
+    "candidate": "hkz",
+    "lattice": "L7",
+    "beta": 10,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "hkz/L7_b15": {
+    "candidate": "hkz",
+    "lattice": "L7",
+    "beta": 15,
+    "d": 20,
+    "k": 6,
+    "beta_lo": 5,
+    "beta_hi": 15,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L9_b7": {
+    "candidate": "hkz",
+    "lattice": "L9",
+    "beta": 7,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L9_b15": {
+    "candidate": "hkz",
+    "lattice": "L9",
+    "beta": 15,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "hkz/L9_b22": {
+    "candidate": "hkz",
+    "lattice": "L9",
+    "beta": 22,
+    "d": 30,
+    "k": 9,
+    "beta_lo": 7,
+    "beta_hi": 22,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L11_b10": {
+    "candidate": "hkz",
+    "lattice": "L11",
+    "beta": 10,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_a @ beta_lo",
+    "route_p_n_bases_available": 8
+   },
+   "hkz/L11_b20": {
+    "candidate": "hkz",
+    "lattice": "L11",
+    "beta": 20,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": true,
+    "route_p_covered": false,
+    "route_p_field_used": null,
+    "route_p_n_bases_available": 0
+   },
+   "hkz/L11_b30": {
+    "candidate": "hkz",
+    "lattice": "L11",
+    "beta": 30,
+    "d": 40,
+    "k": 12,
+    "beta_lo": 10,
+    "beta_hi": 30,
+    "is_middle_beta": false,
+    "route_p_covered": true,
+    "route_p_field_used": "X_b @ beta_hi",
+    "route_p_n_bases_available": 8
+   }
+  }
+ },
+ "route_i_prime_per_basis_log": {
+  "L7/i0": {
+   "status": "ok",
+   "lll_secs": 1.2452802658081055,
+   "enum_secs": 0.001870870590209961,
+   "enum_nodes": 398,
+   "svp_exact": true,
+   "lam1n_prime": 1.2015750508421945,
+   "hkz_prime_at_beta": {
+    "5": -0.23129134435051402,
+    "10": -0.16813853774178167,
+    "15": -0.06898780808637817
+   }
+  },
+  "L7/i1": {
+   "status": "ok",
+   "lll_secs": 1.1457717418670654,
+   "enum_secs": 0.002537250518798828,
+   "enum_nodes": 500,
+   "svp_exact": true,
+   "lam1n_prime": 1.2556231391263477,
+   "hkz_prime_at_beta": {
+    "5": -0.17600351665803693,
+    "10": -0.13190053299873306,
+    "15": -0.07236534621925017
+   }
+  },
+  "L7/i2": {
+   "status": "ok",
+   "lll_secs": 1.2284929752349854,
+   "enum_secs": 0.004148244857788086,
+   "enum_nodes": 743,
+   "svp_exact": true,
+   "lam1n_prime": 1.2754523327616436,
+   "hkz_prime_at_beta": {
+    "5": -0.20065622465360367,
+    "10": -0.1619919141567383,
+    "15": -0.08004486710722514
+   }
+  },
+  "L7/i3": {
+   "status": "ok",
+   "lll_secs": 1.1455821990966797,
+   "enum_secs": 0.0009768009185791016,
+   "enum_nodes": 207,
+   "svp_exact": true,
+   "lam1n_prime": 1.1289658878699975,
+   "hkz_prime_at_beta": {
+    "5": -0.17578651472596274,
+    "10": -0.11955690064765445,
+    "15": -0.05672133243605337
+   }
+  },
+  "L7/i4": {
+   "status": "ok",
+   "lll_secs": 1.218817949295044,
+   "enum_secs": 0.0022666454315185547,
+   "enum_nodes": 461,
+   "svp_exact": true,
+   "lam1n_prime": 1.1976784363318553,
+   "hkz_prime_at_beta": {
+    "5": -0.2208598680444922,
+    "10": -0.1477771040381315,
+    "15": -0.073470606188625
+   }
+  },
+  "L7/i5": {
+   "status": "ok",
+   "lll_secs": 1.2250847816467285,
+   "enum_secs": 0.002239704132080078,
+   "enum_nodes": 448,
+   "svp_exact": true,
+   "lam1n_prime": 1.2154714847976291,
+   "hkz_prime_at_beta": {
+    "5": -0.21714653363626635,
+    "10": -0.15351206621753555,
+    "15": -0.0645284073058745
+   }
+  },
+  "L7/i6": {
+   "status": "ok",
+   "lll_secs": 1.3360936641693115,
+   "enum_secs": 0.002185344696044922,
+   "enum_nodes": 391,
+   "svp_exact": true,
+   "lam1n_prime": 1.2151292647810479,
+   "hkz_prime_at_beta": {
+    "5": -0.18861917242839432,
+    "10": -0.14021183959950623,
+    "15": -0.04974300257085407
+   }
+  },
+  "L7/i7": {
+   "status": "ok",
+   "lll_secs": 1.1957969665527344,
+   "enum_secs": 0.0032460689544677734,
+   "enum_nodes": 597,
+   "svp_exact": true,
+   "lam1n_prime": 1.2074060968567872,
+   "hkz_prime_at_beta": {
+    "5": -0.2486421436786177,
+    "10": -0.14316943304488738,
+    "15": -0.07424008447718755
+   }
+  },
+  "L9/i0": {
+   "status": "ok",
+   "lll_secs": 8.526248455047607,
+   "enum_secs": 0.1613767147064209,
+   "enum_nodes": 26694,
+   "svp_exact": true,
+   "lam1n_prime": 1.3988581702782168,
+   "hkz_prime_at_beta": {
+    "7": -0.40100786464868676,
+    "15": -0.29029194754742615,
+    "22": -0.14403819750059288
+   }
+  },
+  "L9/i1": {
+   "status": "ok",
+   "lll_secs": 7.455291986465454,
+   "enum_secs": 0.2754204273223877,
+   "enum_nodes": 40495,
+   "svp_exact": true,
+   "lam1n_prime": 1.2494545722223411,
+   "hkz_prime_at_beta": {
+    "7": -0.45756264908998734,
+    "15": -0.3000046935515144,
+    "22": -0.15320281244563017
+   }
+  },
+  "L9/i2": {
+   "status": "ok",
+   "lll_secs": 7.685155630111694,
+   "enum_secs": 0.07347464561462402,
+   "enum_nodes": 12015,
+   "svp_exact": true,
+   "lam1n_prime": 1.3725689453747225,
+   "hkz_prime_at_beta": {
+    "7": -0.3464090867608043,
+    "15": -0.26091848463311695,
+    "22": -0.13369644531998404
+   }
+  },
+  "L9/i3": {
+   "status": "ok",
+   "lll_secs": 7.612550497055054,
+   "enum_secs": 0.20845389366149902,
+   "enum_nodes": 32560,
+   "svp_exact": true,
+   "lam1n_prime": 1.4970943772211558,
+   "hkz_prime_at_beta": {
+    "7": -0.376732851054542,
+    "15": -0.23476738158520494,
+    "22": -0.12624605129408195
+   }
+  },
+  "L9/i4": {
+   "status": "ok",
+   "lll_secs": 8.489352703094482,
+   "enum_secs": 0.13554954528808594,
+   "enum_nodes": 21996,
+   "svp_exact": true,
+   "lam1n_prime": 1.4421407796971528,
+   "hkz_prime_at_beta": {
+    "7": -0.37775757781648256,
+    "15": -0.24604318589708818,
+    "22": -0.1286254373149065
+   }
+  },
+  "L9/i5": {
+   "status": "ok",
+   "lll_secs": 8.030444383621216,
+   "enum_secs": 0.1402120590209961,
+   "enum_nodes": 22400,
+   "svp_exact": true,
+   "lam1n_prime": 1.4854556739008182,
+   "hkz_prime_at_beta": {
+    "7": -0.33916562392921534,
+    "15": -0.22473349207086724,
+    "22": -0.11079727217658064
+   }
+  },
+  "L9/i6": {
+   "status": "ok",
+   "lll_secs": 7.9839863777160645,
+   "enum_secs": 0.262575626373291,
+   "enum_nodes": 41460,
+   "svp_exact": true,
+   "lam1n_prime": 1.5071126978415104,
+   "hkz_prime_at_beta": {
+    "7": -0.37579091209951976,
+    "15": -0.2516210795937388,
+    "22": -0.13988274847751825
+   }
+  },
+  "L9/i7": {
+   "status": "ok",
+   "lll_secs": 8.524001836776733,
+   "enum_secs": 0.08541560173034668,
+   "enum_nodes": 13830,
+   "svp_exact": true,
+   "lam1n_prime": 1.4377635948149488,
+   "hkz_prime_at_beta": {
+    "7": -0.3065687442681906,
+    "15": -0.22382641643835655,
+    "22": -0.1228926976352156
+   }
+  },
+  "L11/i0": {
+   "status": "ok",
+   "lll_secs": 30.414637804031372,
+   "enum_secs": 44.25923466682434,
+   "enum_nodes": 5866911,
+   "svp_exact": true,
+   "lam1n_prime": 1.6104875871694129,
+   "hkz_prime_at_beta": {
+    "10": -0.5691905958702437,
+    "20": -0.39238817756771205,
+    "30": -0.2159913427748208
+   }
+  },
+  "L11/i1": {
+   "status": "ok",
+   "lll_secs": 30.02098822593689,
+   "enum_secs": 150.98298740386963,
+   "enum_nodes": 19600000,
+   "svp_exact": false,
+   "lam1n_prime": 1.6997111304981272,
+   "hkz_prime_at_beta": {
+    "10": -0.6091959404061473,
+    "20": -0.4028956903981751,
+    "30": -0.1881646730544837
+   }
+  },
+  "L11/i2": {
+   "status": "ok",
+   "lll_secs": 30.51297688484192,
+   "enum_secs": 52.491538524627686,
+   "enum_nodes": 6838340,
+   "svp_exact": true,
+   "lam1n_prime": 1.6746893282533886,
+   "hkz_prime_at_beta": {
+    "10": -0.5381495762555044,
+    "20": -0.37521293280172596,
+    "30": -0.17504474667311243
+   }
+  },
+  "L11/i3": {
+   "status": "ok",
+   "lll_secs": 31.59087061882019,
+   "enum_secs": 28.98931384086609,
+   "enum_nodes": 3839570,
+   "svp_exact": true,
+   "lam1n_prime": 1.6765421435626031,
+   "hkz_prime_at_beta": {
+    "10": -0.5095798703876335,
+    "20": -0.3359775935679066,
+    "30": -0.16031691083966315
+   }
+  },
+  "L11/i4": {
+   "status": "ok",
+   "lll_secs": 31.97189998626709,
+   "enum_secs": 37.584264039993286,
+   "enum_nodes": 4891267,
+   "svp_exact": true,
+   "lam1n_prime": 1.584548783864138,
+   "hkz_prime_at_beta": {
+    "10": -0.5210628904953944,
+    "20": -0.3586499748136358,
+    "30": -0.17221320279647756
+   }
+  },
+  "L11/i5": {
+   "status": "ok",
+   "lll_secs": 32.99566411972046,
+   "enum_secs": 150.67970871925354,
+   "enum_nodes": 18400000,
+   "svp_exact": false,
+   "lam1n_prime": 1.680342743157523,
+   "hkz_prime_at_beta": {
+    "10": -0.6500354549320466,
+    "20": -0.43007984903456986,
+    "30": -0.22777173773730297
+   }
+  },
+  "L11/i6": {
+   "status": "ok",
+   "lll_secs": 29.41801953315735,
+   "enum_secs": 150.73106265068054,
+   "enum_nodes": 19400000,
+   "svp_exact": false,
+   "lam1n_prime": 1.6178652206416582,
+   "hkz_prime_at_beta": {
+    "10": -0.6752927886559661,
+    "20": -0.4708651643605304,
+    "30": -0.23025538236575382
+   }
+  },
+  "L11/i7": {
+   "status": "ok",
+   "lll_secs": 31.927939891815186,
+   "enum_secs": 41.453800678253174,
+   "enum_nodes": 5437330,
+   "svp_exact": true,
+   "lam1n_prime": 1.6374181393007128,
+   "hkz_prime_at_beta": {
+    "10": -0.5542092438796988,
+    "20": -0.37250380416035256,
+    "30": -0.18852826424929425
+   }
+  }
+ },
+ "route_i_prime_budget_exhausted_bases": [],
+ "route_i_prime_total_compute_seconds": 981.5067579746246,
+ "R_IV_OUT_2_per_cell": {
+  "lam1n/L7_b5": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.04339249931620648,
+   "D_route_prime": 2.220446049250313e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.2015750508421945,
+     "route_i_prime": 1.2015750508421945,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 1,
+     "route_p": 1.2556231391263455,
+     "route_i_prime": 1.2556231391263477,
+     "abs_diff": 2.220446049250313e-15
+    },
+    {
+     "basis": 2,
+     "route_p": 1.2754523327616425,
+     "route_i_prime": 1.2754523327616436,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 3,
+     "route_p": 1.1289658878699955,
+     "route_i_prime": 1.1289658878699975,
+     "abs_diff": 1.9984014443252818e-15
+    },
+    {
+     "basis": 4,
+     "route_p": 1.1976784363318542,
+     "route_i_prime": 1.1976784363318553,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 5,
+     "route_p": 1.215471484797628,
+     "route_i_prime": 1.2154714847976291,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 6,
+     "route_p": 1.2151292647810479,
+     "route_i_prime": 1.2151292647810479,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 7,
+     "route_p": 1.2074060968567872,
+     "route_i_prime": 1.2074060968567872,
+     "abs_diff": 0.0
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "lam1n/L7_b10": {
+   "status": "UNCOVERED"
+  },
+  "lam1n/L7_b15": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.04339249931620648,
+   "D_route_prime": 2.220446049250313e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.2015750508421945,
+     "route_i_prime": 1.2015750508421945,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 1,
+     "route_p": 1.2556231391263455,
+     "route_i_prime": 1.2556231391263477,
+     "abs_diff": 2.220446049250313e-15
+    },
+    {
+     "basis": 2,
+     "route_p": 1.2754523327616425,
+     "route_i_prime": 1.2754523327616436,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 3,
+     "route_p": 1.1289658878699955,
+     "route_i_prime": 1.1289658878699975,
+     "abs_diff": 1.9984014443252818e-15
+    },
+    {
+     "basis": 4,
+     "route_p": 1.1976784363318542,
+     "route_i_prime": 1.1976784363318553,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 5,
+     "route_p": 1.215471484797628,
+     "route_i_prime": 1.2154714847976291,
+     "abs_diff": 1.1102230246251565e-15
+    },
+    {
+     "basis": 6,
+     "route_p": 1.2151292647810479,
+     "route_i_prime": 1.2151292647810479,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 7,
+     "route_p": 1.2074060968567872,
+     "route_i_prime": 1.2074060968567872,
+     "abs_diff": 0.0
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "lam1n/L9_b7": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.0847592417001852,
+   "D_route_prime": 2.6645352591003757e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.3988581702782155,
+     "route_i_prime": 1.3988581702782168,
+     "abs_diff": 1.3322676295501878e-15
+    },
+    {
+     "basis": 1,
+     "route_p": 1.2494545722223411,
+     "route_i_prime": 1.2494545722223411,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 2,
+     "route_p": 1.3725689453747225,
+     "route_i_prime": 1.3725689453747225,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 3,
+     "route_p": 1.4970943772211558,
+     "route_i_prime": 1.4970943772211558,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 4,
+     "route_p": 1.4421407796971528,
+     "route_i_prime": 1.4421407796971528,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 5,
+     "route_p": 1.485455673900821,
+     "route_i_prime": 1.4854556739008182,
+     "abs_diff": 2.6645352591003757e-15
+    },
+    {
+     "basis": 6,
+     "route_p": 1.5071126978415104,
+     "route_i_prime": 1.5071126978415104,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 7,
+     "route_p": 1.4377635948149512,
+     "route_i_prime": 1.4377635948149488,
+     "abs_diff": 2.4424906541753444e-15
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "lam1n/L9_b15": {
+   "status": "UNCOVERED"
+  },
+  "lam1n/L9_b22": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.0847592417001852,
+   "D_route_prime": 2.6645352591003757e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.3988581702782155,
+     "route_i_prime": 1.3988581702782168,
+     "abs_diff": 1.3322676295501878e-15
+    },
+    {
+     "basis": 1,
+     "route_p": 1.2494545722223411,
+     "route_i_prime": 1.2494545722223411,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 2,
+     "route_p": 1.3725689453747225,
+     "route_i_prime": 1.3725689453747225,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 3,
+     "route_p": 1.4970943772211558,
+     "route_i_prime": 1.4970943772211558,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 4,
+     "route_p": 1.4421407796971528,
+     "route_i_prime": 1.4421407796971528,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 5,
+     "route_p": 1.485455673900821,
+     "route_i_prime": 1.4854556739008182,
+     "abs_diff": 2.6645352591003757e-15
+    },
+    {
+     "basis": 6,
+     "route_p": 1.5071126978415104,
+     "route_i_prime": 1.5071126978415104,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 7,
+     "route_p": 1.4377635948149512,
+     "route_i_prime": 1.4377635948149488,
+     "abs_diff": 2.4424906541753444e-15
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "lam1n/L11_b10": {
+   "status": "COMPUTED",
+   "n_matched_bases": 5,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.0388473945796316,
+   "D_route_prime": 9.992007221626409e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.6104875871694129,
+     "route_i_prime": 1.6104875871694129,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 2,
+     "route_p": 1.6746893282533886,
+     "route_i_prime": 1.6746893282533886,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 3,
+     "route_p": 1.6765421435626047,
+     "route_i_prime": 1.6765421435626031,
+     "abs_diff": 1.5543122344752192e-15
+    },
+    {
+     "basis": 4,
+     "route_p": 1.5845487838641394,
+     "route_i_prime": 1.584548783864138,
+     "abs_diff": 1.3322676295501878e-15
+    },
+    {
+     "basis": 7,
+     "route_p": 1.6374181393007028,
+     "route_i_prime": 1.6374181393007128,
+     "abs_diff": 9.992007221626409e-15
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "lam1n/L11_b20": {
+   "status": "UNCOVERED"
+  },
+  "lam1n/L11_b30": {
+   "status": "COMPUTED",
+   "n_matched_bases": 5,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.0388473945796316,
+   "D_route_prime": 9.992007221626409e-15,
+   "VERDICT_prime": "EXCEEDS",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": 1.6104875871694129,
+     "route_i_prime": 1.6104875871694129,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 2,
+     "route_p": 1.6746893282533886,
+     "route_i_prime": 1.6746893282533886,
+     "abs_diff": 0.0
+    },
+    {
+     "basis": 3,
+     "route_p": 1.6765421435626047,
+     "route_i_prime": 1.6765421435626031,
+     "abs_diff": 1.5543122344752192e-15
+    },
+    {
+     "basis": 4,
+     "route_p": 1.5845487838641394,
+     "route_i_prime": 1.584548783864138,
+     "abs_diff": 1.3322676295501878e-15
+    },
+    {
+     "basis": 7,
+     "route_p": 1.6374181393007028,
+     "route_i_prime": 1.6374181393007128,
+     "abs_diff": 9.992007221626409e-15
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": true
+  },
+  "hkz/L7_b5": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.023887966155964283,
+   "D_route_prime": 0.05861708874622629,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.17267425560428773,
+     "route_i_prime": -0.23129134435051402,
+     "abs_diff": 0.05861708874622629
+    },
+    {
+     "basis": 1,
+     "route_p": -0.1929579968533437,
+     "route_i_prime": -0.17600351665803693,
+     "abs_diff": 0.016954480195306765
+    },
+    {
+     "basis": 2,
+     "route_p": -0.23882977009594697,
+     "route_i_prime": -0.20065622465360367,
+     "abs_diff": 0.038173545442343304
+    },
+    {
+     "basis": 3,
+     "route_p": -0.17224042118823757,
+     "route_i_prime": -0.17578651472596274,
+     "abs_diff": 0.00354609353772517
+    },
+    {
+     "basis": 4,
+     "route_p": -0.18649226890643344,
+     "route_i_prime": -0.2208598680444922,
+     "abs_diff": 0.03436759913805876
+    },
+    {
+     "basis": 5,
+     "route_p": -0.22425794699744994,
+     "route_i_prime": -0.21714653363626635,
+     "abs_diff": 0.007111413361183594
+    },
+    {
+     "basis": 6,
+     "route_p": -0.20262184823098472,
+     "route_i_prime": -0.18861917242839432,
+     "abs_diff": 0.014002675802590403
+    },
+    {
+     "basis": 7,
+     "route_p": -0.21193896956714386,
+     "route_i_prime": -0.2486421436786177,
+     "abs_diff": 0.036703174111473835
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  },
+  "hkz/L7_b10": {
+   "status": "UNCOVERED"
+  },
+  "hkz/L7_b15": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.00887973739872481,
+   "D_route_prime": 0.01529304700322065,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.06605082726691514,
+     "route_i_prime": -0.06898780808637817,
+     "abs_diff": 0.002936980819463031
+    },
+    {
+     "basis": 1,
+     "route_p": -0.06655917563107483,
+     "route_i_prime": -0.07236534621925017,
+     "abs_diff": 0.005806170588175341
+    },
+    {
+     "basis": 2,
+     "route_p": -0.07242674749198219,
+     "route_i_prime": -0.08004486710722514,
+     "abs_diff": 0.0076181196152429465
+    },
+    {
+     "basis": 3,
+     "route_p": -0.049740067772481744,
+     "route_i_prime": -0.05672133243605337,
+     "abs_diff": 0.006981264663571629
+    },
+    {
+     "basis": 4,
+     "route_p": -0.06186632667540781,
+     "route_i_prime": -0.073470606188625,
+     "abs_diff": 0.011604279513217186
+    },
+    {
+     "basis": 5,
+     "route_p": -0.06089807034637218,
+     "route_i_prime": -0.0645284073058745,
+     "abs_diff": 0.0036303369595023227
+    },
+    {
+     "basis": 6,
+     "route_p": -0.0455860484009758,
+     "route_i_prime": -0.04974300257085407,
+     "abs_diff": 0.004156954169878269
+    },
+    {
+     "basis": 7,
+     "route_p": -0.0589470374739669,
+     "route_i_prime": -0.07424008447718755,
+     "abs_diff": 0.01529304700322065
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  },
+  "hkz/L9_b7": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.012888012185756612,
+   "D_route_prime": 0.10763128712072323,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.3334115672480209,
+     "route_i_prime": -0.40100786464868676,
+     "abs_diff": 0.06759629740066586
+    },
+    {
+     "basis": 1,
+     "route_p": -0.3499313619692641,
+     "route_i_prime": -0.45756264908998734,
+     "abs_diff": 0.10763128712072323
+    },
+    {
+     "basis": 2,
+     "route_p": -0.339220382917218,
+     "route_i_prime": -0.3464090867608043,
+     "abs_diff": 0.007188703843586275
+    },
+    {
+     "basis": 3,
+     "route_p": -0.3410631763788752,
+     "route_i_prime": -0.376732851054542,
+     "abs_diff": 0.03566967467566684
+    },
+    {
+     "basis": 4,
+     "route_p": -0.32628916595629853,
+     "route_i_prime": -0.37775757781648256,
+     "abs_diff": 0.05146841186018403
+    },
+    {
+     "basis": 5,
+     "route_p": -0.34819384815439314,
+     "route_i_prime": -0.33916562392921534,
+     "abs_diff": 0.009028224225177794
+    },
+    {
+     "basis": 6,
+     "route_p": -0.3180212297652858,
+     "route_i_prime": -0.37579091209951976,
+     "abs_diff": 0.05776968233423396
+    },
+    {
+     "basis": 7,
+     "route_p": -0.31624654939341745,
+     "route_i_prime": -0.3065687442681906,
+     "abs_diff": 0.009677805125226868
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  },
+  "hkz/L9_b15": {
+   "status": "UNCOVERED"
+  },
+  "hkz/L9_b22": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.0038926583565756278,
+   "D_route_prime": 0.049931398639182056,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.11249180258058367,
+     "route_i_prime": -0.14403819750059288,
+     "abs_diff": 0.03154639492000921
+    },
+    {
+     "basis": 1,
+     "route_p": -0.10327141380644811,
+     "route_i_prime": -0.15320281244563017,
+     "abs_diff": 0.049931398639182056
+    },
+    {
+     "basis": 2,
+     "route_p": -0.10533672260935933,
+     "route_i_prime": -0.13369644531998404,
+     "abs_diff": 0.028359722710624702
+    },
+    {
+     "basis": 3,
+     "route_p": -0.109286129258793,
+     "route_i_prime": -0.12624605129408195,
+     "abs_diff": 0.016959922035288955
+    },
+    {
+     "basis": 4,
+     "route_p": -0.11349700870642643,
+     "route_i_prime": -0.1286254373149065,
+     "abs_diff": 0.015128428608480071
+    },
+    {
+     "basis": 5,
+     "route_p": -0.11185128027142621,
+     "route_i_prime": -0.11079727217658064,
+     "abs_diff": 0.001054008094845571
+    },
+    {
+     "basis": 6,
+     "route_p": -0.10762809179507826,
+     "route_i_prime": -0.13988274847751825,
+     "abs_diff": 0.032254656682439986
+    },
+    {
+     "basis": 7,
+     "route_p": -0.104599823386887,
+     "route_i_prime": -0.1228926976352156,
+     "abs_diff": 0.018292874248328594
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  },
+  "hkz/L11_b10": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.010109435646034129,
+   "D_route_prime": 0.22345850201930517,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.42473689794505454,
+     "route_i_prime": -0.5691905958702437,
+     "abs_diff": 0.14445369792518914
+    },
+    {
+     "basis": 1,
+     "route_p": -0.43092143949521766,
+     "route_i_prime": -0.6091959404061473,
+     "abs_diff": 0.17827450091092967
+    },
+    {
+     "basis": 2,
+     "route_p": -0.4426337624719414,
+     "route_i_prime": -0.5381495762555044,
+     "abs_diff": 0.095515813783563
+    },
+    {
+     "basis": 3,
+     "route_p": -0.44151125216664866,
+     "route_i_prime": -0.5095798703876335,
+     "abs_diff": 0.06806861822098487
+    },
+    {
+     "basis": 4,
+     "route_p": -0.4255233495393762,
+     "route_i_prime": -0.5210628904953944,
+     "abs_diff": 0.09553954095601824
+    },
+    {
+     "basis": 5,
+     "route_p": -0.4287155388929449,
+     "route_i_prime": -0.6500354549320466,
+     "abs_diff": 0.22131991603910173
+    },
+    {
+     "basis": 6,
+     "route_p": -0.4518342866366609,
+     "route_i_prime": -0.6752927886559661,
+     "abs_diff": 0.22345850201930517
+    },
+    {
+     "basis": 7,
+     "route_p": -0.444697998917043,
+     "route_i_prime": -0.5542092438796988,
+     "abs_diff": 0.10951124496265585
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  },
+  "hkz/L11_b20": {
+   "status": "UNCOVERED"
+  },
+  "hkz/L11_b30": {
+   "status": "COMPUTED",
+   "n_matched_bases": 8,
+   "n_route_p_bases": 8,
+   "s_c_fib": 0.003818306775026579,
+   "D_route_prime": 0.0963744753312552,
+   "VERDICT_prime": "DOES NOT EXCEED",
+   "note": null,
+   "matched_bases_detail": [
+    {
+     "basis": 0,
+     "route_p": -0.13095122117764646,
+     "route_i_prime": -0.2159913427748208,
+     "abs_diff": 0.08504012159717433
+    },
+    {
+     "basis": 1,
+     "route_p": -0.14043123103100097,
+     "route_i_prime": -0.1881646730544837,
+     "abs_diff": 0.04773344202348273
+    },
+    {
+     "basis": 2,
+     "route_p": -0.13653887191980907,
+     "route_i_prime": -0.17504474667311243,
+     "abs_diff": 0.03850587475330336
+    },
+    {
+     "basis": 3,
+     "route_p": -0.1367940260437619,
+     "route_i_prime": -0.16031691083966315,
+     "abs_diff": 0.023522884795901255
+    },
+    {
+     "basis": 4,
+     "route_p": -0.13152831554793032,
+     "route_i_prime": -0.17221320279647756,
+     "abs_diff": 0.04068488724854724
+    },
+    {
+     "basis": 5,
+     "route_p": -0.13139726240604777,
+     "route_i_prime": -0.22777173773730297,
+     "abs_diff": 0.0963744753312552
+    },
+    {
+     "basis": 6,
+     "route_p": -0.136548162091505,
+     "route_i_prime": -0.23025538236575382,
+     "abs_diff": 0.09370722027424883
+    },
+    {
+     "basis": 7,
+     "route_p": -0.1400381890590845,
+     "route_i_prime": -0.18852826424929425,
+     "abs_diff": 0.04849007519020976
+    }
+   ],
+   "agrees_with_batch_fbb639_EXCEEDS": false
+  }
+ },
+ "R_IV_OUT_3_aggregate": {
+  "n_covered": 12,
+  "n_uncovered": 6,
+  "n_not_computed_budget": 0,
+  "coverage_fraction": "12 / 18",
+  "ALL_SURVIVE": false,
+  "SOME_ARTIFACT": true,
+  "exceeds_cells": [
+   "lam1n/L7_b5",
+   "lam1n/L7_b15",
+   "lam1n/L9_b7",
+   "lam1n/L9_b22",
+   "lam1n/L11_b10",
+   "lam1n/L11_b30"
+  ],
+  "does_not_exceed_cells": [
+   "hkz/L7_b5",
+   "hkz/L7_b15",
+   "hkz/L9_b7",
+   "hkz/L9_b22",
+   "hkz/L11_b10",
+   "hkz/L11_b30"
+  ],
+  "uncovered_cells": [
+   "lam1n/L7_b10",
+   "lam1n/L9_b15",
+   "lam1n/L11_b20",
+   "hkz/L7_b10",
+   "hkz/L9_b15",
+   "hkz/L11_b20"
+  ],
+  "not_computed_budget_cells": []
+ },
+ "R_IV_OUT_4_termination_branch": {
+  "branch": "T-INDVERIFY-ARTIFACT-PARTIAL",
+  "partial_suffix_applied": true,
+  "precedence_note": "PREREG-4 2.6: T-INDVERIFY-NODATA dominates (fires alone); between ARTIFACT and CONFIRMED, SOME-ARTIFACT takes precedence over ALL-SURVIVE whenever both could be read from the same data -- a single artifact-flagged cell is sufficient to fire T-INDVERIFY-ARTIFACT.",
+  "flagged_cells_for_revisit_condition_2_8": [
+   "hkz/L7_b5",
+   "hkz/L7_b15",
+   "hkz/L9_b7",
+   "hkz/L9_b22",
+   "hkz/L11_b10",
+   "hkz/L11_b30"
+  ]
+ },
+ "input_shas": {
+  "coordination/goals/GOAL-MLKEM-005/batches/BATCH-9e3584/tasks/TASK-20260809-cda2f6/results_relvar.json": "c5b2918dccf1b58261eed1e9d221f1074ae6143f2a8fc5c0f42ff475646ccd6d",
+  "coordination/goals/GOAL-MLKEM-005/batches/BATCH-fbb639/reviews/TASK-20260813-6ab893/probes/probe_coverage_beta_mismatch_output.json": "63ea8124d898d27abb8af141ba05d9231bbc297ebbc4452fe685a329cc4f55b1"
+ },
+ "s_c_fib_path_resolution_note": "PREREG-4 2.1 names the s_c^fib path as 'results_relvar.json.per_candidate.<X>.per_cell.<L>_<b>.float_sd'; results_relvar.json has no top-level per_candidate key. The field matching PREREG-4's own description (float_sd of X over the 8 frozen bases at fixed L,beta) is found at G_VAR.per_candidate.<X>.per_cell.<L>_<b>.float_sd and is used here, read-only, with this resolution stated rather than assumed.",
+ "timings": {
+  "total_seconds": 981.5196001529694,
+  "compute_deadline_seconds": 1500.0
+ },
+ "finished_utc": "2026-08-13T17:26:37Z"
+}

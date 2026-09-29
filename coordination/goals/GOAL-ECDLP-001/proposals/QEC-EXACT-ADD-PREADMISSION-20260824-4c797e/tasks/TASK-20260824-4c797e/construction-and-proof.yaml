@@ -1,0 +1,95 @@
+schema: crypto.autoresearch.construction_proof.v1
+task_id: TASK-20260824-4c797e
+protocol:
+  version: 2
+  amendment: CORR-20260824-91d34a
+  pre_run_stop: >-
+    Version 1 was not executed: its first Y centering was unconditional and
+    contradicted the disabled-identity obligation. Version 2 controls both Y
+    subtractions by e. No test result informed the correction.
+domain:
+  curve: 'y^2=x^3+7 over F_p'
+  identity_encoding: 'omega=(0,0), off curve'
+  subgroup: 'odd prime order r>3'
+  addend: 'nonzero address-selected A'
+total_interfaces:
+  idiv: >-
+    With clean z, compute z=[X=0] and XOR z into X_LSB. The wrapped X is 1
+    on the zero branch and X otherwise. Promised IDiv preserves X. Undo the
+    LSB XOR and recompute [X=0] to clear z. The map is (X,Y/X) for X nonzero
+    and identity for X zero.
+  imul: >-
+    The identical wrapper makes the multiplier 1 on X=0. Promised IMul
+    preserves X; restoring X and repeating the comparison clears z. The map
+    is (X,XY) for X nonzero and identity for X zero.
+  inverse_relation: >-
+    On each fixed-X block Total-IDiv and Total-IMul are mutual inverses: this
+    is ordinary multiplication/inversion for X nonzero and identity for zero.
+generic_algebra:
+  definitions:
+    u: x-a
+    v: y-b
+    lambda: v/u
+    u3: lambda^2-u-3a
+    m: u-lambda^2+3a
+  derivation:
+  - 'After the controlled square-minus and +3a, X=m=-u3.'
+  - 'Total-IMul gives Y=lambda*m=-lambda*u3 on the effective branch.'
+  - 'Controlled negation and +a give X=u3+a.'
+  - 'The final controlled subtraction gives Y=-lambda*u3-b, the affine formula for R+A.'
+  disabled_identity: >-
+    When e=0 both Y subtractions and every middle coordinate update are off.
+    X is translated by -a and later +a. Total-IDiv followed by Total-IMul is
+    identity for every centered X, including zero. Therefore every F_p pair,
+    including off-curve pairs, returns bit-for-bit to its input.
+exception_partition:
+  flags:
+    fO: 'enable and R=O'
+    fA: 'enable and R=A'
+    fNA: 'enable and R=-A'
+    fN2A: 'enable and R=-2A'
+  disjointness: >-
+    O is not a nonzero subgroup point. Equalities among A,-A,-2A would imply
+    2A=O, 3A=O, or A=O; none holds in a prime-order subgroup with r>3.
+  generic_promises:
+  - 'u=0 on the curve iff R=A or R=-A, both excluded by flags.'
+  - 'm=-u3=0 iff x(R+A)=a, hence R+A is A or -A; its preimages O and -2A are excluded.'
+  maps:
+    O: A
+    A: 2A
+    -A: O
+    -2A: -A
+cleanup_proof: >-
+  Translation by A is injective. A generic input cannot land on A,2A,O,-A,
+  because its preimages O,A,-A,-2A were removed. The four outputs are distinct
+  by r>3. Thus post-map equality with the branch's unique output toggles exactly
+  the one live flag. Effective-enable is uncomputed first, while original flags
+  are still live. Address, sign and enable are unchanged.
+zero_digit_proof: >-
+  enable=0 masks every pre- and post-comparison. All flags and e remain zero;
+  no exceptional XOR mask fires; the v2 disabled core is the all-pair identity.
+coherence_proof: >-
+  For every address/sign/enable basis word, the schedule is a permutation of
+  the subgroup encoding and restores all flags, z, qROM targets and scratch.
+  Address and sign are preserved. The complete controlled operator is therefore
+  the direct sum of these cleaned permutations. Equality on every basis vector
+  implies equality on arbitrary superpositions by linear extension; no
+  measurement of the address is used by the reference construction.
+implementation_binding:
+  independent_oracle: complete_add in exact_ecadd_reference.py
+  candidate_schedule: candidate_translate in exact_ecadd_reference.py
+  upstream_patch: upstream-integration.patch
+  upstream_patch_scope: >-
+    Adds totalized primitive wrappers, a complete fixed-add builder, and an
+    explicit signed-window backend interface. It does not supply or price a
+    production qROM backend.
+remaining_assumptions:
+- The upstream promised IDiv/IMul circuits implement their stated nonzero-X maps and preserve X.
+- A production signed-window qROM backend implements the address-conditioned comparisons, constants and masks coherently with the symbolic calls charged in resource-and-gate-accounting.yaml.
+- Multi-controlled comparisons may use no-clean-ancilla synthesis or declared logarithmic scratch; primitive Toffoli/depth costs remain symbolic.
+- The reference suite is exhaustive only for the frozen tiny subgroup and F_13 field-pair controls; transfer to secp256k1 is algebraic and awaits independent review.
+claim_boundary: >-
+  This artifact records a construction and tested model only. It asserts no
+  exact qubit coefficient, 835-qubit count, Toffoli coefficient, speedup,
+  algorithmic ECDLP improvement, novelty, support or breakthrough.
+

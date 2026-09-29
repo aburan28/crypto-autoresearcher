@@ -1,0 +1,55 @@
+# TASK-20260813-2ce014 / BATCH-6b6e78 / GOAL-MLKEM-005 -- EVERY INVOCATION, IN ORDER.
+# Working directory for every command below: the repository root
+#   /home/user/crypto-autoresearcher
+# T is this task's directory:
+#   coordination/goals/GOAL-MLKEM-005/batches/BATCH-6b6e78/tasks/TASK-20260813-2ce014
+# S is the session scratch directory OUTSIDE the working tree (nothing under S is
+# committed and nothing under S is a declared artifact).
+# Every Python invocation runs with PYTHONDONTWRITEBYTECODE=1 and -B, so no
+# __pycache__ is created anywhere inside the repository.
+
+# --- [1] PRE-RUN, READ-ONLY: verify the notarized contract and the archived probe
+sha256sum coordination/goals/GOAL-MLKEM-005/batches/BATCH-6b6e78/tasks/TASK-20260813-25cb95/prereg.md
+sha256sum coordination/goals/GOAL-MLKEM-005/batches/BATCH-4ed139/reviews/TASK-20260812-696cd4/probes/probe_precision_null.py
+git log --oneline -3
+git status --porcelain
+
+# --- [2] SCRATCH PROTOTYPE, OUTSIDE THE REPOSITORY, NOT A RUN OF THE DECLARED
+#         MEASUREMENT: validate the exact Gram determinant of PREREG-2 2.9 and the
+#         P-GRAM comparison. Found and fixed a duplicate-prime defect in the
+#         multi-modular CRT before any declared code was written.
+PYTHONDONTWRITEBYTECODE=1 python3 -B $S/proto_gram.py
+
+# --- [3] SCRATCH SMOKE TESTS, OUTSIDE THE REPOSITORY, AT REDUCED SCOPE
+#         (3 lattices of the declared 10). These do NOT execute the declared
+#         measurement and are therefore NOT runs under AM-18(f). Three
+#         invocations: the first fired R3-OUT-V on a guard defect, the second
+#         confirmed the guard fix and exposed a decimal-rounding defect in the
+#         exact-route statistic, the third confirmed both fixes.
+PYTHONDONTWRITEBYTECODE=1 python3 -B $S/smoke.py
+PYTHONDONTWRITEBYTECODE=1 python3 -B $S/smoke.py
+PYTHONDONTWRITEBYTECODE=1 python3 -B $S/smoke.py
+
+# --- [4] THE DECLARED MEASUREMENT. RUN 1 OF 1. Completed, exit code 0,
+#         26.947 s of the 600 s measurement cap.
+#         Started 2026-08-13T03:21:53Z, ended 2026-08-13T03:22:21Z.
+PYTHONDONTWRITEBYTECODE=1 timeout 700 python3 -B $T/measure_a1.py --out $T/results_a1.json > $T/stdout.log 2> $T/stderr.log
+
+# --- [5] THE ARCHIVED PROBE, RE-RUN UNMODIFIED FROM ITS COMMITTED PATH.
+#         Not copied, not edited, not vendored. Completed, exit code 0, 0.405 s.
+#         Started 2026-08-13T03:22:27Z, ended 2026-08-13T03:22:28Z.
+PYTHONDONTWRITEBYTECODE=1 timeout 300 python3 -B coordination/goals/GOAL-MLKEM-005/batches/BATCH-4ed139/reviews/TASK-20260812-696cd4/probes/probe_precision_null.py --out $T/rerun_probe_precision_null_output.json > $T/rerun_probe_precision_null_stdout.log 2> $T/rerun_probe_precision_null_stderr.log
+
+# --- [6] POST-RUN, READ-ONLY: field-by-field comparison of the probe re-run against
+#         the archived output, extraction of the outcome rows for the report, and
+#         sha256 of every declared artifact. No repository file was written by these.
+PYTHONDONTWRITEBYTECODE=1 python3 -B -c '<read-only comparison of the two probe JSON files>'
+PYTHONDONTWRITEBYTECODE=1 python3 -B -c '<read-only extraction of R3-OUT-1..R3-OUT-8 from results_a1.json>'
+sha256sum $T/measure_a1.py $T/results_a1.json $T/report_a1.md $T/rerun_probe_precision_null_output.json $T/rerun_probe_precision_null_stdout.log $T/rerun_probe_precision_null_stderr.log $T/stdout.log $T/stderr.log
+git status --porcelain
+
+# --- RE-EXECUTION OF THE DECLARED MEASUREMENT FROM THE REPOSITORY ROOT
+# PYTHONDONTWRITEBYTECODE=1 python3 -B \
+#   coordination/goals/GOAL-MLKEM-005/batches/BATCH-6b6e78/tasks/TASK-20260813-2ce014/measure_a1.py \
+#   --out coordination/goals/GOAL-MLKEM-005/batches/BATCH-6b6e78/tasks/TASK-20260813-2ce014/results_a1.json
+# measure_a1.py writes exactly one file: the --out path. No git write, no commit.

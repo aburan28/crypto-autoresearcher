@@ -1,0 +1,7 @@
+# Concurrent remote merge reconciliation for PR969
+
+The remote branch advanced to f8a3cd22d8 while the Coordinator validated the local merge, so the first push of e05e74b5e9 was correctly rejected as non-fast-forward. The remote merge is retained in ancestry through a normal merge, with no force push or history rewrite.
+
+Remote changes modified the three immutable alternate schema views under DEC-20260908-79672f: they moved supersession metadata, converted coordinator_prior from the copied original mapping to a string, changed failure_signature from a string to a list, and reserialized YAML. These are changes to already hash-bound artifacts, not a new additive supersession. The Coordinator retains the original approved bytes for those exact three paths. The remote alternatives remain available in their historical commit. Main's active canonical registry routes remain unchanged. No other remote work is discarded; scientific producer sources and active output scopes are unchanged. The administrative dispatcher bytes also equal the already verified local merge version.
+
+Full ledger validation is rerun because the remote merge adds other-owner ledger records. Earlier validation receipts remain exact statements about their named source head, not assertions about unverified new records. This reconciliation is operational only and grants no review independence or scientific admission.

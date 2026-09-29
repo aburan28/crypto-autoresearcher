@@ -1,0 +1,924 @@
+        Symmetrized summation polynomials: using small order
+         torsion points to speed up elliptic curve index calculus
+    Jean-Charles Faugère, Louise Huot, Antoine Joux, Guénaël Renault, Vanessa Vitse
+
+
+
+      To cite this version:
+     Jean-Charles Faugère, Louise Huot, Antoine Joux, Guénaël Renault, Vanessa Vitse. Symmetrized summation
+     polynomials: using small order torsion points to speed up elliptic curve index calculus. EUROCRYPT 2014
+     - 33rd Annual International Conference on the Theory and Applications of Cryptographic Techniques, May
+     2014, Copenhagen, Denmark. pp.40-57, ⟨10.1007/978-3-642-55220-5_3⟩. ⟨hal-00935050⟩
+
+
+
+
+                                        HAL Id: hal-00935050
+                          https://inria.hal.science/hal-00935050v1
+                                           Submitted on 30 Dec 2014
+
+
+
+
+    HAL is a multi-disciplinary open access archive             L’archive ouverte pluridisciplinaire HAL, est des-
+for the deposit and dissemination of scientific re-        tinée au dépôt et à la diffusion de documents scien-
+search documents, whether they are published or not.       tifiques de niveau recherche, publiés ou non, émanant
+The documents may come from teaching and research          des établissements d’enseignement et de recherche
+institutions in France or abroad, or from public or pri-   français ou étrangers, des laboratoires publics ou
+vate research centers.                                     privés.
+
+
+                                              HAL Authorization
+  Symmetrized Summation Polynomials: Using
+ Small Order Torsion Points to Speed up Elliptic
+             Curve Index Calculus
+
+     Jean-Charles Faugère1,2,3 , Louise Huot2,1,3 , Antoine Joux4,5,2,3 , Guénaël
+                        Renault2,1,3 , and Vanessa Vitse6
+     1
+     INRIA, POLSYS, Centre Paris-Rocquencourt, F-78153, Le Chesnay, France
+2
+  Sorbonne Universités, UPMC Univ Paris 06, LIP6 UPMC, F-75005, Paris, France
+            3
+              CNRS, UMR 7606, LIP6 UPMC, F-75005, Paris, France
+                          4
+                             CryptoExperts, Paris, France
+                 5
+                    Chaire de Cryptologie de la Fondation UPMC
+         6
+           Institut Fourier, Université Joseph Fourier, Grenoble I, France
+jean-charles.faugere@inria.fr, louise.huot@lip6.fr, antoine.joux@m4x.org,
+          guenael.renault@lip6.fr, vanessa.vitse@ujf-grenoble.fr
+
+
+          Abstract. Decomposition-based index calculus methods are currently
+          efficient only for elliptic curves E defined over non-prime finite fields
+          of very small extension degree n. This corresponds to the fact that the
+          Semaev summation polynomials, which encode the relation search (or
+          “sieving”), grows over-exponentially with n. Actually, even their compu-
+          tation is a first stumbling block and the largest Semaev polynomial ever
+          computed is the 6-th. Following ideas from Faugère, Gaudry, Huot and
+          Renault, our goal is to use the existence of small order torsion points
+          on E to define new summation polynomials whose symmetrized expres-
+          sions are much more compact and easier to compute. This setting allows
+          to consider smaller factor bases, and the high sparsity of the new sum-
+          mation polynomials provides a very efficient decomposition step. In this
+          paper the focus is on 2-torsion points, as it is the most important case in
+          practice. We obtain records of two kinds: we successfully compute up to
+          the 8-th symmetrized summation polynomial and give new timings for
+          the computation of relations with degree 5 extension fields.
+
+          Keywords: ECDLP, elliptic curves, decomposition method, index cal-
+          culus, Semaev polynomials, multivariate polynomial systems, invariant
+          theory
+
+
+1        Introduction
+In the past decade, the resolution of the discrete logarithm problem (DLP) on
+elliptic curves defined over extension fields has made important theoretical ad-
+vances. Besides transfer attacks such as GHS [7], a promising approach is the
+    This work has been partially supported by the LabExPERSYVAL-Lab(ANR-11-
+    LABX-0025) and the HPAC grant of the French National Research Agency (HPAC
+    ANR-11-BS02-013)
+2                         J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+decomposition-based index calculus method pioneered by Gaudry and Diem [6,2],
+following ideas from Semaev [13]. As in any index calculus, this method is com-
+posed of two main steps: the relation search during which relations between
+elements of a factor base are collected, and the linear algebra stage during which
+the discrete logarithms are extracted using sparse matrix techniques. Since this
+second step is not specific to curve-based DLP, this article mainly focuses on the
+relation search.
+    In the standard decomposition method, the relations are obtained by solving,
+for given points R ∈ E(Fqn ) related to the challenge, the equation
+                          R = P 1 + · · · + Pn ,   Pi ∈ F                      (1)
+where F ⊂ E(Fqn ) is the factor base (this is the so-called point decomposition
+problem). The resolution of this problem relies critically on the Weil restriction
+structure of E relative to the extension Fqn /Fq . In almost all preceding works
+[6,11,4], the usual factor base is defined as F = {P ∈ E(Fqn ) : x(P ) ∈ Fq },
+where x(P ) stands for the abscissa of P , possibly after a change of equation
+of E. Then (1) translates algebraically using the Semaev polynomial Semn+1 ∈
+Fqn [X1 , . . . , Xn+1 ] as
+                         Semn+1 (x1 , . . . , xn , x(R)) = 0                   (2)
+where the unknowns are xi = x(Pi ) ∈ Fq . It is worth noticing that the resolution
+of this equation is the keystone of the relation search step. Thus, computing Se-
+maev polynomials for larger values of n or finding ways to increase the efficiency
+of this resolution will undoubtedly enhance the practical impact of decomposi-
+tion attacks and is the main goal of this paper.
+    Equation (2) is equivalent through a restriction of scalars to a multivariate
+polynomial system of n equations and n variables over Fq , see [6]. The resolu-
+tion of many instances of the multivariate polynomial systems arising from (2)
+(using for example Gröbner bases) is by far the main bottleneck of this index
+calculus approach. Recently Faugère et al. [4] have proposed to speed up the
+relation search using a 2-torsion point T naturally present on elliptic curves in
+the Edwards or Jacobi models. Their approach is based on the observation that
+in these models, the translation by T corresponds to a simple symmetry of the
+curve. This implies that the corresponding multivariate polynomial systems also
+admit an additional symmetry, allowing an easier resolution.
+    In this work, this approach is taken a step further as we investigate how to
+take advantage of the existence of some small order torsion points. To achieve
+this, we generalize ideas from Diem [2] who replaces the map x : E → Fqn by
+morphisms ϕ : E → P1 of degree two. More precisely, we highlight new mor-
+phisms ϕ which let us take into account the existence of a torsion point T of
+small order m. The main idea relies on the construction of morphisms ϕ of degree
+divisible by m that satisfy the equivariance property ϕ ◦ τT = fT ◦ ϕ for some
+homography (i.e. an automorphism of P1 ) fT ∈ PGL2 (Fq ), where τT stands for
+the translation-by-T map P 7→ P + T . A first important practical consequence
+of this setting is that the corresponding summation polynomials admit an ad-
+ditional invariance property, besides the classical one under any permutation of
+                                       Symmetrized Summation Polynomials            3
+
+the variables: this comes from the fact that if (P1 , . . . , Pn ) ∈ F n is a solution
+to the point decomposition P problem (1), then (P1 + [k1 ]T, . . . , Pn + [kn ]T ) is
+also a solution as soon as i ki = 0 [m]. Using invariant theory, it is possible to
+express the summation polynomials in term of fundamental invariants. This new
+representation of the summation polynomials makes them very sparse and much
+easier to compute, and in particular we succeeded in computing new summation
+polynomials. This sparsity also leads to a significant simplification of the multi-
+variate systems arising from the analog of (2). A second consequence is that the
+associated factor base F = {P ∈ E : ϕ(P ) ∈ P1 (Fq )} becomes invariant under
+translations by multiples of T : this allows a division of the size of the factor base
+by the order m of T , thus speeding up by a factor m2 the linear algebra step.
+    We begin in the next section by defining the summation polynomials asso-
+ciated to arbitrary morphisms ϕ : E → P1 and explaining their use for index
+calculus. In section 3, we investigate the equivariance property satisfied by ϕ
+and explain the expected benefit when the small order points are accounted for.
+Then we focus in Section 4 on the fundamental case of degree 2 morphisms
+and their equivariance property with respect to translations by order 2 points.
+We finally give explicit examples of symmetrized summation polynomials and
+applications to the point decomposition problem on elliptic curves defined over
+degree 5 extension fields.
+
+2    Summation polynomials and index calculus
+Let E be a given elliptic curve defined over an extension Fqn of degree n > 2
+of Fq , and let ϕ : E → P1 be a morphism defined over Fqn . We recall that in
+order to perform a decomposition-based index calculus, we consider the factor
+base F = {P ∈ E : ϕ(P ) ∈ P1 (Fq )} which has approximately q elements, and
+try to find relations (decompositions) of the form R = P1 + · · · + Pn , Pi ∈ F
+where R is a given point related to the challenge. Alternatively, it is possible to
+consider other type of relations, for instance of the form R = P1 + · · · + Pn−1
+(see [11]) or of the form P1 + · · · + Pn+2 = O (see [10]). To do so, we introduce
+the summation polynomials related to ϕ (which can be seen as a generalization
+of the one described in [2]):
+Definition 1 Let E|K be an elliptic curve defined over a field K and ϕ : E → P1
+be a non constant morphism. A polynomial S ∈ K[X1 , . . . , Xn ] is called an n-th
+summation polynomial associated to ϕ if it satisfies
+                                                                  n
+                                                                  X
+         S(a1 , . . . , an ) = 0 ⇔ ∃Pi ∈ E(K̄), ϕ(Pi ) = ai and         Pi = O .   (3)
+                                                                  i=1
+
+Note that in the following, we will always explicitly identify P1 (K) with K ∪
+{∞}, so that it makes sense to consider ϕ(P ) as an element of K (unless P
+is a pole of ϕ). Also note that this definition, and in fact a large part of what
+follows, is actually independent of the index calculus context. A first result is
+that summation polynomials always exist and are uniquely determined by the
+considered morphism.
+4                               J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+Proposition 2 For a given non-constant morphism ϕ : E → P1 defined over a
+                                                                   k
+field K, the set of polynomials satisfying (3) is of the form {cPϕ,n  : c ∈ K ∗, k ∈
+  ∗
+N } where Pϕ,n ∈ K[X1 , . . . , Xn ]. The polynomial Pϕ,n is irreducible, unique up
+to multiplication by a constant, symmetric when n ≥ 3, and is called the n-th
+summation polynomial associated to ϕ.
+
+Proof. Let ψ : E n−1 → K n be the rational map such that ψ(P1 , . . . , Pn−1 ) =
+(ϕ(P1 ), . . . , ϕ(Pn−1 ), ϕ(−P1 − · · · − Pn−1 )). Then clearly ψ(E n−1 ) is irreducible
+since E n−1 is irreducible, and has dimension n − 1 since ϕ is surjective. This
+classically implies the existence of an irreducible polynomial Pϕ,n , unique up to
+a multiplicative constant, such that ψ(E n−1 ) = V (Pϕ,n ), and it is easy to check
+that it satisfies (3).
+    To prove that Pϕ,n is symmetric, we consider the morphism c from the group
+of permutations of n elements Sn to K ∗ , such that c(σ) is the constant satis-
+         σ
+fying Pϕ,n    (X1 , . . . , Xn ) = c(σ)Pϕ,n (X1 , . . . , Xn ). This morphism is well-defined
+         σ
+since Pϕ,n (X1 , . . . , Xn ) = Pϕ,n (Xσ(1) , . . . , Xσ(n) ) is clearly an irreducible solu-
+tion of (3). It is well-known that the only morphisms from Sn to a commutative
+group are the identity map or the signature map; this means that Pϕ,n is sym-
+metric or alternating. But this last case is incompatible with (3) as soon as n ≥ 3:
+indeed, let a, a3 . . . , an−1 ∈ K and B = {P1 + · · · + Pn−1 : ϕ(P1 ) = ϕ(P2 ) =
+a, ϕ(Pi ) = ai for i ≥ 3}. This set is obviously finite, of cardinality bounded
+by deg(ϕ)n−1 . However if Pϕ,n is alternating, then Pϕ,n (a, a, a3 , . . . , an−1 , an )
+is always zero, and (3) implies that for all an ∈ K̄, there exist P ∈ B and
+Pn ∈ E(K̄) such that ϕ(Pn ) = an and P + Pn = O; thus B is infinite, which is
+a contradiction.
+    It is always possible to compute summation polynomials inductively as it
+is done for the classical Semaev polynomials by using resultants. For ϕ(P ) =
+x(P ) (in a Weierstrass model) we recover of course the polynomials introduced
+by Semaev [13]. Heuristically, it is possible to estimate the degree of Pϕ,n in
+each variable (which is clearly the same for all variables by symmetry). Let
+(a1 , . . . , an−1 ) ∈ K̄ n−1 . The set of solutions of Pϕ,n (a1 , . . . , an−1 , Xn ) = 0
+can be obtained as in the following diagram, by considering        P the preimage A
+of {(a1 , . . . , an−1 )} by ϕn−1 and taking its image by ϕ ◦ (− ).
+                                                       P
+                                                   −
+{(P1 , . . . , Pn−1 ) ∈ E(K̄)n−1 : ϕ(Pi ) = ai }           {−(P1 + · · · + Pn−1 ) : ϕ(Pi ) = ai }
+                          ϕ × ··· × ϕ                                           ϕ
+
+              {(a1 , . . . , an−1 )}                       {an : Pϕ,n (a1 , . . . , an−1 , an ) = 0}
+
+If ϕ is separable, then for most (n − 1)-tuples (a1 , . . . , an−1 ), the cardinality
+   A = {(P1 , . . . , Pn−1 ) ∈ E(K̄)n−1 : ϕ(Pi ) = ai } is (deg ϕ)n−1 . The map
+of P
+− : E n−1 → E is of course not injective, but P  heuristically, if ϕ is a morphism
+with no special property, the restriction of − P    to A should be injective in
+general and the same holds for ϕ restricted to − (A). For a random map ϕ,
+the expected degree of Pϕ,n in each variable should be (deg ϕ)n−1 . This is in any
+case an upper bound on the degree of Pϕ,n . In the applications we need to be
+                                         Symmetrized Summation Polynomials            5
+
+able to solve (4) easily, and so we want the degree of Pϕ,n to be rather small;
+therefore most of this article focuses on the case where deg ϕ = 2.
+    We detail two important cases where the degree is actually smaller than the
+bound given above.
+ 1. The first case is when ϕ(P ) = ϕ(−P ) and occurs in particular for Semaev
+    polynomials (i.e. when ϕ(P ) = x(P )). Then it isPclear that (P1 , . . . , Pn−1 ) ∈
+    A if and only if (−P1 , . . . , −Pn−1 ) ∈ A, thus − (A) is stable under [−1] ∈
+    End(E) and ϕ|−P(A) is 2-to-1. An upper bound on the degree Pϕ,n is then
+    (deg ϕn−1 )/2.
+ 2. The second case is when ϕ factors through an isogeny ψ : E → E 0 , i.e.
+    ϕ = ϕ0 ◦ ψ where ϕ0 : E 0 → P1 . Then it is easy to check that Pϕ,n = Pϕ0 ,n ,
+    and an upper bound on the degree is given by (deg ϕ0 )n−1 .
+In this second case, it is actually equivalent to perform the decomposition attack
+on E using ϕ or on E 0 using ϕ0 . For this reason, we will usually only consider
+morphisms that do not factor through an isogeny.
+      For index calculus purposes, in order to compute a decomposition R = P1 +
+· · · + Pn , Pi ∈ F, we use the (n + 1)-th summation polynomial Pϕ,n+1 associated
+to ϕ and try to find a solution (a1 , . . . , an ) ∈ (Fq )n of the equation
+
+                          Pϕ,n+1 (a1 , . . . , an , ϕ(−R)) = 0 .                    (4)
+
+We then look for points P1 , . . . , Pn ∈ E(Fqn ) such that ϕ(Pi ) = ai and P1 + · · · +
+Pn = R. To solve the equation (4), we take the scalar restriction with respect
+to a linear basis of the extension Fqn /Fq , leading to a multivariate polynomial
+system defined over Fq .
+
+
+3     Action of torsion points
+3.1    Equivariant morphisms
+We investigate in this section how the existence of a rational m-torsion point on
+an elliptic curve E can speed up the decomposition attack. Let T ∈ E[m]; as
+mentioned in the introduction, our goal is to construct equivariant morphisms
+ϕ : E → P1 , i.e. such that there exists fT ∈ Aut(P1 ) satisfying ϕ(P + T ) =
+fT (ϕ(P )) for all P ∈ E: ϕ ◦ τT = fT ◦ ϕ.
+    Let d be the order of fT ; clearly d divides m. If d is strictly smaller than
+m, then ϕ ◦ τ[d]T = fT◦d ◦ ϕ = ϕ. This implies that ϕ can be factorized through
+the quotient isogeny π : E → E/h[d]T i as ϕ = ϕ0 ◦ π. In particular, the relation
+search on E using ϕ and T is equivalent to the relation search on E 0 = E/h[d]T i
+using ϕ0 and π(T ) ∈ E 0 [d], which does not fully exploit the property of T being
+a m-torsion point. This condition that the homography fT has order m implies
+some restriction about the degree of ϕ.
+Proposition 3 Let T ∈ E[m] be a m-torsion point and fT ∈ Aut(P1 ) a homog-
+raphy of order m. Suppose there exists ϕ : E → P1 such that ϕ ◦ τT = fT ◦ ϕ.
+Then m divides the degree of ϕ.
+6                           J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+Proof. Let us denote eψ (P ) the ramification index of a curve morphism ψ :
+C1 → C2 at a point P ∈ C1 . Then for any point P ∈ E, we have eϕ◦τT (P ) =
+eτT (P ) · eϕ (τT (P )) = eϕ (P +T ) and eϕ◦τT (P ) = efT ◦ϕ (P ) = eϕ (P )·efT (ϕ(P )) =
+eϕ (P ) since fT and τT are isomorphisms. In particular ϕ has the same ramifi-
+cation index at P and its translates P + T, . . . , P + [m − 1]T . We consider now
+a fixed point z ∈ P1 of fT (which always exists in an extension of K). Then
+ϕ−1 ({z}) is stable under translation by T , so that for each point P in ϕ−1 ({z}),
+                                                                     −1
+its m translates P, P + T, . . . , P + [m − 1]T alsoP belong to ϕ ({z}) and have
+the same ramification index. Since deg(ϕ) = P ∈ϕ−1 (z) eϕ (P ), the degree of ϕ
+is necessarily a multiple of m.
+
+    More generally, if E(K) has a subgroup G of small order, we would like to
+find an equivariant morphism ϕ : E → P1 such that for any T ∈ G, there
+exists fT ∈ Aut(P1 (K)) ≃ PGL2 (K) such that ϕ ◦ τT = fT ◦ ϕ. Then the
+map χ : T 7→ fT is a group morphism from G to PGL2 (K) that we want to
+be injective by the above remark (since otherwise ϕ would factorize through
+E/ker(χ)). Unfortunately the set of possible subgroups relevant for our purpose
+is very restricted.
+
+Proposition 4 Let G be a finite subgroup of E(K) and χ : G → PGL2 (K) an
+injective group morphism. Then G is of one of the following forms:
+   1. G = E[2],
+   2. G = hT i where T ∈ E[m] with m coprime to char(K),
+   3. G = E[char(K)].
+
+Proof. Since χ is injective, the commutative group G is isomorphic to a subgroup
+of PGL2 (K). It follows from the list in [14] that the only finite commutative
+subgroups of PGL2 (K) of order prime to the characteristic are either cyclic or
+isomorphic to Z/2Z × Z/2Z; furthermore, it is easy to see that PGL2 (K) has
+no element whose order is a strict multiple of the characteristic. Thus the only
+subgroups of E(K) that are of interest for our construction are either E[2] or
+cyclic, generated by a point of order char(K) or prime to char(K).
+
+    In what follows, we only deal with the case where the homography fT has
+order exactly m. Besides small torsion points, we would also like to take into
+account the automorphisms of the curve E; for most curves this only means
+the involution [−1] : P 7→ −P . The group of permutations of E generated
+by the translation by T and [−1] is isomorphic to the dihedral group Dm =
+Z/mZ o Z/2Z, so an equivariant morphism ϕ (if it exists) would give rise to an
+action on P1 , i.e. a group morphism from Dm to PGL2 (K). As noted above, this
+map should be injective when restricted to the subgroup Z/mZ generated by τT ,
+since otherwise ϕ can be factorized through an isogeny. For m > 2, it is an easy
+exercise to show that such a group morphism is necessarily injective; in contrast,
+for m = 2 it is possible to impose the additional property ϕ(−P ) = ϕ(P ) for all
+P ∈ E. Note that in the finite field case, PGL2 (Fq ) has a subgroup isomorphic
+to Dm if and only if m|(q − 1) or m|(q + 1) or m = char(Fq ) when m > 2.
+                                              Symmetrized Summation Polynomials                     7
+
+3.2    Reducing the factor base
+
+We consider an elliptic curve E defined over Fqn with an m-torsion point T and
+denote by ∼ the equivalence relation given by P ∼ P 0 if and only if P −P 0 ∈ hT i.
+Assume that there exists an equivariant morphism ϕ : E → P1 (Fqn ) such that
+the associated homography fT is in PGL2 (Fq ). Then the associated choice of
+factor base F = {P ∈ E(Fqn ) : ϕ(P ) ∈ P1 (Fq )} is invariant with respect to the
+translation by T , i.e. if P ∼ P 0 and P ∈ F then P 0 ∈ F. Therefore, it is possible
+to divide the size of the factor base by m, by considering a reduced factor base
+F 0 that includes only one element for each equivalence class of elements of F.
+      This modifies slightly the relation search. Each decomposition R = P1 +
+· · · + Pn , Pi ∈ F can be rewritten as R = (Q1 + [k1 ]T ) + · · · + (Qn + [kn ]T )
+with 0 ≤ ki < m and where Qi ∈ F 0 satisfies Qi ∼ Pi . We then just store
+the essentially equivalent relation [m]R = [m]Q1 + · · · + [m]Qn . The important
+fact is that subsequently we only need about #F/m relations to compute the
+discrete logarithms, and that the dimension of the relation matrix used in the
+resulting linear algebra step is also divided by m providing a speed-up by a factor
+m2 . On the other hand, this decreases the probability that a random point R
+decomposes by a factor mn−1 (there  P are more tuples in each preimage of the
+map F n → E, (P1 , . . . , Pn ) 7→     i Pi , so there are less points in the image),
+but this is more than compensated by the improved resolution of the associated
+polynomial systems as explained below.
+      Of course, if ϕ is also equivariant with respect to the automorphism [−1]
+then it is possible to further reduce the factor base by 2. If m = 2 and E has full
+2-torsion it is often possible to construct a morphism ϕ equivariant with respect
+to [−1] and translations by any 2-torsion points, thus allowing a division by 8 of
+the size of the factor base.
+
+
+3.3    Symmetries of summation polynomials
+
+We have seen in Prop.2 that the summation polynomials are always symmetric
+for n ≥ 3. In particular, they can be expressed in terms of elementary symmet-
+ric polynomials e1 , . . . , en in the variables X1 , . . . , Xn . This allows a reduction
+of the size and the total degree of the summation polynomials, thus simplify-
+ing their computation (for instance, it is possible to compute resultants of al-
+ready partially symmetrized polynomials as was done in [11]). More importantly,
+this reduction has an impact on the resolution of the multivariate polynomial
+systems: instead of solving (4), we rather consider the (partially) symmetrized
+equation Pϕ,n+1 (e1 , . . . , en , ϕ(−R)) = 0, e1 , . . . , en ∈ Fq . Of course, this adds a
+simple desymmetrization step in order to recover the corresponding solutions
+of (4) whenever they exist.
+    This approach can be extended when ϕ is equivariant with respect to transla-
+tion by an m-torsion point T . Let (a1 , . . . , an ) be a solution of Pϕ,n (a1 , . . .P      , an ) =
+0, so that there exist points P1 , . . . , Pn ∈ P   E(K̄) such that  Pϕ(P    i ) =   a i and     Pi =
+O. Then for any k1 , . . . , kn such that m| ki , we have (Pi + [ki ]T ) = O. Thus
+Pϕ,n (fTk1 (a1 ), . . . , fTkn (an )) = 0. In particular Pϕ,n (fTk1 (X1 ), . . . , fTkn (Xn )) is also
+8                           J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+a solution of (3), except that it is a rational function instead of a polynomial
+if fT is not an affine homography. We will see that Pϕ,n , or an associated ra-
+tional fraction Qϕ,n , is actually often invariant under this transformation; more
+formally, and taking into account Prop.2, it is invariant under an action of the
+group G = (Z/mZ)n−1 oSn . Then Pϕ,n , resp. Qϕ,n , belongs to the invariant ring
+K[X1 , . . . , Xn ]G or the invariant field K(X1 , . . . , Xn )G . In particular, it can be
+expressed in terms of generators of the invariant ring or field allowing a further
+reduction of the size and the total degree of the systems; this will be detailed
+in the next section for m = 2. For index calculus purpose when K = Fqn , it is
+necessary that these invariant generators lie in Fq (X1 , . . . , Xn ). This means that
+the action of G restricts to an action on Fq (X1 , . . . , Xn ).
+
+4     Summation polynomials associated to degree two
+      morphisms
+We consider the simplest case where ϕ has degree 2 (note that in this case ϕ is
+necessarily separable).
+Proposition 5 Let E be an elliptic curve defined over a field K with Weierstrass
+coordinate functions x, y such that [K(E) : K(x)] = 2, and let ϕ : E → P1 be
+a morphism of degree 2. Then there exist an homography h ∈ PGL2 (K̄) and a
+point Q ∈ E(K̄) such that ϕ = h ◦ x ◦ τ−Q , i.e. ϕ(P ) = h(x(P − Q)).
+Proof. Let R be the set of ramification points of ϕ, that is the set of points
+P ∈ E such that the ramification index eϕ (P ) is strictly greater than 1. We
+easily deduce from the Hurwitz formula that the set R is non empty. For a given
+ramification point Q ∈ E, we consider an homography ψ ∈ Aut(P1 ) sending
+the point ϕ(Q) to the point at infinity [1 : 0] of P1 . Let τQ : E → E denote the
+translation by Q, then the morphism ϕ0 = ψ ◦ ϕ ◦ τQ is ramified at O = [0 : 1 : 0].
+In particular, since ϕ has degree 2, ϕ0 has a unique pole at O of order 2, so that
+there exist a, b ∈ K such that ϕ0 = ax + b. This shows that there exists an
+homography h ∈ Aut(P1 ) such that ϕ(P ) = h(x(P − Q)).
+    To compute the associated summation polynomial, it is easy to check that
+the numerator of the rational fraction Semn+1 (h−1 (X1 ), . . . , h−1 (Xn ), x([n]Q))
+where Semn+1 stands for (n+1)-th Semaev polynomial, satisfies the property (3).
+In the case where Q = O or more generally Q ∈ E[n], the above expression can
+be simplified by considering the numerator of Semn (h−1 (X1 ), . . . , h−1 (Xn )). The
+degree of Pϕ,n in each variable is then equal to 2n−1 if Q ∈       / E[n] and 2n−2
+otherwise. For index calculus, it is clear that ϕ should be of the form h ◦ x: not
+only is the degree of Pϕ smaller, but we also have ∀P ∈ E, ϕ(−P ) = ϕ(P ). As
+mentioned above, this allows to reduce by a further 2 the size of the factor base.
+
+4.1   Speeding up the relation search using one 2-torsion point
+It turns out that every degree 2 morphism satisfies an equivariance property
+with respect to 2-torsion points; this is specific to the degree 2 case.
+                                                Symmetrized Summation Polynomials                       9
+
+Lemma 6 Let E be an elliptic curve defined over K with a 2-torsion point T ,
+and let ϕ : E → P1 be a morphism of degree 2. Then there exists fT ∈ PGL2 (K)
+such that ϕ(P + T ) = fT (ϕ(P )) for all P ∈ E.
+Proof. In the special case of ϕ = x where x is a Weierstrass coordinate function
+such that [K(E) : K(x)] = 2, the existence is given directly by the addition
+formula on E. Let gT ∈ PGL2 (K) be this homography such that x(P + T ) =
+gT (x(P )) for all P ∈ E. For a more general morphism ϕ = h ◦ x ◦ τ−Q , the
+homography fT = h ◦ gT ◦ h−1 satisfies the property.
+     In the remainder of this section, we denote by T a rational 2-torsion point,
+ϕ : E → P1 a degree 2 rational map such that ϕ(P ) = ϕ(−P ), and fT the
+involution of P1 such that ϕ(P P              + T ) = fT (ϕ(P )) for all P ∈ E.
+     Let W = {(P1 , . . . , Pn ) :              Pi = O} ⊂ E n . This sub-variety has many
+symmetries besides the action of the symmetric group. As mentioned above,
+we consider the group G2 = (Z/2Z)n−1 o Sn , (called dihedral Coxeter group
+in [4]). It is an abstract reflexion group, corresponding to the Coxeter diagram
+Dn , and its elements will be denoted by ((1 , . . . , n ), σ) ∈ {0; 1}n × Sn where
+1 + · · · + n = 0 mod 2 (i.e. we explicitly identify G2 with a subgroup of the
+group (Z/2Z)n o Sn of isometries of the hypercube). The group G2 acts on E n
+by ((1 , . . . , n ), σ) · (P1 , . . . , Pn ) = ([1 ]T + Pσ(1) , . . . , [n ]T + Pσ(n) ) and leaves
+W globally invariant.
+     The image of W by ϕn is V = V (Pϕ,n ) ⊂ (P1 )n , the set of zeroes of the
+summation polynomial associated to ϕ. This set is also left globally invariant
+by the rational action of G2 on (P1 )n given by ((1 , . . . , n ), σ) · (a1 , . . . , an ) =
+(fT1 (aσ(1) ), . . . , fTn (aσ(n) )). This means that for any g ∈ G2 , Pϕ,n       g
+                                                                                      (X1 , . . . , Xn ) =
+         1                     n
+Pϕ,n (fT (Xσ(1) ), . . . , fT (Xσ(n) )) is still a solution of (3), except that it is a
+rational fraction and no longer a polynomial unless fT is affine. In particular,
+the summation polynomials associated to ϕ have additional symmetries, that are
+simple to handle only when fT is affine, i.e. when we stay within the framework
+of polynomials and invariant rings.
+Proposition 7 Assume the involution fT ∈ PGL2 (K) affine. Then for n ≥ 3
+the n-th summation polynomial Pϕ,n is invariant under the action of G2 i.e. for
+all g = (, σ) ∈ G2 , Pϕ,n (X1 , . . . , Xn ) = Pϕ,n (fT1 (Xσ(1) ), . . . , fTn (Xσ(n) )).
+Proof. A special case of this proposition has already been proved in [4]; for the
+sake of completeness, we rephrase the demonstration in our more general setting.
+         g
+Since Pϕ,n  is again an irreducible summation polynomial associated to ϕ, there
+exist c(g) ∈ K ∗ such that Pϕ,n
+                              g
+                                 = c(g)Pϕ,n . This gives us a morphism c : G2 =
+        n−1             ∗
+(Z/2Z)      o Sn → K and from Prop.2 c(Sn ) = 1. Let u = ((1, 1, 0, . . . , 0), e)
+where e ∈ Sn is the neutral element, and v = (0, (1 2 3)). It is clear that G2 is
+generated by u together with Sn , so that the image of c is completely determined
+by the value of u. Since u2 = 1, we have c(u) = ±1. Now an easy computation
+shows that (uv)3 = 1, so 1 = c(uv)3 = c(u)3 c(v)3 = c(u)3 = c(u).
+   This means that Pϕ,n ∈ K[X1 , . . . , Xn ]G2 , the ring of invariants of G2 . Since
+the action of G2 is generated by pseudo-reflections, the Chevalley-Shephard-
+Todd theorem states that K[X1 , . . . , Xn ]G2 is itself a polynomial ring when the
+10                         J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+characteristic of K is greater than n; we will show later that it is in fact true
+in any characteristic. But first, we give a condition on E and T to assure the
+existence of a degree 2 morphism ϕ such that the corresponding homography
+fT is affine. Moreover when this condition is satisfied, we can take without
+loss of generality fT equal to x 7→ −x in odd characteristic or x 7→ x + 1 in
+characteristic 2.
+
+Proposition 8 Let E be an elliptic curve defined over a field K.
+(i) If char(K) 6= 2, then there exist T ∈ E(K)[2] and ϕ : E → P1 a degree 2
+morphism such that ϕ(P + T ) = −ϕ(P ) and ϕ(−P ) = ϕ(P ) if and only if there
+exist T 0 ∈ E[4] such that x(T 0 ) ∈ K. In this case T = [2]T 0 and the curve E has
+an equation of the form y 2 = x3 + ax2 + bx where T = (0, 0) and b is a square
+in K; moreover, ϕ is of the form
+                                              √
+                                      x(P ) + b
+                                    λ         √ ,
+                                      x(P ) − b
+for a choice of the square root of b and λ ∈ K.
+(ii) If char(K) = 2 and j(E) 6= 0, then E admits an equation of the form √
+y 2 + xy = x3 + ax2 + b with a unique non-trivial 2-torsion point T = (0, b).
+Then the morphisms ϕ such that ϕ(−P ) = ϕ(P ) and ϕ(P + T ) = ϕ(P ) + 1 are
+of the form
+                             b1/4
+                                      + λ, where λ ∈ K.
+                         x(P ) + b1/4
+If char(K) = 2 and j(E) = 0, there is no non-trivial 2-torsion point.
+
+Proof. (i) Suppose there exists a 2-torsion point T ∈ E(K)[2], then up to a
+translation we can assume that T = (0, 0) and that E has an equation of the form
+y 2 = x3 + ax2 + bx. From the addition formula, we get x(P + T ) = gT (x(P )) =
+b/x(P ). Let ϕ be a degree 2 morphism such that ϕ(−P ) = ϕ(P ). From Prop.5,
+there exists h ∈ PGL2 (K) such that ϕ = h ◦ x, and ϕ(P + T ) = fT (ϕ(P ))
+where fT = h ◦ gT ◦ h−1 . Thus we are looking for an homography h ∈ PGL2 (K)
+conjugating gT to z 7→ −z. By considering the associated matrices or the set of
+fixed points, it is easy to see that there exists such an h ∈ PGL2 (K) if and only
+                                                                  √ −1
+if b is a square, and that all such h are of the form h(x) = λ x−    √b
+                                                                   x+ b
+                                                                            .
+                                                          0
+                                                                                  √
+    Now, if b is a square in K, then any of the points T ∈ E(K̄) of abscissa ± b
+satisfies [2]T 0 = T , and are thus in E(K). Reciprocally, if there exists T 0 ∈ E[4]
+such that x(T 0 ) ∈ K, then [2]T 0 is in E(K)[2], and up to a translation E has an
+equation as above with b square in K.
+(ii) It is already well-known that in characteristic 2 an elliptic curve has a non-
+trivial 2-torsion point if and only if j(E) 6= √   0. If E has an equation of the
+form y 2 + xy = x3 + ax√2 + b and T = (0, b), the addition formula gives
+x(P + T ) = gT (x(P )) = b/x(P ). Now in characteristic √     2, there always exists
+h ∈ PGL2 (K) that conjugates the homography gT (x) = xb to x 7→ x + 1, and
+                                                          1/4
+                                                        b
+it is easy to see that all such h are of the form x 7→ x+b 1/4 + λ, λ ∈ K.
+                                                      Symmetrized Summation Polynomials                            11
+
+    The first part of Prop.8 generalizes the results given in [4], where the mor-
+phism ϕ is obtained as a projection onto a coordinate for curves in twisted
+Edwards form. The fact that the morphism ϕ depends of a parameter λ ∈ K
+is important for index calculus applications, since it allows to define different
+factor bases depending on the choice of λ.
+
+Remark 9 Lemma 6 shows that every degree 2 morphism satisfies an equivari-
+ance property ϕ(P + T ) = fT (ϕ(P )); the above proposition only describes the
+cases for which fT is as simple as possible. In odd characteristic, about half of
+the curves with a 2-torsion point have a coefficient b that is a square, and thus
+satisfies directly the hypotheses of the proposition. However if the curve has full
+2-torsion (i.e. a2 −4b is a square) then it is 2-isogenous to a curve with a rational
+4-torsion point, again satisfying the hypotheses. Overall, this proposition applies
+in odd characteristic to about 3/4 of curves with a 2-torsion point.
+
+
+4.2     Action of the full 2-torsion.
+
+In this subsection, K is a field of characteristic different from 2. Let E be an
+elliptic curve having a complete rational 2-torsion (in the finite field case, this
+is equivalent up to a 2-isogeny to the cardinality of E being divisible by 4). Let
+T0 , T1 and T2 = T0 + T1 be the three non-trivial 2-torsion points of E. According
+to Lem.6, for any degree 2 morphism ϕ, there exist homographic involutions f0 ,
+f1 and f2 = f0 ◦ f1 such that ∀P ∈ E, ∀i ∈ {0; 1; 2}, ϕ(P + Ti ) = fi (ϕ(P )). In the
+same way as before, we can consider the action on (P1 )n of the reflexion group
+G4 = (Z/2Z × Z/2Z)n−1 o Sn seen as a subgroup of (Z/2Z × Z/2Z)n o Sn which
+is given by
+                                                                         0                           0
+((1 , . . . , n ), (01 , . . . , 0n ), σ)·(a1 , . . . , an ) = (f01 ◦f1 1 (aσ(1) ), . . . , f0n ◦f1 n (aσ(n) )) .
+
+This means that for any g ∈ G4 , the rational fraction
+                                                            0                             0
+            g
+           Pϕ,n (X1 , . . . , Xn ) = Pϕ,n (f01 ◦ f1 1 (Xσ(1) ), . . . , f0n ◦ f1 n (Xσ(n) ))
+                                                        g
+satisfies again (3). But it is no longer possible that Pϕ,n is a polynomial for all
+g ∈ G4 . Indeed, f0 , f1 and f2 must commute because of the commutativity of
+the group law on E, but it is easy to check that two distinct affine involutions
+cannot commute. Thus the best we can hope is that one of the three involutions
+is affine, without loss of generality equal to z 7→ −z; then the two remaining
+involutions are necessarily of the form z 7→ c/z and z 7→ −c/z since they all
+commute. We give below a condition for the best case where c = 1.
+
+Proposition 10 Let E be an elliptic curve in twisted Legendre form y 2 = cx(x−
+1)(x − λ). Let ∆0 = λ, ∆1 = (1 − λ) and ∆2 = −λ(1 − λ). Then there exists
+a degree 2 morphism ϕ such that ϕ(−P ) = ϕ(P ) and the associated involutions
+are {f0 ; f1 ; f2 } = {z 7→ −z; z 7→ z1 ; z 7→ − z1 } if and only if there are at least two
+squares among {∆0 ; ∆1 ; ∆2 }.
+12                               J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+Proof. Let T0 = (0, 0), T1 = (1, 0) and T2 = (λ, 0) be the non-trivial 2-torsion
+points of E. Then the abscissa of P + Ti is equal to gi (xP ), where
+                           λ                 x−λ
+                g0 (x) =     ,    g1 (x) =       ,         g2 = g0 ◦ g1 = g1 ◦ g0 .
+                           x                 x−1
+To determine if these involutions can be conjugated to z 7→ −z, z 7→ z1 and
+z 7→ − z1 , we look at their fixed points. Let Fixi be the set of fixed points
+of gi for i = 0, 1, 2; then Fixi is non empty if and only ∆i is a square. As
+{0; ∞} and {±1} are the set of fixed points of z 7→ −z and z 7→ z1 respectively,
+we deduce easily that there must be at least two squares among {∆0 ; ∆1 ; ∆2 }.
+Reciprocally, if there are two squares among {∆0 ; ∆1 ; ∆2 }, then it is possible to
+find an homography h ∈ PGL2 (K) sending the fixed points of the corresponding
+involutions to {0; ∞} and {±1}, and we can take ϕ(P ) = h(x(P )).
+Remark 11 The condition that ∆i is a square in K is equivalent to the existence
+of a 4-torsion point Ti0 with a rational x-coordinate such that [2]Ti0 = Ti . If
+p ≡ 1 [4] then ∆0 ∆1 ∆2 is a square so there are exactly one or three squares
+among {∆0 ; ∆1 ; ∆2 }, and heuristically the latter should occur for about one curve
+out of four. Similarly if p ≡ 3 [4] then there are exactly zero or two squares among
+the ∆i , the latter occurring heuristically for 3/4 of the curves. Overall about half
+of the curves in twisted Legendre form will satisfy the hypotheses of the above
+proposition. For the remaining curves one has to work with degree 2 morphisms
+whose equivariance property has a less simple expression.
+Proposition 12 Suppose that the hypotheses of Prop.10 are satisfied. Then the
+rational fraction
+                                                      Pϕ,n (X1 , . . . , Xn )
+                         Qϕ,n (X1 , . . . , Xn ) =
+                                                       (X1 · · · Xn )2n−3
+is invariant under the action of G4 for n ≥ 3, i.e. for all g = ((, 0 ), σ) ∈ G4 ,
+                                                     0                             0
+         Qϕ,n (X1 , . . . , Xn ) = Qϕ,n (f01 ◦ f1 1 (Xσ(1) ), . . . , f0n ◦ f1 n (Xσ(n) ))
+                                                               0                            0
+                                                          (−1)1                    (−1)n
+                                 = Qϕ,n ((−1)1 Xσ(1)              , . . . , (−1)n Xσ(n)       ).
+
+Proof. From Prop.7 the polynomial Pϕ,n is invariant under the action of G2
+(identified with the subgroup of G4 whose elements are of the form (, 0, σ)),
+                                                                       n−3
+and it is also obviously true for the denominator (X1 · · · Xn )2 . Since G4 is
+generated by G2 and u0 = (0, (1, 1, 0, . . . , 0), e) (where e ∈ Sn is the neutral
+                                                 0
+element), it is sufficient to check that Quϕ,n = Qϕ,n . The degree of Pϕ,n is 2n−2
+                                                       n−2
+in each variable, so P 0 (X1 , . . . , Xn ) = (X1 X2 )2 Pϕ,n (1/X1 , 1/X2 , X3 , . . . , Xn )
+is an irreducible polynomial of K[X1 , . . . , Xn ] satisfying (3); in particular, there
+exists c ∈ K such that P 0 = c · Pϕ,n and consequently
+     0
+  Quϕ,n (X1 , . . . , Xn ) = Qϕ,n (1/X1 , 1/X2 , X3 , . . . , Xn ) = c · Qϕ,n (X1 , . . . , Xn ) .
+Now the same reasoning as in the proof of Prop.7 shows that c = 1.
+                                               Symmetrized Summation Polynomials                       13
+
+4.3    Invariant fields and invariant rings
+We have seen that when the action of the 2-torsion points is taken into account
+in the choice of the morphism ϕ, the associated summation polynomial Pϕ,n and
+rational fraction Qϕ,n belong respectively to the invariant ring K[X1 , . . . , Xn ]G2
+and the invariant field K(X1 , . . . , Xn )G4 . Hilbert’s finiteness theorem implies
+that the invariant ring K[X1 , . . . , Xn ]G2 is finitely generated, and Galois theory
+states that K(X1 , . . . , Xn )G4 is a subfield of K(X1 , . . . , Xn ) with correspond-
+ing extension degree |G4 | = 4n−1 n!. The goal of this section is to determine
+generators for these two structures.
+    We recall that the action of G2 on K[X1 , . . . , Xn ] and K(X1 , . . . , Xn ) is given
+by permutations of variables and any even change of signs, while the action of G4
+on K(X1 , . . . , Xn ) also includes taking the inverse of an even number of variables.
+As already mentioned, the group G2 is a normal subgroup of G02 = (Z/2Z)n oSn ,
+as is (Z/2Z)n , and the action of G2 trivially extends to an action on G02 by
+allowing any number of sign changes. This means that we have the following
+diagram of Galois extensions:
+
+                                 2
+                                  n        K(X1 , . . . , Xn )       2 n−1n!
+                          n
+ K(X1 , . . . , Xn )(Z/2Z)       n!                                       2        K(X1 , . . . , Xn )G2
+                                                                 0
+                                          K(X1 , . . . , Xn )G2
+                                                             n
+    It is easy to verify that K(X1 , . . . , Xn )(Z/2Z) is equal to K(X12 , . . . , Xn2 ) in
+odd or zero characteristic and equal to K(X12 +X1 , . . . , Xn2 +Xn ) in characteristic
+2, since the latter is clearly invariant and has the correct extension degree. Let
+                                                                                              0
+Yi = Xi2 + Xi if char(K) = 2 or Yi = Xi2 otherwise. Then K(X1 , . . . , Xn )G2 =
+K(Y1 , . . . , Yn )Sn since G02 /(Z/2Z)n ≃ Sn , so this invariant field consists of sym-
+metric rational fractions in the Yi , which is known to be generated by the ele-
+mentary symmetric polynomials s1 = Y1 + · · · + Yn , . . . , sn = Y1 · · · Yn . Now let
+e1 = X1 +· · ·+Xn in characteristic 2 and en = X1 · · · Xn otherwise; we have e21 +
+e1 = s1 , resp. e2n = sn . Then K(e1 , s2 , . . . , sn ), resp. K(s1 , . . . , sn−1 , en ), is in-
+                                                                                                0
+variant under G2 and a degree 2 extension of K(s1 , . . . , sn ) = K(X1 , . . . , Xn )G2 ,
+hence is equal to the invariant field K(X1 , . . . , Xn )G2 . Finally, since s1 , . . . , sn
+and e1 (resp. en ) belong to K[X1 , . . . , Xn ], we have the following proposition
+                                            
+                                              K[e1 , s2 , . . . , sn ]   in characteristic 2,
+Proposition 13 K[X1 , . . . , Xn ]G2 =
+                                              K[s1 , . . . , sn−1 , en ] otherwise.
+   We can use the same argument for the action of G4 on K(X1 , . . . , Xn ), which
+extends to an action of G04 = (Z/2Z × Z/2Z)n o Sn , by considering the normal
+subgroups G4 and (Z/2Z × Z/2Z)n .
+
+                                      4
+                                       n      K(X1 , . . . , Xn )        4 n−1n!
+                                 n
+ K(X1 , . . . , Xn )(Z/2Z×Z/2Z)       n!                                      4    K(X1 , . . . , Xn )G4
+                                                                     0
+                                              K(X1 , . . . , Xn )G4
+14                                J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+                                                                   n
+    The leftmost field K(X1 , . . . , Xn )(Z/2Z×Z/2Z) is easily seen to be equal to
+                                                                                       0
+K(Z1 , . . . , Zn ) where Zi = Xi2 + Xi−2 , and the bottom field K(X1 , . . . , Xn )G4
+is then generated by the elementary symmetric polynomials σ1 = Z1 + · · · +
+Zn , . . . , σn = Z1 · · · Zn . Finding generators for the invariant field of G4 is less
+obvious. Let si be the i-th elementary symmetric polynomial in X12 , . . . , Xn2
+                                                     Pbn/2c
+(with the convention that s0 = 1), w0 =                 i=0 s2n /(X1 · · · Xn ) and w1 =
+Pb(n−1)/2c
+   i=1          s2n+1 /(X1 · · · Xn ). Then it is only a matter of computation to check
+that w0 and w1 are indeed invariant under the action of G4 ; actually, replacing
+an odd number of variables by their inverse exchanges w0 and w1 . Moreover,
+direct computations show that w0 and w1 are roots of the polynomial
+                                                                     2
+            bn/2c                          b(n−1)/2c
+            X                                  X                                                       0
+Z4 −               22i σn−2i  Z 2 +                 22i σn−(2i+1)  ∈ K(X1 , . . . , Xn )G4 [Z]
+            i=0                                i=0
+
+                                                                         0
+so they are algebraic of degree 4 over K(X1 , . . . , Xn )G4 . This shows the following
+proposition
+Proposition 14 K(X1 , . . . , Xn )G4 = K(σ1 , . . . , σn , w0 ) = K(σ1 , . . . , σn , w1 ) =
+K(σ1 , . . . , σn , w0 , w1 ).
+These families of generators are of course not algebraically independent. We
+can in fact choose n generators among them: either removing from the first two
+families any generator of the form σn−2i , or removing in the last family any two
+generators of the σi ’s. From an algorithmic point of view, it is not clear which set
+of generators is the most efficient for computations of summation polynomials.
+
+
+5      Examples and applications
+5.1     Computation of summation polynomials
+Characteristic 2 Let E : y 2 + xy = x3 + ax2 + b be an elliptic curve defined
+over a characteristic 2 field and ϕ : P 7→ x(Pγ)+γ + λ where γ 4 = b, as in Prop.8.
+Then the first summations polynomials associated to ϕ, expressed in term of the
+generators e1 , s2 , . . . , sn of the invariant ring K[X1 , . . . , Xn ]G2 , are equal to
+
+                     Pϕ,3 = s3 + Ls2 + L2 (e21 + e1 ) + L3 + γ(e1 + λ)2 ,
+
+    Pϕ,4 = e21 (s4 + Ls3 + L2 s2 + L3 (e21 + e1 ) + L4 ) + (s3 + (e21 + e1 )L2 + e21 γ)2 ,
+where L = λ2 +λ. The next polynomials become too large to be reproduced with
+λ and γ as formal parameters, so we give them for λ = 0. Note that it is possible
+to recover the general expression for a different value of λ by
+                                                             Pkreplacing   Xi by
+Xi +λ, which corresponds to replacing e1 by e1 +nλ and sk by j=0 n−j
+                                                                         k−j
+                                                                   k−j   L    sj .
+For n = 5, we obtain
+
+Pϕ,5 = e81 γ 8 + e61 s5 γ 5 + e41 s24 γ 4 + e21 s23 s5 γ 3 + s43 γ 4 + e21 s35 γ + s22 s25 γ 2 + s45 + s35 γ .
+                                             Symmetrized Summation Polynomials                   15
+
+Again, the next polynomials become too large to be reproduced in their entirety;
+for example, we obtain
+         Pϕ,6 = s85 + e21 s65 s6 + s65 s6 + · · · + e12 2 10
+                                                     1 s5 γ  + e14
+                                                                1 s6 γ
+                                                                       12
+                                                                          + e16
+                                                                             1 γ
+                                                                                 16
+                                                                                    ,
+which has 50 terms in F2 (γ)[e1 , s2 , . . . , s6 ]. We observe that when λ = 0 or 1,
+the polynomials Pϕ,3 , Pϕ,4 and Pϕ,5 only involve even exponents of the n − 1
+first variables. This fact is true in general: for L = 0, Pϕ,n (e1 , s1 , . . . , sn ) =
+P̃ϕ,n (e21 , s22 , . . . , s2n−1 , sn ), which simplifies the inductive computation of these
+polynomials in characteristic 2.
+    We sum up in Table 1 the number of monomials of Semaev polynomials and
+our symmetrized summation polynomials (for λ = 0), as well as the timings
+of their computation. For n ≤ 7, we used resultants of partially symmetrized
+polynomials followed by a symmetrization at each step. The computation was
+intractable in this way for n = 8. Thus, we implemented a dedicated interpolation
+algorithm to compute this new record. Here we briefly describe this computation.
+The 8-th symmetrized polynomial is the result of the symmetrized version of the
+relation
+      Pϕ,8 (X1 , . . . , X8 ) = ResX (Pϕ,6 (X1 , . . . , X5 , X), Pϕ,4 (X6 , . . . , X8 , X) ,
+but with Pϕ,4 and especially Pϕ,6 already in partially symmetrized form. We
+thus begin by evaluating Pϕ,8 (e1 , s2 , . . . , s8 ) on a very large sample of points,
+which can be done by computing the above resultant with all variables (except
+X) instantiated. However, in order to apply fast sparse evaluation-interpolation
+techniques [15], we have to precisely control the instantiations of e1 , s2 , . . . , s8 ;
+thus we cannot simply evaluate the Xi to deduce a sample point, but have to
+do the converse instead. Moreover, because of the huge size of the sample, each
+of these evaluations has to be done as efficiently as possible. Actually, since we
+work with symmetrized polynomials, each instantiation corresponds to the com-
+putation of the values of the generators of the invariant ring in X1 , . . . , X5 and
+X6 , . . . , X8 respectively, from an instantiation of e1 , s2 , . . . , s8 . Such a computa-
+tion is not at all straightforward; it can be done by solving a polynomial system
+but, even by using the most efficient existing implementations, the timings are
+too slow to obtain Pϕ,8 in a reasonable time. Thus, we investigated new methods
+to solve this problem and finally reduced it, by using the underlying symmetries,
+to the almost instantaneous resolution of a univariate polynomial. This efficient
+resolution is mainly based on a careful study of the factorization of this poly-
+nomial and a clever choice of the sample points, which let us avoid half of the
+most time-consuming steps of the algorithm. The sparse-interpolation step is
+less tricky but we need also a careful implementation in order to obtain the re-
+quired efficiency. The complete computation of the 8-th symmetrized summation
+polynomial was achieved in about 40.5 CPU.hours using Magma [1], whereas
+previous attempts using the direct approach were all stopped after at least one
+month of computations.
+
+Odd characteristic Let E : y 2 = cx(x−1)(x−λ) be an elliptic curve in twisted
+Legendre form over an odd characteristic field K. As in Prop.10, we assume that
+16                           J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+Table 1. Comparison of the number of terms of symmetrized Semaev polynomials and
+summation polynomials using a 2-torsion point in characteristic 2 (λ = 0). The crosses
+correspond to computations that stopped unsuccessfully after several weeks.
+
+                           n               3 4 5         6   7    8
+                Semaev nb of monomials 3 6 39 638 –               –
+              polynomials     timings     0 s 0 s 26 s 725 s ×    ×
+                          nb of monomials 2 3 9 50 2 247 470 369
+                  Pϕ,n
+                              timings     0 s 0 s 0 s 1 s 383 s 40.5 h
+
+Table 2. Comparison of the number of terms of symmetrized classical Semaev polyno-
+mials and summation polynomials in odd characteristic using either a single 2-torsion
+point or the complete 2-torsion
+
+                                          n                 3 4 5    6
+                           Semaev polynomial                5 36 940 –
+                          Pϕ,n (s1 , . . . , sn−1 , en ) 5 13 182 4125
+                        Qϕ,n (σ1 , . . . , σn−2 , w0 , w1 ) 3 6 32 396
+
+                                                            √           2       2
+λ and √1−λ are squares,2so that there exists t ∈ K such that λ = (1−t )/(1+t 1)
+and 1 − λ = 2t/(1+t ). Let T0 = (0, 0) and T1 = (1, 0); then a map ϕ : E → P
+satisfying ϕ(−P ) = ϕ(P ), ϕ(P + T0 ) = −ϕ(P ) and ϕ(P + T1 ) = 1/ϕ(P ) is given
+by                                    √              √
+                                        λ + 1 x(P ) − λ
+                              ϕ(P ) = √              √ .
+                                        1 − λ x(P ) + λ
+We can compare the summation polynomials Pϕ,n symmetrized with respect
+to G2 (corresponding to the action of a single 2-torsion point T0 ), the associ-
+ated rational fractions Qϕ,n symmetrized with respect to G4 (corresponding to
+the action of the complete 2-torsion), and the classical Semaev polynomials, ex-
+pressed with the elementary symmetric polynomials e1 , . . . , en in the variables
+X1 , . . . , Xn . For n = 3 and 4, we have
+                   Sem3 = e22 − 4e1 e3 + 2e2 λ − 4e3 (λ + 1) + λ2 ,
+                     Pϕ,3 = t3 e23 + 2(1 − t4 )e3 + t3 s1 − ts2 − t ,
+                    Qϕ,3 = t3 w1 − tw0 − 2t4 + 2 .
+      Pϕ,4 = t2 (s21 − 2s1 s3 − 4s2 e24 + 8s2 e4 − 4s2 + s23 + 8e34 − 16e24 + 8e4 ) +
+              4(t4 + 1)(s1 e24 − s1 e4 − s3 e4 + s3 ) ,
+      Qϕ,4 = 4(t4 + 1)σ1 − 4t2 σ2 + t2 w12 − 4(t4 + 1)w1 + 8t2 w0 − 32t2 .
+Table 2 sums up the number of terms of the computable polynomials for com-
+parison.
+
+5.2    Index calculus on E(Fq5 )
+IPSEC Oakley key determination ’Well Know Group’ 3 curve An inter-
+esting target for the decomposition attack is the IPSEC Oakley key determina-
+                                        Symmetrized Summation Polynomials           17
+
+tion ’Well Know Group’ 3 curve [9] defined over the binary field F2155 = F(231 )5 .
+Since this is a degree 5 extension field, the decomposition-based index calculus
+uses a 6-th summation polynomial. The cardinality of the curve is 12 times a
+prime number; according to Prop.4, we can only consider the action of the 2-
+torsion or the 3-torsion points. With the 2-torsion point and the morphism ϕ of
+Prop.8 for λ = 0, the reduced factor base has 536 864 344 elements, which as ex-
+pected is very close to 231 /4. Using the corresponding 6-th symmetrized summa-
+tion polynomial computed above, a decomposition test takes 10.28 sec (3.44 sec
+for the Gröbner basis computation for a well-chosen order and 6.84 sec for the
+change of order with FGLM [5]) using FGb [3] on a Intel Core i7-4650U CPU
+at 1.70 GHz. Alternatively, the same computation with Magma V2.18-3 (on an
+AMD Opteron 6176 SE at 2.3 GHz) takes 995 sec for the Gröbner basis and
+about 6 hours for the order change1 .
+    To put this in perspective, we can compare to the only other existing method
+computing decompositions on this curve, namely the “n − 1” approach of [11]:
+the computation of only one relation was estimated in [8] to take about 37 years
+on a single core, whereas with our results the expected time to get one relation
+is 24 × 5! × 10.28 sec ≈ 5.5 hr. Even if it is still too slow to seriously threaten the
+DLP on this IPSEC standard, these experiments show that other non-standard
+problems like the oracle-assisted static Diffie-Hellman problem [12] are no longer
+secure on this curve.
+
+Random curve in odd characteristic with full 2-torsion To test the
+speed-up provided by the presence of the full 2-torsion subgroup, we considered a
+random curve in Legendre form over the optimal extension field F(231 +413)5 , with
+a near-prime cardinality and satisfying the condition of Prop.10. Using the 6-th
+symmetrized summation polynomial as computed above, a decomposition test
+takes only 6.66 sec (2.82 sec for the Gröbner basis and 3.84 sec for FGLM) using
+FGb on a 3.47 GHz Intel Xeon X5677 CPU, or about 5 hours (55 min for the GB
+and 4h25 for FGLM) using Magma. By comparison, in [4] only one 2-torsion
+was accounted for (in a twisted Edwards model) and the authors reported a
+timing of 2 732 sec for one decomposition test. Once again, this shows the total
+weakness of some non-standard problems on such curves.
+
+6     Conclusion
+The introduction of summation polynomials associated to any morphism ϕ from
+an elliptic E to P1 opens new perspectives for the decomposition based index
+calculus. In particular, we have been able to use equivariant morphisms to take
+advantage of 2-torsion points in any characteristic. As demonstrated by our
+examples and timings, the speed-up over the classical approach is far from neg-
+ligible and allows to seriously threaten more curves. The framework we have
+1
+    The performance gap between Magma and FGb can be partially explained by the
+    non-optimized arithmetic operations of Magma when the field size exceeds 25 bits.
+    Experiments on smaller fields showed a significantly smaller gap.
+18                          J.-C. Faugère, and L. Huot, A. Joux, G. Renault, V. Vitse
+
+developed also applies to higher order torsion points, which will be more de-
+tailed in an extended version of this article.
+
+
+References
+1. W. Bosma, J. Cannon, and C. Playoust. The Magma algebra system. I. The user
+   language. J. Symbolic Comput., 24(3-4):235–265, 1997. Computational algebra and
+   number theory (London, 1993).
+2. C. Diem. On the discrete logarithm problem in elliptic curves. Compos. Math.,
+   147(1):75–104, 2011.
+3. J.-C. Faugère. FGb: A Library for Computing Gröbner Bases. In Mathematical
+   Software - ICMS 2010, pages 84–87, 2010. Springer Berlin Heidelberg.
+4. J.-C. Faugère, P. Gaudry, L. Huot, and G. Renault. Using symmetries in the index
+   calculus for elliptic curves discrete logarithm. J. Cryptology, pages 1–41, 2013. DOI:
+   10.1007/s00145-013-9158-5.
+5. J.-C. Faugère, P. Gianni, D. Lazard, and T. Mora. Efficient computation of zero-
+   dimensional Gröbner bases by change of ordering. J. Symbolic Comput., 16(4):329–
+   344, 1993.
+6. P. Gaudry. Index calculus for abelian varieties of small dimension and the elliptic
+   curve discrete logarithm problem. J. Symbolic Comput., 44(12):1690–1702, 2008.
+7. P. Gaudry, F. Hess, and N. P. Smart. Constructive and destructive facets of Weil
+   descent on elliptic curves. J. Cryptology, 15(1):19–46, 2002.
+8. R. Granger, A. Joux, and V. Vitse. New timings for oracle-assisted SDHP on the
+   IPSEC Oakley ’Well Known Group’ 3 curve. Announcement on the NBRTHRY
+   mailing list, July 2010. http://listserv.nodak.edu/archives/nmbrthry.html.
+9. IETF. The Oakley key determination protocol, IETF RFC 2412, 1998.
+10. A. Joux and V. Vitse. Cover and Decomposition Index Calculus on Elliptic Curves
+   made practical. Application to a seemingly secure curve over Fp6 . In Advances in
+   cryptology—EUROCRYPT 2012, volume 7237 of Lecture Notes in Comput. Sci.,
+   pages 9–26, Berlin, 2012. Springer.
+11. A. Joux and V. Vitse. Elliptic curve discrete logarithm problem over small degree
+   extension fields. J. Cryptology, 26(1):119–143, 2013.
+12. N. Koblitz and A. Menezes. Another look at non-standard discrete log and Diffie-
+   Hellman problems. J. Math. Cryptol., 2(4):311–326, 2008.
+13. I. A. Semaev. Summation polynomials and the discrete logarithm problem on
+   elliptic curves. Cryptology ePrint Archive, Report 2004/031, 2004.
+14. J.-P. Serre. Propriétés galoisiennes des points d’ordre fini des courbes elliptiques.
+   Invent. Math., 15(4):259–331, 1972.
+15. R. Zippel. Interpolating polynomials from their values. Journal of Symbolic Com-
+   putation, 9(3):375 – 403, 1990.
+

@@ -1,0 +1,314 @@
+hypothesis:
+  id: H-INSTR-ebb306
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-25'
+  derived_from_idea: IDEA-20260807-257001
+  statement: >-
+    The committed transport verifier harness/isogeny_class.py::verify_transport
+    certifies strictly less than the transport theorem T1 of
+    analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md requires, and
+    the deficit is exactly one checkable predicate. Concretely, three claims are
+    asserted jointly and each is separately falsifiable.
+    (C1) BLINDNESS IS STRUCTURAL. The discrete-log check
+    E2.mul(k, P_image) == Q_image is invariant under replacing the transport map
+    phi by lambda-composed phi for every lambda coprime to the prime order N,
+    including lambda = -1. Therefore no mutation drawn from that scalar orbit can
+    ever be rejected by that check, and the certificate must not be read as
+    identifying phi.
+    (C2) A CLASS-MEMBERSHIP GAP EXISTS AND IS CLOSABLE. The committed verifier
+    never recomputes the target curve's trace, so there exists at least one
+    mutated target curve carrying a DIFFERENT trace of Frobenius that the
+    committed verifier ACCEPTS. Adding the independent predicate
+    trace_of_frobenius(p, a2, b2) == trace_of_frobenius(p, a, b), computed with
+    code sharing nothing with the Velu path, rejects that mutation.
+    (C3) THE ADDED PREDICATE IS SOUND AND CHEAP. On genuine transports the
+    augmented verifier agrees with the committed verifier on every accepted
+    instance, its pass rate on chained transports is identically 1 at every
+    composition depth, and the added trace recomputation costs a stated and
+    bounded fraction of the transport itself at the tested p.
+    The hypothesis is FALSE if the committed verifier already rejects every
+    mutation that changes the target curve's trace (C2 fails), if the scalar-orbit
+    mutations are rejected by either verifier (C1 fails), or if the augmented
+    verifier disagrees with the committed one on any genuine transport (C3 fails).
+  mechanism: >-
+    T1 asserts that the transported triple is a valid ECDLP instance of order N on
+    a curve in the same F_p-isogeny class with the same solution k. That statement
+    decomposes into three facts about the INSTANCE, none of which mentions the map.
+    T-C1, the target curve is non-singular over F_p and has the same trace as the
+    source, which by Tate's theorem is equivalent to lying in the same F_p-isogeny
+    class. T-C2, the transported point lies on the target, is not the identity, and
+    is annihilated by N, which for prime N forces order exactly N. T-C3, the second
+    transported point lies on the target and equals the k-fold multiple of the
+    first.
+    The committed verifier implements T-C2 and T-C3 and derives the target curve
+    coefficients from velu_odd rather than checking them, so T-C1 is never tested
+    independently. That omission is the mechanism of the gap. The mechanism of the
+    blindness is separate and algebraic: on a prime-order subgroup every
+    endomorphism acts as multiplication by a scalar, so for any lambda coprime to
+    N the map psi obtained by post-composing phi with multiplication-by-lambda
+    satisfies k-times-psi(P) equal to psi(Q) identically, since scalars commute.
+    The dlog check therefore cannot separate phi from its whole scalar orbit, and
+    the correct response is to declare that orbit in executable form rather than to
+    strengthen the check.
+  assumptions:
+    - >-
+      Tate's theorem, in the form that two elliptic curves over F_p are
+      F_p-isogenous if and only if they have the same number of F_p-rational
+      points. Classical, used as the definition of the isogeny class and not
+      re-derived here.
+    - >-
+      N is prime, so a point that is annihilated by N and is not the identity has
+      order exactly N. The verifier tests primality of N rather than assuming it.
+    - >-
+      trace_of_frobenius is itself an instrument and is validated against
+      exhaustive point counting at small p before it is used as a certificate
+      predicate. Its cost is O(p) field operations, which is the disclosed
+      overhead.
+    - >-
+      The augmented verifier imports nothing from the Velu path. Independence is a
+      contract asserted by the test suite, not an intention.
+    - >-
+      Toy scale only. The certificate scheme is scale-free but its trace predicate
+      is not, and no claim is made about behaviour at cryptographic p.
+  proof_search_map:
+    bottleneck: >-
+      T-C1, the class-membership predicate. Every other predicate is arithmetic on
+      points; class membership is the only one that rests on a theorem, and the
+      theorem is Tate's.
+    baseline_embedding:
+      parameter_slice: >-
+        p = 4001 with an ordinary trace drawn from the committed RUN-ICINV-p4001-a
+        enumeration, isogeny degree ell in {3, 5}, instances with N prime and
+        gcd(ell, N) = 1.
+      reproduction_check: >-
+        The augmented verifier must return the identical verdict to the committed
+        verify_transport on every genuine transport that verifier currently
+        accepts, on a frozen fixture of at least 20 transports. Any disagreement
+        halts the experiment and is investigated before anything is certified.
+    observation_collision:
+      observable: >-
+        The certificate verdict, a boolean together with a named reason string.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED. The maps phi, its negation, and every
+        scalar multiple by lambda coprime to N are distinct ground-truth maps
+        carrying the identical observable. The collision does not falsify the
+        certificate because the certificate's claim is about the instance rather
+        than about the map, but it is fatal to any record reading the certificate
+        as identifying phi. Making the collision executable is the deliverable.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Add the trace of Frobenius of the target curve to the certified
+          statement, computed by an independent character sum, so the certificate
+          carries a class label rather than only an instance.
+        predicted_gain: >-
+          Rejects every different-trace mutation, which the committed verifier
+          cannot reject at all.
+      - transform: observable_fiber
+        proposed_object: >-
+          Declare the fibre of the verdict explicitly as a MUST-ACCEPT list, so the
+          equivalence class the certificate cannot distinguish is archived in
+          executable form rather than in prose.
+        predicted_gain: >-
+          Prevents a downstream record from reading a passing certificate as
+          verification of the map.
+    quantifier_order: >-
+      CLAIMED. FOR ALL transports produced by ANY implementation, IF the augmented
+      verifier accepts, THEN the transported triple is an ECDLP instance of prime
+      order N on a curve F_p-isogenous to the source with solution k. NOT CLAIMED
+      AND EXPLICITLY DISCLAIMED. IF the verifier accepts THEN the specific map used
+      was an isogeny of the claimed degree; that implication is false by the scalar
+      invariance and is recoverable for degree only through a modular-polynomial
+      layer that this hypothesis treats as optional and separately statused.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The transported triple is a valid ECDLP instance of prime order N on a
+        curve with the same trace as the source and its solution is the same k.
+        The certificate can never establish which isogeny was used, that any
+        isogeny was used, that the degree is what was claimed, or that a party who
+        does not know k could have checked it.
+      nearby_object_control: >-
+        A NON-TRANSPORT of the same shape at the same p, carrying the same point
+        order N but a different trace, with the point pair built to satisfy the
+        discrete-log relation by construction. It satisfies T-C2 and T-C3 exactly
+        and fails T-C1. A verifier that cannot separate it from a genuine transport
+        has not identified the load-bearing structure.
+    proof_obligations:
+      - claim: Same trace implies F_p-isogenous, by Tate's theorem.
+        responsibility: correctness
+      - claim: N prime with a non-identity point annihilated by N gives order exactly N.
+        responsibility: correctness
+      - claim: The discrete-log check is invariant under post-composition with a scalar.
+        responsibility: soundness
+      - claim: The augmented verifier shares no code with the Velu path.
+        responsibility: interface
+      - claim: trace_of_frobenius agrees with exhaustive point counting at small p.
+        responsibility: baseline
+      - claim: Every acceptance carries the clause that the verifier knows the secret k.
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients:
+    - description: >-
+        Tate's isogeny theorem over finite fields, used as the equivalence between
+        equal point counts and F_p-isogeny.
+      citation: >-
+        Classical; used in this program through
+        analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md statement T1.
+      provenance: internal
+      verified_by: >-
+        The committed DECOMPOSITION.md record, read as the program's own statement
+        of the fact; no external source was opened for this record.
+      role: class-membership criterion
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: must_reject_mutations_accepted_by_committed_verifier
+      direction: higher
+      minimum_effect: >-
+        At least one of the nine MUST-REJECT mutations is accepted by the committed
+        verifier, and specifically the different-trace mutation. If the committed
+        verifier rejects all nine, C2 is falsified and the trace predicate is a
+        redundancy rather than a repair.
+    - metric: must_accept_mutations_rejected_by_either_verifier
+      direction: lower
+      minimum_effect: >-
+        Exactly zero. A rejection of the negated-image, scaled-image, or
+        k-plus-N mutation would mean a verifier is enforcing a property of the map
+        that the instance claim does not need, which falsifies C1 as stated and is
+        itself reportable.
+    - metric: genuine_transport_agreement_count
+      direction: different
+      minimum_effect: >-
+        Exact agreement on all 20 frozen genuine transports. Any disagreement
+        halts the experiment.
+    - metric: chained_transport_pass_rate_by_depth
+      direction: different
+      minimum_effect: >-
+        Identically 1 at depths 1 through 8. Any decay is an implementation finding
+        under AGENTS.md rule 5, never evidence about transport mathematics.
+    - metric: trace_predicate_cost_fraction
+      direction: lower
+      minimum_effect: >-
+        The independent trace recomputation costs below 0.10 of the measured
+        transport cost at p = 4001. A larger fraction does not falsify C1 or C2 but
+        does falsify C3's cheapness limb and must be reported.
+  test_boundary:
+    instances:
+      - Toy prime-field curves at p = 4001 with ordinary traces and prime subgroup order N.
+      - >-
+        A frozen fixture of at least 20 genuine transports produced by the
+        committed Velu path at isogeny degrees ell in {3, 5}.
+      - >-
+        Twelve mutated certificates, nine of which must be rejected and three of
+        which must be accepted.
+      - >-
+        One null object at the same p with the same subgroup order but a different
+        trace and a by-construction valid discrete-log relation.
+    parameters:
+      p: '4001, with p = 101 and p = 1009 used only for exhaustive trace validation'
+      isogeny_degrees: '3 and 5'
+      chain_depths: '1 through 8'
+      genuine_fixture_size: '20'
+      mutation_count: '12 (9 must-reject, 3 must-accept)'
+    implementation: >-
+      A new standalone verifier under experiments/EXP-INSTR-2d90bb/driver/ importing
+      only the toycurve arithmetic module and trace_of_frobenius, with the import
+      list asserted by the test suite. The committed verify_transport is run
+      unmodified beside it on every fixture. Nothing under harness/ is edited.
+    budget:
+      wall_clock_seconds_total: 3600
+      maximum_memory_gb: 4
+      maximum_runs: 12
+  falsification_conditions:
+    - >-
+      The paper algebra of the scalar invariance fails, i.e. the k-fold multiple of
+      the negated image is not the negated second image. C1 is false and this
+      record's diagnosis of the committed verifier is withdrawn.
+    - >-
+      trace_of_frobenius disagrees with exhaustive point counting anywhere at
+      p = 101 or p = 1009. The proposed predicate rests on a broken instrument and
+      nothing may be certified with it.
+    - >-
+      The two verifiers disagree on any of the 20 genuine transports. One of them
+      is wrong and nothing is certified until it is known which.
+    - >-
+      The committed verifier rejects all nine MUST-REJECT mutations. C2 is false;
+      the trace predicate becomes a redundancy and the record says so.
+    - >-
+      Either verifier rejects any of the three MUST-ACCEPT mutations. C1 is false as
+      stated and the declared equivalence class is wrong.
+    - >-
+      Chained-transport pass rate falls below 1 at any depth. An implementation
+      finding under AGENTS.md rule 5, never a mathematical result.
+  interpretation_limits:
+    - >-
+      A passing certificate certifies the INSTANCE and the CLASS LABEL and nothing
+      about the map. Any record reading it as verification of an isogeny is
+      overclaiming.
+    - >-
+      The discrete-log predicate consumes the secret k. Nothing here says anything
+      about what a party who does not know k can verify, and no record may cite a
+      passing certificate as evidence about attacker-side transport cost.
+    - >-
+      Toy tier at p = 4001. The trace predicate is O(p) and no claim is made about
+      its behaviour at cryptographic p.
+    - >-
+      Nothing here is an attack, a speedup, or a cost claim about any deployed
+      curve. It makes the application of an elementary transport theorem checkable.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  prior_evidence_refs:
+    - RQ-INSTR-f8faa0
+    - IDEA-20260807-257001
+    - H-ENDO-001
+    - RUN-ICINV-p4001-a
+    - KN-FIND-b7e091
+    - docs/claims-and-verification.md
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+  distinguishable_outcomes:
+    - outcome: >-
+        The committed verifier accepts the different-trace mutation, the augmented
+        verifier rejects it with a named reason, both verifiers accept all three
+        scalar-orbit mutations, and the 20 genuine transports agree exactly.
+      meaning: >-
+        C1, C2 and C3 all hold. The campaign's transport certificate had a
+        class-membership hole, the hole is closed by one independent predicate, and
+        the equivalence class the certificate cannot see is now archived in
+        executable form. The augmented verifier may be proposed for wiring into the
+        run wrapper by a separate decision.
+    - outcome: >-
+        The committed verifier rejects all nine MUST-REJECT mutations including the
+        different-trace one.
+      meaning: >-
+        C2 is FALSE. The gap claim is refuted; the trace predicate is a redundancy
+        rather than a repair. The residual deliverable is only the executable
+        declaration of the invariance class, which is a materially smaller
+        contribution, and the record must say so in those words.
+    - outcome: >-
+        Either verifier REJECTS one of the negated-image, scaled-image, or
+        k-plus-N mutations.
+      meaning: >-
+        C1 is FALSE as stated. The certificate is enforcing a property of the map
+        that the instance claim does not require, which is a different defect and
+        is reportable as such; the declared equivalence class must be rewritten
+        before anything else in the run set is interpreted.
+    - outcome: >-
+        The two verifiers disagree on at least one of the 20 genuine transports, or
+        trace_of_frobenius disagrees with exhaustive counting at p = 101 or 1009.
+      meaning: >-
+        INVALID MEASUREMENT, not a negative result. One instrument is wrong,
+        the run set is returned to the executor with the disagreeing fixture, and
+        no claim about C1, C2 or C3 is available from that run.
+    - outcome: >-
+        All predicates behave as predicted but the trace recomputation costs above
+        0.10 of the transport at p = 4001.
+      meaning: >-
+        C1 and C2 hold, C3's cheapness limb fails. The predicate is sound but its
+        cost must be charged into any lane that transports many instances, and the
+        modular-polynomial alternative becomes the preferable route sooner than
+        this record assumed.

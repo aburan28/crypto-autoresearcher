@@ -1,0 +1,240 @@
+experiment:
+  id: EXP-BLAKE-c39930
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-074cba; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-074cba
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Execute reduced-round BLAKE3 tree hashing on pairs of inputs differing in one bit, record
+    how many chaining values differ at each tree level, and compare against an ideal-component null,
+    a random-parameter null and a sequential-mode baseline.
+  objective: 'The one uncertainty a run reduces is whether the tree mode''s structure interacts with
+    a reduced-round compression function to shape difference propagation in a way that neither a permutation-level
+    nor a mode-level study can see. Decomposed: (i) whether the reduced-round regime is informative
+    at all, established by requiring the ideal-component null to show zero cancellation and the random-parameter
+    null to show some cancellation at the smallest round count -- because if an ideal component and
+    a random one behave alike, the measurement has no resolving power and no larger run is justified;
+    (ii) what the propagation width profile w(level, r) is for the real reduced-round object across
+    a swept round count and a swept input length, with the differing-node COUNT (which propagates
+    deterministically) reported separately from the difference WEIGHT distribution (which does not);
+    (iii) whether that profile differs from a sequential-mode baseline at the same input length once
+    normalised for compression-call count, with both raw and normalised comparisons reported because
+    the normalisation is a stated choice rather than a derivation. A run does NOT reduce uncertainty
+    about full-round BLAKE3, about attack cost, about any distinguisher, or about whether a wide or
+    narrow profile is desirable.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for the reduced-round implementation
+      anchored to the pinned reference at the shipped round count, for input lengths in the swept
+      set and round counts in the swept range, the propagation width profile is w(level, r) with per-level
+      weight distributions as tabulated, the ideal-component null showed zero cancellation, the random-parameter
+      null showed the tabulated cancellation profile across three seeded draws, the sequential baseline
+      gave the tabulated raw and normalised profiles, and the convergence round was r_conv. What does
+      NOT follow: any statement about full-round BLAKE3, since reduced-round objects are laboratory
+      constructions and the record forbids projecting across round counts; any distinguisher, attack,
+      or security consequence; any grading of the measured shape as strong or weak; and any conclusion
+      about lengths or probe positions outside the swept sets.'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time): pin the reference; build the round-count-parameterised
+      implementation; anchor it by requiring exact agreement with the reference on all published vectors
+      at the shipped round count. STAGE 1 (cost: milliseconds): minimal test -- two-chunk input, r
+      = 1 and 2, four arms, both chunk positions; check Null-A zero cancellation and Null-B nonzero
+      cancellation; HALT on either failure. STAGE 2 (cost: seconds to minutes): sweep input length
+      over the declared set, probing every chunk position at small lengths and a sampled set at larger
+      ones, at every r in the range, on all four arms. STAGE 3 (cost: seconds): three seeded draws
+      of Null-B and of Null-A''s random permutation; record spreads. STAGE 4 (cost: seconds): probe-variety
+      control with multi-bit probes. STAGE 5 (cost: low): compute w, weight distributions, convergence
+      round, sequential comparison raw and normalised, and the section 3 monotone-decay check. STAGE
+      6 (cost: agent time): write the record, including the closure statement with its measured quantity
+      if the tree and sequential profiles coincide.'
+    instrument: Python 3.11. A round-count-parameterised pure-Python BLAKE3 whose compression call
+      is instrumented to log every input and output chaining value with its tree position; the pinned
+      C reference via ctypes solely for the full-round anchor. Null-A implemented as the same tree
+      walk with the compression call replaced by a seeded keyed pseudorandom function of matching
+      signature (HMAC-SHA256 truncated, chosen because it is in the standard library and is unrelated
+      to the object under study). Null-B implemented through the same parameter tuple format used
+      by the other instruments in this bucket. Sequential baseline implemented as the same reduced-round
+      compression chained linearly. Seeds, manifests and the inference block via harness/runner.py.
+      No solver, no Sage.
+    parameters: 'Round counts r = 1..7 (the full sweep, since execution is cheap and the anchor sits
+      at the top). Input lengths: 2, 3, 4, 5, 8, 9, 16, 17 chunks -- chosen to include powers of two
+      and their neighbours so tree shape varies, with the exact chunk size read from the specification.
+      Probe positions: every chunk position for lengths up to 5 chunks, and 8 sampled positions for
+      larger lengths. Probe types: single-bit (primary), plus 2-bit and 8-bit probes at 3 positions
+      each for the variety control. Nulls: Null-A at 3 seeds, Null-B at 3 random parameterisations.
+      Sequential baseline at every input length and round count. Total executions bounded and reported
+      exactly.'
+  controls:
+  - Null-A, ideal-component tree (compression replaced by a seeded random permutation of the same
+    signature), required to show zero cancellation at every level and round.
+  - Null-B, random-parameter reduced-round component, three seeded draws, required to show some cancellation
+    at small r.
+  - Sequential-mode baseline at the same input length with the same reduced-round component, reported
+    both raw and call-count normalised.
+  - 'Full-round anchor: the reduced-round implementation at the shipped round count must reproduce
+    the pinned reference exactly on all published test vectors.'
+  - 'Probe-variety control: multi-bit and multi-position probes in addition to the single-bit probe,
+    to check conclusions are not probe-specific.'
+  - 'Section 3 decay check: the difference between w and Null-A must decay monotonically in r; run
+    as a required falsifier rather than as an observation.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both run identically in the same invocation. Null-A, the
+    random-permutation tree: the same tree shape with the compression function replaced by a random
+    fixed permutation of the same input and output widths (implemented as a seeded pseudorandom function
+    with the same signature), which propagates every difference with no cancellation -- giving the
+    width profile of a tree with an ideal component. Null-B, the random-parameter reduced-round arm:
+    the same reduced-round ARX structure with random rotation constants and a random schedule, giving
+    the by-chance cancellation profile of a non-designed component at the same round count. What the
+    nulls must show for the signal arm to mean anything: Null-A must show w equal to the full touched-node
+    count at every level and every r (no cancellations), establishing that the instrument attributes
+    cancellations to the component rather than to the tree walk; and Null-B must show SOME cancellation
+    at small r, establishing that cancellation is measurable at all. If Null-B shows no cancellation,
+    the reduced-round regime chosen is already too strong and r must be lowered before the real arm
+    is interpreted. Both nulls are seeded, run at three draws, and their spreads reported.'
+  independent_variables:
+  - reduced round count r
+  - input length in chunks
+  - probe position (which chunk, which bit)
+  - probe type (1-bit | 2-bit | 8-bit)
+  - arm (real | Null-A ideal | Null-B random-parameter | sequential baseline)
+  metrics:
+    primary:
+    - w(level, r) per arm per length
+    - convergence round r_conv
+    - Null-A cancellation count (required zero)
+    - Null-B cancellation profile with spread
+    - sequential baseline profile, raw and call-count normalised
+    secondary:
+    - per-level Hamming-weight distribution of differing chaining values
+    - monotonicity of the w-to-Null-A difference in r
+    - sensitivity of conclusions to probe type
+    - compression-call counts per mode per length
+    - full-round anchor agreement flag
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: the monotone decay of the gap between the real arm''s width profile and
+      the ideal-component null''s, as the round count increases.'
+    formula: 'Define G(r) = sum over levels of (w_NullA(level) - w_real(level, r)), the total cancellation
+      relative to an ideal component at round count r. Predicted: G(r) is non-negative for every r
+      and monotonically non-increasing in r, reaching 0 at r_conv = min{r : G(r) = 0 within Null-A''s
+      seeded spread}. Section 3''s structural-tell test is applied as a falsifier: if G(r) is essentially
+      constant across r rather than decaying, the measurement is classified as an artifact and no
+      structural reading is recorded. Separately: G(r) > 0 for at least one r is required for the
+      measurement to have an informative regime at all.'
+    source: Pre-registered in the parent proposal IDEA-20260816-074cba before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at 2 to 17 chunks and reduced round counts 1 to 7 against a design shipping
+      at 7 rounds on arbitrary-length inputs. Toy in both axes and labelled so. THE ROUND-COUNT TRANSFER
+      IS EXPLICITLY REFUSED: a width profile at r = 2 is not projected to r = 7, and the record forbids
+      that reading rather than caveating it. The LENGTH transfer is argued rather than assumed: 2
+      to 17 chunks realises tree shapes of depth 1 through 5 including the awkward non-power-of-two
+      cases, and if the specification admits a shape not realised in that set, the set grows or the
+      shape is named as outside scope. The anchor at the shipped round count is what keeps the laboratory
+      object tethered, and it is checked rather than assumed.'
+    correspondence: null
+  tail_checks:
+  - Inspect r = 1 individually, since it is the only round where large cancellation is expected and
+    where a degenerate result would be mistaken for a strong one.
+  - Check the deepest tree level at the largest length, where a difference has traversed the most
+    compressions and cancellation has had most opportunity.
+  - Examine the non-power-of-two input lengths specifically, since their tree shapes are irregular
+    and are where a shape-driven effect would show.
+  - Verify the multi-bit probes at the round count nearest r_conv, where probe sensitivity should
+    matter most.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - HALT at STAGE 1 if Null-A shows any cancellation or Null-B shows none.
+  - HALT if the full-round anchor fails.
+  - Stop the round sweep at r_conv plus one, since beyond convergence the measurement is uniform by
+    construction.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if the full-round anchor holds, Null-A shows zero cancellation,
+    Null-B shows a measurable cancellation profile, G(r) is reported across the swept rounds with
+    its monotonicity verdict, and the tree and sequential profiles are reported both raw and normalised
+    -- whether or not the tree differs from the sequential baseline.
+  falsification_criterion:
+  - Null-A shows cancellation.
+  - Null-B shows no cancellation at r = 1.
+  - G(r) does not decay monotonically -- artifact per inventor-protocol section 3.
+  - Full-round anchor failure.
+  - Conclusions change materially with probe type.
+  - Tree and normalised sequential profiles coincide at every r -- the closure outcome, recorded with
+    G(r) as its measured quantity.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-074cba
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Chunk size, tree-shape rule and parent-node input format are read from a specification not yet
+    filed as KN-LIT; RQ-BLAKE-584719's first constraint blocks approval.
+  - The call-count normalisation for the tree-versus-sequential comparison is a stated choice with
+    no derivation; a Coordinator must accept it explicitly or specify a different basis, because it
+    silently decides the headline comparison.
+  - Whether reduced-round BLAKE3 at r = 1 is degenerate enough that cancellation is structural triviality
+    rather than design behaviour is unresolved; Null-B is the intended discriminator but its adequacy
+    is an argument that does not yet exist.
+  - Whether this record should run before or after the exact-dependency record -- which would predict
+    r_conv and thereby make this measurement a confirmation rather than a discovery -- is a sequencing
+    decision for a Coordinator.

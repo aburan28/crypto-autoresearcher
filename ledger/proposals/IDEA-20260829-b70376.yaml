@@ -1,0 +1,1032 @@
+idea:
+  id: IDEA-20260829-b70376
+  question_id: RQ-SCURVE-10a83d
+  goal_id: GOAL-SCURVE-f7b5a3
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    COUNT THE REJECTIONS - a "verifiable" generation procedure still consumes
+    entropy every time its acceptance loop rejects a candidate, and RFC 5639
+    publishes the starting seed but never the rejection count. For
+    brainpoolP256t1 that count is EXACTLY COMPUTABLE from hashes and Legendre
+    symbols alone, with no point counting, because the published A pins the seed
+    that produced it. The resulting integer is the design freedom the procedure
+    actually exercised, and this program has it for no curve.
+  class: measurement
+
+  claim: >-
+    Brainpool is the only provenance regime in this six-curve group whose entire
+    generation chain is published and re-executable end to end, from a universal
+    constant to the published parameters, with ZERO free inputs. That makes it the
+    one place where the question "how much entropy did the procedure actually
+    consume" has an exact answer rather than a bound. Five separable claims of
+    decreasing rigour.
+
+    (C1) THE ZERO-FREE-INPUT CHAIN, EXECUTABLE. RFC 5639 Appendix A.1 states that
+    the prime seeds are the first seven 160-bit substrings of Q = Pi * 2^1120 and
+    A.2 that the coefficient seeds are the first seven of R = floor(e * 2^1120);
+    it publishes Seed_p_256 = 5B54709179216D5D98979FB1BD1310BA698DFB5A and
+    Seed_ab_256 = 757F5958490CFD47D7C19BB42158D9554F7B46BC. Both are checkable
+    against high-precision Pi and e with Python integers alone. It then gives
+    find_integer(s) and the rule "let p be the smallest prime p >= c with
+    p = 3 mod 4", and publishes p_256 = 76884956397045344220809746629001649093
+    037950200943055203735601445031516197751, which I compared BY EYE against the
+    modulus in RQ-SCURVE-10a83d's intake and found to match. EVERY STEP OF THIS IS
+    A FEW LINES OF PYTHON AND NONE OF IT NEEDS A POINT COUNT.
+
+    (C2) THE REJECTION COUNT k, WHICH IS THE RECORD'S HEADLINE AND IS NEW HERE.
+    RFC 5639 A.2 generates A by k applications of update_seed followed by
+    find_integer_2, rejecting at step 3 (if -3 = A*Z^4 mod p is not solvable), at
+    step 8 (discriminant) and at step 9 (if E fails the Section 3 requirements).
+    THE RFC PUBLISHES THE STARTING SEED AND THE FINAL A, AND NOT k. But k is
+    determined: it is the least non-negative integer with
+    find_integer_2(update_seed^k(Seed_ab_256)) = A_r1, and finding it costs one
+    find_integer_2 evaluation - two SHA-1 calls - per candidate. THE SEARCH IS
+    FORWARD, CHEAP, AND HAS A DEFINITE ANSWER.
+
+    (C3) THE CLASSIFICATION OF THE k REJECTIONS, WHICH IS WHAT MAKES k MEAN
+    SOMETHING. For each of the k rejected seeds, evaluate step 3 alone: -3 = A*Z^4
+    is solvable iff -3/A is a fourth power mod p. Because p = 3 mod 4 (a
+    consequence of the prime generation rule, hence guaranteed), the group
+    F_p^* has order p - 1 = 2 mod 4, so gcd(4, p-1) = 2 and the fourth-power map is
+    2-to-1 onto the SQUARES; hence -3/A is a fourth power iff it is a quadratic
+    residue, ONE LEGENDRE SYMBOL. Every rejected seed therefore splits into
+    CHEAP-REJECTED (step 3 failed - fully explained, no curve was ever examined)
+    and MUST-HAVE-BEEN-POINT-COUNTED (step 3 passed, so the rejection came from
+    step 8 or step 9; step 8 is a one-line discriminant check, leaving step 9).
+    CALL THE LATTER COUNT k9. THEN log2(max(k9, 1)) IS THE NUMBER OF BITS OF
+    DESIGN FREEDOM THE PROCEDURE ACTUALLY EXERCISED FOR THIS CURVE, MEASURED AND
+    NOT ESTIMATED. This program has that number for no curve in any family.
+
+    (C4) THE OVERLAP IDENTITY, DERIVED RATHER THAN OBSERVED, AND IT IS A ZERO-HASH
+    TEST. For L = 256, find_integer_2 has v = floor(255/160) = 1 and
+    w = 256 - 160 - 1 = 95, so A = h0(s) * 2^160 + H(s+1) with h0(s) the 95
+    rightmost bits of H(s), and A is a 255-bit integer. B is produced from the seed
+    ONE INCREMENT LATER, so B = (H(s+1) mod 2^95) * 2^160 + H(s+2). THEREFORE
+      floor(B / 2^160) = (A mod 2^160) mod 2^95 = A mod 2^95,
+    an exact integer identity between the two PUBLISHED coefficients requiring NO
+    HASHING WHATSOEVER. This is the derivation of the publicly noted repeated
+    string 26DC5C6CE94A4B44F330B5D9. THE HEX-ALIGNMENT SUBTLETY IS THE PART WORTH
+    STATING: the visible repeat is 24 hex digits = 96 bits, one bit MORE than the
+    95 the identity guarantees, so the eyeball version of this observation requires
+    the extra coincidence that bit 95 of H(s+1) is zero - which for
+    brainpoolP256r1 it is, since B's leading hex digit is 2 = 0b0010. The
+    ARITHMETIC identity is exact and unconditional; the VISUAL one is exact plus a
+    one-bit accident. Conflating them is the specific error available here.
+
+    (C5) THE Z-UNIQUENESS LEMMA, WHICH REMOVES AN APPARENT NON-DETERMINISM. RFC
+    5639 A.2 step 4 says "Compute ONE solution Z of -3 = A*Z^4 mod p", which reads
+    as underdetermined, and the twisted curve's coefficient is B_t1 = Z^6 * B_r1.
+    But since p = 3 mod 4, gcd(4, p-1) = 2, so Z^4 = -3/A has exactly TWO solutions
+    +Z0 and -Z0 when it has any, and (+Z0)^6 = (-Z0)^6. HENCE B_t1 IS UNIQUELY
+    DETERMINED AND THE PROCEDURE IS DETERMINISTIC AFTER ALL - not by the RFC's
+    wording but by the prime's residue class, which the prime generation rule
+    forces. This is a small theorem, it costs nothing, and it is exactly the kind of
+    "is the claimed procedure deterministic given its inputs" question the goal's
+    diagnostic list asks for. IT WOULD FAIL FOR p = 1 mod 4, where four solutions
+    exist and B_t1 would be determined only up to sign, giving a curve and a
+    non-isomorphic quadratic twist - so the determinism is a CONSEQUENCE of an
+    apparently unrelated design choice and that dependency is the finding.
+
+  mechanism: >-
+    THE TRACKED OBJECT is the REJECTION LEDGER of the generation loop: the finite
+    sequence R(s0) = ((j, cheap_j) : j = 0, 1, ..., k-1) recording, for each seed
+    increment j before acceptance, a single bit cheap_j saying whether the step-3
+    quartic-residuosity test rejected it. The curve, the coefficient and the seed
+    are all discarded; what is retained is a bit string of length k plus the
+    integer k.
+
+    LOSSY-PROJECTION TEST, applied BEFORE any experiment.
+    WHAT IS DISCARDED. k intermediate 255-bit candidate coefficients, k 160-bit
+    seeds, and every curve those candidates would have defined - on the order of
+    400k bits - collapse to k + log2(k) bits. Nothing about any candidate survives
+    except one bit of why it died.
+    IS IT A CHANGE OF COORDINATES? No. From the ledger one cannot recover a single
+    candidate coefficient: the fibre over a given bit string contains, for every
+    starting seed with that rejection pattern, an entire trajectory. The map is
+    many-to-one by an enormous factor and is not invertible even in principle
+    without recomputing the hashes.
+    IS THE DISCARD COMPATIBLE WITH THE OPERATIONS? The operation is UPDATE_SEED,
+    the increment z -> z + 1 mod 2^160, and the projection is exactly equivariant
+    under it: the ledger of s0 extended by one step is the ledger of s0 with one
+    more entry, computable from s0 + k alone. The retained part propagates
+    deterministically, one entry per step, at a cost of two SHA-1 calls and one
+    Legendre symbol. It is ALSO compatible with the second operation that matters
+    here, RESTART - the RFC's loop returns to step 1 rather than step 6 on a step-8
+    or step-9 failure, so the ledger is a linear sequence and not a tree, which is
+    what makes it a string rather than a search transcript. PASSES.
+    WHERE IT DISSOLVES. At step 9. The ledger records that a step-9 rejection
+    happened but cannot say WHICH Section 3 requirement failed without a point
+    count, and the point count at 256 bits is unavailable in this environment. THE
+    OBJECT THEREFORE MEASURES k9 EXACTLY AND EXPLAINS IT NOT AT ALL, and that
+    boundary is the measured limit rather than a guess.
+
+    WHY THIS IS THE RIGHT OBJECT AND NOT THE OBVIOUS ONE. The obvious object is the
+    curve itself, and tracking it requires reproducing step 9, hence point counting,
+    hence infeasibility - which is presumably why nobody in this program has the
+    number. The rejection ledger is a strictly lossier projection that is
+    nevertheless SUFFICIENT for the quantity of interest, because the question "how
+    many candidates did the procedure look at" does not require knowing what they
+    were. That substitution is the entire idea.
+
+    WHY THIS IS NOT IDEA-20260829-0656b1. That record SAMPLES an acceptance rate at
+    reduced field size and extrapolates to full size under a named heuristic. This
+    record COUNTS the actual rejections of the actual procedure at the actual size,
+    with no sampling, no extrapolation and no heuristic in the count itself. Where
+    both apply, this one is strictly better evidence, and 0656b1's own transfer note
+    says so. The two are complementary because 0656b1's method works where no
+    rejection ledger is recoverable (the NIST curves, where the seed is published but
+    the rejection count is not recoverable, because the NIST procedure's step 1 draws
+    an ARBITRARY new seed rather than incrementing - see the interpretation limits,
+    this asymmetry is the single sharpest structural difference between the two
+    regimes and it is the reason the NIST count is not computable while the Brainpool
+    one is).
+
+    WHY THIS IS NOT IDEA-20260829-494a63. That record generalises the OVERLAP
+    IDENTITY across all seven Brainpool sizes as a zero-hash family lattice and uses
+    the exceptions to localise deviations. This record measures the REJECTION COUNT
+    at one size and proves the Z-uniqueness lemma. C4 appears in both because it is
+    the cheapest cross-check either has, and the two records must agree on it; a
+    disagreement between them is itself a finding about the implementation.
+
+    EXECUTION. Step 1, compute Pi and e to at least 1200 bits with Python integers
+    (Chudnovsky or Machin for Pi; the exponential series for e), extract the seven
+    160-bit substrings each, and compare against the RFC's published seeds. Step 2,
+    run find_integer and the smallest-prime rule; compare against p_256 and against
+    the RQ intake modulus. Step 3, confirm p = 3 mod 4 and prove the Z-uniqueness
+    lemma computationally by exhibiting both roots. Step 4, run the forward search
+    for k. Step 5, classify the k rejections by the step-3 Legendre test. Step 6,
+    verify C4 on the published A and B with no hashing. Step 7, reconstruct
+    B_t1 = Z^6 * B_r1 and compare against the published t1 coefficient and against
+    the RQ intake. Step 8, the base-point check: G_t1 = k_G * P with P the
+    minimal-x point and k_G = find_integer_2 at the next increment.
+
+  novelty_status: unverified
+  novelty_rationale: >-
+    The generation procedure is published and the overlap identity C4 is publicly
+    documented (Bernstein and Lange 2013, per the SafeCurves-hosted page read this
+    session), so those parts are `known`. The Z-uniqueness lemma C5 is elementary
+    and is probably known to the RFC's authors. WHAT I COULD NOT CHECK is whether
+    the rejection count k and its cheap/expensive classification k9 have been
+    published; the BADA55 mirror page states that BADA55 Section 5 analyses "a
+    rather complicated mechanism by which Brainpool decided which SHA-1 inputs to
+    use", which is exactly where such a count would live, AND I DID NOT OPEN THAT
+    PAPER. The label is `unverified` because no web search was performed this
+    session and the nearest prior work was read only as a 39-line corpus record and
+    one HTML mirror page. A reviewer with retrieval must check BADA55 Section 5
+    before crediting C2 or C3 with novelty.
+  novelty_screen:
+    method: >-
+      Run 2026-08-29. Greps over knowledge/ and ledger/ for rigidity, seed,
+      Brainpool, ANSSI and verifiably-random terms; full reads of the four prior
+      SafeCurves proposals; full read of inputs/SAFECURVES-20260825/pages/rigid.txt;
+      targeted reads of inputs/SAFECURVES-20260825/specs/rfc5639.txt lines 1190-1469
+      (the whole of Appendix A) and lines 560-630 (the 256-bit domain parameters);
+      read of inputs/SAFECURVES-20260825/specs/bada55-brainpool.html lines 60-134.
+    results: >-
+      The knowledge corpus contains no Brainpool generation transcript, no rejection
+      count, no seed derivation and no Z value for any curve; the only
+      Brainpool-adjacent records are KN-LIT-4290 (BADA55, at confidence `reported`,
+      generated from two PDF pages) and KN-LIT-1630 (a passing mention of Brainpool
+      P512 among practitioner choices). ledger/ contains no Brainpool computation of
+      any kind. The four prior SafeCurves proposals are Curve25519-specific and none
+      touches a seed. This program therefore holds no number of this type.
+
+  citations:
+    - ref: inputs/SAFECURVES-20260825/specs/rfc5639.txt
+      provenance: internal
+      claim: >-
+        RFC 5639 (Lochter and Merkle, March 2010). Appendix A defines
+        update_seed(s) as the increment z -> (z+1) mod 2^160. A.1 defines
+        find_integer(s) with v = floor((L-1)/160), w = L - 160*v, h = SHA-1(s), h0
+        the w rightmost bits, z_i = (z+i) mod 2^160, h = h0||...||hv; the prime rule
+        "let p be the smallest prime p >= c with p = 3 mod 4", retry on
+        update_seed; publishes Seed_p_256 = 5B54709179216D5D98979FB1BD1310BA698DFB5A
+        and Seed_p_384 = 5F12C7F9924A19947B3916CF70801F2E2858EFC1; states the seeds
+        are "the first 7 substrings of 160-bit length each of Q = Pi*2^1120"; and
+        publishes p_256 and p_384. A.2 defines find_integer_2 with
+        w = L - 160*v - 1 (differing from A.1) and the curve loop: A =
+        find_integer_2(s); reject to step 1 if -3 = A*Z^4 mod p is not solvable;
+        compute one solution Z; update_seed; B = find_integer_2(s); reject to step 6
+        if B is a square mod p; reject to step 1 if 4A^3 + 27B^2 = 0 mod p; reject to
+        step 1 if E fails the Section 3 requirements; update_seed; k =
+        find_integer_2(s); determine the points Q and -Q of smallest x-coordinate and
+        select one as P; G = k*P. It publishes Seed_ab_256 =
+        757F5958490CFD47D7C19BB42158D9554F7B46BC and states the ab seeds are the
+        first 7 substrings of R = floor(e*2^1120). Section 3.4 publishes
+        brainpoolP256r1's p, A, B, x, y, q, h = 1 and brainpoolP256t1's Z, A, B, x,
+        y, q, h = 1, with brainpoolP256r1 A ending 26DC5C6CE94A4B44F330B5D9 and B
+        beginning with the same 24 hex digits. Section 3 also notes the twisted curve
+        is y^2 = x^3 + Z^4*A*x + Z^6*B with isomorphism F(x,y) = (x*Z^2, y*Z^3).
+      verified_by: >-
+        Read tool, 2026-08-29. FULL read of lines 1190-1469, which is the whole of
+        Appendix A including both find_integer variants, the curve loop, both seed
+        lists, both constant derivations and the seven published primes; FULL read of
+        lines 560-630, the 256-bit domain parameter section; plus a grep pass over
+        the whole file for seed and Z markers giving the line numbers of the other
+        six sizes' Z values and the isomorphism statement at lines 352-353. I did NOT
+        read Section 3's security and functional requirements, which is exactly the
+        step-9 content, and that omission is why k9 is measured rather than
+        explained.
+    - ref: inputs/SAFECURVES-20260825/specs/bada55-brainpool.html
+      provenance: internal
+      claim: >-
+        SafeCurves-hosted page stating that "none of the standard Brainpool curves
+        below 512 bits were generated by the standard Brainpool curve-generation
+        procedure" of the 2005 Brainpool standard, that "a different procedure that
+        does generate the Brainpool curves appeared a few years later in the first
+        Brainpool RFC", added to draft 02 at Hal Finney's request, and that the RFC
+        procedure "is written in a totally different style from the standard
+        procedure, so the difference in content is not immediately obvious". It also
+        reports the A/B digit overlap attributed to Bernstein and Lange 2013 with the
+        brainpoolP256r1 example, and quotes Johannes Merkle, lead author of the
+        Brainpool TLS RFC, as writing "I admit that this is unfortunate."
+      verified_by: >-
+        Read tool, 2026-08-29, lines 60-134 of the HTML file, plus a grep pass over
+        the whole file. This is an HTML MIRROR PAGE OF THE BADA55 WEB SITE, not the
+        BADA55 paper. THIS IS ALSO A THIRD-PARTY CLAIM ABOUT A DOCUMENT I DO NOT
+        HAVE: the 2005 Brainpool standard is NOT in the frozen package and was not
+        read. The claim is used here ONLY to set the expectation that the RFC
+        procedure SHOULD reproduce the curves, and to flag the outcome in which it
+        does not as significant rather than as an implementation bug.
+    - ref: inputs/SAFECURVES-20260825/pages/rigid.txt
+      provenance: internal
+      claim: >-
+        SafeCurves places brainpoolP256t1 at level "somewhat rigid" with a
+        check-mark, on a four-level ordinal, and lists seven unexplained decisions:
+        why SHA-1 rather than RIPEMD-160 or SHA-256; why 160 bits of hash input
+        independent of curve size; why Pi and e rather than sqrt(2) and sqrt(3); why
+        more digits of Pi and e per key size rather than hash derivation; why counter
+        mode rather than OFB; "why use overlapping counters for A and B (producing
+        the repeated 26DC5C6CE94A4B44F330B5D9)"; and why not derive separate seeds
+        for A and B. The page separately states that "Brainpool multiplies this
+        smallest point by a mostly rigid hash" for the base point, and that Brainpool
+        justified it by side-channel concerns about small points.
+      verified_by: >-
+        FULL read of the file, all 501 lines, plus a full read of tables/rigid.tsv,
+        Read tool, 2026-08-29. NOTE, AND IT MATTERS FOR ADJUDICATION: the SafeCurves
+        `rigid` column is a FOUR-LEVEL ORDINAL, not a Boolean, and the RQ intake's
+        rigid = true for this curve corresponds to the check-mark at level "somewhat
+        rigid". IDEA-20260829-f5bcff refused `rigid` as non-numeric; this reading
+        shows it is an ORDINAL with a cut between "somewhat rigid" and
+        "manipulatable", which is a correction to that record's classification and is
+        offered as such rather than asserted over it.
+    - ref: ledger/questions/RQ-SCURVE-10a83d.yaml
+      provenance: internal
+      claim: >-
+        The brainpoolP256t1 intake tuple with equation y^2 = x^3-3x+
+        46214326585032579593829631435610129746736367449296220983687490401182983727876
+        and modulus 76884956397045344220809746629001649093037950200943055203735601445
+        031516197751, expected_criteria with rigid = true and twist = false, the
+        additional diagnostic "deterministic parameter-generation transcript audit",
+        and the claim boundary that every SafeCurves cell is unverified intake.
+      verified_by: >-
+        FULL read, all 145 lines, Read tool, 2026-08-29. The modulus was compared BY
+        EYE against RFC 5639's p_256 (which the RFC prints across two lines) and
+        appeared to match; the executor must redo that comparison mechanically. The
+        intake's a = -3 is consistent with the twisted-curve construction, since RFC
+        5639 publishes brainpoolP256t1's A as p - 3.
+    - ref: inputs/SAFECURVES-20260825/tables/base.tsv
+      provenance: internal
+      claim: >-
+        SafeCurves' own base-point table gives brainpoolP256t1's generator as
+        (0xa3e8eb3cc1cfe7b7732213b23a656149afa142c47aafbc2b79a191562e1305f4,
+        0x2d996c823439c56d7f7b22e14644417e69bcb6de39d027001dabe8f35b25c9be) and its
+        subgroup order as 7688495639704534422080974662900164909273753178441452953875
+        5519063063536359079, matching RFC 5639's published x, y and q for that curve
+        on my visual comparison.
+      verified_by: >-
+        Read tool via grep, 2026-08-29, lines 38-73 of the file covering the six
+        curves of this batch. Visual comparison only, not machine-checked.
+    - ref: 'ledger/proposals/IDEA-20260829-0656b1.yaml and IDEA-20260829-494a63.yaml'
+      provenance: internal
+      claim: >-
+        The sampled acceptance-rate method that this record supersedes wherever a
+        rejection ledger is recoverable; and the family-wide overlap lattice that
+        generalises C4 across all seven Brainpool sizes.
+      verified_by: >-
+        Authored in this same session, 2026-08-29, and written to
+        ledger/proposals/. Neither has been executed or reviewed.
+    - ref: 'ledger/proposals/IDEA-20260829-e37b52.yaml and IDEA-20260829-f89a3a.yaml'
+      provenance: internal
+      claim: >-
+        The mutation-control and blocking-positive-control discipline reused here,
+        and the ECDLP frontier row list used in dominated_by below.
+      verified_by: >-
+        FULL reads of both files (692 and 785 lines), Read tool, 2026-08-29.
+    - ref: 'The 2005 Brainpool standard, version 1.0 (2005.10.19)'
+      provenance: recalled
+      claim: >-
+        Contains the ORIGINAL generation procedure, which per the BADA55 mirror does
+        NOT generate the standard curves below 512 bits. NOT RETRIEVED and NOT IN THE
+        FROZEN PACKAGE. This is the single most valuable missing document for this
+        record: with it, the divergence between the standardised procedure and the
+        verifiable one becomes directly measurable rather than a relayed claim. Named
+        so a reviewer with retrieval can obtain it.
+      verified_by: null
+    - ref: KN-LIT-4290
+      provenance: internal
+      claim: >-
+        BADA55, "How to manipulate curve standards", reporting that plausible models
+        of the Brainpool acceptability criteria let an attacker target a
+        one-in-a-million vulnerability, and (per the mirror page) analysing the
+        Brainpool SHA-1 input mechanism in its Section 5.
+      verified_by: >-
+        FULL read of knowledge/literature/KN-LIT-4290.md, all 39 lines, Read tool,
+        2026-08-29. THE PAPER WAS NOT OPENED AND ITS PDF IS NOT IN THIS REPOSITORY.
+        The BADA55 material that IS in this repository is TWO HTML MIRROR PAGES OF
+        THE BADA55 WEB SITE, NOT THE PAPER -
+        inputs/SAFECURVES-20260825/specs/bada55.html and
+        inputs/SAFECURVES-20260825/specs/bada55-brainpool.html. Of those,
+        bada55-brainpool.html was read in this session (lines 60-134 plus a grep pass
+        over the whole file) and is cited separately above; bada55.html was NOT
+        opened at all. The paper's one-in-a-million figure is the closest published
+        analogue to this record's k9 and a reviewer should compare them directly -
+        but that comparison requires the paper, which is absent from this repository,
+        and the mirror pages do not carry Section 5.
+  assumptions:
+    - >-
+      Executor has a shell and Python 3 with hashlib and arbitrary-precision
+      integers. THIS IS THE ASSUMPTION THE ARCHIVED BATCH COULD NOT MAKE. Every step
+      of C1 through C5 is integer arithmetic and hashing; the whole record runs in
+      minutes on one core, except the k search whose cost is 2k SHA-1 calls and is
+      unbounded a priori.
+    - >-
+      NO POINT-COUNTING BACKEND IS ASSUMED AND NONE IS USED. This is the design
+      constraint that forced the rejection-ledger object and it is what makes the
+      record executable here at all.
+    - >-
+      A SEARCH BOUND K_max MUST BE DECLARED BEFORE THE k SEARCH RUNS, and the record
+      recommends K_max = 2^24, that is about 3.4 * 10^7 find_integer_2 evaluations or
+      roughly 6.7 * 10^7 SHA-1 calls - about an hour on 14 cores. Declaring it in
+      advance is what converts "we did not find k" from an anecdote into the bounded
+      statement "k > 2^24 or the procedure does not generate this curve".
+    - >-
+      Pi and e are computed to at least 1200 bits IN-SESSION by a series with a
+      stated error bound, not read from a table and not taken from a library
+      constant. A hard-coded constant would silently make the seed check circular.
+      The two computations must be cross-checked against each other's known leading
+      hex digits only as a sanity check, never as the source.
+    - >-
+      Parameters enter only from the frozen package and from the RQ intake, with
+      paths recorded per field. No live keys; all objects are public parameters.
+    - >-
+      The record concerns brainpoolP256r1 and brainpoolP256t1 jointly, because t1 is
+      DEFINED from r1 by the Z isomorphism. An audit of t1 that does not go through
+      r1 is auditing an output whose input it never checked, and this is stated
+      because the RQ names only t1.
+
+  proof_search_map:
+    bottleneck: >-
+      That "how much entropy did a verifiable generation procedure actually consume"
+      has never been answered for any curve in this program, and appears
+      unanswerable because the acceptance test requires point counting at
+      cryptographic size, which this environment cannot do. Removing that bottleneck
+      is the whole idea: the count of rejections is recoverable WITHOUT reproducing
+      the acceptance test, because the published output pins the seed offset and the
+      cheap sub-tests can be replayed. This changes no cost and no theorem; it turns
+      an unmeasured quantity into a measured one.
+    baseline_embedding:
+      parameter_slice: >-
+        At k = 0 the procedure consumed no entropy beyond its published seed and the
+        whole apparatus degenerates to the C1 chain check, which is the archived
+        audit plan's L8-RIGID lane in its "re-execute the published rule and check
+        the output matches" form. THAT DEGENERATE CASE IS THE BASELINE and this record
+        must reproduce it exactly when k = 0: same chain, same comparison, same
+        verdict. The record is a strict extension of the baseline lane, not a
+        different lane wearing new notation.
+      reproduction_check: >-
+        A frozen fixture asserting that (i) the Pi-derived Seed_p_256 equals the RFC's
+        published Seed_p_256 as a 160-bit integer, (ii) find_integer plus the
+        smallest-prime rule applied to it yields exactly the RFC's p_256, and (iii)
+        p_256 equals the RQ intake modulus. All three run before the k search starts.
+        If (i) or (ii) fails, the k search is meaningless because the implementation
+        of find_integer is wrong, and no amount of searching would reveal that.
+    observation_collision:
+      observable: >-
+        The pair (k, k9) plus the rejection bit string. The conclusion about
+        exercised design freedom rests entirely on it.
+      distinct_preimage_search: >-
+        REQUIRED, AND COLLISIONS EXIST IN A WAY THAT BOUNDS THE CLAIM SHARPLY. (i) k
+        IS THE SMALLEST OFFSET REPRODUCING A, and there may be larger ones; the
+        procedure could in principle have started at a different seed and arrived at
+        the same A. So k is an UPPER BOUND ON NOTHING AND A LOWER BOUND ON NOTHING -
+        it is the offset from the PUBLISHED starting seed, which is the only thing
+        the RFC lets anyone check, and the deliverable must say exactly that.
+        (ii) k9 COLLIDES ACROSS EXPLANATIONS: a step-3-passing rejected seed could
+        have failed step 8 (discriminant, a one-line check that the executor CAN
+        replay and must, reducing k9 accordingly) or step 9. THE SEPARATING CONDITION
+        IS THEREFORE MANDATORY - replay step 8 as well as step 3, so that k9 is the
+        residue after both cheap tests and not a mixture. Failing to replay step 8
+        would inflate k9 and overstate the exercised freedom, which is the direction
+        that flatters the record, so it is named here.
+        (iii) THE DEEPEST COLLISION: a k9 of zero and a k9 of ten are both consistent
+        with a designer who examined no curves and simply followed the rule. k9
+        measures what the PROCEDURE did, not what a person did, and the two are
+        different objects.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the question "how many curves did the Brainpool procedure examine",
+          which as posed requires reproducing a point-counting acceptance test at 256
+          bits, by the question "what is the smallest seed offset reproducing the
+          published A, and how many of the intervening offsets are explained by the
+          cheap rejection tests" - which is hashing plus Legendre symbols.
+        predicted_gain: >-
+          An exact integer at 256 bits in about 2k SHA-1 calls, versus an SEA campaign
+          that is infeasible in this environment. Encoding, completeness and soundness
+          obligations are listed separately; soundness is carried by the
+          reproduce-the-published-A check, which is a hard equality and not a
+          statistic.
+      - transform: boundary_lift
+        proposed_object: >-
+          The Z-uniqueness lemma C5, which turns an apparently non-deterministic step
+          ("compute one solution") into a determined one by reading the prime's
+          residue class - a constraint that requires no computation at all.
+        predicted_gain: >-
+          Removes a documented ambiguity in the twisted-curve definition and makes
+          brainpoolP256t1 a deterministic function of brainpoolP256r1, which is a
+          prerequisite for any transcript audit of t1 and which the RFC's own wording
+          leaves open.
+    quantifier_order: >-
+      C1, C4 AND C5 ARE CLAIMED UNIFORMLY. C4: FOR ALL seeds s and FOR ALL hash
+      functions, if A and B are produced by find_integer_2 at consecutive seed
+      offsets with L = 256, then floor(B/2^160) = A mod 2^95. C5: FOR ALL primes
+      p = 3 mod 4 and FOR ALL A with -3/A a quadratic residue, the equation
+      Z^4 = -3/A has exactly two solutions and Z^6 is uniquely determined. No witness
+      depends on the instance.
+      C2 AND C3 ARE CLAIMED EXISTENTIALLY AND WITH A DECLARED BOUND. FOR the published
+      Seed_ab_256 and the published A_r1, THERE EXISTS k < K_max with
+      find_integer_2(Seed_ab + k) = A_r1, and k9 of the k intervening offsets survive
+      both cheap rejection tests. NOT CLAIMED - that k is the number of curves anyone
+      examined, that no smaller starting seed exists, or that the procedure was
+      followed in the order written. THE WITNESS k DEPENDS ON THE PUBLISHED STARTING
+      SEED and that dependence is the claim's boundary, not a gap in it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Starting from RFC 5639's published Seed_ab_256, the RFC's own procedure
+        reaches the published brainpoolP256r1 A after exactly k seed increments, of
+        which k3 are explained by the step-3 quartic test and k8 by the step-8
+        discriminant test, leaving k9 = k - k3 - k8 increments that can only have been
+        rejected by the Section 3 requirements; hence the procedure examined at least
+        k9 candidate curves, that is log2(k9) bits of exercised design freedom." IT
+        CERTIFIES NOTHING about whether a human examined anything, nothing about
+        whether the published seed was itself chosen after the fact - the seed is
+        derived from Pi, which is the strongest available rebuttal to that and is
+        exactly what C1 checks - and nothing about brainpoolP256t1's security.
+      nearby_object_control: >-
+        THE NEAREST OBJECT ON WHICH THE CONCLUSION FAILS IS A CURVE WITH THE SAME
+        PROCEDURE AND A DIFFERENT STARTING SEED. Run the identical k search from a
+        seed 2^80 away from Seed_ab_256, targeting the SAME published A. PREDICTED: no
+        k found below K_max, since the chance of hitting a specific 255-bit A is
+        2^{-255} per offset. If a k IS found, the search is not doing what it claims
+        and every count is void. SECOND NEARBY OBJECT, AND IT ISOLATES THE
+        LOAD-BEARING STRUCTURE: brainpoolP224r1 and brainpoolP320r1, sizes with
+        DIFFERENT (v, w) - the same code must find their k too, and if it finds k for
+        256 only, the implementation is size-specific and the 256 result is suspect.
+        THIRD - the NIST procedure, whose step 1 draws an ARBITRARY new seed rather
+        than incrementing; the k search must be INAPPLICABLE there and the instrument
+        must refuse, which is the structural asymmetry between the regimes.
+    proof_obligations:
+      - claim: >-
+          The Pi- and e-derived 160-bit substrings equal RFC 5639's published seeds
+          for all seven sizes, with the substring convention stated explicitly.
+        responsibility: baseline
+      - claim: >-
+          find_integer plus "smallest prime >= c with p = 3 mod 4" yields the RFC's
+          p_256, which equals the RQ intake modulus.
+        responsibility: correctness
+      - claim: >-
+          p = 3 mod 4 implies gcd(4, p-1) = 2, hence Z^4 = -3/A has exactly two
+          solutions when solvable and Z^6 is unique.
+        responsibility: correctness
+      - claim: >-
+          -3/A is a fourth power mod p iff it is a quadratic residue, when p = 3 mod 4;
+          hence step 3 costs one Legendre symbol.
+        responsibility: correctness
+      - claim: >-
+          floor(B/2^160) = A mod 2^95 for L = 256, with no hashing required.
+        responsibility: correctness
+      - claim: >-
+          k is found below the declared K_max, or the bound is reported as the result.
+        responsibility: feasibility
+      - claim: >-
+          k9 is computed AFTER replaying both step 3 and step 8, not step 3 alone.
+        responsibility: strictness
+      - claim: >-
+          B_t1 = Z^6 * B_r1 mod p equals the published brainpoolP256t1 B and the RQ
+          intake b.
+        responsibility: correctness
+      - claim: >-
+          G_t1 equals k_G * P with P the minimal-x point and k_G the next
+          find_integer_2 output.
+        responsibility: correctness
+      - claim: >-
+          The instrument REFUSES on the NIST procedure rather than returning a count.
+        responsibility: interface
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        equality between the Pi-derived 160-bit substrings and RFC 5639's seven
+        published Seed_p values
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXACT EQUALITY FOR ALL SEVEN. The first is already visually
+        confirmed - Seed_p_160 = 3243F6A8885A308D313198A2E03707344A409382 is the
+        familiar leading hex expansion of Pi - so a failure would mean my SUBSTRING
+        CONVENTION is wrong rather than that the RFC is. Note the convention question
+        is real: floor(Pi * 2^1120) has 281 hex digits, and 7 * 40 = 280, leaving one
+        digit of "Remainder"; the executor must resolve the alignment and REPORT WHICH
+        CONVENTION WORKED, because that choice is itself an unexplained decision of
+        exactly the kind SafeCurves lists.
+    - metric: 'equality between the reconstructed p_256 and the RQ intake modulus'
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXACT EQUALITY. A mismatch is a material discrepancy: halt,
+        re-read both sources, and separate an implementation error, a transcription
+        error and a genuine divergence before anything is reported. An implementation
+        error is overwhelmingly likelier.
+    - metric: 'p_256 mod 4'
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXACTLY 3, since the generation rule requires it. A value of 1 would
+        falsify my reading of A.1 step 2 AND would void the Z-uniqueness lemma C5,
+        making B_t1 determined only up to sign - which would be a far more interesting
+        outcome than the predicted one and would mean the RFC's "compute one solution"
+        is genuinely ambiguous.
+    - metric: >-
+        the rejection count k, the smallest offset with find_integer_2(Seed_ab + k)
+        = A_r1
+      direction: different
+      minimum_effect: >-
+        NO POINT PREDICTION IS OFFERED AND THAT IS DELIBERATE - I have no basis for
+        one and inventing a number here would be exactly the fabrication AGENTS.md
+        rule 5 forbids. THE PRE-REGISTERED READING OF EACH OUTCOME IS GIVEN INSTEAD.
+        k = 0: the procedure accepted its first candidate; zero exercised freedom;
+        the strongest possible rigidity result available for this curve. k between 1
+        and about 10^3: the procedure did ordinary rejection sampling at a rate
+        consistent with IDEA-20260829-0656b1's rho of about 1/ln p times a few, and
+        the exercised freedom is under 10 bits. k above 10^5: the procedure examined
+        many candidates and log2(k9) bits of freedom were exercised inside a
+        "verifiable" procedure, which is the quantitative content of SafeCurves'
+        "somewhat rigid" and is a genuinely new number. NO k BELOW K_max = 2^24: THE
+        RFC PROCEDURE AS I HAVE IMPLEMENTED IT DOES NOT GENERATE brainpoolP256r1 -
+        report with extreme care, since an implementation error is far likelier, and
+        note that the BADA55 mirror makes exactly this claim about the 2005 STANDARD
+        procedure and explicitly says the RFC procedure DOES generate the curves, so
+        this outcome would contradict a third-party claim and must be escalated
+        rather than published.
+    - metric: >-
+        the fraction of the k rejected offsets explained by step 3 alone, that is
+        k3/k
+      direction: different
+      minimum_effect: >-
+        PREDICTED approximately 1/2, because -3/A is a quadratic residue for about half
+        of all A by Weil-bounded equidistribution, and step 3 rejects exactly the
+        non-residues. A value far from 1/2 means either the Legendre implementation is
+        wrong or my identification of step 3's condition with quadratic residuosity is
+        wrong. THIS IS THE CHEAPEST INTERNAL CONSISTENCY CHECK IN THE RECORD and it
+        needs no knowledge of the curve at all.
+    - metric: >-
+        the exact integer identity floor(B_r1 / 2^160) = A_r1 mod 2^95, evaluated on
+        the RFC's published coefficients with no hashing
+      direction: different
+      minimum_effect: >-
+        PREDICTED TRUE EXACTLY. This is derived from the assembly rule and verified on
+        published data in three big-integer operations, and it is the single cheapest
+        confirmation in this entire six-record batch that the RFC procedure really is
+        the one that produced these numbers. A FAILURE would mean the published A and
+        B were NOT produced at consecutive seed offsets by find_integer_2, which
+        directly contradicts A.2 and would be the strongest possible evidence for the
+        no-k-found branch above. The two predictions are therefore coupled and must be
+        read together.
+    - metric: >-
+        equality between Z^6 * B_r1 mod p and the published brainpoolP256t1 B and the
+        RQ intake b
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXACT EQUALITY, using the RFC's published Z. Additionally, the
+        recomputed Z from Z^4 = -3/A_r1 must equal plus or minus the published Z; both
+        signs are acceptable per C5 and both must give the same B_t1, which is the
+        computational demonstration of the uniqueness lemma.
+    - metric: >-
+        whether G_t1 equals k_G * P with P the smallest-x point of the t1 curve and
+        k_G the find_integer_2 output at the next seed increment
+      direction: different
+      minimum_effect: >-
+        PREDICTED TRUE. THIS IS THE RECORD'S SHARPEST SINGLE TEST BECAUSE IT IS THE
+        ONE MOST LIKELY TO FAIL FOR AN INTERESTING REASON: A.2 step 12 says "determine
+        the points Q and -Q having the smallest x-coordinate in E(GF(p)). RANDOMLY
+        select one of them as point P", which is an EXPLICIT non-determinism the RFC
+        does not resolve, unlike the Z case which C5 resolves. So the base point is
+        determined only up to the sign of P, hence G up to sign, hence up to the sign
+        of its y-coordinate. If the published G matches k_G * P for exactly one of the
+        two choices, that choice is an unrecorded free bit in a procedure advertised
+        as verifiable - one bit, measured, and worth stating precisely because it is
+        small. A failure for BOTH signs means the base-point derivation is not what
+        A.2 says.
+    - metric: >-
+        instrument verdict when pointed at the NIST P-256 procedure
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXPLICIT REFUSAL. SP 800-186 C.3.1 step 1 says "Choose an arbitrary
+        hdigest-bit string s", and every rejection returns to step 1 rather than
+        incrementing, so there is NO SEED CHAIN and no rejection ledger to recover.
+        THAT ASYMMETRY IS THE SHARPEST STRUCTURAL DIFFERENCE BETWEEN THE TWO
+        PROVENANCE REGIMES IN THIS SIX-CURVE GROUP and it is the reason the Brainpool
+        number is computable and the NIST one is not. A Boolean or a count here is an
+        instrument failure.
+
+  minimal_test:
+    design: >-
+      STAGE 0, ZERO COMPUTE, MINUTES. Derive C4 and C5 symbolically from the RFC text
+      and write them down with their proofs. Predict k3/k = 1/2 and p = 3 mod 4.
+      Declare K_max. A failure at this stage costs no machine time.
+      STAGE 1, THE CHEAPEST VALID DISCRIMINATOR, SECONDS, AND IT SETTLES MORE THAN
+      ANYTHING ELSE IN THE RECORD. Evaluate C4 on the RFC's PUBLISHED A and B for
+      brainpoolP256r1: three big-integer operations, no hashing, no seeds, no curve.
+      IF THE IDENTITY HOLDS, the published coefficients were produced at consecutive
+      seed offsets by find_integer_2 and the whole k search is worth running. IF IT
+      FAILS, they were not, and the record's central premise is refuted for the cost
+      of three multiplications. There is no cheaper valid test of this claim anywhere
+      in this batch.
+      STAGE 2, MINUTES. The C1 chain - Pi and e to 1200 bits, the seven substrings
+      each, comparison against all fourteen published seeds, find_integer, the
+      smallest-prime rule, comparison against p_256 and the RQ modulus, and
+      p_256 mod 4.
+      STAGE 3, SECONDS. C5 - recompute Z from Z^4 = -3/A_r1, exhibit both roots,
+      confirm Z^6 is the same for both, reconstruct B_t1 and compare against the
+      published t1 B and the RQ intake b.
+      STAGE 4, UP TO AN HOUR ON 14 CORES. The k search to K_max = 2^24, parallelised
+      by offset block, with k3 and k8 accumulated as it goes.
+      STAGE 5, MINUTES. The base-point check for both signs of P.
+      STAGE 6, SECONDS. The controls - the displaced-seed negative, the other-size
+      positives, and the NIST refusal.
+    controls:
+      - >-
+        BLOCKING POSITIVE, MULTI-SIZE - the identical code must find k for at least
+        two OTHER Brainpool sizes with different (v, w), for instance 224 (v = 1,
+        w = 63) and 320 (v = 1, w = 159). A k-search that succeeds only at 256 is
+        size-specific and its 256 answer cannot be trusted. This also directly
+        exercises the v/w formula at three points.
+      - >-
+        BLOCKING NEGATIVE, DISPLACED SEED - the same search for the same A_r1 starting
+        from Seed_ab_256 + 2^80. Predicted no hit below K_max, null probability about
+        2^{-255} per offset. A hit voids everything.
+      - >-
+        REFUSAL CONTROL - the NIST P-256 procedure, which has no seed chain. The
+        instrument must refuse, not count.
+      - >-
+        NULL, SAME SHAPE - run the C4 identity check on 10^4 pairs of independently
+        drawn 255-bit integers. PREDICTED ZERO passes, null probability 2^{-95} each.
+        A single pass means the identity is being evaluated with truncation or with
+        the wrong shift and every C4 result is void.
+      - >-
+        CONSISTENCY CONTROL, CROSS-RECORD - IDEA-20260829-494a63 evaluates the same
+        identity at all seven sizes from a general formula. The two records must agree
+        on the 256 row exactly; a disagreement is an implementation finding and both
+        halt.
+      - >-
+        DEGENERATE-INPUT CONTROL - seeds near the 2^160 wraparound of update_seed. The
+        find_integer_2 output must respect the modulus, and an implementation ignoring
+        it fails here and nowhere else.
+      - >-
+        SELF-CONSISTENCY CONTROL - the recomputed Z compared against the RFC's
+        published Z for brainpoolP256t1, which the RFC gives explicitly. This is a
+        published fixture for an intermediate value and it is rare and valuable; use
+        it.
+    required_metrics:
+      - 'the C4 identity result on published A and B, as an exact integer comparison'
+      - 'per size, the Pi/e substring versus the published seed, all fourteen'
+      - 'the substring convention that worked, stated explicitly'
+      - 'the reconstructed p_256, its comparison to the RFC and to the RQ, and p mod 4'
+      - 'k, k3, k8 and k9 = k - k3 - k8, with K_max stated'
+      - 'the ratio k3/k against the predicted 1/2'
+      - 'both roots Z, their sixth powers, and the reconstructed B_t1 against three sources'
+      - 'the base-point check outcome for each sign of P'
+      - 'per control, the outcome and the failure mode'
+      - 'wall clock, core-hours, and the SHA-1 library version'
+
+  falsification_conditions:
+    - >-
+      The C4 identity fails on the published A and B. The coefficients were not
+      produced at consecutive offsets by find_integer_2; the record's premise is
+      refuted at Stage 1 for the cost of three multiplications, and that is a
+      first-class result which should be reported as such rather than debugged away.
+    - >-
+      The Pi- or e-derived substrings do not match the published seeds under any
+      reasonable alignment convention. Either my convention reading is wrong or the
+      seeds are not what the RFC says they are; separate those two before reporting,
+      and note that the first is far likelier.
+    - >-
+      The reconstructed p_256 differs from the RFC's or the RQ's. Halt; re-read both
+      sources; an implementation error in find_integer or in the smallest-prime search
+      is overwhelmingly the likeliest cause.
+    - >-
+      p_256 is not 3 mod 4. My reading of A.1 step 2 is wrong and C5 is void; B_t1
+      becomes ambiguous up to sign and the twisted-curve definition needs restating.
+    - >-
+      No k is found below the declared K_max. Report as the bounded statement
+      "k > 2^24 under this implementation", ESCALATE rather than publish, and note
+      that it contradicts the BADA55 mirror's claim that the RFC procedure does
+      generate these curves - which makes an implementation error the leading
+      hypothesis by a wide margin.
+    - >-
+      k3/k is far from 1/2. The Legendre implementation or the identification of step
+      3 with quadratic residuosity is wrong; k9 is then meaningless.
+    - >-
+      The recomputed Z does not equal plus or minus the RFC's published Z. Either the
+      fourth-root computation is wrong or A_r1 was mis-transcribed; both must be
+      excluded before any t1 statement.
+    - >-
+      Z^6 differs between the two roots. C5's proof is wrong, which given
+      (-Z)^6 = Z^6 would mean an arithmetic error, and everything downstream of it is
+      void.
+    - >-
+      The multi-size positive control fails at 224 or 320. The implementation is
+      size-specific and the 256 result is withdrawn.
+
+  confounders:
+    - >-
+      k IS AN OFFSET FROM THE PUBLISHED SEED, NOT A COUNT OF ANYONE'S WORK. It
+      measures how far the RFC's own procedure has to walk from the RFC's own starting
+      point. It is not a count of curves a person examined, it does not bound how many
+      starting seeds were tried, and a write-up that says "the designers examined k9
+      curves" has overclaimed. The correct phrasing is "the published procedure, from
+      its published starting seed, rejects k9 candidates that only a point count could
+      have rejected."
+    - >-
+      k9 IS INFLATED IF STEP 8 IS NOT REPLAYED. The discriminant test 4A^3 + 27B^2 = 0
+      mod p is cheap and rejects a vanishing fraction, so the inflation is expected to
+      be negligible - but "expected to be negligible" is not "measured", and the
+      executor must replay it and report k8 even if it is zero. Reporting k9 without
+      k8 biases the number upward, which is the direction that flatters the record.
+    - >-
+      THE SUBSTRING ALIGNMENT CONVENTION IS ITSELF AN UNEXPLAINED DECISION. floor(Pi *
+      2^1120) does not divide evenly into seven 160-bit pieces with nothing left over,
+      and how the "Remainder" is handled is a choice the RFC does not fully pin down.
+      If more than one convention reproduces all seven seeds, the check is weaker than
+      it looks and the deliverable must say how many conventions were tried and how
+      many worked.
+    - >-
+      THE 2005 STANDARD IS NOT THE RFC. Everything here audits RFC 5639. Per the
+      BADA55 mirror, the 2005 Brainpool standard contains a DIFFERENT procedure that
+      reportedly does not generate these curves. A record that concludes "Brainpool's
+      procedure reproduces its curves" without naming which document has conflated two
+      objects, and the deliverable must name RFC 5639 in every such sentence.
+    - >-
+      t1 IS DEFINED FROM r1. Auditing brainpoolP256t1 without going through
+      brainpoolP256r1 audits an output whose input was never checked. The RQ names t1;
+      the audit must name both.
+    - >-
+      SEVEN UNEXPLAINED DECISIONS REMAIN UNEXPLAINED. SafeCurves lists them - the hash
+      choice, the fixed 160-bit input width, Pi and e rather than other constants, the
+      per-size digit scheme, counter mode, the overlapping counters, and the shared
+      seed for A and B. NOTHING IN THIS RECORD EXPLAINS ANY OF THEM. C4 explains the
+      MECHANISM of the sixth (overlapping counters produce the repeat) and not the
+      DECISION. That distinction must survive into the write-up.
+
+  interpretation_limits:
+    - >-
+      RIGIDITY'S COUNTERFACTUAL IS NOT A COMPUTABLE OBJECT AND THIS RECORD DOES NOT
+      TOUCH IT. Reproducing a generation transcript shows the published parameters are
+      CONSISTENT with the published rule; it cannot show the rule was not chosen after
+      seeing its output, and no computation can. The archived audit plan's closure
+      stands verbatim. Deriving the seeds from Pi and e is the strongest available
+      partial rebuttal - a designer who wants to choose the seed freely cannot also
+      make it a prefix of Pi - and it is a partial one, because the CHOICE of Pi, of
+      the width, of the substring index and of the hash all remain free. Measuring k9
+      quantifies the freedom INSIDE the procedure and says nothing about the freedom
+      in choosing the procedure.
+    - >-
+      NO NUMBER HERE IS A SECURITY STATEMENT ABOUT brainpoolP256t1. k, k9, Z and the
+      overlap identity say nothing about the ECDLP, the group order, or the twist. The
+      goal's own claim boundary already says a failure of rigidity is not by itself an
+      ECDLP break; the converse holds equally and is said here.
+    - >-
+      C1, C4 AND C5 ARE PROVED OR DIRECTLY VERIFIED; C2 AND C3 ARE BOUNDED SEARCHES
+      WITH A DECLARED K_max. A no-hit result is a bounded statement about K_max
+      offsets and nothing more.
+    - >-
+      TRANSFER TO THE OTHER 19 CURVES, STATED EXACTLY. (a) FULL TRANSFER, same
+      procedure, different (L, v, w) - brainpoolP384t1 is the sibling row in this
+      program and IDEA-20260829-494a63 carries it, generalising C4 to a seven-size
+      lattice; the k search transfers verbatim and the two sizes' k values together
+      give a two-point check on whether k scales like the acceptance rate predicts.
+      The other five Brainpool sizes are not in the twenty-row manifest but ARE in RFC
+      5639 and serve as free controls, which is an unusual and valuable position.
+      (b) NO TRANSFER OF THE COUNT, STRUCTURAL REASON GIVEN - the three NIST rows have
+      a published seed but their procedure RESTARTS with an arbitrary new seed on
+      rejection rather than incrementing, so no rejection ledger exists to recover and
+      the instrument must refuse. That is why IDEA-20260829-0656b1 must sample where
+      this record can count, and it is the cleanest structural contrast between the
+      two regimes.
+      (c) NO TRANSFER AT ALL - ANSSI FRP256v1 publishes no procedure; see
+      IDEA-20260829-85768f. (d) NO TRANSFER - the thirteen fully rigid rows have
+      minimality rules rather than rejection loops; their analogue of k is the count of
+      smaller candidates checked, which is the archived plan's deferred A-minimality
+      component and needs point counting.
+      (e) PARTIAL TRANSFER OF C5 - the Z-uniqueness lemma applies to every Brainpool
+      twisted curve, since all seven primes are 3 mod 4 by construction, and to no
+      other curve in the manifest.
+    - >-
+      A REFUSAL IS A LEGITIMATE AND INFORMATIVE OUTPUT. The NIST refusal is the
+      record's most informative negative and must be recorded as a structural finding,
+      not as a gap.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The step-3 acceptance condition behaves as an unbiased coin along the seed
+        chain; formally, for A_j = find_integer_2(Seed_ab + j) with j ranging over the
+        rejected offsets, the events "-3/A_j is a quadratic residue mod p" are
+        Bernoulli(1/2) with error o(1), so the expected value of k3/k is 1/2 and the
+        step-3 filter accounts for exactly one bit of the procedure's selectivity.
+      rigorous_support: >-
+        TWO RIGOROUS INGREDIENTS AND ONE HEURISTIC BRIDGE, kept separate. RIGOROUS
+        (i): for p = 3 mod 4 the fourth-power map on F_p^* is 2-to-1 onto the squares
+        because gcd(4, p-1) = 2, so "fourth power" and "quadratic residue" coincide
+        EXACTLY - this is a proof, not an assumption, and it is what reduces step 3 to
+        one Legendre symbol. RIGOROUS (ii): the quadratic residues have density exactly
+        (p-1)/2 in F_p^*, so a UNIFORM A gives probability exactly 1/2 minus O(1/p).
+        HEURISTIC BRIDGE: that the SHA-1-derived A_j are equidistributed with respect
+        to the Legendre symbol. No character-sum bound applies to a hash-defined
+        sequence - Weil's bound needs an algebraic sequence - so this is genuinely a
+        random-oracle idealisation and cannot be upgraded. It is stated as such rather
+        than dressed in Weil's name.
+      validation_plan: >-
+        SAMPLING - the k rejected offsets themselves, which is a complete population
+        rather than a sample of the object of interest, plus an independent 10^6
+        uniformly drawn seeds fed through find_integer_2 at the same L and p. Both
+        recorded with their sources. COMPARISON DISTRIBUTION - the observed k3/k and
+        the independent-seed rate against exactly 1/2, by an exact binomial test with
+        the expected count stated in advance; at k of order 10^3 the interval half-
+        width is about 0.03 and at 10^6 independent seeds it is about 0.001.
+        CROSS-SIZE - the same rate at Brainpool 224 and 320, where it must also be
+        1/2; a rate that depends on L would indicate the find_integer_2 implementation
+        varies with (v, w), which is the defect the multi-size control exists to
+        catch. TAIL CHECK - the longest observed run of consecutive step-3 rejections
+        against the geometric prediction 2^{-r}; a run far longer than log2(k) would
+        indicate dependence along the chain, which is exactly the phenomenon
+        IDEA-20260829-ff7823 tests at the NIST curves and which would transfer here.
+        TRANSFER - none; everything runs at the real 256-bit prime with full SHA-1 and
+        nothing is extrapolated.
+    - id: H2
+      statement: >-
+        The frozen package at inputs/SAFECURVES-20260825/ faithfully reproduces RFC
+        5639 and the SafeCurves rigid page; that is, the seeds, primes, coefficients
+        and Z values read from specs/rfc5639.txt are the values the IETF published.
+      rigorous_support: >-
+        NONE for the general statement, but MUCH STRONGER HERE THAN ELSEWHERE IN THIS
+        BATCH, and the reason is worth stating: rfc5639.txt is a plain-text RFC, not a
+        PDF extraction, so it does not suffer the symbol mangling that afflicts
+        specs/sp800-186.txt. Its line numbering, page breaks and author block are
+        intact, which is weak structural evidence of fidelity. That is an argument
+        about the file format, not a proof about the content.
+      validation_plan: >-
+        FOUR CHECKS, THREE OF THEM ARITHMETIC AND THEREFORE STRONG. (i) The Pi and e
+        derivations are an EXTERNAL check on the seeds: a corrupted seed will not be a
+        substring of Pi, and Pi is computed in-session. (ii) The prime derivation is an
+        external check on p: a corrupted p will not be the output of find_integer plus
+        the smallest-prime rule. (iii) The Z^4 = -3/A relation is an external check
+        binding A, Z and p together; a corruption in any one breaks it. (iv) The
+        cross-layer check against the RQ intake tuple, which came from a different
+        supply chain. FOUR INDEPENDENT ARITHMETIC BINDINGS ON THE SAME NUMBERS IS AN
+        UNUSUALLY STRONG POSITION and it is why this record's H2 exposure is materially
+        smaller than IDEA-20260829-bba3a8's. H2 nonetheless remains open, since all
+        four checks pass simultaneously if the whole file is a faithful copy of a
+        corrupted original.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED AND THIS RECORD MOVES NO EXPONENT. Under
+      docs/target-result-profile.md it ranks low as research direction and is
+      dispatched measurement work under a declared goal; it is labelled that way
+      rather than dressed up. AUDIT COST, ITEMISED: C4 is three big-integer operations,
+      microseconds, and needs no hashing at all. C1 is a 1200-bit Pi and e computation
+      (O(1) with any standard series) plus, per size, two SHA-1 calls and a
+      smallest-prime search whose cost is O(ln p) primality tests, that is about 177
+      Miller-Rabin runs at 256 bits - milliseconds. C5 is one modular exponentiation
+      for the fourth root plus two multiplications. C2 IS THE ONLY UNBOUNDED TERM: 2k
+      SHA-1 calls plus k Legendre symbols, that is O(k * log^3 p) bit operations, and
+      k is exactly what is being measured, so the cost is not knowable in advance -
+      which is precisely why K_max must be declared. At K_max = 2^24 the cost is about
+      3.4 * 10^7 find_integer_2 evaluations, roughly an hour on 14 cores.
+    memory_exponent: >-
+      O(log p) per candidate, that is bytes; O(k) for the rejection ledger if it is
+      retained in full, which at k = 2^24 is 2 MB as a bit string - trivial. The 48 GB
+      envelope is never a constraint. The certificate is (Seed_ab, k, k3, k8, A_r1)
+      plus the chain, and verification by a second implementation costs 2k SHA-1 calls,
+      which is NOT succinct: verifying a large k costs as much as finding it. THAT
+      ASYMMETRY IS WORTH STATING - unlike IDEA-20260829-bba3a8's two-hash certificate,
+      this one's verification cost grows with the answer.
+    best_known: >-
+      No incumbent exists inside this program: the corpus holds no generation
+      transcript, no rejection count and no Z value for any curve. Outside it, RFC 5639
+      itself is the specification being executed and this record claims no
+      algorithmic improvement over it; the k search is a brute-force forward scan and
+      any smarter method would require inverting SHA-1, which is not available. KN-LIT-
+      4290's Section 5 is the most likely place an incumbent count exists and I did not
+      open it. Against the ECDLP attack frontier (KN-TECH-001, KN-TECH-006,
+      KN-TECH-018, KN-TECH-031, KN-TECH-032, KN-TECH-035) this record is dominated by
+      every row because it is not an attack.
+    hidden_overhead: >-
+      No o(1) and nothing superpolynomial. FOUR honest hidden costs. (i) The k search
+      is unbounded a priori and its cost is the answer, so a declared K_max is
+      mandatory and a no-hit result is a bounded statement rather than a measurement.
+      (ii) Certificate verification is O(k), not O(1). (iii) k9's meaning depends on
+      step 8 being replayed, and omitting it biases the headline number upward.
+      (iv) The substring alignment convention may not be unique, weakening C1 by an
+      amount that must be measured (how many conventions work) rather than assumed to
+      be one.
+    tradeoff_note: >-
+      The governing tradeoff is K_max VERSUS THE STRENGTH OF A NULL RESULT, and it is
+      linear and honest: doubling K_max doubles the compute and adds exactly one bit to
+      the statement "k exceeds K_max". There is no smarter point on the curve because
+      there is no meet-in-the-middle available - the target A is a specific 255-bit
+      value and the chain is a sequential hash walk, so neither a birthday nor a
+      time-memory tradeoff applies, and stating that explicitly forecloses the obvious
+      wrong idea. Parallelisation across offset blocks is perfect and the 14 cores buy
+      a clean factor of 14; this and IDEA-20260829-0656b1 are the only records in this
+      batch where the cores matter.
+
+  dominated_by: >-
+    CHECKED AGAINST EVERY FRONTIER ROW BEFORE WRITING THIS FIELD; `null` IS NOT
+    ASSERTED. AS AN ATTACK it is dominated by every row simultaneously on time, memory
+    and data - rho (KN-TECH-001, KN-TECH-006), automorphism-discounted rho
+    (KN-TECH-018), BSGS (KN-TECH-031, KN-TECH-035), MOV and Frey-Ruck (KN-TECH-032) -
+    because it is not an attack and produces no discrete logarithm.
+    AS A REPRODUCTION OF THE GENERATION CHAIN (C1) it is EXACTLY TIED with RFC 5639,
+    which is the algorithm being executed; no improvement is claimed.
+    AS THE OVERLAP IDENTITY (C4) it is DOMINATED BY Bernstein and Lange 2013, who per
+    the SafeCurves mirror observed the repeated digit string in 2013; this record adds
+    the derivation and the exact 95-versus-96-bit distinction and claims nothing more.
+    AS THE REJECTION COUNT (C2, C3) I could not identify a dominating incumbent inside
+    this repository, and BADA55 Section 5 is the most likely place one exists outside
+    it. I DID NOT OPEN IT, and it is not in this repository - only two HTML mirror
+    pages of the BADA55 web site are, and they do not carry Section 5. The honest
+    reading is "possibly dominated, extent unmeasured, and obtaining the paper settles
+    it - do that first."
+    AS THE Z-UNIQUENESS LEMMA (C5) it is probably known to the RFC's authors and is in
+    any case one line of elementary number theory; no priority is claimed.
+    IT IS NOT DOMINATED, within the checked scope of this repository, on the one axis
+    that motivates it: no incumbent here produces an integer measuring the design
+    freedom a published generation procedure actually exercised. That is narrow and is
+    stated narrowly.
+  sota_delta: >-
+    ZERO speedup against any attack baseline on every axis, and zero algorithmic
+    improvement over RFC 5639. THE NONZERO DELTAS ARE FOUR.
+    AS DATA - the corpus screen of 2026-08-29 finds no Brainpool generation transcript,
+    no seed derivation, no Z value, no rejection count and no overlap check anywhere in
+    knowledge/ or ledger/. This would produce fourteen seed derivations from Pi and e,
+    seven reconstructed primes, one exact overlap identity verified on published data,
+    one uniqueness lemma with its computational demonstration, one reconstructed t1
+    coefficient checked against three independent sources, one base-point derivation,
+    and the integers k, k3, k8, k9 - where there are currently zero of each.
+    AS A NEW QUANTITY - log2(k9) is a MEASURED number of bits of exercised design
+    freedom inside a procedure advertised as verifiable. This program has that number
+    for no curve in any family and, so far as my repository-scoped check goes, neither
+    does the corpus. It is the one thing in this six-record batch that is a genuinely
+    new integer rather than a reproduction.
+    AS PRECISION - SafeCurves' verdict "somewhat rigid" is a level on a four-point
+    ordinal with a seven-item list of unexplained decisions. This record replaces, for
+    the one decision it can decide, an adjective with an integer, and leaves the other
+    six explicitly unexplained rather than quietly folded in.
+    AS METHOD - the rejection-ledger object shows that the entropy consumed by an
+    acceptance loop is recoverable WITHOUT reproducing the acceptance test, which is
+    the specific move that makes a 256-bit question executable in an environment with
+    no point counting. That move transfers to every increment-chained generation
+    procedure and does not transfer to restart-chained ones, and knowing which is
+    which is itself the result.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+    basis: >-
+      Implementation is find_integer, find_integer_2, update_seed, a Pi/e series with
+      an error bound, a smallest-prime search, a fourth-root routine and a parallel
+      offset scanner - a few hundred lines, all elementary, none needing a library
+      beyond hashlib. Compute is minutes for everything except the k search, which is
+      2k SHA-1 calls and is bounded only by the declared K_max; at 2^24 it is about an
+      hour on 14 cores and it is embarrassingly parallel. The binding risk is not
+      compute but the possibility that no k exists below K_max, which converts the
+      headline into a bounded null.
+  recommended_priority: high
+
+  source_refs:
+    - RQ-SCURVE-10a83d
+    - GOAL-SCURVE-f7b5a3
+    - IDEA-20260829-494a63
+    - IDEA-20260829-bba3a8
+    - IDEA-20260829-0656b1
+    - IDEA-20260829-ff7823
+    - IDEA-20260829-85768f
+    - IDEA-20260829-d052e6
+    - IDEA-20260829-e37b52
+    - IDEA-20260829-f5bcff
+    - IDEA-20260829-f89a3a
+    - KN-LIT-4290
+    - KN-TECH-056
+    - KN-TECH-080
+    - KN-OPEN-019

@@ -1,0 +1,200 @@
+# Correction record. Repairs a DECLARATION in a coordination record so it matches
+# what it always meant. No run record, receipt, ledger record or knowledge entry
+# is edited, and no research conclusion is touched.
+correction:
+  id: CORR-20260921-f5e9c4
+  recorded_at: '2026-09-21'
+  recorded_by: coordinator
+  goal_id: GOAL-SEMBIN-5078bc
+  batch_id: BATCH-9d649f
+  produced_by: >-
+    The session opening a review round on RUN-SEMBIN-b6eb9f, which could not render
+    the goal's declared dispatch queue in order to place its own tasks.
+  archived_by: >-
+    This session, in its own commit. Not assigned to a batch archival task: the
+    batch this repairs is drained (36 completed, 2 cancelled) and adding a task to
+    it would require rendering the very queue the defect prevents from rendering.
+  nature: archive_binding_declaration_could_never_hold
+
+  what_was_broken:
+    symptom: >-
+      `python3 tools/research_dispatch.py` on
+      coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-9d649f/dispatch_queue.json
+      exited with "archive task TASK-20260913-525e13 content hash mismatch for
+      tools/run_supersession_registry.yaml at HEAD: expected d5161e3a8580...,
+      observed 5bab7fc6511b...".
+    consequence: >-
+      GOAL-SEMBIN-5078bc is `active`, its `dispatch_queue_path` names this file, and
+      a dispatch error is fatal to the whole render. So the goal was UNDISPATCHABLE:
+      not one of its 38 tasks could be listed, claimed, or added to, and any session
+      resuming the goal hit the error before doing anything. This was an impediment
+      to an active ECC goal, and it was invisible until someone tried to dispatch.
+    what_it_was_NOT: >-
+      Not a corrupted artifact, not a lost run, not a tampered record. All four
+      declared paths exist and three of them verify. Nothing scientific is affected
+      and no measurement is in question.
+
+  root_cause:
+    the_file: >-
+      tools/run_supersession_registry.yaml is a SHARED, APPEND-ONLY registry that
+      every campaign in the program writes to -- 81 records at the time of this
+      correction, across 51 revisions. It is exactly the kind of file whose content
+      is EXPECTED to change after any given archive is made.
+    the_declaration: >-
+      TASK-20260913-525e13 bound it under `binding_mode: content_first`, which
+      verifies a declared hash against HEAD. That combination cannot hold: every
+      append by an unrelated campaign reports this archive corrupt, for a change the
+      archive has nothing to do with and no way to prevent.
+    the_repair_that_was_tried_twice_and_cannot_work: >-
+      The declared hash d5161e3a8580 is the registry's content at commit e9100f75b
+      ("Fix ICPERF supersession reverse binding", 2026-09-15 09:10:31), which is an
+      ICPERF commit TWO DAYS LATER than this archive's own commit 5ef074916
+      (2026-09-13 18:44:24). So the hash had already been re-pinned once, forward, to
+      match another campaign's edit. Four further ICPERF and QSP appends have since
+      made that pin stale as well. Re-pinning is a HASH CHASE: it restores the render
+      until the next unrelated campaign appends, and it quietly converts a binding
+      into a field that tracks whatever the file currently is -- which is the
+      opposite of what a binding is for.
+
+  what_was_changed:
+    path: coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-9d649f/dispatch_queue.json
+    task: TASK-20260913-525e13
+    binding_mode: content_first -> content_at_commit
+    registry_hash: >-
+      d5161e3a8580f476e4de3431a1e0975212198f3191a168e2cf9a344c3d1216f2 ->
+      4e37db3d8fb6dc8348e63575b9868e051079eb87890d05976ce0705f79863d13
+    why_that_hash: >-
+      4e37db3d is the registry's content AT THE ARCHIVE'S OWN COMMIT 5ef074916. Under
+      content_at_commit the verifier reads the archive's own tree, so this value is
+      stable by construction and cannot be invalidated by any later append by any
+      campaign. It is the value the declaration always meant.
+    the_other_three_paths: >-
+      UNCHANGED. The receipt, RUN-SEMBIN-1b9afe's manifest_v2.yaml, and
+      CORR-20260913-a99454.yaml already verified at 5ef074916 and still do.
+    verified: >-
+      The render now passes and reports "TASK-20260913-525e13: declared
+      content_at_commit binding mode (4 path hashes verified at 5ef0749162db)". All
+      of BATCH-9d649f's gates pass.
+
+  why_this_is_a_repair_and_not_a_rewrite:
+    - >-
+      The archive's CONTENT claim is unchanged: it still asserts that these four
+      exact paths had these exact contents in the commit it made. Only WHERE that is
+      checked changed, from a moving HEAD to the archive's own immutable tree.
+    - >-
+      The previous declared hash was not the archive's own content at its own commit
+      and never had been, so nothing true was replaced by something else. A hash that
+      matches neither HEAD nor the archive's tree is not a binding; it is a stale
+      snapshot of a third state.
+    - >-
+      This is the same defect class CLAUDE.md already names -- a record that is
+      ALLOWED to change must not be bound at HEAD -- and the same remedy this
+      program applied to its own goal-head bindings (see TASK-20260916-d4fb62, whose
+      binding_mode note gives the identical reason).
+    - >-
+      The queue is a coordination record regenerated from its inputs, not an
+      immutable ledger record. The receipt inside the commit is untouched.
+
+  the_receipt_settles_it_and_makes_this_a_restoration:
+    what_the_receipt_says: >-
+      The archive's own immutable receipt at
+      coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-9d649f/archives/TASK-20260913-525e13/snapshot-receipt.json
+      records `tools/run_supersession_registry.yaml` at
+      4e37db3d8fb6dc8348e63575b9868e051079eb87890d05976ce0705f79863d13 -- EXACTLY the
+      value restored here -- and records no `binding_mode` field at all.
+    what_that_means: >-
+      The queue had DRIFTED AWAY FROM ITS OWN RECEIPT. The archiving task recorded the
+      registry's content at its own commit, correctly; the queue's declared hash was
+      later changed to an ICPERF commit's content, and from that moment the
+      coordination record contradicted the immutable receipt it exists to reflect.
+      This correction is therefore a RESTORATION, not a new choice: it puts the queue
+      back into agreement with the receipt and with the archive's own tree, which are
+      the same value.
+    why_this_is_stronger_than_a_binding_mode_argument: >-
+      It removes the judgement. I do not have to argue that content_at_commit is the
+      better mode for a shared registry -- though it is, per FG-1 -- because the
+      correct hash was never in doubt. It was written down on 2026-09-13 by the task
+      that made the commit, and overwritten later. The mode change is what makes the
+      restored value verifiable; the value itself is the receipt's.
+    residual_risk_stated_plainly: >-
+      Since the receipt records no `binding_mode`, there is no receipt-versus-queue
+      disagreement about the mode, and none about the hash either now. The residual
+      risk is narrower than expected and is this: whoever re-pinned the hash on or
+      after 2026-09-15 did so without reading the receipt, and nothing in the tooling
+      compares a queue's declared `path_sha256` against the receipt committed inside
+      the archive. That check does not exist and would have caught this immediately.
+
+  forward_guidance:
+    - id: FG-1
+      action: >-
+        No archive should bind tools/run_supersession_registry.yaml, or any shared
+        append-only registry, under content_first. Either bind it
+        content_at_commit, or do not include it in a declared set at all and cite it
+        by reference instead.
+      why: >-
+        Three campaigns append to this one file. Under content_first it is a
+        program-wide tripwire: whichever campaign appends next breaks every archive
+        that pinned it, in goals its authors have never read.
+    - id: FG-2
+      action: >-
+        Sweep for other archives binding a shared registry or generated file at HEAD.
+        tools/run_supersession_registry.yaml and
+        tools/schema_supersession_registry.yaml are the two obvious candidates, and
+        both are written by multiple campaigns.
+      why: >-
+        This defect was found only because a session happened to need this goal's
+        queue. Any other instance is equally silent until someone tries to dispatch,
+        and a goal that cannot render its queue looks idle rather than broken.
+    - id: FG-3
+      action: >-
+        Treat "the render fails" as a first-class impediment on the owning goal
+        rather than a local inconvenience, with a recheck command.
+      why: >-
+        GOAL-SEMBIN-5078bc is `active` with no impediment recorded and was in fact
+        undispatchable. Nothing in the ledger said so.
+    - id: FG-4
+      action: >-
+        Add a check that every completed archive's declared `path_sha256` in a queue
+        AGREES with the `path_sha256` in the receipt committed inside that archive,
+        and fail the render on disagreement. Candidate home:
+        tools/research_dispatch.py, beside the existing binding verification.
+      why: >-
+        This defect is precisely a queue that disagreed with its own receipt, and it
+        survived two days and at least one deliberate edit because nothing compares
+        them. The receipt is the archiving task's own immutable testimony about what
+        it committed, so a divergence between it and the queue is always a defect in
+        the queue and is mechanically detectable. This is the single check that turns
+        this class of error from "found when a later session happens to need the
+        queue" into "found at the next render".
+
+  what_this_correction_does_not_assert:
+    - >-
+      Nothing about any measurement, degree, rank, or run in BATCH-9d649f or
+      EXP-SEMBIN-354a75. RUN-SEMBIN-1b9afe's manifest verifies unchanged.
+    - >-
+      Nothing about Semaev's Assumption 1, d_F4, d_reg, or GOAL-DREG-001.
+    - >-
+      No criticism of the ICPERF or QSP sessions that appended to the registry. They
+      did the right thing; the defect is in binding a shared growing file at HEAD,
+      which is the pinning archive's declaration and not their append.
+    - >-
+      It does not re-open, re-verify, or re-interpret TASK-20260913-525e13's
+      scientific content or any decision that cited it.
+
+  citations:
+    - ref: coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-9d649f/dispatch_queue.json
+      provenance: internal
+      verified_by: coordinator
+      note: the coordination record repaired
+    - ref: tools/run_supersession_registry.yaml
+      provenance: internal
+      verified_by: coordinator
+      note: >-
+        the shared append-only registry; 81 records over 51 revisions, hashed at
+        5ef074916 and at HEAD by this session
+    - ref: TASK-20260916-d4fb62
+      provenance: internal
+      verified_by: coordinator
+      note: >-
+        the same remedy applied prospectively in GOAL-SEMBIN-fcb7a2, whose ledger
+        archive declared content_at_commit for the same reason

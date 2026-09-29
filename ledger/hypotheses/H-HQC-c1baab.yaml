@@ -1,0 +1,644 @@
+hypothesis:
+  id: H-HQC-c1baab
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  derived_from_idea: IDEA-20260821-7a08df
+  added: '2026-08-25'
+  statement: >-
+    Let M = (M_1, ..., M_{n_e}) be the vector of inner-decoder SIGNED margins for
+    one HQC ciphertext, with M_j := (correlation of the TRANSMITTED codeword) -
+    (maximum correlation over ALL OTHER codewords), the definition of
+    IDEA-20260816-6536d7. Then F_j = 1{M_j < 0} exactly, with M_j = 0 resolved by
+    the deployed decoder's deterministic tie rule, and HQC's concatenated decoder
+    fails exactly when the (delta_e + 1)-th smallest coordinate of M is negative -
+    so DFR = P[M_(delta_e+1) < 0] IDENTICALLY, using only A18 (one failed inner
+    block is exactly one Reed-Solomon symbol error, exact because the inner code's
+    dimension is 8 and one F_256 symbol is 8 bits) and the signed margin
+    definition, and using NEITHER A5 (coordinate independence of e') NOR A17
+    (independence of the n_e block outcomes). The entire content of A17 is then
+    the claim that this order statistic behaves as if M's coordinates were
+    independent, which is exactly the dimensionless estimand
+    R_k(u) = P[k specified blocks all have signed margin below their own lower
+    u-quantile] / u^k, equal to 1 for every k and u under A17. THE CLAIM IS THAT
+    R_k(u) IS MEASURABLE AT HQC'S TRUE DEPLOYED PARAMETERS (n = 17669, omega = 66,
+    omega_r = omega_e = 75, n_e = 46, n_2 = 384, delta_e = 15 at HQC-1) at
+    moderate tail depth without ever observing a decryption failure, and that its
+    measured profile referees two published models against each other: SPEC's
+    Theorem 6.1, which predicts R_k(u) = 1 by construction, against the
+    independence-free closed-form model of eprint 2026/795, whose reported
+    mechanism predicts R_k(u) < 1. THE SIGN IS DELIBERATELY NOT PREDICTED:
+    conservation of the total error weight pushes R_2 down, mixture over the
+    fluctuating weight W pushes it up by 1 + Var(p_i(W))/E[p_i(W)]^2, and which
+    wins at HQC's actual parameters is not derivable here.
+  mechanism: >-
+    The tracked object is the JOINT SIGNED INNER-MARGIN VECTOR of a single
+    ciphertext, followed from the sampling of the message and of (x, y, r_1, r_2,
+    e), through the two sparse ring products forming e' = x.r_2 - r_1.y + e,
+    the truncation to N = n_e.n_2, the block split and the 46 length-128 Walsh-
+    Hadamard evaluations, to the readout - and specifically its order statistic
+    M_(delta_e+1), whose SIGN IS the failure event. The projection from e' (about
+    17669 bits) to 46 real numbers is enormously lossy - a length-384 block's
+    2^384 patterns map to one real number, so e' is not recoverable - yet it is
+    EXACTLY MATCHED to the target's next operation, because the outer
+    Reed-Solomon bounded-distance decode reads only the per-block decoded symbol,
+    which by A18 is a deterministic function of the SIGN of M_j. The further
+    projection M_j -> |M_j| = D_j (the reliability measure) is STRICTLY LOSSIER
+    AND IN THE WRONG DIRECTION: it discards precisely the bit the outer decoder
+    consumes, so no function of D determines the decoded symbol, and D therefore
+    FAILS the lossy-projection test for this claim while passing it for a
+    different one (reliability-based decoding, eprint 2026/656). The second
+    projection, from M to M_(delta_e+1), discards WHICH blocks are bad and keeps
+    only the order - which is not merely compatible with the outer decoder's
+    operation, it IS that operation, since bounded-distance decoding corrects any
+    delta_e symbol errors regardless of position. Measurement is possible at
+    deployed parameters because the DEPENDENCE STRUCTURE needs no failures
+    observed: sampling e' costs two sparse products of omega.omega_r = 4950
+    shift-XORs on a 17669-bit vector, and evaluating 46 margins costs 46
+    length-128 fast Walsh-Hadamard transforms, about 6e4 word operations per
+    sample. The null that licenses the whole design is CROSS-CIPHERTEXT BLOCK
+    RE-PAIRING - block j's margin taken from ciphertext pi_j(t) for independent
+    uniform permutations - which preserves every marginal EXACTLY and destroys
+    only the within-ciphertext coupling, so its true R_k(u) is 1 by construction
+    and it inherits exactly the same quantile-estimation error as the signal arm.
+  assumptions:
+    - >-
+      That the failure event is EXACTLY {M_(delta_e+1) < 0} FOR THE SIGNED
+      MARGIN. This rests on A18, which the BATCH-001 transcription shows is exact
+      rather than approximate, and on the tie rule resolving M_j = 0. It is
+      CHECKED, NOT ASSUMED: the pipeline verifies on every sample that the
+      deployed decoder's symbol output disagrees with the transmitted symbol
+      exactly when M_j < 0.
+    - >-
+      That the transmitted codeword is known to the pipeline on every sample.
+      True by construction in simulation; NOT true for a real attacker, which is
+      why nothing here is an attack and why the signed margin is a SIMULATION
+      INSTRUMENT rather than an observable of the deployed system.
+    - >-
+      That sampling e' at deployed parameters is affordable at T = 10^7 or above,
+      at about 6e4 word operations per sample in a C implementation.
+    - >-
+      That the reporting floor (expected count at least 30 under independence) is
+      FIXED BEFORE the run, so the ladder's depth is set by data rather than by
+      which cells look interesting. Cells excluded by the floor are LISTED, since
+      the floor is a selection rule computed under the very hypothesis under test.
+    - >-
+      That the tie rule is pinned and BOTH the deployed deterministic rule and a
+      random-tie-break arm are run. Ties are exactly the event M_j = 0, so the tie
+      rule is a statement about the boundary of the headline object, not a detail.
+    - >-
+      That the marginals of the SIGNED margin are equal across blocks, as
+      IDEA-20260816-b68344's circulant-covariance derivation forces. This is a
+      PRECONDITION CHECK - if measured marginals differ beyond sampling error,
+      either the derivation or the implementation is wrong and the pooled-quantile
+      estimator is invalid.
+    - >-
+      NO ASSUMPTION IS MADE that eprint 2026/795's model is correct or that its
+      snippet-level description is accurate. Its block-level mechanism is known
+      here only from a search-engine summary; the transcription stage exists
+      precisely to replace that, and if it cannot be obtained the head-to-head is
+      reported as BLOCKED - an infrastructure outcome under AGENTS.md rule 3,
+      never a mathematical one.
+  proof_search_map:
+    bottleneck: >-
+      A17's substitution of a product law for the joint law of the 46 block
+      outcomes AT THE TAIL INDEX delta_e + 1. Everything SPEC Theorem 6.1 says is
+      that substitution; removing it changes what the published DFR figure means.
+    baseline_embedding:
+      parameter_slice: >-
+        R_k(u) identically 1 IS SPEC's Theorem 6.1, exactly. The published model
+        is the BOUNDARY CASE of the measured object, so the embedding is an
+        equality rather than a resemblance.
+      reproduction_check: >-
+        FROZEN FIXTURE - the i.i.d. Bernoulli(p*) input arm (NULL-C) must return
+        R_k(u) = 1 at every cell within the null interval: "does the pipeline
+        reproduce the baseline when fed the baseline's own input model". SECOND
+        FIXTURE - the measured marginal P[M_j < 0] on the signed margin must
+        reproduce SPEC Table 11's inner DFR at HQC-1 within its interval, which
+        checks the margin definition against a PUBLISHED number rather than
+        against the pipeline's own conventions.
+    observation_collision:
+      observable: >-
+        The ratio R_k(u) on the signed margin, and the branch the frozen decision
+        rule emits from it.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS AND IS NAMED, AND IT IS WHY THE W-CONDITIONING ARM IS
+        MANDATORY. Two distinct mechanisms produce R_2 > 1: a genuine
+        block-to-block coupling in the decoder, and a pure mixture over the
+        fluctuating total weight W with blocks conditionally independent. These
+        sit on opposite sides of what "A17 is wrong" would mean - the second is
+        arguably a failure of A5 propagating upward rather than of A17 itself.
+        THE SEPARATING CONDITION is conditioning on W. A package reporting R_2 > 1
+        without the conditional arm has not separated a correlation from a
+        mechanism.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The W-conditioned estimate: hold the total error weight fixed in narrow
+          bins and recompute R_k(u), so the mixture contribution is removed by
+          construction and the residual is conservation or something else.
+        predicted_gain: >-
+          Attributes the departure to a MECHANISM rather than a label, which is
+          the difference between a measurement and a correlation.
+      - transform: stronger_invariant
+        proposed_object: >-
+          Replace the binary block-failure indicator by the CONTINUOUS signed
+          margin, so the joint tail is estimable at quantile depth 1e-4 per block
+          instead of at the per-block failure rate of about 2^-10.8.
+        predicted_gain: >-
+          About three orders of magnitude of extra tail depth at the SAME sample
+          size, which is the entire reason a deployed-parameter measurement is
+          possible at all.
+    quantifier_order: >-
+      For all k in the declared set and for all u in the declared ladder, there
+      EXISTS an estimate R-hat_k(u) on the SIGNED margin with a 16-draw null
+      interval such that either the interval contains 1 (A17 not contradicted at
+      that depth) or it does not (A17 contradicted at that depth, with a signed
+      magnitude). THE QUANTIFIER ON (k, u) IS UNIVERSAL OVER THE DECLARED LADDER
+      AND EXPLICITLY NOT OVER ALL DEPTHS: a statement about depth 1e-4 is not a
+      statement about depth 2^-128, and this hypothesis may never be phrased as if
+      the ladder were the real line.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At HQC-1's deployed parameters, under the deployed decoder and a pinned
+        tie rule, the joint law of the SIGNED inner-margin vector departs from the
+        product of its marginals by a factor R at order k and depth u, with a null
+        interval of width W." It can NEVER certify a DFR value, that HQC is secure
+        or insecure, that eprint 2026/795's model is right, or anything at depths
+        beyond the ladder.
+      nearby_object_control: >-
+        NULL-C (i.i.d. Bernoulli(p*) input) is the nearby object where the
+        hoped-for conclusion must FAIL - no dependence exists to find, so a method
+        reporting a departure there has not identified the load-bearing structure.
+        A SECOND nearby object is the UNSIGNED reliability vector D = |M|, on which
+        claim (A)'s failure-event identity provably FAILS; running the identical
+        pipeline on it is the cheapest demonstration that the method tracks the
+        SIGN and not merely the magnitude. A THIRD, cheap and worth running: the
+        same pipeline on a matched NON-circulant random-linear surrogate, where
+        quasi-cyclicity is removed but length, rate, weights and sampler match.
+    proof_obligations:
+      - claim: 'DFR = P[M_(delta_e+1) < 0] exactly, given A18 and the signed margin definition, with ties resolved by the deployed rule'
+        responsibility: correctness
+      - claim: 'The signed margin is computable on every sample because the transmitted codeword is known in simulation'
+        responsibility: feasibility
+      - claim: 'The unsigned reliability D = |M| does not satisfy the identity and is tracked only as a secondary object'
+        responsibility: scope
+      - claim: 'The re-pairing null preserves every signed marginal exactly'
+        responsibility: baseline
+      - claim: 'R_k(u) = 1 identically under A17'
+        responsibility: baseline
+      - claim: 'The estimator is consistent and its bias is bounded by the null floor'
+        responsibility: success_probability
+      - claim: 'Generation and estimation at T = 10^7 fit the declared budget'
+        responsibility: runtime
+      - claim: 'The extrapolation to k = 16 is reported as a bracket or refused'
+        responsibility: scope
+      - claim: 'Nothing is inferred about depths beyond the ladder'
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-001
+      formal_statement: >-
+        For all blocks j and all quantile levels u in the declared ladder, the
+        pooled empirical lower u-quantile of the SIGNED margin distribution is a
+        consistent estimator of every block's own lower u-quantile, uniformly in
+        j; equivalently, the 46 block signed-margin laws are identical, so pooling
+        multiplies the effective sample size by 46 without bias.
+      random_model_justification: >-
+        IDEA-20260816-b68344's zero-compute derivation that the untruncated
+        error's coordinate covariance is exactly circulant forces per-block
+        marginals to be exactly equal by cyclic symmetry; SPEC Prop 6.1.2 computes
+        P[e'_k = 1] identically for every k. The classical statement imitated is
+        the exchangeability of coordinates of a cyclically invariant random
+        vector. The argument applies to the SIGNED margin because the transmitted
+        codeword is drawn independently of the error and the code is linear, so
+        the signed margin's law is the same for every transmitted codeword.
+      supporting_results:
+        - IDEA-20260816-b68344 circulant-covariance derivation, internal
+        - SPEC Prop 6.1.2 marginal invariance, via the BATCH-001 transcription
+      validation_experiment_ids:
+        - EXP-HQC-5b8e2d
+      falsification_condition: >-
+        Block-wise lower u-quantiles differ beyond sampling error at any u, or the
+        block-wise MINIMUM signed margin over all T draws is systematically
+        different for some block. Either contradicts the circulant derivation or
+        exposes an indexing defect, and halts the package.
+    - id: HEUR-002
+      formal_statement: >-
+        FOR THE EXTRAPOLATION STEP ONLY, AND IT IS THE WEAKEST LINK. There exists
+        a declared functional form f with R_k(u) = f(k; theta), theta estimated
+        from k in {2, 3, 4, 6, 8}, extrapolating to k = delta_e + 1 = 16. The form
+        is fixed BEFORE data - a log-linear law log R_k = (k-1) log rho is the
+        declared default, corresponding to pairwise-multiplicative dependence -
+        and any other form fitted after seeing data is a fit and is reported as
+        one.
+      random_model_justification: >-
+        NONE THAT IS RIGOROUS, and this entry exists to say so. The log-linear
+        form is what a pairwise-exchangeable dependence with no higher-order
+        structure would produce. This program's own nearest data POINTS AT A
+        DIFFERENT FORM: EV-HQC-b71230 reported log2 A-hat_k tracking
+        C(k,2) * log2 A-hat_2 to within 0.4 to 6.4 percent across k = 2..18 for a
+        DIFFERENT statistic on a DIFFERENT parameter set. Both forms are fitted
+        and reported side by side rather than one being chosen.
+      supporting_results:
+        - >-
+          EV-HQC-b71230's C(k,2) scaling for a different statistic at PS-R3 -
+          cited as a POINTER TO A COMPETING FORM, not as support.
+      validation_experiment_ids:
+        - EXP-HQC-5b8e2d
+      falsification_condition: >-
+        The leave-one-out prediction error across k in {2, 3, 4, 6, 8} is large,
+        or the bracket between the two functional forms at k = 16 spans more than
+        3 orders of magnitude. THE EXTRAPOLATION IS THEN REFUSED and only the
+        measured profile is reported, with an explicit statement that no
+        DFR-relevant conclusion follows.
+    - id: HEUR-003
+      formal_statement: >-
+        The mixture-and-conservation decomposition is complete at second order:
+        R_2 = 1 + Var(p_i(W))/E[p_i(W)]^2 - C + o(.), where C is the conservation
+        term and the neglected remainder is third order in the per-block failure
+        probability.
+      random_model_justification: >-
+        The mixture term is the standard over-dispersion identity for a mixture of
+        independent Bernoulli vectors over a common parameter, exact in that
+        model. The conservation term is bounded by negative-association results
+        for fixed-total-weight allocations - the same rigorous ingredient
+        IDEA-20260808-cbb848 builds its sandwich from. The classical distribution
+        statement imitated is the multivariate hypergeometric urn allocation.
+      supporting_results:
+        - Over-dispersion identity for Bernoulli mixtures, exact in that model
+        - >-
+          Negative association for fixed-total-weight allocations, as used by
+          IDEA-20260808-cbb848
+      validation_experiment_ids:
+        - EXP-HQC-5b8e2d
+      falsification_condition: >-
+        The predicted mixture contribution (computed directly from the measured
+        Var(p_i(W)) and E[p_i(W)] over W bins) disagrees with the measured
+        difference between unconditional and conditional R_2, at any u on the
+        ladder. A decomposition that works at u = 1e-1 and fails at u = 1e-4 is a
+        second-order statement being used in a tail.
+    - id: HEUR-004
+      formal_statement: >-
+        For all quantile levels u in the declared ladder and all blocks j, the
+        conditioning event {M_j < q_u} on the SIGNED margin is a strictly nested
+        family shrinking toward the failure event {M_j < 0} as u decreases toward
+        P[M_j < 0], so a dependence measured at depth u is a statement about a
+        SUPERSET of the failure event and not about an unrelated region.
+      random_model_justification: >-
+        Immediate from the definition - {M_j < q_u} is nested in u by monotonicity
+        of the quantile function, and {M_j < 0} = {M_j < q_{u0}} for
+        u0 = P[M_j < 0] exactly, with no approximation. This is a property the
+        SIGNED margin has and the unsigned reliability does NOT: the events
+        {D_j < q_u} shrink toward the TIE set {D_j = 0}, not toward the failure
+        set, which is the formal statement of why substituting the unsigned object
+        would not be merely a notation error.
+      supporting_results:
+        - Monotonicity of the quantile function; symbolic, no citation claimed
+      validation_experiment_ids:
+        - EXP-HQC-5b8e2d
+      falsification_condition: >-
+        The measured marginal P[M_j < 0] from the signed margins disagrees
+        materially with SPEC Table 11's inner DFR at HQC-1 (about 2^-10.8). The
+        pipeline's decoder or margin is then not the specified one and the package
+        halts.
+  structural_ingredients:
+    - description: >-
+        The SIGNED margin object and its identity F_j = 1{M_j < 0}, defined
+        verbatim as "the correlation of the transmitted codeword minus the maximum
+        correlation over all other codewords", with ties at M_j = 0 resolved by
+        the deployed deterministic rule; also that emitting M_j costs no
+        additional asymptotic work and that the correlation alphabet is discrete,
+        making the margin lattice-valued.
+      citation: IDEA-20260816-6536d7
+      provenance: internal
+      verified_by: >-
+        idea-generator@2026-08-24, definition re-read directly from the file
+        during a red-team repair after the parent record was found to have
+        corrupted it into the non-negative reliability measure.
+      role: the headline object; NOT claimed as new here
+    - description: >-
+        A closed-form DFR model for HQC eliminating the independence assumption,
+        concluding that HQC's current decoding failure rates are lower than
+        required. At a WEAKER provenance, a search summary described its
+        block-level treatment as accounting for the fact that decoding failures in
+        some codewords imply fewer errors left in the others - an explicitly
+        NEGATIVE dependence, predicting R_k(u) < 1.
+      citation: eprint 2026/795, Annechini, Barenghi, Pelosi, On the Decoding Failure Rate of HQC
+      provenance: retrieved
+      verified_by: >-
+        idea-generator@2026-08-21 for the LANDING-PAGE claims only. The
+        block-level mechanism is SNIPPET-LEVEL from a search engine summary and is
+        NOT verified; the PDF fetch returned raw binary and the container had no
+        renderer, so no page of this paper was read. This is the load-bearing
+        claim for the head-to-head framing.
+      role: one of the two models the measurement referees
+    - description: >-
+        A17, the assumption that the n_e inner-decoder outcomes are independent
+        and identically distributed with failure probability p_i, implicit in the
+        formula and stated in prose by neither SPEC section 6.1.3 nor RMRS
+        Theorem 4.3; A18, the exact outer-decoder failure condition; A12, the
+        maximum-likelihood inner decoder with its tie rule; Table 5's deployed
+        parameters; Table 11's inner DFRs.
+      citation: SPEC (HQC specification 22/08/2025), via the BATCH-001 transcription
+      provenance: internal
+      verified_by: >-
+        TASK-20260802-6344ed, image-verified pages 18, 29, 32-39; read in full by
+        idea-generator@2026-08-21.
+      role: the other model the measurement referees, and the source of A18
+    - description: >-
+        Joint failure moments of the BINARY block-failure indicator falling below
+        the independence prediction at every order k = 2..18 at PS-R3, T = 1e7,
+        with the matched null firing 0 of 17 cells and a validator recomputation
+        in exact rationals. Boundaries: PS-R3 only, claim tier toy, NO CELL AT
+        TRUE HQC PARAMETERS CERTIFIED, and OPEN-6 (no arm tests the joint law
+        against an answer known in advance) explicitly not closed.
+      citation: EV-HQC-b71230
+      provenance: internal
+      verified_by: read in full, idea-generator@2026-08-21
+      role: >-
+        the nearest measured in-corpus object; same sign at toy scale, different
+        observable, different parameters, and the record whose OPEN-6 this design
+        answers
+    - description: >-
+        Null-sufficiency obligations - the maximal-removal control, the
+        forced-value derivation, the null-first check, the requirement that a
+        GENERATED comparator be drawn at least 8 times and reported as an interval
+        with its false-positive rate derived before the run, and the refinement
+        that a graded control needs at least three interior points because two
+        ends give a departure but not a direction.
+      citation: KN-TECH-1a5b7e
+      provenance: internal
+      verified_by: read in full, idea-generator@2026-08-21
+      role: governs every control arm and the reporting discipline
+    - description: >-
+        HQC's documentation models the error as having independent coordinates
+        with correct marginals; the authors uncover cases where this modeling
+        fails, while not invalidating the weight-concentration heuristic.
+      citation: arXiv 2501.02626, Bombar, Resch, Wiedijk
+      provenance: retrieved
+      verified_by: idea-generator@2026-08-21, abstract page only; FULL TEXT NOT READ
+      role: independent external evidence that A5 is not exact
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: >-
+        Decoder consistency on the SIGNED margin - fraction of samples on which
+        the deployed decoder's symbol output disagrees with the transmitted symbol
+        exactly when M_j < 0
+      direction: different
+      minimum_effect: >-
+        100 percent exactly, with ties (M_j = 0) resolved by the declared rule and
+        counted separately. ANYTHING BELOW 100 PERCENT VOIDS THE PACKAGE.
+    - metric: 'R_k(u) on the cross-ciphertext re-paired null arm, all cells'
+      direction: different
+      minimum_effect: >-
+        1.00 within the 16-draw interval at every reported cell. A HARD GATE: any
+        cell where the null's interval excludes 1 is unreportable in the signal
+        arm at that depth.
+    - metric: >-
+        R_2(u) in the signal arm on the SIGNED margin, at u = 1e-2, deployed HQC-1
+        parameters
+      direction: different
+      minimum_effect: >-
+        A departure from 1 of at least 0.02 in absolute value, declared before the
+        run and scored against the 16-draw null interval, not against an
+        asymptotic reference. THE SIGN IS DELIBERATELY NOT PREDICTED - conservation
+        forces down, mixture forces up, and this program has no basis at deployed
+        parameters for saying which wins.
+    - metric: 'R_k(u) as k increases through {2, 3, 4, 6, 8}'
+      direction: different
+      minimum_effect: >-
+        THE PROFILE'S SHAPE IS THE DELIVERABLE. If a departure exists at k = 2 it
+        must GROW in magnitude with k, because a per-pair multiplicative deviation
+        compounds. A departure that VANISHES as k grows means the dependence dies
+        before reaching index 16 and the DFR-relevant conclusion is null even
+        though the k = 2 cell fired - the single most likely way this produces a
+        null, named in advance.
+    - metric: 'Conditional R_2(u) given W in narrow bins, against the unconditional'
+      direction: different
+      minimum_effect: >-
+        A change of at least 50 percent of the unconditional departure, in either
+        direction. If conditioning removes most of it the mechanism is the mixture
+        over total weight; if it leaves it, the mechanism is conservation or
+        something else; an OPPOSITE-signed conditional departure means both
+        mechanisms are present and their magnitudes are separately reportable.
+    - metric: 'Graded control - R_2(u) at shared-latent strength t in {0, 0.1, 0.25, 0.35, 0.5}'
+      direction: higher
+      minimum_effect: >-
+        1.00 at t = 0 and at least 1.5 at t = 0.5, both declared before the run,
+        AND monotonicity across the three interior points REPORTED. If it is not
+        monotone the instrument detects a departure but cannot sign one, and no
+        directional reading attaches to any verdict.
+    - metric: 'Divergence between the SIGNED table and the UNSIGNED reliability table, per cell'
+      direction: different
+      minimum_effect: >-
+        NO VALUE IS PREDICTED - this is the object-confusion control and its
+        content is the comparison. WHAT IS PRE-REGISTERED IS THE INTERPRETATION:
+        cells where the two agree within intervals are cells where the conditioned
+        region contains essentially no wrong decodes, so the measurement there says
+        NOTHING about failure; cells where they diverge are where the signed object
+        does work the reliability object cannot. The DEPTH at which divergence
+        begins is a reported quantity.
+    - metric: 'Marginal equality of the SIGNED margin across the 46 blocks'
+      direction: different
+      minimum_effect: >-
+        Block-wise lower u-quantiles agreeing within sampling error at every u. A
+        systematic difference contradicts the circulant derivation and halts the
+        package until located.
+  test_boundary:
+    instances:
+      - >-
+        deployed HQC-1 parameters n = 17669, omega = 66, omega_r = omega_e = 75,
+        n_1 = n_e = 46, n_2 = 384, delta_e = 15
+      - >-
+        cross-ciphertext re-paired synthetic datasets, 16 independent permutation
+        families
+      - a decoder-free structural null matched to the measured signed marginals
+      - an i.i.d. Bernoulli(p*) input arm through the identical decoder
+      - the unsigned reliability vector D = |M|, as the object-confusion control
+      - a synthetic shared-latent generator at t in {0, 0.1, 0.25, 0.35, 0.5}
+    parameters:
+      quantile_ladder: '{1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4, 1e-4}'
+      orders_k: '{2, 3, 4, 6, 8}'
+      sample_size_ladder: '{1e5, 1e6, 1e7}'
+      null_draws: 16
+      bootstrap_resamples: 200
+      reporting_floor_expected_count: 30
+      sampler_arms: deployed biased sampler and exact-uniform Fisher-Yates
+      tie_rule_arms: deployed deterministic and random tie-break
+    implementation: >-
+      C implementation of the two sparse ring products and the 46 length-128 fast
+      Walsh-Hadamard transforms; per sample store (W, M_1..M_46), from which
+      D_j = |M_j| is derived at analysis time at no storage cost. About 2 GB at
+      T = 10^7 in float32, 4 GB in float64. An EXACT-INTEGER implementation is
+      preferred, since the correlations are integer-valued sums and the margin is
+      lattice-valued, which removes the float-precision confounder entirely.
+    budget:
+      estimated_wall_clock_seconds: 86400
+      note: >-
+        About 6e11 word operations for generation at T = 10^7, i.e. tens of
+        core-hours in C, dominated by the two sparse ring products. Parallelisation
+        is embarrassing - samples are independent - so wall clock divides by cores
+        exactly and the binding resource is the margin table's memory. The parent
+        declares implementation medium and compute HIGH, and calls this the
+        expensive proposal of its batch.
+  distinguishable_outcomes:
+    - outcome: >-
+        R_k(u) < 1 stably and growing in magnitude with k, with every null arm
+        passing, the graded control monotone, and the W-conditioning arm
+        attributing the effect.
+      means: >-
+        SPEC's Theorem 6.1 is CONSERVATIVE by a quantified amount AT DEPLOYED
+        PARAMETERS, matching the mechanism reported for eprint 2026/795, and this
+        program has independently corroborated an external result at a scale
+        nobody in this corpus has reached. It is NOT a DFR value and NOT a
+        security statement.
+    - outcome: >-
+        R_k(u) = 1 within interval at every reported cell.
+      means: >-
+        The joint signed-margin law is the product of its marginals at every depth
+        reachable at T = 10^7, and A17 SURVIVES at the tested depth at deployed
+        parameters - which no record in this corpus can currently say. The
+        deliverable is an OBSTRUCTION with its quantity, value, error bars, source
+        runs and scope: "the A17 correction, if any, is below X in magnitude at
+        quantile depth 1e-4 at HQC-1". A first-class result that does NOT close
+        RQ-HQC-001 and names what remains open (depths below 1e-4, orders above
+        k = 8, HQC-3 and HQC-5).
+    - outcome: >-
+        R_k(u) > 1 stably and growing in k.
+      means: >-
+        BOTH published models are optimistic and the DFR is heavier-tailed than
+        either predicts - the most consequential result this program could
+        produce, which is exactly why it is pre-declared so it cannot be reached
+        by accident. IT MAY NOT BE STATED until reproduced by an INDEPENDENT
+        IMPLEMENTATION and passed by independent Validator and Red Team review,
+        and even then it is a statement about a dependence ratio, not about HQC's
+        DFR or IND-CCA security.
+    - outcome: >-
+        A departure at k = 2 that SHRINKS toward 1 as k grows.
+      means: >-
+        The dependence does not reach index delta_e + 1 = 16, the DFR-relevant
+        conclusion is NULL, and the k = 2 finding must NOT be reported as a DFR
+        statement.
+    - outcome: >-
+        The decoder-consistency check returns anything below 100 percent outside
+        the declared tie set.
+      means: >-
+        The headline identity does not hold as implemented - the margin is
+        computed against the wrong reference codeword, or the tie rule is
+        mis-modelled, or A18's exactness fails at these parameters. THE PACKAGE IS
+        VOID until located. This is the condition the parent record's original
+        unsigned definition would have failed on 100 percent of samples.
+    - outcome: >-
+        The signed and unsigned tables agree at every cell.
+      means: >-
+        The conditioned region at every reachable depth contains essentially no
+        wrong decodes, the signed object's extra content is not exercised at that
+        depth, and NO DFR-relevant conclusion follows even if a dependence is
+        detected. A distinct, pre-declared null.
+    - outcome: >-
+        The re-paired null's interval excludes 1 at most cells, or the two null
+        arms disagree, or the i.i.d. arm lands on the opposite side of the
+        re-paired null from the real arm.
+      means: >-
+        The estimator responds to something other than within-ciphertext coupling
+        - quantile-estimation error, a reporting-floor artefact, or a bug - and NO
+        signal number is reportable. Instrument failure, not evidence.
+    - outcome: >-
+        The eprint 2026/795 transcription cannot be obtained.
+      means: >-
+        The head-to-head is reported as BLOCKED and only the SPEC comparison is
+        made. An infrastructure outcome under AGENTS.md rule 3, NEVER a
+        mathematical one.
+  prior_evidence_refs:
+    - RQ-HQC-001
+    - GOAL-HQC-001
+    - IDEA-20260821-7a08df
+    - IDEA-20260816-6536d7
+    - IDEA-20260816-b68344
+    - IDEA-20260816-208783
+    - IDEA-20260816-967721
+    - IDEA-20260816-2e03d4
+    - IDEA-20260816-3994ef
+    - IDEA-20260816-50d270
+    - IDEA-20260816-b0322a
+    - IDEA-20260816-b336a3
+    - IDEA-20260808-cbb848
+    - IDEA-20260808-9f9ed8
+    - EV-HQC-b71230
+    - EXP-HQC-982268
+    - H-HQC-18d1b4
+    - KN-TECH-1a5b7e
+    - docs/claims-and-verification.md
+    - docs/inventor-protocol.md
+  falsification_conditions:
+    - >-
+      The decoder-consistency check fails on any sample outside the declared tie
+      set. Claim (A)'s identity does not hold as implemented; the package is void
+      until the disagreement is located.
+    - >-
+      The re-paired null's interval excludes 1 at a cell. That cell is
+      unreportable; if it happens at most cells the estimator is broken and the
+      package is void.
+    - >-
+      The re-paired null and the decoder-free structural null disagree. The
+      estimator responds to something other than within-ciphertext coupling.
+    - >-
+      The i.i.d. Bernoulli arm lands on the opposite side of the re-paired null
+      from the real arm. Total removal is less extreme than partial removal and on
+      the wrong side; the statistic is not tracking the object.
+    - >-
+      The graded control is not monotone across its interior points. Every verdict
+      is then reported WITHOUT a directional reading.
+    - >-
+      The estimate does not converge across the T ladder. It is not an estimate
+      and none is reported.
+    - >-
+      The measured marginal P[M_j < 0] disagrees materially with SPEC Table 11's
+      inner DFR at HQC-1. The pipeline's decoder or margin is not the specified
+      one.
+    - >-
+      Block-wise marginals of the signed margin differ systematically. The
+      pooled-quantile estimator is invalid.
+  interpretation_limits:
+    - >-
+      A DEPENDENCE RATIO IS NOT A DECODING FAILURE RATE. R_k(u) at u = 1e-4 and
+      k = 8 says nothing directly about a probability of 2^-128 at k = 16, and the
+      extrapolation to k = delta_e + 1 is HEUR-002, reported with its bracket. NO
+      DFR VALUE IS PRODUCED and none may be inferred.
+    - >-
+      THE SIGNED MARGIN AND THE RELIABILITY MEASURE ARE DIFFERENT OBJECTS AND
+      RESULTS ABOUT ONE ARE NOT RESULTS ABOUT THE OTHER. Every table carries which
+      object it is computed on; a citation dropping that label cites something
+      this hypothesis does not claim.
+    - >-
+      DEPLOYED PARAMETERS ARE NOT A DEPLOYED CLAIM TIER. RQ-HQC-001's toy
+      claim-tier ceiling is set by the certificate standard in
+      docs/claims-and-verification.md, not by the parameter values, and applies
+      unchanged. Nothing here carries a certificate of anything.
+    - >-
+      The signed margin requires the transmitted codeword and is therefore a
+      SIMULATION INSTRUMENT. Nothing here is available to an adversary and nothing
+      here is an attack surface.
+    - >-
+      Scoped to HQC-1 unless HQC-3 and HQC-5 are run. Their inner codes
+      ([640, 8, 320]) and outer codes differ and SPEC Table 11 shows their inner
+      DFRs are not monotone in security level, so nothing transfers.
+    - >-
+      Scoped to the deployed decoder, the pinned tie rule and the two samplers
+      run. Not a statement about maximum-likelihood decoding of the whole
+      concatenated code.
+    - >-
+      No attack, no oracle, no query count, no key recovery, no security
+      consequence. A conservative DFR bound is not a vulnerability and a
+      dependence ratio above 1 is not an attack.
+    - >-
+      No full text of eprint 2026/795 has been read in this program. Every
+      statement about what that model predicts is PROVISIONAL until transcribed,
+      and a head-to-head reported before transcription is a head-to-head against a
+      model described from a search snippet.
+  status: proposed
+  proposed_by: idea-generator

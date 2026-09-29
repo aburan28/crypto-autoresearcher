@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-FHEX-736606
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-552e4c; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-552e4c
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Estimate the mutual information in bits per release between an enumerable toy secret and
+    the low-order bits of an approximate scheme's decrypted result, against a shuffled-secret estimator
+    floor and a key-independent synthetic-error arm.
+  objective: The one uncertainty a run reduces is whether an approximate scheme's decryption error
+    is measurable as a channel by direct counting at a scale where the secret space is exhaustible,
+    and how that measurement compares with the same estimator applied to an exact scheme's residual.
+    (i) It establishes the plug-in estimator's positive bias floor by direct measurement at the exact
+    alphabet size and sample count used, which is the single number most likely to be mistaken for
+    a result and is therefore measured first. (ii) It produces the per-release information rate for
+    the approximate arm at three observation widths k and four circuit depths, so both the alphabet-size
+    dependence and the depth dependence are outputs rather than analyst choices. (iii) It runs a key-independent
+    synthetic error of matched variance through the identical estimator, which must sit at the floor;
+    that arm is what distinguishes an estimator detecting the secret from an estimator detecting its
+    own bias. A run also delivers a reusable exhaustive-enumeration entropy-estimation instrument
+    for the rest of this bucket.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at N=8 with a fully enumerated
+      ternary secret space, this toy approximate scheme, this scaling factor, this fixed public input
+      and these observation widths, the plug-in and Miller-Madow mutual information between secret
+      and released low-order bits take the measured values, exceed or do not exceed the measured shuffled
+      floor by the measured margin, and behave as measured with depth; and the same estimator applied
+      to an exact scheme''s residual and to a key-independent synthetic error gives the measured comparisons.
+      What does NOT follow: no key recovery, no attack, no claim that any approximate scheme leaks
+      exploitably, no claim about deployed precision or deployed parameters, and no security consequence
+      of any kind. A positive information rate at a 6561-element secret space is not evidence about
+      a scheme with thousands of secret coefficients.'
+  inputs:
+    procedure: 'STAGE 0 (hours implementation, seconds compute): implement the toy approximate scheme
+      in exact integers with a declared scaling factor and a declared claimed-precision boundary;
+      assert that the released value equals message plus error exactly. STAGE 1 (minutes): measure
+      the shuffled-secret floor for each alphabet size k in {4,8,12} at the exact sample count the
+      main arms will use, over 100 independent shuffles, reporting mean and spread. STAGE 2 (under
+      one core-hour): enumerate all 6561 ternary secrets crossed with 32 randomness seeds, depth 1,
+      record the k low-order bits of the released result; build the joint histogram; compute plug-in
+      and Miller-Madow estimates. STAGE 3 (core-hours): repeat at depths 2, 3 and 4. STAGE 4 (minutes):
+      key-independent synthetic-error arm and fixed-secret arm through the identical estimator. STAGE
+      5 (minutes): exact-scheme residual arm at matched parameters. STAGE 6 (minutes): reproducibility
+      across three independent randomness seedings; manifest emission.'
+    instrument: Python 3 with arbitrary-precision integers for all ring and error arithmetic, so the
+      released error is exact and no host floating point enters; numpy only for histogram accumulation
+      and the entropy arithmetic, with the plug-in estimate computed twice by independent code paths
+      (direct histogram and a sorted-counts route) and required to agree. Miller-Madow correction
+      and shuffled floor implemented directly. Deterministic seeding and run manifests through harness/runner.py
+      conventions. No Sage, no external FHE library, no external entropy-estimation package.
+    parameters: 'Ring degree N = 8. Modulus q: one 30-bit prime. Secret: full ternary enumeration,
+      3^8 = 6561. Scaling factor chosen so that 12 bits sit below the declared claimed precision.
+      Observation width k in {4, 8, 12} bits. Randomness seeds per secret: 32 in the base arm, 128
+      in a resolution-check arm. Circuit depth in {1, 2, 3, 4}, a chain of multiplications by fixed
+      public constants. Synthetic-error arm: uniform integer error of matched empirical variance and
+      matched bit width. Exact-scheme arm: same N, same q, plaintext modulus 2, residual defined as
+      the decryption phase minus the scaled message. Shuffles for the floor: 100 per configuration.
+      Independent seedings: 3.'
+  controls:
+  - Shuffled-secret floor, identical estimator, same invocation, measuring plug-in bias at the exact
+    alphabet size and sample count.
+  - Key-independent synthetic error of matched variance and bit width, which must sit at the floor.
+  - Fixed-secret arm in which only encryption randomness varies, separating information about the
+    secret from information about the randomness.
+  - Exact-scheme residual arm at matched parameters, run through the identical estimator, as the second
+    object.
+  - Alphabet-size sweep at k in {4, 8, 12} bits, since the plug-in bias grows with alphabet size and
+    a single k could be chosen to flatter the result.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both run through the identical estimator in the same invocation.
+    First, the shuffled-secret floor: pair each released bit vector with a secret drawn independently
+    from the same enumeration, destroying the association while preserving both marginals; this measures
+    the plug-in estimator''s positive bias at the given alphabet size and sample count, which is always
+    positive and is the number most likely to be mistaken for a finding. Second, a key-independent
+    synthetic error of matched variance and matched bit width in place of the real error. For the
+    signal arm to mean anything the approximate-scheme estimate must exceed the shuffled floor by
+    the pre-committed margin AND the synthetic-error arm must sit at the floor. If the approximate
+    arm sits at the floor, the recorded outcome is a controlled null.'
+  independent_variables:
+  - observation width k in bits
+  - circuit depth
+  - arm (approximate signal, shuffled floor, key-independent synthetic error, fixed-secret, exact-scheme
+    residual)
+  - randomness seeds per secret (32 versus 128)
+  metrics:
+    primary:
+    - plug-in mutual information I(S;B) in bits per release
+    - Miller-Madow corrected mutual information
+    - shuffled-secret floor with its spread over 100 shuffles
+    - signal minus floor with standard error
+    secondary:
+    - the same quantities for the synthetic-error, fixed-secret and exact-scheme arms
+    - empirical entropy of B alone
+    - agreement between the two independent plug-in code paths
+    - decay of the estimate with depth
+    - joint histogram sparsity, as counts per occupied cell
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The excess of the mutual information estimate over the measured shuffled-secret floor,
+      per observation width and per depth, in bits per released result.
+    formula: Delta(k, d) = I_MM(S; B_k at depth d) - I_shuffled(k), where I_MM is the Miller-Madow-corrected
+      plug-in mutual information over the exhaustive joint histogram of the 6561-element secret alphabet
+      against the 2^k-element observation alphabet, and I_shuffled is the mean of the same estimator
+      over 100 independent secret-label permutations at identical sample count. Predicted Delta(k,
+      1) >= 0.05 bits for at least one k; predicted Delta for the key-independent synthetic error
+      within 1 standard error of 0 at every k; predicted Delta(k, 4) <= Delta(k, 1) / 2.
+    source: Pre-registered in the parent proposal IDEA-20260816-552e4c before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'N = 8 with a 6561-element secret space, chosen precisely because exhaustive enumeration
+      of the channel input removes every sampling assumption from the estimate, which no larger parameter
+      permits. Entropy estimation on an alphabet this small behaves entirely differently from anything
+      at deployed dimensions, where the secret space is astronomically large and the plug-in estimator
+      is unusable, so no numerical rate transfers and none is claimed to. The only cross-scale statement
+      is a negative one the contract makes explicitly: if the rate is at the floor even here, where
+      the estimator has its best possible conditions, then counting is not the way to measure this
+      channel and a later contract needs a different estimator rather than more compute.'
+    correspondence: null
+  tail_checks:
+  - Report the distribution of per-secret conditional entropies, not only their mean, since a channel
+    that is informative about a few secrets and uninformative about the rest is a different object
+    from a uniformly weak one.
+  - Report the estimate restricted to the secrets of extreme Hamming weight, where the error term's
+    dependence should be strongest.
+  - Report the shuffled floor's full spread rather than its mean, and compare the signal against the
+    95th percentile of the floor as well as its mean.
+  - Report the estimate at 128 seeds per secret alongside 32, exposing the finite-sample slope of
+    both signal and floor.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop and report insufficient resolution, not a null result, if the shuffled floor at every k exceeds
+    the largest signal estimate.
+  - Abort as instrument failure if the two independent plug-in code paths disagree.
+  - Halt the depth sweep once the estimate is within 1 standard error of the floor at all k, recording
+    the depth at which that happened.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A Miller-Madow estimate exceeding the 95th percentile of the shuffled floor by
+    at least 0.05 bits at at least one observation width at depth 1, with the key-independent synthetic-error
+    arm within 1 standard error of the floor at every width.
+  falsification_criterion:
+  - The approximate arm is within 1 standard error of the floor at every k and every depth.
+  - The key-independent synthetic-error arm exceeds the floor, so the estimator is detecting non-secret
+    structure and is broken.
+  - The estimate does not decrease with depth, contradicting the stated mechanism.
+  - Estimates are not reproducible across the three independent randomness seedings.
+  - The two independent plug-in code paths disagree.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-552e4c
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must fix the declared claimed-precision boundary of the toy approximate scheme,
+    since which bits count as low-order is the definition the whole measurement rests on and there
+    is no default.
+  - The RQ-FHE-001 primary-source constraint must be ruled on; this contract cites no attack claim
+    and mounts no attack, but the gate as written is unconditional and KN-LIT-95256d and KN-LIT-7675
+    are both marked citation_verified web.
+  - The choice of a fixed public input makes the estimate conditional on it, and either an input-averaged
+    arm must be added or the conditionality declared as a limit.
+  - Whether mutual information or a min-entropy-style guessing measure is the right functional for
+    this channel is not derived; the contract measures the former and the argument for it is missing.

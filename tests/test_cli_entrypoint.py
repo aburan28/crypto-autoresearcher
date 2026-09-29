@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from orchestration import cli as cli_module
+from orchestration.adapter import resolver as resolver_module
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -31,10 +32,31 @@ def test_doctor_reports_without_crashing(capsys):
         assert section in output
 
 
-def test_doctor_names_an_actionable_next_step_when_blocked(monkeypatch, capsys):
+def test_doctor_is_unblocked_by_the_credential_free_local_backend(monkeypatch, capsys):
+    """No paid API key needed: `local` (vLLM, api_key_optional) covers most
+    roles by itself, so doctor is Ready rather than blocked. See
+    orchestration/model-bindings.yaml's `local` bindings."""
     for name in ("ANTHROPIC_API_KEY", "ZAI_API_KEY", "OPENAI_API_KEY",
                  "OPENROUTER_API_KEY", "LOCAL_LLM_API_KEY"):
         monkeypatch.delenv(name, raising=False)
+    code, output = run(["doctor"], capsys)
+    assert code == 0
+    assert "local: ready" in output
+    assert "next:" in output
+    # Paid backends still get a named, actionable next step.
+    assert "ANTHROPIC_API_KEY" in output and ".env" in output
+    # Unverified model ids are still flagged, not quietly accepted.
+    assert "--probe" in output
+
+
+def test_doctor_blocks_when_no_backend_at_all_is_usable(monkeypatch, capsys):
+    for name in ("ANTHROPIC_API_KEY", "ZAI_API_KEY", "OPENAI_API_KEY",
+                 "OPENROUTER_API_KEY", "LOCAL_LLM_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    # Remove local's own free ride: pretend every binding is blocked, so
+    # local is exactly as unusable as every paid backend here.
+    monkeypatch.setattr(resolver_module, "_binding_blockers",
+                         lambda config, policy_id, backend_id, binding: ["no model bound"])
     code, output = run(["doctor"], capsys)
     assert code == 1
     assert "no backend is usable" in output
@@ -191,9 +213,13 @@ def test_backends_lists_endpoints_and_key_variables(capsys):
 def test_backends_distinguishes_missing_key_from_missing_binding(capsys,
                                                                  monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    # openrouter has no policies bound in orchestration/model-bindings.yaml;
+    # giving it a key isolates "unbound" from "no credentials" (local's own
+    # key-optional bindings would otherwise mask this — see cmd_backends).
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     _, output = run(["backends"], capsys)
     assert "no credentials" in output          # anthropic: bound, no key
-    assert "unbound" in output                 # openrouter/local remain unbound
+    assert "unbound" in output                 # openrouter: key present, no bindings
 
 
 def test_dotenv_is_loaded_without_overriding_the_shell(tmp_path, monkeypatch):

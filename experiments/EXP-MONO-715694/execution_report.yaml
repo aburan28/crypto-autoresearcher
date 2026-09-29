@@ -1,0 +1,340 @@
+execution_report:
+  experiment_id: EXP-MONO-715694
+  handoff_id: TASK-20260830-75c1c0
+  hypothesis_id: H-MONO-819f2b
+  implementation_commit: 88f0a034ed4d2438dc77d8c4427124dc6c245e78
+  implementation_commit_note: >-
+    Commit checked out at run start for both runs (repository dirty with
+    unrelated concurrent-session files outside this task's write scope;
+    see each run manifest's code.dirty_note). This report and the run
+    artifacts it cites are not yet committed by the Coordinator; the
+    Coordinator's snapshot commit will record the final SHA that includes
+    these files.
+
+  status: >-
+    Observations only. No verdict is rendered on H-MONO-819f2b; no
+    hypothesis, experiment, or goal status is changed by this record, per
+    the frozen contract and handoff.
+
+  protocol_deviations:
+    - >-
+      PERFORMANCE: exact multinomial sampling (Python 3.12+ stdlib
+      `random.Random.binomialvariate`, via sequential conditional binomial
+      draws) substituted for literal per-draw categorical sampling in Stage
+      2's Monte Carlo loop. Drawing N categorical samples one at a time
+      would cost O(N) per sample and was infeasible in pure Python at N up
+      to 100,000 with 20,000 trials per candidate N (estimated many minutes
+      to hours for a single candidate N alone). The substitution produces
+      the mathematically IDENTICAL target distribution (a fixed i.i.d.
+      categorical law over N draws is exactly Multinomial(N, law) in
+      distribution) -- this is a performance detail, not a change to what
+      is being measured. Full derivation in implementation.md. Both runs
+      completed in ~2.3 seconds wall-clock as a result, far under the
+      1800-second budget.
+    - >-
+      PERFORMANCE: Step 4a's bootstrap resampling uses stdlib
+      `random.Random.choices` (equal-weight with-replacement draw from the
+      real 44,310-point pool) rather than a hand-written per-element
+      `randrange` loop; identical sampling distribution, faster stdlib-
+      internal implementation. The literal with-replacement resampling
+      FROM THE REAL DATA POOL (not from the derived D_4 law) is preserved
+      exactly as the contract requires -- only the loop implementation is
+      optimized.
+    - >-
+      DISCLOSED JUDGMENT CALL, REJECTION-REGION DIRECTION: the handoff's
+      task description contains two mutually contradictory statements about
+      which tail of the LR statistic is the rejection region -- one says "a
+      lower/more-negative LR favors it's the subgroup" (implying threshold =
+      alpha-quantile, reject for LOW LR), the other's own explicit
+      NEG_INF_CAP worked example says "-infinity ... is an immediate,
+      maximally confident vote for it's S_4" (implying LOW/-infinity LR
+      means "it's S_4", i.e. reject for HIGH LR). Working through the
+      arithmetic of LR = sum log(P_sub/P_full): under true S_4 data, E[LR] =
+      -D_KL(P_full||P_sub) = -infinity (since both tested subgroups exclude
+      cycle types S_4 assigns positive probability to); under true subgroup
+      data, E[LR] = +D_KL(P_sub||P_full) >= 0, finite. This is also the
+      standard Neyman-Pearson convention (reject null for LARGE
+      alternative/null likelihood ratio). This Executor implemented
+      threshold = empirical (1-alpha) quantile of the S4-generated LR
+      distribution, with "LR > threshold" classifying as "it's the
+      subgroup" -- consistent with the handoff's own NEG_INF_CAP example and
+      with the stated formula's arithmetic, and treating the contradictory
+      prose aside as a documentation slip. Full derivation in
+      implementation.md. This does not touch any frozen numeric parameter
+      (alpha, target_power, monte_carlo_trials_per_candidate_N); it resolves
+      which comparison direction is needed to make the stated formula
+      computable and internally consistent at all.
+    - >-
+      THRESHOLD RECALIBRATION AT N=2000 AND N=44310 FOR STEP 4B: the
+      Stage-2 search grid for both pairs contains only N=10 (see Stage 2
+      results below), so neither N=2000 (N3's real sample size) nor N=44310
+      (N1's real exhaustive size) was already a grid point. Per the
+      contract's own explicit fallback instruction, both thresholds were
+      recalibrated exactly at those N values using the identical seeded
+      calibration procedure used in Stage 2. Recorded per-run in
+      raw-result.json's `step4b.threshold_source` with `recalibrated: true`
+      for all four thresholds used.
+    - >-
+      HEADLINE FINDING, NOT A DEVIATION BUT REPORTED PROMINENTLY PER THE
+      CONTRACT'S OWN INSTRUCTION: N_required saturates at the contract's own
+      search floor (N=10) for BOTH pairs in BOTH runs, so the central
+      ordering prediction N_required(S4_vs_D4) > N_required(S4_vs_A4) is NOT
+      confirmed by the primary Monte Carlo metric at this search's
+      resolution -- this is explicitly named as a falsification condition in
+      the frozen contract and H-MONO-819f2b, and is reported here as such,
+      not worked around by extending the search below its own frozen floor.
+      See Stage 2 section below for the full numbers and the Chernoff-Stein
+      asymptotic cross-reference, which DOES show the predicted ordering as
+      a secondary, non-primary metric.
+
+  runs:
+    completed:
+      - RUN-MONO-715694-1
+      - RUN-MONO-715694-2
+    invalid: []
+    failed: []
+    budget_status: >-
+      Both runs completed in ~2.3 seconds wall-clock (budget cap: 1800s per
+      run) and ~24MB peak RSS (budget cap: 2GB). No stopping rule was
+      triggered; no timeout, crash, or infrastructure failure occurred in
+      either run.
+
+  stage0_exact_tables:
+    s4_vector: [1, 6, 3, 8, 6]
+    s4_total: 24
+    a4_vector: [1, 0, 3, 8, 0]
+    a4_total: 12
+    pass: true
+    note: >-
+      Matches the frozen contract's forced_output exactly:
+      "S4: [1,6,3,8,6]/24; A4: [1,0,3,8,0]/12". Confirmed by both runs
+      (deterministic, seed-free enumeration; identical in both).
+
+  stage0b_d4_from_real_data:
+    run1:
+      total_rows: 44521
+      excluded_null_ramified: 211
+      non_ramified_total: 44310
+      counts: [6105, 11100, 16050, 0, 11055]
+      law:
+        identity: 0.13777928232904535
+        transposition: 0.25050778605280977
+        double_transposition: 0.36222071767095465
+        three_cycle: 0.0
+        four_cycle: 0.24949221394719026
+      three_cycles_found: 0
+    run2:
+      total_rows: 44521
+      excluded_null_ramified: 211
+      non_ramified_total: 44310
+      counts: [6105, 11100, 16050, 0, 11055]
+      three_cycles_found: 0
+    run1_run2_agree: true
+    pass: true
+    note: >-
+      Both hard gates passed: zero 3-cycles across all 44,310 non-ramified
+      rows in both a20e48 runs, and the two runs' derived D_4-in-S_4-cycle-
+      type laws agree exactly (deterministic exhaustive census). This
+      tabulated law (from run 1) is the D_4 ground-truth used throughout the
+      rest of this record.
+
+  stage1_null_controls:
+    null1_identical_group:
+      description: >-
+        S_4 vs an independent second S_4 stream, at N in
+        {10,100,1000,10000,44310,100000}.
+      false_positive_rate_by_n: {10: 0.0, 100: 0.0, 1000: 0.0, 10000: 0.0, 44310: 0.0, 100000: 0.0}
+      max_apparent_separation_rate: 0.0
+      pass: true
+      mechanism_note: >-
+        Because sub_law is literally the SAME probability table as full_law
+        (not merely an independent draw of the same law, but the identical
+        Python object), log(P_sub(c)/P_full(c)) = log(1) = 0 exactly for
+        every cycle type -- the LR statistic is identically 0.0 for every
+        possible draw regardless of N, and the calibrated threshold is
+        therefore also exactly 0.0. This is a degenerate but mathematically
+        correct outcome (not an unexplained zero), disclosed in full in
+        implementation.md; it trivially satisfies "not materially above
+        alpha=0.05".
+    null2_variance_bound:
+      description: "Empirical FP rate of the calibrated S4-vs-S4 test."
+      false_positive_rate_by_n: {100: 0.0, 1000: 0.0, 10000: 0.0, 44310: 0.0}
+    both_runs_agree: true
+
+  stage2_n_required_search:
+    lr_statistic_formula: >-
+      LR(sample) = sum over the N draws in the sample of
+      log(P_sub(cycle_type)/P_full(cycle_type)), where P_full is S_4's exact
+      law (from Stage 0) and P_sub is the candidate subgroup's law (A_4's
+      exact law from Stage 0, or D_4's real-data-derived law from Stage 0b).
+      If P_sub(cycle_type)=0 and P_full(cycle_type)>0 and that cycle type is
+      observed, the term is treated as NEG_INF_CAP = -1e18 (a finite
+      sentinel standing in for -infinity, chosen far more extreme than any
+      achievable finite sum of <=100,000 real terms, each of magnitude at
+      most ln(24)~=3.2); any single such occurrence makes the WHOLE sample's
+      LR statistic equal to NEG_INF_CAP, an "immediate, maximally confident"
+      result, not merely a large negative contribution among others.
+    rejection_rule: >-
+      threshold = empirical (1-alpha)=0.95 quantile of the S4-generated LR
+      distribution (20,000 trials); classify a sample as "it's the
+      subgroup" if LR > threshold, else "it's S4". See implementation.md
+      "Direction-of-rejection" section for the full derivation of why this
+      direction (not the literal "below the threshold" phrasing elsewhere
+      in the handoff) is the internally consistent one given the stated LR
+      formula and the handoff's own NEG_INF_CAP worked example.
+    search_floor_n: 10
+    search_ceiling_n: 100000
+    monte_carlo_trials_per_candidate_n: 20000
+    s4_vs_a4:
+      n_required: 10
+      n_required_power: 1.0
+      n_required_power_monte_carlo_se: 0.0
+      false_positive_rate_at_n10: 0.0007
+      threshold_at_n10: -1.0e+18
+      grid_points_tested: [10]
+      chernoff_stein_cross_reference: >-
+        10.965784284662085 (asymptotic order-of-magnitude sanity check via
+        ln(1/(alpha*beta))/D_KL(P_A4||P_S4), alpha=0.05, beta=0.01; recalled
+        formula per Chernoff-Stein lemma, NOT a substitute for the Monte
+        Carlo result).
+    s4_vs_d4:
+      n_required: 10
+      n_required_power: 1.0
+      n_required_power_monte_carlo_se: 0.0
+      false_positive_rate_at_n10: 0.01675
+      threshold_at_n10: -1.0e+18
+      grid_points_tested: [10]
+      chernoff_stein_cross_reference: >-
+        13.81581630394152 (same formula, D_KL(P_D4||P_S4)).
+    ordering_prediction_check:
+      forced_output_expected: "N_required(S4_vs_D4) > N_required(S4_vs_A4)"
+      measured: "N_required tied at 10 for both pairs"
+      n_required_d4_gt_a4: false
+      interpretation_scope_note: >-
+        This is a measured observation, reported as required by the
+        contract's own falsification_conditions, not an interpretation of
+        whether H-MONO-819f2b's central prediction holds. Both pairs
+        already reach power=1.0 (Monte Carlo SE=0.0 across 20,000 trials) at
+        the contract's own search floor N=10, because a proper subgroup
+        that excludes at least one S_4 cycle type makes the LR statistic
+        hit NEG_INF_CAP for virtually every S_4-generated sample once N is
+        large enough that observing an excluded category is near-certain --
+        and N=10 already exceeds that point for both A_4 (excluded mass
+        0.5, P(none in 10 draws)~=0.001) and D_4 (excluded mass 0.333,
+        P(none in 10 draws)~=0.017). The predicted ordering DOES appear in
+        the Chernoff-Stein asymptotic cross-reference (10.97 vs 13.82) and
+        in the false-positive rate at N=10 (0.0007 vs 0.01675, both well
+        under alpha), but the primary Monte Carlo N_required metric cannot
+        resolve an ordering below its own frozen search floor. This
+        Executor did not extend the search below N=10 to attempt to surface
+        the predicted ordering there, since the search range is a frozen
+        contract parameter and doing so would be a post-hoc re-selection
+        the contract's invalidation_rules forbid.
+    both_runs_agree: true
+
+  step4a_bootstrap_vs_simulation:
+    description: >-
+      With-replacement resampling directly from the real 44,310-point N1
+      (run 1) pool, at every N in the Stage-2 S4-vs-D4 search grid
+      (which contains only N=10, per Stage 2 above), 1,000 bootstrap
+      replicates, using the SAME threshold calibrated in Stage 2 at that N.
+    grid:
+      - n: 10
+        threshold_used: -1.0e+18
+        bootstrap_power: 1.0
+        bootstrap_power_se: 0.0
+        n_bootstrap: 1000
+        synthetic_monte_carlo_power: 1.0
+        synthetic_monte_carlo_power_se: 0.0
+        gap: 0.0
+    max_absolute_gap: 0.0
+    agreement_verdict: >-
+      AGREE (gap = 0.0 exactly at the one grid point tested, N=10). Both the
+      synthetic i.i.d. simulation and the real-data bootstrap already
+      saturate at power=1.0 with zero measured variance at this N, so this
+      is a degenerate agreement (both hit the ceiling) rather than a
+      finely-resolved match; a genuinely informative Step 4a comparison
+      would require the Stage-2 search grid to contain N values below the
+      separation threshold, which the contract's own N=10 floor precludes
+      here. Reported as measured, per docs/evidence-and-reproducibility.md.
+    both_runs_agree: true
+
+  step4b_real_data_classification:
+    threshold_source:
+      a4_at_n2000: {threshold: -1.0e+18, recalibrated: true}
+      d4_at_n2000: {threshold: -1.0e+18, recalibrated: true}
+      a4_at_n44310: {threshold: -1.0e+18, recalibrated: true}
+      d4_at_n44310: {threshold: -1.0e+18, recalibrated: true}
+      note: >-
+        Neither N=2000 nor N=44310 was already a Stage-2 grid point (grid
+        contains only N=10); both thresholds were recalibrated exactly at
+        these N values per the contract's explicit fallback instruction.
+    n3_run1_s2000_real_sample:
+      histogram_counts: {identity: 78, transposition: 513, double_transposition: 250, three_cycle: 669, four_cycle: 490}
+      histogram_counts_note: "used=2000, discarded=10 (N3_k1.jsonl run 1's own `discarded` field)."
+      vs_a4: {classified_as_sub: false, lr: -1.0e+18}
+      vs_d4: {classified_as_sub: false, lr: -1.0e+18}
+      forced_output_expected: "classifies as S_4 (not A_4, not D_4)"
+      matched: true
+    n3_run2_s2000_real_sample:
+      histogram_counts: {identity: 88, transposition: 527, double_transposition: 243, three_cycle: 661, four_cycle: 481}
+      histogram_counts_note: "used=2000, discarded=4 (N3_k1.jsonl run 2's own `discarded` field)."
+      vs_a4: {classified_as_sub: false, lr: -1.0e+18}
+      vs_d4: {classified_as_sub: false, lr: -1.0e+18}
+      forced_output_expected: "classifies as S_4 (not A_4, not D_4)"
+      matched: true
+    n1_run1_exhaustive_44310_real_sample:
+      vs_a4: {classified_as_sub: false, lr: -1.0e+18}
+      vs_d4: {classified_as_sub: true, lr: 24377.56702701852}
+      forced_output_expected: "classifies as D_4 (not S_4, not A_4)"
+      matched: true
+    n1_run2_exhaustive_44310_real_sample:
+      vs_a4: {classified_as_sub: false, lr: -1.0e+18}
+      vs_d4: {classified_as_sub: true, lr: 24377.56702701852}
+      forced_output_expected: "classifies as D_4 (not S_4, not A_4)"
+      matched: true
+    all_four_forced_outputs_matched: true
+    both_runs_agree: true
+    note: >-
+      All four real-data classifications match the contract's forced
+      outputs exactly (N1 x 2 runs classifies as D_4 under the S4-vs-D4
+      test and NOT as A_4 under the S4-vs-A4 test; N3 x 2 runs classifies
+      as S_4, i.e. NOT the subgroup, under both pairwise tests). No
+      falsification-triggering misclassification occurred in either run.
+
+  cross_run_consistency: >-
+    RUN-MONO-715694-1 (seed 20260830) and RUN-MONO-715694-2 (seed 20260831)
+    produced IDENTICAL N_required figures (10 for both pairs, both runs),
+    identical NULL-1/NULL-2 false-positive rates (0.0 throughout, both
+    runs), identical Step 4a agreement (gap=0.0, both runs), and identical
+    Step 4b classification outcomes (all four forced outputs matched, both
+    runs). This identity across two different seeds is itself a measured
+    fact reported as such, not a coincidence requiring explanation: at the
+    effect sizes involved (essentially deterministic separation once N
+    exceeds the point where an excluded cycle type is near-certain to
+    appear), 20,000-trial Monte Carlo estimates are expected to agree to
+    within their reported SE (which is 0.0 here, since every one of the
+    20,000 trials in every batch produced the same classification).
+
+  observations_not_conclusions: >-
+    Per the frozen contract and handoff, this record reports observations
+    only. It does NOT conclude that H-MONO-819f2b, HEUR-MONO-CONV-1, or any
+    other hypothesis in this lane is supported or refuted; it does NOT
+    change any hypothesis, experiment, or goal status; and it does NOT judge
+    whether the measured N_required-search-floor-saturation result is "good
+    news" or "bad news" for the lane's prior work. Those judgments belong to
+    the Coordinator and independent reviewers per docs/task-lifecycle.md.
+
+  anomalies: []
+
+  completion_gate_check:
+    stage0_stage0b_reported_before_monte_carlo: true
+    null1_null2_reported: true
+    n_required_reported_both_pairs_with_se: true
+    step4a_reported: true
+    step4b_reported_all_four_classifications: true
+    manifests_use_nested_schema: true
+    all_planned_runs_terminal: true
+    missing_runs: none
+    raw_data_and_summaries_agree: true
+    reproducible_from_recorded_command_and_revision: true

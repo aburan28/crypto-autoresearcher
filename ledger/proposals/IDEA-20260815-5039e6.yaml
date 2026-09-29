@@ -1,0 +1,219 @@
+idea:
+  id: IDEA-20260815-5039e6
+  question_id: RQ-ROS-595c15
+  added: '2026-08-15'
+  title: >-
+    MEASURE THE ROS SOLVER'S REAL COST CURVE WITH LITERAL FORGERIES RATHER
+    THAN ASYMPTOTICS, AND MAP WHICH DEPLOYED CONCURRENCY LIMITS ACTUALLY SIT
+    BELOW THE FEASIBILITY THRESHOLD
+  class: measurement
+
+  claim: >-
+    The ROS attack's feasibility depends on concurrent-session count, and
+    the published analysis is asymptotic in that parameter. Deployments
+    choose concurrency limits without knowing where the threshold actually
+    is. A measured cost curve with literal forgeries at each concurrency
+    level converts a threshold into a deployable number.
+
+  mechanism: >-
+    Implement the ROS solver. For each concurrency level, run to a literal
+    forgery and record wall clock, memory and success rate. Fit the cost
+    curve and locate the feasibility threshold under stated compute budgets.
+    Map published deployment limits against it.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-ROS-001 objective; grep 'ROS' records, 'concurrency
+      limit', 'literal forgery'.
+    results: >-
+      The goal asks for exactly this and it is not built. The ROS attack
+      itself is published and its asymptotic behaviour is known.
+    verdict: >-
+      ADAPTATION. The attack is published; the contribution is a measured
+      cost curve with forgery certificates and a mapping onto deployed
+      limits.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE COST OF A LITERAL FORGERY as a function of concurrent sessions.
+    lossiness: >-
+      A single threshold projects away the curve's shape; the record
+      reports the curve and the threshold together for that reason.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while the solver is implementable and forgeries are
+      verifiable; concurrency levels beyond the compute budget are
+      reported as unreached rather than extrapolated.
+
+  null_object_control: >-
+    NULL 1 -- concurrency below the published threshold, where no forgery
+    should be found within budget; a forgery there contradicts the published
+    analysis and needs review. NULL 2 -- a verifier check on every claimed
+    forgery, since a solver bug producing invalid forgeries would invert the
+    whole result.
+
+  discriminated_from:
+    - >-
+        The published ROS analysis, which is asymptotic; this record
+        measures concrete cost and certifies forgeries.
+    - >-
+        Concurrency-limit guidance in deployment documents, which is set
+        without reference to a measured threshold.
+
+  assumptions:
+    - >-
+        The solver is implementable at the tested concurrency levels
+        within budget.
+    - >-
+        Every claimed forgery is independently verifiable; unverified
+        forgeries are not results.
+
+  predictions:
+    - metric: >-
+        independent verification of every claimed forgery
+      direction: different
+      minimum_effect: >-
+        FORCED: all verify, else the solver is buggy and every number is
+        void.
+    - metric: >-
+        no forgery below the published threshold within budget
+      direction: different
+      minimum_effect: >-
+        Predicted; a forgery there contradicts published analysis and
+        requires review.
+    - metric: >-
+        measured cost curve versus concurrency
+      direction: higher
+      minimum_effect: >-
+        The measurement; reported with the compute budget that defines
+        feasibility.
+
+  minimal_test:
+    design: >-
+      Three concurrency levels spanning the published threshold, with
+      verification on every forgery.
+    controls:
+      - >-
+          Below-threshold null.
+      - >-
+          Independent forgery verification, blocking.
+      - >-
+          Compute budget stated, since feasibility is budget-relative.
+      - >-
+          Unreached levels reported, never extrapolated.
+    required_metrics:
+      - >-
+          Cost, memory and success rate per concurrency level.
+      - >-
+          Verification outcome per claimed forgery.
+      - >-
+          Fitted threshold with the stated budget.
+      - >-
+          Mapping of deployed limits against the threshold.
+
+  falsification_conditions:
+    - >-
+        A claimed forgery fails verification. Solver buggy; all numbers
+        void.
+    - >-
+        Forgeries appear below the published threshold. Contradicts
+        published analysis; route to independent review.
+    - >-
+        No forgery at any tested level. The attack is infeasible at this
+        budget, which is a scoped negative bounded by the budget rather
+        than a security claim.
+
+  confounders:
+    - >-
+        BUDGET-RELATIVE FEASIBILITY: a threshold is meaningless without
+        the compute budget that defines it, and quoting one without the
+        other would mislead deployments.
+    - >-
+        IMPLEMENTATION QUALITY: an unoptimised solver overstates the
+        threshold in the direction that flatters deployments.
+
+  interpretation_limits:
+    - >-
+        Measures one published attack's concrete cost; makes no general
+        claim about blind-signature security.
+    - >-
+        Threshold is budget-relative and version-scoped.
+    - >-
+        A negative bounds the tested budget only and is not a security
+        proof.
+
+  heuristic_assumptions:
+    - id: HEUR-ROS-BUD-1
+      statement: >-
+        The measured cost curve extrapolates to concurrency levels
+        beyond those tested, so a threshold fitted at reachable levels
+        bounds behaviour at higher ones.
+      rigorous_support: >-
+        Rigorous ingredient: the published asymptotic form of the ROS
+        solver's cost. THE GAP: the fit is over a narrow reachable range
+        and the asymptotic form's constants are unknown, so
+        extrapolation past the tested levels is unjustified and any
+        deployed guidance drawn from it inherits that weakness.
+      falsification_condition: >-
+        A measured level whose cost departs from the fitted curve beyond
+        its interval.
+      validation_plan: >-
+        SAMPLE: >= 3 concurrency levels, >= 10 runs each. COMPARISON:
+        fitted curve against published asymptotic form. TAIL CHECK: the
+        highest reached level, reported separately since it drives the
+        extrapolation. TRANSFER ASSUMPTION: stated and unjustified.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is one solver run per level per repetition.
+    memory_exponent: >-
+      Solver working set; recorded per level.
+    best_known: >-
+      The incumbent is the published ROS attack and its asymptotic
+      analysis, measured here and not improved.
+    hidden_overhead: >-
+      Reaching concurrency levels near the threshold may exceed budget
+      entirely, leaving the interesting region unmeasured.
+    tradeoff_note: >-
+      Higher concurrency buys relevance and costs compute superlinearly;
+      the record reports what it reached and does not extrapolate past it.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As an attack: dominated by the published ROS
+    work. As a concrete cost measurement: none exists here. Not null on any
+    axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: a measured cost curve
+    with verified forgery certificates, a budget-relative threshold, and a
+    mapping of deployed concurrency limits onto it.
+
+  estimated_cost:
+    implementation: medium
+    compute: high
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.7 that the solver is implementable. 0.5 that levels near the published
+    threshold are reachable within budget, which is the binding risk. 0.9
+    that forgeries verify when found. 0.1 that behaviour below the published
+    threshold contradicts the analysis.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ROS-595c15
+    - GOAL-ROS-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

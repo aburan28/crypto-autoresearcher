@@ -1,0 +1,142 @@
+experiment:
+  id: EXP-ECDLP-2c3d20
+  hypothesis_id: H-ECDLP-3ca750
+  derived_from_idea: IDEA-20260905-9c4f0c
+  question_id: RQ-ECDLP-4fcbd3
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Lumped transition-operator defect and itinerary-class log concentration of the
+    harness r-adding walk on toy prime-order subgroups, paired with a random-label
+    walk of the same shape and a descent-symbol-driven walk as the known-true object
+  status: draft
+  objective: >-
+    For the harness walk on cofactor-1 prime-order subgroups at field_bits 12 to 24
+    and r in {4, 8, 16, 32}: measure the centred second singular value of the walk
+    lumped by each partition in a frozen library and its slope in p; measure, for
+    every itinerary depth with r^k <= sqrt(N), the class-averaged and class-minimum
+    arc concentration of the classes' discrete logs and each class indicator's
+    DL-spectral beta and Z; pair every statistic with the random-label walk at
+    matched class size; verify the descent-symbol-driven walk on an order-2q curve
+    shows spread parity classes with a full spectral spike at q. Decide
+    H-ECDLP-3ca750 claims (1)-(3).
+  inputs:
+    procedure: >-
+      STAGE 0 (zero compute, blocking): derivations of k* = log(N)/(2 log(2r)) per
+      cell, the localized-kangaroo cost model, the extreme-value procedure for the
+      class-minimum statistic (from the null walk, never a formula), and the frozen
+      partition library. STAGE 1 (instrument, blocking): log table and certificate;
+      walk map on all points; byte-identical regression against harness/rho.py for
+      the first 10^4 iterates; table validity; random-label walk. STAGE 2: lumped
+      matrices and lambda_2 per partition per cell, true and null. STAGE 3:
+      itineraries to the depth cap, arc concentration and class spectra, true and
+      null. STAGE 4: descent-symbol walk on order-2q curves. STAGE 5: slopes,
+      paired differences, extreme-value bands, modelled cost, report.
+    mechanism: >-
+      Enumerate G, tabulate logs, build a point-to-index map. Precompute the r
+      table points from the instance seed exactly as harness/rho.py does and their
+      logs t_j = c_j + d_j k mod N. For every W compute F(W) and the next index by
+      one addition and a lookup; store next[i]. Itinerary of depth k for index i
+      is the sequence of branch labels along i, next[i], next[next[i]], ...; group
+      indices by itinerary. Arc concentration of a class: sort its logs, find the
+      shortest cyclic arc containing ceil(|C|/2) of them, divide by N. Lumped
+      matrix for partition g: count pairs (g(i), g(next[i])), row-normalise,
+      subtract the rank-one stationary term, take the second singular value. Class
+      spectra: FFT of each class indicator over the log ordering, beta and Z as in
+      EXP-ECDLP-184fc4. Random-label walk: replace the branch label of every index
+      by a seeded uniform label, same table, recompute next[], repeat everything.
+    instrument: >-
+      harness/toycurve.py and harness/rho.py read but not modified; a new driver
+      under experiments/EXP-ECDLP-2c3d20/driver/; numpy; harness/runner.py for
+      run records.
+  controls:
+    - random-label walk with the same table and r, every cell, same file (blocking)
+    - k = 1 slice reproduction of A = 1/2 on both walks (blocking)
+    - byte-identical regression against harness/rho.py (blocking)
+    - table validity (distinct nonzero logs) per cell (blocking)
+    - certificate of the log table on 1000 entries per curve (blocking)
+    - second curve family per size
+    - descent-symbol-driven walk on the order-2q curve (blocking for claim 3)
+  independent_variables:
+    - field_bits in {12, 14, 16, 18, 20, 22, 24}
+    - seed in {20260905, 20260906, 20260907}
+    - r in {4, 8, 16, 32}
+    - depth k with r^k <= sqrt(N)
+    - partition in the frozen library
+  metrics:
+    primary:
+      - lambda_2(Q_g) per partition per cell, true and null, and its slope gamma against log p with bootstrap interval
+      - class-averaged arc concentration A_k per depth, true and null, and the paired difference with its band
+      - class-minimum arc concentration per depth against the null's extreme-value band
+      - class-indicator spectral beta and Z per depth, true and null
+      - descent-symbol walk: depth-1 class A and spike frequency and Z
+    secondary:
+      - modelled localized-kangaroo cost k + 2 sqrt(A_k N) versus 0.886 sqrt(N), labelled modelled
+      - class-size distribution per depth, true and null
+      - k* per cell and which depths lie beyond it
+      - wall seconds and peak bytes per cell
+  heuristic_under_test: HEUR-CBIAS-H2
+  preregistered_prediction:
+    quantity: class-averaged arc concentration A_k and lambda_2 slope
+    formula: >-
+      A_k(true) - A_k(null) = 0 within the null's bootstrap band at every depth to
+      the cap, including beyond k*; lambda_2 proportional to p^gamma with gamma in
+      [-0.65, -0.35] on both walks; class-indicator beta in [0.45, 0.60]; on the
+      descent-symbol walk A = 1/2 and one spike at q.
+    source: >-
+      Pre-registered in IDEA-20260905-9c4f0c and H-ECDLP-3ca750; the
+      random-mapping heuristic of every published rho analysis (KN-TECH-006) is
+      the model imitated; never tuned to data.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exhaustive walk evaluation is O(N); field sizes 12 to 24 bits. Evidence
+      capped at claim_tier toy; slopes are the only scale statements.
+    correspondence: null
+  tail_checks:
+    - The single most concentrated class over all cells has null exceedance probability above 1/(classes measured); otherwise re-run its cell at a fourth seed.
+    - Depths beyond k* are listed explicitly per cell so a reader can see which measurements lie outside the reach of the recalled bound.
+    - Class-size matching: paired statistics are computed only between classes whose sizes agree within 20 percent; unmatched classes are reported separately.
+  replication:
+    seeds: [20260905, 20260906, 20260907]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 16
+    maximum_memory_gb: 8
+    maximum_runs: 64
+  stopping_rules:
+    - Stop at maximum_runs or total_cpu_hours, whichever binds first.
+    - Stop immediately if the walk regression, the table validity check or the k = 1 reproduction fails; measurements with a failed instrument are attempted_and_inconclusive.
+    - Stop and escalate to an independent review-adversarial session if any depth shows class-averaged A_k(true) below 0.4 with the null at 0.5 on both families at the two largest sizes.
+  invalidation_rules:
+    - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure and is never negative mathematical evidence (AGENTS.md rule 5).
+    - A curve whose certificate sample fails makes every cell on that curve invalid.
+    - A cell whose random-label walk shows A_1 outside 0.5 +- 0.05 is an instrument defect and is invalid.
+    - Any claimed solve or relation (none is expected) whose certificate fails makes the run completed_invalid.
+  success_criterion: >-
+    At every cell and depth to the cap: paired arc-concentration difference within
+    the null's band, class-minimum within the extreme-value band, class-indicator
+    beta in [0.45, 0.60]; lambda_2 slopes in [-0.65, -0.35] with true/null ratio
+    within 2; descent-symbol walk shows A = 1/2 +- 0.05 and one spike at q. This
+    supports H-ECDLP-3ca750 claims (1)-(3) at toy scale.
+  falsification_criterion:
+    - A depth with class-averaged A_k(true) below 0.4 while the null stays at 0.5, at the two largest sizes on both families. Claim (2) false.
+    - A class family with beta at or above 0.60 under the same replication. Claim (2) false.
+    - lambda_2 slope above -0.25 on the true walk with the null decaying. Claim (1) false.
+    - Descent-symbol walk without the spike at q, or with A far from 1/2. Instrument void.
+    - Regression, table or certificate failure. Instrument defect; nothing reported.
+    - Crashes, timeouts, memory exhaustion. Infrastructure, never negative mathematical evidence.
+  required_artifacts:
+    - manifest.yaml with command, commit, dirty-tree state, environment and the inference block
+    - raw-result.json with every per-cell, per-partition and per-depth statistic, true and null in the same file, class sizes, k*, and the modelled cost
+    - the regression transcript against harness/rho.py (first 10^4 iterates, hashes)
+    - certificate records for the log-table samples
+    - the order-2q control curve parameters and the descent-symbol walk statistics
+    - the Stage 0 derivation note
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - Coordinator approval required before execution; this contract is a design draft and is NOT approved.
+    - Stages 0 and 1 are blocking; no Stage 2 or 3 cell runs before the regression and the k = 1 reproduction pass.
+    - The modelled localized-kangaroo cost is never executed under this contract; running it is a new contract.

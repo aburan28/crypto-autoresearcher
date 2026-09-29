@@ -1,0 +1,219 @@
+experiment:
+  id: EXP-FALCON-047e31
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-fa2fe6; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-fa2fe6
+  question_id: RQ-FNDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Direct measurement of the leaf-center distribution modulo one in a toy tree sampler, testing
+    uniformity and cross-leaf independence and propagating the result into a correction factor on
+    an existing internal divergence formula.
+  objective: 'The uncertainty a run reduces is whether the named uniformity-and-independence heuristic
+    carried by an existing internal derivation holds at toy scale, and by how much the derived divergence
+    moves if it does not. In parts: (i) whether the estimation pipeline is unbiased, evidenced by
+    the independent-uniform null arm returning first Fourier coefficients and pairwise cross-moments
+    consistent with zero and a propagated correction factor consistent with one; (ii) what the first
+    Fourier coefficient of the leaf-center distribution is, per leaf and pooled, at 10^6 signatures
+    per key across ten keys, with the resolution stated as 3e-3; (iii) whether pairwise dependence
+    between leaves tracks tree distance, with sibling pairs exceeding cousin pairs by at least a factor
+    of two if the recursion''s coupling is real, and what correction factor the measured first and
+    second Fourier moments imply for the divergence formula. A run does not reduce uncertainty about
+    deployed dimension, about precision, about exploitability, or about security, and no stage of
+    the procedure produces such a quantity.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'Maximal supportable scope: for the toy bases and sampler built
+      in this run, at d in {8, 16, 32, 64} and sigma in {1.5, 2.0}, the leaf-center distribution has
+      the reported Fourier moments and pairwise dependence structure at the reported resolution, and
+      the divergence formula of H-FNDSA-6a9cbb carries the reported correction factor at those parameters.
+      WHAT DOES NOT FOLLOW: nothing about the center law at deployed dimension, and therefore nothing
+      that changes that record''s deployed-parameter derivations, which remain conditional on their
+      own stated assumptions; nothing about any released implementation; nothing about exploitability,
+      since the centers are not observable in a signature; and nothing about security. A confirmed
+      heuristic at toy scale is a toy-scale statement.'
+  inputs:
+    procedure: 'STAGE 0, cost under one hour: freeze the center definition against the derivation''s,
+      the bin counts, the leaf-pair distance classification, the multiple-testing correction and the
+      propagation formula. STAGE 1, cost about half a day: instrument the toy sampler to emit the
+      center vector with each signature. STAGE 2, cost minutes: run the independent-uniform null arm
+      at 10^6 draws; HALT IF ANY COEFFICIENT EXCEEDS 3e-3. STAGE 3, cost minutes: run the injected-tilt
+      positive control at three tilt sizes and check the recovered correction factor. STAGE 4, cost
+      about two hours: run the signal arm at d in {8, 16, 32, 64} and sigma in {1.5, 2.0}, ten keys
+      per cell, 10^6 signatures per key, recording per-leaf and pairwise statistics. STAGE 5, cost
+      minutes: recompute uniformity statistics at three bin counts and rerun one cell at emulated
+      precision 80 to bound the double-precision confounder. STAGE 6, cost under an hour: propagate
+      the measured moments through the divergence formula, apply the multiple-testing correction,
+      and report the correction factor with its interval.'
+    instrument: Pure Python 3 for the toy sampler at native double precision, with numpy for the Fourier
+      moment accumulators, the pairwise cross-moment table and the bias-corrected mutual information
+      estimates. fractions.Fraction is used only in the symbolic propagation step where the measured
+      moments are substituted into the divergence formula. The shared p-bit emulator is reused only
+      for the single higher-precision confounder-bounding cell. Run manifests through harness/runner.py.
+      No Sage, no external computer algebra, no network.
+    parameters: Dimensions d in {8, 16, 32, 64}, giving 8 to 64 leaves and 28 to 2016 leaf pairs.
+      Widths sigma in {1.5, 2.0}. Ten independently generated toy keys per (d, sigma) cell. Signatures
+      per key 10^6, giving a first-Fourier standard error near 1e-3 per leaf and near 1e-3 divided
+      by sqrt(d) pooled. Bin counts for the uniformity statistic in {16, 64, 256}. Injected tilt sizes
+      delta in {1e-1, 1e-2, 1e-3}. Null arm 10^6 independent uniform draws per leaf position. Confounder
+      cell rerun at emulated precision 80 with 10^5 signatures. Signal cells 4 x 2 x 10 = 80.
+  controls:
+  - Independent-uniform null arm through the identical pipeline, must return coefficients and cross-moments
+    consistent with zero and a correction factor consistent with one.
+  - Injected-tilt positive control with a known offset applied with probability delta, must return
+    the correction factor the formula predicts for that tilt.
+  - Sibling versus cousin stratification, which is a within-experiment control on whether any measured
+    dependence tracks tree distance as the recursion structure would require.
+  - Key-resampling control across ten independent toy keys, since a center-law deviation that is a
+    property of one key is not a property of the sampler.
+  - 'Bin-count robustness: recompute the uniformity statistics at three bin counts to confirm the
+    reading is not an artifact of binning.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The null arm replaces the recursion''s centers with coordinates drawn
+    independently and uniformly on the unit interval by the standard library generator, and runs the
+    IDENTICAL uniformity, independence and propagation pipeline on them. The null must return a first
+    Fourier coefficient consistent with zero at every leaf, pairwise cross-moments consistent with
+    zero, and a propagated correction factor consistent with one. Only then does any deviation measured
+    in the signal arm mean anything rather than reflecting the estimator''s own bias at finite sample
+    size. The positive control injects a known deterministic tilt, centers pushed by a fixed offset
+    with probability delta, and must return the correction factor that the formula predicts for that
+    tilt.'
+  independent_variables:
+  - lattice dimension d
+  - Gaussian width sigma
+  - leaf position within the tree
+  - tree distance between a leaf pair
+  - key index
+  metrics:
+    primary:
+    - first Fourier coefficient magnitude of the leaf-center distribution, per leaf and pooled, with
+      standard error
+    - pairwise first-Fourier cross-moment stratified by tree distance
+    - propagated correction factor on the divergence formula with confidence interval
+    - chi-square uniformity statistic per leaf
+    secondary:
+    - bias-corrected pairwise mutual information
+    - across-key variance of the pooled Fourier coefficient
+    - second Fourier coefficient magnitude
+    - number of tests performed and the corrected significance threshold
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The correction factor by which the measured leaf-center law changes the per-signature
+      divergence given by the existing internal formula.
+    formula: The divergence formula's leading term is a sum over leaves of eps_i times cosine of two
+      pi times c_i, and the derivation replaces the expectation of the squared cosine by one half
+      under the uniformity-and-independence heuristic. The correction factor is defined as the measured
+      expectation of the squared cosine, pooled across leaves and corrected for measured pairwise
+      cross-moments, divided by one half. Predicted value under the heuristic is exactly 1.0, and
+      the audit is informative if it is estimated with a confidence half-width below 10 percent.
+    source: Pre-registered in the parent proposal IDEA-20260816-fa2fe6 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at d in {8, 16, 32, 64} against a deployed dimension of 1024 or 2048, and
+      at sigma in {1.5, 2.0} against a deployed sigma of order 165. NO EXTRAPOLATION IS PERFORMED.
+      The record measures the center law where it can be measured and reports the correction factor
+      at those parameters only; the existing internal derivation's deployed-parameter values are untouched
+      and remain conditional on their own stated heuristic, which this run neither confirms nor refutes
+      at deployed scale.
+    correspondence: null
+  tail_checks:
+  - Report per-leaf Fourier coefficients separately as well as pooled, and flag any leaf position
+    whose value exceeds the pooled value by more than three standard errors.
+  - Report the second Fourier coefficient alongside the first, since a distribution can have a vanishing
+    first coefficient and still be far from uniform.
+  - Report the count of tests and the corrected threshold explicitly, and list any detection that
+    survives correction.
+  - Compare the double-precision cell against the precision-80 confounder cell and report the difference,
+    which bounds how much the arithmetic contributed.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt and report instrument failure if the independent-uniform null arm exceeds 3e-3 in any coefficient.
+  - Cap signatures at 10^6 per key and report the achieved resolution rather than extending the budget
+    to chase a marginal detection.
+  - Halt the pairwise analysis at d = 64 if the corrected threshold leaves no test with usable power,
+    and report the dimension at which multiple testing exhausts the budget.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The null arm passes at 3e-3, the injected-tilt positive control recovers its
+    predicted correction factor within its confidence interval, and the propagated correction factor
+    is estimated with a confidence half-width below 10 percent, whatever its central value.
+  falsification_criterion:
+  - Null arm coefficient above 3e-3.
+  - Positive control failing to recover the predicted correction factor.
+  - Correction factor confidence half-width above 25 percent, making the audit uninformative.
+  - Per-leaf coefficients varying beyond their standard errors, falsifying the pooling assumption.
+  - Uniformity statistics changing qualitatively across bin counts.
+  - Double-precision and precision-80 cells disagreeing beyond the reported standard errors, meaning
+    the audit measured arithmetic rather than the center law.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-fa2fe6
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The center definition must be reconciled line by line with the one in H-FNDSA-6a9cbb before freezing;
+    an affine mismatch would silently change the answer.
+  - The propagation from measured pairwise cross-moments to a correction on the divergence is stated
+    as multiplicative but is not derived here beyond leading order.
+  - The multiple-testing correction procedure is named but not specified, and at 2016 pairwise tests
+    per cell the choice materially changes what counts as a detection.
+  - Whether a correction factor measured at toy scale has any standing at all with respect to the
+    existing record's deployed values is a Coordinator judgment this record does not make.

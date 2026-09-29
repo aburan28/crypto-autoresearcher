@@ -1,0 +1,276 @@
+task_report:
+  task_id: TASK-20260822-12a697
+  role: red-team
+  task_class: infrastructure_adversarial_recheck
+  status: completed_with_blocking_objection
+  recorded_at: '2026-08-22T07:49:09Z'
+  objective_completed: >-
+    Independently attacked corrected snapshot
+    6a27a4da44d8613bd4a9863bdd322f1233aaa039 across original and staged B1,
+    index/worktree divergence, destination parsing, alternate aliases, N1/N2,
+    overbreadth, known-valid controls, and exact correction scope.
+  handoff:
+    path: ledger/handoffs/TASK-20260822-12a697.yaml
+    commit: 1ffcf3bdfb66dada213b9e0648081dda7b8ef2fc
+    committed_before_review: true
+  immutable_input:
+    commit: 6a27a4da44d8613bd4a9863bdd322f1233aaa039
+    parent: 1f4b5c7567a81a2bb758ab2e225fbbf8c19bf18a
+    tree: ac1fe6878682fe9bd76c314af9bdd49eb3b6930a
+    commit_and_archive_manifest_verified: true
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    runtime: native_codex_red_team_subagent
+    resolved_model_id: not_exposed_to_subagent
+    model_verified: false
+    bedrock_used: false
+    independent_session: true
+  isolation:
+    producer_session_reused: false
+    detached_temporary_worktree: /private/tmp/goalid-redteam2.ootkrg/wt
+    detached_worktree_head: 6a27a4da44d8613bd4a9863bdd322f1233aaa039
+    shared_candidate_checkout_reset_or_checked_out: false
+    validator_recheck_task: TASK-20260822-623567
+    validator_recheck_output_read: false
+    validator_recheck_contacted: false
+  artifacts:
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-12a697/adversarial-recheck.yaml
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-12a697/task-report.yaml
+  write_scope:
+    declared_path_count: 2
+    written_path_count: 2
+    paths_match_exactly: true
+    implementation_or_test_files_modified: false
+    handoffs_or_existing_reports_modified: false
+    commits_created: false
+    pushes_or_PR_mutations: false
+
+  commands_and_outcomes:
+    - id: contract_preflight
+      command: >-
+        python3 plugins/crypto-autoresearcher-harness/scripts/preflight.py
+        --repo
+        /Users/adamburan/.codex/worktrees/infra-random-goal-ids-20260821/crypto-autoresearcher
+        --runtime codex --doctor
+      exit_code: 0
+      output_summary: >-
+        READY; 11 generated bindings current, 8 roles consistent, harness
+        doctor ready. Credential warnings did not block the authenticated
+        native Codex review session.
+    - id: object_binding
+      command: >-
+        git show --no-patch --format='commit=%H parent=%P tree=%T subject=%s'
+        6a27a4da44d8613bd4a9863bdd322f1233aaa039
+      exit_code: 0
+      exact_result:
+        commit: 6a27a4da44d8613bd4a9863bdd322f1233aaa039
+        parent: 1f4b5c7567a81a2bb758ab2e225fbbf8c19bf18a
+        tree: ac1fe6878682fe9bd76c314af9bdd49eb3b6930a
+        subject: 'snapshot(TASK-20260822-d0b004): archive staged-path correction'
+    - id: correction_diff_and_hashes
+      command: >-
+        git diff-tree --no-commit-id --name-status -r
+        6a27a4da44d8613bd4a9863bdd322f1233aaa039; for each of the five source
+        artifacts, git show SNAPSHOT:PATH | shasum -a 256
+      exit_code: 0
+      result: >-
+        Exactly six commit paths matched the five source artifacts plus the
+        archive receipt; every source SHA-256 matched TASK-20260822-d0b004.
+    - id: correction_diff_check
+      command: >-
+        git diff --check 1f4b5c7567a81a2bb758ab2e225fbbf8c19bf18a
+        6a27a4da44d8613bd4a9863bdd322f1233aaa039
+      exit_code: 0
+      output: ''
+    - id: prohibited_research_scope
+      command: >-
+        git diff --quiet 1f4b5c7567a81a2bb758ab2e225fbbf8c19bf18a
+        6a27a4da44d8613bd4a9863bdd322f1233aaa039 -- ledger experiments
+        knowledge coordination/goals
+      exit_code: 0
+      result: no correction diff under prohibited research paths
+    - id: corrected_goal_and_allocator_tests
+      command: >-
+        python3 -m unittest -v tools/test_goal_id_random_suffix.py
+        tools/test_allocate_id.py
+      exit_code: 0
+      summary: {tests_run: 73, failures: 0, errors: 0}
+      observed_output: 'Ran 73 tests in 22.394s; OK'
+      note: >-
+        The allocator audit intentionally printed 27 frozen malformed IDs and
+        six frozen duplicate occupants and asserted a nonzero audit result.
+    - id: merge_hygiene_tests
+      command: python3 -m unittest -v tools/test_check_merge_hygiene.py
+      exit_code: 0
+      summary: {tests_run: 9, failures: 0, errors: 0}
+      observed_output: 'Ran 9 tests in 1.059s; OK'
+    - id: compile
+      command: >-
+        python3 -m py_compile tools/check_merge_hygiene.py
+        tools/test_goal_id_random_suffix.py tools/allocate_id.py
+        tools/validate_ledger.py
+      exit_code: 0
+      output: ''
+    - id: candidate_gate
+      command: python3 tools/check_merge_hygiene.py --base origin/main
+      exit_code: 0
+      stdout: >-
+        PASS: no conflict markers, no unparseable records, no identifier
+        collisions, no new legacy GOAL identifiers
+      stderr: >-
+        note: parseability scoped to 52 committed, staged, or
+        tracked-worktree candidate path(s) vs origin/main; the absolute sweep
+        runs on main
+    - id: runtime_bindings
+      command: python3 tools/check_runtime_bindings.py
+      exit_code: 0
+      output: 'OK: 8 roles consistent with every runtime binding'
+    - id: run_immutability
+      command: python3 tools/check_run_immutability.py
+      exit_code: 0
+      output: 'OK: no committed run artifacts were modified or deleted'
+    - id: N1_free_legacy
+      command: python3 tools/allocate_id.py --check GOAL-FREE-999
+      exit_code: 1
+      exact_result: free legacy-form GOAL id refused
+    - id: N1_free_random
+      command: python3 tools/allocate_id.py --check GOAL-FREE-a1b2c3
+      exit_code: 0
+      exact_result: well-formed and free
+    - id: N2_date_only
+      command: python3 tools/allocate_id.py --next goal --date 20260822 --seed 11
+      exit_code: 2
+      exact_error: --next goal requires exactly --area and does not accept --date
+    - id: N2_both_channels
+      command: >-
+        python3 tools/allocate_id.py --next goal --area ERANK --date 20260822
+        --seed 11
+      exit_code: 2
+      exact_error: --next goal requires exactly --area and does not accept --date
+    - id: N2_missing_area
+      command: python3 tools/allocate_id.py --next goal --seed 11
+      exit_code: 2
+      exact_error: --next goal requires exactly --area and does not accept --date
+    - id: repeated_area_attack
+      command: >-
+        python3 tools/allocate_id.py --next goal --area ERANK --area OTHER
+        --seed 11
+      exit_code: 0
+      exact_output: 'free goal id for ''OTHER'': GOAL-OTHER-eee65f'
+      classification: nonblocking_N4
+    - id: original_and_staged_B1_controls
+      command: >-
+        python3 - [deterministic isolated Git fixtures invoking the immutable
+        snapshot CLI, Validator goal pass, and campaign projection]
+      exit_code: 0
+      results:
+        committed_child_alias_gate_rc: 1
+        committed_child_alias_validator_registered_target: false
+        committed_child_alias_projection: reject
+        staged_child_alias_gate_rc: 1
+        target_followed: false
+    - id: index_and_parser_controls
+      command: >-
+        python3 - [deterministic isolated staged Git fixtures for mode-120000
+        index/worktree divergence, T, R100, C084, A, and known-valid controls]
+      exit_code: 0
+      results:
+        index_worktree_divergence_rc: 1
+        type_change_rc: 1
+        rename_destination_rc: 1
+        copy_destination_rc: 1
+        flat_to_sharded_rc: 0
+        ordinary_random_rc: 0
+        out_of_scope_symlink_rc: 0
+        untracked_before_stage_rc: 0
+        untracked_after_stage_rc: 1
+    - id: blocking_root_alias_control
+      command: >-
+        python3 - [deterministic isolated committed Git fixture replacing
+        ledger/goals with mode-120000 target alias, then invoking immutable
+        snapshot merge hygiene, Validator goal pass, and projection]
+      exit_code: 0
+      exact_results:
+        candidate_index_mode: '120000'
+        merge_hygiene_rc: 0
+        merge_hygiene_result: PASS
+        validator_registered_GOAL_BYPASS_002: true
+        validator_read_TARGET_FOLLOWED_SENTINEL: true
+        validator_symlink_errors: []
+        projection: reject_at_ledger_goals_component
+      classification: blocking_B2
+    - id: blocking_parent_alias_variant
+      command: >-
+        python3 - [deterministic isolated committed Git fixture replacing
+        ledger with mode-120000 target alias, then invoking the same three
+        consumers]
+      exit_code: 0
+      exact_results:
+        candidate_index_mode: '120000'
+        merge_hygiene_rc: 0
+        merge_hygiene_result: PASS
+        validator_registered_GOAL_BYPASS_003: true
+        validator_read_LEDGER_PARENT_TARGET_SENTINEL: true
+        validator_symlink_errors: []
+        projection: reject_at_ledger_component
+      classification: B2_ancestor_variant
+    - id: inbox
+      command: python3 tools/agent_bus.py inbox --as red-team
+      exit_code: 0
+      output: no unread for red-team.
+
+  completion_gate:
+    snapshot_parent_tree_archive_verified: true
+    original_committed_B1_replayed_and_rejected: true
+    staged_B1_replayed_and_rejected: true
+    staged_type_change_attacked: true
+    staged_index_worktree_divergence_attacked: true
+    rename_destination_attacked: true
+    copy_destination_attacked: true
+    alternate_alias_tested: true
+    alias_target_not_followed_for_original_B1: true
+    alias_target_followed_for_root_B2: true
+    validator_projection_boundary_compared: true
+    flat_to_sharded_control_accepted: true
+    ordinary_staged_random_control_accepted: true
+    free_legacy_check_rejected: true
+    free_random_check_accepted: true
+    goal_wrong_or_missing_scope_rejected: true
+    unrelated_allocator_types_preserved: true
+    exact_correction_scope_checked: true
+    prohibited_research_paths_unchanged: true
+    untracked_boundary_stated_without_coverage_inflation: true
+    blocking_objections_explicit: true
+    validator_recheck_not_read_or_requested: true
+    merge_or_research_approval_issued: false
+    inbox_checked: true
+
+  findings:
+    blocking:
+      - B2 protected-root and ancestor symlink aliases bypass admission and Validator source-kind checks
+    nonblocking:
+      - N4 repeated --area selectors silently use the last value
+  narrowest_supported_statement: >-
+    The snapshot is corrected for the original child-path and staged-index
+    cases but remains incomplete at ledger/goals and ledger source boundaries.
+  next_action: >-
+    Coordinator should freeze a successor root-and-ancestor plain-source
+    correction, keep PR #502 draft, and require fresh blind rechecks after its
+    snapshot archive.
+  anomalies:
+    - >-
+      A first local clone from the linked worktree produced an empty repository
+      because it did not import the linked branch objects. It was not used as
+      evidence.
+    - >-
+      The first detached temporary-worktree materialization exceeded one
+      30-second command yield while populating 47,905 files. A subsequent
+      checkout in that isolated worktree completed the same immutable commit;
+      HEAD, tree, parent, and clean status were then verified before tests.
+  protocol_deviations: []
+  experiments_run: 0
+  scientific_claim_effect: none
+  archive_owner: TASK-20260822-bed39c

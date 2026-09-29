@@ -1,0 +1,272 @@
+hypothesis:
+  id: H-CRYPTO-b2c203
+  question_id: RQ-CRYPTO-001
+  added: '2026-08-25'
+  derived_from_idea: IDEA-20260801-001
+  statement: >-
+    A reproducible group-operation-equivalent (GOE) cost ruler can be installed at
+    secp256k1-adjacent parameters and is stable enough to serve as the shared
+    denominator of every later speedup claim under GOAL-CRYPTO-001. Three limbs are
+    asserted jointly and each is separately falsifiable.
+    (R1) REPRODUCIBILITY. The GOE cost of one fixed scalar multiplication on
+    secp256k1, measured from the same pinned binary and machine image, agrees across
+    two independent execution environments to within 2 percent of the smaller value,
+    and across independent boots of one environment to within the same tolerance.
+    (R2) RESPONSIVENESS. The ruler resolves a planted cost difference. A deliberately
+    modified scalar-multiplication routine whose field-multiplication count differs
+    from the reference by a known factor is recovered by the ruler as that factor to
+    within 10 percent. An instrument that cannot see a planted difference cannot
+    certify that a future mechanism has none.
+    (R3) HONEST COMPOSITION. The memory-charged Pollard rho baseline at secp256k1's
+    order is reported as an explicitly MODELLED number whose only measured input is
+    the per-step GOE cost, with the step-count constant calibrated at reduced orders
+    where rho actually completes, and with the van Oorschot-Wiener memory and
+    parallelization terms stated rather than absorbed.
+    The hypothesis is FALSE if the cross-environment or cross-boot delta exceeds 2
+    percent (R1 fails - the ruler is host-specific and every speedup ratio must be
+    quoted per host), if the planted difference is not recovered within 10 percent
+    (R2 fails - the ruler is void and no negative may be read from it), or if the
+    measured rho step count at reduced orders departs from the calibration constant
+    by more than 20 percent (R3 fails - the modelled column rests on a constant this
+    implementation does not exhibit).
+  mechanism: >-
+    The blocker on this goal is not a missing mechanism but a missing shared ruler.
+    Speedup claims are ratios, and a ratio whose denominator is unstated, unpinned or
+    host-specific is not a comparison. Installing the denominator first is therefore
+    prior to funding any candidate mechanism, and the denominator has to be an
+    instrument with a measured resolution rather than a quoted number.
+    The ruler has two parts that must not be conflated. The MEASURED part is the cost
+    of arithmetic at crypto size - field multiplication, field inversion, and one
+    fixed scalar multiplication in a pinned coordinate system - which is fully
+    executable at secp256k1 parameters because it does not require solving anything.
+    The MODELLED part is the number of such operations a full attack would perform,
+    which at a 256-bit order is not executable at any budget and must be computed from
+    a step-count expression whose constant is calibrated where rho does complete.
+    Keeping the two in separate columns is what makes the ruler honest; merging them
+    produces a single impressive number nobody can audit.
+    Reproducibility is the property that makes the ruler shared rather than local. Two
+    environments running the same pinned binary should agree, and the size of their
+    disagreement is the ruler's own error bar - which is the quantity every later
+    speedup claim must exceed before it means anything.
+  assumptions:
+    - >-
+      A pinned machine image and pinned compiler or interpreter flags are achievable
+      for the selected implementation, so that observed cross-environment differences
+      are attributable to the environment rather than to toolchain drift.
+    - >-
+      GOE accounting - expressing cost in group-operation equivalents rather than
+      seconds - is the comparison unit for this goal. Wall time is recorded but is
+      never the reported ruler value, because it does not survive a change of host.
+    - >-
+      The reference scalar multiplication is fixed in advance, including coordinate
+      system and ladder, and is recorded in the manifest. A ruler whose reference
+      routine changes between measurements is not a ruler.
+    - >-
+      The rho step-count constant used in the modelled column is a CLASSICAL value
+      taken as a known-answer calibration target, not a measurement of this program.
+      It is checked against reduced-order runs rather than assumed.
+    - >-
+      Crypto-size arithmetic is executable here; crypto-size SEARCH is not. Every
+      number at 256-bit order in this hypothesis is modelled, and is labelled so.
+  proof_search_map:
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: null
+      reproduction_check: null
+    observation_collision:
+      observable: null
+      distinct_preimage_search: null
+    constructive_transforms: []
+    quantifier_order: null
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations: []
+    not_applicable_reason: >-
+      Infrastructure and cost-model measurement. No theorem, asymptotic bound,
+      certificate hierarchy or reduction is proposed, so the KN-TECH-080 audits have
+      no target. Their function - forcing a cheap pre-compute falsification check - is
+      served instead by the planted-difference responsiveness control and the
+      reduced-order calibration of the step-count constant, both of which are carried
+      in the experiment's controls.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-CRYPTO-RULER-1
+      formal_statement: >-
+        FOR ALL pairs of execution environments running the identical pinned machine
+        image and binary, and FOR the fixed reference scalar multiplication on
+        secp256k1, the GOE-accounted cost measured in one environment differs from
+        that measured in the other by at most 2 percent of the smaller value, at every
+        one of the declared seeds.
+      random_model_justification: >-
+        Not a distributional claim. This is an empirical reproducibility claim about
+        deterministic arithmetic under a pinned toolchain; the only randomness is in
+        the scalars drawn, and GOE accounting is designed to be invariant to the host's
+        instruction mix precisely because it counts operations rather than cycles.
+      supporting_results: []
+      validation_experiment_ids:
+        - EXP-CRYPTO-3703fb
+      falsification_condition: >-
+        A measured cross-environment delta above 2 percent at any seed, or a
+        cross-boot delta above 2 percent within one environment. Either refutes the
+        heuristic and means the ruler is host-specific; the recorded consequence is
+        that every speedup ratio under this goal must be quoted with its host, not
+        that the ruler is abandoned.
+  structural_ingredients:
+    - description: >-
+        The parallel Pollard rho step-count constant and the van Oorschot-Wiener
+        distinguished-point memory and parallelization accounting used in the modelled
+        column.
+      citation: 'knowledge/techniques/KN-TECH-001 and KN-TECH-006, as this program records them.'
+      provenance: internal
+      verified_by: >-
+        The program's own committed technique entries, cited as those records' claims.
+        No external source is opened for this record and none is asserted directly.
+      role: step-count and memory model for the modelled column only
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: cross_environment_goe_delta
+      direction: lower
+      minimum_effect: >-
+        At most 0.02 relative, at every seed. Above that, R1 is false and the ruler is
+        host-specific.
+    - metric: planted_difference_recovery_error
+      direction: lower
+      minimum_effect: >-
+        The recovered cost factor is within 10 percent of the planted factor. Outside
+        that, R2 is false and the instrument is void.
+    - metric: reduced_order_rho_constant_deviation
+      direction: lower
+      minimum_effect: >-
+        The measured mean rho step count at reduced orders divided by the calibration
+        expression evaluated at the same order lies within 20 percent of 1. Outside
+        that, R3's modelled column rests on a constant this implementation does not
+        exhibit.
+    - metric: goe_per_scalar_multiplication
+      direction: different
+      minimum_effect: >-
+        Reported as a value with a seed-derived interval at secp256k1 parameters. No
+        target value is pre-registered because the measurement IS the deliverable;
+        what is pre-registered is that it is reported with its interval, its reference
+        routine and its coordinate system, and that a value without those is not the
+        ruler.
+    - metric: memory_charged_rho_modelled_cost
+      direction: different
+      minimum_effect: >-
+        Reported as a MODELLED number with its formula, its measured input, and its
+        optimistic assumptions listed with the direction of each bias. A modelled
+        number reported without those four items is not admissible as the ruler's rho
+        row.
+  test_boundary:
+    instances:
+      - secp256k1 at its standard parameters, for all arithmetic measurements.
+      - >-
+        Reduced-order prime-field curves at 40, 48 and 56 bits, for calibrating the
+        rho step-count constant where rho completes.
+      - >-
+        A deliberately modified scalar-multiplication routine with a known
+        field-multiplication count ratio to the reference, for the responsiveness
+        control.
+    parameters:
+      reference_curve: secp256k1
+      coordinate_system: 'Jacobian with co-Z arithmetic, pinned and recorded'
+      reduced_orders_bits: '40, 48, 56'
+      environments: 'two independent execution environments plus two boots of one of them'
+      seeds: '10'
+    implementation: >-
+      A new standalone microbenchmark and rho harness under
+      experiments/EXP-CRYPTO-3703fb/driver/ with pinned flags and a recorded image
+      digest. Nothing under harness/ is modified.
+    budget:
+      wall_clock_seconds_total: 14400
+      maximum_memory_gb: 8
+      maximum_runs: 40
+  falsification_conditions:
+    - >-
+      Cross-environment or cross-boot GOE delta above 2 percent at any seed. R1 and
+      HEUR-CRYPTO-RULER-1 are false; the ruler is host-specific and every speedup ratio
+      under this goal must carry its host.
+    - >-
+      The planted cost difference is not recovered within 10 percent. R2 is false, the
+      ruler cannot resolve a known difference, and NO negative about any candidate
+      mechanism may be read from it.
+    - >-
+      Measured reduced-order rho step counts depart from the calibration expression by
+      more than 20 percent. R3 is false; the modelled 256-bit row may not be emitted
+      under that constant.
+    - >-
+      The two environments produce GOE values agreeing within tolerance but wall-clock
+      values differing by more than a factor 2 with no recorded hardware difference.
+      Not a falsification of R1 but an unexplained anomaly that must be preserved and
+      explained before the ruler is used.
+  interpretation_limits:
+    - >-
+      A ruler is a measurement instrument, not a result. Nothing here is an attack, a
+      speedup, or a security claim about secp256k1, and no such claim follows from any
+      outcome.
+    - >-
+      The 256-bit rho row is MODELLED. No search at secp256k1's order is executed at
+      any budget in this program, and the modelled row must never be presented as a
+      measurement.
+    - >-
+      The ruler is scoped to the pinned reference routine, coordinate system,
+      toolchain and environments actually used. A different ladder or coordinate system
+      has a different GOE and the two are not interchangeable.
+    - >-
+      Reproducibility across two environments is not reproducibility across all
+      environments. The measured delta bounds what was tested and nothing wider.
+    - >-
+      The parent proposal's condition about whether future experiment reports cite the
+      ruler is a governance outcome about this program's behaviour, not a measurable
+      property of any run, and is deliberately NOT carried into this hypothesis.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  prior_evidence_refs:
+    - RQ-CRYPTO-001
+    - IDEA-20260801-001
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-035
+  distinguishable_outcomes:
+    - outcome: >-
+        Cross-environment and cross-boot deltas are at or below 2 percent, the planted
+        difference is recovered within 10 percent, and the reduced-order rho constant
+        is within 20 percent of the calibration expression.
+      meaning: >-
+        R1, R2 and R3 hold. The goal owns a shared, reproducible, responsive GOE ruler
+        with a stated error bar, and any later speedup claim must exceed that error bar
+        to mean anything. Scoped to the pinned routine, toolchain and environments used.
+    - outcome: >-
+        The planted difference is recovered and the rho constant calibrates, but the
+        cross-environment delta exceeds 2 percent.
+      meaning: >-
+        R1 is FALSE. The ruler is real but host-specific. The recorded consequence is
+        that every speedup ratio must be quoted with its host and its measured host
+        spread, which is a weaker but still usable instrument, and the measured spread
+        becomes the goal's error floor.
+    - outcome: >-
+        The planted cost difference is not recovered within 10 percent.
+      meaning: >-
+        R2 is FALSE and the instrument is VOID. No comparison, no negative and no
+        ruler value may be reported from that run set; the responsiveness defect is the
+        finding and the accounting code is the next target.
+    - outcome: >-
+        Reproducibility and responsiveness hold but reduced-order rho step counts depart
+        from the calibration expression by more than 20 percent.
+      meaning: >-
+        R3 is FALSE. The measured arithmetic ruler stands; the modelled 256-bit rho row
+        does not, because the constant it rests on is not exhibited by this
+        implementation. The measured columns are published and the modelled row is
+        withheld pending an explanation of the departure.
+    - outcome: >-
+        Only one execution environment is available, so the cross-environment arm cannot
+        run.
+      meaning: >-
+        R1 is UNRESOLVED on infrastructure grounds under AGENTS.md rule 5. The cross-boot
+        arm is reported as the weaker substitute it is, the cross-environment arm is
+        recorded UNRUN, and the ruler is published with an explicitly incomplete
+        reproducibility claim rather than an assumed one.

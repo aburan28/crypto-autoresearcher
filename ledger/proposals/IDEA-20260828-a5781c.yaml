@@ -1,0 +1,251 @@
+idea:
+  id: IDEA-20260828-a5781c
+  title: >-
+    Does a Fourier/Mobius-accelerated partial-sum reorganization for
+    reduced-round AES secretly reduce the number of key bytes it must pin
+    down, or only the time to aggregate over a fixed guessed set? -- testing
+    a known speed technique against this program's own certified
+    key-guessing floor (IDEA-20260808-4c309d).
+  class: composition
+  claim: >-
+    The partial-sums technique for AES key recovery eliminates state bytes
+    one at a time by summing over them, and a recent (2024, Springer/JISA;
+    title recalled as "Partial Sums Meet FFT: Improved Attack on 6-Round
+    AES", RECALLED_UNVERIFIED) technique accelerates that elimination using
+    a Walsh/Mobius-style transform over the guessed-key-byte lattice. THIS
+    RECORD INDEPENDENTLY RE-DERIVES (not cites) the transform's effect on
+    the AGGREGATION DEPENDENCY STRUCTURE -- which key bytes gate which
+    elimination step, and in what order -- for a stated 6-round AES-128
+    partial-sum shape, and asks a question the 2024 paper's own headline
+    (a TIME speedup) does not answer: does reorganizing the summation order
+    via the transform ever allow declaring a byte "eliminated" (no longer
+    conditioned on) EARLIER than the naive partial-sum order would, thereby
+    reducing the GUESSED-BYTE SET below what the naive order requires --
+    or does the transform strictly preserve the guessed-byte set and
+    accelerate only the per-guess computation? TWO DISCRIMINATED OUTCOMES:
+    if the transform-reorganized guessed-byte set STRICTLY EXCEEDS
+    IDEA-20260808-4c309d's certified floor F = rank(M) - rel for the shape,
+    the deficit (in bytes) is a concrete, quantified, still-open target for
+    a future reorganization; if it EQUALS the floor, the partial-sum object
+    is CLOSED for that shape under 4c309d's class definition -- the fastest
+    known reorganization of this specific aggregation is information-
+    theoretically tight against this program's own lower-bound instrument,
+    a genuine (if narrow) scoped closure of RQ-AES-001's fourth listed
+    object (the partial-sum cost term) for that shape.
+  mechanism: >-
+    A partial sum Sigma_x f(x, k) over a state byte x, conditioned on a
+    partial key guess k, can be reorganized via a Mobius/zeta transform over
+    the Boolean lattice of "which bits of k the summand depends on", turning
+    a naive O(2^{8g}) aggregation into O(g * 2^{8g}) via divide-and-conquer
+    -- this is a TIME-axis trick: it changes how fast the sum over a FIXED
+    guessed set is computed, and by default does not touch WHICH bytes are
+    in that guessed set. THE TRACKED OBJECT here is the aggregation's
+    DEPENDENCY DAG -- for each intermediate partial-sum variable, which
+    input state/key bytes it is conditioned on and which single variable it
+    marginalizes next -- discarding the actual numeric values summed and
+    keeping only this dependency skeleton. This is a lossy projection
+    (many concrete summation implementations share one dependency DAG) and
+    it is compatible with the aggregation operation because each step's
+    dependency set is a deterministic function of the PRECEDING dependency
+    sets alone (adding one variable, removing one variable), never of the
+    discarded numeric values -- passing the lossy-projection test of
+    docs/inventor-protocol.md section 2. The genuinely open question this
+    record asks is whether the TRANSFORM ITSELF, by changing the ORDER in
+    which variables are marginalized (not merely how the marginalization is
+    computed), can expose an early independence that lets a byte drop out
+    of the dependency set altogether before the naive order would notice it
+    -- i.e. whether a known TIME trick has an under-examined INFORMATION
+    side effect. Nearest known method: partial sums (established, off-limits
+    as the primary lens) and its FFT/Mobius acceleration (established per
+    the 2024 paper, off-limits as a novelty claim in itself); this record's
+    contribution is comparing the RESULT of that acceleration's dependency
+    structure against this program's own independently built floor
+    instrument (4c309d), which the 2024 paper does not do and could not,
+    since 4c309d postdates it.
+  novelty_status: unverified
+  citations:
+    - ref: "'Partial Sums Meet FFT: Improved Attack on 6-Round AES' (Springer/JISA, 2024; exact author list not confirmed this session)"
+      provenance: recalled
+      claim: An FFT/Mobius-style acceleration of the partial-sums technique on 6-round AES, reported as a time-complexity improvement.
+      verified_by: null
+    - ref: IDEA-20260808-4c309d
+      provenance: internal
+      claim: >-
+        A certified lower bound F = rank(M) - rel on the number of expanded-
+        key bytes any attack in a stated class must know to evaluate a
+        distinguisher functional, for a stated reduced-round AES shape.
+      verified_by: "idea-generator subagent (read ledger/proposals/IDEA-20260808-4c309d.yaml in full during idea generation)"
+  assumptions:
+    - The pinned FIPS-197 harness supplies the linear layers used by 4c309d's influence matrix M.
+    - The partial-sums technique's dependency structure for the naive (unaccelerated) order can be written down from first principles without citing a specific published table.
+    - The 2024 paper's transform is re-derived generically (a Mobius/zeta transform over a Boolean lattice) rather than reproduced from its own text, which this session did not read.
+  proof_search_map:
+    bottleneck: >-
+      Whether the transform's variable-marginalization ORDER, not just its
+      COMPUTATION method, can ever expose an early conditional independence
+      that the naive order's dependency bookkeeping misses.
+    baseline_embedding:
+      parameter_slice: >-
+        A stated 6-round AES-128 partial-sum shape whose naive-order
+        guessed-byte set is derivable from first principles (the standard
+        one-byte-at-a-time elimination chain).
+      reproduction_check: >-
+        The naive-order guessed-byte set must be reproduced symbolically
+        before the transform-reordered set is computed, so the comparison is
+        against a checked baseline rather than an assumed one.
+    observation_collision:
+      observable: the final guessed-byte set (a subset of expanded-key byte indices).
+      distinct_preimage_search: >-
+        Naive order and transform order producing the IDENTICAL guessed-byte
+        set is the expected (null) outcome per the transform's usual framing
+        as a pure time trick; a DIFFERENT (smaller) set from the transform
+        order is the discriminating positive finding.
+    constructive_transforms:
+      - transform: telescoping_potential
+        proposed_object: the order of variable marginalization in the Mobius/zeta transform, treated as a free choice rather than fixed
+        predicted_gain: possible early elimination of a key byte from the guessed set, reducing the floor deficit found by IDEA-20260808-4c309d for this shape.
+    quantifier_order: >-
+      FOR the one stated 6-round shape (not "for all partial-sum attacks"),
+      DOES THERE EXIST a marginalization order under the transform whose
+      final guessed-byte set is a strict subset of the naive order's set --
+      an existence question about ONE shape, explicitly not a universal claim
+      about the partial-sums technique.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "for this exact shape, the best reorganization found guesses exactly
+        F bytes (meeting the floor) or F+d bytes (a certified deficit of d)."
+        Nothing about other shapes, other round counts, or other techniques
+        in the partial-sum family.
+      nearby_object_control: >-
+        Applying the identical reorganization procedure to a shape where the
+        naive guessed-byte set is ALREADY equal to 4c309d's floor (the
+        4-round integral fixture, deficit 0) must return the same set
+        unchanged -- a transform that "finds savings" even where none are
+        certifiable would indicate a bug in the dependency-tracking code,
+        not a genuine result.
+    proof_obligations:
+      - claim: naive-order guessed-byte set is correctly derived for the stated shape
+        responsibility: baseline
+      - claim: transform-order guessed-byte set is correctly derived
+        responsibility: correctness
+      - claim: the two sets are compared against 4c309d's floor for the identical shape
+        responsibility: interface
+      - claim: the nearby-object control (4-round fixture) returns an unchanged set
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: "naive partial-sum guessed-byte count for the stated 6-round shape"
+      direction: higher
+      minimum_effect: exceeds IDEA-20260808-4c309d's certified floor F by at least 1 byte (matching that record's own prediction for its analogous r=6 construction)
+    - metric: "transform-reorganized guessed-byte count, same shape"
+      direction: lower
+      minimum_effect: any reduction relative to the naive count is reportable; a reduction to exactly F closes the shape
+    - metric: "guessed-byte set on the 4-round fixture (deficit-0 control), naive vs transform order"
+      direction: different
+      minimum_effect: zero difference (identical sets); any difference indicates a bookkeeping defect, not a finding
+    - metric: "wall-clock cost of deriving both dependency structures symbolically"
+      direction: lower
+      minimum_effect: completes in well under an hour on 4 cores (pure symbolic/graph bookkeeping, no cryptanalytic compute)
+  minimal_test:
+    design: >-
+      (1) From first principles, write the naive partial-sum dependency DAG
+      for a stated 6-round AES-128 shape (reusing 4c309d's shape enumeration
+      where possible for direct comparability) and derive its guessed-byte
+      set symbolically. (2) Independently re-derive the Mobius/zeta-transform
+      reorganization generically and apply it to the SAME shape's dependency
+      DAG, tracking whether any variable's dependency set shrinks before its
+      naive-order elimination point. (3) Compare both guessed-byte sets
+      against 4c309d's certified floor F for the identical shape. (4) Run the
+      nearby-object control (4-round fixture) through both orders and confirm
+      no spurious difference.
+    controls:
+      - 4-round fixture (deficit 0 under 4c309d) must return an unchanged guessed-byte set under both orders.
+      - Independent re-derivation of the naive order's guessed-byte set by a second person/pass before the transform order is attempted, to avoid anchoring the "expected" answer.
+      - Direct re-use of 4c309d's own floor computation code (or an independent re-implementation) rather than re-deriving F from scratch, to avoid introducing a second source of disagreement.
+    required_metrics: [naive guessed-byte count, transform-order guessed-byte count, 4c309d floor F for the same shape, deficit in bytes, control-shape agreement]
+  falsification_conditions:
+    - The naive-order guessed-byte count does not match 4c309d's own predicted value for its analogous shape -- shape mismatch, redo the correspondence before comparing.
+    - The transform order produces a SMALLER guessed-byte count on the 4-round fixture (deficit-0 control) -- bookkeeping defect, the instrument is unreliable until fixed.
+    - The transform order's guessed-byte count strictly exceeds the naive order's -- the reorganization is a net loss on this axis, which is itself informative (the technique's benefit is confirmed to be purely computational, not informational).
+  confounders:
+    - The 2024 paper's actual transform is not read; this record's generic re-derivation may implement a different (weaker or stronger) reorganization than the published one, and any conclusion is scoped to this record's own re-derivation.
+    - Dependency-DAG bookkeeping for a 6-round shape is intricate enough that a manual derivation error is plausible; the independent second-pass control exists specifically to catch this before trusting a "reduction found" result.
+    - 4c309d's floor is itself conditional on that record's HA-1 (a missing byte costs a full 8 bits, validated only at toy scale); this record inherits that conditionality rather than re-validating it.
+  interpretation_limits: >-
+    Reduced-round, RQ-AES-001 ceiling. This record answers a question about
+    ONE specific shape's ONE specific (independently re-derived) technique;
+    it makes no claim about the partial-sums family in general, about the
+    published 2024 paper's exact construction, or about any round count
+    other than the one tested.
+  heuristic_assumptions:
+    - id: HA-1
+      statement: >-
+        The generic Mobius/zeta-transform reorganization used here behaves,
+        with respect to the guessed-byte set, like a SUFFICIENT (order-
+        independent) technique for the naive elimination order's dependency
+        structure -- i.e. it does not itself introduce spurious dependencies
+        not present in the naive order.
+      rigorous_support: >-
+        The transform is a linear change of basis on the summand's Boolean-
+        lattice dependency representation, and a change of basis does not, in
+        general, change WHICH variables a function depends on (a proven fact
+        about Mobius inversion on Boolean lattices); whether the SPECIFIC
+        re-derivation implemented here preserves this exactly is what the
+        control (the 4-round fixture) is designed to check.
+      validation_plan: >-
+        Run both orders on the 4-round fixture (2^16-scale, hand-checkable)
+        and confirm bit-for-bit agreement of the guessed-byte set before
+        trusting either order's output on the 6-round shape; if disagreement
+        occurs, the bookkeeping code is treated as unvalidated and the record
+        is not extended to 6 rounds.
+  target_complexity:
+    time_exponent: >-
+      No new attack; this is a COMPOSITION check comparing a known
+      technique's byte-count against this program's own floor. If a
+      reduction below the naive count is found, its consequence for the
+      TIME exponent of the underlying partial-sum attack is a downstream
+      question this record explicitly does not compute, naming it as a
+      building block for a possible future exponent-relevant record rather
+      than claiming one here.
+    memory_exponent: negligible (symbolic dependency-DAG bookkeeping only, no cryptanalytic compute).
+    best_known: >-
+      IDEA-20260808-4c309d's certified floor F is the best-known LOWER
+      bound in this repository; the 2024 paper's (recalled_unverified)
+      transform is the best-known UPPER-bound technique for the aggregation
+      step, and no record in this repository has yet compared the two.
+    hidden_overhead: not applicable; no asymptotic claim made.
+    tradeoff_note: not applicable.
+  dominated_by: >-
+    Checked all 12 filed RQ-AES-001 proposals. IDEA-20260808-4c309d supplies
+    the floor and is not a competitor (this record uses it as an instrument);
+    IDEA-20260808-06aae4 re-prices DS-MITM memory access, a different
+    object entirely. No existing record compares a partial-sum acceleration's
+    guessed-byte set against the floor. Externally, whether the 2024 paper's
+    own construction already achieves the floor is UNKNOWN to this session
+    (primary text not read) and is exactly the open question this record's
+    generic re-derivation is a scoped, honestly-labelled stand-in for.
+  sota_delta: >-
+    Zero attack delta claimed. The delta, if any, is methodological: either
+    a scoped closure of the partial-sum object for one shape (deficit 0), or
+    a quantified, concrete deficit naming exactly how many bytes of
+    reorganization remain open for that shape -- the difference between "we
+    have a fast technique" and "we know precisely how far from optimal it
+    is," which RQ-AES-001's fourth listed object asks for directly.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  added: '2026-08-28'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-AES-001
+    - GOAL-AES-001
+    - IDEA-20260808-4c309d
+    - IDEA-20260808-06aae4
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

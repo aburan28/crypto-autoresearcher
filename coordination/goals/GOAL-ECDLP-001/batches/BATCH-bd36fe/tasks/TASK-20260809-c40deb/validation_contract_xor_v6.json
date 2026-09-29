@@ -1,0 +1,43 @@
+{
+  "schema": "xor-validation-contract/v6",
+  "validator_version": "xor-validator/v6",
+  "fixture_only": true,
+  "input_digest": {"domain": "ASCII(XOR-INPUT-v6)||00||u32be(len(P))||P", "payload_encoding": "UTF-8 compact canonical JSON", "field_order": ["m", "p", "b_num", "b_den", "seed"], "fixture_path": "arithmetic_fixture_xor_v6.json"},
+  "matrix_domain": {"p_values": [101, 103, 107, 211], "b_values_numeric_order": [[1, 2], [2, 5]], "m": 3, "key_sort": ["p", "b_num", "b_den", "arm", "seed", "process_replica", "null_replica"], "shard_rule": "ordinal modulo 4"},
+  "fixture_source_blobs": {"design": "1111111111111111111111111111111111111111111111111111111111111111", "run_schema": "2222222222222222222222222222222222222222222222222222222222222222", "matrix_schema": "3333333333333333333333333333333333333333333333333333333333333333", "event_schema": "4444444444444444444444444444444444444444444444444444444444444444", "validator": "5555555555555555555555555555555555555555555555555555555555555555", "predecessor_exclusion": "6666666666666666666666666666666666666666666666666666666666666666", "implementation": "7777777777777777777777777777777777777777777777777777777777777777", "arithmetic": "8888888888888888888888888888888888888888888888888888888888888888", "dependency_lock": "9999999999999999999999999999999999999999999999999999999999999999", "fixtures_manifest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "canonical": {"run": "canonical_run.json", "event": "canonical_event_ledger.json", "matrix": "canonical_matrix.json"},
+  "accepted_cases": [
+    {"id": "completed_valid", "kind": "run", "base": "canonical_run.json", "patch": {}, "expected": {"status": "completed_valid", "attempted": true, "valid": true, "terminal_reason": null}},
+    {"id": "completed_invalid", "kind": "run", "base": "canonical_run.json", "patch": {"status": "completed_invalid", "terminal_reason": "empty_reference_output", "result.valid": false, "result.invalid_reason": "empty_reference_output"}, "expected": {"status": "completed_invalid", "attempted": true, "valid": false, "terminal_reason": "empty_reference_output"}},
+    {"id": "failed_infrastructure", "kind": "run", "base": "canonical_run.json", "patch": {"status": "failed_infrastructure", "terminal_reason": "worker_exit", "result.valid": false, "result.invalid_reason": "worker_exit"}, "expected": {"status": "failed_infrastructure", "attempted": true, "valid": false, "terminal_reason": "worker_exit"}},
+    {"id": "resource_exhaustion", "kind": "run", "base": "canonical_run.json", "patch": {"status": "resource_exhaustion", "terminal_reason": "rss_cap", "result.valid": false, "result.invalid_reason": "rss_cap"}, "expected": {"status": "resource_exhaustion", "attempted": true, "valid": false, "terminal_reason": "rss_cap"}},
+    {"id": "cancelled_by_budget", "kind": "run", "base": "canonical_run.json", "patch": {"status": "cancelled_by_budget", "terminal_reason": "campaign_wall_cap", "result.valid": false, "result.invalid_reason": "campaign_wall_cap"}, "expected": {"status": "cancelled_by_budget", "attempted": true, "valid": false, "terminal_reason": "campaign_wall_cap"}},
+    {"id": "unattempted_matrix_arm", "kind": "matrix_arm", "path": "unattempted_matrix_arm.json", "expected": {"state": "not_attempted", "run_id": null, "included_in_metrics": false}}
+  ],
+  "negative_mutations": [
+    {"id": "attempted_false_completed_valid", "target": "run", "operation": "set attempted=false", "must_fail": "schema_or_semantic"},
+    {"id": "terminal_reason_missing", "target": "run", "operation": "set completed_invalid terminal_reason=null", "must_fail": "schema_or_semantic"},
+    {"id": "phase_total_mismatch", "target": "run", "operation": "increment phase_counters.total", "must_fail": "equation"},
+    {"id": "event_index_gap", "target": "event", "operation": "set event index 2 to 99", "must_fail": "contiguous_event_index"},
+    {"id": "duplicate_arm_key", "target": "matrix", "operation": "copy arm 0 key into arm 1", "must_fail": "complete_unique_domain"},
+    {"id": "duplicate_shard_number", "target": "matrix", "operation": "set shard 1 number to 0", "must_fail": "shard_set"},
+    {"id": "empty_shard_membership", "target": "matrix", "operation": "clear shard 0 keys", "must_fail": "shard_coverage"},
+    {"id": "terminal_total_mismatch", "target": "matrix", "operation": "decrement totals.completed_valid", "must_fail": "state_totals"},
+    {"id": "stale_predecessor_selected", "target": "candidate", "operation": "select an exact historical predecessor and add old Executor dependency", "must_fail": "predecessor_admission"},
+    {"id": "arithmetic_payload_mismatch", "target": "arithmetic", "operation": "replace canonical payload while recomputing digest", "must_fail": "payload_input_binding"},
+    {"id": "arithmetic_point_encoding", "target": "arithmetic", "operation": "change point encoding", "must_fail": "point_encoding"},
+    {"id": "arithmetic_output_digest", "target": "arithmetic", "operation": "change output digest", "must_fail": "output_binding"},
+    {"id": "run_exception_summary", "target": "run", "operation": "set event ledger exception_count=99", "must_fail": "event_summary"},
+    {"id": "estimand_identity", "target": "matrix", "operation": "replace A/B run IDs and validity witness", "must_fail": "repeat_binding"},
+    {"id": "worker_wall_interval", "target": "matrix", "operation": "set shard wall_seconds=0 and adjust aggregate", "must_fail": "worker_interval"},
+    {"id": "shard_output_bytes", "target": "matrix", "operation": "zero arm byte classes and adjust aggregate", "must_fail": "shard_bytes"},
+    {"id": "matrix_status", "target": "matrix", "operation": "set top-level status=completed_invalid", "must_fail": "status_state"},
+    {"id": "accepted_case_payload", "target": "fixture", "operation": "change completed_invalid case patch", "must_fail": "case_authority"},
+    {"id": "manifest_case_lists", "target": "fixture", "operation": "clear manifest case lists", "must_fail": "manifest_authority"},
+    {"id": "predecessor_missing_lock", "target": "candidate", "operation": "remove approval lock binding", "must_fail": "approval_lock"},
+    {"id": "predecessor_unknown_dependency", "target": "candidate", "operation": "name an unknown dependency", "must_fail": "dependency_closure"}
+  ],
+  "required_checks": ["schema_parse", "input_digest", "arithmetic_fixture", "event_bytes_hash", "contiguous_event_indices", "phase_equations", "candidate_relation_query_table_equations", "terminal_relations", "run_key_equality", "complete_matrix_domain", "canonical_shards", "repeat_medians", "timing_endpoints", "rss_concurrency", "byte_totals", "predecessor_candidate_gate"],
+  "no_experiment_execution": true,
+  "no_evidence_claim": true
+}

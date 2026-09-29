@@ -1,0 +1,266 @@
+hypothesis:
+  id: H-MLKEM-142bab
+  question_id: RQ-MLKEM-002
+  derived_from_idea: IDEA-20260821-121612
+  added: '2026-08-25'
+  status: proposed
+  proposed_by: coordinator
+  statement: >-
+    The vector stride w that this lane's obstruction argument consumes is NOT a well-defined
+    property of a comparison routine's source text. Formally: under a frozen memory-operand-based,
+    unroll-normalized extractor, over the 80 cells given by two pinned x86-buildable comparison
+    routines crossed with 40 toolchain configurations (2 compilers x 5 optimisation levels x 4
+    -march targets), there is at least one cell in which the extractor must report AMBIGUOUS or
+    UNMEASURABLE rather than a single integer, OR in which the measured per-source-iteration stride
+    w_source differs from the value a source-level reading assigns that routine. The complement is
+    equally reportable and is the clean negative - determinacy exactly 1.0 with w_source matching
+    the source reading in all 80 cells means the source-level shortcut is licensed on this
+    population by a stronger instrument than the source reading itself.
+  mechanism: >-
+    Every neighbourhood predicate this lane has used is evaluated on source text, and one prior
+    record's obstruction turns on a per-candidate integer w read FROM source. But w is a property of
+    the pair (source, toolchain configuration), and a compiled body has at least four defensible
+    strides that are routinely different - a per-source-iteration granularity, an unroll factor, a
+    back-edge granularity that is their product, and an epilogue. On x86 a memory operand folded
+    into an ALU instruction consumes input bytes while issuing no load instruction, so any rule that
+    sums load widths undercounts. Separating w_source from w_backedge by dividing the back-edge
+    operand count by a detected unroll factor makes the quantity the obstruction consumes
+    measurable, and measuring it over a toolchain matrix measures whether it is a single well-
+    defined integer per routine at all. The deliverable is DETERMINACY - the fraction of cells
+    yielding a single well-defined tuple - not a residue count, because a compiler-generated
+    epilogue is emitted under a semantics-preservation obligation and its residue says nothing
+    about the reachability of a hand-written-remainder defect class.
+  assumptions:
+  - >-
+    The two routines named in the population - BoringSSL CRYPTO_memcmp at its pinned commit and
+    PQClean ml-kem-1024/avx2 verify.c at its pinned commit - can be fetched and compiled as
+    standalone translation units. A fetch or build failure is an INFRASTRUCTURE outcome (AGENTS.md
+    rule 3), never negative evidence about any implementation.
+  - >-
+    mlkem-native and aws-lc are NOT assumed measurable; their selection entries carry no commit, so
+    they are reported unmeasurable-until-pinned. The same selection record states the aws-lc ML-KEM
+    path uses mlkem-native's comparison, so if both are later pinned they count once unless a
+    first-hand source reading shows two distinct routines.
+  - >-
+    PQClean's aarch64 verify.c is NOT in this matrix. Compiling an aarch64-backend routine under
+    x86 -march flags would measure a routine in a toolchain it is never built with.
+  - >-
+    Per-source-iteration stride is extractable from disassembly in SOME cells. Software pipelining,
+    mixed-width bodies, gather/scatter, predicated operands and multiversioned functions can make
+    it ambiguous; ambiguity is REPORTED as ambiguity with the disassembly attached, never resolved
+    by preference.
+  - >-
+    No conclusion transfers beyond the compilers, versions, flags, host architecture and pinned
+    commits actually used, nor beyond the translation-unit level to a linked library.
+  proof_search_map:
+    bottleneck: >-
+      The step under audit is the assignment of a single integer w to a candidate routine from its
+      source text. The arithmetic obstruction downstream of that step - 32 divides L, so the residue
+      vector is zero for every w dividing 32 - is correct and is NOT under attack.
+    baseline_embedding:
+      parameter_slice: >-
+        The source-level reading itself is the baseline: BoringSSL CRYPTO_memcmp is assigned one
+        byte per source iteration and PQClean avx2 verify is assigned 32 bytes per source iteration
+        with a hand-written scalar remainder loop. Those two assignments are the exact fixture the
+        matrix is scored against, cell by cell.
+      reproduction_check: >-
+        The hand-written .S calibrator (NULL-2b) reproduces a known tuple in all 40 cells, because
+        no optimisation level may rewrite an assembled body. Any variation there indicts the
+        extractor rather than the compiler.
+    observation_collision:
+      observable: 'The tuple (w_source, u, w_backedge, phi, coverage_deficit) per (routine, cell).'
+      distinct_preimage_search: >-
+        Collisions are EXPECTED and are declared rather than searched away - a 32-byte intrinsics
+        body and a vectorised byte loop share a w_source, and every w in the set dividing 32 has an
+        identical residue vector at the standardized lengths. That is why determinacy, not the
+        residue, is the deliverable.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        w split into (w_source, u) with w_backedge as their product, extracted from memory operands
+        grouped by base pointer rather than from load instructions.
+      predicted_gain: >-
+        A quantity that is ill-defined as a single integer becomes two quantities each of which is
+        either well-defined or explicitly AMBIGUOUS, which is what makes the audit decidable.
+    quantifier_order: >-
+      The honest statement is FOR EACH toolchain configuration t THERE IS a w(routine, t); the
+      source-level reading asserts THERE IS a w(routine) FOR ALL t. This hypothesis measures whether
+      the second survives contact with a compiler, and also whether the first is even single-valued
+      per cell.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest claim a run may support is about determinacy and stride spread over the
+        executed cells for the two pinned routines at the translation-unit level. It is not a
+        conformance finding, not a defect report, and not a statement about ML-KEM security.
+      nearby_object_control: >-
+        A comparison whose length is a runtime parameter NOT constant-folded in the translation
+        unit, so the trip count is not statically computable. The method MUST report coverage
+        UNMEASURABLE there, not deficit 0.
+    proof_obligations:
+    - claim: The extractor's memory-operand rule reads the bytes actually consumed per back-edge traversal.
+      responsibility: correctness
+    - claim: The unroll factor detected from operand displacements equals the replication factor of the body.
+      responsibility: correctness
+    - claim: A cell that is genuinely ambiguous is reported ambiguous rather than given a number.
+      responsibility: scope
+    - claim: The coverage extractor detects a known incompleteness when one is present.
+      responsibility: success_probability
+    not_applicable_reason: null
+  asymptotic_claim:
+    problem: null
+    prior_best: null
+    time_exponent: null
+    memory_exponent: null
+    hidden_cofactor: null
+    claim_kind: null
+  heuristic_assumptions:
+  - id: HEUR-MLKEM-DECODE-1
+    formal_statement: >-
+      DECODE FIDELITY. For all comparison sources f in the tested population and all toolchain
+      configurations t in the 40-cell matrix, the quantity w_source(f, t) extracted by the frozen
+      memory-operand rule - the width of one memory operand attributable to one input base pointer,
+      after dividing the back-edge operand count by the detected unroll factor - equals the number
+      of input bytes consumed per SOURCE-LEVEL iteration of the routine's accumulate loop at run
+      time; and w_backedge equals u times w_source.
+    random_model_justification: >-
+      Not a distributional heuristic and not presented as one. It is a decoding-fidelity assumption,
+      rigorous only for a loop with a single back-edge, uniformly spaced operand displacements per
+      base pointer, and no predication, where every byte consumed appears as a memory operand of
+      some instruction in the body.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-2ff44d
+    falsification_condition: >-
+      The hand-written .S calibrator's tuple varies across the 40 cells, or the C intrinsics
+      calibrator's w_source differs from its literal operand width in an AVX2-capable cell, or any
+      cell's u times w_source disagrees with the induction-variable increment visible in the
+      disassembly. Any of these indicts the extractor and voids the matrix.
+  - id: HEUR-MLKEM-DEPLOY-2
+    formal_statement: >-
+      The 40 configurations (two compilers x five optimisation levels x four -march targets)
+      contain at least one configuration under which each routine would plausibly be built in
+      practice.
+    random_model_justification: >-
+      None. This is a judgement about deployment practice with no measurement behind it, stated as
+      an assumption rather than smuggled into the claim. Nothing in the extraction depends on it; it
+      affects only how interesting a per-cell finding is.
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-MLKEM-2ff44d
+    falsification_condition: >-
+      Each project's own default flag set, read from its build system, falls outside the 40 cells.
+      The matrix would then be measuring configurations nobody builds, and the per-project default
+      column is what detects it.
+  structural_ingredients:
+  - description: >-
+      That security-relevant properties of cryptographic code are generally not preserved by
+      compilers, established for the TIMING property.
+    citation: 'arXiv:2209.01129 - Daniel, Bardin, Rezk, Binsec/Rel'
+    provenance: retrieved
+    verified_by: 'idea-generator@2026-08-21, recorded in IDEA-20260821-121612 citations block'
+    role: >-
+      Prior art for the general framing only. The property there is timing and is out of scope for
+      measurement here; this hypothesis transports the framing to a functional coverage property and
+      claims nothing from that source about strides.
+  - description: >-
+      The two-routine pinned population, the two unpinned entries and the aws-lc / mlkem-native
+      duplication.
+    citation: experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md
+    provenance: internal
+    verified_by: 'idea-generator@2026-08-21, read first-hand and in full'
+    role: Fixes the population and the source-level stride assignment each routine is scored against.
+  - description: >-
+      The archived pre-fix silent sets, in particular AVX2 exactly {1536..1567} at ML-KEM-1024 and
+      empty at the other two parameter sets.
+    citation: EV-MLKEM-005
+    provenance: internal
+    verified_by: 'coordinator@2026-08-21 (orchestrating session)'
+    role: Supplies the forced coverage deficits for the known-nonzero anchor calibrator.
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+  - metric: determinacy
+    direction: lower
+    minimum_effect: >-
+      Below 1.0, i.e. at least one ambiguous or unmeasurable cell across the 80. Exactly 1.0 is the
+      clean negative and means the quantity the obstruction consumes is well defined on every
+      mainstream build of this population. The value is not known in advance in either direction.
+  - metric: w_source_spread
+    direction: higher
+    minimum_effect: >-
+      At least 2 for at least one routine, or at least one cell where w_source disagrees with the
+      source reading. HONEST DISCOUNT - for the BoringSSL byte loop this is close to forced, so it
+      is a supporting observable and not a finding on its own.
+  - metric: null_object_residue
+    direction: higher
+    minimum_effect: >-
+      Reported, not thresholded, and expected nonzero in at least one cell on the known-COMPLETE
+      compiler-generated body. A nonzero value there demonstrates that a residue count is positive
+      on an object with no defect. If it is zero in every cell, the withdrawal of the residue
+      deliverable was over-cautious and the record says so.
+  test_boundary:
+    instances:
+    - BoringSSL CRYPTO_memcmp at pinned commit ed1271af005c1def37a100d5924f1c8c8ae7062c
+    - PQClean ml-kem-1024/avx2 verify.c at pinned commit 10738d92323117d84bb6202c85722ddfd96dc1d4
+    - Five calibration objects - a portable byte loop, a C intrinsics body, a hand-written .S body, the auto-vectorised byte loop as a completeness-by-construction null, and the archived known-incomplete anchor
+    parameters:
+      compilers: gcc and clang, exact versions recorded in the manifest
+      optimisation_levels: '-O0, -O1, -O2, -O3, -Os'
+      march_targets: 'x86-64, x86-64-v2, x86-64-v3, x86-64-v4'
+      cells_per_object: 40
+      lengths: '768, 1088, 1568 where a length is needed'
+      host_architecture: linux/amd64
+    implementation: >-
+      A frozen extractor script, hash-committed before any candidate is compiled, operating on
+      objdump output. No crypto is executed, no key material exists, no comparison ever runs.
+    budget:
+      wall_clock_seconds_per_run: 3600
+      maximum_memory_gb: 8
+  falsification_conditions:
+  - >-
+    determinacy equals 1.0 and w_source matches the source reading in all 80 cells. The statement is
+    FALSE as written, the source-level reading is well defined and stable on this population, and
+    the finding is recorded as a confirmation obtained by a stronger instrument. This is a fully
+    reportable deliverable.
+  - >-
+    The must-vary calibrator fails to vary. Instrument failure; the whole matrix is void and NO
+    conclusion, positive or negative, may be drawn about any routine.
+  - >-
+    The intrinsics calibrator's w_source varies over AVX2-capable cells, or the hand-written .S
+    calibrator's tuple varies at all. Extractor mis-attribution of memory operands; same
+    consequence. NOT a falsifier - variation in the intrinsics object's unroll factor or back-edge
+    width, which is the phenomenon under study.
+  - >-
+    The completeness-by-construction null shows a nonzero coverage deficit on a compiler-generated
+    body. The coverage extractor is wrong and no coverage number is reportable.
+  - >-
+    The known-nonzero anchor is unavailable or shows a deficit other than its archived profile.
+    Either the coverage deliverable is downgraded to calibrated-at-one-end, which is a stated
+    weakening, or the extractor cannot see a known incompleteness and no coverage zero means
+    anything.
+  - >-
+    The comparison function cannot be located in a majority of cells. The measurement is not
+    executable as designed and the design is withdrawn and restated, not patched after seeing
+    partial results.
+  interpretation_limits:
+  - >-
+    NOT an attack, an oracle, an exploitation path, a cost estimate, or a statement about MLWE
+    hardness or ML-KEM security at any parameter set. No timing, power, EM, cache or fault
+    measurement occurs. RQ-MLKEM-002's constraints bind unchanged, including escalation of any
+    newly observed defect to the Coordinator and publication by no agent.
+  - >-
+    A nonzero residue L mod w_backedge is NOT a contradiction of any source-level immunity claim.
+    That claim concerns a separate hand-written remainder path, and a compiler-generated epilogue is
+    not a member of that class.
+  - >-
+    No status change is proposed for any goal, proposal, hypothesis, evidence or decision record.
+  - >-
+    Scoped to the exact compilers, versions, flag sets, host architecture and pinned commits used,
+    and to the translation-unit level rather than the linked library.
+  - >-
+    A negative - the extractor is determinate and stride is build-invariant - closes nothing about
+    the isolation-versus-systemic question. It removes one methodological doubt from one prior
+    record. Premature closure is a failure mode symmetric with overclaiming.
+  prior_evidence_refs:
+  - EV-MLKEM-005

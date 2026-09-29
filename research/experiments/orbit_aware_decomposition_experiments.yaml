@@ -1,0 +1,203 @@
+suite: orbit-aware-decomposition
+status: proposed
+claim_boundary:
+  attack_claim: false
+  speedup_claim: false
+  beats_rho_claim: false
+baseline:
+  method: current chained-S3 decomposition encoding
+  rho_comparison: best_applicable_automorphism_accelerated_pollard_rho
+common_ladder:
+  fields:
+    - F2^11
+    - F2^13
+    - F2^17
+    - F2^19
+    - F2^23
+    - F2^29
+  curve_family: toy_koblitz
+  decomposition_arities: [3, 4]
+  seeds_per_cell: 20
+common_metrics:
+  - solver_seconds
+  - solved_fraction
+  - seconds_per_successful_decomposition
+  - independent_relation_fraction
+  - seconds_per_independent_relation
+  - variables_or_polynomial_unknowns
+  - clauses_or_equation_count
+  - peak_memory_bytes
+  - preprocessing_seconds
+  - fitted_log2_time_slope
+  - projected_total_log2_work
+
+experiments:
+  - id: EXP-FROB-GAUGE-001
+    title: Global Frobenius gauge fixing
+    hypothesis: fixing one orbit exponent to zero and expressing the rest as relative shifts removes exact global Frobenius redundancy and improves relation-generation throughput
+    arms:
+      - raw_absolute_exponents
+      - relative_exponents_j1_zero
+    controls:
+      exact_solution_set_equivalence: required
+      recovered_decomposition_verification: required
+    promotion_gate:
+      require:
+        - zero_false_negatives
+        - median_seconds_per_independent_relation_improves
+        - improvement_persists_on_largest_two_fields
+    kill_if:
+      - canonicalization_overhead_exceeds_solver_savings
+      - no_speedup_on_largest_two_fields
+
+  - id: EXP-FROB-CANON-001
+    title: Canonical orbit representative benchmark
+    hypothesis: solving over one canonical representative per Frobenius orbit plus a compact shift index reduces symmetry-related solver work
+    arms:
+      - raw_coordinate
+      - lexicographically_minimal_rotation
+      - minimum_integer_rotation
+      - prefix_signature_then_exact_tiebreak
+      - necklace_canonicalization
+    measurements:
+      - canonicalization_cost
+      - orbit_duplicate_rate_removed
+      - propagation_conflicts_if_sat
+    kill_if:
+      - all_canonical_forms_slower_than_raw
+      - enforcing_canonicality_causes_superlinear_overhead
+
+  - id: EXP-FROB-ROTATE-001
+    title: Variable-rotation normal-basis S3 circuit
+    hypothesis: representing x_i as ROTATE(rep_i, shift_i) lets the solver share representative structure and exploit free Frobenius squaring
+    arms:
+      - raw_chained_s3
+      - representative_plus_variable_rotate
+      - representative_plus_enumerated_shift_assumptions
+    measurements:
+      - rotate_network_gate_count
+      - xor_clause_count
+      - non_xor_clause_count
+      - solver_conflicts
+      - solver_decisions
+    promotion_gate:
+      require:
+        - verified_equivalence_to_raw_encoding
+        - lower_seconds_per_independent_relation
+    kill_if:
+      - rotate_mux_cost_dominates
+
+  - id: EXP-FROB-INVAR-001
+    title: Cyclic invariant prefilter
+    hypothesis: cheap Frobenius-equivariant invariants can reject impossible relative shifts before full decomposition solving
+    candidate_filters:
+      - absolute_trace
+      - trace_cross_correlation
+      - normal_basis_autocorrelation
+      - hamming_weight_signature
+      - run_length_signature
+      - sparse_low_degree_symmetric_features
+    controls:
+      false_negative_rate: must_equal_zero
+    measurements:
+      - rejection_rate
+      - nanoseconds_per_filter
+      - downstream_solver_time_saved
+      - net_seconds_per_independent_relation
+    kill_if:
+      - any_false_negative
+      - filter_overhead_exceeds_saved_solver_time
+
+  - id: EXP-FROB-PAIR-001
+    title: Relative-shift pair interaction table
+    hypothesis: pair compatibility depends primarily on relative Frobenius shift and can be reused to rank expensive decomposition attempts
+    arms:
+      - uniform_shift_order
+      - cached_pair_compatibility_score
+      - bayesian_ranked_shifts
+    controls:
+      exact_final_verification: required
+      held_out_targets: required
+    measurements:
+      - top_k_hit_rate
+      - solver_calls_saved
+      - cache_hit_rate
+      - net_relation_throughput
+    kill_if:
+      - ranking_does_not_generalize_to_held_out_targets
+
+  - id: EXP-FROB-MITM-001
+    title: Orbit-aware meet-in-the-middle decomposition
+    hypothesis: canonicalizing partial sums under global Frobenius reduces MITM table size and duplicate work
+    decomposition_arity: 4
+    arms:
+      - raw_mitm
+      - frobenius_canonicalized_mitm
+    measurements:
+      - partial_sum_entries
+      - unique_partial_sum_entries
+      - bytes_per_entry
+      - table_build_seconds
+      - lookup_seconds
+      - successful_decompositions
+    kill_if:
+      - canonicalization_cost_erases_memory_and_lookup_gain
+
+  - id: EXP-FROB-BURNSIDE-001
+    title: Symmetry ceiling via Burnside counting
+    hypothesis: theoretical orbit counts under C_m x S_k predict the maximum available quotienting benefit and calibrate solver results
+    outputs:
+      - raw_tuple_count
+      - orbit_count
+      - stabilizer_histogram
+      - theoretical_max_reduction
+      - measured_fraction_of_ceiling
+    promotion_gate:
+      require:
+        - exact_counts_match_bruteforce_on_small_cells
+
+  - id: EXP-FROB-FOURIER-001
+    title: Cyclic eigenbasis representation
+    hypothesis: a representation adapted to Frobenius cyclic action may expose block or circulant structure in decomposition equations
+    risk: high
+    arms:
+      - normal_basis_raw
+      - cyclic_eigenbasis_or_extension_representation
+    measurements:
+      - representation_setup_cost
+      - equation_block_count
+      - largest_block_size
+      - degree_proxy
+      - solver_seconds
+    kill_if:
+      - extension_field_overhead_dominates
+      - no_block_structure_observed
+
+  - id: EXP-FROB-SLOPE-001
+    title: Decomposition scaling slope comparison
+    hypothesis: any meaningful orbit-aware breakthrough should reduce the fitted slope of log2 decomposition cost versus field degree, not merely the constant factor
+    consumes:
+      - EXP-FROB-GAUGE-001
+      - EXP-FROB-CANON-001
+      - EXP-FROB-ROTATE-001
+      - EXP-FROB-INVAR-001
+      - EXP-FROB-MITM-001
+    outputs:
+      - slope_raw
+      - slope_best_orbit_aware
+      - slope_delta
+      - confidence_interval
+    interpretation:
+      constant_factor_only: engineering_improvement_not_asymptotic_break
+      lower_slope_reproduced: escalate_for_independent_review
+
+execution_order:
+  - EXP-FROB-GAUGE-001
+  - EXP-FROB-CANON-001
+  - EXP-FROB-ROTATE-001
+  - EXP-FROB-INVAR-001
+  - EXP-FROB-MITM-001
+  - EXP-FROB-PAIR-001
+  - EXP-FROB-BURNSIDE-001
+  - EXP-FROB-FOURIER-001
+  - EXP-FROB-SLOPE-001

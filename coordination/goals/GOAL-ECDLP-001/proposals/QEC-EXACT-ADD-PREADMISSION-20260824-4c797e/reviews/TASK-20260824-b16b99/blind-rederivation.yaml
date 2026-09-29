@@ -1,0 +1,178 @@
+schema: crypto.autoresearch.blind_rederivation.v1
+blind_rederivation:
+  task_id: TASK-20260824-b16b99
+  plan_id: REVIEW-PLAN-QEC-EXACT-ADD-4c797e
+  packet_id: QEC-EXACT-ADD-PREADMISSION-20260824-4c797e
+  statement_id: BLIND-QEC-EXACT-ADD-4c797e
+  semantic_role: reviewer
+  runtime_contract: validator
+  frozen_at: '2026-08-24T18:40:25Z'
+  opening_head: d2e7f21209dc0ef8b112ce4b19465fe2ae2df82d
+  protocol_version: 2
+  protocol_amendment: CORR-20260824-91d34a
+  launch_envelope_amendment: CORR-20260824-3aa93d
+  independent_session:
+    required: true
+    satisfied: true
+    fork_turns: none
+    reused_prior_task_session: false
+  joints_owned: []
+  blind_from_respected: true
+  exact_sources_read:
+  - AGENTS.md
+  - agents/validator.md
+  - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/review-plan.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/blind-statement.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/corrections/CORR-20260824-91d34a.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/corrections/CORR-20260824-3aa93d.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/handoffs/TASK-20260824-b16b99.yaml
+  scientific_derivation_sources:
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/blind-statement.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/corrections/CORR-20260824-91d34a.yaml
+  read_sibling_reports: false
+  prohibited_path_reads: []
+  producer_comparison_performed: false
+  derivation:
+    generic_affine_translation:
+      assumptions:
+      - R=(x,y) and A=(a,b) are subgroup points.
+      - R is not A or -A, so u=x-a is nonzero.
+      definitions:
+        u: x-a
+        v: y-b
+        lambda: v/u
+        u3: lambda^2-u-3a
+        m: u-lambda^2+3a=-u3
+      register_trace_when_effective_enable_is_one:
+      - After centering, (X,Y)=(u,v).
+      - Total-IDiv gives (X,Y)=(u,lambda).
+      - The two controlled X updates give X=u-lambda^2+3a=m.
+      - Total-IMul gives Y=m*lambda=-u3*lambda.
+      - Controlled negation and uncentering give X=-m+a=u3+a.
+      - The final controlled Y subtraction gives Y=-lambda*u3-b.
+      curve_law_check:
+        x_coordinate: >-
+          u3+a=lambda^2-u-2a=lambda^2-x-a, the affine x-coordinate
+          of R+A.
+        y_coordinate: >-
+          -lambda*u3-b=lambda*(a-(u3+a))-b, the affine y-coordinate
+          of R+A.
+      result: holds on the declared generic subgroup domain
+    disabled_all_bitstring_identity:
+      amendment_used: >-
+        CORR-20260824-91d34a controls the first Y<-Y-b operation by
+        effective enable e; the final Y subtraction is already controlled by e.
+      case_u_nonzero: >-
+        With e=0, X first becomes u=x-a while Y remains y. Total-IDiv maps
+        Y to y/u and preserves X. The controlled X updates and negation do
+        nothing. Total-IMul restores Y to u*(y/u)=y. The unconditional
+        X<-X+a restores x, and the controlled final Y subtraction does nothing.
+      case_u_zero: >-
+        With e=0 and X=u=0, both declared total interfaces are identity on
+        (X,Y). All controlled updates do nothing, X<-X+a restores x=a, and
+        Y remains y.
+      result: >-
+        The corrected v2 core is the exact identity for every declared
+        (x,y) in F_p^2, without using the curve equation.
+    nonzero_domain_promises:
+      u_nonzero: >-
+        If u=x-a were zero, the curve equation over odd F_p would give
+        y=b or y=-b, hence R=A or R=-A. A nonzero subgroup point cannot
+        have b=0 because that would give order two, while r is odd and prime.
+        Both cases are excluded by effective enable, so u is nonzero.
+      m_nonzero: >-
+        Let R+A=(x',y'). The generic trace gives x'=u3+a and m=-u3=a-x'.
+        If m were zero, x'=a, so R+A=A or R+A=-A. Translation by -A then
+        gives R=O or R=-2A. Both are excluded by effective enable, so m is
+        nonzero.
+      result: holds on the declared effective-enable subgroup domain
+    exceptional_maps_uniqueness_and_cleanup:
+      maps:
+        O: A
+        A: 2A
+        -A: O
+        -2A: -A
+      uniqueness: >-
+        Relative to a nonzero point A of prime order r>3, these outputs have
+        scalar labels 1, 2, 0, and -1 modulo r. Those four residues are
+        pairwise distinct, so the exceptional outputs are pairwise distinct.
+      cleanup: >-
+        Each input flag is enable-masked and its branch leaves the generic core
+        at identity before applying the corresponding XOR translation mask.
+        Recomputing the enable-masked equality predicate from the unique
+        post-map output toggles the one set flag back to zero. It cannot toggle
+        another exceptional flag because the four outputs are distinct. It
+        cannot toggle on an effective generic branch because translation by A
+        is injective and the preimage of each exceptional output is precisely
+        the corresponding excluded exceptional input. It cannot toggle on a
+        zero digit because enable is zero.
+      result: collision-free on the declared subgroup code space
+    coherent_superposed_address:
+      derivation: >-
+        For each computational-basis address h, coherent table access selects
+        one A_h and the cleaned basis-state circuit realizes one address-fixed
+        permutation T_h on the accumulator while returning flags, table target,
+        sign/work bits, and arithmetic scratch to their common zero state.
+        Because the address is preserved, the joint operation is the direct
+        sum sum_h |h><h| tensor T_h. Linearity therefore gives the same
+        block-diagonal action on an arbitrary address superposition, with no
+        residual address-work entanglement, provided every listed workspace is
+        actually uncomputed.
+      result: holds as a statement-level consequence of basis correctness and cleanup
+    symbolic_peak_live_expression:
+      symbols:
+        n: width of each field register X and Y
+        q_h: live address-register width
+        q_ctrl: live external enable, sign, and other declared control bits
+        L_A: live width of the selected-addend table target and lookup state during the generic core
+        L_router: live width of the sequential exceptional constant or mask table target and lookup state
+        W_flag_eq: clean workspace for pre-core flag equalities
+        W_div: existing clean workspace of the in-place division primitive
+        W_sqadd: clean workspace for the square and controlled linear X updates
+        W_mul: existing clean workspace of the in-place multiplication primitive
+        W_mask_eq: clean workspace for exceptional masks and post-map equalities
+        W_qrom_uncompute: clean workspace for table-target uncomputation
+      expression: >-
+        Q_peak = 2*n + q_h + q_ctrl + max(
+          L_router + 4 + W_flag_eq,
+          L_A + 5 + 1 + W_div,
+          L_A + 5 + W_sqadd,
+          L_A + 5 + 1 + W_mul,
+          L_router + 5 + W_mask_eq,
+          L_router + 4 + W_qrom_uncompute).
+      term_explanation: >-
+        The constant 4 denotes the mutually exclusive stored exceptional
+        flags; 5 additionally includes the effective-enable bit; each extra
+        1 is the reusable zero-test bit z in a totalized division or
+        multiplication wrapper. The max is stagewise: it does not assume that
+        primitive workspaces overlap or can be reused beyond what the statement
+        explicitly guarantees.
+      exact_coefficient_status: not_derivable_without_a_gate_and_liveness_schedule
+      exact_width_claimed: false
+  dedicated_rederivation_result:
+    status: agreement
+    comparison_target: corrected protocol-v2 blind mathematical statement only
+    basis: >-
+      All five mathematical obligations and the superposed-address consequence
+      derive from blind-statement.yaml with CORR-20260824-91d34a. The peak-live
+      result agrees only at the requested symbolic level.
+    producer_result_seen: false
+    producer_agreement_claimed: false
+  limitations:
+  - >-
+    The exact physical behavior of noncanonical n-bit encodings outside the
+    declared F_p register domain is not specified; the all-bitstring proof is
+    over all basis encodings admitted by the declared field interfaces.
+  - >-
+    Statement-level cleanup proves the required direct-sum semantics only if
+    the eventual implementation realizes every masked equality and uncomputes
+    every table and scratch register; no implementation was inspected.
+  - >-
+    No exact width, leading coefficient, gate count, qROM cost, or schedule can
+    be inferred from the symbolic expression.
+  claim_ceiling: >-
+    This rederivation supports only comparison against a candidate construction.
+    It establishes no implementation, exact peak, 835-qubit count, exact
+    Toffoli coefficient, speedup, novelty, support, completion, P1553 progress,
+    B71 admission, or breakthrough.

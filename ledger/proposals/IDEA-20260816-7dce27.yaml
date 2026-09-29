@@ -1,0 +1,274 @@
+idea:
+  id: IDEA-20260816-7dce27
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: 'Recast BLAKE3''s modes as three separate predicates over one initialisation map rather than
+    as one object: enumerate whether an unkeyed default, a keyed-mode key, and each stage of key derivation
+    can ever present the same initial chaining value and flag word, over a declared class of keys
+    and context strings.'
+  class: representation
+  claim: '(A) The usual framing treats BLAKE3 as one function with options. The representation this
+    record proposes is different: three (or four, counting key derivation''s two stages) SEPARATE
+    PREDICATES over a single initialisation map Psi: (mode, key material, context string) -> (initial
+    chaining value, initial flag word). Under that representation, ''the modes are domain separated''
+    is not one statement but a matrix of pairwise statements -- unkeyed versus keyed, unkeyed versus
+    derive-key stage one, keyed versus derive-key stage two, and so on -- and each cell is independently
+    checkable. (B) The claim is that this re-representation is not cosmetic: it makes visible a question
+    the single-object framing hides, namely whether a keyed-mode key can equal the initial chaining
+    value that key derivation produces for some context string, since in that case two different modes
+    would begin from the same state with the same flags. Under the single-object view this is ''obviously
+    prevented by flags''; under the pairwise view it is a specific cell of a specific matrix that
+    either has a separating field or does not, and the answer is read off the specification rather
+    than assumed. (C) NOT CLAIMED: this record does not claim any cell is unseparated, does not claim
+    a collision, does not claim an attack or any security consequence, and does not claim the re-representation
+    is the right one for any purpose other than this audit. It also explicitly does not claim that
+    finding a shared initial state would be exploitable -- exploitability is a separate question this
+    record cannot and does not address. (D) The usable negative outcome: a completed separation matrix,
+    every cell carrying the NAME OF THE FIELD that separates it (a flag bit, the key material itself,
+    a length encoding) and the class over which that was checked. A matrix of all-separated cells
+    with named separating fields is strictly more useful than a sentence asserting the modes are separated,
+    because the next reader can check one cell rather than re-deriving everything.'
+  mechanism: 'A reading task followed by a small enumeration. Stage one: write Psi explicitly from
+    pinned primary text for every mode and, for key derivation, for each of its stages -- what initial
+    chaining value is used, what flag bits are set, and whether key material enters as the initial
+    chaining value or as data. Stage two: build the pairwise matrix: for m modes there are m(m-1)/2
+    cells, each asking whether there exist inputs to the two modes yielding identical (initial chaining
+    value, initial flag word) pairs. Stage three: for each cell, first attempt the ZERO-COMPUTE resolution
+    -- identify a field that differs by construction for all inputs (typically a flag bit) and record
+    it as the separating field; a cell resolved this way needs no enumeration and the record says
+    which cells were resolved this way. Stage four: for any cell with no construction-level separator,
+    enumerate over a declared class of keys and context strings, with the chaining value held CONCRETE
+    here rather than symbolic (unlike the input-side audit, because this cell''s question is precisely
+    whether a key can equal a derived chaining value, which is a numeric question) -- and that difference
+    in treatment is itself the finding that the re-representation surfaces. Stage five: planted-breakage
+    nulls that merge two modes'' flag words, which the matrix must catch in the corresponding cell
+    and only there. Stage six: report the matrix with per-cell method (construction | enumeration),
+    separating field, and class boundary.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril 'keyed hashing|key-derivation mode|XOF|extendable-output' over ledger/proposals
+      and knowledge/techniques; grep -ril 'domain separation|length extension' over ledger/proposals;
+      grep -ril blake over the repository; read RQ-BLAKE-584719's third target (the tree mode as a
+      finite audit, listing keyed and key-derivation modes among the surface) and the bucket opening
+      that names the keyed and extendable modes as SEPARATE PREDICATES rather than one object; read
+      docs/inventor-protocol.md section 8 item 2 (observation collision) and item 3 (quantifier order).
+    results: Zero BLAKE proposals. The keyed/KDF grep returned IDEA-20260809-2ba70c, IDEA-20260808-917e63,
+      IDEA-20260808-25fca0, IDEA-20260813-28cf9c, IDEA-20260807-331ae5, IDEA-20260805-7d97be, IDEA-20260809-1b5b15,
+      IDEA-20260809-dc7006 and the RQ-ECDLP-002 archive-cascade lineage IDEA-20260809-ce875b / IDEA-20260809-7f2d9c;
+      none concerns a hash mode's initialisation map, and the ECDLP ones concern this program's own
+      provenance machinery. IDEA-20260808-95a21c again is the nearest reasoning style and again a
+      different object. Within this bucket, the input-side injectivity audit covers the same specification
+      surface but at a different granularity and with the chaining value held SYMBOLIC, which is precisely
+      what prevents it from asking this record's central question.
+    verdict: 'UNVERIFIED. Nothing asserted about the external literature. Assembled from known parts:
+      pairwise separation matrices are an ordinary auditing device, and the modes and flags are the
+      design''s own as relayed in RQ-BLAKE-584719. Claimed new HERE: the explicit re-representation
+      of one function-with-options as m separate predicates over one initialisation map; the per-cell
+      distinction between construction-level and enumeration-level resolution with the separating
+      field NAMED in each cell; and the observation -- surfaced by the re-representation and not by
+      the single-object view -- that one cell requires concrete rather than symbolic chaining values,
+      which is why the input-side symbolic audit structurally cannot answer it.'
+  object_first_candidate:
+    tracked_object: The pair (initial chaining value, initial flag word) as produced by Psi, indexed
+      by (mode, key material, context string), together with the pairwise separation matrix built
+      over it and, per cell, the named separating field.
+    lossiness: 'Lossy, and the loss is smaller than in the sibling audits, which is worth stating
+      plainly rather than hiding. Discarded: everything downstream of initialisation -- the tree walk,
+      the message bytes, the output. Retained: the initial state pair and the mode label. Why the
+      retained part propagates: initialisation is the first step and every later step is a function
+      of it, so two modes agreeing at initialisation agree on everything a common suffix of input
+      would produce, which is exactly why the initial pair is the right object for a mode-separation
+      question and why nothing later needs to be tracked. HONEST CAVEAT REQUIRED BY THE LOSSY-PROJECTION
+      TEST: within the cell where the chaining value must be treated concretely, the projection from
+      (mode, key, context) to (cv, flags) may lose NOTHING at all if the map is injective by construction
+      on that cell -- in which case the object is a change of coordinates for that cell and the record
+      must say so rather than presenting a re-labelling as an object. Which cells are of that kind
+      is determined at stage one and reported.'
+    propagation: 'There is no per-round propagation; Psi is applied once. The one-step action studied
+      is the transition from a caller''s mode selection to the compression function''s initial state,
+      and the propagation question is entirely about what happens NEXT if two modes coincide there:
+      they would produce identical outputs on identical remaining input, which is why the cell''s
+      resolution is the whole content. The record deliberately does not follow the object further,
+      because doing so is the input-side audit''s job and duplicating it here would be the re-notation
+      failure this program warns about.'
+    survival_score: 'The object survives exactly one step and that is sufficient by construction --
+      a mode separation either holds at initialisation or it does not, and nothing later can restore
+      it. The survival limit is therefore not a round count but a CLASS limit: over the declared key
+      set K and context set X, the cells requiring enumeration are resolved; outside them nothing
+      is claimed. Stated concretely: cells resolved at construction level survive for ALL inputs (that
+      is what construction-level means, and it is why stage three is attempted before stage four);
+      cells resolved by enumeration survive only over |K| x |X| inputs, a number reported exactly.'
+  null_object_control: 'Planted-breakage nulls at the matrix level: variants of Psi in which two specified
+    modes'' flag words are made identical, one variant per cell that stage three resolved at construction
+    level. Each planted variant must be caught by the matrix, IN THE CORRESPONDING CELL AND NOT ELSEWHERE,
+    which is a stronger requirement than catching it at all and is the point of a matrix representation.
+    What the null must show for the signal arm to mean anything: for every construction-resolved cell,
+    the planted variant that removes that cell''s separating field must flip exactly that cell to
+    unseparated while leaving other cells unchanged. If a planted breakage flips several cells, the
+    cells are not independent and the matrix representation is not faithful -- which would itself
+    be a finding about the representation and must be reported rather than patched. A second null
+    covers the enumeration branch: a variant in which key material is fed identically in two modes,
+    which the enumeration must find as a concrete collision within the declared class.'
+  discriminated_from:
+  - 'The input-side injectivity audit in this bucket: that holds the chaining value SYMBOLIC and therefore
+    structurally cannot ask whether a keyed-mode key equals a derived chaining value. This record''s
+    central cell is exactly that question, and the two records are complementary with the boundary
+    between them stated explicitly rather than left implicit.'
+  - 'The output-side audit in this bucket: that concerns indexing of outputs from a finished root.
+    This concerns initialisation before any compression call. Opposite ends of the same computation.'
+  - 'IDEA-20260808-95a21c: adversarial variation of a chained transcript to cheapen a forgery search.
+    Different object, different metric, different primitive.'
+  - 'A generic ''check the modes are domain separated'' task: explicitly not that, because the deliverable
+    is a matrix with per-cell method and named separating field, and because the record commits in
+    advance to reporting which cells were resolved without enumeration -- a distinction a generic
+    check erases.'
+  assumptions:
+  - The modes and their stages are enumerable from pinned primary text as a finite set; if key derivation
+    has more structure than two stages, the matrix grows and the record says so rather than forcing
+    the count.
+  - Flag words are fixed per mode and stage rather than input-dependent; if any flag bit depends on
+    caller input beyond the mode selection, the matrix cells become families and the enumeration branch
+    grows.
+  - For construction-level resolution, a field that differs for ALL inputs is genuinely universal
+    and not merely typical; this must be argued in writing per cell, not asserted.
+  - The declared key set K and context set X are budget choices with no claimed naturalness, and the
+    enumeration-branch results carry that limitation explicitly.
+  predictions:
+  - metric: number of matrix cells resolvable at construction level (no enumeration)
+    direction: higher
+    minimum_effect: 'REFUSING TO PRE-COMMIT a count, with reason: it depends on the flag layout, which
+      is unread. The prediction that IS committed is that at least one cell will NOT be construction-resolvable,
+      since key material entering as an initial chaining value in one mode and being produced as one
+      in another is the case the re-representation exists to surface'
+  - metric: unseparated cells found in the real matrix
+    direction: lower
+    minimum_effect: 0 -- forced value; the design's own premise predicts full separation and this
+      audit exists to check it, not to confirm it
+  - metric: 'planted-breakage localisation: cells flipped per planted variant'
+    direction: lower
+    minimum_effect: exactly 1 -- forced value. A planted breakage must flip exactly its own cell;
+      flipping more means the cells are not independent and the matrix representation is unfaithful
+  - metric: cells where the projection loses nothing (change of coordinates rather than object)
+    direction: different
+    minimum_effect: no pre-committed count; this is determined at stage one and is reported honestly
+      rather than predicted, per the lossy-projection test's own requirement
+  minimal_test:
+    design: Stage one plus stage three, with no enumeration at all, is the cheapest discriminating
+      measurement and it is pure reading plus a page of argument. Write Psi for every mode and stage
+      from primary text, build the m(m-1)/2 cells, and for each cell try to name a field that differs
+      for all inputs. The output is a matrix in which most cells are expected to be resolved by naming
+      a flag bit, and the interesting output is the SHORT LIST of cells that are not -- which is the
+      entire value of the re-representation and costs no compute whatsoever. If every cell resolves
+      at construction level, the record's honest deliverable is a complete separation matrix with
+      named fields and no enumeration was needed, which is a strong and cheap result. If one or more
+      cells do not resolve, only those cells go to enumeration, and the budget request is proportional
+      to the short list rather than to the matrix. This ordering -- argument first, enumeration only
+      for the residue -- is what makes the record cheap, and it is also what makes its negative outcome
+      usable.
+    controls:
+    - Per-cell planted-breakage variants (flag words merged for one specified mode pair each), requiring
+      exactly-one-cell localisation.
+    - 'Enumeration-branch planted control: a variant feeding key material identically in two modes,
+      which the concrete enumeration must find within the declared class.'
+    - Test-vector precondition covering keyed and key-derivation modes specifically, since those are
+      the modes under audit and a reference that is right only in the default mode would be silently
+      wrong here.
+    - 'Universality control for every construction-level resolution: the claimed always-differing
+      field must be checked against the full enumerated class as well, so that a construction argument
+      is never accepted on its own.'
+    - 'Independence control: the count of cells flipped per planted variant, reported per variant
+      rather than in aggregate.'
+    required_metrics:
+    - separation matrix with one row per mode pair
+    - per-cell resolution method (construction | enumeration)
+    - per-cell named separating field
+    - count of unseparated cells
+    - cells flipped per planted-breakage variant
+    - declared class sizes |K| and |X| for enumerated cells
+    - list of cells where the projection loses nothing
+  falsification_conditions:
+  - A planted-breakage variant flips more than one cell, so the matrix representation is unfaithful
+    and the re-representation does not do what the record claims.
+  - A construction-level resolution fails its universality control against the enumerated class.
+  - The reference implementation fails a keyed or key-derivation test vector.
+  - A flag bit is found to depend on caller input beyond mode selection, turning cells into families
+    and invalidating the matrix as stated.
+  - An unseparated cell is found in the real matrix and survives hand re-derivation -- which becomes
+    a maintainer disclosure before it becomes any other record.
+  - Every cell turns out to be a change of coordinates with nothing discarded, meaning the re-representation
+    added no object and the record should be withdrawn rather than defended.
+  confounders:
+  - A construction-level argument that is really a typical-case argument, accepted because it reads
+    as universal. The universality control exists for exactly this and is the record's most important
+    control.
+  - 'Mode enumeration incompleteness: if key derivation has a structure the specification describes
+    loosely, missing a stage silently shrinks the matrix.'
+  - 'Class choice for the enumeration branch: keys and contexts chosen without adversarial structure
+    would miss precisely the coincidence the branch exists to look for. Mitigated by mandating structured
+    choices (keys equal to plausible derived chaining values, contexts chosen to produce structured
+    outputs).'
+  - Auditing the reference implementation's mode handling rather than the specification's, where the
+    two could differ.
+  - Treating a found coincidence as exploitable, which part (C) forbids and which this record has
+    no means to assess.
+  interpretation_limits:
+  - Construction-resolved cells hold for all inputs only to the extent the written universality argument
+    is correct; the argument is the result and is reviewable as such.
+  - Enumeration-resolved cells hold only over the declared class, whose bounds carry no structural
+    significance.
+  - A found coincidence would be a structural observation about the mode, not an exploitability claim,
+    which this record cannot assess.
+  - The matrix concerns initialisation only; nothing about the tree walk, the output indexing, or
+    the compression function follows from it.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The construction branch is zero compute; the enumeration
+      branch is O(|K| x |X|) evaluations, reported as a count.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the single-object framing in which mode separation is one assertion.
+      Nothing is beaten; one assertion is replaced by m(m-1)/2 cells each with a named separating
+      field and a stated resolution method, where this repository currently has neither the assertion
+      nor the matrix on record.
+    hidden_overhead: 'The universality arguments are the hidden work: writing, per cell, why a field
+      differs for ALL inputs rather than for the ones anyone thought to try. That is unglamorous prose
+      that carries the entire construction branch, and skipping it converts the record into a matrix
+      of assertions with a table around them -- which would look identical to a good result. The second
+      hidden cost is that the honest outcome may be that every cell is a change of coordinates, in
+      which case the correct action is withdrawal, and few authors withdraw.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is emitted. As an audit, the construction branch is not dominated
+    by anything -- a universal argument covers all inputs -- while the enumeration branch is dominated
+    by any later run over a strictly larger class, which is the intended supersession path for those
+    cells specifically.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: this repository
+    records zero cells of a mode-separation matrix, and a run would record m(m-1)/2 cells with per-cell
+    method, named field, and class bounds where enumerated. The delta is a matrix and its arguments.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That the modes and stages enumerate cleanly from primary text
+    into a finite matrix: 0.8. That at least one cell fails construction-level resolution and needs
+    enumeration -- the outcome that justifies the re-representation: 0.45, and if it is zero the record
+    still delivers a complete matrix but its central claim to have surfaced a hidden question fails,
+    which I would report as such. That every real cell is separated: 0.95. That planted breakages
+    localise to exactly one cell each: 0.7 -- flag layouts often share bits across modes and a shared
+    bit would flip two cells, which would be an interesting result about the representation rather
+    than a bug. That the record is worth writing even if every cell resolves trivially: 0.6, because
+    a named-field matrix is reusable and a sentence is not.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-c535d3

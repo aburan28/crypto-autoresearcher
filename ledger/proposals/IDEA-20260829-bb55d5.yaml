@@ -1,0 +1,902 @@
+idea:
+  id: IDEA-20260829-bb55d5
+  question_id: RQ-MLKEM-002
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    The lane's strongest closure covers only the TAIL. A comparator with an
+    address-dependent alignment prologue has coverage deficit
+    head = (-a) mod w and tail = a mod w summing to exactly w whenever the
+    buffer is misaligned -- independent of L, and therefore reachable at 31 of
+    32 addresses even where 32 divides L kills the tail. Every archived
+    measurement in this lane was taken at one address
+  class: measurement
+
+  claim: >-
+    (A) THE OBSTRUCTION AS STATED, AND THE HIDDEN PREMISE IN IT.
+    IDEA-20260805-3c957e is this lane's strongest and most-cited result: since
+    L = 32*(du*k + dv) is a multiple of 32, a comparison whose vector body
+    consumes w bytes per iteration with w dividing 32 has L mod w = 0, its
+    remainder path executes zero iterations, and "the coverage-defect class is
+    ARITHMETICALLY UNREACHABLE for w in {1, 2, 4, 8, 16, 32}, which is the
+    width of essentially every portable, SSE and AVX2 comparison in
+    circulation". That derivation writes the deficit as L mod w. It is correct
+    exactly when the block loop begins at buffer offset 0. It has a premise
+    that is never stated because it looks like nothing: THAT THE COMPARISON
+    STARTS AT THE FIRST BYTE OF THE BUFFER.
+    (B) THE CORRECTED LAW, DERIVED HERE AND PARAMETER-FREE. A comparison that
+    uses ALIGNED vector loads must first bring its pointer to a w-byte
+    boundary. Write a for the buffer's base address. The standard three-part
+    shape is: a PROLOGUE covering head = (-a) mod w bytes; then
+    floor((L - head)/w) aligned blocks; then an EPILOGUE covering
+    tail = (L - head) mod w bytes. Now impose the lane's own arithmetic,
+    w | 32 and 32 | L, so L is congruent to 0 mod w:
+        head = (-a) mod w,
+        tail = (L - head) mod w = (-head) mod w = a mod w,
+        head + tail = w  whenever  a is not congruent to 0 mod w,  else 0.
+    THE TOTAL DEFICIT IS EXACTLY w FOR EVERY MISALIGNED ADDRESS AND EXACTLY 0
+    FOR AN ALIGNED ONE. It does not depend on L at all. So at w = 32 the
+    coverage class is reachable at 31 of every 32 addresses, at EVERY ML-KEM
+    parameter set including ML-KEM-512 and ML-KEM-768 where 3c957e reports the
+    class unreachable at every stride it tabulates. The obstruction is not
+    wrong; it is incomplete in a precisely specifiable way, and this record
+    specifies it.
+    (C) THE SHAPE IS DIFFERENT, WHICH MAKES IT IDENTIFIABLE. C-COV and C-BND
+    produce a top-of-buffer SUFFIX (IDEA-20260805-1beeca); C-RED produces
+    PERIODIC residue classes (IDEA-20260805-ee2018). An alignment-prologue
+    deficit produces a SPLIT PAIR -- a prefix [0, (-a) mod w) and a suffix
+    [L - (a mod w), L) whose sizes are complementary and sum to w. No member of
+    the existing taxonomy produces a nonempty PREFIX at all. That is a new
+    signature on the lane's own primary observable, and where a prefix appears
+    it is distinguishable at a single parameter set and a single address,
+    unlike the C-BND(1536) versus C-COV(64) collision -1beeca had to break by
+    reading assembly.
+    (D) THE INSTRUMENT HAS HAD ZERO POWER AGAINST IT, BY CONSTRUCTION. Every
+    silent-set measurement in this lane's archive was taken with the ciphertext
+    buffers allocated once, in one way, by one harness -- so the address
+    residue a mod w was FIXED across every probe, every seed, every parameter
+    set and every build. A quantity that is constant across the whole
+    experiment cannot be measured by it. If any archived comparator had an
+    alignment prologue, the measured silent set is an ADDRESS-CONDITIONAL
+    quantity reported as an unconditional one, and the reported deficit could
+    be anything from 0 to w depending on where the allocator happened to put
+    the buffer. This is a null-that-cannot-fail (KN-TECH-1a5b7e mode 1) located
+    in the HARNESS ALLOCATOR -- not in the control arm (IDEA-20260724-001/-002),
+    not in the generator's support law (IDEA-20260821-13b667), not in the
+    scheme's algebra. EV-MLKEM-005's own boundaries clause names the gap
+    without pursuing it: its post-fix null "does not prove comparison
+    correctness for multi-byte, ALIGNMENT, length-dependent, key-dependent,
+    shared-defect, or timing-only classes". Alignment has sat on that list
+    since 2026-07-24 and no proposal has taken it.
+    (E) THE STRUCTURAL TELL, WHICH IS THE WHOLE MEASUREMENT. Inventor protocol
+    section 3: ask what the measured quantity SHOULD do as the parameter meant
+    to be irrelevant is varied. The silent set of a correct comparison must be
+    INVARIANT under the buffer's address, because the address is not an input
+    to the mathematical function being computed. So sweep a over its residues
+    and watch |S|. Invariant means the (implementation, L) -> S model this lane
+    has used throughout is well posed for that comparator. Varying means it is
+    not, and the correct object is S(implementation, L, a mod w) with a forced
+    sawtooth shape this record predicts in advance.
+    (F) AN ARITHMETIC DISCREPANCY IN THE RECORD BEING EXTENDED, REPORTED AND
+    NOT ADJUDICATED. IDEA-20260805-3c957e's published reachable-cell table
+    gives, at w = 512, the row "L mod w = (256, 64, 544)" for
+    L = (768, 1088, 1568). This session's own recomputation gives
+    1568 - 3*512 = 32, not 544, while agreeing with that record at every other
+    tabulated cell (768 mod 512 = 256 and 1088 mod 512 = 64 both reproduce). A
+    residue cannot exceed its modulus, so 544 is not a value of 1568 mod 512
+    under any reading. THIS RECORD REPORTS THE DISCREPANCY AND DOES NOT DECIDE
+    IT: the divergence may be a transcription slip in that record's table, or
+    it may encode a different quantity than the one its column header names.
+    Stage 0's frozen script recomputes the entire table and reports every cell
+    where it differs, per AGENTS.md retrieval discipline -- report the
+    contradiction, do not pick a side. Nothing in this record's own derivation
+    depends on that cell; it is disclosed here because a reader would otherwise
+    meet it as a silent mismatch in the reproduction check.
+    (G) THE DISCRIMINATING QUESTION, WITH TWO REACHABLE ANSWERS. Does any
+    fetchable ML-KEM comparison routine use aligned vector loads with an
+    address-dependent prologue, or do they all use unaligned loads
+    (vmovdqu/vlddqu on x86, plain vld1 on AArch64) and start at offset 0?
+    ALL-UNALIGNED: 3c957e's obstruction is complete on the fetched population,
+    its closure is STRENGTHENED rather than weakened, the lane gains a
+    certified premise it was relying on implicitly, and the archived silent
+    sets are confirmed address-independent -- a clean, valuable negative.
+    ANY-ALIGNED: that implementation's coverage class is reachable at 31 of 32
+    addresses at every parameter set, the strongest closure in this lane does
+    not apply to it, and every archived null taken against it is scoped to one
+    address.
+    (H) WHAT IS NOT CLAIMED. No attack, no oracle, no exploitation path, no
+    attack-cost estimate, no timing/power/EM/cache/fault measurement -- and
+    that last exclusion is worth stating twice, because alignment is
+    conventionally a TIMING topic and this record is not about timing at all:
+    it is about which BYTES a comparison functionally reads. No statement about
+    MLWE hardness or ML-KEM security at any parameter set. No claim that any
+    implementation has an alignment prologue or a defective one. A reachable
+    class is not a present defect and the two are not conflated. Any newly
+    observed conformance defect escalates to the coordinator per RQ-MLKEM-002
+    and is published by no agent.
+
+  mechanism: >-
+    STAGE 0 -- FREEZE THE FORCED DEFICIT TABLE AND RE-DERIVE THE BASELINE, ZERO
+    COMPUTE. Under a frozen script emit, for w in {8, 16, 32, 64} and a mod w
+    in [0, w), the triple (head = (-a) mod w, tail = (L - head) mod w, total)
+    at each of L in {768, 1088, 1568}. Confirm the derived identities:
+    total = w for every a not divisible by w and 0 otherwise, and total
+    independent of L. SEPARATELY recompute IDEA-20260805-3c957e's own published
+    table over w in {8, 16, 32, 64, 128, 256, 512} and the same three lengths,
+    and emit a cell-by-cell diff against the values that record publishes,
+    including the w = 512 row flagged in claim (F). The diff is a REPORTED
+    ARTIFACT of this stage, not a pass/fail gate: agreement at the a = 0 slice
+    on the cells that do agree is the reproduction check this record needs, and
+    any cell where the two disagree is recorded with both values.
+    STAGE 1 -- THE SOURCE AND DISASSEMBLY CENSUS, NO PROBING. For every pinned
+    comparison routine reachable within budget, determine three fields:
+    (i) does the body use ALIGNED vector loads (vmovdqa/vmovaps on x86; an
+    aligned form on AArch64) or UNALIGNED ones (vmovdqu/vlddqu; plain vld1);
+    (ii) is there an address-dependent prologue -- any computation of the form
+    (-ptr) mod w, ptr & (w-1), or a pointer-difference-driven loop bound before
+    the main loop; (iii) at what buffer offset does the main loop's first load
+    occur. Read from source where unambiguous and from disassembly otherwise,
+    reusing IDEA-20260821-121612's frozen v2 extractor rather than reinventing
+    a reader, and reporting AMBIGUOUS or UNMEASURABLE where it cannot decide,
+    exactly as that record requires. A routine with no vector body at all is
+    OUT OF POPULATION by definition, not a pass.
+    STAGE 2 -- THE ADDRESS SWEEP, WHICH IS THE MEASUREMENT. Over-allocate the
+    two comparison buffers by w bytes and place them at base + a for
+    a in [0, w), holding the key, the seed, the parameter set, the mutation
+    schedule and the build byte-identical across the sweep. At each a, run the
+    existing exhaustive single-byte differential probe and record S(a) as an
+    explicit index set. Report the sweep's determinacy (is S(a) constant), and
+    where it is not, the measured (head, tail) split against the Stage-0 forced
+    table. Because the ONLY thing varying is the address, any variation in S is
+    attributable to the address and to nothing else -- which is the property
+    that makes this a controlled measurement rather than a correlation.
+    STAGE 3 -- THE PLANTED LADDER, CALIBRATING BOTH ENDS. Build four planted
+    comparators and run the identical sweep on each:
+      A0 -- unaligned loads, loop from offset 0, complete. FORCED: S empty at
+            every a. The null object.
+      A1 -- aligned loads with a CORRECT prologue and epilogue. FORCED: S empty
+            at every a. This is the arm that separates "has a prologue" from
+            "has a defective prologue", the distinction this record most needs
+            to keep, and it mirrors IDEA-20260821-121612's
+            reachability-versus-defect discipline.
+      A2 -- aligned loads with the prologue OMITTED. FORCED:
+            S = [0, (-a) mod w) at every a, a sawtooth of size (-a) mod w with
+            a PREFIX shape. The must-fire arm.
+      A3 -- aligned loads with the epilogue omitted. FORCED:
+            S = [L - (a mod w), L), a sawtooth of size a mod w with a SUFFIX
+            shape, nonzero for 31 of 32 addresses DESPITE 32 dividing L. This
+            is the arm that exhibits the incompleteness in claim (B) directly.
+    STAGE 4 -- THE SHAPE DISCRIMINATOR. For every nonempty S measured anywhere
+    in Stages 2-3, classify its shape as PREFIX, SUFFIX, SPLIT-PAIR, PERIODIC
+    or OTHER, and report the classification beside the existing taxonomy's
+    forced shapes. The claim under test is that a nonempty PREFIX component is
+    unreachable by C-COV, C-BND and C-RED and therefore identifies the
+    alignment mechanism at a single parameter set and a single address, without
+    the assembly read -1beeca needed to break its own collision. A SUFFIX-only
+    reading does NOT identify it and must be separated by the sweep instead,
+    which is stated here so that the weaker case is not quietly reported as the
+    stronger one.
+    STAGE 5 -- RE-SCOPE, DO NOT RE-READ. Report, for each archived measurement
+    in this lane whose comparator Stage 1 classifies as having an
+    address-dependent prologue, that its silent set is an address-conditional
+    quantity, and name the residue it was taken at if recoverable from the run
+    manifest. Where the comparator is unaligned, report the archived
+    measurement as ADDRESS-INDEPENDENT and therefore unaffected -- which
+    strengthens it. No archived verdict is re-read, no status is proposed, and
+    only the Coordinator may act on either outcome.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep over the repository plus first-hand reads; the crypto-kb MCP index's
+      availability was not re-checked and is not relied on. Grep of ledger
+      (glob *MLKEM*) for `align|vmovdqa|unaligned|alignment`, case-insensitive:
+      inside this lane the ONLY hit is EV-MLKEM-005 line 94, the boundaries
+      clause listing alignment among the classes its null does not cover; every
+      other hit in the repository is from unrelated GOAL-MLKEM lattice-cost
+      records using "aligned" in the statistical sense (k_fft alignment, Gram
+      matrix alignment) and is not about memory alignment at all. NO
+      RQ-MLKEM-002 PROPOSAL MENTIONS ALIGNMENT. Read in full or in their
+      claim/mechanism/object blocks this session: all eleven RQ-MLKEM-002
+      proposals, RQ-MLKEM-002, RQ-MLKEM-001, RQ-MLKEM-003, EV-MLKEM-005 (full),
+      RUN-MLKEM-007 summary.json (full). No web retrieval was performed for
+      this record.
+    results: >-
+      IDEA-20260805-3c957e derives the deficit as L mod w and enumerates
+      reachable cells over (w, parameter set); its object is explicitly "the
+      residue L mod w -- the number of trailing ciphertext bytes left unconsumed
+      by a w-byte-strided vector body", i.e. a TAIL quantity, and neither it nor
+      any successor considers a head. IDEA-20260821-121612 measures whether the
+      stride is well defined across TOOLCHAIN cells at a fixed call site and a
+      fixed buffer, and its declared limitations name LTO and call-site
+      specialization but not the buffer address; IDEA-20260828-033cb3 extends
+      that to call sites, again at fixed buffers. IDEA-20260805-1beeca
+      enumerates the forced SHAPES of the taxonomy (suffix for C-BND and C-COV,
+      periodic for C-RED) and never encounters a prefix. EV-MLKEM-005 names
+      alignment as untested and stops. Outside the repository, aligned-load
+      prologues are a standard SIMD idiom and alignment is a standard topic in
+      constant-time analysis, almost always for TIMING; no search was performed
+      for prior work treating an alignment prologue as a FUNCTIONAL coverage
+      question, and no external novelty is claimed.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: identifying the
+      unstated offset-0 premise in the lane's strongest closure; the corrected
+      closed form head = (-a) mod w, tail = a mod w with total exactly w for
+      every misaligned address and independent of L; the observation that this
+      reopens the coverage class at parameter sets where 3c957e reports it
+      unreachable at every tabulated stride; the PREFIX shape as a
+      taxonomy-separating signature; the identification of the harness
+      allocator as a fixed nuisance parameter that gave every archived
+      measurement zero power against this class; and the reported w = 512
+      arithmetic discrepancy in the record being extended. ASSEMBLED FROM KNOWN
+      PARTS: the residue arithmetic is 3c957e's, evaluated at a second
+      argument; the shape-identifies-mechanism idea is -1beeca's and -ee2018's;
+      the frozen extractor is 121612's; the ld --wrap instrument discipline is
+      EV-MLKEM-010's; the naming of alignment as untested is EV-MLKEM-005's.
+
+  object_first_candidate:
+    tracked_object: >-
+      S(impl, L, a mod w), the silent set as a function of the BUFFER ADDRESS
+      RESIDUE, together with the derived pair (head, tail) and the shape
+      classification of S. The tracked quantity is the residue a mod w -- a
+      property of the caller's allocation, not of the routine, not of the
+      standard and not of the parameter set.
+      ESTABLISHED FAMILIES DECLARED OFF-LIMITS as the primary lens per
+      inventor-protocol section 1: (a) the silent set at a FIXED address, in
+      every phrasing -- its size, profile across parameter sets, period and
+      suffix shape (IDEA-20260805-1beeca, -ee2018); (b) the length residue
+      L mod w as the sole deficit (IDEA-20260805-3c957e), which is here
+      EXTENDED rather than restated; (c) toolchain and call-site variation of
+      the compiled stride (IDEA-20260821-121612, IDEA-20260828-033cb3), a
+      different nuisance axis entirely; (d) the generator's support law
+      (IDEA-20260821-13b667); (e) downstream primitives
+      (IDEA-20260828-40db79, -edec21); (f) control-arm wiring
+      (IDEA-20260724-001, -002); (g) every cryptanalytic and physical
+      side-channel lens, and TIMING in particular, excluded by RQ-MLKEM-002.
+    lossiness: >-
+      Genuinely lossy and compatible with the operation of interest. The full
+      state at a comparison call is (the two buffers' full contents, their
+      addresses, the length, the routine's entire instruction stream). The
+      projection retains only the address RESIDUE a mod w and the resulting
+      byte-coverage set, discarding the absolute address, the page mapping, the
+      allocator's identity, both buffers' contents, and the instruction stream.
+      The fibre is enormous and non-singleton: every address in the same
+      residue class -- across every allocation, every run and every process --
+      maps to one point, and a prologue written with a pointer mask maps to the
+      same point as one written with a modular subtraction. It is not a change
+      of coordinates: the address is not recoverable from its residue, and the
+      routine is not recoverable from its coverage set (the same fibre argument
+      IDEA-20260821-121612 established for coverage sets generally).
+      COMPATIBILITY: the coverage set of an alignment-prologue comparator
+      depends on the address ONLY through a mod w, because the prologue's trip
+      count is exactly (-a) mod w; so the retained part determines the operation
+      and propagates deterministically. It fails to propagate for a routine
+      whose prologue trip count depends on something else -- a runtime CPU
+      dispatch, a length threshold, a page-crossing check -- and that failure is
+      declared in advance and reported as OUT OF DOMAIN rather than
+      approximated.
+    propagation: >-
+      One step of the operation of interest is "compare two buffers based at
+      address a with length L". The propagation law is closed form:
+      head(a) = (-a) mod w, blocks = floor((L - head)/w),
+      tail(a) = (L - head) mod w, and under 32 dividing L and w dividing 32,
+      tail(a) = a mod w and head + tail = w whenever a is not congruent to 0
+      mod w. The coverage deficit is the union of whichever of the two paths is
+      absent or mis-bounded, and it is a SAWTOOTH in a with period w -- a
+      functional form no other member of the taxonomy has, since C-COV and
+      C-BND are constant in a and C-RED is constant in a.
+    survival_score: >-
+      Survives two steps and stops at a declared boundary. Step 1, "what is the
+      prologue's trip count at this address": survives exactly, by the modular
+      identity. Step 2, "which byte positions are therefore uncovered":
+      survives, and gives the sawtooth with its prefix/suffix split. Step 3,
+      "does an implementation's caller ever produce a misaligned buffer in
+      practice": DIES here deliberately -- it depends on the application's
+      allocator, on struct layout, on stack frame alignment and on whether the
+      ciphertext arrives inside a larger network buffer, none of which this
+      record measures or speculates about. The record measures whether the
+      class is REACHABLE as a function of address, not how addresses are
+      distributed in the field.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-3c957e derives the deficit as L mod w and closes the class
+      for w dividing 32. This record does not restate that derivation, does not
+      contradict it, and reproduces it as the a = 0 slice. What it adds is the
+      second argument the original does not carry, and the consequence that the
+      closure's scope is "comparators whose block loop starts at offset 0"
+      rather than "comparators with w dividing 32". That is a strictly sharper
+      statement of an existing result, credited as such, plus one reported
+      arithmetic discrepancy in that record's published table.
+    - >-
+      IDEA-20260821-121612 asks whether the compiled STRIDE is well defined
+      across toolchain configurations at a fixed call site and buffer;
+      IDEA-20260828-033cb3 asks whether it is constant across CALL SITES at a
+      fixed toolchain. This record holds toolchain, call site and source fixed
+      and varies only the BUFFER ADDRESS -- a third, orthogonal nuisance axis
+      neither record names. Its extractor is reused as a tool; its questions
+      are not repeated.
+    - >-
+      IDEA-20260805-1beeca establishes that the archived (0, 0, 32) profile is
+      reproduced by two mechanisms and must be broken by reading assembly. This
+      record supplies a shape -- a nonempty PREFIX -- that no member of that
+      taxonomy can produce, so where a prefix appears the alignment mechanism
+      is separable from all of them WITHOUT an assembly read. Where only a
+      suffix appears the collision persists and is broken by the sweep instead.
+      That is a complementary result about the same observable, not a
+      restatement of the collision.
+    - >-
+      Alignment is conventionally studied as a TIMING and cache phenomenon.
+      This record measures which BYTES are functionally compared and never
+      measures a duration; RQ-MLKEM-002 forbids timing measurement and none is
+      proposed, taken, or needed.
+    - >-
+      RQ-MLKEM-001's key-mutation census and RQ-MLKEM-003's cost-model work
+      share no object with this record; the buffer address is not a
+      cryptanalytic or a cost quantity.
+
+  citations:
+    - ref: IDEA-20260805-3c957e
+      provenance: internal
+      claim: >-
+        L = 32*(du*k + dv) hence 32 divides every FIPS 203 ciphertext length;
+        the deficit written as L mod w; the conclusion that the coverage class
+        is "ARITHMETICALLY UNREACHABLE for w in {1, 2, 4, 8, 16, 32}"; and the
+        published table over w in {8, 16, 32, 64, 128, 256, 512} at
+        L = (768, 1088, 1568), whose rows are (0,0,0) for w in {8,16,32},
+        (0,0,32) at w = 64, (0,64,32) at w = 128 and at w = 256, and
+        (256,64,544) at w = 512. Read (claim, object, mechanism sections 1-4)
+        this session. This record extends that closed form with a second
+        argument, reproduces its a = 0 slice, and reports the w = 512 cell
+        discrepancy described in claim (F) without adjudicating it.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-130)
+    - ref: EV-MLKEM-005
+      provenance: internal
+      claim: >-
+        The boundaries clause: the post-fix zero-disagreement null "does not
+        prove comparison correctness for multi-byte, alignment,
+        length-dependent, key-dependent, shared-defect, or timing-only
+        classes". Also the archived pre-fix AVX2 silent set {1536..1567}, the
+        NEON cardinalities 384/544/784, and the post-fix zeros. Read in full
+        this session. Relied on for the fact that alignment is named as
+        untested by this lane's founding evidence record.
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: IDEA-20260805-1beeca
+      provenance: internal
+      claim: >-
+        The forced shapes of the taxonomy -- C-BND(N) gives the top L - N
+        indices, C-COV(w) gives the top L mod w indices, C-RED(phi) gives a
+        periodic lane-indexed set -- and the (0, 0, 32) identifiability
+        collision between C-BND(1536) and C-COV(64). Read (claim, object,
+        mechanism sections 1-3) this session. Relied on for the claim that no
+        existing class produces a nonempty prefix.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-130)
+    - ref: IDEA-20260821-121612
+      provenance: internal
+      claim: >-
+        The frozen v2 unroll-normalized memory-operand-based stride extractor,
+        the static coverage-set definition, the reachability-versus-defect
+        distinction ("a stride that fails to divide 32 makes a defect class
+        REACHABLE, it does not make a defect present"), and the AMBIGUOUS /
+        UNMEASURABLE reporting discipline. Read (revision notice and claim
+        sections A-E) this session. Its extractor is reused in Stage 1 rather
+        than reinvented.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-80)
+    - ref: EV-MLKEM-010
+      provenance: recalled
+      claim: >-
+        GNU ld `--wrap` on linux/amd64 is the admitted library-path
+        interposition instrument for this class of measurement, with
+        wrap_call_counts attestation; call-site macro interposition is refuted
+        by EV-MLKEM-009. RECALLED VIA ITS QUOTATION IN IDEA-20260805-ee2018,
+        IDEA-20260821-13b667 and IDEA-20260828-40db79, all read this session;
+        the evidence record itself was NOT opened this session.
+      verified_by: null
+    - ref: knowledge/techniques/KN-TECH-1a5b7e.md
+      provenance: recalled
+      claim: >-
+        Null sufficiency, mode 1 ("the null that cannot fail"), mode 4 (the
+        decision rule that cannot discriminate) and the null-first discipline.
+        RECALLED VIA ITS QUOTATION IN IDEA-20260821-13b667 AND
+        IDEA-20260828-40db79, both read this session; the technique file itself
+        was NOT opened this session.
+      verified_by: null
+
+  assumptions:
+    - >-
+      A comparison routine's prologue trip count, where one exists, is
+      (-ptr) mod w for its own w. Where a routine instead dispatches on length,
+      on a page-crossing test, or on a runtime CPU feature, the cell is
+      reported OUT OF DOMAIN rather than assigned a sawtooth.
+    - >-
+      Both compared buffers can be placed at controlled offsets. Where an
+      implementation copies one operand into an internally aligned scratch
+      buffer before comparing, only the caller-controlled operand's residue is
+      variable and the record says so per cell rather than reporting a sweep it
+      did not achieve.
+    - >-
+      The build, key, seed, parameter set and mutation schedule are held
+      byte-identical across a sweep, so that address is the only varying input.
+      This is checked by re-running a = 0 at the end of each sweep and
+      confirming S reproduces its first measurement exactly.
+    - >-
+      No conclusion transfers beyond the pinned commits, toolchains,
+      allocators and implementations actually read or built.
+
+  proof_search_map:
+    bottleneck: >-
+      The step from "this routine uses aligned loads" to "and therefore its
+      coverage deficit is a nonzero function of the buffer address at ML-KEM
+      lengths". The general arithmetic is unconditional; whether any given
+      routine instantiates it is a per-implementation fact checked in Stage 1
+      and measured in Stage 2, never assumed.
+    baseline_embedding:
+      parameter_slice: >-
+        At a = 0 the corrected law gives head = 0 and tail = L mod w, which is
+        IDEA-20260805-3c957e's published formula exactly. The proposal is
+        therefore a strict family extension along one previously fixed
+        argument, with the prior result as an exact boundary case rather than a
+        rival.
+      reproduction_check: >-
+        Recompute the a = 0 column under the frozen Stage-0 script and diff it
+        cell by cell against 3c957e's published table before any candidate is
+        read. Expected: agreement at every cell except the w = 512 entry at
+        L = 1568 flagged in claim (F), where this session's recomputation gives
+        32 against that record's 544. Both values are reported; neither is
+        adjudicated; and no conclusion of this record depends on that cell,
+        since w = 512 is far outside the stride range where the alignment
+        mechanism is being censused. Any ADDITIONAL disagreement would indict
+        this record's script and halt the stage.
+    observation_collision:
+      observable: >-
+        The silent set S measured at one buffer address.
+      distinct_preimage_search: >-
+        At a single address the alignment mechanism can collide with the
+        existing taxonomy: an omitted epilogue at a mod w = r produces the
+        suffix [L - r, L), which is EXACTLY the observable of C-COV(w') with
+        L mod w' = r or of C-BND(L - r). All three are indistinguishable from
+        one measurement -- a direct extension of -1beeca's collision to a third
+        preimage that record did not enumerate. The separating condition is the
+        SWEEP: C-COV and C-BND are constant in a and the alignment mechanism is
+        a sawtooth in a, so two measurements at addresses differing by one byte
+        separate them where any number of measurements at one address cannot.
+        The prefix component, where a prologue rather than an epilogue is
+        omitted, separates them in a single measurement because no existing
+        class produces a prefix at all.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          The deficit function extended from L mod w to the pair
+          ((-a) mod w, (L - ((-a) mod w)) mod w), enlarging the family of
+          deficits the lane's arithmetic can express.
+        predicted_gain: >-
+          A strict inward improvement rather than mere feasibility: the
+          enlarged family contains the old one as its a = 0 slice, and its
+          nonzero region covers 31 of 32 addresses at w = 32 at every parameter
+          set -- including the nine tabulated cells with w dividing 32, all of
+          which the old family reports empty at every parameter set.
+      - transform: observable_fiber
+        proposed_object: >-
+          S held fixed at a given suffix while the forgotten structure -- the
+          buffer address -- is varied.
+        predicted_gain: >-
+          Separates an alignment epilogue deficit from C-COV and C-BND, which
+          are invariant under the varied structure, at a cost of one extra
+          measurement.
+    quantifier_order: >-
+      The arithmetic is universal and unconditional: FOR ALL w, FOR ALL a, FOR
+      ALL L divisible by w, head + tail = w exactly when a is not divisible by
+      w. No witness depends on the implementation. The reachability claim is
+      existential and per-implementation: FOR the routine of implementation I,
+      THERE EXISTS an address at which its coverage deficit is nonempty --
+      checked by the Stage-1 census and the Stage-2 sweep, never asserted
+      uniformly, and FALSE by construction for any routine using only unaligned
+      loads from offset 0.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For a stated, finite set of pinned routines that were read and built,
+        this method certifies whether the measured silent set depends on the
+        buffer address and, where it does, whether the dependence matches the
+        forced sawtooth. It does NOT certify that an address-independent
+        routine is otherwise correct, does not establish that any application
+        ever presents a misaligned buffer, and says nothing about routines not
+        fetched.
+      nearby_object_control: >-
+        Arm A1 -- aligned loads with a CORRECT prologue and epilogue -- is the
+        nearby object on which the hoped-for conclusion must FAIL. It has every
+        structural feature the method keys on (aligned loads, an
+        address-dependent prologue, a nonzero trip count that varies with a)
+        and it has no defect. The method must report S empty at every address
+        for it. A method that flags A1 has learned to detect the IDIOM rather
+        than the DEFECT, which is exactly the reachability-versus-presence
+        conflation IDEA-20260821-121612 warns against, and the arm exists to
+        catch it.
+    proof_obligations:
+      - claim: head plus tail equals w for every misaligned a when w divides L.
+        responsibility: correctness
+      - claim: The a = 0 slice reproduces 3c957e's published table except at the disclosed w = 512 cell.
+        responsibility: baseline
+      - claim: No member of C-COV, C-BND or C-RED produces a nonempty proper prefix.
+        responsibility: strictness
+      - claim: The sweep varies address and nothing else, verified by re-running a = 0.
+        responsibility: interface
+      - claim: Nothing transfers to routines not read or built, nor to any field allocator.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        baseline_reproduction_mismatches: cells where the Stage-0 table's a = 0
+        column differs from IDEA-20260805-3c957e's published table, over the 21
+        cells given by 7 tabulated strides and 3 parameter sets
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 1, namely the disclosed w = 512 cell at L = 1568 where this
+        session computes 32 against that record's 544. Zero mismatches would
+        mean this session's own recomputation of 1568 mod 512 is wrong and the
+        script is indicted; two or more mismatches means a further disagreement
+        exists that this record failed to disclose, and the stage halts until
+        both values are reported.
+    - metric: >-
+        A2_prefix_profile: on the planted arm with the prologue omitted, the
+        measured |S| as a function of a, and the shape of S
+      direction: different
+      minimum_effect: >-
+        EXACTLY (-a) mod w at every a in [0, w), with no tolerance, and the
+        shape must be PREFIX at every nonzero value. This is the must-fire arm;
+        if the harness cannot see a prologue deficit it is constructed to see,
+        no null anywhere in this record is interpretable.
+    - metric: >-
+        A3_suffix_profile: on the planted arm with the epilogue omitted, |S| as
+        a function of a at L in {768, 1088, 1568}
+      direction: higher
+      minimum_effect: >-
+        EXACTLY a mod w at every a, hence nonzero at 31 of 32 addresses at
+        w = 32 and IDENTICAL at all three parameter sets. The
+        parameter-set-independence is the sharp part: 3c957e's law predicts 0
+        at all three for w = 32, so a nonzero and L-independent profile here is
+        the direct demonstration that the closure's premise was doing work.
+    - metric: >-
+        A1_false_positive: |S| on the planted arm with a correct prologue and
+        epilogue, at every address
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 at every a, with no tolerance. A nonzero value means the
+        method flags the idiom rather than the defect and every positive
+        elsewhere is void.
+    - metric: >-
+        A0_null: |S| on the unaligned complete comparator at every address
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 at every a. If the instrument reports a silent index for a
+        comparator complete by construction it is broken and no negative may be
+        reported, per IDEA-20260805-ee2018's own null discipline.
+    - metric: >-
+        census_aligned_count: over every fetched routine with a vector body,
+        the number using aligned loads with an address-dependent prologue
+      direction: different
+      minimum_effect: >-
+        No number is predicted and the refusal is deliberate: this is the
+        record's discriminator. Zero means 3c957e's closure is complete on the
+        fetched population and its implicit premise is now a certified one -- a
+        clean strengthening of the lane's strongest result. Any nonzero count
+        names the routines at which the coverage class is reachable at 31 of 32
+        addresses despite 32 dividing L, and those routines' archived nulls are
+        re-scoped to one address.
+    - metric: >-
+        sweep_determinacy: over every real routine swept, the fraction of
+        addresses at which S equals S(a = 0)
+      direction: different
+      minimum_effect: >-
+        1.0 means the (impl, L) -> S model this lane has used throughout is
+        well posed for that routine and every archived silent set for it is
+        unconditional. Below 1.0 means the model is under-specified and the
+        record names the exact residues at which it fails.
+
+  minimal_test:
+    design: >-
+      STAGE 0 IS FREE AND ALREADY DECIDES THE THEORY QUESTION: the corrected
+      closed form, plus its a = 0 reproduction diff against 3c957e's published
+      table, is one page of modular arithmetic under a frozen script -- no
+      build, no library, minutes. It establishes, or refutes, the claim that the
+      lane's strongest closure has an unstated premise, and it settles the
+      disclosed w = 512 discrepancy into a reported pair of values rather than
+      an ambush. STAGE 3's planted ladder is the cheapest MEASURED
+      discriminator: four small standalone comparators, each swept over w = 32
+      addresses at one parameter set, is under an hour of build time and
+      seconds of compute, and it establishes whether the sweep instrument can
+      see the sawtooth at all. Only then are Stage 1's census (bounded by fetch
+      budget, reading only) and Stage 2's sweep on real libraries (bounded by
+      build budget; probe cost is 32 addresses times the existing exhaustive
+      single-byte suite, i.e. 32 * 255 * L probes, about 1.3 x 10^7 at
+      ML-KEM-1024, seconds of comparison work) worth spending. All
+      library-facing measurement uses the GNU ld --wrap interposition admitted
+      by EV-MLKEM-010 with wrap_call_counts attestation, never the call-site
+      macro method refuted by EV-MLKEM-009.
+    controls:
+      - >-
+        NULL OBJECT (A0), FORCED AND ABLE TO FAIL: an unaligned complete
+        comparator, forced S empty at every address. A silent index here means
+        the instrument is broken.
+      - >-
+        MUST-FIRE ARM (A2): prologue omitted, forced S = [0, (-a) mod w) with
+        PREFIX shape at every nonzero residue.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE CONCLUSION MUST FAIL (A1): aligned
+        loads with a correct prologue and epilogue -- every structural feature
+        of the mechanism and no defect. Forced S empty at every address.
+      - >-
+        THE PARAMETER-SET INVARIANCE ARM (A3 across all three L): the deficit
+        must be identical at 768, 1088 and 1568, because it depends on a and
+        not on L. Any dependence on L means the mechanism measured is C-COV in
+        disguise, not alignment.
+      - >-
+        RETURN-TO-ZERO CONTROL: each sweep re-runs a = 0 at the end and must
+        reproduce its own first measurement exactly, proving the address was
+        the only varying input and no drift entered the harness.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE METHOD MUST REPORT OUT OF POPULATION:
+        a purely scalar byte-at-a-time comparator, which has no vector body and
+        no alignment prologue. The predicate must report OUT OF POPULATION,
+        never "address-independent pass", mirroring IDEA-20260805-ee2018's
+        identical control for C-RED.
+      - >-
+        ORDERING CONTROL: the Stage-0 forced table, the baseline diff and the
+        four planted arms' forced sawtooths are committed and hashed before any
+        real routine is read or swept.
+      - >-
+        ARCHIVE CHECK (zero compute): recover, from each archived run manifest
+        where possible, the allocation method used for the ciphertext buffers,
+        and report whether the address residue is recoverable at all. Where it
+        is not, say so; that is itself the finding that the archived
+        measurements do not record a parameter they were conditional on.
+    required_metrics:
+      - the Stage-0 (w, a, L) -> (head, tail, total) table with script and hash
+      - the cell-by-cell a = 0 diff against 3c957e's published table, with both values at every disagreement
+      - per-planted-arm measured |S| and shape at every address, beside the forced sawtooth
+      - per-routine census tuple (aligned loads?, address-dependent prologue?, first-load offset, source or disassembly excerpt)
+      - per-routine sweep determinacy and, where below 1.0, the measured (head, tail) split at each residue
+      - the shape classification of every nonempty S measured
+      - the list of routines reported OUT OF POPULATION, AMBIGUOUS or UNMEASURABLE, with reasons
+      - return-to-zero reproduction check per sweep
+      - wrap_call_counts per library-facing run; every build configuration and pinned commit
+
+  falsification_conditions:
+    - >-
+      The Stage-0 a = 0 column disagrees with IDEA-20260805-3c957e's published
+      table at any cell OTHER than the disclosed w = 512 entry at L = 1568.
+      This record's arithmetic is wrong somewhere it did not disclose and the
+      stage halts before any measurement.
+    - >-
+      The Stage-0 recomputation reproduces 544 at w = 512, L = 1568. This
+      session's own arithmetic in claim (F) is wrong, the discrepancy report is
+      withdrawn, and the reader is owed the correction.
+    - >-
+      The A2 must-fire arm does not produce the forced prefix sawtooth. The
+      harness cannot see a prologue deficit it is constructed to see and no
+      reading anywhere in this record is interpretable.
+    - >-
+      The A1 correct-prologue arm shows any silent index. The method flags the
+      idiom rather than the defect; every positive is void until repaired.
+    - >-
+      The A3 arm's deficit varies with L. The mechanism measured is not
+      alignment and the corrected law is wrong.
+    - >-
+      A real routine's sweep determinacy is 1.0 everywhere and the census finds
+      no aligned-load prologue anywhere. The class is absent on the fetched
+      population, 3c957e's closure is complete there, and its implicit premise
+      becomes a certified one. This is a NEGATIVE and it is a first-class
+      deliverable of this record, not a failure of it.
+    - >-
+      A real routine is found with an address-dependent prologue AND a nonempty
+      silent set at some address. The coverage class is reachable and present
+      there; this is a live, escalable conformance finding under RQ-MLKEM-002,
+      reported to the coordinator and published by no agent.
+    - >-
+      Buffers cannot be placed at controlled offsets for a majority of censused
+      implementations. The sweep is not executable as designed for those cells
+      and they are reported UNMEASURABLE rather than patched after the fact.
+    - >-
+      Build or fetch failures. INFRASTRUCTURE outcome under AGENTS.md rule 3,
+      never negative evidence about any implementation; Stage 0 and the planted
+      ladder still complete.
+
+  confounders:
+    - >-
+      THE ALLOCATOR MAY NOT COOPERATE. malloc typically returns 16-byte-aligned
+      pointers, so a naive sweep may only reach residues that are multiples of
+      16 unless the buffers are placed by hand inside an over-allocated region.
+      The design over-allocates and places explicitly for exactly this reason,
+      and any cell where the requested residue could not be achieved is
+      reported as not achieved rather than silently skipped.
+    - >-
+      AN INTERNAL COPY DEFEATS THE SWEEP. A routine that copies an operand into
+      an aligned scratch buffer before comparing is address-independent by
+      construction, and reporting it as a pass is correct but says nothing
+      about the alignment mechanism. Such routines are reported as
+      COPY-NORMALIZED, a third category beside pass and fail.
+    - >-
+      REACHABILITY IS NOT PRESENCE, AND PRESENCE IS NOT EXPOSURE. An
+      address-dependent prologue makes the class reachable; a defective
+      prologue makes it present; whether any real caller ever supplies a
+      misaligned ciphertext buffer is a third question about applications that
+      this record does not measure and does not speculate about.
+    - >-
+      TIMING IS NOT THE SUBJECT AND MUST NOT BE MEASURED. Alignment's usual
+      cryptographic significance is timing, and RQ-MLKEM-002 forbids timing,
+      power, EM, cache and fault measurement. Every metric here is a set of
+      byte indices; no duration is recorded, and an executor tempted to record
+      one is out of scope.
+    - >-
+      COMPILER-CHOSEN ALIGNMENT STRATEGY IS A TOOLCHAIN FACT. An
+      auto-vectorised loop's prologue is emitted by the compiler under a
+      semantics-preservation obligation and is therefore NOT a member of the
+      hand-written-defect class, exactly as IDEA-20260821-121612 argued for
+      compiler epilogues. A nonzero deficit in an auto-vectorised body is a
+      statement about the vectoriser, and the census records whether the
+      prologue is hand-written or compiler-generated for every cell.
+    - >-
+      A NULL CENSUS IS THE LIKELY OUTCOME. Cryptographic comparison code
+      overwhelmingly uses unaligned loads precisely to avoid caller-alignment
+      assumptions. A clean census is the expected deliverable and is worth
+      having as a certified premise for 3c957e's closure; it must not be
+      dressed up as more.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT ANY
+      PARAMETER SET, AND NOT A TIMING RESULT. RQ-MLKEM-002's constraints bind
+      unchanged; any newly observed conformance defect escalates to the
+      coordinator and is published by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for any hypothesis, or
+      for any archived evidence or decision record. Re-scoping an archived
+      measurement as address-conditional is a statement about what it measured,
+      not a re-reading of its verdict, and only the Coordinator may act on it.
+    - >-
+      This record does not claim IDEA-20260805-3c957e is wrong. Its formula is
+      reproduced as the a = 0 slice. What is claimed is that its scope is
+      narrower than its phrasing suggests, and the corrected phrasing is
+      supplied. The separately disclosed w = 512 arithmetic discrepancy is
+      reported as an unresolved difference between two computations, is not
+      load-bearing for anything here, and is not presented as a defect in that
+      record's conclusion.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. Address sweeps over
+      laboratory builds at three standardized ciphertext lengths are never
+      crypto-scale or MLWE evidence.
+    - >-
+      The remaining classes EV-MLKEM-005 names as untested -- multi-byte,
+      length-dependent, key-dependent and shared-defect -- are untouched by
+      this record and remain open. Premature closure is a failure mode
+      symmetric with overclaiming.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        ALIGNMENT PROLOGUE TRIP COUNT. FOR ALL comparison routines that bring a
+        pointer to a w-byte boundary before entering a w-byte-strided aligned
+        block loop, and FOR ALL base addresses a, the prologue processes exactly
+        (-a) mod w bytes, the block loop processes exactly
+        w * floor((L - ((-a) mod w))/w) bytes, and the epilogue processes
+        exactly (L - ((-a) mod w)) mod w bytes; consequently, when w divides L,
+        head + tail equals w for every a not divisible by w and 0 otherwise,
+        independently of L.
+      rigorous_support: >-
+        Not a distributional heuristic; a rigorous modular-arithmetic identity
+        about loop trip counts under the stated decomposition, and the exact
+        analogue of IDEA-20260805-3c957e's own H1 for a remainder loop,
+        evaluated at a second argument. It imitates no classical distribution
+        theorem and is not presented as one. Its precondition is that the
+        prologue's bound is the alignment residue and nothing else; where a
+        routine bounds the prologue by a length threshold, a page-crossing
+        test, or a runtime dispatch, H1 does not apply and the method reports
+        OUT OF DOMAIN rather than a wrong number.
+      validation_plan: >-
+        Validated exhaustively rather than sampled, because the domain is
+        small: for each of the four planted arms, instrument the prologue and
+        epilogue trip counts directly and compare against the forced values at
+        ALL 32 residues of w = 32 and all three parameter sets -- 96 cells per
+        arm, 384 cells over the ladder, each a single comparison call,
+        milliseconds. The prediction is exact equality with zero tolerance, so
+        the comparison distribution is degenerate and the tail check is simply
+        that the maximum absolute deviation over all cells is 0. On real
+        routines, cross-check the measured |S(a)| sawtooth against the same
+        forced values and report per-cell residuals; a residual anywhere on a
+        real routine localises a prologue whose bound is not the alignment
+        residue, and that cell is reclassified OUT OF DOMAIN rather than fitted.
+    - id: H2
+      statement: >-
+        SHAPE EXCLUSIVITY. FOR ALL members of the lane's existing taxonomy --
+        C-BND(N) with silent set [N, L), C-COV(w) with silent set
+        [w*floor(L/w), L), and C-RED(phi, p) with silent set a union of residue
+        classes modulo p -- the silent set contains no nonempty proper initial
+        segment [0, r) with 0 < r < L; consequently a measured nonempty PREFIX
+        component identifies a mechanism outside that taxonomy.
+      rigorous_support: >-
+        Rigorous by direct inspection of the three forced shapes, all of which
+        are already committed in IDEA-20260805-1beeca and IDEA-20260805-ee2018
+        and are quoted rather than re-derived here: two are top-of-buffer
+        suffixes by construction, and a periodic residue-class set contains
+        index 0 only if it contains every index congruent to 0 modulo p, which
+        makes it periodic rather than an initial segment. The argument is only
+        as complete as the taxonomy is, and the taxonomy is NOT proven
+        exhaustive -- IDEA-20260821-13b667 says so explicitly -- so H2 excludes
+        the named classes and not all possible ones, which is stated rather
+        than glossed.
+      validation_plan: >-
+        Enumerate exhaustively over the finite grids the lane already uses:
+        N in [1, L], w in {1,...,512}, and (phi, p) with p in {8,...,128} and
+        phi a dyadic fraction, at each of L in {768, 1088, 1568}, and confirm
+        that no member's silent set is a nonempty proper initial segment. That
+        is a few hundred thousand set constructions, seconds of compute, and it
+        either holds with zero exceptions or names the exception, in which case
+        the prefix signature is not exclusive and this record's
+        single-measurement separation claim is withdrawn in favour of the sweep
+        alone.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- no exponent is moved and no attack is proposed; RQ-MLKEM-002
+      forbids attack-cost estimation. Stated plainly. The deliverable is a
+      corrected closed form plus a bounded census and sweep, not an asymptotic
+      result.
+    memory_exponent: n/a
+    best_known: >-
+      n/a -- the nearest competing statement inside this repository is
+      IDEA-20260805-3c957e's L mod w closure, which this record extends and
+      reproduces as a boundary case rather than competing with. No external
+      search was performed.
+    hidden_overhead: >-
+      n/a. The sweep multiplies an existing exhaustive probe suite by w = 32
+      addresses, giving about 32 * 255 * 1568 = 1.28 x 10^7 single-byte probes
+      per routine per parameter set, each a small constant-time comparison --
+      seconds of compute. Nothing hides in an o(1) and there is no
+      superpolynomial term.
+    tradeoff_note: >-
+      The one real cost note is that the address sweep is a factor of w on
+      probe budget and is embarrassingly parallel across addresses, since the
+      arms are independent. A coarse sweep over a subset of residues recovers
+      most of the discriminating power at proportionally lower cost but cannot
+      resolve the sawtooth's fine structure, and any coarse sweep must say
+      which residues it did not visit.
+
+  dominated_by: >-
+    n/a (no result claimed as an algorithm; no time, memory or data/query cost,
+    hence no Pareto point). Rows checked inside this repository on 2026-08-29
+    for a prior treatment of buffer alignment as a coverage question: all
+    eleven filed RQ-MLKEM-002 proposals, read in full or in their
+    claim/mechanism/object blocks; RQ-MLKEM-001 and RQ-MLKEM-003 in full;
+    EV-MLKEM-005 in full, which names alignment as untested and is the closest
+    row in the corpus; RUN-MLKEM-007 summary.json in full; and a
+    case-insensitive grep of the entire ledger for alignment vocabulary, whose
+    only in-lane hit is that same clause. IDEA-20260805-3c957e is the row this
+    record extends and it does not dominate, because it does not measure this
+    quantity at any cost -- its formula is the a = 0 slice of the one derived
+    here. NO EXTERNAL SEARCH was performed and no external novelty is claimed.
+  sota_delta: >-
+    No attack; measurement and theory-correction contribution only.
+    Quantitatively, over IDEA-20260805-3c957e's published grid of 21 cells
+    (7 tabulated strides by 3 parameter sets), 13 cells carry an empty deficit
+    under its law and 8 carry a nonempty one; of the 13 empty cells, 9 are
+    exactly the w in {8, 16, 32} rows the record identifies as covering
+    "essentially every portable, SSE and AVX2 comparison in circulation". Under
+    the corrected law all 13 empty cells are reopened for any routine with an
+    address-dependent prologue -- at 31 of every 32 addresses when w = 32, at
+    all three parameter sets rather than one, and with a deficit that does not
+    depend on L at all. So the closure's reach goes from 13 of 21 cells
+    unconditionally to 13 of 21 cells CONDITIONAL on a premise (the block loop
+    starts at buffer offset 0) that was never stated and has never been checked
+    against any implementation. The cost of checking the premise is one page of
+    arithmetic plus a source census; the cost of measuring it is a factor of 32
+    on an existing probe suite. This record additionally reports one arithmetic
+    disagreement with that table's w = 512 row (32 versus 544 at L = 1568),
+    disclosed rather than adjudicated.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

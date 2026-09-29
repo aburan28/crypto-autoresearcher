@@ -1,5 +1,29 @@
 # CLAUDE.md
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 Claude Code **runtime binding** for the autonomous, reproducible ECDLP
 research program. The program itself is runtime-neutral: the binding
 inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
@@ -10,26 +34,42 @@ Code specifically.
 
 ## Harness layout
 
-- **Subagents** (`.claude/agents/`): five roles — `coordinator`,
-  `idea-generator`, `executor`, `validator`, `red-team` — plus three
-  **policy-tier variants** of them: `executor-mechanical`,
+- **Subagents** (`.claude/agents/`): six roles — `coordinator`,
+  `idea-generator`, `executor`, `validator`, `red-team`, `consolidator` —
+  plus three **policy-tier variants** of them: `executor-mechanical`,
   `validator-breakthrough`, `red-team-breakthrough`. These are the operational
   versions of the role contracts in `agents/*.md`. Research work is done BY
   these subagents; the top-level session orchestrates and talks to the user.
   Which one runs a queued task is decided by its (`role`, `inference.policy`)
-  pair — see `/launch-research-harness` step 6 and the effort table under
+  pair — see the canonical harness lifecycle and the effort table under
   "Model policy note".
-- **Skills** (`.claude/skills/`), one per lifecycle stage:
+- **Public execution entry point**: `/run` executes existing experiments and
+  reports their outputs. It adds no preflight, ledger/schema/protocol-validation
+  phase, preparation workflow, PR, or review cycle. Use the existing launcher;
+  its built-in ownership, resource, and output checks still apply. This routing
+  supersedes older lifecycle directions for plain run requests.
+- **Public coordination entry point**: `/coordinate` ranks work, opens
+  batches, approves complete protocols, dispatches non-execution tasks,
+  archives, and publishes. It never launches scientific trials. Canonical
+  source: `.claude/skills/coordinate/SKILL.md` (Codex/OpenCode adapter:
+  `.agents/skills/coordinate/`). Use for `/coordinate`, launch coordinator,
+  portfolio, or resume a `GOAL-*` without running it. Named-goal execution
+  remains `/run GOAL-...`.
+- **Stage references** (`.claude/skills/`), used by the shared lifecycle:
+  - `/coordinate` — Coordinator front door (rank, approve, dispatch, archive, PR)
   - `/propose-ideas` — ideation for a research question
-  - `/design-experiment` — hypothesis + frozen approved protocol
-  - `/run-experiment` — bounded execution, immutable run records
+  - `/design-experiment` — hypothesis + frozen protocol; approval is a separate Coordinator decision
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
+  - `/deep-research` — cross-portfolio synthesis of ledger + knowledge state
+    into a ranked, justified shortlist of next experiments; read-only, no
+    ledger writes
   - `/curate-knowledge` — maintain the knowledge corpus
-  - `/coordinate-research-goal` — launch and continuously coordinate a committed
-    research goal across dispatch batches
   - `/agent-bus` — send and read messages between sessions running in separate
     chats, worktrees, containers, or runtimes
+  - `/consolidate-lanes` — periodic cross-lane pass: read bus traffic ACROSS
+    lanes that cannot see each other and carry pointers between them; read-only
+    as to research state, writes no ledger record
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -80,7 +120,7 @@ Code specifically.
    recorded `DISSENT` still blocks closure; and closing a goal is still the
    program's strongest claim, now resting on the Coordinator decision and its
    cited evidence alone. Do not retire a goal that met a criterion under
-   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   `closed_at_budget`/`cancelled` to understate it. The rule and its enforcement
    are retained in `tools/validate_ledger.py` and restored by setting
    `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
@@ -91,6 +131,27 @@ Code specifically.
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private
    chain-of-thought.
+10. **Goals are never paused.** `paused` and `blocked` are not permitted
+   `GOAL-*` statuses; `tools/validate_ledger.py` refuses both by name. A
+   campaign that meets an impediment stays `active` and records it under
+   `impediments` with `what_is_blocked`, `clears_when` and a `recheck`. This is
+   a scheduling rule and relaxes nothing: an impediment is still never negative
+   mathematical evidence, an unservable `review-breakthrough` still may not be
+   downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
+   exceptional stagnation restriction still requires a Coordinator decision before more
+   spending. Terminal retirement is unchanged and remains a deliberate act:
+   `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
+   paused".
+11. **ECC comes first, and ECC budgets are unlimited.** On user instruction
+   (2026-09-04): every ECC goal has `maximum_batches: null` and
+   `total_wall_clock_seconds: null` (enforced); ECC goals are selected before
+   all others at every selection point; and open ECC ideas — `proposed` with no
+   hypothesis or experiment citing them — are ranked work to be designed into
+   experiments. The ECC area set is declared once in
+   `orchestration/research-priority.yaml`, read via `tools/ecc_priority.py`, and
+   is **never** inferred from an identifier prefix. Unlimited removes the batch
+   ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
+   experiment is not approving it. See AGENTS.md "ECC comes first".
 
 ## Research direction
 
@@ -122,7 +183,7 @@ evidence rules above apply unchanged.
 
 ## Conventions
 
-- IDs: `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
+- IDs: `GOAL-<AREA>-<tok>`, `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
   `EXP-<AREA>-<tok>`, `RUN-*`, `EV-<AREA>-<tok>`, `DEC-YYYYMMDD-<tok>`,
   `TASK-YYYYMMDD-<tok>`, `BATCH-<tok>`, `KN-{LIT,TECH,FIND,OPEN}-<tok>`, where
   `<tok>` is a random 6-hex token. Immutable, never reused.
@@ -133,6 +194,8 @@ evidence rules above apply unchanged.
   breaking whatever archive binds it. Mint with
   `python3 tools/allocate_id.py --next <type> [--area X | --date YYYYMMDD]`,
   which draws a token **without scanning state**, then `--check` it before use.
+  A new persistent goal uses `--next goal --area AREA`; confirm the emitted
+  `GOAL-<AREA>-<tok>` with `--check` before authoring its record.
   `BATCH-<tok>` takes neither `--area` nor `--date`: `--next batch`.
   The legacy three-digit form stays valid forever — existing records and batch
   directories are immutable and must not be renamed. Cost, stated plainly: IDs
@@ -140,6 +203,21 @@ evidence rules above apply unchanged.
   for chronology.
 - Record schemas live in `templates/research-records.md`; copy, don't
   invent fields.
+- **A test that counts the whole corpus asserts a floor, never an exact
+  number.** The corpus grows with every research batch and is a different
+  size in every concurrent worktree, so an exact count fails on branches that
+  changed nothing and cannot be right in two worktrees at once. It also decays
+  silently: the first such assertion to fail masks the rest, which is how four
+  pins in `kb/tests/unit/test_repo_corpus.py` drifted together unnoticed.
+  Assert a floor plus per-family coverage read back off the rule table, so a
+  family that collapses to zero still fails while ordinary growth does not.
+  Exactness belongs on **disclosed debt** — unparseable records, duplicate
+  identifiers, suppressed redirects — which is closed and never grown, so any
+  addition there is a regression. Raise a floor only from a reviewed corpus,
+  and **never to turn a red test green**: a floor you moved to match what you
+  just measured has stopped being a check. Cost, stated plainly: a floor
+  cannot see a small partial loss, so keep the debt sets and structural
+  invariants exact to carry that precision.
 - The Coordinator alone stages declared research paths in the shared worktree:
   snapshot before review, then ledger commit before a state transition. Commit
   messages reference the task and record IDs; never rewrite history over
@@ -170,6 +248,20 @@ collisions were the first instance of it and are already fixed the same way.
   (`CORR-20260802-a1f151`). Enforce it in repository settings: **Settings →
   General → Pull Requests → allow merge commits only**, with squash and rebase
   merging disabled.
+- **Auto-merge a PR once its CI passes.** User instruction, 2026-09-23. A
+  session that opened or drives a PR merges it into `main` without asking for
+  further approval once all of these hold on the current head: every CI check
+  has concluded `success` (or `skipped`) and none is pending; there is no merge
+  conflict; and no red-circle or other blocking review thread is left open.
+  Where the repository runs the Claude Approvals check, it must also pass. Mark
+  a draft ready for review first. Prefer GitHub auto-merge
+  (`enable_pr_auto_merge`) so the merge fires when checks go green; otherwise
+  merge directly at the check-in that finds it green. **Use the merge-commit
+  method only, never squash or rebase** (rule above). Never merge a red,
+  pending, or conflicted head, and never skip or re-run a check to make it
+  green. A merge is a git operation, not a research-state transition:
+  Coordinator authority over approvals and statuses and the snapshot-archive
+  verification are unchanged.
 - **Archive receipts bind to CONTENT first.** `research_dispatch.py` verifies
   `path_sha256` and treats commit reachability as advisory: when a commit cannot
   be reached it verifies the declared hashes against the tree and reports the
@@ -211,6 +303,17 @@ collisions were the first instance of it and are already fixed the same way.
   experiment, move a hypothesis, or stand in as evidence, and real work still
   travels as a `TASK-*` handoff through the dispatcher. See
   `docs/inter-agent-messaging.md`.
+- **Task holds and open batches are write-once side files, not queue or
+  goal-head fields.** `tools/goal_lanes.py claim <queue> <TASK> --as <addr>
+  --ttl-minutes N --publish` before a subagent launch, `release … --outcome`
+  on return; `open-lane GOAL BATCH …` when a second session opens a batch on
+  a goal another session is already working. `research_dispatch.py --claims
+  refs` overlays them after `git fetch`: a live claim reads as `running`, a
+  completed release unblocks successors, the queue file is never edited.
+  Another session on the same goal is therefore NOT a stop: list its lanes,
+  claim an unclaimed Ready Task, or open a disjoint lane. Same feed
+  discipline as the bus — visibility is `git fetch`, collisions resolve by
+  lowest epoch. `docs/concurrent-goal-lanes.md`.
 - **Branch drift is a scheduled job, not your job.**
   `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
   six hours. It refuses any branch committed to within `--idle-minutes` (default
@@ -232,7 +335,7 @@ frontmatter.
 A policy's **reasoning effort** is the one part that does bind per subagent.
 Claude Code frontmatter accepts `effort: low|medium|high|xhigh|max`, so each
 agent in `.claude/agents/` carries the effort its own policy requests and one
-session can dispatch all five roles at their own depths:
+session can dispatch every role at its own depth:
 
 | subagent | policy | `effort` |
 | --- | --- | --- |
@@ -241,6 +344,7 @@ session can dispatch all five roles at their own depths:
 | `executor` | `executor-implementation` | `medium` |
 | `validator` | `review-adversarial` | `xhigh` |
 | `red-team` | `review-adversarial` | `xhigh` |
+| `consolidator` | `consolidation-routing` | `high` |
 | `executor-mechanical` | `executor-mechanical` | `low` |
 | `validator-breakthrough` | `review-breakthrough` | `max` |
 | `red-team-breakthrough` | `review-breakthrough` | `max` |
@@ -286,10 +390,11 @@ them disagree.
 ## Typical loop
 
 ```text
+/coordinate            # rank, approve, dispatch, archive; does not run trials
 /research-status
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...
-  → /run-experiment EXP-...
+  → /run EXP-... (execution only; later stages are separate tasks)
   → (Coordinator snapshot commit + independent validation/red team)
   → /review-evidence EXP-...
   → (knowledge-promotion gate: proven results → /curate-knowledge KN-FIND;

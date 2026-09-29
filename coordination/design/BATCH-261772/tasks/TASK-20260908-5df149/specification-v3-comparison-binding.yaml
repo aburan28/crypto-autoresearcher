@@ -1,0 +1,60 @@
+draft_protocol_amendment:
+  id: EXP-ECDLP-df24c3-draft-v3-comparison-binding
+  supersedes_draft: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v2-repair.yaml
+  triggering_review: TASK-20260909-57daac
+  disposition: >-
+    Additive zero-run referential-integrity repair. It replaces the trusted
+    vector_comparison_present Boolean with a derived predicate over immutable
+    scope-comparison rows. No corpus work, implementation, execution, or
+    canonical record is authorized.
+  comparison_binding_v3:
+    comparison_row_schema:
+      exact_required_fields:
+        - comparison_row_id
+        - comparison_row_sha256
+        - source_commit
+        - record_path
+        - record_blob_id
+        - statement_path
+        - statement_boundary_version
+        - cited_artifact_identities
+        - conclusion_vector
+        - coverage_vector
+        - field_relations
+        - comparator_version
+      row_identity: >-
+        Canonical JSON SHA-256 of source_commit, record_path, record_blob_id,
+        statement_path, statement_boundary_version, canonical ordered cited
+        artifact identities, and comparator_version. comparison_row_id is this
+        lowercase hash; comparison_row_sha256 is the SHA-256 of full canonical
+        row bytes.
+      content_rule: >-
+        conclusion_vector and coverage_vector carry all ten v2 normalized
+        fields; field_relations has exactly one relation for each field in the
+        fixed v2 order. Cited artifact identities are the resolved unique
+        path-plus-blob tuples used for coverage extraction. Missing, malformed,
+        or mismatched values invalidate the row.
+    derived_predicate:
+      name: comparison_evidence_bound
+      true_only_if: >-
+        Exactly one immutable scope-comparisons.jsonl row has an identity equal
+        to the selected statement's source_commit, record_path, record_blob_id,
+        statement_path, statement_boundary_version, resolved cited artifact
+        identities, and comparator_version; its full-row hash verifies; and it
+        satisfies comparison_row_schema.content_rule.
+      false_if: [no_matching_row, duplicate_matching_rows, row_hash_mismatch,
+        statement_identity_mismatch, artifact_identity_mismatch,
+        comparator_version_mismatch, malformed_vectors_or_relations]
+    non_duplication_gate_replacement: >-
+      Remove vector_comparison_present and non_duplication_eligible as producer
+      inputs. A row can establish mechanical distinction only when linkage is
+      resolved, L3 membership is false, and comparison_evidence_bound is true.
+      Every false predicate reason is retained in linkage-resolution.jsonl and
+      non-duplication-gate.yaml; no Boolean assertion can override it.
+  controls_v3:
+    non_l3_boolean_without_row: expected comparison_evidence_bound false and gate failure
+    non_l3_mismatched_statement_row: expected comparison_evidence_bound false and gate failure
+    non_l3_duplicate_matching_rows: expected comparison_evidence_bound false and gate failure
+    non_l3_one_valid_matching_row: expected comparison_evidence_bound true only; no corpus distinction is asserted by this fixture
+  does_not: [authorize_corpus_traversal, authorize_implementation, authorize_execution,
+    create_canonical_records, create_scientific_evidence]

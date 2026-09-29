@@ -21,6 +21,7 @@ from orchestration.campaign.mcp_server import (
     workspace_fingerprint,
 )
 from orchestration.campaign.store import CampaignStore
+from orchestration.campaign.session_tools import SESSION_TOOL_NAMES
 
 
 class Clock:
@@ -69,7 +70,7 @@ async def test_exact_peer_tool_catalog_has_no_authoritative_mutations(peer_app) 
     app, _, _ = peer_app
     async with fastmcp.Client(app) as client:
         names = {tool.name for tool in await client.list_tools()}
-    assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"}
+    assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"} | SESSION_TOOL_NAMES
     forbidden = {
         "dispatch",
         "claim",
@@ -147,6 +148,24 @@ async def test_status_reads_projection_and_lease_but_cannot_mutate_it(peer_app) 
     assert status["controller_lease_observation"]["epoch"] == lease.epoch
     assert status["controller_lease_observation"]["authority"] == "none"
     assert (repo / "ledger" / "goals" / "GOAL-TEST-001.yaml").read_bytes() == before
+
+
+@pytest.mark.anyio
+async def test_random_suffix_goal_is_accepted_by_mcp_projection(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    goal_id = "GOAL-TEST-a1b2c3"
+    _write_goal(repo, goal_id)
+    store = CampaignStore(tmp_path / "state" / "peer.sqlite", clock=Clock())
+    app = build_server(repo_root=repo, store=store, workspace_id="workspace-test")
+    try:
+        status = await _call(app, "get_coordination_status", goal_id=goal_id)
+    finally:
+        store.close()
+
+    assert status["goal_id"] == goal_id
+    assert status["goal_projection"]["goal_id"] == goal_id
+    assert status["goal_projection"]["status"] == "active"
 
 
 @pytest.mark.anyio
@@ -272,7 +291,7 @@ async def test_real_loopback_http_daemon_shares_presence_between_clients(tmp_pat
             try:
                 async with fastmcp.Client(endpoint, timeout=1) as client:
                     names = {tool.name for tool in await client.list_tools()}
-                assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"}
+                assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"} | SESSION_TOOL_NAMES
                 break
             except BaseException as exc:  # server startup races are expected briefly
                 last_error = exc

@@ -1,0 +1,692 @@
+idea:
+  id: IDEA-20260922-8ac1ea
+  question_id: RQ-BINSTD-b6f698
+  added: '2026-09-22'
+  status: proposed
+  approved_by: null
+  title: >-
+    sect163k1 AND sect163r2 ARE THE SAME FIELD, THE SAME REDUCTION POLYNOMIAL,
+    THE SAME COFACTOR, THE SAME a = 1 AND THE SAME ORDER BIT-LENGTH, AND THEY
+    DIFFER IN EXACTLY ONE COEFFICIENT: b. That makes K-163/B-163 the only
+    single-variable matched pair at deployed parameters anywhere in the
+    standardized binary population, and it turns "what does Koblitz-ness buy an
+    index calculus" into a three-factor factorial -- S_3 reads only b,
+    E-membership and the E/2E class read only a, and the Frobenius exists only
+    when BOTH lie in F_2 -- whose four cells are separately buildable at n <= 41
+    and whose deployed instances the FIPS list supplies for free.
+  class: control
+  claim: >-
+    R1 representation (field representation of the coordinates, in the FIPS
+    reduction basis); the attack stage whose charged cost is under test is
+    RELATION DECOMPOSITION -- per-instance decomposition cost and relation yield.
+
+    The claim is an identification claim, not a cost claim. On a binary curve
+    E_{a,b}: y^2 + xy = x^3 + a x^2 + b over F_{2^m}, the curve enters the
+    decomposition pipeline at exactly three separable places:
+      (P1) the summation polynomial
+           S_3(x1,x2,x3) = (x1x2 + x1x3 + x2x3)^2 + x1x2x3 + b
+           reads the curve ONLY through b, and not at all through a
+           (RQ-SEMBIN-9e8f82 scope block);
+      (P2) E-side membership, x in x(E) iff Tr(x + a + b/x^2) = 0, and with it
+           the class map P -> Tr(x_P) + Tr(a) computing E -> E/2E
+           (H-SEMBIN-83a856, supported), read a and b;
+      (P3) tau is an endomorphism of E if and only if a AND b both lie in F_2.
+    Therefore a 2x2 factorial in (b in F_2 ?) x (a in F_2 ?) over ONE field
+    separates the three, and it is the only design that can: a single-curve
+    experiment cannot see (P1)-(P3) at all, and the program's one existing
+    comparison of this kind (IDEA-20260915-8fe0ef) varies the FACTOR BASE V on a
+    single curve, which holds the curve fixed by construction.
+
+    The deployed population hands this design its instances. Read off
+    analysis/binstd-curve-audit/binary-curve-params.txt: sect163k1 has
+    A = 1, B = 1, cofactor 2, field polynomial x^163 + x^7 + x^6 + x^3 + 1,
+    order of bit-length 163; sect163r2 has A = 1, B = a 163-bit pseudorandom
+    value, cofactor 2, the SAME field polynomial, order of the same bit-length.
+    They differ in b and in nothing else that any filed cost law reads. The other
+    four FIPS pairs are two-variable: K-233/283/409/571 have a = 0 and h = 4
+    while B-233/283/409/571 have a = 1 and h = 2, so those pairs vary a, b and
+    the cofactor together and cannot separate (P1) from (P2) by themselves.
+
+    WHAT THE PAIR IDENTIFIES THAT NEITHER CURVE ALONE CAN: the CURVE-COEFFICIENT
+    RESIDUAL -- the part of any measured index-calculus cost difference that is
+    not explained by the field, the factor base, the arity or the solver. Three
+    explanations are currently live in this program's corpus and no filed record
+    separates them:
+      (E1) FROBENIUS-ONLY. Koblitz-ness buys exactly the orbit quotient --
+           relation count divided by m, linear algebra by m^2 -- and the
+           per-instance algebra is curve-blind (IDEA-20260906-a77711 arm A,
+           KN-LIT-796). Prediction: the 2x2's three non-Koblitz cells cost the
+           same per instance, within noise, at equal (V, m_a).
+      (E2) SPARSE-CONSTANT. b = 1 additionally makes the descended system
+           cheaper per instance. In the polynomial basis the coordinate vector
+           of b = 1 is e_0 (Hamming weight 1), so EXACTLY ONE of the m descended
+           F_2-equations carries a constant, against about m/2 for a generic b.
+           Prediction: the two b = 1 cells are cheaper than the two b-generic
+           cells by a measurable factor at equal (V, m_a), independently of a.
+      (E3) CLASS-STRUCTURE. a moves the yield through Tr(a) and the admissible
+           arity: on Tr(a) = 1 curves a factor base inside ker Tr has F1 = 0 and
+           odd arities yield exactly zero G-decompositions (IDEA-20260915-8fe0ef
+           S2). Prediction: the two a in F_2 cells differ from the a-generic
+           cells in lambda_x and in nothing else.
+    These predict DIFFERENT, non-overlapping patterns across the four cells, so
+    one 2x2 at one toy n decides among them; and the cheapest arm of it, the
+    constant-weight count, is arithmetic with no solver at all.
+  mechanism: >-
+    OBJECT FRAME, STATED HONESTLY. This record proposes NO new tracked object.
+    Its object is the standard index-calculus relation vector over the factor
+    base: representation R1 (coordinates of x in the F_2-basis fixed by the
+    curve's own reduction polynomial), operation set Sigma = translation by
+    factor-base elements ONLY, trichotomy class PARTIAL-ACTION (Class I of
+    IDEA-20260806-c5d183) because the vector propagates when a factor-base point
+    is added and under nothing else. LOSSY-PROJECTION TEST against that Sigma:
+    the projection discards the group element and retains only its expression
+    over Fb; the discard is Sigma-compatible because adding a factor-base element
+    adds a basis vector to the retained part; it is lossy in the representation
+    actually used whenever |Fb|^{m_a} > r, which every cell of the design
+    satisfies by construction. DECLARED OFF-LIMITS COMPONENT: F2 (factor-base
+    decomposition) of IDEA-20260802-002, used as the component, as the question
+    requires. WHAT IS ADDED BEYOND F2: not a mechanism but a nearby-object
+    control design -- the null objects that docs/inventor-protocol.md requires
+    BEFORE belief, supplied at deployed parameters by the standard itself. The
+    "price the one open number" obligation is discharged by the two numbers the
+    design measures, the per-instance cost ratio and the yield ratio across
+    cells, each against three named controls.
+
+    THE FOUR CELLS, AND WHY ALL FOUR ARE REAL CURVES. Over a fixed F_{2^n} with
+    n prime, 17 <= n <= 41, and a fixed reduction polynomial:
+      C-KK: a in F_2, b = 1        -- a Koblitz curve; tau is an endomorphism;
+                                      the deployed analogue is K-163 (a = 1) and
+                                      K-233..571 (a = 0).
+      C-GK: a generic, b = 1       -- NOT defined over F_2, so no tau, but S_3 is
+                                      the same sparse polynomial as C-KK. This
+                                      cell exists nowhere in the standardized
+                                      population and is the null object that
+                                      separates (P1) from (P3).
+      C-KG: a in F_2, b generic    -- the deployed B-curves exactly (a = 1);
+                                      dense S_3, no tau, same class structure as
+                                      a Koblitz curve with the same a.
+      C-GG: a generic, b generic   -- the fully generic binary curve.
+    All four are non-singular for b != 0 (the curve y^2 + xy = x^3 + a x^2 + b is
+    non-singular iff b != 0), so the design has no degenerate cell, and the
+    isomorphism class of C-KG is what an implementer meets on B-163.
+
+    WHY C-GK IS THE LOAD-BEARING CELL. It is the only place where "the descended
+    system is sparse" is separated from "the curve has an endomorphism". Every
+    existing statement in this corpus about Koblitz curves bundles the two. If
+    C-GK measures like C-KK per instance, (E2) is alive and the b = 1 sparsity is
+    a per-instance saving that the GGMP orbit accounting does not contain; if
+    C-GK measures like C-GG, (E1) stands and the ONLY thing b = 1 buys is that it
+    lets tau exist.
+
+    WHAT IS MEASURED IN EACH CELL, at fixed V and m_a:
+      (M1) weight(constant vector) -- the number of inhomogeneous descended
+           equations. Arithmetic, no solver. Predicted 1 in the b = 1 cells and
+           Binomial(n, 1/2)-distributed in the b-generic cells.
+      (M2) |Fb_E ∩ V| and the exhaustive yield lambda_x for the chosen m_a,
+           by full enumeration of V (2^l membership tests) and of V^{m_a}
+           modulo S_{m_a} where that is affordable.
+      (M3) the degree-by-degree Macaulay rank profile of the descended
+           decomposition system and the first fall degree, on matched instances.
+      (M4) WDSat conflict counts, median and IQR, on >= 20 certified-UNSAT and
+           >= 20 certified-SAT instances per cell, stratified by satisfiability
+           per IDEA-20260913-191ed2's finding that Assumption-1 validation is
+           mostly done on the arm that cannot fail it.
+      (M5) on C-KK only: the <tau,-1> orbit count, U = |Fb_E|/(2n), and the
+           relation count against the negation-only row.
+    (M3) is the discriminator the record most wants: the top-degree part of the
+    descended system is IDENTICAL across all four cells by (P1), since b enters
+    only the constant. If the first fall degree or the rank profile moves with b,
+    then a degree bound derived on one curve does not transfer to another over
+    the same field, which is a scope limit on every filed Assumption-1 statement
+    and is reported as such rather than as a cost result.
+
+    THE THREE CONTROLS, AND WHY EACH IS NEEDED.
+      (N1) IDENTITY: the same curve, the same V, the same instances, run twice
+           through the pipeline with different seeds -- the noise floor against
+           which any cell-to-cell difference must be read.
+      (N2) TRANSPORTED-CURVE NULL: C-KG and a second, independently drawn
+           b-generic curve over the same field. Two curves in the SAME cell must
+           agree within the (N1) noise floor; if they do not, the design's unit
+           of comparison is the curve and not the cell, and the 2x2 cannot be
+           read.
+      (N3) GENERIC-GROUP CONTROL: the same relation-collection bookkeeping run on
+           a relabelled Z/rZ with a random-labelled "factor base" of the same
+           size, per IDEA-20260802-002's control set, to confirm that the
+           measured yield in (M2) is a property of the curve and not of the
+           counting.
+  novelty_status: unverified
+  origin:
+    kind: idea-generator lane B (FIPS 186-4 binary curves), batch of 2026-09-22
+    date: '2026-09-22'
+    scope: >-
+      Executable at toy binary curves n <= 41 only. Deployed curves appear as the
+      source of the design's configuration (which (a, b) patterns the standard
+      actually ships) and in no run.
+    overlap_review: >-
+      (1) IDEA-20260915-8fe0ef is the nearest record. It compares a tau-stable V
+      against a random V of the same dimension ON ONE CURVE, and its outcome B
+      ("c differs by > 25% between stable and random V") is a statement about the
+      FACTOR BASE. This record holds V fixed and varies the CURVE, which is the
+      orthogonal arm of the same question and which that record's design cannot
+      reach. Its TWIST control (the same V on y^2+xy=x^3+1 versus a=1) is the
+      closest thing in the corpus to cell C-KG versus C-KK, but both of its
+      curves are Koblitz, so it never leaves the tau-bearing column and can never
+      produce C-GK.
+      (2) IDEA-20260913-cedd2f owns trace-parity confinement (the P -> Tr(x)+Tr(a)
+      class map). This record does not re-derive it; it uses it to PREDICT the
+      (E3) pattern and cites it.
+      (3) IDEA-20260815-b751cf asks whether solving degree is a curve-MODEL
+      invariant (Weierstrass/Edwards/Montgomery/Hessian of the SAME curve). That
+      is a model question over prime fields; this is a COEFFICIENT question over
+      one binary field, and the two are complementary: b751cf varies the
+      presentation of one curve, this varies the curve at one presentation.
+      (4) IDEA-20260815-e46bf8 measures curve-to-curve variance of the syzygy
+      cascade. That record asks how noisy a statistic is across curves; this asks
+      which structured coefficient pattern moves it, with the pattern read off
+      FIPS.
+      (5) IDEA-20260922-1a081a (sibling, same batch) states the curve-blindness
+      indexing theorem and leaves lambda_x as its one free scalar; this record is
+      the measurement that fills it. The two are complementary and each cites the
+      other; neither restates the other's content.
+      No record in the 164-proposal dedup surface contains a K/B comparison at
+      equal m, and none names sect163r2.
+  citations:
+    - ref: analysis/binstd-curve-audit/binary-curve-params.txt
+      provenance: internal
+      claim: >-
+        sect163k1: A = 1, B = 1, cofactor 2, f = x^163 + x^7 + x^6 + x^3 + 1,
+        order bit-length 163. sect163r2: A = 1, B = 0x020a601907b8c953ca1481eb...,
+        cofactor 2, the same f, order bit-length 163. sect233k1/283k1/409k1/571k1:
+        A = 0, B = 1, cofactor 4. sect233r1/283r1/409r1/571r1: A = 1, B generic,
+        cofactor 2.
+      verified_by: >-
+        read this session; the field-polynomial exponents were re-derived by hand
+        from the hex by this record's author (bit positions 163, 7, 6, 3, 0) and
+        are proposal-time arithmetic
+    - ref: RQ-SEMBIN-9e8f82 (scope block)
+      provenance: internal
+      claim: >-
+        S_3(x1,x2,x3) = (x1x2 + x1x3 + x2x3)^2 + x1x2x3 + B -- the curve enters
+        S_3 through B alone.
+      verified_by: idea-generator lane B, read in full this session
+    - ref: H-SEMBIN-83a856
+      provenance: internal
+      claim: >-
+        P in 2E iff Tr(x_P) = Tr(a); the map P -> Tr(x_P) + Tr(a) is the quotient
+        E(F_q) -> E/2E. Status supported.
+      verified_by: quoted at length inside IDEA-20260915-8fe0ef, read this session
+    - ref: IDEA-20260915-8fe0ef
+      provenance: internal
+      claim: >-
+        tau-stable subspaces are ker g(tau) for g | x^n - 1; every stable V not
+        containing F_2 lies in ker Tr; the n = 17 exhaustive tables and the
+        stable-vs-random V design; a77711 arm A quoted as the no-per-instance-gain
+        closure.
+      verified_by: idea-generator lane B, read in full this session
+    - ref: IDEA-20260913-191ed2
+      provenance: internal
+      claim: >-
+        Assumption 1 is validated mostly on the arm that cannot fail it; stratify
+        d_F4 by satisfiability and charge UNSAT and SAT separately.
+      verified_by: >-
+        title and scope line read from the dedup surface this session; full record
+        not opened -- the stratification requirement above is taken from that line
+    - ref: IDEA-20260802-002
+      provenance: internal
+      claim: >-
+        Families F1-F7 as off-limits lenses, and the (L, b) meter with its
+        identity, random-label and generic-group controls.
+      verified_by: >-
+        summarised in docs/object-frame-ideation.md section 1, read in full this
+        session; the proposal itself not opened
+    - ref: KN-LIT-796
+      provenance: kb
+      claim: >-
+        Galbraith-Granger-Merz-Petit 2020/1315 -- Frobenius-invariant factor bases
+        reduce the number of polynomial systems by 1/n and linear algebra by n^2.
+      verified_by: >-
+        corpus record quoted inside IDEA-20260915-8fe0ef; full text not opened
+        this session
+  citation_note: >-
+    No web search this session and no primary standard opened. The FIPS parameter
+    facts above come from an OpenSSL-derived dump the question itself declares
+    SECONDARY; the single-variable-pair claim about sect163k1/sect163r2 must be
+    re-derived from FIPS 186-4 before it is asserted at claim strength, and the
+    minimal test lists that re-derivation as a gate.
+  assumptions:
+    - >-
+      DECLARED COMPONENT: F2 (factor-base decomposition). No new relation
+      mechanism, no new factor base; the factor base in every cell is the same
+      F_2-subspace V, so KN-OPEN-020 is engaged only through whatever class V
+      already belongs to (bounded-degree algebraic, hence the SCOPED-OUT class)
+      and the record makes no escape claim.
+    - >-
+      Non-singularity: y^2 + xy = x^3 + a x^2 + b is non-singular iff b != 0, so
+      all four cells are genuine elliptic curves for any a and any b != 0.
+    - >-
+      The two b-generic cells are drawn at random and are not required to have a
+      near-prime order; where a cell's cofactor differs, the yield is normalised
+      by r and the cofactor is reported as a column, never absorbed.
+    - >-
+      The descent generator must accept an arbitrary F_2-basis and an arbitrary
+      curve; the vendored Weil_descent.sage's monomial-basis restriction is the
+      same implementation gap IDEA-20260915-3119c9 and IDEA-20260915-8fe0ef
+      record, and it is an implementation item, not a research assumption.
+  proof_search_map:
+    bottleneck: >-
+      The per-instance decomposition cost and the relation yield on a binary
+      curve, and specifically the attribution of any Koblitz advantage among the
+      three mechanisms (E1) Frobenius orbit, (E2) sparse constant vector,
+      (E3) trace-parity class structure. No filed record separates them, and the
+      corpus's one closure on the question (a77711 arm A) is an argument, not a
+      measurement, and was never run against a non-Koblitz curve with b = 1.
+    baseline_embedding:
+      parameter_slice: >-
+        b generic, a generic (cell C-GG) with the negation-only baseline: this is
+        the plain Gaudry/Semaev pipeline every ICPERF cell already measures, so
+        C-GG must reproduce the shipped numbers for the same (n, l, m_a).
+      reproduction_check: >-
+        On the Trimoska benchmark curve at n = 17 (a = b = 1, r = 65587, t = 1),
+        reproduce IDEA-20260915-8fe0ef's recomputed quantities as a frozen
+        fixture: #E = 131174, the two degree-8 divisors of Phi_17 with 6 and 7
+        E-side tau-orbits, |Fb_E| = 204 and 238, and rho at 227 (negation) and 55
+        (<tau,-1>). That curve is cell C-KK at n = 17, so the fixture is inside
+        the design and not beside it. No cell is reported until it passes.
+    observation_collision:
+      observable: >-
+        the per-cell pair (median WDSat conflicts at equal (V, m_a, satisfiability
+        stratum), exhaustive lambda_x).
+      distinct_preimage_search: >-
+        A cheaper C-KK has at least four distinct preimages: (i) the Frobenius
+        orbit quotient (E1) -- but that changes the RELATION COUNT, not the
+        per-instance conflicts, so it is excluded by measuring per-instance
+        separately; (ii) the sparse constant vector (E2); (iii) a higher
+        lambda_x on that curve, which is a yield effect and is measured
+        independently in (M2); (iv) the solver's preprocessing reacting to unit
+        clauses produced by the weight-1 constant, which is a SOLVER effect and
+        is separated by re-running with preprocessing disabled and by the
+        Macaulay rank profile (M3), which no solver heuristic can move. The
+        design reports (M2), (M3) and (M4) separately so that no single number
+        carries all four preimages.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          the fibre of "descended system" over "curve" at fixed field, basis, V
+          and arity -- explicitly, the map E_{a,b} -> (top-degree part, constant
+          vector), whose first component is constant across the whole fibre by
+          (P1).
+        predicted_gain: >-
+          makes the curve-coefficient residual a measurable difference between
+          two systems that are provably identical above degree 0, which is the
+          strongest possible matching and is available only because S_3 reads b
+          alone.
+      - transform: representation_reduction
+        proposed_object: >-
+          the four-cell factorial itself as the unit of report, so that every
+          future statement of the form "Koblitz curves are easier/harder for
+          index calculus" must name which cell contrast it means.
+        predicted_gain: >-
+          retires the bundling of (P1), (P2) and (P3) under the single word
+          "Koblitz", which is how the corpus currently states every such claim.
+    quantifier_order: >-
+      (P1)-(P3) are FOR ALL statements about every binary curve in the family and
+      are exact. (E1)-(E3) are existential predictions about a measured pattern
+      at the tested (n, l, m_a, solver), and a null result closes only the tested
+      cells, engines and parameters -- never the curve and never the mechanism.
+      The transfer to m >= 163 is not asserted at any outcome; the deployed pairs
+      are cited to show the design is not artificial, not to carry its result.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At n in {17, 23, 29, 31} with factor base V of dimension l and arity
+        m_a, on the four cells of the (a in F_2) x (b in F_2) factorial over one
+        field with one reduction polynomial, the measured per-instance
+        decomposition cost and yield are [table], the pattern matches (E1)/(E2)/
+        (E3) as follows, and the first fall degree is [invariant / not invariant]
+        across cells." Scoped, engine-named, with the matched rho row beside it,
+        and silent about any deployed curve.
+      nearby_object_control: >-
+        Cell C-GK is itself the nearby-object control: a curve with the sparse
+        S_3 of a Koblitz curve and none of its endomorphism structure. It exists
+        in no standard, which is precisely why the question has never been
+        answered. The secondary control is C-KG drawn twice independently (N2).
+    proof_obligations:
+      - claim: All four cells use the same field, the same reduction polynomial, the same V and the same arity.
+        responsibility: correctness
+      - claim: The top-degree part of the descended system is verified identical across cells before any cost is compared.
+        responsibility: correctness
+      - claim: Conflict counts are stratified by satisfiability and reported with IQR.
+        responsibility: runtime
+      - claim: lambda_x is exhaustive, not sampled, wherever 2^{m_a l} permits.
+        responsibility: success_probability
+      - claim: The matched rho row is reported per cell with the cell's own symmetry group.
+        responsibility: baseline
+      - claim: Cofactor and r are reported per cell and never assumed equal.
+        responsibility: correctness
+      - claim: The single-variable claim about sect163k1/sect163r2 is re-derived from FIPS 186-4 before it appears in any deliverable.
+        responsibility: scope
+      - claim: No conclusion about any deployed curve at any outcome.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: weight of the constant vector of the descended system (M1)
+      direction: lower
+      minimum_effect: >-
+        exactly 1 in both b = 1 cells and within [n/2 - 2 sqrt(n), n/2 + 2 sqrt(n)]
+        in both b-generic cells; any other value means the descent is not writing
+        b into the constant term as (P1) says
+    - metric: first fall degree / Macaulay rank profile across the four cells (M3)
+      direction: higher
+      minimum_effect: >-
+        identical across all four cells at every degree, cell for cell. A single
+        differing rank at any degree is the (E2)-strong outcome and is the most
+        informative single result the design can produce
+    - metric: median WDSat UNSAT conflicts, C-GK / C-GG at equal (V, m_a) (M4)
+      direction: lower
+      minimum_effect: >-
+        under (E1): ratio in [0.9, 1.1]; under (E2): ratio <= 0.75. The two
+        predictions do not overlap, which is what makes the cell decisive
+    - metric: median WDSat UNSAT conflicts, C-KK / C-GK at equal (V, m_a) (M4)
+      direction: higher
+      minimum_effect: >-
+        under (E1) and under a77711 arm A: ratio in [0.9, 1.1] -- the Frobenius
+        buys nothing per instance. A ratio outside that window contradicts arm A
+        at the SAT level and is a finding in either direction
+    - metric: lambda_x ratio across the a-contrast at fixed b (M2)
+      direction: higher
+      minimum_effect: >-
+        under (E3) with V inside ker Tr and odd m_a: exactly 0 on the Tr(a) = 1
+        cells and strictly positive on the Tr(a) = 0 cells -- a zero/non-zero
+        separation, not a ratio
+    - metric: >-
+        two independently drawn C-KG curves, ratio of median conflicts (control N2)
+      direction: higher
+      minimum_effect: ratio in [0.85, 1.18], i.e. within the (N1) noise floor; otherwise the 2x2 is unreadable
+  minimal_test:
+    design: >-
+      ONE field, ONE reduction polynomial, FOUR curves, at n = 23 (prime; 2^23
+      exhaustive enumeration is cheap; l = 11, m_a = 2 gives 2^22 pair tests).
+      Step 0 (zero compute): verify (P1)-(P3) symbolically -- expand the Weil
+      descent of S_3 over the chosen basis and confirm that b appears only in the
+      degree-0 term and a appears nowhere in S_3. Step 1 (arithmetic): build the
+      four curves; compute #E, r, h, Tr(a) and the constant vector weight (M1)
+      for each. Step 2 (exhaustive): enumerate V, compute |Fb_E ∩ V| and the full
+      pair table for m_a = 2, and the triple table for m_a = 3 where affordable,
+      giving lambda_x per cell (M2). Step 3 (algebra): build the descended
+      decomposition system per cell on matched target sets and compute the
+      degree-by-degree Macaulay rank profile over GF(2) and the first fall degree
+      (M3); verify the top-degree part is identical across cells FIRST. Step 4
+      (solver): >= 20 certified-UNSAT and >= 20 certified-SAT instances per cell,
+      WDSat default and with preprocessing disabled; report median and IQR (M4).
+      Step 5 (C-KK only): orbit count, U, relation count, and the matched rho row
+      at 0.886 sqrt(r) and sqrt(pi r/(4n)) (M5). Step 6: repeat the whole design
+      at n = 29 to separate cell effects from n effects.
+      OUTCOMES AND WHAT EACH MEANS. (A) All four cells agree in (M3) and in (M4)
+      within the (N1) floor, and only (M5) separates C-KK: (E1) stands, the
+      Koblitz advantage is exactly the orbit quotient, and IDEA-20260922-1a081a's
+      HB1-2 (yield parity) is supported -- the reachability table may use five
+      attack columns for ten curves. (B) The two b = 1 cells are cheaper in (M4)
+      but identical in (M3): (E2) holds at the SOLVER level only; the effect is a
+      CNF-density constant, it does not move a degree, and it is reported as a
+      constant with its size. (C) (M3) differs across the b-contrast: (E2) holds
+      at the ALGEBRA level; a first-fall or solving-degree bound measured on one
+      binary curve does not transfer to another over the same field, which is a
+      scope limit on every Assumption-1 statement in this program and is the
+      result worth having. (D) lambda_x separates on the a-contrast as (E3)
+      predicts: the yield is curve-indexed, HB1-2 needs the measured factor, and
+      the table's per-curve column is the yield rather than the cost law.
+      (E) (N2) fails -- two C-KG curves disagree beyond the noise floor: the unit
+      of comparison is the individual curve, the 2x2 is under-powered, and the
+      honest report is the required sample size, not a cell verdict.
+    controls:
+      - IDENTITY (N1) -- same cell, same instances, different seeds; the noise floor.
+      - TRANSPORTED-CURVE NULL (N2) -- two independently drawn b-generic curves in the same cell.
+      - GENERIC-GROUP (N3) -- relabelled Z/rZ with a random-labelled factor base of the same size, for the yield bookkeeping only.
+      - KNOWN-FALSE -- V inside ker Tr with odd m_a on a Tr(a) = 1 cell must give exactly zero G-target decompositions (IDEA-20260915-8fe0ef S2); a single one falsifies the class criterion or the construction.
+      - REPRODUCTION -- the n = 17 Trimoska fixture (cell C-KK) recomputed from scratch before any cell is reported.
+      - MATCHED BASELINE -- rho per cell with that cell's own symmetry group; C-KK gets sqrt(pi r/(4n)), the other three get 0.886 sqrt(r).
+    required_metrics:
+      - per cell -- a, b, #E, r, h, Tr(a), constant-vector weight
+      - per cell -- |Fb_E ∩ V|, exhaustive lambda_x at m_a = 2 and 3
+      - per cell -- Macaulay rank at every degree up to the first fall, and the first fall degree
+      - per cell and stratum -- WDSat conflicts median and IQR, with and without preprocessing
+      - C-KK only -- <tau,-1> orbit count, U, relation count against the negation-only row
+      - per cell -- matched rho in group operations, and the IC/rho ratio
+  falsification_conditions:
+    - >-
+      The top-degree part of the descended system NOT identical across the four
+      cells falsifies (P1) as implemented and halts the design: either the descent
+      is writing a or b somewhere the algebra says it cannot, or the four cells do
+      not share a basis. This is an instrument failure to be located, not a
+      finding about curves.
+    - >-
+      Constant-vector weight different from 1 in a b = 1 cell falsifies the
+      implementation's basis handling.
+    - >-
+      A C-KK / C-GK per-instance conflict ratio outside [0.9, 1.1] contradicts
+      IDEA-20260906-a77711 arm A at the SAT level; the record is then a finding
+      about the Frobenius and the direction of the difference is the content.
+    - >-
+      A non-zero G-target decomposition at odd m_a on a Tr(a) = 1 cell with V
+      inside ker Tr falsifies the class criterion of H-SEMBIN-83a856 as applied
+      here; the design is withdrawn until the failing step is named.
+    - >-
+      Control (N2) failing means the design cannot attribute anything to a cell,
+      and the honest output is a power calculation, not a verdict.
+  confounders:
+    - >-
+      COFACTOR DRIFT. Randomly drawn b-generic curves will have arbitrary
+      cofactors; lambda_x must be normalised by r and h reported as a column, or
+      the yield contrast measures the group order.
+    - >-
+      SOLVER PREPROCESSING EATING THE SPARSITY. A weight-1 constant vector
+      produces unit clauses that a preprocessor may propagate away, turning an
+      algebra question into a solver-configuration question. Runs with
+      preprocessing disabled are mandatory, and (M3) is the preprocessing-immune
+      channel.
+    - >-
+      BASIS CHOICE. The constant-vector weight is basis-dependent: b = 1 has
+      weight 1 in a polynomial basis and weight n in a normal basis. The design
+      must fix ONE basis across all four cells and report which, and the basis
+      dependence itself is the subject of IDEA-20260922-f37254, not of this
+      record.
+    - >-
+      TARGET SAMPLING. Targets must be drawn in the same class of the same
+      subgroup in every cell; a target drawn uniformly in E(F_q) rather than in G
+      mixes the class effect of (E3) into every other contrast.
+    - >-
+      SMALL n. At n = 23 the Weil bound leaves |Fb_E ∩ V| fluctuating by
+      O(sqrt(2^l)), which is a several-percent yield noise; the two-n design
+      (n = 23 and n = 29) is what separates that from a cell effect.
+    - >-
+      "KOBLITZ" AS A WORD. The corpus uses it for a = 0 curves, for a in F_2
+      curves, and for subfield curves generally. Every cell label in the
+      deliverable must carry the explicit (a in F_2 ?, b in F_2 ?) pair.
+  interpretation_limits:
+    - >-
+      Scoped to the tested n, reduction polynomial, V, arity, solver and budget.
+      Nothing transfers to m >= 163 and nothing is claimed about any deployed
+      curve's security at any outcome.
+    - >-
+      The factor base is a bounded-degree algebraic one (an F_2-subspace) and
+      therefore sits inside KN-OPEN-020's SCOPED-OUT class. This record makes no
+      factor-base escape claim and none of its outcomes constitutes one.
+    - >-
+      An identification result is not a cost result. Even outcome (C), the
+      strongest, says only that a degree bound does not transfer between curves
+      over one field; it supplies no new algorithm and moves no exponent.
+    - >-
+      The deployed single-variable pair claim rests on a secondary source until
+      re-derived from FIPS 186-4.
+  heuristic_assumptions:
+    - id: HB2-1
+      statement: >-
+        (E-SIDE COUNT) For a curve E_{a,b}/F_{2^n} and an F_2-subspace V of
+        dimension l with 0 not in V, the count |Fb_E ∩ V| = #{x in V : x != 0,
+        Tr(x + a + b/x^2) = 0} equals (2^l - 1)/2 + O(2^{l/2}), with the implied
+        constant absolute, uniformly over a and b != 0.
+      rigorous_support: >-
+        RIGOROUS PART: the E-side indicator is (1 + (-1)^{Tr(x + a + b/x^2)})/2,
+        so the count is (2^l - 1)/2 plus half a character sum over V of an
+        additive character composed with x + a + b/x^2. Restricted to the whole
+        field that sum is a Kloosterman sum, bounded in absolute value by
+        2 sqrt(q) by Weil; restricted to a subspace it is an average of
+        |V|/q-weighted Kloosterman sums, which is where the heuristic enters.
+        CLASSICAL DISTRIBUTION THEOREM IMITATED: the Weil bound for Kloosterman
+        sums and the resulting semicircle-type equidistribution of Kloosterman
+        angles (Katz), here imitated at the level of a subspace restriction that
+        the Weil bound does not directly cover.
+      validation_plan: >-
+        WHAT TO SAMPLE: for n in {17, 19, 23, 29, 31} and l from 4 to n-2, all
+        2^l elements of V for 200 independently drawn (a, b) pairs per (n, l),
+        counting E-side elements exhaustively -- no shortcut needed at this
+        scale, so the sampling is over CURVES, not over V. PREDICTED
+        DISTRIBUTION: |Fb_E ∩ V| centred at (2^l - 1)/2 with standard deviation
+        close to sqrt(2^l)/2 (the binomial null), compared by a chi-squared
+        goodness-of-fit and by the empirical standard deviation ratio. TAIL
+        CHECK: the fraction of (a, b) with |count - (2^l-1)/2| > 2 sqrt(2^l) must
+        be below 0.05, and no (a, b) may exceed 4 sqrt(2^l) -- a violation there
+        is the Weil bound being approached and is reported, not absorbed.
+        TRANSFER ASSUMPTION, STATED: nothing in this plan is transferred to
+        m >= 163; the deployed rows use the same formula only as a stated
+        assumption with its extrapolation distance (a factor 4 to 25 in n) shown.
+    - id: HB2-2
+      statement: >-
+        (DEGREE INVARIANCE UNDER THE CONSTANT) The first fall degree and the
+        degree-by-degree Macaulay rank profile of the descended decomposition
+        system over F_2 depend on the curve only through the top-degree part, and
+        are therefore identical across the four cells at fixed (n, basis, V, m_a).
+      rigorous_support: >-
+        RIGOROUS PART: by (P1) the systems differ only in their degree-0 terms, so
+        their leading forms coincide exactly, and for a SEMI-REGULAR system the
+        degree of regularity is a function of the leading forms alone. HEURISTIC
+        PART: Semaev systems are demonstrably not semi-regular in this program's
+        own measurements (GOAL-DREG-001's deficits), and the solving degree is not
+        an ideal invariant (IDEA-20260830-ad0be4), so the inference from equal
+        leading forms to equal rank profile is exactly the step that may fail --
+        which is why this heuristic is the design's primary target rather than an
+        assumption it rests on. CLASSICAL ANALOGUE IMITATED: the generic-system
+        reading under which the Hilbert series depends only on the degree
+        sequence.
+      validation_plan: >-
+        WHAT TO SAMPLE: the complete rank profile, degree by degree up to the
+        first fall, on 20 matched instances per cell at n = 23 and n = 29, all
+        four cells, with the same target multiset transported between cells where
+        transport is defined and independently drawn where it is not. SHORTCUT:
+        none needed; degree-4 GF(2) Macaulay ranks at these sizes are within the
+        pure-Python budget DEC-20260913-47bbb7 established. PREDICTED
+        DISTRIBUTION: exact equality of every rank, cell for cell -- a
+        zero-variance prediction, so a single differing rank refutes it and no
+        statistics are required. TAIL CHECK: not applicable to an exact
+        prediction; instead, the instrument is validated by the known-false
+        control of perturbing b by one bit in a b-generic cell, which must NOT
+        change any rank if HB2-2 holds and must be reported if it does.
+  heuristic_note: >-
+    HB2-2 is stated in the direction this record expects to be TRUE and is the
+    quantity whose failure would be the most valuable outcome, so it is written
+    as an exact, zero-variance prediction that a single measurement can kill.
+    HB2-1 is a background count used to size the design and to normalise the
+    yield contrast; it is not load-bearing for any cell verdict.
+  target_complexity:
+    time_exponent: >-
+      No exponent is claimed and none can move here. The design measures
+      constants: the per-instance conflict ratio across cells (predicted 1 under
+      (E1), <= 0.75 under (E2)) and the yield ratio across cells. The
+      per-instance PDP cost stays c * 2^{m_a l} in every cell
+      (IDEA-20260915-0d8e90's law), and the relation count stays N_rel = U + O(1)
+      with U = |Fb_E| / 2 on the three non-Koblitz cells and |Fb_E| / (2n) on
+      C-KK.
+    memory_exponent: >-
+      Unchanged: 2^l factor-base storage and a linear-algebra dimension of U per
+      cell, divided by n on C-KK only. No time-memory trade is introduced.
+    best_known: >-
+      Matched rho per cell -- 0.886 sqrt(r) on the three non-Koblitz cells and
+      sqrt(pi r/(4n)) on C-KK. At n = 23 with r of order 2^22 those are about
+      2^{10.8} and 2^{8.6} group operations, and every index-calculus cell in the
+      design is far above both, as every toy cell in this program is. The design
+      is not competing with them; it is attributing a difference.
+    hidden_overhead: >-
+      The descent generator's basis generalisation; the certification of UNSAT
+      instances; the exhaustive lambda_x at m_a = 3 costing 2^{3l}/6 additions,
+      which caps l at about 13 for the triple table at a reasonable budget.
+    tradeoff_note: >-
+      Not applicable -- no new algorithm. The one tradeoff the design must
+      respect is that the exhaustive arm (M2) and the algebraic arm (M3) pull l
+      in opposite directions, so the deliverable fixes l = 11 at n = 23 and
+      reports both arms at that l rather than optimising each separately.
+  estimated_cost:
+    implementation: medium
+    compute: low
+    qualification: >-
+      Advisory. Four curves, one field, exhaustive enumeration of 2^11 subspace
+      elements and 2^22 pairs, degree-4 GF(2) Macaulay ranks within the
+      pure-Python budget of DEC-20260913-47bbb7, and 160 WDSat instances of
+      2^{22} leaves. The dominant implementation cost is generalising the
+      descent generator to an arbitrary curve and basis, which is shared with
+      IDEA-20260915-3119c9, IDEA-20260915-8fe0ef and IDEA-20260922-f37254.
+  asymptotic_claim:
+    problem: >-
+      relation decomposition for index calculus on binary curves; deployed
+      instances K-163/B-163 and the four two-variable FIPS pairs
+    prior_best: >-
+      the per-instance law c * 2^{m_a l} with N_rel = U + O(1), and matched rho
+      at 0.886 sqrt(r) / sqrt(pi r/(4m))
+    time_exponent: unchanged
+    memory_exponent: unchanged
+    hidden_cofactor: >-
+      the record's entire output is a cofactor: the cell-to-cell ratio, predicted
+      1 under (E1) and <= 0.75 under (E2), together with the zero/non-zero yield
+      separation under (E3)
+    claim_kind: control
+  dominated_by: >-
+    Dominated at every cell by matched rho for that cell's own curve. At the
+    deployed instances the design is about: K-163 at 2^{77.16} and B-163 at
+    2^{80.83} group operations at O(w) memory (this record's arithmetic from the
+    audit dump, same convention as IDEA-20260922-1a081a); at the tested toy cells,
+    by rho at 2^{8.6} to 2^{11} group operations. FRONTIER ROWS CHECKED:
+    (i) negation-only rho 0.886 sqrt(r); (ii) <tau,-1> rho sqrt(pi r/(4n));
+    (iii) vOW at its own Pareto minimum; (iv) exhaustive group search;
+    (v) the exhaustive V^{m_a}/m_a! decomposition table per cell
+    (IDEA-20260915-3f1964), which at l = 11, m_a = 2 is 2^{21} additions and is
+    CHEAPER than the SAT pipeline at this size -- a row that must be in the table
+    or the toy comparison flatters the solver; (vi) the SAT pipeline
+    c * 2^{m_a l} (IDEA-20260915-0d8e90) and its Frobenius-quotiented form;
+    (vii) the GHS column, structurally empty on every deployed row in scope by
+    the prime-degree certificate. No data/query axis exists for this problem.
+    This record claims no algorithmic row and is dominated trivially.
+  sota_delta:
+    time: >-
+      Zero exponent movement, and the record says so. The quantitative delta is
+      an attribution: which of three named mechanisms accounts for a measured
+      Koblitz/non-Koblitz difference, expressed as a ratio with a non-overlapping
+      prediction interval per explanation ([0.9, 1.1] under (E1), <= 0.75 under
+      (E2)) and a zero/non-zero separation under (E3).
+    memory: Zero. No memory exponent or constant changes in any cell.
+    data_queries: >-
+      Not applicable; every cell consumes one target instance at a time and the
+      generic-group control (N3) consumes none.
+  frontier_check:
+    status: checked
+    note: >-
+      Seven rows enumerated above, including the exhaustive-table row that
+      dominates the SAT pipeline at toy size -- omitting it is the standard way a
+      toy index-calculus measurement is made to look better than it is. The GHS
+      cell is closed, not dominated, by the prime-degree certificate.
+  recommended_priority: high
+  priority_rationale: >-
+    Its best case is not an exponent and it says so: the strongest outcome (C) is
+    a SCOPE LIMIT on degree bounds, not a faster algorithm. It is ranked high
+    because it is the missing null object for an entire family of filed claims --
+    every "Koblitz" statement in this corpus bundles three mechanisms that the
+    standard itself hands us apart -- and because outcome (C) would put a
+    boundary on the transferability of Assumption-1 measurements that the SEMBIN
+    lane is currently spending its budget on. The cost is one field, four curves
+    and 160 solver instances at n = 23.
+  first_deliverable: >-
+    The zero-compute Step 0 result: a symbolic verification that the Weil descent
+    of S_3 writes b into the degree-0 term only and never writes a at all, plus
+    the four-curve parameter table with constant-vector weights (M1). That
+    settles (P1) as implemented before any solver is run.
+  next_gate: >-
+    Coordinator review of Step 0 and of the n = 17 reproduction fixture. Steps
+    2-6 are a separate approval; no hypothesis moves and no deployed curve is run
+    at any stage.

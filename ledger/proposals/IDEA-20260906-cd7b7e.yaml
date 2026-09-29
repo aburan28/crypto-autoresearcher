@@ -1,0 +1,497 @@
+idea:
+  id: IDEA-20260906-cd7b7e
+  question_id: RQ-RELN-001
+  goal_id: GOAL-RELN-001
+  added: '2026-09-06'
+  title: >-
+    SAMPLE THE DECOMPOSITION, NOT THE TARGET: the size-biased fibre identity
+    #{R : c(R) >= 1} = sum over multisets M of 1/c(sum M) turns every planted
+    sum into an informative sample, so coverage AND additive energy come from
+    one stream at O(B^{floor(m/2)}) per sample with NO rare-event penalty --
+    an unbiased estimator that beats the frozen protocol's sampled-target
+    instrument by a variance-per-cost factor of about 8/mu^2, is dominated by
+    exact enumeration only while B^m fits the budget, and gives the lane a
+    validation route beyond the enumeration wall inside the 32-bit cap
+  class: measurement
+
+  claim: >-
+    SETTING. W = V union -V, |W| = 2B, on a prime-order curve; for a target
+    R let c(R) be the number of size-m multisets from W summing to R, and
+    C_tot = C(2B + m - 1, m) the total number of multisets (KN-FIND-007).
+    Coverage cov = #{R : c(R) >= 1}/N; additive m-energy E_m = sum_R c(R)^2.
+
+    THE IDENTITIES (exact, double counts). Let M be uniform over the C_tot
+    multisets and write c_M = c(sum M) >= 1.
+      (i)   #{R : c(R) >= 1} = sum_M 1/c_M,        so cov = (C_tot/N) E_M[1/c_M];
+      (ii)  E_m = sum_M c_M,                        so E_m = C_tot E_M[c_M];
+      (iii) #{R : c(R) = k} = (C_tot/k) P_M[c_M = k] for every k >= 1.
+    (i) holds because each covered R contributes exactly c(R) multisets
+    each weighted 1/c(R). (iii) is the same count restricted to the level
+    set. Hence the whole multiplicity histogram of targets, which
+    IDEA-20260815-f9e978 proposes to measure by sampling targets, is the
+    SIZE-BIASED histogram of planted sums divided by k, and the two
+    instruments are related by an exact change of measure.
+
+    THE ESTIMATOR. Draw S multisets M_s uniformly (draw m elements of W
+    with replacement and multiset-correct, or draw uniformly from the
+    multiset index), compute R_s = sum M_s (m - 1 group additions), and
+    count c(R_s) with the protocol's own enumeration oracle in its COUNTING
+    form (meet-in-the-middle over W: a table of x(a-fold sums) for
+    a = ceil(m/2), B^a memory built once, and B^{floor(m/2)} lookups per
+    target). Then
+      hat_cov = (C_tot/N) (1/S) sum_s 1/c(R_s),     hat_E_m = C_tot (1/S) sum_s c(R_s),
+    both unbiased by (i)-(ii), with Var(hat_cov) = (C_tot/N)^2 Var(1/c_M)/S.
+    Every sample is a positive by construction, so there is no 1/cov
+    rare-event factor anywhere.
+
+    THE VARIANCE COMPARISON, DERIVED. Under the random-base model of
+    IDEA-20260906-86cd30 / KN-FIND-007 (c(R) approximately Poisson(mu) over
+    targets, mu = C_tot/N), the size-biased law is c_M - 1 approximately
+    Poisson(mu), so E_M[c_M] = 1 + mu, E_M[1/c_M] = (1 - e^{-mu})/mu (which
+    reproduces cov = 1 - e^{-mu} through (i), a consistency check), and in
+    the sparse regime Var(1/c_M) is about mu/4 (mass mu at c = 2). To reach
+    relative error eps on cov the planted estimator needs
+    S = Var(1/c_M)/(E[1/c_M]^2 eps^2) which is about mu/(4 eps^2) samples,
+    while the sampled-target estimator of the frozen protocol needs
+    T = (1 - cov)/(cov eps^2), about 1/(mu eps^2) targets. Ratio T/S about
+    4/mu^2 in samples; both cost one oracle call per sample, and the planted
+    call is the same claw. At the ladder cell N = 4099, B = 8, m = 2
+    (mu = 0.033) the ratio is about 3700; the title's 8/mu^2 is the
+    conservative figure including the m - 1 additions per planted sample.
+
+    WHERE IT IS DOMINATED, STATED FIRST. IDEA-20260830-21e7c4 shows exact
+    enumeration of the sumset costs min(B^m, N B) and is error-free; it
+    dominates this estimator whenever B^m is affordable, i.e. at every
+    default toy cell of the frozen ladder. The planted estimator earns its
+    place only beyond that wall: m >= 3 with B^{ceil(m/2)} affordable but
+    B^m not, which inside the protocol's 32-bit hard cap means cells such
+    as 24-32 bit p with B about 2^8 - 2^10 at m = 3 or 4 -- exactly the
+    cells where the sampled-target instrument would need 2^20 or more
+    trials per positive and is therefore never run.
+
+    WHAT THE CLAIM DISCRIMINATES. (a) UNBIASEDNESS: at toy cells hat_cov
+    must equal the exact enumeration value within Monte Carlo error; a
+    biased instrument is a wrong counting oracle (double counting of
+    split multisets in the claw). (b) THE SIZE-BIASED LAW: for random bases
+    the empirical distribution of c_M - 1 must be Poisson(mu) at m = 2
+    exactly computable from the runs law of IDEA-20260906-86cd30, and
+    approximately at m = 3; a heavier tail is additive structure and is
+    the energy E_m read off the same samples. (c) THE VARIANCE RATIO: the
+    measured variance-per-cost against the protocol's sampled-target
+    estimator on the same cells must track 4/mu^2 to within a factor 2;
+    if it does not, the claw's per-sample cost model is wrong.
+
+  mechanism: >-
+    A change of measure. The protocol samples targets and observes a
+    censored binary (IDEA-20260808-5e257f) whose information per trial is
+    at most H(cov) bits and whose positives are rare. Sampling the fibre
+    instead conditions on success and observes an integer c_M >= 1 whose
+    inverse is the Horvitz-Thompson weight that undoes the size bias.
+    The rigorous ingredient is the double count (i)-(iii), identical in
+    kind to KN-FIND-007's conservation identity; the classical statement
+    imitated is inverse-probability weighting of a size-biased sample and
+    the size-biasing of a Poisson law (1 + Poisson). Cost is one claw per
+    sample because the counting oracle is the existence oracle with
+    multiplicities kept, and the a-fold table is shared across samples.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb INDEX WAS EMPTY THIS SESSION; search_knowledge was NOT
+      called. Screening by reads of the task context, the 17 RQ-RELN-001
+      proposal summaries, the claim sections of IDEA-20260830-21e7c4,
+      IDEA-20260805-a25f11, IDEA-20260807-0ff796, KN-FIND-007, the frozen
+      protocol's sampling and metrics sections, and ripgrep over
+      ledger/proposals for 'size-biased', 'inverse multiplicity',
+      'Horvitz', '1/c(R)' (4 files, none about decomposition sampling;
+      IDEA-20260816-c1314e is an ALPF transfer record). No external source
+      was opened for this record.
+    results: >-
+      21e7c4 costs exact enumeration against sampled targets and names the
+      meet-in-the-middle oracle at O(B^ceil(m/2)); a25f11 defines the
+      additive-energy census by enumeration; f9e978 proposes target-
+      conditioned P(decomp) by target sampling; 1f2b8b predicts an
+      over-dispersion from a subgroup-restricted target sampler. No record
+      samples decompositions and reweights by 1/c, states identities
+      (i)-(iii), or derives the 4/mu^2 variance ratio.
+    verdict: >-
+      UNVERIFIED. Inverse-probability weighting and size-biased sampling
+      are textbook statistics (recalled, not opened); the application to
+      decomposition coverage is claimed new to this program only.
+
+  citations:
+    - ref: KN-FIND-007
+      provenance: internal
+      claim: Conservation total C_tot = C(size + m - 1, m); the double-count style of identities (i)-(iii).
+      verified_by: TASK-20260906-284fe9 (read in full 2026-09-06)
+    - ref: IDEA-20260830-21e7c4
+      provenance: internal
+      claim: Exact enumeration cost min(B^m, N B); meet-in-the-middle oracle at O(B^ceil(m/2)) time and memory; sampled-target variance waste 1 + N/T.
+      verified_by: TASK-20260906-284fe9 (claim (A)-(D) read 2026-09-06)
+    - ref: IDEA-20260805-a25f11
+      provenance: internal
+      claim: The graded additive-energy census as the free coordinate of P(decomp).
+      verified_by: TASK-20260906-284fe9 (claim section read 2026-09-06)
+    - ref: IDEA-20260906-86cd30
+      provenance: internal
+      claim: Exact m = 2 random-base law and the runs distribution of c(R), used as the toy-scale truth for the size-biased law.
+      verified_by: TASK-20260906-284fe9 (authored in the same session)
+    - ref: 'D. G. Horvitz and D. J. Thompson, A generalization of sampling without replacement from a finite universe, JASA 47 (1952)'
+      provenance: recalled
+      claim: Inverse-inclusion-probability weighting gives unbiased totals; NOT opened this session.
+      verified_by: null
+    - ref: 'Size-biased Poisson: if X ~ Poisson(mu) then the size-biased law of X is 1 + Poisson(mu) (standard; e.g. Arratia-Goldstein-Kochman, Size bias for one and all, Probability Surveys 2019)'
+      provenance: recalled
+      claim: The 1 + Poisson(mu) form of c_M under the random-base model; NOT opened this session.
+      verified_by: null
+
+  assumptions:
+    - Prime-order toy curves at 8-16 bits for every measured cell; 24-32 bit cells are design pins only, inside the protocol's hard cap, and are not authorized by this record.
+    - The counting oracle is complete: it returns c(R) exactly, with the claw's split-multiset double counting corrected; its completeness is certified by agreement with exhaustive enumeration at 8-10 bits.
+    - Multisets are drawn uniformly from the C_tot index set (not m independent draws, which over-weights repeated elements); the sampler is unit-tested against the multiset count.
+    - Every planted sample is a positive with its own decomposition certificate (the planted multiset), so OBL-DECOMPOSITION-CERTIFICATE is met by construction; the additional decompositions counted are certified individually.
+
+  proof_search_map:
+    bottleneck: >-
+      Identity (i). If sum_M 1/c(sum M) did not equal the number of covered
+      targets the estimator would be biased. It is a one-line double count
+      and is checked exhaustively at 8 bits.
+    baseline_embedding:
+      parameter_slice: >-
+        Exhaustive planted sampling (all C_tot multisets, S = C_tot) is
+        exact enumeration and must return 21e7c4's integer ratio exactly.
+        m = 1: every c = 1, hat_cov = 2B/N exactly.
+      reproduction_check: >-
+        Frozen fixture: 8-bit prime-order curve, m = 2 and 3, B in {4, 6, 8};
+        all multisets enumerated; assert hat_cov = |mW|/N as integers.
+    observation_collision:
+      observable: The pair (hat_cov, hat_E_m) and the histogram of c_M.
+      distinct_preimage_search: >-
+        Two bases with the same coverage but different energy (a random base
+        and a lightly structured one at matched size) must be separated by
+        hat_E_m while hat_cov agrees; if the instrument cannot separate them,
+        the energy channel is void.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: Replace the target-indexed indicator by the multiset-indexed fibre size; the estimand is unchanged, the sampling measure is not.
+        predicted_gain: Removes the 1/cov rare-event factor from the sample size; adds the energy for free.
+    quantifier_order: >-
+      FOR ALL finite abelian groups, FOR ALL W, FOR ALL m: identities
+      (i)-(iii) hold. FOR ALL tested toy cells: hat_cov agrees with exact
+      enumeration within Monte Carlo error. Heuristic only: the 1 + Poisson
+      shape of c_M for random bases.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        'Coverage and m-energy of a factor base are estimable without bias
+        at O(B^floor(m/2)) per sample and O(B^ceil(m/2)) memory, with
+        variance mu/(4 S) in the sparse regime, on the tested cells.' It
+        certifies nothing about solve cost, rank, or crypto scale.
+      nearby_object_control: >-
+        Where the estimator is useless by construction: a base whose sumset
+        covers everything (mu >> 1), where 1/c_M is tiny and its variance
+        dominates; and m = 1, where it is trivial. Both are reported as
+        limits.
+    proof_obligations:
+      - claim: Identities (i)-(iii).
+        responsibility: correctness
+      - claim: Counting oracle completeness with split-multiset correction.
+        responsibility: correctness
+      - claim: Per-sample cost O(B^floor(m/2)) with a shared B^ceil(m/2) table.
+        responsibility: runtime
+      - claim: Variance formula and the 4/mu^2 ratio in the sparse regime.
+        responsibility: size
+      - claim: Toy-only scope; 24-32 bit cells are pins.
+        responsibility: scope
+    not_applicable_reason: null
+
+  object_first_candidate:
+    tracked_object: >-
+      The fibre size c(sum M) of the summation map from size-m multisets of
+      W to G, sampled on the multiset side (size-biased) rather than on the
+      target side.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: factor-base geometry for mean yield
+      (KN-FIND-007); target sampling with censored binaries (the protocol's
+      own instrument); exact sumset enumeration (21e7c4 owns it); Groebner
+      instrumentation; rank and entropy accounting (fa56e7, 1a8cb3).
+    lossiness: >-
+      GENUINELY LOSSY: M -> c(sum M) forgets the multiset, the target and
+      the coordinates, keeping one integer. It propagates deterministically
+      under the operation set {permutation of M, sign flips of M's
+      elements paired with negating the target} because the fibre of R and
+      of -R have equal size (W = -W). It does not propagate under
+      translation of R by a base element (Class I partial action, as for
+      every index-calculus object per IDEA-20260806-c5d183). The fibre over
+      a given value of c is every multiset whose sum has that multiplicity,
+      so this is not a change of coordinates.
+    propagation: >-
+      Exact under the named symmetries; the only operation the estimator
+      performs is 'draw a fresh M', which is i.i.d., so no propagation
+      beyond the symmetries is required.
+    survival_score: >-
+      Survives every group, base and m; its usefulness dies when mu >> 1
+      or when B^m is affordable (exact enumeration wins). Honest score:
+      a regime instrument, not a universal one.
+
+  null_object_control: >-
+    NULL-A, BLOCKING, MATCHED: the abstract group Z/N with a uniformly
+    random symmetric subset of the same size 2B, same m, same S; its
+    (hat_cov, hat_E_m, histogram of c_M) must match the curve arm's random
+    base in distribution -- the curve contributes nothing to a random
+    base's fibre law. NULL-B: the protocol's sampled-target estimator on
+    the same cells and the same oracle, to measure the variance-per-cost
+    ratio directly. PLANTED POSITIVE CONTROL, BLOCKING: the AP-in-logs base
+    W = {+-[k]P : k <= B}, whose 2-sumset has at most 4B + 1 elements and
+    whose 2-energy is of order B^3; the estimator must return coverage at
+    most (4B + 1)/N and energy at least 10x the random value at every cell
+    with B >= 8. DECAY PARAMETER q: fraction of the AP replaced by random
+    classes, q in {0, 0.25, 0.5, 0.75, 1}; hat_E_m must fall monotonically
+    to the random value and hat_cov rise to the exact law of
+    IDEA-20260906-86cd30 at m = 2. A statistic flat in q voids the arm.
+    ORDERING CONTROL: exact enumeration values for every toy cell are
+    computed and hashed before any planted sample is drawn.
+
+  discriminated_from:
+    - >-
+      IDEA-20260830-21e7c4 -- NEAREST RECORD. It proves exact enumeration
+      dominates sampled targets whenever B^floor(m/2) < T and names the
+      claw as the sampled alternative. EXACT DELTA: (i) a third estimator
+      that samples the fibre, not the target, and is unbiased with no
+      1/cov factor; (ii) its variance-per-cost ratio 4/mu^2 against the
+      sampled-target instrument; (iii) its domain is the regime 21e7c4
+      leaves open, B^ceil(m/2) affordable but B^m not; (iv) it returns the
+      energy from the same samples. Consistent with 21e7c4 everywhere B^m
+      is affordable, where this record concedes domination.
+    - >-
+      IDEA-20260805-a25f11. Defines the graded additive-energy census by
+      enumeration. Delta: identity (ii) estimates the same E_m from planted
+      samples at claw cost; a25f11's ceiling is untouched.
+    - >-
+      IDEA-20260815-f9e978. Target-conditioned P(decomp) by sampling
+      targets. Delta: identity (iii) shows the target histogram is the
+      size-biased planted histogram divided by k, so f9e978's quantity is
+      obtained from this record's stream by an exact reweighting, with no
+      rare-event cost; f9e978's heavy-tail question becomes a question
+      about E_M[c_M].
+    - >-
+      IDEA-20260830-1f2b8b. Predicts an over-dispersion from a subgroup-
+      restricted target sampler. Delta: E_M[c_M] = 1 + mu is an
+      over-dispersion of a different origin (size bias), exact by identity,
+      and independent of the target sampler; the two are separable because
+      this record draws no targets.
+    - >-
+      IDEA-20260830-d2ebb5. Certifies negatives. Delta: this stream has no
+      negatives; what it must certify is the exact COUNT c(R_s), for which
+      d2ebb5's exhaustive-recount invariants apply to the counting oracle.
+
+  predictions:
+    - metric: M1 -- baseline slice S = C_tot (all multisets) and m = 1
+      direction: different
+      minimum_effect: FORCED, exact integer agreement with |mW|/N; any deviation voids the counting oracle.
+    - metric: M2 -- hat_cov versus exact enumeration on all default m = 2 and m = 3 toy cells, S = 400 per base, 20 random bases per cell
+      direction: different
+      minimum_effect: >-
+        PREDICTED EQUALITY within 3 SE on every cell; a bias replicated
+        across bases and seeds at any cell refutes identity (i) as
+        implemented.
+    - metric: M3 -- empirical law of c_M - 1 on random bases versus Poisson(mu) (m = 2 exact via the runs law; m = 3 approximate)
+      direction: different
+      minimum_effect: >-
+        Chi-square not rejected at 1 percent at m = 2 on cells with three
+        bins of expected count >= 5; at m = 3 a tail excess of more than
+        2x the Poisson mass at c >= 3 replicated across seeds is reported
+        as structure, not as instrument failure.
+    - metric: M4 -- variance-per-cost ratio of the sampled-target estimator to this estimator, same cells, same oracle
+      direction: higher
+      minimum_effect: >-
+        Ratio within a factor 2 of 4/mu^2 on cells with mu <= 0.2; a ratio
+        below 1 at any such cell refutes the cost model.
+    - metric: M5 -- planted AP arm energy and coverage with q-decay
+      direction: different
+      minimum_effect: >-
+        Energy >= 10x random at q = 0 for B >= 8, monotone decay in q,
+        equality with the random law at q = 1 within 3 SE.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE): prove identities (i)-(iii) in the
+      record's derivation and verify them exhaustively at 8 bits for m = 2
+      and 3 (M1). STAGE 1 (minutes): unit-test the uniform multiset sampler
+      and the counting claw against exhaustive enumeration at 8-10 bits.
+      STAGE 2 (minutes): exact enumeration for every toy cell, hashed.
+      STAGE 3 (under 2 CPU-hours, pure Python on harness/toycurve.py):
+      planted estimator at all default cells, 20 random bases each, S = 400;
+      NULL-A on Z/N; NULL-B sampled-target estimator with matched oracle
+      calls; planted AP arm with q ladder. STAGE 4 (zero compute): apply
+      the pre-registered tolerances; tabulate the variance-per-cost ratio
+      against 4/mu^2. CHEAPEST VALID DISCRIMINATOR: Stage 1 plus one cell of
+      Stage 3 (N about 4099, B = 8, m = 2) -- minutes; if hat_cov is biased
+      there, identity (i) or the oracle is wrong and nothing else matters.
+    controls:
+      - NULL-A abstract Z/N random symmetric subset (blocking; must match the curve arm in distribution).
+      - NULL-B the protocol's sampled-target estimator on identical cells and oracle (blocking; supplies the measured variance ratio).
+      - Matched random factor base of the same size at the same p as the arm under test.
+      - Planted AP-in-logs base with q-decay ladder (blocking).
+      - Exact enumeration per cell as ground truth (21e7c4's instrument).
+      - Mandatory Pareto rows on one instance per p, Pollard rho with negation (0.886 sqrt(N)) and BSGS (sqrt(N) time and memory), in group operations, as controls only.
+    required_metrics:
+      - hat_cov, hat_E_m, SE, z-score versus exact per cell, base and seed
+      - histogram of c_M per cell versus Poisson(mu) or the runs law, with chi-square
+      - oracle calls and group operations per sample; table size; the measured variance-per-cost ratio versus 4/mu^2
+      - planted-arm statistics along the q ladder with monotonicity verdict
+      - sha256 of every base, multiset seed list and exact-enumeration table
+      - matched rho and BSGS operation counts and BSGS memory
+
+  falsification_conditions:
+    - F1. Stage 0 exhaustive check finds sum_M 1/c(sum M) != number of covered targets on any 8-bit instance. Identity (i) is misapplied; the record is superseded.
+    - F2. M1 or the sampler unit test fails. Implementation fault; nothing is read.
+    - F3. M2 shows a replicated bias while NULL-A is unbiased. The counting claw double counts on the curve (sign or split handling); localised by NULL-A.
+    - F4. M4 ratio below 1 on a sparse cell. The per-sample cost model is wrong and the estimator has no regime; the record's value claim is refuted.
+    - F5. The planted AP arm does not show elevated energy or does not decay in q. Instrument blind to structure; no energy may be reported.
+
+  confounders:
+    - MULTISET VERSUS TUPLE SAMPLING. Drawing m elements independently over-weights repeated elements by m!/(multiplicities); the sampler draws the multiset index uniformly and the difference is tested at m = 3.
+    - SPLIT DOUBLE COUNTING IN THE CLAW. A multiset with repeated halves is found more than once by a naive claw; corrected by canonical ordering and tested against exhaustive counts.
+    - SIGN CLOSURE. c(R) = c(-R) because W = -W; the claw must not count a decomposition and its negation as two.
+    - TARGET O. Multisets {P, -P, ...} sum to O or to lower-arity sums; O is excluded from coverage per the protocol and the sampler discards multisets whose sum is O.
+    - mu >> 1 CELLS. 1/c_M is tiny and the relative variance grows; the record's sparse-regime formulas do not apply there and such cells are reported without the 4/mu^2 comparison.
+    - ORACLE BUDGET CENSORING. A counting call that exceeds its budget is an infrastructure outcome (AGENTS.md rule 3), excluded and counted, never a zero.
+
+  interpretation_limits:
+    - Toy tier (claim_tier toy) at 8-16 bit p; 24-32 bit cells are design pins within the protocol's cap and require a sealed schedule and Coordinator authorization, none of which this record provides.
+    - NO ATTACK, NO EXPONENT MOVED. A better estimator of coverage changes nothing about relation-collection cost; the claw it uses is the generic table already priced by IDEA-20260829-66a876 and dominated by rho.
+    - Coverage and energy say nothing about rank or solve cost.
+    - Planted samples are never ICEX relations: the protocol's OBL-FULL-COST-STAGES forbids counting an uncharged oracle success as relation supply, and this record feeds nothing to ICEX.
+    - No experiment, hypothesis, approval, status transition or run is created by this record.
+
+  heuristic_assumptions:
+    - id: HEUR-1
+      statement: >-
+        SIZE-BIASED POISSON. For a uniformly random base, c_M - 1 is
+        distributed as Poisson(mu) with mu = C_tot/N (1 + o(1)), uniformly
+        over the ladder cells with mu <= 1.
+      rigorous_support: >-
+        At m = 2 the exact law follows from the runs distribution of
+        IDEA-20260906-86cd30 (Theorem 2, Corollary 2d) by size-biasing, so
+        the assumption is a theorem there; at m = 3 Janson's inequality
+        brackets P[c = 1 | planted] and the heuristic content is the Poisson
+        shape inside the bracket, imitating the Poisson paradigm for rare
+        induced substructures.
+      validation_plan: >-
+        Empirical histogram of c_M on 20 random bases per cell at 8-16 bits
+        versus Poisson(mu) (m = 3) and the exact runs law (m = 2); tail check
+        on the largest observed c_M against the Poisson upper quantile at
+        1/S; sampled parameters recorded per cell; toy scale, no transfer.
+    - id: HEUR-2
+      statement: >-
+        COST MODEL. One counting call costs B^{floor(m/2)} lookups plus
+        m - 1 group additions, with the a-fold table amortised over S
+        samples.
+      rigorous_support: >-
+        Exact operation count of the claw as specified; the only heuristic
+        content is that lookups and group operations are charged at the
+        same unit as in the protocol's sampled-target arm.
+      validation_plan: >-
+        Measured operation counters per call on every cell, both arms,
+        identical counter conventions (OBL-NO-SCALARIZATION); the ratio in
+        M4 is computed per coordinate, never as a scalar sum.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK, NO EXPONENT. Measurement cost O(S B^{floor(m/2)} + B^{ceil(m/2)})
+      per base against O(min(B^m, N B)) for exact enumeration and
+      O(T B^{floor(m/2)}) with T about 1/(mu eps^2) for sampled targets.
+    memory_exponent: O(B^{ceil(m/2)}) words for the table; exact enumeration needs O(min(B^m, N)).
+    best_known: >-
+      For the cryptanalytic frontier, Pollard rho at 0.886 sqrt(N) and O(1)
+      memory, BSGS at sqrt(N) and sqrt(N); for the measurement, exact
+      enumeration (IDEA-20260830-21e7c4) wherever B^m is affordable.
+    hidden_overhead: >-
+      Nothing asymptotic is claimed. The constant hidden in 'one claw per
+      sample' includes canonicalisation for double counting, measured in
+      HEUR-2's counters.
+    tradeoff_note: >-
+      The estimator's table is the same object as the claw's table; its
+      memory is B^{ceil(m/2)} and can be traded for time by rebuilding, as
+      in IDEA-20260829-66a876's accounting.
+
+  dominated_by: >-
+    AS AN ATTACK: none is mounted; checked row by row on the prime-field
+    frontier: parallel rho with negation (0.886 sqrt(N), O(1)); BSGS;
+    van Oorschot-Wiener; the generic sumset claw of IDEA-20260829-66a876 at
+    N^{k/(2k-1)}; preprocessing S T^2 = N; Pohlig-Hellman, MOV, SSSA, Weil
+    descent n/a; Shor out of scope. Every row dominates trivially. AS A
+    MEASUREMENT: IDEA-20260830-21e7c4's exact enumeration dominates this
+    estimator on both cost and precision at every default toy cell of the
+    frozen ladder (B^m affordable); the protocol's sampled-target
+    estimator dominates it nowhere in the sparse regime (M4). Its own axis
+    is the regime B^{ceil(m/2)} affordable and B^m not, which no record
+    occupies.
+  sota_delta: >-
+    Cryptanalytic delta: 0 on time, 0 on memory, 0 on data. Measurement
+    delta: relative to the frozen protocol's sampled-target instrument, a
+    predicted variance-per-cost improvement of about 4/mu^2 (about 3700 at
+    N = 4099, B = 8, m = 2) and the removal of the rare-event wall
+    entirely; relative to exact enumeration, an extension of measurable
+    cells from B^m <= budget to B^{ceil(m/2)} <= budget at the price of a
+    stated Monte Carlo error; plus the additive energy and the target
+    multiplicity histogram (f9e978's quantity) from the same stream by
+    identities (ii)-(iii).
+
+  estimated_cost:
+    implementation: >-
+      low (uniform multiset sampler, counting claw with canonicalisation,
+      and the two estimators: about 200 lines on harness/toycurve.py)
+    compute: >-
+      low (design figure, not a measurement: under 2 CPU-hours for all toy
+      cells including the sampled-target comparison arm)
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.95 that identities (i)-(iii) survive (they are double counts). 0.85
+    that the counting claw is made exact without residual double counting
+    on the first attempt. 0.8 that the measured variance-per-cost ratio
+    lands within a factor 2 of 4/mu^2. 0.9 that the planted AP arm
+    separates. Most likely headline: 'planted sampling gives unbiased
+    coverage and energy at claw cost with no rare-event factor; exact
+    enumeration still wins at every default toy cell, and the estimator's
+    value is confined to the cells beyond the enumeration wall, which the
+    lane has not yet chosen to run.'
+
+  inference:
+    requested_policy: research-deep
+    requested_reasoning_effort: high
+    resolved_model_id: claude-fable-5-1 (as reported by the runtime to this session; not probe-verified)
+    model_verified: false
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_used: false
+
+  yaml_parse_disclosure: >-
+    NO INTERPRETER WAS AVAILABLE TO THIS SESSION and this file was NOT
+    machine-parsed by its author. Every prose value is a folded block
+    scalar or a plain scalar beginning with a letter or digit; no plain
+    scalar contains ': ' or ' #'; no tabs; no key is duplicated within a
+    mapping to the author's reading. The orchestrator must run the strict
+    parse and tools/validate_ledger.py before this record is relied on.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-09-06'
+  proposed_under_task: TASK-20260906-284fe9
+  id_allocation_provenance: >-
+    Pre-allocated by the dispatching Coordinator with tools/allocate_id.py
+    and --check verified free on 2026-09-06; supplied in the task context
+    file; this agent did not allocate identifiers.
+  source_refs:
+    - RQ-RELN-001
+    - GOAL-RELN-001
+    - KN-FIND-007
+    - KN-TECH-002
+    - KN-TECH-056
+    - IDEA-20260830-21e7c4
+    - IDEA-20260805-a25f11
+    - IDEA-20260815-f9e978
+    - IDEA-20260906-86cd30
+    - IDEA-20260829-66a876

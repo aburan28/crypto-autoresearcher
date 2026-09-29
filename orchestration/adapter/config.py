@@ -26,7 +26,7 @@ POLICIES_PATH = REPO_ROOT / "orchestration" / "model-policies.yaml"
 PROVIDERS_PATH = REPO_ROOT / "orchestration" / "providers.yaml"
 BINDINGS_PATH = REPO_ROOT / "orchestration" / "model-bindings.yaml"
 
-DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max"]
+DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max", "ultra"]
 
 # A binding's ``model`` is the sole authority for an outbound model selector.
 # ``request`` is deliberately open for provider-specific tuning knobs, but it

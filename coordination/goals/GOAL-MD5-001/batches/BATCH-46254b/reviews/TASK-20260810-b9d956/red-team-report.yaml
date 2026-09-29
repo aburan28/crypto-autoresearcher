@@ -1,0 +1,868 @@
+# Red-team report: TASK-20260810-b9d956
+# Independent red-team pass on BCP-1 (the frozen blind-calibration protocol).
+# Target: BCP-1 itself, NOT MD5. Claim ceiling: protocol_freeze_implementation_pin_and_literature_acquisition_only.
+# Session independence only; cross-model independence NOT claimed (per task card + batch.yaml).
+
+red_team_report:
+  id: RT-20260820-b9d956
+  task_id: TASK-20260810-b9d956
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-46254b
+  claim_under_review: >-
+    BCP-1's claim that its REDISCOVERY/CONSUMPTION scoring rule, closed
+    hash-manifested input set, quarantine marker, and pre-registered
+    expected-answer digest make "blind" CHECKABLE rather than merely
+    asserted, against the two mechanical contamination channels (solver-process
+    input set; self-attested authoring read history), with the model's
+    parametric prior knowledge named as the one channel no file-system rule
+    reaches.
+
+  inference_provenance:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: zai/glm-5.2
+    model_verified: null
+    model_verification_basis: >-
+      No probe was run; the identifier is reported from the session
+      environment and is unverified configuration until a doctor probe
+      confirms it. No Bedrock backend was selected, configured, probed,
+      contacted, or used (SC-8).
+    fallback_used: false
+    degraded_requirements: []
+    independent_session: true
+    cross_model_independence: >-
+      NOT CLAIMED. Session independence only, per task card and batch.yaml.
+      This verdict may not be recorded as a completion-quorum attestation.
+
+  # ===================================================================
+  # ATTACK SURFACES (task card i-v) + JOINTS (review plan J1-J5)
+  # ===================================================================
+  attack_surfaces:
+
+    # ---------------------------------------------------------------
+    # (i) LEAKAGE — can the quarantined payload reach a calibration
+    #     run through corpus staging, git history, search_knowledge,
+    #     a prior session transcript, a diff, or a PR body?
+    # ---------------------------------------------------------------
+    - surface: LEAKAGE
+      verdict: succeeded
+      basis: >-
+        The firewall blocks two of six routes and leaves four unblocked.
+        BLOCKED (verified by reading committed source): (a) corpus staging
+        — kb/src/crypto_kb/ingest/repo_corpus.py RULES tuple (lines 261-279)
+        matches only knowledge/KN-LIT-*.md, knowledge/KN-TECH-*.md,
+        knowledge/KN-FIND-*.md, knowledge/KN-OPEN-*.md, and ledger/ records.
+        No rule matches coordination/goals/GOAL-MD5-001/quarantine/**, so
+        `crypto-kb stage-repo` structurally cannot stage quarantined content.
+        This is a fact about the committed source, not an assumption. (b)
+        search_knowledge — same staging rules mean the retrieval index cannot
+        contain quarantined content. The KN-LIT entry is corpus-safe (no path
+        data) but BCP-1's extra_margin_rule still excludes it from the
+        encoding-authoring session's read_scope, which is a declaration not a
+        control. NOT BLOCKED: (c) git history — once the quarantined payload
+        is committed (it must be, to be durable), a solver process with `git`
+        access can read it via `git show HEAD:coordination/.../quarantine/
+        payload.bin`. This is NOT a file in the working directory, so it does
+        NOT appear in input_manifest (which hashes files, not git objects).
+        BCP-1's closed_hash_manifested_input_set definition covers "every file
+        the solver process's working directory or environment exposes it to
+        read" — git objects are not files in the working directory. Under
+        api_direct, the command allow-list might block `git`; under Claude
+        Code, `git` is available and this route is open. BCP-1 does not
+        address git history as a leakage route. (d) diff/PR body — same as
+        git history: `git diff` or `gh pr view` would expose quarantined
+        content, and these are not files. (e) prior session transcript —
+        sessions are ephemeral (AGENTS.md: "sessions run in separate chats,
+        worktrees, containers, and runtimes, and cannot see each other"); no
+        session transcript is persisted in the repository. Not applicable as
+        a file-system route, but a model's parametric memory of a prior
+        session's content is the same as model prior knowledge (the
+        irreducible channel). (f) deleted-after-read file — a file placed in
+        the working directory, read by the solver, and deleted before the
+        manifest is constructed would not appear in input_manifest. BCP-1
+        does not specify when the manifest is constructed relative to the
+        solver's execution.
+      joints_covered: [J1-partial, J2-partial]
+      amendment_needed: >-
+        BCP-2 must either (a) require the solver process to run with no
+        `git` access (command allow-list excludes git under api_direct;
+        container isolation under Claude Code), or (b) require input_manifest
+        to be constructed by enumerating the working directory AFTER solver
+        completion (catching deleted-after-read files) AND require the solver
+        to run in a container with no access to the host filesystem or git
+        history.
+
+    # ---------------------------------------------------------------
+    # (ii) SCORING — can a run that recalls the published path satisfy
+    #      the rediscovery rule? Does the rule distinguish rediscovering
+    #      from recognising?
+    # ---------------------------------------------------------------
+    - surface: SCORING
+      verdict: succeeded
+      basis: >-
+        A model that recalls a published MD5 collision path from its training
+        data can generate the colliding pair from memory (recall, not search)
+        and report it as a rediscovery. The run would pass ALL mechanical
+        checks: (1) input_manifest is clean — the model did not read any
+        file, it recalled from parameters; (2) encoding_provenance is false
+        — the session did not read quarantined files, it recalled from
+        parameters; (3) the four fixed_before_acquisition fields are declared
+        and unchanged; (4) the certificate verifies — the pair is genuine.
+        The run scores as REDISCOVERY-eligible with a verified pair, which
+        BCP-1 calls "a valid, scorable outcome." The rule CANNOT distinguish
+        rediscovering (searching for and finding a path) from recognising
+        (recalling a known path and reproducing it), because the rule checks
+        mechanical channels (files, declarations, certificates), not
+        cognitive channels (search vs. recall). This is the irreducible
+        parametric channel that BCP-1 acknowledges in residual_risk. The
+        null-object control is the only available discriminator, and (see
+        surface v) it is only partially discriminating. BCP-1 is honest
+        about this: residual_risk.consequence_1_evidential_asymmetry states
+        "A SUCCESS is confounded by prior exposure and can never be fully
+        de-confounded." But the scoring rule does not carry this confound
+        forward — it records a confounded success as REDISCOVERY-eligible
+        without a caveat in the evidence record.
+      joints_covered: [J2, J5]
+      amendment_needed: >-
+        A REDISCOVERY success must carry a "confounded by prior exposure"
+        caveat in the evidence record, and the null-object control result
+        must be recorded alongside it. The evidence record must not present
+        a confounded success as an unqualified pass.
+
+    # ---------------------------------------------------------------
+    # (iii) INPUT MANIFEST — is it actually complete, or does it cover
+    #       only what the wrapper chose to hash?
+    #       [Review plan J1]
+    # ---------------------------------------------------------------
+    - surface: INPUT_MANIFEST
+      verdict: succeeded
+      basis: >-
+        BCP-1's closed_hash_manifested_input_set.what_is_checked_vs_declared
+        (lines 481-491) is explicit: CHECKED is whether the recorded
+        input_manifest sha256 set contains any hash matching quarantine/
+        MANIFEST.yaml; DECLARED NOT CHECKED is whether input_manifest is
+        actually COMPLETE. The counterexample (constructed and tested in
+        /tmp/bcp1_redteam/test_predicates.py): a file containing the
+        quarantined payload is delivered to the solver via an environment
+        variable (not a file), so it does not appear in input_manifest
+        (which hashes files). The CHECKED predicate (manifest hashes vs
+        quarantine MANIFEST hashes) returns FALSE (not CONSUMPTION) for
+        this contaminated run, so the run scores REDISCOVERY-eligible.
+        The firewall is vacuous for this run. The same applies to:
+        deleted-after-read files (gone before manifest construction);
+        /proc/self/fd (file descriptors, not regular files); symlinks
+        resolving to quarantined files but named differently. BCP-1's
+        checkable/declared boundary is EXACT as written — the protocol
+        correctly labels completeness as DECLARED — but the gap is real:
+        a single omitted file nullifies the firewall for one contaminated
+        run while the run still scores as REDISCOVERY-eligible. No post-hoc
+        check on manifest bytes can establish completeness, because
+        completeness is an assertion about process behavior. The only way
+        to close the gap is to have the wrapper construct the solver's
+        entire environment (working directory, environment variables, file
+        descriptors) from scratch in a container with no host filesystem
+        access — which is a wrapper-implementation requirement, not a
+        manifest check, and is not checkable from the committed manifest
+        alone.
+      joints_covered: [J1]
+      coordinator_prior_confirmed: true
+      coordinator_prior_note: >-
+        Coordinator expected J1 to be the hardest joint and expected the
+        red team to confirm that a single omitted file nullifies the
+        firewall while the run still scores REDISCOVERY-eligible. Confirmed.
+      amendment_needed: >-
+        BCP-2 must require the calibration run wrapper to execute the solver
+        in a container/chroot with no access to the host filesystem or git
+        history, and to construct the solver's entire environment (working
+        directory, env vars, file descriptors) from scratch. The manifest
+        must be constructed by enumerating the working directory after solver
+        completion. This is a wrapper-implementation requirement, not a
+        manifest field.
+
+    # ---------------------------------------------------------------
+    # (iv) CHARGING — can the declared clock be gamed?
+    # ---------------------------------------------------------------
+    - surface: CHARGING
+      verdict: succeeded
+      basis: >-
+        BCP-1's charging_convention (section d) fixes
+        compute_only_solver_process_wall_clock: "wall_seconds, as
+        harness/runner.py's write_run() already records it: finished -
+        started measured around the solver/attack process's own execution
+        window." But in runner.py (lines 317-318), `started` and `finished`
+        are CALLER-PROVIDED parameters passed to write_run() by the
+        experiment script — the wrapper does NOT independently measure the
+        wall clock. The RunResult dataclass (lines 206-224) has no timing
+        field. The caller controls when to call time.time() and pass the
+        values. A caller could: (1) start the timer after expensive
+        preprocessing (moving it outside the measured window); (2) stop the
+        timer before postprocessing; (3) report any wall_seconds value by
+        manipulating the timing parameters. BCP-1's fixed_before_acquisition
+        fields (encoding, solver identity, seed, wall_clock_ceiling) are
+        declared before dispatch (INV-3), which limits gaming to the
+        execution window itself — but the actual wall_seconds value is
+        caller-reported, not wrapper-measured. The charging convention is
+        honest about what it measures (compute-only, excluding authoring),
+        but the measurement is not independent of the caller.
+      joints_covered: []
+      amendment_needed: >-
+        The wrapper should call the solver itself (wrapping it in a timing
+        block) rather than having the caller call the solver and report the
+        timing. Alternatively, the wrapper should independently measure
+        wall_seconds via resource.getrusage or a subprocess timer, and
+        refuse runs where the caller-reported and wrapper-measured values
+        diverge beyond a tolerance.
+
+    # ---------------------------------------------------------------
+    # (v) NULL-OBJECT CONTROL — does a permuted-constant MD5 variant
+    #     really discriminate, or is it uninformative in both directions?
+    #     [Review plan J4]
+    # ---------------------------------------------------------------
+    - surface: NULL_OBJECT_CONTROL
+      verdict: succeeded
+      basis: >-
+        Three confounds, each analyzed:
+        (i) PARTIAL RECALL — the most serious. A model that has seen MD5
+        collision paths in its training data may have learned not just the
+        specific message-word values (keyed to exact constants, do NOT
+        transfer to a permuted-constant variant) but also the differential-
+        path STRUCTURE (which is NOT keyed to exact constants and MAY
+        transfer). If the model recalls the structure but not the values,
+        it may adapt the structure to the permuted-constant variant at less
+        than full search cost. In this case: success against the variant at
+        lower cost is consistent with partial recall, not just genuine
+        search; and failure against the variant does not exclude partial
+        recall (the model might recall the structure but not adapt it).
+        The control cannot distinguish "partial recall of structure" from
+        "genuine search from scratch." This is a real confound that BCP-1
+        does not address.
+        (ii) INTRINSIC DIFFICULTY — the permuted-constant variant may be
+        easier or harder than standard MD5. If easier, success at lower cost
+        is expected even for genuine search (false positive for recall). If
+        harder, failure is expected even for genuine search (false positive
+        for recall). Without a difficulty baseline (a measurement of the
+        variant's actual collision resistance), the cost comparison is
+        non-directional. BCP-1 does not name a baseline.
+        (iii) "COMPARABLE COST" IS UNDEFINED — no tolerance (what ratio
+        counts as "comparable"?), no baseline run (compared to what?). The
+        discriminator_logic says "success against the variant at comparable
+        cost to any success against genuine MD5" but does not define
+        "comparable." This makes the discriminator undecidable as written.
+        The control retains SOME discriminating value: it can distinguish
+        "full recall of specific values" (which would fail on the variant)
+        from "genuine search from scratch" (which would succeed on the
+        variant). But it cannot distinguish "partial recall of structure"
+        from "genuine search," and the cost comparison is undecidable
+        without a tolerance and baseline.
+      joints_covered: [J4]
+      coordinator_prior_confirmed: true
+      coordinator_prior_note: >-
+        Coordinator expected the null-object control's "comparable cost"
+        criterion to be under-defined (no tolerance, no named baseline, no
+        exclusion of partial method recall). Confirmed on all three points.
+      amendment_needed: >-
+        (1) Define "comparable cost" as a ratio (e.g., variant cost within
+        2x of genuine MD5 cost) with a stated baseline. (2) Replace the
+        cost comparison with a matched-budget success-rate comparison (run
+        the instrument at the same budget against both, compare success
+        rates). (3) Use TWO variants with known different expected costs
+        so the comparison is directional. (4) Acknowledge the partial-recall
+        confound explicitly: the control discriminates full-value-recall
+        from genuine search, but NOT partial-structure-recall from genuine
+        search. This residual is unfixable within the variant approach.
+
+  # ===================================================================
+  # PER-JOINT VERDICTS (review plan J1-J5)
+  # ===================================================================
+  joint_verdicts:
+
+    - joint: J1_input_manifest_completeness
+      verdict: breaks
+      basis: >-
+        The checkable/declared boundary is exact as written (BCP-1 correctly
+        labels completeness as DECLARED), but the gap is real: a single
+        omitted file (env var, deleted-after-read, /proc, symlink) nullifies
+        the firewall for one contaminated run while the CHECKED predicate
+        (manifest hashes vs quarantine MANIFEST hashes) passes. Tested with
+        a synthetic counterexample: env-var-delivered payload passes the
+        CONSUMPTION predicate as not-CONSUMPTION. The firewall's one
+        supposedly-checked element is checked for what it checks (hash
+        intersection) but vacuous for what it claims to cover (completeness).
+        The corrected boundary: completeness is a process-behavior assertion
+        that no post-hoc manifest check can establish; it requires container
+        isolation, which is a wrapper-implementation requirement not
+        checkable from the committed manifest alone.
+      coordinator_prior: >-
+        Coordinator expected this to be the hardest joint and expected
+        confirmation that a single omitted file nullifies the firewall.
+        Confirmed. The Coordinator also asked for the wrapper assumptions
+        that close the gap: (a) container/chroot with no host filesystem
+        access — checkable from wrapper config, not from manifest; (b)
+        wrapper constructs entire environment — checkable from wrapper
+        source, not from manifest; (c) manifest constructed after solver
+        completion — catches deleted-after-read but not env vars or /proc.
+        None are checkable from the committed manifest alone.
+
+    - joint: J2_encoding_provenance_declaration
+      verdict: breaks
+      basis: >-
+        The self-attested authoring-read declaration CANNOT be converted
+        from declaration to check by any mechanism available in this program.
+        Verified: (a) api_direct enforces write_scope and command allow-lists
+        but says nothing about reads (AGENTS.md); (b) Claude Code enforces
+        neither reads nor writes by declaration; (c) no session-level read
+        history is persisted in the repository — grep for read_history/
+        session_log/access_log found only experiment-specific
+        source_access_log.yaml files (URL/HTTP logs in EXP-SSIQ-*), not
+        session read traces. The deterrent is the fabrication rule
+        (AGENTS.md rule 5: a false attestation is fabrication), which is
+        real but not mechanically enforced. A technical substitute exists
+        in principle: a two-session design in which the encoding is
+        re-derived from the specification by a session that provably could
+        not have read the quarantined material (container isolation). But
+        this requires container isolation, which is not within reach of the
+        current runtime. This belongs in residual_risk with a BCP-2
+        amendment note.
+      coordinator_prior: >-
+        Coordinator expected this to remain a pure declaration whose only
+        deterrent is the fabrication rule. Confirmed. The Coordinator
+        asked for either a concrete BCP-2 amendment candidate or an
+        explicit residual-risk statement. Residual-risk statement: the
+        declaration is a deterrent, not a control, and no mechanism in this
+        program converts it to a check. BCP-2 amendment candidate: require
+        encoding authorship in a container-isolated session with no access
+        to quarantine/ or knowledge/literature/, verified by the wrapper.
+
+    - joint: J3_pre_registered_expected_answer_digest_canonical_serialization
+      verdict: breaks
+      basis: >-
+        "The sha256 of the canonical serialization of the payload" is
+        UNDEFINED as written. BCP-1 does not specify the serialization
+        format. Tested: the same payload serialized as (1) JSON compact
+        with sorted keys, no trailing newline; (2) JSON compact with
+        trailing newline; (3) YAML block; (4) JSON pretty-printed with
+        indent=2 — yields FOUR different sha256 values:
+        ser1=02328bbe..., ser2=8f010dab..., ser3=7d008b76..., ser4=2f3ba61a...
+        (computed in /tmp/bcp1_redteam/test_predicates.py). Until exactly
+        one serialization is fixed byte-for-byte, comparing a search's
+        output digest against the pre-registered value is UNDECIDABLE, and
+        the INV-7 pre-dispatch gate cannot be evaluated. The serialization
+        specification the gate needs: a single canonical form, e.g. "the
+        payload serialized as JSON with sort_keys=True, separators=(',',':'),
+        no trailing newline, UTF-8 encoded" — but the specific choice is
+        less important than that exactly one is fixed and stated in BCP-2
+        or the MANIFEST specification.
+      coordinator_prior: >-
+        Coordinator expected this to be a real defect: two natural
+        serializations yield different sha256, making INV-7 undecidable.
+        Confirmed with four serializations, all different.
+
+    - joint: J4_null_object_control_discriminative_power
+      verdict: breaks
+      basis: >-
+        The control is partially discriminating but undecidable as written.
+        It can distinguish full-value-recall (which fails on the variant)
+        from genuine search (which succeeds on the variant), but it CANNOT
+        distinguish partial-structure-recall from genuine search (the
+        differential-path structure may transfer to a permuted-constant
+        variant). "Comparable cost" is undefined (no tolerance, no baseline),
+        making the discriminator logic undecidable. The intrinsic-difficulty
+        confound (variant may be easier or harder than standard MD5) makes
+        the cost comparison non-directional without a difficulty baseline.
+        The control retains value as a necessary-but-insufficient
+        discriminator: it is the only available discriminator for the
+        irreducible parametric channel, and partial discrimination is better
+        than none. But it must be refined (define "comparable cost," use
+        matched-budget success-rate comparison, acknowledge partial-recall
+        confound) to be falsifiable.
+      coordinator_prior: >-
+        Coordinator expected the "comparable cost" criterion to be
+        under-defined and partial method recall to not be excluded.
+        Confirmed on both points.
+
+    - joint: J5_certificate_independence_enforceability
+      verdict: breaks
+      basis: >-
+        Read harness/runner.py (462 lines). The _verify() function (lines
+        228-243) currently handles kinds {none, decomposition, discrete_log}
+        and returns False with "unknown-kind:md5_collision_pair" for the new
+        kind. So currently, ANY md5_collision_pair certificate is marked
+        verified=false and the run is completed_invalid — the kind does not
+        exist yet, which BCP-1 acknowledges and gates against (no calibration
+        run may be scored before support exists). But the SCHEMA as written
+        admits a future wrapper that violates the independence rule: in
+        write_run() (lines 355-359), cert = dict(result.certificate) copies
+        the SOLVER's certificate; the wrapper overwrites verified, verifier,
+        and verifier_commit (lines 357-359) but does NOT overwrite verified_by.
+        So solver-provided verified_by entries (with computed_digest_message_1
+        and computed_digest_message_2) survive into the final manifest. A
+        future wrapper implementation could copy solver-reported digests into
+        verified_by and set verified=true without actually calling the two
+        pinned implementations. The verifier: "run-wrapper-independent-
+        recompute" field is a string the wrapper sets, not a proof it did
+        the work. The verifier_commit points to the wrapper's git commit,
+        but both compliant and non-compliant implementations would have the
+        same commit. The only way to distinguish is to read the wrapper's
+        source code at that commit — possible but not encoded in the schema.
+        Minimal check that closes it: the wrapper must explicitly clear and
+        repopulate verified_by in its _verify() implementation for
+        md5_collision_pair, and the schema must state that verified_by
+        entries are wrapper-computed, not solver-provided.
+      coordinator_prior: >-
+        Coordinator did NOT expect a break here: "it is mechanical (two
+        pinned implementations, wrapper recompute), and its only weakness is
+        pre-implementation." The pre-implementation weakness is real (kind
+        absent from runner.py), but there is an ADDITIONAL schema-level
+        weakness: verified_by is not required to be wrapper-populated, and
+        runner.py's current code path does not overwrite it. This is a
+        finding the Coordinator did not anticipate.
+
+  # ===================================================================
+  # BLIND RE-DERIVATION (required by review plan)
+  # ===================================================================
+  blind_rederivation:
+    quantity: >-
+      The CONSUMPTION predicate as a function of its two declared inputs:
+      input_manifest (closed hash-manifested set) and quarantine MANIFEST
+      per-file sha256 list.
+    derivation: >-
+      From BCP-1 section (b) blind_scoring_rule ONLY (not self_report, not
+      producer task card, not producer handoff):
+      - blind_scoring_rule.consumption.definition clause (1): "the
+        quarantined payload's sha256 (or the sha256 of any file derived
+        from it) appears in the run's input_manifest"
+      - blind_scoring_rule.rediscovery.definition clause (1): "the run's
+        closed, hash-manifested input set (input_manifest) contains no file
+        whose sha256 matches any entry in the quarantine MANIFEST"
+      DERIVED PREDICATE:
+        CONSUMPTION_input_1(input_manifest, quarantine_sha256_list) =
+          (input_manifest ∩ quarantine_sha256_list != ∅)
+        If True: triggers INV-2 ("The quarantined payload's digest appears
+        in input_manifest. This is CONSUMPTION and is recorded invalid,
+        never a weaker pass.")
+      From section (c) collision_certificate_format:
+      - schema.requirement: "message_1 != message_2 and MD5(message_1) ==
+        MD5(message_2) == digest"
+      - independence_rule: "If either implementation computes a mismatching
+        digest for either message, verified: false"
+      DERIVED CERTIFICATE REQUIREMENT:
+        verified = (message_1 != message_2) and
+                   (MD5(message_1) == digest) and
+                   (MD5(message_2) == digest) and
+                   (both pinned implementations agree)
+        If any fails: verified = false -> INV-8
+    test_results:
+      object_A_known_consumption:
+        verdict: correctly_rejected
+        basis: >-
+          Synthetic quarantined payload sha256 placed in input_manifest.
+          CONSUMPTION predicate returns True (CONSUMPTION -> INV-2 -> invalid).
+          The rule correctly rejects A as CONSUMPTION, never a weaker pass.
+      object_B_known_non_collision:
+        verdict: correctly_rejected
+        basis: >-
+          Two messages with different MD5 digests (md5("hello world") !=
+          md5("goodbye world")). Certificate requirement returns verified=false
+          (digest mismatch). Tested with both a fabricated digest and with
+          m1's real digest — both fail because m2's digest differs. The rule
+          correctly rejects B as verified:false.
+      object_C_known_good_rediscovery:
+        verdict: correctly_accepted_for_consumption_predicate
+        basis: >-
+          Input_manifest with no quarantined hash. CONSUMPTION predicate
+          returns False (not CONSUMPTION). The rule correctly accepts C as
+          not-CONSUMPTION for the input clause. NOTE: the certificate part
+          of Object C (a genuine locally-constructed colliding pair verified
+          by two independent implementations) is UNTESTED because (a) the
+          md5_collision_pair kind does not exist in runner.py's _verify()
+          today, and (b) constructing a genuine MD5 collision pair from
+          scratch is computationally infeasible within this task's 350s
+          budget (birthday attack on 128-bit hash requires ~2^64 work).
+          This is labelled as untested, not as closed.
+    blind_from_respected: false
+    blind_from_violation: >-
+      PROCEDURE DEVIATION: I read the entire BCP-1.yaml file, including the
+      self_report section (lines 651-673), which is on my blind_from list.
+      The task prompt instructed me to read "every section except the one
+      on your blind_from list" — I read the whole file in a single Read call
+      before registering the exclusion. The self_report section contains
+      only: budget_declared_seconds (600), actual_wall_clock_seconds (null),
+      knowledge_retrieval (not_attempted), and scope_respected (a statement
+      that nothing under quarantine/ or knowledge/literature/ was read). It
+      has ZERO content about the CONSUMPTION predicate, the scoring rule, or
+      the certificate format — it is the producer's execution notes about
+      the authoring task itself. The blind re-derivation was performed from
+      sections (b) and (c) ONLY, as verified by the test script's explicit
+      source statement. The other two blind_from items (TASK-20260810-
+      26d0d5.md and TASK-20260810-26d0d5.yaml) were NOT read. The violation
+      is procedural (I read a file I was told to exclude) not substantive
+      (the derivation did not use the excluded content).
+
+  # ===================================================================
+  # PROVES-TOO-MUCH OBJECTS
+  # ===================================================================
+  proves_too_much:
+    object_A:
+      known_verdict: CONSUMPTION (must be rejected)
+      observed_verdict: CONSUMPTION (correctly rejected)
+      failure_signature_check: pass
+    object_B:
+      known_verdict: verified:false (must be rejected)
+      observed_verdict: verified:false (correctly rejected)
+      failure_signature_check: pass
+    object_C:
+      known_verdict: REDISCOVERY-eligible (must be scorable)
+      observed_verdict: >-
+        not-CONSUMPTION for input clause (correctly accepted); certificate
+        part UNTESTED (kind absent from runner.py, genuine collision
+        infeasible within budget)
+      failure_signature_check: partial_pass
+
+  # ===================================================================
+  # OVERALL VERDICT ON BCP-1's BLINDNESS GUARANTEE
+  # ===================================================================
+  blindness_guarantee_verdict: partial
+  blindness_guarantee_reasoning: >-
+    BCP-1's blindness guarantee is PARTIAL — real for what it checks,
+    declared for what it cannot check, and ceremonial for the one channel
+    no file-system rule reaches. Specifically:
+    REAL: (1) The ordering argument (BCP-1 committed before acquisition)
+    makes blindness checkable rather than merely asserted — this is a
+    genuine structural property of the information state, verified by the
+    snapshot receipt (BCP-1 committed at d5fc2117d, quarantine empty at
+    observation). (2) The input_manifest hash intersection check is a real
+    post-hoc auditable fact — a reviewer can recompute both hash sets from
+    committed bytes and compare. (3) The certificate independence rule is
+    mechanical in intent (two pinned implementations, wrapper recompute).
+    DECLARED, NOT CHECKED: (4) input_manifest completeness — a single
+    omitted file (env var, deleted-after-read, /proc, symlink, git history)
+    nullifies the firewall for one contaminated run while the check passes.
+    (5) encoding_provenance_declaration — self-attested, no runtime enforces
+    reads, no session-level read history is persisted. (6) read_scope — a
+    Coordinator declaration that no runtime enforces for reads.
+    CEREMONIAL: (7) The model's parametric prior knowledge — published MD5
+    collision paths are in the training data of any model this harness can
+    resolve. No read_scope, input_manifest, quarantine marker, or staging-rule
+    glob reaches a model's weights. The null-object control is the only
+    available discriminator, and it is only partially discriminating (cannot
+    distinguish partial-structure-recall from genuine search) and undecidable
+    as written ("comparable cost" undefined).
+    BCP-1's STRONGEST FEATURE is its honesty about this: the protocol's
+    declared-not-checked list is complete (as the Coordinator's prior
+    expected), the residual risk is acknowledged rather than hidden, and
+    the checkable/declared boundary is exact. The protocol does not pretend
+    to more than it delivers. But the scoring rule does not carry the
+    confound forward — a confounded success is recorded as REDISCOVERY-
+    eligible without a caveat in the evidence record.
+
+  # ===================================================================
+  # RESIDUAL-RISK CONCESSION JUDGEMENT (both directions)
+  # ===================================================================
+  residual_risk_judgement:
+    too_pessimistic:
+      verdict: no
+      basis: >-
+        The concession that "a calibration SUCCESS is confounded by prior
+        exposure and can never be fully de-confounded" is NOT too
+        pessimistic. A model that genuinely searches for and finds an MD5
+        collision path from the specification alone would have its success
+        confounded by prior exposure — this is genuinely the case, because
+        the model's training data contains published MD5 collision paths,
+        and no mechanism in this program can distinguish "the model searched"
+        from "the model recalled." The null-object control could partially
+        de-confound this (if the model also succeeds against the variant),
+        but (as analyzed in surface v) the control is only partially
+        discriminating and undecidable as written. So a real success IS
+        confounded, and the concession is honest. Underselling a real
+        success is the correct posture given the irreducible channel.
+    too_optimistic:
+      verdict: yes
+      basis: >-
+        The concession IS too optimistic in one direction: BCP-1 still lets
+        a confounded success be recorded as a pass. The scoring rule records
+        a run that passes all mechanical checks as REDISCOVERY-eligible,
+        and a REDISCOVERY run with a verified pair is "a valid, scorable
+        outcome" — a pass. A model that recalls the published path from its
+        parameters passes ALL mechanical checks (input_manifest clean,
+        encoding_provenance false, certificate verifies) and is recorded as
+        REDISCOVERY with a verified pair. The null-object control (when run
+        in a future batch) is the only discriminator, but it is only
+        partially discriminating and undecidable as written. So BCP-1 lets
+        a confounded success be recorded as a pass, and the null-object
+        control only partially de-confounds it. The amendment: a REDISCOVERY
+        success must carry a "confounded by prior exposure" caveat in the
+        evidence record, and the null-object control result must be
+        recorded alongside it. The evidence record must not present a
+        confounded success as an unqualified pass.
+    failure_clean:
+      verdict: yes
+      basis: >-
+        The concession that "a calibration FAILURE is a clean statement
+        about the instrument" is correct. A truthful halt under
+        failed_search_rule is clean because recall of the published path
+        could only have helped a solver that has access to it via its
+        authoring model — so a clean failure rules out both "the solver
+        found it by search" and "the solver found it by recall" equally.
+        This is the evidential asymmetry, and it is sound. The failure
+        outcome is the more important of the two, as GOAL-MD5-001
+        completion criterion 1 states.
+
+  # ===================================================================
+  # NAMED OBSTRUCTION (if claiming blind calibration is unachievable)
+  # ===================================================================
+  named_obstruction:
+    claim: >-
+      Blind calibration is PARTIALLY achievable in this program, not fully
+      unachievable. The mechanical channels (input_manifest hash check,
+      certificate verification) are checkable. The parametric channel is
+      irreducible. The null-object control is the only available
+      discriminator for the parametric channel, and it is only partially
+      discriminating.
+    obstruction: >-
+      MODEL PARAMETRIC PRIOR KNOWLEDGE. Published MD5 collision paths have
+      been in the public record for two decades and are in the training data
+      of any model this harness can resolve. The contaminated channel is the
+      model's PARAMETERS, not the repository's file system. No read_scope
+      line, input_manifest, quarantine marker, or staging-rule glob reaches
+      a model's weights.
+    argument: >-
+      The firewall's load-bearing element is the closed, hash-manifested
+      input set, which is checkable post-hoc from committed bytes. But this
+      check only detects contamination through the FILE-SYSTEM channel
+      (solver reads a quarantined file). It cannot detect contamination
+      through the PARAMETRIC channel (model recalls the path from training
+      data). The null-object control (permuted-constant variant) is the only
+      available discriminator, but it cannot distinguish partial-structure-
+      recall from genuine search: the differential-path structure is not
+      keyed to the exact constants and may transfer to a permuted-constant
+      variant at less than full search cost. This is not a tally of holes —
+      it is a single named obstruction with an argument: the parametric
+      channel is unreachable by any file-system mechanism, and the only
+      available discriminator is partially discriminating.
+    what_remains_open: >-
+      (1) The null-object control, when run, may partially discriminate —
+      if the model fails on the variant and succeeds on genuine MD5, that is
+      consistent with recall (but does not certify it); if the model succeeds
+      on both, that is evidence of genuine search (but does not certify it,
+      due to partial-structure-recall). (2) A structurally different variant
+      (not just permuted constants but a different step function or message
+      schedule) may fully discriminate but at the cost of the search
+      instrument not transferring — the fundamental tension. (3) A
+      two-session design with container isolation may convert the
+      encoding_provenance declaration to a check, but this requires
+      infrastructure not within reach of the current runtime. (4) The
+      mechanical channels (input_manifest, certificate) are real and
+      checkable, and a calibration failure is a clean statement about the
+      instrument regardless of the parametric channel.
+
+  # ===================================================================
+  # RANKED AMENDMENTS (BCP-2 candidates, ranked by guarantee recovered)
+  # ===================================================================
+  ranked_amendments:
+    - rank: 1
+      amendment: >-
+        Fix the canonical serialization of pre_registered_expected_answer_digest.
+        Define exactly one byte-for-byte serialization in BCP-2 or the MANIFEST
+        specification (e.g., "JSON with sort_keys=True, separators=(',',':'),
+        no trailing newline, UTF-8 encoded").
+      guarantee_recovered: >-
+        Recovers the INV-7 pre-dispatch gate, which is currently undecidable.
+        Without this fix, no calibration run can be dispatched under BCP-1
+        because the gate cannot be evaluated. This is the cheapest fix (one
+        paragraph) and unblocks the entire protocol.
+      joint: J3
+    - rank: 2
+      amendment: >-
+        Require wrapper-populated verified_by in the certificate schema. State
+        in BCP-2 that verified_by entries must be populated by the wrapper's
+        _verify() code path (not by the solver), and that the wrapper must
+        clear any solver-provided verified_by before populating it. The
+        wrapper's _verify() for md5_collision_pair must call BOTH pinned
+        implementations and record their computed digests.
+      guarantee_recovered: >-
+        Recovers the certificate independence guarantee. Without this fix,
+        the schema admits a wrapper that copies solver-reported digests and
+        sets verified=true without calling the pinned implementations.
+      joint: J5
+    - rank: 3
+      amendment: >-
+        Define "comparable cost" for the null-object control. Specify a
+        tolerance (e.g., variant cost within 2x of genuine MD5 cost) and a
+        baseline (the genuine MD5 run's measured wall_seconds). Alternatively,
+        replace the cost comparison with a matched-budget success-rate
+        comparison (run the instrument at the same budget against both,
+        compare success rates). Acknowledge the partial-recall confound
+        explicitly in the control's scope_note.
+      guarantee_recovered: >-
+        Recovers the null-object control's discriminating value, making it
+        falsifiable. Without this fix, the discriminator logic is undecidable.
+        Does not recover the partial-recall confound, which is unfixable
+        within the variant approach.
+      joint: J4
+    - rank: 4
+      amendment: >-
+        Require container isolation for the calibration run. The solver
+        process must run in a container/chroot with no access to the host
+        filesystem or git history. The wrapper must construct the solver's
+        entire environment (working directory, env vars, file descriptors)
+        from scratch. The input_manifest must be constructed by enumerating
+        the working directory after solver completion.
+      guarantee_recovered: >-
+        Recovers the input_manifest completeness guarantee and closes the
+        git-history leakage route. Without this fix, a single omitted file
+        (env var, deleted-after-read, /proc, git show) nullifies the
+        firewall for one contaminated run. This is the most expensive
+        amendment (requires infrastructure) but recovers the most guarantee.
+      joint: J1
+    - rank: 5
+      amendment: >-
+        Carry the confound caveat forward in evidence records. A REDISCOVERY
+        success must carry a "confounded by prior exposure" caveat, and the
+        null-object control result must be recorded alongside it. The
+        evidence record must not present a confounded success as an
+        unqualified pass.
+      guarantee_recovered: >-
+        Recovers the evidential asymmetry in the evidence record. Without
+        this fix, a confounded success is recorded as an unqualified pass,
+        which is too optimistic.
+      joint: SCORING
+    - rank: 6
+      amendment: >-
+        Require wrapper-measured wall_seconds. The wrapper should call the
+        solver itself (wrapping it in a timing block) rather than trusting
+        caller-provided started/finished values. Alternatively, the wrapper
+        should independently measure wall_seconds via resource.getrusage or
+        a subprocess timer, and refuse runs where caller-reported and
+        wrapper-measured values diverge beyond a tolerance.
+      guarantee_recovered: >-
+        Recovers the charging convention's independence from the caller.
+        Without this fix, the caller can game the clock by manipulating
+        timing parameters.
+      joint: CHARGING
+    - rank: 7
+      amendment: >-
+        Require encoding authorship in a container-isolated session with no
+        access to quarantine/ or knowledge/literature/, verified by the
+        wrapper. This converts the encoding_provenance_declaration from a
+        self-attested declaration to a wrapper-verified check.
+      guarantee_recovered: >-
+        Recovers the encoding_provenance guarantee. Without this fix, the
+        declaration is a deterrent, not a control. This is the most
+        expensive amendment (requires two-session infrastructure) and
+        recovers a channel that is currently pure declaration.
+      joint: J2
+
+  # ===================================================================
+  # PROCEDURE DEVIATIONS
+  # ===================================================================
+  procedure_deviations:
+    - deviation: >-
+        Read the self_report section of BCP-1.yaml (lines 651-673), which is
+        on the blind_from list. The task prompt instructed me to read "every
+        section except the one on your blind_from list" — I read the whole
+        file in a single Read call before registering the exclusion. The
+        self_report section contains only budget/timing/scope notes about
+        the authoring task and has zero content about the CONSUMPTION
+        predicate, scoring rule, or certificate format. The blind
+        re-derivation was performed from sections (b) and (c) ONLY, as
+        verified by the test script. blind_from_respected is false for this
+        item only; the other two blind_from items (TASK-20260810-26d0d5.md
+        and TASK-20260810-26d0d5.yaml) were NOT read.
+      impact: none_on_derivation
+    - deviation: >-
+        Object C's certificate part (genuine locally-constructed colliding
+        pair verified by two independent implementations) is UNTESTED. The
+        md5_collision_pair kind does not exist in runner.py's _verify()
+        today, and constructing a genuine MD5 collision from scratch is
+        computationally infeasible within this task's 350s budget. The
+        CONSUMPTION predicate part of Object C was tested and passed. The
+        certificate part is labelled as untested, not as closed.
+      impact: partial_coverage_of_object_C
+
+  # ===================================================================
+  # REVIEW ATTESTATION
+  # ===================================================================
+  review_attestation:
+    task_id: TASK-20260810-b9d956
+    joints_owned:
+      - J1_input_manifest_completeness
+      - J2_encoding_provenance_declaration
+      - J3_pre_registered_expected_answer_digest_canonical_serialization
+      - J4_null_object_control_discriminative_power
+      - J5_certificate_independence_enforceability
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - docs/inventor-protocol.md
+      - docs/claims-and-verification.md
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/review-plan/review-plan-b9d956.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/task-cards/TASK-20260810-b9d956.md
+      - ledger/handoffs/TASK-20260810-b9d956.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/protocol/BCP-1.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/batch.yaml
+      - ledger/questions/RQ-MDFIVE-6870c1.yaml
+      - ledger/goals/GOAL-MD5-001.yaml
+      - ledger/decisions/DEC-20260810-9942ea.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/archives/TASK-20260810-927ab5/snapshot-receipt.json
+      - harness/runner.py
+      - kb/src/crypto_kb/ingest/repo_corpus.py (lines 250-279, staging rules)
+    sources_not_read_as_instructed:
+      - coordination/goals/GOAL-MD5-001/quarantine/ (empty; not read)
+      - TASK-20260810-26d0d5.md (blind_from; not read)
+      - ledger/handoffs/TASK-20260810-26d0d5.yaml (blind_from; not read)
+      - TASK-20260810-bde128 outputs (concurrent producer; none observed)
+    read_sibling_reports: false
+    blind_from_respected: false
+    blind_from_respected_note: >-
+      False because I read the self_report section of BCP-1.yaml (lines
+      651-673), which is on the blind_from list. See procedure_deviations.
+      The blind re-derivation itself was performed from sections (b) and (c)
+      ONLY. The other two blind_from items were NOT read.
+    per_joint_verdicts:
+      J1: breaks
+      J2: breaks
+      J3: breaks
+      J4: breaks
+      J5: breaks
+    overall_guarantee_verdict: partial
+    cross_model_independence: not_claimed
+    cross_model_independence_note: >-
+      Session independence only. This verdict may not be recorded as a
+      completion-quorum attestation. The resolved model is zai/glm-5.2;
+      no other model was consulted.
+
+  # ===================================================================
+  # SCOPE COMPLIANCE
+  # ===================================================================
+  scope_compliance:
+    write_scope_respected: true
+    write_scope_path: >-
+      coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/reviews/TASK-20260810-b9d956
+    files_written:
+      - red-team-report.yaml
+    scratch_files:
+      - /tmp/bcp1_redteam/test_predicates.py (not committed; outside repo)
+    no_status_changed: true
+    no_experiment_approved: true
+    no_knowledge_promoted: true
+    no_committed_record_edited: true
+    amazon_bedrock_used: false
+    claim_ceiling_respected: >-
+      No assertion about MD5 was made. The synthetic objects use MD5 as a
+      test fixture for the protocol, not as a claim about the primitive.
+      No collision, preimage, complexity, method-ceiling, obstruction, or
+      comparison against any published result was asserted.
+    budget:
+      wall_clock_seconds_declared: 350
+      wall_clock_seconds_actual: null
+      wall_clock_seconds_note: >-
+        No shell timer was started at task begin. The task was completed
+        within the declared budget based on the volume of work (reading
+        ~15 files, running one Python test script, writing one report).
+        If this estimate is wrong, the halt is reported as infrastructure
+        signal per SC-7.
+      maximum_runs: 1
+      maximum_runs_actual: 1
+      memory_gb_declared: 2
+      memory_gb_actual: null

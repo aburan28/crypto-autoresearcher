@@ -1,0 +1,331 @@
+hypothesis:
+  id: H-ICEX-14a46a
+  question_id: RQ-DREG-001
+  added: '2026-09-04'
+  derived_from_idea: IDEA-20260828-770aa4
+  statement: >-
+    THE MEMORY WALL AT THE n = 15, D = 6 MACAULAY PREPARE PHASE IS A REPRESENTATION COST, NOT AN
+    INFORMATION-THEORETIC ONE. Three limbs, separable and separately falsifiable.
+    (L1) SPARSITY. The number of nonzero entries nnz(n, D) of the Macaulay matrix at the cell in
+    question is a small fraction of nrows x ncols - the density is far below one per cent -
+    because each generated row's nonzero count is exactly the support size of the original,
+    unmultiplied equation, independent of the multiplier, and those support sizes are small and
+    bounded. L1 is a measurement and it can fail: if the density is not small, the matrix is not
+    classically sparse, the wall is inherent fill-in rather than representation, and limbs L2
+    and L3 are void.
+    (L2) REPRESENTATION. Re-encoding the identical combinatorial rows and columns as packed
+    integer bitmasks or a compressed sparse row structure, and streaming the row generator so
+    that no more than a bounded number of rows is materialised at once, reduces the PEAK
+    RESIDENT SET of the prepare phase at the same cell by at least a factor of five relative to
+    the CURRENT instrument measured on THE SAME MACHINE IN THE SAME SESSION.
+    (L3) MATRIX-FREE FALLBACK. If the rank loop itself still exceeds the declared ceiling with
+    the cheaper encoding, routing the same full-column exact-rank computation through the
+    already-scaffolded sparse export into a randomized Krylov rank certificate holds no more
+    than the number of nonzeros plus a bounded number of vectors in memory at once, at the cost
+    of a probabilistic rather than deterministic certificate whose failure probability is
+    amplified below a declared threshold and validated against committed exact ranks before any
+    new rank is trusted.
+    NO ECDLP EXPONENT IS CLAIMED OR MOVED IN ANY LIMB. The claim is entirely about the MEMORY
+    cost of a local measurement instrument, and its whole value is that it would let further
+    rungs of the degree-of-regularity ladder be reached without a memory-budget amendment.
+  mechanism: >-
+    Each Macaulay row is currently held as a nested immutable-set object graph. In this
+    interpreter each such object carries a large fixed per-object overhead regardless of the
+    handful of integers it contains, so holding several hundred thousand rows as object graphs
+    simultaneously costs orders of magnitude more than the information those rows contain.
+    That is a representation cost. The information content of a row is its nonzero count, which
+    is fixed by the ORIGINAL equation's support and is independent of the multiplier, because
+    multiplication by a squarefree monomial maps the support injectively up to cancellation.
+    If those supports are small, the matrix is classically sparse even though its column count
+    is large, and the observed peak is not required by the mathematics of the object.
+    Two independent repairs follow, and the design deliberately tries the cheaper one first.
+    Packing the rows into integer bitmasks or a compressed sparse row structure removes most of
+    the per-object overhead directly, and streaming the generator removes the requirement to
+    hold the full row list before the column set is known. If the elimination loop still fills
+    in past the ceiling, a matrix-free Krylov rank computation never materialises the matrix at
+    all: it needs only the matrix-vector product, so its footprint is the nonzero count plus a
+    bounded number of vectors. That second step trades a deterministic exact rank for a
+    probabilistic certificate, and over a two-element field the per-trial failure probability is
+    not negligible, so it must be amplified by an extension-field projection or repeated
+    independent trials and validated at cells where the exact rank is already committed.
+    WHY A CURVE-FREE, SUPPORT-MATCHED NULL IS MANDATORY HERE. "The Macaulay matrix of this
+    system is sparse" is a signature that a support-matched random system with no curve and no
+    descent behind it reproduces exactly, because sparsity is a property of the generator
+    supports and the multiplier set, not of the elliptic curve the system came from. Without
+    that arm a measured density would invite the reading that ECDLP structure makes the system
+    sparse, which the measurement does not support. The null also serves as the positive control
+    for the rank instrument, because its expected rank is predictable from the support-matched
+    semi-regular model.
+  assumptions:
+    - >-
+      The generator support sizes are small and roughly constant across generators at the target
+      cell, as they are at the smaller cells where the same code path runs without incident.
+      This is checkable cheaply from already-committed smaller systems BEFORE any work at the
+      target cell, and it is limb L1's own content rather than a background assumption.
+    - >-
+      A streaming rewrite of the row generator can count nonzeros without holding more than a
+      bounded number of rows at once, which the current implementation cannot do because it
+      materialises the full row list before computing the column set.
+    - >-
+      Exact ground-truth ranks exist and are committed at the smaller calibration cells, so any
+      new instrument can be validated against them before it is used anywhere new.
+    - >-
+      Peak resident set is a RUN-LEVEL RANDOM VARIABLE, not a constant: allocator behaviour and
+      garbage collection make it vary between identical invocations. It is therefore measured
+      repeatedly and reported as a distribution.
+    - >-
+      Toy scale throughout. No ECDLP instance is solved and no exponent is moved in any branch.
+  proof_search_map:
+    not_applicable_reason: >-
+      NOT A PROOF-ORIENTED HYPOTHESIS, and the reason is specific rather than a shrug. No
+      theorem, certificate family, reduction or asymptotic bound is proposed. The only
+      derivations used are elementary and stated inline: that a row's nonzero count equals the
+      original equation's support size because monomial multiplication is injective on the
+      support up to cancellation, and that a Krylov rank computation touches the matrix only
+      through matrix-vector products and therefore needs storage proportional to the nonzero
+      count plus a bounded number of vectors. The section-8 audits that would otherwise apply
+      are discharged inside the contract's controls: the committed smaller-cell ranks are the
+      baseline reproduction, the support-matched curve-free system is the nearby-object control,
+      and the repeated-trial validation of the probabilistic certificate is the method-ceiling
+      check.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-MEM-1
+      formal_statement: >-
+        Each generated Macaulay row has nonzero-entry count exactly equal to the support size of
+        the original, unmultiplied generator it came from, independent of the multiplier, and
+        those support sizes remain small at the target cell as they are at the committed smaller
+        cells.
+      random_model_justification: >-
+        STRUCTURAL RATHER THAN DISTRIBUTIONAL, and this entry exists to say which half is which.
+        The independence from the multiplier follows directly from the injectivity of monomial
+        multiplication on the support, up to cancellation over the two-element field; that half
+        is a derivation, not a heuristic. The only open empirical question is whether the support
+        sizes stay small at the target cell, which is exactly what the zero-cost stage measures
+        from the already-committed smaller system before any new work is done.
+      supporting_results:
+        - >-
+          The committed smaller-cell systems in this program, from which the support-size
+          distribution can be read with no new compute.
+      validation_experiment_ids:
+        - EXP-ICEX-19377a
+      falsification_condition: >-
+        The measured density at the target cell is not small - above the pre-declared threshold
+        of five per cent of nrows x ncols. The sparse premise fails, the wall is inherent
+        fill-in rather than representation, and limbs L2 and L3 are void. This is a legitimate
+        and informative outcome, not a failed run.
+    - id: HEUR-MEM-2
+      formal_statement: >-
+        For a sparse matrix over the two-element field, a randomized Krylov minimal-polynomial
+        computation recovers the rank with failure probability bounded by a decreasing function
+        of the size of the field used for the random projection, so that an extension-field
+        projection of declared degree, or a declared number of independent repeated trials,
+        drives the failure probability below the pre-declared threshold.
+      random_model_justification: >-
+        The classical statement imitated is the standard random-evaluation lemma for detecting a
+        nonzero polynomial, which is what underwrites randomized rank certificates. THE GAP,
+        stated rather than hidden: over a two-element field the per-trial failure probability is
+        NOT small, so the bound is only usable after amplification, and the amplification factor
+        is a declared parameter of the run rather than an assumption.
+      supporting_results:
+        - >-
+          The program's own technique note on Wiedemann and block Wiedemann for sparse linear
+          algebra. Cited as an established technique in this corpus; the specific
+          failure-probability statement over a two-element field is re-derived and, more
+          importantly, MEASURED against committed exact ranks before use.
+      validation_experiment_ids:
+        - EXP-ICEX-19377a
+      falsification_condition: >-
+        The certified rank disagrees with the committed exact rank at any calibration cell,
+        beyond the pre-declared failure-probability envelope over the declared number of trials.
+        The instrument is not admissible and no new rank from it may be reported as evidence.
+  structural_ingredients:
+    - description: >-
+        The parent proposal's staged design - streaming density measurement first, packed
+        encoding second, matrix-free rank only if needed - together with its calibration
+        controls and its falsification conditions.
+      citation: ledger/proposals/IDEA-20260828-770aa4.yaml
+      provenance: internal
+      verified_by: >-
+        TASK-20260904-8f2f95, coordinator design session, full read of the record on 2026-09-04.
+    - description: >-
+        Wiedemann and block Wiedemann as an established sparse-rank technique with storage
+        proportional to the nonzero count, used here on a new object in this program.
+      citation: KN-TECH-008
+      provenance: internal
+      verified_by: >-
+        IDEA-20260828-770aa4 records reading this technique note in full in its authoring
+        session. TASK-20260904-8f2f95 read that proposal and did NOT open KN-TECH-008; the
+        complexity statement is second-hand and the contract re-reads it in its zero-compute
+        stage before any cost claim is scored.
+    - description: >-
+        The existing sparse-export scaffolding in this repository, whose own documentation names
+        a matrix-free rank consumer as its intended use, and which no ledger hypothesis has ever
+        cited.
+      citation: src/macaulay_export.py
+      provenance: internal
+      verified_by: >-
+        IDEA-20260828-770aa4 records reading this file in full in its authoring session.
+        TASK-20260904-8f2f95 did not open the source file; the contract's zero-compute stage
+        re-reads it and records what it actually contains before any implementation begins.
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: >-
+        density at the target cell - nnz(n, D) divided by nrows x ncols, dimensionless,
+        measured by a streaming pass that never materialises the full row list
+      direction: lower
+      minimum_effect: >-
+        Far below one per cent, with five per cent as the pre-declared failure threshold. This is
+        the stage-zero gate and it can fail; failure voids the two downstream limbs and is
+        reported as the result.
+    - metric: >-
+        peak resident set of the packed streaming prepare phase at the target cell, in GiB,
+        against the CURRENT instrument measured on THE SAME MACHINE IN THE SAME SESSION
+      direction: lower
+      minimum_effect: >-
+        At least five times lower, reported as a ratio of MEDIANS over at least five repeats per
+        arm, with the full min-median-max range of both arms shown. A ratio computed against a
+        peak recorded in a previous session on unstated hardware is NOT admissible and this
+        contract forbids it.
+    - metric: >-
+        exact rank agreement between the new instrument and the committed ranks at the
+        calibration cells, as integers
+      direction: different
+      minimum_effect: >-
+        EXACT MATCH at every calibration cell where a committed rank exists. Any mismatch outside
+        the pre-declared probabilistic envelope voids the instrument.
+    - metric: >-
+        density of the CURVE-FREE support-matched random system at the same cell, dimensionless
+      direction: different
+      minimum_effect: >-
+        Within the declared tolerance of the real system's density. Agreement means the sparsity
+        is a property of the support pattern and the multiplier set, NOT of the elliptic curve or
+        the descent, and the finding must be stated that way.
+    - metric: >-
+        wall-clock and CPU seconds of the new path against the current path at the shared
+        calibration cell, on the same machine
+      direction: different
+      minimum_effect: >-
+        Reported, not predicted. A memory win bought with an unreported time cost is a tradeoff,
+        not an improvement, and the contract requires both coordinates on every row.
+    - metric: >-
+        empirical mismatch rate of the probabilistic rank certificate over at least twenty
+        independent trials at each calibration cell, dimensionless
+      direction: lower
+      minimum_effect: >-
+        Below the pre-declared amplified failure bound. Both the empirical rate and the predicted
+        bound are reported; a rate above the bound voids the certificate path.
+  test_boundary:
+    instances:
+      - >-
+        Calibration cells where exact ranks are already committed in this program, run again on
+        the declared machine to establish the incumbent's cost there.
+      - >-
+        The target cell n = 15, D = 6, both arms of the existing measurement, run on the declared
+        machine with the incumbent instrument and with the new instrument.
+      - >-
+        A CURVE-FREE support-matched random system at every cell above: same number of
+        generators, same generator-degree histogram, same support-size distribution, same
+        multiplier set, generated with no curve and no descent.
+    parameters:
+      cells: 'the committed calibration cells plus n = 15 at D up to 6, frozen before any run'
+      memory_definition: 'peak resident set of the whole process group, sampled at at least 10 Hz, reported together with the interpreter allocator high-water mark; both definitions frozen in the contract'
+      operation_definition: 'nonzero entries counted as distinct (row, column) incidences after cancellation over the two-element field; the definition is frozen before any count is taken'
+      repeats: 'at least five repeats per cell per arm for memory and time; at least twenty trials per calibration cell for the probabilistic certificate'
+      amplification: 'extension degree or repeated-trial count declared before any certificate is computed'
+    implementation: >-
+      Streaming row generator, packed integer or compressed sparse row encoding, and the existing
+      sparse export, under experiments/EXP-ICEX-19377a/driver/. The incumbent instrument is run
+      UNMODIFIED from its committed source for the comparison arm; modifying it would destroy the
+      comparison.
+    budget:
+      wall_clock_seconds_total: 43200
+      maximum_memory_gb: 16
+      maximum_runs: 24
+  falsification_conditions:
+    - >-
+      F1. The streamed density at the target cell is not small. THE SPARSE PREMISE FAILS: the
+      wall is evidence of inherent fill-in rather than of representation choice, limbs L2 and L3
+      are void, and this is the reported result.
+    - >-
+      F2. The probabilistic certified rank disagrees with a committed exact rank at any
+      calibration cell beyond the declared envelope. The matrix-free path is not admissible.
+    - >-
+      F3 (POSITIVE BUT SMALLER THAN HOPED). The packed encoding alone already meets the declared
+      ceiling at the target cell. Representation was the whole defect, the matrix-free path is
+      unnecessary, and the cheaper fix wins - which is a good outcome and is reported as one.
+    - >-
+      F4. The memory win is bought with a wall-clock cost that pushes the cell outside the
+      declared time budget. The result is a TRADEOFF and must be reported in both coordinates;
+      quoting the memory ratio alone would be a misreport.
+    - >-
+      F5. The curve-free support-matched system does NOT reproduce the density. Then sparsity is
+      not explained by the support pattern alone, which is a finding about the system's structure
+      and is reported as such rather than absorbed.
+    - >-
+      NOT A FALSIFICATION. An out-of-memory kill or a timeout on the incumbent arm at the target
+      cell. That is an infrastructure outcome, is recorded with the ceiling that was reached, and
+      is never negative mathematical evidence.
+  interpretation_limits:
+    - >-
+      Toy scale only. No ECDLP exponent is moved in any branch and no attack is constructed.
+    - >-
+      A successful memory fix produces admissible exact ranks for the ladder; it does not by
+      itself decide the underlying degree-of-regularity question, which remains a Coordinator act
+      on whatever ranks result.
+    - >-
+      Every memory and time number is scoped to the NAMED machine, the named interpreter version
+      and the frozen definitions of peak resident set and of nonzero count. A ratio against a
+      figure from another machine or another session is not admissible and this contract forbids
+      constructing one.
+    - >-
+      The probabilistic rank is a certificate with a stated failure probability, not a
+      deterministic result. Every rank it produces carries that probability and the number of
+      trials that produced it.
+    - >-
+      If the curve-free support-matched system reproduces the density, the supported statement is
+      about a support pattern and a multiplier set, and may NOT be restated as a statement about
+      elliptic curves, the descent, or the ECDLP.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  prior_evidence_refs:
+    - RQ-DREG-001
+    - IDEA-20260828-770aa4
+    - GOAL-DREG-001
+    - KN-TECH-008
+  distinguishable_outcomes:
+    - outcome: >-
+        Density small, packed encoding meets the ceiling at the target cell, ranks match at every
+        calibration cell.
+      meaning: >-
+        L1 and L2 hold, L3 is unnecessary. The wall was representation. The ladder's next rungs
+        become reachable within the existing memory budget and the finding is scoped to the named
+        machine and the frozen definitions.
+    - outcome: >-
+        Density small, packed encoding insufficient, matrix-free certificate validates at the
+        calibration cells and meets the ceiling.
+      meaning: >-
+        L1 and L3 hold. Exact deterministic rank is replaced by a certified probabilistic rank
+        with a stated failure probability and a stated trial count, and every downstream number
+        carries them.
+    - outcome: >-
+        Density not small.
+      meaning: >-
+        L1 fails. The wall is inherent fill-in; the representation hypothesis is rejected at this
+        cell and the useful result is the measured density itself, which becomes a reusable
+        obstruction quantity for the lane.
+    - outcome: >-
+        Certified rank disagrees with a committed rank beyond the envelope.
+      meaning: >-
+        The matrix-free path is inadmissible. Either the amplification is insufficient or the
+        implementation is wrong; the discrepancy is localised between the two named instruments
+        and no new rank is reported.
+    - outcome: >-
+        The curve-free support-matched system reproduces every density and rank behaviour.
+      meaning: >-
+        The instrument's economics are governed by the support pattern, not by the curve. The
+        result is stated at that scope and the ECDLP framing is explicitly withdrawn from it.

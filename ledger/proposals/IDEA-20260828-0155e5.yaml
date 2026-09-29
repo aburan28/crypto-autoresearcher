@@ -1,0 +1,307 @@
+idea:
+  id: IDEA-20260828-0155e5
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    A memory-feasibility-gated Demirci-Selcuk multiset meet-in-the-middle
+    key recovery -- this campaign's first table-based (rather than
+    partial-sums or brute) executed AES construction, with the table size
+    itself as the pre-registered falsifier
+  class: algorithm
+  claim: >-
+    Build and EXECUTE, to a certified key recovery, a Demirci-Selcuk-style
+    meet-in-the-middle (DS-MITM) attack on reduced-round AES-128 at the
+    LARGEST round count r* in {4,5,6,7} for which the precomputation table
+    over the "ordered multiset" object (below) fits the measured envelope
+    (peak RSS <= ~10 GB, leaving headroom under the 15 GB ceiling; no numpy
+    dense linear algebra beyond toy scale, no MILP/SAT). r* and the exact
+    parameter-byte count P are determined by a PRE-REGISTERED, committed
+    arithmetic derivation BEFORE any code is written -- table size is
+    2^(8P) entries of the multiset's value type, and the derivation must be
+    committed and checked before the memory claim is trusted. THREE MUTUALLY
+    EXCLUSIVE OUTCOMES, each informative: (i) some r* in {4,...,7} is
+    feasible and the attack executes, in which case its MEASURED cost
+    (time, peak RSS, success probability over >=3 seeds) is compared
+    against REF-A and REF-B at r*, giving this campaign its first
+    time-memory-tradeoff data point that is NOT partial-sums and NOT brute
+    force; (ii) r=4 itself is infeasible in this envelope, which is a dated,
+    scoped barrier statement about DS-MITM's classical parameterization in
+    THIS environment (never "DS-MITM doesn't work on AES"); (iii) a
+    feasible r* exists but its MEASURED cost is dominated by REF-B (the
+    campaign's own generic baseline, per IDEA-72ec9a's h*/B(h) curve once
+    frozen) -- a real Pareto-dominated outcome, reported as such and not
+    laundered into a win.
+  mechanism: >-
+    The tracked object is the ORDERED MULTISET H = the sequence of P
+    <= 256-valued bytes taken across a 4-round "distinguisher core"
+    (rounds R_{i+1}..R_{i+4}) applied to a delta-set of 256 plaintexts that
+    are constant on 15 of 16 bytes and range over all 256 values on the
+    16th: H is a deterministic function of those 15 constant bytes and of
+    P SECRET PARAMETER BYTES drawn from the round keys touching the
+    distinguisher's active diagonals, and is INDEPENDENT of the active
+    byte's actual value by construction of the delta-set (Demirci-Selcuk's
+    original observation; "differential enumeration", Dunkelman-Keller-
+    Shamir, reduces P below the naive 25-byte count by using precomputed
+    differential trails to fix relations among parameter bytes -- P is
+    NOT assumed here and must be re-derived and committed for THIS
+    campaign's pinned round-key/S-box convention before any table is sized).
+    Prepending 1 round and appending k_a rounds (k_a in {1,2} for r in
+    {6,7}) turns the distinguisher into a key-recovery filter: for each of
+    2^(8P) precomputed H-values, an ONLINE phase computes H from real
+    ciphertexts under each candidate value of the appended-round key bytes
+    and matches against the table; a non-match eliminates the candidate,
+    and (per the RQ's own U1-adjacent concern) the SURVIVOR-COUNT decay
+    across matches is exactly the statistic IDEA-20260805-f2fc33 showed has
+    real power and IDEA-46d7ef's DP formalism generalizes.
+  why_not_a_renamed_known_approach: >-
+    DS-MITM ITSELF IS A NAMED, ESTABLISHED FAMILY (meet-in-the-middle /
+    Demirci-Selcuk is explicitly on RQ-AES-003's off-limits-as-primary-lens
+    list) and this record does NOT claim it as a novel attack lens --
+    RQ-AES-003 explicitly and in writing exempts the BASELINE/IMPLEMENTATION
+    arm from that restriction ("a KNOWN family is fully admissible here ...
+    as the IMPLEMENTATION TARGET of a first executed attack"). This is
+    exactly that exemption used as intended: the campaign has BUILT ZERO
+    table-based attacks in four batches of partial-sums and yoyo work, and
+    running one is the productive, permitted move. The genuinely new
+    content specific to THIS session is (a) the memory-feasibility gate
+    computed and committed BEFORE code, per this environment's actual
+    measured 15 GB/no-numpy envelope rather than assumed from the
+    literature's crypto-scale tables, and (b) reading the survivor-count
+    DECAY through the DP formalism IDEA-46d7ef already built for
+    partial-sums, extended to a table-match elimination step -- a
+    cross-proposal composition, not a restatement of either.
+  object_first_candidate:
+    tracked_object: >-
+      The ordered multiset H (a P-parameter-byte-indexed sequence of <=256
+      values), together with its precomputed table and the online-phase
+      survivor count after each match.
+    established_families_off_limits: >-
+      Meet-in-the-middle and Demirci-Selcuk are named on RQ-AES-003's own
+      off-limits list as the PRIMARY LENS; this proposal uses the
+      DELIBERATE, EXPLICIT EXCEPTION RQ-AES-003 grants for the baseline/
+      implementation arm and makes no novelty claim about the attack family
+      itself.
+    lossy_projection_identifiability_audit:
+      projection: (16-byte state at the distinguisher boundary) -> (the
+        ordered multiset H, a sequence of <= 256 values determined by P
+        secret bytes and independent of the active byte's value).
+      what_is_discarded: The active byte's own value, and everything about
+        the other 15 constant bytes beyond how they combine into the P
+        parameters.
+      is_it_only_a_change_of_coordinates: >-
+        NO -- 2^2048 possible states (256 texts x 8 bytes each) collapse to
+        a multiset determined by only P << 128 bytes. This is the Demirci-
+        Selcuk observation itself and is genuinely lossy; it survives
+        exactly as far as SubBytes bijectivity and the delta-set's own
+        round-function algebra permit, which is the classical DS-MITM
+        survival horizon (4 core rounds), stated up front rather than
+        discovered later.
+  novelty_status: unverified
+  citations:
+    - ref: 'eprint 2010/537 (Demirci, Selcuk, Reyhanitabar-style key-bridging on AES-192)'
+      provenance: recalled
+      claim: DS-MITM with key-schedule "key bridging" reaches 8-round AES-192.
+      verified_by: null
+    - ref: 'FSE 2013, "Exhausting Demirci-Selcuk MITM Attacks against Reduced-Round AES" (di.ens.fr/~fouque/pub/fse13b.pdf)'
+      provenance: recalled
+      claim: Systematic parameterization of DS-MITM across AES round counts and key sizes, including the differential-enumeration table-size reduction.
+      verified_by: null
+  assumptions:
+    - The pinned FIPS-197-verified harness (aes_reduced.py / the AES-NI C
+      path once pinned per RQ-AES-003 constraints) can be instrumented for
+      an arbitrary delta-set and round-key-touching-byte extraction without
+      code changes to the cipher core itself.
+    - P (the parameter-byte count after differential enumeration) is
+      re-derived for THIS campaign's exact pinned round-key/MixColumns
+      convention rather than assumed from the literature's byte count,
+      which may differ under a different indexing convention.
+  proof_search_map:
+    bottleneck: >-
+      The parameter count P: it is the sole determinant of table size
+      2^(8P), hence of feasibility, and the literature's P is for a
+      specific (possibly different) convention.
+    baseline_embedding:
+      parameter_slice: P computed with the differential-enumeration
+        relations DROPPED (naive P=25) reproduces the classical
+        "textbook" DS-MITM table size as a symbolic upper bound.
+      reproduction_check: The naive-P table size must exceed the
+        differential-enumeration P's table size by exactly the number of
+        relations used; a frozen arithmetic check, zero compute.
+    observation_collision:
+      observable: table size 2^(8P) at the chosen r.
+      distinct_preimage_search: A wrong differential-enumeration relation
+        (one that does not actually hold for this cipher/round-key
+        convention) would silently under-count P and predict a table that
+        does not actually filter correctly online -- checked by the online
+        phase's OWN survivor count on a TRUE-KEY control instance, which
+        must survive with probability 1.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: the ordered multiset H replacing the full 256-text
+          delta-set state.
+        predicted_gain: table size 2^(8P) vs a naive 2^(8*16) per active
+          byte position, i.e. potentially many bits of memory reduction,
+          exact value pending the committed P.
+    quantifier_order: >-
+      FOR the pinned cipher and round-key convention, THERE EXISTS a
+      parameter count P and a round count r* such that the DS-MITM table
+      fits the measured envelope; the claim is existential over r* in a
+      FIXED finite set {4,5,6,7}, never a claim that DS-MITM fits at every
+      r or at full round.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At round r*, this DS-MITM construction, as built, recovers the
+        key with measured cost X, certified against independent
+        ciphertext re-verification." It certifies nothing about DS-MITM's
+        performance at any round count not executed, and nothing about the
+        published frontier (R3, unadjudicable in either direction).
+      nearby_object_control: >-
+        A cipher with the identical round structure but a linear
+        (non-bijective-nonlinear) substitution layer should make H trivial
+        (constant across the delta-set) rather than merely smaller; running
+        the table construction against such a control cipher and confirming
+        H degenerates as predicted is a cheap correctness check on the
+        multiset derivation before real-AES compute is spent.
+    proof_obligations:
+      - claim: P is correctly re-derived for the pinned convention.
+        responsibility: correctness
+      - claim: table size 2^(8P) is measured against the actual envelope, not assumed.
+        responsibility: memory
+      - claim: a true-key control instance survives the online match with probability 1.
+        responsibility: baseline
+      - claim: reported margin is against REF-A/REF-B only, never the published frontier.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: committed parameter count P and table size 2^(8P) bytes, pre-registered before any code
+      direction: different
+      minimum_effect: A specific integer, checked against the naive P=25 upper bound as a sanity ceiling.
+    - metric: largest feasible r* under the measured envelope
+      direction: higher
+      minimum_effect: r* >= 4 (if even r=4 is infeasible, that is outcome (ii), the barrier statement)
+    - metric: measured wall-clock cost of the executed attack at r*, vs REF-B's measured B(h) (once IDEA-72ec9a's curve is frozen)
+      direction: lower
+      minimum_effect: Any measurable margin in either direction is informative; no margin is assumed in advance.
+    - metric: true-key control survival rate in the online matching phase
+      direction: higher
+      minimum_effect: exactly 1.0 over all tested keys; less than 1.0 falsifies the multiset derivation
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): derive P from the pinned round-key/MixColumns
+      convention by hand, using differential enumeration; commit the
+      derivation and the resulting table-size-in-bytes BEFORE any code.
+      STAGE 1: compute the largest r* in {4,...,7} whose table fits <=10 GB;
+      if none, STOP and record outcome (ii) as a dated barrier statement
+      with the arithmetic attached. STAGE 2: implement the precomputation
+      and online phases against the pinned harness, with a true-key
+      control run FIRST (must survive with probability 1) before any
+      wrong-key measurement is trusted. STAGE 3: execute the full attack
+      over >=3 independent (key, seed) instances, emit a key-recovery
+      certificate re-verified independently of the attack code, and measure
+      wall clock, peak RSS, and instrumented table-lookup/comparison count.
+    controls:
+      - True-key control (must survive with probability 1 before anything else is trusted)
+      - Naive-P upper-bound sanity check on the table-size arithmetic
+      - Linear-substitution nearby-object control (H must degenerate to near-constant)
+      - Independent re-verification of the recovered key under pycryptodome AND openssl CLI where round count admits it
+    required_metrics:
+      - committed P and table size in bytes
+      - measured wall clock, peak RSS, instrumented op count
+      - success probability over >=3 seeds
+      - margin against REF-A and against REF-B's frozen B(h) curve, each stated separately
+  falsification_conditions:
+    - The true-key control does not survive with probability 1 -- the multiset derivation is wrong and nothing downstream may be reported.
+    - No r* in {4,...,7} fits the envelope -- barrier statement, not a negative mathematical result about DS-MITM generally.
+    - The executed attack's measured cost is dominated by REF-B -- reported as a real Pareto-dominated point, not reframed.
+  confounders:
+    - Cache/memory-hierarchy effects on the table lookup (IDEA-20260807-8e20fe's own finding that counted ops and measured seconds diverge above certain working-set sizes applies directly here and must be checked, not assumed away).
+    - A wrong differential-enumeration relation silently shrinking P below its true value, which the true-key control is designed to catch.
+    - Four-core scaling is unmeasured per RQ-AES-003 constraints; this construction is charged single-core unless a measured multi-core receipt exists.
+  interpretation_limits:
+    - Toy tier, reduced-round only, no statement about full-round or deployed AES.
+    - No comparison to the published frontier in either direction (R3).
+    - A successful execution at r* is a statement about THIS construction as built, not about DS-MITM's best possible parameterization.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        FOR the pinned round-key convention, the ordered multiset H, viewed
+        as a function of a uniformly random WRONG guess of the appended-
+        round key bytes, is uniformly distributed over its 2^(8P)-sized
+        codomain, independent across candidate guesses.
+      rigorous_support: >-
+        The TRUE-key case is exact (H is a deterministic function of only
+        P bytes, provably independent of the active byte, from SubBytes
+        bijectivity and the round function's algebra -- this part is a
+        proof, not a heuristic). What is heuristic is only the WRONG-key
+        case: that a wrong partial decryption produces an H-value
+        statistically indistinguishable from uniform. This is the
+        classical "wrong-key randomization" assumption every MITM/
+        partial-sums attack makes, and eprint 2025/2011 (retrieved this
+        session) is direct evidence it can fail in a STRUCTURED way for
+        related integral constructions.
+      validation_plan: >-
+        Toy scale: instrument the online phase to record, per wrong-key
+        candidate, not just match/no-match but the actual H-value, and
+        compare its empirical distribution over >=2^16 wrong-key samples
+        against uniform on the 2^(8P) codomain by a chi-square-style test
+        restricted to the observed support; report the WORST-fitting
+        candidate class, not the average, per the eprint-2025/2011 concern
+        that specific structured wrong-key classes (not generic wrong keys)
+        may be the ones that deviate.
+  target_complexity:
+    time_exponent: >-
+      No exponent is moved against AES generically. Target is a MEASURED
+      cost at r* strictly below REF-A (2^(k-1) r*-round evaluations,
+      trivial to beat) and, as the actual research question, below or
+      above REF-B's frozen B(h) at the same hint budget -- stated as an
+      open empirical question, not assumed favorable.
+    memory_exponent: 2^(8P) table entries, P committed before code; this
+      IS the exponent under test and the central falsifier.
+    best_known: >-
+      REF-A (definitional) and REF-B (this campaign's own frozen generic
+      baseline, per IDEA-72ec9a). The published DS-MITM frontier
+      (7-round AES-128, retrieved from FSE13/eprint-2010) is named as
+      context and is UNADJUDICABLE here in either direction (R3) --
+      this campaign's r* and cost are not compared to it.
+    hidden_overhead_disclosure: >-
+      The literature's crypto-scale DS-MITM tables at r=7 are far larger
+      than this environment's envelope; the "hidden overhead" here is that
+      a feasible r* in THIS environment may be smaller than the
+      literature's best-known round count, and that must be stated as a
+      fact about this machine, not a fact about the technique's ceiling.
+    time_memory_tradeoff: >-
+      Central and explicit: DS-MITM trades table memory for online time
+      relative to REF-B's pure-time brute force; this proposal's own
+      falsifier (memory infeasibility) IS the tradeoff boundary.
+  dominated_by: >-
+    For the DATA-PATH/distinguisher axis, dominated by nothing checked here
+    (different axis). For the KEY-RECOVERY axis at the same r, REF-B (once
+    frozen per IDEA-72ec9a) is the row to beat and is explicitly the
+    comparison target, not assumed beaten. Checked REF-A, REF-B's proposed
+    B(h) curve, and the campaign's existing attack6n/attack7n partial-sums
+    construction (a different point on the same Pareto frontier, not a
+    dominator by construction since neither has been measured against the
+    other in this environment).
+  sota_delta: >-
+    Against REF-A: any r* execution beats it astronomically and
+    uninformatively (BT-1, likely rediscovery, per R3 asserted in neither
+    direction). Against REF-B: UNKNOWN UNTIL EXECUTED -- the record's value
+    is that the delta becomes a measured number. Against the published
+    DS-MITM frontier: unadjudicable in this environment (R3).
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
+
+  source_refs:
+    - RQ-AES-003
+    - GOAL-AES-003
+    - IDEA-20260805-f2fc33
+    - IDEA-20260808-46d7ef
+    - IDEA-20260807-8e20fe
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

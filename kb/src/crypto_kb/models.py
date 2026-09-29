@@ -187,7 +187,7 @@ class SourceMetadata(BaseModel):
         return value
 
     def payload_fields(self) -> dict[str, Any]:
-        """The subset copied onto every chunk payload for filtering."""
+        """Metadata copied onto every chunk for filtering and provenance."""
         return {
             "source_id": self.source_id,
             "title": self.title,
@@ -203,9 +203,11 @@ class SourceMetadata(BaseModel):
             "authority": self.authority.value if self.authority else None,
             "superseded": self.superseded,
             "superseded_by": self.superseded_by,
+            "supersedes": self.supersedes,
             "experiment_id": self.experiment_id,
             "run_ids": self.run_ids,
             "git_commit": self.git_commit,
+            "verification_artifacts": self.verification_artifacts,
             "source_url": self.source_url,
         }
 
@@ -327,6 +329,8 @@ class SearchResult(BaseModel):
     field_type: list[str] = Field(default_factory=list)
     primitive: list[str] = Field(default_factory=list)
     superseded: bool = False
+    supersedes: list[str] = Field(default_factory=list)
+    verification_artifacts: list[str] = Field(default_factory=list)
     experiment_id: str | None = None
     run_ids: list[str] = Field(default_factory=list)
     git_commit: str | None = None
@@ -383,6 +387,8 @@ class SourceDocument(BaseModel):
     authority: str | None = None
     superseded: bool = False
     superseded_by: str | None = None
+    supersedes: list[str] = Field(default_factory=list)
+    verification_artifacts: list[str] = Field(default_factory=list)
     experiment_id: str | None = None
     run_ids: list[str] = Field(default_factory=list)
     git_commit: str | None = None

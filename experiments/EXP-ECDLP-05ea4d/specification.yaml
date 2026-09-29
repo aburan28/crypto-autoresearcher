@@ -1,0 +1,315 @@
+experiment:
+  id: EXP-ECDLP-05ea4d
+  hypothesis_id: H-ECDLP-5a484e
+  version: 1
+  title: >-
+    Simulation-overhead budget for GGM SIMULABLE verdicts - a frozen
+    BINDING/INDETERMINATE/VACUOUS classifier on the induced floor
+    0.886*sqrt(N)/C_sim, evaluated on the four EXP-GGM-001 oracles, a graded
+    ladder of synthetic curve-free overhead oracles of known size, and a
+    yield-charged C_real measurement on toy curves against a curve-free
+    surrogate null
+  status: draft
+  status_note: >-
+    DRAFT. Not review_required and not approved. This is the Coordinator's
+    initial design freeze converting IDEA-20260727-004 into a testable protocol
+    under TASK-20260904-43152a. It has not been snapshot-committed, has not been
+    independently reviewed, and NO RUN OF THIS CONTRACT IS AUTHORIZED. Advancing
+    to review_required and then approved are separate later Coordinator actions.
+  objective: >-
+    Determine whether the sentence recorded in DEC-20260726-007 - "Not closed at
+    1/2 by the constant-overhead bound, but no sub-birthday advantage" - is
+    supported for oracles whose simulation overhead is not sub-polynomial, by
+    computing the induced attack-cost floor c*sqrt(N)/C_sim under a classifier
+    frozen before evaluation, and by measuring the simulation gap ratio
+    G = C_sim/C_real for the incidence oracle at toy scale against a curve-free
+    surrogate.
+  inputs:
+    recorded_overheads: >-
+      The four verdicts as recorded in DEC-20260726-007, read verbatim into the
+      driver as data and never paraphrased: jet SIMULABLE with C = 1,
+      endomorphism SIMULABLE with C = 0, elliptic_net SIMULABLE with O(log N),
+      incidence SIMULABLE with O(B^m). The exact quoted lines are copied into
+      the run manifest so a reviewer can compare them with the source record.
+    parameter_grid: >-
+      m in {2, 3, 4, 5}; N in {2^16, 2^24, 2^32, 2^64};
+      B = ceil((m! * N)^(1/m)) plus, for sensitivity, B scaled by factors
+      {0.5, 0.8, 1.0, 1.25, 2.0} with yield admissibility (B^m >= m! * N)
+      evaluated and reported per cell.
+    frozen_classifier: >-
+      induced_floor(C_sim, N) = 0.886 * sqrt(N) / C_sim, in group-operation
+      equivalents. Label BINDING if the floor is at least N^0.4; VACUOUS if the
+      floor is strictly below 1; INDETERMINATE otherwise, with the band reported
+      numerically. THESE TWO THRESHOLDS ARE FROZEN BY THIS CONTRACT AND MAY NOT
+      BE CHANGED AFTER ANY NUMBER IS SEEN; a change is a versioned
+      protocol_amendment, never an edit.
+    toy_curve_rule: >-
+      For the C_real arm only: prime-field curves y^2 = x^3 + ax + b of prime
+      order at 12, 16, 20 and 24 bits, drawn by a deterministic seeded rule
+      recorded in the manifest, j-invariants 0 and 1728 excluded.
+  controls:
+    - id: CTRL-RECORDED-FOUR
+      description: >-
+        The four EXP-GGM-001 control oracles carried in the recorded control
+        gate must classify as recorded - pure_generic and public_curve BINDING,
+        discrete_log and encoding NON_SIMULABLE (outside the classifier's
+        domain, reported as such rather than labelled).
+      failure_meaning: >-
+        Any misclassification means the quantitative test is unsound. The whole
+        run set is INVALID and no floor it produced may be cited.
+    - id: NULL-SYNTH-LADDER
+      description: >-
+        NAMED CURVE-FREE GRADED NULL WITH DEMONSTRATED DYNAMIC RANGE. Five
+        synthetic oracles carrying no elliptic curve at all, with planted
+        overheads of known size C_sim in {2, log2(N), N^(1/4), N^(1/2), N}. The
+        classifier must return BINDING, BINDING, BINDING, INDETERMINATE-or-
+        VACUOUS at the frozen threshold, and VACUOUS, in that order, and the
+        computed floor must decrease monotonically across the ladder by the
+        exact predicted number of bits at each rung (log2 floor drops by
+        log2(C_sim) exactly). The predicted per-rung drop is written into the
+        contract before execution and compared digit for digit.
+      failure_meaning: >-
+        A non-monotone ladder, or a rung whose measured floor differs from the
+        predicted floor by more than 0.5 bits, means the classifier is not
+        computing what it claims. Every label it produced is void. This control
+        is what demonstrates the instrument has dynamic range rather than merely
+        returning a number.
+    - id: NULL-CURVE-FREE-GAP
+      description: >-
+        NAMED CURVE-FREE NULL FOR THE G ARM. Repeat the C_real measurement with
+        the elliptic curve replaced by the abstract cyclic group Z/NZ and the
+        factor base replaced by a uniformly random subset of Z/NZ of the same
+        size B, decomposition being the multiset-sum relation. Everything else -
+        m, B, N, the charging convention, the seed schedule - is identical.
+      failure_meaning: >-
+        CONSEQUENCE DECLARED IN ADVANCE. If this curve-free null reproduces the
+        measured G values and their trend in N within the reported confidence
+        intervals, then the G measurement is a property of the multiset-sum
+        combinatorics and NOT of elliptic curves, and NOTHING in this run set may
+        be quoted as a statement about elliptic curves or about the ECDLP. The
+        only admissible reading in that case is a statement about the cost model.
+    - id: CTRL-YIELD-ADMISSIBILITY
+      description: >-
+        For every B used, report whether B^m >= m! * N holds. A floor computed at
+        a non-admissible B is excluded from the verdict, because the oracle is
+        vacuous there for a different reason.
+      failure_meaning: >-
+        A verdict that depends on a non-admissible cell is reported as
+        inadmissible rather than as a finding.
+    - id: CTRL-MATCHED-BASELINE
+      description: >-
+        Matched Pollard rho (0.886*sqrt(N)) and BSGS (about 2*sqrt(N) time with
+        sqrt(N) memory) costs are reported beside every induced floor, in the
+        same group-operation-equivalent unit.
+      failure_meaning: >-
+        A floor reported without its baseline is an uninterpretable number and
+        the cell is reported as incomplete.
+  independent_variables:
+    - 'oracle identity, in {jet, endomorphism, elliptic_net, incidence}'
+    - 'decomposition length m, in {2, 3, 4, 5}'
+    - 'group order N, in {2^16, 2^24, 2^32, 2^64}'
+    - 'factor-base size B, on the admissibility-scaled grid'
+    - 'GGM variant, in {structured, strict_Shoup}, for the endomorphism arm'
+  metrics:
+    primary:
+      - >-
+        induced_floor_log2 - log2 of 0.886*sqrt(N)/C_sim in group-operation
+        equivalents, per oracle, per m, per N, per B.
+      - >-
+        induced_floor_label - BINDING, INDETERMINATE or VACUOUS under the frozen
+        thresholds, per cell, with the numeric distance to each threshold.
+      - >-
+        endo_simulator_ops - the endomorphism simulator operation count in group
+        operations, separately in the structured GGM and the strict Shoup GGM,
+        reported as a function of log2(n).
+      - >-
+        G_incidence - the simulation gap ratio C_sim/C_real in matched
+        group-operation equivalents, dimensionless, per toy bit size, with a
+        bootstrap 95 percent confidence interval.
+      - >-
+        control_pass_count - integer count of declared controls classified
+        correctly, out of the declared total.
+    secondary:
+      - >-
+        per-rung predicted-minus-measured floor discrepancy on NULL-SYNTH-LADDER,
+        in bits.
+      - >-
+        G measured on NULL-CURVE-FREE-GAP at every matched cell, with the same
+        confidence intervals, reported side by side with the curve arm.
+      - 'matched rho and BSGS costs, in group operations, at each N.'
+      - 'yield-admissibility boolean per (B, m, N) cell.'
+      - 'per-run wall clock and peak memory.'
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      The BINDING / INDETERMINATE / VACUOUS label of the induced floor for each
+      of the four recorded oracles across the whole (m, N, B) grid.
+    formula: >-
+      induced_floor(C_sim, N) = 0.886 * sqrt(N) / C_sim, with BINDING iff the
+      floor is at least N^0.4 and VACUOUS iff it is strictly below 1. For the
+      incidence oracle C_sim = Theta(B^m / m!), so at any yield-admissible B
+      (B^m >= m! * N) the floor is at most 0.886/sqrt(N) < 1 and the label is
+      forced VACUOUS.
+    source: >-
+      Derived in H-ECDLP-5a484e from Shoup's generic lower bound by inlining the
+      simulator. The Shoup bound itself is cited at provenance `recalled` in the
+      hypothesis and is a pointer for the reviewer, not support.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The classifier arm is pure arithmetic on (C_sim, N) and measures nothing;
+      it is not a toy measurement but an evaluation of a cost model, and it is
+      labelled as such in every output row. The only measured arm is C_real at
+      12 to 24 bits on toy curves. NOTHING IN THIS CONTRACT MEASURES ANY
+      QUANTITY AT CRYPTOGRAPHIC SCALE, and the N = 2^32 and N = 2^64 rows are
+      arithmetic evaluations, never evidence.
+    correspondence: null
+  tail_checks:
+    - >-
+      The single incidence cell whose induced floor comes closest to the VACUOUS
+      threshold from below is reported explicitly with its (B, m, N), so a near
+      miss is visible even when the pre-registered criterion is met everywhere.
+    - >-
+      The largest observed G on the curve arm and the largest observed G on
+      NULL-CURVE-FREE-GAP are reported side by side, with the cell achieving
+      each, so a single anomalous curve cell cannot hide inside a mean.
+  replication:
+    seeds:
+      - 'RUN-ECDLP-05ea4d-1 (classifier grid over the four recorded oracles): master seed 20260904051'
+      - 'RUN-ECDLP-05ea4d-2 (NULL-SYNTH-LADDER graded curve-free null): master seed 20260904052'
+      - 'RUN-ECDLP-05ea4d-3 (toy C_real / G measurement on curves): master seed 20260904053'
+      - 'RUN-ECDLP-05ea4d-4 (NULL-CURVE-FREE-GAP surrogate, matched cells): master seed 20260904054'
+    independent_instances: 8
+    replication_note: >-
+      SEEDS POLICY. Every run declares its master seed above; the driver derives
+      all per-cell seeds deterministically from it and records the derivation
+      rule and every derived seed in the run manifest. Runs 3 and 4 use PAIRED
+      seeds so that the curve arm and the curve-free surrogate see the same
+      random draws wherever the two are comparable. `independent_instances: 8`
+      is the per-bit-size floor of distinct toy curves in RUN-3 and of distinct
+      random subsets in RUN-4. RUN-1 and RUN-2 are deterministic and their seeds
+      are recorded only for reproducibility of the reporting order. No seed may
+      be changed after a run; a re-seeded protocol is a NEW contract.
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 2
+    maximum_memory_gb: 8
+    maximum_runs: 4
+    budget_feasibility_note: >-
+      Sized at the template floors. RUN-1 and RUN-2 are closed-form arithmetic
+      over a grid of at most a few hundred cells and take seconds. RUN-3 and
+      RUN-4 measure a yield-charged decomposition cost at 12 to 24 bits on at
+      least 8 instances per size, which is the only real work here; 600 seconds
+      per run and 2 total CPU-hours is sized for a straightforward, non-optimized
+      implementation. Unused budget is simply not spent.
+  stopping_rules:
+    - >-
+      ST-1 PER-RUN CAP. Each run stops at 600 seconds and 8 GB and names
+      explicitly every cell not reached, with its reason. A partial grid with a
+      named gap is a result; a silently truncated one is not.
+    - >-
+      ST-2 STOP AND REPORT ON AMBIGUITY. If a recorded overhead cannot be read
+      unambiguously from DEC-20260726-007, or if the yield-admissibility
+      predicate is ambiguous at a cell, the Executor STOPS AND REPORTS rather
+      than guessing, and records the ambiguity as a protocol deviation.
+    - >-
+      ST-3 NO INTERPRETATION. The run package contains observations only. It must
+      not state whether the sub-birthday clause holds or fails, must not write an
+      evidence or decision record, and must not touch any hypothesis status.
+    - >-
+      ST-4 THRESHOLD FREEZE. The BINDING and VACUOUS thresholds are frozen by
+      this contract. If a run observes that the thresholds place a cell
+      awkwardly, it reports the numeric distance to each threshold and STOPS;
+      it does not adjust them.
+  invalidation_rules:
+    - >-
+      INV-CONTROL-GATE. Any control in CTRL-RECORDED-FOUR misclassified: the run
+      set is INVALID and no floor may be cited.
+    - >-
+      INV-LADDER. NULL-SYNTH-LADDER non-monotone, or any rung more than 0.5 bits
+      from its predicted floor: the classifier is not computing what it claims
+      and the run set is INVALID.
+    - >-
+      INV-NONADMISSIBLE. A verdict computed at a non-yield-admissible B is
+      excluded from every criterion below and reported separately.
+    - >-
+      INV-UNIT. Any comparison mixing group-operation equivalents with wall clock
+      or with field operations is INVALID; ratios are never reported across
+      units.
+    - >-
+      INV-INFRASTRUCTURE. A timeout, crash, resource exhaustion or implementation
+      failure is recorded with its terminal status and IS INFRASTRUCTURE SIGNAL,
+      NEVER negative evidence about H-ECDLP-5a484e (AGENTS.md rule 5).
+  success_criterion: >-
+    S1. Every declared control classifies correctly; NULL-SYNTH-LADDER is
+    monotone with every rung within 0.5 bits of its predicted floor; and the
+    label vector across the whole yield-admissible grid is exactly (jet BINDING,
+    elliptic_net BINDING, endomorphism BINDING, incidence VACUOUS). S1 MET means
+    the recorded no-sub-birthday clause is unsupported for the incidence oracle
+    at every yield-admissible parameterization tested, AS A STATEMENT ABOUT THE
+    COST MODEL ONLY. S1 MET IS NOT EVIDENCE THAT ANY ATTACK EXISTS.
+  falsification_criterion: >-
+    F1. Any one of the following, each decided from the primary metrics with no
+    additional judgement: (a) the incidence floor classifies BINDING at any
+    yield-admissible (B, m, N); (b) a generic simulator for the incidence oracle
+    with C_sim sub-polynomial in N is exhibited and verified by the driver; (c)
+    the endomorphism simulator operation count is equal in the structured and
+    strict Shoup variants; (d) any declared control is misclassified. (a), (b)
+    and (c) falsify the corresponding prediction of H-ECDLP-5a484e; (d) voids the
+    instrument instead, and is an invalid run rather than a falsification. F2,
+    SEPARATELY AND EQUALLY BINDING: if NULL-CURVE-FREE-GAP reproduces the curve
+    arm's G values and trend within the reported confidence intervals, then no
+    statement about elliptic curves or the ECDLP may be quoted from this
+    experiment, whatever the other criteria show.
+  required_artifacts:
+    - experiments/EXP-ECDLP-05ea4d/driver/induced_floor.py
+    - experiments/EXP-ECDLP-05ea4d/driver/simulator_counts.py
+    - experiments/EXP-ECDLP-05ea4d/driver/creal_measure.py
+    - experiments/EXP-ECDLP-05ea4d/results/summary.json
+    - experiments/EXP-ECDLP-05ea4d/results/frozen_thresholds.yaml
+    - experiments/EXP-ECDLP-05ea4d/results/seed_env_manifest.yaml
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-1/manifest.yaml
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-1/results.json
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-1/stdout.log
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-2/manifest.yaml
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-2/results.json
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-2/stdout.log
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-3/manifest.yaml
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-3/results.json
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-3/stdout.log
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-4/manifest.yaml
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-4/results.json
+    - experiments/EXP-ECDLP-05ea4d/runs/RUN-ECDLP-05ea4d-4/stdout.log
+  run_plan:
+    - id: RUN-ECDLP-05ea4d-1
+      description: 'classifier grid on the four recorded oracles, plus CTRL-RECORDED-FOUR and CTRL-YIELD-ADMISSIBILITY'
+    - id: RUN-ECDLP-05ea4d-2
+      description: 'NULL-SYNTH-LADDER graded curve-free null with per-rung predicted-floor comparison'
+    - id: RUN-ECDLP-05ea4d-3
+      description: 'toy C_real measurement on prime-field curves at 12-24 bits, with CTRL-MATCHED-BASELINE'
+    - id: RUN-ECDLP-05ea4d-4
+      description: 'NULL-CURVE-FREE-GAP surrogate over Z/NZ at paired seeds and matched cells'
+  provenance:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    independent_session: false
+    independent_review_status: >-
+      NOT YET REQUESTED. This contract is at `draft`; independent pre-execution
+      review, snapshot commit, and the transitions to `review_required` and
+      `approved` are separate later Coordinator actions, out of scope for
+      TASK-20260904-43152a.
+    design_session_verification_note: >-
+      The Coordinator subagent that wrote this contract opened
+      ledger/decisions/DEC-20260726-007.yaml by pattern search in this session
+      and read the four verdicts and the quoted sub-birthday sentence verbatim.
+      It did NOT open Shoup 1997, EV-GGM-001, or the external report corpus the
+      source proposal cites; those remain unverified pointers.
+  source_refs:
+    - ledger/hypotheses/H-ECDLP-5a484e.yaml
+    - ledger/proposals/IDEA-20260727-004.yaml
+    - ledger/decisions/DEC-20260726-007.yaml
+    - ledger/questions/RQ-ECDLP-002.yaml
+    - docs/claims-and-verification.md
+    - docs/inventor-protocol.md
+  assigned_to: executor
+  approved_by: null

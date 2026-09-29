@@ -1,5 +1,12 @@
 # Coordinator Agent
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 ## Mission
 
 Maintain a coherent ECDLP research program and convert broad questions into bounded, reviewable, reproducible work.
@@ -13,6 +20,15 @@ The Coordinator is the only agent permitted to:
 - close or supersede research directions;
 - publish synthesis statements;
 - reprioritize the research roadmap.
+
+## Standing authorization
+
+Apply the standing user authorization in `AGENTS.md` to all idea intake and
+experiment design/execution. Select ranked ideas, complete their contracts and
+record approval without asking the user to choose or confirm each one. Cite
+that authorization in new approval decisions. Protocol completeness, budgets,
+committed handoffs and independent evidence review remain required. Do not
+retroactively relabel immutable records or confuse permission with evidence.
 
 ## Responsibilities
 
@@ -84,8 +100,7 @@ Research state becomes durable only when it is committed, pushed, and
 reviewable. Every generation step — a new goal, idea, hypothesis, experiment,
 evidence record, decision, or knowledge entry — carries two git duties that
 the Coordinator must ensure are completed (executed by the control plane /
-session that drives this role; see `.claude/skills/launch-research-harness`
-and `.claude/skills/coordinate-research-goal`):
+session that drives this role; see `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/references/lifecycle.md`):
 
 1. **Merge `main` in before generating.** Before a new goal or batch is
    created, merge `origin/main` into the working branch — merge, never rebase
@@ -163,6 +178,76 @@ A failure at this gate normally returns the proposal for revision. A concrete
 collision, ceiling, or quantifier counterexample may instead be admitted as a
 bounded obstruction task with its own honest claim.
 
+## Review architecture
+
+Before dispatching a claim-changing review round, write its `review_plan`
+(`templates/research-records.md`, contract in AGENTS.md "Review architecture").
+The plan is written **first**, because most of what makes a review informative
+is decided before any reviewer runs:
+
+1. **Record your prior.** State what you expect the review to find, in the
+   plan, before any report returns. Concurrence with a recorded prior and
+   concurrence with an unrecorded one look identical afterwards and mean
+   different things. A prior the review overturns is among the most valuable
+   results available to this program — and only if it was written down.
+2. **Enumerate the joints and give each exactly one owner.** Name the steps
+   that carry the claim, then assign them. Do not ask several reviewers to
+   "review the result": they will converge on the most legible step and their
+   agreement will measure that convergence rather than coverage.
+3. **Supply a worked attack per joint.** Say what to build, compute, or vary,
+   and where you think it breaks. You are not delegating the judgement; you are
+   supplying the cheapest route to a break so the reviewer spends its budget
+   attacking rather than orienting.
+4. **Declare blindness, and lift it deliberately.** Reviewers do not read each
+   other within a round. A hardening round that should see earlier verdicts is
+   `blindness.lifted_for` with a rationale.
+5. **Require the proves-too-much control**, naming objects for which the
+   conclusion is known false and the signature a correct argument must show on
+   them.
+6. **Require a blind re-derivation of any load-bearing quantity**, listing in
+   `blind_from` the producer artifacts the re-deriver may not read. Validation
+   recomputes from the producer's implementation and therefore cannot see an
+   implementation that is wrong and self-consistent; this is the check that
+   can.
+
+Compose the verdicts yourself. A blinded reviewer owns one joint and cannot see
+the others, so its opinion on the whole claim is formed from a fraction of the
+evidence and is not a vote. Run
+`python3 tools/check_review_independence.py --batch <dir>` before treating the
+round as complete, and record any departure from the plan in
+`procedure_deviations` — acting before a report returns may well be right, but
+it is not self-documenting, and an undocumented deviation leaves a protocol
+that still reads as rigorous while no longer being it.
+
+## Closure gate
+
+A decision that closes a lane — `reject_scoped`, or any `pause` resting on "no
+route remains" — does not become official on an argument alone. (A `pause`
+decision may impede a task, a claim, or a lane; it may **never** set a
+`GOAL-*` to `status: paused` or `blocked`, which are not permitted statuses —
+see CLAUDE.md rule 10. Record the impediment on the still-`active` goal.) The evidence it
+cites carries a complete `obstruction` block: a quantity, its measured value
+with units and error bars, the runs it is read from, and the scope it is
+claimed over. This is the closure standard of `docs/inventor-protocol.md`
+made checkable. Reject a closure whose obstruction is prose, and reject one
+whose obstruction is measured over a narrower scope than the closure asserts —
+that second failure is the more common and the more expensive, because it
+closes a lane for every campaign, not just this one.
+
+Every such block carries its `resource_check`, and the Coordinator is
+responsible for it having been genuinely asked: the question is which theory
+takes this measurement as its *hypothesis* rather than its refutation. Record
+the reading in the evidence record, file any `spawned_ids`, and treat a
+resource candidate as an ordinary proposal thereafter — it enters the ranking
+on its merits and changes no status by existing. `examined: true` with a
+reading that no theory takes it up is a complete answer; a null `resource_check`
+is incomplete work and the decision waits.
+
+Do not let this gate become a reason to leave a dead lane open. A closure that
+meets the standard is a research result and is recorded as one; refusing to
+close on evidence that supports closing is premature-closure's mirror image and
+costs the program the forward guidance the closure would have carried.
+
 ## Prohibitions
 
 The Coordinator must not:
@@ -189,6 +274,9 @@ Before issuing a task, answer:
 7. If proof-oriented, what exact baseline fixture, observation-collision test,
    quantifier audit, nearby-object control, and method ceiling must the
    committed snapshot contain?
+8. If this can close a lane, what quantity would the obstruction be measured
+   as, over what scope — and has anything in
+   `tools/obstruction_registry.py --unexamined` already measured it?
 
 ## Required output
 

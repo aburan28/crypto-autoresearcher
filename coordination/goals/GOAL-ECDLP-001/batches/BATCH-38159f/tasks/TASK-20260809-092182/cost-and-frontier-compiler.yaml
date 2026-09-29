@@ -1,0 +1,205 @@
+cost_and_frontier_compiler:
+  schema: crypto.autoresearch.syc_cost_frontier_compiler.v1
+  experiment_id: EXP-SYC-4efcae
+  task_id: TASK-20260809-092182
+  status: REVISE
+  implementation_authorized: false
+  execution_authorized: false
+
+  directed_axes:
+    - aggregate_cpu_ns
+    - wall_latency_ns
+    - energy_nJ
+    - physical_read_bytes
+    - physical_write_bytes
+    - peak_live_bytes
+    - archive_bytes
+    - communication_bytes
+    - wiring_unique_64_byte_line_touches
+  additive_axes:
+    - aggregate_cpu_ns
+    - energy_nJ
+    - physical_read_bytes
+    - physical_write_bytes
+    - archive_bytes
+    - communication_bytes
+    - wiring_unique_64_byte_line_touches
+  chronological_axes: [wall_latency_ns]
+  peak_axes: [peak_live_bytes]
+  aggregate_cpu_divided_by_shards: false
+  scalar_collapse: forbidden
+
+  targetwise_expected_cost:
+    target_key_fields: [bits, curve_id, model_id, eta]
+    target_cells_per_size: 384
+    target_cells_all_sizes: 1920
+    root_rounds_per_target: 256
+    symbols:
+      C_i_x: directed per-root candidate cost interval for target cell i and axis x
+      H_i: directed inverse-success interval for the same target cell i
+      w_i: preregistered rational family weight for target cell i
+    lower_formula: 'sum_i(w_i*C_i_x_lower*H_i_lower) with outward rounding'
+    upper_formula: 'sum_i(w_i*C_i_x_upper*H_i_upper) with outward rounding'
+    infinity_rule: any_positive_weight_cell_with_H_i_upper_infinite_makes_family_upper_infinite
+    controls: charged_and_reported_separately_never_subtracted
+    separate_aggregate_multiplication: forbidden
+    covariance_preserved: true
+    collision_KAT:
+      weights: ['1/2', '1/2']
+      inverse_success: [1, 2]
+      aligned_costs: [1, 2]
+      swapped_costs: [2, 1]
+      aligned_exact_mean: '5/2'
+      swapped_exact_mean: '2/1'
+      forbidden_product_of_means: '9/4'
+      result: PASS_DISTINGUISHES_2_5_FROM_2_0
+
+  rho_protocol:
+    protocol_id: SYC4-RHO-v2
+    input_binding: exact_same_public_target_and_fixed_base_table_bytes_as_candidate_and_BSGS
+    initial_walk_ids: inclusive_integer_range_0_through_63
+    initial_walk_count: 64
+    shard_count: 5
+    shard_assignment: walk_id_mod_5
+    resident_walk_counts_by_shard: [13, 13, 13, 13, 12]
+    resident_walk_order: walk_id_ascending
+    local_steps_per_shard_per_epoch: 1024
+    intra_shard_schedule: >-
+      At local step t, advance resident_walk_ids[t mod resident_walk_count]
+      exactly once. Draining, priority, work stealing, or scheduler choice is
+      forbidden.
+    global_observation_order_fields:
+      - epoch
+      - local_step
+      - shard_ordinal
+      - walk_id
+      - restart_id
+      - step_index_within_walk
+    epoch_barrier: all_five_shards_complete_1024_local_steps_before_merge
+    distinguished_merge_order: encoded_X_then_alpha_then_beta_then_walk_id_then_restart_id_then_step_index
+    collision_rule: >-
+      For X=alpha*P+beta*Q, two rows solve
+      k=(alpha_1-alpha_2)/(beta_2-beta_1) modulo r only when the denominator is
+      invertible and [k]P=Q verifies; otherwise continue in total merge order.
+    cycle_detection: frozen_Brent_per_walk_checked_after_each_advance
+    restart_rule: >-
+      A cycle or degenerate collision restarts that same walk_id with
+      restart_id incremented and fresh RHO_START-v2 domain bytes. No state or
+      table is reused for that walk.
+    restart_cap_scope: aggregate_across_all_walks
+    restart_cap: 64
+    restart_selection_order: first_trigger_in_global_observation_order
+    stopping_order:
+      - first_verified_scalar_in_global_observation_order
+      - otherwise first_restart_trigger_in_global_observation_order
+      - otherwise next_epoch
+      - fail_charged_baseline_after_aggregate_restart_65_would_be_required
+    two_walk_scheduler_KAT:
+      resident_walk_ids: [0, 1]
+      admitted_first_six_advances: [0, 1, 0, 1, 0, 1]
+      rejected_drain_first: [0, 0, 0, 1, 1, 1]
+      result: PASS_ONE_TRANSCRIPT_SELECTED
+
+  finite_frontier:
+    generation_before_filtering: required
+    same_input_requirement: exact_target_key_and_public_bytes
+    rho_grid:
+      worker_counts: [1, 5, 8]
+      distinguished_bit_rules:
+        - zero
+        - floor_bits_over_6
+        - floor_bits_over_3
+        - floor_bits_over_2
+      rows_per_target: 12
+      walk_partition: lowest_walk_ids_assigned_round_robin_to_declared_workers
+      memory_table: retain_all_distinguished_rows_until_epoch_barrier_then_canonical_merge
+    BSGS_grid:
+      baby_width_rules:
+        - one
+        - ceil_r_power_1_over_6
+        - ceil_r_power_1_over_4
+        - ceil_r_power_1_over_3
+        - ceil_sqrt_r
+      rows_per_target: 5
+      giant_steps: ceil_r_divided_by_baby_width
+      segmented_schedule: baby_segments_in_scalar_order_then_giant_indices_ascending
+      full_table_boundary: ceil_sqrt_r
+      memory_matched_boundary: ceil_r_power_1_over_3
+    total_rows_per_target_before_filtering: 17
+    target_cells_all_sizes: 1920
+    total_baseline_rows_before_filtering: 32640
+    axes_per_row: 9
+    total_directed_axis_intervals: 293760
+    nondominance_rule: >-
+      Row A dominates B only if A_upper is no greater than B_lower on all nine
+      directed axes and strictly less on at least one. Overlapping rows are both
+      retained. No row is removed from the audit stream.
+    candidate_positive_gate: >-
+      For every target cell and every retained row, candidate upper is strictly
+      below baseline lower on aggregate CPU and wall, no greater on every other
+      axis, and strict on at least one additional axis.
+    candidate_negative_gate: any_candidate_lower_strictly_worse_than_any_retained_row_upper_on_any_axis
+    post_measurement_grid_change: forbidden
+    finite_measurements_present: false
+    observed_frontier_claimed: false
+
+  resource_crosswalk:
+    inherited_group_additions:
+      total_verifications: 47185926
+      additions_per_verification: 6
+      verification_group_additions: 283115556
+      table_precompute_group_additions: 28800
+      successor_group_additions: 2267225191
+      hard_cap: 2480101040
+      slack: 212875849
+    inherited_logical_traffic:
+      scheduled_bytes: 790546390912
+      hard_cap_bytes: 846134656960
+      slack_bytes: 55588266048
+    receipt_archive_residual:
+      receipt_count: 5660912
+      lossless_width_bytes: 280
+      receipt_bytes: 1585055360
+      predecessor_scheduled_bytes: 1854585088
+      legacy_reserve_replaced_bytes: 524288
+      successor_scheduled_bytes: 3439116160
+      hard_cap_bytes: 2307745600
+      overage_bytes: 1131370560
+      status: REVISE
+    receipt_communication_residual:
+      predecessor_scheduled_bytes: 1871362304
+      successor_if_each_receipt_transmitted_bytes: 3455893376
+      hard_cap_bytes: 2328717120
+      overage_bytes: 1127176256
+      status: REVISE_IF_EACH_RECEIPT_MUST_CROSS_A_BOUNDARY
+
+  unchanged_stage_budgets:
+    planned_wall_seconds: 450000
+    hard_wall_seconds: 562500
+    planned_cpu_hours: 988
+    hard_cpu_hours: 1235
+    stage_sum_identities:
+      planned_wall: 7200+72000+172800+1200+9600+172800+14400=450000
+      hard_wall: 9000+90000+216000+1500+12000+216000+18000=562500
+      planned_CPU: 4+160+384+4+20+384+32=988
+      hard_CPU: 5+200+480+5+25+480+40=1235
+    increase_authorized: false
+    current_static_fit: false
+
+  pareto_honesty:
+    dominated_by: Pollard_rho_or_a_retained_finite_BSGS_tradeoff_until_measured_candidate_intervals_clear_every_retained_row
+    sota_delta:
+      time: 0
+      memory: 0
+      data_or_query: 0
+      note: static compiler only; no row or improvement is observed
+
+  authority:
+    approved_by: null
+    implementation_authorized: false
+    execution_authorized: false
+    maximum_runs: 0
+    evidence_claimed: false
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_selected_or_contacted: false

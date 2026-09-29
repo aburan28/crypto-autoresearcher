@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-SIDECH-f0e5d2
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-aaa4fa; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-aaa4fa
+  question_id: RQ-FNDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Compute exactly the mutual information between a lattice Gaussian sampler's coset center
+    and its coarsened table-index bucket, swept over observation granularity at dimensions 1, 2 and
+    4, with exact-center and total-coarsening nulls.
+  objective: 'The one uncertainty a run reduces: whether an assumed memory-index observation of a
+    table-driven Gaussian sampler carries a non-negligible amount of information about the secret-dependent
+    coset center, at granularities coarse enough to be worth discussing, expressed as an exactly computed
+    number rather than an assertion. Concretely: (i) do both nulls return exactly zero -- the exact-center
+    null, where the center is a public constant and the label is fictitious, and the total-coarsening
+    null, where every index falls in one bucket -- since a nonzero value in either means the mutual-information
+    summation is manufacturing information and no point on the curve can be believed; (ii) is I(c
+    ; b) non-increasing as the granularity coarsens, which is forced by the data-processing inequality
+    and therefore serves as a second free correctness check on the computation; (iii) what is the
+    shape of I(c ; b) against g at the tested dimensions, and what samples-to-one-bit figure does
+    it imply at each granularity, which is the quantity a later record could actually cite. The run
+    answers these and stops; it recovers nothing and attacks nothing.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for this table-driven sampler at
+      these widths and dimensions, with the coset center given a uniform prior on the stated grid
+      and an observer ASSUMED to learn floor(index/g) per lookup, the exact mutual information per
+      sample is as tabulated against g, with both nulls returning zero and monotonicity in g holding.''
+      What does NOT follow: that any real cache, any real microarchitecture, or any real observer
+      corresponds to any value of g; that FN-DSA at standardized parameters leaks anything; that information
+      about a discretised center converts into information about the NTRU trapdoor; that the numbers
+      transfer to the standardized dimension; and anything at all about the security of a deployed
+      signature scheme. THE OBSERVER IS ASSUMED AND THIS ENVIRONMENT CANNOT MEASURE ONE.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~1 hour): write the assumed-observation definition and the granularity
+      semantics into the contract verbatim; fix the truncation at 6 standard deviations and compute
+      the neglected tail mass in closed form. STAGE 1 (cost: ~2 hours): implement the table-driven
+      sampler with explicit index recording, and the exact per-center index distribution by direct
+      summation over the table. STAGE 2 (cost: seconds): d=1 pilot -- compute I(c ; b) over g in {1,2,4,8,16,table
+      size}, run both nulls, check monotonicity. STAGE 3 (cost: minutes CPU): extend to d=2 and d=4
+      by exact enumeration of the nearest-plane recursion over the truncated support, computing the
+      joint over (c, bucket sequence). STAGE 4 (cost: minutes): grid-refinement control at 64 and
+      128 center points; report the change in I. STAGE 5 (cost: minutes): compute samples-to-one-bit
+      at each g under the stated independence, and report it beside the per-sample figure with the
+      independence assumption named. STAGE 6 (cost: minutes): index-recording fidelity check on 10000
+      samples, then emit the run record with the truncation mass, the grid, both nulls and the full
+      curve.'
+    instrument: Python 3 with numpy for the joint-distribution arithmetic and mpmath or fractions
+      where exactness of small sums matters. The sampler and its cumulative-distribution table are
+      written for this experiment in Python, with the index recorded by direct instrumentation of
+      the lookup. Run-record emission and seed recording through harness/runner.py and src/crypto_autoresearcher/runner.py.
+      sys.settrace is NOT needed here, since the index is recorded by the sampler itself rather than
+      inferred. No Sage. No cache-measurement tool, no hardware performance counter, no timing measurement
+      of any kind enters any reported metric.
+    parameters: 'Dimensions d in {1, 2, 4}. Gaussian width sigma in {2.0, 4.0, 8.0} table units, truncated
+      at 6 sigma so the table has at most 97 entries at the largest width. Granularity g in {1, 2,
+      4, 8, 16, 32, table size}. Center grid: 64 points over one period, refined to 128 for the convergence
+      control. Nulls: exact-center with fictitious label, and total-coarsening at g equal to table
+      size, both at every (d, sigma). Index-fidelity check: 10000 samples per configuration. Numerical
+      tolerance for null values: 1e-12. Seeds recorded for the fidelity check only; the mutual-information
+      computation is deterministic and needs none.'
+  controls:
+  - Exact-center null with an independent fictitious label.
+  - Total-coarsening null at g equal to the table size.
+  - Finest-granularity reference at g=1, which upper-bounds the whole curve.
+  - 'Grid-refinement control: c grid doubled from 64 to 128 points, with the change in I reported
+    as a convergence diagnostic.'
+  - 'Truncation-mass control: the probability mass outside the truncated support computed and reported,
+    so the neglected tail is a number rather than an assumption.'
+  - 'Index-recording fidelity: the recorded index is compared against a direct recomputation from
+    the sampler''s internal state on 10000 samples.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both computed in the same invocation by the same code. (i)
+    EXACT-CENTER NULL: c pinned to a fixed public constant for every sample, with an independent fictitious
+    label drawn and I(label ; b) computed by the identical routine. Since the buckets are then independent
+    of the label, the value must be exactly zero, and any nonzero result exposes a bias in the mutual-information
+    summation or in the c-grid marginal. (ii) TOTAL-COARSENING NULL: g set to the full table size
+    so every index maps to one bucket, where I(c ; b) is exactly zero by construction. Both must return
+    zero to numerical tolerance 1e-12 for any point on the g-curve to be reportable. A third check
+    runs the signal arm at g=1, the finest granularity, which should give the maximum of the curve
+    and bounds every coarser value from above.'
+  independent_variables:
+  - observation granularity g
+  - lattice dimension d
+  - Gaussian width sigma
+  - center-grid resolution
+  - arm (signal, exact-center null, total-coarsening null)
+  metrics:
+    primary:
+    - I(c ; b) in bits per sample per (g, d, sigma)
+    - samples-to-one-bit m per (g, d, sigma)
+    - both null values
+    - monotonicity of I in g
+    secondary:
+    - truncated tail mass
+    - grid-refinement change in I
+    - bucket alphabet size per g
+    - index-fidelity mismatch count
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: I(c ; b) in bits per sample as a function of granularity g, with the two null values
+      and the monotonicity in g as pre-registered checks.
+    formula: 'Two exact predictions are pre-committed and both follow by derivation rather than by
+      hypothesis. First, the data-processing inequality: because b = floor(index/g) is a deterministic
+      function of the index and coarsening from g to 2g is a further deterministic function of b,
+      the sequence I(c ; b_g) must be non-increasing along the granularity sweep, with I(c ; index)
+      as its supremum at g=1 and exactly 0 at g equal to the table size. Second, the exact-center
+      null: with c constant and the label drawn independently of everything, the joint factorises
+      and I is exactly 0. The SHAPE of the curve between those endpoints is not pre-committed; the
+      reason is that it depends on how bucket boundaries interact with the sampler''s width, which
+      is precisely what the enumeration exists to determine, and predicting it would convert a measurement
+      into a confirmation.'
+    source: Pre-registered in the parent proposal IDEA-20260816-aaa4fa before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Computed at dimensions 1, 2 and 4 with Gaussian widths up to 8 table units and
+      support truncated at 6 sigma, which is the regime where the joint distribution over centers
+      and bucket sequences is enumerable exactly with no sampling error. FN-DSA''s standardized dimension
+      is far larger. NO transfer is claimed: the nearest-plane recursion''s per-level centers at large
+      dimension have a different distribution induced by the actual secret basis, whereas this run
+      imposes a uniform center prior on a grid, and those two priors are not related by any argument
+      given here. The only quantity that transfers unconditionally is the structural one: monotonicity
+      in g and the two null values hold at every dimension by derivation, and they are reported as
+      such.'
+    correspondence: null
+  tail_checks:
+  - Compute and report the mass outside the 6-sigma truncation, since a coarse bucket's informativeness
+    is concentrated at the edges of the support.
+  - Inspect the g values adjacent to the point where I falls below 0.01 bits, which is where the survival
+    score is read.
+  - Inspect the largest sigma at the coarsest non-degenerate g, the cell most likely to show a spurious
+    nonzero from grid effects.
+  - Check the center-grid endpoints, where periodic wraparound could create an artifact.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt at the d=1 pilot if either null is nonzero beyond 1e-12 or monotonicity fails; report a computational
+    fault and run nothing further.
+  - Stop at d=4; do not extend the dimension in search of a larger number.
+  - Halt if grid refinement changes I by more than 10 percent and report the non-convergence rather
+    than a curve.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: Both nulls return zero to 1e-12, I(c ; b) is non-increasing across the granularity
+    sweep at every (d, sigma), grid refinement changes I by less than 10 percent, and an exact I-versus-g
+    curve with a samples-to-one-bit figure is produced for all tested configurations.
+  falsification_criterion:
+  - Either null nonzero beyond 1e-12.
+  - I(c ; b) increases with g anywhere.
+  - Grid refinement changes I by more than 10 percent.
+  - Index-fidelity check finds any mismatch.
+  - Truncated tail mass exceeds 1e-6, making the enumeration an inadequate representation of the sampler.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-aaa4fa
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The prior on the coset center is uniform on a grid by convenience; what prior an actual secret
+    basis induces is not derived and changes every number.
+  - The accumulation to samples-to-one-bit assumes independence across samples, which the nearest-plane
+    recursion does not strictly provide; a Coordinator must decide whether to report it at all.
+  - No bridge is specified from information about a center to information about the basis, so the
+    quantity cannot yet be consumed by any recovery model.
+  - Whether the bucket map should be floor(index/g) or a cache-set-style modular map is an unresolved
+    modelling choice, and the two are not equivalent.

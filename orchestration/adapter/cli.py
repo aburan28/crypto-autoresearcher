@@ -245,6 +245,7 @@ def cmd_probe_codex_session(args: argparse.Namespace) -> int:
             receipt=args.receipt,
             independent_session=args.independent_session,
             timeout_seconds=args.timeout_seconds,
+            backend=args.backend,
         )
     except codex_runtime_module.CodexRuntimeProbeError as exc:
         suffix = f"; receipt={exc.receipt}" if exc.receipt_written else ""
@@ -334,6 +335,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="existing Codex SQLite state DB (queried read-only)")
     p_codex.add_argument("--workdir", required=True,
                          help="existing repository directory")
+    p_codex.add_argument("--backend", default="openai",
+                         help="repository backend key (default: openai)")
     p_codex.add_argument("--model", required=True,
                          help="exact requested model identifier")
     p_codex.add_argument("--effort", required=True,

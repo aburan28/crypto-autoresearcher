@@ -1,0 +1,465 @@
+# COMPANION RECORD PACKAGE - TASK-20260909-8b3cce (BATCH-5e4996, GOAL-SSI-001)
+#
+# DRAFTED SEPARATE-RECORD FORM. The SAME-RECORD-vs-SEPARATE-RECORD placement
+# question (DEC-20260904-4c81b6 next_actions[4]'s `travels with` authority limb)
+# is RESERVED TO THE ENACTING DECISION (NA-2(i)); this package drafts in
+# separate-record form because that is the form the redraft recommends and the
+# producer needs a definite form to author. Drafting in one form does not
+# resolve the ruling; the act may fold the companion into its own record and
+# the drafted content travels unchanged.
+#
+# THIS RECORD IS A RECORD ABOUT AN IMPLEMENTATION. It is authored and verified
+# by INSPECTION ONLY: a diff and a re-parse. It authorizes NO run and lifts NO
+# prohibition. cost_model.py was READ as text and was NEVER executed, with or
+# without WESOVOW_RAW_PATH set (CF-10).
+schema: companion_record_package/v1
+task_id: TASK-20260909-8b3cce
+batch_id: BATCH-5e4996
+goal_id: GOAL-SSI-001
+experiment_id: EXP-WESOVOW-001
+recorded_by: executor
+recorded_at: '2026-09-09'
+drafted_form: separate_record
+placement_reserved_to: the enacting decision (NA-2(i)); not resolved here
+
+# =====================================================================
+# THE THREE CHANGES - EXACTLY THREE, NO FOURTH
+# =====================================================================
+changes:
+
+  # ------------------------------------------------------------------
+  - id: change_1_output_path_repair
+    name: the output-path repair (CF-10)
+    redraft_mandate:
+      - field: what_the_companion_record_should_carry[0]
+        verbatim: >-
+          the output-path repair, so no invocation can write into a committed
+          run directory with or without WESOVOW_RAW_PATH set
+      - field: cf_10_raw_path_placement.question_as_posed
+        verbatim: >-
+          Does the CF-10 repair - cost_model.py's default raw-result output path
+          naming the committed run directory RUN-WESOVOW-201692-001, so that an
+          invocation without WESOVOW_RAW_PATH set writes into a committed run
+          directory - belong in THIS amendment or in a separate one?
+    frozen_locus:
+      file: experiments/EXP-WESOVOW-001/cost_model.py
+      sites:
+        - id: site_1a_default_path
+          line_range: 82-86
+          current_text: |
+            RAW_PATH = os.environ.get(
+                "WESOVOW_RAW_PATH",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "runs", "RUN-WESOVOW-201692-001", "raw-result.json"),
+            )
+        - id: site_1b_write_site
+          line_range: 323
+          current_text: |
+              os.makedirs(os.path.dirname(RAW_PATH), exist_ok=True)
+    amended_text:
+      site_1a_default_path: |
+        RAW_PATH = os.environ.get(
+            "WESOVOW_RAW_PATH",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "runs", "RUN-WESOVOW-201692-002", "raw-result.json"),
+        )
+
+        # CF-10: committed run directories are immutable receipts. No invocation may
+        # write into one, with or without WESOVOW_RAW_PATH set. The default path above
+        # is a NEW run directory, not a committed one; the guard enforces the property
+        # for the WESOVOW_RAW_PATH-set case as well.
+        _COMMITTED_RUN_DIRS = (
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-001"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-201692-001"),
+        )
+
+
+        def _assert_not_in_committed_run_dir(path):
+            """Raise if the resolved write path is inside a committed run directory."""
+            ap = os.path.abspath(path)
+            for d in _COMMITTED_RUN_DIRS:
+                if ap == d or ap.startswith(d + os.sep):
+                    raise RuntimeError(
+                        f"refusing to write {ap}: inside committed run directory {d} (CF-10)")
+      site_1b_write_site: |
+          _assert_not_in_committed_run_dir(RAW_PATH)
+          os.makedirs(os.path.dirname(RAW_PATH), exist_ok=True)
+    provenance_classification:
+      - detail: the requirement that no invocation (with or without WESOVOW_RAW_PATH set) may write into a committed run directory
+        classification: REDRAFT_LITERAL
+        basis: what_the_companion_record_should_carry[0] and cf_10_raw_path_placement.question_as_posed
+      - detail: the defect - the default raw-result path names the committed run directory RUN-WESOVOW-201692-001
+        classification: REDRAFT_LITERAL
+        basis: cf_10_raw_path_placement.question_as_posed
+      - detail: the set of committed run directories {RUN-WESOVOW-001, RUN-WESOVOW-201692-001}
+        classification: REDRAFT_LITERAL
+        basis: >-
+          blast_radius.frozen_artifacts names both as immutable run directories
+          ("path: experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/" and
+          "path: experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-201692-001/", each
+          "Immutable and not re-scored"). cf_10_raw_path_placement names only
+          RUN-WESOVOW-201692-001; RUN-WESOVOW-001 is named by blast_radius.
+      - detail: the new default directory name RUN-WESOVOW-201692-002
+        classification: EXECUTOR_CHOSEN
+        reason: >-
+          The redraft mandates that the default path not name a committed run
+          directory but does not name the replacement directory. I chose the next
+          run in the existing series (RUN-WESOVOW-201692-002, following
+          RUN-WESOVOW-201692-001) as the minimal faithful option: a new,
+          uncommitted run directory in the same series, so the default case points
+          at a valid, non-committed location rather than tripping the guard.
+        flagged_for_reviewer: true
+      - detail: the guard function _assert_not_in_committed_run_dir and its call at the write site
+        classification: EXECUTOR_CHOSEN
+        reason: >-
+          The redraft mandates the PROPERTY (no invocation writes into a committed
+          run directory) but not the MECHANISM. I chose a guard that raises
+          RuntimeError if the resolved write path equals or is under a committed
+          run directory, called immediately before the write. This is the minimal
+          mechanism that enforces the property for the WESOVOW_RAW_PATH-set case
+          (which the default-path change alone cannot cover, since the env var is
+          user-controlled). The guard is scoped to the two committed run
+          directories named by the redraft; if a future run is committed, the list
+          must be extended (a limitation, not a defect of this change).
+        flagged_for_reviewer: true
+    inspection_only_verification: >-
+      Verified by reading the unified diff (hunk 1 covers site_1a; hunk 3 covers
+      site_1b) and re-parsing the amended content with ast.parse (PARSE_OK). The
+      diff shows the default path changed from RUN-WESOVOW-201692-001 to
+      RUN-WESOVOW-201692-002, the _COMMITTED_RUN_DIRS tuple and the
+      _assert_not_in_committed_run_dir function added after the RAW_PATH
+      definition, and the guard call added immediately before the os.makedirs at
+      the write site. No execution of cost_model.py, with or without
+      WESOVOW_RAW_PATH set.
+
+  # ------------------------------------------------------------------
+  - id: change_2_clause_3_serialization
+    name: the clause_3 serialization change at the per-field emission site
+    redraft_mandate:
+      - field: what_the_companion_record_should_carry[1]
+        verbatim: >-
+          the serialization change implementing clause_3 at the per-field
+          emission site, cost_model.py line 302
+      - field: proposed_replacement.clause_3.replacement_text_in_full.anchor_semantics.serialization_requirement
+        verbatim: >-
+          THE OPERATIVE CLAUSE. Any implementation of this contract that
+          serializes a per-field anchor value, or a deviation computed against
+          one, must emit with it: the relation the source states for it, the
+          unit of the value, and a locator for the source line. A bare
+          numeric pair under keys naming only a time and a memory is
+          non-conforming, because it escapes the implementation carrying
+          neither the relation nor the unit into records whose readers must
+          re-derive both from a document outside their read scope.
+    frozen_locus:
+      file: experiments/EXP-WESOVOW-001/cost_model.py
+      sites:
+        - id: site_2_paper_pair
+          line_range: 302
+          current_text: |
+              "paper_pair": {"log2time": pt, "log2memory": pm},
+    amended_text:
+      site_2_paper_pair: |
+              "paper_pair": {
+                  "log2time": pt,
+                  "log2memory": pm,
+                  "relation": "lower_bound",
+                  "unit": "log2 (time: F_{p^2}-ops; memory: table entries)",
+                  "source_locator": "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:234-238",
+              },
+    provenance_classification:
+      - detail: the requirement to emit, with the per-field anchor value, the relation the source states for it, the unit of the value, and a locator for the source line, at the per-field emission site (line 302)
+        classification: REDRAFT_LITERAL
+        basis: what_the_companion_record_should_carry[1] and clause_3.serialization_requirement
+      - detail: the key names relation, unit, source_locator
+        classification: EXECUTOR_CHOSEN
+        reason: >-
+          The redraft describes WHAT to emit (the relation, the unit, a locator)
+          but not the exact KEY NAMES. I chose relation, unit, source_locator as
+          the minimal faithful names.
+        flagged_for_reviewer: true
+      - detail: the relation value "lower_bound"
+        classification: REDRAFT_LITERAL
+        basis: >-
+          clause_3.what_the_five_pairs_are states "Figures stated in the frozen
+          source as LOWER BOUNDS, from an underestimation the source itself
+          describes as rough." The relation is therefore "lower bound"; the exact
+          string "lower_bound" is its serialization (EXECUTOR_CHOSEN wording of a
+          REDRAFT_LITERAL fact).
+      - detail: 'the unit value "log2 (time: F_{p^2}-ops; memory: table entries)"'
+        classification: REDRAFT_IMPLIED
+        basis: >-
+          clause_3.serialization_requirement mandates emitting "the unit of the
+          value" but does not state it. The unit's content is derivable from
+          committed records: the frozen file's PAPER_PAIRS comment ("paper Sec.
+          4.1 (log2 time, log2 memory)") gives the log2 scaling, and
+          specification.yaml unit_of_cost ("F_{p^2}-operations") and unit_of_memory
+          ("table entries") give the underlying quantities. The exact string is
+          EXECUTOR_CHOSEN wording of that derivable content.
+        flagged_for_reviewer: true
+      - detail: the source_locator value "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:234-238"
+        classification: REDRAFT_LITERAL
+        basis: >-
+          clause_3.what_the_five_pairs_are states "that decision's next_actions[1]
+          records the source location as
+          inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:234-238." The redraft notes
+          the drafting task did not open that file (it is outside its read scope),
+          so the locator is cited to the decision that records it and not to a
+          reading; an enacting Coordinator should confirm the locator against the
+          file before enactment.
+    inspection_only_verification: >-
+      Verified by reading the unified diff (hunk 2) and re-parsing the amended
+      content with ast.parse (PARSE_OK). The diff shows the paper_pair emission
+      expanded from a bare two-key mapping to a five-key mapping carrying
+      relation, unit, and source_locator alongside log2time and log2memory. No
+      execution of cost_model.py.
+
+  # ------------------------------------------------------------------
+  - id: change_3_clause_4_reachability
+    name: the clause_4 reachability status emission
+    redraft_mandate:
+      - field: what_the_companion_record_should_carry[2]
+        verbatim: the reachability status emission implementing clause_4
+      - field: proposed_replacement.clause_4.replacement_text_in_full.anchor_reachability.requirement
+        verbatim: >-
+          For every field size, an implementation of this contract must record
+          whether the anchor's time is attainable by this cost model on the
+          optimizer grid declared in model_definition.optimizer - that is,
+          whether it lies at or above the minimum of log2(T_full) attained
+          over log2B in [1.0, 60.0] at step 0.1. The status is recorded per
+          field size, in the raw output, as `reachable` or `off_curve`.
+    frozen_locus:
+      file: experiments/EXP-WESOVOW-001/cost_model.py
+      sites:
+        - id: site_3_after_deviation_bits
+          line_range: 303-305
+          note: >-
+            The status is emitted as a new per-field key immediately after the
+            deviation_bits block (the last of the anchor-derived emissions), so
+            that the reachability status travels with the anchor value and the
+            deviation computed against it, in the same per-field record.
+          current_text: |
+              "deviation_bits": {"time": float(dev_t), "memory": float(dev_m),
+                                 "within_tolerance_0.75bit":
+                                     bool(abs(dev_t) <= SANITY_TOLERANCE_BITS and abs(dev_m) <= SANITY_TOLERANCE_BITS)},
+    amended_text:
+      site_3_after_deviation_bits: |
+              "deviation_bits": {"time": float(dev_t), "memory": float(dev_m),
+                                 "within_tolerance_0.75bit":
+                                     bool(abs(dev_t) <= SANITY_TOLERANCE_BITS and abs(dev_m) <= SANITY_TOLERANCE_BITS)},
+              "anchor_reachability": "reachable" if pt >= opt["log2T"] else "off_curve",
+    provenance_classification:
+      - detail: the requirement to record, per field size, whether the anchor's time is attainable by this cost model on the declared optimizer grid
+        classification: REDRAFT_LITERAL
+        basis: what_the_companion_record_should_carry[2] and clause_4.anchor_reachability.requirement
+      - detail: the predicate's comparison - the anchor's time lies AT OR ABOVE the minimum of log2(T_full) attained over log2B in [1.0, 60.0] at step 0.1
+        classification: REDRAFT_LITERAL
+        basis: >-
+          clause_4.anchor_reachability.requirement states the comparison in words:
+          "whether it lies at or above the minimum of log2(T_full) attained over
+          log2B in [1.0, 60.0] at step 0.1." The redraft DOES specify the
+          comparison; this is not a gap.
+      - detail: the code translation pt >= opt["log2T"]
+        classification: REDRAFT_IMPLIED
+        basis: >-
+          The redraft states the predicate in words; I translated it to code using
+          the frozen file's own variables. pt is the anchor's time (the
+          paper_pair log2time, unpacked from PAPER_PAIRS[b2p]); opt["log2T"] is
+          the minimum of log2(T_full) over the declared grid, because optimize_B
+          iterates log2B over B_GRID_LO..B_GRID_HI at B_GRID_STEP (1.0..60.0 at
+          0.1, matching the redraft's [1.0, 60.0] at step 0.1) and returns the B
+          minimizing log2T. The exact code expression is my faithful translation
+          of the REDRAFT_LITERAL comparison.
+        flagged_for_reviewer: true
+      - detail: the status vocabulary reachable / off_curve
+        classification: REDRAFT_LITERAL
+        basis: clause_4.anchor_reachability.requirement ("as `reachable` or `off_curve`")
+      - detail: the key name anchor_reachability
+        classification: EXECUTOR_CHOSEN
+        reason: >-
+          The redraft says "The status is recorded per field size, in the raw
+          output" but not the exact KEY NAME. I chose anchor_reachability,
+          mirroring the redraft's own key name for the clause_4 block
+          (anchor_reachability).
+        flagged_for_reviewer: true
+    inspection_only_verification: >-
+      Verified by reading the unified diff (hunk 2) and re-parsing the amended
+      content with ast.parse (PARSE_OK). The diff shows the anchor_reachability
+      key added immediately after the deviation_bits block, emitting "reachable"
+      when pt >= opt["log2T"] and "off_curve" otherwise. No execution of
+      cost_model.py; no per-field status was computed or recorded by this task,
+      because computing one would require an execution that CF-10 forbids and
+      this record does not authorize.
+
+# =====================================================================
+# NO FOURTH CHANGE ATTESTATION
+# =====================================================================
+no_fourth_change:
+  statement: >-
+    Every difference between amended_cost_model_content.py and the frozen
+    experiments/EXP-WESOVOW-001/cost_model.py maps to one of the three named
+    changes above. The unified diff (embedded below) shows exactly three hunks,
+    and each hunk maps to a named change. A fourth difference would be a
+    STOP-and-report; none exists.
+  diff_hunk_count: 3
+  diff_hunk_to_change_mapping:
+    - hunk: "@@ -82,8 +82,26 @@"
+      change: 'change_1_output_path_repair (site_1a: default path + guard definition)'
+    - hunk: "@@ -299,10 +317,17 @@"
+      change: >-
+        change_2_clause_3_serialization (site_2) and
+        change_3_clause_4_reachability (site_3), merged into one hunk because the
+        two sites are adjacent (within the diff's three-line context)
+    - hunk: "@@ -320,6 +345,7 @@"
+      change: 'change_1_output_path_repair (site_1b: guard call at the write site)'
+  deliberately_not_changed:
+    - every other line of the frozen file (all lines except the three change sites)
+    - the PAPER_PAIRS mapping (frozen lines 60-66) - the source-derived anchor values the redraft's governed block and citation prohibition touch; not one value was altered
+    - the FIELD_SIZES list (frozen line 59)
+    - the charging law and crossover computation (frozen lines 239, 288-289)
+    - the run_id (frozen line 229)
+    - the B grid parameters (frozen line 71) and the sanity tolerance (frozen line 72)
+    - the Dickman method, grid, and validation (frozen lines 74-80, 93-161)
+    - the cost model functions cost_for_B and optimize_B (frozen lines 164-191)
+    - the main() body except the three change sites
+    - the stdout summary (frozen lines 327-375)
+    - the module docstring and imports (frozen lines 1-54)
+
+# =====================================================================
+# EXPLICITLY NO RUN AUTHORIZATION (VERBATIM FROM THE REDRAFT)
+# =====================================================================
+explicitly_no_run_authorization: >-
+  explicitly NO run authorization; that is a further, separate Coordinator decision
+no_run_authorization_statement: >-
+  THIS RECORD CARRIES EXPLICITLY NO RUN AUTHORIZATION. It is a record about an
+  implementation, authored and verified by inspection only; verification is a
+  diff and a re-parse, never an execution. A raw-output status (the per-field
+  reachable/off_curve values) would need an EXECUTION that remains a further,
+  separate Coordinator decision. This record authorizes no run and lifts no
+  prohibition.
+
+# =====================================================================
+# CITATION PROHIBITION - BOTH LIMBS, VERBATIM FROM DEC-20260909-eb21b9
+# =====================================================================
+citation_prohibition_restated_verbatim: >-
+  The `P=512` crossover value and its `w=2^80` sign are **NOT
+  citation-eligible**. This task does not lift that prohibition. Only a
+  committed Coordinator decision on independently reviewed evidence can lift
+  it.
+citation_prohibition_predicate_extension_restated_verbatim: >-
+  In addition to the retained sentence, a row of any EXP-WESOVOW-001
+  reconciliation is NOT citation-eligible when either (a) the two anchors
+  disagree in the SIGN of the baseline comparison at that row, or (b) the
+  smaller |margin| across the two anchors at that row is below that field
+  size's anchor gap |Delta log2 T_full + Delta log2 M / 2|.
+citation_prohibition_status: >-
+  RETAINED, NOT LIFTED, NOT NARROWED, NOT WIDENED. Neither limb is lifted by
+  this record. This record authorizes no run and lifts no prohibition.
+
+# =====================================================================
+# CITATIONS (ALL INTERNAL)
+# =====================================================================
+citations:
+  - ref: coordination/goals/GOAL-SSI-001/batches/BATCH-60d6b9/tasks/TASK-20260906-ee372e/protocol_amendment_redraft.yaml
+    provenance: internal
+    claim: >-
+      the redraft's what_the_companion_record_should_carry,
+      cf_10_raw_path_placement, proposed_replacement.clause_3,
+      proposed_replacement.clause_4, and blast_radius.frozen_artifacts
+  - ref: ledger/decisions/DEC-20260909-eb21b9.yaml
+    provenance: internal
+    claim: the citation prohibition restated verbatim in both limbs (the P-6 position)
+  - ref: experiments/EXP-WESOVOW-001/cost_model.py
+    provenance: internal
+    claim: the frozen implementation, read as text only, never executed
+  - ref: experiments/EXP-WESOVOW-001/specification.yaml
+    provenance: internal
+    claim: the frozen contract, read-only; unit_of_cost and unit_of_memory for the clause_3 unit
+  - ref: coordination/goals/GOAL-SSI-001/batches/BATCH-5e4996/dispatch_queue.json
+    provenance: internal
+    claim: the governing handoff for TASK-20260909-8b3cce
+  - ref: coordination/goals/GOAL-SSI-001/batches/BATCH-5e4996/batch.yaml
+    provenance: internal
+    claim: the eleven named digit-scan categories and the leak-discipline rule
+
+# =====================================================================
+# DIGESTS AND UNIFIED DIFF
+# =====================================================================
+digests:
+  frozen_file: experiments/EXP-WESOVOW-001/cost_model.py
+  frozen_sha256: 714e63667c7d31bf685ebd89d3179cb55953a9e89d611f36b96ebf4067444842
+  frozen_line_count: 380
+  amended_file: coordination/goals/GOAL-SSI-001/batches/BATCH-5e4996/tasks/TASK-20260909-8b3cce/amended_cost_model_content.py
+  amended_sha256: 072d293f1d11b5c596101fc033a51199c525885843de30f706bbc3cf8806d226
+  amended_line_count: 406
+  diff_hunk_count: 3
+  diff_added_lines: 29
+  diff_removed_lines: 3
+unified_diff: |
+  --- experiments/EXP-WESOVOW-001/cost_model.py
+  +++ coordination/goals/GOAL-SSI-001/batches/BATCH-5e4996/tasks/TASK-20260909-8b3cce/amended_cost_model_content.py
+  @@ -82,8 +82,26 @@
+   RAW_PATH = os.environ.get(
+       "WESOVOW_RAW_PATH",
+       os.path.join(os.path.dirname(os.path.abspath(__file__)),
+  -                 "runs", "RUN-WESOVOW-201692-001", "raw-result.json"),
+  +                 "runs", "RUN-WESOVOW-201692-002", "raw-result.json"),
+   )
+  +
+  +# CF-10: committed run directories are immutable receipts. No invocation may
+  +# write into one, with or without WESOVOW_RAW_PATH set. The default path above
+  +# is a NEW run directory, not a committed one; the guard enforces the property
+  +# for the WESOVOW_RAW_PATH-set case as well.
+  +_COMMITTED_RUN_DIRS = (
+  +    os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-001"),
+  +    os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-201692-001"),
+  +)
+  +
+  +
+  +def _assert_not_in_committed_run_dir(path):
+  +    """Raise if the resolved write path is inside a committed run directory."""
+  +    ap = os.path.abspath(path)
+  +    for d in _COMMITTED_RUN_DIRS:
+  +        if ap == d or ap.startswith(d + os.sep):
+  +            raise RuntimeError(
+  +                f"refusing to write {ap}: inside committed run directory {d} (CF-10)")
+   
+   _GL_X, _GL_W = leggauss(GL_NODES)
+   _GL_S = 0.5 * (_GL_X + 1.0)     # nodes mapped to [0,1]
+  @@ -299,10 +317,17 @@
+               "optimal": opt,
+               "B_opt_decimal_approx": 2.0 ** opt["log2B"],
+               "asymptotic_B_choice": {"log2B": log2B_asym, **(asym or {})},
+  -            "paper_pair": {"log2time": pt, "log2memory": pm},
+  +            "paper_pair": {
+  +                "log2time": pt,
+  +                "log2memory": pm,
+  +                "relation": "lower_bound",
+  +                "unit": "log2 (time: F_{p^2}-ops; memory: table entries)",
+  +                "source_locator": "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:234-238",
+  +            },
+               "deviation_bits": {"time": float(dev_t), "memory": float(dev_m),
+                                  "within_tolerance_0.75bit":
+                                      bool(abs(dev_t) <= SANITY_TOLERANCE_BITS and abs(dev_m) <= SANITY_TOLERANCE_BITS)},
+  +            "anchor_reachability": "reachable" if pt >= opt["log2T"] else "off_curve",
+               "baseline_log2TDG": log2TDG,
+               "van_oorschot_wiener": vow,
+               "crossover": crossovers,
+  @@ -320,6 +345,7 @@
+   
+       results["wall_clock_seconds_script"] = time.time() - t0
+   
+  +    _assert_not_in_committed_run_dir(RAW_PATH)
+       os.makedirs(os.path.dirname(RAW_PATH), exist_ok=True)
+       with open(RAW_PATH, "w") as f:
+           json.dump(results, f, indent=2, sort_keys=False)
+
+# =====================================================================
+# CLOSING STATEMENT
+# =====================================================================
+statement: >-
+  This record authorizes no run and lifts no prohibition. It carries exactly
+  the three changes the redraft names - the output-path repair covering both
+  invocation cases, the clause_3 serialization at the per-field emission site,
+  and the clause_4 reachability status emission - and explicitly NO run
+  authorization. It is a record about an implementation, authored and verified
+  by inspection only; verification is a diff and a re-parse, never an execution.

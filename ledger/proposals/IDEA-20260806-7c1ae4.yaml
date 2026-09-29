@@ -1,0 +1,555 @@
+idea:
+  id: IDEA-20260806-7c1ae4
+  title: >-
+    Nobody owns the conjunction. A deployed ML-KEM failure oracle needs FOUR predicates at once
+    (U unbounded M, R reusable-key role reachable, C attacker occupies the encapsulator seat,
+    S per-ciphertext outcome observable); each is owned by a different specification; NO document
+    in GOAL-MLKEM-005's own 24-row census quantifies over the conjunction; and the predicate the
+    census never recorded -- S -- is the one that decides the lane
+  class: measurement
+  question_id: RQ-MLKEM-001
+  lens: deployment
+  novelty_status: unverified
+  novelty_basis: |
+    WHAT I ACTUALLY CHECKED, and nothing beyond it is claimed.
+    - Read in full: ledger/goals/GOAL-MLKEM-005.yaml; the committed census artifact
+      coordination/goals/GOAL-MLKEM-005/batches/BATCH-a51f91/tasks/TASK-20260805-e6a153/census.md
+      (24 rows R01-R24); knowledge/techniques/KN-TECH-048.md; knowledge/findings/KN-FIND-001.md;
+      knowledge/literature/KN-LIT-3771.md; ledger/questions/RQ-MLKEM-001.yaml.
+    - Grepped ledger/proposals/ and knowledge/ for: "failure boosting", "failure-boosting",
+      "implicit rejection", "decryption failure", "retry_configs", "mismatch counter",
+      "key reuse", "SP 800-227", "hybrid-design", "ECH", "Encrypted Client Hello". Failure
+      boosting is present (KN-TECH-048, and as a NAMED-BUT-NOT-USED lane in
+      IDEA-20260805-1d76e9 and IDEA-20260805-3d71ca). No record in ledger/proposals/ or
+      knowledge/ constructs a predicate taxonomy over deployment modes, and the census itself
+      states its own controls section is empty "by construction" because it recorded exactly ONE
+      quantity per row (M).
+    - Read the 106-record prior-art digest supplied for this session. No record proposes a
+      precondition taxonomy; the two adjacent records are IDEA-20260805-3d71ca (best-of-M
+      ciphertext selection, a COST mechanism, not a precondition audit) and IDEA-20260805-1d76e9
+      (multi-target weak keys, a different resource axis). This proposal touches neither
+      mechanism.
+    - NOT READ by me, and therefore never cited here as authority: FIPS 203 itself,
+      SP 800-227, draft-ietf-tls-hybrid-design-16, draft-ietf-tls-esni-25, RFC 9629,
+      draft-sfluhrer-cfrg-ml-kem-security-considerations-05. Every specification statement below
+      is RELAYED FROM THE COMMITTED CENSUS ARTIFACT with its row id, and re-fetching the
+      load-bearing rows is step T1 of the minimal test.
+    Label is `unverified` because I have read no primary specification in this session and have
+    run no external literature search for prior deployment-precondition taxonomies.
+  claim: |
+    (A) THE CONJUNCTION, DERIVED. A chosen-ciphertext decryption-failure channel against a
+    deployed ML-KEM key exists if and only if FOUR predicates hold simultaneously for that
+    deployment mode:
+      U  the number M of ciphertexts decapsulable under one encapsulation key is not bounded by
+         any specification governing the mode;
+      R  the party holding the reusable DECAPSULATION key is reachable by an attacker (i.e. the
+         attacker can cause that party to decapsulate);
+      C  the attacker occupies the ENCAPSULATOR seat, and therefore chooses the message m and
+         hence the ciphertext, WITHOUT needing to be a man in the middle;
+      S  the deployment emits a per-ciphertext, attacker-observable success/failure distinction.
+    Each predicate is owned by a different document, and the claim is that NO retrieved document
+    quantifies over the conjunction. U is delegated by the TLS drafts to FIPS 203 (census R13,
+    R14) and terminates there without a value (R01). R and C are fixed by the PROTOCOL ROLE
+    assignment, which no KEM document mentions. S is fixed by the protocol's error handling,
+    which no KEM document mentions either.
+
+    (B) THE CENSUS RECORDED EXACTLY ONE OF THE FOUR. The committed census
+    (TASK-20260805-e6a153) records M per row and nothing else; its own controls section states
+    there is "no contrast, comparator, surrogate or ablation in this task". So 3 of the 4
+    predicates have never been evaluated for any deployed ML-KEM mode in this program.
+
+    (C) THE ROLE INVERSION, which is the sub-claim most likely to be wrong and is therefore
+    stated sharply. In TLS 1.3 hybrid key exchange (census R12, R14) the reusable ML-KEM
+    encapsulation key is the CLIENT's, carried in the ClientHello key_share, and the SERVER
+    encapsulates. draft-ietf-tls-hybrid-design-16 Sec. 2 permits reuse of that share (R13).
+    Therefore, under key_share reuse, R and C are satisfied by EVERY server the client contacts,
+    including servers the client has not authenticated at the moment the ciphertext is chosen,
+    because the key_share precedes server authentication in the handshake. PREDICTION, and it can
+    fail: the number of the three retrieved TLS documents (R12, R13, R14) containing any
+    requirement that a reused ML-KEM key_share not be offered to distinct or unauthenticated
+    peers is ZERO.
+
+    (D) WHAT THE TWO OUTCOMES MEAN, declared before any retrieval. Two live explanations for why
+    the standards stack's silence on M is tolerable:
+      E1  it is tolerable because the failure channel is unreachable at any M (a statement about
+          the parameters, quantified by the companion proposal IDEA-20260806-b39f02);
+      E2  it is tolerable because S fails -- no standardized unbounded-M mode actually emits an
+          attacker-observable per-ciphertext outcome.
+    If S is FALSE on every U-row, E2 holds, and this lane closes with a NAMED OBSTRUCTION ("no
+    standardized unbounded-M ML-KEM mode publishes a per-ciphertext outcome"), which is a
+    first-class deliverable and retires the lane, not the goal. If S is TRUE on at least one
+    U-row, E2 is false as a matter of fact, the deployment lane's safety rests on E1 alone, and
+    E1 is a PARAMETER property that transfers to no variant with a different failure rate.
+  mechanism: |
+    THE TRACKED OBJECT AND ITS ONE-STEP PROPAGATION.
+    Track, per deployment mode x, the vector P(x) = (U, R, C, S) in {T, F, NA}^4. The
+    propagation rule is not metaphorical; it is the delegation structure the census already
+    found and can be written down exactly.
+
+    Build the DELEGATION DIGRAPH D over retrieved documents: an edge x -> y whenever document x
+    normatively defers a predicate to document y. The census exhibits three such edges
+    explicitly: R13 -> R01 ("the number of reuses ... abides by any bounds in the specification
+    of the KEM", terminating at FIPS 203); R14 -> R01 (verbatim repetition); R17 -> R24 (the
+    LAMPS X.509 profile deferring key-reuse questions to the CFRG security-considerations
+    draft). The one-step propagation of a predicate along an edge is:
+        val(x, p) = val(y, p)                      if x delegates p to y
+        val(x, p) = PERMISSIVE                     if x is silent on p and delegates nothing
+        val(x, p) = the value x states              otherwise
+    and the mode's value is the JOIN over all documents governing it, with PERMISSIVE as the
+    top element. This is a monotone map on a finite lattice along a digraph, so it has a least
+    fixed point computable by one traversal; the census's finding "the delegation terminates at
+    FIPS 203, which states none" IS that fixed point for p = U, computed by hand for one
+    predicate. The proposal is to compute it for all four.
+
+    WHY THE FOUR PREDICATES ARE THE RIGHT FOUR, derived rather than listed. The chosen-ciphertext
+    failure channel is a communication channel from the key to the attacker. It requires:
+      - a channel that is used more than once                          -> U
+      - a transmitter the attacker can clock                            -> R
+      - an attacker-chosen channel input                                -> C
+      - a receiver that observes the channel output                     -> S
+    Remove any one and the mutual information from the channel is zero. C in particular is not
+    redundant with R: an attacker who can force decapsulations but cannot choose the ciphertext
+    is restricted to whatever ciphertexts honest parties produce, whose failure probability is
+    the average rate, not the maximum over attacker-choosable ciphertexts.
+
+    WHY S IS THE INFORMATIVE PREDICATE AND U IS NOT. The strongest objection to this proposal is
+    that U and C are near-perfectly correlated by construction: the modes whose specifications
+    leave M unbounded are exactly the static-recipient modes, and a static recipient is exactly
+    the configuration where any party may encapsulate. If that correlation is total, the
+    conjunction count equals the U count and the taxonomy adds nothing over the census. THE
+    PROPOSAL CONCEDES THIS IN ADVANCE and relocates its content onto S, which is uncorrelated
+    with U by construction: S is a property of the mode's ERROR HANDLING, and error handling is
+    specified in documents (TLS alerts, ECH retry_configs, CMS processing, PKCS#11 return codes)
+    that say nothing about key lifetime. The permutation null in the minimal test is the
+    instrument that measures this correlation instead of assuming it either way.
+  object_first_candidate:
+    tracked_object: >-
+      The per-deployment-mode predicate vector P(x) = (U, R, C, S) in {T, F, NA}^4, propagated
+      along the normative delegation digraph by the join rule above. Four bits per mode, plus a
+      third value NA for predicates that do not apply, carried through the standards graph.
+    established_families_off_limits: |
+      DECLARED OFF-LIMITS AS THE PRIMARY LENS FOR THIS SESSION, because the target is heavily
+      mined and variants arrive in new vocabulary:
+      - primal uSVP / BDD embedding and any block-size argument;
+      - dual attacks in every variant (MATZOV, Carrier coded-dual, FFT distinguishers);
+      - hybrid/meet-in-the-middle secret-guessing attacks;
+      - ALL ALGEBRAIC STRUCTURE ATTACKS, per the inherited GOAL-MLKEM-005 constraint: ring
+        multiplication, Galois twist, CRT projection, module re-basing, negacyclic isometry
+        orbits. This proposal contains no Z_q-linear re-derivation of samples and makes no
+        posterior-on-s claim, so it does not touch that constraint;
+      - best-of-M ciphertext selection against a shared reduced basis (IDEA-20260805-3d71ca and
+        the whole of GOAL-MLKEM-005's C1/C3 lane): this proposal computes no block size, no
+        projected-error statistic and no dbeta, and must not be read as feeding that lane;
+      - multi-target weak-key selection (IDEA-20260805-1d76e9);
+      - implementation side channels and the comparison-conformance family (KN-FIND-001,
+        EXP-MLKEM-002..009).
+  lossy_projection_identifiability_audit:
+    what_is_discarded: >-
+      Everything except four booleans per mode. Discarded: the entire text of each specification,
+      all cryptographic parameters, message formats, algorithm identifiers, the value of M when
+      it is stated, the identity of the delegating clause, and every quantitative statement in
+      the census's other nine columns.
+    why_the_discard_is_compatible: >-
+      The retained part propagates deterministically under the target's operation, which here is
+      NORMATIVE DELEGATION. A document that delegates a predicate transfers exactly that
+      predicate's value and nothing else, so the join rule above is well defined on the quotient
+      and does not need the discarded text to be evaluated. This is the algebraic condition the
+      lossy-projection test asks for: the projection is a homomorphism for the delegation
+      operation.
+    is_it_merely_a_change_of_coordinates: >-
+      No. The map from a specification to four booleans is not injective on any interesting
+      class: R20 (SSH, REQUIRED per-connection freshness) and R21 (IKEv2, REQUIRED per-exchange
+      freshness) are different documents with different mechanisms that project to the same
+      vector, and the projection cannot be inverted to recover either. Contrast the canonical
+      failure (Delta, Pi) = (x XOR y, x*y) in characteristic 2, where the unordered pair is
+      recoverable as the roots of t^2 + Delta*t + Pi and nothing is gained.
+    which_failure_mode_i_checked: |
+      BOTH, named separately.
+      - Nothing-discarded failure: excluded above by non-injectivity on R20 vs R21.
+      - MIRROR FAILURE (projection so lossy it is constant across instances): NOT excluded a
+        priori, and it is the live risk. If any of U, R, C, S is constant across the 24 rows,
+        that predicate contributes zero and the taxonomy degenerates. This is why the minimal
+        test REPORTS THE FOUR MARGINALS FIRST and refuses to interpret the conjunction if any
+        marginal is 0 or 1. The specific worry named in the mechanism section is that C may be
+        constant-TRUE on all deployment-mode rows.
+  predictions:
+    - metric: marginal_true_count_per_predicate (out of the 24 census rows, NA excluded)
+      direction: different
+      minimum_effect: >-
+        Each of U, R, C, S has a true-count strictly between 2 and 22 inclusive. FORCED
+        PRE-REGISTERED REFUSAL: if any predicate's true-count is 0, 1, 23 or 24, that predicate is
+        declared degenerate and is REMOVED from the conjunction before any further statistic is
+        computed, and the removal is reported in the headline.
+    - metric: conjunction_count = number of rows with U = C = R = S = T
+      direction: lower
+      minimum_effect: >-
+        At least 2 rows fewer than the U-count. The census records 8 deployment-mode rows with M
+        unstated (R06, R10, R15, R16, R17, R18, R19, R23), so the pre-registered prediction is
+        conjunction_count <= 6 and conjunction_count >= 1. Both bounds can fail.
+    - metric: permutation_null_excess = conjunction_count - 24*p_U*p_R*p_C*p_S
+      direction: higher
+      minimum_effect: >-
+        >= 2.0 rows, i.e. the observed co-occurrence exceeds what the four marginals alone force
+        by at least two whole rows. If the excess is < 2.0 the finding is reported as EXPLAINED BY
+        MARGINALS and the "unowned conjunction" framing is withdrawn in the same sentence.
+    - metric: tls_reuse_peer_restriction_count (documents among R12, R13, R14 containing any
+        requirement restricting a reused ML-KEM key_share to authenticated or repeated peers)
+      direction: different
+      minimum_effect: "Forced value 0, stated before retrieval. Any count >= 1 falsifies sub-claim (C)."
+    - metric: S_true_count_among_U_true_rows
+      direction: different
+      minimum_effect: >-
+        Forced branch point, no interval. If 0, report the lane closure with the named obstruction
+        of claim (D). If >= 1, report the named modes and route to IDEA-20260806-b39f02. Both
+        branches are complete answers and neither is a null result.
+  minimal_test:
+    design: |
+      ZERO COMPUTE. Retrieval, a frozen coding procedure, and a permutation test.
+      T1 RE-FETCH the load-bearing rows and record byte hashes and retrieval timestamps: FIPS 203
+         (R01), SP 800-227 Sec. 4.1-4.2 (R02, R03), draft-ietf-tls-hybrid-design-16 Sec. 2 (R13),
+         draft-ietf-tls-ecdhe-mlkem (R12), draft-connolly-tls-mlkem-key-agreement (R14),
+         draft-ietf-tls-esni-25 Sec. 10.3 / 10.10.5 (R15), RFC 9629 (R18),
+         draft-ietf-lamps-kyber-certificates (R17),
+         draft-sfluhrer-cfrg-ml-kem-security-considerations-05 (R24), PKCS#11 v3.2 Sec. 6.68
+         (R19). A row that cannot be fetched is recorded as an ACQUISITION FAILURE and excluded
+         from every count, exactly as the census did for CNSA 2.0. Acquisition failure is never
+         scored as a predicate value.
+      T2 FREEZE THE CODING PROCEDURE BEFORE READING ANY ROW: a written decision rule per
+         predicate, mapping specification language to {T, F, NA}, with the delegation join rule
+         and with NA reserved for "the predicate does not apply to this kind of row"
+         (governing_clause and scope_note rows). The procedure is committed and hashed before
+         coding starts.
+      T3 CODE ALL ROWS BLIND. Row identities are replaced by opaque tokens and the two synthetic
+         control rows (below) are interleaved at random positions before coding.
+      T4 REPORT THE FOUR MARGINALS FIRST, apply the degeneracy refusal rule, then report the
+         conjunction count.
+      T5 PERMUTATION NULL: independently permute each predicate column across rows 10^5 times,
+         recompute the conjunction count, report the null distribution and the excess.
+      T6 BUILD AND PUBLISH the delegation digraph and check it is acyclic; report the fixed point
+         per predicate.
+    controls:
+      - name: NULL OBJECT -- the constant predicate T32
+        description: >-
+          A fifth predicate T32(x) = "every ML-KEM ciphertext length in this mode is a multiple of
+          32 bytes", coded by the identical blind procedure and carried through the identical
+          statistics.
+        forced_value_derived_before_run: >-
+          TRUE on every row that carries an ML-KEM ciphertext at all, because L = 32*(du*k + dv)
+          for every FIPS 203 parameter set (the arithmetic is IDEA-20260805-3c957e's, and it is
+          parameter-free). Forced marginal 1.0 over the applicable rows; forced permutation-null
+          excess 0.0; forced contribution to any conjunction 0 bits.
+        can_it_actually_fail: >-
+          Yes. If the coder scores NA rows as FALSE, T32 becomes non-constant and the marginal
+          drops below 1.0, which reveals the coding defect immediately. It also fails if the
+          delegation join is implemented so that a silent document forces FALSE rather than
+          PERMISSIVE.
+        arrangement_in_which_it_could_not_fail: >-
+          If NA is collapsed into FALSE anywhere in the pipeline, or if the null is evaluated only
+          on the 14 deployment-mode rows where it is trivially applicable. SHOWN NOT TO BE IN IT
+          by T2's requirement that NA be a THIRD value frozen before coding and excluded from
+          every marginal, and by evaluating the null on all 24 rows plus the 2 synthetic rows.
+      - name: NULL OBJECT 2 -- the marginal-preserving permutation null (T5)
+        description: The conjunction count under independent column permutations.
+        forced_value_derived_before_run: "Mean 24*p_U*p_R*p_C*p_S, computed from the observed marginals before the excess is read."
+        can_it_actually_fail: >-
+          Yes, and it is expected to be the most likely killer of this proposal: if U and C are
+          totally correlated the observed conjunction equals the U count and the excess is
+          reproduced by the null.
+        arrangement_in_which_it_could_not_fail: >-
+          If the permutation preserved row identity for any column, the null would inherit the
+          real co-occurrence. SHOWN NOT TO BE IN IT by permuting each column independently with an
+          externally seeded RNG whose seed is recorded before the observed value is computed.
+      - name: POSITIVE CONTROL -- synthetic row SYN-A, raw K-PKE with a static key and an
+          error-returning decapsulator
+        description: >-
+          A synthetic row describing CPA-secure K-PKE (no FO transform) deployed with a static
+          decapsulation key and a decapsulator that returns an explicit decryption error.
+        forced_value_derived_before_run: "P(SYN-A) = (T, T, T, T). This mode is textbook CCA-broken; the taxonomy MUST place it in the maximal class."
+        can_it_actually_fail: >-
+          Yes. Coded blind among 25 other rows by a procedure written before SYN-A existed, it
+          fails if the procedure's S rule keys on the phrase "implicit rejection" rather than on
+          the presence of an observable per-ciphertext outcome, or if the U rule keys on the word
+          "ephemeral".
+        arrangement_in_which_it_could_not_fail: >-
+          If the coder knows which rows are synthetic and which verdict is wanted. SHOWN NOT TO BE
+          IN IT by T3's blind interleaving and by writing the coding procedure at T2, before the
+          synthetic rows are drafted.
+      - name: NEGATIVE CONTROL -- synthetic row SYN-B, IKEv2 with per-exchange freshness
+        description: A synthetic restatement of census row R21 with the identifying text removed.
+        forced_value_derived_before_run: "U = F (a normative REQUIRED per-exchange keypair), so the conjunction is FALSE regardless of R, C, S."
+        can_it_actually_fail: "Yes: a coding rule that treats REQUIRED language as advisory codes U = T and the control fails visibly."
+        arrangement_in_which_it_could_not_fail: >-
+          If SYN-B were coded after the real R21 by the same reader, recall would force agreement.
+          SHOWN NOT TO BE IN IT by blinding and by placing SYN-B and R21 at randomly separated
+          positions in the coding order, with the agreement between them reported as an
+          intra-coder reliability figure rather than assumed.
+      - name: GRADED CONTROL -- the normative-strength ladder for predicate U (5 points, 3
+          interior)
+        description: >-
+          Five synthetic clauses of monotonically weakening normative force for the same
+          proposition: (L1) "a fresh keypair per exchange is REQUIRED"; (L2) "implementations MUST
+          NOT reuse the key"; (L3) "implementations SHOULD NOT reuse the key"; (L4)
+          "implementations MAY reuse the key"; (L5) the document is silent. Coded blind and
+          interleaved.
+        forced_value_derived_before_run: >-
+          The coded U value must be monotone NON-DECREASING along L1 -> L5 with U(L1) = F and
+          U(L5) = T. The interior points L2, L3, L4 are where the coding procedure's threshold
+          actually sits and the ladder is what exposes it.
+        can_it_actually_fail: >-
+          Yes, in two distinct ways: non-monotonicity (a coding rule that keys on keyword presence
+          rather than normative strength will invert L3 and L4), and threshold collapse (all five
+          coded identically, which means the procedure has no resolution and the whole U column is
+          one bit of keyword matching).
+        arrangement_in_which_it_could_not_fail: >-
+          If the ladder were scored by applying the coding procedure's own written threshold to
+          the same words used to define the ladder, monotonicity would be tautological. SHOWN NOT
+          TO BE IN IT by drafting the five clauses in the vocabulary of the REAL census rows
+          (R20/R21 for L1, R09 for L3, R10/R13 for L4, R01 for L5) and requiring the coder to
+          reach the verdict from the clause text alone, with the ladder's intended order sealed
+          until after coding.
+    required_metrics:
+      - marginal_true_count per predicate, with NA counts reported separately
+      - conjunction_count over real rows, over real+synthetic rows, and per row-kind
+      - permutation_null distribution (10^5 draws), its mean, and the observed excess
+      - delegation digraph edge list, acyclicity verdict, and per-predicate fixed point
+      - per-row retrieval URL, byte sha256 and retrieval timestamp, or an acquisition-failure entry
+      - intra-coder reliability between each synthetic row and its real twin
+  falsification_conditions:
+    - >-
+      Any predicate has marginal 0 or 1 over the applicable rows: that predicate is degenerate,
+      is struck, and if striking it leaves fewer than three live predicates the proposal is
+      withdrawn as a repackaging of the existing census.
+    - >-
+      The permutation-null excess is < 2.0 rows: the co-occurrence is explained by the marginals,
+      the "unowned conjunction" framing adds nothing, and the record says so in its headline.
+    - >-
+      tls_reuse_peer_restriction_count >= 1: sub-claim (C) is false and the TLS role-inversion
+      finding is withdrawn, though (A), (B) and (D) survive.
+    - >-
+      SYN-A is not placed in the maximal class by the blind coding: the instrument does not
+      measure risk and no count it produced may be interpreted.
+    - >-
+      The delegation digraph is cyclic: the join rule has no least fixed point as stated, the
+      propagation is not well defined, and the mechanism must be repaired before any count is
+      read.
+  confounders:
+    - >-
+      DRAFT CHURN. Nine of the ten load-bearing rows are IETF Internet-Drafts whose text changes
+      between versions. A predicate can flip purely because a draft advanced. Mitigation: pin the
+      exact version string and byte hash per row; report any divergence from the census's
+      2026-08-05 retrieval as a DIFF, never as a correction of the census.
+    - >-
+      CODER-AS-INSTRUMENT. One reader coding 26 rows is a single instrument with unmeasured bias.
+      Mitigation: the frozen procedure, blinding, the synthetic twins, and the reliability figure.
+      This does not eliminate the confounder and the record must not claim it does.
+    - >-
+      ROW-KIND CONTAMINATION. The census's 24 rows are three different kinds (14 deployment_mode,
+      8 governing_clause, 2 scope_note). Counting a governing clause as a deployment mode inflates
+      every marginal. Mitigation: all counts are reported per kind and the conjunction is defined
+      only over deployment_mode rows.
+    - >-
+      PREDICATE S IS ABOUT IMPLEMENTATIONS, NOT ONLY SPECIFICATIONS. A specification may be silent
+      on error handling while every implementation emits a distinguishable failure. Coding S from
+      specification text alone systematically UNDER-counts S. Mitigation: S is coded twice, once
+      from specification text and once as "not excluded by specification text", and both columns
+      are reported. The conjunction is computed under both and the two answers are printed side by
+      side.
+    - >-
+      ML-KEM IS NOT YET THE DEPLOYED KEM IN SOME ROWS. The census's own caveats record that R22
+      and R23 name Kyber-1024 rather than FIPS 203 ML-KEM, and that RFC 9420 registers no ML-KEM
+      cipher suite (R11). Those rows describe MECHANISMS an ML-KEM binding would inherit, not
+      ML-KEM conformance statements, and must be reported in a separate column.
+  interpretation_limits:
+    - >-
+      This is a documentary and boolean audit. It measures no cryptographic quantity, computes no
+      block size, reduces no lattice, and produces no security estimate. It cannot support any
+      statement about ML-KEM's hardness, and no attack is claimed at any tier.
+    - >-
+      A conjunction count of zero is a statement about the retrieved documents at their retrieved
+      versions, not a theorem that no deployment satisfies the four predicates. It is a scoped
+      negative in the sense of AGENTS.md rule 6.
+    - >-
+      A conjunction count above zero is a statement about PRECONDITIONS ONLY. It says the channel
+      exists, not that it carries usable information; the query cost is the separate object of
+      IDEA-20260806-b39f02, and quoting this record as evidence of exploitability would be a
+      claim-tier violation.
+    - >-
+      AGENTS.md rule 12 is UNMET and UNWAIVED for this program's ML-KEM line. Nothing here is a
+      break claim.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The normative delegation relation among the retrieved documents, restricted to the four
+        predicates, is a finite acyclic digraph, so the join rule has a least fixed point
+        computable by a single traversal.
+      rigorous_support: >-
+        Not a distribution assumption; it is a structural property that is CHECKED rather than
+        assumed. The census already exhibits three edges (R13 -> R01, R14 -> R01, R17 -> R24) and
+        all three terminate. Acyclicity of a finite digraph is decidable in linear time.
+      validation_plan: >-
+        Step T6 constructs the edge list from the retrieved texts and runs a topological sort. If
+        a cycle is found it is printed with its documents and the mechanism is reported as broken
+        rather than patched. No sampling and no scale question arises.
+    - id: H2
+      statement: >-
+        A specification's silence on a predicate is correctly modelled as the PERMISSIVE value
+        rather than as an unstated prohibition.
+      rigorous_support: >-
+        The census's own load-bearing sentence supports this for U: draft-ietf-tls-hybrid-design-16
+        delegates to "any bounds in the specification of the KEM", and FIPS 203 states none, so
+        the delegation terminates without a value and an implementer following the chain is
+        unconstrained. That is exactly the permissive reading, and it is the reading the lens
+        instruction asks be taken literally.
+      validation_plan: >-
+        Report BOTH readings for every silent cell: permissive and prohibitive. If the conjunction
+        count differs between the two readings, that difference is the headline quantity, because
+        it measures exactly how much of the finding is an artifact of the reading convention. No
+        single reading is presented as the answer.
+    - id: H3
+      statement: >-
+        The four predicates are jointly necessary for a chosen-ciphertext failure channel, so a
+        FALSE on any one closes the channel for that mode.
+      rigorous_support: >-
+        Necessity is argued in the mechanism section by the channel decomposition (repeated use,
+        clockable transmitter, chosen input, observed output) and each removal drives the mutual
+        information to zero. SUFFICIENCY IS NOT CLAIMED and must not be read into the record: a
+        mode with all four TRUE may still be safe because the channel capacity is negligible,
+        which is the separate object of IDEA-20260806-b39f02.
+      validation_plan: >-
+        The necessity direction is checked against the two synthetic controls (SYN-A must be all
+        TRUE and is broken; SYN-B has U = FALSE and is safe). A third check: any real row coded
+        all-TRUE must be re-read by hand against its primary text before it is reported.
+  target_complexity:
+    exponent_moved: >-
+      n/a for this audit. NO EXPONENT IS CLAIMED AND NONE IS MOVED. The exponent this record bears
+      on is the QUERY exponent log2 M of the deployment failure lane, which is the object of
+      IDEA-20260806-b39f02; this record decides whether that exponent is reachable in any
+      standardized mode at all, which is the precondition for the other record mattering.
+    time_exponent: "n/a (no algorithm proposed)"
+    memory_exponent: "n/a (no algorithm proposed)"
+    best_known: >-
+      For ML-KEM key recovery the relevant frontier is the primal uSVP / dual estimates this
+      program has recomputed (H-MLKEM-014, EXP-MLKEM-015), and for the failure lane it is
+      KN-TECH-048's relayed statement that the required query count for NIST candidates is above
+      practical limits. This record is below both and does not compete with them.
+    hidden_overhead: >-
+      None asymptotic. The practical overhead is retrieval flakiness and coder bias, both charged
+      explicitly in confounders. The honest disclosure is that a boolean taxonomy over 24 rows has
+      very few degrees of freedom and can be over-interpreted; the permutation null exists to
+      price exactly that.
+    tradeoff_note: "Not applicable: no algorithm, no memory, no parallelization position."
+  proof_search_map:
+    not_applicable_reason: >-
+      This is not a proof-oriented proposal. It asserts no theorem, no asymptotic bound, no
+      certificate family and no reduction. It is a documentary measurement whose output is a
+      table of counts. Section 8 of docs/inventor-protocol.md applies to the companion record
+      IDEA-20260806-b39f02, which does carry a bound; recording the non-applicability here rather
+      than omitting the field, as that section requires.
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: not_applicable
+      reproduction_check: >-
+        The census's own single-predicate result must be reproduced exactly as a slice: coding
+        only U with the frozen procedure must return the census's 6 / 8 split over the 14
+        deployment-mode rows, as restated in GOAL-MLKEM-005's C2 criteria_state. A disagreement is
+        an instrument fault reported before anything else is read.
+    observation_collision:
+      observable: The four-bit vector P(x).
+      distinct_preimage_search: >-
+        R20 (SSH) and R21 (IKEv2) are distinct documents with distinct bounding mechanisms that
+        must project to the same vector; if the coding procedure separates them it is reading text
+        rather than predicates. Conversely, a collision between a row on each side of the
+        conclusion -- one safe mode and one dangerous mode with the same vector -- is a direct
+        falsifier of identifiability and must be reported as such.
+    quantifier_order: >-
+      FOR ALL deployment modes x in the retrieved corpus, THERE EXISTS a document y such that y
+      governs x, AND FOR ALL four predicates p, THERE IS NO document z governing x such that z
+      states a value for p jointly with the other three. The claim is a non-existence of a JOINT
+      quantification, not a non-existence of any bound; a document that bounds each predicate
+      separately would falsify nothing.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can ever certify is: "among the documents retrieved at
+        these versions, k rows satisfy all four predicates and no document quantifies over their
+        conjunction." It can never certify that a deployment is safe or unsafe.
+      nearby_object_control: >-
+        The closest object where the hoped-for conclusion FAILS is SSH (R20) / IKEv2 (R21), which
+        are unambiguously bounded at M = 1 by REQUIRED language. If the method cannot separate
+        those from the ECH and CMS rows, it has not identified the load-bearing structure.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          The delegation digraph with a per-predicate resource measure, so that charges are added
+          only over documents proved disjoint in what they govern.
+        predicted_gain: >-
+          Turns the census's one hand-computed fixed point into four mechanically computed ones,
+          raising per-row resolution from 1 bit to 4 bits.
+    proof_obligations:
+      - claim: The four predicates are jointly necessary.
+        responsibility: correctness
+      - claim: The delegation join is well defined and terminating.
+        responsibility: interface
+      - claim: The single-predicate slice reproduces the committed census exactly.
+        responsibility: baseline
+      - claim: The coding procedure has resolution, demonstrated by the normative-strength ladder.
+        responsibility: scope
+  dominated_by: >-
+    n/a (no attack, cost or complexity is claimed, so there is no cost vector to dominate). ROWS
+    OF THE FRONTIER ACTUALLY CHECKED before writing this, across time, memory and data/queries:
+    (1) H-MLKEM-014 / EXP-MLKEM-015, the matched Kyber primal-vs-dual reconciliation, which is
+    the program's best time-and-memory row -- it consumes no deployment predicate and is not
+    comparable; (2) KN-TECH-048, the failure-boosting technique entry, which is the only row on
+    the DATA/QUERIES axis and whose statement ("above practical limits") is a query-count claim
+    this record neither improves nor contests; (3) IDEA-20260805-3d71ca, best-of-M ciphertext
+    selection, whose data axis is M and whose ceiling G <= log2 M is already recorded in
+    GOAL-MLKEM-005's ceiling_known_in_advance -- this record computes no G and does not enter that
+    tradeoff; (4) IDEA-20260805-1d76e9, multi-target weak keys, data axis N keys, disjoint;
+    (5) the census itself (TASK-20260805-e6a153), which is the direct predecessor on the same
+    documentary axis and which this record STRICTLY EXTENDS from 1 predicate to 4 without
+    contradicting any of its 24 rows. Nothing on any of those five rows dominates a four-bit
+    taxonomy, because none of them produces one; and this record dominates none of them, because
+    it produces no cost.
+  sota_delta: >-
+    ZERO BITS of attack improvement, claimed and disclaimed explicitly. The measurable delta is
+    documentary resolution: the committed census partitions its 24 rows on ONE predicate (M
+    stated versus not, a 2-way split with counts 6 / 8 over deployment modes). This record
+    partitions the same 24 rows on FOUR predicates into at most 3^4 = 81 cells, adds 7 synthetic
+    calibration rows (SYN-A, SYN-B, and the 5-point ladder), and adds a marginal-preserving null
+    the census explicitly did not have ("no contrast, comparator, surrogate or ablation in this
+    task"). Delta in per-row information: 1 bit -> up to 4 bits, minus whatever the degeneracy
+    refusal rule strikes.
+  honest_prior_of_survival: 0.45
+  honest_prior_rationale: >-
+    NOT LOWER because two of the four deliverables are close to forced: the census is committed
+    and re-codable, and the single-predicate slice must reproduce it or the instrument is
+    declared broken on the spot; and the S column has never been evaluated for any ML-KEM
+    deployment in this program, so it produces new information whichever way it lands. NOT HIGHER
+    because of one specific, named risk that I judge more likely than not to bite: U and C may be
+    almost perfectly correlated over the deployment-mode rows, since the specifications that
+    leave M unbounded are the static-recipient specifications and a static recipient is by
+    definition encapsulable by anyone. If that correlation is total, the permutation null
+    reproduces the conjunction, the excess falls below 2.0 rows, and the framing is withdrawn by
+    my own falsification rule -- leaving only the S column and the TLS role-inversion sub-claim
+    standing. I priced that outcome at roughly even odds.
+  estimated_cost:
+    implementation: low
+    compute: low
+    detail: >-
+      Ten document retrievals with hashes, one written coding procedure, 26 blind codings, a 10^5
+      permutation test that runs in seconds, and one topological sort. No lattice, no sampling, no
+      GPU. Dominated entirely by retrieval reliability; the census's own CNSA 2.0 403 shows the
+      failure mode and the handling.
+  recommended_priority: high
+  priority_rationale: >-
+    Cheapest of the three and logically prior to both: it decides whether the query-cost question
+    (IDEA-20260806-b39f02) and the detector question (IDEA-20260806-4d8e6b) apply to any
+    standardized mode at all. If S is false everywhere the other two become theoretical exercises,
+    which is itself worth knowing before either is funded.
+  interaction_with_inherited_constraint: >-
+    GOAL-MLKEM-005's inherited constraint forbids re-proposing algebraic structure attacks on the
+    ground that every algebraically derived instance is a Z_q-linear function of the original
+    samples with the error the same function of the original error. This record derives no
+    instance, applies no isometry, and makes no claim about the posterior on s. It is squarely in
+    the DEPLOYMENT lane the constraint names as one of the three places an exponent could remain.
+  recorded_at: '2026-08-06'
+  author_role: idea-generator

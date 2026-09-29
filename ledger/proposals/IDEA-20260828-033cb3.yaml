@@ -1,0 +1,887 @@
+idea:
+  id: IDEA-20260828-033cb3
+  question_id: RQ-MLKEM-002
+  added: '2026-08-28'
+  title: >-
+    Call-site specialization: does a single source-level comparison symbol
+    fracture into distinct per-call-site silent sets under LTO/inlining,
+    and does that undermine -25d3ca's "the shared routine transitively
+    covers both sites" argument
+  class: measurement
+
+  claim: >-
+    (A) THE TWO OPEN THREADS THIS RECORD CONNECTS. IDEA-20260821-121612
+    measured whether a FIXED comparison symbol's stride and coverage are
+    well defined across TOOLCHAIN CONFIGURATIONS (compiler, optimization
+    level, -march), holding the call site fixed at one standalone
+    translation unit, and explicitly named what it did not do: "LINK-TIME
+    OPTIMISATION AND CALL-SITE SPECIALISATION... The stride in the
+    standalone object file need not be the stride in the linked library...
+    a declared limitation, not an oversight." IDEA-20260821-25d3ca
+    separately asked, for the encapsulation modulus-check site, whether its
+    comparison routine is "the SAME SYMBOL... as the one the decapsulation
+    re-encryption comparison calls", and made the answer's two branches
+    load-bearing: "SHARED: the lane's decapsulation-site gate transitively
+    covers the encapsulation site... at zero additional instrument cost."
+    That transitivity claim is a claim about SOURCE-LEVEL symbol identity
+    implying SHARED DEFECT SURFACE. It is unaudited: neither record asks
+    whether a compiler, given ONE shared symbol called from TWO OR MORE
+    call sites within the same linked binary, can produce TWO OR MORE
+    DISTINCT MACHINE BODIES for it -- which would mean a "shared routine"
+    verdict at the source level does not, by itself, license the
+    transitivity -25d3ca's own decision rule depends on.
+    (B) THE MECHANISM THAT MAKES THIS A LIVE QUESTION, NOT A HYPOTHETICAL.
+    Under link-time optimization (LTO) or ordinary single-translation-unit
+    inlining, a compiler is permitted -- and in practice frequently chooses
+    -- to generate a SEPARATE specialized body of an inlined or cloned
+    function per call site, particularly when the call site supplies a
+    compile-time-constant length argument that differs from another call
+    site's, or when register allocation pressure differs at each call
+    site's surrounding code. IDEA-20260821-121612 already demonstrated (via
+    an attributed, unreproduced red-team compile observation it explicitly
+    flags as not self-verified) that a SINGLE call site's compiled stride
+    varies across compilers at fixed source; this record's question is the
+    orthogonal one: HOLDING THE TOOLCHAIN FIXED, does a SINGLE COMPILED
+    BINARY'S handling of one symbol vary ACROSS its own call sites. Both
+    axes are compiler behavior the lane has never measured in combination.
+    (C) THE OBJECT: PER-CALL-SITE COVERAGE, NOT PER-SYMBOL COVERAGE. For a
+    comparison or select symbol invoked at K >= 2 distinct call sites within
+    one linked artifact (built at one fixed toolchain configuration), this
+    record tracks the map `call_site -> (w_source, coverage_set)` using
+    IDEA-20260821-121612's own frozen v2 extractor applied separately at
+    each call site's resolved code (whether that is one shared function
+    body reached by K call instructions, or K distinct specialized bodies
+    produced by cloning/inlining). The discriminating question is whether
+    this map is CONSTANT across call sites (source-level sharing survives
+    to the binary, licensing -25d3ca's transitivity) or VARIES (source-level
+    sharing does not survive; each call site must be independently audited,
+    and a "shared routine" census answer of the kind -25d3ca sought is
+    insufficient on its own to close the isolation-versus-systemic
+    question at a second site).
+    (D) A CONCRETE, RETRIEVED CANDIDATE FOR THE POPULATION. PQClean
+    ml-kem-1024/avx2 (pinned commit 10738d92323117d84bb6202c85722ddfd96dc1d4,
+    retrieved this session) contains at least two structurally similar
+    comparison-family primitives in one package -- `verify` (called once,
+    at the ciphertext-comparison site) and `cmov` (called once, at the
+    shared-secret-selection site) -- which are DIFFERENT symbols and
+    therefore not a call-site-sharing case by themselves, but establish
+    that this codebase is a legitimate, already-partially-audited target
+    for the census this record proposes, and that at least ONE symbol
+    (`verify`, if a future fix or a different backend reuses it at a
+    second call site, e.g. a self-test harness invoking it directly) is a
+    plausible candidate for genuine multi-call-site testing once such a
+    second call site is confirmed to exist by source reading, per Stage 0
+    below. Where no implementation with a genuinely shared, multi-call-site
+    symbol is found within budget, this record reports that as the honest,
+    reportable outcome (population size 0 on the fetched set), exactly as
+    IDEA-20260821-121612 reported its own two-routine population honestly
+    rather than inflating it.
+    (E) WHAT IS NOT CLAIMED. No attack, no oracle, no exploitation path, no
+    attack-cost estimate, no timing/power/EM/cache/fault measurement, no
+    statement about MLWE hardness or ML-KEM security at any parameter set.
+    No claim that any implementation's shared routine actually specializes
+    per call site -- that is exactly the open, two-sided question this
+    record poses. No claim about -25d3ca's own encapsulation/decapsulation
+    pair specifically unless a genuine second call site of ITS shared
+    symbol is confirmed to exist by source reading; this record's claim is
+    about the GENERAL soundness of the "shared symbol implies shared defect
+    surface" inference step, using whatever genuinely multi-call-site
+    population can be found. Any newly observed conformance defect
+    escalates to the coordinator per RQ-MLKEM-002 and is published by no
+    agent.
+
+  mechanism: >-
+    STAGE 0 -- FIND A GENUINE MULTI-CALL-SITE POPULATION BEFORE ANYTHING
+    ELSE, SINCE THE QUESTION IS VACUOUS WITHOUT ONE. Read
+    experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md
+    (already read in full this session, matching IDEA-20260821-121612's own
+    Stage 0 finding) and the source of every pinned candidate, specifically
+    searching for: (i) any comparison or select symbol invoked from two or
+    more distinct call sites within the same translation unit or the same
+    linked library (a self-test harness calling the production comparator
+    directly is an admissible second call site; a duplicated symbol name
+    across two different backends selected by runtime dispatch is NOT --
+    that is IDEA-20260821-121612's ALREADY-NOTED aws-lc/mlkem-native
+    duplication, a different phenomenon this record does not re-examine);
+    (ii) -25d3ca's own open discriminator, i.e. per implementation, whether
+    the encapsulation modulus-check comparison and the decapsulation
+    re-encryption comparison are confirmed the SAME symbol (a prerequisite
+    -25d3ca left as a census question rather than an answered fact for any
+    named implementation). Both PQClean's `verify`/`cmov` split (two
+    DIFFERENT symbols, one call site each, as retrieved and quoted in the
+    companion records IDEA-20260828-40db79 and IDEA-20260828-edec21 filed
+    this session) and any implementation where -25d3ca's shared-routine
+    question resolves SHARED for a named implementation are read for
+    genuine multi-call-site candidates; where none exists within budget,
+    that is Stage 0's own reportable, honest finding and the record
+    proceeds no further into a build-based stage, exactly mirroring
+    IDEA-20260821-121612's Stage 0 disposition of its own pinned population.
+    STAGE 1 -- FREEZE THE TOOLCHAIN, VARY ONLY THE CALL SITE. Pick ONE
+    toolchain configuration (one compiler, version, optimization level and
+    -march) held constant for the entire stage -- the orthogonal design
+    choice to IDEA-20260821-121612, which held the call site fixed and
+    varied the toolchain over 40 cells. Build the candidate at that one
+    configuration under two link modes: (a) WITHOUT link-time optimization
+    (ordinary separate compilation, the mode most static analyses and most
+    of this lane's own prior census work implicitly assumed), and (b) WITH
+    link-time optimization enabled (`-flto` or equivalent), which is the
+    mode most likely to expose call-site specialization since it is what
+    grants the compiler visibility into all call sites simultaneously.
+    STAGE 2 -- APPLY THE FROZEN v2 EXTRACTOR PER CALL SITE, NOT PER SYMBOL.
+    Reusing IDEA-20260821-121612's frozen extractor UNCHANGED (memory-
+    operand enumeration grouped by base pointer, unroll-normalized
+    per-source-iteration width, static coverage-set computation at a fixed
+    length), disassemble the LINKED ARTIFACT at each build (a) and (b) and
+    locate every machine-code region reached by a call instruction
+    targeting the symbol under study. If the symbol resolves to ONE
+    address reached by K call instructions, record ONE tuple and report
+    `determinacy_across_call_sites = 1` trivially (the symbol was not
+    specialized). If the symbol resolves to K >= 2 DISTINCT addresses
+    (the compiler cloned or fully inlined and specialized it per site),
+    extract the tuple SEPARATELY at each address and report the SPREAD
+    across them using the identical determinacy/spread metrics
+    IDEA-20260821-121612 already defines for its own toolchain-variance
+    axis, applied here to the call-site axis instead.
+    STAGE 3 -- CALIBRATE AT BOTH ENDS, INHERITED FROM 121612 RATHER THAN
+    REINVENTED. NULL-1 (a hand-written, non-inlinable routine marked to
+    prevent cloning, e.g. via a linker-visible symbol with external
+    linkage and `noinline`/`noclone` attributes where the toolchain
+    supports them): FORCED to show determinacy 1 across call sites at both
+    link modes, since it structurally cannot be specialized; a failure
+    here indicts the extractor's call-site resolution, not the phenomenon.
+    NULL-2 (a short, trivially inlinable static function called at two
+    sites with DIFFERENT compile-time-constant length arguments, a
+    textbook LTO/inlining specialization trigger): FORCED to show
+    determinacy < 1 (at least two distinct compiled bodies) under link
+    mode (b) at a `-O2`-or-higher optimization level, and its forced value
+    is NOT asserted without a compile; if the actual toolchain used does
+    not specialize this deliberately-provocative case, the record states
+    that the compiler chosen is more conservative than assumed and
+    downgrades the whole stage's sensitivity rather than asserting a
+    forced value that did not obtain.
+    STAGE 4 -- THE MATRIX AND ITS READING. For the genuine multi-call-site
+    candidate(s) found in Stage 0, report the (call_site, w_source,
+    coverage_set) tuple at each site, under both link modes, at the one
+    fixed toolchain configuration of Stage 1. Two readings, declared before
+    the run: DETERMINACY 1 across every call site and both link modes
+    means source-level symbol sharing DOES survive to the binary for this
+    candidate, and any shared-routine census answer of the kind
+    -25d3ca sought (a source-level SHARED verdict) is a sound basis for its
+    transitivity inference on this candidate, strengthening that record's
+    argument by a stronger method than its own census could supply.
+    DETERMINACY BELOW 1 at any call site under either link mode means the
+    source-level SHARED verdict is INSUFFICIENT: the two call sites have
+    genuinely different defect surfaces and each requires its own
+    independent instrument-level audit, exactly as if they were two
+    separate implementations -- a direct, actionable correction to how
+    future shared-routine census answers in this lane should be read.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Retrieval this session used Grep over the repository (already run for
+      the two companion records filed this session, IDEA-20260828-40db79
+      and IDEA-20260828-edec21, and not repeated verbatim here) plus direct
+      re-reading of the specific sections of IDEA-20260821-121612 and
+      IDEA-20260821-25d3ca bearing on call-site specialization and
+      symbol-sharing respectively. Grep of `ledger/proposals` (glob
+      *MLKEM*) for `call.?site|LTO|link.?time optimi|specializ|cloning|
+      noinline`, case-insensitive: the only hits are in
+      IDEA-20260821-121612's own confounders block (which names the
+      phenomenon and explicitly declares it a limitation of that record,
+      not something it measures) and this record's own drafting; no other
+      RQ-MLKEM-002 proposal mentions call-site specialization, cloning, or
+      link-time optimization. All eight RQ-MLKEM-002 proposals were read in
+      full or in their relevant sections this session.
+      Web: no new web retrieval was performed for this record specifically;
+      it relies on the PQClean source already retrieved this session for
+      the two companion records (verify.c/kem.c at the pinned commit),
+      cited below by reference rather than re-fetched.
+    results: >-
+      IDEA-20260821-121612 is the nearest prior work by a wide margin: it
+      measures toolchain-configuration variance of a comparator's compiled
+      stride at ONE call site per (routine, configuration) cell, and its
+      own confounders block states plainly that call-site specialization
+      and LTO are OUT OF ITS SCOPE ("a declared limitation, not an
+      oversight"). IDEA-20260821-25d3ca poses the symbol-sharing question
+      this record's motivation depends on but does not test whether a
+      SHARED symbol remains ONE machine body; its own claim is explicitly
+      about source-level census, stated as a discriminator with two named
+      outcomes (SHARED / NOT SHARED) that this record's finding could, in
+      principle, complicate further by adding a third possibility
+      (source-level SHARED but binary-level SPECIALIZED) that neither
+      record currently distinguishes from plain SHARED. No other record in
+      this repository addresses call-site variance at all.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: holding
+      toolchain fixed and varying call site as an independent axis
+      (the orthogonal complement of IDEA-20260821-121612's own design);
+      identifying that -25d3ca's transitivity argument implicitly assumes
+      call-site invariance without stating or testing it; and proposing the
+      three-way outcome (shared-and-invariant / shared-but-specialized /
+      not-shared) as a refinement of -25d3ca's binary SHARED/NOT-SHARED
+      census. ASSEMBLED FROM KNOWN PARTS: the frozen v2 extractor, its
+      calibration discipline (NULL-1/NULL-2 style must-not-vary and
+      must-vary objects), and the coverage-set formalism are all
+      IDEA-20260821-121612's, reused rather than reinvented; the
+      shared-routine census question and its transitivity argument are
+      IDEA-20260821-25d3ca's; LTO/inlining call-site specialization is a
+      well-known, general compiler behavior, not a discovery of this
+      record, and no specific academic citation for it was retrieved this
+      session (the general fact is treated as recalled and uncontested
+      rather than externally sourced).
+
+  object_first_candidate:
+    tracked_object: >-
+      The map `call_site -> (w_source, u, coverage_set)` for a FIXED
+      source symbol f, a FIXED toolchain configuration t, with call site
+      ranging over the K >= 2 places f is invoked in one linked artifact --
+      the exact orthogonal complement of IDEA-20260821-121612's own object
+      `toolchain -> (w_source, u, coverage_set)` for a fixed call site. This
+      record does not repeat 121612's axis; it holds it fixed and varies
+      the axis 121612 declared out of scope.
+    lossiness: >-
+      Genuinely lossy in the same sense as 121612's own object: a compiled
+      artifact carries thousands of bits of instruction encoding at each
+      of its K call sites, and the projection keeps only a small tuple per
+      site. It is compatible with the target's operation ("resolve a call
+      to a shared symbol") because the tuple is defined and recomputed per
+      resolved call target, the same discipline 121612 applies per
+      toolchain cell. It is NOT a change of coordinates: two structurally
+      different specialized bodies (one register-allocated one way at a
+      call site with heavy surrounding pressure, another allocated
+      differently at a lighter call site) can produce the IDENTICAL tuple
+      (same w_source, same coverage_set) despite differing instruction
+      selection, exactly the kind of non-singleton fibre 121612 already
+      demonstrates for its own toolchain axis.
+    propagation: >-
+      One step of the operation of interest is "resolve one call
+      instruction to its target code". The propagation law is empirical,
+      not algebraic, exactly as 121612 states for its own axis: this
+      record measures the one-step map `call_site -> tuple` directly and
+      reports whether it is constant (source sharing survives) or varies
+      (source sharing does not survive), rather than assuming either
+      answer. A second operation, "change toolchain configuration",
+      composes with this one and is explicitly held fixed within this
+      record (that composition, varying BOTH axes at once, is future work
+      this record does not attempt and says so).
+    survival_score: >-
+      Survives one step and stops at the boundary stated in advance. Step
+      1, call-site resolution at fixed toolchain: measured directly, and
+      the measurement includes an explicit not-specialized (determinacy 1)
+      outcome as a first-class, fully reportable result. Step 2, ANY CLAIM
+      ABOUT WHETHER A DEFECT ACTUALLY EXISTS AT ANY RESOLVED CALL TARGET:
+      DISSOLVES here deliberately -- this record measures whether the
+      SHARED-SYMBOL INFERENCE STEP is sound, not whether either call
+      site's resolved code is itself defective, which remains the separate
+      audit IDEA-20260821-25d3ca's own census, or the companion records
+      filed this session, are responsible for.
+
+  discriminated_from:
+    - >-
+      IDEA-20260821-121612 measures whether a comparator's stride is well
+      defined and stable ACROSS TOOLCHAIN CONFIGURATIONS at ONE fixed call
+      site. This record holds the toolchain fixed and measures variance
+      ACROSS CALL SITES instead -- the precise complement that record's own
+      confounders block names as out of its scope. Its frozen extractor is
+      reused verbatim rather than re-derived, and this record does not
+      repeat its 40-cell toolchain matrix.
+    - >-
+      IDEA-20260821-25d3ca poses the shared-routine census (is the
+      encapsulation and decapsulation comparison the SAME SYMBOL) as its
+      own discriminator, with a binary SHARED/NOT-SHARED outcome and a
+      transitivity argument that assumes, without stating, that a SHARED
+      answer implies a shared defect surface. This record supplies the
+      missing audit of that assumption and proposes a finer, three-way
+      outcome (shared-and-invariant / shared-but-specialized / not-shared)
+      as a correction to how any future SHARED verdict in this lane should
+      be read, without re-deriving -25d3ca's own arithmetic (the modulus-
+      check tail analysis) at all.
+    - >-
+      IDEA-20260828-40db79 and IDEA-20260828-edec21, filed the same
+      session, examine a select primitive's write-side coverage and a
+      finalize expression's value-domain safety respectively, both at
+      FIXED, single call sites read directly from source. Neither record
+      varies call site or toolchain; this record is the only one of the
+      three whose object is a VARIANCE axis rather than a single measured
+      value, and none of the three depends on another's claim.
+    - >-
+      A constant-time / timing analysis of compiler transformations (cited
+      as prior art in IDEA-20260821-121612, not re-cited here) asks
+      whether execution TIME is preserved across a compiler pass.
+      RQ-MLKEM-002 forbids timing measurement outright; nothing in this
+      record measures time. The quantities measured are static: which
+      binary addresses a symbol resolves to, and what byte-position tuple
+      the frozen extractor reads at each.
+
+  citations:
+    - ref: IDEA-20260821-121612
+      provenance: internal
+      claim: >-
+        The frozen v2 static extractor (memory-operand enumeration grouped
+        by base pointer, unroll-normalized per-source-iteration width,
+        static coverage-set computation at a fixed length), its NULL-1/
+        NULL-2/NULL-2b/NULL-3/NULL-4 calibration discipline, its
+        determinacy metric, and its own explicit declaration that
+        "LINK-TIME OPTIMISATION AND CALL-SITE SPECIALISATION... The stride
+        in the standalone object file need not be the stride in the linked
+        library... a declared limitation, not an oversight." Read in full
+        this session; the extractor is reused unchanged and the declared
+        limitation is the gap this record fills.
+      verified_by: idea-generator@2026-08-28
+    - ref: IDEA-20260821-25d3ca
+      provenance: internal
+      claim: >-
+        The shared-routine census question at the encapsulation modulus-
+        check site and its transitivity argument: "SHARED: the lane's
+        decapsulation-site gate transitively covers the encapsulation
+        site... at zero additional instrument cost." Read in full this
+        session; this record audits the unstated call-site-invariance
+        assumption behind that inference without re-deriving the record's
+        own modulus-check arithmetic.
+      verified_by: idea-generator@2026-08-28
+    - ref: experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md
+      provenance: internal
+      claim: >-
+        The pinned candidate population (BoringSSL CRYPTO_memcmp at commit
+        ed1271af005c1def37a100d5924f1c8c8ae7062c; PQClean ml-kem-1024/avx2
+        at commit 10738d92323117d84bb6202c85722ddfd96dc1d4; mlkem-native and
+        aws-lc unpinned; PQClean aarch64 out of an x86 matrix) and the
+        rationale for each rejection/selection. Read first-hand and in full
+        this session (not merely transitively); source of Stage 0's
+        candidate search.
+      verified_by: idea-generator@2026-08-28
+    - ref: >-
+        https://raw.githubusercontent.com/PQClean/PQClean/10738d92323117d84bb6202c85722ddfd96dc1d4/crypto_kem/ml-kem-1024/avx2/verify.c
+      provenance: retrieved
+      claim: >-
+        Confirms `verify` and `cmov` are two distinct symbols in this
+        package, each called exactly once in the retrieved kem.c (per the
+        companion record IDEA-20260828-40db79's own citation of the same
+        source), establishing that this specific package is NOT, on its
+        own, a genuine multi-call-site case for either symbol and must be
+        supplemented by further candidates in Stage 0 rather than assumed
+        sufficient.
+      verified_by: idea-generator@2026-08-28
+    - ref: EV-MLKEM-010
+      provenance: internal
+      claim: >-
+        GNU ld `--wrap` on linux/amd64 is the admitted library-path
+        interposition instrument for this class of measurement; call-site
+        macro interposition is forbidden as load-bearing evidence. Read
+        first-hand this session. Cited here to note that this record's own
+        Stage 2-4 measurements are STATIC (disassembly of a linked
+        artifact) and do not themselves require the wrap instrument, which
+        remains the correct choice only if a later, behavioral follow-on to
+        this record's static census is undertaken.
+      verified_by: idea-generator@2026-08-28
+    - ref: null
+      provenance: recalled
+      claim: >-
+        Under link-time optimization or aggressive single-translation-unit
+        inlining, compilers may clone or specialize a function per call
+        site, particularly when call sites differ in compile-time-constant
+        arguments or surrounding register pressure, producing multiple
+        distinct machine-code bodies for one source-level symbol. RECALLED
+        FROM GENERAL COMPILER-CONSTRUCTION KNOWLEDGE, NOT VERIFIED AGAINST
+        ANY SPECIFIC COMPILER'S DOCUMENTATION OR SOURCE THIS SESSION. It is
+        the general mechanism motivating this record's question and is
+        exactly the kind of phenomenon NULL-2 in Stage 3 is designed to
+        provoke and confirm directly rather than merely assert.
+      verified_by: null
+
+  assumptions:
+    - >-
+      A genuine multi-call-site population (a symbol invoked at K >= 2
+      distinct source-level call sites within one implementation) exists
+      among fetchable, buildable ML-KEM implementations. Stage 0 checks
+      this rather than assuming it; if none is found within budget, the
+      record is delivered as a negative population-size result, exactly as
+      IDEA-20260821-121612 delivered its own two-routine (rather than
+      five-routine) population honestly.
+    - >-
+      IDEA-20260821-121612's frozen v2 extractor, applied unchanged to a
+      linked, possibly LTO-optimized artifact rather than a standalone
+      translation unit, correctly resolves call instructions to their
+      target addresses and correctly reports AMBIGUOUS rather than a wrong
+      tuple where a target cannot be uniquely resolved (e.g. indirect
+      calls, PLT stubs in a dynamically linked build). Where this is in
+      doubt for a given build, the cell is reported UNMEASURABLE.
+    - >-
+      The toolchain and link-mode combination actually available in the
+      build environment supports both a non-LTO and an LTO build of the
+      same candidate at the same optimization level; where only one link
+      mode is available, the record reports the axis it could measure and
+      states plainly that the other link mode's cells are UNMEASURED, not
+      that they were found determinate.
+    - >-
+      No conclusion transfers beyond the pinned commits, the one toolchain
+      configuration, and the link modes actually built. A determinacy-1
+      finding at one configuration says nothing about a different compiler,
+      version, or optimization level; IDEA-20260821-121612 already
+      established that the toolchain axis alone produces variance, so this
+      record's own single-configuration reading is explicitly a floor, not
+      a universal statement.
+
+  proof_search_map:
+    bottleneck: >-
+      The step from "a comparison or select symbol is shared at the source
+      level across two call sites" (or across two decapsulation-adjacent
+      sites, per -25d3ca) to "and therefore an audit of one call site's
+      compiled defect surface transfers to the other" -- exactly the
+      implicit step -25d3ca's own transitivity argument takes without
+      stating or testing it.
+    baseline_embedding:
+      parameter_slice: >-
+        Restricted to K=1 call site (the case every prior static-analysis
+        proposal in this lane, including IDEA-20260821-121612 itself,
+        implicitly assumes), this record's own object reduces exactly to
+        121612's toolchain-variance object with the call-site axis
+        collapsed to a point, i.e. this record is a genuine family
+        extension along the axis 121612 declared out of scope, not a
+        restatement of it.
+      reproduction_check: >-
+        Before reading any multi-call-site candidate, run the frozen v2
+        extractor on 121612's own two pinned single-call-site candidates
+        (BoringSSL CRYPTO_memcmp, PQClean avx2 verify) at the one toolchain
+        configuration this record fixes, and confirm the extractor
+        reproduces the SAME (w_source, coverage_set) reading 121612 itself
+        reports for those routines at a matching cell of its own 40-cell
+        matrix. A mismatch here indicts this record's re-use of the
+        extractor, not the call-site-variance phenomenon.
+    observation_collision:
+      observable: >-
+        The (w_source, coverage_set) tuple the frozen extractor reads at a
+        given resolved call target.
+      distinct_preimage_search: >-
+        A symbol resolving to K DISTINCT machine addresses that
+        NONETHELESS happen to share the identical (w_source, coverage_set)
+        tuple at every address (e.g. two specialized bodies differing only
+        in register allocation, with no effect on stride or coverage) is a
+        genuine collision between "the compiler specialized the symbol"
+        (true, checkable by address count) and "the specialization changed
+        anything the extractor can see" (false for this instance). The
+        record therefore reports BOTH the raw address count (did cloning
+        occur at all) and the tuple spread (did cloning change anything
+        measurable) as separate rows, rather than conflating "one address"
+        with "one behavior".
+      constructive_transforms:
+        - transform: representation_reduction
+          proposed_object: >-
+            The per-call-site tuple map, standing in for the full set of
+            resolved machine-code bodies reached by one symbol's call
+            instructions in a linked artifact.
+          predicted_gain: >-
+            Reduces "does source-level sharing survive to the binary" to a
+            small, disassembly-readable table, reusing an already-frozen
+            extractor rather than building new tooling.
+      quantifier_order: >-
+        The claim is existential and per-candidate, exactly like
+        IDEA-20260821-121612's own: FOR the specific multi-call-site
+        candidate(s) found in Stage 0, AT the one fixed toolchain
+        configuration and stated link modes, is the per-call-site tuple
+        map constant or varying. No universal claim over unfetched
+        implementations, untested toolchains, or untested link modes is
+        made or certifiable by this method.
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          For a stated, finite multi-call-site candidate, at a stated
+          toolchain configuration and link mode, this method certifies
+          whether the symbol resolves to one or several machine addresses
+          and whether the frozen extractor's tuple is constant or varies
+          across them. It does not certify anything about a different
+          toolchain, a different link mode, or an implementation not
+          found by Stage 0's search, and it does not certify that a
+          varying tuple corresponds to an actual functional defect at
+          either call site -- only that a single audit of one site cannot,
+          without further work, be assumed to cover the other.
+        nearby_object_control: >-
+          NULL-2 (Stage 3): a deliberately provocative two-call-site
+          function with different compile-time-constant length arguments
+          at each site, at an optimization level and link mode chosen to
+          make specialization likely. The method must report determinacy
+          < 1 for this control if the toolchain in fact specializes it, and
+          must say plainly, rather than silently assuming success, if the
+          particular toolchain used turns out not to specialize even this
+          provocative case -- in which case the record downgrades its own
+          sensitivity claim rather than asserting a forced value that did
+          not obtain.
+      proof_obligations:
+        - claim: A genuine multi-call-site candidate exists on the fetched population, or its absence is reported honestly.
+          responsibility: feasibility
+        - claim: The frozen v2 extractor reproduces 121612's own single-call-site readings before being applied to a new candidate.
+          responsibility: baseline
+        - claim: NULL-1 (a non-inlinable routine) shows determinacy 1 across call sites and link modes.
+          responsibility: correctness
+        - claim: No conclusion transfers beyond the exact toolchain configuration, link modes, and candidates actually built.
+          responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        multi_call_site_population_size: the number of genuinely
+        multi-call-site comparison or select symbols found within the
+        Stage 0 search budget, across the fetchable implementation set
+      direction: higher
+      minimum_effect: >-
+        No number is predicted for the outright count and the refusal is
+        deliberate: a population of 0 is a fully reportable, honest
+        negative (mirroring IDEA-20260821-121612's own two-routine
+        population), and any positive count immediately becomes the
+        record's Stage 1-4 subject. The prediction that DOES carry
+        information is the floor: at least the search described in claim
+        (D) is executed and its outcome, whatever it is, is reported
+        rather than the record silently reducing its own scope to avoid a
+        null population.
+    - metric: >-
+        NULL-1 determinacy across call sites and both link modes
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1 (a single resolved address, single tuple) in every
+        cell, since NULL-1 is structurally non-inlinable by construction.
+        Any variation here indicts the extractor's call-site resolution,
+        and no candidate cell is reportable until repaired.
+    - metric: >-
+        NULL-2 determinacy under link mode (b) [LTO enabled] at an
+        optimization level of at least -O2
+      direction: lower
+      minimum_effect: >-
+        Below 1 (at least two distinct resolved addresses or at least one
+        differing tuple component across the two call sites), since NULL-2
+        is deliberately constructed to invite specialization. If the
+        specific toolchain used does not specialize even this case, the
+        record states so explicitly and reports the whole stage's
+        sensitivity as UNDEMONSTRATED for that toolchain rather than
+        silently treating a subsequent determinacy-1 candidate reading as
+        meaningful.
+    - metric: >-
+        determinacy(candidate) across call sites at link mode (a)
+        [no LTO] versus link mode (b) [LTO]
+      direction: different
+      minimum_effect: >-
+        No direction is predicted for a real, non-adversarially-constructed
+        candidate and the refusal is deliberate: determinacy 1 at both
+        modes means source-level sharing is a sound basis for
+        -25d3ca-style transitivity on this candidate and this toolchain --
+        a clean, valuable negative strengthening that record's argument.
+        Determinacy below 1 at either mode names a specific candidate and
+        link mode where a source-level SHARED verdict does NOT license
+        transferring a defect audit from one call site to the other, and
+        is the record's central discriminating finding if it occurs.
+    - metric: >-
+        tuple_spread_given_address_spread: among candidates where the
+        symbol resolves to K >= 2 distinct addresses, the fraction whose
+        (w_source, coverage_set) tuple ALSO differs across those addresses
+        (as opposed to differing only in instruction selection irrelevant
+        to stride or coverage)
+      direction: different
+      minimum_effect: >-
+        No number is predicted; this separates "the compiler cloned the
+        function" from "the cloning changed anything a coverage-deficit
+        audit would see", per the observation-collision analysis above,
+        and both outcomes are reportable and informative in their own
+        right.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest and most decisive first, entirely on
+      laboratory builds from public source. STAGE 0 (minutes to hours,
+      reading not building): search the pinned and fetchable candidate set
+      for a genuine multi-call-site symbol, reusing the population already
+      established by IDEA-20260821-121612's own Stage 0 and this session's
+      companion records' source reading as a starting point rather than
+      re-fetching from scratch. If no candidate is found, the record
+      terminates here with a fully reportable negative population-size
+      finding and does not proceed to a build. STAGE 1 (minutes): freeze
+      one toolchain configuration (informed by, but not identical to,
+      121612's own 40-cell matrix -- one representative cell at a
+      vectorization-capable -march and -O2, since that is where
+      specialization is most plausible) and prepare both a non-LTO and an
+      LTO build target for the same candidate. STAGE 2 (minutes): build
+      NULL-1 and NULL-2 at both link modes and score their forced values
+      before touching any real candidate, publishing full disassembly of
+      both, per KN-TECH-1a5b7e's null-first discipline already adopted by
+      every prior static-analysis proposal in this lane. STAGE 3 (tens of
+      minutes): build the real multi-call-site candidate at both link
+      modes, disassemble, resolve every call instruction to the symbol
+      under study, and apply the frozen v2 extractor at each resolved
+      address. STAGE 4 (minutes): report determinacy across call sites at
+      each link mode, the raw address-count spread, and the tuple spread
+      given address spread, with a direct statement of what this means for
+      any shared-routine census (specifically -25d3ca's) that assumed
+      call-site invariance without testing it.
+    controls:
+      - >-
+        NULL-1, THE MUST-NOT-VARY OBJECT: a non-inlinable routine (marked
+        with linkage or attributes preventing cloning where the toolchain
+        supports them), forced to resolve to exactly one address and show
+        determinacy 1 at both link modes; a failure here indicts the
+        extractor's call-site resolution rather than any candidate.
+      - >-
+        NULL-2, THE MUST-VARY OBJECT UNDER LTO: a short function called at
+        two sites with different compile-time-constant length arguments,
+        forced to show determinacy below 1 under LTO at -O2 or higher;
+        if it does not, the record downgrades its own sensitivity claim
+        for that toolchain rather than asserting a forced value that did
+        not obtain, per the honest-disclosure discipline this stage
+        requires.
+      - >-
+        BASELINE-REPRODUCTION CONTROL: before reading any new candidate,
+        confirm the frozen v2 extractor reproduces IDEA-20260821-121612's
+        own already-committed single-call-site readings for its two pinned
+        routines at a matching toolchain cell, per proof_search_map's
+        baseline_embedding.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE METHOD MUST REPORT UNMEASURABLE: a
+        symbol reached only through an indirect call (a function pointer
+        or a dynamically resolved PLT stub in a shared-library build),
+        where static call-target resolution is genuinely ambiguous. The
+        method must report this cell UNMEASURABLE rather than guessing a
+        target, mirroring 121612's own treatment of function
+        multiversioning.
+      - >-
+        ORDERING CONTROL: NULL-1 and NULL-2's scorecards, with full
+        disassembly, are committed and hashed before any real candidate's
+        disassembly is read, per KN-TECH-1a5b7e's null-first rule, adopted
+        unchanged from every prior static-analysis proposal in this lane.
+      - >-
+        ARCHIVE CHECK (zero compute): enumerate every prior claim in this
+        lane that treats a source-level "shared symbol" verdict as
+        sufficient evidence of a shared defect surface (currently, exactly
+        one: IDEA-20260821-25d3ca's own transitivity clause) and confirm
+        this record's finding, whatever it is, is stated in terms that
+        directly answer whether that specific clause's assumption held on
+        the tested candidate and toolchain.
+    required_metrics:
+      - the Stage 0 search log and its outcome (candidate found, or honest negative)
+      - NULL-1 and NULL-2 determinacy at both link modes, with full disassembly
+      - the baseline-reproduction check against 121612's own committed readings
+      - per-call-site (address, w_source, coverage_set) tuple for the real candidate, at both link modes
+      - determinacy and tuple-spread-given-address-spread for the real candidate
+      - the list of cells reported UNMEASURABLE, with the reason
+      - the exact toolchain configuration, link flags, and pinned commits used
+
+  falsification_conditions:
+    - >-
+      NULL-1 fails to resolve to exactly one address, or shows any tuple
+      variation. Instrument failure in call-site resolution; no real
+      candidate reading taken under the same extractor build is
+      trustworthy until repaired.
+    - >-
+      The baseline-reproduction check against IDEA-20260821-121612's own
+      committed readings fails to match at a comparable cell. The reused
+      extractor is misconfigured for this record's build environment and
+      must be repaired before any new claim is made.
+    - >-
+      NULL-2 shows determinacy 1 under LTO at -O2 or higher on the
+      toolchain actually used. The provocative control did not provoke
+      specialization; the record states this plainly and reports the
+      stage's sensitivity as undemonstrated for that toolchain, rather
+      than treating a subsequent real-candidate determinacy-1 reading as
+      informative.
+    - >-
+      Stage 0 finds no genuine multi-call-site candidate within budget.
+      This is a full, honest, reportable negative population-size result
+      and the record terminates there rather than manufacturing a
+      candidate or silently narrowing its own claim to fit whatever was
+      found.
+    - >-
+      A real candidate shows determinacy below 1 at either link mode. This
+      directly falsifies the implicit call-site-invariance assumption
+      behind any shared-routine transitivity argument (specifically
+      -25d3ca's) for that candidate and toolchain, and is reported as a
+      genuine, actionable correction to how a future SHARED verdict in
+      this lane should be read -- not merely a negative result for this
+      record.
+    - >-
+      Build, LTO-toolchain-availability, or fetch failures. INFRASTRUCTURE
+      outcome under AGENTS.md rule 3, never evidence about any candidate;
+      the record reports whichever cells actually built.
+
+  confounders:
+    - >-
+      DYNAMIC DISPATCH IS A DIFFERENT PHENOMENON AND IS NOT THIS RECORD'S
+      OBJECT. Runtime CPU-feature dispatch selecting between a scalar and a
+      vectorized implementation (the aws-lc/mlkem-native duplication
+      IDEA-20260821-121612 already flags) produces genuinely DIFFERENT
+      source-level routines behind one dispatch point, which is a
+      different question from ONE source-level symbol being compiled to
+      several bodies. The Stage 0 search excludes dispatch-based
+      duplication explicitly.
+    - >-
+      SHARED-LIBRARY DYNAMIC LINKING CAN COLLAPSE CALL SITES THE STATIC
+      READING SEES AS DISTINCT. A PLT-mediated call from two translation
+      units to a dynamically linked symbol resolves, at runtime, to the
+      SAME code regardless of what LTO does within the executable's own
+      translation units, since dynamic linking prevents whole-program LTO
+      across the shared-library boundary. This record's build choices
+      (static linking or single-package LTO) are stated explicitly so the
+      link mode actually measured is not confused with a dynamically
+      linked deployment's behavior.
+    - >-
+      SELECTION BY WHAT WAS FOUND. The population is whatever multi-call-
+      site symbol Stage 0's search turns up within budget; a null
+      population is a full, honest, reportable result, and any positive
+      finding's generality is bounded by the one candidate and one
+      toolchain configuration actually built.
+    - >-
+      TOOLCHAIN VARIANCE (121612's axis) AND CALL-SITE VARIANCE (this
+      record's axis) ARE NOT SHOWN TO COMMUTE. This record fixes the
+      toolchain and varies call site; it does not test whether a candidate
+      found determinate at one toolchain configuration remains determinate
+      at another, nor whether the two axes interact. Combining both axes
+      into one matrix is a declared, explicit extension this record does
+      not attempt.
+    - >-
+      REACHABILITY IS NOT PRESENCE, INHERITED FROM EVERY STATIC-ANALYSIS
+      PROPOSAL IN THIS LANE. A determinacy-below-1 finding shows that a
+      source-level SHARED verdict is an insufficient basis for
+      transitivity; it does not show that either call site's resolved code
+      is actually defective, which remains a separate audit.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT
+      ANY PARAMETER SET. RQ-MLKEM-002's constraints bind unchanged; any
+      newly observed conformance defect escalates to the coordinator and
+      is published by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for
+      IDEA-20260821-25d3ca, for any hypothesis, or for any archived
+      evidence or decision record. This record audits an inference step;
+      only the Coordinator may act on what it finds.
+    - >-
+      A determinacy-1 finding on one candidate at one toolchain
+      configuration does NOT establish that source-level symbol sharing is
+      always call-site-invariant, and does not by itself validate
+      -25d3ca's transitivity claim beyond the exact candidate and
+      configuration tested. A determinacy-below-1 finding does NOT
+      establish that -25d3ca's specific encapsulation/decapsulation pair
+      is affected unless that pair is the actual tested candidate.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. A conclusion is
+      scoped to the exact pinned commits, toolchain configuration, and
+      link modes actually built; laboratory conformance evidence is never
+      crypto-scale or MLWE evidence.
+    - >-
+      A negative (no multi-call-site candidate found, or determinacy 1
+      wherever tested) closes nothing about the isolation-versus-systemic
+      question beyond this one methodological doubt about one inference
+      step. Premature closure is a failure mode symmetric with
+      overclaiming.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        CALL-SITE RESOLUTION FIDELITY. FOR a symbol resolvable to a finite
+        set of statically determinable target addresses in a linked,
+        non-position-independent (or PIE-but-statically-resolvable)
+        artifact, the frozen v2 extractor's address-resolution step
+        correctly enumerates every distinct target address reached by a
+        direct call instruction naming that symbol, and correctly reports
+        AMBIGUOUS rather than a wrong count where a call is indirect or a
+        target is split across multiple compilation units in a way source
+        reading alone cannot resolve.
+      rigorous_support: >-
+        Not a distributional heuristic; a decoding-fidelity assumption
+        directly analogous to IDEA-20260821-121612's own H1 for
+        per-iteration stride, transported here to call-target resolution
+        rather than operand-width resolution. It imitates no classical
+        distribution theorem and is not presented as one. It is rigorous
+        for direct, statically resolvable calls and is expected to fail,
+        reporting AMBIGUOUS, for indirect calls, PLT-mediated dynamic
+        linking, and function multiversioning (ifunc/target_clones), all
+        of which 121612 already names as sources of ambiguity for its own
+        extractor.
+      validation_plan: >-
+        Score NULL-1 (forced single address) and NULL-2 (forced multiple
+        addresses under LTO) as calibrators before any real candidate is
+        read, publishing full disassembly for both, exactly mirroring
+        121612's own NULL-2/NULL-2b/NULL-3 calibration discipline. Any
+        cell where the extractor's reported address count disagrees with a
+        direct disassembly reading falsifies H1 for that cell and the cell
+        is reported AMBIGUOUS rather than corrected by hand.
+    - id: H2
+      statement: >-
+        SPECIALIZATION SENSITIVITY OF THE CHOSEN TOOLCHAIN CONFIGURATION.
+        The one toolchain configuration frozen in Stage 1 (a
+        vectorization-capable -march at -O2 or higher, with LTO enabled in
+        link mode (b)) is capable of exhibiting call-site specialization
+        for at least a deliberately constructed provocative case (NULL-2),
+        i.e. the chosen configuration is not so conservative that this
+        record's negative-instrument-sensitivity risk (mode 1 of
+        KN-TECH-1a5b7e: a null that cannot fail) is realized by construction.
+      rigorous_support: >-
+        None; this is a judgement about compiler behavior with no proof
+        behind it in this record, stated as an assumption rather than
+        smuggled into the claim, exactly as IDEA-20260821-121612's own H2
+        (about deployment-representativeness of its 40-cell grid) is
+        stated as an unproven judgement rather than a derived fact.
+      validation_plan: >-
+        NULL-2's own forced value (Stage 3) is the direct test: if it
+        fails to specialize under the chosen configuration, H2 is
+        falsified for that configuration and the record states this
+        explicitly, downgrading the stage's sensitivity claim rather than
+        proceeding as if the configuration were adequately sensitive.
+        Where budget permits, a second, more aggressive configuration
+        (higher optimization level, a different compiler known for more
+        aggressive cloning) is tried as a fallback and the configuration
+        actually used is recorded alongside every reported determinacy
+        value.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. No exponent is moved and no attack is proposed; RQ-MLKEM-002
+      forbids attack-cost estimation. The deliverable is a bounded static-
+      analysis measurement extending an already-frozen extractor along a
+      new, declared-out-of-scope axis, not an asymptotic result.
+    memory_exponent: n/a
+    best_known: >-
+      n/a -- no competing statement of call-site-specialization variance
+      for an ML-KEM comparison or select symbol exists in this repository
+      or, so far as searched this session, elsewhere.
+    hidden_overhead: >-
+      n/a. Compute is dominated by a handful of compiles (with and without
+      LTO) of small candidate packages plus disassembly passes, well under
+      the toolchain-matrix cost IDEA-20260821-121612 already budgeted for
+      its own, larger 40-cell sweep, since this record fixes the toolchain
+      to a single representative cell.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed; no algorithm, no cost, hence no Pareto point
+    across time, memory, or data/queries). Rows checked inside this
+    repository on 2026-08-28 for a prior treatment of call-site
+    specialization as an object: all eight filed RQ-MLKEM-002 proposals,
+    read in full or in their relevant sections; IDEA-20260821-121612's own
+    confounders block, which names the phenomenon and explicitly declares
+    it out of that record's scope; IDEA-20260821-25d3ca, whose transitivity
+    argument this record's finding would directly bear on; GOAL-MLKEM-002
+    and its four batch checkpoints; and EV-MLKEM-009/010 (read first-hand).
+    No record proposes measuring variance across call sites at fixed
+    toolchain. No external search for prior academic or industry work on
+    LTO-induced call-site specialization of cryptographic comparison code
+    specifically was performed this session; the general compiler
+    phenomenon is recalled, not retrieved, and no external novelty is
+    claimed.
+  sota_delta: >-
+    No attack; measurement/methodology contribution only. Quantitatively:
+    IDEA-20260821-121612's own determinacy metric was computed at ONE call
+    site per (routine, toolchain) cell across 40 toolchain configurations,
+    leaving the call-site axis entirely unmeasured by its own admission;
+    IDEA-20260821-25d3ca's transitivity argument for the encapsulation/
+    decapsulation shared-routine case rests on an unstated call-site-
+    invariance assumption. This record turns that declared limitation and
+    that unstated assumption into a single testable axis, orthogonal to
+    121612's own 40-cell sweep, using the identical frozen extractor and
+    calibration discipline already validated in this lane -- adding a
+    second, previously-absent dimension to the census (call site) at the
+    cost of a small, bounded number of additional builds rather than a new
+    instrument.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium

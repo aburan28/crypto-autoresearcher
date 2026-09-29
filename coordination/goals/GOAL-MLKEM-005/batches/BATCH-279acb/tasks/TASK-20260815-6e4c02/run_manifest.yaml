@@ -1,0 +1,244 @@
+run:
+  id: RUN-MLKEM-D512BISECT-1
+  task_id: TASK-20260815-6e4c02
+  goal: GOAL-MLKEM-005
+  batch: BATCH-279acb
+  role: executor
+  policy: executor-implementation
+
+  git:
+    commit_at_run_start: 0ff467762ff82033de94bcd595105af3eb56e76b
+    commit_at_run_end: 0ff467762ff82033de94bcd595105af3eb56e76b
+    branch: claude/launch-the-barnes-5316qt
+    dirty_tree_at_run_start: >-
+      Clean except this task's own new, untracked write_scope files (task_card.md
+      was already present pre-run; stage0_d512_precision_bisection_and_reattempt.py,
+      command.txt, environment.json, run_start_utc.txt were the only untracked
+      write_scope files at run start). No tracked file modified anywhere in the
+      repository.
+    dirty_tree_at_run_end: >-
+      Same write_scope directory, now also containing bisection_d512_results.json,
+      main_grid_d512_reattempt_results.json, stdout.log, stderr.log, run_end_utc.txt
+      (all untracked, all within write_scope). No tracked file modified anywhere in
+      the repository. HEAD did not advance during the run's ~4080s wall-clock
+      window (commit_at_run_start == commit_at_run_end, both directly verified by
+      `git rev-parse HEAD` before launch and after completion).
+
+  seeds:
+    seed_root: 715923
+    stage_index: 0
+    formula: default_rng([SEED_ROOT, stage_index, d, beta, arm_index, draw_index])
+    bisection_instance_d_beta: [512, 40]
+    bisection_instance_seed_used: 2074339090
+    bisection_instance_matches_precedent: >-
+      Confirmed bit-identical to the Red Team's own probe1_bisection_generality.py
+      reported seed_used=2074339090 at (d=512, beta=40), and to
+      TASK-20260814-534f80's own reported main_grid_seeds_used entry for the same
+      cell. Reproduced identically across all 8 bisection trials in this run
+      (isolated-LLL-step level -- beta does not affect the isolated step's own
+      computation, only which basis is drawn via the seed, per probe1's own
+      docstring note, reused verbatim here).
+    main_grid_reattempt_seeds_used:
+      - {d: 512, beta: 40, seed_used: 2074339090}
+      - {d: 512, beta: 55, seed_used: 452658293}
+      - {d: 512, beta: 70, seed_used: 915347894}
+    reattempt_seeds_match_precedent: >-
+      All three seeds are bit-identical to TASK-20260814-534f80's own reported
+      main_grid_seeds_used entries for the same three (d, beta) cells
+      (d=512,beta=40: 2074339090; d=512,beta=55: 452658293; d=512,beta=70:
+      915347894), confirming the seed formula and draw indices are unchanged
+      from that precedent.
+
+  construction_used: >-
+    Phase (a) (bisection, isolated LLL-step level): EXACT reproduction of
+    probe1_bisection_generality.py's own worker() -- outer double-precision
+    LLL.reduction(A), then FPLLL.set_precision(N) BEFORE GSO.Mat construction,
+    GSO.Mat(A, float_type="mpfr") with NO flags=GSO.ROW_EXPO, M.update_gso(),
+    LLL.Reduction(M, flags=LLL.DEFAULT), lll_obj() called directly, NOT wrapped
+    in BKZReduction. Phase (b) (main-grid reattempt, full BKZ tour): EXACT
+    reproduction of TASK-20260814-534f80's own worker_main_cell() -- same
+    GSO.Mat/LLL.Reduction construction, then BKZReduction(L) (L an
+    LLL.Reduction instance, so BKZReduction.__init__ reuses L.M as self.M and
+    does NOT rebuild GSO.Mat(A, flags=GSO.ROW_EXPO) internally, per the fpylll
+    0.6.4 bkz.py source both precedents already verified). No deviation from
+    either reused construction in either phase.
+
+  precision:
+    bisection_performed: true
+    bisection_level: isolated_lll_step (GSO.Mat + LLL.Reduction + lll_obj(), no BKZReduction)
+    bisection_instance: {d: 512, beta: 40}
+    bisection_bounds_tested: [65, 100]
+    bisection_bounds_basis: >-
+      65 bits (known failing) and 100 bits (known succeeding), per the Red
+      Team's own OBJ-1/CTRL-1 control (probe1_bisection_generality_results.json),
+      reused directly rather than re-derived.
+    endpoint_reproduction_confirmed: true
+    endpoint_reproduction_detail: >-
+      65 bits: ERROR (ReductionError 'infinite loop in babai'), 371.30s
+      subprocess wall-clock, seed_used=2074339090. 100 bits: COMPLETED, 372.27s
+      subprocess wall-clock, seed_used=2074339090. Both match the Red Team's own
+      reported outcomes and seed at this instance. No invalidation trigger fired.
+    bisection_trials_run: 8
+    bisection_trial_precisions_and_outcomes:
+      - {mpfr_bits: 65, status: ERROR, subprocess_wall_clock_seconds: 371.30}
+      - {mpfr_bits: 100, status: COMPLETED, subprocess_wall_clock_seconds: 372.27}
+      - {mpfr_bits: 82, status: COMPLETED, subprocess_wall_clock_seconds: 372.28}
+      - {mpfr_bits: 73, status: COMPLETED, subprocess_wall_clock_seconds: 378.80}
+      - {mpfr_bits: 69, status: COMPLETED, subprocess_wall_clock_seconds: 406.89}
+      - {mpfr_bits: 67, status: ERROR, subprocess_wall_clock_seconds: 389.90}
+      - {mpfr_bits: 68, status: ERROR, subprocess_wall_clock_seconds: 371.31}
+    bisection_result: >-
+      69 bits (1-bit resolution binary search; both endpoints re-confirmed as
+      trials before bisecting -- matches TASK-20260814-534f80's own
+      bisect_precision() design exactly). This IS a genuinely determined
+      minimum, not a fallback: 68 bits ERROR, 69 bits COMPLETED, hi-lo width
+      reduced to 1 before the 3600s bisection budget was reached.
+    bisection_wall_clock_seconds: 2662.763025999069
+    bisection_budget_seconds: 3600
+    bisection_budget_exhausted: false
+    fallback_used: false
+    precision_bits_used_for_reattempt: 69
+
+  budgets:
+    overall_wall_clock_cap_seconds: 48000
+    overall_wall_clock_used_seconds: >-
+      4080.23s for phase (b) subprocess execution alone (per
+      main_grid_d512_reattempt_results.json's own total_script_wall_clock_seconds,
+      measured from the start of phase (b)); total script wall-clock across both
+      phases (bisection start to phase (b) completion) was
+      2662.76s + 4080.23s = 6742.99s, well under the 48000s cap. Precise
+      wall_clock_start_utc/wall_clock_end_utc below give the authoritative outer
+      bound (4779s), which additionally includes process startup and the
+      parent's own JSON-writing/print overhead between phases.
+    per_cell_cap_seconds: 14400 (PER_BASIS_FEASIBILITY_CAP_V3, NOT PER_BASIS_FEASIBILITY_CAP_V2=7200s)
+    memory_cap_gb: 16
+    peak_rss_observed_mb_max_across_cells: 140.3359375
+    maximum_runs: 1
+    runs_performed: 1
+    overall_cap_reached: false
+    per_cell_cap_reached: false (no cell timed out; all 3 cells errored well inside 14400s, each in 389-632s)
+
+  outer_backstop:
+    command: "timeout 48060 python3 stage0_d512_precision_bisection_and_reattempt.py"
+    triggered: false
+
+  bisection_outcome_summary:
+    determined_minimum_precision_bits: 69
+    fallback_used: false
+
+  main_grid_reattempt_outcome_summary:
+    n_cells_attempted: 3
+    n_cells_completed: 0
+    n_cells_error: 3
+    n_cells_not_computed_cap_exceeded: 0
+    n_cells_not_computed_budget_exhausted: 0
+    per_cell_detail:
+      - {d: 512, beta: 40, status: ERROR, subprocess_wall_clock_seconds: 631.74, error: "ReductionError: b'infinite loop in babai'", fail_site: "bkz2.py svp_preprocessing -> lll_obj() during SVP preprocessing inside the first tour (past the initial self.lll_obj() call BKZReduction.__call__ makes)"}
+      - {d: 512, beta: 55, status: ERROR, subprocess_wall_clock_seconds: 389.37, error: "ReductionError: b'infinite loop in babai'", fail_site: "bkz.py line 123, self.lll_obj() -- the FIRST call inside BKZReduction.__call__, before any tour begins"}
+      - {d: 512, beta: 70, status: ERROR, subprocess_wall_clock_seconds: 396.35, error: "ReductionError: b'infinite loop in babai'", fail_site: "bkz.py line 123, self.lll_obj() -- the FIRST call inside BKZReduction.__call__, before any tour begins"}
+
+  invalidation_triggers_checked:
+    - trigger: >-
+        The (d=512, beta=40) isolated-step control does not reproduce ERROR at
+        65 bits / COMPLETED at 100 bits with seed_used=2074339090.
+      fired: false
+    - trigger: Construction deviates from the exact ROW_EXPO-free, mpfr shape.
+      fired: false
+    - trigger: SEED_ROOT != 715923, or the seed formula deviates.
+      fired: false
+    - trigger: A fallback precision is reported ambiguously as a determined minimum.
+      fired: false
+      note: "N/A -- no fallback was used; 69 bits is a genuinely determined minimum."
+    - trigger: Any C1/C2 or ML-KEM-security statement is made.
+      fired: false
+    - trigger: (d=256, beta=55) or (d=256, beta=70) is attempted, re-attempted, or characterized.
+      fired: false
+    - trigger: H-MLKEM-7d9bcc's or EXP-MLKEM-42ea04's status is changed.
+      fired: false
+    - trigger: PREREG-8's own Stage 1 is run.
+      fired: false
+    - trigger: A measurement, timing, citation, or run is fabricated, estimated, or presented as measured when it was not actually run.
+      fired: false
+
+  certificate:
+    kind: none
+    note: >-
+      No discrete-log solve or factor-base relation is claimed anywhere in this
+      run. This is a pure lattice-reduction feasibility/timing/precision
+      measurement (PREREG-8 section 2 Stage 0); no certificate applies.
+
+  classification: negative_observation
+  classification_basis: >-
+    Every one of the 3 reattempted d=512 main-grid cells was attempted to a
+    definite outcome (3 ERROR, 0 NOT_COMPUTED, 0 COMPLETED) using well-formed,
+    native fpylll calls, the exact construction TASK-20260814-534f80 validates,
+    and a properly enforced per-cell budget (14400s cap, never approached --
+    largest cell wall-clock was 631.74s, ~4.4% of the cap). The bisection
+    itself resolved genuinely (8 trials, 1-bit resolution, no NOT_COMPUTED,
+    2662.76s of the 3600s budget). Nothing here is an infrastructure_error,
+    implementation_error, resource_exhaustion, or specification_error in this
+    task's own execution -- raising precision to the genuinely-determined,
+    d=512-calibrated minimum (69 bits, well above the single-instance-bisected
+    65 bits DEC-20260814-8ec2e5's own predecessor batch used) did NOT let any
+    of the three currently-ERRORing d=512 main-grid cells clear a full BKZ
+    tour within a 14400s cap. This is a genuine, reproducible observation
+    about this specific construction, host, and fpylll/fplll version at these
+    specific (d, beta) cells at this specific, now dimension-appropriately-
+    bisected precision -- an infrastructure/numerical-feasibility observation,
+    not a mathematical result about H-MLKEM-7d9bcc's C1/C2. This task does not
+    itself rule on T-PROJNOISE-NODATA or on the escalation-branch question (that
+    is Coordinator/Validator/Red Team territory per this task's own
+    completion_gate); it reports the observation.
+  classification_note_on_partial_progress: >-
+    The (d=512, beta=40) cell's own traceback shows meaningfully DIFFERENT
+    failure behavior than the predecessor batch's own 65-bit-precision run at
+    the same cell: at 69 bits, the failure occurs inside svp_preprocessing
+    during the FIRST tour's SVP-block reduction (past BKZReduction's own
+    initial self.lll_obj() call), whereas the Red Team's own OBJ-1 control and
+    this run's own (d=512, beta=55)/(d=512, beta=70) cells both fail at
+    BKZReduction's own initial self.lll_obj() call, before any tour begins.
+    This is reported as a raw, disclosed observation (the exact tracebacks are
+    in main_grid_d512_reattempt_results.json) -- this task draws no
+    interpretation or conclusion from it, per its own completion_gate and
+    prohibitions; that reading is reserved for Validator/Red Team/Coordinator.
+
+  inference_provenance:
+    requested_policy: executor-implementation
+    reasoning_effort_expected: medium
+    resolved_model_id: claude-sonnet-5
+    resolved_model_id_basis: >-
+      The CONFIGURED IDENTIFIER stated verbatim in this session's own system
+      prompt ("You are powered by the model named Sonnet 5. The exact model ID
+      is claude-sonnet-5."), self-reported directly rather than guessed from a
+      marketing name, matching this goal's own established precedent for this
+      field.
+    fallback_used: false
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; AUTORESEARCH_POLICY and
+      AUTORESEARCH_BACKEND are unset, matching every other producer and review
+      artifact in this goal.
+
+  artifact_sha256:
+    bisection_d512_results.json: 1bc241b896ad44910498585a216c7711fb1c5749534e6d603e2b663be2f11534
+    command.txt: ac37cbc2fb0a3578facbda8e2fbb89d2fe61c4ecb5b860c4580efe1e3214739d
+    environment.json: d21b42441e32992ffe2a2456c01bf19c71df0b4e61d3577806d114da5b935f79
+    main_grid_d512_reattempt_results.json: ab72fd00b5bc956624499c90811cb40662845ab82cf03c8704e0e9201aa6fd30
+    run_end_utc.txt: 1072d930e103f189cc0da00844bef5034b2c00682de177a75fe87a734ff240ac
+    run_start_utc.txt: 189c49e0936e77b83ef3d3e9f9755935ec16ab799153566a5278e7849602afcd
+    stage0_d512_precision_bisection_and_reattempt.py: 785bb4e30e79ac73cf2ec7358e28618c780e13589ea839625cdfb3951ad9f059
+    stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    stdout.log: b92e0611183a5f5e8ec194b48065ea64abdae3c4329cab21252e9538aae0b3d8
+    task_card.md: 868259434f47796cf59bcceb7e8d6a591cd124c560760ec6e830da41301aa3c9
+    note: >-
+      run_manifest.yaml's own hash cannot include itself; writeup.md is written
+      after this manifest and its hash is recorded separately by the future
+      Coordinator snapshot task, per this goal's own established two-step
+      (executor writes content, coordinator hashes the full final set) pattern
+      (matching TASK-20260814-534f80's own precedent note).
+
+  wall_clock_start_utc: "2026-08-15T11:49:44Z"
+  wall_clock_end_utc: "2026-08-15T12:59:23Z"

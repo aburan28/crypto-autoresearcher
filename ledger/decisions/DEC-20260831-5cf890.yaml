@@ -1,0 +1,217 @@
+coordinator_decision:
+  id: DEC-20260831-5cf890
+
+  context: >-
+    GOAL-AES-003 resume act by the dispatching Coordinator (session
+    coordinator-aes003-1, 2026-08-31), discharging the goal record's own
+    next_action -- "OPEN GOAL-AES-003 BATCH-015 ... AS RANK 1" -- and the
+    head_verification_20260810.head_advancement_blocker instruction, which
+    says TASK-20260810-724383 gates ONLY head advancement and explicitly
+    does NOT gate BATCH-015's rank-1 research or BATCH-6fe3c2.
+
+    Facts verified by this session before deciding: BATCH-014 is closed 4/4
+    (DEC-20260805-b42d5c). The BATCH-015 queue at
+    coordination/goals/GOAL-AES-003/batches/BATCH-015/dispatch_queue.json
+    was complete and passed tools/research_dispatch.py with all gates green
+    BEFORE this decision, offering TASK-20260805-d408ac with claim null.
+    GOAL-AES-003 is not shallow-cloned and carries no open lanes or claims.
+    TASK-20260810-724383 exists as a fully specified, recorded-but-not-
+    dispatched handoff (ledger/handoffs/TASK-20260810-724383.yaml) whose own
+    dispatch_status instructs a later session to place it in a batch queue
+    through the normal Coordinator dispatch path. BATCH-b41ba9's two archive
+    receipts are unbound (commit_pending), so its queue fails the dispatcher
+    with "completed archive task TASK-20260806-9c6a11 requires
+    archive.commit_sha". The goal head (current_batch_id BATCH-014,
+    dispatch_queue_path BATCH-009's queue, latest_verified_commit
+    0f86463eb0eb4eca7c28a0bba2d7b4864d863832) stays put per
+    DEC-20260810-0c0946 until that decision's successor condition is met.
+
+    One dispatch-time adaptation was forced and is recorded here rather than
+    absorbed silently: the dispatcher enforces static artifact-path
+    ownership per queue, and ledger/goals/GOAL-AES-003.yaml is owned in the
+    BATCH-015 queue by TASK-20260805-3f00cb, so TASK-20260810-724383 cannot
+    declare it (verified: the queue is rejected with "artifact path
+    ledger/goals/GOAL-AES-003.yaml is owned by both ...", exit 2). The
+    handoff's artifact_paths_note delegates exactly this authoring call to
+    the dispatching Coordinator. The single surgical goal-file insertion is
+    therefore SPLIT content-identically: the executor authors the exact
+    restored entry as checkpoint-entry.yaml in its archive directory; the
+    dispatching Coordinator applies it to ledger/goals/GOAL-AES-003.yaml as
+    a surgical coordination commit after TASK-20260831-58a03d's snapshot
+    archive is committed and verified. Nothing about the entry's content
+    changes; only the committer of the splice changes.
+
+  decision: open_batch_dispatch
+
+  decision_scope: >-
+    THIS DECISION QUEUES TWO TASKS IN THE EXISTING BATCH-015 QUEUE AND
+    NOTHING ELSE.
+
+    It moves NO head field: current_batch_id, dispatch_queue_path,
+    next_action, latest_verified_commit and status of GOAL-AES-003 are all
+    untouched by this act and remain untouched until the successor condition
+    of DEC-20260810-0c0946 is met by committed, verified artifacts. It
+    reviews NO experimental evidence, moves NO hypothesis, promotes NO
+    knowledge, opens NO new batch, closes NO batch, and asserts NOTHING
+    about AES at any round count. It is a dispatch and bookkeeping act.
+
+  target_ids:
+    - GOAL-AES-003
+    - RQ-AES-003
+    - BATCH-015
+    - BATCH-b41ba9
+    - TASK-20260805-d408ac
+    - TASK-20260810-724383
+    - TASK-20260831-58a03d
+    - TASK-20260805-3f00cb
+    - DEC-20260810-0c0946
+    - DEC-20260805-b42d5c
+    - CORR-20260810-e00f0e
+
+  head_disposition: >-
+    THE HEAD IS NOT MOVED BY THIS DECISION.
+
+    `current_batch_id` stays BATCH-014. `dispatch_queue_path` stays
+    coordination/goals/GOAL-AES-003/batches/BATCH-009/dispatch_queue.json.
+    `latest_verified_commit` stays
+    0f86463eb0eb4eca7c28a0bba2d7b4864d863832. This session dispatches
+    BATCH-015's research directly from the BATCH-015 queue file, which the
+    goal record's own precedence_ruling (DEC-20260805-b42d5c, retained by
+    DEC-20260810-0c0946) authorizes while the head fields await their
+    successor condition.
+
+    The successor condition for a LATER head move, restated from
+    DEC-20260810-0c0946 and unchanged: TASK-20260810-724383 must be queued,
+    run, committed AND tools/research_dispatch.py must accept BATCH-b41ba9's
+    queue; only then may a NEW Coordinator decision move
+    current_batch_id/dispatch_queue_path/next_action and advance
+    latest_verified_commit. This decision records that condition, does not
+    satisfy it, and does not pre-judge its outcome.
+
+  rationale:
+    - >-
+      The goal's next_action names BATCH-015 as RANK 1 and the batch queue
+      was already complete and dispatcher-green; opening dispatch is the
+      mechanical discharge of committed state, not a new research judgement.
+    - >-
+      TASK-20260810-724383 is the recorded head-advancement blocker and its
+      own dispatch_status names exactly this act (placement in a batch queue
+      by a later session). Placing it in BATCH-015's queue alongside the
+      rank-1 producer costs nothing extra -- it has no dependencies, writes
+      only its own archive directory, and its archive task
+      (TASK-20260831-58a03d) is appended to the same queue.
+    - >-
+      Concurrent sessions hold GOAL-AES-002 and the ECDLP idea lane in this
+      worktree; GOAL-AES-003's own records anticipate concurrent batches and
+      this act edits only the BATCH-015 queue file and this decision record,
+      keeping write scopes disjoint.
+    - >-
+      Two executor tasks are dispatched together (not three) because the
+      machine showed sustained load above its core count at decision time;
+      BATCH-015's max_concurrent is 3 and the conservative choice preserves
+      headroom for the archive/validator coordinator acts this session must
+      also run.
+    - >-
+      The goal-file insertion adaptation is recorded, not absorbed: the
+      dispatcher's static artifact-path ownership rule makes it impossible
+      for any non-3f00cb card in this queue to declare
+      ledger/goals/GOAL-AES-003.yaml, and the handoff's artifact_paths_note
+      explicitly reserves path-setting to the dispatching Coordinator for
+      exactly this class of mismatch.
+
+  precedence_ruling: >-
+    BATCH-015 RETAINS RANK 1. Nothing in this decision re-ranks it.
+    BATCH-6fe3c2 remains available and unblocking per
+    head_verification_20260810 but is deliberately NOT dispatched by this
+    act: its ledger-archive debt task (TASK-20260806-ccfd8b) writes
+    ledger/goals/GOAL-AES-003.yaml, and this session schedules it AFTER the
+    TASK-20260810-724383 checkpoint-entry coordination commit lands, to keep
+    the contended goal file out of concurrent write scopes. If that ordering
+    becomes a bottleneck, a later decision may revisit it; nothing here
+    blocks BATCH-6fe3c2 permanently.
+
+  head_advancement_blocker: >-
+    TASK-20260810-724383 GATES ONLY HEAD ADVANCEMENT, exactly as recorded in
+    head_verification_20260810. This decision queues it so the condition can
+    actually be met; it does not gate BATCH-015's research (dispatched in
+    the same act), does not gate BATCH-6fe3c2 (deferred for file-contention
+    reasons, not dependency reasons), and does not gate any claim tier.
+
+  evidence_refs:
+    - id: DEC-20260810-0c0946
+      role: head_disposition_and_successor_condition
+    - id: DEC-20260805-b42d5c
+      role: batch_rank_precedence
+    - id: CORR-20260810-e00f0e
+      role: merge_drop_record_repaired_by_TASK-20260810-724383
+    - id: TASK-20260810-724383
+      role: queued_handoff
+    - id: EV-AES-048545
+      role: BATCH-b41ba9_evidence_untouched_by_this_decision
+
+  evidence_refs_note: >-
+    EV-AES-048545 is named only to assert that this decision neither reviews
+    nor re-interprets it. No evidence is weighed here; no claim tier moves.
+
+  limitations:
+    - >-
+      This decision cannot guarantee the dispatcher will accept BATCH-b41ba9's
+      queue after TASK-20260810-724383's bindings land; a rejection is a
+      valid executor outcome and becomes the next Coordinator input.
+    - >-
+      Subagent inference backends were probe-reported as serving but not
+      load-tested; the two dispatched executor tasks are the first real
+      launches since the 2026-08-30 balance-exhaustion messages
+      (MSG-20260830-b1afc9, MSG-20260830-591a44). If they fail on backend
+      balance, that is recorded as infrastructure failure per AGENTS.md rule
+      5 and never as a research finding, and claims are released accordingly.
+    - >-
+      The goal-file insertion happens in a LATER coordination commit by the
+      dispatching Coordinator, so there is a window in which the restored
+      entry exists only as checkpoint-entry.yaml. No head decision may read
+      or rely on the entry before that commit lands.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT WARRANTED. This is a dispatch and bookkeeping act: it queues two
+      tasks in an existing batch queue and records one forced dispatch-time
+      adaptation. It produces NO DURABLE RESEARCH CLAIM -- no mechanism, no
+      measurement, no technique, no boundary -- and reviews no evidence
+      record. There is nothing to promote to knowledge/findings/.
+
+  next_actions:
+    - >-
+      Commit this decision and the amended BATCH-015 queue as a single
+      Coordinator commit on branch aes003-batch015-20260831; run
+      tools/validate_ledger.py and tools/research_dispatch.py against the
+      committed queue and record both outcomes before dispatch.
+    - >-
+      Claim and dispatch TASK-20260805-d408ac (priority 100, the rank-1
+      producer) and TASK-20260810-724383 (priority 95) via two executor
+      subagents in one message, each bound to its frozen queue card and
+      handoff.
+    - >-
+      On TASK-20260810-724383 terminal success: run the
+      TASK-20260831-58a03d snapshot archive alone; verify its commit changes
+      exactly the five declared paths; then apply the checkpoint-entry.yaml
+      splice to ledger/goals/GOAL-AES-003.yaml as a surgical coordination
+      commit citing CORR-20260810-e00f0e; then evaluate the DEC-20260810-0c0946
+      successor condition for a head move.
+    - >-
+      On TASK-20260805-d408ac terminal success: run TASK-20260805-237cad
+      (snapshot), TASK-20260805-849a4a (independent validator),
+      TASK-20260805-3f00cb (ledger archive), in order, each alone.
+    - >-
+      After the checkpoint-entry commit lands: schedule BATCH-6fe3c2's debt
+      (TASK-20260806-ccfd8b ledger archive) under a new decision.
+
+  decided_by: coordinator
+  decided_at: '2026-08-31'
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false

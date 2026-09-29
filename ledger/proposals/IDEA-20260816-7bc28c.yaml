@@ -1,0 +1,257 @@
+idea:
+  id: IDEA-20260816-7bc28c
+  question_id: RQ-MLKEM-003
+  added: '2026-08-16'
+  title: 'Price the sieve''s memory by its access pattern rather than its size: measure the locality
+    exponent of a Gauss-style sieve''s near-neighbour list accesses, and report how the memory-charged
+    crossover moves when the wiring model is chosen by measurement instead of assumption'
+  class: measurement
+  claim: '(A) KN-OPEN-017 asks for a full-cost model that prices the near-neighbour list AND ITS ACCESS
+    PATTERN. The list size is measurable and is measured elsewhere in this batch. The access pattern
+    is a different object and has no measurement anywhere in this corpus. This proposal tracks it:
+    the access multiset of a sieve run, and specifically the empirical locality exponent lambda defined
+    by how the number of distinct list entries touched grows with the working-set window. (B) The
+    claim is that lambda is the free parameter in every memory-charged cost model. Full-cost accounting
+    prices memory as T * M^theta, and theta is chosen by a wiring assumption: theta near 1/2 for a
+    two-dimensional layout with local access, theta near 1 for global access. If sieve accesses are
+    highly local, the optimistic theta is defensible; if they are effectively uniform over the list,
+    it is not. lambda is measurable directly by instrumenting which list entries a reduction step
+    touches, at dimensions far below any crossover, and it converts a modelling choice into a measured
+    one. (C) The deliverable is lambda with an interval at each tested dimension, its drift with dimension,
+    and the resulting interval on the crossover displacement when theta is set from lambda instead
+    of assumed. The entry commits to reporting the case where lambda is indistinguishable from the
+    uniform-access value, which would mean the pessimistic wiring model is the measured one and the
+    optimistic memory-charged figures in circulation rest on an assumption this measurement contradicts
+    at these dimensions. (D) NOT CLAIMED: no attack, no speedup, no re-ranking of any attack at cryptographic
+    dimensions, no claim that any published cost is wrong, and no assertion that lambda measured at
+    n <= 44 holds at larger n.'
+  mechanism: 'STAGE 1. Implement a Gauss-style sieve in pure Python with the list held in a fixed
+    array and every read of a list entry logged as an index, producing the exact access sequence.
+    STAGE 2. Run it to saturation on lattices at n = 20 to 44 and store the access sequence per run.
+    STAGE 3. Compute the locality curve: for a window w over the access sequence, count the number
+    of distinct indices touched, D(w), averaged over window positions. Fit lambda from D(w) proportional
+    to w^lambda over the scaling region. lambda = 1 means every access in a window is distinct, i.e.
+    no reuse, the uniform-access regime; lambda well below 1 means heavy reuse and locality. STAGE
+    4. Run the locality-destroyed null: the identical sieve with the list index space randomly permuted
+    after each round, preserving the algorithm''s semantics and the list size while destroying any
+    address locality. Measure lambda there; it is forced toward the uniform value and provides the
+    calibration point. STAGE 5. Set theta from lambda by a committed monotone map, recompute the crossover
+    displacement of the priced-crossover measurement in this batch, and report the interval. Refutation:
+    if signal-arm lambda equals null-arm lambda, the sieve has no measurable access locality and the
+    pessimistic theta is what the measurement supports.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rilE 'memory.charg|full.cost|wiener' ledger/proposals/; grep -rilE 'g6k|fplll|kissing'
+      ledger/proposals/ knowledge/; grep -rilE 'crossover|enumeration' ledger/proposals/. Read KN-OPEN-017
+      in full and the head of KN-TECH-044. Read titles and claim heads of IDEA-20260808-baf8bc, IDEA-20260805-554b9d,
+      IDEA-20260806-3b91c7.
+    results: The corpus's full-cost lane prices memory as a scalar quantity everywhere it appears.
+      IDEA-20260805-554b9d re-costs ISD with comparator tau + mu; IDEA-20260808-baf8bc computes a
+      memory-constrained ISD frontier T_V(mu); IDEA-20260806-3b91c7 parameterises rho by a memory
+      exponent sigma. All three treat memory as an amount. KN-TECH-044 explicitly names 'memory or
+      its access pattern' as uncharged in the core-SVP figure, and KN-OPEN-017's closure condition
+      asks for a model that prices 'the near-neighbour list and its access pattern' - so the access
+      pattern is named twice in the corpus as a required object and measured zero times. No record
+      found instruments an access sequence or reports a locality exponent.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature, including about whether locality
+      analyses of sieves exist elsewhere. Claimed new relative to this repository: measuring the access
+      multiset rather than the memory amount, and using the measured locality exponent to select the
+      wiring exponent theta that every memory-charged cost in this corpus currently assumes. Assembled
+      from known parts: the working-set-curve method familiar from ordinary program analysis, a Gauss-style
+      sieve, and the price functional already used by this batch''s priced-crossover entry.'
+  object_first_candidate:
+    tracked_object: The access sequence a_1, a_2, ..., a_K of list indices read by the sieve during
+      one run, and the derived working-set curve D(w) and its fitted exponent lambda.
+    lossiness: 'Genuinely lossy. The full state is every vector in the list at every moment plus the
+      arithmetic performed; the access sequence retains only which slot was read, in order, discarding
+      all vector contents and all arithmetic. The discard is compatible with the operation of interest
+      because a wiring cost depends on which addresses are touched and when, not on what is stored
+      at them - the physical charge is a function of the access pattern alone. The retained object
+      therefore still determines the quantity the price functional consumes. What is discarded and
+      matters: the algorithm''s ability to reorganise its list to improve locality, which is invisible
+      here because the implementation''s data layout is fixed; a differently laid-out sieve would
+      produce a different lambda, so lambda is a property of the pair (algorithm, layout) and is reported
+      as such rather than as a property of sieving.'
+    propagation: 'One step of the target operation is one reduction attempt, which reads a contiguous
+      or scattered set of list slots depending on the search structure. Under repeated steps the working-set
+      curve accumulates: if the sieve repeatedly compares against a small recently-touched set, D(w)
+      grows sublinearly and lambda falls below 1; if each attempt samples the list broadly, D(w) grows
+      linearly and lambda approaches 1. Increasing the dimension increases both the list size and
+      the number of attempts, so lambda''s drift with n is the propagation law the model needs, and
+      it is measurable directly.'
+    survival_score: The access sequence is exactly recordable while the sieve runs, which in pure
+      Python is n <= 44 with list sizes to a few hundred thousand and access sequences to a few hundred
+      million entries - the latter is the binding constraint and is handled by streaming the working-set
+      computation rather than storing the sequence. lambda is fittable while the scaling region spans
+      at least two decades in w, which holds while the access count exceeds about 10^6, i.e. from
+      about n = 26 upward. The usable band is therefore n in [26, 44], and the object dissolves above
+      it in compute and below it in fit quality.
+  null_object_control: 'The locality-destroyed null, executed in the same invocation on the same lattices
+    from the same seed stream: the identical sieve, with the list''s index space randomly permuted
+    after each round by a seeded permutation. This preserves the algorithm exactly - the same vectors,
+    the same reductions, the same list size, the same number of accesses - and destroys address locality
+    only. The null''s lambda is thereby forced toward the uniform-access value, and it is the calibration
+    point against which the signal arm''s lambda is read. The null must show lambda_null measurably
+    above lambda_signal for the signal arm''s locality to mean anything; if lambda_signal equals lambda_null,
+    the sieve as implemented has no address locality to price, which is a complete and reportable
+    result. A second control fixes a synthetic access sequence with a known lambda by construction
+    and confirms the fitter recovers it.'
+  discriminated_from:
+  - 'The priced-crossover entry in this same batch: that measures memory as peak list size, a scalar,
+    and prices it with an assumed theta. This measures the access pattern and supplies theta. They
+    compose deliberately, and this entry''s output is the other''s most load-bearing undeclared input.'
+  - 'IDEA-20260808-baf8bc and IDEA-20260805-554b9d: memory-as-amount re-costings of ISD on codes.
+    Different domain and different memory object.'
+  - 'IDEA-20260806-3b91c7: a memory-parameterised tradeoff for rho, again memory as amount.'
+  - 'KN-TECH-044 and KN-LIT-104: the kissing-number lower bound on sieve memory is a bound on the
+    amount and says nothing about the access pattern; this entry does not restate or test it.'
+  - 'A cache-miss or wall-clock profiling exercise: explicitly not that. Wall clock and cache behaviour
+    are machine-specific and the corpus already has 15+ proposals on machine variance under RQ-INSTR-f8faa0.
+    The access sequence is machine-independent by construction, being a property of the algorithm
+    and its layout, and is recorded as counted indices, never as time.'
+  assumptions:
+  - The instrumented implementation's data layout is a legitimate representative of the algorithm
+    class; lambda is reported as a property of the (algorithm, layout) pair, not of sieving as such.
+  - A working-set curve fitted over at least two decades in w yields a lambda whose interval is meaningful;
+    runs with a shorter scaling region are excluded and counted.
+  - The map from lambda to the wiring exponent theta is monotone and is committed before any run;
+    its exact form is a declared derivation gap.
+  - Permuting the index space between rounds destroys locality without changing the algorithm's semantics;
+    this is checkable by confirming identical output vectors and identical access counts in both arms.
+  - lambda measured at n <= 44 carries no automatic implication for larger n, and none is drawn beyond
+    a reported drift with its interval.
+  predictions:
+  - metric: lambda on the locality-destroyed null arm
+    direction: higher
+    minimum_effect: 0.9
+  - metric: lambda on the signal arm at the largest tested n
+    direction: lower
+    minimum_effect: 0.85
+  - metric: lambda_null minus lambda_signal at the largest tested n
+    direction: higher
+    minimum_effect: 0.05
+  - metric: drift of lambda_signal per unit dimension across the tested band
+    direction: different
+    minimum_effect: 'refusal to pre-commit on sign: whether sieve accesses become more or less local
+      as the list grows is exactly what is unmeasured, and a pre-committed sign would decide the wiring
+      question in advance. An interval excluding zero is the threshold for reporting drift.'
+  - metric: width of the resulting interval on the crossover displacement when theta is set from lambda
+    direction: lower
+    minimum_effect: 15
+  minimal_test:
+    design: Two dimensions, two arms, one fitter. Fix n in {30, 40}, ten lattices each from one distribution.
+      Run the instrumented Gauss-style sieve to saturation on every lattice, streaming the working-set
+      curve D(w) over w on a geometric grid from 8 to 10^6 without storing the full access sequence.
+      In the same invocation run the locality-destroyed null on the same lattices from the same seeds,
+      and confirm identical output vectors and identical access counts in both arms. Fit lambda in
+      both arms by least squares over the scaling region, with an interval from the fit residuals
+      and across the ten lattices. Also fit two synthetic sequences with lambda forced to 0.5 and
+      1.0 to validate the fitter. Report lambda_signal, lambda_null, their difference, and the induced
+      interval on theta. This discriminates because the whole question is whether sieve accesses reuse
+      a small working set, and the permuted null is the only control that changes locality while holding
+      the algorithm exactly fixed.
+    controls:
+    - 'Locality-destroyed null: identical sieve with a seeded index-space permutation between rounds,
+      on the same lattices in the same invocation.'
+    - 'Semantic-equivalence check: both arms must produce identical output vectors and identical total
+      access counts.'
+    - Synthetic-sequence fitter validation with lambda forced to 0.5 and to 1.0 by construction.
+    - 'Scaling-region check: runs whose D(w) curve spans fewer than two decades are excluded and counted.'
+    - 'Layout control: rerun on a subsample with the list stored in insertion order rather than sorted
+      order, exposing how much of lambda is layout rather than algorithm.'
+    required_metrics:
+    - working-set curve D(w) per run over a geometric w grid
+    - fitted lambda with interval per run, both arms
+    - total access count per run, both arms
+    - peak list size per run
+    - lambda drift with dimension and its interval
+    - scaling-region span per run
+    - induced theta interval and the resulting crossover-displacement interval
+  falsification_conditions:
+  - 'The two arms do not produce identical output vectors or identical access counts: the null is
+    not semantics-preserving and its lambda is not a calibration point.'
+  - 'The fitter does not recover lambda on the synthetic sequences within 0.05: the estimator is wrong
+    and every lambda is void.'
+  - 'lambda_signal equals lambda_null within interval: the implementation has no measurable address
+    locality, so the pessimistic wiring exponent is what the measurement supports - a complete result
+    that refutes the entry''s motivating expectation.'
+  - 'Scaling region spans under two decades at every dimension: lambda is not fittable at reachable
+    parameters and the entry reports a measurement floor.'
+  - 'Layout control moves lambda by more than the signal-null gap: lambda is a property of the data
+    layout rather than of the algorithm, and must be reported only as the former.'
+  - 'Induced crossover-displacement interval exceeds 15 dimensions: theta is not pinned tightly enough
+    by lambda to move the crossover question, which is a usable negative.'
+  confounders:
+  - Python list and dict internals impose their own access patterns beneath the instrumented layer;
+    only explicitly logged list-slot reads are counted, and the instrumentation layer is documented.
+  - Sieve rounds have different access characters (fill, reduce, prune) and pooling them can average
+    away real locality; per-phase lambda is reported as a secondary metric.
+  - The permuted null changes cache behaviour on the host machine, which is irrelevant to the counted
+    metric but could tempt a wall-clock comparison; wall clock is not used in any primary metric.
+  - List growth during a run makes the index space nonstationary, biasing D(w) at large w; the fit
+    is restricted to the saturated phase.
+  - Different lattices saturate at different list sizes, so pooling lambda across lattices mixes scales;
+    lambda is fitted per lattice and then aggregated.
+  interpretation_limits:
+  - lambda is a property of the pair (this sieve implementation, this data layout) and not of sieving
+    in general; a differently structured sieve could have a different lambda.
+  - A measured lambda constrains theta only through a committed monotone map that is itself a modelling
+    choice, so the crossover displacement inherits that choice.
+  - Nothing here bears on ML-KEM, FIPS 203 parameters, or any deployed system, and no attack ranking
+    at cryptographic dimensions is asserted.
+  - An access pattern measured at n <= 44 is not shown to persist at dimensions where a real crossover
+    would sit.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The instrumentation adds a constant factor to the
+      sieve's own counted cost, and the streaming working-set computation is O(K log K) in the access
+      count K.
+    memory_exponent: No attack memory exponent is claimed. The measurement streams the access sequence
+      and holds only the working-set counters, O(list size) words.
+    best_known: 'No incumbent attack is challenged. The incumbent this displaces is a modelling assumption
+      rather than a result: the choice of wiring exponent theta in memory-charged lattice costs, which
+      KN-TECH-044 records as made without a measurement in this corpus.'
+    hidden_overhead: 'The instrumentation layer is the hidden cost: deciding what counts as one list
+      access is a judgement that silently determines lambda, and a different but equally defensible
+      instrumentation boundary could shift lambda by more than the signal-null gap. That is stated
+      as the entry''s principal fragility and is partially exposed by the layout control, not eliminated
+      by it.'
+  dominated_by: n/a (no result claimed). Checked for relevance against every memory-charged frontier
+    row this corpus records - the ISD frontier of IDEA-20260808-baf8bc, the ISD re-costing of IDEA-20260805-554b9d,
+    the rho tradeoff of IDEA-20260806-3b91c7, and the kissing-number memory bound of KN-LIT-104 -
+    and none is a frontier this entry sits on, because this entry produces an exponent for a cost
+    model rather than a cost.
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a measured locality
+    exponent with an interval, a calibration null, and the induced interval on a wiring exponent that
+    memory-charged lattice costs currently assume.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Three separable parts. (i) That an instrumented pure-Python sieve runs
+    to saturation at n = 40 and produces a fittable working-set curve: about 0.6, the access count
+    being the binding risk. (ii) That the permuted null is genuinely semantics-preserving and produces
+    a measurably higher lambda: about 0.7, since the construction is simple and directly checkable.
+    (iii) That the resulting theta interval is tight enough to move the crossover question by the
+    stated 15-dimension threshold: about 0.25, and I decline to raise it, because the lambda-to-theta
+    map is a declared derivation gap and a loose map will widen the interval regardless of how well
+    lambda is measured.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - KN-OPEN-017
+  - KN-TECH-044
+  - KN-TECH-035
+  - KN-LIT-094
+  - KN-LIT-104
+  - KN-LIT-122
+  - IDEA-20260808-baf8bc
+  - IDEA-20260806-3b91c7
+  - RQ-MLKEM-003
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-LATDUAL-ebf3cf

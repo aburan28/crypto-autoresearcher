@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0",
+  "record_type": "standalone_blind_rederivation",
+  "task_id": "TASK-20260824-caf255",
+  "statement_id": "BLIND-QEC-COHERENT-QROM-20260824-aca034",
+  "scope": {
+    "assigned_quantity": [
+      "abstract_block_diagonal_unitary",
+      "cleanup_and_liveness",
+      "symbolic_correction_layer_counts",
+      "sparse_exact_amplitude_check",
+      "six_known_false_reasoning_controls"
+    ],
+    "joints_owned": [],
+    "producer_comparison": false,
+    "whole_claim_verdict": "not_issued",
+    "scientific_status_transition": false
+  },
+  "notation": {
+    "lambda": "(q,s,e,z)",
+    "beta": "e AND NOT z",
+    "A_lambda": "T_s(q)",
+    "t": "enc(T_s(q))",
+    "mu": "m_s(q,R)",
+    "b_Q": "|Q|",
+    "b_M": "|M|",
+    "b_W": "|W|"
+  },
+  "maps": {
+    "effective_enable": "f <- f XOR (e AND NOT z)",
+    "load_Q": "Q <- Q XOR f*t(q,s)",
+    "load_M": "M <- M XOR f*mu(q,s,R)",
+    "sequence": [
+      "compute_f",
+      "load_Q_M",
+      "controlled_exception_aware_accumulator",
+      "inverse_load_Q_M",
+      "uncompute_f"
+    ]
+  },
+  "primitive_obligation": {
+    "full_domain": "P is a computational-basis permutation on its complete declared register domain",
+    "unchanged": [
+      "q",
+      "s",
+      "e",
+      "z",
+      "f",
+      "Q"
+    ],
+    "legal_input": "(R,Q=f*t(q,s),M=f*mu(q,s,R),W=0)",
+    "legal_output": "(R'=R boxplus f*T_s(q),Q=f*t(q,s),M=f*mu(q,s,R'),W=0)",
+    "accumulator_requirement": "For each fixed q,s and f=1, R -> R boxplus T_s(q) is the frozen exception-aware bijection on every encoded R, including O, A, -A, and -2A; f=0 is identity",
+    "inverse_requirement": "The frozen subtraction action supplies the inverse permutation",
+    "mask_cleanup_condition": "If mu depends on R, P must transport M from f*mu(q,s,R) to f*mu(q,s,R'); preservation of the pre-map mask is insufficient in general",
+    "alternative_if_R_not_a_load_control": "The loaded mask must be independent of R or must be computed and cleaned inside P"
+  },
+  "unitary": {
+    "full_domain_reason": "X, CX, polarity-declared MCX, and P are computational-basis permutations; their composition is a basis permutation and its linear extension is unitary",
+    "clean_subspace_decomposition": "U_clean = direct_sum_(q,s,e,z) U_(q,s,e,z)",
+    "enabled_block": "U_(q,s,1,0): |R> -> |R boxplus T_s(q)>",
+    "identity_blocks": "U_(q,s,e,z)=I when e=0 or z=1",
+    "label_preservation": [
+      "q",
+      "s",
+      "e",
+      "z"
+    ],
+    "superposition_action": "Every exact input amplitude is transported within the same lambda block; no cross-block key is introduced"
+  },
+  "cleanup_trace": [
+    {
+      "step": "compute_f",
+      "state_change": "f:0 -> beta"
+    },
+    {
+      "step": "load_Q_M",
+      "state_change": "Q:0 -> beta*t(q,s); M:0 -> beta*mu(q,s,R)"
+    },
+    {
+      "step": "arithmetic_use",
+      "state_change": "R -> R'=R boxplus beta*T_s(q); Q preserved; M -> beta*mu(q,s,R'); W:0 -> 0"
+    },
+    {
+      "step": "unload_Q_M",
+      "state_change": "Q -> 0; M -> 0 using the post-map controls"
+    },
+    {
+      "step": "uncompute_f",
+      "state_change": "f:beta -> 0"
+    }
+  ],
+  "liveness": {
+    "f": "first compute through completion of unload",
+    "Q": "forward load through arithmetic use, ending at unload",
+    "M": "forward load through exceptional arithmetic use and any mask transport, ending at unload",
+    "W": "inside P only; zero at entry and exit",
+    "q_s_e_z": "immutable throughout and live as controls where used",
+    "R": "entry through arithmetic and, for an R-dependent mask, through unload"
+  },
+  "ordering_failures": {
+    "unload_before_use": "P no longer receives its required live Q and M input",
+    "missing_unload": "Q or M remains a label-dependent or accumulator-dependent residual work value",
+    "pre_map_mask_cleanup": "An exceptional predicate is destroyed before its required reversible use"
+  },
+  "counts": {
+    "convention": "Only the coherent signed-window/qROM correction layer is counted; P is one controlled invocation and its internal gates are excluded",
+    "definitions": {
+      "h_j": "Hamming weight of forward-loader output-bit truth table F_j",
+      "T[p,n]": "Number of forward-load minterms with p positive and n negative controls",
+      "B_minus": "Total opened-and-closed negative-control wire intervals across both loader directions",
+      "c_dec": "Peak clean ancillae of the selected elementary MCX decomposition",
+      "d_dec": "Peak dirty ancillae of the selected elementary MCX decomposition"
+    },
+    "relations": {
+      "L_load": "sum_j h_j = sum_(p,n) T[p,n]",
+      "L_unload": "L_load",
+      "L_qrom": "L_load + L_unload = 2*L_load",
+      "native_L_X": "2*T[0,0]",
+      "native_L_CX": "2*sum_(p+n=1) T[p,n]",
+      "native_L_MCX[p,n]": "2*T[p,n] + 2*I[(p,n)=(1,1)] for p+n>=2",
+      "opened_L_X": "2*T[0,0] + 2*B_minus + 4",
+      "opened_L_CX": "2*sum_(p+n=1) T[p,n]",
+      "opened_L_MCX[r,0]": "2*sum_(p+n=r) T[p,n] + 2*I[r=2] for r>=2",
+      "independent_minterm_B_minus": "2*sum_(p,n) n*T[p,n]",
+      "A_clean": "1 + b_Q + b_M + c_dec",
+      "A_dirty": "d_dec",
+      "primitive_workspace_separate": "b_W additional clean workspace bits, plus any separately declared primitive ancillae"
+    },
+    "negative_control_rule": "Each opened-and-closed negative-control wire interval contributes exactly two X gates; no interval may close in a way that removes a live exceptional predicate before P",
+    "hamming_weight_rule": "Every output bit with truth-table Hamming weight h contributes h forward controlled target toggles and h inverse-load toggles before decomposition",
+    "upstream_ceiling": "A leading 3n+O(log n) expression is only a conditional composition with separately supplied arithmetic bounds and is not derivable from this correction layer"
+  },
+  "sparse_exact_amplitude_check": {
+    "executed": false,
+    "state_representation": "finite map from (q,s,e,z,R,f,Q,M,W) to exact symbolic or algebraic amplitude",
+    "gate_update": "apply each basis permutation to every key and transport its exact amplitude unchanged",
+    "checks": [
+      "q,s,e,z remain equal to their input labels",
+      "each f=0 block is identity on R",
+      "each f=1 block applies the frozen exception-aware accumulator action",
+      "exact amplitudes and exact norm are preserved",
+      "no cross-block output key appears",
+      "f,Q,M,W are zero on every final nonzero-amplitude key"
+    ],
+    "exception_inputs": [
+      "O",
+      "A",
+      "-A",
+      "-2A"
+    ]
+  },
+  "known_false_reasoning_controls": [
+    {
+      "object": "no-op Protocol",
+      "executed": false,
+      "witness": "enabled non-identity row and accumulator",
+      "required_detection": "per-block accumulator check rejects unchanged R"
+    },
+    {
+      "object": "classical address loop",
+      "executed": false,
+      "witness": "exact superposition on at least two addresses",
+      "required_detection": "gate-by-gate coherent-permutation check rejects the absence of one reversible map"
+    },
+    {
+      "object": "missing unload",
+      "executed": false,
+      "witness": "row with nonzero loaded coordinate or mask",
+      "required_detection": "final-work check finds Q or M nonzero and correlated"
+    },
+    {
+      "object": "pre-map flag cleanup",
+      "executed": false,
+      "witness": "exceptional accumulator input",
+      "required_detection": "liveness check finds the predicate dead before P"
+    },
+    {
+      "object": "zero-digit omission",
+      "executed": false,
+      "witness": "e=1,z=1 with a non-identity row action",
+      "required_detection": "identity-block check rejects changed R"
+    },
+    {
+      "object": "partial arithmetic",
+      "executed": false,
+      "witness": "O, A, -A, and -2A inputs",
+      "required_detection": "exact exception check rejects at least one key by the control definition"
+    }
+  ],
+  "review_attestation": {
+    "role": "validator",
+    "independent_session": true,
+    "requested_policy": "review-adversarial",
+    "reasoning_effort": "xhigh",
+    "fallback_used": false,
+    "degraded_requirements": [],
+    "joints_owned": [],
+    "sources_read": [
+      "coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/blind-statement.yaml",
+      "coordination/goals/GOAL-ECDLP-001/proposals/QEC-COHERENT-QROM-PREADMISSION-20260824-aca034/handoffs/TASK-20260824-caf255.yaml"
+    ],
+    "read_sibling_reports": false,
+    "blind_from_respected": true,
+    "whole_claim_verdict": "not_issued",
+    "output_scope": "standalone_derivation_only"
+  }
+}

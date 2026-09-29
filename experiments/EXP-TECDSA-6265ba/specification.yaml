@@ -1,0 +1,366 @@
+experiment:
+  id: EXP-TECDSA-6265ba
+  hypothesis_id: H-TECDSA-741983
+  derived_from_idea: IDEA-20260809-986269
+  question_id: RQ-TECDSA-8d340d
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: >-
+    Switchable-proof reference threshold ECDSA - honest-path validation across a party-count,
+    threshold and ordering matrix under an independent stock verifier, deterministic session replay,
+    and the proof-ablation survival measurement that decides whether functional testing can see a
+    missing proof
+  objective: >-
+    The one uncertainty a run reduces is whether this goal can distinguish a protocol finding from
+    its own implementation defects. A run establishes (i) whether the honest path, with every
+    auxiliary proof enabled, produces signatures that an independently written stock ECDSA verifier
+    accepts in every cell of a declared matrix of party counts, thresholds and message orderings -
+    the gate on which all later work in this goal depends; (ii) whether every session replays
+    byte-for-byte from its recorded seed and message schedule, without which no later certificate is
+    checkable; and (iii) the proof-ablation survival fraction, the measured fraction of
+    single-proof-disabled configurations in which honest signing still terminates and still emits a
+    stock-verifiable signature, which decides whether functional testing is or is not blind to a
+    missing proof in this artifact.
+    No attack is designed, authorized, implemented or implied. No claim is made about any published
+    threshold ECDSA protocol, any deployed system, wallet, custody service or chain. No security
+    consequence is claimed here or would follow from a run.
+  what_this_is_not:
+    - >-
+      Not an attack, not a forgery, not a key-extraction result, and not a cryptanalytic result of
+      any kind. It is a tooling-validation and measurement contract.
+    - >-
+      Not a claim, in either direction, about any published threshold ECDSA protocol or any deployed
+      implementation. The artifact under test is one this program builds.
+    - >-
+      Not a recommendation that any proof be omitted anywhere. Disabling a proof here is an
+      experimental manipulation of a local artifact.
+    - >-
+      Not a status change to any hypothesis, evidence record, decision or goal record, and not a
+      promotion of any knowledge entry.
+    - >-
+      Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+      has been executed under this contract.
+  claim_ceiling:
+    tier: infrastructure
+    exact_scope_a_run_could_support: >-
+      Maximal supportable scope - at the executed party counts, thresholds, orderings and session
+      count, and for the implementation at the recorded commit, the honest path did or did not
+      validate under the named stock verifier, sessions did or did not replay byte-for-byte, and the
+      proof-ablation survival fraction took the reported value. WHAT DOES NOT FOLLOW - nothing about
+      any published protocol; nothing about any other implementation; nothing about security in
+      either direction; no correctness proof, since a finite matrix bounds validation and does not
+      establish it; and specifically NOT that a proof whose removal leaves this artifact functional
+      is unnecessary in any protocol.
+  inputs:
+    procedure: >-
+      STAGE 0 (zero compute, HARD GATE): fetch and file the threshold ECDSA protocol specification
+      from primary text under a run record, since the parent proposal records the specifications as
+      required and unread. From the filed text, enumerate the auxiliary zero-knowledge proofs, give
+      each a stable identifier, and record for each which committed values it binds. Freeze the
+      configuration matrix - party counts, thresholds, orderings, session count - and hash it before
+      any measurement.
+      STAGE 1 (implementation, days of agent time, negligible compute): build the reference signer
+      with each enumerated proof behind an independent flag and each proof parameter exposed as a
+      configuration value. Build the deterministic session driver - every party's randomness derived
+      from a recorded seed, every message schedule recorded, every session replayable. Build the
+      independent stock verifier as a SEPARATE dispatch with a disjoint write scope, sharing no
+      module, constant table or serialization code with the signer.
+      STAGE 2 (minutes, HARD GATE): stock-verifier calibration. Feed the stock verifier the filed
+      specification's own test vectors if any exist, then the planted negatives of the controls
+      block. The verifier must accept the valid ones and REJECT every planted negative. A verifier
+      that accepts everything cannot validate anything and this gate catches it before any session
+      runs.
+      STAGE 3 (minutes to hours, HARD GATE): the honest-path suite with ALL proofs enabled. For every
+      cell of the frozen matrix and every declared ordering, run the declared number of independent
+      seeded sessions, emit each signature, and verify it under the stock verifier. Record the exact
+      COUNT of verifying signatures and the exact count of sessions, never a rounded rate.
+      STAGE 4 (minutes, HARD GATE): deterministic replay. Re-run every session from its recorded seed
+      and message schedule and compare every party's outgoing message byte-for-byte with the first
+      run. Any difference is blocking.
+      STAGE 5 (minutes to hours, THE MEASUREMENT): proof ablation. For every cell and every
+      enumerated proof, disable exactly that one proof, re-run the declared sessions, and record
+      three outcomes per configuration - did the protocol terminate, did it emit a signature, did the
+      stock verifier accept it. Report the survival fraction as an exact count over configurations,
+      with the per-proof and per-cell breakdown.
+      STAGE 6 (zero compute): report the validation table, the replay receipt, the ablation table,
+      and the state of the attack gate. The gate is a property of the build - the attack surface is
+      unreachable while Stage 3 or Stage 4 is red - and its state is reported, not exercised.
+    instrument: >-
+      Python with arbitrary-precision integers and a fixed-seed deterministic randomness source; the
+      curve arithmetic written from the filed specification. The stock verifier is written by a
+      separate dispatch with a disjoint write scope and no shared imports. No party runs in a thread
+      or process whose scheduling could affect message content, so that determinism is a property of
+      the driver rather than of the machine. All runs recorded through the program's run wrapper with
+      a manifest.
+    parameters: >-
+      Party counts n in {3, 5, 7} and thresholds t in {2, 3} subject to t < n, giving at least six
+      admissible cells; orderings in {sequential, adversarially permuted, adversarially delayed};
+      20 independent seeded sessions per (cell, ordering); proof set as enumerated in Stage 0, each
+      disabled individually in Stage 5. One curve and one hash, both named from the filed
+      specification. All values frozen and hashed in Stage 0.
+  controls:
+    - >-
+      STOCK-VERIFIER CONTROL, blocking - signatures are verified by an ECDSA verifier not written for
+      this goal, sharing no module, constant table or serialization with the signer. A signature
+      checked only by code written alongside the signer is not checked.
+    - >-
+      PLANTED-NEGATIVE BATTERY, blocking - the validation suite is fed, before any real session, a
+      signature on a different message, a signature with one byte of s flipped, a signature with r
+      and s swapped, and a signature produced from a deliberately corrupted party share. Every one
+      must be REJECTED. A suite that accepts everything reports validity 1 while measuring nothing;
+      this is the control that makes the headline metric able to fail.
+    - >-
+      DETERMINISTIC REPLAY, blocking - every session re-run from its seed and schedule must reproduce
+      every outgoing message byte-for-byte. Without it no later attack certificate in this goal can
+      be verified.
+    - >-
+      ORDERING CONTROL - the same cell is run under sequential, adversarially permuted and
+      adversarially delayed schedules. A validity fraction that depends on ordering while every party
+      is honest is a defect in the driver, not a property of the protocol, and this control separates
+      the two.
+    - >-
+      ALL-PROOFS-DISABLED ARM - one configuration per cell with EVERY auxiliary proof disabled. Its
+      purpose is calibration, not a claim: it establishes the far endpoint of the ablation axis, so
+      that a high single-proof survival fraction can be distinguished from a pipeline that is not
+      applying the flags at all.
+    - >-
+      FLAG-APPLICATION RECEIPT - each session records which proofs were actually generated and
+      verified, read from the transcript rather than from the configuration. A flag that is set but
+      not honoured would produce a perfect survival fraction while changing nothing, which is the
+      canonical artifact tell for this design.
+  independent_variables:
+    - party count n
+    - threshold t
+    - 'message ordering: sequential / adversarially permuted / adversarially delayed'
+    - 'proof configuration: all enabled / exactly one disabled (per enumerated proof) / all disabled'
+  metrics:
+    primary:
+      - name: honest_path_validity_count
+        units: exact integer count of verifying signatures over exact integer count of sessions
+        computed: >-
+          With all proofs enabled, for each (cell, ordering), the number of emitted signatures the
+          stock verifier accepts, and the number of sessions run. Reported as two integers per cell,
+          never as a rounded rate. Required value is equality in every cell.
+      - name: replay_byte_equality
+        units: boolean per session, plus the count of sessions differing
+        computed: >-
+          Byte-for-byte comparison of every party's outgoing message between the original run and the
+          replay from the recorded seed and schedule. Required value is true for every session.
+      - name: proof_ablation_survival_fraction
+        units: exact integer count of surviving configurations over exact integer count of ablated configurations
+        computed: >-
+          Over all (cell, ordering, single-disabled-proof) configurations, the number in which the
+          protocol terminated AND emitted a signature AND the stock verifier accepted it. Reported
+          with the per-proof and per-cell breakdown, as counts.
+      - name: planted_negative_rejection_count
+        units: exact integer, out of the declared battery size
+        computed: >-
+          Number of planted negatives the stock verifier and the validation suite reject. Required
+          value is the full battery size; any acceptance voids the run.
+    secondary:
+      - name: flag_application_receipt
+        units: per-session list of proofs actually generated and verified
+        computed: >-
+          Read off the session transcript rather than the configuration, and cross-checked against
+          the requested configuration. A mismatch invalidates the corresponding ablation cell.
+      - name: termination_outcome
+        units: 'categorical per session: terminated / aborted / timed out'
+        computed: >-
+          Recorded per session. A timeout is an infrastructure outcome and is counted separately from
+          an abort, never merged into it.
+      - name: all_proofs_disabled_survival
+        units: exact integer count over exact integer count
+        computed: Same statistic as the ablation metric, on the all-disabled calibration arm.
+      - name: session_wall_time
+        units: seconds per session
+        computed: Median and maximum over the sessions in each cell.
+      - name: ordering_sensitivity
+        units: >-
+          difference in honest_path_validity_count between orderings within a cell, as exact integers
+        computed: Per cell, the validity counts under each ordering, reported side by side.
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      The pair (honest_path_validity_count, proof_ablation_survival_fraction), plus the boolean
+      replay_byte_equality.
+    formula: >-
+      honest_path_validity_count equals the session count in EVERY cell and under EVERY ordering,
+      i.e. validity exactly 1 - anything less blocks all attack work in this goal until resolved.
+      replay_byte_equality is true for every session. proof_ablation_survival_fraction is HIGH -
+      the parent proposal predicts "most of them", which this contract makes decidable at strictly
+      greater than one half of ablated configurations. Under the null that removing a proof breaks
+      the functional path, the survival fraction is at or near zero and the second claim is refuted.
+    source: >-
+      Pre-registered in the parent proposal IDEA-20260809-986269 (predictions block) before any run
+      under this contract exists. The one-half threshold is the Coordinator's rendering of the
+      proposal's "most of them" into a decidable criterion and is recorded here as such; it is frozen
+      before any run and is not revised afterwards.
+  scale_relevance:
+    tier: toy_matrix
+    justification: >-
+      Executed at party counts 3, 5 and 7 with thresholds 2 and 3 - small enough that every
+      configuration can be run repeatedly, large enough that t < n is non-degenerate and that the
+      party count is not conflated with the threshold. That is adequate because the quantities under
+      test are properties of THIS artifact and its testing regime, not estimates of a larger-scale
+      quantity, so no extrapolation is involved. The transfer limit is stated instead of assumed -
+      the ablation survival fraction is a property of this implementation at these cells and
+      transfers to nothing.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report the exact counts for every cell, never a pooled rate, since a single failing cell in an
+      otherwise perfect matrix is exactly the signal the honest-path gate exists to catch and pooling
+      would hide it.
+    - >-
+      Report every aborted and every timed-out session individually, with its seed, and never merge a
+      timeout into a failure count. A timeout is an infrastructure outcome under AGENTS.md rule 5.
+    - >-
+      Report the ablation outcome for each proof separately even where the pooled survival fraction
+      is high, since a single proof whose removal always breaks the path is the informative case.
+    - >-
+      Report the largest session wall time as well as the median, so that a cell approaching the
+      per-session budget is visible before it becomes a timeout.
+  replication:
+    seeds:
+      - 20260825
+      - 20260826
+      - 20260827
+    independent_instances: 3
+    sessions_per_cell: 20
+    note: >-
+      The stock verifier is additionally an independent implementation and is produced by a separate
+      dispatch with a disjoint write scope; its independence is a control, not a replication seed.
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 8.0
+    maximum_memory_gb: 8
+    maximum_runs: 60
+  stopping_rules:
+    - Halt if the protocol specification cannot be fetched and filed in Stage 0; no component is implemented from recall.
+    - Halt if the stock verifier accepts any planted negative in Stage 2; nothing downstream is run.
+    - >-
+      Halt Stage 5 entirely if Stage 3 honest-path validity is not exactly 1 in every cell, or if any
+      session fails byte-for-byte replay. The ablation measurement is meaningless on an artifact whose
+      honest path is not validated.
+    - >-
+      Stop at the frozen matrix. Party counts, thresholds, orderings, session count and the
+      one-half survival threshold are fixed in Stage 0 and are not revised after any outcome.
+    - >-
+      Stop at maximum_runs or total_cpu_hours, whichever binds first. Budget exhaustion is a stop,
+      never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+    - >-
+      A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+      and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+    - >-
+      A run in which the stock verifier shares any module, constant table or serialization code with
+      the signer is invalid_measurement - its agreement carries no information.
+    - >-
+      A run in which the flag-application receipt does not match the requested configuration is
+      invalid for that ablation cell, because the flag was set but not honoured.
+    - >-
+      A run in which any session's randomness is not derived from its recorded seed is
+      invalid_measurement, since replay cannot then establish determinism.
+    - >-
+      A run whose parameters differ from the frozen matrix is a DIFFERENT experiment and requires a
+      new contract; it is never a repair of this one.
+  success_criterion: >-
+    The run is successful when ALL of the following hold and are read off the predefined metrics:
+    (1) planted_negative_rejection_count equals the full battery size; (2) honest_path_validity_count
+    equals the session count in every cell and under every ordering, with all proofs enabled;
+    (3) replay_byte_equality is true for every session; (4) flag_application_receipt matches the
+    requested configuration in every ablation cell; and (5) proof_ablation_survival_fraction is
+    reported with its per-proof and per-cell breakdown and its all-disabled calibration arm.
+    Note that (5) is satisfied by REPORTING the fraction in either direction. Whether it exceeds one
+    half - and therefore whether functional testing is blind to a missing proof in this artifact - is
+    the finding, not a success condition.
+  falsification_criterion:
+    - >-
+      honest_path_validity_count is less than the session count in ANY cell with all proofs enabled -
+      the precondition is not discharged, all later attack work in this goal is BLOCKED, and the
+      defect is located before anything else. This is an outcome about the artifact, never about
+      threshold ECDSA.
+    - >-
+      Any session fails byte-for-byte replay - certificates for any later result would be
+      unverifiable. Blocking.
+    - >-
+      Any planted negative is accepted - the validation suite has no discriminating power, every
+      "valid" it reported is void, and the run set is INVALID rather than positive.
+    - >-
+      proof_ablation_survival_fraction is at or below one half - the parent proposal's second
+      prediction is REFUTED at this matrix. Functional testing does detect a missing proof here, and
+      the case for treating the proof set as an experimental variable rests on whatever
+      configurations survived rather than on "most of them". Reported as a negative, not softened.
+    - >-
+      The flag-application receipt shows proofs being generated in configurations where they were
+      disabled - the ablation axis was never applied and every ablation number is void.
+    - >-
+      honest_path_validity_count depends on message ordering while every party is honest - a defect
+      in the driver, blocking, and not a property of any protocol.
+  required_artifacts:
+    - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved inference block and environment
+    - the Stage 0 fetch receipt for the protocol specification, with URL, HTTP status, byte count and sha256
+    - the frozen configuration matrix and proof enumeration with their hash
+    - raw-result.json carrying every per-session outcome, seed, schedule, emitted signature and verification result, not summaries
+    - the planted-negative battery and its per-item rejection outcome, in the same file as the real sessions
+    - the replay comparison output, per session, including the first differing byte offset where any differ
+    - the flag-application receipts read off transcripts
+    - the ablation table with per-proof and per-cell counts and the all-disabled calibration arm
+    - a statement of the attack gate's state, showing the attack surface is unreachable while the honest-path suite is red
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - >-
+      Approval is required before execution and is the USER's gate, because it authorizes execution
+      and spends compute. This contract is review_required and NOT approved; approved_by is null and
+      execution_authorized is false.
+    - >-
+      Stage 0's specification filing is a precondition of implementing any component. The Coordinator
+      must confirm the fetch receipt exists before Stage 1, because a reference implementation built
+      from recall is not a reference implementation.
+    - >-
+      The stock verifier must be dispatched as a SEPARATE task with a disjoint write scope. A single
+      agent writing both the signer and the verifier does not produce an independent check, and its
+      agreement would carry no information.
+    - >-
+      This contract authorizes NO attack work. The attack gate described in Stage 6 is a property of
+      the build to be reported; approving this contract does not approve any adversarial experiment,
+      which would require its own hypothesis, contract and approval.
+  derivation_provenance:
+    tool: coordinator-authored contract under /design-experiment
+    source_record: IDEA-20260809-986269
+    authored_at: '2026-08-25'
+    note: >-
+      Objective, controls and the two predictions are transcribed from the parent proposal's claim,
+      predictions and controls blocks. The planted-negative battery, the flag-application receipt,
+      the all-disabled calibration arm and the one-half decidability threshold are added here because
+      the proposal's success condition was otherwise not decidable against a possible negative - a
+      suite that accepts everything would have reported validity 1. Budgets come from the parent's
+      declared estimated_cost (implementation high, compute low) through the program's cost table.
+      No field is invented: values the proposal did not supply are either derived here and labelled
+      as such or left null.
+  derivation_gaps:
+    - >-
+      The enumeration of auxiliary proofs is NOT fixed in this contract and cannot be, because the
+      parent proposal records the protocol specifications as unread. Stage 0 fixes it, and the
+      Coordinator must review the enumeration before Stage 1, since the ablation axis is defined by
+      it.
+    - >-
+      "Adversarially permuted" and "adversarially delayed" orderings are named but their exact
+      generation rule is not specified here. The rule must be frozen in Stage 0, because an ordering
+      chosen after seeing a failure would turn a defect into a claim.
+    - >-
+      The curve and hash are to be named from the filed specification. This contract deliberately
+      names neither, so that no constant enters the artifact from recall.
+    - >-
+      Whether "terminated but emitted no signature" should count as survival in the ablation metric
+      is a definitional choice that changes the fraction. This contract counts it as NON-survival and
+      records all three outcomes separately so a reviewer can recompute under the other convention.
+    - >-
+      The parent proposal states the attack surface should be gated on the validation suite. This
+      contract reports the gate's state but does not specify its enforcement mechanism (build flag,
+      test dependency, or runtime assertion); the mechanism must be fixed before Stage 1 so the gate
+      is a construction rather than an intention.

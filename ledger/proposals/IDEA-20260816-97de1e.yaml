@@ -1,0 +1,250 @@
+idea:
+  id: IDEA-20260816-97de1e
+  question_id: RQ-SHATHREE-cd2cb2
+  added: '2026-08-16'
+  title: 'A reduced-round result is a property of a WINDOW, not of a count: the asymmetry a round
+    injects is decided by two consecutive outputs of the eight-bit LFSR that generates the constants,
+    so the cheapest four-round window is a forced value and is almost certainly not rounds zero to
+    three'
+  class: measurement
+  claim: '(A) THE HIDDEN INDEX. Every round-reduced statement in this bucket, and in the question
+    record that opens it, is phrased as ''r rounds''. But the 24 round constants are not interchangeable:
+    the asymmetry a round injects into an internal differential is eps_i = RC_i XOR tau_32 RC_i, and
+    its weight varies with i. A result at r rounds is therefore a result about a WINDOW [a, a+r),
+    and the starting index a is a silent variable that no record here has ever written down. (B) THE
+    WEIGHT IS DECIDED BY TWO LFSR BITS. FIPS 202 places RC_i''s bits only at z = 2^j - 1 for j = 0..6,
+    taking them from consecutive outputs of an eight-bit LFSR at steps 7i + j. Under translation by
+    32 the only support pair separated by 32 is (31, 63), i.e. j = 5 and j = 6. So the ''expensive
+    versus cheap'' character of round i is decided by whether LFSR outputs 7i+5 and 7i+6 differ, and
+    the remaining contribution is twice the count of set bits among j = 0..4. The full 24-term weight
+    sequence is thus a forced value derivable from the LFSR recurrence with no search, no solver and
+    no state evaluation whatsoever. (C) THE WINDOW TABLE AND ITS PREDICTION. Cumulative injected weight
+    over [a, a+r) is computed for every a and every r = 1..8, yielding argmin and argmax windows.
+    The prediction is that the conventional window starting at round 0 is NOT the minimum-injection
+    window for r = 4, and that the gap between the best and worst four-round windows is at least 4
+    in weight. A frozen-harness arm then tests whether certificate counts at r = 4 differ between
+    the conventional, argmin and argmax windows beyond seed noise. (D) NOT CLAIMED. No attack, no
+    improvement, no claim that a cheaper window yields a better attack, and no claim about any published
+    result''s window choice, which this program has not read. It is NOT claimed that injected weight
+    is the operative cost -- if the harness arm shows no window effect, that is a measured obstruction
+    against weight-based cost models and is the more useful outcome. Nothing about full 24-round SHA-3.'
+  mechanism: 'STAGE 1: implement the FIPS 202 rc(t) LFSR directly from the standard''s recurrence
+    and regenerate all 24 round constants; validate by requiring the regenerated constants to reproduce
+    hashlib digests inside the full permutation, so the LFSR transcription is checked against an external
+    oracle rather than against a table. STAGE 2: extract the 168 LFSR outputs used by the 24 rounds,
+    record which are consumed at j = 5 and j = 6 per round, and emit the forced binary sequence b_i
+    = [output(7i+5) != output(7i+6)]. STAGE 3: compute w_i = 2*(count of set bits at j = 0..4) + 2*b_i
+    for all 24 rounds and check it against a direct XOR-and-popcount computation of wt(RC_i XOR tau_32
+    RC_i) -- two independent derivations of the same integer, which is the cheapest available guard
+    against a transcription error. STAGE 4: build the cumulative window table W(a, r) for all a and
+    r = 1..8; record argmin, argmax, the conventional a = 0 value and the spread. STAGE 5: run the
+    frozen certificate-first harness at r = 4 on SHA3-256 for the conventional, argmin and argmax
+    windows, 30 seeds each, plus a seed-only null on the conventional window. STAGE 6: run the constant-schedule
+    nulls. REFUTATION: the derivation fails at stage 3 if the two computations of w_i disagree; the
+    window claim fails if the spread across windows is zero, meaning all windows cost the same and
+    the silent variable was harmless.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran `grep -ril "keccak\|sha-3\|sha3" ledger/ knowledge/ experiments/ docs/` from the
+      repository root: four proposals (IDEA-20260805-5194f9, IDEA-20260807-c4f1fc, IDEA-20260809-ce875b,
+      IDEA-20260809-7f2d9c), one question (RQ-SHATHREE-cd2cb2), GOAL-SHA3-001 and five sibling goals,
+      two decisions, and a block of KN-LIT files. Then per-noun counts over ledger/proposals/ and
+      ledger/hypotheses/: translation-invariant (4, all ECDLP/AES), symmetry-decay (0), "internal
+      differential" (0), sponge (2), "invariant subspace" (2), "chi step" (0), "rate/capacity" (0).
+      Read RQ-SHATHREE-cd2cb2 in full, GOAL-SHA3-001, KN-TECH-080 in full, docs/inventor-protocol.md
+      sections 1-8, and headers of KN-TECH-066, KN-TECH-073, KN-TECH-074, KN-TECH-056. Additionally
+      grepped ledger/proposals and ledger/hypotheses for `LFSR`, `round constant`, `window` and `starting
+      round`, and re-read the RQ''s instrument-versus-object target.'
+    results: Zero hits for LFSR or round constant anywhere in ledger/proposals or ledger/hypotheses.
+      `window` hits are all nonce-bias windows in the ECDSA lane (RQ-ECDSA-87625f territory, which
+      the blacklist owns) and sliding-window scalar multiplication in ECDLP records; none concerns
+      a round window of a permutation. RQ-SHATHREE-cd2cb2 itself phrases everything as 'r of 24 rounds'
+      and never distinguishes windows, which is the gap this entry names.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature or about which windows published
+      work uses. NEW relative to this repository: the observation that reduced-round statements here
+      carry an unwritten starting index, and the forced LFSR-derived weight sequence. ASSEMBLED FROM
+      KNOWN PARTS: the eps definition is shared with the companion active-row contract; the LFSR is
+      read from the standard; the harness is the companion tooling contract''s, reused unchanged.
+      The contribution claimed is the window table, the two-derivation check on w_i, and the measured
+      presence or absence of a window effect.'
+  object_first_candidate:
+    tracked_object: The scalar sequence (w_0, ..., w_23) of per-round asymmetry injection weights,
+      and the two-dimensional window aggregate W(a, r) built from it -- i.e. the CONSTANT SCHEDULE
+      itself as the tracked object, followed as the window slides rather than as the state evolves.
+    lossiness: 'The weight sequence discards almost everything about the constants: 24 lanes of 64
+      bits collapse to 24 small even integers, and within each round it forgets WHERE the injected
+      asymmetry sits, keeping only how much there is. That discard is compatible with the sliding-window
+      operation because sliding the window does not move bits within a round, only selects which rounds
+      contribute. It is NOT compatible with the linear layer, which treats different z-positions very
+      differently, and the contract states this as the known limitation of the scalar summary rather
+      than hiding it: a window that injects less total weight into worse positions could cost more,
+      and the harness arm exists precisely because the scalar cannot settle that.'
+    propagation: One step of the target operation -- sliding the window forward by one round -- acts
+      on the object as W(a+1, r) = W(a, r) - w_a + w_{a+r}, an exact recurrence requiring no recomputation.
+      The whole 24-by-8 table is therefore obtainable from the 24-term sequence in linear time, which
+      is why the entry costs nothing on the symbolic side.
+    survival_score: 'The structure survives as long as the constant schedule is what distinguishes
+      windows, which is all 24 rounds by construction. The meaningful survival statement is different
+      here and is reported as such: the number of round counts r for which the window spread max_a
+      W(a,r) - min_a W(a,r) remains at least 4, which is the range over which the silent variable
+      could plausibly matter. If that number is zero, the object dissolves immediately and the entry
+      closes with a measured obstruction.'
+  null_object_control: 'NULL-SCHEDULE: 1000 random constant schedules of matched support shape, run
+    through stages 3-4 in the same invocation by the same code path, producing the null distribution
+    of window spreads. For the FIPS window structure to mean anything, its spread at r = 4 must sit
+    outside the central 90 percent of that distribution; otherwise any window effect is a property
+    of having 24 arbitrary constants rather than of the LFSR that generates them. NULL-SEED: for the
+    harness arm, the conventional window run with 30 additional seeds and identical constants, giving
+    the within-window variance against which any between-window difference must be read. Both nulls
+    are executed alongside the signal arms, not described.'
+  discriminated_from:
+  - The companion active-row contract -- that one computes the curve from round 0 and never varies
+    the starting index; this one holds the curve machinery fixed and varies only a, which is the variable
+    that contract leaves silent.
+  - The divisor-lattice contract -- that sweeps the translation parameter t; this sweeps the window
+    origin a. Different parameter, different table, and the two are orthogonal.
+  - The observation-collision contract -- that one holds the eps sequence fixed and varies the constants;
+    this one varies which part of the eps sequence is used and holds the constants fixed. They are
+    complementary halves of the same identifiability question and neither substitutes for the other.
+  - 'The blacklisted nonce-bias-window lane under RQ-ECDSA-87625f -- shares the word ''window'' and
+    nothing else: that is a signature-nonce distribution question with no permutation, no constants
+    and no round index.'
+  - Generic 'try different parameters' proposals -- the parameter here is forced by a standard-specified
+    LFSR and the table is a closed-form consequence, so there is no tuning and no search.
+  assumptions:
+  - The FIPS 202 rc(t) LFSR recurrence as transcribed is correct; validated by regenerating the constants
+    and reproducing hashlib digests.
+  - Injected weight is a first-order proxy for window cost; the harness arm exists because this is
+    exactly what is uncertain.
+  - Windows are contiguous; non-contiguous round subsets are out of scope and their exclusion is an
+    assumption, not a result.
+  - A window starting at a in a reduced-round variant means the permutation uses constants RC_a through
+    RC_{a+r-1} in order, with all other steps unchanged; this convention is declared because it is
+    not the only possible one.
+  predictions:
+  - metric: agreement between the LFSR-derived w_i and the direct XOR-popcount w_i, over all 24 rounds
+    direction: higher
+    minimum_effect: 24
+  - metric: window spread max_a W(a,4) - min_a W(a,4) in weight units
+    direction: higher
+    minimum_effect: 4
+  - metric: rank of the conventional window a = 0 among the 21 four-round windows by cumulative injected
+      weight
+    direction: different
+    minimum_effect: predicted NOT to be rank 1 (the minimum); no specific rank is pre-committed
+  - metric: difference in verified certificate counts at r = 4 between argmin and argmax windows,
+      relative to seed-only variance
+    direction: different
+    minimum_effect: no pre-commitment; whether injected weight is felt by a search is the unknown
+      the harness arm exists to measure
+  - metric: quantile of the FIPS window spread within the NULL-SCHEDULE spread distribution
+    direction: different
+    minimum_effect: no pre-commitment; a median position is a legitimate controlled-null outcome
+  minimal_test:
+    design: Stages 1-4 discriminate and cost under ten minutes with no solver. Implement the rc(t)
+      LFSR from the standard's recurrence, regenerate all 24 constants, and validate them by running
+      the full permutation and matching hashlib digests -- if the regenerated constants reproduce
+      SHA-3, the LFSR transcription is right. Extract the 168 consumed outputs and emit the forced
+      binary sequence b_i. Compute w_i twice, once from the LFSR structural formula and once by direct
+      XOR and popcount, and require all 24 to agree; a disagreement is a transcription error found
+      for free. Build W(a, r) by the sliding recurrence for all a and r = 1..8 and read off argmin,
+      argmax and the conventional window's rank. That alone answers the entry's central symbolic question
+      -- is the conventional window special, and by how much -- and costs one afternoon of implementation
+      with no compute. The 1000-schedule null adds a minute. Only the harness arm needs real compute,
+      and it can be deferred to a separate approval without losing the symbolic result.
+    controls:
+    - 'Two-derivation control: w_i computed from the LFSR formula and by direct XOR-popcount must
+      agree on all 24 rounds.'
+    - 'Digest control: regenerated constants must reproduce hashlib digests inside the full permutation.'
+    - 'NULL-SCHEDULE: 1000 random schedules of matched support shape through the window table.'
+    - 'NULL-SEED: 30 extra seeds on the conventional window with identical constants for the harness
+      arm.'
+    - 'Sliding-recurrence control: W(a, r) computed by the recurrence and by direct summation must
+      agree in every cell.'
+    required_metrics:
+    - the 168 consumed LFSR outputs and the forced binary sequence b_i
+    - w_i for i = 0..23 from both derivations
+    - the full W(a, r) table for r = 1..8
+    - argmin, argmax, conventional value and rank, and spread, per r
+    - verified certificate counts per window per seed at r = 4
+    - between-window versus within-window variance of certificate counts
+    - NULL-SCHEDULE spread distribution and the FIPS quantile
+  falsification_conditions:
+  - The two derivations of w_i disagree on any round -- a transcription error, found cheaply, and
+    the run is void until fixed.
+  - Regenerated constants fail to reproduce hashlib digests.
+  - The window spread at r = 4 is zero, meaning the starting index is irrelevant and the silent variable
+    was harmless -- a clean measured closure of the symbolic half.
+  - The conventional window is the unique argmin at every r, which would mean the convention is optimal
+    and the entry closes with a named obstruction.
+  - Certificate counts show no between-window difference beyond seed noise -- a measured obstruction
+    against weight-based cost models, recorded as such and not as a failure.
+  - The FIPS spread sits at the median of the NULL-SCHEDULE distribution -- controlled null.
+  confounders:
+  - Injected weight is position-blind while the linear layer is not, so a window with lower total
+    weight may inject into positions the linear layer amplifies faster; this is the largest confounder
+    and is why the harness arm is not optional for the empirical claim.
+  - Reduced-round variants with a != 0 are non-standard objects, so no external oracle validates them
+    and their correctness rests on code sharing with the validated full permutation.
+  - Certificate counts at r = 4 may be at the resolution floor of the harness, making any window effect
+    invisible for reasons unrelated to weight; the seed-only null sizes this.
+  - The 24-term sequence is short, so argmin and argmax over 21 four-round windows are heavily influenced
+    by a couple of extreme rounds and the ranking is fragile; the full table is reported rather than
+    only the extremes.
+  interpretation_limits:
+  - A cheaper window is not a better attack and the record must not be cited as suggesting one; injected
+    weight is a structural quantity with no established relation to search cost.
+  - Non-standard round windows are constructed objects for measurement and are not proposed as variants
+    of the standard.
+  - A null harness result means the search cannot feel the weight difference at r = 4 under this budget;
+    it does not mean no search could.
+  - Round-reduced only; nothing bears on full 24-round SHA-3 or any deployed use.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The symbolic half is 168 LFSR steps and a 24-by-8
+      table, well under 2^15 operations; the harness arm uses a declared conflict budget, not a derived
+      cost.
+    memory_exponent: No attack memory exponent is claimed. Twenty-four 64-bit constants and a 24-by-8
+      integer table.
+    best_known: No incumbent is challenged and no attack is produced. Within this repository there
+      is no incumbent treatment of round windows at all; RQ-SHATHREE-cd2cb2 phrases everything as
+      a round count, which is the convention this entry proposes to make explicit rather than to beat.
+    hidden_overhead: The human cost is in defining what a window-shifted reduced-round variant even
+      is, since the standard defines no such object and several conventions are defensible. The lower-order
+      term is position-blindness of the weight scalar, which can silently invert the ranking the table
+      produces.
+  dominated_by: 'n/a (no result claimed). All frontier axes checked explicitly: no attack time, memory
+    or data/query row is emitted, so no frontier position is occupied. The window table ranks structural
+    quantities of constructed reduced-round objects and is not an attack comparison.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a 24-term forced
+    integer sequence, a 24-by-8 window table and a certificate-count comparison.
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the LFSR transcription reproduces the constants and both derivations
+    of w_i agree: 0.85, with transcription the only real risk. That the window spread at r = 4 is
+    at least 4: 0.7, since the weights vary with the number of set LFSR bits and are unlikely to be
+    flat. That the conventional window is not the argmin: 0.8, essentially because there is no reason
+    it would be. That the harness detects a between-window difference: 0.2 -- I expect the search
+    at r = 4 to be insensitive, and I expect this entry''s durable content to be the symbolic table
+    plus a recorded measured obstruction against weight-based cost models.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHATHREE-cd2cb2
+  - GOAL-SHA3-001
+  - KN-TECH-080
+  - KN-TECH-066
+  - docs/inventor-protocol.md
+  - KN-TECH-056
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  - tools/allocate_id.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHATHREE-e7dce7

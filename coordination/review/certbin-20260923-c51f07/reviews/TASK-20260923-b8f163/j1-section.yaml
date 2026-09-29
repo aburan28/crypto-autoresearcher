@@ -1,0 +1,207 @@
+# TASK-20260923-b8f163 -- J1 section, written BEFORE any J3 aggregation (RV-4).
+# Written at 2026-09-23T20:46:42Z (UTC, `date -u` immediately before writing).
+# At this point the validator had NOT opened run-report.md, decision-rules.json,
+# cell-summary.json, pivot-hazards.json, implementation.md or the manifest
+# `result` block, and had run no J3 code. It is carried verbatim into
+# validation-report.yaml as validation_report.joints.J1.
+j1_object_fidelity:
+  verdict: holds
+  written_at: '2026-09-23T20:46:42Z'
+  instance_set:
+    rule: >-
+      Pre-declared before any construction and independent of outcomes: the five
+      F-S3 references U1, U2, U3, S1, S2; the F-S3 modal reference instance; and
+      F-S3 test targets idx 1..10 in draw order. The modal is target idx 1 at both
+      D (references.json F-S3 modal.instance_idx_per_D), so there are 15 distinct
+      archived instances, within RV-7's cap of 20.
+    distinct_instances: 15
+    x_R_values: [125382, 50086, 76670, 125802, 126522, 88878, 10724, 101358, 87958, 65712, 33104, 65400, 42578, 38824, 73974]
+  built:
+    - item: field and modulus
+      how: >-
+        The validator's own shift-and-reduce multiply over t^17 + t^3 + 1, where
+        bit j is the coefficient of t^j. It is a different algorithm from
+        impl/gf2n.py, which multiplies carry-lessly, then reduces, then uses
+        exp/log tables. Irreducibility: f(0) = f(1) = 1, and t^(2^17) = t mod f.
+        Because 17 is prime, this is sufficient.
+      result: irreducible; the encoding reproduces the impl's descended_E bit for bit (below)
+    - item: S_3 of KN-TECH-b18366
+      how: >-
+        KN-TECH-b18366 line 48 matches spec summation_polynomial and
+        impl/curve.py:118-123. Context check with the validator's own curve law
+        and seed 20260923: S_3(x(P1), x(P2), x(P1 +- P2)) = 0 on the given curve.
+      result: 100/100 pairs vanish at both sum and difference
+    - item: descended system E(r), with multilinearization
+      how: >-
+        Two constructions by the validator. (a) A symbolic expansion over
+        F_{2^17}, with monomials as frozensets (v^2 = v) and e*e formed as a FULL
+        product, not the characteristic-2 squaring shortcut the impl uses at
+        macaulay.py:85-90. (b) Moebius inversion of direct S_3 evaluations,
+        c_m = XOR_{u subset m} S_3(x_1(u), x_2(u), x_R), up to degree 4. The
+        multilinear representation is unique, so (a) must equal (b).
+      result: >-
+        (a) == (b) on all 15 instances. Every degree-3 and degree-4 coefficient
+        is zero (maximum degree 2, as the spec states). Both equal the impl's
+        descended_E on all 15.
+    - item: affine decomposition
+      how: >-
+        The validator's own E^0 = E(0) and E^j = E(t^j) - E^0, with
+        E(r) == E^0 + sum r_j E^j checked per instance. The validator's own exact
+        forms e_k(r) = a_{k,0} + <a_k, r> come from replaying the ARCHIVED op log
+        on its own M_D(E^0) and M_D(E^j).
+      result: >-
+        The identity holds on 15/15. K_exact and K_rank recomputed from the
+        validator's forms equal references.json for all 6 references at D = 3
+        and D = 4. The affine prediction equals the validator's own direct replay
+        at every step on 100/100 (reference, target, D) pairs.
+    - item: Macaulay rows and row order
+      how: >-
+        The mu come from bitmask enumeration of all multilinear monomials of
+        degree <= D-2, sorted by (degree, sorted index tuple). Row index is
+        idx(mu)*17 + k. Row content is the multilinear reduction of mu*f_k, built
+        term by term with set symmetric difference. Zero rows are retained
+        (shape fixed).
+      result: >-
+        row-order-D3.json and row-order-D4.json each have 0 differing entries
+        against the literal list. R_D is 323 and 2924, matching C-FIX. The
+        validator's M_3 and M_4 equal the impl's MacaulayShape(D).build(descended_E)
+        with 0 differing bits on all 15 instances at both D. This covers
+        requirement (2): one reference and two test targets. Here, 6 references
+        and 10 targets were compared.
+    - item: column order
+      how: >-
+        The spec comparator is transcribed literally ("a > b iff deg a > deg b;
+        or equal degree and at the largest differing index i, a does NOT contain
+        v_i"). The DESCENDING order is computed by counting, within each degree,
+        how many monomials are strictly greater: 689,590 comparisons at D = 3 and
+        10,053,190 at D = 4. Those counts must form a permutation, which
+        certifies a strict total order. The impl instead sorts by
+        (-deg, bitmask ascending).
+      result: >-
+        column-order-D3.json and column-order-D4.json each have 0 differing
+        positions against the literal order. The constant is last. The impl's
+        MacaulayShape.cols equals the literal order at both D.
+    - item: pivot rule, X_k sets and T_strict / T_ops (requirement 3)
+      how: >-
+        A literal, slow transcription on Python-int row bitsets. For each column
+        c, take the unused rows with a 1 in column c of the CURRENT matrix. Pick
+        min(original index) as p. XOR the current row p into every other such
+        row, and record X. It ran on the validator's own matrices, not the
+        impl's.
+      result: >-
+        Run on all 6 references at D = 3 AND D = 4, going beyond the one D = 3
+        instance required. On each, the op log (p, c, X) equals the impl's
+        elim.eliminate op log and the archived F-S3-reference-oplogs-D{3,4}. The
+        T_strict content equals references.json. All four hashes equal
+        references.json. For the 10 targets at both D, all four hashes and rank,
+        Z_size, len_strict, ops_strict and one_in_R equal targets-F-S3.jsonl.gz.
+    - item: Z_D row-sequential pass (requirement 4)
+      how: >-
+        The validator's own incremental basis, keyed by the leading
+        (smallest-index) column, in original row order. Code reading:
+        elim.row_pass (elim.py:61-99) calls nothing in column_pass
+        (elim.py:28-58). It is a separate function with its own basis array.
+        elim.eliminate runs it on M_orig (elim.py:118), while column_pass mutates
+        a copy (elim.py:104-105).
+      result: >-
+        The validator's Z equals the impl's row_pass Z on 15 x 2. The
+        validator's own C-PASS holds on 15 x 2: the leading-column set equals
+        the pivot-column set, and |Z| = R - rank.
+    - item: four trace encodings
+      how: >-
+        The validator's own canonical-JSON serializer (no whitespace, integer
+        lists), hashed with sha256. T_set = [sorted pivot cols, sorted Z_D].
+      result: h_rank, h_set, h_strict and h_ops are reproduced for 6 references and 10 targets at both D
+    - item: fixed-schedule replay (requirement 5)
+      how: >-
+        A full-row replay, with no word-offset shortcut, of each ARCHIVED
+        reference op log on each of the validator's target matrices. It reads
+        e_k before step k's XORs. Code reading: elim.replay_planes
+        (elim.py:133-147) and replay_direct (elim.py:168-183) only read (p_k, c_k)
+        and XOR the recorded X_k. They make no data-dependent choice. The
+        word-offset shortcut touches only columns < c_k, which are never read
+        again, because c_k is strictly increasing.
+      result: >-
+        The validator's first-zero index equals the archived replay_first_zero
+        on 100/100 (target, reference, D) pairs: 10 targets x 5 references x 2 D.
+        Match flags at all four granularities equal the archived flags on
+        100/100.
+    - item: strata, and oracles A and B
+      how: >-
+        degenerate iff x_R < 512 (x_R in V). A third oracle by the validator: a
+        brute-force count of (x_1, x_2) in V x V with S_3 = 0, using the
+        validator's own field tables. Code reading: oracle A (oracles.py:54-89)
+        has a = x_1^2 + x_R^2, b = x_1 x_R and c = x_1^2 x_R^2 + B. Its
+        degenerate cases a = 0 and/or b = 0 are handled at lines 57-62, and it
+        calls neither macaulay.py nor elim.py. Oracle B (oracles.py:40-51) is
+        exhaustive over 2^18 assignments.
+      result: >-
+        The validator's s equals the archived s on 15/15 (6 unsat, 9 sat). The
+        degenerate flag and stratum equal the archive on the 10 targets.
+    - item: F-S3-REV row reversal (extra)
+      how: >-
+        Rows of the validator's M_D reversed (i -> R_D - 1 - i), then
+        literal-eliminated.
+      result: all four hashes equal references.json F-S3-REV U1 and targets-F-S3-REV idx 1, at D = 3 and D = 4
+  power_of_the_comparison:
+    note: >-
+      A comparison that cannot fail proves nothing. On U1, each misreading the
+      plan names was constructed and shown to produce a different object
+      (j1-constructions/j1_power_controls.json).
+    W1_tiebreak_reversed: 986/988 (D3) and 4046/4048 (D4) column positions differ from archived; T_strict differs
+    W2_pivot_rule_on_original_matrix: T_strict diverges at step 4 (D3) and step 1 (D4); lengths 323 vs 321 and 2864 vs 2672
+    W3_no_multilinear_reduction_of_mu_times_f_k: 306 (D3) and 2907 (D4) rows differ; T_strict differs
+    W4_ascending_order: every position differs
+    correct_reading: T_strict equals archived at both D
+  coordinator_suspected_breaks:
+    tie_break_direction: does not break (0 differing positions; W1 shows the check discriminates)
+    current_vs_original_matrix: does not break (the literal current-matrix rule reproduces the op logs; W2 shows the check discriminates)
+    multilinear_reduction_when_mu_shares_variables: does not break (0 differing bits; W3 shows the check discriminates)
+  observation_recorded_not_interpreted: >-
+    The validator's own construction puts the constant column in R_4 (1 in R_4)
+    on all 6 unsatisfiable instances of the set (U1, U2, U3 and targets 5, 8,
+    10). It does so on none of the 9 satisfiable instances. It puts the constant
+    column in R_3 on none of the 15. These values agree with the archive
+    instance by instance. This is an independent construction of the
+    unsatisfiable-arm row content on 6 instances. It bears on J2's PS0-vacuity
+    finding and is not interpreted here (J8 owns the reading).
+  commands:
+    - python3 -B coordination/review/certbin-20260923-c51f07/reviews/TASK-20260923-b8f163/j1-constructions/j1_spec_literal.py   # exit 0, 78 s wall
+    - python3 -B coordination/review/certbin-20260923-c51f07/reviews/TASK-20260923-b8f163/j1-constructions/j1_power_controls.py # exit 0, 18 s wall
+  command_note: >-
+    -B stops bytecode being written into impl/, which is outside the write
+    scope. Afterwards, impl/ contains no __pycache__. impl/ modules imported for
+    comparison only: gf2n.TableField, macaulay.MacaulayShape, descended_E and
+    EQ_MONS, and elim.eliminate (macaulay.affine_basis was imported but never
+    called). analysis.py and report.py were neither
+    imported nor run.
+  artifacts_read:
+    - experiments/EXP-CERTBIN-4e92d7/specification.yaml
+    - experiments/EXP-CERTBIN-4e92d7/impl/{README.md, gf2n.py, macaulay.py, elim.py, engine.py, oracles.py, curve.py, families.py, driver.py, selftest.py, stats.py}
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/{curve.json, column-order-D3.json, column-order-D4.json, row-order-D3.json, row-order-D4.json, references.json, F-S3-reference-oplogs-D3.jsonl.gz, F-S3-reference-oplogs-D4.jsonl.gz, targets-F-S3.jsonl.gz (idx 1..10), targets-F-S3-REV.jsonl.gz (idx 1)}
+    - knowledge/techniques/KN-TECH-b18366.md
+  outputs:
+    j1-constructions/j1_spec_literal.py: e4dee3ab8224cfa989cc2f80b414c3fb0746b06e4f8304f7c20d839287783eb3
+    j1-constructions/j1_power_controls.py: 0916e97e35d9c67b37dc7299ea0da525b92b5327c9684b6ae5e2b0f1a39c75e3
+    j1-constructions/j1_results.json: 4e8fcd34d1127e85664c5b2b7be8fc5955263f7593d27f95eb96bef1be9bf604
+    j1-constructions/j1_power_controls.json: b26c54a793a7d5befb67efc7212647b62e6946bce5d71aa2c7f7b8932ff99a50
+    j1-constructions/j1_diffs.txt: a28bfe7f8c473b0967f1c3050bfdddff0d81a21ffa55d0f462013cb4e1747898
+    j1-constructions/j1_stdout.log: a6f607d11fa3f43bbf72253b44c9da17d33ad34b367c8b528f50ddfd9111e0aa
+    j1-constructions/j1_power_controls.log: 2376e764d3f442a8b84c39decadbea841c14ee2b893eca82058bf247339a9142
+  limitations:
+    - >-
+      Bit-level construction covers F-S3 (15 instances) and F-S3-REV (2
+      instances) only. F-PLANT and F-RANDX go through the same build_curve path
+      (driver.py:247-248). F-AFF and F-NULLF2 differ only in how E is produced
+      (families.affine_combine / E_from_hex), and then share
+      MacaulayShape.build and eliminate. Their instance generation is sampling
+      layer, audited under J2, not constructed here.
+    - >-
+      The validator and the executor are the same model family
+      (claude-opus-5-5), as PD-R3 notes for the re-deriver. A shared misreading
+      of the spec TEXT would agree. The four named misreadings were constructed
+      and are distinguishable (power_of_the_comparison). An unnamed shared
+      misreading is not excluded by J1.
+    - >-
+      J1 establishes fidelity of the construction on the listed instances and
+      the code paths read. It says nothing about H-CERTBIN-a73f1c, TS1 or P-GPU.

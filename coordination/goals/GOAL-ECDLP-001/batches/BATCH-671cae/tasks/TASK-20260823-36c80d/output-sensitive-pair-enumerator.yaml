@@ -1,0 +1,62 @@
+artifact:
+  task_id: TASK-20260823-36c80d
+  kind: output_sensitive_pair_enumerator
+  key_id: K-EC-XINTERVAL-1
+  required_bound:
+    time: "O(L polylog N + output)"
+    memory: "O(L polylog N)"
+    high_probability_output: "Theta(L) per side"
+    prohibited: "L^2 pair inspection or materialization, hidden tables, scalar labels"
+  exact_algorithms_considered:
+    - name: direct_stream
+      procedure: "For every (i,j), compute R_i+R_j, evaluate K_EC, emit bucket-zero pairs."
+      exact: true
+      time: "Theta(L^2)"
+      memory: "O(L+output)"
+      disposition: fails_time_gate
+    - name: full_pair_table
+      procedure: "Materialize and bucket-sort all pair sums."
+      exact: true
+      time: "Theta(L^2 log L) or expected Theta(L^2) hashing"
+      memory: "Theta(L^2)"
+      disposition: fails_time_and_memory_gate
+    - name: leaf_complement_lookup
+      procedure: >-
+        Attempt to derive from one leaf a bounded set of keys required of the
+        other leaf, then hash/sort leaves by that contribution.
+      exact: false
+      failure: >-
+        The condition enc_p(x(U+V))<w is a predicate on the rational addition
+        formula of both affine coordinates and is not represented here as an
+        equality of separately computed leaf labels.
+      disposition: missing_construction
+    - name: bucket_preimage_walk
+      procedure: "Enumerate curve points S whose x-coordinate is in bucket zero, then solve V=S-U."
+      exact: true
+      time: "Theta(p/L + L) candidate points before list membership costs"
+      exponent_translation: "p/L is Theta(N^(2/3)) only under p=Theta(N)"
+      disposition: fails_time_gate
+  pair_evaluation_charge:
+    ec_additions: "one per inspected pair"
+    field_work: "addition-law denominators, inversion or batched inversion, x encoding"
+    coefficient_work: "summed only for emitted pairs; source leaves retained"
+  output_tail_status:
+    expectation: >-
+      Under H-BUCKET-FLAT only, L^2 pairs times bucket mass Theta(1/L)
+      predicts Theta(L) survivors.
+    high_probability_proof: null
+    correlations_not_resolved:
+      - shared leaves among L^2 pairs
+      - fixed bucket and fixed key
+      - subgroup x-coordinate bias
+      - duplicate points and sources
+    clause_status: unestablished
+  conclusion:
+    selector: select_none
+    reason: >-
+      The only exact supplied enumerators cost Theta(L^2) per side. This is a
+      failure of this frozen construction packet, not a proof that no exact
+      output-sensitive EC selector exists.
+    generic_lower_bound_claimed: false
+    implementation_authorized: false
+    experiment_authorized: false

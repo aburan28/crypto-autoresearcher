@@ -390,12 +390,23 @@ def _identity_tokens(metadata: SourceMetadata) -> list[str]:
     (``kn-open-001``), because agents cite both.
     """
     tokens = {metadata.source_id.lower()}
-    _, _, bare = metadata.source_id.partition(":")
+    namespace, _, bare = metadata.source_id.partition(":")
     if bare:
         tokens.add(bare.lower())
     if metadata.experiment_id:
         tokens.add(metadata.experiment_id.lower())
     tokens.update(run.lower() for run in metadata.run_ids)
+    for predecessor in metadata.supersedes:
+        alias = predecessor.strip().lower()
+        if not alias:
+            continue
+        tokens.add(alias)
+        _, separator, alias_bare = alias.partition(":")
+        if separator:
+            if alias_bare:
+                tokens.add(alias_bare)
+        elif namespace:
+            tokens.add(f"{namespace.lower()}:{alias}")
     return sorted(tokens)
 
 

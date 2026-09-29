@@ -1,0 +1,247 @@
+idea:
+  id: IDEA-20260904-58ace7
+  question_id: RQ-SIMSPK-f6a6c0
+  handoff_id: null
+  goal_id: GOAL-SIMSPK-001
+  added: '2026-09-04'
+
+  title: >-
+    THE SOURCE PAPER SCORED SIX MASKS AND CONCLUDED ABOUT A CANDIDATE SET OF
+    FORTY-FOUR - score the WHOLE neural candidate set by the composed objective
+    |r q^2| instead of by the training loss, because if the set already contains
+    a mask beating the classically searched {77,5} then the defect is purely
+    ordinal, re-ranking is the entire fix, and every proposed change to the
+    training objective is unnecessary work
+
+  class: measurement
+
+  claim: >-
+    KN-LIT-824baa concludes that neural-discovered differential-linear masks are
+    locally strong but long-round useless. That conclusion is drawn from |q|
+    computed for exactly SIX masks - five recurrent Fourier terms plus the
+    classical reference - while the paper's own first-layer Top-2 projection
+    exposes 44.37 +/- 3.16 masks per sparsity-guided model out of the 77
+    Hamming-weight-2 masks with |r| > 2^-8. The five Fourier terms were selected
+    by RECURRENCE ACROSS SEEDS, which is a proxy for local strength and therefore
+    exactly the ranking the paper is arguing against. Nobody has asked whether
+    the generator's OUTPUT SET, ranked by the composed objective rather than by
+    the model's own preference, contains something better than {77,5}. This
+    proposal asks that, and the answer partitions the problem: if yes, the
+    generator is sound and only its ordering is broken; if no, the generator does
+    not produce long-round-useful masks at all and no amount of re-ranking will
+    help.
+
+  mechanism: >-
+    Three steps, and the third is the one the source omits.
+    (1) GENERATE. Train the difference-only distinguisher on the 8-round
+    Speck128/128 middle component under Delta = {117} using the published
+    configuration - Conv1DFully with 1024 first-layer channels, 10^7 samples, 30
+    epochs, 30 seeds - both unconstrained and under the published global sparsity
+    schedule (target max_hw = 3, i.e. rho_final = 3/128).
+    (2) HARVEST WITHOUT RANKING. Take the UNION over all 60 models of every
+    Hamming-weight-2 mask produced by Top-2 projection of any first-layer row,
+    discarding channel multiplicity and discarding recurrence. Multiplicity and
+    recurrence are the model's own preference signal and they are precisely what
+    is under suspicion, so they are recorded as metadata and used for nothing.
+    Also harvest at k = 3 and k = 4 to see whether useful candidates live above
+    the weight the paper projected at.
+    (3) RANK BY THE REAL OBJECTIVE. For every harvested mask run the 5-round
+    minimum-weight single XOR-linear trail search, measure |r| from the same
+    single-pass Gram estimator described in IDEA-20260904-b1d69f, and sort by
+    |r q^2|. Compare the top of that list against {77,5} at 2^-25.81.
+    The comparison that matters is the RANK of {77,5} within the harvested set,
+    not whether it is beaten. A generator that places the known-good mask at rank
+    3 of 44 is a useful generator with a broken sort. One that never emits it is
+    a different object.
+
+  novelty_status: unverified
+
+  novelty_note: >-
+    KN-LIT-824baa states the candidate-generation and prioritization questions as
+    unresolved and does not report this measurement; that much was read directly.
+    Whether other work has combined neural candidate generation with classical
+    trail-search re-ranking has NOT been screened by this program. Zhang et al.
+    [ZYS+26], cited by the source as feeding neural observations back into
+    classical integral search, is the nearest known precedent and has not been
+    read here.
+
+  citations:
+    - ref: KN-LIT-824baa
+      provenance: internal
+      claim: >-
+        Reports |q| for five recurrent Fourier terms and {77,5} only; reports
+        first-layer Top-2 coverage of 34.40 +/- 1.96 masks unconstrained and
+        44.37 +/- 3.16 under sparsity guidance, out of 77 weight-2 masks with
+        |r| > 2^-8; reports {77,5} recovered at the first layer in 1/30 and 9/30
+        runs respectively and at the decision level in 0/30 of both.
+      verified_by: >-
+        Top-level orchestrating session, 2026-09-04. Full text supplied by the
+        user in-session and read in full; the paper's bibliographic identifier is
+        unresolved against any primary index.
+    - ref: KN-OPEN-7f0d85
+      provenance: internal
+      claim: This proposal is question Q1 of that open problem and gates Q3 and Q4.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+
+  assumptions:
+    - >-
+      Stage 0 of IDEA-20260904-b1d69f - reproduction of the three published
+      reference numbers - has passed. This proposal does not re-derive that gate
+      and must not run before it.
+    - >-
+      The published training configuration is reproducible from the paper's
+      description. It may not be: the anonymized artifact repository was not
+      retrieved by this program and the sparsity schedule has ten declared
+      hyperparameters. A training run that does not reach the published
+      validation accuracy of 0.8217 +/- 0.0012 (unconstrained) is reported as a
+      reproduction failure and the harvested set is labelled as coming from a
+      DIFFERENT generator than the paper's.
+    - >-
+      q is a single-trail correlation, consistent with the source; it underestimates
+      the linear hull and every record says so.
+
+  predictions:
+    - >-
+      PRIMARY, and stated so it can fail: the harvested union across 60 models
+      CONTAINS at least one mask with |r q^2| > 2^-25.81, i.e. strictly better
+      than the classically searched {77,5}. Rationale: the union covers a large
+      fraction of the 77 strong weight-2 masks and nothing in the generator's
+      construction excludes the good region - only its SORT does.
+    - >-
+      {77,5} itself, when present in the harvest, ranks in the top 5 by |r q^2|
+      while ranking near the BOTTOM by |r|. The two orderings are close to
+      reversed on this set.
+    - >-
+      Harvesting at k = 3 and k = 4 adds candidates whose composed score is no
+      better than the best weight-2 candidate, because forward trail weight grows
+      with mask weight faster than middle correlation improves.
+
+  minimal_test:
+    design: >-
+      (a) Train 30 unconstrained and 30 sparsity-guided models per the published
+      configuration; record per-model validation accuracy against the published
+      values as a reproduction check. (b) Harvest the Top-k projections at
+      k = 2, 3, 4; emit the union with per-mask provenance (which models, how many
+      channels, whether it also appears as a Fourier term at tau = 0.1). (c)
+      Measure |r| for the whole union in one sampling pass. (d) Run minimum-weight
+      5-round trail search for every union member under a declared per-instance
+      ceiling. (e) Emit the ranked table and the rank of {77,5}.
+      If the training budget is not available, the experiment degrades honestly:
+      run stages (c)-(e) on the 77 strong weight-2 masks ENUMERATED CLASSICALLY
+      instead of harvested, and report the result as an upper bound on what any
+      weight-2 generator could achieve. That variant needs no GPU at all and
+      answers a strictly weaker but still decisive question.
+    controls:
+    - >-
+      EXHAUSTIVE UPPER-BOUND ARM. Score all 8128 weight-2 masks, not just the
+      harvested ones. This is the only way to know whether the generator's set is
+      good or merely large, and it costs solver calls, not thought. If the best
+      weight-2 mask overall is also in the harvest, the generator has full recall
+      on this space; if not, the gap is the generator's real deficit.
+    - >-
+      UNTRAINED-MODEL CONTROL. Harvest Top-2 projections from 30 RANDOMLY
+      INITIALIZED Conv1DFully first layers. Any recovery statistic without this
+      baseline is uninterpretable, and the paper does not report it.
+    - >-
+      RECURRENCE-AS-RANKER ARM. Also rank the harvest by channel multiplicity and
+      by Fourier recurrence, and report Spearman rho of each against the |r q^2|
+      ranking. This measures directly how wrong the model's own preference is.
+    required_metrics:
+    - best |r q^2| in the harvest, and the mask attaining it
+    - rank of {77,5} by |r q^2| and by |r|, within the harvest and within all 8128
+    - recall of the harvest against the exhaustive weight-2 top-10 by |r q^2|
+    - recall of the untrained-model control against the same top-10
+    - per-model validation accuracy vs the published reproduction targets
+
+  falsification_conditions:
+    - >-
+      No harvested mask exceeds 2^-25.81. The defect is then GENERATIVE, not
+      ordinal: the generator does not produce long-round-useful candidates and
+      re-ranking cannot rescue it. KN-OPEN-7f0d85 Q3 and Q4 become the live
+      questions and this record says so.
+    - >-
+      The untrained-model control achieves recall statistically indistinguishable
+      from the trained models. Training then contributes nothing to candidate
+      GENERATION on this space, and the entire neural apparatus is a lossy
+      re-implementation of enumeration - the lossy-projection test of
+      docs/inventor-protocol.md, failed.
+    - >-
+      Training does not reproduce the published validation accuracy. The harvest
+      is then from a different generator and no comparison with the source's
+      numbers is admissible.
+
+  confounders:
+    - >-
+      The union across 60 models is larger than any single model's candidate set,
+      so a positive result may be an artifact of ensembling rather than a property
+      of the generator. Report per-model harvests alongside the union and state
+      how many models would have to be trained to reach the winning mask.
+    - >-
+      Solver timeouts are not missing-at-random and could hide the best candidate.
+      Report the |r| distribution of timed-out masks and re-run the timeouts at a
+      raised ceiling before any negative conclusion.
+    - >-
+      Sparsity-guided training is unstable in the source (accuracy range
+      [0.75039, 0.82896]); a low-accuracy model may harvest differently for
+      reasons unrelated to sparsity. Stratify the harvest by model accuracy.
+
+  interpretation_limits: >-
+    Scoped to Speck128/128, Delta = {117}, the 5+8+5 decomposition, Hamming
+    weights 2 to 4, single XOR-linear trails, and the declared budgets. A mask
+    beating {77,5} on |r q^2| improves the 13-round composed factor ONLY; the full
+    18-round claim additionally requires the same 5-round differential prefix at
+    p = 2^-30, which is fixed for all candidates and must be reproduced, not
+    assumed. No such improvement may be recorded as an attack, and any claimed
+    improvement over the published 2^-55.81 requires independent Validator and
+    Red Team review before it appears in any conclusion.
+
+  dominated_by: >-
+    Dominated by classical semi-unconstrained mask search (Chen-Bao-Yu) wherever
+    that search is affordable, since it already optimizes the composed objective
+    directly and produced {77,5}. The honest framing of this proposal is NOT that
+    a learned generator beats classical search; it is that a learned generator
+    plus classical re-ranking may reach the same place more cheaply, and the
+    comparison must be budget-matched to mean anything. See IDEA-20260904-772029.
+
+  sota_delta: >-
+    Zero by default. The state of the art in this setting is the 18-round
+    distinguisher at 2^-55.81 and this record does not claim to move it. A
+    positive PRIMARY prediction would produce a candidate 13-round factor better
+    than 2^-25.81; whether that composes to a better 18-round distinguisher is a
+    SEPARATE verification and must not be asserted from the 13-round number alone.
+
+  estimated_cost:
+    compute: >-
+      Training dominates if the full replication is run: 60 models on 10^7
+      samples for 30 epochs, which the source ran on 7 GPUs. The degraded
+      classical-enumeration variant needs NO training and roughly 8128 solver
+      calls for the exhaustive arm, or ~120 for the strong-mask arm; the strong-mask
+      arm fits the GOAL-SIMSPK-001 budget, the exhaustive arm does not and must be
+      separately authorized.
+    implementation: >-
+      Medium-high. Reuses the SAT trail encoding and the Gram estimator from
+      IDEA-20260904-b1d69f; the new work is the training replication and the
+      harvest plumbing.
+    memory: Low for scoring; standard GPU training memory otherwise.
+
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    Roughly 0.5 on the PRIMARY prediction. The argument for it is that the
+    harvest covers a large share of the strong weight-2 space and the good mask
+    is weight 2. The argument against it is that {77,5} was found by a search
+    that optimized the composed objective directly, and there is no reason a
+    locally-trained model's support set should contain a better one. Both
+    outcomes are decisive and cheap to distinguish, which is the point.
+
+  status: proposed
+  proposed_by: top-level-session
+  proposed_at: '2026-09-04'
+  source_refs: [KN-LIT-824baa, KN-TECH-d64293, KN-OPEN-7f0d85, KN-TECH-056]
+  scope_note: >-
+    Attached to RQ-SIMSPK-f6a6c0 as the method half of that question's
+    differential-linear portfolio measure. Depends on IDEA-20260904-b1d69f
+    stage 0 and shares its solver encoding. Read together with
+    IDEA-20260904-772029, which supplies the budget-matched baseline without
+    which a positive result here does not establish that the learned generator
+    was worth its cost.

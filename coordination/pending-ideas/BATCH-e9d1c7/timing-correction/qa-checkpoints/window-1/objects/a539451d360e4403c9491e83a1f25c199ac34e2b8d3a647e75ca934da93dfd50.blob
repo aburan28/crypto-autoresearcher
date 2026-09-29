@@ -1,0 +1,109 @@
+"""Independent artifact recomputation, with no reviewed-code imports."""
+import base64
+import datetime
+import hashlib
+import json
+import math
+from pathlib import Path
+import stat
+
+R = Path('/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-a-recovery')
+REL = Path('coordination/pending-ideas/BATCH-e9d1c7/timing-correction')
+B = R / REL / 'qa/scratch'
+contract = json.loads((R / 'coordination/pending-ideas/BATCH-e9d1c7/repair/repair-disposition.json').read_text())
+profiles = contract['repair_contract']['outputs_and_postflight']['profiles']
+amendment = json.loads((R / REL / 'timing-correction-disposition.json').read_text())
+cases = amendment['controls']['clean_positives_first']
+reports = []
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
+for case in cases:
+    path = B / 'case-evidence' / (case + '.attempt-2.json')
+    evidence = json.loads(path.read_text())
+    observed = evidence['result']
+    assert evidence['case_id'] == case
+    for digest, blob in evidence['blobs'].items():
+        raw = base64.b64decode(blob['base64'], validate=True)
+        assert sha(raw) == digest == blob['sha256'] and len(raw) == blob['bytes']
+    manifest_path = Path(observed['manifest_path'])
+    actual_manifest = json.loads(manifest_path.read_text())['run']
+    assert actual_manifest == observed['manifest']
+    profile = profiles[actual_manifest['experiment_id']]
+    files = list(manifest_path.parent.iterdir())
+    assert {p.name for p in files} == set(profile['complete_names'])
+    identities = []
+    for p in files:
+        st = p.lstat()
+        assert stat.S_ISREG(st.st_mode) and st.st_nlink == 1
+        identities.append((st.st_dev, st.st_ino))
+    assert len(set(identities)) == len(files)
+    assert set(actual_manifest['artifacts']) == set(profile['manifest_hashed_names'])
+    verified = {}
+    for name, binding in actual_manifest['artifacts'].items():
+        raw = (manifest_path.parent / name).read_bytes()
+        actual = {'sha256': sha(raw), 'bytes': len(raw)}
+        assert actual == binding
+        assert raw == base64.b64decode(evidence['blobs'][binding['sha256']]['base64'])
+        verified[name] = actual
+    raw_result = json.loads((manifest_path.parent / 'raw-result.json').read_text())
+    assert raw_result == observed['raw_result']
+    assert raw_result['launch_receipt']['wrapper_postprocessing'] is None
+    assert raw_result['launch_receipt']['wrapper_postprocessing_unavailable_reason'] == amendment['timing_amendment']['raw_serialization']['launch_receipt.wrapper_postprocessing_unavailable_reason']
+    boundary = raw_result['cost_boundary']
+    assert boundary['raw_result_self_hash'] is False
+    assert boundary['raw_mirror_requirement'] == 'unavailable_by_declared_boundary'
+    assert boundary['finalization_seconds'] is None
+    assert 'wrapper_postprocessing_complete' not in raw_result['additional_post_run_checks']
+    assert 'receipt_wrapper_timing_mirror_complete' not in raw_result['additional_post_run_checks']
+    assert 'manifest.yaml' not in actual_manifest['artifacts']
+    endpoint = 'after-final-raw-result-and-core-artifact-hashing-before-final-manifest-serialization'
+    assert boundary['final_measurement_endpoint'] == endpoint
+    assert actual_manifest['result']['metrics']['wrapper_postprocessing_endpoint'] == endpoint
+    final = actual_manifest['resources']['wrapper_postprocessing']
+    preliminary = boundary['pre_raw_observation']
+    for sample, expected_boundary in [(final, 'through-core-artifact-hashing-before-receipt-and-manifest-write'),
+                                      (preliminary, 'postflight-and-existing-file-hashing-before-raw-result-serialization')]:
+        assert set(sample) == {'wall_seconds', 'cpu_seconds', 'peak_rss_bytes', 'boundary'}
+        assert sample['boundary'] == expected_boundary
+        for key in ['wall_seconds', 'cpu_seconds']:
+            assert type(sample[key]) in (int, float) and math.isfinite(sample[key]) and sample[key] >= 0
+        assert type(sample['peak_rss_bytes']) is int and sample['peak_rss_bytes'] >= 0
+    assert all(final[k] >= preliminary[k] for k in ['wall_seconds', 'cpu_seconds', 'peak_rss_bytes'])
+    assert all(actual_manifest['protocol']['post_run_checks'].values())
+    assert all(raw_result['additional_post_run_checks'].values())
+    assert raw_result['postflight_failures'] == []
+    assert observed['normal_admission_succeeded'] is True and observed['child_entered'] is True
+    assert actual_manifest['status'] == 'completed_valid' and actual_manifest['result']['valid'] is True
+    assert actual_manifest['result']['metrics']['wrapper_postprocessing_complete'] is True
+    assert observed['genuine_originals_before'] == observed['genuine_originals_after']
+    assert observed['genuine_originals_unchanged'] is True
+    reports.append({'case_id': case, 'attempt': 2, 'normal_admission_succeeded': True, 'child_entered': True,
+                    'manifest_status': actual_manifest['status'], 'valid': actual_manifest['result']['valid'],
+                    'complete_profile_names': sorted(p.name for p in files), 'complete_profile_count': len(files),
+                    'manifest_hashed_artifacts_count': len(verified), 'artifact_recomputations': verified,
+                    'all_required_gates_true': True, 'pre_raw_observation': preliminary, 'final_timing': final,
+                    'final_timing_numeric_shape_and_ordering': True, 'genuine_originals_unchanged': True,
+                    'evidence_path': str(path.relative_to(R)), 'evidence_sha256': sha(path.read_bytes()),
+                    'raw_result_sha256': verified['raw-result.json']['sha256'],
+                    'raw_results_distinct_from_raw_result': 'raw-results.json' in verified and verified['raw-results.json']['sha256'] != verified['raw-result.json']['sha256'] if actual_manifest['experiment_id'] == 'EXP-ECDLP-abf981' else None,
+                    'scope': 'benign operational fixture; zero scientific runs'})
+inventory = json.loads((R / 'tests/fixtures/finite_yaml_locked_v3/cases.json').read_text())['cases']
+old = json.loads((R / 'tests/fixtures/finite_yaml_locked_v2/cases.json').read_text())['cases']
+assert len(inventory) == 174 and len(old) == 154 and inventory[:154] == old
+body_hash = sha(json.dumps(old, sort_keys=True, separators=(',', ':')).encode())
+assert body_hash == amendment['controls']['inherited_inventory']['canonical_cases_sha256']
+result = {'task_id': 'TASK-20260909-3d02f7', 'recorded_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+          'scope': 'Independent stage-1 recomputation; not an engineering acceptance or scientific result',
+          'positive_results': reports, 'inventory_154_original_bodies_preserved': True,
+          'inherited_case_body_sha256': body_hash, 'full_case_count': 174, 'positive_cases_passed_on_retained_retry': 3,
+          'first_attempt_failures_retained': 3, 'other_cases_unadmitted_unexecuted': 171,
+          'engineering_accepted': False, 'scientific_runs': 0,
+          'timing_endpoint_evidence': 'Static source call order places final measurement after exclusive raw serialization and final inventory hashing; retained numeric samples and final raw hashes were independently checked. No separate clock instrumentation was introduced.',
+          'timing_limitations': ['RSS is process lifetime high-water RSS, not incremental RSS.',
+                                 'Final schema validation, late fsync/race rechecks, and manifest serialization/write/fsync are excluded.',
+                                 'Failure and mutation controls remain unexecuted.'],
+          'final_reports_unwritten': True}
+with (B / 'validator-positive-recomputation.json').open('x') as f:
+    json.dump(result, f, indent=2, sort_keys=True, allow_nan=False)
+    f.write('\n')
+print(json.dumps({'positive_cases': [{k: row[k] for k in ['case_id', 'normal_admission_succeeded', 'child_entered', 'manifest_status', 'valid', 'complete_profile_count', 'manifest_hashed_artifacts_count', 'raw_result_sha256']} for row in reports], 'remaining_unexecuted': 171}, sort_keys=True))

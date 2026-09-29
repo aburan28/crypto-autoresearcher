@@ -220,11 +220,11 @@ class FocusHarnessTests(unittest.TestCase):
         self.assertTrue(plan["gates"]["claim_evidence_uses_completed_runs_only"])
         self.assertTrue(plan["gates"]["all_selected_have_attention_contracts"])
         self.assertTrue(
-            plan["gates"]["all_selected_resource_estimates_stage_bound"]
+            plan["gates"]["stage_estimates_are_advisory"]
         )
         report = focus.render_markdown(plan)
         self.assertIn("## Attention Contracts", report)
-        self.assertIn("## Stage Budgets", report)
+        self.assertIn("## Optional Stage Estimates", report)
         self.assertIn("## Claim Matrix", report)
         self.assertIn("`CLAIM-1`", report)
         self.assertIn("## Run Table", report)
@@ -391,11 +391,20 @@ class FocusHarnessTests(unittest.TestCase):
         with self.assertRaisesRegex(focus.QueueError, "attention_contract"):
             focus.validate_queue(queue(experiment))
 
-    def test_v3_rejects_unreconciled_stage_budget(self) -> None:
+    def test_v3_accepts_unreconciled_advisory_stage_estimate(self) -> None:
         experiment = candidate("EXP", 4)
         experiment["resource_estimate"]["stages"][0]["wall_clock_seconds"] = 59
-        with self.assertRaisesRegex(focus.QueueError, "wall-clock total"):
-            focus.validate_queue(queue(experiment))
+        focus.validate_queue(queue(experiment))
+
+    def test_null_estimates_and_no_stage_table_are_runnable(self):
+        experiment = candidate("EXP", 4)
+        estimate = experiment["resource_estimate"]
+        estimate.update(wall_clock_seconds=None, cpu_hours=None,
+                        maximum_runs=None, stages=None)
+        estimate.pop("dominant_stage_id")
+        plan = focus.select(queue(experiment))
+        self.assertEqual(len(plan["critical_experiments"]), 1)
+        self.assertIn("Optional Stage Estimates", focus.render_markdown(plan))
 
     def test_v2_queue_remains_readable(self) -> None:
         source = queue(candidate("LEGACY-V2", 4))

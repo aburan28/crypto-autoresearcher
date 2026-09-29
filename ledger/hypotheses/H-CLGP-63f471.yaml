@@ -1,0 +1,353 @@
+hypothesis:
+  id: H-CLGP-63f471
+  question_id: RQ-CLGP-b99df5
+  added: '2026-08-25'
+  derived_from_idea: IDEA-20260807-1b7241
+  statement: >-
+    A CLOSURE WITH AN EXPLICIT SIMULATOR RATHER THAN A COUNT OF FAILED REDUCTIONS. Three claims that can
+    each fail independently.
+    (S1) THE SIMULATION LEMMA. Define CAGG, the curve-aware generic group model with class-group action -
+    the adversary receives, free and in the clear, the prime, the curve equation, the trace, the
+    discriminant, the endomorphism ring, the class number, explicit equations for EVERY curve in the
+    isogeny class with that endomorphism ring, the full small-degree volcano structure, a unit-cost ACTION
+    oracle, a unit-cost exact VECTORIZATION oracle strictly stronger than any known classical or quantum
+    algorithm, the group order and the class-group structure - but accesses the prime-order subgroup ONLY
+    through a random injective generic encoding, with handles for the generator and the target and oracles
+    for the group operation and equality, and never receives the affine coordinates of the encoded points.
+    THEN every curve-level interface is a deterministic function of (p, E, t) with NO dependence on the
+    encoding or on the discrete logarithm, so a plain generic-group adversary can SAMPLE the curve-level
+    world itself and answer every curve-level query by its own computation. The simulation is perfect, the
+    query count is unchanged, and the generic-group lower bound applies verbatim - so exact vectorization
+    is worth EXACTLY NOTHING in this model.
+    (S2) THE NAMED OBSTRUCTION. Call it the PRODUCT-STRUCTURE OBSTRUCTION - the instance space over a fixed
+    isogeny class factors as (a curve coordinate in a class-group torsor) times (the answer), the class
+    group moves only the first factor, and the answer is a class-group INVARIANT because an isogeny carries
+    the instance to an isogenous one with THE SAME answer. A symmetry group acting trivially on the answer
+    space confers no search advantage. THE CONTRAST THAT PROVES THE STATEMENT IS NOT VACUOUS - the
+    automorphism group acts NON-trivially on the answer space and therefore does buy a square-root discount
+    in its order, while the class group, of vastly larger order, buys nothing. The relevant quantity is the
+    ORBIT OF THE ANSWER, not the size of the group.
+    (S3) THE EMPIRICAL FACE. A class-augmented rho - a Pollard rho whose state is (curve, point) and which
+    takes an isogeny step with probability q, carrying the point along by transport - must be STRICTLY MORE
+    EXPENSIVE than plain rho at equal CHARGED cost, by a factor increasing in q and set by the measured price
+    of an isogeny step; while in the planted-bridge model, where a leakage oracle is added that is not a
+    function of (p, E, t), the same harness must show a MEASURABLE BENEFIT that decays to nothing as the
+    planted modulus shrinks to 1.
+    WHAT THIS IS NOT - not a lower bound on the ECDLP, not a claim that no reduction exists, and a QUERY-
+    complexity statement rather than a time-complexity one.
+  mechanism: >-
+    The adversary's view splits into a curve-level component and a generic-group component, and the two
+    propagate INDEPENDENTLY - that independence IS the product structure. The curve-level component forgets
+    the discrete logarithm entirely, and this is not an assumption but the content: it is a function of the
+    prime, the curve and the trace, while the instance family holds those fixed and lets the answer vary. So
+    the joint distribution of (view, answer) is a point mass on the view times the uniform distribution on the
+    answer, conditioning on the view leaves the answer uniform, and a simulator that reconstructs the view by
+    its own computation is perfect. Every curve-level operation the adversary can perform - act, vectorize,
+    walk, twist, quotient by a named subgroup - maps the view to the view WITHOUT consulting the answer. The
+    view dies the instant the adversary is handed an x-coordinate as a field element, because then a
+    curve-valued function of the answer becomes conceivable; that single sharp death condition is the residual
+    open class, and it is why the closure is scoped rather than absolute.
+  assumptions:
+  - >-
+    The generic group lower bound applies to the point-group component - any algorithm using only group
+    operations and equality tests on a cyclic group of prime order needs a number of queries at least of the
+    order of the square root of the order. A named public theorem, used exactly as this program's earlier
+    oracle closures use it.
+  - >-
+    The curve-level view is a deterministic function of (p, E, t). This is CHECKED INTERFACE BY INTERFACE
+    rather than assumed, and it is the load-bearing hypothesis - an interface that secretly depended on the
+    encoding would break the simulation.
+  - >-
+    The result is a QUERY-COMPLEXITY statement. The simulator's own running time is NOT polynomial at
+    cryptographic scale, since reconstructing the isogeny class and the class group is subexponential at best.
+    This is disclosed and the hypothesis never states a time-complexity closure.
+  - >-
+    Ordinary curves whose F_p-endomorphism ring is the stated order, with the class group acting freely and
+    transitively on the corresponding stratum.
+  - >-
+    Transport - for an isogeny of degree coprime to the subgroup order, the isogeny restricted to the subgroup
+    is injective and carries the target to the same multiple of the carried generator, with THE SAME scalar.
+    Elementary, and it is what makes the answer a class-group invariant.
+  proof_search_map:
+    bottleneck: >-
+      The interface-by-interface verification that NOTHING in the curve-level view depends on the encoding or
+      on the answer. The simulation is trivial once that holds and false if any interface violates it. This is
+      where a red team should look first, and the most promising attack is to find an interface that lets the
+      adversary EXPORT a handle into the curve world.
+    baseline_embedding:
+      parameter_slice: >-
+        Class number 1 - the isogeny class contains a single curve with the stated endomorphism ring. CAGG then
+        degenerates to the plain generic group model, the action and vectorization oracles are trivial, and the
+        bound must reduce exactly to the generic-group bound. If it does not, the model is malformed.
+      reproduction_check: >-
+        A frozen fixture of toy instances at class number 1 or 2, run through the empirical harness in CAGG
+        mode. The measured cost must match plain rho at its standard constant within a declared tolerance, and
+        the class-augmented arm must COINCIDE with the plain arm because there is nowhere to walk.
+    observation_collision:
+      observable: 'The adversary''s curve-level view.'
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED COMPLETELY - find two instances with the same view but different
+        answers. PREDICTED: for a fixed curve, ALL nonzero answers share the IDENTICAL view, so the fibre of the
+        observable over any view is the entire instance family. MAXIMAL COLLISION. That is the simulation lemma
+        restated as a fibration and it is the cleanest possible statement of the closure. A single pair of
+        instances with the same (p, E, t) and DISTINGUISHABLE views would refute the lemma and must be reported
+        immediately.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        Move 'does the class-group action help the ECDLP' into the generic group model, where it becomes 'is the
+        class-group view simulable', a question with a two-line answer.
+      predicted_gain: >-
+        Converts an open-ended search over reduction strategies into ONE checkable lemma at zero compute. The
+        gain is entirely in the strength and finality of the statement, not in attack cost.
+    - transform: observable_fiber
+      proposed_object: >-
+        The fibre of the view over any fixed value, shown to be the whole instance family.
+      predicted_gain: >-
+        A closure of exactly the shape the inventor protocol demands - named observable, proved trivial
+        fibration, and an EXPLICIT residual class where the fibration is NOT trivial, namely once an
+        x-coordinate enters the view.
+    quantifier_order: >-
+      ASSERTED - FOR ALL CAGG adversaries A and FOR ALL query counts q, THERE EXISTS a generic-group adversary
+      making q queries such that FOR ALL (p, E, t, N) and FOR ALL distributions on the answer, it perfectly
+      simulates A's view; hence FOR ALL A the success probability is of order q squared over the group order.
+      NOTE THE ORDER - the simulator is constructed AFTER A but BEFORE the instance, which is what makes the
+      simulation uniform over instances. THE DANGEROUS WEAKER READING, NOT CLAIMED - FOR ALL instances THERE
+      EXISTS a simulator, which would allow the simulator to depend on the answer and would prove nothing.
+      Guarding against exactly that inversion is why the order is written here rather than left implicit. NOT
+      CLAIMED - any statement about adversaries outside the model; any time-complexity bound; any statement
+      about the real ECDLP.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        'In CAGG, exact vectorization and action oracles for the instance''s own isogeny class give zero
+        advantage, and the generic-group query lower bound remains necessary.' It can NEVER certify anything
+        about adversaries that see an x-coordinate as a field element - index calculus, summation polynomials
+        and every concrete-representation method live there; anything about multi-instance or preprocessing
+        adversaries; anything about TIME as opposed to QUERY complexity; and nothing whatever about the actual
+        hardness of the ECDLP. A summary dropping any of those four qualifiers is overclaiming under AGENTS.md
+        rule 4.
+      nearby_object_control: >-
+        The PLANTED-BRIDGE model, where the desired conclusion FAILS by construction because an added leakage
+        oracle is not a function of (p, E, t). The argument must NOT close it. If a version of the simulation
+        lemma also 'closes' the planted-bridge model, it has assumed away the very dependence it is supposed to
+        detect and the whole argument is circular.
+    proof_obligations:
+    - claim: 'Every curve-level interface of the model is a function of (p, E, t) alone.'
+      responsibility: correctness
+    - claim: 'The simulator''s view is perfectly indistinguishable from the adversary''s.'
+      responsibility: correctness
+    - claim: 'The generic-group lower bound applies to the resulting generic-group adversary.'
+      responsibility: correctness
+    - claim: 'The statement is query complexity, not time complexity, and the simulator''s own cost is disclosed.'
+      responsibility: scope
+    - claim: 'The answer is a class-group invariant of the instance.'
+      responsibility: correctness
+    - claim: 'The class-augmented rho is strictly more expensive than plain rho at equal charged cost.'
+      responsibility: runtime
+    - claim: 'The planted-bridge model does exhibit a benefit in the same harness.'
+      responsibility: soundness
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    NULL AND REQUIRED TO BE. NO IMPROVEMENT, AND THAT IS THE ASSERTED RESULT - query complexity stays at the
+    generic-group bound in CAGG WITH the oracle, exactly as without it. The predicted empirical effect of the
+    class-augmented walk is a cost INCREASE. The result is a QUERY-complexity statement; the simulator's own
+    running time is at least the cost of reconstructing the isogeny class and the class group, which is
+    subexponential at cryptographic scale, and anyone quoting this as a time-complexity closure would be
+    misreporting it.
+  heuristic_assumptions:
+  - id: H1
+    formal_statement: >-
+      NO HEURISTIC IS LOAD-BEARING FOR THE CLOSURE. The simulation lemma is an exact indistinguishability
+      argument, the generic-group bound is a theorem, and transport is elementary. The only heuristic content is
+      in the EMPIRICAL arm.
+    random_model_justification: >-
+      Stated explicitly so that no reader imports conditionality. If the interface audit passes, the closure is
+      unconditional WITHIN the model.
+    supporting_results: []
+    validation_experiment_ids: []
+    falsification_condition: >-
+      Not applicable to the closure itself; the interface audit IS the validation and it is symbolic. What can
+      fail is the audit, and its failure is the record's cheapest and most valuable falsification.
+  - id: H2
+    formal_statement: >-
+      For a class-augmented rho with isogeny-step probability q on a toy class of size h, the expected CHARGED
+      cost is (1 + q(r - 1)) times the plain rho cost, where r is the MEASURED price of an isogeny step in
+      point-addition equivalents; i.e. the walk's collision behaviour is unchanged and only the price per step
+      moves.
+    random_model_justification: >-
+      Rests on the standard birthday analysis of rho together with the observation that transport is a group
+      isomorphism on the subgroup, so the induced walk on the ANSWER space is statistically identical. The
+      heuristic content is the usual random-function idealisation of the rho step map, which this program relies
+      on everywhere.
+    supporting_results:
+    - 'The standard birthday analysis of Pollard rho with distinguished points; KN-TECH-001, KN-TECH-006.'
+    validation_experiment_ids:
+    - EXP-CLGP-59a456
+    falsification_condition: >-
+      The measured STEP COUNT (not the charged cost) of the class-augmented arm varies with q, or its
+      distribution's upper tail departs from the standard rho distribution. A step count that DECREASES with q
+      would be the interesting refutation and is the SAME EVENT as the obstruction falsifier. Labelled toy scale.
+  structural_ingredients:
+  - description: 'The generic group model and its square-root query lower bound.'
+    citation: Shoup 1997, as recorded in this program's technique corpus.
+    provenance: internal
+    verified_by: KN-TECH-005
+    role: the bound the simulation transfers
+  - description: >-
+      The free and transitive action of the class group on the stratum of curves with a given F_p-endomorphism
+      ring.
+    citation: Deuring, Waterhouse, Kohel; classical, recorded in this corpus.
+    provenance: internal
+    verified_by: KN-TECH-027
+    role: defines the torsor structure whose triviality on the answer space is the obstruction
+  - description: >-
+      This program's own earlier simulability closures, which established the pattern for two other oracle
+      classes by group-operation counting.
+    citation: KN-FIND-b7e091, EV-GGM-79e710, DEC-20260804-3b4258.
+    provenance: internal
+    verified_by: 'knowledge/findings/KN-FIND-b7e091.md'
+    role: >-
+      the instrument; this hypothesis applies it to a structurally different oracle and closes it by a
+      product-structure argument rather than a group-operation count
+  predictions:
+  - metric: >-
+      charged cost to solve, in point-addition equivalents, of class-augmented rho divided by plain rho, on
+      identical instances and seeds, in CAGG mode
+    direction: higher
+    minimum_effect: >-
+      At least 1.0 at every isogeny-step probability above zero, INCREASING in q, and matching the predicted
+      overhead factor within 25 percent. A ratio below 0.9 persisting across seeds contradicts the obstruction
+      and is escalated for independent review before any interpretation.
+  - metric: 'the same ratio in the planted-bridge model with a planted modulus of order the square root of the group order'
+    direction: lower
+    minimum_effect: >-
+      Below 0.6. If the harness shows NO benefit even with the bridge planted, it cannot detect a benefit at all
+      and every CAGG null it produced is void.
+  - metric: 'decay of the planted-bridge benefit as the planted modulus decreases to 1'
+    direction: higher
+    minimum_effect: >-
+      The ratio must rise MONOTONICALLY to within 10 percent of 1.0 at modulus 1. A persistent benefit at
+      modulus 1 is the artifact tell - the harness is leaking the answer through the instance generator or the
+      seed schedule - and it halts the line.
+  - metric: 'number of curve-level interfaces found to depend on the encoding or on the answer during the audit'
+    direction: lower
+    minimum_effect: >-
+      ZERO. A single dependent interface refutes the simulation lemma as stated and is the MOST VALUABLE possible
+      outcome of this record, available at zero compute.
+  - metric: 'step count (not charged cost) of the class-augmented arm against the plain rho constant, across q'
+    direction: different
+    minimum_effect: >-
+      Invariant in q within the declared tolerance. A step count that DECREASES with q is the same event as the
+      obstruction falsifier and is escalated.
+  test_boundary:
+    instances:
+    - >-
+      Toy ordinary curves with class number at least 100, so the class-augmented walk is not dominated by a tiny
+      state space, plus a degeneracy fixture at class number 1 or 2.
+    - >-
+      The planted-bridge variant of every instance, differing from CAGG in EXACTLY ONE interface.
+    parameters:
+      class_number: 'at least 100 for the q-sweep; 1 or 2 for the degeneracy fixture'
+      step_probability: 'q swept over at least four values including 0 and 1'
+      planted_modulus: 'at least three values spanning 1 to about the square root of the group order'
+      cost_unit: 'point-addition equivalents, with the isogeny-step price MEASURED on the same machine, not assumed'
+      seeds: 'identical across arms, so every comparison is paired rather than distributional'
+    implementation: >-
+      A formal written statement of the model with its exact interfaces, followed by an interface-by-interface
+      audit table; then a class-augmented rho over a toy isogeny class with state (curve, point), transport by
+      explicit small-degree isogenies, cycle detection and its mitigation, and a cost model charging isogeny steps
+      at their MEASURED price. Recorded through harness/runner.py.
+    budget:
+      wall_clock_seconds_per_run: 5400
+      total_cpu_hours: 12.0
+      maximum_memory_gb: 8
+      maximum_runs: 16
+  distinguishable_outcomes:
+  - >-
+    O1 (CLOSURE IN THE MODEL). The interface audit finds ZERO dependent interfaces; the degeneracy fixture
+    coincides with plain rho; the CAGG ratio is at least 1.0 and increases in q, matching the predicted overhead
+    within 25 percent; the planted-bridge ratio is below 0.6 at the large planted modulus and rises monotonically
+    to within 10 percent of 1.0 at modulus 1. MEANING - one specific and very powerful resource, the exact
+    class-group coordinate of any curve, is generic-group-simulable relative to the point group and is CLOSED at
+    exponent one half in the same sense as this program's two earlier oracle closures. The program's list of
+    simulable oracle classes grows from two to three, the new one closed by a structurally different argument, and
+    three residual open classes are named with a concrete member.
+  - >-
+    O2 (SIMULATION LEMMA FALSE - THE MOST VALUABLE OUTCOME, AT ZERO COMPUTE). An interface is found that is not a
+    function of (p, E, t), most likely one that exports a handle into the curve world or hands the adversary an
+    x-coordinate by accident. MEANING - the closure does NOT hold; the record is superseded, and the dependent
+    interface is a concrete lead rather than a disappointment.
+  - >-
+    O3 (OBSTRUCTION CONTRADICTED EMPIRICALLY). Class-augmented rho solves FASTER than plain rho at equal charged
+    cost, persistently across seeds and instances. MEANING - escalate immediately for independent review and do
+    NOT interpret until replicated, because the far more likely cause is a MISCHARGED ISOGENY STEP than a real
+    effect contradicting a proved lemma.
+  - >-
+    O4 (HARNESS BLIND - INVALID, NOT NEGATIVE). The planted-bridge model shows no benefit. MEANING - the harness
+    cannot detect a benefit at all, so its CAGG null is void and the run set is INVALID rather than negative. This
+    is the controls-before-belief rule firing.
+  - >-
+    O5 (HARNESS LEAKS). The planted-bridge benefit fails to decay to 1.0 at planted modulus 1. MEANING - the
+    harness leaks the answer through the instance generator or the seed schedule; every number in the run set is
+    void.
+  - >-
+    O6 (MODEL MALFORMED). At class number 1 the class-augmented and plain arms do not coincide, or the bound does
+    not reduce to the plain generic-group bound. MEANING - the model is malformed and no result may be read from
+    it.
+  - >-
+    O7 (STATE-SPACE ARTIFACT). At small class number the augmented walk's behaviour is dominated by the tiny state
+    space rather than by the mechanism. MEANING - the q-sweep is not interpretable below the declared class-number
+    floor, and results there are reported as excluded rather than as evidence.
+  falsification_conditions:
+  - >-
+    An interface of the model is found that is not a function of (p, E, t) - the simulation lemma is FALSE as
+    stated, the closure does not hold, and the record is superseded. This is the cheapest and most valuable
+    falsification and it costs nothing.
+  - >-
+    Class-augmented rho solves faster than plain rho at equal charged cost, persistently across seeds and
+    instances - the obstruction is contradicted empirically; escalate for independent review and do not interpret
+    until replicated.
+  - >-
+    The planted-bridge model shows no benefit - the harness is blind; the run set is INVALID rather than negative.
+  - >-
+    The planted-bridge benefit fails to decay at planted modulus 1 - the harness leaks the answer; every number is
+    void.
+  - >-
+    The class-augmented arm's STEP count decreases with q - the same event as the obstruction falsifier.
+  interpretation_limits:
+  - >-
+    A CLOSURE IN A MODEL, and the model excludes exactly the adversaries that matter most for prime-field progress -
+    those that read x-coordinates as field elements. This is stated in the headline, not in a footnote.
+  - >-
+    QUERY COMPLEXITY, NOT TIME COMPLEXITY. The simulator is not efficient at cryptographic scale, and its own memory
+    is of the order of the class size in curve equations.
+  - >-
+    Subexponential QUANTUM vectorization would make the granted oracle cheap to REALISE and changes nothing here,
+    because the oracle is granted for free and is still worthless. Recorded so nobody imports the quantum result as
+    relevant; the campaign is classical.
+  - >-
+    The empirical arm is toy scale and is a CONSISTENCY CHECK on a symbolic lemma, never its validation. The lemma
+    stands or falls on the interface audit.
+  - >-
+    This changes no hypothesis status and closes no lane by itself. It is a hypothesis and a contract; only the
+    Coordinator may act on it, and a closure decision needs the closure gate's obstruction block.
+  - >-
+    THE STRONGEST CONFOUNDER IS RHETORICAL RATHER THAN STATISTICAL - it is very easy to state the model result and
+    then discuss it as though it were about real adversaries. EVERY reported sentence must carry the model name.
+  prior_evidence_refs:
+  - RQ-CLGP-b99df5
+  - RQ-GGMB-6eaabc
+  - KN-FIND-b7e091
+  - EV-GGM-79e710
+  - DEC-20260804-3b4258
+  - KN-TECH-001
+  - KN-TECH-005
+  - KN-TECH-006
+  - KN-TECH-018
+  - KN-TECH-027
+  - H-ENDO-001
+  status: proposed
+  proposed_by: coordinator
+  owner: coordinator

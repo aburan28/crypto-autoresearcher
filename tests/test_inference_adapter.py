@@ -243,21 +243,54 @@ def test_resolves_to_a_concrete_model_on_the_default_backend(cfg):
     assert resolution.reasoning_effort == "high"
 
 
+def _pin_zai_review_below_floor(cfg):
+    """Force the zai review-adversarial binding below the policy's effort floor.
+
+    The degradation tests exercise the adapter's recorded-downgrade path, which
+    only exists when the bound ceiling is below the policy's required floor.
+    The operator is free to bind any model, so these tests pin their own fixture
+    instead of assuming a live binding. 2026-09-03 (DEC-20260903-*): the
+    review-adversarial FLOOR was relaxed from xhigh to low by user
+    authorization, so the fixture pins `none` -- the one tier below the relaxed
+    floor -- rather than the old `high`. The permission machinery under test is
+    unchanged; only the fixture's pin moved.
+    Returns the original for restoration.
+    """
+    original = cfg.binding_table["zai"]["review-adversarial"]
+    pinned = deepcopy(original)
+    caps = dict(pinned.get("capabilities") or {})
+    caps["max_reasoning_effort"] = "none"
+    pinned["capabilities"] = caps
+    cfg.binding_table["zai"]["review-adversarial"] = pinned
+    return original
+
+
 def test_unmet_requirement_is_refused_without_permission(cfg):
-    with pytest.raises(resolver_module.ResolutionError) as excinfo:
-        adapter.resolve(cfg, "review-adversarial", backend="zai",
-                        independent_session=True, env={})
-    assert "reasoning_effort" in str(excinfo.value)
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        with pytest.raises(resolver_module.ResolutionError) as excinfo:
+            adapter.resolve(cfg, "review-adversarial", backend="zai",
+                            independent_session=True, env={})
+        assert "reasoning_effort" in str(excinfo.value)
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_degraded_resolution_is_permitted_only_explicitly_and_is_recorded(cfg):
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.fallback_used is True
-    assert resolution.degraded_requirements, "a downgrade must be recorded"
-    assert resolution.requested_reasoning_effort == "xhigh"
-    assert resolution.reasoning_effort == "high"     # never overstated
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.fallback_used is True
+        assert resolution.degraded_requirements, "a downgrade must be recorded"
+        assert resolution.requested_reasoning_effort == "xhigh"
+        # never overstated: the served effort is the fixture's actual ceiling
+        # ("none" since the 2026-09-03 floor relaxation moved the pin below
+        # the new low floor), never the requested xhigh.
+        assert resolution.reasoning_effort == "none"
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_unbound_model_cannot_be_waved_through(cfg):
@@ -676,10 +709,14 @@ def test_breakthrough_review_still_requires_an_independent_session(cfg):
 
 def test_ordinary_review_remains_degradable_with_a_signed_amendment(cfg):
     """The distinction only means something if the lower tier still bends."""
-    resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
-                                 independent_session=True, degraded_allowed=True,
-                                 env={})
-    assert resolution.degraded_requirements
+    original = _pin_zai_review_below_floor(cfg)
+    try:
+        resolution = adapter.resolve(cfg, "review-adversarial", backend="zai",
+                                     independent_session=True, degraded_allowed=True,
+                                     env={})
+        assert resolution.degraded_requirements
+    finally:
+        cfg.binding_table["zai"]["review-adversarial"] = original
 
 
 def test_max_effort_reaches_the_wire(cfg):
@@ -763,8 +800,23 @@ def test_the_override_reaches_the_request_headers(cfg, tmp_path):
 
 
 def test_fireworks_ships_unbound_so_no_model_id_is_invented(cfg):
-    for backend in ("fireworks", "fireworks-anthropic"):
-        for policy in cfg.policy_table:
-            binding = cfg.binding(backend, policy)
-            assert binding["model"] is None, (
-                f"{backend}.{policy} names a model id that was never probed")
+    """The invariant this test protects is NO INVENTED MODEL IDS, not "always
+    unbound". A binding is admissible only when it names a probe-listed
+    identifier under a dated, declared provenance — the 2026-08-31
+    executor-implementation binding and the 2026-09-03 coordinator/review
+    bindings (DEC-20260903-*) to accounts/fireworks/models/glm-5p3 (listed by
+    `adapter models --backend fireworks`, in live use by dispatching sessions)
+    are exactly that shape. fireworks-anthropic still ships fully unbound:
+    nothing is bound there."""
+    for policy in cfg.policy_table:
+        binding = cfg.binding("fireworks-anthropic", policy)
+        assert binding["model"] is None, (
+            f"fireworks-anthropic.{policy} names a model id that was never probed")
+    for policy in cfg.policy_table:
+        binding = cfg.binding("fireworks", policy)
+        if binding["model"] is None:
+            continue
+        assert binding.get("provenance") == "operator-supplied", (
+            f"fireworks.{policy} names a model without declared provenance")
+        assert binding.get("last_probed"), (
+            f"fireworks.{policy} names a model with no probe date")

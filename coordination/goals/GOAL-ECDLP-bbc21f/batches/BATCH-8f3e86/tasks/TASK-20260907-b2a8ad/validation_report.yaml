@@ -1,0 +1,1101 @@
+validation_report:
+  id: VAL-20260907-b2a8ad
+  task_id: TASK-20260907-b2a8ad
+  goal_id: GOAL-ECDLP-bbc21f
+  batch_id: BATCH-8f3e86
+  experiment_id: EXP-ECDLP-612fb1
+  amendment: experiments/EXP-ECDLP-612fb1/amendments/v2_to_v3.yaml
+  role: validator
+  recorded_at: '2026-09-07'
+  reviewed_package: TASK-20260907-aad514 (Executor), at snapshot commit fe6cdf59f
+  scope_of_this_report: >-
+    J1, J2 and J3 of the frozen review_plan, plus run/control integrity. THIS
+    REPORT ISSUES NO WHOLE-CLAIM VERDICT and recommends no hypothesis status.
+    J4 (proves-too-much), J5 (nulls and decay) and J6 (cost and scope) belong to
+    TASK-20260907-ee1ca7, which this session is blind to by construction; a
+    whole-claim verdict from here would be an opinion formed from half the
+    evidence. The Coordinator composes.
+
+  run_ids:
+    - RUN-ECDLP-612fb1-v3-rep20-s1
+    - RUN-ECDLP-612fb1-v3-rep20-s2
+    - RUN-ECDLP-612fb1-v3-rep20-s3
+    - RUN-ECDLP-612fb1-v3-rep20-s4
+    - RUN-ECDLP-612fb1-v3-rep20-s5
+    - RUN-ECDLP-612fb1-v3-g3x24-s1
+    - RUN-ECDLP-612fb1-v3-g3x24-s2
+    - RUN-ECDLP-612fb1-v3-g3x24-s3
+    - RUN-ECDLP-612fb1-v3-g3x24-s4
+    - RUN-ECDLP-612fb1-v3-g3x24-s5
+    - RUN-ECDLP-612fb1-v3-analysis-001
+
+  # =====================================================================
+  # PER-JOINT VERDICTS -- J1, J2, J3 ONLY
+  # =====================================================================
+
+  joint_verdicts:
+
+    - joint: J1
+      title: predicate fidelity
+      verdict: holds
+      artifact: j1_predicate_audit.md
+      summary: >-
+        source_v3/g3_predicate.py computes the predicate Section 3 defines, not a
+        nearby one. Every clause was audited: parameters and the exact parameter
+        table, reading P1's map and DP test, `basins` (cap, DP-free cycle, DP
+        self-basin), `top_share`, `pool`, `selection`, `static_coverage`,
+        `predicate_per_seed` and `predicate_per_cell`.
+      the_named_invalidation_rule: >-
+        NO EXACT BASIN SIZE IS READ IN THE SELECTION PATH. Established two
+        independent ways rather than one. (a) DATA FLOW: selection_weight's only
+        inputs are the pool's own (S_d, h_d) and the modeled scalar W; those
+        trace to generate_pools -> walk_to_dp, which construct no Basins object
+        and no length-N array; PoolEvidence has no basin field; the three REGION
+        C functions cannot reach a basin size. (b) EMPIRICALLY, running the
+        review_plan's own attack (2): replacing the weight vector with TRUE
+        BASIN SIZES on the same pool and keys changes the a = 1/8 cell verdict
+        from 5/5 to 0/5, flipping every one of the five seeds, and moves every
+        a = 1/16 per-seed margin by 0.006-0.010 in the expected direction. Had
+        the selection already been reading basin sizes, that substitution would
+        have been a no-op. It is the opposite of a no-op.
+      the_clause_the_plan_expected_to_break: >-
+        The plan named the capped-mass denominator convention as the most likely
+        break ("a denominator convention that quietly drops capped mass would
+        inflate every share"). IT DOES NOT OCCUR. Basins.top_share and
+        Basins.coverage both divide by the FULL N; capped and DP-free-cycle mass
+        are excluded from the numerator (they are in no basin) and retained in
+        the denominator, and basin_mass_total + cycle_mass + capped_mass = N
+        holds in the run records. My own independent implementation, written
+        from the same text before reading any of this, used the same convention.
+      per_cell_threshold: >-
+        The >= 4-of-5 rule is applied PER (N, a, r) CELL and never pooled across
+        r: g3_verdict_table.json holds 24 rows, one per distinct (N, a, r), each
+        with its own pass_count and threshold. I recomputed all 24 from the ten
+        run records (0 mismatches) and recomputed margin and the g3 flag in all
+        120 measured cells (0 mismatches).
+      findings:
+        - id: F1
+          class: scope-of-guarantee observation; NOT a break
+          what: >-
+            The invariant holds as information flow, but two things are narrower
+            than they are advertised to be. (i) measure_cell(P, basins, r) carries
+            `basins` in its ENCLOSING LEXICAL SCOPE at the line where
+            selection_weight is called. Nothing reads it, and the amendment's rule
+            is about READING, which does not occur -- so the invalidation rule is
+            not triggered. But the task card's stricter structural phrasing ("no
+            exact-basin array in scope at the point the weight is computed") is
+            satisfied only at the granularity of the REGION C functions, not of
+            their caller. (ii) _assert_evidence_only is advertised in the module
+            docstring as making the invariant "mechanically checkable"; it is a
+            LENGTH TRIPWIRE, not an information-flow proof, and would pass a
+            PoolEvidence whose S array had been derived from basin sizes as long
+            as its length were r*T.
+          consequence: >-
+            None for this batch's numbers. It matters for how the invariant should
+            be cited: the evidence for it is the data-flow read plus the
+            substitution test, not the guard. A successor amendment wanting the
+            structural guarantee would pass the pool to a selector returning a
+            table and score in a function that never sees the pool.
+        - id: F2
+          class: DEFECT IN THE AMENDMENT'S TEXT, not in the implementation
+          what: >-
+            Section 3 `selection` leaves the tie-break stream unfixed on the
+            stated ground that "ties in a real-valued w are measure-zero and the
+            choice cannot change a verdict". THE PREMISE IS FALSE.
+            w(d) = S_d + 4*W*h_d with S_d, h_d non-negative INTEGERS is supported
+            on a countable set, and at a = 1/16 (W = 64 exactly, 4W = 256) w is an
+            INTEGER. MEASURED on the producer's own ten primary cells: 383-434 of
+            512 pool entries (75-85%) lie in some tie at EVERY cell, and the tie
+            STRADDLES the T = 256 selection cut in 6 of the 10 cells. Varying the
+            tie-break stream over 64 alternatives moves the margin by up to
+            1.16e-03 (a = 1/8 seed 3) and 6.58e-04 (a = 1/16 seed 3).
+          does_it_change_a_verdict: >-
+            NO, at these cells, as measured. Across all 640 (cell x stream)
+            combinations tested, no per-seed sign flipped. At the tightest cell
+            (a = 1/8 seed 3, margin +0.003084) the minimum over 64 streams was
+            +0.002003, still positive -- about 2.7x headroom over the
+            tie-break-induced spread.
+          why_it_is_reported_anyway: >-
+            Section 3's own `what_a_reviewer_needs_and_this_section_does_not_give`
+            requires it ("If a reviewer believes either DOES change a verdict,
+            that is itself a finding and must be reported, not absorbed"), and the
+            amendment reached a right answer by a wrong argument. The wrong
+            argument would license ignoring the tie-break at cells with less
+            headroom, and a = 1/8 is already the least robust cell in this batch
+            (see J2). A successor amendment should restate the clause as a
+            measurement carrying its headroom, and should FIX the tie-break stream
+            rather than declare it irrelevant.
+          not_the_producer_s_fault: >-
+            IMPLEMENTATION.md section 3 discloses both open choices explicitly
+            (pool starts: default_rng(s) in batches of 4*T; tie-break: a fresh
+            default_rng(400+s) per selection, ascending), which is exactly what
+            the clause asks of an implementer.
+
+    - joint: J2
+      title: blind re-derivation of the load-bearing quantity
+      verdict: breaks
+      verdict_scope: >-
+        BREAKS NARROWLY AND PRECISELY, and the break is confined to ONE of the
+        ten (a, seed) pairs. Recorded as `breaks` because the review_plan's
+        agreement_criterion is explicit -- "Verdict and per-seed SIGN, never
+        magnitude ... A verdict difference or a per-seed sign difference is a
+        break" -- and its breaking_artifact names "a sealed per-seed margin SIGN
+        differing at any of the ten (a, seed) pairs". One does. The constraint
+        also says not to explain it away, so it is not explained away here.
+      seal:
+        held: true
+        artifact: j2_seal_manifest.yaml
+        sealed_at_utc: '2026-09-07T04:55:36Z'
+        sha256_j2_blind_rederivation_py: 01db6edc6f57fab921964d0f58fed0ce6d8b1434e3a7e423a7ed5aa9d0e69c60
+        sha256_j2_output_json: 2ade1968e7bade1fd5822f3a75eaa92be6398e3cb5842bed27b72d621f41ce17
+        ordering: >-
+          The implementation was written, self-checked against a brute-force
+          reference, and executed, and both hashes computed, BEFORE any tool call
+          in this session touched source_v2/, source_v3/, any
+          RUN-ECDLP-612fb1-v3-* directory, TASK-20260907-aad514/,
+          TASK-20260907-ee1ca7/, or either EXP-ECDLP-6ac801 path. All three
+          sealed-artifact mtimes precede sealed_at_utc.
+        implementation_self_check_before_the_seal: >-
+          My exact-basin routine was verified against a naive per-point
+          brute-force walk on six randomized fixtures spanning N = 2^9..2^12 and
+          cap in {1, 3, 8, 16, 40, 200}: basin dictionaries identical and
+          capped/unreachable mass identical in all six, including the cap
+          boundary and DP-free cycles. A wrong re-derivation would be worse than
+          none, so this check preceded the sealed run.
+      my_sealed_result:
+        cell: N = 2^24, T = 256, T_sel = 128, r = 2, seeds {1..5}, exact basins, reading P2
+        a_1_16: {pass_count: 5, verdict: G3 PASS, signs: '+++++',
+                 margins: [+0.013539135, +0.022640705, +0.015803695, +0.010085523, +0.022760868]}
+        a_1_8:  {pass_count: 4, verdict: G3 PASS, signs: '+-+++',
+                 margins: [+0.016867876, -0.002952278, +0.000260115, +0.018436968, +0.007488966]}
+      producer_result_for_comparison:
+        source: RUN-ECDLP-612fb1-v3-g3x24-s1..s5 raw-result.json, read by me after the seal
+        a_1_16: {pass_count: 5, verdict: PASS, signs: '+++++',
+                 margins: [+0.028603315, +0.023278654, +0.013718963, +0.017437577, +0.019787014]}
+        a_1_8:  {pass_count: 5, verdict: PASS, signs: '+++++',
+                 margins: [+0.009002209, +0.005128205, +0.003084064, +0.005594254, +0.011855125]}
+      comparison_at_the_declared_criterion:
+        a_1_16:
+          verdict_agreement: AGREE (PASS vs PASS, 5/5 vs 5/5)
+          per_seed_sign_agreement: AGREE on all five seeds
+          reading: >-
+            HOLDS. Both readings are comfortably positive -- my smallest margin is
+            +0.010086, the producer's is +0.013719 -- so this cell is robust
+            across two different random-function families. Magnitudes differ, as
+            the criterion says they must.
+        a_1_8:
+          verdict_agreement: AGREE at the >= 4/5 bar (my 4/5 PASS vs the producer's 5/5 PASS)
+          per_seed_sign_agreement: >-
+            DISAGREE AT SEED 2. Mine is -0.002952 (NEGATIVE); the producer's is
+            +0.005128 (POSITIVE). This is the break.
+          how_close_to_zero_exactly_as_the_plan_asked: >-
+            My a = 1/8 has TWO of five seeds within 0.003 of zero, ONE ON EACH
+            SIDE: seed 2 at -0.002952 and seed 3 at +0.000260. It is not a 4/5
+            with one decisive negative; it is a 4/5 sitting on the boundary. And
+            the producer's own a = 1/8 margins are ALL within 0.012 of zero, the
+            smallest being +0.003084 (seed 3). So a = 1/8 is a marginal cell under
+            BOTH readings.
+          reading: >-
+            The plan predicted this cell and this mechanism in advance: "a
+            different random-function family can plausibly flip a seed's SIGN
+            there without any implementation error at all." I have no evidence of
+            an implementation error in either direction, and I am not asserting
+            one. What I am reporting is that the a = 1/8 PASS IS NOT ROBUST TO THE
+            INSTRUMENT FAMILY, while the a = 1/16 PASS IS.
+          direction_relative_to_the_coordinator_s_diagnosis: >-
+            My result CONFIRMS THE DIRECTION of the diagnosis and does not
+            reproduce its magnitude. EV-ECDLP-2e9680's post-seal diagnostic moved
+            a = 1/8 from 1/5 to 5/5 when re-selecting by w(d); my independent P2
+            implementation, selecting by w(d) as Section 3 now specifies, returns
+            4/5 rather than 1/5 -- so the missing weight formula was indeed the
+            root cause of the old disagreement -- but it does not return a clean
+            5/5. The honest label for a = 1/8 is therefore NEITHER "confirmed
+            feasible" NOR "still contested in the old sense": it is
+            RESOLVED AS TO ROOT CAUSE AND MARGINAL AS TO VERDICT.
+      what_this_joint_does_and_does_not_deliver:
+        delivers: >-
+          A code-independent reading of both primary cells: an implementation
+          written from Section 3's text alone, with its own uniformly random
+          function on Z_N and its own independent Bernoulli(theta) DP marking,
+          which never read the producer's code or output before sealing. That is
+          the failure mode this joint exists to reach, and it is the failure mode
+          the 6ac801 disagreement actually was -- a selection-rule gap between two
+          implementations.
+        does_not_deliver: >-
+          EXPECTATION-INDEPENDENCE. Two disclosed contaminations (seal manifest
+          C1, C2) mean the expected per-seed signs and pass counts at both cells
+          were known to me before I wrote a line of code: C1 is the plan's own
+          declared limitation (the amendment quotes the prior lane's per-seed
+          margins, and I must read the amendment); C2 is NOT anticipated by the
+          plan and I disclose it -- the dispatching instruction that launched this
+          session itself carried producer-outcome information, namely U1 and the
+          STAGE 3A bitwise claim. My a = 1/16 agreement with an already-read
+          target is therefore weak corroboration and I do not present it as
+          strong. My a = 1/8 DIVERGENCE was produced against the pull of a known
+          all-positive target, which is the condition the plan itself names as
+          making a divergent sealed result correspondingly strong.
+
+    - joint: J3
+      title: the 2^20 replication anchor
+      verdict: holds
+      verdict_qualifier: >-
+        HOLDS AS A WIRING AND REPRODUCIBILITY CHECK, WHICH IS ALL IT CAN BE. The
+        bitwise exactness is NOT evidence of correctness and must not be read as
+        independent corroboration.
+      artifact: j3_replication_table.json
+      measurements:
+        rows_compared: 20
+        rows_bitwise_identical: 20
+        max_absolute_difference_r2: 0.0
+        top_share_and_static_cov_bitwise_identical_separately: true
+        pass_counts_stage3a: {a_1_16: 5, a_1_8: 4, a_3_16: 1, a_1_4: 0}
+        pass_counts_committed_ascan_recomputed_by_me: {a_1_16: 5, a_1_8: 4, a_3_16: 1, a_1_4: 0}
+        seed_2_fails_at_a_1_8_in_both: true
+      the_cheapest_available_break_does_not_fire: >-
+        The plan invited me to check whether the Coordinator misread the committed
+        table, since "if the Coordinator misread the committed table, the entire
+        premise of this batch is wrong and that is the single cheapest break
+        available to you". IT DID NOT MISREAD IT. I recomputed every margin myself
+        from each RUN-ECDLP-612fb1-v2-ascan-s*/raw-result.json as
+        cells[a].top_share["T/2"] - cells[a].static_by_r["2"], and my values agree
+        with DEC-20260906-bcc097's quoted readings at EVERY quoted digit and at all
+        four a values: a = 1/16 -> +0.019553, +0.012215, +0.023987, +0.016334,
+        +0.009157; a = 1/8 -> +0.003183, -0.001996, +0.010345, +0.004992,
+        +0.007094; a = 3/16 -> +0.018691, -0.009538, -0.015742, -0.008542,
+        -0.003351; a = 1/4 -> -0.014133, -0.003534, -0.053352, -0.019899,
+        -0.023048. The decay pass counts also reproduce (0/5 at r = 4 and r = 8 at
+        every a). The producer's own stage3a_vs_ascan_comparison.json agrees with
+        my recomputation on all 20 rows.
+      why_bitwise_exactness_carries_no_corroborative_information: >-
+        THE TASK ASKED ME TO TAKE THIS SERIOUSLY AND THE ANSWER IS CLEAR: a
+        bitwise match is the DETERMINISTIC AND NECESSARY outcome of the declared
+        architecture, not a strong claim surviving a hard test.
+        source_v2/run_ascan.py computes each cell as I.exact_basins ->
+        Basins.top_share(T//2) -> I.generate_pools(P, [r]) -> w = S + 4*W*h ->
+        default_rng(P.seed_tiebreak).integers(...) -> I.numpy_select ->
+        Basins.coverage. source_v3/g3_predicate.measure_cell makes the SAME calls
+        on the SAME frozen functions with the SAME Params-derived seed streams.
+        Same deterministic code, same inputs, therefore same bits. 0.0 WAS THE
+        EXPECTED VALUE; A NON-ZERO DIFFERENCE WOULD HAVE BEEN THE FINDING.
+      is_the_shared_code_a_contract_violation: >-
+        NO. It is DECLARED, not hidden. The amendment's own
+        required_implementation_files says run_stage3.py "IMPORTS
+        experiments/EXP-ECDLP-612fb1/source_v2/instrument.py unchanged for the
+        walk map, DP predicate, exact-basin closure, pool generation and both
+        selection code paths; it does not copy or re-implement any of them." So
+        the two paths share exactly what the contract says they share -- no more.
+        I verified non-modification independently: each of the eleven manifests
+        hash-pins the five source_v2 .py files and all nine pinned digests
+        (4 source_v3 + 5 source_v2) match the tree exactly.
+      what_the_agreement_does_establish: >-
+        Real but narrow, and worth having: the committed a-scan table is
+        faithfully reproducible from the committed code, so the numbers this whole
+        lane rests on are neither a transcription error nor a stale artifact; and
+        the v3 driver wires the frozen instrument identically, so STAGE 3B is not
+        interpreted on top of a mis-wired baseline. That was the amendment's
+        stated purpose for STAGE 3A (residual R4: the reading "has never been
+        reproduced by any run -- only re-read, twice, off the same committed
+        table") and it is discharged.
+      credit_where_due: >-
+        The producer did NOT overclaim this. execution_report.yaml U3 records the
+        bitwise result and states it "so a reviewer reads it as identity of code
+        path rather than as independent corroboration of the a-scan numbers by a
+        different implementation." My reading agrees with the producer's own
+        disclosure.
+      scope_note_on_the_amendment_s_wording: >-
+        The amendment's STAGE_3A `purpose` ("Reproduce, BY A FRESH RUN, the exact
+        contested a-scan numbers") is literally true but reads as stronger than it
+        is. A later reader could take "fresh run" for "independent replication".
+        Worth one clarifying sentence in any successor amendment.
+
+  # =====================================================================
+  # THE CARRIED OPEN ITEM U1 -- addressed from J2, as routed
+  # =====================================================================
+
+  u1_third_angle_independence:
+    routed_by: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/archives/TASK-20260907-7bf406/snapshot-receipt.json carried_to_review U1
+    routing_as_recorded: >-
+      primary owner TASK-20260907-ee1ca7 joint J6; "also bears on" this task's
+      J2, which the receipt names as "the frozen plan's designed source of
+      independent corroboration for exactly these two cells". The receipt also
+      records, correctly, that NO joint in the frozen review_plan names the
+      third-angle independence question in these words -- a gap in the plan's
+      joint enumeration. I address it from J2 only and amend no plan text.
+    what_i_verified_myself:
+      - >-
+        THE NUMERICAL IDENTITY IS REAL. STAGE 3B's r = 2 margins at N = 2^24,
+        read by me from RUN-ECDLP-612fb1-v3-g3x24-s1..s5/raw-result.json, equal
+        EV-ECDLP-2e9680's production-arm margins to ALL SIX QUOTED DECIMALS at
+        every a and every seed: a = 1/16 -> 0.028603, 0.023279, 0.013719,
+        0.017438, 0.019787; a = 1/8 -> 0.009002, 0.005128, 0.003084, 0.005594,
+        0.011855; a = 1/4 -> -0.012918, -0.008373, -0.036196, -0.016829,
+        -0.022216. Every digit matches.
+      - >-
+        THE CAUSE IS ESTABLISHED, NOT CONJECTURED.
+        experiments/EXP-ECDLP-6ac801/source/run_stageb.py lines 43-49 put
+        experiments/EXP-ECDLP-612fb1/source_v2/ on sys.path and do
+        `import instrument as I`. EV-ECDLP-2e9680 `strength_note` records the
+        production arm as "reusing
+        experiments/EXP-ECDLP-612fb1/source_v2/instrument.py unchanged, commit
+        22e80f13361a6eb307864c52f51740db419e9e54", and its `scope` records
+        N = 16777216, T = 256, T_sel = 128, r = 2, seeds [1,2,3,4,5]. Those are
+        EXACTLY STAGE 3B's parameters, and source_v3/g3_predicate.py imports the
+        same module unchanged (digest verified against the tree).
+      - >-
+        THEREFORE the agreement is DETERMINISTIC AND NECESSARY, not corroborative.
+        Two experiment identifiers, one frozen instrument, the same seeds, the
+        same selection rule -> the same bits. It is the same phenomenon as J3, one
+        scale up and across an experiment boundary.
+    my_reading:
+      finding: >-
+        THE AMENDMENT'S RESIDUAL R3 IS NOT DISCHARGED BY STAGE 3B. R3 claims that
+        running this predicate on the frozen v2 instrument is a third angle --
+        "a different experiment identifier, a different random-function family, a
+        different basin-closure implementation from either 6ac801 arm". The first
+        clause is true and the second and third are FALSE: it is the same
+        random-function family (mix64 with the same K, K_dp derivation) and the
+        same basin-closure implementation (I.exact_basins), because it is the same
+        file. STAGE 3B therefore supplies ZERO independent third-angle
+        corroboration of a = 1/16 or a = 1/8.
+      not_a_defect_in_the_producer_s_work: >-
+        The Executor ran exactly the contract it was given -- the contract
+        REQUIRED importing instrument.py unchanged -- and it RAISED U1 itself
+        rather than absorbing it. The error is in the amendment's characterization
+        of what its own STAGE 3B could deliver, authored before execution.
+      consequence_for_this_batch: >-
+        It relocates all of the batch's independent-corroboration weight onto J2.
+        With STAGE 3B non-independent, MY J2 RE-DERIVATION IS THE ONLY GENUINELY
+        INDEPENDENT READING OF THESE TWO CELLS IN THIS BATCH -- and that is
+        precisely where the a = 1/8 seed-2 sign disagreement lands. So a = 1/8 at
+        N = 2^24 cannot be read as two independent confirmations at 5/5: it is one
+        reading re-executed twice, against which the one independent reading
+        returns 4/5 with a negative seed and a second seed positive by 0.00026.
+      a_further_point_a_reader_needs: >-
+        6ac801's own Stage A blind arm WAS a P2-family implementation like mine
+        (numpy RNG, independent Bernoulli(1/W) marking, pointer-doubling closure),
+        but it selected by TRUE BASIN SIZE -- the diagnosed root cause -- so it is
+        not comparable to mine. My run is, as far as the committed records show,
+        the FIRST P2-family reading of these cells under the corrected w(d) rule.
+      what_i_do_not_claim: >-
+        Nothing here says a = 1/16 is not G3-feasible; my own independent reading
+        agrees it is, 5/5, with comfortable margins. What it says is that the
+        NUMBER OF INDEPENDENT CONFIRMATIONS is one fewer than the amendment's R3
+        implies, at both primary cells.
+
+  # =====================================================================
+  # RUN AND CONTROL INTEGRITY
+  # =====================================================================
+
+  artifact_checks:
+    - check: declared artifact completeness
+      result: PASS
+      detail: >-
+        103 of 103 declared files present -- 9 on each of the ten measurement runs
+        and 13 on the analysis run, matching the amendment's
+        total_run_artifact_files: 103 exactly. No missing declared path and no
+        undeclared file inside the declared per-run sets.
+    - check: implementation file set
+      result: PASS
+      detail: >-
+        Exactly the five declared files under source_v3/ are tracked
+        (__init__.py, g3_predicate.py, run_stage3.py, analyze_v3.py,
+        IMPLEMENTATION.md). No sixth module. No scope expansion.
+    - check: source hash pins vs the tree
+      result: PASS
+      detail: >-
+        All nine pinned digests in the run manifests (4 source_v3 + 5 source_v2)
+        match the files byte for byte, so the FROZEN v2 instrument was not edited
+        by this item. Independently confirms the amendment's `not_changed` clause
+        and the receipt's immutability_check.
+    - check: bytecode caches
+      result: PASS (disclosed, not a defect)
+      detail: >-
+        __pycache__ appeared under source_v2/ and source_v3/ as an import side
+        effect. `git ls-files | grep pycache` returns nothing: they are gitignored
+        and entered no commit. Disclosed by the producer (deviation D6) and by the
+        snapshot receipt's untracked_bytecode_caches block.
+    - check: snapshot binding (content-first, per AGENTS.md)
+      result: PASS
+      detail: >-
+        fe6cdf59f's parent is c5021f5c796850a9457fc7dcf87328e48b5a8974, which is
+        the receipt's declared parent_sha. Both paths in the receipt's path_sha256
+        exist at fe6cdf59f and match their declared digests. Of the 110 paths in
+        the producer's artifact_inventory.json, 109 exist at fe6cdf59f AND match
+        their recorded sha256 computed over the committed bytes; the 110th is
+        artifact_inventory.json itself, which records sha256: null with the note
+        that a file cannot contain its own digest -- disclosed in the receipt's
+        inventory_self_digest block and not a mismatch. fe6cdf59f is an ancestor
+        of session HEAD 72ad14bfd, so I validated a Coordinator-committed
+        snapshot and not a working-tree-only receipt.
+    - check: manifest required fields, all eleven runs
+      result: PASS
+      detail: >-
+        Every manifest carries the exact command, git commit
+        (b3e442e8f628c781af2f6fefb74111c371d68c0e, verified an ancestor of HEAD),
+        dirty-tree state (false, with the untracked set enumerated), environment
+        and dependency versions, ALL FOUR declared seed streams (walk key s,
+        restart s, tie-break 400+s, NULL_A 300+s), requested policy, backend,
+        resolved model identifier, model_verified, reasoning effort, fallback_used,
+        degraded_requirements, validity status and reason, timestamps, wall clock
+        and peak_rss_bytes.
+    - check: budget compliance
+      result: PASS
+      detail: >-
+        Max wall per run 24.532 s against the 3600 s ceiling; max peak RSS
+        0.465 GiB against the 8 GB ceiling. 11 runs against maximum_runs 14. No
+        run reported failed_infrastructure or completed_invalid; all eleven are
+        completed_valid.
+    - check: seed integrity
+      result: PASS
+      detail: >-
+        Five distinct seeds {1,2,3,4,5} in each of STAGE 3A and STAGE 3B, no
+        duplicate and no missing seed. Each run's own seed_integrity check reports
+        cells_measured == cells_expected == 12 and passed.
+
+  metric_recomputations:
+    - metric: committed N = 2^20 a-scan per-seed margins
+      recomputed_by: this validator, from each RUN-ECDLP-612fb1-v2-ascan-s*/raw-result.json
+      result: AGREE with DEC-20260906-bcc097 and with the amendment at every quoted digit, all four a values, r in {2,4,8}
+      note: recomputed pre-seal; NOT copied from the amendment's restatement
+    - metric: STAGE 3A margin vs committed a-scan margin, per (a, r=2, seed)
+      recomputed_by: this validator, both sides read from run records rather than from the producer's comparison table
+      result: 20 of 20 rows bitwise identical, max absolute difference exactly 0.0
+    - metric: margin = TopShare(T_sel) - StaticCov, and the g3 flag
+      recomputed_by: this validator, in all 120 measured cells of the ten measurement runs
+      result: 0 mismatches in margin; 0 mismatches in the g3 = [margin >= 0] flag
+    - metric: pass_count and verdict per (N, a, r)
+      recomputed_by: this validator, all 24 rows of g3_verdict_table.json rebuilt from the ten run records
+      result: 0 mismatches; every row drew exactly 5 seed values
+    - metric: raw-result.json vs summary.json
+      recomputed_by: this validator, cell for cell across the ten measurement runs
+      result: 800 fields compared, 0 disagreements
+    - metric: G3 verdict at a = 1/16 and a = 1/8 (N = 2^24, r = 2)
+      recomputed_by: this validator, INDEPENDENTLY (J2 blind re-derivation, sealed)
+      result: see joint_verdicts J2 -- a = 1/16 agrees on verdict and all five signs; a = 1/8 agrees on verdict, DISAGREES on seed 2's sign
+
+  control_checks:
+    - control: EXACT_COVERAGE_NON_EXCEEDANCE
+      result: PASS
+      detail: >-
+        Recomputed by me over all 120 cells: StaticCov never exceeds TopShare(T)
+        and StaticCovNull never exceeds TopShare(T). Zero exceedances. Each run's
+        own check block also reports passed with an empty violations list. My own
+        independent implementation reported non-exceedance in all ten of its cells
+        too.
+    - control: NULL_B_G3 (two selection code paths, set identity)
+      result: PASS
+      detail: >-
+        null_b_set_identical is true in all 120 cells, for both the signal
+        selection and the NULL_A selection. I confirmed by reading that the two
+        paths (I.numpy_select lexsort and I.CountedSelector min-heap) implement
+        the same (w descending, key ascending) order, so identity is the correct
+        expectation. No bookkeeping leak.
+    - control: ROUND_ZERO_AND_SEED_INTEGRITY
+      result: PASS
+      detail: see artifact_checks seed integrity and manifest required fields.
+    - control: NULL_A_G3 and DECAY_G3
+      result: NOT ASSESSED HERE -- these are joint J5, owned by TASK-20260907-ee1ca7
+      detail: >-
+        I record one structural observation only, from the reading I had to do for
+        J1, and draw no conclusion: relabel_pool_evidence permutes the (S_d, h_d)
+        PAIR together with a single permutation from default_rng(300+s), leaves
+        the DP values and the tie-break keys attached to their positions, and
+        reuses the SAME pool draw -- which is the shape NULL_A_G3's construction
+        clause specifies. Whether the null is INFORMATIVE at each cell is J5's
+        question and I do not answer it.
+    - control: proves-too-much (Section 6 known-false objects)
+      result: NOT ASSESSED HERE -- joint J4, owned by TASK-20260907-ee1ca7
+      detail: >-
+        For J1 purposes only I confirmed that the known-false objects go through
+        the SAME code path as the primary cells: run_stage3.py:207-228 is one
+        uniform `for a in a_grid: for r in r_grid: measure_cell(...)` loop with no
+        per-a branch, no hard-coded expectation and no cell skipped. Whether they
+        RETURN FAIL, and how close, is J4's.
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction recorded before sampling
+      result: PASS
+      detail: >-
+        STAGE 3A's per-seed expectation is written verbatim in the amendment's
+        `preregistered_expectation` and `recomputed_by_this_authorship`, committed
+        before execution, and it is what STAGE 3A was tested against. DECAY_G3's
+        expectation is likewise pre-registered from the N = 2^20 committed data.
+    - check: sample integrity
+      result: PASS
+      detail: >-
+        Seeds, seed streams and the sampling procedure are in every manifest;
+        nothing is sampled in the measurement itself -- basins are exactly
+        enumerated, so the only stochastic objects are the map draw, the pool
+        starts and the tie-break/relabelling keys, all seeded and declared.
+    - check: reading P2 admissibility for the blind arm
+      result: PASS
+      detail: >-
+        Section 3 `reading_P2_instrument_family` explicitly invites an independent
+        uniformly random function plus independent Bernoulli(theta) marking, and
+        states the agreement criterion (verdict and sign, not magnitude) in
+        advance. My J2 used exactly that and disclosed all three of its streams.
+
+  cost_model_checks:
+    result: NOT ASSESSED -- joint J6, owned by TASK-20260907-ee1ca7
+    note: >-
+      I read cost_table.json only far enough to confirm the declared file exists
+      on all eleven runs (artifact completeness). Whether measured and modeled
+      columns are kept apart, and whether any ratio is quoted without its S,
+      S_peak, P/sqrt(NT) and W siblings, is J6's and I do not pre-empt it.
+
+  proof_architecture_checks:
+    applicable: false
+    reason: >-
+      The amendment records proof_search_map.applicable: false with a stated
+      reason (purely empirical: one exactly computable statistic on a frozen
+      instrument at declared parameters, no theorem, bound, certificate family,
+      reduction or closure argument). I checked that reason against the package
+      and agree: nothing in the eleven runs proposes or requires a proof
+      architecture. The KN-TECH-080 audits have no target here, and the
+      amendment's claim that their spirit is discharged by STAGE 3A (baseline
+      reproduction) and Section 6 (nearby-object control) is accurate as to
+      STAGE 3A -- subject to J3's finding that STAGE 3A's baseline reproduction is
+      a same-code re-execution -- and is J4's to assess as to Section 6.
+
+  # =====================================================================
+  # INDEPENDENT RECOMPUTATION LEDGER (breakthrough tier)
+  # =====================================================================
+
+  independent_recomputation:
+    recomputed_by_me_from_raw_artifacts:
+      - the committed N = 2^20 a-scan per-seed margins, all four a, r in {2,4,8}, from raw-result.json
+      - the STAGE 3A vs a-scan difference table, both sides from run records rather than the producer's table
+      - margin and the g3 flag in all 120 measured cells
+      - pass_count and verdict for all 24 (N, a, r) rows of g3_verdict_table.json
+      - raw-result.json against summary.json, 800 fields
+      - EXACT_COVERAGE_NON_EXCEEDANCE over all 120 cells
+      - all nine source_sha256 pins against the tree
+      - 109 of 110 artifact_inventory digests against the committed bytes at fe6cdf59f
+      - the snapshot commit's parent and its declared path_sha256 entries
+      - the amendment's exact parameter table (W, theta, cap at each a) from its own formulas
+    re_verified_with_a_disjoint_checker:
+      - >-
+        THE G3 VERDICT AT a = 1/16 AND a = 1/8 (N = 2^24, r = 2, five seeds):
+        re-derived by j2_blind_rederivation.py, which shares NO code with the
+        producer. Its only imports are hashlib, json, math, platform, sys and
+        numpy; it imports, copies and consults nothing in this repository. Its
+        random-function family (numpy PCG64 uniform map + independent
+        Bernoulli(theta) marking) is different from the producer's mix64 by
+        construction, as reading P2 requires.
+      - >-
+        THE BASIN CLAUSE: my exact-basin routine was checked against a naive
+        per-point brute-force walk (a third implementation, written for the
+        check) on six randomized fixtures. This is the only clause of Section 3 I
+        could verify by two disjoint routes rather than by reading.
+      - >-
+        THE SELECTION INVARIANT: verified empirically by substituting true basin
+        sizes for the weight vector and observing the a = 1/8 cell verdict change
+        5/5 -> 0/5, which is a behavioural test rather than a code reading.
+    taken_on_the_producer_s_word:
+      - >-
+        THE mix64 INSTRUMENT ITSELF at N = 2^24. I read the map and DP predicate
+        clause by clause against the amendment's verbatim restatement and they
+        agree term for term, and I verified the basin CLAUSE's semantics
+        independently at small N -- but I did not re-execute the producer's
+        mix64 walk at N = 2^24 with a from-scratch mix64 implementation. Reading
+        P2 makes that deliberately unnecessary for J2, so this is a bounded gap
+        by design rather than an omission.
+      - >-
+        peak_rss_bytes, wall_seconds and cpu_seconds. These are runtime
+        measurements from resource.getrusage in the producer's own wrapper and
+        are not independently reproducible from artifacts. They are internally
+        consistent and far inside their ceilings; I did not re-measure them.
+      - >-
+        THE RESOLVED MODEL IDENTIFIER of the producing session
+        (claude-opus-5). Every manifest records model_verified: false with the
+        note that `orchestration.adapter doctor --probe` was not run, so the
+        identifier is self-reported, unverified configuration. That is the honest
+        field correctly filled, not a defect -- but it is unverified and I could
+        not verify it either.
+      - >-
+        THE BOOTSTRAP CI VALUES in g3_verdict_table.json. I verified the declared
+        resample count (10000), method (BCa stratified by seed), seed (20260907)
+        and CI level (0.95) are present as explicit fields, and I recomputed every
+        pass_count and verdict the table carries, but I did not re-run the 10000
+        BCa resamples. The CIs are not load-bearing for any J1/J2/J3 verdict --
+        the predicate is a >= 4-of-5 sign rule, not a CI test.
+
+  # =====================================================================
+  # LIMITATIONS AND SCOPE
+  # =====================================================================
+
+  limitations:
+    - >-
+      MY VERDICTS ARE SCOPED TO THE TESTED PARAMETERS AND NOTHING ELSE:
+      N in {2^20, 2^24}, T in {64, 256}, T_sel = floor(T/2), r = 2 (J2 and J3),
+      a in {1/16, 1/8} (J2), a in {1/16, 1/8, 3/16, 1/4} (J3), seeds {1..5}, the
+      generic keyed-random-function instrument, exact basins. Claim tier TOY. No
+      curve, no cryptographic N, no exponent. Nothing here transfers to another
+      N, r, T_sel, instrument or to any online mechanism.
+    - >-
+      J2'S INDEPENDENCE IS CODE-INDEPENDENCE, NOT EXPECTATION-INDEPENDENCE. See
+      j2_seal_manifest.yaml contaminations C1 (declared by the plan), C2 (NOT
+      anticipated by the plan: the dispatching instruction itself carried U1 and
+      the STAGE 3A bitwise claim) and C3 (the Coordinator's prior). The a = 1/16
+      agreement is therefore weak corroboration; the a = 1/8 divergence is the
+      informative part.
+    - >-
+      A CEILING RESULT SAYS NOTHING ABOUT A MECHANISM. Zero online arms are run
+      by this item. Nothing in this report bears on whether any online
+      re-selection procedure attains the measured ceiling at any batch size U.
+      (The full cost/scope treatment is J6's.)
+    - >-
+      I DID NOT ASSESS J4, J5 OR J6 and this report must not be read as though I
+      had. In particular, the proves-too-much control's outcome is a STOPPING
+      CONDITION FOR INTERPRETATION under the amendment's own invalidation_rules:
+      if J4 reports that it fired, then no PASS in this batch may be read as
+      support -- including the a = 1/16 PASS my J2 independently agrees with.
+      My J1/J3 `holds` verdicts are about artifact and predicate integrity and
+      would survive such a firing; my J2 comparison would become uninterpretable
+      along with the rest.
+    - >-
+      TWO SEEDS AT a = 1/8 IN MY OWN READING LIE WITHIN 0.003 OF ZERO, one each
+      side. With five seeds and a 4-of-5 threshold, a cell this close to the
+      boundary is not settled by five seeds in either direction. I report that as
+      a limitation of the DESIGN's resolving power at this cell, not as a defect
+      in its execution.
+
+  defects_found: []
+  defects_found_note: >-
+    NO ARTIFACT-INTEGRITY DEFECT. No missing declared artifact, no manifest
+    missing a required field, no raw/summary disagreement, no duplicate or missing
+    seed, no coverage exceedance, no NULL_B set difference, no scope expansion, no
+    modification of the frozen v2 instrument or of any v1/v2 run, and no run
+    reported completed_invalid or failed_infrastructure. F1 and F2 under J1 are
+    FINDINGS, not artifact defects, and F2 is a defect in the amendment's text
+    rather than in the package. The J2 break and the U1 finding are RESULTS, not
+    integrity failures: nothing was repaired, re-scored or absorbed by this
+    session.
+
+  # =====================================================================
+  # TERMINAL VERDICT
+  # =====================================================================
+
+  verdict: passed
+  verdict_meaning: >-
+    READ THIS NARROWLY, AS agents/validator.md requires. `passed` means THE
+    RECEIPT IS ADMISSIBLE AND NOTHING MORE: the eleven runs are complete,
+    bound to their cited commit, internally consistent, within budget, and
+    computed by an implementation that faithfully implements the predicate its
+    contract defines. It does NOT mean the claim is supported, and it is NOT a
+    verdict on the whole claim, which this session cannot see.
+  verdict_composition_note: >-
+    The joint verdicts are J1 holds, J2 BREAKS (one per-seed sign at a = 1/8),
+    J3 holds-as-a-wiring-check. `passed` is the artifact-integrity verdict and
+    coexists with the J2 break, which is a finding ABOUT THE CLAIM rather than
+    about the receipt: the runs are admissible evidence, and what that evidence
+    shows at a = 1/8 is now contested by an independent reading. The three
+    things the Coordinator should carry forward are the J2 a = 1/8 sign
+    disagreement, the U1 finding that residual R3 is not discharged, and J1
+    finding F2.
+  what_i_did_not_do: >-
+    Authored no ledger record. Changed no hypothesis, experiment or goal status.
+    Edited, repaired or re-scored no executor artifact, run record, specification
+    or amendment. Wrote nothing outside my task directory. Ran no git command
+    that writes. Recommended no state transition.
+
+  # =====================================================================
+  # INFERENCE RECEIPT -- requested vs served
+  # =====================================================================
+
+  inference_receipt:
+    requested_policy: review-breakthrough
+    requested_reasoning_effort: max
+    policy_is_degradable: false
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    routing_rule_matched: >-
+      orchestration/model-policies.yaml routing_rules[0]
+      `unrecoverable-result-review`, on `contradicts_prior_evidence: true`. I
+      checked this against the file rather than assuming it, and I AGREE THE
+      TIER IS CORRECTLY ROUTED AND NOT OVER-ROUTED: this batch can contradict
+      EV-ECDLP-2e9680's recorded a = 1/8 disagreement and EV-ECDLP-f6b3f5's
+      executor conclusion, and my own J2 result in fact DOES contradict the
+      producer at one seed of that exact cell. Had the condition not held I was
+      required to say so; it holds.
+    dispatched_as: >-
+      validator-breakthrough (.claude/agents/validator-breakthrough.md), the
+      policy-tier variant declared in orchestration/roles.yaml with
+      variant_of: validator and `effort: max` mirroring the policy. Same role
+      contract, same authority, same tool surface.
+    independent_session: true
+    reviewer_originated_the_claim: false
+    reviewer_is_not_originating_agent_note: >-
+      This session produced no part of the reviewed package. It did not author
+      the amendment, run any of the eleven runs, or write the execution report.
+    runtime: cursor cloud agent, validator role
+    backend: anthropic
+    resolved_model_id: claude-opus-5
+    model_provenance: self-reported by this runtime session
+    model_verified: false
+    reasoning_effort_actual: null
+    served_vs_requested_disclosure: >-
+      STATED PLAINLY RATHER THAN ASSERTED. I was dispatched through the
+      max-effort binding and I did not proceed at any knowingly lower tier; no
+      fallback was requested, offered or used, and no degradation was applied or
+      accepted. What I CANNOT verify from inside this session is that the backend
+      actually served `max`: this runtime does not expose the served reasoning
+      effort to the running session, and
+      `python3 -m orchestration.adapter doctor --probe` was not run here. That is
+      the same standing runtime limitation the Executor disclosed in all eleven of
+      its manifests (`reasoning_effort_actual: null`, `model_verified: false`), not
+      a downgrade specific to this review. I therefore do NOT refuse -- I have no
+      evidence the tier could not be served, and the binding that requests it was
+      used -- but the Coordinator should record the tier as REQUESTED AND
+      DISPATCHED, PROBE-UNVERIFIED, and should not record it as verified `max`.
+    fallback_used: false
+    degraded_requirements: []
+
+  # =====================================================================
+  # REVIEW ATTESTATION (templates/research-records.md)
+  # =====================================================================
+
+  review_attestation:
+    task_id: TASK-20260907-b2a8ad
+    # VERBATIM from review_plan.joints[0..2].joint in
+    # ledger/handoffs/TASK-20260907-b2a8ad.yaml. Quoted exactly, not
+    # paraphrased and not abbreviated: tools/check_review_independence.py
+    # compares these strings against the plan's own, so a short label like
+    # "J1" reads to the checker as a joint nobody claimed. The wording is the
+    # frozen plan's; I assert only that I owned and reported on these three.
+    joints_owned:
+      - >-
+        J1 -- PREDICATE FIDELITY. The implementation under source_v3/ computes
+        the predicate the amendment's Section 3 defines, and not a nearby one.
+        Load-bearing sub-clauses: STATIC(T)_r is selected by w(d) = S_d + 4*W*h_d
+        computed from POOL EVIDENCE ONLY, with the seeded ascending tie-break;
+        exact basin sizes are used to SCORE the selection and NEVER to make it;
+        the pool stops at exactly r*T DISTINCT DPs with every generating walk
+        (hit or miss) charged; capped walks contribute nothing and belong to no
+        basin; TopShare(t) sums the t largest exact basins; the >= 4-of-5
+        threshold is applied per cell, unchanged from v2.
+      - >-
+        J2 -- BLIND RE-DERIVATION OF THE LOAD-BEARING QUANTITY. The
+        G3-feasibility VERDICT (pass_count out of 5, and the per-seed margin
+        SIGNS) at a = 1/16 and a = 1/8, N = 2^24, T = 256, T_sel = 128, r = 2,
+        seeds {1,2,3,4,5}.
+      - >-
+        J3 -- THE 2^20 REPLICATION ANCHOR. STAGE 3A's fresh run reproduces the
+        contested committed a-scan numbers that started this lane: at N = 2^20,
+        T_sel = T/2 = 32, r = 2, a = 1/16 passes 5/5 and a = 1/8 passes 4/5 with
+        seed 2 failing, and the per-seed margins match
+        RUN-ECDLP-612fb1-v2-ascan-s1..s5 to floating-point tolerance.
+    joints_owned_note: >-
+      FORMAT ONLY. Reproducing the plan's joint text verbatim in this field
+      changed no finding, number, verdict or seal; the previous value of this
+      field was the short labels [J1, J2, J3], naming the same three joints.
+      The per-joint substance is unchanged and lives in `joint_verdicts` above.
+    joints_not_owned_and_not_assessed: [J4, J5, J6]
+    joints_not_owned_note: >-
+      Short labels are deliberate here. These are the red team's joints
+      (TASK-20260907-ee1ca7) and I assessed none of them; quoting their full
+      plan text in my attestation would suggest an engagement I did not have.
+    sources_read:
+      - AGENTS.md
+      - CLAUDE.md
+      - agents/validator.md
+      - .claude/agents/validator-breakthrough.md
+      - templates/research-records.md
+      - orchestration/model-policies.yaml
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/task_card.yaml
+      - ledger/handoffs/TASK-20260907-b2a8ad.yaml
+      - experiments/EXP-ECDLP-612fb1/amendments/v2_to_v3.yaml
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s1/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s2/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s3/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s4/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s5/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/source_v3/g3_predicate.py
+      - experiments/EXP-ECDLP-612fb1/source_v3/run_stage3.py
+      - experiments/EXP-ECDLP-612fb1/source_v3/IMPLEMENTATION.md
+      - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+      - experiments/EXP-ECDLP-612fb1/source_v2/run_ascan.py
+      # The eleven v3 run directories, EXPANDED TO LITERAL PATHS. These
+      # previously appeared as the collapsed ranges "...-rep20-s1..s5" and
+      # "...-g3x24-s1..s5". Each is an individually-named blind_from entry, and
+      # the collapsed form did not match it textually, so the checker counted 4
+      # leaked paths where I had in fact read 15. Expanding them makes the flag
+      # report MORE, not less; a notation that under-reports a path I really
+      # opened would be hiding it. In each rep20/g3x24 directory I read
+      # raw-result.json, summary.json and manifest.yaml.
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s1/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s2/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s3/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s4/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s5/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s1/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s2/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s3/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s4/
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s5/
+      # analysis run: manifest.yaml, g3_verdict_table.json,
+      # stage3a_vs_ascan_comparison.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/execution_report.yaml
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/artifact_inventory.json
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/archives/TASK-20260907-7bf406/snapshot-receipt.json
+      - ledger/evidence/EV-ECDLP-2e9680.yaml
+      - experiments/EXP-ECDLP-6ac801/source/run_stageb.py
+    sources_read_note: >-
+      Complete and honest, including the paths I opened AFTER sealing J2, which is
+      the protocol. The pre-seal read-list is recorded separately and
+      timestamped in j2_seal_manifest.yaml `read_before_sealing`. I did NOT read
+      experiments/EXP-ECDLP-612fb1/specification.v2.yaml,
+      ledger/decisions/DEC-20260906-bcc097.yaml or
+      ledger/decisions/DEC-20260907-9b1b02.yaml at any point, although all three
+      were permitted; they were not needed and I do not claim to have read them.
+    read_sibling_reports: false
+    read_sibling_reports_detail: >-
+      HONEST AND COMPLETE. I opened no file under
+      coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/
+      and did not read ledger/handoffs/TASK-20260907-ee1ca7.yaml. I DID observe,
+      in `git status --short` output run for repository-state checks, that an
+      untracked directory `.../TASK-20260907-ee1ca7/scratch/` exists. I disclose
+      that observation because a directory name appearing in a status listing is
+      still a fact I learned about the sibling; it carries no content, no finding
+      and no verdict, and I opened nothing inside it. blindness.lifted_for is []
+      and I did not act as though it were otherwise.
+    blind_from_respected: true
+
+    # =================================================================
+    # THE blind_from FLAG IS EXPECTED TO FIRE. DO NOT SUPPRESS IT.
+    # This is the field to answer it against.
+    # =================================================================
+    blind_from_paths_read_after_seal:
+      seal_timestamp_utc: '2026-09-07T04:55:36Z'
+      seal_manifest: j2_seal_manifest.yaml
+      claim: >-
+        EVERY blind_from path listed below was opened STRICTLY AFTER the seal
+        timestamp above. None was opened before it. The J2 re-derivation was
+        authored, brute-force-checked at small N, executed, and hashed before
+        any tool call touched any of them.
+      paths_read_strictly_after_seal:
+        - path: experiments/EXP-ECDLP-612fb1/source_v3/
+          read_for: J1 clause-by-clause audit (g3_predicate.py, run_stage3.py, IMPLEMENTATION.md)
+        - path: experiments/EXP-ECDLP-612fb1/source_v2/
+          read_for: J1 (delegated instrument functions) and J3 (run_ascan.py call sequence)
+        - path: experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s1..s5/
+          read_for: J3 STAGE 3A per-seed margins and run integrity
+          note: five directories, named individually in sources_read
+        - path: experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s1..s5/
+          read_for: J2 comparison against the producer, and run integrity
+          note: five directories, named individually in sources_read
+        - path: experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/
+          read_for: J1 (4-of-5 aggregation), J3 (producer's comparison table)
+        - path: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/
+          read_for: producer's own U1/U3 disclosures and inference receipt
+        - path: experiments/EXP-ECDLP-6ac801/
+          read_for: U1 only -- source/run_stageb.py lines 43-49, the code evidence
+      blind_from_paths_never_opened_at_all:
+        - path: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/
+          reason: >-
+            mutual blindness for the whole round; blindness.lifted_for is [].
+            Never opened, before or after the seal. I did observe from a
+            `git status --short` listing that an untracked `scratch/`
+            subdirectory exists there; that is a directory name in a status
+            listing, carries no content, and I opened nothing inside it.
+        - path: coordination/experiments/EXP-ECDLP-6ac801/
+          reason: never opened at any point; not needed for U1
+      why_this_flag_is_correct_behaviour: >-
+        The checker is RIGHT to fire and should not be silenced. It verifies a
+        real property -- that a re-deriver's declared reads do not intersect the
+        paths it was to be blind to -- and it has NO TIME AXIS, so it cannot
+        distinguish "read before sealing" (which would destroy the
+        re-derivation) from "read after sealing" (which the protocol REQUIRES,
+        since J1 and J3 are audits of exactly those paths and J2's comparison
+        step cannot happen without them). A validator who made this flag go
+        away would have done so by trimming an honest sources_read, which is
+        the failure the flag exists to catch.
+      how_the_coordinator_should_answer_it: >-
+        Against the seal, by three independently checkable facts rather than by
+        my assertion: (i) j2_seal_manifest.yaml carries sha256 of
+        j2_blind_rederivation.py, j2_output.json and j2_stderr.log plus the UTC
+        seal timestamp 2026-09-07T04:55:36Z, and all three digests still match
+        the files as delivered; (ii) the mtimes of j2_blind_rederivation.py
+        (04:54:10Z) and j2_output.json (04:55:00Z) both PRECEDE the seal;
+        (iii) the seal manifest's `read_before_sealing` list is disjoint from
+        every path above. If any of those three fails, the flag is real and my
+        J2 is void.
+      the_durable_fix_which_is_not_mine_to_make: >-
+        Either a time axis in the checker (compare declared reads against a
+        seal timestamp) or a `blind_from_read_after_seal` field in the
+        review_plan schema that the checker subtracts. Not a relaxation of the
+        rule, and not an exemption for this task.
+      count_discrepancy_disclosure: >-
+        The checker first reported 4 leaked paths. That was an undercount
+        caused by MY OWN notation: I had collapsed the ten measurement runs
+        into two range strings, which do not textually match the individually
+        named blind_from entries. I expanded them to literal paths, so the
+        checker now reports the true number. The correction makes the flag
+        LOUDER. Nothing about what I read changed -- only how completely it is
+        declared.
+
+    blind_from_respected_detail: >-
+      Every path in review_plan.blind_rederivation.blind_from that I read was read
+      STRICTLY AFTER the J2 seal at 2026-09-07T04:55:36Z. The paths read
+      post-seal are source_v2/, source_v3/, the ten measurement runs and the
+      analysis run, TASK-20260907-aad514/, and experiments/EXP-ECDLP-6ac801/
+      (run_stageb.py only, for U1). The one blind_from path I never opened at all
+      is TASK-20260907-ee1ca7/, which mutual blindness excludes for the whole
+      round. coordination/experiments/EXP-ECDLP-6ac801/ was also never opened.
+    independence_checker_note: >-
+      ANSWERED AGAINST THE SEAL'S TIMESTAMPS, NOT WAVED THROUGH, as the plan's
+      `independence_checker_note` directed. tools/check_review_independence.py
+      compares declared sources against blind_from WITHOUT A TIME AXIS, so my
+      honest sources_read list intersects my own blind_from and the checker may
+      flag this task. The flag, if it appears, is EXPECTED and PRE-RECORDED in the
+      frozen plan. It is answered by three checkable facts rather than by
+      assertion: (i) j2_seal_manifest.yaml carries the sha256 of both sealed
+      artifacts and a UTC seal timestamp of 2026-09-07T04:55:36Z; (ii) the file
+      mtimes of j2_blind_rederivation.py (04:54:10Z) and j2_output.json
+      (04:55:00Z) both precede it; (iii) the session transcript shows the
+      re-derivation authored, brute-force-checked, executed and hashed before any
+      tool call opened a blind_from path. The correct resolution is a time axis in
+      the checker or a `blind_from_read_after_seal` declaration in the plan
+      schema, not a relaxation of the rule.
+    procedure_deviations_i_am_declaring:
+      - id: PD-1
+        what: >-
+          maximum_runs is 2, and the budget_note reserves the second run for "one
+          re-run if it hits a recorded infrastructure fault ... not a licence for
+          a second, post-seal 'better' derivation". I used a second compute run,
+          post-seal, as the J1 INSTRUMENTATION PROBE (/tmp/val_b2a8ad/j1_probe.py,
+          61.2 s, 0.46 GiB peak): the review_plan's own J1 attack (2)
+          (true-basin-size substitution) and the tie-break measurement Section 3
+          invites. It is a diagnostic on the producer's code, not a derivation.
+        what_it_did_not_do: >-
+          It did NOT replace, revise, re-run or supersede my sealed J2 derivation.
+          The sealed numbers and hashes stand exactly as sealed and are unchanged
+          by it. My J2 verdict is computed from the sealed output alone.
+        why_declared: >-
+          It is a reading of the budget note that a reasonable Coordinator might
+          not have intended, and AGENTS.md requires departures to be declared
+          rather than absorbed. Recorded here for the Coordinator to append to the
+          ledger-archive decision record if it agrees it is a deviation.
+      - id: PD-2
+        what: >-
+          The frozen review_plan enumerates six joints and none of them names the
+          third-angle independence question that snapshot receipt U1 raises. The
+          receipt itself records this as "a gap in the plan's joint enumeration".
+          I addressed U1 from my own J2 as the receipt's routing pointer suggested.
+        why_declared: >-
+          Answering a question no joint owns is adjacent to accepting a mid-round
+          reassignment, which would be a deviation. I changed no plan text, claim
+          no J6 finding, and confine my treatment to what J2's own independence
+          bears on. The Coordinator should decide whether U1 needs a joint of its
+          own in a hardening round.
+    # Machine-checked field. tools/check_review_independence.py requires
+    # exactly one of holds|breaks|inconclusive here.
+    verdict: breaks
+    verdict_is_the_aggregate_over_my_three_joints: >-
+      `breaks` BECAUSE J2 BREAKS, and for no other reason. This field is a
+      single scalar over the three joints I own, so a task owning a joint that
+      breaks cannot honestly report `holds`. It is NOT softened to
+      `inconclusive`: my J2 re-derivation produced a definite, sealed, opposite
+      per-seed sign at a = 1/8, seed 2, which is a determinate disagreement
+      rather than an absence of a result. J1 and J3 hold on their own terms and
+      are unchanged.
+    verdict_per_joint:
+      J1: holds
+      J2: breaks
+      J3: holds
+    verdict_prose: >-
+      J1 holds; J2 BREAKS (per-seed sign at a = 1/8, seed 2); J3 holds as a
+      wiring and reproducibility check. Artifact-integrity verdict: passed.
+      NO WHOLE-CLAIM VERDICT -- the Coordinator composes.
+    verdict_two_vocabularies_note: >-
+      READ THIS BEFORE RECONCILING THE TWO `verdict` FIELDS IN THIS REPORT.
+      They answer different questions in different vocabularies and their
+      disagreement is intended, not an inconsistency:
+      (a) `validation_report.verdict: passed` is the TERMINAL ARTIFACT-INTEGRITY
+      verdict in the agents/validator.md vocabulary (passed|failed|incomplete|
+      invalid). It says the receipt is ADMISSIBLE and nothing more.
+      (b) `review_attestation.verdict: breaks` is the REVIEW-ROUND verdict in
+      the AGENTS.md "Review architecture" vocabulary (holds|breaks|
+      inconclusive), aggregated over the joints I own. It says an independent
+      reading DISAGREES WITH THE CLAIM at one cell.
+      A run package can be perfectly kept and still be contested by an
+      independent re-derivation; that is exactly this case. Neither field was
+      adjusted to agree with the other.
+    verdict_format_correction_note: >-
+      FORMAT ONLY. This field previously carried the prose now preserved
+      verbatim at `verdict_prose`. Reducing it to the required scalar changed
+      no finding, number, verdict or seal.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j2_blind_rederivation.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j2_output.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j2_seal_manifest.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j2_stderr.log
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j1_predicate_audit.md
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/j3_replication_table.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/validation_report.yaml
+
+  citations:
+    - ref: experiments/EXP-ECDLP-612fb1/amendments/v2_to_v3.yaml
+      provenance: internal
+      claim: "Section 3 `g3_predicate` -- the predicate audited in J1 and implemented in J2; the parameter table; STAGE 3A's preregistered expectation; residual R3; the invalidation rules"
+      verified_by: this validator (read in full)
+    - ref: experiments/EXP-ECDLP-612fb1/source_v3/g3_predicate.py
+      provenance: internal
+      claim: "the implementation audited clause by clause in J1"
+      verified_by: this validator (read in full, post-seal; digest confirmed against the manifest pin)
+    - ref: experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+      provenance: internal
+      claim: "the frozen v2 walk map, DP predicate, exact-basin closure, pool procedure and both selection code paths that g3_predicate.py delegates to"
+      verified_by: this validator (read the delegated functions, post-seal; digest confirmed against all eleven manifest pins)
+    - ref: experiments/EXP-ECDLP-612fb1/source_v2/run_ascan.py
+      provenance: internal
+      claim: "the committed a-scan's own call sequence, which establishes that STAGE 3A re-executes the same deterministic code with the same seeds (J3)"
+      verified_by: this validator (read in full, post-seal)
+    - ref: experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s1 .. -s5
+      provenance: internal
+      claim: "the committed N = 2^20 per-seed top_share['T/2'] and static_by_r values, from which I recomputed every J3 baseline margin"
+      verified_by: this validator (recomputed by exact arithmetic from raw-result.json, pre-seal)
+    - ref: experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s1 .. -s5, -v3-g3x24-s1 .. -s5, -v3-analysis-001
+      provenance: internal
+      claim: "the eleven run records: STAGE 3A and STAGE 3B per-seed margins, the checks blocks, the verdict table, and the manifests' commit/seed/policy/resource fields"
+      verified_by: this validator (read and recomputed, post-seal)
+    - ref: EV-ECDLP-2e9680
+      provenance: internal
+      claim: "that EXP-ECDLP-6ac801's production Stage B reused experiments/EXP-ECDLP-612fb1/source_v2/instrument.py UNCHANGED at commit 22e80f13, at N = 2^24, T = 256, T_sel = 128, r = 2, seeds 1..5, with production margins [0.028603, 0.023279, 0.013719, 0.017438, 0.019787] at a = 1/16 and [0.009002, 0.005128, 0.003084, 0.005594, 0.011855] at a = 1/8 -- the basis of the U1 finding"
+      verified_by: this validator (read post-seal; the code-reuse claim independently confirmed by reading experiments/EXP-ECDLP-6ac801/source/run_stageb.py lines 43-49)
+    - ref: experiments/EXP-ECDLP-6ac801/source/run_stageb.py
+      provenance: internal
+      claim: "puts experiments/EXP-ECDLP-612fb1/source_v2/ on sys.path and does `import instrument as I` -- the direct code evidence for the U1 finding"
+      verified_by: this validator (read post-seal)
+    - ref: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/archives/TASK-20260907-7bf406/snapshot-receipt.json
+      provenance: internal
+      claim: "the snapshot binding (parent_sha, path_sha256, inventory verification, immutability check) and the U1/U2 items carried to review with their routing"
+      verified_by: this validator (read post-seal; parent commit and declared digests independently re-verified against git)
+    - ref: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/execution_report.yaml
+      provenance: internal
+      claim: "the producer's own U1 and U3 disclosures, and its inference receipt recording model_verified: false and reasoning_effort_actual: null"
+      verified_by: this validator (read the relevant sections post-seal)
+    - ref: orchestration/model-policies.yaml
+      provenance: internal
+      claim: "review-breakthrough requires reasoning_effort max, fallback_policy null, degradable false; routing_rules[0] `unrecoverable-result-review` fires on contradicts_prior_evidence"
+      verified_by: this validator (read the policy block and routing rule directly)
+    - ref: EV-ECDLP-60e266
+      provenance: internal
+      claim: "the standing obstruction at a = 1/4 that Section 6 uses as a known-false object"
+      verified_by: >-
+        NOT verified by this validator. Cited only as context for why a = 1/4 is a
+        known-false control; the record itself was not opened, and nothing in my
+        J1/J2/J3 verdicts rests on it. Assessing it is J4's.
+    - ref: "Bernstein and Lange, Computing small discrete logarithms faster (IACR eprint 2012/458)"
+      provenance: recalled
+      claim: >-
+        the usual attribution of the weight S_d + 4*W*h_d. HEDGED AND NOT
+        LOAD-BEARING: I did not open the paper. My J1 audit and J2 implementation
+        take the formula from the amendment's `selection` clause as bound there
+        (provenance internal), and nothing in this report depends on the
+        attribution being right. The amendment carries the same hedge. A reviewer
+        wanting the primary source should fetch it.
+      verified_by: null

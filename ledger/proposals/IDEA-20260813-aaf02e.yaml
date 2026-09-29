@@ -1,0 +1,318 @@
+idea:
+  id: IDEA-20260813-aaf02e
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  title: >-
+    Affine-interval sampler certificate: compose nodewise rounding and
+    rejection uncertainty through the ffLDL tree into an end-to-end
+    distribution-distance budget
+  class: representation
+  claim: >-
+    If the primary FN-DSA sampler can be expressed as a finite probabilistic
+    decision tree whose arithmetic inputs and branch probabilities admit
+    outward-rounded interval enclosures, then a hybrid argument can convert
+    certified per-node probability discrepancies into a rigorous end-to-end
+    upper bound on output total variation for the exact frozen parameter slice.
+    The certificate is useful only if dependency-aware affine intervals keep
+    the sum below a preregistered nonvacuity threshold; ordinary independent
+    intervals may widen to one and thereby falsify this proposed method.  A
+    zero-uncertainty exact-null tree must certify distance zero, and a planted
+    one-node probability bias must produce a certificate covering its exactly
+    computed output distance.  No certificate has been built and no statement
+    about the draft-standard sampler follows from this proposal.
+  mechanism: >-
+    Replace each arithmetic value in the recursive sampler by an affine form
+    with outward-rounded remainder, preserving shared noise symbols for values
+    derived from the same ancestors.  At each stochastic decision, enclose the
+    exact conditional branch probability p_i and implemented probability q_i;
+    charge epsilon_i = sup_history |p_i-q_i| only over histories reaching that
+    node.  Introduce hybrids that replace implemented decisions by exact ones
+    one node at a time.  Coupling or data-processing gives an end-to-end bound
+    d_TV(P_exact,P_impl) <= sum_i E[reach_i * epsilon_i], plus rigorously bounded
+    truncation and random-bit discretization tails.  The affine symbols prevent
+    the same upstream rounding uncertainty from being charged independently at
+    every descendant.  A proof artifact must include the tree slice, interval
+    semantics, reach-mass bound, tail terms and a checker; merely printing a
+    floating error estimate is not a certificate.
+  why_not_a_renamed_known_approach: >-
+    H-FNDSA-6a9cbb supplies an exact-arithmetic Klein-family null but does not
+    certify a finite-precision implementation.  IDEA-20260805-2bbfb2 derives an
+    exact-arithmetic theta-normalizer residue, and IDEA-20260805-4a6dc7 measures
+    leaf conformance; neither composes arithmetic error through the full tree.
+    IDEA-20260813-d50a10 is empirical pathwise coupling on sampled tapes,
+    whereas this proposal seeks a proof-checkable bound over all histories in a
+    frozen finite slice.  It is unrelated to the moment/homotopy, BBP spectral,
+    NTRU-key-shape and broad GOF records except as a later comparison target.
+  predictions:
+    - observable: exact-null certificate
+      metric: certified_tv_upper_bound
+      predicted: exactly 0 when every arithmetic interval has zero width and both trees are identical
+    - observable: planted single-node probability displacement
+      metric: certificate_coverage_ratio
+      predicted: >-
+        The exact toy output total variation is no greater than the certified
+        bound, and the ratio bound/exact-distance is at most 4 on every frozen
+        planted rung for the dependency-aware analysis.
+    - observable: depth scaling
+      metric: bound_growth_with_tree_depth
+      predicted: >-
+        Affine-symbol reuse yields strictly smaller or equal bounds than naive
+        independent interval arithmetic at every depth and avoids saturation
+        at one over the preregistered toy-depth range.
+    - observable: certificate replay
+      metric: checker_agreement
+      predicted: >-
+        An independent checker reproduces every node interval and the final
+        rational upper bound bit-for-bit from the serialized certificate.
+  minimal_test:
+    design: >-
+      After filing the primary sampler, freeze the smallest tree slice that
+      includes one transform, one width computation, one base-sampler call and
+      one rejection.  Build a symbolic exact reference, naive intervals and
+      dependency-aware affine intervals.  Check the exact-null first; then a
+      ladder of one-node probability displacements whose exact output
+      distributions can be enumerated; then increase depth until the bound is
+      vacuous or the budget ends.  Only if those gates pass may a later task
+      instantiate the arithmetic formats named in the primary draft.
+    test_boundary:
+      instances: finite toy trees with exactly enumerable leaves
+      parameters: frozen depth, precision and planted-bias ladder; standardized parameters excluded
+      oracle_model: none; static analysis of declared sampler code and exact toy enumeration
+      preprocessing: control-flow extraction and exact reach-mass computation, fully charged
+      stopping_rule: >-
+        Stop the method as vacuous when the certified bound reaches 1 or when
+        the independent checker disagrees at any node.
+    required_metrics:
+      - interval width and reach-mass contribution for every charged node
+      - truncation, random-bit discretization and rejected-path tail terms
+      - naive versus affine final bound by depth and precision
+      - exact toy total variation for every planted rung
+      - certificate size, generation time, checker time and peak memory
+  controls:
+    - name: zero-width exact tree
+      kind: exact_null
+      construction: >-
+        Identical symbolic trees with rational constants, exact transforms and
+        no truncation or finite-bit approximation.
+      forced_value: every epsilon_i and the final distance bound are exactly zero
+      gate: any positive term is a certificate-construction defect
+    - name: one-node biased coin
+      kind: biased_positive
+      construction: >-
+        At a frozen reachable node replace exact branch probability p by
+        p+h on a ladder of rational h, compensating the other branch and
+        leaving every downstream conditional distribution identical.
+      forced_value: >-
+        Exact output total variation is reach_mass times |h| when the two
+        branches lead to disjoint output labels in the toy tree.
+      gate: >-
+        The certificate must cover the forced value and remain within factor 4
+        on every rung before any real-format analysis is considered.
+    - name: duplicated-expression dependency control
+      kind: nearby_object_control
+      construction: >-
+        Use two algebraically equal descendants derived from one uncertain
+        ancestor so naive intervals double-charge but affine symbols cancel.
+      forced_value: dependency-aware bound is zero for the cancellation object
+      gate: a nonzero affine bound shows shared uncertainty was not preserved
+  confounders:
+    - >-
+      Control-flow extraction may omit exceptional floating behaviour,
+      subnormals, fused operations, table indexing or undefined language
+      semantics; the certificate applies only to the fully specified arithmetic model.
+    - >-
+      Summing worst-case node errors can be exponentially loose even when each
+      local interval is rigorous; a bound of one is valid but scientifically useless.
+    - >-
+      Reach probabilities may themselves depend on uncertain ancestors.  They
+      require certified upper bounds and cannot be replaced by measured frequencies.
+    - >-
+      Integer reformulations can change the randomness interface rather than
+      merely perturb probabilities, requiring an explicit simulation relation.
+    - Primary FN-DSA sampler code and constants were not verified in this task.
+  falsification_conditions:
+    - The zero-width exact null yields any positive local or global error term.
+    - The planted exact total variation exceeds the certified upper bound.
+    - The independent checker fails to reproduce any serialized interval or final bound.
+    - >-
+      Dependency-aware bounds reach one before the frozen tree contains all
+      required sampler operation classes, establishing a scoped method ceiling.
+    - >-
+      The primary sampler relies on arithmetic or state not expressible in the
+      declared semantics; the certificate then does not apply, rather than
+      silently approximating that behaviour.
+  interpretation_limits:
+    - This is a proposed proof architecture and no certificate or observation exists.
+    - >-
+      A small upper bound would concern only a named implementation, compiler-
+      independent arithmetic model, parameter slice and randomness semantics.
+    - >-
+      Distributional proximity to an exact Klein-family sampler does not prove
+      equality with the ideal lattice Gaussian; the analytic normalizer residue
+      of IDEA-20260805-2bbfb2 remains a separate term.
+    - >-
+      An upper bound on total variation is not a trapdoor-recovery cost and
+      cannot be compared with lattice attack work factors without a separate reduction.
+  assumptions:
+    - >-
+      The eventual primary specification makes every arithmetic format,
+      rounding mode, table constant, rejection predicate and randomness rule explicit.
+    - >-
+      A finite control-flow slice can represent all relevant exceptional paths,
+      with omitted tails assigned rigorous mass bounds.
+    - >-
+      The certificate checker is substantially simpler than the generator and
+      evaluates rational endpoints without trusting floating arithmetic.
+  heuristic_assumptions:
+    - id: HEUR-AAF02E-1
+      formal_statement: >-
+        For frozen toy depths d, dependency-aware affine enclosure width grows
+        at most polynomially in d and remains below 2^-20 at the declared
+        precision, whereas naive independent intervals may grow exponentially.
+      rigorous_support: >-
+        Affine arithmetic preserves first-order correlations exactly, but no
+        theorem here bounds nonlinear remainder growth for the FN-DSA tree.
+      validation_plan: >-
+        Enumerate exact reachable values on small trees and plot certified
+        over-approximation ratio versus depth for affine and naive analyses.
+      falsification_condition: >-
+        Superpolynomial fitted growth or saturation at one before all operation
+        classes appear in the frozen slice.
+    - id: HEUR-AAF02E-2
+      formal_statement: >-
+        The reach-weighted hybrid sum is within a factor 16 of exact output
+        total variation on each planted multi-node toy family.
+      rigorous_support: >-
+        The hybrid sum is a rigorous upper bound under the stated semantics;
+        tightness is not guaranteed and is the heuristic being tested.
+      validation_plan: >-
+        Exactly enumerate toy output laws for planted independent, correlated
+        and cancelling node errors and compare the bound with true total variation.
+      falsification_condition: ratio exceeds 16 on any preregistered family or diverges with depth
+  proof_search_map:
+    bottleneck: >-
+      Producing a nonvacuous end-to-end distribution-distance certificate from
+      local finite-precision and rejection errors without double-charging
+      correlated uncertainty through a recursive sampler.
+    baseline_embedding:
+      parameter_slice: >-
+        Zero interval width, exact rational constants, identical branch
+        probabilities and zero omitted tail, which must reproduce distance zero.
+      reproduction_check: >-
+        Symbolically reduce every local epsilon_i and the telescoping sum to
+        rational zero; freeze this as the checker regression fixture.
+    observation_collision:
+      observable: vector of local interval widths and their summed hybrid bound
+      distinct_preimage_search: >-
+        Construct two implementations with the same local suprema but opposite
+        correlated errors, one cancelling and one reinforcing at the output;
+        this collision measures how much information the local-width vector loses.
+    constructive_transforms:
+      - transform: telescoping_potential
+        proposed_object: reach-weighted sum of conditional distribution discrepancies
+        predicted_gain: converts local certified errors into an end-to-end upper bound
+      - transform: stronger_invariant
+        proposed_object: affine noise-symbol lineage through every recursive arithmetic value
+        predicted_gain: preserves dependencies that ordinary intervals discard
+      - transform: representation_reduction
+        proposed_object: probabilistic sampler reduced to a finite rational decision tree plus bounded tails
+        predicted_gain: enables a small independent certificate checker
+    quantifier_order: >-
+      For every input and random history in the frozen finite slice, the
+      interval encloses exact and implemented values; there exists one global
+      certificate independent of sampled executions.  Precision may be chosen
+      before the input family is fixed only if the certificate states that order explicitly.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A rigorous upper bound for one frozen arithmetic semantics and finite
+        input family, including tail terms; never exact equality or leakage absence.
+      nearby_object_control: >-
+        Correlated equal-and-opposite node errors share the same marginal local
+        widths as reinforcing errors but have zero output effect.  If the method
+        cannot distinguish them, its unavoidable ceiling is the loose hybrid sum.
+    proof_obligations:
+      - claim: every exact value and branch probability is enclosed
+        responsibility: correctness
+      - claim: omitted histories and arithmetic exceptions have rigorous total mass bounds
+        responsibility: scope
+      - claim: hybrid replacement changes output law by at most the charged local term
+        responsibility: success_probability
+      - claim: affine symbols preserve all declared shared dependencies
+        responsibility: interface
+      - claim: certificate generation, size and checking costs are fully charged
+        responsibility: runtime
+      - claim: checker memory and retained symbolic state are fully charged
+        responsibility: memory
+    not_applicable_reason: null
+  target_complexity:
+    time_exponent: >-
+      No cryptanalytic exponent is claimed.  A finite tree with M arithmetic
+      nodes and A affine symbols targets polynomial certificate generation,
+      provisionally O(M A^2), plus exact reach-mass work whose exponential
+      worst case is disclosed rather than hidden.
+    memory_exponent: O(M A) certificate data in the direct representation; streaming checker O(A plus tree depth)
+    best_known_baseline: >-
+      H-FNDSA-6a9cbb's exact-arithmetic null and IDEA-20260805-4a6dc7's
+      empirical leaf conformance.  Neither provides an end-to-end certified
+      finite-precision error budget.
+    hidden_overhead_disclosure: >-
+      Path explosion, nonlinear affine remainders, exceptional floating cases,
+      rational endpoint bit growth, tail enumeration and checker costs are explicit.
+    time_memory_tradeoff: >-
+      Memoizing path summaries increases memory to reduce repeated exact reach
+      computation; streaming lowers memory but may revisit subtrees exponentially.
+    data_queries: zero victim signatures; no empirical data required for the certificate
+    preprocessing: control-flow extraction, exact constants and reach analysis are core charged costs
+    oracle_model: none
+    retry_success_accounting: >-
+      No probabilistic success claim.  Certificate generation either completes
+      within budget and checks, or is an infrastructure/method outcome, not evidence about FN-DSA.
+  sota_delta: >-
+    Quantitative target is a certified upper bound below 1 with an independently
+    checked rational value; attack-time, memory and security delta are exactly
+    zero because no attack or completed certificate is claimed.
+  dominated_by: >-
+    n/a (no attack result claimed).  Checked IDEA-20260801-010,
+    IDEA-20260805-2bbfb2, IDEA-20260805-4a6dc7, IDEA-20260805-637a3b,
+    IDEA-20260808-cb0828, IDEA-20260808-e7ba81, H-FNDSA-58b464 and
+    H-FNDSA-6a9cbb across time, memory, data, preprocessing and oracle access.
+    This proposal is more expensive than empirical leaf tests on symbolic
+    preprocessing and may be dominated if its bound is vacuous.  None of the
+    screened rows offers a proof-checkable end-to-end finite-precision bound,
+    so no internal row dominates on certification.  External status is unverified.
+  estimated_cost:
+    implementation: high
+    compute: medium
+    data: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.80 that the local hybrid inequality is certifiable on a frozen toy tree;
+    0.35 that affine dependency tracking remains nonvacuous through every
+    operation class; below 0.10 that a full standardized-scale certificate fits
+    the initial campaign budget, which is why cheap method-ceiling controls lead.
+  novelty_status: unverified
+  novelty_screen: >-
+    The parent-supplied immutable retrieval receipts and current-tree screen
+    found exact-null, analytic-normalizer, leaf-GOF, moment, BBP and key-shape
+    neighbors but no affine-interval end-to-end certificate.  The retrieval
+    index predates current records and no primary literature was checked;
+    absence does not establish novelty.
+  discriminated_from: >-
+    Exact nearest neighbor H-FNDSA-6a9cbb builds the exact-arithmetic null.
+    This proposal uses such a null as one endpoint and asks a different proof
+    question: can every implemented rounding/rejection discrepancy be enclosed
+    and composed into a checked end-to-end upper bound?
+  source_refs:
+    - RQ-FNDSA-001
+    - GOAL-FNDSA-001
+    - IDEA-20260801-010
+    - IDEA-20260805-2bbfb2
+    - IDEA-20260805-4a6dc7
+    - IDEA-20260805-637a3b
+    - IDEA-20260808-cb0828
+    - IDEA-20260808-e7ba81
+    - H-FNDSA-58b464
+    - H-FNDSA-6a9cbb

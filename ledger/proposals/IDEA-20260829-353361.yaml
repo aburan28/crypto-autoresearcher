@@ -1,0 +1,554 @@
+idea:
+  id: IDEA-20260829-353361
+  question_id: RQ-MLKEM-001
+  added: '2026-08-29'
+  proposed_by: idea-generator
+  status: proposed
+
+  title: >-
+    ML-KEM sits at module-BKZ block RANK TWO, so the d-1 penalty that answers
+    Kyber's Q8 negatively is being read off an asymptotic in beta at
+    beta/d = 2.4: measure the concrete offset beta_mod - beta as a function of
+    (field degree d, module rank r) with the Ducas-Engelberts-de Perthuis
+    released implementation, and decide whether the penalty is 255, is 30, or
+    changes sign
+
+  class: measurement
+
+  claim: >-
+    (A) THE GATE NOBODY HAS OPENED. Ducas, Engelberts and de Perthuis (eprint
+    2025/1904, October 2025, revised February 2026) conclude that for
+    power-of-two cyclotomic fields module-BKZ "requires a blocksize larger than
+    its unstructured counterpart by d - 1 + o(1)". Applied naively to ML-KEM
+    this is a 255-blocksize penalty and a 2^(0.292 * 255) = 2^74.5 core-SVP
+    slowdown, and it closes the module-BKZ lane outright. The claim of this
+    proposal is that this reading is NOT YET LICENSED at ML-KEM's parameters and
+    that the licensing question is cheap, decisive, and unasked. The DEP
+    statement is an asymptotic in the blocksize beta at fixed field degree d.
+    ML-KEM-768's published attack blocksize is about 623 against d = 256, so
+    beta/d = 2.43; ML-KEM-512 gives 406/256 = 1.59 and ML-KEM-1024 gives
+    873/256 = 3.41. Module-BKZ block RANK is r = beta_mod/d, so ML-KEM is run
+    entirely at r in {2, 3, 4} - the regime where module-BKZ is barely more than
+    module-LLL and where "asymptotic in beta" has had one or two doublings to
+    take effect, not many.
+    (B) THE FALSIFIABLE STATEMENT. Define the CONCRETE MODULE OFFSET
+    Delta(d, r) as the difference between the unstructured BKZ blocksize and the
+    module-BKZ SVP-oracle dimension that produce the SAME measured log-profile
+    slope on random q-ary module lattices of rank r over a degree-d
+    power-of-two cyclotomic field, at q = 3329 with CBD-shaped planted secrets.
+    The claim is that Delta(d, r) is measurable at d in {4, 8, 16, 32} and
+    r in {2, 3, 4, 5} with DEP's own released implementation and admits a fit in
+    (d, r), and that the fit discriminates three mutually exclusive hypotheses:
+    H_ASYMPTOTIC - Delta(d, r) = d - 1 + small, essentially independent of r,
+    in which case the naive reading is right, ML-KEM's penalty is 255, and the
+    entire module-BKZ family (including the base-order arbitrage of
+    IDEA-20260829-1ebebd) is closed by a single number;
+    H_RANK_LIMITED - Delta(d, r) grows with r and is materially SMALLER than
+    d - 1 at r in {2, 3, 4}, e.g. Delta(d, 2) below d/4, in which case ML-KEM's
+    true penalty is tens of blocksize units rather than 255, the closure is
+    quantitatively wrong, and module-BKZ becomes a live low-cost lane whose
+    residual constant-factor gains (automorphism-quotient sieving inside a
+    block, cheaper non-SVP BKZ bookkeeping on d-times-smaller matrices) are
+    worth measuring;
+    H_SIGN_CHANGE - Delta(d, r) < 0 for some (d, r) in the tested range, i.e.
+    module-BKZ at small block rank BEATS unstructured BKZ even over a
+    power-of-two cyclotomic field, contradicting the asymptotic and making the
+    module structure of ML-KEM an exploitable liability at exactly the block
+    ranks the real attack uses.
+    (C) WHY THIS IS A GATE AND NOT AN ATTACK. This record makes no complexity
+    claim of its own and explicitly does not qualify as target-class under
+    docs/target-result-profile.md A1. It is a required building block: it is the
+    ONLY measurement that decides whether a whole family - every algebraic
+    reduction strategy priced by the DEP law, including IDEA-20260829-1ebebd's
+    base-order arbitrage - is worth any further compute at ML-KEM parameters.
+    Under H_ASYMPTOTIC the family closes at a cost of a few CPU-days, which is
+    the cheapest closure available anywhere in this lane. That is its
+    justification for priority despite being non-target-class.
+
+  mechanism: >-
+    LOSSY-PROJECTION TEST. The tracked object is the ALGEBRAIC LOG-PROFILE: the
+    sequence (log ||b*_1||, ..., log ||b*_r||) of the r Gram-Schmidt norms of a
+    module basis over O_K, one per rank-1 block, rather than the Z-rank
+    r*d profile. This projection discards, per block, everything about the d
+    Z-dimensions inside it except a single scalar - the block's normalized
+    covolume - so it throws away a factor d of the state and is genuinely lossy.
+    It is discarded compatibly with the operations: module-BKZ's basis updates
+    are O_K-linear and act on whole blocks, so the r-term algebraic profile
+    propagates deterministically under them, which is exactly the content of
+    DEP's algebraic GSA. The projection is NOT a change of coordinates - the
+    Z-profile cannot be recovered from the algebraic profile, and the gap
+    between them is the discriminant term the DEP law is about.
+    WHY THE NUMBER IS IN DOUBT. Two independent reasons, both structural rather
+    than a hunch. First, the residual d - 1 has the exact form of a GRANULARITY
+    penalty: module-BKZ's SVP oracle acts on free blocks of Z-dimension r*d, so
+    the reachable oracle dimensions are 256, 512, 768, ... and an unstructured
+    blocksize of 623 must be rounded up to 768. A rounding penalty of at most
+    d - 1 is a WORST-CASE over the residue of beta modulo d, and its expected
+    value over the parameter sets is d/2, and its realized value at a specific
+    beta is (-beta) mod d - for beta = 623 and d = 256 that is 145, not 255.
+    Whether DEP's d - 1 is a worst-case bound of this shape or a genuine
+    slope-level loss is exactly what the abstract does not say and what the
+    measurement decides. Second, at r = 2 the module-BKZ "block" is the whole
+    rank-2 module and module-BKZ degenerates to rank-2 module reduction, for
+    which Lee-Pellet-Mary-Stehle-Wallet-style algorithms have qualitatively
+    different behaviour from block reduction at large r; an asymptotic in beta
+    derived for r growing need not describe r = 2 at all.
+    HOW THE MEASUREMENT IS MADE MATCHED. For each cell (d, r), generate random
+    q-ary module lattices with q = 3329 and a planted CBD_2 secret, run DEP's
+    module-BKZ at oracle dimension m*d for m = 1, 2, 3, ... and record the fitted
+    log-profile slope; independently run fplll/G6K unstructured BKZ on the SAME
+    lattices at a sweep of blocksizes and record the same fitted slope; define
+    Delta(d, r) by interpolating the unstructured blocksize whose slope matches.
+    Both arms consume the identical lattices, the identical slope estimator, and
+    the identical fitting window, so the difference is a difference of
+    algorithms and not of accounting.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: 'eprint 2025/1904 (arXiv 2510.10540), Ducas, Engelberts, de Perthuis, "Predicting Module-Lattice Reduction"'
+      provenance: retrieved
+      claim: >-
+        Module-BKZ over K of degree d needs SVP-oracle dimension
+        beta + log(|Delta_K|/d^d) * beta/(d log beta) + o(beta/log beta) to
+        match unstructured BKZ at blocksize beta; for power-of-two cyclotomics
+        |Delta_K| = d^d and the required blocksize is larger by d - 1 + o(1);
+        the work provides "the first open-source implementation of module-BKZ
+        for some cyclotomic fields" and predicts concretely "using
+        experimentally verified heuristics"; it explicitly targets Kyber's Q8.
+      verified_by: >-
+        WebFetch of https://eprint.iacr.org/2025/1904 and
+        https://arxiv.org/abs/2510.10540 on 2026-08-29; abstract returned
+        verbatim from both and the two agree. Paper BODY NOT READ. The claim
+        that the paper does not already tabulate ML-KEM parameters comes from
+        the fetch tool's reading of the landing page only and is NOT reliable.
+    - ref: 'Lee, Pellet-Mary, Stehle, Wallet, "An LLL Algorithm for Module Lattices" (ASIACRYPT 2019); Mukherjee, Stephens-Davidowitz, "Lattice Reduction for Modules" (CRYPTO 2020)'
+      provenance: recalled
+      claim: >-
+        Establish existence of module analogues of LLL and of block reduction,
+        with worst-case provable guarantees; cited by DEP as the foundational
+        works whose average-case behaviour DEP analyse. Relied on here only for
+        the qualitative point that rank-2 module reduction is a distinct regime.
+        Not fetched this session.
+      verified_by: null
+    - ref: IDEA-20260829-1ebebd
+      provenance: internal
+      claim: >-
+        The companion base-order-arbitrage proposal, whose entire pricing is
+        inherited from the DEP law and which explicitly names this record as the
+        confounder that must be resolved before its numbers become concrete
+        predictions.
+      verified_by: >-
+        Authored by the same idea-generator subagent in the same session,
+        2026-08-29; read in full as written.
+    - ref: IDEA-20260821-003cb0
+      provenance: internal
+      claim: >-
+        Source of the FIPS 203 constants used here (q = 3329, n = 256,
+        k in {2,3,4}, sigma = 1 for CBD_2, sqrt(3/2) for CBD_3).
+      verified_by: >-
+        idea-generator subagent read lines 1-70 in full on 2026-08-29.
+        Remainder of the record not read.
+    - ref: >-
+        Kyber round-3 published core-SVP blocksizes beta approximately
+        406 / 623 / 873 for ML-KEM-512 / 768 / 1024
+      provenance: recalled
+      claim: >-
+        Used only to compute the regime ratio beta/d and to set the sweep
+        range. Recomputed by the lattice estimator inside the test rather than
+        trusted. Not fetched this session.
+      verified_by: null
+
+  assumptions:
+    - >-
+      DEP's released implementation is usable at degrees d in {4, 8, 16, 32} at
+      module ranks up to 5 within a few CPU-days. If it covers only a different
+      set of fields, the design degrades to whatever fields it does cover and
+      the fit in d is correspondingly weaker; that degradation must be reported,
+      not absorbed.
+    - >-
+      Log-profile slope is a well-defined and stable summary of both algorithms'
+      output at these sizes when fitted over a fixed interior window that
+      excludes the q-vector head and the tail. This is assumed for BOTH arms
+      identically.
+    - >-
+      Extrapolating Delta(d, r) from d <= 32 to d = 256 requires a functional
+      form. The test does not assume one; it fits several (constant, linear in
+      d, linear in d with r-dependent coefficient, saturating in r) and reports
+      the discrimination among them, treating the extrapolation itself as the
+      primary uncertainty.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes every downstream conclusion is the
+      transfer of DEP's asymptotic-in-beta residual to the concrete regime
+      beta/d in [1.6, 3.4]. Nothing else in the module-BKZ pricing is in doubt.
+    baseline_embedding:
+      parameter_slice: >-
+        d = 1 (K = Q, module rank r = the full Z-rank). Module-BKZ over Q IS
+        unstructured BKZ, so Delta(1, r) must be identically 0 for every r and
+        every blocksize, measured with the same pipeline.
+      reproduction_check: >-
+        Frozen regression fixture: 50 lattices, both arms, Delta(1, r) must be
+        0 within the slope estimator's own noise band, and that noise band is
+        reported as the resolution floor of every other cell. A pipeline that
+        cannot resolve Delta = 0 at d = 1 cannot resolve Delta = 255 at
+        d = 256 either.
+    observation_collision:
+      observable: >-
+        The fitted log-profile slope. The conclusion "these two runs reached the
+        same reduction quality" is carried entirely by this one scalar.
+      distinct_preimage_search: >-
+        Two lattices with the same fitted slope but different attack difficulty
+        are easy to construct and are the direct falsifier of using slope as the
+        matching observable: a lattice whose profile has the predicted slope but
+        an anomalous HEAD (the q-vector plateau) versus one with a clean
+        profile. The test must therefore report, alongside the slope, the
+        realized head length and the realized tail, and must additionally
+        cross-check the match with a SECOND observable - the measured success
+        rate on the planted CBD secret - on a subsample. If slope-matched runs
+        disagree on recovery rate, slope is the wrong observable and the whole
+        Delta definition must be restated in terms of recovery.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Delta(d, r) as a problem-specific resource measure, realized by
+          specializing to power-of-two cyclotomic fields at small d, with the
+          charges added only over the proved-disjoint cells of the (d, r) grid.
+        predicted_gain: >-
+          Converts an ungrounded extrapolation of a published asymptotic into a
+          measured surface with error bars, at a cost of CPU-days rather than
+          the CPU-millennia that a direct d = 256 measurement would need.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the fitted slope fixed and vary the profile head/tail structure,
+          to find two module-BKZ outputs with equal slope and unequal recovery
+          rate.
+        predicted_gain: >-
+          If such a pair exists, Delta defined by slope is not the quantity that
+          governs attack cost, and DEP's blocksize translation - and therefore
+          every conclusion in this lane - needs restating. This is the cheapest
+          available falsifier of the whole framing.
+    quantifier_order: >-
+      FOR ALL (d, r) in the tested grid, THERE EXISTS a well-defined
+      Delta(d, r) matching module-BKZ to unstructured BKZ in fitted slope, and
+      the family {Delta(d, .)} admits a fit whose extrapolation to d = 256 has a
+      reported confidence interval. The claim is explicitly NOT "for all d there
+      exists Delta = d - 1"; asserting the asymptotic form uniformly over the
+      grid is the hypothesis under test, not a premise.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest certifiable outcome is a measured Delta surface on
+        d <= 32, r <= 5 with error bars, plus a fitted extrapolation to d = 256
+        carrying an explicitly stated transfer assumption. It CANNOT certify
+        Delta(256, 3) directly - that measurement is out of reach at any budget
+        this program has - and any report that states Delta(256, 3) without the
+        word "extrapolated" is a claim-tier violation.
+    nearby_object_control: >-
+      Run the identical grid over a NON-power-of-two cyclotomic field of similar
+      degree, where DEP predict a genuine gain (Delta negative and growing).
+      If the pipeline reports the same Delta surface for both families, it is
+      measuring its own bookkeeping rather than the fields, and no conclusion
+      of either sign survives.
+    proof_obligations:
+      - claim: Delta(1, r) = 0 identically, within the estimator noise band.
+        responsibility: baseline
+      - claim: >-
+          Slope-matching and recovery-rate-matching agree on a subsample, so
+          Delta is a property of reduction quality and not of the estimator.
+        responsibility: correctness
+      - claim: >-
+          The grid cells are statistically disjoint (independent lattices, fresh
+          seeds) so per-cell error bars may be combined without correlation
+          correction.
+        responsibility: size
+      - claim: >-
+          The extrapolation to d = 256 has a stated functional form, a stated
+          confidence interval, and a stated failure mode.
+        responsibility: scope
+
+  predictions:
+    - metric: Delta(d, r) at d in {4, 8, 16, 32}, r in {2, 3, 4, 5}
+      direction: higher
+      minimum_effect: >-
+        Strictly positive for every cell, and increasing in d. The
+        discriminating threshold is Delta(d, 2) versus d - 1: an observed
+        Delta(d, 2) below (d-1)/2 in at least three of the four d values is the
+        H_RANK_LIMITED signature and is a materially different conclusion from
+        DEP's naive reading.
+    - metric: >-
+        the r-dependence of Delta at fixed d, measured as
+        Delta(d, 5) - Delta(d, 2)
+      direction: different
+      minimum_effect: >-
+        Under H_ASYMPTOTIC this is 0 within noise (the residual is a property of
+        the field, not the rank). Under H_RANK_LIMITED it is positive and at
+        least (d-1)/4. A measured magnitude above the estimator noise band in
+        either direction is informative; indistinguishability from 0 at all four
+        d values is itself the H_ASYMPTOTIC confirmation.
+    - metric: >-
+        extrapolated Delta(256, 3) with confidence interval, converted to
+        classical core-SVP bits as 0.292 * Delta
+      direction: higher
+      minimum_effect: >-
+        Predicted point estimate above +100 blocksize units, i.e. above 29 bits
+        of slowdown. An extrapolated interval whose upper end is below +32 units
+        (9 bits) would reopen the lane; an interval containing 0 or negative
+        values would be the H_SIGN_CHANGE result and is the highest-value
+        possible outcome of this record.
+    - metric: >-
+        realized granularity residue (-beta) mod d at the three ML-KEM parameter
+        sets, compared to the worst case d - 1
+      direction: lower
+      minimum_effect: >-
+        145, 145 and 151 for beta 623, and correspondingly for 406 and 873 -
+        each strictly below 255. If Delta is granularity-driven, the correct
+        ML-KEM penalty is the realized residue and not d - 1, a difference of
+        at least 100 blocksize units and 29 bits.
+    - metric: null-control Delta(1, r)
+      direction: different
+      minimum_effect: >-
+        Must be 0 within the estimator noise band. Any systematic nonzero value
+        voids the run.
+
+  minimal_test:
+    design: >-
+      Two-arm matched measurement on a (d, r) grid, no ML-KEM-scale compute.
+      Step 0 - obtain and build DEP's released module-BKZ implementation;
+      record its supported field list and abort-or-degrade explicitly if the
+      planned grid is unsupported. Step 1 - instance generation: for each
+      (d, r) with d in {4, 8, 16, 32} and r in {2, 3, 4, 5}, generate 200 random
+      q-ary module lattices over Q(zeta_2d) with q = 3329 and a planted CBD_2
+      secret, seeds recorded, Z-rank r*d between 8 and 160. Step 2 - arm A:
+      module-BKZ at oracle dimension m*d for m = 1..r, recording the algebraic
+      and Z log-profiles. Step 3 - arm B: unstructured BKZ (fplll for small,
+      G6K above rank 60) on the IDENTICAL lattices over a blocksize sweep,
+      recording the same profiles under the same fitting window. Step 4 -
+      compute Delta(d, r) by interpolation of the slope-match; report per-cell
+      bootstrap confidence intervals. Step 5 - the four controls below. Step 6 -
+      fit Delta over the grid under four candidate functional forms and report
+      the extrapolation to d = 256, r in {2,3,4}, with intervals and with the
+      transfer assumption written into the record.
+    controls:
+      - >-
+        NULL OBJECT / d = 1. Module-BKZ over Q against unstructured BKZ on the
+        same lattices; Delta must be 0. This calibrates the estimator noise band
+        that every other cell is judged against.
+      - >-
+        NEARBY OBJECT WITH KNOWN OPPOSITE SIGN. The same grid over a
+        non-power-of-two cyclotomic field of comparable degree, where DEP
+        predict Delta negative. The pipeline must reproduce the sign change. A
+        pipeline that returns positive Delta everywhere is measuring itself.
+      - >-
+        RANDOM-MODULE NULL. Replace the planted CBD secret with no plant at all
+        (pure random q-ary module lattice). The slope-matching Delta must be
+        unchanged within noise, since Delta is a statement about reduction
+        quality and not about the secret. A Delta that depends on the plant
+        indicates the fitting window is contaminated by the secret's own vector.
+      - >-
+        DECAY CONTROL. Delta must not be constant in d. A quantity that should
+        grow with d and does not is the structural tell that the measurement is
+        reading a fixed cost of the harness rather than the field.
+    required_metrics:
+      - Delta(d, r) with bootstrap CI for every grid cell
+      - estimator noise band from the d = 1 null control
+      - fitted slope, head length and tail length for both arms, per instance
+      - recovery-rate cross-check on a 10 percent subsample of slope-matched pairs
+      - the four candidate fits with their AIC or equivalent, and the chosen extrapolation with interval
+      - wall-clock and memory per cell, so an infrastructure abort is never read as a small Delta
+
+  falsification_conditions:
+    - >-
+      Delta(d, 2) at or above d - 1 for all four d values, with r-dependence
+      indistinguishable from 0, falsifies H_RANK_LIMITED and H_SIGN_CHANGE and
+      confirms the naive reading; the module-BKZ lane at ML-KEM parameters
+      closes with a measured number and IDEA-20260829-1ebebd's positive branch
+      dies with it.
+    - >-
+      Any cell with Delta(d, r) < 0 at a power-of-two cyclotomic field, robust
+      to the four controls and replicated on fresh seeds, falsifies DEP's
+      power-of-two conclusion in the tested regime and is the highest-value
+      outcome available here.
+    - >-
+      A failure of the d = 1 null control, or a disagreement between
+      slope-matching and recovery-matching on the subsample, invalidates the
+      instrument; no Delta value of any sign may be reported from that run.
+    - >-
+      If the non-power-of-two positive control does not reproduce a negative
+      Delta, the pipeline cannot detect the effect it is looking for and the
+      whole measurement is uninformative regardless of what the power-of-two
+      cells show.
+    - >-
+      If DEP's released implementation does not support module rank r >= 2 at
+      any usable degree, the minimal test as designed is unexecutable and must
+      be replaced (by a re-implementation from the paper) rather than
+      approximated; a degraded proxy would not discriminate the three
+      hypotheses.
+
+  confounders:
+    - >-
+      Timeout and memory exhaustion in arm A read as "module-BKZ reached a worse
+      slope", i.e. as a large positive Delta. Per AGENTS.md rule 3 this is an
+      infrastructure outcome and not evidence; every cell must report its
+      completion status separately and incomplete cells are excluded, not
+      imputed.
+    - >-
+      Implementation maturity asymmetry. Arm B uses fplll/G6K, which are heavily
+      optimized; arm A uses a research prototype. Delta is defined in BLOCKSIZE
+      and SLOPE, not in wall-clock, precisely to neutralize this - but any
+      report that quotes a wall-clock ratio has reintroduced the confounder.
+    - >-
+      Fitting-window choice. The q-vector head and the profile tail must be
+      excluded identically in both arms. A window chosen per-arm can manufacture
+      a Delta of either sign of order tens of units.
+    - >-
+      Small-d artefacts. At d = 4 the field is Q(zeta_8) and rank-2 modules have
+      Z-rank 8, small enough that lattice-reduction behaviour is dominated by
+      finite-size effects that do not persist. The fit must be checked for
+      stability when the d = 4 row is dropped.
+    - >-
+      Granularity versus slope. If Delta is driven by oracle-dimension rounding
+      rather than by a slope loss, it will appear as a sawtooth in beta rather
+      than a constant. The sweep must be fine enough in beta to distinguish a
+      sawtooth from a plateau; a coarse sweep will average them and report a
+      meaningless mean.
+
+  interpretation_limits:
+    - >-
+      Only the ABSTRACT of DEP was read this session. The paper body may already
+      contain exactly this measurement, its own concrete predictions at
+      ML-KEM parameters, and the r-dependence - the abstract explicitly promises
+      concrete predictions from "experimentally verified heuristics". Reading
+      the body is a mandatory precondition and may reduce this record to a
+      replication. Its honest novelty status until then is unverified.
+    - >-
+      Nothing measured here is an attack on ML-KEM, and no outcome of this
+      record alone can move any ML-KEM security estimate. The deliverable is a
+      gate on a family.
+    - >-
+      Every reported Delta at d = 256 is an EXTRAPOLATION from d <= 32 and must
+      carry that word. The tested tier is toy-to-medium by
+      docs/claims-and-verification.md and the transfer argument is the fit, not
+      the measurement.
+    - >-
+      A confirmation of H_ASYMPTOTIC closes the lane FOR MODULE-BKZ AS
+      IMPLEMENTED AND AS PRICED BY THE DEP SLOPE LAW. It does not close
+      algebraic reduction generally, and it does not license "the algebra is
+      closed" language, which IDEA-20260805-574cd0 already identifies as a
+      recurring overreach in this corpus.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Slope sufficiency.) For random q-ary module lattices of the ML-KEM
+        shape, the fitted interior log-profile slope determines the primal
+        attack's recovery probability up to an additive o(1), uniformly over
+        d in {1,...,32} and r in {2,...,5}; formally, two reduced bases of the
+        same lattice with interior slopes agreeing to within 1 percent have
+        recovery probabilities agreeing to within 0.05.
+      rigorous_support: >-
+        Pairs the rigorous fact that the Gram-Schmidt profile determines Babai
+        and pruned-enumeration success exactly, given the profile, with the
+        classical Geometric Series Assumption - the standard average-case
+        distribution statement for BKZ-reduced bases that every published
+        lattice estimate consumes. The heuristic asks only that the interior
+        slope be a sufficient summary of the profile, which is precisely where
+        the q-vector head is known to break it.
+      validation_plan: >-
+        Sample directly at the tested scale, no correspondence needed: for 500
+        reduced bases per (d, r) cell, record the full profile and the measured
+        recovery rate on the planted CBD_2 secret over 100 fresh targets each.
+        Compare recovery rate against the profile-conditioned prediction (the
+        comparison distribution) and report the residual as a function of head
+        length. Tail checks: the 5 percent of bases with the longest q-vector
+        heads and the 5 percent with the flattest tails are examined
+        separately, since those are exactly the instances where slope is
+        expected to be insufficient; if the residual there exceeds 0.05, H1
+        fails in its stated form and Delta must be redefined via recovery rate.
+        Sampled parameters recorded: d, r, q = 3329, eta = 2, seeds.
+    - id: H2
+      statement: >-
+        (Degree-extrapolation regularity.) The concrete module offset satisfies
+        Delta(d, r) = a(r) * d + b(r) + o(d) with a(r) and b(r) constant in d,
+        uniformly for d a power of two in [4, 256] and r in {2,...,5}.
+      rigorous_support: >-
+        Pairs the rigorous structural fact that module-BKZ's oracle dimension is
+        an exact multiple of d - which makes any granularity contribution
+        exactly linear in d with slope at most 1 - with the classical
+        distribution statement it imitates, namely that the GSA slope of a
+        random lattice depends on the blocksize only through the Hermite factor,
+        so a field-dependent correction should enter additively rather than
+        multiplicatively. The linearity is therefore not asserted from taste; it
+        is the form the granularity mechanism forces, and departure from it is
+        evidence that the residual is slope-level rather than granularity-level.
+      validation_plan: >-
+        The grid IS the validation: with four d values per r, the linear form is
+        overdetermined and the residual from the fit is the test statistic.
+        Compare the fitted a(r) against the granularity prediction a(r) = 1
+        (which would give Delta about d) and against the DEP asymptotic
+        a = 1, b = -1. Tail check: hold out the largest d (32) from the fit,
+        predict it from the smaller three, and report the prediction error -
+        if the held-out error already exceeds 20 percent at d = 32, the
+        extrapolation to d = 256 is not supportable and must be reported as
+        such rather than issued with an optimistic interval. Transfer
+        assumption, stated explicitly: no measurement above d = 32 is performed
+        and none is claimed.
+
+  target_complexity:
+    time_exponent: >-
+      This record claims NO complexity improvement and is not target-class. It
+      measures a quantity Delta that enters other records' exponents. Its
+      outputs feed 2^(0.292 * (beta + Delta)) classical core-SVP: the predicted
+      Delta about +100 to +255 corresponds to +29 to +74.5 bits; the
+      H_RANK_LIMITED branch would put ML-KEM's true penalty near +29 bits
+      instead of +74.5; the H_SIGN_CHANGE branch would be the first negative
+      Delta ever measured for a power-of-two cyclotomic and would be worth
+      0.292 * |Delta| bits of speedup.
+    memory_exponent: >-
+      2^(0.2075 * (beta + Delta)) under the same accounting; memory moves with
+      the blocksize and is not traded. The measurement itself costs at most a
+      few GB per cell (Z-rank <= 160) and is not memory-bound.
+    best_known: >-
+      ML-KEM-768 primal attack at classical core-SVP about 2^182 time and
+      2^129 memory (beta about 623, recalled from the Kyber round-3 submission
+      and recomputed in-test). The current best-known statement about
+      module-BKZ at power-of-two cyclotomic fields is DEP's asymptotic
+      Delta = d - 1 + o(1), which is exactly the quantity in doubt.
+    hidden_overhead: >-
+      The o(beta/log beta) in DEP's law is uncharacterized in the abstract that
+      was read, and at beta/d about 2.4 it may exceed every term being compared;
+      this is the whole reason the record exists and it is not resolved by the
+      record - the measurement bounds the TOTAL offset empirically at small d
+      without decomposing it into named terms. Separately, the d = 256
+      statement is an extrapolation over a factor 8 in d, which is a
+      substantial and explicitly disclosed inferential overhead.
+    tradeoff_note: >-
+      No tradeoff is introduced. Delta shifts the blocksize, so it translates
+      identically into whichever SVP oracle is used - classical sieve, quantum
+      sieve (IDEA-20260828-411711), or the memory-charged model
+      (IDEA-20260805-cdc87d) - and its parallelization position is inherited
+      unchanged from that oracle.
+
+  dominated_by: >-
+    n/a for an attack claim - none is made. As a MEASUREMENT the nearest
+    dominating result is DEP's own asymptotic Delta = d - 1 + o(1), which
+    dominates this record wherever the asymptotic regime is reached and is
+    dominated by it wherever it is not; deciding which is the point. Checked
+    against the frontier rows this corpus tracks for ML-KEM cost: classical
+    sieve core-SVP, classical enumeration under memory charging, the quantum
+    sieve and the October-2025 quantum 3-tuple point recorded in
+    IDEA-20260828-411711, dual/MATZOV variants, and the algebraic
+    rank-reduction lane of IDEA-20260805-e805b6 / IDEA-20260828-e4fee5. This
+    record beats none of them and is not competing with them.
+  sota_delta: >-
+    No attack; measurement and gate contribution only. Quantitatively, the
+    record replaces an unmeasured extrapolation of +255 blocksize units
+    (+74.5 classical bits) at ML-KEM parameters with a measured surface plus a
+    stated-interval extrapolation. The decision value is the difference between
+    the branches - +74.5 bits (H_ASYMPTOTIC, lane closed), about +29 bits
+    (H_RANK_LIMITED, lane live), or negative (H_SIGN_CHANGE, lane is an attack).
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high

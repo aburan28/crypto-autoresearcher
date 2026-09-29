@@ -1,0 +1,479 @@
+red_team_report:
+  id: RT-20260831-64aaa4
+  task_id: red-team-mono-64aaa4
+  experiment_id: EXP-MONO-64aaa4
+  hypothesis_id: H-MONO-1d50ac
+  role: red-team
+  joint: J2-adversarial
+
+  review_plan_copy: >-
+    Prior (Coordinator): EXP-MONO-64aaa4 tests H-MONO-45183a's closed-form
+    m=4 root-multiplicity collision-rate prediction 6(tau-1)/N for CM vs
+    ordinary curves at a matched (N,tau). Stage 0's search of [101,3000]
+    found exactly one matched pair (p=617, N=580, tau=4, CM variant
+    j=1728). Both curves passed Stage 1's independent-reproduction gate,
+    though the CM curve's own deviation (2.424 SE) is notably larger than
+    the ordinary curve's (0.309 SE). The Stage-2 Fisher-exact comparison
+    did not reach significance (p=0.066, CM rate ~11% higher). Two
+    disclosed implementation decisions: a "3 drawn points, 4 sign classes"
+    construction claimed to be the only reading consistent with
+    H-MONO-45183a's own combinatorics, and a "tautological dual-convention
+    control" claimed to be a mathematically forced invariant of this
+    construction. TASK: attack all of this. Joint J2-adversarial: find the
+    strongest case that any part is wrong -- construction error, a p-value
+    close enough to significance to be an overclaim as "no effect", an
+    error in either disclosed mathematical claim, or a search that was not
+    actually exhaustive. Blindness: dispatched fresh and concurrently with
+    an independent Validator; do not read validator-labeled paths, state
+    whether a sibling artifact was observed. Proves-too-much / cross-lane
+    check: if the "tautological dual-convention control" claim is correct,
+    does it retroactively undermine EXP-MONO-12ce1c's own design or any
+    prior MONO record citing fixed-sign-vs-random-sign agreement as
+    meaningful corroboration at m=4? Given only ONE matched pair exists in
+    the declared range, is a single (N,tau,CM-type) cell strong enough to
+    draw ANY conclusion, or does "n=1" itself deserve more skepticism than
+    the record gives it?
+
+  snapshot_reviewed:
+    commit_sha: c889a4cf9d3a0141d20baedb69ddebce52e5eea0
+    receipt: coordination/tasks/TASK-20260831-4cb58f/snapshot-receipt.json
+    content_verification: >-
+      Confirmed `git rev-parse HEAD` == c889a4cf9d3a0141d20baedb69ddebce52e5eea0.
+      Independently recomputed SHA-256 for all 10 paths listed in the
+      snapshot receipt's `path_sha256` against on-disk content: zero
+      mismatches (script run, see commands_run). Also inspected the
+      immediately-preceding commit f1da40fdf (contract approval, files
+      CORR-20260831-ca3ec5 disclosing an unrelated out-of-band edit to a
+      different proposal, IDEA-20260831-3fa5c9 -- confirmed by `git show`
+      that this correction does not touch EXP-MONO-64aaa4's own
+      specification.yaml, which is a clean new file in that same commit).
+    blindness_observation: >-
+      `experiments/EXP-MONO-64aaa4/reviews/validator/` EXISTS on disk (a
+      concurrent Validator session created the directory), discovered via
+      `ls`/`find` run to prepare this review's own output directory. `find
+      ... -type f` on that path returns EMPTY -- no file exists there to
+      have read even by accident. No file under that path, or any other
+      validator-labeled path, was opened at any point in this session.
+
+  claim_under_review: >-
+    Execution report headline for EXP-MONO-64aaa4 (RUN-MONO-64aaa4-1): (M1)
+    Stage 0 exhaustively searched primes in [101,3000] and found exactly
+    one matched-(N,tau) CM/ordinary pair (p=617, N=580, tau=4, j=1728 CM
+    candidate); (M2) both curves independently reproduce H-MONO-45183a's
+    own G7 prediction 6(tau-1)/N within 3 SE (ordinary: 0.309 SE; CM:
+    2.424 SE); (M3) the direct Fisher-exact curve-to-curve comparison does
+    not reach significance at p<0.05 (p=0.066, CM rate ~11% higher),
+    reported as "no LARGE deviation detected"; two disclosed implementation
+    resolutions (3-point/4-sign-class construction; tautological
+    fixed-vs-random-sign dual-arm control).
+
+  verdict: >-
+    holds_on_every_independently_checked_arithmetic_and_mathematical_claim_
+    but_the_records_own_two_headline_framings_-_"exhaustive_search,_one_
+    matched_pair"_and_"not_significant,_no_large_deviation"_-_each_rest_on_
+    an_undisclosed_or_underweighted_choice_that_a_natural_alternative_
+    reading_reverses_or_substantially_weakens
+
+  objections:
+    - id: OBJ-1
+      severity: high
+      title: >-
+        "Exhaustive search" silently means "exhaustive over same-prime
+        coincidences only"; the run's own archived transcript contains
+        >=100 cross-prime matched-(N,tau) pairs that were never searched
+        for, measured, or even acknowledged as excluded
+      finding: >-
+        run_experiment.py's Stage-0 loop tests
+        `ordc["N"]==cm["N"] and ordc["tau"]==cm["tau"]` only inside the
+        same iteration of `for p in primes`, i.e. only between the
+        ordinary curve and CM candidates constructed AT THE SAME PRIME. I
+        parsed the archived, hash-verified stage0_transcript.json
+        (path_sha256 confirmed against on-disk content) and built the
+        (N,tau) buckets across ALL 405 constructed ordinary curves and 810
+        CM candidates (j=0 and j=1728 at each of 405 primes). Restricting
+        to same-p gives exactly the 1 reported match. Allowing p_ord !=
+        p_cm gives >=100 additional matched-(N,tau) cells, several at
+        primes far smaller than 617 (e.g. N=124, tau=4 at p=109 (ord) vs
+        p=139 (cm_j0); N=138, tau=2 at p=131 vs p=137). None of these were
+        measured, mentioned in execution_report.yaml, or flagged as
+        deliberately excluded.
+      why_this_matters: >-
+        H-MONO-45183a's own closed form 6(tau-1)/N (B-2) is stated purely
+        as a function of (N,tau); it names no dependence on the ambient
+        prime p. A cross-prime matched pair (same N, same tau, different p,
+        different endomorphism ring) is therefore JUST AS VALID an
+        instance of the exact question this record asks ("does the rate
+        depend on anything beyond (N,tau)?") as a same-prime pair -- if
+        anything it is a STRICTER test, since it also probes p-invariance,
+        which B-2's own derivation implicitly assumes. The specification's
+        own stage_0 text anticipates this explicitly: "at that SAME prime
+        or, if declared explicitly in advance, at a different prime within
+        the range" -- but no such advance declaration was ever made,
+        anywhere in specification.yaml or implementation.md, and
+        implementation.md's own stated purpose ("records every place the
+        frozen specification's natural-language text left an
+        implementation choice underdetermined") never surfaces this as a
+        choice at all. The contract technically permits the narrow
+        (same-prime) reading by its own default clause, so this is not an
+        Executor deviation from the frozen text -- but it IS a design
+        choice, baked into the frozen contract at approval time, that
+        collapses a search space of >=100 available matched cells down to
+        1, and neither the Coordinator's approval rationale nor the
+        approval_requirements checklist (which asks only whether Stage 0
+        "genuinely searches rather than assumes a match") interrogates
+        whether "searches" was itself defined narrowly enough to make the
+        eventual n=1 sample size a foregone conclusion rather than a fact
+        about number-theoretic scarcity.
+      independent_verification: >-
+        Recomputed directly from the archived stage0_transcript.json
+        (110598 bytes, sha256 ff7142d...8df0e, verified against the
+        snapshot receipt) via a standalone script with no dependency on
+        run_experiment.py. See commands_run.
+    - id: OBJ-2
+      severity: medium-high
+      title: >-
+        "No significant difference" (p=0.066, two-sided) is a fragile
+        reading of a result that a natural, equally legitimate alternative
+        statistic pushes past the conventional threshold
+      finding: >-
+        Independently recomputed from the archived 2x2 table
+        (ord: 613/19387, cm: 679/19321): two-sided Fisher exact p=0.06598
+        (matches the record exactly). A ONE-SIDED Fisher exact test in the
+        direction actually observed (cm rate > ord rate) gives p=0.0330. A
+        two-proportion z-test (normal approximation) gives two-sided
+        p=0.0620 and one-sided p=0.0310. Using the pair-count totals
+        (613 vs 681, out of 6 pairs x 20000 tuples each curve) instead of
+        the tuple-level any-collision indicator gives a comparable
+        one-sided p=0.029. All four alternative-but-standard framings of
+        the SAME underlying data land just inside the conventional 0.05
+        boundary, while the two-sided Fisher test the contract
+        pre-registered lands just outside it (0.066).
+      why_this_matters: >-
+        This is NOT an argument that a one-sided test should have been
+        used post hoc -- the contract's own pre-registration commits to a
+        two-sided, "genuinely open" test, and I am not proposing to
+        override that commitment. The point is calibration of how the
+        result is COMMUNICATED: "no statistically significant disagreement
+        ... no LARGE deviation detected" is technically hedged correctly
+        (the record does disclose the 2x power-detection floor), but the
+        actual position of this result -- one test convention away from
+        conventional significance, on both the direct comparison and the
+        within-curve residual -- is a materially different epistemic state
+        from "the closed form was corroborated" or "nothing more to see
+        here," and a reader who stops at "p=0.066, not significant" will
+        not learn that. Combined with OBJ-3 below, the honest label for
+        this outcome is INCONCLUSIVE, mildly suggestive of the direction
+        KN-OPEN-009 asks about, not "closed form survives unscathed."
+      independent_verification: >-
+        Recomputed via scipy.stats.fisher_exact (alternative='less') and a
+        manual two-proportion z-test; see commands_run.
+    - id: OBJ-3
+      severity: medium
+      title: >-
+        The CM curve's own within-curve deviation (2.424 SE) is an 8x
+        larger residual than the ordinary curve's (0.309 SE), and Stage
+        1's "pass" bar (3 SE) is loose enough to let this pass silently as
+        equivalent evidence
+      finding: >-
+        A one-curve deviation of 2.424 SE from its own predicted value is,
+        under the normal approximation the record itself uses for the SE,
+        a roughly 1.5% two-sided (0.77% one-sided) tail event -- notable on
+        its own, and starkly larger than the ordinary curve's -0.309 SE
+        (an entirely unremarkable ~76th percentile event). Both "pass" the
+        stated Stage-1 gate (|deviation| <= 3 SE) because that gate is
+        designed to catch gross construction failures, not to certify
+        that both curves agree with the prediction to comparable
+        precision. Reporting "all four cells pass" without noting this 8x
+        asymmetry between the two curves' own residuals understates how
+        much of Stage 2's ~11% CM-vs-ordinary gap is already visible
+        one level down, in each curve's own agreement with the SHARED
+        prediction, before the two curves are even compared to each other.
+      caveat_the_record_should_still_get_credit_for: >-
+        A single 2.4 SE deviation on ONE curve, drawn from a search of 405
+        primes' worth of curves in this run's own transcript (plus many
+        more curves constructed by this lane's earlier experiments), is
+        exactly the kind of magnitude that WOULD occur somewhat routinely
+        by chance under a "look-elsewhere" accounting across many curves --
+        this cuts the other way, against over-reading the CM curve's
+        residual as necessarily meaningful. Neither reading is settled by
+        the one cell tested; see OBJ-1 and required_controls.
+    - id: OBJ-4
+      severity: low-medium
+      title: >-
+        Blind, from-scratch re-derivation of every headline number
+        succeeds (M1, M2, M3 exactly), but only after finding that
+        implementation.md's own disclosed "role string" example does not
+        match the actual code
+      finding: >-
+        I independently re-implemented Stage 0's curve construction and
+        Stage 1/2's measurement entirely from specification.yaml's own
+        text and H-MONO-45183a's own B-1/B-2 primary text, importing NONE
+        of run_experiment.py. This exactly reproduced the matched pair
+        (p=617, A=340/B=362 ordinary, A=69/B=0 CM, N=580, tau=4, j=227 and
+        j=494=1728 mod 617) and the ordinary curve's Stage-1/2 numbers
+        (613/613) on the FIRST attempt, using role string "ordNone" per
+        implementation.md section 3's disclosed convention
+        `role = curve_role_string + str(j_invariant_label)`. Using that
+        SAME disclosed convention for the CM curve -- role "cm1728", the
+        literal example implementation.md gives ("e.g., 'ordNone',
+        'cm1728'") -- reproduces 662 total colliding pairs, NOT the
+        reported 681. Reading run_experiment.py's actual source shows
+        `curve_cm["j"]` is overwritten with `pair["cm_variant"]`, which is
+        the STRING label "j1728" (not the integer 1728 that
+        `construct_cm_j1728` originally set), so the code's actual role
+        string is "cmj1728", not "cm1728". Using "cmj1728" reproduces
+        681/679 EXACTLY, matching the archived record bit-for-bit.
+      why_this_matters: >-
+        The headline numbers ARE independently confirmed correct -- this
+        is a genuine, successful blind re-derivation, not a computational
+        defect. But implementation.md's own worked example of its
+        disclosed "underdetermined choice" does not match the code it
+        claims to describe. An auditor who trusts the DISCLOSED PROSE
+        (rather than reading the source) reproduces a DIFFERENT, WRONG
+        number (662 instead of 681) and would have no way to know the
+        prose was inaccurate without independently re-deriving from the
+        source, exactly as I did. This is a previously-undiscovered,
+        low-severity documentation-accuracy defect (it does not change
+        validity, disjointness, or determinism of the actual seed
+        streams), but it is exactly the kind of gap "implementation.md
+        records every place the text left a choice underdetermined"
+        promises will not exist.
+      independent_verification: >-
+        Standalone script, zero repository-code imports; see commands_run.
+    - id: OBJ-5
+      severity: medium
+      title: >-
+        The "tautological dual-convention control" finding is mathematically
+        correct but is a rediscovery of EXP-MONO-12ce1c's own already-
+        committed Red Team finding (OBJ-6), uncited, and this record does
+        not run the ONE control this lane's own history shows is actually
+        discriminating for this exact mechanism
+      finding: >-
+        I independently re-derived the invariance claim from first
+        principles (substituting P_i -> -P_i for each of the 3 drawn
+        points in turn and tracking the induced permutation of the 4
+        canonical sign-class sums): flipping any one point's chosen square
+        root permutes which of the 4 classes computes which value but
+        provably preserves the MULTISET of the 4 resulting x-coordinates,
+        hence the collision count is exactly invariant under the
+        fixed-sign/random-sign choice, for all 3 points, confirming
+        implementation.md section 4's claim is correct. HOWEVER: this is
+        the identical mathematical fact already established, in this same
+        lane, by EXP-MONO-12ce1c's own Red Team report
+        (experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml,
+        OBJ-6, "HEUR-COIN-1's falsification condition is empty by
+        construction"), which is what H-MONO-45183a's own status_note
+        already cites when it says Part B was "rescoped to the transversal
+        sampling convention actually used (its own sign-convention control
+        was empty by implementation)". Neither implementation.md nor
+        execution_report.yaml for EXP-MONO-64aaa4 cites OBJ-6 or
+        EXP-MONO-12ce1c's red-team report anywhere -- the disclosure reads
+        as an apparently fresh discovery rather than a confirmed
+        rediscovery of documented prior art (agents/red-team.md item 9;
+        AGENTS.md rule 6).
+      the_missed_discriminating_control: >-
+        OBJ-6 did not stop at diagnosing the tautology: it ran "the
+        experiment that would have worked" -- comparing TRANSVERSAL
+        (factor-base, f(x)!=0 excluded) sampling against GENUINELY
+        GROUP-UNIFORM sampling -- and found a real, large, non-tautological
+        effect: group-uniform mean collision counts ran 1.84-2.08x the
+        transversal mean at m=4 on every tau>=2 curve tested, because
+        transversal sampling structurally forces the singleton-branch
+        probability to exactly 0 (2-torsion points can never be drawn,
+        since they require f(x)=0, which is excluded by construction) --
+        this is the exact load-bearing assumption behind B-2's "6(tau-1)/N"
+        formula. HEUR-COIN-1's own random-model justification ("the gap
+        ... is expected to be O(1/N) relative and therefore below the
+        leading term") is therefore ALREADY KNOWN, in this lane, to be
+        wrong at leading order (a factor of ~2, not o(1/N)) for the
+        relevant axis. EXP-MONO-64aaa4 correctly inherits the (already
+        corrected) transversal-only scoping -- both matched curves pass
+        Stage 1 because both use the transversal construction consistently
+        -- but it never applies the ONE control that this lane's own prior
+        review demonstrated to be genuinely discriminating (transversal vs.
+        group-uniform) to either matched curve, despite that axis being
+        directly on point for this record's own completeness question:
+        whether the 2-torsion-exclusion artifact itself differs in
+        magnitude between the CM curve and the ordinary curve at the same
+        (N,tau) is untested, and is a structurally distinct question from
+        the sign-of-sqrt axis this record's disclosed control actually
+        addresses.
+    - id: OBJ-6
+      severity: low
+      title: proves-too-much cross-lane check comes back clean for the current ledger, but only because a prior review already did the correction
+      finding: >-
+        I checked whether OBJ-5's confirmed tautology retroactively
+        undermines any CURRENTLY STANDING record's claim of meaningful
+        corroboration from fixed-sign-vs-random-sign agreement at m=4.
+        H-MONO-45183a's own status_note already states the correction
+        explicitly ("rescoped to the transversal sampling convention
+        actually used ... its own sign-convention control was empty by
+        implementation") and I found no other ledger or evidence record
+        (grepped ledger/, experiments/, knowledge/) still citing the
+        dual-sign agreement as independent corroboration without that
+        caveat. So: no currently-standing overclaim is exposed by this
+        check. This is a narrow, negative finding and should not be read
+        as validating EXP-MONO-64aaa4's own presentation, which (OBJ-5)
+        omits the citation that would make this consistency visible to a
+        reader of this record alone.
+
+  required_controls:
+    - >-
+      Extend Stage 1/2's measurement to the >=100 already-known cross-prime
+      matched-(N,tau) cells identified in OBJ-1 (curves already
+      constructed in the archived stage0_transcript.json; per-cell
+      Stage-1/2 compute cost is ~4 seconds based on this run's own
+      wall-clock total). This converts an n=1 point estimate sitting near
+      a significance threshold into a genuine multi-cell test of
+      (N,tau)-only completeness, and supplies the missing empirical
+      baseline for OBJ-3's "how often does a single curve deviate by
+      >=2.4 SE, or a single pairwise comparison land at p<0.1, by chance
+      alone across this many cells" question -- the null-object control
+      this record's single-cell design cannot provide on its own.
+    - >-
+      Run OBJ-5's "the experiment that would have worked" (transversal vs.
+      genuinely group-uniform sampling, per EXP-MONO-12ce1c OBJ-6) on BOTH
+      matched curves (ordinary and CM) at p=617, to test whether the
+      already-documented ~2x transversal-sampling artifact itself differs
+      in magnitude between the two curves -- a structurally distinct,
+      and more targeted, discriminating axis than the tautological
+      sign-convention control this record actually ran.
+    - >-
+      Re-report the Stage-2 result alongside the one-sided and
+      two-proportion-z framings computed in OBJ-2 (clearly labeled
+      exploratory, not a substitute for the pre-registered two-sided
+      test), so a reader sees the result's actual proximity to
+      significance rather than only the single two-sided p-value.
+
+  counterexample_or_mutation: >-
+    OBJ-1's cross-prime enumeration is itself the counterexample to
+    "exactly one matched pair exists in [101,3000]": under the equally
+    licensed alternative reading of "matched (N,tau) pair" that the
+    frozen contract's own text contemplates (cross-prime matching,
+    "if declared explicitly in advance"), the SAME transcript already
+    contains >=100 matched cells, several at smaller, cheaper primes than
+    the one tested. The n=1 framing is a fact about which reading the
+    contract's default clause selected, not a fact about the scarcity of
+    matched (N,tau) pairs in this range.
+
+  baseline_comparison: >-
+    Not applicable in the ECDLP-cost sense (this record makes, and this
+    review evaluates, no ECDLP, cost, or exponent claim in either
+    direction, per AGENTS.md rule 4 and the contract's own claim_ceiling).
+    Within the record's own toy-scale statistical question, the relevant
+    "baseline" is H-MONO-45183a's own already-committed G6/G7 predictions,
+    which both matched curves independently reproduce within the (loose)
+    3-SE gate -- see OBJ-3 for why "passes the gate" is a weaker claim
+    than "matches equally well."
+
+  heuristic_challenges:
+    - heuristic: HEUR-COIN-1 (as inherited, unmodified, by H-MONO-1d50ac's H1)
+      challenge: >-
+        Its own random-model justification ("the gap between transversal
+        and group-uniform sampling is expected to be O(1/N) relative and
+        therefore below the leading term") is already falsified in this
+        lane at a ~2x, first-order scale (EXP-MONO-12ce1c OBJ-6), for the
+        exact construction EXP-MONO-64aaa4 reuses unmodified. This record
+        correctly stays within the now-corrected "transversal sampling
+        convention" scope (both curves use transversal sampling
+        consistently, so Stage 1 passing is not surprising), but it never
+        re-tests, on the CM/ordinary matched pair specifically, whether
+        that already-known artifact interacts differently with
+        endomorphism ring -- the exact completeness question this record
+        exists to answer. See OBJ-5.
+    - heuristic: H2 (matched-(N,tau) pair existence, H-MONO-1d50ac)
+      challenge: >-
+        H2's own text scopes existence as "not guaranteed by the general
+        theory for any single small prime" and treats Stage 0's search
+        outcome as the test. OBJ-1 shows the search's own operative
+        definition of "matched pair" (same-prime only) is far narrower
+        than the space H2's motivating Deuring-correspondence argument
+        would support (which places no special weight on p_ord = p_cm),
+        so H2's "existence" question was answered under a self-imposed
+        handicap that the record does not surface as a scoping choice.
+
+  cost_model_challenges:
+    - >-
+      Not primarily applicable (no cost/exponent claim). One relevant
+      point: the comparison_test_power_check's own disclosed floor ("not
+      powered to detect a sub-20% relative difference") is honest but
+      double-duty here -- it is used both to justify why p=0.066 is not
+      dispositive AND, implicitly, to license reading the null as "closed
+      form survives." Those are not the same conclusion; an underpowered
+      null is silent, not corroborating, and OBJ-2's one-sided/z-test
+      recomputation shows the silence is closer to a whisper than the
+      headline framing suggests.
+
+  reduction_and_scope_challenges:
+    - >-
+      No reduction chain is claimed by this record (H-MONO-1d50ac's own
+      reduction_chain field is null) and none is manufactured by this
+      review. Scope as stated (m=4 exactly, prime fields, j in {0,1728}
+      CM candidates only, toy primes, one construction convention) is
+      accurately reflected in the record's own claim_ceiling; this review
+      finds no scope inflation beyond what is already disclosed.
+
+  proof_architecture_challenges:
+    - joint: observation_collision (H-MONO-1d50ac proof_search_map)
+      challenge: >-
+        The stated distinct-preimage search names exactly the right
+        object (a CM/ordinary pair at identical (N,tau)) but the method
+        used to FIND that object (same-prime-only matching) is narrower
+        than the space the search's own motivating argument (Deuring
+        correspondence, which is p-agnostic) supports. See OBJ-1.
+    - joint: method_ceiling / nearby_object_control
+      challenge: >-
+        H-MONO-1d50ac's own nearby-object control (a tau=1 matched pair,
+        forced to exactly 0 collisions on both curves) was never
+        available in this run (the one matched pair found has tau=4), so
+        the sharpest, exact-zero form of the control that the record's own
+        proof_search_map calls "the sharpest possible agreement test" was
+        never actually exercised. This is disclosed honestly
+        (`tau1_nearby_object_control: not_applicable_this_pair_has_tau_4`)
+        but is a further reason a single tau=4 cell, with a borderline
+        statistical comparison, cannot carry the weight of "closed form
+        corroborated."
+
+  narrowest_supported_statement: >-
+    At ONE matched-(N,tau) toy-scale cell (p=617, N=580, tau=4, ordinary
+    vs. j=1728 CM curve, transversal factor-base sampling construction),
+    both curves independently reproduce H-MONO-45183a's own G7 prediction
+    within a 3-SE gate, and a pre-registered two-sided Fisher-exact
+    comparison between them does not cross p<0.05 (p=0.066). This is
+    INCONCLUSIVE, not corroborating: (a) the comparison is acknowledged by
+    the record's own design to be underpowered for the effect size
+    actually observed; (b) a one-sided test and a two-proportion z-test on
+    the identical data cross the conventional 0.05 threshold (p in
+    [0.029, 0.033]); (c) the CM curve's own within-curve residual (2.424
+    SE) is substantially larger than the ordinary curve's (0.309 SE); and
+    (d) the record's own operative search definition examined only 1 of
+    at least 101 available matched-(N,tau) cells in the same declared
+    range, at near-zero additional marginal cost. No claim about m != 4,
+    other CM discriminants, extension fields, or any ECDLP/cost/exponent
+    quantity is supported in either direction, and none is made by the
+    record under review.
+
+  next_concrete_action: >-
+    Before promoting any interpretation of this run (either direction),
+    extend the already-constructed Stage-0 transcript's >=100 cross-prime
+    matched-(N,tau) cells through Stages 1-2 (cheap: curves already built,
+    ~4 seconds of measurement per cell observed in this run), and report
+    the resulting distribution of within-curve residuals and pairwise
+    comparison p-values across cells. This directly answers whether the
+    p=617 cell's borderline signal (2.424 SE single-curve residual;
+    one-sided p in [0.029,0.033]) is typical sampling noise across many
+    matched cells or an outlier worth escalating, and removes the n=1
+    sample-size problem at essentially zero additional Stage-0 cost.
+
+  artifact_paths:
+    - experiments/EXP-MONO-64aaa4/specification.yaml
+    - experiments/EXP-MONO-64aaa4/execution_report.yaml
+    - experiments/EXP-MONO-64aaa4/implementation.md
+    - experiments/EXP-MONO-64aaa4/implementation/run_experiment.py
+    - experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/raw-result.json
+    - experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/stage0_transcript.json
+    - experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/manifest.yaml
+    - coordination/tasks/TASK-20260831-4cb58f/snapshot-receipt.json
+    - ledger/hypotheses/H-MONO-45183a.yaml
+    - ledger/hypotheses/H-MONO-1d50ac.yaml
+    - experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml

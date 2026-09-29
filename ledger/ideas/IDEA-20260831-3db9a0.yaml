@@ -1,0 +1,212 @@
+idea:
+  id: IDEA-20260831-3db9a0
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Charge the auxiliary-input attack honestly: memory, table construction and
+    auxiliary-point transmission on one frontier with the low-memory variant
+  class: cost-model
+
+  claim: >-
+    The r^{1/4} figure attached to Cheon's algorithm is a TIME exponent at the
+    balanced divisor and does not survive contact with a complete cost model.
+    The naive two-stage form buys its time with a table of size approximately
+    sqrt(d), which at the balanced d ~ sqrt(r) is r^{1/4} memory -- the same
+    exponent as the time. The claim is that once memory, table construction, the
+    distinguished-point low-memory variant, and the cost of transmitting and
+    verifying the auxiliary points are all charged on one frontier, the honest
+    statement is a Pareto curve over (time, memory, auxiliary points consumed),
+    not a single exponent, and the r^{1/4} row is dominated on memory by rho at
+    equal time on part of that curve.
+
+  mechanism: >-
+    This program already learned this lesson once in the adjacent lane. The
+    ECDSA goal (GOAL-ECDSA-001) exists precisely because the nonce-leakage
+    literature reports per-paper time figures that do not compose into a
+    frontier until memory is charged alongside them. The auxiliary-input lane has
+    the identical pathology and no goal has ever charged it: DEC-20260802-204
+    records the balanced N^{1/4} row and separately notes that the source's
+    "Section 2.2 gives a rho subalgorithm and distinguished-point low-memory
+    implementation" -- two points on a tradeoff curve, cited as if they were one
+    result.
+
+    The mechanism of the measurement is the program's existing offline/online
+    accounting applied to a lane it has not yet been applied to: build the
+    frontier by sweeping the divisor d and the distinguished-point parameter,
+    measure time and peak memory at each setting on the reproduction
+    implementation from IDEA-20260831-bd0356, and plot against the rho baseline
+    at identical accounting. The output is a table with a `dominated_by` column
+    filled in per row, in the Pareto-honesty form the inventor protocol requires.
+
+  tracked_object: >-
+    The (time, peak memory, auxiliary points consumed) triple per parameter
+    setting, as a Pareto frontier rather than a single point.
+
+  lossy_projection_test: >-
+    PASSES. The projection (run) -> (time, memory, auxiliary count) discards the
+    curve, the scalar and the algorithmic detail, retaining the three quantities
+    a deployer would actually pay. It is compatible with the operations the
+    sweep performs -- varying d and the distinguished-point rate moves all three
+    coordinates deterministically. Non-injective by design: many settings map to
+    the same triple, which is exactly what makes a frontier meaningful.
+
+  novelty_status: unverified
+  novelty_note: >-
+    The tradeoff is implicit in the original analysis and the low-memory variant
+    is published, so a combined frontier may well exist in the literature. Not
+    checked. `unverified` is the honest label; if the frontier is published, the
+    correct outcome is a KN-LIT record and closure, not a reproduction.
+
+  citations:
+    - ref: ledger/decisions/DEC-20260802-204.yaml
+      provenance: internal
+      claim: >-
+        Records both the balanced N^{1/4} augmented-input row AND that "Section
+        2.2 gives a rho subalgorithm and distinguished-point low-memory
+        implementation", as separate component dispositions. Relied on as this
+        program's own evidence that the lane has at least two operating points
+        and has never been charged as a frontier.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: ledger/goals/GOAL-ECDSA-001.yaml
+      provenance: internal
+      claim: >-
+        The existing goal's objective -- assemble per-paper results "into a
+        single Pareto frontier over (leaked bits, error rate, samples, time,
+        memory, curve size) rather than the per-paper reporting the literature
+        currently offers". Relied on as the methodological template this idea
+        copies into the auxiliary-input lane.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+
+  assumptions:
+    - >-
+      HARD DEPENDENCY on IDEA-20260831-bd0356: there is no frontier to sweep
+      without a working, certificate-checked implementation. This idea cannot
+      start before that one passes its controls.
+    - >-
+      Peak memory is measured, not modelled. A memory figure derived from the
+      table size formula rather than observed would defeat the purpose.
+
+  predictions:
+    - metric: peak memory at the balanced divisor
+      direction: higher
+      minimum_effect: >-
+        Approximately r^{1/4}, i.e. the same exponent as the time win. If
+        measured memory is materially below that, the implementation is not the
+        naive form and the row must be relabelled.
+    - metric: >-
+        number of frontier rows where the auxiliary-input attack is dominated by
+        rho once memory is charged
+      direction: different
+      minimum_effect: >-
+        Predicted nonzero. A frontier where no row is dominated would be
+        surprising and would need re-checking before reporting.
+    - metric: time-memory product across the distinguished-point sweep
+      direction: different
+      minimum_effect: >-
+        No threshold; reported as a curve. The question is the shape, not a
+        single number.
+
+  minimal_test:
+    design: >-
+      (1) Take the certified implementation from IDEA-20260831-bd0356.
+      (2) Sweep the divisor d across the planted range and the
+      distinguished-point rate across at least four settings.
+      (3) Measure time (metered group operations) and PEAK MEMORY at each
+      setting, plus auxiliary points consumed.
+      (4) Measure the rho baseline on the same curves at identical accounting,
+      including its own memory.
+      (5) Emit the frontier with a `dominated_by` entry per row and a
+      `sota_delta` that says not_applicable where a row is inadmissible.
+    controls:
+      - >-
+        ACCOUNTING CONTROL: rho measured through the identical metering harness
+        on the identical curves. A frontier against a differently-accounted
+        baseline is not a frontier.
+      - >-
+        NULL OBJECT: the no-divisor control curve from IDEA-20260831-bd0356
+        swept identically. Its frontier must show no advantageous region.
+      - >-
+        MEMORY INSTRUMENT CHECK: a run with a deliberately oversized table must
+        register the increase. If peak-memory instrumentation cannot see a
+        known allocation, no memory number in the run is usable.
+    required_metrics:
+      - metered group operations per setting
+      - peak memory per setting, measured
+      - auxiliary points consumed per setting
+      - rho baseline time and memory at identical accounting
+      - dominated_by per frontier row
+
+  falsification_conditions:
+    - >-
+      Peak-memory instrumentation fails its instrument check. Every memory
+      number in the run is void.
+    - >-
+      The rho baseline is not measured through the same harness. The comparison
+      is void.
+    - >-
+      A frontier row is reported without a dominated_by determination.
+
+  confounders:
+    - >-
+      Toy-scale constants swamp exponents. The frontier is a shape at measured
+      sizes, not an asymptotic claim, and must be labelled so.
+    - >-
+      Charging auxiliary-point acquisition here would double-count: in this
+      lane the points are supplied by the protocol at zero cost by definition.
+      What IS chargeable is their transmission, storage and verification, and
+      those are separate line items.
+    - >-
+      Reporting the best row rather than the frontier would reproduce exactly
+      the per-paper pathology this idea exists to fix.
+
+  interpretation_limits:
+    - >-
+      A cost model is not an attack. This produces no recovery on any real
+      curve and supports no security claim.
+    - >-
+      Charging memory can only make the attack look WORSE than its published
+      time exponent. A result showing the attack is less attractive than r^{1/4}
+      suggests is the expected outcome and is not a finding against the
+      literature, which stated a time bound and did not claim otherwise.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None. Measurement and Pareto bookkeeping only.
+
+  target_complexity:
+    time_exponent: >-
+      r^{1/4} at the balanced divisor in the naive form; the sweep measures how
+      that degrades as memory is constrained.
+    memory_exponent: >-
+      Approximately r^{1/4} naive; the distinguished-point variant trades it
+      down at a time cost the sweep measures rather than assumes.
+    best_known: >-
+      Cheon's analysis plus the published low-memory variant. This charges them
+      jointly; it does not improve either.
+    hidden_overhead: >-
+      Table construction time is routinely omitted from the headline and is
+      metered separately here.
+    tradeoff_note: >-
+      This idea IS the tradeoff note. Its entire deliverable is the curve that
+      a single exponent hides.
+
+  null_object_control: >-
+    The no-divisor matched control curve, swept identically; required to show no
+    advantageous frontier region.
+
+  dominated_by: >-
+    n/a for the measurement itself. Per-row dominance against rho is the
+    deliverable and is determined empirically, not asserted here.
+  sota_delta: >-
+    No attack and no speedup. Contribution is bookkeeping: a frontier replacing
+    a pair of separately-cited operating points, in the lane where this program
+    has twice cited a cost it never charged.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium

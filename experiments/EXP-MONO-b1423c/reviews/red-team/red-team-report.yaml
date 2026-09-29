@@ -1,0 +1,685 @@
+red_team_report:
+  id: RT-20260831-b1423c
+  task_id: red-team-mono-b1423c
+  experiment_id: EXP-MONO-b1423c
+  hypothesis_id: H-MONO-663fb4
+  role: red-team
+  joint: J2-adversarial
+
+  review_plan_copy: >-
+    Prior (Coordinator): EXP-MONO-b1423c is a small, targeted follow-up
+    experiment that correctly reconstructed a known-exceptional positive
+    control (EXP-MONO-c819ba's RO3 subgroup factor base) and confirmed it
+    lands exactly at the permutation-test floor (a genuine, maximally-extreme
+    outlier), but found EXP-MONO-b19c6b's Fisher-combined statistic FAILS to
+    reject this outlier when mixed into a ~49-curve background panel
+    (combined p in [0.47, 0.52]). The Coordinator interprets this as an
+    informative negative finding about Fisher's method's known statistical
+    property (diluting a single extreme value across many background tests),
+    not an implementation bug, and computed that the extreme cell's
+    chi-squared contribution (~19.8) is comparable to the panel's own
+    natural fluctuation (df=98, sd~14). TASK: attack this. Joint
+    J2-adversarial: find the strongest case that this disposition is wrong
+    -- either (a) the "sensitivity gap" finding is actually an artifact of
+    something else (construction error, unrepresentative background panel,
+    subtle implementation issue), or (b) the mathematical explanation given
+    for WHY it failed to reject is wrong or incomplete, or (c) the
+    experiment doesn't actually establish what it claims. Blindness:
+    dispatched fresh and concurrently with an independent Validator session;
+    do not read experiments/EXP-MONO-b1423c/reviews/validator/ or any
+    validator-labeled path. Proves-too-much / cross-lane check: if
+    Fisher-combined genuinely has this dilution weakness at k~49, does that
+    retroactively cast doubt on EXP-MONO-b19c6b's own "controlled null
+    confirmed" reading (which relied partly on Fisher-combined showing no
+    signal)? Specifically: was Fisher-combined's "no signal" result in
+    EXP-MONO-b19c6b ever informative for the single/few-curve-deviation
+    case, or only for the many-mild-curves case it is traditionally suited
+    for, and is EV-MONO-04d447's own disposition already scoped for this or
+    does it need an additional caveat? Hunt for a genuinely new,
+    previously-undiscovered defect, per this lane's established practice.
+
+  snapshot_reviewed:
+    commit_sha: 8e8edf2d473e3f51f715580e137f3b0f5a54bf15
+    receipt: coordination/tasks/TASK-20260831-cca2c8/snapshot-receipt.json
+    design_snapshot_commit_run_was_executed_against: af5528b494b1ef9486ba69f0f458e16e95bb748e
+    out_of_band_edit_disclosed: 9e786d21d60506b69fc6ecfe0620925ceece5130 (CORR-20260831-817847)
+    content_verification: >-
+      Confirmed `git rev-parse HEAD` == 8e8edf2d473e3f51f715580e137f3b0f5a54bf15,
+      matching the task card's stated PR #641 commit exactly. Independently
+      recomputed SHA-256 for all 17 paths listed in the snapshot receipt's
+      `path_sha256` against the on-disk content: zero mismatches. Confirmed
+      via `git log --oneline` that the commit graph is linear and matches
+      CORR-20260831-817847's narrative exactly: af5528b49 (Coordinator
+      approval) -> 9e786d21d (undisclosed "Cursor Agent" out-of-band edit,
+      landed after approval) -> 8e8edf2d4 (Coordinator's run-package
+      snapshot, which merged the out-of-band commit and disclosed it).
+      Independently confirmed, by direct diff of the original
+      (`git show af5528b49:.../specification.yaml`) vs current on-disk
+      `background_reuse` clause text, that the out-of-band edit's content
+      claim in CORR-20260831-817847 is accurate: the original text names
+      only "the Var statistic" as background, an ambiguity the edit
+      resolves. See OBJ-3 for independent confirmation this ambiguity was
+      never exploited in the executed code.
+    blindness_observation: >-
+      `experiments/EXP-MONO-b1423c/reviews/validator/` EXISTS on disk (a
+      concurrent Validator session has created it), discovered via `ls`/
+      `find` run to prepare this review's own output directory, AFTER all
+      independent analysis and findings below were already complete. `find
+      ... -type f` returns EMPTY -- the directory contains no files, so
+      there is nothing to have read even by accident. No file under that
+      path, or any other validator-labeled path, was opened or read at any
+      point in this session.
+
+  claim_under_review: >-
+    The Coordinator's snapshot headline (`coordination/tasks/TASK-20260831-
+    cca2c8/snapshot-receipt.json`): (1) RO3's subgroup was independently
+    reconstructed and verified to reproduce EXP-MONO-c819ba's own archived
+    exact values (forced_relative_deviation=1.0/3.0, C/F=1.0/1.0) before any
+    further compute; (2) both known-positive cells (h=N/2, h=N/4) land
+    exactly at the permutation-test floor (1/20001) on both statistics,
+    confirming a genuine, maximally-extreme outlier (S5); (3) none of the
+    four Fisher-combined mixed-panel results (S1-S4) reject at alpha=0.05
+    (combined p in [0.47, 0.52]) -- the `sensitivity_gap_confirmed` outcome;
+    (4) this is independently characterized as consistent with Fisher's
+    combined-probability test's known dilution property (a single extreme
+    p-value's chi-squared contribution, ~19.8, versus the panel's own
+    natural fluctuation, df=98, sd~14), not an implementation defect
+    (dual-path control exact on both cells).
+
+  verdict: >-
+    holds_on_every_checked_construction_and_arithmetic_claim_but_with_one_
+    significant_new_quantitative_finding_that_meaningfully_qualifies_the_
+    reported_magnitude_and_the_"generic_dilution"_framing
+
+  joint_verdicts:
+    is_the_sensitivity_gap_an_artifact_or_implementation_issue: >-
+      NO IMPLEMENTATION OR CONSTRUCTION DEFECT FOUND, independently
+      re-verified from first principles rather than trusted. I re-derived
+      RO3's group order and structure FROM SCRATCH in a standalone script
+      that imports none of this repository's code (brute-force point
+      enumeration over F_307 for y^2=x^3+269x+6, brute-force point addition,
+      brute-force order-finding): N=288 confirmed, Hasse bound satisfied
+      (|288-308|=20 <= 2*sqrt(307)=35.04), and the group's maximal element
+      order is exactly 96 with N/96=3, independently confirming the
+      Z/3 x Z/96 structure the contract assumes, with zero reliance on
+      `groupstate.py`. I confirmed `controls.py::subgroup_control` in this
+      contract's implementation directory is byte-for-byte identical (via
+      `diff`, zero output) to `EXP-MONO-c819ba/implementation/controls.py`'s
+      function of the same name, and that `conv.py`, `stats.py`, `curve.py`,
+      `fields.py`, `groupstate.py` are byte-for-byte identical to
+      `EXP-MONO-b19c6b/implementation/`'s versions -- independently
+      confirming the reuse claims rather than trusting the prose. I
+      independently reproduced S1-S4 to full float precision (see
+      independent_computations below): loading `RUN-MONO-b19c6b-1`'s own
+      background panel directly and applying the reused `fisher_combined_
+      pvalue` formula to the injected floor p-value plus the 48 background
+      p-values reproduces 0.5197796626550032 (Var) and 0.47085766077181307
+      (C/F) EXACTLY, bit-for-bit, matching execution_report.yaml. I also
+      independently confirmed CORR-20260831-817847's central claim by
+      reading `run.py` myself (lines 170-171, 255-256): the executed code
+      already reads BOTH `p_var_raw` and `p_cf_raw` from the background
+      panel and correctly pools each with its matching statistic before the
+      out-of-band edit landed -- the ambiguity in the original frozen
+      prose was never live in the executed run. See OBJ-1, OBJ-3.
+    is_the_mathematical_dilution_explanation_correct: >-
+      CORRECT AS FAR AS IT GOES, BUT MATERIALLY INCOMPLETE -- THE STRONGEST
+      FINDING OF THIS REVIEW. The stated arithmetic (injected contribution
+      -2*ln(1/20001)=19.807 versus sd=sqrt(2*98)=14.0 for the full df=98
+      chi-squared) is correct and I reproduced it independently. But this
+      framing attributes the ENTIRE non-rejection to a generic,
+      panel-independent "dilution" property, when in fact roughly HALF of
+      the effect is a property of the SPECIFIC background panel chosen
+      (RUN-MONO-b19c6b-1's random-ordinary arm), not of Fisher's method in
+      the abstract. I computed the background panel's OWN Fisher-combined
+      statistic (WITHOUT the injected cell, per the task's item 2): VAR
+      stat=76.84 (df=96, mean=96, z=-1.38, i.e. the ~7.5th percentile of
+      its own null distribution) and C/F stat=78.55 (z=-1.26, ~9.75th
+      percentile) -- this specific background panel sits appreciably BELOW
+      its own null expectation before the injected outlier is even added.
+      Had the background instead sat AT its own null mean (96), the mixed
+      total would be 96+19.807=115.8 against df=98 (mean 98, sd 14),
+      z=+1.27, combined p ~ 0.10 -- still not rejecting at alpha=0.05, but
+      roughly 5x closer to it than the reported 0.47-0.52. I confirmed this
+      is not a hypothetical: THREE other archived, equally non-exceptional
+      background panels are available in this very lane (EXP-MONO-b19c6b's
+      RUN-1 j0 panel, and RUN-2's j0 and random-ordinary panels) --
+      re-running the identical mixed-panel test with each gives combined
+      p-values of 0.079/0.292, 0.171/0.076, and 0.191/0.093 respectively
+      (VAR/C-F), ALL markedly lower than the 0.47-0.52 actually reported,
+      though none crosses 0.05 either. See OBJ-1 for the full computation
+      and OBJ-2 for the generalization to a pooled 191-curve panel (which
+      shows the dilution effect getting WORSE, not better, at larger k --
+      supporting the qualitative "genuine dilution" claim -- while the
+      specific reported magnitude remains the most favorable-to-the-null of
+      any archived alternative tried).
+    does_the_experiment_establish_what_it_claims: >-
+      YES, WITHIN ITS OWN STATED CLAIM_CEILING, WHICH IS CAREFULLY WRITTEN
+      AND NOT OVER-READ ANYWHERE IN THE ARCHIVED RECORD -- but the record's
+      framing of WHY the gap occurred needs OBJ-1's qualification folded in
+      before any future citation. `execution_report.yaml`'s own
+      `claim_ceiling_restated` and `what_this_does_not_conclude` blocks
+      correctly scope the finding to "this specific statistic ... at this
+      specific panel size" and explicitly disclaim any statement about the
+      mild/diffuse regime H-MONO-663fb4 actually hypothesizes. No scope
+      creep found. See OBJ-4 for a related, narrower point: because Fisher's
+      method is traditionally intended to catch MANY MILD deviations rather
+      than a SINGLE extreme one (which the co-existing per-curve Holm test
+      already catches, as this contract's own S5 metric demonstrates), this
+      experiment's "K5 sensitivity check" tests a regime the statistic was
+      never expected to be good at, and a negative result there is close to
+      expected on general statistical grounds, independent of any curve- or
+      implementation-specific detail. This does not make the experiment
+      uninformative (it converts an assumption into a demonstrated fact, as
+      DEC-20260831-fccd7e's next_action intended) but it does mean
+      "sensitivity_gap_confirmed" should not be read as evidence the
+      Fisher-combined statistic is broken or poorly designed -- only that it
+      is, as expected, not the right tool for a single-outlier regime the
+      per-curve test already covers.
+    proves_too_much_cross_lane_question: >-
+      YES -- THE STRONGEST CROSS-LANE READING, AND IT SHARPENS RATHER THAN
+      CONTRADICTS EV-MONO-04d447'S OWN SCOPING. EV-MONO-04d447's limitations
+      state the Fisher-combined statistic's "sensitivity to a genuine
+      positive is an untested assumption, not a demonstrated fact." That
+      phrasing is now stale in one specific, narrow way: for the
+      single-or-few-extreme-outlier regime specifically, sensitivity is no
+      longer merely untested -- it is NOW DEMONSTRATED ABSENT, robustly
+      across every one of the four archived non-exceptional background
+      panels in this lane (0.076-0.52, none rejecting) and confirmed to
+      worsen, not improve, at a pooled k=191. Because the per-curve
+      Holm/permutation test already has demonstrated, verified power against
+      exactly this failure mode (a single curve at C/F=1.0 would trivially
+      survive Holm correction: raw p=1/20001 versus a Holm threshold of
+      order alpha/49 ~ 0.001), EXP-MONO-b19c6b's OVERALL "controlled null
+      confirmed" reading is NOT undermined -- the per-curve half of the
+      instrument would have caught a single-curve deviation of this kind,
+      and did not, on real data. What IS newly true is that Fisher-combined's
+      OWN contribution to "no signal was found anywhere" carries genuinely
+      zero evidentiary weight for the single/few-curve-deviation case (it is
+      REDUNDANT with, not additive to, the per-curve test there) and its
+      entire remaining evidentiary value is confined to the many-mild-curves
+      regime, which NO experiment in this three-experiment lane has ever
+      tested (the closest approach is the Red Team's own UNGROUNDED
+      synthetic check in the EXP-MONO-b19c6b review, explicitly disclosed
+      there as not contract-grounded). EV-MONO-04d447's scoped disposition
+      survives this finding intact -- it already carved out exactly this
+      qualification as an "open" item rather than folding Fisher-combined's
+      contribution into the support claim -- but its own text should be
+      tightened from "untested assumption" to "demonstrated absent for the
+      single-outlier case, entirely untested for the many-mild-curves case
+      it was actually introduced for" when this experiment's result is
+      folded into any future citation.
+
+  objections:
+    - id: OBJ-1
+      severity: significant_new_quantitative_finding_qualifies_reported_
+        magnitude_not_direction
+      target: >-
+        Task items 1-2: independently verify the Fisher-combined dilution
+        arithmetic and check whether the background panel's own quietness
+        contributes to the non-rejection.
+      what_i_did: >-
+        Loaded `EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/raw-result.json`
+        directly, extracted its 48-curve random-ordinary `p_var_raw`/
+        `p_cf_raw` panel, and reimplemented `chi2_sf_even_df`/
+        `fisher_combined_pvalue` from the frozen formula in a standalone
+        script (no repository code imported) to recompute S1-S4 from
+        scratch. Also computed the SAME background panel's own
+        Fisher-combined statistic WITHOUT the injected cell, and repeated
+        the full computation against the three other archived,
+        equally-non-exceptional background panels available in this lane
+        (RUN-1 j0, RUN-2 j0, RUN-2 random-ordinary) and against all four
+        pooled together (k=191).
+      results: >-
+        Reproduced S1=S2=0.5197796626550032 and S3=S4=0.47085766077181307
+        EXACTLY, bit-for-bit -- the reported arithmetic is correct.
+        Background-only (no injected cell): RUN-1-RO gives z=-1.38 (VAR),
+        z=-1.26 (C/F) relative to its own null mean -- i.e. this SPECIFIC
+        panel's own combined statistic sits at roughly the 8th-10th
+        percentile of its own null distribution BEFORE the outlier is
+        added. The three alternative archived panels sit closer to their
+        own null means (z in [-0.99,+0.10]) and, mixed with the identical
+        injected floor p-value, give combined p-values of 0.076-0.292 --
+        1.6x to 6.8x LOWER (closer to significance) than the reported
+        0.47-0.52, though still not below 0.05. Pooling all four (k=191)
+        gives combined p=0.58-0.63, HIGHER than any individual panel --
+        confirming the dilution effect genuinely worsens with panel size
+        (supporting the qualitative "genuine, not artifactual" reading)
+        while showing the specific 0.47-0.52 headline is itself on the
+        least-sensitive end of what this lane's own archive would have
+        produced for an otherwise-identical test.
+      independent_computations_performed: >-
+        Full from-scratch reimplementation of chi2_sf_even_df and
+        fisher_combined_pvalue (cross-checked against the reused stats.py
+        by exact numeric agreement on the reported S1-S4); extraction and
+        recombination of four archived background panels (2 runs x 2
+        families) plus a pooled 191-curve panel; z-scores of each panel's
+        own combined statistic against its null mean/sd.
+      practical_assessment: >-
+        Does not overturn the "none of S1-S4 reject" finding -- that
+        direction is robust across every panel tried, including the
+        largest available. Does mean the specific magnitude (p in
+        [0.47,0.52]) and the framing "consistent with Fisher's known
+        dilution property" should not be read as a panel-independent,
+        purely-generic explanation: this run's OWN background panel's
+        below-average combined statistic is doing real, quantifiable work
+        (roughly half the distance from "would have been much closer to
+        0.05" to "landed almost exactly at the null median"), and a future
+        citation of this experiment's specific numbers should disclose
+        this rather than attribute the full gap to dilution alone.
+
+    - id: OBJ-2
+      severity: context_strengthening_the_genuine_not_artifact_reading
+      target: >-
+        Whether the dilution effect is a small-panel artifact that a
+        slightly larger panel would fix (relevant to the record's own
+        forward guidance about "weighted or rank-based combining methods").
+      what_i_did: >-
+        Pooled all four archived background panels (j0 and random-ordinary,
+        both runs) into one 190-curve background, mixed with the single
+        injected floor p-value (k=191), and recomputed the combined
+        p-value.
+      results: >-
+        VAR combined p=0.628, C/F combined p=0.581 -- WORSE (further from
+        rejection) than any single 48-49 curve panel tried. This is the
+        expected qualitative behavior of Fisher's method for a single fixed
+        extreme value diluted across a growing k (the fixed ~19.8
+        contribution becomes a proportionally smaller share of a df that
+        grows linearly), and it means simply enlarging the background panel
+        in a future contract would make this specific failure mode WORSE,
+        not better -- the record's own suggestion that "a weighted or
+        rank-based combining method" might be needed is the right kind of
+        forward guidance, not "more curves."
+
+    - id: OBJ-3
+      severity: independently_confirmed_no_finding
+      target: >-
+        Task item 3: verify RO3's reconstruction and the already-executed
+        code's panel-matching independently, not by trusting
+        CORR-20260831-817847's prose.
+      what_i_did: >-
+        (a) Re-derived RO3's group order and structure FROM SCRATCH in a
+        standalone script importing none of this repository's code
+        (brute-force point enumeration, point addition, and order-finding
+        over F_307 for y^2=x^3+269x+6): confirmed N=288 and a maximal
+        element order of 96 (hence Z/3 x Z/96), matching the contract's
+        and EXP-MONO-c819ba's archived values with zero reliance on
+        `groupstate.py`. (b) Diffed this contract's `controls.py::
+        subgroup_control` against EXP-MONO-c819ba's source directly: byte
+        for byte identical. (c) Diffed `conv.py`, `stats.py`, `curve.py`,
+        `fields.py`, `groupstate.py` against EXP-MONO-b19c6b's versions:
+        byte-for-byte identical, confirming the reused-engine claim without
+        trusting the prose. (d) Read `run.py` directly (not merely CORR's
+        summary of it) at lines 170-171 and 255-256: `background_p_var`/
+        `background_p_cf` are extracted separately from the archived
+        panel's own field structure, and `mixed_var`/`mixed_cf` each pool
+        only with their own matching field -- confirming CORR-20260831-
+        817847's claim that the ambiguity in the pre-edit frozen prose was
+        never exploited in the executed code, independently of trusting the
+        correction's own git-forensics narrative. (e) Confirmed via `git
+        log` that the commit graph is linear (af5528b49 -> 9e786d21d ->
+        8e8edf2d4) and that `manifest.yaml`'s `code.commit` field
+        (af5528b494b1ef9486ba69f0f458e16e95bb748e) correctly names the
+        PRE-tampering commit as the one that governed execution.
+      result: >-
+        No discrepancy found anywhere in this chain. RO3's reconstruction,
+        the engine reuse, and the panel-matching logic are all
+        independently confirmed correct, matching every claim in
+        CORR-20260831-817847 and the execution report.
+
+    - id: OBJ-4
+      severity: framing_note_not_a_defect
+      target: >-
+        Task item 4/5: whether the experiment tests the regime Fisher's
+        method was actually introduced for.
+      the_point: >-
+        EXP-MONO-b19c6b's own approval rationale describes the
+        Fisher-combined statistic as existing "so a true effect too small
+        to survive per-curve FWER correction is not silently discarded" --
+        i.e. it is a tool for detecting MANY MILD deviations spread across
+        the panel, not a single extreme one (which the co-existing
+        per-curve Holm test already has demonstrated power to catch, and
+        this contract's own S5 metric shows would trivially survive Holm
+        correction at this panel size: raw p=1/20001 versus a Holm
+        threshold of order alpha/49~0.001). A single extreme value's
+        contribution to a k-term sum statistic is, by construction, the
+        LEAST favorable case for a method whose entire value proposition is
+        pooling many small effects; a null result here is close to the
+        statistically expected outcome for ANY combining method with this
+        general shape, not a surprising or specifically diagnostic failure
+        of Fisher's method's particular construction. This does not make
+        `sensitivity_gap_confirmed` uninformative (DEC-20260831-fccd7e's
+        `next_action` explicitly wanted exactly this fact converted from
+        assumption to demonstration, and that is a genuine contribution),
+        but a future reader should not conclude from this experiment alone
+        that Fisher-combined is a poor design choice in general -- only
+        that, as expected, it does not add value in the single-outlier
+        regime the per-curve test already covers, and its value in the
+        many-mild-curves regime it was actually built for remains entirely
+        untested by anything in this lane.
+
+    - id: OBJ-5
+      severity: minor_documentation_defect_genuinely_new_this_review
+      target: >-
+        Task item 6: hunt for a genuinely new, previously-undiscovered
+        defect.
+      the_defect: >-
+        `implementation.md`'s Step 4 narrative states: "Var_real exceeded
+        the largest of 20000 null draws by roughly 6x (h=144: null max
+        ~3.5e8 vs real ~2.2e12) and ~245x (h=72: null max ~1.07e8 vs real
+        ~2.6e10)." I recomputed both ratios directly from the archived
+        numbers: 2229025112064.0 / 350614929.97260803 = 6357.5, NOT ~6x --
+        the h=144 Var-vs-null-max ratio is actually about 6358x, three
+        orders of magnitude larger than stated. The h=72 figure (245.19x)
+        is correct as stated. The likely source of the error: the
+        execution_report.yaml's own `S5_known_positive_cell_raw_pvalues`
+        block separately reports `C_over_F_real_vs_null_mean_ratio` for
+        h=144 as 5.834 ("roughly 6x") -- a DIFFERENT quantity (C/F versus
+        the null MEAN, not Var versus the null MAX) that appears to have
+        been substituted into the Var-margin sentence for h=144 only, while
+        the h=72 sentence correctly used the Var-vs-null-max quantity.
+      practical_assessment: >-
+        Does not affect any measured p-value, S1-S5, or the dual-path
+        control, all of which I independently reproduced correctly from
+        raw-result.json (see OBJ-3, OBJ-1). It is a pure narrative/exposition
+        error confined to implementation.md's prose, and if anything
+        UNDERSTATES how extreme the real value actually is (the true margin
+        is ~1000x larger than stated), so it was not exploited to inflate
+        any claim. Worth a one-line correction in any future citation of
+        implementation.md's Step 4 text.
+
+  required_controls:
+    - >-
+      Before citing this experiment's specific combined p-values (0.47,
+      0.52) as characterizing "how much" Fisher's method dilutes a
+      maximally-extreme single outlier at k~49, disclose the panel
+      sensitivity found in OBJ-1: the three other archived, equally
+      non-exceptional background panels in this lane give combined
+      p-values of 0.076-0.292 for the identical injected outlier, and a
+      pooled k=191 panel gives 0.58-0.63. Report a range or the pooled
+      result alongside the specific reported numbers, not the single
+      RUN-1-random-ordinary result in isolation.
+    - >-
+      When EV-MONO-04d447/DEC-20260831-fccd7e is next revisited, update the
+      Fisher-combined sensitivity language from "untested assumption" to
+      "demonstrated absent for the single/few-extreme-outlier case
+      specifically (redundant with the already-power-verified per-curve
+      Holm test for that case); entirely untested for the many-mild-curves
+      case the statistic was actually introduced for" -- per the
+      proves_too_much analysis above.
+    - >-
+      Correct implementation.md's Step 4 h=144 Var-margin figure from
+      "roughly 6x" to "roughly 6.4 thousand x" (OBJ-5) in any future
+      citation or superseding text.
+    - >-
+      If a future contract wants to test Fisher-combined's actual intended
+      regime (many mild, diffuse deviations rather than one extreme
+      outlier), construct a positive control with several (5-15) mildly
+      perturbed curves at a realistic, sub-extreme effect size, mixed into a
+      background panel of comparable size -- this experiment does not do
+      this and explicitly disclaims doing so.
+
+  counterexample_or_mutation: >-
+    Cheapest available discriminating control, requiring zero new compute
+    beyond what this review already ran: recompute S1-S4 using
+    RUN-MONO-b19c6b-2's own archived random-ordinary panel (49 curves)
+    instead of RUN-1's (48 curves) as background, with the identical
+    injected RO3 floor p-value. I ran exactly this (OBJ-1): combined p
+    drops to 0.171 (VAR) / 0.093 (C/F) -- still not rejecting at alpha=0.05,
+    but 3-5x closer to the threshold than the reported 0.47-0.52, using
+    data that is equally archived, equally already-reviewed, and equally
+    licensed by this contract's own stated rationale for reuse (a
+    non-exceptional real-arm panel from the same experiment). This
+    discriminates cleanly between "the non-rejection is a robust,
+    panel-independent property of Fisher's method at this k" (survives:
+    every panel tried still fails to reject) and "the specific reported
+    magnitude of 0.47-0.52 is representative of what any reasonable
+    background choice would show" (does NOT survive: the choice made
+    materially affects how close the result looks to the threshold).
+
+  baseline_comparison: >-
+    NOT APPLICABLE IN THE ASYMPTOTIC SENSE, unchanged from every prior
+    record in this lane: H-MONO-663fb4's asymptotic_claim is null
+    throughout, and this experiment makes no cost, exponent, or attack
+    claim -- it is a pure statistical-instrument sensitivity check on a
+    synthetic positive control. Pollard rho at O(sqrt(N)) time / O(1) memory
+    remains the unchallenged prime-field ECDLP baseline; nothing in this
+    toy-scale check (a single fixed curve, RO3 at p=307) could move that
+    baseline in either direction. sota_delta=0; dominated_by=not_applicable,
+    for the same reason every prior record in this lane gives.
+
+  heuristic_challenges:
+    - >-
+      HEUR-CHR-2 is untouched by this experiment and was never claimed to
+      be touched by it: this record concerns only the Fisher-combined
+      statistic's mechanical sensitivity to a SYNTHETIC subgroup construction,
+      not the real x-coordinate factor base's character bias. No heuristic
+      challenge applies beyond restating that this experiment creates no
+      evidence, in either direction, toward HEUR-CHR-2 -- correctly
+      disclaimed in the contract's own `scale_relevance` block.
+
+  cost_model_challenges:
+    - >-
+      No cost model is asserted anywhere in this record and none should be
+      inferred: even a demonstrated Fisher-combined sensitivity gap is a
+      property of a statistical instrument, not a term in any relation-rate
+      or ECDLP cost model. Unchanged from every prior record in this lane;
+      restated here only to confirm it was checked, not assumed.
+
+  reduction_and_scope_challenges:
+    - >-
+      The contract's own claim_ceiling ("does NOT establish the statistic's
+      power against the mild, diffuse deviation H-MONO-663fb4 actually
+      hypothesizes") is correct and is not violated anywhere in the archived
+      execution_report.yaml or implementation.md -- see OBJ-4 for why this
+      scope limit is not merely a formal caveat but the substantively
+      correct reading (a single-extreme-outlier test is close to the
+      statistically expected worst case for any pooling method, and says
+      little about the method's actual intended regime).
+    - >-
+      The K5 nearby-object control this experiment discharges is now
+      correctly closed for "does the Fisher-combined machinery work at
+      all and can it ever detect a genuine deviation" (yes, mechanically,
+      per the sibling review's synthetic check) crossed with "does it detect
+      THIS SPECIFIC kind of deviation (single extreme outlier) at THIS
+      panel size" (no, robustly, per this review). It remains entirely open
+      for the many-mild-curves regime -- this is stated in the record's own
+      `outcomes.sensitivity_gap_confirmed` block but should be restated
+      explicitly, not left implicit, in any future citation (see
+      proves_too_much_cross_lane_question above).
+
+  proof_architecture_challenges: []
+  proof_architecture_not_applicable_reason: >-
+    This is a toy-scale statistical-instrument sensitivity check against a
+    synthetic positive control, not a proof-oriented theorem, asymptotic
+    bound, or reduction. Section 8's proof-architecture portfolio does not
+    apply.
+
+  narrowest_supported_statement: >-
+    Every construction, reconstruction, and arithmetic claim in
+    EXP-MONO-b1423c's execution_report.yaml is independently reconfirmed
+    here from scratch (a standalone, repository-code-free re-derivation of
+    RO3's group order/structure; byte-for-byte diffs of every reused
+    implementation file; an independent reimplementation of the Fisher-
+    combined statistic reproducing S1-S4 bit-for-bit; and a direct reading
+    of run.py confirming CORR-20260831-817847's claim that the disclosed
+    out-of-band edit's ambiguity was never live in the executed code). No
+    implementation defect, construction error, or unrepresentative-panel
+    disqualification was found: RO3's subgroup is a genuine, maximally-
+    extreme outlier (S5 at the exact permutation floor on both statistics,
+    both cells, by margins of roughly 6,358x and 245x over the largest of
+    20,000 null draws for Var, and 5.8x and 3.4x over the null mean for
+    C/F), and none of S1-S4 reject at alpha=0.05 using the specified,
+    correctly-matched background panel. HOWEVER: the reported combined
+    p-values (0.47-0.52) are NOT representative of what the identical test
+    would show under the three other archived, equally non-exceptional
+    background panels available in this same lane (0.076-0.292), nor of a
+    pooled k=191 panel (0.58-0.63) -- the specific RUN-1-random-ordinary
+    choice happens to be the least-sensitive-looking of the options
+    available, because that panel's own Fisher-combined statistic sits
+    appreciably (z~-1.3) below its own null expectation before any outlier
+    is added. The DIRECTION of the finding ("Fisher-combined does not
+    reject even a maximally-extreme single outlier at k~49-191") is robust
+    across every panel tried and gets stronger, not weaker, at larger k --
+    supporting the Coordinator's qualitative "genuine dilution, not
+    artifact" reading. The specific MAGNITUDE and the "comparable to the
+    panel's natural fluctuation" framing understate how much of the
+    non-rejection is attributable to this particular background panel's own
+    below-average quietness, and should be qualified accordingly in any
+    future citation. Separately, this experiment's own single-extreme-
+    outlier construction tests a regime Fisher's method was never expected
+    to be strong in (the per-curve Holm test already covers it); the
+    statistic's actual intended regime -- many mild, diffuse per-curve
+    deviations -- remains completely untested by any experiment in this
+    three-experiment lane, and EV-MONO-04d447's "untested assumption"
+    language for Fisher-combined sensitivity should be sharpened to
+    "demonstrated absent for the single-outlier case, entirely untested for
+    the many-mild-curves case" once this result is folded in. One minor,
+    genuinely new documentation defect was found (OBJ-5): implementation.md
+    misstates the h=144 Var-vs-null-max margin as "roughly 6x" when the
+    correct figure is roughly 6,358x, apparently by substituting a different
+    reported ratio (C/F-vs-null-mean, 5.83) into that sentence. This does
+    not affect any measured value used in S1-S5 or the outcome
+    classification.
+
+  next_concrete_action: >-
+    (1) Fold OBJ-1's panel-sensitivity finding into the Coordinator's
+    forthcoming decision record for this experiment: report the range
+    (0.076-0.63) across all archived non-exceptional background panels in
+    this lane alongside the specific RUN-1 result, rather than citing
+    0.47-0.52 as if it were panel-independent. (2) When EV-MONO-04d447 or
+    H-MONO-663fb4's status_note is next revisited, tighten the
+    Fisher-combined sensitivity language per the proves_too_much analysis
+    above (demonstrated absent for single-outlier, untested for
+    many-mild-curves). (3) Correct implementation.md's Step 4 h=144 ratio
+    (OBJ-5) in any future citation. (4) If a fourth K3/K4-adjacent or
+    K5-adjacent experiment is ever designed to test Fisher-combined's
+    actual intended regime, use a multi-curve mild-perturbation positive
+    control (5-15 curves at a realistic, sub-extreme effect size) rather
+    than a single extreme outlier, per OBJ-4/required_controls.
+
+  artifact_paths:
+    - experiments/EXP-MONO-b1423c/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-b1423c/reviews/red-team/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: red-team-mono-b1423c
+    role: red-team
+    joints_owned: [J2-adversarial]
+    verdict: >-
+      holds_on_every_checked_construction_and_arithmetic_claim_but_with_one_
+      significant_new_quantitative_finding_that_meaningfully_qualifies_the_
+      reported_magnitude_and_the_generic_dilution_framing
+    read_sibling_reports: false
+    blindness_note: >-
+      `experiments/EXP-MONO-b1423c/reviews/validator/` exists on disk
+      (created by a concurrent Validator session) but contains ZERO files
+      (`find ... -type f` returned empty), discovered only via `ls`/`find`
+      run to create this review's own output directory, AFTER all
+      independent analysis and findings above were fully complete. No file
+      under that path or any other validator-labeled path was opened or
+      read at any point.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - CLAUDE.md
+      - ledger/hypotheses/H-MONO-663fb4.yaml
+      - ledger/evidence/EV-MONO-04d447.yaml
+      - ledger/decisions/DEC-20260831-fccd7e.yaml
+      - experiments/EXP-MONO-b19c6b/reviews/red-team/red-team-report.yaml
+      - experiments/EXP-MONO-b1423c/specification.yaml (current on-disk, post-9e786d21d text)
+      - git show af5528b494b1ef9486ba69f0f458e16e95bb748e:experiments/EXP-MONO-b1423c/specification.yaml (original, as-executed text)
+      - experiments/EXP-MONO-b1423c/execution_report.yaml
+      - experiments/EXP-MONO-b1423c/implementation.md
+      - experiments/EXP-MONO-b1423c/implementation/run.py
+      - experiments/EXP-MONO-b1423c/implementation/stats.py
+      - experiments/EXP-MONO-b1423c/implementation/controls.py
+      - experiments/EXP-MONO-b1423c/implementation/conv.py, curve.py, fields.py, groupstate.py (diffed byte-for-byte against EXP-MONO-b19c6b's versions)
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/manifest.yaml
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/raw-result.json
+      - experiments/EXP-MONO-c819ba/execution_report.yaml (L4_positive_control_1_subgroup block)
+      - experiments/EXP-MONO-c819ba/implementation/controls.py (subgroup_control, diffed against EXP-MONO-b1423c's copy)
+      - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/raw-result.json and RUN-MONO-b19c6b-2/raw-result.json (background panels)
+      - ledger/corrections/CORR-20260831-817847.yaml
+      - coordination/tasks/TASK-20260831-cca2c8/snapshot-receipt.json
+      - coordination/tasks/TASK-20260831-84218c/snapshot-receipt.json
+      - ledger/handoffs/TASK-20260831-4876e6.yaml
+    sources_not_read_and_why: >-
+      knowledge/open-problems/KN-OPEN-009.md, the H-MONO-663fb4 source
+      proposal records, and EXP-MONO-c819ba's/EXP-MONO-670aa6's full
+      specification/implementation trees were not re-read in full: this
+      round's assigned attack surface (reconstruction fidelity, panel
+      representativeness, and the dilution arithmetic) does not turn on
+      those documents' own text, and the directly relevant archived values
+      (RO3's construction, the L4 positive control block) were read
+      directly from EXP-MONO-c819ba's execution_report.yaml and controls.py
+      rather than inferred from prose elsewhere.
+    independent_computations_performed:
+      - >-
+        From-scratch (no repository code imported) brute-force verification
+        of RO3's group order (N=288) and structure (Z/3 x Z/96, via
+        maximal-element-order search) over F_307 for y^2=x^3+269x+6, plus a
+        Hasse-bound sanity check.
+      - >-
+        Byte-for-byte diffs of experiments/EXP-MONO-b1423c/implementation/
+        {conv,stats,curve,fields,groupstate}.py against EXP-MONO-b19c6b's
+        versions, and of controls.py::subgroup_control against
+        EXP-MONO-c819ba's version.
+      - >-
+        Independent, from-scratch reimplementation of chi2_sf_even_df and
+        fisher_combined_pvalue; reproduced S1=S2=0.5197796626550032 and
+        S3=S4=0.47085766077181307 bit-for-bit from the archived background
+        panel and the reported S5 injected p-value.
+      - >-
+        Computed the background panel's own Fisher-combined statistic
+        (without the injected cell) against its null expectation
+        (df=2k, mean=2k, sd=sqrt(4k)) for all four archived (run x family)
+        panels in this lane, and for their k=191 pool (OBJ-1, OBJ-2).
+      - >-
+        Recomputed the mixed-panel (injected + background) Fisher-combined
+        result for all four archived panels individually and pooled, to
+        test robustness of the reported 0.47-0.52 magnitude to background
+        panel choice (OBJ-1, counterexample_or_mutation).
+      - >-
+        Recomputed the h=144 and h=72 Var-vs-null-max and C/F-vs-null-mean
+        ratios directly from execution_report.yaml's own archived numbers
+        and compared against implementation.md's prose (OBJ-5).
+      - >-
+        Independently verified the manifest.yaml `code.commit` field and
+        the git commit graph (`git log --oneline`) confirm the run executed
+        against the pre-tampering commit, and diffed the original vs
+        current on-disk `background_reuse` clause text directly.
+      - >-
+        Recomputed SHA-256 for all 17 paths in the snapshot receipt's
+        `path_sha256` against on-disk content (zero mismatches) and
+        confirmed `git rev-parse HEAD` matches the receipt's implied
+        commit.
+    environment:
+      python: 3.13.7 (session tool environment; independent of the archived
+        run's own recorded 3.13.1)
+      numpy: available in session environment, not required for any check performed
+      platform: darwin (session host)
+      network: none used
+      scratch_scripts_location: >-
+        session Bash tool, inline python3 heredocs only; no persistent
+        scratch files were written outside the repository's own experiment
+        directory
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; the resolved id is
+      self-reported by the runtime binding described in CLAUDE.md.
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; reasoning effort is bound per
+      subagent via agent-file frontmatter, model selection is not.
+      Recorded, never silently substituted.
+    status_changes_made: none
+    ledger_writes_made: none
+    commits_made: none
+    write_scope_respected: true
+    files_written:
+      - experiments/EXP-MONO-b1423c/reviews/red-team/red-team-report.yaml
+      - experiments/EXP-MONO-b1423c/reviews/red-team/runtime-session-receipt.json

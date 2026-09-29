@@ -1,0 +1,227 @@
+idea:
+  id: IDEA-20260815-dc0277
+  question_id: RQ-SQISIGN-39f231
+  added: '2026-08-15'
+  title: >-
+    SQIsign SIGNING IS SECRET-DEPENDENT AND ITS TRANSCRIPT LENGTH IS PUBLIC:
+    measure whether compressed signature size correlates with any secret-
+    ideal invariant, against a matched endomorphism-ring baseline
+  class: measurement
+
+  claim: >-
+    SQIsign compresses a secret-dependent isogeny into a signature whose
+    byte length varies. If length correlates with a secret invariant such as
+    the ideal norm's factorisation shape, the transcript leaks a public
+    statistic about the secret, which is cheap to measure and, if present,
+    changes the baseline for every transcript-leakage claim about the
+    scheme.
+
+  mechanism: >-
+    Generate many signatures under a fixed key and across keys, record
+    compressed length and any public transcript statistic, and test
+    correlation against declared secret invariants with matched random-ideal
+    controls.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-SQISIGN-001 objective; grep 'transcript leakage' (2),
+      'signature size', 'SQIsign'.
+    results: >-
+      The goal names transcript-level leakage against an endomorphism-ring
+      baseline as its objective; no record measures signature-length
+      correlation with secret invariants.
+    verdict: >-
+      UNVERIFIED. Length-leakage measurement is elementary; whether it has
+      been done for SQIsign externally is a blocking literature check in
+      stage one.
+
+  object_first_candidate:
+    tracked_object: >-
+      COMPRESSED SIGNATURE LENGTH and other public transcript statistics,
+      as functions of the secret ideal.
+    lossiness: >-
+      Length is a drastic projection of the signing transcript, which is
+      exactly why a correlation would be surprising and worth measuring.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while signatures are generable in bulk and secret
+      invariants are recordable in the test harness.
+
+  null_object_control: >-
+    NULL 1 -- random ideals of matched norm, giving the correlation expected
+    with no secret dependence. NULL 2 -- shuffled secret labels, destroying
+    the pairing while preserving both marginals. STRUCTURAL TELL: any
+    correlation must persist across keys; a within-key-only correlation is a
+    fixed-key artifact.
+
+  discriminated_from:
+    - >-
+        Side-channel work on SQIsign, which concerns timing and power
+        rather than public transcript length.
+    - >-
+        GOAL-SQISIGN-002, which audits the published-data surface against
+        Kani-style attacks rather than measuring statistical leakage.
+
+  assumptions:
+    - >-
+        The reference implementation exposes the secret invariants needed
+        for correlation, in a test-only build that is never confused with
+        production.
+    - >-
+        Signature generation is fast enough for a sample large enough to
+        resolve a weak correlation.
+
+  predictions:
+    - metric: >-
+        shuffled-label null
+      direction: different
+      minimum_effect: >-
+        FORCED to show no correlation; a correlation there voids the
+        measurement.
+    - metric: >-
+        length correlation with secret ideal invariants across keys
+      direction: different
+      minimum_effect: >-
+        No direction pre-committed; any correlation must exceed the
+        matched-random-ideal null.
+    - metric: >-
+        persistence of any correlation across keys
+      direction: different
+      minimum_effect: >-
+        A within-key-only effect is recorded as a fixed-key artifact,
+        not leakage.
+
+  minimal_test:
+    design: >-
+      One parameter set, one thousand signatures across at least twenty
+      keys, both nulls.
+    controls:
+      - >-
+          Matched random-ideal null.
+      - >-
+          Shuffled-label null.
+      - >-
+          Across-key persistence check.
+      - >-
+          Test-only instrumentation clearly separated from production
+          paths.
+    required_metrics:
+      - >-
+          Length and transcript statistics per signature with the secret
+          invariant recorded.
+      - >-
+          Correlation coefficients against both nulls with intervals.
+      - >-
+          Across-key persistence outcome.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        The shuffled null shows correlation. Measurement void.
+    - >-
+        No correlation beyond nulls. A clean scoped negative strengthening
+        the scheme's transcript story.
+    - >-
+        A persistent across-key correlation appears. Route to independent
+        review before any disclosure or characterisation as leakage.
+    - >-
+        Instrumentation cannot expose secret invariants. The measurement
+        is not possible in this harness and must be reported rather than
+        approximated.
+
+  confounders:
+    - >-
+        FIXED-KEY ARTIFACTS: correlations within one key can arise from
+        that key's particular ideal and vanish across keys.
+    - >-
+        IMPLEMENTATION SPECIFICITY: compression is implementation-defined,
+        so a result binds the tested implementation and version, not the
+        scheme.
+
+  interpretation_limits:
+    - >-
+        Measures a public statistic; establishes no attack and no key
+        recovery.
+    - >-
+        Scoped to the tested implementation, version and parameter set.
+    - >-
+        A correlation would be a leakage observation requiring separate
+        work to convert into any advantage.
+
+  heuristic_assumptions:
+    - id: HEUR-SQI-LEN-1
+      statement: >-
+        Compressed SQIsign signature length is independent of the secret
+        ideal beyond what its norm size already determines publicly.
+      rigorous_support: >-
+        Rigorous ingredient: the compression is defined on the isogeny
+        representation whose size is governed by the norm, which is a
+        public parameter. THE GAP: the compression's variable-length
+        encoding depends on the actual ideal, and no argument rules out
+        a residual dependence, which is what the measurement tests.
+      falsification_condition: >-
+        A length correlation with a secret invariant persisting across
+        keys and exceeding the matched-random-ideal null.
+      validation_plan: >-
+        SAMPLE: >= 1000 signatures over >= 20 keys. COMPARISON:
+        correlation against both nulls. TAIL CHECK: the longest and
+        shortest signatures, reported with their secret invariants.
+        TRANSFER: none beyond the tested implementation.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is bulk signature generation.
+    memory_exponent: >-
+      Negligible per signature.
+    best_known: >-
+      The incumbent baseline is the matched endomorphism-ring problem
+      cost, against which any leakage must be scored to matter.
+    hidden_overhead: >-
+      Instrumenting the implementation to expose secret invariants without
+      contaminating production paths is the main implementation risk.
+    tradeoff_note: >-
+      A large sample buys sensitivity to weak correlations and costs
+      generation time; the plan fixes the sample before looking.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As cryptanalysis: nothing is mounted. As a
+    leakage measurement: none exists here for SQIsign transcripts. Not null
+    on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: a measured correlation, with
+    matched nulls and an across-key persistence check, between public
+    SQIsign signature length and secret-ideal invariants, where the program
+    currently has no measurement at all.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.7 that the implementation can be instrumented. 0.85 that nulls behave.
+    0.12 that a persistent across-key correlation appears, which would need
+    review before being called leakage.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-SQISIGN-39f231
+    - RQ-SQISIGN-001
+    - GOAL-SQISIGN-001
+    - KN-OPEN-013
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

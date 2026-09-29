@@ -1,0 +1,251 @@
+idea:
+  id: IDEA-20260816-560157
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Report the noise model as a ratio rather than a bound: instrument a fixed BFV-style multiplication
+    chain so that at every level the measured noise magnitude is divided by the value the scheme''s
+    own worst-case recursion predicts, and follow that ratio sequence, not the noise, through the
+    circuit.'
+  class: measurement
+  claim: '(A) For a textbook BFV-style exact scheme at toy ring degrees, define at each multiplicative
+    level L the quantity R_L = ||e_L||_inf / B_L, where ||e_L||_inf is the measured infinity norm
+    of the decryption noise polynomial of the actual ciphertext and B_L is the value produced by the
+    same implementation''s own worst-case noise recursion started from the same fresh-encryption bound.
+    The claim is that R_L is a well-defined, reproducible, monotone-in-expectation statistic of the
+    circuit and the parameter set, and that its trajectory across L is the informative object: a model
+    that is tight everywhere has R_L near 1 and flat; a model that is loose but faithful has R_L decaying
+    at a stable rate per level; a model whose looseness compounds has R_L decaying superlinearly in
+    L. (B) The claim is that this trajectory can be measured exhaustively at N in {16, 32, 64} with
+    plaintext modulus t small enough that the full plaintext space is enumerable, so no sampling assumption
+    is needed about which inputs were tried; and that the per-level decay rate estimated at those
+    degrees is a stated, testable extrapolation target for N = 1024 rather than a silent one. (C)
+    NOT CLAIMED: that any FHE parameter set is insecure, that any deployed library''s noise estimate
+    is wrong, that a small R_L licenses shrinking a modulus, or that the ratio measured at N=64 transfers
+    numerically to N=8192. No security consequence whatsoever is asserted. R_L is a property of one
+    implementation''s recursion against one implementation''s ciphertexts, and a run establishes only
+    that.'
+  mechanism: STAGE 1 implements a self-contained exact scheme over Z_q[X]/(X^N+1) with integer arithmetic,
+    so the decryption noise polynomial can be recovered exactly by subtracting the scaled plaintext
+    from the phase, with no floating-point residue. STAGE 2 implements the worst-case noise recursion
+    from the same source definition as a separate code path that takes only bound values as input
+    and never touches a ciphertext, so it cannot be contaminated by the measurement. STAGE 3 runs
+    a fixed circuit shape (a balanced multiplication tree of depth d, then a linear layer) over the
+    enumerated plaintext space, recording at each level the exact noise polynomial, its infinity norm,
+    its two-norm, and the model bound. STAGE 4 forms R_L and fits log R_L against L, reporting slope,
+    intercept and residuals with bootstrap intervals over the enumeration. STAGE 5 runs the identical
+    pipeline where the ciphertext noise is replaced by freshly sampled independent noise of the matched
+    per-level variance, so the recursion is fed an object with the same first moment but no correlation
+    history. If the null arm produces the same R_L trajectory then the trajectory is a property of
+    the bound's arithmetic, not of homomorphic evaluation, and that is the recorded outcome. Refutation
+    is a trajectory that is not reproducible across seeds, or a slope whose confidence interval covers
+    zero at every degree, which would say the ratio carries no per-level information.
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran, from /home/user/crypto-autoresearcher: grep -rl ''RQ-FHE-001'' ledger/proposals/;
+      grep -ril ''noise growth|bootstrapping|CKKS|BFV|BGV|TFHE|modulus switch|relinear|IND-CPA|approximate
+      homomorphic|noise budget|independence assumption|canonical embedding|variance model'' over ledger/proposals/,
+      ledger/hypotheses/ and knowledge/; ls experiments/ | grep -i fhe; and read ledger/questions/RQ-FHE-001.yaml,
+      knowledge/open-problems/KN-OPEN-016.md, knowledge/open-problems/KN-OPEN-026.md, knowledge/techniques/KN-TECH-082.md,
+      knowledge/literature/KN-LIT-7c2620.md, knowledge/literature/KN-LIT-95256d.md, knowledge/literature/KN-LIT-7675.md,
+      and the two proposals that mention RQ-FHE-001.'
+    results: 'grep -rl ''RQ-FHE-001'' ledger/proposals/ returns exactly two files: IDEA-20260807-a06996,
+      the only proposal attached to the question, which is a census of shipped default parameter tuples
+      (N, log q, h) extracted from library source and explicitly declares running any attack or estimate
+      off-limits; and IDEA-20260807-f73d98, which names RQ-FHE-001 only inside a list of 22 source-gated
+      questions. ''ls experiments/ | grep -i fhe'' returns nothing, so no FHE experiment contract
+      or run directory exists anywhere in the corpus. The noun ''noise growth'' hits IDEA-20260809-2e974b,
+      which is attached to RQ-NTRU-9015ee and plots the correctness constraint against overstretched-NTRU
+      fatigue on the modulus axis, a different scheme and a different pair of constraints. ''noise
+      budget'' hits IDEA-20260813-4aecda, -0cf345, -02479f, none attached to RQ-FHE-001. No record
+      in ledger/proposals/ forms a per-level ratio of measured noise to a model bound.'
+    verdict: 'UNVERIFIED. This program cannot reach external literature, so nothing here asserts what
+      is or is not published; measured-versus-modelled noise ratios are an obvious thing for the FHE
+      community to have looked at and probably have. What is claimed new is only internal and structural:
+      the corpus contains no FHE experiment contract at all, and the ratio sequence R_L as the tracked
+      object, with a null arm that feeds matched-variance independent noise into the identical recursion,
+      is assembled from known parts (a textbook noise recursion, an exact toy implementation, the
+      program''s own null-object discipline from docs/inventor-protocol.md section 3).'
+  object_first_candidate:
+    tracked_object: The sequence R_L = ||e_L||_inf / B_L for L = 0..d, one scalar per multiplicative
+      level, together with its fitted per-level decay slope. The object followed through the computation
+      is the ratio, not the ciphertext and not the noise polynomial.
+    lossiness: 'Genuinely lossy. The noise polynomial at level L has N integer coefficients whose
+      joint distribution carries the whole correlation history of the circuit; R_L retains one scalar.
+      Discarded: the coefficient pattern, the sign structure, the correlation with the plaintext,
+      and the two-norm. What survives is the property the model itself is stated in, because the worst-case
+      recursion is a statement about infinity norms and nothing else, so the retained scalar is exactly
+      the coordinate in which the model can be scored. The projection is compatible with the operation
+      in the weak sense that the model''s own product rule is a rule about the retained coordinate;
+      it is NOT compatible in the strong sense, because the true infinity norm of a product is not
+      a function of the two factors'' infinity norms, and that failure of determinism is the measured
+      phenomenon rather than a defect of the projection.'
+    propagation: One homomorphic multiplication maps B_L to B_{L+1} deterministically by the model's
+      product rule, and maps the true noise to a value that depends on the full coefficient vectors
+      of both factors. R_{L+1}/R_L is therefore the per-step slack the model spends. A relinearization
+      step adds a key-switching term to B and an additive contribution to the true noise; a modulus
+      switch divides both by the switching factor and adds a rounding term. The ratio therefore has
+      a per-operation update whose deterministic part is known and whose stochastic part is what a
+      run measures.
+    survival_score: Expected to remain a stable, reproducible statistic for as long as decryption
+      is correct, which at N=64 and a small modulus chain is roughly 3 to 6 multiplicative levels.
+      Beyond correctness failure the noise polynomial is still measurable in the implementation but
+      no longer means what the model is about, so the object dissolves exactly at the correctness
+      boundary, and locating that boundary is the neighbouring proposal in this bucket.
+  null_object_control: 'Null arm: at each level, replace the actual ciphertext noise polynomial by
+    a freshly drawn independent polynomial whose coefficients are sampled to match the measured per-level
+    variance, and push it through the identical B_L recursion and the identical R_L computation in
+    the same invocation. For the signal arm to mean anything the null must show a DIFFERENT R_L trajectory,
+    specifically a flatter or non-decaying one, because independent matched-variance noise has no
+    compounding correlation history. If the two trajectories agree within the bootstrap interval,
+    the recorded outcome is a controlled null: the ratio is an artifact of the bound''s arithmetic
+    and carries no information about homomorphic evaluation.'
+  discriminated_from:
+  - IDEA-20260807-a06996 (RQ-FHE-001) extracts shipped default parameter tuples from library source
+    as a census and explicitly forbids running anything; this measures a runtime quantity of an implementation
+    and touches no library defaults.
+  - IDEA-20260809-2e974b (RQ-NTRU-9015ee) plots correctness against overstretched-NTRU fatigue on
+    the modulus axis; that is a parameter-space feasibility plot for a different scheme, with no per-level
+    ratio and no homomorphic evaluation.
+  - KN-TECH-082 catalogues hybrid attacks on sparse-secret LWE; this contract runs no attack, no estimator,
+    and produces no bit count.
+  - 'A library speed benchmark: no wall-clock time is a metric here, and the AVOID list for this bucket
+    rules that out; the metrics are noise magnitudes and a dimensionless ratio.'
+  - 'A textbook re-derivation of the noise bound: the bound is implemented as given and is not improved,
+    tightened, or argued about; only its gap to measurement is recorded.'
+  assumptions:
+  - A textbook BFV-style scheme can be implemented in exact integer arithmetic at N up to 1024 with
+    no floating-point contamination of the recovered noise polynomial.
+  - The worst-case recursion implemented as the model is a faithful transcription of a stated bound;
+    the Coordinator must name which bound before approval, since different sources state different
+    recursions.
+  - The plaintext space at small t and small N is enumerable within the compute budget, so the measurement
+    is exhaustive rather than sampled.
+  - Per-level decay slope is a meaningful summary, i.e. log R_L is approximately affine in L over
+    the correctness range; the residuals reported test this.
+  predictions:
+  - metric: fitted slope of log2 R_L against L, signal arm
+    direction: lower
+    minimum_effect: slope at most -0.5 bits per level, i.e. the model bound loosens by at least a
+      factor of 2^0.5 per multiplicative level relative to measurement
+  - metric: difference in fitted slope between signal and null arms
+    direction: different
+    minimum_effect: 0.3 bits per level, with non-overlapping bootstrap intervals at 95 percent
+  - metric: R_0 at fresh encryption
+    direction: different
+    minimum_effect: 'refusal to pre-commit: R_0 depends entirely on which fresh-encryption bound the
+      Coordinator selects, and pre-committing a number before that selection would be a guess dressed
+      as a prediction'
+  - metric: seed-to-seed variance of the fitted slope at fixed parameters
+    direction: lower
+    minimum_effect: 0.05 bits per level, i.e. the slope must be reproducible to within a tenth of
+      the effect it is supposed to show
+  minimal_test:
+    design: The cheapest discriminating measurement is a single depth-4 balanced multiplication tree
+      at N=16, t=2, with a three-prime modulus chain, run over the entire plaintext space (2^16 inputs
+      per operand is too many, so restrict to plaintexts of Hamming weight at most 2, which is 137
+      values per operand and fully enumerable as a product set of 18769 pairs). For each pair record
+      the exact noise polynomial at each of the four levels, its infinity norm, and the model bound.
+      Fit log2 R_L against L and report slope with a bootstrap interval over the enumeration. Then
+      rerun the identical fit with the null substitution. Total cost is minutes of single-core Python.
+      This discriminates because the only two outcomes are a signal slope separated from the null
+      slope, which means the compounding is a property of evaluation, or the two slopes agreeing,
+      which is a controlled null and closes the framing at negligible cost. Nothing about the discrimination
+      requires the larger degrees; those are for the transfer statement only.
+    controls:
+    - 'Null arm: matched-variance independent noise through the identical recursion, executed in the
+      same invocation as the signal arm.'
+    - 'Identity-circuit control: a depth-d chain of multiplications by an encryption of 1, which the
+      model charges in full but which should produce far less true noise growth; separates model arithmetic
+      from message-dependent growth.'
+    - 'Seed control: three independent key and randomness seeds per parameter point, with the slope
+      reported per seed before pooling.'
+    - 'Implementation control: the noise polynomial recovered by exact subtraction must equal the
+      noise polynomial recovered by an independent decryption path, checked as an assertion on every
+      ciphertext.'
+    required_metrics:
+    - infinity norm of the exact decryption noise polynomial at each level
+    - two norm of the same polynomial at each level
+    - model bound B_L at each level
+    - R_L and log2 R_L at each level
+    - fitted slope of log2 R_L against L, with bootstrap interval
+    - same slope for the null arm
+    - number of plaintext pairs enumerated and whether enumeration was exhaustive
+    - count of decryption failures encountered, reported separately and never as evidence
+  falsification_conditions:
+  - Null arm reproduces the signal slope within overlapping bootstrap intervals at every tested degree,
+    making R_L an artifact of the bound arithmetic.
+  - Fitted slope confidence interval covers zero at every degree, so the ratio carries no per-level
+    information.
+  - Slope varies by more than the claimed effect size across seeds at fixed parameters, so the statistic
+    is not reproducible.
+  - log2 R_L is not approximately affine in L, with structured residuals, so the summary statistic
+    misrepresents the trajectory and the object must be restated as the full sequence.
+  - The exact-arithmetic assertion fails, i.e. the recovered noise polynomial does not reproduce the
+    ciphertext, which invalidates the instrument rather than the hypothesis.
+  confounders:
+  - 'Choice of which stated worst-case recursion counts as the model: different sources give different
+    constants and the measured ratio inherits them entirely.'
+  - Restricting plaintexts to low Hamming weight biases message-dependent noise terms downward; the
+    identity-circuit control bounds this but does not remove it.
+  - Modulus switching interleaved with multiplication changes the level index semantics; the circuit
+    shape must be fixed and declared.
+  - Small N makes tail behaviour of the infinity norm coarse, since a maximum over 16 coefficients
+    is a noisy statistic compared with a maximum over 1024.
+  - Integer overflow or silent modular reduction in the model path would produce a spurious slope;
+    the assertion control catches it only in the measurement path.
+  interpretation_limits:
+  - A ratio measured at N in {16,32,64} says nothing numerically about N=8192 without an explicit
+    and separately tested transfer assumption.
+  - The ratio scores one transcription of one bound; a different published recursion could yield a
+    different ratio from identical measurements.
+  - Nothing here is a statement about any library, any shipped parameter set, or any security level.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement itself costs O(P * d * N^2) integer
+      operations for P enumerated plaintext pairs at depth d with schoolbook negacyclic convolution.
+    memory_exponent: No attack memory exponent is claimed. Peak working memory is O(d * N * log q)
+      bits per ciphertext trace, negligible at these degrees.
+    best_known: The incumbent is the practice of using the stated worst-case noise recursion directly
+      as the parameter-selection input, together with whatever average-case heuristic a given implementation
+      substitutes for it. This proposal does not beat that incumbent; it scores the gap between it
+      and measurement.
+    hidden_overhead: The human cost is concentrated in transcribing a noise recursion faithfully and
+      defending the transcription, which is the step most likely to consume the budget and the step
+      a reviewer will attack. Lower-order terms hide in the key-switching and modulus-switching contributions,
+      which are often stated loosely and whose constants dominate at small N.
+  dominated_by: 'n/a (no result claimed). Checked: no experiments/EXP-FHE-* directory exists in this
+    repository, so there is no internal frontier row for FHE noise measurement to be dominated by,
+    and since the contract emits no attack cost it does not enter the time/memory/data frontier at
+    all.'
+  sota_delta: no attack; conceptual/measurement contribution only. The deliverable is a dimensionless
+    per-level ratio and its null, in units no attack cost is stated in.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That a reproducible R_L trajectory can be measured at all: 0.9, because
+    it is an exact arithmetic computation and the only failure mode is an implementation error. That
+    the signal arm separates from the null arm by the pre-committed 0.3 bits per level: 0.6, because
+    compounding correlation is plausible but the null''s matched-variance construction may already
+    reproduce most of the decay. That log2 R_L is affine enough for the slope summary to be honest:
+    0.5, since modulus switching plausibly breaks affinity at level boundaries. That any of this transfers
+    numerically to cryptographic degrees: 0.15, and the contract does not claim it.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-OPEN-016
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - harness/runner.py
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-5e6e4f

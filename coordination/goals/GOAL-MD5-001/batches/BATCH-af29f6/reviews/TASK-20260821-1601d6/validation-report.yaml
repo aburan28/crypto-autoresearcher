@@ -1,0 +1,584 @@
+validation_report:
+  id: VAL-20260821-1601d6
+  task_id: TASK-20260821-1601d6
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-af29f6
+  reviewed_snapshot:
+    task_id: TASK-20260821-f2093f
+    commit_sha: 8690be95
+    head_at_review_start: fc197e508d7a2507b02dcc05fe275d31eb31162b
+    note: >-
+      HEAD carries one further archive-pointer commit (fc197e50) on top of
+      the reviewed snapshot commit (8690be95); the pointer commit touches
+      only the queue archive block, not any file this review inspects. All
+      files read and re-run below were verified to be the committed,
+      Coordinator-snapshotted content, not a working-tree-only artifact
+      (git status --short returned clean before and during this review).
+  experiment_id: EXP-MDFIVE-88f7d1
+  hypothesis_id: H-MDFIVE-bf7767
+  run_ids:
+    - RUN-MDFIVE-buildcheck
+    - RUN-MDFIVE-primary-md4-v2
+    - RUN-MDFIVE-primary-md4   # invalid/superseded, retained per immutable-run-records rule
+    - RUN-MDFIVE-h1-md4
+    - RUN-MDFIVE-md5-conditional
+
+  # ===========================================================================
+  # CHECK 1 -- RFC vector agreement
+  # ===========================================================================
+  check_1_rfc_vector_agreement:
+    verdict: pass
+    method: >-
+      Wrote an independent driver (independent_validator.py, never importing
+      harness/run_md4_ceiling.py's check_rfc1320_vectors or reusing its
+      forward_step/apply_forward helpers for this check) that implements a
+      from-scratch, straight-line 48-step MD4 digest (independent constants,
+      independent word-schedule tables, independent round-function bodies)
+      and runs it against all 7 vectors parsed directly from the pinned RFC
+      1320 text (coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/
+      rfc1320-md4.txt, sha256 confirmed f727b15e...c7c9dd8a2421c7 against the
+      contract's declared value), then separately calls the module's own
+      md4_digest() on the identical inputs.
+    command_output: |
+      $ sha256sum coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4.txt
+      f727b15e19ab8ac5036ab7921476e8d8644512190ade32a2e0a2fb9d8a2421c7  (matches contract)
+
+      $ python3 independent_validator.py   # CHECK 1 section
+      msg=b''            expected=31d6cfe0d16ae931b73c59d7e0c089c0  mine_ok=True module_ok=True
+      msg=b'a'           expected=bde52cb31de33e46245e05fbdbd6fb24  mine_ok=True module_ok=True
+      msg=b'abc'         expected=a448017aaf21d8525fc10ae87aa6729d  mine_ok=True module_ok=True
+      msg=b'message digest' expected=d9130a8164549fe818874806e1c7014b mine_ok=True module_ok=True
+      msg=b'abcdefghijklmnopqrst...' expected=d79e1c308aa5bbcdeea8ed63df412da9 mine_ok=True module_ok=True
+      msg=b'ABCDEFGHIJKLMNOPQRST...' expected=043f8582f241db351ce627e153e7f0e4 mine_ok=True module_ok=True
+      msg=b'1234567890...'          expected=e33b4ddc9c38f2199c3e7b164fcc0536 mine_ok=True module_ok=True
+      MD4 RFC1320 7/7 all_ok (independent==expected==module): True
+    md4_result: >-
+      7/7 confirmed independently, not merely trusted from the executor's
+      "7/7 pass" claim. The module's own md4_digest() and my from-scratch
+      implementation agree on every vector.
+    md5_result: >-
+      GAP, named rather than fabricated: harness/run_md4_ceiling.py does NOT
+      implement a full 64-step MD5 digest function (only the Round-1
+      shift/constant table plus a T[]-vs-sin() self-check,
+      _check_md5_t16(), which I also re-verified independently -- confirmed
+      it matches floor(2^32*abs(sin(i))) for i=1..16 exactly). There is
+      consequently no RFC 1321 A.5 vector-level check possible against this
+      module for the full MD5 primitive, and none is claimed by the
+      execution report (its "7/7 pass" language refers only to the MD4
+      vectors in buildcheck's rfc1320_vectors field, independently
+      confirmed above at raw-result.json inspection). This is a genuine
+      absence, not a false claim by the executor -- filed as a named gap
+      under check 1, not a defect.
+    verdict_reason: >-
+      MD4: fully confirmed by independent recomputation. MD5: no
+      equivalent full-digest vector check exists in this module (by design
+      -- it is a Round-1-only instrument) and none was claimed; disclosed
+      as scope, not silently assumed.
+
+  # ===========================================================================
+  # CHECK 2 -- Certificate re-derivation
+  # ===========================================================================
+  check_2_certificate_rederivation:
+    verdict: pass
+    method: >-
+      Wrote a second from-scratch, straight-line Round-1 forward simulator
+      (round1_forward_independent, distinct code from check 1's 48-step
+      implementation and from the module's own forward_step/apply_forward/
+      _reference_round1_forward) supporting both MD4 and MD5 shift/constant
+      tables. Regenerated the frozen 14 fixed words via
+      fixed_word_generation(seed=20260821, free_bits=10) [pure seeded
+      random.Random draws -- parameter generation, not solver logic] and fed
+      the primary run's declared true_word8=1932151644,
+      true_word9=2414755370 through my own simulator.
+    command_output: |
+      $ python3 independent_validator.py   # CHECK 2 section
+      {
+        "true_word8": 1932151644, "true_word9": 2414755370,
+        "independent_a9_low20": 832692, "declared_target_low20": 832692,
+        "target_match": true,
+        "independent_state16": [2197440264, 718995501, 4049194890, 1993514493],
+        "declared_Y":          [2197440264, 718995501, 4049194890, 1993514493],
+        "y_match": true, "verified": true
+      }
+    result: >-
+      RUN-MDFIVE-primary-md4-v2's certificate re-derives EXACTLY: my
+      independent register-A-after-step-9 (832692) matches the declared
+      20-bit target, and my independently-computed full 16-step Round-1
+      output state Y matches the declared Y component-for-component. This
+      is the strongest independently-checkable claim this instrument
+      supports (per H-MDFIVE-bf7767 method_ceiling), and it holds.
+    conditional_md5_run_check: >-
+      The MD5 conditional run makes no comparable single-certificate claim
+      (certificate.kind: none in both arms; the MD5 arm's declared outcome
+      is the statistic R, checked under check 4/ANOM-1 below, not a single
+      match certificate). Nothing here to certify beyond what check 4
+      covers.
+    success_criterion_1_numeric_check: >-
+      512x reduction (2048 chunk evaluations vs 1048576 = 2^20 naive)
+      independently recomputed: 1048576 / 2048 = 512.0 exactly, matching
+      the reported speedup_vs_naive. 2048 < 2^18 = 262144 holds (the
+      declared numeric threshold in EXP-MDFIVE-88f7d1.success_criterion
+      (1)). This numeric success is real as a measurement, but see ANOM-1
+      below for why "2-word joint MITM speedup" is not the correct reading
+      of it.
+
+  # ===========================================================================
+  # CHECK 3 -- Wrapper timing
+  # ===========================================================================
+  check_3_wrapper_timing:
+    verdict: pass
+    method: >-
+      Read manifest.yaml directly (not summary prose) for every one of the
+      5 run directories under TASK-20260821-de817d/runs/.
+    command_output: |
+      buildcheck:        timing_source=wrapper  wall_seconds=0.042086  (no deadline; self-test)
+      primary-md4:        timing_source=wrapper  wall_seconds=0.010209  deadline=300.0  (invalid/superseded)
+      primary-md4-v2:      timing_source=wrapper  wall_seconds=0.019903  deadline=300.0
+      h1-md4:             timing_source=wrapper  wall_seconds=7.071643   deadline=300.0
+      md5-conditional:    timing_source=wrapper  wall_seconds=8.061909   deadline=300.0
+    result: >-
+      Every run record carries timing_source: wrapper (never a self-timed or
+      internal value) and every wall_seconds figure is well under its
+      declared 300 s per-run ceiling (max observed 8.06 s, ~2.7% of budget).
+      No run halted on its deadline (halted_before_target_n: false / N/A
+      confirmed in each raw-result.json). Total measured search wall-clock
+      across all 5 run directories is under 20 s, consistent with
+      execution-report.yaml's budget_account.
+
+  # ===========================================================================
+  # CHECK 4 -- Heuristic-validation statistics
+  # ===========================================================================
+  check_4_heuristic_validation_statistics:
+    verdict: pass
+    method: >-
+      Loaded RAW counters (matching_window_hit_counts, full_target_hit_counts
+      arrays, 1000 entries each) directly from RUN-MDFIVE-h1-md4 and
+      RUN-MDFIVE-md5-conditional's raw-result.json -- never the prose
+      summary -- and recomputed (a) mean/variance/constancy from the raw
+      array with my own arithmetic, (b) chi-square statistic from the
+      report's own observed/expected per-bin arrays with a fresh sum, (c)
+      the Poisson tail p-value with an independently-written summation loop
+      (different loop bounds/termination rule from the module's
+      _poisson_sf), and (d) a full from-scratch, brute-force (double-loop,
+      no hash table, no shared code with mitm_search/apply_backward) 25-target
+      spot recomputation of the MD5-conditional arm's matching-window and
+      full-target hit counts using my own round1_forward_independent.
+    command_output: |
+      [md4] n=1000 mean=2048.0 variance=0.0 all_equal=True constant_value=2048
+      [md4] independent tail P(X>=2048 | Poisson(256)) = 0  (module reported: 0.0)
+      [md4] chi2 recomputed from reported bins = 127577.50865857219  (module reported: 127577.50865857219)
+      [md5] n=1000 mean=32768.0 variance=0.0 all_equal=True constant_value=32768
+      [md5] independent tail P(X>=32768 | Poisson(256)) = 0  (module reported: 0.0)
+      [md5] chi2 recomputed from reported bins = 127577.50865857219  (module reported: 127577.50865857219)
+
+      CHECK 2b (spot, n=25 independent fresh targets from the SAME declared
+      md5_conditional_targets seed stream 8975315, brute-force ground truth,
+      no shared code with mitm_search):
+      window_counts (25 fresh targets): all 32
+      full_counts   (25 fresh targets): all 1
+      -> 32 * 1024(word9 range) = 32768 = reported constant matching_window_hits (MD5 arm)
+      -> 1 * 1024(word9 range) = 1024 = reported constant full_target_hits (MD5 arm)
+    result: >-
+      All reported statistics recompute exactly from raw counters: the
+      chi-square statistic (127577.51), degrees of freedom (10), the
+      below_critical_at_alpha_0_05: false verdict, and the tail p-value
+      (numerically 0, i.e. below floating-point resolution given lambda=256
+      and an observed value 8x/128x the mean) all check out arithmetically.
+      More importantly, my OWN from-scratch 25-target spot recomputation
+      (bypassing mitm_search entirely) independently reproduces the exact
+      reported constant hit counts for the MD5 arm via the structural
+      explanation "per-word8 bucket size x 1024 word9 candidates" -- this is
+      not just an arithmetic check but an independent re-derivation of WHY
+      the distribution is degenerate, and it agrees with the report to the
+      integer.
+
+  # ===========================================================================
+  # CHECK 5 -- MD5-scope compliance
+  # ===========================================================================
+  check_5_md5_scope_compliance:
+    verdict: pass
+    method: >-
+      (a) grepped harness/run_md4_ceiling.py for hashlib imports (none,
+      confirming the standalone-core requirement independently of the
+      coordinator's own pre-freeze check); (b) diffed the MD4-arm and
+      MD5-arm command.txt files byte-for-byte; (c) walked the batch's commit
+      history for any file outside the 5 declared run directories that
+      references "md5"; (d) reviewed EXP-MDFIVE-88f7d1's
+      md5_run_authorization block against what was actually executed.
+    command_output: |
+      $ grep -n "import hashlib\|from hashlib" harness/run_md4_ceiling.py
+      (no output -- zero matches)
+
+      $ diff RUN-MDFIVE-h1-md4/command.txt RUN-MDFIVE-md5-conditional/command.txt
+      1c1
+      < ...--mode h1 --target md4 --target-seed 8975314 ... --run-suffix h1-md4
+      ---
+      > ...--mode h1 --target md5 --target-seed 8975315 ... --run-suffix md5-conditional
+      (--k1 10 --k2 10 --m 12 --k 20 --n-target 1000 --deadline 300 --seed 20260821 IDENTICAL)
+    result: >-
+      The MD4 and MD5 H1-style arms differ in EXACTLY two fields:
+      --target (md4 vs md5, the authorized substitution) and --target-seed
+      (8975314 vs 8975315, the two DIFFERENT declared seeds
+      md4_heuristic_validation_targets / md5_conditional_targets, per
+      md5_run_authorization.target_generation -- an independent target
+      draw, not a scale asymmetry). Every other parameter (k1, k2, m, k,
+      n-target, deadline, the shared fixed-word seed 20260821) is
+      byte-identical. No hashlib or any other real-MD5-registry dependency
+      exists in the solver core. The only MD5-primitive run authorized and
+      executed is this single, identically-bounded conditional arm.
+    named_gap: >-
+      The buildcheck run (RUN-MDFIVE-buildcheck) also exercises
+      h2_regression_fixture(mode="md5") on 10,000 random 32-bit tuples.
+      This is a forward_step/backward_step algebraic-identity self-test on
+      the MD5 shift/constant table (an arithmetic correctness check of the
+      implementation, not a search or attack against an MD5 instance), and
+      it is explicitly named among EXP-MDFIVE-88f7d1's required_artifacts
+      ("MD5 Round-1 substitution mode ... + H2 fixture") and controls ("H2
+      backward-inversion regression fixture ... forward_step/backward_step
+      composition must be an exact identity on every sample"). It is not a
+      search run, does not touch a target, and involves no scale asymmetry
+      with the MD4-side h2 fixture (same n=10000, same seed 8975317). I
+      read this as within the letter and spirit of the authorization
+      (a correctness precondition for trusting the MD5 substitution mode at
+      all, not a use of it), but flag it explicitly since
+      md5_run_authorization's text is written around the SEARCH arm and
+      does not explicitly mention the H2 fixture -- the Coordinator should
+      confirm this reading rather than have it pass by omission.
+
+  # ===========================================================================
+  # CHECK 6 -- Cost-scaling labeling
+  # ===========================================================================
+  check_6_cost_scaling_labeling:
+    verdict: pass
+    method: >-
+      Cross-checked execution-report.yaml's cost_scaling_table_measured
+      against ledger/proposals/IDEA-20260821-e46061.yaml's
+      cost_scaling_sketch, confirming which task produced each number and
+      that the labels are literal and correct, not merely asserted.
+    command_output: |
+      $ grep -n "cost_scaling_sketch:" -A3 ledger/proposals/IDEA-20260821-e46061.yaml
+      665:  cost_scaling_sketch:
+      666:    label: MODELED, NOT MEASURED -- RANK 3 (executor) produces the measured entries.
+      667:    anchor: BATCH-1f30fe's calibration run (TASK-20260821-c91be2):
+      2,097,152 (2^21) second-blocks / 54.179836 s -> ~38,711 blocks/sec
+
+      execution-report.yaml's cost_scaling_table_measured.label:
+      "MEASURED -- RANK 3 (this task), THIS instrument (Round-1 chunk
+      evaluations), distinct cost unit from BATCH-1f30fe's full-message
+      birthday-search blocks."
+    result: >-
+      The two tables are correctly and distinctly labeled at the source
+      (IDEA-20260821-e46061's own file says MODELED; TASK-20260821-de817d's
+      own execution-report says MEASURED), reference genuinely different
+      source runs (BATCH-1f30fe's TASK-20260821-c91be2 calibration run vs
+      this batch's RUN-MDFIVE-primary-md4-v2/h1-md4/md5-conditional), use
+      genuinely different, disclosed cost units (full 512-bit-block
+      birthday search vs 9-/7-step Round-1 chunk evaluation), and no number
+      is silently reused across the two tables or presented under the
+      wrong label. The measured entries' own throughput figures
+      (102899.06, 289607.38, 254034.13 chunk-evals/sec) were independently
+      confirmed as internally consistent with their reported
+      total_chunk_evaluations / wrapper_measured_wall_seconds ratios
+      (2048/0.019903=102904 [rounding-consistent], 2048000/7.071643=289607,
+      2048000/8.061909=254034).
+
+  # ===========================================================================
+  # CHECK 7 -- No-regression suite + firewall carry-over
+  # ===========================================================================
+  check_7_no_regression_and_firewall:
+    verdict: pass_with_named_gap
+    method: >-
+      Ran the committed test suite myself at the snapshot commit;
+      independently confirmed harness/runner.py (where the one failing
+      test's logic lives) is byte-identical between the current tree and
+      BATCH-1f30fe's own snapshot commit 8677f11a; compared this batch's
+      suite result against BATCH-1f30fe's own recorded no-regression
+      baseline (TASK-20260821-aabf94's validation-report.yaml).
+    command_output: |
+      $ python3 -m pytest tests/test_harness.py -q
+      ...............................Fs......                                  [100%]
+      FAILED tests/test_harness.py::test_md5_pin_mechanism_real_registry_is_distinct
+      1 failed, 37 passed, 1 skipped in 3.92s
+
+      $ git show 8677f11a:harness/runner.py | sha256sum
+      4c07abfd90fca233d3f436f2577e027a8a7a03294f19928819941caf810a8575
+      $ sha256sum harness/runner.py
+      4c07abfd90fca233d3f436f2577e027a8a7a03294f19928819941caf810a8575   (IDENTICAL)
+
+      $ python3 -c "import _md5; print(getattr(_md5,'__file__',None))"
+      None    # this environment: Python 3.11.15, Linux-6.18.44-fc-v21
+      # BATCH-1f30fe's own validation ran under Python 3.12.8
+      # (TASK-20260821-aabf94/validation-report.yaml line 107-115), where
+      # the same test (one of its "7 new pin-mechanism tests", listed by
+      # name, all passing there: tests_passed=35/35, tests_failed=0)
+    result: >-
+      Reproduces exactly what the executor and the Coordinator's own
+      pre_freeze_checks reported: 37 passed, 1 failed, 1 skipped, same
+      failing test. This IS a difference from BATCH-1f30fe's own recorded
+      no-regression baseline (35/35 passing, including this exact test by
+      name, under Python 3.12.8) -- a literal regression in pass/fail
+      status of one test. However, harness/runner.py (the file the failing
+      test exercises) is BYTE-IDENTICAL between BATCH-1f30fe's snapshot and
+      this batch's snapshot (sha256 verified above), and this batch's
+      declared write_scope never touched it. The failure mode is exactly
+      what a CPython build difference predicts: IMPL-3 (_md5, the built-in
+      C extension) exposes no __file__ attribute on this container's
+      Python 3.11.15, where the earlier validation's Python 3.12.8 build
+      apparently did. This is strong (not merely asserted) evidence the
+      failure is an environment/platform artifact rather than a code
+      regression caused by this batch, but it is NOT a full bisection (I
+      did not build and run the identical test against harness/runner.py
+      under a Python 3.12.8 interpreter on this machine to directly rule
+      out a subtler cause) -- named as a gap rather than silently accepted.
+    firewall_carryover: >-
+      BATCH-1f30fe's check 7 (firewall carry-over) concerns the BCP-2
+      quarantine marker/path/consumption-rule/closed-hash-manifested-input-
+      set elements, which this batch never touches (confirmed: this
+      batch's quarantine_attestation and the Coordinator's own
+      quarantine_payload_integrity pre_freeze_check both independently
+      confirm the quarantined payload was never read; git status on
+      coordination/goals/GOAL-MD5-001/quarantine/ is clean). No regression
+      on the firewall proper -- the only carry-over defect is the
+      unrelated pin-mechanism test's environment sensitivity, named above.
+    named_gap: >-
+      The suite's pass/fail STATUS regressed by one test relative to
+      BATCH-1f30fe's own recorded baseline; root cause is very likely
+      (Python-build-dependent C-extension attribute, unmodified file,
+      reproduced identically by both the Executor and the Coordinator
+      independently) environmental rather than a code defect in this
+      batch's scope, but this was not proven by a controlled bisection on
+      this machine and should not be silently waved through as
+      "pre-existing" without that caveat.
+
+  # ===========================================================================
+  # ANOM-1 -- independent confirmation/refutation
+  # ===========================================================================
+  anom_1_independent_assessment:
+    claim: >-
+      Register A immediately after step 9 (the declared 20-bit matching
+      quantity) is mathematically independent of free word9, because word9
+      is first used at step 10 -- making the declared two-free-word MITM
+      search degenerate at split point S=9 (genuinely discriminates on
+      word8 only; supplies zero discriminating power over word9).
+    verdict: CONFIRMED, independently, by three separate methods
+    method_a_definitional: >-
+      My own from-scratch 48-step MD4 digest (check 1) and Round-1-only
+      simulator (check 2) both compute "register A after step 9" using ONLY
+      words[0..8] in their loop -- word9 (words[9]) is syntactically absent
+      from the computation of a_after_step9 in both independently-written
+      implementations. This is not something that needed empirical
+      confirmation to be true; it follows directly from the RFC's own
+      sequential word schedule (word k used at step k+1) and I verified my
+      own code reflects this by construction, independent of the module's
+      framing.
+    method_b_backward_path_empirical: >-
+      Wrote a fresh script (not reusing the executor's search code) calling
+      the module's OWN backward_step/apply_backward/apply_forward on the
+      primary run's true target, then swept 20 FRESH, uniformly random
+      32-bit word9 values (deliberately outside the declared 10-bit window,
+      stronger than the executor's own 20-sample check) through
+      backward_step and inspected tuple position 1 (the position the
+      module's own convention documents as "the value most recently
+      updated" / register A after step 9).
+      Result: all 20 gave the IDENTICAL value 2560406708, matching the true
+      forward-computed a9 exactly. Command output:
+        "distinct backward-derived register-A-after-step-9 values over 20
+        random 32-bit word9: 1"; "value(s): {2560406708}"; "matches true
+        forward a9: True"
+    method_c_false_positive_spot_check: >-
+      Sampled 10 word9 values (seed 42, none the true word9) from
+      RUN-MDFIVE-primary-md4-v2's raw 1024-entry solution set and ran
+      verify_match_certificate on each. Result: 10/10 report
+      target_match=True (the declared 20-bit "match" is satisfied) but
+      round1_output_match=False (the FULL Round-1 output state Y, the
+      strongest independently-checkable claim, is NOT reproduced) --
+      i.e. all 10 are exactly the false positives ANOM-1 predicts, and
+      the true word9 is uniquely required to reproduce Y.
+    method_d_statistics_reproduction: >-
+      Check 4's independent 25-target brute-force spot recomputation on the
+      MD5-conditional arm reproduces the reported constant hit counts
+      exactly via the "bucket-size(word8) x 1024(word9)" structural
+      explanation ANOM-1 predicts, computed from a double loop that shares
+      no code with mitm_search/apply_backward.
+    conclusion: >-
+      ANOM-1 is real, reproducible from first principles, and not an
+      artifact of the executor's own instrumentation or narrative. My
+      certificate re-derivation (check 2) and my statistics re-derivation
+      (check 4) both show the SAME degenerate/zero-variance pattern the
+      executor reported, obtained independently. The frozen hypothesis's
+      declared split point S=9 with matching quantity "register A after
+      step 9" does not, as specified, achieve a genuine two-free-word joint
+      dependency -- this is a defect in H-MDFIVE-bf7767's mechanism, not in
+      this task's implementation (which the H2 fixture, RFC vectors, and my
+      own independent recomputations all show is arithmetically correct).
+
+  # ===========================================================================
+  # RUN-INTEGRITY DETERMINATION
+  # ===========================================================================
+  gate_evaluation:
+    - check: "1. RFC vector agreement"
+      verdict: pass
+      reason: "MD4 7/7 independently recomputed and matches module; MD5 full-digest vector check does not exist in this module and none was claimed (named gap, not a defect)."
+    - check: "2. Certificate re-derivation"
+      verdict: pass
+      reason: "Independent Round-1 simulator reproduces the primary run's 20-bit target AND full Round-1 output Y exactly; 512x speedup arithmetic confirmed."
+    - check: "3. Wrapper timing"
+      verdict: pass
+      reason: "All 5 manifest.yaml files show timing_source: wrapper and wall_seconds well under their 300 s ceilings."
+    - check: "4. Heuristic-validation statistics"
+      verdict: pass
+      reason: "Chi-square, tail p-value, and raw-counter constancy all recompute exactly from raw arrays; independent 25-target brute-force spot check reproduces the reported hit counts to the integer."
+    - check: "5. MD5-scope compliance"
+      verdict: pass
+      reason: "No hashlib in solver core; MD4/MD5 H1-style arms identical in every field but --target/--target-seed. One named gap: H2's MD5-mode correctness self-test is defensible as required-artifact scope but not explicitly named in md5_run_authorization's own text."
+    - check: "6. Cost-scaling labeling"
+      verdict: pass
+      reason: "MODELED (IDEA-20260821-e46061) and MEASURED (TASK-20260821-de817d) tables are correctly labeled at their own source files, distinct units, distinct source runs, no reuse."
+    - check: "7. No-regression suite + firewall carry-over"
+      verdict: pass_with_named_gap
+      reason: "37/1/1 reproduced exactly; the 1 failure is a real status regression vs BATCH-1f30fe's 35/35 baseline, strongly (but not exhaustively, via bisection) attributable to a Python 3.11 vs 3.12 CPython-build difference in an unmodified file (harness/runner.py, sha256-identical to BATCH-1f30fe's own snapshot). Firewall/quarantine carry-over proper: clean."
+  determination: HOLDS-WITH-NAMED-GAPS
+  determination_reason: >-
+    Every one of the 7 checks was independently re-run and re-derived from
+    my own scripts and command output, not read from the reports. Six of
+    seven checks pass cleanly. Check 7 carries a named, disclosed,
+    well-grounded (but not fully bisected) environmental gap. Check 5
+    carries one named interpretive gap on the H2/MD5 correctness fixture's
+    exact authorization boundary, which I read as compliant but flag for
+    Coordinator confirmation rather than silently deciding myself (verdicts
+    on hypothesis mechanism/authorization scope are the Coordinator's, per
+    my role contract). Neither gap involves a fabricated command, a missing
+    artifact, an unverifiable statistic, or a control that failed to run;
+    both are disclosed interpretive/environmental residues on an otherwise
+    fully-reproducing package. ANOM-1 is independently CONFIRMED by four
+    separate methods, none of which relied on trusting the executor's
+    narrative. Run integrity, as a mechanical fact, HOLDS, with these two
+    gaps named for the record.
+  defects:
+    - id: DEFECT-1601d6-01
+      severity: minor
+      title: "No-regression suite: 1 test status-regressed vs BATCH-1f30fe baseline"
+      description: >-
+        test_md5_pin_mechanism_real_registry_is_distinct passed 35/35 under
+        BATCH-1f30fe's own Python 3.12.8 validation and fails on this
+        batch's Python 3.11.15 environment, with harness/runner.py
+        byte-identical between the two snapshots (sha256 verified). Strong
+        environmental evidence, not a full bisection. Actionable: run the
+        identical test on a Python 3.12.8 interpreter on this same machine
+        to close the gap definitively, or record the CPython-build
+        dependency explicitly in the test's own skip/xfail conditions
+        rather than leaving it a surprise finding for every future
+        validator on a different container.
+    - id: DEFECT-1601d6-02
+      severity: informational
+      title: "MD5 H2 correctness fixture's authorization boundary not explicit in md5_run_authorization text"
+      description: >-
+        RUN-MDFIVE-buildcheck runs h2_regression_fixture(mode='md5') on
+        10,000 tuples. This is defensible (required_artifacts names H2
+        fixture + MD5 substitution mode explicitly; it is a correctness
+        self-test, not a search/attack, with no scale asymmetry vs the
+        MD4-side fixture) but EXP-MDFIVE-88f7d1's md5_run_authorization
+        block is written entirely around the SEARCH arm and does not
+        mention the H2 fixture by name. Actionable: the Coordinator should
+        either confirm this reading explicitly in a future contract
+        amendment, or have EXP-MDFIVE-88f7d1's next version name H2's
+        MD5-mode fixture in md5_run_authorization directly, so this
+        question does not have to be re-litigated by every reviewer.
+  limitations:
+    - >-
+      This review's independent recomputations covered the primary MD4
+      certificate exhaustively, the H1/MD5-conditional statistics via full
+      re-load of all 1000 raw samples per arm PLUS a fresh 25-target
+      brute-force spot re-derivation (not a full independent 1000-target
+      re-run, for budget reasons -- the 25-target spot check already
+      reproduces the reported constants to the integer, which is strong
+      evidence given the reported distribution has zero variance across
+      the full 1000, so a partial independent sample is sufficient to
+      confirm or refute constancy).
+    - >-
+      Check 7's environmental-cause conclusion is well-grounded (identical
+      file hash, identical failure mode as predicted by the specific
+      CPython version difference, reproduced independently by the
+      Coordinator's own pre_freeze check) but not proven by a controlled
+      bisection on a second Python interpreter on this machine; named as
+      DEFECT-1601d6-01 rather than silently accepted.
+    - >-
+      This report does not evaluate H-MDFIVE-bf7767's mechanism validity,
+      HEUR-H1's truth or falsity, or whether ANOM-1 should be read as
+      invalidating this run's H1 test -- per my role contract and the
+      task's own instruction, those compositions belong to the Coordinator
+      and any claim-level reviewer, not to run-integrity validation.
+    - >-
+      No status, hypothesis, or claim tier was changed by this review.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/reviews/TASK-20260821-1601d6/validation-report.yaml
+
+  review_attestation:
+    task_id: TASK-20260821-1601d6
+    joints_owned:
+      - "Check 1: RFC vector agreement"
+      - "Check 2: certificate re-derivation"
+      - "Check 3: wrapper timing"
+      - "Check 4: heuristic-validation statistics"
+      - "Check 5: MD5-scope compliance"
+      - "Check 6: cost-scaling labeling"
+      - "Check 7: no-regression suite + firewall carry-over"
+      - "ANOM-1 independent confirmation/refutation"
+    sources_read:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/task-cards/TASK-20260821-1601d6.md
+      - ledger/handoffs/TASK-20260821-1601d6.yaml
+      - AGENTS.md
+      - agents/validator.md
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/archives/TASK-20260821-f2093f/snapshot-receipt.json
+      - experiments/EXP-MDFIVE-88f7d1/specification.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/execution-report.yaml
+      - harness/run_md4_ceiling.py
+      - harness/runner.py (hash comparison only, not full re-read of unmodified logic)
+      - tests/test_harness.py
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-buildcheck/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-buildcheck/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4-v2/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-primary-md4/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-h1-md4/command.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/tasks/TASK-20260821-de817d/runs/RUN-MDFIVE-md5-conditional/command.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/inputs/rfc1320-md4.txt
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/inputs/rfc1321-md5.txt
+      - ledger/proposals/IDEA-20260821-e46061.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/reviews/TASK-20260821-aabf94/validation-report.yaml
+      - git log / git show output for harness/runner.py and harness/run_md4_ceiling.py across BATCH-1f30fe (8677f11a) and BATCH-af29f6 commits
+    read_sibling_reports: false
+    sibling_note: >-
+      coordination/goals/GOAL-MD5-001/batches/BATCH-af29f6/reviews/TASK-20260821-67a1b6/
+      did not exist at any point checked during this task (confirmed clean
+      at start; not re-checked after, per the sibling-blindness instruction
+      to stop looking rather than monitor for a race).
+    quarantine_note: >-
+      coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+      was never opened, read, or referenced at any point in this task.
+    blind_from_respected: null
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    fallback_used: false
+    degraded_requirements: []
+    independent_session: true
+    bedrock: "not selected, configured, probed, contacted, or used"
+    verdict: HOLDS-WITH-NAMED-GAPS
+
+  verdict: passed
+  verdict_reason: >-
+    "passed" here means the receipt is admissible research evidence at the
+    scope it discloses (mechanical run-integrity holds, with two named,
+    actionable gaps neither of which is a fabrication, a missing artifact,
+    or an unrecomputable statistic). This is not an ECDLP claim, does not
+    demonstrate a speedup at any relevant scale, and does not authorize
+    promotion -- those compositions, including how ANOM-1 should be read
+    against H-MDFIVE-bf7767 and HEUR-H1, are the Coordinator's and any
+    claim-level reviewer's to make.

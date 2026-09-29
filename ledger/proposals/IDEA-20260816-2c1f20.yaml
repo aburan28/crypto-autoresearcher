@@ -1,0 +1,283 @@
+idea:
+  id: IDEA-20260816-2c1f20
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: The AT cost model charges Argon2 memory by peak capacity, but the block-fill loop is a streaming
+    write-then-random-read workload; measure achieved bytes-per-second and the reuse-distance profile
+    of a reduced-parameter run as m sweeps across the last-level-cache boundary, and locate which
+    resource actually binds.
+  class: measurement
+  claim: '(A) The security argument for Argon2 is a cost argument, and the cost currency is area-time:
+    memory is charged linearly by peak capacity held for the duration of the evaluation. That accounting
+    is indifferent to where the bytes live. On a real machine the bytes live somewhere specific, and
+    the evaluator''s cost is set by how fast the machine can move them, not by how many of them there
+    are. (B) The claim is that the two accountings can be measured separately on the same run and
+    compared: for a reduced-parameter Argon2id evaluation, achieved throughput in blocks per second
+    is a measurable function of m, and if memory were charged linearly and the machine were flat,
+    that function would be constant in m. It is predicted here to be non-constant, with a knee located
+    near the boundary where the working set stops fitting in the last level of cache, because the
+    second and later passes re-read blocks whose reuse distance exceeds the cache capacity. (C) The
+    claim is further that the reuse-distance histogram of the address trace -- a machine-independent
+    object computable exactly from the trace alone -- predicts the location of that knee from the
+    declared cache capacity, so the machine-dependent measurement and the machine-independent object
+    can be checked against each other rather than either being trusted alone. (D) WHAT IS NOT CLAIMED:
+    nothing here claims that Argon2 is weak, that any recommended parameter set is unsafe, that an
+    attacker gains anything, or that the AT model is wrong. A model that ignores the hierarchy may
+    flatter the defender or the attacker depending on which side is bandwidth-bound, and this proposal
+    does not assert a direction for that asymmetry -- it proposes to measure the size of the gap between
+    charged cost and achieved cost on one declared machine, and to publish the machine model alongside
+    it. No security consequence follows from a knee in a throughput curve. (E) The named way the model
+    flatters the defender: charging m linearly credits the defender with m units of adversary cost,
+    while an adversary who is bandwidth-bound rather than capacity-bound pays for m only through the
+    traffic it induces, and traffic is not proportional to capacity once the access pattern is known.'
+  mechanism: 'STAGE 1: build a self-contained Argon2id evaluator that emits, as a side channel of
+    its own execution, the ordered address trace (for each block written, the index written and the
+    two indices read). The trace is written to disk, not held, so trace capture does not itself perturb
+    the working set beyond a declared streaming buffer. STAGE 2: compute the reuse-distance histogram
+    of the trace exactly, by the standard stack-distance algorithm over the block index sequence.
+    This is deterministic, machine-independent, and reproducible from the trace file alone. STAGE
+    3: predict, from the histogram and a declared cache capacity C in blocks, the fraction of reads
+    whose reuse distance exceeds C -- the predicted miss fraction under a fully-associative LRU idealization.
+    STAGE 4: run the same evaluator with tracing disabled, timing only, over a sweep of m, at fixed
+    t and p, with repetitions, on one declared machine with declared compiler and flags, and record
+    blocks-per-second. STAGE 5: run the null arm in the same invocation: a synthetic evaluator that
+    performs the identical number of block reads and writes and the identical arithmetic per block,
+    but draws its read indices uniformly from the same candidate window rather than by the RFC 9106
+    indexing function. STAGE 6: overlay the measured throughput knee against the predicted miss-fraction
+    knee for both arms. Agreement between prediction and measurement in both arms establishes the
+    instrument; a difference between arms at the same m and same working-set size is the only thing
+    that can be attributed to the indexing function rather than to the size of the array.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -l RQ-ARGON-141710 ledger/proposals/*.yaml (10 hits, all read by title and class);
+      grep -ril for the terms bandwidth, cache miss, reuse distance, memory hierarchy, area-time,
+      AT product across ledger/proposals/, ledger/hypotheses/ and knowledge/; read ledger/questions/RQ-ARGON-141710.yaml
+      in full, ledger/hypotheses/H-ARGON-ef2f0b.yaml in full, ledger/evidence/EV-ARGON-209ece.yaml
+      in full, ledger/goals/GOAL-ARGON-001.yaml head, experiments/EXP-ARGON-2608c2/specification.yaml
+      head, knowledge/literature/KN-LIT-7f3c21.md header, knowledge/literature/KN-LIT-3385.md header,
+      docs/inventor-protocol.md in full.
+    results: 'The term bandwidth appears in IDEA-20260809-bf5139 under this same question, which proposes
+      replacing the abstract AT product with an AT model carrying an explicit hardware cost. That
+      is the nearest record and it is a REPRESENTATION proposal -- it builds a better model. Nothing
+      under RQ-ARGON-141710 measures a machine. The other bandwidth hits (IDEA-20260806-3b91c7, IDEA-20260814-92f825,
+      IDEA-20260808-06aae4, IDEA-20260805-72bcb5, IDEA-20260727-008) are under other questions and
+      concern ECDLP/isogeny cost models. The term reuse distance returns zero hits anywhere in the
+      repository. Cache miss hits (IDEA-20260809-2ba70c, IDEA-20260808-2fabbc, IDEA-20260813-533bc4)
+      are under other questions. No evidence record under this question reports any timing: experiments/EXP-ARGON-2608c2/runs/
+      is empty and EV-ARGON-209ece is a proposal review with no measurement.'
+    verdict: 'UNVERIFIED. No agent in this environment can read external literature, so nothing is
+      asserted about what is or is not published on Argon2 and memory hierarchies. What is claimed
+      new within this repository is the pairing of an exactly-computed reuse-distance histogram with
+      a same-invocation matched-traffic null arm, used to separate a working-set-size effect from
+      an indexing-function effect. Assembled from known parts: stack-distance analysis is textbook;
+      sweeping a parameter across a cache boundary is standard practice; the AT accounting is the
+      incumbent named in KN-LIT-7f3c21. The assembly, and specifically the requirement that the null
+      arm move the same number of bytes, is what this record contributes.'
+  object_first_candidate:
+    tracked_object: The ordered address trace of the evaluation -- for each block index j produced,
+      the pair (j-1, r(j)) of indices read -- projected onto the multiset of reuse distances, that
+      is, for each read, the number of distinct block indices touched since that block was last touched.
+    lossiness: 'The projection discards all 1024 bytes of every block''s contents and keeps only indices,
+      and then discards the identity of the indices and keeps only distances. This is genuinely lossy
+      for Argon2d and Argon2id past the hybrid split point, where contents determine future indices,
+      so the trace cannot be regenerated from the histogram nor the contents from the trace. It is
+      NOT lossy in the same sense for Argon2i, whose addressing is data-independent: there the address
+      trace is a deterministic function of the parameters alone and the projection from run to trace
+      loses only the contents, which never feed back into addressing. That asymmetry is stated here
+      rather than hidden, and it is the reason the Argon2i arm is the cheaper arm to reproduce. What
+      survives the projection is exactly the quantity the memory hierarchy responds to: a cache does
+      not read block contents to decide an eviction.'
+    propagation: One step of the target operation is one compression-function application producing
+      block j. It consumes the previous index j-1, whose reuse distance is always 1, and one reference
+      index r(j) drawn from the current candidate window, whose reuse distance is the number of distinct
+      blocks touched since r(j) was last touched. Under the RFC 9106 within-window offset transform
+      the reference target is concentrated toward recent blocks, so each step appends one distance-1
+      event and one event drawn from a position-dependent distribution whose support grows with the
+      window. The histogram therefore accumulates deterministically, one step at a time, with no interaction
+      between steps beyond the growth of the window -- which is what makes it exactly computable in
+      a single streaming pass.
+    survival_score: 'The tracked object is defined and exactly computable for the entire evaluation,
+      at every block index from 2 to t*q-1, with no dissolution point: this is a lossy but total projection.
+      The structure that could dissolve is the DISTINGUISHABILITY of the real histogram from the null
+      histogram, and that is exactly what the null arm measures. The honest statement of survival
+      is therefore conditional and is the experiment''s output, not an input: if the two histograms
+      are within sampling error at every m in the sweep, the object survives zero steps as a discriminator
+      even though it is defined for all of them.'
+  null_object_control: 'A synthetic evaluator, compiled from the same source file and run in the same
+    invocation from the same driver, performing exactly the same count of block reads, block writes,
+    and per-block arithmetic operations, over an array of exactly the same size, but selecting its
+    reference index uniformly at random from the same candidate window W(j) rather than by the RFC
+    9106 transform. The null must show a throughput-versus-m curve whose knee lies at the SAME m as
+    the real arm and whose miss fraction at each m is statistically indistinguishable from the real
+    arm, for the null to be doing its job of holding working-set size fixed. If the null and real
+    arms differ, the difference is attributable to the indexing function. If they do not differ, the
+    correct record is a controlled null: the knee is a property of the array size and the machine,
+    and Argon2''s indexing contributes nothing measurable to it at these parameters. Either outcome
+    is a usable measured obstruction.'
+  discriminated_from:
+  - IDEA-20260809-bf5139 (this question) proposes an AT model with an explicit hardware cost -- it
+    constructs a better cost model. This proposal constructs no model; it measures one machine and
+    reports the gap between charged and achieved cost, with the machine model declared as a limitation
+    rather than as a contribution.
+  - IDEA-20260812-318db8 and H-ARGON-ef2f0b measure a purely topological quantity, the depth-reducing-set
+    ratio rho, on a graph held in memory. No wall-clock or byte-movement quantity appears anywhere
+    in that lane. This proposal measures no graph property at all.
+  - IDEA-20260809-c059a7 measures a defender-cost-per-login to attacker-cost-per-guess ratio across
+    parameter space. That is a composite economic ratio; this is a single-machine throughput curve
+    with a predicted knee, and it deliberately refuses to convert into any cost ratio.
+  - Audits of THIS PROGRAM's own machine variance and single-machine timing under RQ-INSTR-f8faa0.
+    Those audit the harness as an instrument. Here the object measured is Argon2's own cost model,
+    and the harness's variance is a confounder to be bounded by repetition, not the subject.
+  - A password-cracking benchmark. No guess rate, no candidate list, and no credential data is involved;
+    the measured quantity is blocks per second for one evaluation with synthetic in-run-generated
+    inputs.
+  assumptions:
+  - The RFC 9106 algorithm description in KN-LIT-7f3c21 (citation_verified true, read in full by the
+    validator per EV-ARGON-209ece) is accurate for the chain structure, the one-reference-edge-per-block
+    structure, the three variants' indexing sources, and the within-window offset transform.
+  - A fully-associative LRU idealization is close enough to the real last-level cache that a predicted
+    miss-fraction knee lands within one sweep step of the measured throughput knee. If it does not,
+    the prediction stage has failed and that is reported, not repaired post hoc.
+  - The machine is otherwise quiescent during timing, and repetition plus a declared trimmed statistic
+    bounds interference to within the reported error bars.
+  - Trace capture is performed in a separate run from timing, so the streaming write of the trace
+    does not perturb the timed working set.
+  - Synthetic in-run-generated seed material is adequate; no real password, credential or third-party
+    corpus is used at any stage, per the GOAL-ARGON-001 binding constraint.
+  predictions:
+  - metric: achieved throughput in blocks per second, as a function of m at fixed t and p
+    direction: lower
+    minimum_effect: at least a factor of 1.5 drop between the largest m whose array fits in the declared
+      last-level cache and the smallest m at least four times that size
+  - metric: predicted LRU miss fraction from the reuse-distance histogram at the declared cache capacity
+    direction: higher
+    minimum_effect: crosses 0.5 within one sweep step of the m at which the measured throughput knee
+      occurs
+  - metric: difference in miss fraction between the real arm and the matched-traffic uniform null
+      arm at each m
+    direction: different
+    minimum_effect: 'REFUSAL TO PRE-COMMIT: the sign is genuinely unknown. Recency-biased reference
+      selection should reduce misses relative to uniform-in-window, but the window itself is a small
+      fraction of the array early in the first pass, so the two may coincide there and diverge only
+      in later passes. Pre-committing a number here would be a guess dressed as a prediction.'
+  - metric: ratio of measured cost to AT-charged cost, defined as measured seconds per evaluation
+      divided by m times the modelled per-block time at the smallest m
+    direction: different
+    minimum_effect: departs from 1.0 by at least 25 percent at the largest tested m
+  minimal_test:
+    design: 'One machine, one compiler, declared flags, no huge pages. Fix t=3 and p=1. Sweep m over
+      eight geometrically spaced values spanning from an array comfortably inside the declared last-level
+      cache to an array at least sixteen times its capacity. For each m, run three arms in a single
+      invocation from one driver: the real Argon2id evaluator, the matched-traffic uniform-in-window
+      null, and a pure sequential-chain degenerate arm that never issues a reference read at all and
+      therefore has reuse distance 1 everywhere. Nine repetitions per (arm, m) cell, interleaved in
+      a fixed rotation rather than blocked, so that any thermal or frequency drift is spread across
+      arms rather than confounded with one. Separately, in a non-timed run at the same parameters,
+      capture the address trace of the real and null arms and compute their reuse-distance histograms
+      exactly. Report throughput curves with error bars, the two histograms, the predicted knee, and
+      the measured knee. Total cost is a few core-hours at these parameters.'
+    controls:
+    - Matched-traffic uniform-in-window null arm, same array size, same operation count, same invocation.
+    - Pure sequential-chain degenerate arm with no reference reads, establishing the throughput ceiling
+      where reuse distance is 1 everywhere.
+    - Interleaved rather than blocked repetition ordering, so drift is not confounded with arm.
+    - A no-op arm that allocates and touches the same array once and does nothing else, bounding the
+      allocation and page-fault contribution.
+    - Re-running the smallest m at the end of the sweep and checking it reproduces the beginning-of-sweep
+      value within error bars.
+    required_metrics:
+    - blocks per second per (arm, m) cell, with median and interquartile range over repetitions
+    - exact reuse-distance histogram per arm from the captured trace
+    - predicted LRU miss fraction at declared cache capacity per arm and m
+    - array size in bytes and declared cache capacities of the test machine
+    - per-cell repetition count and the interleaving order actually executed
+    - ratio of measured seconds to AT-charged seconds under the declared linear-capacity model
+  falsification_conditions:
+  - The throughput curve is flat in m to within error bars across the whole sweep, which would mean
+    the hierarchy contributes nothing measurable at these parameters and the premise of the proposal
+    is wrong.
+  - The predicted knee from the reuse-distance histogram misses the measured knee by more than two
+    sweep steps, falsifying the prediction stage and disqualifying the histogram as a machine-independent
+    predictor.
+  - The pure sequential-chain arm shows the same knee as the real arm, which would attribute the knee
+    entirely to array size and streaming write bandwidth rather than to reference reads at all.
+  - Repetition spread within a cell exceeds the between-arm difference at every m, making the instrument
+    too noisy to discriminate at this budget.
+  - The end-of-sweep re-run of the smallest m differs from its beginning-of-sweep value by more than
+    the reported error bars, invalidating the whole sweep as one measurement session.
+  confounders:
+  - Frequency scaling and thermal throttling on the test machine, addressed by interleaving and by
+    the re-run check but not eliminated.
+  - Transparent huge pages and TLB reach, which can move a knee independently of cache capacity; disabled
+    or declared, and the TLB reach computed alongside the cache capacity.
+  - Compiler autovectorization differing between the real and null arms because the null's index computation
+    is simpler, which would change per-block arithmetic cost; addressed by making the null compute
+    an index of the same arithmetic shape from a precomputed random stream.
+  - Prefetcher behaviour, which favours the sequential chain arm and may partially favour the recency-biased
+    real arm, and which is a real hierarchy effect rather than an artifact -- it is part of what is
+    being measured, but it must not be reported as a property of the indexing function alone.
+  - Operating-system page reclaim at the largest m, which can appear as a second knee unrelated to
+    cache.
+  interpretation_limits:
+  - Every number is specific to one machine, one compiler and one set of flags, and transfers to no
+    other machine without re-measurement.
+  - Toy and medium m only; nothing measured here is at the 2 GiB first recommended tuple, and extrapolation
+    across that gap is not performed.
+  - A knee in a throughput curve is not an attack, an advantage, or a security statement about any
+    party; it is a statement about how one implementation moves bytes on one machine.
+  - The reuse-distance histogram idealizes the cache as fully associative and LRU, which no real last-level
+    cache is.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The evaluation itself costs Theta(t*m) compression-function
+      applications by construction and this proposal does not change that.
+    memory_exponent: No attack exponent is claimed. Peak memory is m blocks for the honest evaluator
+      by construction; no reduced-memory strategy is proposed, implemented or measured.
+    best_known: The incumbent is the linear-capacity area-time accounting used in the Argon2 design
+      rationale as summarized in KN-LIT-7f3c21, under which cost is proportional to peak memory times
+      duration. There is no attack incumbent because no attack is proposed.
+    hidden_overhead: 'The machine specificity is the whole hidden cost: a knee measured on one processor
+      is a fact about that processor. Beyond that, trace capture at larger m produces files far larger
+      than the array itself, and the human cost of getting the compiler to emit comparable code for
+      the real and null arms is substantial and easy to underestimate.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed rather than asserted: under RQ-ARGON-141710
+    there are ten proposals and exactly one evidence record, EV-ARGON-209ece, which is a proposal
+    review containing no measurement; experiments/EXP-ARGON-2608c2/runs/ is empty. There is therefore
+    no row on any frontier -- time, memory, or data/queries -- for this measurement to be dominated
+    by, because no ARGON measurement of any kind exists in this repository yet.'
+  sota_delta: 'No attack; measurement contribution only. The comparison is not against an attack frontier
+    but against the incumbent accounting: the deliverable is the ratio of measured evaluation cost
+    to AT-charged cost as a function of m, on one declared machine, which is a number the incumbent
+    model does not produce at all rather than a number it produces worse.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That a throughput knee exists somewhere in an eight-decade m sweep: high,
+    around 0.9, because this is close to a property of any array-touching program and the proposal
+    would be nearly content-free if it failed. That the reuse-distance histogram predicts the knee''s
+    location within one sweep step: moderate, around 0.5, because fully-associative LRU is a poor
+    model of a real last-level cache with a hardware prefetcher. That the real arm and the matched-traffic
+    null arm differ measurably at any m: low, around 0.25, because the candidate window is small relative
+    to the array for much of the first pass and both arms then have similar reuse profiles -- and
+    this is the part most worth running, because a null-matches-signal outcome is a clean controlled
+    null that removes the indexing function from the hierarchy story entirely.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - IDEA-20260809-bf5139
+  - IDEA-20260809-c059a7
+  - IDEA-20260812-318db8
+  - EV-ARGON-209ece
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - experiments/EXP-ARGON-2608c2/specification.yaml
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-22e6bb

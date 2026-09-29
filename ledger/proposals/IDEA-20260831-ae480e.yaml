@@ -1,0 +1,395 @@
+idea:
+  id: IDEA-20260831-ae480e
+  question_id: RQ-MLKEM-001
+  added: '2026-08-31'
+  title: >-
+    Excess-kurtosis left-tail check: does the singleton/doublet noise
+    heterogeneity's between-class variance-of-||e||^2 fatten the left tail of
+    the ciphertext-side error norm beyond what the aggregate-variance-only
+    treatment (M0/M1) can ever see -- and is any pinned-package function even
+    capable of consuming that, unmodified?
+  class: measurement
+
+  claim: >-
+    PART 1 (a premise-check this session already performed by direct source
+    retrieval, not assumption): direction (ii) ("an instrument extension that
+    consumes more than the first two moments of a per-coordinate-varying
+    noise model"), read literally as "call some OTHER function already in the
+    unmodified pinned lattice-estimator (commit
+    3e48ef421ec256afddb3e7d2249a77eab6e9ba12)," is CLOSED. LWEParameters
+    (estimator/lwe_parameters.py) declares Xe/Xs as single NoiseDistribution
+    fields, resized (self.Xe.resize(self.m)) but never vectorized per
+    coordinate -- independently re-confirmed by a direct fetch of the pinned
+    commit's raw source in this filing session: the declared fields are
+    exactly (n, q, Xs: NoiseDistribution, Xe: NoiseDistribution, m, tag), and
+    __post_init__ resizes Xs/Xe as single objects, never per-coordinate.
+    Every Xe-attribute use in lwe_dual.py (Xe.stddev, 3 sites), lwe_guess.py
+    (Xe.stddev/bounds/is_bounded/gaussian_tail_prob -- genuinely more than
+    variance, but still applied via ONE uniform Xe object, never
+    per-coordinate), and lwe_bkw.py (Xe.stddev, 2 sites) is consumed
+    identically to primal_bdd's own path PREREG-7 already checked: no function
+    anywhere in the pinned package can represent a genuinely PER-COORDINATE
+    noise model at all, so no EXISTING function can be "called instead."
+    PART 2 (the actionable question this closure leaves open, and what this
+    idea tests): a standard Gaussian/chi-squared-heuristic BDD cost model
+    (which is what primal_bdd IS) depends only on E[||e||^2] -- the AGGREGATE
+    variance, which KN-FIND-5e9728 already shows is forced identical between
+    M0 and any class-partitioned mixture regardless of instrument. But
+    Var(||e||^2) -- a genuinely higher-moment (kurtosis-adjacent) quantity
+    describing how MUCH the norm itself fluctuates instance-to-instance -- is
+    NOT forced identical: a two-class mixture with unequal per-class variances
+    has strictly higher Var(||e||^2) than a homogeneous model at the same mean,
+    by the standard mixture-variance decomposition. THE CLAIM UNDER TEST,
+    stated as two mutually exclusive, fully decidable outcomes: (A) the ratio
+    R = Var_heterogeneous(||e||^2) / Var_homogeneous(||e||^2) exceeds 1.05 at
+    ML-KEM-1024 (material heterogeneity-driven left-tail fattening beyond the
+    natural n^{-1/2}~3% CLT floor), meaning the aggregate-variance-only
+    treatment (M0/M1, and Idea IDEA-20260831-a79df3's own dimension-count
+    treatment) MISSES a genuine higher-moment effect on how often an
+    atypically short, more attackable error vector occurs -- a positive
+    finding motivating, but not itself authorizing, a future patched-cost-model
+    or real-lattice follow-up; or (B) R is statistically indistinguishable
+    from 1 within this idea's own validated CLT-approximation error margin at
+    all three parameter sets -- a clean, complete negative that closes the
+    "does more-than-variance matter" question for this specific higher moment,
+    at real FIPS 203 scale, honestly. NO ATTACK, NO KEY RECOVERY, NO SECURITY
+    CLAIM.
+
+  mechanism: >-
+    NOT a resubmission of M0/M1/M2/EXP-MLKEM-18c6e9's construction, and NOT
+    the same object as this session's companion idea (IDEA-20260831-a79df3):
+    that idea tracks the per-instance COUNT |S(c)| of clean coordinates and
+    its effect through the native `m` lever; this idea tracks the SHAPE
+    (specifically the variance of the squared-norm statistic) of the
+    per-coordinate noise distribution itself, holding the FULL dimension n
+    fixed throughout and NEVER calling primal_bdd with a reduced m at all --
+    it stays entirely outside KN-FIND-001e68's chaotic m<<n region by
+    construction. It reuses the EXACT per-class discrete convolution
+    histograms ciphertext_noise_readout.py's build_m0/build_m1 already
+    compute (which carry the FULL discrete distribution, not merely its
+    second moment) and extracts their FOURTH-moment content (the variance of
+    e_i^2) for the first time -- data already produced and reviewed in
+    BATCH-a5b13c but never used past its second moment. This is the cheapest
+    closed-form instantiation of "an instrument extension consuming more than
+    variance" that does not require patching the pinned package at all: it
+    computes a purely combinatorial, lattice-compute-free quantity
+    (Var(||e||^2)) and translates it into a tail-probability comparison via a
+    CLT approximation, explicitly validated (H2) rather than assumed, before
+    any claim is drawn.
+
+  object_first_candidate:
+    tracked_object: >-
+      The PAIR (Var_heterogeneous(||e||^2), Var_homogeneous(||e||^2)) and
+      their ratio R -- a second-moment-of-the-squared-norm (fourth-moment-of-
+      noise-adjacent) object, genuinely different from M0/M1's own tracked
+      object (the FIRST moment/aggregate variance of the noise) and from
+      IDEA-20260831-a79df3's own tracked object (the per-instance sample-count
+      |S(c)|).
+    established_families_off_limits: >-
+      M0 (single aggregate marginal), M1 (mixture-then-feed-one-marginal --
+      closed, KN-FIND-5e9728), and the m-lever/dimension-count family (M2,
+      IDEA-20260831-a79df3) are declared off-limits as this idea's primary
+      lens; this idea deliberately targets the SPREAD (not the mean, not the
+      sample count) of the per-instance error-norm statistic.
+    newness_score: >-
+      Genuinely new: no proposal or hypothesis found under RQ-MLKEM-001
+      examines any moment of the ciphertext-side noise beyond aggregate
+      variance/mean (checked: IDEA-20260814-137f68, IDEA-20260814-8f8f45,
+      IDEA-20260814-a609eb, H-MLKEM-11aabf, EXP-MLKEM-18c6e9, KN-FIND-5e9728,
+      KN-FIND-001e68 -- all stop at the second moment). This session's own
+      direct source-retrieval closure of "call an existing function" is also,
+      to the knowledge of this session, new to the ledger (EV-MLKEM-020's
+      cross-goal AttributeError finding was about a DIFFERENT question --
+      memory charging -- and did not examine per-coordinate Xe representability
+      at all).
+    testability_score: >-
+      High. Fully closed-form; reuses exact Fraction-based arithmetic
+      infrastructure already built and reviewed in
+      ciphertext_noise_readout.py's build_m0/build_m1; needs one new,
+      small, tractable dynamic-programming/exact-convolution routine for the
+      toy-scale validation control; no lattice-estimator dependency at all for
+      the core result.
+    survival_score: >-
+      Dissolves at any noise model whose per-class e_i^2 variances happen to
+      coincide despite differing means (R=1 despite heterogeneous first
+      moments) -- that dissolution is itself a checkable, reportable outcome,
+      not merely hypothetical.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full n-coordinate noise vector (with per-coordinate class labels
+      and full discrete per-class distributions) --> two scalars
+      (Var_heterogeneous(||e||^2), Var_homogeneous(||e||^2)) and their ratio R.
+    what_is_discarded: >-
+      Every individual coordinate's own identity and exact value; only the
+      class structure's own AGGREGATE shape statistics (mean and variance of
+      the squared norm) survive.
+    why_genuinely_lossy: >-
+      The entire continuum of possible noise-vector realizations sharing the
+      same class fractions (p_s, p_d) and per-class distributions maps to the
+      SAME R -- R is a property of the class structure and n alone, not of any
+      specific realization.
+    why_compatible_with_the_operations: >-
+      A BDD/uSVP success-probability calculation under ANY Gaussian/chi-
+      squared-heuristic cost model in this family is itself a functional of
+      the projected error norm's own distribution (mean AND spread); R is
+      exactly the next-order statistic such a tail-aware extension would need
+      to consume, matching the operations a genuine higher-moment cost
+      extension would perform.
+    is_it_only_a_change_of_coordinates: >-
+      No. R cannot reconstruct the underlying per-coordinate class assignment
+      or the exact noise vector; it is a strictly coarser aggregate summary,
+      and it is a DIFFERENT summary from M0/M1's own first-moment collapse and
+      from IDEA-20260831-a79df3's own count-based summary.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: KN-FIND-5e9728
+      provenance: internal
+      claim: the forced M0=M1 first-moment (variance) identity for any partitioned mixture fed as one marginal.
+      verified_by: this session's direct read of knowledge/findings/KN-FIND-5e9728.md
+    - ref: KN-FIND-001e68
+      provenance: internal
+      claim: primal_bdd's chaotic m<<n behavior -- cited to justify why this idea deliberately stays at full n, never calling a reduced m.
+      verified_by: this session's direct read of knowledge/findings/KN-FIND-001e68.md
+    - ref: DEC-20260814-b0a095
+      provenance: internal
+      claim: >-
+        names the "instrument extension consuming more than the first two
+        moments" direction as licensed but not commissioned.
+      verified_by: this session's direct read of ledger/decisions/DEC-20260814-b0a095.yaml
+    - ref: EV-MLKEM-020
+      provenance: internal
+      claim: >-
+        under this SAME pinned commit, `dual` raises AttributeError at
+        estimator/prob.py:213 and `primal_hybrid` raises ZeroDivisionError in
+        the Sage-free harness (a different goal/question, memory-charging,
+        but the same instrument/pin) -- cross-confirms that calling an
+        existing "other" attack function in this harness is fragile even
+        before the per-coordinate-representability question is asked.
+      verified_by: this session's direct read of ledger/evidence/EV-MLKEM-020.yaml
+    - ref: malb/lattice-estimator@3e48ef421ec256afddb3e7d2249a77eab6e9ba12:estimator/lwe_parameters.py
+      provenance: retrieved
+      claim: "LWEParameters.Xe/Xs are single NoiseDistribution fields (n, q, Xs, Xe, m, tag), resized via resize(), never vectorized per coordinate."
+      verified_by: >-
+        this session's own WebFetch of the raw pinned-commit source,
+        2026-08-31, independently RE-VERIFIED by the orchestrating session's
+        own separate WebFetch of the same raw URL on the same date, which
+        confirmed the identical field list and resize() behavior verbatim.
+    - ref: malb/lattice-estimator@3e48ef421ec256afddb3e7d2249a77eab6e9ba12:estimator/lwe_dual.py
+      provenance: retrieved
+      claim: "Only Xe.stddev is read (3 sites: lines ~104, 247, 408); Xs.hamming_weight/is_sparse/split_balanced/stddev used for the SECRET, not Xe."
+      verified_by: this session's own WebFetch of the raw pinned-commit source, 2026-08-31
+    - ref: malb/lattice-estimator@3e48ef421ec256afddb3e7d2249a77eab6e9ba12:estimator/lwe_guess.py
+      provenance: retrieved
+      claim: "Xe.stddev, Xe.bounds, Xe.is_bounded, Xe.gaussian_tail_prob are read (more than variance), but always via one uniform Xe object, never per-coordinate; InsufficientSamplesError guards on m vs a required count exist in ExhaustiveSearch/MITM/Distinguisher."
+      verified_by: this session's own WebFetch of the raw pinned-commit source, 2026-08-31
+    - ref: malb/lattice-estimator@3e48ef421ec256afddb3e7d2249a77eab6e9ba12:estimator/lwe_bkw.py
+      provenance: retrieved
+      claim: "Only Xe.stddev is read (2 sites, ~103/110); no full pmf/density access for Xe anywhere."
+      verified_by: this session's own WebFetch of the raw pinned-commit source, 2026-08-31
+
+  assumptions:
+    - No ML-KEM secret, key, or decapsulation call is used anywhere; the core result needs only the public Compress map and the exact per-class noise histograms Stage A/B already computed.
+    - This idea introduces NO lattice-estimator dependency for its core result (Parts 1's closure is a source-inspection fact already established; Part 2's R computation is closed-form combinatorics).
+    - Reduces m in no way whatsoever -- runs entirely at full n (512/768/1024); KN-FIND-001e68's m-sensitivity control is therefore NOT required for this idea (stated explicitly per this commission's own rule 3, which binds only constructions that reduce m).
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/derivational, matching H-MLKEM-11aabf's own ruling
+      (PREREG-7 section 0.1): Part 1 is a source-inspection fact (already
+      established, not searched for); Part 2 is a closed-form moment/tail-
+      shape calculation over an already-computed discrete distribution, not a
+      novel algorithmic construction with an open bottleneck to search for.
+
+  predictions:
+    - metric: R = Var_heterogeneous(||e||^2) / Var_homogeneous(||e||^2) at ML-KEM-512/768/1024
+      direction: higher
+      minimum_effect: >-
+        R exceeding 1.05 at ML-KEM-1024 is the material threshold (chosen
+        because natural CLT-scale relative fluctuation in ||e||^2/mean is
+        O(1/sqrt(n))~3% at n=1024, so an effect must exceed that floor to be
+        distinguishable from base statistical noise); R statistically
+        indistinguishable from 1.00 (within the H2-validated approximation
+        error) is a clean negative.
+    - metric: >-
+        ratio of left-tail (1st-percentile) probability of ||e||^2 under the
+        heterogeneous vs. homogeneous model, both matched to the same mean
+      direction: higher
+      minimum_effect: >-
+        a ratio exceeding 1.5x at the 1st percentile is material; a ratio
+        consistent with 1.0 within the stated CLT approximation error is a
+        clean negative.
+    - metric: R under the forced-homogeneous null (single class, p_s=1)
+      direction: different
+      minimum_effect: EXACTLY 1.000, zero tolerance -- required before any real number is trusted.
+
+  minimal_test:
+    design: >-
+      (1) From ciphertext_noise_readout.py's own already-computed exact
+      discrete histograms (compression_error_distribution,
+      compression_error_by_class), extend the existing Fraction-based exact-
+      variance routine to compute Var(e_i^2) exactly for the singleton class
+      (pure CBD(eta1)) and the doublet class (CBD(eta1) convolved with the
+      doublet-class compression error), at each of the three parameter sets.
+      (2) Compute Var_heterogeneous(||e||^2) = n*[p_s*Var_s(e_i^2) +
+      p_d*Var_d(e_i^2)] + n*p_s*p_d*(E_s[e_i^2]-E_d[e_i^2])^2 (exact mixture-
+      variance decomposition) and Var_homogeneous(||e||^2) = n*Var_M0(e_i^2)
+      from M0's own exact convolved pmf. Report R at all three sets. (3)
+      Validate the CLT/Gaussian tail-translation (H2) at a tractable toy
+      dimension (n=32-64) via direct exact convolution/dynamic programming
+      over the true discrete e_i^2 pmf, comparing the exact tail probability
+      to the CLT-approximated one at the SAME toy n, BEFORE trusting the CLT
+      translation at real scale (n=512/768/1024).
+    controls:
+      - >-
+        Forced-homogeneous null: collapse both classes to one identical
+        distribution (p_s=1) -- R must equal EXACTLY 1.000 before any real
+        number is trusted.
+      - >-
+        Toy-scale exact-vs-CLT comparison (H2's own validation route) is
+        itself a required control, run and reported before any real-scale
+        tail-probability number is quoted.
+    required_metrics:
+      - Var_s(e_i^2), Var_d(e_i^2), R at all three parameter sets (exact, Fraction arithmetic)
+      - toy-scale exact vs. CLT-approximated tail probability, with the approximation's own error margin
+      - homogeneous-null R=1.000 check
+
+  falsification_conditions:
+    - >-
+      The homogeneous-null control does not return R=1.000 exactly -- pipeline
+      defect, nothing downstream trusted.
+    - >-
+      R is statistically indistinguishable from 1 (within the H2-validated
+      approximation error) at all three parameter sets -- heterogeneity's
+      excess-variance effect on ||e||^2 is negligible at real ML-KEM scale; a
+      clean, complete negative combining with KN-FIND-5e9728's own first-
+      moment finding to close the "does more-than-variance matter" question
+      for this instrument family at this scale.
+    - >-
+      The toy-scale exact-vs-CLT comparison shows the CLT approximation is
+      unreliable at the relevant tail depth -- the real-scale tail-probability
+      translation must be withheld or re-derived by a different method; R
+      itself (an exact, non-approximated quantity) remains reportable
+      regardless.
+
+  confounders:
+    - >-
+      Per-coordinate independence of class assignment (shared with
+      IDEA-20260831-a79df3's H1) -- same confound, same validation route (if
+      that companion idea runs first, its own H1 check directly discharges
+      this assumption here too, at no extra cost).
+    - >-
+      The CLT/Gaussian tail approximation's own accuracy at the specific tail
+      depth of interest -- mitigated by the required toy-scale exact-
+      convolution control, but the toy-to-real (n=32-64 to n=512-1024) scale
+      transfer itself remains a disclosed, not fully closed, assumption, since
+      exact convolution to the required tail depth at n~1024 is combinatorially
+      infeasible within budget.
+
+  interpretation_limits:
+    - >-
+      This idea produces NO beta figure and makes NO claim about primal_bdd's
+      own output at any parameter set; it is a closed-form diagnostic about
+      the SHAPE (not the mean) of the ciphertext-side noise-norm distribution,
+      strictly upstream of and complementary to IDEA-20260831-a79df3 and to
+      H-MLKEM-11aabf's own C2 readout.
+    - >-
+      A positive finding (material R) does NOT by itself establish that any
+      real attack could exploit the fattened left tail; translating a tail-
+      probability shift into an actual cost-model beta figure would require
+      either patching the pinned estimator (confirmed here, by direct source
+      inspection of the pinned commit, to have no existing function that
+      could do this without modification) or a real lattice-construction/row-
+      whitening experiment -- both explicitly deferred, neither commissioned
+      by this idea, and the latter would require GOAL-MLKEM-005's own
+      BKZ-tour/RT-CTRL-1 machinery, which is out of scope for this commission.
+    - >-
+      CLAIM TIER stays at most MEDIUM, matching H-MLKEM-11aabf/PREREG-7's own
+      established tier for this lane; this idea introduces no new tier.
+    - >-
+      Does NOT touch or restate GOAL-MLKEM-005's BKZ-tour/RT-CTRL-1 lane or
+      its C1/C2/C3 primary completion criteria.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        Per-coordinate class assignment across a ciphertext's n coordinates
+        behaves as i.i.d. Bernoulli(p_s) draws (identical to
+        IDEA-20260831-a79df3's H1), needed to justify the independence
+        assumption underlying the mixture-variance decomposition for
+        Var(||e||^2).
+      rigorous_support: >-
+        Identical to IDEA-20260831-a79df3's H1 -- imitates the classical
+        CLT/independent-indicator model; the rigorous content is only that
+        Compress fibre membership is a deterministic function of u_i mod q.
+      validation_plan: >-
+        SHARED with IDEA-20260831-a79df3's own H1 validation route (same
+        empirical Compress sampling at n=1024, chi-squared and tail-quantile
+        checks); if that companion idea runs first, its own H1 result
+        directly discharges this assumption at no additional cost, explicitly
+        noted here to avoid duplicated sampling effort.
+    - id: H2
+      statement: >-
+        The CLT/Gaussian approximation used to translate the variance ratio R
+        into a tail-probability-ratio at the stated quantiles (1st percentile)
+        is accurate at n~512-1024, i.e. the sum of n independent bounded terms
+        is close enough to its Gaussian limit at this tail depth for the
+        translation to be trustworthy.
+      rigorous_support: >-
+        Imitates the classical Berry-Esseen theorem / CLT for sums of
+        independent bounded random variables. The heuristic content is
+        whether the SPECIFIC tail depth (1st percentile) at this SPECIFIC n is
+        already inside the asymptotic regime, which the CLT alone does not
+        guarantee at a fixed, moderate n.
+      validation_plan: >-
+        Compute the EXACT tail probability via direct convolution/dynamic
+        programming over the true discrete e_i^2 pmf at a tractable toy
+        dimension (n=32-64, chosen for feasibility, reported plainly if
+        infeasible at every d small enough to remain informative rather than
+        defaulted either way, per this program's own established convention),
+        compare against the CLT-approximated tail probability at that SAME
+        toy n, and report the approximation's own error margin BEFORE
+        applying it at real scale. Sampled/computed parameters: n in
+        {32,48,64} (exact, no sampling needed -- closed-form combinatorics),
+        with the executor reporting which n was actually tractable within
+        budget. Falsification: the CLT approximation's own error at the toy
+        scale exceeds the material-effect threshold itself (e.g. >20% relative
+        error at the 1st percentile) -- the real-scale tail-probability
+        number must then be withheld or replaced by a different (e.g. Edgeworth-
+        corrected) approximation, though R itself (exact, no approximation)
+        remains reportable regardless.
+
+  target_complexity:
+    time_exponent: NOT APPLICABLE -- no attack, no exponent claim; a closed-form moment/tail-shape diagnostic.
+    memory_exponent: NOT APPLICABLE, same reasoning.
+    best_known: not_applicable
+    hidden_overhead: >-
+      The toy-to-real (n=32-64 to n=512-1024) scale-transfer risk for the
+      TAIL-PROBABILITY translation specifically (not for R itself, which is
+      exact at real scale) is the primary hidden risk, disclosed explicitly
+      via H2 rather than assumed away.
+    tradeoff_note: not_applicable
+
+  dominated_by: >-
+    n/a (no attack-cost or algorithmic-complexity claim; a closed-form
+    moment/tail-shape diagnostic internal to H-MLKEM-11aabf's own C2 conjunct,
+    not competing against any external published algorithm). Checked against
+    IDEA-20260814-137f68, IDEA-20260814-8f8f45, IDEA-20260814-a609eb (all
+    RQ-MLKEM-001, all disjoint in object) and against this session's own
+    companion idea IDEA-20260831-a79df3 (a genuinely different tracked object
+    -- count vs. shape) -- none dominates or overlaps.
+  sota_delta: >-
+    n/a (diagnostic only). If outcome A fires, it is a positive, actionable
+    finding that the aggregate-variance-only treatment (M0/M1, and
+    IDEA-20260831-a79df3's own count-based treatment) structurally misses; it
+    motivates but does not itself authorize a patched-cost-model or
+    real-lattice follow-up. If outcome B fires, it closes the "does
+    more-than-variance matter for THIS higher moment" question honestly and
+    completely at real FIPS 203 scale.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium

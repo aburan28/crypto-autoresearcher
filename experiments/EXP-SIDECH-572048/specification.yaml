@@ -1,0 +1,226 @@
+experiment:
+  id: EXP-SIDECH-572048
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-acdc1d; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-acdc1d
+  question_id: RQ-INSTR-f8faa0
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Calibrate a bytecode-level execution-trace leakage estimator on three reference scalar-multiplication
+    routines with known ground truth, then report its measured floor and its per-routine bits-per-invocation
+    estimates.
+  objective: 'The one uncertainty a run reduces: whether an execution-trace mutual-information estimator
+    built from Python stdlib tracing is a VALID instrument in this environment -- meaning it detects
+    a leak that is present by construction and returns its own floor on a routine that is branch-free
+    by construction. Concretely: (i) does the tracer produce deterministic event strings, so that
+    the entire variance of the estimate is sampling variance rather than environment noise; (ii) does
+    the estimator separate a naive double-and-add (whose event string encodes the scalar bijectively,
+    so the true mutual information with the scalar''s low bit is exactly one bit) from a Montgomery
+    ladder (whose event string is constant, so the true mutual information is exactly zero), at what
+    sample size, and with what floor; (iii) what is the estimator''s floor as a function of sample
+    size N and label alphabet size, measured rather than assumed, so that any later application to
+    a non-control routine has a stated sensitivity. This is the RQ-INSTR-f8faa0 contract applied to
+    a leakage instrument: an instrument that cannot detect a planted leak cannot support a negative
+    result about leakage, and one that fires on a branch-free null cannot support a positive one.
+    Both directions are required before any number from this instrument is citable anywhere in the
+    portfolio.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''on this machine, in this Python,
+      for these three reference routines at these parameters, the execution-trace estimator returned
+      X bits above a measured floor of Y at sample size N, and the branch-free control returned the
+      floor.'' What does NOT follow: that any routine in harness/ or src/ leaks; that any physical
+      side channel exists or is observable; that a compiled implementation of the same algorithm has
+      the same trace structure; that a measured bits-per-invocation number converts into any key-recovery
+      cost; and anything whatsoever about ECDSA, FN-DSA, SLH-DSA, or any deployed system. This run
+      is about an instrument, not about a cipher.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~1 hour implementation, no compute): write the three reference routines
+      against harness/toycurve.py arithmetic and freeze them. STAGE 1 (cost: ~3 hours implementation):
+      build the tracer -- sys.settrace opcode callback for branch events plus an AST rewrite of Subscript
+      nodes into a recording accessor -- and the fixed-width featureiser. STAGE 2 (cost: minutes CPU):
+      determinism control, 1000 repeat executions per routine on identical inputs, assert byte-identical
+      event strings. STAGE 3 (cost: ~20 minutes CPU): collect stratified traces at N in {500, 1000,
+      2000, 4000} per routine, secret label = low bit of a uniform 16-bit scalar, base point re-randomised
+      per invocation, fixed seeds recorded. STAGE 4 (cost: minutes CPU): estimate I(S; features) with
+      Miller-Madow correction; in the same process run 200 label permutations for the floor and the
+      secret-independent arm at matched N. STAGE 5 (cost: minutes): bootstrap intervals over 1000
+      resamples; emit one table of point estimate, floor, difference and interval per (routine, N).
+      STAGE 6 (cost: minutes): write the run record with all seeds, the exact Python version, and
+      the featureiser definition inline.'
+    instrument: 'Python 3 standard library only for tracing (sys.settrace with opcode events, or sys.monitoring
+      where available; ast and compile for the Subscript rewrite; dis for verification that the rewrite
+      preserved semantics). numpy for the histogram and estimator arithmetic. Existing repository
+      modules: harness/toycurve.py for toy curve arithmetic, harness/runner.py and src/crypto_autoresearcher/runner.py
+      for the run-record wrapper, harness/ctrl_valueshuffle.py as the existing precedent for a shuffle
+      control. No Sage. No external side-channel library. No physical instrumentation of any kind.'
+    parameters: 'Toy prime field with p in {8191, 65521, 131071} (13, 16, 17 bits) using curves already
+      constructible by harness/toycurve.py. Scalars uniform in [1, N_curve-1] truncated to 16 bits.
+      Secret label S = low bit of the scalar (alphabet 2) and, as a secondary sweep, S = top 3 bits
+      (alphabet 8). Sample sizes N in {500, 1000, 2000, 4000}, stratified equally across labels. Label
+      permutations for the floor: 200. Bootstrap resamples: 1000. Determinism repeats: 1000 per routine.
+      Three routines. Random seeds: 5 independent master seeds, all recorded.'
+  controls:
+  - Label-shuffled arm, 200 permutations, executed in the same process as the signal arm.
+  - Secret-independent arm with the secret pinned to a public constant.
+  - 'Montgomery-ladder positive-zero control: a routine whose event string is constant by construction
+    and must return exactly the floor.'
+  - 'Naive double-and-add planted-signal control: a routine whose event string is a bijective encoding
+    of the scalar and must return a large value.'
+  - 'Determinism control: 1000 repeat executions on identical inputs must produce byte-identical event
+    strings.'
+  - Sample-size sweep at N in {500, 1000, 2000, 4000} to show the estimate and its floor both converge
+    rather than drifting.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two null arms, both executed in the same invocation as the signal arm.
+    (i) LABEL-SHUFFLED NULL: the identical feature vectors with the secret labels permuted uniformly
+    at random, re-estimated 200 times; this measures the estimator''s own floor at the achieved sample
+    size and alphabet, and is the number the signal must beat. (ii) SECRET-INDEPENDENT NULL: the identical
+    tracer and identical estimator run on a routine executed with the secret argument pinned to one
+    fixed public constant while public inputs vary, labelled with a freshly drawn label independent
+    of everything. For the measurement to mean anything the null must return an estimate whose bootstrap
+    confidence interval covers zero and whose point estimate sits within the shuffled floor''s interval;
+    if a secret-independent arm returns a nonzero estimate, the featureisation is confounded and no
+    signal-arm number is reportable.'
+  independent_variables:
+  - routine (naive double-and-add, always-double-and-add, Montgomery ladder)
+  - sample size N
+  - secret-label alphabet size (2 or 8)
+  - field size p
+  metrics:
+    primary:
+    - I(S ; features) point estimate in bits
+    - label-shuffled floor mean and 95 percent interval
+    - signal-minus-floor difference with bootstrap interval
+    - fraction of byte-identical repeat traces
+    secondary:
+    - number of distinct event strings per routine
+    - event-string length mean and variance
+    - tracing overhead in wall seconds per invocation
+    - secret-independent arm estimate
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The signal-minus-floor difference, in bits per invocation, for each of the three reference
+      routines at each N.
+    formula: For the naive double-and-add with S = low bit of the scalar, the true mutual information
+      is exactly 1.0 bit, because the event string contains the token pattern of every scalar bit
+      including the low one; the predicted estimate is 1.0 minus the estimator's negative bias, converging
+      upward toward 1.0 as N grows, and never exceeding 1.0 by more than the floor. For the Montgomery
+      ladder the true value is exactly 0.0 bits, because the event string is a constant function of
+      the scalar at fixed bit-length; the predicted signal-minus-floor difference is 0.0 within the
+      floor's interval at every N. For always-double-and-add the true value is 0.0 for a fixed-window
+      implementation and is NOT pre-committed for the variant that skips a final dummy operation,
+      because whether that variant is branch-free depends on an implementation detail to be fixed
+      at STAGE 0 and read off rather than predicted.
+    source: Pre-registered in the parent proposal IDEA-20260816-acdc1d before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at 13-17 bit fields on toy curves with 16-bit scalars, which is the scale
+      at which every quantity is exactly computable and the ground truth of the two controls is known
+      by construction. NO transfer to cryptographic parameters is claimed or attempted: the instrument''s
+      floor at N=4000 with a 2-symbol label says nothing about its floor on a 256-bit routine, and
+      the trace structure of a compiled implementation is a different object entirely. The only extrapolation
+      offered is within the instrument: the floor is reported as a function of N so that a later run
+      can choose N for a target sensitivity, and that function is itself measured at four points rather
+      than fitted from one.'
+    correspondence: null
+  tail_checks:
+  - Inspect the rare event strings (observed once or twice) separately, since plug-in estimators are
+    dominated by singleton bins.
+  - Check whether the largest signal-minus-floor difference at any N comes from a single outlier stratum
+    by recomputing with that stratum removed.
+  - Check the ladder control at the LARGEST N specifically, since a floor that grows with N would
+    show up there first.
+  - Check event strings of maximal and minimal length for tracer truncation.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop and report an instrument fault if the determinism control fails at STAGE 2; no estimation
+    is run.
+  - Stop after N=4000 regardless of outcome; do not extend N in search of significance.
+  - Abort and report if total wall time exceeds 4 hours, recording the abort as a budget event and
+    never as evidence about leakage.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The determinism control passes at 100 percent, the Montgomery-ladder arm returns
+    a signal-minus-floor difference whose 95 percent interval contains zero at every N, and the naive
+    double-and-add arm returns a difference exceeding 0.5 bits at N=4000 -- together establishing
+    that the instrument detects a planted leak and rejects a matched branch-free null.
+  falsification_criterion:
+  - Determinism control below 100 percent identical traces.
+  - Montgomery-ladder arm difference interval excludes zero at any N.
+  - Naive double-and-add arm difference below 0.5 bits at N=4000.
+  - Secret-independent arm returns a difference whose interval excludes zero.
+  - The measured floor grows with N rather than shrinking, indicating the featureisation dimension
+    grows with the sample.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-acdc1d
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - 'The featureiser is not derived: which order information may be discarded without losing the dependence
+    being measured is an open choice a Coordinator must fix and freeze before the run.'
+  - The choice of secret label is a free parameter that determines the answer; the contract must state
+    the label and the Coordinator must decide whether a low-bit label is the right first question.
+  - No estimator-bias correction beyond Miller-Madow is specified; whether that suffices at alphabet
+    8 and N=500 has not been checked.
+  - Whether the AST Subscript rewrite preserves semantics for all three routines must be verified
+    before, not during, the run.

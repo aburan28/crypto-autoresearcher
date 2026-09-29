@@ -1,0 +1,416 @@
+experiment:
+  id: EXP-ECDLP-bbb42f
+  hypothesis_id: H-ECDLP-ed5162
+  version: 1
+  title: >-
+    Charged isogeny-transfer cost census: bounded ordinary isogeny BFS /
+    meet-in-the-middle path search to the anomalous / low-embedding-degree /
+    subfield special-family set, on >=20 random prime-field curves per bit
+    size at 20, 24 and 28 bits, with a planted-path positive control, matched
+    Pollard rho / BSGS baselines, an exit-map consistency check, and a
+    synthetic random-regular-graph null validating HEUR-ISO-1's hitting-time
+    prediction
+  status: approved
+  status_note: >-
+    DRAFT, NOT `review_required` AND NOT APPROVED. This is the Coordinator's
+    initial freeze of the contract converting IDEA-20260731-008 into a
+    testable protocol; it has not yet been snapshot-committed, has not been
+    submitted for independent pre-execution review, and NO RUN OF THIS
+    CONTRACT IS AUTHORIZED. Advancing to `review_required` (snapshot commit)
+    and then `approved` (independent review pass) are separate, later
+    Coordinator actions.
+  objective: >-
+    Measure, at toy scale, whether the minimal charged cost of an ordinary-
+    isogeny path from a generic random prime-field curve to any member of the
+    anomalous / low-embedding-degree / subfield special-curve union ever
+    beats matched Pollard rho once path-finding is charged alongside the
+    special algorithm's own cost, per hypothesis H-ECDLP-ed5162. This
+    experiment is BOTH (a) the constructive falsification test for the
+    charged-cost-gate claim and (b) the heuristic-validation test of
+    HEUR-ISO-1's random-regular-graph hitting-time prediction for distance to
+    the sparse special set. Budget is sized to the WORK -- ordinary isogeny
+    graph BFS/MITM at three bit sizes, three baseline algorithms (rho, BSGS,
+    and whichever special-curve solver a planted or discovered path routes
+    to), and a synthetic combinatorial null -- and meets the template's
+    per-run floors without exception; no field here is sized below those
+    floors.
+  inputs:
+    bit_sizes: '20, 24, 28'
+    curve_sampling_rule: >-
+      For each bit size k, draw prime-field curves y^2 = x^3 + ax + b over
+      the smallest prime p >= 2^k (or the next prime admitting a prime-order
+      curve, recorded exactly), skipping j-invariants 0 and 1728 (extra
+      automorphisms), by a deterministic seeded rule; accept a curve only if
+      its group order N is prime and N != p at the moment of acceptance
+      (anomalous curves are drawn separately, only for the planted-path
+      control, never as an unplanted instance). Continue until >=20 accepted
+      unplanted curves exist at that bit size. The exact selection rule
+      (seed, increment schedule, acceptance predicate) is committed in the
+      driver and recorded per instance in its manifest.
+    special_family_predicate_set: >-
+      E1 anomalous: #E(F_p) == p (i.e. N == p), decided by exact point
+      counting. E2 low embedding degree: k = ord_N(p) computed exactly,
+      predicate is k <= K_max with K_max fixed in the driver and stated in
+      every manifest (chosen so that L_{p^k}(1/3) pairing cost is not itself
+      the bottleneck at these toy sizes). E3 subfield/Weil-descent-
+      susceptible: the GHS admissibility predicate for extension degrees up
+      to a stated bound, evaluated exactly. A curve is special if it
+      satisfies E1, E2, or E3; the union is the target set S for the isogeny
+      BFS/MITM search.
+    isogeny_degree_budget: >-
+      ell_max = N^{1/2} (rounded down), matching the group-operation budget
+      a matched Pollard rho would spend to solve the instance outright
+      (0.886 sqrt(N)). Every path search stops at ell_max and reports
+      NOT_FOUND rather than continuing past the budget.
+    isogeny_step_primes: >-
+      A small fixed set of step primes ell_0 used to build ordinary-isogeny
+      graph edges (e.g. the smallest primes ell_0 with ell_0 != char(F_p)
+      admitting a rational ell_0-isogeny from the curve's j-invariant,
+      exactly as many as needed to keep single-step evaluation cheap); the
+      exact set is fixed in the driver and recorded per instance, together
+      with the resulting graph degree d = ell_0 + 1 used by HEUR-ISO-1.
+    planted_path_construction: >-
+      Per bit size: start from a curve satisfying E1, E2, or E3 (drawn by
+      the same predicate machinery, not hand-picked), walk a short random
+      chain of ell_0-isogeny steps of TOTAL degree well inside ell_max
+      (recorded exactly) to a resulting curve E_rand, and record the forward
+      path. E_rand is then handed to the harness as an ordinary unplanted-
+      looking instance; the harness must recover a REVERSE path of total
+      degree at most the forward path's degree (or report failure).
+  controls:
+    - id: CTRL-PLANTED-PATH
+      description: >-
+        PLANTED-PATH POSITIVE CONTROL. For each bit size, the planted
+        instance constructed per inputs.planted_path_construction must be
+        solved by the harness: a reverse ordinary-isogeny path to the known
+        special curve is found within the degree budget, the corresponding
+        special-curve algorithm is run on the target, the discrete log is
+        pulled back, and the [k]P=Q certificate on the original planted
+        instance re-verifies.
+      failure_meaning: >-
+        Failure at ANY tested bit size fires the harness-void invalidation
+        rule below; no reading, positive or negative, is taken from the
+        unplanted census until this is fixed and re-run.
+    - id: CTRL-BASELINE
+      description: >-
+        MATCHED BASELINES, MEASURED. Pollard rho with negation and BSGS are
+        run on every unplanted curve instance (target Q chosen uniformly at
+        random on that curve), each rho solve carrying a discrete-log
+        certificate the driver re-verifies independently; measured
+        operation counts are reported beside the model positions
+        0.886 sqrt(N) (rho) and about 2 sqrt(N) (BSGS), with BSGS memory
+        reported beside its time.
+      failure_meaning: >-
+        A measured rho cost more than 20% below 0.886 sqrt(N) on a curve
+        whose automorphism group has order 2 indicates a defective baseline
+        instrument, and every charged-ratio comparison in the package is
+        then untrustworthy (INV-BASELINE below).
+    - id: CTRL-EXITMAP-CONSISTENCY
+      description: >-
+        EXIT-MAP CONSISTENCY WITH IDEA-20260727-005. Before a discovered or
+        planted isogeny path is credited as a TRANSFER path, it is checked
+        against IDEA-20260727-005's exit-map classification: any step or
+        composite map that is in fact a SELF-map of E (endomorphism) rather
+        than a genuine map to a distinct special curve E'' must be rejected
+        and never counted as a transfer path or charged as C_path.
+      failure_meaning: >-
+        A path that is actually a self-map, if miscounted as a transfer
+        path, would understate C_path and could manufacture a spurious
+        falsification event; any such miscount voids that instance's result
+        (INV-EXITMAP below) rather than being reported as a discovery.
+    - id: CTRL-NULL-RRG
+      description: >-
+        SYNTHETIC RANDOM-REGULAR-GRAPH NULL. Independently of any elliptic
+        curve, directly simulate the d-regular hitting-time model
+        HEUR-ISO-1 posits (d = ell_0 + 1 from inputs.isogeny_step_primes,
+        n and s set to the measured crater-size and special-set-size ranges
+        observed in the real census) by Monte Carlo, and compare the
+        simulated minimal-hitting-time distribution to the model's own
+        closed-form prediction d(d-1)^{r-1} ~ n/s.
+      failure_meaning: >-
+        This control validates the MODEL'S OWN IMPLEMENTATION, not the
+        curve-specific claim. If the synthetic null fails to reproduce its
+        own closed-form prediction, HEUR-ISO-1's falsification_condition
+        fires on an implementation defect and no reading is taken from the
+        real-curve KS comparison until it is fixed.
+  independent_variables:
+    - 'curve bit size, in {20, 24, 28}'
+    - 'isogeny degree budget ell_max = N^{1/2}'
+    - 'special-family predicate set (E1 anomalous, E2 low embedding degree, E3 subfield/Weil-descent)'
+  metrics:
+    primary:
+      - >-
+        min_charged_transfer_ratio: per curve, min over discovered paths of
+        (C_path(ell) + C_special(E'', N)) / matched_rho_cost, or NOT_FOUND
+        if no path is found within ell_max.
+      - 'per-curve minimal degree ell at which a special curve was reached (or NOT_FOUND).'
+      - 'per-curve C_path(ell) at the minimal ell, in matched group-operation-equivalent units.'
+      - 'per-curve C_special(E'', N) for whichever special algorithm the path routes to.'
+      - >-
+        fraction of unplanted curves, per bit size and pooled, with
+        min_charged_transfer_ratio < 1.
+      - >-
+        certificate pass/fail for any claimed solve (planted or unplanted):
+        every claimed [k]P=Q is independently re-verified by the driver, and
+        an unverified claim is never counted as a result.
+    secondary:
+      - >-
+        KS distance between the observed per-curve minimal-ell distribution
+        (pooled and per bit size) and HEUR-ISO-1's random-regular
+        hitting-time prediction from CTRL-NULL-RRG.
+      - >-
+        sensitivity of min_charged_transfer_ratio under a +-10x rescaling of
+        the per-step isogeny-evaluation cost, reported per curve, to bound
+        how much the safety conclusion depends on the isogeny-evaluation
+        cost model rather than on the path-finding result itself.
+      - 'measured Pollard rho and BSGS operation counts and BSGS memory, per curve, beside the modeled positions.'
+      - 'per-curve and per-run wall clock and peak memory.'
+  heuristic_under_test: HEUR-ISO-1
+  preregistered_prediction:
+    quantity: >-
+      The distribution of the minimal charged isogeny degree ell (equiv. the
+      minimal number of graph steps r* at fixed step degree ell_0) needed to
+      reach the special set S from a random unplanted curve, across the
+      three tested bit sizes.
+    formula: >-
+      Expected minimal degree solves d(d-1)^{r*-1} ~ n/s, with
+      d = ell_0 + 1 (graph regularity from the fixed step-prime set),
+      n the measured crater/class-number scale at that field size, and s the
+      measured size of the special-family union at that field size; observed
+      ell* = ell_0^{r*} is compared against this prediction by KS distance,
+      per bit size, using n and s as MEASURED quantities rather than
+      theoretical estimates wherever the driver can count them directly.
+    source: >-
+      HEUR-ISO-1 (H-ECDLP-ed5162), itself built on the Delfs-Galbraith
+      volcano-crater regularity and the Couveignes random-walk mixing
+      intuition -- both RECALLED, not retrieved, and neither independently
+      verified by an agent in this program. The prediction is therefore
+      stated as a heuristic to be tested, not as an imported theorem.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      20, 24, and 28-bit prime-field curves only; >=20 unplanted curves per
+      size; one deterministic curve-sampling rule; ell_max bounded by
+      N^{1/2} at these sizes is itself small enough for exhaustive BFS/MITM
+      to be tractable in pure-language arithmetic. NOTHING MEASURED HERE IS
+      EVIDENCE ABOUT CRYPTOGRAPHIC-SIZE CURVES IN EITHER DIRECTION, per
+      H-ECDLP-ed5162 interpretation_limits.
+    correspondence: null
+  tail_checks:
+    - >-
+      The single largest observed min_charged_transfer_ratio deficit (i.e.
+      the smallest ratio observed, closest to or below 1) across all
+      unplanted curves, reported explicitly regardless of whether it crosses
+      the falsification threshold, so a near-miss is visible even when the
+      pre-registered criterion is not met.
+    - >-
+      The largest observed minimal-ell value against the extreme-value tail
+      of CTRL-NULL-RRG's hitting-time model, per bit size.
+  replication:
+    seeds:
+      - 'RUN-ECDLP-bbb42f-1 (20-bit unplanted census): master seed 20260902001'
+      - 'RUN-ECDLP-bbb42f-2 (24-bit unplanted census): master seed 20260902002'
+      - 'RUN-ECDLP-bbb42f-3 (28-bit unplanted census): master seed 20260902003'
+      - 'RUN-ECDLP-bbb42f-4 (planted-path positive controls, all bit sizes): master seed 20260902004'
+      - 'RUN-ECDLP-bbb42f-5 (synthetic random-regular-graph null): master seed 20260902005'
+      - 'RUN-ECDLP-bbb42f-6 (exit-map consistency spot-check): master seed 20260902006'
+    independent_instances: 20
+    replication_note: >-
+      `independent_instances: 20` is the PER-BIT-SIZE-STRATUM floor stated
+      in H-ECDLP-ed5162's test_boundary: >=20 unplanted curves at EACH of
+      three bit-size strata (20, 24, 28 bits), i.e. >=60 unplanted curve
+      instances total, plus one planted-path positive control per stratum
+      (3 more). A per-bit-size series of >=20 curves is itself a modest
+      within-stratum sample, not a full replication of a headline result;
+      no strength above `preliminary` may be claimed from this design alone
+      without an independent replication on a different platform.
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 12
+    maximum_memory_gb: 8
+    maximum_runs: 6
+    budget_feasibility_note: >-
+      Sized to the WORK, at or above the template floors
+      (wall_clock_seconds_per_run >= 600, maximum_memory_gb >= 8), never
+      below them. At ell_max = N^{1/2} <= 2^14 (28 bits), a meet-in-the-
+      middle path search concentrates around ell_max^{1/2} ~ 2^7 candidate
+      nodes per side per curve -- individually cheap -- but the contract
+      covers >=60 unplanted curves across three bit sizes, each requiring a
+      full special-family predicate evaluation (exact point counting,
+      exact embedding-degree computation, GHS admissibility), a matched
+      rho AND BSGS baseline, plus 3 planted-path controls, an exit-map
+      consistency pass, and a separate synthetic Monte Carlo null. 3600
+      seconds per run and 12 total CPU-hours across the 6 declared runs is
+      sized for a straightforward (non-optimized) implementation of exact
+      point-counting and embedding-degree arithmetic at these sizes, not for
+      the isogeny search alone, which is expected to be a small fraction of
+      the wall clock. If actual per-cell cost is much smaller, the stopping
+      rules below still apply and unused budget is simply not spent.
+  stopping_rules:
+    - >-
+      ST-1 PER-RUN CAP. Each of the 6 declared runs is capped at 3600
+      seconds and 8 GB; on approaching the cap the run STOPS and names
+      EXPLICITLY every curve instance or control not reached, with its
+      reason. A partial census with a named gap is a result; a silently
+      truncated one is not, and no unreached instance may be reported as a
+      measurement.
+    - >-
+      ST-2 STOP AND REPORT ON AMBIGUITY. If a special-family predicate,
+      the GHS admissibility condition, or the exit-map classifier's
+      self-map/transfer boundary cannot be resolved unambiguously from the
+      cited sources (this contract, IDEA-20260727-005's committed record),
+      the Executor STOPS AND REPORTS rather than guessing or repairing the
+      protocol in flight; any deviation is recorded in the manifest as a
+      protocol deviation.
+    - >-
+      ST-3 NO INTERPRETATION. The run package contains observations only.
+      It must not state whether the safety-gate claim holds or fails, must
+      not write an evidence or decision record, and must not touch
+      H-ECDLP-ed5162's status. Interpretation and the official decision
+      belong to the Coordinator's subsequent review step.
+  invalidation_rules:
+    - >-
+      INV-CERTIFICATE. Any claimed solve (planted or unplanted) whose
+      [k]P=Q certificate does not independently re-verify is INVALID and
+      is never counted toward any metric or criterion, per
+      docs/claims-and-verification.md.
+    - >-
+      INV-PLANTED-VOID. The planted-path positive control (CTRL-PLANTED-
+      PATH) is not recovered at any tested bit size: the ENTIRE harness is
+      VOID for that run set and no reading, positive or negative, may be
+      taken from the corresponding unplanted census until the defect is
+      fixed and the control re-run.
+    - >-
+      INV-COST-MODEL. Any measurement executed under a cost model that
+      does not charge isogeny path-finding, isogeny evaluation, and the
+      special-curve algorithm in the SAME matched group-operation-
+      equivalent unit as the baselines is INVALID; a mixed-unit comparison
+      is never reported as a ratio.
+    - >-
+      INV-EXITMAP. CTRL-EXITMAP-CONSISTENCY finds that a credited transfer
+      path is in fact a self-map of E: that instance's result is VOID
+      (not counted toward the falsification criterion) and is reported as
+      a flagged observation.
+    - >-
+      INV-BASELINE. Measured rho cost falls more than 20% below
+      0.886 sqrt(N) on a curve with automorphism group of order 2: every
+      charged-ratio comparison in the package is untrustworthy and the run
+      set is reported as INVALID pending baseline-instrument repair.
+    - >-
+      INV-INFRASTRUCTURE. A timeout, crash, resource exhaustion, or
+      implementation failure is recorded with its terminal status and IS
+      INFRASTRUCTURE SIGNAL -- NEVER negative evidence about H-ECDLP-ed5162
+      or about HEUR-ISO-1 (AGENTS.md rule 5).
+  success_criterion: >-
+    S1. Fewer than 2 unplanted curves (pooled across all tested bit sizes)
+    show min_charged_transfer_ratio < 0.7 with a re-verified certificate; AND
+    the planted-path positive control (CTRL-PLANTED-PATH) is recovered at
+    EVERY tested bit size; AND no invalidation rule has fired. S1 MET MEANS
+    the generic-curve isogeny-transfer safety claim HOLDS at the tested toy
+    scale (20-28 bits) under HEUR-ISO-1: isogeny path-finding cost, once
+    charged, is never cheap enough to make a special-curve algorithm beat
+    matched rho on a generic curve in this design. S1 MET IS TOY-SCALE ONLY
+    and licenses no claim about cryptographic-size curves, per H-ECDLP-
+    ed5162 interpretation_limits.
+  falsification_criterion: >-
+    F1. At least 2 unplanted curves (pooled across all tested bit sizes)
+    show min_charged_transfer_ratio < 0.7 WITH a re-verified [k]P=Q
+    certificate pulled back through the isogeny path. F1 MET MEANS the
+    generic-curve safety claim FAILS inside the tested scope (20-28 bits):
+    independent review is mandatory before this result is used anywhere
+    downstream, and it is decided purely from the primary metrics
+    (min_charged_transfer_ratio and certificate pass/fail) with no
+    additional judgment call. F1 is evaluated ONLY over runs where
+    CTRL-PLANTED-PATH succeeded and no invalidation rule fired; a
+    falsification event recorded while the harness is void is not a
+    falsification event.
+  required_artifacts:
+    - experiments/EXP-ECDLP-bbb42f/driver/isogeny_transfer_census.py
+    - experiments/EXP-ECDLP-bbb42f/driver/cost_model.py
+    - experiments/EXP-ECDLP-bbb42f/results/summary.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-1/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-1/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-1/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-2/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-2/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-2/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-3/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-3/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-3/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/certificates/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-5/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-5/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-5/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-6/manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-6/results.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-6/stdout.log
+    - experiments/EXP-ECDLP-bbb42f/results/baseline_manifests/
+    - experiments/EXP-ECDLP-bbb42f/results/seed_env_manifest.yaml
+  required_artifacts_note: >-
+    Per-curve path/cost/special-router records live inside each RUN's
+    results.json (one record per curve instance: discovered path degree,
+    C_path, C_special, special family routed to, certificate reference).
+    Certificate files for any claimed solve live under the run's
+    certificates/ subdirectory (required for RUN-4; created for any other
+    run only if a claimed solve occurs there). baseline_manifests/ holds the
+    matched-rho and BSGS per-curve manifests (CTRL-BASELINE). cost_model.py
+    is the single source of the group-operation-equivalent charging
+    convention used to compute every ratio in this contract; no cost number
+    in summary.json may be computed outside it. seed_env_manifest.yaml
+    records every seed above alongside the environment/dependency versions
+    per AGENTS.md manifest requirements.
+  run_plan:
+    - id: RUN-ECDLP-bbb42f-1
+      description: '20-bit unplanted census (>=20 curves): path search, predicates, CTRL-BASELINE, CTRL-EXITMAP-CONSISTENCY'
+    - id: RUN-ECDLP-bbb42f-2
+      description: '24-bit unplanted census (>=20 curves): same as RUN-1'
+    - id: RUN-ECDLP-bbb42f-3
+      description: '28-bit unplanted census (>=20 curves): same as RUN-1'
+    - id: RUN-ECDLP-bbb42f-4
+      description: 'planted-path positive controls, all three bit sizes: CTRL-PLANTED-PATH'
+    - id: RUN-ECDLP-bbb42f-5
+      description: 'synthetic random-regular-graph null: CTRL-NULL-RRG, no elliptic-curve arithmetic'
+    - id: RUN-ECDLP-bbb42f-6
+      description: 'dedicated exit-map consistency spot-check against IDEA-20260727-005 on a held-out sample of discovered/planted paths'
+  id_check:
+    performed: >-
+      python3 tools/allocate_id.py --check was run in this session for both
+      H-ECDLP-ed5162 (well-formed, 0 occurrences, free across the union) and
+      EXP-ECDLP-bbb42f (well-formed, 1 occurrence: experiments/EXP-ECDLP-
+      bbb42f, which is the pre-existing scaffold directory -- amendments/
+      and runs/ -- that this task's own instructions state was already
+      created for this experiment and must not be touched). No collision
+      with a distinct record was found.
+  provenance:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    fallback_used: 'not determinable by this session; recorded as told, not independently probe-verified'
+    reasoning_effort: high
+    independent_session: false
+    independent_review_status: >-
+      NOT YET REQUESTED. This contract is at `draft`; independent
+      pre-execution review, snapshot commit, and the transition to
+      `review_required` / `approved` are separate later Coordinator actions
+      explicitly out of scope for this task.
+  source_refs:
+    - ledger/hypotheses/H-ECDLP-ed5162.yaml
+    - ledger/proposals/IDEA-20260731-008.yaml
+    - ledger/proposals/IDEA-20260727-005.yaml
+    - ledger/questions/RQ-ECDLP-002.yaml
+    - docs/claims-and-verification.md
+    - docs/target-result-profile.md
+    - docs/inventor-protocol.md
+  assigned_to: executor
+  approved_by: coordinator
+  approved_by_note: >-
+    APPROVED 2026-09-03 by the Coordinator on the user's explicit
+    confirmation to freeze EXP-ECDLP-bbb42f as specified (design-experiment
+    step 4). Approval authorizes the Executor to run the bounded, seeded,
+    replicate design under this frozen contract; any later change is a
+    versioned protocol_amendment, never an edit to this file. Pre-execution
+    independent review and the snapshot archive precede dispatch of the
+    Executor.

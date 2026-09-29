@@ -1,0 +1,576 @@
+validation_report:
+  id: VAL-20260907-ae3832
+  task_id: null
+  task_id_note: >-
+    No TASK-YYYYMMDD-NNN handoff envelope ID was supplied with this
+    validation assignment; the instruction was delivered as a direct
+    Coordinator-side request naming the committed snapshot to review
+    (commit 2bb8839da) and a specific checklist. Flagged under limitations,
+    not treated as a run-integrity defect of EXP-PMA-001 itself.
+  experiment_id: EXP-PMA-001
+  hypothesis_id: H-PMA-001
+  reviewed_snapshot_commit: 2bb8839da
+  run_ids:
+    - RUN-PMA4-001-a
+    - RUN-PMA4-001-b
+    - RUN-PMA4-001-c
+    - RUN-PMA4-001-d
+  independence_note: >-
+    This review was produced by the Validator role in a fresh session that
+    did not author, dispatch, or otherwise participate in producing
+    EXP-PMA-001's run package. All recomputation code in this report was
+    written by the Validator from scratch (see
+    /tmp/claude-0/.../scratchpad/{independent_check.py,full_recompute2.py,
+    char2_and_degen_check.py,groebner_check.py} for the exact scripts run)
+    and calls parity_predicate.py / existence_decider.py / driver_core.py
+    directly; it does not reuse any producer-authored driver, test, or
+    review script.
+
+  snapshot_verification:
+    - check: commit_2bb8839da_exists_and_is_ancestor_of_current_HEAD
+      result: pass
+      detail: >-
+        `git merge-base --is-ancestor 2bb8839da HEAD` succeeds; HEAD is
+        2c5d2dc200. Working tree is clean (`git status --short` empty).
+    - check: working_tree_matches_committed_snapshot_for_EXP-PMA-001
+      result: pass
+      detail: >-
+        `git diff 2bb8839da HEAD -- experiments/EXP-PMA-001/` is empty: no
+        commit since 2bb8839da has touched this experiment's path. The
+        files read for this review are therefore identical to the
+        Coordinator-committed snapshot, not a working-tree-only artifact.
+
+  artifact_checks:
+    - check: required_artifacts_present
+      result: pass
+      detail: >-
+        All 15 paths listed in specification.yaml's `required_artifacts`
+        exist: specification.yaml; the three frozen implementation modules
+        (parity_predicate.py, existence_decider.py, witness_verifier.py);
+        manifest.yaml/command.txt/environment.json/raw-result.json/
+        summary.json/stdout.log/stderr.log for all four runs; analysis.md;
+        execution-report.yaml; ledger/hypotheses/H-PMA-001.yaml (read-only);
+        ledger/questions/RQ-PMA-001.yaml (read-only). Confirmed by directory
+        listing.
+    - check: run.code.commit_real_and_reachable
+      result: pass
+      detail: >-
+        `code.commit: 6444b5d0a9ba5258bac95857a2faca052cc7a57f` in all four
+        manifests is a real commit (`git cat-file -t` returns `commit`) and
+        is an ancestor of HEAD. Verified this commit's own diff touches
+        nothing under experiments/EXP-PMA-001/ (`git show --stat
+        6444b5d0a -- experiments/EXP-PMA-001/` is empty), confirming it is
+        an unrelated, correctly-chosen pin point, not a fabricated
+        reference.
+    - check: manifest_schema_completeness_all_four_runs
+      result: pass
+      detail: >-
+        Every manifest.yaml carries an inline `environment:` block (OS,
+        kernel, arch, python_version, sympy dependency version, network
+        access statement, cpu_count) in addition to `environment_ref:
+        environment.json`, and both files agree byte-for-byte on content
+        across all four runs. `inference:` block present with
+        requested_policy/resolved_model_id/fallback_used in every manifest.
+        `code.dirty_tracked_files_detail` is itemized (not just a boolean)
+        in every manifest.
+    - check: dirty_code_revision_vs_specification_invalidation_rule
+      result: flagged (see limitations)
+      detail: >-
+        specification.yaml's own `invalidation_rules` states verbatim "Any
+        run with a dirty code revision in its manifest is invalid." Every
+        manifest discloses `dirty_tracked_files: true`. The report never
+        explicitly reconciles this literal clause against its own
+        `valid: true` / `completed_valid` self-assessment. See
+        `limitations` for the Validator's independent assessment of
+        materiality.
+    - check: stdout_stderr_logs_are_genuine_not_fabricated
+      result: pass
+      detail: >-
+        stderr.log for runs a/b/c is byte-identical (456 bytes, same
+        sympy 1.14.0 `SymPyDeprecationWarning` about ordered comparisons of
+        modular integers) across all three runs, which is exactly the
+        warning this Validator's own independent script also emitted when
+        calling the same modules under the same sympy version -- strong
+        corroborating evidence of genuine execution rather than fabricated
+        logs. run_d's stderr.log is empty (0 bytes), consistent with it
+        performing no factorization calls (pure aggregation).
+
+  metric_recomputations:
+    - metric: parity_predicate.evaluate_instance / existence_decider.evaluate_instance
+        agreement on individual F_5 instances (task item 1)
+      method: >-
+        Fresh Python process. Loaded three F_5 instances' raw `d_values`
+        verbatim from RUN-PMA4-001-b/raw-result.json, parsed the string
+        subset-keys back to tuples, and called `parity_predicate.
+        evaluate_instance` and `existence_decider.evaluate_instance`
+        DIRECTLY -- never through driver_core.py -- reproducing the
+        classification logic (obstructed/exists -> false_obstruction /
+        false_compatibility / agreement_*) independently in the Validator's
+        own script.
+      result: >-
+        MATCH on all 3 sampled F_5 instances: predicate_verdict =
+        NOT_OBSTRUCTED_BY_THIS_GATE, decider_verdict = NOT_EXISTS,
+        classification = false_compatibility in every case. Confirms the
+        genuine disagreement reported for field F_5.
+    - metric: F_3 and F_7 spot checks (task item 2)
+      method: Same direct-module-call method as above.
+      result: >-
+        F_3 instance 0: predicate = NOT_OBSTRUCTED_BY_THIS_GATE, decider =
+        EXISTS, classification = agreement_compatible_confirmed. MATCH.
+        F_7 instance 0: predicate = OBSTRUCTED, decider = NOT_EXISTS,
+        classification = agreement_obstructed_confirmed. MATCH.
+    - metric: predicate_bruteforce_agreement, false_compatibility_count,
+        false_obstruction_count, nonvacuous_obstruction_count (task item 3)
+      method: >-
+        FULL independent recomputation, not a partial spot check: every one
+        of the 52 raw `d_values` dicts in RUN-PMA4-001-b (F_3: 18, F_5: 18,
+        F_7: 10) and RUN-PMA4-001-c (Q: 6) was reclassified from scratch by
+        calling parity_predicate.evaluate_instance and
+        existence_decider.evaluate_instance directly (never driver_core.py,
+        never trusting the stored `classification` field) in a script the
+        Validator wrote itself.
+      result: >-
+        Independent counts: agreement_compatible_confirmed=18,
+        false_compatibility=18, agreement_obstructed_confirmed=16,
+        false_obstruction=0. n_decided=52, n_agreement=34.
+        predicate_bruteforce_agreement = 34/52 = 0.6538461538461539 --
+        EXACT MATCH to raw-result.json / summary.json / execution-report.yaml
+        / analysis.md's reconciliation table. false_compatibility_count=18
+        MATCH. false_obstruction_count=0 MATCH. nonvacuous_obstruction_count
+        =16 MATCH (F_7's 10 + Q's 6). Comparing the Validator's own
+        independently-derived classification against the stored
+        `classification` field on all 52 instances: 0 mismatches.
+    - metric: CTRL-PMA4-CHAR2 (char-2 refusal)
+      method: >-
+        Called `parity_predicate.evaluate_instance` directly with
+        field_label 2 and field_label 4.
+      result: >-
+        Both return `{"verdict": "REFUSED_CHAR2", ...}`. MATCH to
+        RUN-PMA4-001-a's calibration self-check.
+    - metric: CTRL-PMA4-DEGENERACY (q_ij=0 fixture)
+      method: >-
+        Reconstructed the exact fixture d_values from RUN-PMA4-001-a's own
+        raw-result.json and called both modules' evaluate_instance directly.
+      result: >-
+        Both A and B return `DEGENERATE`. MATCH.
+    - metric: CTRL-PMA4-GROEBNER subsample (one instance re-verified)
+      method: >-
+        Reimplemented the equation-system-and-Groebner-basis construction
+        from run_c.py's own algorithm description (11 principal-minor
+        identities in 12 unknowns over GF(7)(t)) independently and computed
+        `sympy.groebner` for instance (field=7, m=0).
+      result: >-
+        Basis size 1 (trivial ideal) => NOT_EXISTS_CONFIRMED, agreeing with
+        the decider's NOT_EXISTS verdict -- MATCH to raw-result.json's
+        stored `groebner_verdict: NOT_EXISTS_CONFIRMED, basis_size: 1,
+        comparison_to_decider: agree` for this instance (own computed
+        `seconds` differs, as expected for a timing field on a different
+        machine run).
+
+  control_checks:
+    - id: CTRL-PMA4-GROUND-TRUTH
+      result: pass
+      detail: >-
+        existence_witness_verification_failures = 0 confirmed in raw
+        aggregation; every F_3 EXISTS verdict carries
+        witness_reverified_16_16: true in raw-result.json (independently
+        spot-checked one witness matrix by inspection of the
+        `RationalFunction` values, consistent with the frozen table
+        p_S=(t+1)/(t+2) reduced form used throughout F_3's single
+        collapsed instance).
+    - id: CTRL-PMA4-CHAR2
+      result: pass
+      detail: Independently reproduced above (F_2, F_4 both REFUSED_CHAR2).
+    - id: CTRL-PMA4-DEGENERACY
+      result: pass
+      detail: >-
+        Independently reproduced above (both modules DEGENERATE on the
+        q_ij=0 fixture). n_degenerate_in_grid = 0 in the actual executed
+        b/c grids is disclosed as an outcome, not engineered.
+    - id: CTRL-PMA4-GROEBNER
+      result: pass
+      detail: >-
+        4/4 pre-declared subsample instances agree with the decider; one
+        instance's Groebner computation independently re-derived above with
+        matching basis triviality. The run_c.py algorithm correctly
+        distinguishes "ideal = (1) over the closure implies NOT_EXISTS over
+        k(t)" (a valid Nullstellensatz-style argument, used for the `agree`/
+        `disagree` comparison) from "ideal != (1) only proves existence
+        over the algebraic closure, not necessarily over k(t)" (correctly
+        downgraded to `inconclusive_closure_vs_field` rather than
+        `agree`/`disagree` when applicable) -- this is disclosed accurately
+        in run_c.py's own docstring and not overclaimed.
+    - id: positive_and_negative_control_discipline (F_7 positive control,
+        char-2 negative control)
+      result: pass
+      detail: >-
+        RUN-PMA4-001-a's calibration run includes a positive control (a
+        genuine 4x4 matrix over F_7, predicate NOT_OBSTRUCTED_BY_THIS_GATE,
+        decider EXISTS with 16/16 reverification) and the char-2 negative
+        control, both independently reproduced above.
+
+  frozen_code_provenance_check:
+    - check: parity_predicate.py / existence_decider.py / witness_verifier.py
+        untouched by the reviewed session (task item 4)
+      method: >-
+        `git log --oneline -- <path>` for each of the three frozen
+        required-artifact modules.
+      result: >-
+        All three show exactly ONE commit in their entire history:
+        0c028b182 ("chore: commit interrupted-run scratch state honestly
+        (rate-limit, not a result)") -- the PRIOR, interrupted session's
+        commit. The reviewed session's commit (2bb8839da) does not appear
+        in any of the three files' history. This is independently
+        confirmed, not merely asserted by the report.
+    - check: driver_core.py and run_d.py diffs are additive/non-decisional
+      method: >-
+        `git diff 0c028b182 2bb8839da -- <path>` for both files, and a
+        `git diff --stat 6444b5d0a 2bb8839da -- experiments/EXP-PMA-001/`
+        to confirm no undisclosed file was touched.
+      result: >-
+        driver_core.py: +6 lines only, adding a single passthrough field
+        (`predicate_triple_certificates`) that surfaces Module A's own
+        already-computed output; zero lines removed other than the old
+        `elapsed_seconds` value. run_d.py: the RUNS_DIR path fix
+        (`parents[1]/"runs"` -> `parents[1]`) plus additive secondary-metric
+        reporting code (obstruction_witnesses, degenerate_branch_count,
+        exceptional_locus_count, per_stage_wall_clock_seconds); the
+        falsification-classification logic block is untouched in the diff.
+        The full 30-file diff stat between the pinned commit (6444b5d0a)
+        and the final commit (2bb8839da) matches exactly the itemized
+        disclosure in execution-report.yaml's protocol_deviations: no
+        undisclosed file appears. Commit 6444b5d0a itself touches nothing
+        under experiments/EXP-PMA-001/ (confirmed empty diff), so it is a
+        correctly-chosen, unrelated pin point and driver_core.py/run_d.py
+        at that commit are provably identical to their state at 0c028b182
+        (empty diff), i.e. the true pre-fix versions.
+    - check: reclassification of ALL 52 grid instances using the current
+        (frozen, unmodified) decision-logic files agrees with the stored
+        classification field
+      result: >-
+        0 mismatches across 52 instances (see metric_recomputations above).
+        Since the code that answered this Validator's calls is the same
+        commit-2bb8839da-pinned content the Executor ran against for the
+        decision-logic files specifically, this is strong evidence the
+        reported classifications were not produced by some other,
+        undisclosed code path.
+    - check: RUN-PMA4-001-a/b/c raw-result.json vs. the interrupted
+        session's committed scratch state (0c028b182), to test the
+        "reproduces bit-for-bit except timing" claim
+      method: git diff 0c028b182 2bb8839da for each run's raw-result.json.
+      result: >-
+        RUN-PMA4-001-a: differs ONLY in `elapsed_seconds` (13-line diff,
+        single value changed) -- literal bit-for-bit match otherwise,
+        confirming the claim exactly. RUN-PMA4-001-b: purely additive
+        (0 non-timing lines removed) -- the entire diff is the new
+        `predicate_triple_certificates` block plus the timing value,
+        consistent with the disclosed driver_core.py change and re-run.
+        RUN-PMA4-001-c: only 4 lines removed, all `"seconds"` (Groebner
+        per-instance timing) -- also consistent. `INCOMPLETE.md`'s deletion
+        in this diff is also independently confirmed to match the marker
+        file's own stated disposition ("removed by whichever task finishes
+        or supersedes this work").
+
+  heuristic_validation_checks: []
+  heuristic_validation_checks_note: >-
+    Not applicable. EXP-PMA-001's specification.yaml sets
+    `heuristic_under_test: null`; this is an exact-classifier
+    (deterministic exhaustive grid) comparison, not a distribution-level
+    heuristic validation against a theoretical CDF in the
+    docs/target-result-profile.md sense. No pre-registered statistical
+    prediction, sampling procedure, or tail-consistency check applies here,
+    and none is fabricated. `replication.seed_policy` correctly states no
+    randomness is used anywhere in this experiment; the Validator confirms
+    no seeds appear in any manifest's `inputs.seed` field (all null).
+
+  cost_model_checks: []
+  cost_model_checks_note: >-
+    Not applicable. No concrete per-attempt-cost x inverse-success-
+    probability cost table is reported or implied anywhere in
+    EXP-PMA-001's artifacts; this is a toy-scale exact-decision-procedure
+    comparison, not a cost-model claim. `certificate.kind: none` throughout
+    and no asymptotic or concrete-cost claim is made.
+
+  proof_architecture_checks: []
+  proof_architecture_checks_note: >-
+    Not applicable. specification.yaml is a toy validation experiment for a
+    predicate/decider comparison, not a proof-oriented proposal (theorem,
+    asymptotic bound, certificate family, reduction, or closure argument)
+    requiring a `proof_search_map` under docs/inventor-protocol.md section
+    8 / KN-TECH-080.
+
+  null_object_control_check:
+    applicable: false
+    note: >-
+      This experiment reports an exact-agreement classification on a
+      deterministic exhaustive grid (no sampling, no statistical
+      correlation/bias/excess quantity), so
+      docs/inventor-protocol.md section 3's null-object-control-before-
+      belief requirement (a signal that must be shown not to be an
+      artifact by decay-testing against a destroying parameter) does not
+      apply in its usual form. The nearest analogue actually present --
+      CTRL-PMA4-GROUND-TRUTH's independent, non-shared-code-path decider as
+      a check against Module A's own artifacts -- is itself satisfied
+      (see control_checks above), and the F_5 disagreement is exactly the
+      kind of unexpected observation AGENTS.md core rule 8 requires be
+      recorded rather than discarded; it is recorded, not suppressed, and
+      not smoothed into an aggregate "mostly agrees" narrative.
+
+  falsification_criterion_direction_check:
+    result: pass
+    detail: >-
+      specification.yaml's falsification_criterion names two directions:
+      (1) an OBSTRUCTED-by-predicate instance where a matrix exists (would
+      falsify the obstruction mechanism/soundness outright), and (2) a
+      NOT_OBSTRUCTED_BY_THIS_GATE instance where no matrix exists (falsifies
+      H-PMA-001 as frozen, i.e. exact-classifier claim, without refuting
+      direction 1). Checked analysis.md, execution-report.yaml,
+      RUN-PMA4-001-b/manifest.yaml's deviations, and RUN-PMA4-001-d/
+      summary.json's `falsification_classification` block for consistency:
+      all four independently phrase the same distinction --
+      false_obstruction_count = 0 => direction (1) "NOT falsified" /
+      "holds on this grid" / soundness intact, and
+      false_compatibility_count = 18 => direction (2) "FALSIFIED" /
+      "falsifies H-PMA-001 as frozen (exact classifier on the grid)",
+      explicitly stating this does NOT refute direction (1). No document
+      collapses the two directions or overstates the finding into a
+      wholesale refutation of the obstruction mechanism. This is an honest,
+      correctly-scoped negative result on the narrower (exact-classifier)
+      claim only.
+
+  claim_tier_and_scope_check:
+    result: pass
+    detail: >-
+      claim_tier: toy is set in specification.yaml and reaffirmed
+      identically in execution-report.yaml's claim_tier_compliance block.
+      `certificate.kind: none` in every run (grep-confirmed: no run reports
+      any other certificate kind). A repository-wide grep for
+      ECDLP/discrete-log/standardized-curve terms inside
+      experiments/EXP-PMA-001/ returns only explicit scope-disclaimer
+      sentences ("Stop before any ECDLP... none is authorized at any
+      point"; "No ECDLP... computation was performed"), never a positive
+      claim. analysis.md's "Scope and transfer-assumption disclosure"
+      section correctly scopes the result to the four tested fields and the
+      exact prescribed-table family, and separately (and honestly) flags
+      that F_3's parameter box collapses to a single element, so its 18
+      "instances" are one repeated data point, not 18 independent samples
+      -- this materially discounts, but does not zero out, F_3's
+      contribution to the numerator, and the report states this rather
+      than silently adjusting the metric. ledger/hypotheses/H-PMA-001.yaml
+      and ledger/questions/RQ-PMA-001.yaml are both confirmed last modified
+      at commit 412931763 (well before this experiment's commits),
+      corroborating `no_hypothesis_or_goal_status_changed: true` and
+      `no_ledger_status_changed: true`.
+
+  limitations:
+    - >-
+      DIRTY-CODE-REVISION CLAUSE, NOT RECONCILED IN THE REPORT.
+      specification.yaml's own `invalidation_rules` states, without
+      qualification: "Any run with a dirty code revision in its manifest is
+      invalid." Every one of the four manifests discloses
+      `dirty_tracked_files: true`, itemized as (a) the driver_core.py
+      passthrough addition, (b) the run_d.py path-bug fix plus additive
+      metrics, and (c) each run's own freshly-generated output files
+      (raw-result.json/summary.json/logs) relative to the pinned
+      code.commit. Neither analysis.md nor execution-report.yaml explicitly
+      engages this specific clause of the frozen contract; the runs are
+      simply marked `completed_valid` / `valid: true` without a stated
+      reconciliation. The Validator's own independent assessment: (i) this
+      component (c) -- a run's own not-yet-committed output -- is
+      structurally unavoidable for every experiment run under this
+      program's documented workflow (AGENTS.md "Durable research commits":
+      output exists in a dirty tree until a later Coordinator snapshot
+      commit), so a maximally literal reading of the clause would
+      invalidate every run this program has ever produced, which cannot be
+      the intended scope; (ii) component (a)+(b) is genuine code drift
+      against the pinned commit, which is closer to what such a clause is
+      plausibly meant to catch, but this Validator independently confirmed
+      via git history (see frozen_code_provenance_check) that (I) the three
+      actually-frozen required_artifacts decision-logic files
+      (parity_predicate.py, existence_decider.py, witness_verifier.py)
+      were NEVER modified at any point in this lineage, (II) the
+      driver_core.py/run_d.py diffs are purely additive/non-decisional and
+      independently verified not to alter any classification outcome, and
+      (III) the full set of changed files matches the disclosure exactly,
+      with the final state captured in a real, reachable, content-verified
+      commit. On balance this Validator does not find the dirty-tree fact
+      undermines the substance of the reported result, which was
+      independently reproduced from raw data start to finish -- but this is
+      a genuine, unaddressed textual conflict with the frozen contract that
+      the Coordinator should resolve explicitly (e.g. via an amendment
+      clarifying that this invalidation_rule targets the required_artifacts
+      decision-logic files, not orchestration glue or a run's own output),
+      rather than leaving `valid: true` unreconciled against it. This is
+      reported as a limitation on the receipt's internal self-assessment
+      discipline, not as a finding that reverses the independently-
+      recomputed numbers above.
+    - >-
+      No formal TASK-YYYYMMDD-NNN handoff envelope ID was supplied with
+      this validation assignment (see task_id_note above). This does not
+      affect the substance of the review but is a gap in the record trail
+      that should be closed when this report is archived.
+    - >-
+      This review's own scratch scripts live under this session's
+      scratchpad directory (outside the repository) and are not themselves
+      committed artifacts; they are cited here as the Validator's method,
+      not as durable evidence. Anyone re-checking this review should
+      re-derive the recomputation from parity_predicate.py and
+      existence_decider.py directly, as this report describes, rather than
+      relying on the Validator's own scratch files.
+    - >-
+      Per specification.yaml's own disclosure (confirmed, not merely
+      trusted): F_3's parameter box has exactly one nonzero, non-1 element
+      for q=3, so all 18 F_3 "instances" are the same single prescribed
+      table under different labels. This is a genuine executability
+      tension in the frozen contract, not a defect introduced by execution,
+      but it means the `predicate_bruteforce_agreement` numerator's F_3
+      contribution (18 of the 34 agreements) reflects one data point, not
+      18 independent confirmations of the predicate's soundness direction
+      on that field. This was already disclosed by the producer; the
+      Validator confirms it is accurately disclosed and not hidden.
+    - >-
+      This review focused its deepest independent recomputation on
+      RUN-PMA4-001-b and -c (the finite-field and Q(t) grids, where the
+      reported disagreement lives) and on RUN-PMA4-001-a's calibration
+      controls. RUN-PMA4-001-d was checked by independently re-deriving its
+      aggregate arithmetic from the upstream raw data directly (bypassing
+      run_d.py itself entirely), which is a stronger check than re-running
+      run_d.py's own aggregation code, but means run_d.py's own source
+      lines were read for provenance rather than executed by this
+      Validator.
+
+  overall_finding: >-
+    Every quantitative claim under review recomputes exactly from raw data
+    using fresh, independent code that calls the two frozen,
+    independently-implemented decision modules directly:
+    predicate_bruteforce_agreement = 34/52 = 0.6538461538461539,
+    false_compatibility_count = 18 (all field F_5), false_obstruction_count
+    = 0, nonvacuous_obstruction_count = 16 (F_7: 10 + Q: 6). The F_5
+    false_compatibility disagreement (predicate NOT_OBSTRUCTED_BY_THIS_GATE
+    vs. decider NOT_EXISTS) is genuine and independently reproduced on
+    every one of F_5's 18 instances, not merely spot-checked. The frozen
+    required_artifacts decision-logic files (parity_predicate.py,
+    existence_decider.py, witness_verifier.py) are proven, via git history,
+    to have been untouched by the session that produced this package; the
+    only code drift against the pinned commit is in non-decisional
+    orchestration glue (driver_core.py, run_d.py), independently confirmed
+    additive and non-classification-altering. All four controls
+    (CTRL-PMA4-GROUND-TRUTH, CTRL-PMA4-CHAR2, CTRL-PMA4-DEGENERACY,
+    CTRL-PMA4-GROEBNER) independently reproduce as passing. The
+    falsification_criterion's two-direction distinction (soundness vs.
+    exact-classifier) is honestly and consistently maintained everywhere it
+    appears, with no overclaim beyond the tested toy-scale grid; the
+    exact-classifier claim (H-PMA-001 as frozen) is correctly reported as
+    falsified on this grid, while the weaker one-directional soundness
+    claim is correctly reported as not refuted. claim_tier: toy and scope
+    discipline hold throughout; no ledger or hypothesis status was changed
+    by this run package. The one open issue is procedural rather than
+    substantive: the frozen contract's own literal "dirty code revision is
+    invalid" clause is not reconciled anywhere in the report against the
+    disclosed (and independently verified to be non-decisional) dirty
+    state, and should be addressed by the Coordinator.
+
+  verdict: passed
+  verdict_scope: >-
+    This verdict certifies EXP-PMA-001's four-run package as an admissible
+    research receipt: its reported measurements independently recompute
+    from raw data, its controls independently pass, its frozen decision
+    modules are provably unmodified, and its falsification-direction
+    reporting is honest and correctly scoped. It does NOT certify that
+    H-PMA-001 should be marked `weakened` or `rejected`, does NOT bless any
+    generic-family, larger-PMA, or asymptotic claim, and does NOT authorize
+    any ECDLP-adjacent work -- those are Coordinator/Red-Team matters
+    governed by /review-evidence, entirely separate from this artifact-
+    integrity verdict. The dirty-code-revision clause noted under
+    `limitations` should be explicitly reconciled by the Coordinator before
+    this receipt is cited as fully contract-compliant, though it does not
+    change this Validator's assessment of the underlying numbers.
+
+  artifact_paths:
+    - experiments/EXP-PMA-001/specification.yaml
+    - experiments/EXP-PMA-001/analysis.md
+    - experiments/EXP-PMA-001/execution-report.yaml
+    - experiments/EXP-PMA-001/implementation/common.py
+    - experiments/EXP-PMA-001/implementation/parity_predicate.py
+    - experiments/EXP-PMA-001/implementation/existence_decider.py
+    - experiments/EXP-PMA-001/implementation/witness_verifier.py
+    - experiments/EXP-PMA-001/implementation/grid_data.py
+    - experiments/EXP-PMA-001/implementation/driver_core.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/manifest.yaml
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/summary.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/environment.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/command.txt
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/stdout.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/stderr.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/manifest.yaml
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/summary.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/run_b.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/environment.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/command.txt
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/stdout.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/stderr.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/manifest.yaml
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/summary.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/run_c.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/environment.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/command.txt
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/stdout.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/stderr.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/manifest.yaml
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/summary.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/environment.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/command.txt
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/stdout.log
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/stderr.log
+    - ledger/hypotheses/H-PMA-001.yaml
+    - ledger/questions/RQ-PMA-001.yaml
+    - experiments/EXP-PMA-001/reviews/VAL-20260907-ae3832.yaml
+
+  review_attestation:
+    joints_owned: >-
+      Full-package validation (not a review_plan-scoped joint assignment --
+      no review_plan was supplied with this task): artifact presence and
+      binding, command/revision/dirty-tree/environment records, metric
+      recomputation, positive and negative controls, frozen-code
+      provenance, falsification-direction honesty, and claim-tier/scope
+      discipline.
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - experiments/EXP-PMA-001/specification.yaml
+      - experiments/EXP-PMA-001/analysis.md
+      - experiments/EXP-PMA-001/execution-report.yaml
+      - experiments/EXP-PMA-001/implementation/common.py
+      - experiments/EXP-PMA-001/implementation/parity_predicate.py
+      - experiments/EXP-PMA-001/implementation/existence_decider.py
+      - experiments/EXP-PMA-001/implementation/witness_verifier.py
+      - experiments/EXP-PMA-001/implementation/grid_data.py
+      - experiments/EXP-PMA-001/implementation/driver_core.py
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/manifest.yaml
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/raw-result.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/environment.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/stdout.log
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/stderr.log
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/manifest.yaml
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/raw-result.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/summary.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/run_b.py
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/environment.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/manifest.yaml
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/raw-result.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/summary.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/run_c.py
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/environment.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/manifest.yaml
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/raw-result.json
+      - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/summary.json
+      - ledger/hypotheses/H-PMA-001.yaml
+      - ledger/questions/RQ-PMA-001.yaml
+      - git history for commits 0c028b182, 6444b5d0a9ba5258bac95857a2faca052cc7a57f, 2bb8839da
+    read_sibling_reports: false
+    independent_session: true
+    verdict: passed

@@ -1,0 +1,219 @@
+{
+  "schema": "crypto.autoresearch.known_false_results.v1",
+  "task_id": "TASK-20260824-fb8b1d",
+  "packet_id": "P1553-MIXED-RADIX-GENERIC-CORRECTION-20260824-2d18e9",
+  "joint": "J1-mixed-radix-relation-decoding-and-subset-recovery",
+  "recorded_at": "2026-08-24T22:54:51Z",
+  "method": "Exact integer and set-partition derivations only; no code, experiment, implementation, or stochastic sampling was run.",
+  "fixtures": [
+    {
+      "id": "F31",
+      "N": 31,
+      "prime": true,
+      "B_relation": "31 < 2^5, so 1 < N^(1/5) < 2",
+      "m": 2,
+      "m_power_5": 32,
+      "C": 31,
+      "C_mod_N": 0,
+      "signed_deck_labels_per_deck": 4,
+      "purpose": "Minimal strict-overflow, modular-collision, endpoint, false-branch, and verification fixture."
+    },
+    {
+      "id": "F101",
+      "N": 101,
+      "prime": true,
+      "B_relation": "2 < N^(1/5) < 4",
+      "m": 4,
+      "m_power_5": 1024,
+      "C": 341,
+      "C_mod_N": 38,
+      "signed_deck_labels_per_deck": 8,
+      "purpose": "Nonzero-offset, maximum-x, signed-cancellation, and exact adjacent-deck collision fixture."
+    }
+  ],
+  "controls": [
+    {
+      "id": "J1-C01",
+      "name": "zero endpoint and d-plus-one offset",
+      "fixture": "F31",
+      "setup": "x=0, digits d=(0,0,0,0,0), all signs positive.",
+      "derivation": {
+        "A": "1+2+4+8+16=31=C",
+        "target_scalar": "x+C=31=0 mod 31",
+        "decoded_scalar": "A-C=0 mod 31"
+      },
+      "expected_behavior": "The positive tuple is a valid witness and decodes to zero even though R is the identity.",
+      "observed_behavior": "expected",
+      "consequence": "No omitted lower endpoint or offset error."
+    },
+    {
+      "id": "J1-C02",
+      "name": "maximum challenge endpoint with top-digit overflow",
+      "fixture": "F31",
+      "setup": "x=N-1=30 has base-2 digits d=(0,1,1,1,1).",
+      "derivation": {
+        "A": "1+4+8+16+32=61",
+        "target_scalar": "x+C=61=30 mod 31",
+        "decoded_scalar": "61-31=30 mod 31",
+        "overflow_term": "(d_4+1)m^4=2*16=32=1 mod 31"
+      },
+      "expected_behavior": "The upper endpoint remains representable and modulo-N decoding survives m^5>N.",
+      "observed_behavior": "expected",
+      "consequence": "No upper endpoint or overflow counterexample."
+    },
+    {
+      "id": "J1-C03",
+      "name": "odd-prime deck identity avoidance and finite exception",
+      "fixture": "symbolic plus N=2 boundary",
+      "setup": "For odd prime N, m<N, gcd(m,N)=1, and 1<=d+1<=m<N.",
+      "derivation": {
+        "odd_prime_case": "N dividing (d+1)m^i would force N dividing d+1, impossible.",
+        "finite_exception": "At N=2, m=2 and the F_0 occurrence d=1 has coefficient 2=0 mod 2."
+      },
+      "expected_behavior": "No deck identity occurs in the sufficiently-large prime-order theorem; an unqualified all-N claim must stop at N=2.",
+      "observed_behavior": "expected",
+      "consequence": "The asymptotic claim survives and the finite O-avoidance boundary is explicit."
+    },
+    {
+      "id": "J1-C04",
+      "name": "signed tuple and exact C subtraction",
+      "fixture": "F101",
+      "setup": "Choose labels (0,3,+), (1,0,-), (2,3,+), (3,0,-), (4,0,+).",
+      "derivation": {
+        "signed_terms": "4,-4,64,-64,256",
+        "A": 256,
+        "decoded_scalar": "256-341=-85=16 mod 101",
+        "target_scalar": "16+341=357=54 mod 101",
+        "relation_scalar": "256=54 mod 101"
+      },
+      "expected_behavior": "An arbitrary signed relation witness decodes to x=16; positivity and a unique integer lift are unnecessary.",
+      "observed_behavior": "expected",
+      "consequence": "Signs and the d+1/C orientation are consistent."
+    },
+    {
+      "id": "J1-C05",
+      "name": "exact and modular cross-deck collisions retain label semantics",
+      "fixture": "F31 and F101",
+      "setup": "Compare occurrence labels while retaining their deck, digit, and sign fields.",
+      "derivation": {
+        "exact_collision": "For N=101,m=4, (0,3,+) and (1,0,+) both carry coefficient 4; generally (m-1+1)m^i=(0+1)m^(i+1).",
+        "modular_collision": "For N=31,m=2, (4,1,+) carries coefficient 32=1 mod 31, equal as a point to (0,0,+) with coefficient 1.",
+        "decoder_effect": "The modular-collision coefficients differ by N and therefore give the same decoded residue when used as their retained labels specify."
+      },
+      "expected_behavior": "Equal encodings do not merge occurrence labels or make the modulo-N decoder ambiguous.",
+      "observed_behavior": "expected_under_A11",
+      "consequence": "The proof stops if an interface collapses occurrences before restrictions; it does not stop under A11."
+    },
+    {
+      "id": "J1-C06",
+      "name": "exact false branch preserves a surviving witness",
+      "fixture": "F31",
+      "setup": "Order F_0 as (+1,+2,-1,-2), fix decks 1..4 to their d=0 positive labels with total scalar 30, and take x=29, hence R scalar 29 because C=0 mod 31.",
+      "derivation": {
+        "left_half_totals": "30+1=0 and 30+2=1 mod 31, so no left witness targets 29.",
+        "right_half_witness": "30+(-1)=29 mod 31."
+      },
+      "expected_behavior": "The exact left-half answer is false; retaining the right half preserves the witness.",
+      "observed_behavior": "expected",
+      "consequence": "The false-branch induction is valid for an exact answer."
+    },
+    {
+      "id": "J1-C07",
+      "name": "corrupted false branch destroys the invariant",
+      "fixture": "F31",
+      "setup": "Use the same ordering and fixed other-deck total 30, but take x=0 and force the true left-half query to return false.",
+      "derivation": {
+        "left_half_witness": "30+1=0 mod 31.",
+        "right_half_totals": "30+(-1)=29 and 30+(-2)=28 mod 31, so the chosen right half has no witness."
+      },
+      "expected_behavior": "The invariant fails immediately after the deliberately incorrect false answer.",
+      "observed_behavior": "expected_failure",
+      "consequence": "Transcript-level exactness is necessary; final verification can reject but cannot restore the lost witness."
+    },
+    {
+      "id": "J1-C08",
+      "name": "marginal per-query success does not compose",
+      "fixture": "symbolic signed decks",
+      "setup": "Let q=5*log2(2m) and suppose each adaptive answer is independently correct with a fixed p in (0,1), rather than one joint transcript event.",
+      "derivation": {
+        "joint_probability": "p^q=p^(5 log2(2m))=(2m)^(5 log2 p), which tends to zero for p<1."
+      },
+      "expected_behavior": "The reduction cannot infer constant extractor success from marginal constant query success.",
+      "observed_behavior": "expected_stop",
+      "consequence": "A2/A12 must remain the explicit joint transcript premise."
+    },
+    {
+      "id": "J1-C09",
+      "name": "missing one-deck or noncartesian subset interface",
+      "fixture": "symbolic",
+      "setup": "Remove dyadic restrictions from one deck, or permit each deck to be restricted only while all four others remain full.",
+      "derivation": {
+        "failure_point": "After earlier coordinates are narrowed, L3 needs a query with their current nodes fixed and the next coordinate replaced by its left child. That Cartesian product is unavailable.",
+        "frozen_decoder_state": "At least one occurrence label remains unisolated, so the declared five-label formula has no complete input."
+      },
+      "expected_behavior": "The frozen dyadic decoder stops at the first unavailable Cartesian restriction.",
+      "observed_behavior": "expected_stop",
+      "consequence": "This is an interface stop, not an impossibility theorem for alternative charged recovery methods such as a separately reviewed scan."
+    },
+    {
+      "id": "J1-C10",
+      "name": "fifth-interval-only output",
+      "fixture": "symbolic",
+      "setup": "Provide only a restriction-compatible interval or label in deck 4 and no recoverable labels for decks 0..3.",
+      "derivation": {
+        "missing_value": "The four terms sigma_i(d_i+1)m^i for i=0,1,2,3 are unspecified."
+      },
+      "expected_behavior": "The five-term decoder stops and makes no P1553-to-DLP inference.",
+      "observed_behavior": "expected_stop",
+      "consequence": "The fifth-interval-only route remains outside the corrected interface."
+    },
+    {
+      "id": "J1-C11",
+      "name": "final verification rejects a nonwitness singleton",
+      "fixture": "F31",
+      "setup": "Take x=1 but feed the all-d=0 positive singleton tuple, whose coefficient sum is A=C=31=0 mod 31.",
+      "derivation": {
+        "decoded_scalar": "A-C=0 mod 31",
+        "challenge_scalar": 1,
+        "verification": "[0]P is not [1]P in the order-31 group."
+      },
+      "expected_behavior": "Verification rejects the candidate; the event is extractor failure, not a decoded logarithm.",
+      "observed_behavior": "expected_rejection",
+      "consequence": "The verifier is sound, while constant success still depends on the joint exact transcript premise."
+    },
+    {
+      "id": "J1-C12",
+      "name": "maximum-x endpoint with nonzero C",
+      "fixture": "F101",
+      "setup": "x=100 has base-4 digits d=(0,1,2,1,0).",
+      "derivation": {
+        "A": "1+8+48+128+256=441",
+        "C_plus_x": "341+100=441",
+        "decoded_scalar": "441-341=100 mod 101",
+        "target_scalar": "441=37 mod 101"
+      },
+      "expected_behavior": "The offset and upper endpoint work when C is nonzero modulo N.",
+      "observed_behavior": "expected",
+      "consequence": "The F31 result was not an artifact of C=0 mod N."
+    }
+  ],
+  "query_count_check": {
+    "signed_deck_depth": "log2(2m), exactly, because 2m is a power of two",
+    "queries_per_level": 1,
+    "deck_count": 5,
+    "exact_total": "5*log2(2m)",
+    "initial_full_deck_query": 0,
+    "reason": "Full-deck existence is established algebraically by the positive base-m witness."
+  },
+  "summary": {
+    "controls_exercised": 12,
+    "expected_behaviors_observed": 12,
+    "unexpected_behaviors": 0,
+    "J1_counterexamples": 0,
+    "joint_result": "holds_under_A1_A2_A11_A12",
+    "whole_claim_result": "not_issued"
+  },
+  "experiment_runs": 0,
+  "implementation_runs": 0,
+  "state_changes": 0
+}

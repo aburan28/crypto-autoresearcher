@@ -1,0 +1,219 @@
+experiment:
+  id: EXP-SHATHREE-65e755
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-edfb2a; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-edfb2a
+  question_id: RQ-SHATHREE-cd2cb2
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Reduce one Keccak round to a set-valued diffusion process on the sixty-four z-positions,
+    verify it bounds the true deviation support, measure the cancellation gap, and compare saturation
+    speed against random rho offsets
+  objective: 'The uncertainty a run reduces is whether the spreading of an internal differential along
+    the lane axis is governed by a combinatorial subprocess cheap enough to iterate for free, and
+    if so whether the standard''s offsets make that subprocess unusual. (i) It establishes soundness:
+    the support-update rule derived from the step definitions must contain the exact z-support of
+    real deviation vectors at every round over 10^4 symmetric starts, and a single containment violation
+    refutes the reduction outright and identifies which step introduces unaccounted occupancy. (ii)
+    It measures the cost of the reduction by iterating both the union bound and the exact support
+    from the companion contract''s deviation vectors, reporting the per-round gap in positions --
+    the quantity that decides whether a value-free process can predict anything about a value-carrying
+    one, and whose largeness would be a usable measured obstruction against support-based reasoning
+    throughout this bucket. (iii) It compares saturation speed for Keccak''s triangular-number offsets
+    against 1000 random 25-offset multisets with theta, pi, chi and the constants held fixed, and
+    against a theta-disabled arm that isolates rho''s contribution from theta''s single-position shift,
+    placing Keccak at an explicit quantile of each null distribution and reporting a median position
+    as a controlled null rather than as an absence of result.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''the z-support of the deviation
+      obeys the stated union rule as an upper bound, verified over the recorded sample; the bound
+      saturates at the recorded round and differs from the exact support by the recorded gap; and
+      Keccak''s rho offsets place its saturation round at the recorded quantile of a random-offset
+      null, with and without theta''s shift term.'' What does NOT follow: that any offset choice is
+      better or worse for security, that fast or slow diffusion helps or hinders any attack, any complexity
+      or attack claim, anything about full 24-round SHA-3, and any statement about why the standard''s
+      offsets were selected.'
+  inputs:
+    procedure: 'STAGE 0 (cost: minutes). Import the hashlib-validated Keccak transcription and the
+      companion deviation recursion unchanged; extract the 25 rho offsets and the pi routing directly
+      from the validated implementation rather than from a transcribed table. STAGE 1 (cost: ~2h human,
+      ~10 min CPU). Encode the support-update rule as 25 sixty-four-bit masks with per-lane rotation,
+      pi routing, a theta OR with a one-position rotation, and an iota injection OR. Run the containment
+      check on 10^4 random symmetric starts over 12 rounds; halt on any violation and report the violating
+      step and round. STAGE 2 (cost: seconds). Iterate the union bound for r = 1..12; record per-round
+      support sizes and the saturation round. STAGE 3 (cost: ~15 min CPU). Iterate the exact support
+      from real deviation vectors for the same range; record the per-round gap. STAGE 4 (cost: ~2
+      min CPU). NULL-OFFSET: 1000 random 25-offset multisets, reported both unrestricted and restricted
+      to Keccak''s repeat profile; emit the saturation-round distribution and Keccak''s quantile.
+      STAGE 5 (cost: ~2 min CPU). NULL-THETA: repeat stages 2 and 4 with theta''s z-1 term disabled
+      in both arms. STAGE 6 (cost: ~20 min). Run the zero-injection and single-lane anchor controls;
+      emit all curves, quantiles and the run manifest with seeds.'
+    instrument: Python 3.11; 64-bit integer masks with rotations for the support process; the hashlib-validated
+      pure-Python Keccak-f[1600] exposing individual steps and the rho offset table; the companion
+      contract's deviation recursion imported unchanged; numpy for null distributions. No Sage. Manifests,
+      seeds and the inference block via harness/runner.py.
+    parameters: 'State 5x5x64; 25 lanes; z-positions Z/64. Rounds r = 1..12. Containment check: 10^4
+      random symmetric starts. Exact-support arm: the same 10^4 starts under the companion recursion
+      with the identity chi treatment and, as a secondary arm, the expansion treatment. NULL-OFFSET:
+      1000 random 25-offset multisets, unrestricted and repeat-profile-matched. NULL-THETA: both arms
+      with theta''s z-1 term disabled. PCG64 seeds 1..12000 declared in advance.'
+  controls:
+  - 'Containment control: exact support must always be a subset of the predicted support, over 10^4
+    starts and 12 rounds.'
+  - 'NULL-OFFSET: 1000 random 25-offset multisets from Z/64 with everything else fixed.'
+  - 'NULL-THETA: theta''s z-1 term disabled in both signal and null arms, isolating rho''s contribution.'
+  - 'Zero-injection control: with no iota injection the support must remain empty at every round,
+    a hard correctness check on the iteration.'
+  - 'Single-lane anchor: starting from occupancy at a single z in a single lane, the round-1 predicted
+    support must equal the hand-derived set recorded in the contract text before the run.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): NULL-OFFSET: 1000 random multisets of 25 offsets drawn uniformly from
+    Z/64, with theta, pi, chi and the constants held fixed, run through the identical support iteration
+    in the same invocation. For Keccak''s offsets to be said to do anything, its saturation round
+    must fall outside the central 90 percent of the null distribution; a median position means z-diffusion
+    speed is a property of having 25 spread-out offsets and not of the triangular structure. A second
+    control, NULL-THETA, disables theta''s z-1 term in both arms: if saturation is unchanged, theta''s
+    shift contributes nothing to z-diffusion and the composition claim reduces to a statement about
+    rho alone, which the entry would then say plainly.'
+  independent_variables:
+  - round index r
+  - rho offset arm in {FIPS triangular, random unrestricted, random repeat-matched}
+  - theta arm in {full, z-shift disabled}
+  - support arm in {union bound, exact}
+  - chi treatment in {identity, expansion}
+  metrics:
+    primary:
+    - union-bound z-support size per round
+    - exact z-support size per round
+    - per-round gap between bound and exact
+    - saturation round for each arm
+    - quantile of Keccak's saturation round in each null distribution
+    secondary:
+    - per-lane support sizes per round
+    - containment violation count
+    - sensitivity of the gap to the chi treatment
+    - saturation-round distribution shape for repeat-matched versus unrestricted nulls
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'The saturation round R_sat = min{r : supp_z(D_r) = Z/64} under the union bound, and
+      the per-round gap G(r) = |bound support| - |exact support|.'
+    formula: 'The support update is supp_z(lane L) after one round := union over source lanes L''
+      routed to L by pi of ((supp_z(L'') + rho_offset(L'')) mod 64), then unioned across the theta
+      step with its own rotation by -1, then unioned with the iota injection support {z : eps_i[z]
+      = 1} for lane (0,0) only. G(r) := |union bound at r| - |exact support at r|, a nonnegative integer
+      by the containment property. Predicted: containment holds with zero violations; R_sat <= 6;
+      G(r) is nondecreasing in r over the range where the bound is unsaturated. No value of G(4) is
+      pre-committed, because its magnitude is the measured unknown that decides the reduction''s usefulness.'
+    source: Pre-registered in the parent proposal IDEA-20260816-edfb2a before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Full-width state, the real rho offsets, the real pi routing and the real constants,
+      iterated over the full z-axis with nothing reduced. Labelled toy because the object is a value-free
+      upper bound rather than an executed attack and because the exact-support arm inherits the companion
+      contract''s linear chi surrogate. Transfer assumption stated explicitly: conclusions are scoped
+      to the rho offsets, pi routing and round range actually iterated; nothing extrapolates to more
+      rounds, to other permutations, or to any attack.'
+    correspondence: null
+  tail_checks:
+  - Containment violations must be exactly zero.
+  - The zero-injection control must leave the support empty at every round.
+  - The single-lane anchor's round-1 predicted support must equal a hand-derived set recorded in the
+    contract text before the run.
+  - G(r) must be nonnegative at every round, since a negative value would contradict containment and
+    indicate an implementation error.
+  - The rho offsets and pi routing used must be extracted from the hashlib-validated implementation,
+    and their extraction must be checked by re-running the full permutation with the extracted values.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt on the first containment violation and report the violating step and round.
+  - Fixed sample and null counts with no adaptive extension.
+  - Total wall-clock ceiling 2 hours; a timeout is a budget outcome and is never negative mathematical
+    evidence.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run is successful if containment holds with zero violations, the union-bound
+    and exact support curves and the per-round gap are emitted for r = 1..12, and Keccak's saturation
+    round is placed at an explicit quantile of both null distributions -- whatever those values are.
+  falsification_criterion:
+  - Any containment violation.
+  - The union bound saturates at round 1.
+  - The zero-injection control produces nonempty support.
+  - The single-lane anchor disagrees with the hand-derived set.
+  - G(r) is negative at any round.
+  - Keccak's saturation round sits at the median of both null distributions -- controlled null, recorded
+    as such.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-edfb2a
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The claim that theta introduces occupancy only at z and z-1 is derived from the correction term
+    but is not proved here for all column configurations; a Coordinator should require the derivation
+    in the contract text before the containment check is treated as a test rather than as the derivation
+    itself.
+  - Whether the repeat-matched or unrestricted offset null is the primary comparison is unsettled;
+    both are run and neither is designated.
+  - The exact-support arm depends on the companion contract's chi treatment, so the gap G(r) is treatment-dependent
+    and a Coordinator must fix which treatment defines the reported value.
+  - No rule is given for what counts as a meaningful separation in saturation round, an integer-valued
+    statistic over a small range where quantiles are coarse.

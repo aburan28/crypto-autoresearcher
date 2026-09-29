@@ -1,0 +1,234 @@
+idea:
+  id: IDEA-20260815-284aff
+  question_id: RQ-ECDLP-002
+  added: '2026-08-15'
+  title: >-
+    MULTI-TARGET AMORTIZATION IS THE ONE PLACE THE ECDLP EXPONENT GENUINELY
+    MOVES IN PRACTICE: measure the realised per-target cost of batch rho
+    against the theoretical sqrt(M) factor at real batch sizes
+  class: measurement
+
+  claim: >-
+    Solving M instances on one curve costs sqrt(M) times a single solve
+    rather than M times, which is a real exponent-level effect and the one
+    deployed systems actually face when many keys share a curve. The
+    theoretical factor assumes an idealised shared walk. Whether it is
+    realised at deployable batch sizes, with distinguished-point storage
+    charged, is measurable and not measured here.
+
+  mechanism: >-
+    Implement batch rho with a shared distinguished-point table. Measure
+    total cost and per-target cost across batch sizes. Compare realised
+    amortization against the sqrt(M) prediction with memory charged.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Grep 'multi-target' (76), 'batch DLP', 'amortiz'; check whether any
+      record measures rather than cites the factor.
+    results: >-
+      Multi-target amortization is well represented as a cited effect; no
+      record measures the realised factor with storage charged on this
+      program's baseline.
+    verdict: >-
+      ADAPTATION. The sqrt(M) result is classical; the contribution is
+      measuring its realisation with memory charged, which is what a
+      charged comparison requires.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE REALISED PER-TARGET COST as a function of batch size, against
+      the theoretical amortization factor.
+    lossiness: >-
+      Citing sqrt(M) projects away the storage growth that makes large
+      batches expensive, which is exactly the term a charged comparison
+      needs.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives at toy sizes; the storage term grows with batch size and
+      bounds the measurable range, which is reported rather than
+      extrapolated.
+
+  null_object_control: >-
+    NULL 1 -- batch size one, which must reproduce the single-target
+    baseline exactly. NULL 2 -- M independent solves with no sharing, which
+    must cost M times the baseline; if it does not, the harness is sharing
+    something it should not.
+
+  discriminated_from:
+    - >-
+        The measured-rho-baseline record in this series, which this
+        extends to batches and should share its implementation.
+    - >-
+        Preprocessing-based multi-target methods, which use an offline
+        phase; this record measures the online-only shared-walk effect and
+        does not cover them.
+
+  assumptions:
+    - >-
+        A shared distinguished-point table is implementable across
+        targets.
+    - >-
+        Storage cost can be charged in the same model as computation; if
+        it cannot, the amortization number is incomplete and must say so.
+
+  predictions:
+    - metric: >-
+        batch-size-one null
+      direction: different
+      minimum_effect: >-
+        FORCED to reproduce the single-target baseline.
+    - metric: >-
+        no-sharing null
+      direction: different
+      minimum_effect: >-
+        FORCED M times baseline; anything less means unintended sharing.
+    - metric: >-
+        realised amortization factor versus sqrt(M)
+      direction: different
+      minimum_effect: >-
+        The measurement; a shortfall identifies where the idealisation
+        breaks at real batch sizes.
+    - metric: >-
+        per-target cost with storage charged
+      direction: different
+      minimum_effect: >-
+        The decision-relevant number, which the uncharged factor
+        overstates.
+
+  minimal_test:
+    design: >-
+      Batch sizes one, four, sixteen and sixty-four at one toy size, both
+      nulls, storage charged.
+    controls:
+      - >-
+          Batch-size-one baseline reproduction.
+      - >-
+          No-sharing null.
+      - >-
+          Storage charged in the same model as computation.
+      - >-
+          Batch sizes beyond the storage budget reported unreached.
+    required_metrics:
+      - >-
+          Total and per-target cost per batch size.
+      - >-
+          Realised amortization factor against sqrt(M).
+      - >-
+          Storage footprint per batch size.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        A null misbehaves. Harness wrong; results void.
+    - >-
+        Realised amortization matches sqrt(M) with storage charged. The
+        classical factor holds at these sizes and the campaign's multi-
+        target accounting is sound.
+    - >-
+        Realised amortization falls short. The idealisation does not hold
+        at deployable batch sizes, which changes how the effect should be
+        charged.
+    - >-
+        Storage dominates before the factor is realised. The effect is
+        memory-bound in practice, which is the most decision-relevant
+        possible outcome.
+
+  confounders:
+    - >-
+        STORAGE ACCOUNTING: an uncharged distinguished-point table makes
+        amortization look free, which is the direction that overstates the
+        attacker.
+    - >-
+        TOY-SIZE BATCHES: batch sizes reachable at toy problem sizes may
+        not represent deployed ratios of batch size to group size.
+
+  interpretation_limits:
+    - >-
+        Measures a classical effect's realisation; proposes no new
+        algorithm.
+    - >-
+        Scoped to the tested batch sizes, problem size and storage model.
+    - >-
+        Toy batch-to-group ratios may not represent deployed ones and no
+        extrapolation is offered.
+
+  heuristic_assumptions:
+    - id: HEUR-BATCH-1
+      statement: >-
+        The sqrt(M) amortization factor is realised at batch sizes
+        reachable in this experiment, with storage charged.
+      rigorous_support: >-
+        Rigorous ingredient: the classical analysis of shared-walk
+        collision search gives the factor for an idealised shared random
+        walk with free storage. THE GAP: storage is not free and grows
+        with the table, so the charged factor is necessarily worse than
+        sqrt(M) and the question is only by how much at reachable sizes.
+      falsification_condition: >-
+        A realised factor materially worse than sqrt(M) once storage is
+        charged.
+      validation_plan: >-
+        SAMPLE: >= 4 batch sizes x >= 20 repetitions. COMPARISON:
+        realised factor against sqrt(M), charged and uncharged, reported
+        side by side. TAIL CHECK: the largest batch size, where storage
+        bites hardest. TRANSFER: none beyond tested sizes and ratios.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is batch rho solves across batch sizes.
+    memory_exponent: >-
+      The shared distinguished-point table, which is the term being
+      charged and grows with batch size.
+    best_known: >-
+      The incumbent is the classical multi-target amortization result,
+      measured here with storage charged rather than improved.
+    hidden_overhead: >-
+      Table storage is the hidden term that makes large batches expensive
+      and is precisely what citing sqrt(M) omits.
+    tradeoff_note: >-
+      Larger batches amortise better and cost more storage; the charged
+      optimum is what a deployment or a comparison actually faces.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As an algorithm: dominated by the classical
+    multi-target literature. As a charged realisation measurement: none
+    exists here. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent claim of its own. Content delivered: the realised
+    multi-target amortization factor with distinguished-point storage
+    charged, measured against the classical sqrt(M) prediction, giving the
+    campaign a charged multi-target input rather than a cited idealisation.
+
+  estimated_cost:
+    implementation: medium
+    compute: high
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.9 that batch rho is implementable on top of the baseline record's rho.
+    0.85 that the nulls behave. 0.6 that the charged factor falls materially
+    short of sqrt(M) at reachable batch sizes, which would change how the
+    campaign charges multi-target effects.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ECDLP-002
+    - KN-OPEN-001
+    - KN-TECH-005
+    - GOAL-ECDLP-001
+    - GOAL-ICEX-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

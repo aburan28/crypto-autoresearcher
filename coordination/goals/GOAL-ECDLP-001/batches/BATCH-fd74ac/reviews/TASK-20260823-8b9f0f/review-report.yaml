@@ -1,0 +1,185 @@
+review_report:
+  schema: crypto.autoresearch.blind_rederivation_report.v1
+  task_id: TASK-20260823-8b9f0f
+  batch_id: BATCH-fd74ac
+  goal_id: GOAL-ECDLP-001
+  role: validator
+  review_kind: blind_rederivation
+  joint_owned: J3-blind-cost-balance-success-and-rho-threshold
+  whole_claim_verdict: not_issued
+  recorded_at: "2026-08-23"
+  committed_snapshot:
+    head_sha: 6622b1046fb1041baf1571647960acb92024b32a
+    upstream_sha: 6622b1046fb1041baf1571647960acb92024b32a
+    equality_verified: true
+  source_bindings:
+    review_plan:
+      path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/review-plan.yaml
+      sha256: b19d7065dcf7fe09ba01389da0792ae0c8afe2bf507c5611e74f4c9d7c6568ee
+      size_bytes: 6620
+    statement_packet:
+      path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/tasks/TASK-20260823-d26ed5/blind-statement-packet.yaml
+      sha256: a6153f469d7df78f68deed8eaa85b7f331ddf53c6929a2be94476eb3cc71bcea
+      size_bytes: 2061
+    handoff_container:
+      path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/dispatch_queue.json
+      task_object_read: TASK-20260823-8b9f0f
+      sibling_task_objects_rendered: false
+      sha256: 860aa59add2efafe69728f28e098e5d18bfdc5fd9af76c08d27ac5b69ffd5998
+      size_bytes: 28322
+  operational_gates:
+    canonical_preflight: passed
+    selected_by_dispatcher: true
+    dispatcher_gate_count: 10
+    dispatcher_gates:
+      all_artifact_paths_are_exact_and_scoped: true
+      all_selected_dependencies_completed: true
+      archive_artifact_coverage_complete: true
+      archive_tasks_are_coordinator_owned: true
+      archive_tasks_run_in_isolation: true
+      claim_relevant_tasks_have_independent_review: true
+      completed_archive_commits_verified: true
+      concurrency_cap_respected: true
+      selected_write_scopes_do_not_overlap: true
+      terminal_noncompleted_tasks_do_not_unblock_successors: true
+    experiment_runs: 0
+    implementation_runs: 0
+    official_state_changes: 0
+  assumptions:
+    - "ell is an odd prime and H is a multiplicative subgroup of F_ell^* of exact order D, so D divides ell-1."
+    - "Each fresh shift makes the shifted scalar y uniform on all of F_ell, independently and with replacement."
+    - "The identity is y=0. It is not in H or -H and is rejected before any x-coordinate membership evaluation, because x(identity) is undefined."
+    - "The declared recovery cost is charged after a hit; a Boolean membership bit does not disclose the source h or its sign."
+    - "beta is a fixed constant. Polylogarithmic factors and fixed field-operation constants are suppressed only when deriving exponents."
+    - "Preprocessing is amortizable only if the same target-independent object is legitimately reused across T targets."
+  derivation:
+    signed_orbit_cardinality:
+      steps:
+        - "Every subgroup H contains +1. It contains -1 exactly when D is even. Therefore s=1 for odd D and s=2 for even D."
+        - "The two cosets H and -H intersect exactly when -1 is in H. Hence |H union (-H)|=2D/s. Denote this exact size by m=2D/s."
+        - "Because 0 is not in F_ell^*, the identity is not a signed-orbit hit. For y uniform on F_ell, p_hit=m/ell=2D/(s*ell)."
+      odd_D:
+        s: 1
+        signed_orbit_size: "2D"
+        hit_probability: "2D/ell"
+        expected_shift_trials_including_success: "ell/(2D)"
+      even_D:
+        s: 2
+        signed_orbit_size: "D"
+        hit_probability: "D/ell"
+        expected_shift_trials_including_success: "ell/D"
+      identity_accounting:
+        expected_shift_trials_including_success: "ell/m = s*ell/(2D)"
+        expected_identity_skips_before_success: "1/m = s/(2D)"
+        expected_nonidentity_membership_evaluations_including_success: "(ell-1)/m = s*(ell-1)/(2D)"
+        identity_sentinel_alternative: "If the membership primitive itself accepts an identity sentinel and charges a full query for it, expected membership calls equal expected shift trials, ell/m."
+      disagreement_with_statement_packet:
+        packet_statement: "p_packet=sD/ell"
+        derived_statement: "p_hit=2D/(s*ell)"
+        consequence: "The packet swaps the odd/even fixed factors: it is too small by 2 for odd D and too large by 2 for even D."
+        identity_witness: "For H=F_ell^*, D=ell-1 is even and the packet gives 2(ell-1)/ell>1, whereas the exact probability is (ell-1)/ell because y=0 is a miss."
+        stipulated_packet_branch: "If p_packet is treated as an unrelated axiom, then E[N]=ell/(sD). That branch has the same ell exponent but cannot simultaneously be the probability of the signed orbit defined above."
+    complete_expected_cost:
+      notation:
+        membership_cost: "C_mem(D)=a*D^beta up to polylog factors, with a>0"
+        recovery_cost: "C_rec(D)=b*D^(1/2) up to polylog factors, with b>0"
+        shift_and_identity_cost: "c_shift>=0 per shift trial"
+        final_verification_cost: "C_verify(ell), polylogarithmic in the stated unit model"
+      identity_guarded_formula: "C_total(D,T)=C_pre(D)/T + c_shift*s*ell/(2D) + a*s*(ell-1)*D^(beta-1)/2 + b*D^(1/2) + C_verify(ell), up to the declared polylog factors."
+      identity_sentinel_formula: "If every shift, including identity, is charged as a membership query, replace (ell-1) by ell in the membership term."
+      dominant_online_terms: "For fixed beta>=0, the exponent-bearing online terms are Theta_tilde(ell*D^(beta-1)) and Theta_tilde(D^(1/2)); the at-least-one shift/query floor contributes Omega(ell/D) and is equal-order when beta=0."
+      boolean_decoder_boundary: "A Boolean hit does not remove D^(1/2) recovery. It identifies only membership in +/-H. Recover h (and the possible sign), subtract the public shift, and verify the at-most-two scalar candidates against the original target."
+    balance_and_threshold:
+      equal_term_balance:
+        equation: "A_s*ell*D^(beta-1)=b*D^(1/2), where A_s=a*s/2"
+        balanced_D: "D_eq=(A_s*ell/b)^(1/(3/2-beta))"
+        alpha: "alpha=1/(3/2-beta)=2/(3-2beta)"
+        balanced_ell_exponent: "e=alpha/2=1/(3-2beta)"
+      exact_continuous_minimizer:
+        scope: "Ignoring setup, integer subgroup constraints, lower-order identity/shift terms, and polylog factors; beta<1."
+        value: "D_opt=(2(1-beta)*A_s*ell/b)^(1/(3/2-beta))=[a*s*(1-beta)*ell/b]^(2/(3-2beta))"
+        stationarity_relation: "At D_opt, recovery cost equals 2(1-beta) times query cost. Equal-term balancing and exact minimization differ only by a fixed factor and have the same exponent."
+      strict_threshold:
+        derivation: "For constant beta with 3-2beta>0, e<1/2 iff 1/(3-2beta)<1/2 iff beta<1/2."
+        boundary: "At beta=1/2, alpha=1 and e=1/2: the route ties rho in exponent and does not strictly beat it."
+        above_boundary: "For beta>1/2 the formal balance requires alpha>1, incompatible with D<=ell-1, and it supplies no sub-rho exponent."
+        sign_effect: "s is 1 or 2, so it changes only fixed constants, not alpha, e, or the strict beta threshold."
+        polylog_caveat: "Polylogarithmic factors contribute ell^o(1). They do not improve the power exponent and cannot turn the beta=1/2 tie into a strict exponent reduction."
+    setup_amortization:
+      general_inequality_for_balanced_claim: "C_pre(D_bal)/T <= Theta_tilde(ell^e), equivalently T >= C_pre(D_bal)/Theta_tilde(ell^e), where D_bal=ell^(alpha+o(1)) and e=alpha/2."
+      linear_setup_to_preserve_balanced_exponent: "If C_pre(D)>=cD, then T=Omega(D_bal^(1/2))=Omega(ell^e), up to fixed and polylog factors."
+      weaker_condition_for_any_strict_sub_rho_total: "If T=ell^tau and C_pre(D)=Theta(D), the setup exponent is alpha-tau; strict total exponent below 1/2 requires tau>alpha-1/2. Preserving the sharper balanced exponent requires tau>=alpha/2."
+      nonamortizable_case: "Target-dependent construction is charged with T=1 regardless of how many unrelated targets exist."
+    single_target_representation_lower_bound:
+      hypotheses: "Construction emits cD records for constant c>0, each emitted record costs at least one unit, and every shift/query trial costs at least one unit."
+      relaxed_lower_bound: "L(D)>=cD+s*ell/(2D); with an identity guard and counting evaluator calls only, replace ell by ell-1. The mandatory recovery term adds nonnegative Omega(D^(1/2))."
+      continuous_minimum: "Over positive real D, cD+s*ell/(2D) is minimized at D=sqrt(s*ell/(2c)) with value sqrt(2*c*s*ell)."
+      consequence: "The representation syntax alone therefore imposes an Omega(ell^(1/2)) single-target time/record-work floor. Divisibility, parity, and recovery can only increase the feasible minimum."
+      scope: "This is a lower bound only for a representation that actually emits cD records and charges the stated unit costs; it is not a generic ECDLP or generic evaluator lower bound."
+    integer_and_fixed_factor_slack:
+      subgroup_constraint: "D must be an exact divisor of ell-1; arbitrary rounding of ell^alpha does not create H. Also s is fixed by the parity of that divisor."
+      conditional_exponent_statement: "The balanced exponent requires a feasible divisor D=ell^(alpha+o(1)). No such divisor is guaranteed for every prime ell by the statement packet."
+      fixed_factor_formula: "If D=lambda*D_eq, the two balanced online terms scale as lambda^(beta-1) and lambda^(1/2). Relative to their equal-term sum at lambda=1, the factor is [lambda^(beta-1)+lambda^(1/2)]/2."
+      fixed_factor_consequence: "Any lambda bounded above and below by positive constants preserves the exponent; a polynomial divisor gap need not."
+      exponent_slack_formula: "If log_ell(D)=alpha+delta, the query and recovery exponents are 1+(beta-1)(alpha+delta) and (alpha+delta)/2, respectively; the larger is the charged online exponent."
+    state_memory_and_traffic:
+      emitted_records: "Emitting cD records forces Omega(D) record traffic and Omega(D) persistent representation size if the records are retained. Amortized setup traffic is Omega(D/T) records per target."
+      peak_memory: "Peak resident memory is Omega(D) records only when the representation is materialized concurrently in RAM. Streaming or external storage may lower resident RAM, but does not remove Omega(D) persistent state or setup traffic."
+      query_traffic: "At least one unit per shift/query gives Omega(ell/D) expected target-local query interactions, with the parity-dependent fixed factor above."
+      recovery_memory: "The packet specifies recovery time but not a recovery algorithm or memory model, so no sharper peak-memory claim is admissible from the statement-only input."
+  disagreements:
+    - id: signed_orbit_probability
+      status: material_exact_quantity_disagreement
+      packet: "sD/ell"
+      rederivation: "2D/(s*ell)"
+      exponent_impact: none
+      fixed_factor_and_validity_impact: "Parity-dependent factor 2; the packet expression can exceed 1."
+    - id: producer_comparison
+      status: not_performed_by_design
+      reason: "Producer derivations, reports, receipts, and implementations were blind_from and were not read."
+  joint_result:
+    joint: J3-blind-cost-balance-success-and-rho-threshold
+    verdict: breaks
+    basis: "The exact signed-orbit hit probability and identity semantics in the statement packet are inconsistent with the supplied group definitions."
+    quantities_that_hold_after_correction:
+      - "Expected shift/query order Theta(ell/D)."
+      - "alpha=2/(3-2beta) for the query-versus-recovery exponent balance."
+      - "balanced exponent 1/(3-2beta)."
+      - "strict exponent below 1/2 exactly when beta<1/2, subject to feasible subgroup orders and charged setup."
+    claim_boundary: "This is one J3 verdict only. It is not a verdict on the full orbit-membership proposal, any other review joint, novelty, practicality, or official research status."
+  limitations:
+    - "No producer quantity was read, so this report identifies an internal statement-packet disagreement rather than comparing against a producer implementation."
+    - "No experiment, implementation, timing, citation retrieval, or state transition was performed."
+    - "Exact evaluator constants, preprocessing construction, recovery-memory complexity, and the existence of suitable divisors of ell-1 are not specified by the packet."
+  procedure_deviations:
+    - action: "An initial git path-discovery command printed filenames under the producer sibling task directory before the exact review-plan path was opened."
+      exposure: "Pathnames only; no sibling file content, report, receipt, verdict, or queue completion note was opened or rendered. The same producer pathnames are enumerated in the allowed review plan's blind_from block."
+      effect_on_blindness: "The scientific derivation remained statement-only; blind_from contents were not read."
+  review_attestation:
+    task_id: TASK-20260823-8b9f0f
+    joints_owned:
+      - J3-blind-cost-balance-success-and-rho-threshold
+    sources_read:
+      - /Volumes/SSD990/crypto-autoresearcher/AGENTS.md
+      - /Volumes/SSD990/crypto-autoresearcher/agents/validator.md
+      - /Volumes/SSD990/crypto-autoresearcher/.agents/skills/crypto-autoresearcher-harness/SKILL.md
+      - AGENTS.md
+      - agents/validator.md
+      - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+      - docs/task-lifecycle.md
+      - docs/dynamic-subagent-dispatch.md
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/review-plan.yaml
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/dispatch_queue.json
+      - coordination/goals/GOAL-ECDLP-001/batches/BATCH-fd74ac/tasks/TASK-20260823-d26ed5/blind-statement-packet.yaml
+      - templates/research-records.md
+      - tools/check_review_independence.py
+    source_boundaries:
+      dispatch_queue: "Only the TASK-20260823-8b9f0f object was rendered to this Validator."
+      memory_registry: "A narrow operational keyword search returned no matches; no memory content informed the derivation."
+      sibling_paths: "Only filenames were exposed by the disclosed path-discovery deviation; contents were not read."
+    read_sibling_reports: false
+    blind_from_respected: true
+    independent_session: true
+    requested_policy: review-breakthrough
+    requested_reasoning_effort: max
+    verdict: breaks

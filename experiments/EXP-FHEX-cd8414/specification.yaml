@@ -1,0 +1,221 @@
+experiment:
+  id: EXP-FHEX-cd8414
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-ff04de; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-ff04de
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the leading canonical correlation between a homomorphic product's noise vector and
+    its factor's noise vector, over an exhaustive secret and plaintext enumeration at N=8 and N=16,
+    against a pairing-shuffled null.
+  objective: The one uncertainty a run reduces is whether the independence step inside a homomorphic-multiplication
+    noise model leaves a measurable residual dependence, and whether that residual is a function of
+    circuit shape. (i) It establishes the finite-sample floor of the leading canonical correlation
+    at the tested dimension and sample size by direct measurement rather than by appeal to a formula,
+    which is the precondition for any statement about the signal arm having resolution. (ii) It produces,
+    for two circuit families that differ in exactly one respect, the correlation between factor and
+    product noise vectors at every level, with jackknife errors over an exhaustive secret enumeration,
+    so the answer does not rest on a sampling assumption. (iii) It tests the stated mechanism, that
+    the residual is carried by the m2*Sigma_1 term, by including a zero-message arm in which that
+    term vanishes; if the correlation survives with zero messages then the mechanism named in the
+    proposal is wrong even if the correlation is real, and that is the more informative outcome. A
+    run also fixes the pairing-shuffled null construction as a reusable instrument for the rest of
+    this bucket.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at N in {8,16} with a single
+      20-bit prime modulus, ternary secrets enumerated in full at N=8, plaintext modulus 2 and a fixed
+      relinearization key, the leading canonical correlation between designated factor and product
+      noise vectors is the measured value, exceeds or does not exceed the measured shuffled floor
+      by the measured margin, and does or does not separate the SHARED and INDEPENDENT circuit families.
+      What does NOT follow: nothing about the correctness of any noise bound, nothing about whether
+      any bound needs modification, nothing about security of any scheme or parameter set, and nothing
+      about behaviour at ring degrees where the finite-sample floor and the noise magnitudes are both
+      entirely different.'
+  inputs:
+    procedure: 'STAGE 0 (hours of implementation, minutes of compute): reuse the audited exact toy
+      scheme, extended with a designated-factor tag so the same operand can be tracked through a circuit.
+      STAGE 1 (minutes): measure the shuffled floor at N=8 and N=16 for the exact sample counts the
+      main arms will use, by running the canonical-correlation code on two independently seeded populations.
+      STAGE 2 (under one core-hour at N=8): enumerate all 6561 ternary secrets crossed with 64 plaintext
+      assignments, run both circuit families to depth 3, and record every noise coefficient vector
+      at every level. STAGE 3 (minutes): compute per-level cross-covariance matrices, normalise by
+      marginal standard deviations, extract the leading canonical correlation and the Frobenius norm.
+      STAGE 4 (minutes): run the zero-message arm and the re-keyed arm. STAGE 5 (hours at N=16): repeat
+      with a sampled rather than exhaustive secret set, recorded as sampled. STAGE 6 (minutes): jackknife
+      over secrets, emit all correlations with errors, and confirm that shuffled and true populations
+      share marginal variances to within a stated tolerance.'
+    instrument: Python 3, arbitrary-precision integer ring arithmetic with schoolbook negacyclic convolution,
+      numpy only for the covariance and singular-value computation on the normalised cross-covariance
+      matrix, with the singular values checked against a second computation via an eigendecomposition
+      of the symmetrised product so the linear-algebra step is not single-sourced. Deterministic seeding
+      and run manifests through the harness/runner.py conventions. No Sage, no external FHE library.
+    parameters: 'Ring degree N in {8, 16}. Modulus q: one 20-bit prime congruent to 1 mod 2N. Plaintext
+      modulus t = 2. Secret: full ternary enumeration at N=8 (3^8 = 6561 secrets); 20000 sampled ternary
+      secrets at N=16, recorded as sampled. Plaintexts: 64 fixed assignments per operand at N=8, drawn
+      once and frozen. Error sigma = 3.2. Circuit depth 3, two families (SHARED reuses one ciphertext
+      at every level, INDEPENDENT uses fresh encryptions at every leaf), matched depth and matched
+      operation counts. Relinearization key fixed in the main arm, resampled per secret in the re-keyed
+      arm. Seeds: 2 independent seedings of the whole enumeration for reproducibility, plus 1 further
+      seeding used only to build the shuffled null.'
+  controls:
+  - Pairing-shuffled null with identical marginals, run in the same invocation.
+  - INDEPENDENT circuit family as an internal negative control with matched depth and matched noise
+    budget.
+  - 'Zero-message control: plaintexts all zero, where the predicted driver m2 vanishes and rho should
+    collapse to the floor.'
+  - 'Dimension control: the shuffled floor is measured separately at N=8 and N=16 rather than assumed,
+    since the finite-sample floor scales with dimension over sample count.'
+  - Fixed-key and re-keyed arms, so relinearization key reuse is separated from ciphertext reuse.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Null arm: pairing-shuffled populations. Every product noise vector
+    is paired with a factor noise vector taken from an independently seeded run of the identical circuit
+    at identical parameters, so all marginals, all magnitudes and all level structure are preserved
+    and only the true pairing is destroyed. The identical canonical-correlation code runs on both
+    populations in the same invocation. For the signal arm to mean anything the shuffled arm must
+    give a leading canonical correlation consistent with the finite-sample floor for its dimension
+    and sample count, and the signal arm must exceed it by the pre-committed margin. If both arms
+    sit at the same value, the recorded outcome is a controlled null and the independence assumption
+    is not stressed by this construction at these degrees.'
+  independent_variables:
+  - circuit family (SHARED versus INDEPENDENT)
+  - multiplicative level L
+  - ring degree N
+  - message arm (nonzero plaintexts versus all-zero plaintexts)
+  - key arm (fixed relinearization key versus resampled)
+  metrics:
+    primary:
+    - leading canonical correlation between designated factor and product noise vectors, per level
+      and family
+    - the same quantity on the pairing-shuffled null (the floor)
+    - signed difference between signal and floor
+    - Frobenius norm of the normalised cross-covariance matrix
+    secondary:
+    - jackknife standard error over the secret enumeration
+    - marginal variance of each noise vector in true and shuffled populations
+    - per-level noise magnitude, to separate dependence loss from magnitude growth
+    - second and third canonical correlations
+    - enumeration size and exhaustiveness flag
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The excess of the leading canonical correlation over the measured shuffled floor, per
+      circuit family and level.
+    formula: Delta_L = rho_L(true pairing) - rho_L(shuffled pairing), where rho_L is the largest singular
+      value of D1^{-1/2} * Cov(e_factor, e_product at level L) * D2^{-1/2} with D1, D2 the diagonal
+      marginal covariances. Predicted Delta_1 >= 0.3 in the SHARED family and Delta_L <= 2 jackknife
+      standard errors in the INDEPENDENT family at every level; predicted Delta_1 collapses to the
+      INDEPENDENT value in the zero-message arm.
+    source: Pre-registered in the parent proposal IDEA-20260816-ff04de before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'N=8 and N=16 with a single 20-bit prime, chosen precisely because the entire secret
+      space is enumerable at N=8, so the correlation estimate carries no sampling assumption at all.
+      This is orders of magnitude below any deployed ring degree, and the finite-sample floor for
+      canonical correlation depends strongly on dimension, so no numerical value measured here transfers.
+      The only cross-scale statement the contract makes is qualitative and is itself tested: whether
+      the SHARED-versus-INDEPENDENT separation persists from N=8 to N=16. If it does not persist across
+      one doubling, no extrapolation should be attempted at all, and the contract says so rather than
+      reporting the N=8 number alone.'
+    correspondence: null
+  tail_checks:
+  - Report the full singular-value spectrum of the normalised cross-covariance, not only the leading
+    value, since a flat spectrum at the floor and a single spike mean different things.
+  - Report the correlation restricted to the enumeration points with the largest noise magnitudes,
+    since the bound-relevant regime is the tail.
+  - Check that the shuffled null's marginal variances match the true population's to within 1 percent,
+    and report the discrepancy.
+  - Report the leading canonical correlation computed on a third independently seeded population as
+    a reproducibility tail check.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop and report insufficient resolution, not a null result, if the measured shuffled floor exceeds
+    0.3 at the tested dimension and sample count.
+  - Halt the N=16 arm at 20000 sampled secrets and flag it non-exhaustive.
+  - Abort and report instrument failure if the two independent singular-value computations disagree
+    beyond numerical tolerance.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A SHARED-family Delta_1 of at least 0.3 with a jackknife interval excluding zero,
+    together with an INDEPENDENT-family Delta_L within 2 standard errors of zero at every level, at
+    N=8 and reproduced qualitatively at N=16.
+  falsification_criterion:
+  - Both families sit within 2 standard errors of the shuffled floor at every level.
+  - The shuffled floor itself exceeds 0.3, so the design has no resolution.
+  - The zero-message arm shows the same correlation as the nonzero arm, refuting the stated mechanism.
+  - Marginal variances differ between true and shuffled populations beyond tolerance, invalidating
+    the null.
+  - The correlation is not reproducible across independent seedings of the same enumeration.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-ff04de
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must name the exact product-noise variance rule whose independence step is being
+    stressed, since the residual term the mechanism predicts is a property of one stated rule.
+  - 'The RQ-FHE-001 primary-source constraint must be ruled on: this contract cites no attack claim
+    and measures only the scheme''s own arithmetic, but the gate as written is unconditional.'
+  - Whether canonical correlation is the right dependence functional, as opposed to a distance covariance
+    that would catch nonlinear dependence, is undetermined; the contract should either add the nonlinear
+    arm or state the linearity restriction as a limit.
+  - The relationship between a measured residual correlation and any change to a bound is not derived
+    anywhere and must be declared out of scope in the approved contract.

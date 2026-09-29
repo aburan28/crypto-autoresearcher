@@ -1,0 +1,258 @@
+experiment:
+  id: EXP-CRYPTO-5e8beb
+  hypothesis_id: H-CRYPTO-acdb49
+  version: 1
+  status: approved
+  approved_by: coordinator
+  approval_decision_id: DEC-20260907-ff7355
+  frozen: true
+  title: Exact finite lumpability defects and joint transcript simulation
+  objective: Test a fixed restricted-private matched-partition advantage conjecture and exact scope controls for the full-transcript bound.
+  scientific_execution_authorized: false
+  inputs:
+    source_paths:
+      - ledger/proposals/IDEA-20260905-b1f9f0.yaml
+      - ledger/hypotheses/H-CRYPTO-acdb49.yaml
+      - coordination/design/BATCH-51d1bb/source-packet.json
+      - coordination/design/BATCH-51d1bb/design-note.md
+      - tools/audit_process.py
+      - docs/first-fall-audit-repair.md
+    source_proposal_sha256: 9eca7b68265d84be8cf9dabf09fc3ae6b4caabaf078326692cfb60964f5f0393
+  fixture_definition:
+    states: Integers0,...,N-1 in C_N; addition moduloN. All state labels are visible toy coordinates.
+    prime_partitions:
+      N_values: [11,17]
+      q_values: [2,3,4,5]
+      coordinate_feature: v(x)=x mod q, label order0,...,q-1.
+      matched_per_coordinate: 32
+      seeds: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+      matching: Preserve each ordered cell size c_b=#x with x mod q=b exactly; no balancing approximation.
+      generation: >-
+        Start permutation[0,...,N-1], counter=0. For i=N-1,...,1, SHA256 the
+        exact UTF8 string EXP-CRYPTO-5e8beb|N=<decimalN>|q=<decimalq>|seed=<decimalSeed>|counter=<decimalCounter>.
+        Increment counter after every digest. Interpret digest as a big-endian
+        unsigned256-bit integer z. Let L=floor(2^256/(i+1))*(i+1); reject z>=L
+        and draw the next counter. Set j=z mod(i+1), swap permutation[i],permutation[j].
+        Assign the first c_0 permuted states to label0, the next c_1 to label1,
+        and so on. Canonicalize output as the feature vector in ascending state
+        order. No RNG library or alternate seed is allowed.
+      duplicate_rule: Retain all32 labeled seeds, including duplicates or coincidence with the coordinate feature; report canonical hashes without replacement or independent-replication claims.
+      extra_controls_per_N: Identity v(x)=x and constant v(x)=0.
+    composite_partitions:
+      N: 15
+      features: ['x mod3','x mod5','identity','constant']
+      role: Genuine nontrivial coset quotient controls plus exact trivial boundaries.
+    representative: The least integer state in each nonempty cell; fixed for all kernels/horizons.
+    description: Record feature table, ordered fibers, table_bits=N*ceil(log2(B)) with zero bits for B=1, canonical descriptor bytes and all actual serialized input bytes separately.
+  kernels:
+    common_law: At every step draw public l independently from state-independent nu, then a fresh independent private a from mu_l; update x=(x+a)modN and reveal(l,v(x)).
+    R1:
+      labels: [0]
+      nu: {'0': '1'}
+      mu: {'0': {'-1': '1/2', '1': '1/2'}}
+    R2:
+      labels: [0]
+      nu: {'0': '1'}
+      mu: {'0': {'-1': '1/4', '0': '1/2', '1': '1/4'}}
+    R3:
+      labels: [0]
+      nu: {'0': '1'}
+      mu: {'0': {'-1': '1/4', '1': '3/4'}}
+    R4:
+      labels: [0,1]
+      nu: {'0': '1/2', '1': '1/2'}
+      mu: {'0': {'-1': '1/2', '1': '1/2'}, '1': {'-2': '1/2', '2': '1/2'}}
+    P:
+      labels: All a=0,...,N-1, public.
+      nu: Uniform1/N on each label.
+      mu: Given label a, translation is deterministically a.
+    U:
+      labels: [0]
+      nu: {'0': '1'}
+      mu: Fresh uniform1/N translation over all0,...,N-1; translation stays private.
+    translation_order: Reduce translations moduloN and enumerate by ascending residue; preserve exact masses after combining any equal residues.
+  quantities:
+    K: K_l(x,b)=sum_a mu_l(a)*1[v(x+a)=b].
+    delta_l: Maximum same-fiber pair TV of K_l rows; zero when no distinct same-fiber pair exists.
+    delta: Maximum over same-fiber x<x' of sum_l nu(l)*TV(K_l(x),K_l(x')); exactly joint label/feature one-step TV, not sum_l nu(l)*delta_l.
+    per_operation_max: max_l delta_l, reported separately, especially for P.
+    TV: Half the exact sum of absolute mass differences over the union of outcomes; use reduced integer fractions only.
+    maximizer_ties: Lexicographically least pair among all maximizers; empty pair set has null witness and defect0.
+    simulator: From current feature b, use r_b=min fiber(b), draw l~nu and next feature from K_l(r_b,.). Start with v(x0).
+    transcript: '(v(x0),(l1,v(x1)),...,(lt,v(xt))) with every label and feature retained.'
+    horizons: [0,1,2,3]
+    initial_states: Every integer state in every declared partition/kernel cell; no averaging over starts.
+    bound: min(1,t*delta), evaluated exactly and uniformly over all initial states.
+    vacuity: Mark bound1 explicitly; never treat a vacuous bound as quantitative compression evidence.
+  computation:
+    producer: >-
+      Assemble exact state/cell/label tables. Compute every same-fiber pair TV
+      and labeled/joint maxima. Propagate real joint distributions over(hidden
+      state,full transcript) and simulator distributions over(current feature,
+      full transcript) by exact dynamic programming through horizons0,1,2,3.
+      Marginalize hidden state only after retaining the entire transcript.
+    independent_checker: >-
+      Independently reconstruct partitions and all state transitions from the
+      declarative law. Enumerate complete latent choices(l,a) through each
+      horizon and accumulate their transcript masses directly, without importing
+      producer kernel/DP/TV helpers. Independently enumerate simulator paths
+      using representatives and recompute full-TV and final-marginal-TV values.
+    certificates: >-
+      Canonical rational tables with nonnegative reduced masses and exact sum1,
+      per-pair absolute-difference sums, maximum witnesses checked against all
+      pairs, every start/horizon real and simulator joint distribution, bound
+      arithmetic, and separate final-marginal results. Hash every source/output.
+  assumption_trap:
+    N: 11
+    feature: identity
+    initial_states: All11 visible states.
+    horizon: 2
+    law: Draw hidden A uniformly once and reuse the same A for both transitions; public label0 at both steps.
+    comparison_simulator: Fresh-uniform U simulator with the same initial feature.
+    scope: Freshness is false; the memoryless bound is inapplicable, so this is not a counterexample to the scoped theorem.
+    exact_expected: Full transcript TV10/11 and final-state-marginal TV0 for each start; explicit path distributions required.
+    purpose: Detect both an illicit freshness inference and use of final marginals in place of full joint transcripts.
+  panel_advantage:
+    restricted_kernels: [R1,R2,R3,R4]
+    comparisons: All N in[11,17], q in[2,3,4,5], restricted kernels; exactly32 panels, each with32 fixed matched partitions.
+    per_panel_qualifier: Exact mean(null_delta)-coordinate_delta >=1/8 AND at least24 of32 null_delta values are strictly greater than coordinate_delta.
+    paired_qualifier: The same(q,kernel) qualifies at both N=11 and N=17; enumerate all16 possible pairs.
+    conjecture_positive: At least one of16 paired qualifiers is true, with every validity/control gate passed.
+    conjecture_negative: All validity/control gates pass but no paired qualifier is true; retain every nonqualifying and single-size observation.
+    forbidden: No parameter selection, null replacement, seed extension, p-value, significance/population claim or comparison using only P's binary maximum or U's forced zero.
+  controls:
+    - name: exact_identity_constant
+      requirement: All fresh kernels have delta0 and exact full simulator transcripts for these partitions.
+    - name: C15_cosets
+      requirement: Both nontrivial coset features have delta0 and exact fresh simulator transcripts, including public translations.
+    - name: hidden_uniform
+      requirement: K(x,b)=cell_size(b)/N for every partition/state; delta0 and exact full fresh transcripts.
+    - name: public_prime_rigidity
+      requirement: For every nontrivial lossy C11/C17 partition, every nonzero public translation has delta_l=1 and identity translation delta_l=0; max_l=1. Joint delta is computed separately as the maximum separating-translation fraction.
+    - name: matched_sizes
+      requirement: Every seed preserves exact ordered cell sizes, state coverage and operation/label laws; every seed is retained.
+    - name: full_joint_and_freshness
+      requirement: All11 persistent-control starts satisfy the exact trap predictions and are tagged bound_inapplicable.
+    - name: independent_exact_tables
+      requirement: Producer and checker agree on every kernel, pair maximum, full transcript distribution, TV and score; no floating tolerances.
+  ordering:
+    partitions: N=11 then17; q ascending, coordinate then seeds0..31; then identity,constant for each N. N=15 last with mod3,mod5,identity,constant.
+    kernels: [R1,R2,R3,R4,P,U]
+    checks: Ascending initial state and horizon; trap after the main panel. Within tables use lexicographic integer transcript order.
+    control_admission: Validate fixture/law/exact-control results before scoring any advantage; retain whole fixed panel when safe even if a counterexample is found.
+  fixed_counts:
+    partitions_C11: 134
+    partitions_C17: 134
+    partitions_C15: 4
+    main_partitions: 272
+    main_partition_kernel_cells: 1632
+    same_fiber_unordered_pairs_across_partitions: 7271
+    joint_pair_TV_checks: 43626
+    initial_state_partition_pairs: 3812
+    initial_state_kernel_combinations: 22872
+    main_full_transcript_checks: 91488
+    trap_full_transcript_checks: 11
+    total_full_transcript_checks: 91499
+    restricted_comparison_panels: 32
+    null_score_entries: 1024
+    paired_qualifiers: 16
+    scientific_run_groups: 1
+  independent_variables: [N, partition_kind, q, null_seed, kernel, initial_state, horizon]
+  controlled_variables: [ordered_cell_sizes, public_label_law, private_translation_law, fresh_step_independence, representative_rule, transcript_grammar, rational_arithmetic, fixed_panel_order]
+  replication:
+    stochastic_replications: 0
+    independent_instances: 0
+    meaning: Exhaustive finite tables with a fixed deterministic null ensemble; seed labels are not IID statistical replicates.
+  metrics:
+    primary: [delta_l, joint_delta, per_operation_max, full_joint_transcript_TV, bound_violation_count, per_panel_gap, strict_null_wins, paired_qualifier_count]
+    secondary: [final_marginal_TV, fibers, feature_description_bits, canonical_input_hashes, exact_table_sizes, rational_operand_bits, construction_and_checking_operations, stage_time, CPU_time, peak_payload_bytes, artifact_bytes, invalid_or_incomplete_counts]
+  costs:
+    charge: Feature generation/access, SHA draws/rejections, kernel and full-state access, matrix assembly, all pairwise TVs, both transcript methods, simulator construction, serialization, hashes, storage and validation.
+    model: Weighted kernel assembly scales with state count times declared support; pair TV checks depend on actual same-fiber pairs, labels and target cells. Charge exact rational bit cost and full transcript growth, not just arithmetic call counts.
+    memory: Stream partition/kernel/start certificates where possible without omitting checks; actual peak bytes and retained table sizes recorded. Full-state storage is not a compact quotient claim.
+    frontier: Identity/full-state simulator, exact C15 quotient, hidden-uniform boundary and all matched partitions are finite comparators. Complete cryptanalytic frontier unresolved; no attack delta claimed.
+  budget:
+    enforcement: Advisory time/CPU estimates only; the fixed scientific panel/run count, one-worker limit and8GiB machine protection remain binding.
+    maximum_runs: 1
+    maximum_workers: 1
+    maximum_memory_gb: 8
+    memory_limit_bytes: 8589934592
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+  stopping_rule:
+    - The declared3600-second supervisor checkpoint preserves partial evidence; its expiry is not campaign exhaustion or permission for a silent retry. Continuing requires additive execution-plan handling that preserves prior attempts and fixed counts.
+    - Execute exactly one frozen finite run; no extra seeds/horizons/kernels, replacement partitions or favorable reruns.
+    - Keep exact mismatches and all safe remaining fixed checks; do not discard anomalies.
+    - Memory protection, crash, missing source binding or interruption preserves partial artifacts and is inconclusive/invalid, not negative mathematics.
+    - Any machine watchdog requires a declared implementation/launch protection rationale; its expiry is not campaign exhaustion or permission to alter scientific counts.
+  success_criterion: >-
+    All fixed counts and exact controls pass, all91488 main transcript comparisons
+    satisfy their bound, all11 out-of-premise trap checks have their prescribed
+    values/classification, and at least one paired qualifier satisfies the frozen
+    finite advantage threshold. Report calibration validity, transcript outcome
+    and advantage outcome separately; none establishes an ECDLP improvement.
+  falsification_criterion: >-
+    With a complete provenance-valid control-passing panel, zero paired qualifiers
+    rejects the finite advantage conjecture. A genuinely premise-satisfying exact
+    bound violation refutes the finite implementation/derivation assertion pending
+    independent diagnosis. A failed assumption/control, missing certificate or
+    incomplete run is invalid/inconclusive, not a scientific negative outcome.
+  decision_outcomes: {positive: finite_panel_advantage_with_valid_controls, negative: complete_valid_panel_no_paired_advantage, inconclusive: incomplete_or_invalid_evidence, scope: no_general_closure}
+  artifacts:
+    directory: experiments/EXP-CRYPTO-5e8beb/runs/<allocated_RUN_ID>/
+    root_filenames: [launch.json, receipt.json, manifest.yaml, command.txt, environment.json, stdout.log, stderr.log, raw-result.json, source-bindings.json, launch-binding.json, fixture-index.json, score-table.json, control-summary.json, counters.json, resources.json, incomplete-receipts.jsonl, execution-report.yaml, artifact-sha256.json]
+    partition_directory: partitions/<fixed_partition_index_001_through_272>/
+    partition_filenames: [feature.json, fibers.json, generation.json, description.json]
+    kernel_directory: partitions/<index>/kernels/<R1_R2_R3_R4_P_U>/
+    kernel_filenames: [law.json, K.json, pair-TV.jsonl, maxima.json, checker-report.json]
+    transcript_directory: partitions/<index>/kernels/<kernel>/starts/x-<decimal_state>/t-<0_1_2_3>/
+    transcript_filenames: [real-joint.json, simulator-joint.json, reference-joint.json, TV-certificate.json, status.json]
+    trap_directory: assumption-trap/x-<0_through_10>/
+    trap_filenames: [law.json, real-joint.json, simulator-joint.json, reference-joint.json, TV-certificate.json, assumption-status.json]
+    format: Reduced fractions as numerator/positive-denominator integers; explicit zero/empty tables and status reasons. Hash each materialized file except hash index itself, which the archive binds.
+    provenance: Actual executing commit/dirty state, environment, source/spec/code/checker hashes, allocated run/claim/launch/review bindings, measured resources and canonical result fields required; no invented values.
+  runtime:
+    supervisor: tools/audit_process.py
+    source_binding: Freeze actual supervisor/driver/preflight hashes before launch; current CLI behavior is parent-transmitted, not a future code hash.
+    output_creation: Pass a nonexistent exclusive run output path; the supervisor creates it with exist_ok=false and writes launch.json before resource setup. Do not precreate or overwrite it.
+    checkpoint_seconds: 3600
+    checkpoint_rationale: Positive supervisor parameter bounds stuck payload, rational-table/serialization faults and cleanup; machine protection, not a scientific time estimate or campaign-spending cap.
+    native:
+      supported: Documented Linux single-process guarded backend; native macOS refuses.
+      setup_payload_deadline_seconds: 3600
+      hard_CPU_limit_seconds: 3600
+      hard_AS_bytes: 8589934592
+      resource_guard: Apply and read back actual hard limits before fixture work; refuse if protection is unavailable.
+      possible_extra_kill_cleanup_seconds: 5
+    docker:
+      image: Preexisting full sha256 image identity frozen before launch; no pull or assumed availability.
+      setup_payload_deadline_seconds: 3590
+      cleanup_reserve_seconds: 10
+      memory_bytes: 8589934592
+      memory_swap_bytes: 8589934592
+      swap: disabled
+      cpus: 1
+      pids_limit: 64
+      network: disabled
+      filesystem: Read-only root and /work source mount; writable tmpfs /tmp only. No writable output mount or copy-out interface.
+      cleanup: Remove only this launch's container; preserve preexisting containers. Cleanup failure is infrastructure failure.
+    transport:
+      native: Payload writes allowed files inside the supervisor-created exclusive directory.
+      docker: Payload writes under /tmp and emits LUMP1-prefixed ASCII JSON frames through captured stdout before cleanup.
+      frames: [FILE_BEGIN, FILE_CHUNK, FILE_END, COMPARISON_COMMIT, PROGRESS, RESOURCE, ERROR]
+      binding: Every frame carries actual launch nonce, fixed case identity and increasing sequence; host path allowlist comes from the frozen plan.
+      chunk_limit_decoded_bytes: 65536
+      frame_line_limit_bytes: 131072
+      integrity: Strict base64, contiguous offsets/chunk indices, per-chunk SHA256 and final bytecount/SHA256; each comparison commit binds its complete required files.
+      extraction: Host driver streams stdout with bounded buffers, writes exclusive temporary files and finalizes verified allowed paths only. Reject absolute/traversal/NUL/symlink paths and overwrites.
+      host_owned: Payload cannot write launch.json, receipt.json, stdout.log, stderr.log, source-bindings.json or the host canonical manifest.
+      partial_failure: Flush completed comparison commits and progress/resources before continuing. Parse verified prefixes on nonzero exit or timeout; unverified suffix work is unknown, not zero. Retain earlier certificates.
+      cost: Charge all files/frames, serialization/hashing/parsing, tmpfs/log/storage bytes and controls; no file-count-driven computation or certificate elision.
+    receipts:
+      actual_supervisor_names: [launch.json, stdout.log, stderr.log, receipt.json]
+      failed_setup: Retain launch/log/receipt and exact unstarted state; no invented scientific results or resource values.
+      abrupt_kill: May leave only launch/log evidence; retain partial artifacts and classify incomplete.
+      resources: Actual payload CPU/peak RSS with units and measurement boundaries; Docker CLI resources are not payload resources. Null only for failed/inconclusive evidence with reasons.
+      completed_valid: Requires canonical manifest, actual resources, all scientific certificates and supervisor receipt; a guard or transport test is not scientific success.
+    admission: Preflight source only during implementation; actual backend/guard/failure-capture/transport checks and genuine launch bindings precede scientific fixture work.
+  launch_gate: Completed exact Coordinator archive, eligible zero-run implementation, implementation snapshot and independent review, actual resource/backend preflight, then a separate scientific handoff and genuine launch lock. This specification alone is not a launch authorization.

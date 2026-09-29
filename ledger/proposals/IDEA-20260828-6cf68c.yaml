@@ -1,0 +1,225 @@
+idea:
+  id: IDEA-20260828-6cf68c
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    Key-bridging audit of attack6n/attack7n's committed 12-byte guess set:
+    is h=96 schedule-minimal, or does an AES-128 key-schedule XOR-linear
+    relation among the guessed bytes let it shrink?
+  class: control
+  claim: >-
+    (A) THE GAP. IDEA-20260805-72ec9a establishes that the campaign's r=6
+    hinted partial-sums construction (attack6n, h=96 per its own
+    accounting) is DOMINATED by REF-B's exhaustive-search-over-residual
+    baseline, and derives the frontier h* (~88-90 bits at k=128) above
+    which any construction of this shape loses to brute force by
+    construction. NEITHER THAT RECORD NOR ANY OTHER IN THIS CAMPAIGN ASKS
+    WHETHER h=96 IS ITSELF MINIMAL for the guessed byte set, given that
+    AES-128's key schedule is an INVERTIBLE, ALGEBRAIC map linking every
+    round-key byte to every other -- "key bridging" (retrieved, an
+    established DS-MITM technique) exploits exactly this to deduce SOME
+    guessed bytes from OTHERS already guessed, rather than guessing them
+    independently. TWO MUTUALLY EXCLUSIVE OUTCOMES. (i) attack6n's
+    committed byte set is ALREADY schedule-minimal (no key-bridging
+    relation among the 12 guessed bytes reduces the independent count
+    below 12) -- a scoped, checkable barrier statement about THIS
+    construction's hint accounting, valuable because it certifies h=96
+    rather than merely asserting it. (ii) A key-bridging relation exists
+    reducing the INDEPENDENT guess count below 12 bytes (h < 96) -- in
+    which case re-implementing attack6n with the reduced guess set
+    produces a MEASURABLY CHEAPER construction at the SAME certified key
+    recovery, moving h toward or past h* in the direction that would let
+    the structured attack compete with REF-B where it currently cannot.
+  mechanism: >-
+    AES-128's key schedule expands a 16-byte master key K into 11 round
+    keys via a deterministic, WORD-WISE recurrence (RotWord+SubWord+Rcon
+    feeding a fixed XOR chain); crucially, GIVEN a full round key K_i, ALL
+    other round keys (forward and backward) are determined by re-running
+    the (partially invertible) recurrence, and given only a PARTIAL round
+    key, some bytes of ADJACENT round keys are still determined via the
+    XOR-linear part of the recurrence even where the SubWord nonlinear
+    step blocks full inversion. The audit is a byte-by-byte dependency
+    trace: for attack6n/attack7n's committed guessed-byte set (K6[p0..p2],
+    K5'[...], per IDEA-f2fc33's transcription of sq_null.c), determine by
+    direct algebraic tracing of the pinned key schedule which of the 12
+    guessed bytes are LINEAR-XOR functions of others already in the set
+    (hence redundant to guess independently) versus which require crossing
+    a SubWord nonlinearity (hence genuinely independent).
+  why_not_a_renamed_known_approach: >-
+    "Key bridging" ITSELF is a NAMED, RETRIEVED, established DS-MITM
+    technique (eprint 2010/537, 8-round AES-192) and this record makes NO
+    novelty claim about the technique. What is not yet in this repository
+    is its APPLICATION to attack6n/attack7n's SPECIFIC guessed-byte set
+    under this campaign's pinned convention -- the "K5'[...]" notation in
+    the committed source (per IDEA-f2fc33's own transcription) ALREADY
+    suggests some schedule-derived quantity is in use, so this audit's
+    honest first deliverable is determining how much bridging is ALREADY
+    present versus how much remains, which no existing record in this
+    campaign states either way.
+  novelty_status: unverified
+  citations:
+    - ref: 'eprint 2010/537, key bridging for 8-round AES-192 MITM'
+      provenance: recalled
+      claim: Key-schedule algebra lets some guessed round-key bytes be deduced from others rather than guessed independently.
+      verified_by: null
+  assumptions:
+    - The pinned harness's key-schedule implementation matches FIPS-197 exactly (already required and verified elsewhere in this campaign's pinning discipline).
+    - attack6n/attack7n's exact guessed-byte SET is correctly re-transcribed from source (IDEA-f2fc33's transcription is reused, re-checked, not re-derived from scratch).
+  proof_search_map:
+    bottleneck: >-
+      Whether the 12 guessed bytes cross a SubWord nonlinearity relative to
+      each other; this is the single fact that determines whether h can
+      shrink at all.
+    baseline_embedding:
+      parameter_slice: >-
+        The trivial case -- a byte set confined to a SINGLE round key with
+        no cross-round relations -- has zero bridging by construction; the
+        audit's dependency-tracing procedure must return "0 relations
+        found" on that trivial case as a sanity check before being trusted
+        on the real 12-byte set.
+      reproduction_check: Symbolic, checked by hand before any code.
+    observation_collision:
+      observable: number of independent bytes after bridging.
+      distinct_preimage_search: >-
+        Two DIFFERENT byte sets with the same post-bridging independent
+        count are expected and harmless; the dangerous collision would be
+        the audit reporting the SAME independent count for a set with a
+        genuine SubWord-crossing relation as for one without -- guarded by
+        requiring the audit to name the EXACT relation (not just a count)
+        for every claimed reduction, checkable independently against the
+        key-schedule definition.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          the guessed-byte set, re-expressed via any found linear
+          dependency as a smaller independent set plus a deterministic
+          XOR reconstruction.
+        predicted_gain: h reduced by (number of found dependencies) x 8 bits, if any exist.
+    quantifier_order: >-
+      FOR the pinned key schedule and the committed guessed-byte set,
+      THERE EXISTS a (possibly empty) set of XOR-linear dependencies among
+      the guessed bytes; the claim is about THIS byte set only, never
+      about AES-128's key schedule in general.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "This exact guessed-byte set has (0 or k) independent linear
+        dependencies under the pinned key schedule." It cannot certify
+        that NO alternative guessed-byte set achieves a smaller h -- that
+        is a much larger search this audit does not attempt.
+      nearby_object_control: >-
+        A guessed-byte set deliberately chosen to span TWO SubWord
+        boundaries (all cross-round) should show ZERO bridging by
+        construction; running the audit on that control set and confirming
+        it reports zero is a cheap correctness check on the tracing
+        procedure.
+    proof_obligations:
+      - claim: dependency tracing returns 0 on the trivial single-round-key control.
+        responsibility: baseline
+      - claim: every claimed dependency is an exact, independently checkable XOR identity.
+        responsibility: correctness
+      - claim: if h is reduced, the re-implemented construction is re-certified via independent ciphertext re-verification.
+        responsibility: correctness
+      - claim: any margin is stated against REF-B's h*/B(h), never the published frontier.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: number of XOR-linear dependencies found among attack6n's 12 guessed bytes
+      direction: different
+      minimum_effect: An integer >= 0, pre-registered as "0 expected" is NOT assumed -- genuine uncertainty is stated.
+    - metric: if dependencies found, reduction in h (bits)
+      direction: lower
+      minimum_effect: 8 bits per found dependency, exact.
+    - metric: if h is reduced, measured cost of the re-implemented construction vs the ORIGINAL attack6n at identical certified key recovery
+      direction: lower
+      minimum_effect: Any measurable reduction; the construction must still certify correctly.
+    - metric: trivial single-round-key control's dependency count
+      direction: lower
+      minimum_effect: exactly 0 (sanity check on the audit procedure itself)
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): re-transcribe attack6n/attack7n's exact
+      guessed-byte positions from sq_null.c, cross-checked against
+      IDEA-f2fc33's existing transcription. STAGE 1 (zero compute, hand
+      derivation): trace the AES-128 key schedule's word recurrence
+      symbolically for each guessed byte, marking which are XOR-linear
+      combinations of others in the set and which cross a SubWord step.
+      Run the trivial-control and cross-boundary-control cases first.
+      STAGE 2: if a dependency is found, re-implement the construction
+      with the reduced independent guess set, re-run to a certified key
+      recovery, and measure cost against the ORIGINAL attack6n and against
+      REF-B's frozen B(h).
+    controls:
+      - Trivial single-round-key control (must show 0 dependencies)
+      - Deliberately cross-SubWord-boundary control set (must also show 0 dependencies)
+      - Re-certification of any reduced-h construction under independent ciphertext re-verification
+    required_metrics:
+      - exact dependency count and the algebraic identity for each
+      - reduced h, if any
+      - measured cost of original vs reduced construction at the same certified recovery
+  falsification_conditions:
+    - The trivial control shows a nonzero dependency count -- the tracing procedure is broken, stop.
+    - A claimed dependency fails independent algebraic re-checking -- withdrawn, not reported.
+    - h=96 is already minimal (0 dependencies found) -- a real, useful barrier statement, not a failure of this proposal.
+  confounders:
+    - The "K5'[...]" notation in the committed source may ALREADY encode a schedule-derived quantity, which Stage 0's re-transcription must resolve before Stage 1, or the dependency count will be wrong by double-counting existing bridging.
+    - A reduced-h construction must be re-certified from scratch; reusing the original's certificate would be invalid.
+  interpretation_limits:
+    - Toy tier, reduced-round, single guessed-byte set audited -- says nothing about the existence of a smaller guessed-byte set elsewhere in the construction's design space.
+    - No status change to EV-AES-005, EV-AES-d33b1c, or the existing DOMINATED verdict on attack6n unless a reduced construction is actually built and measured.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The dependency-tracing procedure correctly identifies every
+        XOR-linear relation among the guessed bytes under the pinned key
+        schedule (no false negative).
+      rigorous_support: >-
+        The key schedule's linear part (the XOR chain outside SubWord) is
+        an explicit, finite, checkable algebraic map -- this is provable by
+        direct symbolic tracing, not heuristic, PROVIDED the tracing is
+        exhaustive over the small guessed-byte set (<= 12 bytes, a tiny
+        search space).
+      validation_plan: >-
+        Exhaustive by construction at this scale (12 bytes); the trivial
+        and cross-boundary controls are the validation, not a sampling
+        exercise.
+  target_complexity:
+    time_exponent: >-
+      Target: reduce attack6n's h by up to 8k bits (k = number of found
+      dependencies) if any exist, moving its measured cost toward or past
+      REF-B's h* domination frontier (IDEA-72ec9a). No exponent moved
+      against generic AES; scoped entirely to this construction and REF-B.
+    memory_exponent: unchanged from the original construction.
+    best_known: REF-B's frozen B(h) curve (once IDEA-72ec9a's conversion constant is committed); REF-A definitional.
+    hidden_overhead: >-
+      If h is reduced, the re-implemented construction's OTHER costs
+      (candidate-space filtering, elimination order) are UNCHANGED and
+      must still be measured, not assumed to shrink proportionally.
+    tradeoff_note: Not applicable beyond what the original construction already exhibits.
+  dominated_by: >-
+    If outcome (i) (no dependency found): dominated_by is REF-B exactly as
+    already established by IDEA-72ec9a/EV-AES-005 -- this audit changes
+    nothing and says so. If outcome (ii): the reduced construction's
+    position relative to REF-B is the deliverable, measured rather than
+    assumed. Checked REF-A, REF-B, and the original attack6n/attack7n as
+    the rows on this frontier.
+  sota_delta: >-
+    If no dependency is found: zero, and a certified barrier statement
+    replaces an unstated assumption. If a dependency is found: a measured
+    h reduction in bits, and a measured cost delta against REF-B, neither
+    assumed favorable in advance.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  source_refs:
+    - RQ-AES-003
+    - GOAL-AES-003
+    - IDEA-20260805-72ec9a
+    - IDEA-20260805-f2fc33
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

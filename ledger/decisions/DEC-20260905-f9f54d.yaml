@@ -1,0 +1,160 @@
+coordinator_decision:
+  id: DEC-20260905-f9f54d
+  recorded_at: '2026-09-05'
+  goal_id: GOAL-ECRANK-002
+  question_id: RQ-ECRANK-27dcc5
+  batch_id: BATCH-832f3d
+  decision: close_batch_as_duplicate_and_repair_schema
+  decision_rationale_for_verb: >
+    BATCH-e19be0 is CLOSED AS A DUPLICATE of work already completed, and its
+    four malformed handoff records are REPAIRED by the sanctioned
+    schema-supersession mechanism. Facts, all read from committed state on
+    origin/main: (1) commit 7731a6cf9 (2026-09-05T15:52:24-07:00) opened
+    BATCH-e19be0 on GOAL-ECRANK-002 to dispatch N1 of DEC-20260822-7d356e --
+    the same directive my lane dispatched as BATCH-52b70c ten seconds earlier
+    (lane opened 2026-09-05T22:52:14Z = 15:52:14-07:00). This was an honest
+    concurrent race between two sessions: my sweep predated their opening
+    commit, they opened no lane file (nothing in
+    coordination/goals/GOAL-ECRANK-002/lanes/ for BATCH-e19be0), so neither
+    session could see the other. (2) Their executor task TASK-20260905-b4b4cb
+    was claimed at 15:52:37 and RELEASED AS FAILED at 16:27:52 with empty
+    artifact_sha256; no run record, no evidence, no further commits from that
+    session. Per core rule 3 that failure is infrastructure history, not
+    evidence about rank, and it changes nothing about C1. (3) N1 itself was
+    COMPLETED, validated, red-teamed, and ledger-committed by BATCH-52b70c
+    (DEC-20260905-7adca0, EV-ECRANK-2f1e65, merged in PR #768): the committed
+    verifiers accepted the 31-point external witness; the C1-closure
+    candidate stands UNPROMOTED under IMP-2. BATCH-e19be0's remaining queued
+    tasks (snapshot, validator, ledger) would duplicate or collide with that
+    landed record, so they are void and the batch's queue states are set to
+    cancelled. (4) The four handoff files committed by 7731a6cf9
+    (TASK-20260905-b4b4cb, -63b4f7, -a91a34, -b96b81) are missing the
+    required top-level 'handoff' key and have been failing
+    tools/validate_ledger.py on main for every session since 15:52. They are
+    immutable committed records: the repair is four complete replacements
+    under ledger/corrections/schema-supersessions/20260905/ -- the original
+    envelope verbatim, wrapped under 'handoff:' (content identity asserted
+    programmatically at creation) -- registered with both sides hash-pinned
+    in tools/schema_supersession_registry.yaml, the mechanism already
+    carrying 96 such routings. One second-level defect surfaced once the
+    wrapper let the validator parse the envelope: TASK-20260905-a91a34
+    carries an incomplete pre-schema review_plan (owner/attack field names,
+    no claim_under_review, no proves_too_much.objects) for a review round
+    that NEVER RAN -- the batch was closed before any reviewer was
+    dispatched. Its replacement voids review_plan (optional-when-present;
+    the field is omitted) and preserves the original block verbatim in the
+    replacement's provenance header; completing the plan myself would have
+    been authoring a review round that never happened, and keeping the
+    malformed block fails the schema. The other three replacements are pure
+    wraps. No completed archive binds these identifiers (BATCH-e19be0 has
+    no archives at all; its only claim was released failed), so core rule
+    15's remap prohibition is not engaged and no rename occurs -- ids are
+    preserved.
+  context: >
+    Discovered while validating the approval batch BATCH-832f3d in this
+    worktree (branched from origin/main b6ef32f65): validate_ledger reported
+    exactly four new errors, all 'expected top-level key handoff', all on
+    BATCH-e19be0 files, none on this batch's records. Full timeline verified
+    from git: opening 7731a6cf9 15:52:24; claim d0d54209d 15:52:37 by
+    coordinator-ecrank-3; release 3e826e252 16:27:52 outcome failed,
+    was_expired false, artifacts empty; no commits touching BATCH-e19be0
+    after the release. Additional finding recorded without blame: the other
+    session used lane address coordinator-ecrank-3, which this session later
+    also used for BATCH-ef0456 -- an address collision in the lane namespace,
+    harmless here because the two batches' claim files live under their own
+    batch directories, but noted so future lane addresses are chosen less
+    predictably. The other session appears ephemeral and gone; per the bus
+    contract this closure is announced on the bus so a resurrected session
+    reads it on wake, and if it objects it may supersede this decision on the
+    merits with a new record.
+  target_ids:
+    - BATCH-e19be0
+    - TASK-20260905-b4b4cb
+    - TASK-20260905-63b4f7
+    - TASK-20260905-a91a34
+    - TASK-20260905-b96b81
+    - BATCH-52b70c
+    - DEC-20260905-7adca0
+    - EV-ECRANK-2f1e65
+    - GOAL-ECRANK-002
+    - TASK-20260905-d1fa77
+  repair_summary: >
+    Four replacements written under
+    ledger/corrections/schema-supersessions/20260905/ with names
+    ledger__handoffs__TASK-20260905-{b4b4cb,63b4f7,a91a34,b96b81}__v2.yaml;
+    each is the original file's mapping indented under a top-level 'handoff:'
+    key with a provenance header comment, byte-content of the envelope
+    asserted identical to the original at creation time -- with the single
+    disclosed exception of a91a34, whose never-run incomplete review_plan is
+    voided (field omitted; original block preserved verbatim in its header).
+    Four 'kind: ledger' entries appended to tools/schema_supersession_registry.yaml
+    (now 100 records) pinning superseded and superseding sha256 for each
+    pair, registered '2026-09-05'. Post-repair validate_ledger: OK, 9035
+    records, no new violations. BATCH-e19be0's dispatch_queue.json task
+    states set to cancelled with a closure block citing this decision; the
+    queue is a coordination record, not evidence, and its edit is the
+    control-plane half of this closure. The original four files are
+    untouched on disk.
+  duplicate_disposition: >
+    N1 of DEC-20260822-7d356e is DONE and will not be re-dispatched: the
+    landed record is DEC-20260905-7adca0 with EV-ECRANK-2f1e65 (rank >= 31
+    unconditional for ICARM curve #302 over Q by this program's committed
+    verifiers; C1-closure candidate UNPROMOTED under IMP-2 pending a
+    servable review-breakthrough round). The failed duplicate executor
+    attempt produced no artifacts and asserts nothing. Their frozen contract
+    coordination/goals/GOAL-ECRANK-002/batches/BATCH-e19be0/contracts/n1-external-witness.json
+    and task card remain on disk as immutable history of the race; nothing
+    binds them.
+  goal_head_effects:
+    - >
+      None from this decision. The goal head is edited only by the approval
+      ledger task TASK-20260905-59fb55 of this same batch, which records the
+      approval of EXP-ECRANK-76a70d and the superseded next_action; this
+      decision changes no goal-head field, no hypothesis status, and no
+      official research state. C1 stays OPEN with the candidate UNPROMOTED;
+      C2 remains NOT MET; IMP-2 unchanged.
+  evidence_refs:
+    - ledger/decisions/DEC-20260905-7adca0.yaml
+    - ledger/evidence/EV-ECRANK-2f1e65.yaml
+    - ledger/handoffs/TASK-20260905-b4b4cb.yaml
+    - ledger/handoffs/TASK-20260905-63b4f7.yaml
+    - ledger/handoffs/TASK-20260905-a91a34.yaml
+    - ledger/handoffs/TASK-20260905-b96b81.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e19be0/dispatch_queue.json
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-e19be0/claims/TASK-20260905-b4b4cb.1.release.json
+    - tools/schema_supersession_registry.yaml
+    - ledger/corrections/schema-supersessions/20260905/ledger__handoffs__TASK-20260905-b4b4cb__v2.yaml
+    - ledger/corrections/schema-supersessions/20260905/ledger__handoffs__TASK-20260905-63b4f7__v2.yaml
+    - ledger/corrections/schema-supersessions/20260905/ledger__handoffs__TASK-20260905-a91a34__v2.yaml
+    - ledger/corrections/schema-supersessions/20260905/ledger__handoffs__TASK-20260905-b96b81__v2.yaml
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >
+      This is a coordination-integrity repair, not a research finding. The
+      underlying N1 result was already recorded and scoped in
+      DEC-20260905-7adca0/EV-ECRANK-2f1e65; nothing here changes its claim
+      tier, and a duplicate-batch closure promotes nothing.
+  lane_note: >
+    Executed inline by the Coordinator as repair task TASK-20260905-d1fa77
+    inside BATCH-832f3d (lane coordinator-ecrank-4); no subagent dispatched;
+    archived by ledger task TASK-20260905-59fb55 in the same batch's ledger
+    commit. Announced on the agent bus to all addresses before merge so any
+    resurrected session of the original BATCH-e19be0 lane reads it on wake.
+  decided_by: coordinator
+  decided_at: '2026-09-05'
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >
+      opencode coordinator binding balance-dead in this session; repair
+      performed by the Coordinator session directly under the declared
+      fallback
+    model_verified: false
+    resolved_model_id: fireworks-ai/accounts/fireworks/models/qwen3p8-max
+    independent_session: false
+    independent_session_note: >
+      No claim-changing review round is opened by this repair: it closes a
+      duplicate coordination batch and routes four malformed schema records
+      through the standing hash-pinned supersession mechanism. No hypothesis
+      status, evidence strength, or claim tier moves.

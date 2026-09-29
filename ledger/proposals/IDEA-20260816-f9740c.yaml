@@ -1,0 +1,247 @@
+idea:
+  id: IDEA-20260816-f9740c
+  question_id: RQ-ALECF-001
+  added: '2026-08-16'
+  title: A classical basis-state simulator is the cheap correctness instrument for reversible arithmetic,
+    but it has a detection boundary nobody measures; build the simulator and then attack it with a
+    mutation suite, reporting per-checker detection rates so the instrument's blind spots are a table
+    rather than an assumption.
+  class: tooling
+  claim: '(A) The imported ALECF benchmark validates a submitted circuit with four distinct checkers,
+    named in its committed README: classical correctness on 9024 random shots, ancilla restoration
+    to the zero state before any qubit is freed, phase cleanliness across live shots, and a forward-then-gate-reversed
+    identity check. That is four checkers, not one, and their existence is an admission that no single
+    check is complete. (B) The claim is that a classical basis-state simulator, which is the cheapest
+    and most checkable instrument available in this environment, implements the first, second and
+    fourth of those checkers exactly and cannot implement the third at all, because a permutation-only
+    simulator carries no phase information by construction. (C) The claim is that the resulting detection
+    boundary is measurable rather than arguable: inject a catalogue of defect classes into a known-correct
+    reversible modular-arithmetic circuit and measure, per checker and per defect class, the fraction
+    of injected defects detected, producing a detection matrix. (D) The claim is that the matrix is
+    the instrument''s specification, and that any later record in this program that uses classical
+    simulation to certify a reversible circuit must cite it, because a certification is only as strong
+    as the detection rate for the defect class it is silent about. (E) The claim is that this is cheap:
+    the entire experiment runs on one core in minutes and needs no quantum resources, which is precisely
+    why it is worth doing before any of the measurement contracts in this bucket rely on the same
+    simulator. (F) WHAT IS NOT CLAIMED: no claim that the ALECF benchmark''s checkers are inadequate,
+    no claim that any submitted circuit contains a defect, no claim that the phase checker is or is
+    not necessary in practice, no claim about hardware, and no attack or security consequence. A detection
+    matrix bounds what this instrument can see; it says nothing about what is there to be seen in
+    circuits this repository does not hold.'
+  mechanism: 'STAGE 1: build the reference. Implement reversible modular addition and multiplication
+    over a small prime with an explicit gate list, and establish correctness by exhaustive simulation
+    over the full input space at the smallest width, so the reference is correct by enumeration and
+    not by sampling. STAGE 2: implement the checkers. Classical correctness on N random shots; ancilla
+    restoration at every free event; forward-then-reverse identity on random inputs; and a deliberately
+    stubbed phase checker that always passes, whose stub status is recorded as the instrument''s known
+    hole rather than hidden. STAGE 3: define the defect catalogue. Classes include: swapped control
+    and target on one gate; a dropped uncomputation; an off-by-one in a carry chain; a defect active
+    only on inputs in a declared rare set; a gate reordering across a dependency (semantically breaking);
+    a gate reordering on disjoint qubits (semantically neutral, must not be detected); and an ancilla
+    freed while nonzero. STAGE 4: inject and measure. For each class, inject many independent instances
+    into the reference circuit and record which checkers fire, producing the detection matrix with
+    per-cell confidence intervals. STAGE 5: run the neutral-mutation null in the same invocation.
+    STAGE 6: report the matrix, the stubbed cell, and the shot-count dependence of the rare-set row.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read experiments/EXP-ALECF-001/source/README.md in full, which enumerates the four validity
+      conditions verbatim. Read RQ-ALECF-001 and confirmed zero proposals reference it. Read IDEA-20260809-593de3's
+      title and claim opening, the only corpus record found that pairs reversible circuit counting
+      with classical simulation. Grepped ledger/proposals/ for 'mutation', 'fault injection', 'instrument
+      valid', 'detection rate' and 'simulator'. Read the blacklist entry concerning RQ-INSTR-f8faa0
+      to ensure this is not a re-proposal of a machine-variance or timing audit.
+    results: 'IDEA-20260809-593de3 proposes counting the modular-arithmetic layer and validating it
+      by classical simulation; classical simulation there is a means to an end (a gate count for a
+      costing pipeline) and its own detection boundary is not the subject. No record found treats
+      a simulator as the object under test. The instrument-validity lane the blacklist names, RQ-INSTR-f8faa0
+      with fifteen-plus proposals, concerns this program''s cost model, machine variance and single-machine
+      timing, which is a different instrument entirely: timing measurements on a host, not a reversible-circuit
+      correctness checker. Grep for ''mutation'' across ledger/proposals/ returned no proposal about
+      mutation testing of a verification instrument.'
+    verdict: 'UNVERIFIED. Mutation testing and fault injection are established practice in software
+      engineering outside this repository and nothing is asserted about their published literature.
+      What is claimed new is the specific target: measuring the detection matrix of the exact checker
+      set that this bucket''s benchmark relies on, including an explicitly stubbed phase checker whose
+      hole is reported rather than papered over, and doing so before the same simulator is used as
+      evidence in other contracts. Assembled from known parts: exhaustive small-scale verification,
+      mutation testing, and per-cell confidence intervals.'
+  object_first_candidate:
+    tracked_object: 'The checker-response vector of a circuit: for a given circuit, the tuple of booleans
+      (correctness_pass, ancilla_pass, forward_reverse_pass, phase_pass) produced by the four checkers.
+      The object is followed as defects are injected into a known-correct circuit, so the tracked
+      quantity is how the response vector changes under mutation.'
+    lossiness: 'The projection from a circuit to its checker-response vector is extremely lossy: an
+      entire gate list collapses to four bits. That is compatible with the operation of interest,
+      defect injection followed by verification, because verification consumes exactly those bits,
+      which is what makes the projection the right one. The retained part propagates in a specific
+      way: a defect that changes the computed permutation flips correctness_pass with a probability
+      determined by the defect''s input support and the shot count, and this dependence is deterministic
+      given the support, which is what allows the rare-set row to be predicted rather than merely
+      observed. The discarded information includes everything about where the defect is, which is
+      exactly why detection rates rather than diagnoses are the deliverable.'
+    propagation: 'One step of the target operation is a single defect injection. Acting on the checker-response
+      vector: a permutation-changing defect with input support of density d flips correctness_pass
+      with probability 1 minus (1 minus d) raised to the shot count N; a defect that leaves an ancilla
+      nonzero at a free event flips ancilla_pass deterministically on any input reaching that event;
+      a defect that breaks the gate-level inverse relation flips forward_reverse_pass deterministically;
+      a phase-only defect flips nothing in a permutation-only simulator, which is the stubbed cell.
+      Composing injections is not additive, since two defects can cancel, and the catalogue therefore
+      restricts to single injections with a small double-injection arm to check for masking.'
+    survival_score: 'The response vector survives exactly one operation, verification, and dissolves
+      the moment a defect class falls outside the simulator''s semantics. That boundary is concrete
+      and nameable: the vector carries full information for permutation-changing and ancilla-corrupting
+      defects, and carries zero information for relative-phase defects, where the third component
+      is a constant. So the structure survives three of four checkers exactly and dies at the fourth,
+      and the deliverable states that as a measured matrix with one column of structural zeros rather
+      than as a caveat.'
+  null_object_control: 'The null object is a semantically neutral mutation: a reordering of two gates
+    acting on disjoint qubit sets, which by construction cannot change the computed permutation, the
+    ancilla history at any free event, or the inverse relation. The identical injection-and-check
+    pipeline runs on a matched number of neutral mutations in the same invocation as the defect arm.
+    For the signal arm to mean anything the null must show a detection rate statistically indistinguishable
+    from zero on all four checkers. A nonzero neutral-mutation detection rate means the checkers are
+    firing on something other than semantic defects, and every detection rate in the signal arm is
+    then uninterpretable.'
+  discriminated_from:
+  - 'IDEA-20260809-593de3 (count the modular-arithmetic layer, validate by classical simulation):
+    uses classical simulation as a means to validate counts; this proposal makes the simulator itself
+    the object of measurement and produces a detection matrix, not a gate count.'
+  - 'The RQ-INSTR-f8faa0 instrument-validity lane named in this session''s blacklist (fifteen-plus
+    proposals on cost model, machine variance and single-machine timing): a different instrument entirely,
+    concerning host timing measurements rather than reversible-circuit correctness checkers, and producing
+    variance estimates rather than defect-detection rates.'
+  - 'The ALECF benchmark''s own validation as described in its committed README: that is a pass/fail
+    gate applied to submissions; this measures the gate''s sensitivity per defect class, which the
+    gate itself never reports.'
+  - 'Generic unit testing of a simulator: unit tests assert that known cases pass; this measures the
+    rate at which unknown defects are caught, and deliberately includes a class the instrument provably
+    cannot catch.'
+  assumptions:
+  - Exhaustive simulation at the smallest register width establishes the reference circuit's correctness,
+    so injected defects are the only source of failure.
+  - The defect catalogue is a reasonable model of real implementation errors; it is a stated model
+    and not a claim about which errors actually occur.
+  - Single-defect injection is the right unit, with double injection tested only as a masking check.
+  - A permutation-only simulator carries no phase information, so the phase checker is stubbed rather
+    than approximated; this is a structural property of the instrument, not a limitation of effort.
+  predictions:
+  - metric: detection rate on semantically neutral mutations, across all four checkers
+    direction: lower
+    minimum_effect: 0.01
+  - metric: detection rate of the ancilla checker on dropped-uncomputation defects
+    direction: higher
+    minimum_effect: 0.95
+  - metric: detection rate of the correctness checker on defects supported only on a rare input set
+      of density 2 to the minus 12, at 9024 shots
+    direction: lower
+    minimum_effect: 0.05
+  - metric: number of matrix cells that are structurally zero because the instrument cannot represent
+      the defect class
+    direction: higher
+    minimum_effect: 1
+  minimal_test:
+    design: 'Fix an 8-bit prime so the input space is exhaustively enumerable and the reference circuit''s
+      correctness is established by enumeration rather than sampling. Implement the four checkers
+      with the phase checker explicitly stubbed. Define seven defect classes and inject 200 independent
+      instances of each into the reference circuit, running all four checkers on each mutant and recording
+      the response vector. In the same invocation, inject 200 semantically neutral gate reorderings
+      on disjoint qubits and run the identical pipeline. The discriminating outputs are two: the neutral-mutation
+      detection rate, which must be indistinguishable from zero for anything else to be readable,
+      and the rare-set row of the matrix as a function of shot count, swept over shot counts 64, 512,
+      4096 and 9024 to expose the predicted (1 minus (1 minus d)) to the N law. Runtime is minutes
+      on one core; the deliverable is a table with confidence intervals and one column of structural
+      zeros.'
+    controls:
+    - Semantically neutral mutations (disjoint-qubit gate reordering) injected and checked in the
+      same invocation, with an expected detection rate of zero.
+    - Exhaustive-input reference verification at the smallest width, so the unmutated circuit is correct
+      by enumeration.
+    - 'A positive control: a defect class that must be caught by every non-stubbed checker, whose
+      detection rate must be at or near one.'
+    - Double-injection masking arm on a subset, to detect cancelling defect pairs that would inflate
+      apparent detection at single-injection level.
+    - Explicit recording of the stubbed phase checker as a known structural hole rather than as a
+      passing result.
+    required_metrics:
+    - per-checker per-defect-class detection rate
+    - neutral-mutation detection rate
+    - rare-set detection rate as a function of shot count
+    - count of structurally zero matrix cells
+    - double-injection masking rate
+    - reference circuit exhaustive verification result
+  falsification_conditions:
+  - The neutral-mutation arm shows a detection rate above 0.01, which invalidates the entire matrix.
+  - The positive-control defect class is detected at below 0.95 by the ancilla or forward-reverse
+    checkers, indicating a broken checker.
+  - The rare-set row does not follow the predicted (1 minus (1 minus d)) to the N shape across the
+    swept shot counts, meaning the shot model is wrong.
+  - Exhaustive verification of the reference circuit fails, meaning the baseline is not correct and
+    no injection result is interpretable.
+  - Double-injection masking exceeds 0.2, meaning single-injection rates overstate real-world detection.
+  confounders:
+  - The defect catalogue is authored, so detection rates describe the catalogue as much as the instrument;
+    a class nobody thought of has no row and no zero.
+  - Injection sites are sampled from the reference gate list, so a circuit with many redundant gates
+    dilutes detection rates in a way that reflects the circuit's structure, not the checkers.
+  - The forward-then-reverse checker can mask a defect that is its own inverse, which the catalogue
+    must include or the matrix will be optimistic.
+  - Exhaustive verification is only possible at the smallest width, so the reference at larger widths
+    is sample-verified and the injection results there inherit that weaker guarantee.
+  interpretation_limits:
+  - A detection matrix bounds what this instrument sees; it makes no statement about defects present
+    in circuits this repository does not hold, including the ALECF submissions whose source is not
+    committed here.
+  - The structurally zero phase column is a property of permutation-only simulation and must not be
+    read as evidence that phase defects are rare or unimportant.
+  - Detection rates measured on toy modular arithmetic do not transfer numerically to 256-bit circuits.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. This contract produces an instrument specification.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the implicit assumption, standing in this bucket, that classical
+      simulation is a sufficient correctness instrument for reversible arithmetic. The ALECF benchmark's
+      own four-checker gate as recorded in its committed README is the concrete named incumbent; this
+      contract measures that gate's per-class sensitivity rather than replacing it.
+    hidden_overhead: 'The hidden cost is the catalogue: detection rates are only as informative as
+      the defect classes enumerated, and enumerating them well is slow human work that no metric rewards.
+      A second hidden cost is that publishing a structurally zero column creates an obligation on
+      every later contract in this bucket to state whether it needs that column, which is real downstream
+      work.'
+  dominated_by: n/a (no result claimed). I checked the committed frontier for this bucket, the two
+    ALECF resource points at (1316081, 1152) and (1423723, 1141), and this contract produces no circuit
+    and enters no row. There is no attack, hence no time/memory/data frontier.
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a detection matrix
+    over defect classes, a quantity with no incumbent value in this repository to compare against,
+    which is itself the reason to measure it.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (B), that a permutation-only simulator implements three of the four
+    named checkers exactly and cannot implement the phase checker: 0.9, since it follows from what
+    a basis-state simulator represents, with residual risk that a weaker phase proxy exists that I
+    have not considered. Part (C), that the mutation suite produces a matrix with usable per-cell
+    confidence intervals and a clean zero neutral-mutation arm: 0.75, the main risk being injection
+    sites that produce degenerate mutants. Part (D), that the rare-set row follows the predicted shot-count
+    law within interval: 0.7, since the law is elementary but the effective density of an injected
+    defect may not equal its nominal support. That later contracts actually cite the matrix: 0.4,
+    because instrument specifications are routinely ignored.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-002
+  - EXP-ALECF-003
+  - EV-ALECF-001
+  - IDEA-20260809-593de3
+  - docs/claims-and-verification.md
+  - docs/inventor-protocol.md
+  - harness/toycurve.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-0f7253

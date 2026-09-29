@@ -1,0 +1,214 @@
+schema: crypto.autoresearch.runtime_session_receipt.v2
+extends: crypto.autoresearch.runtime_session_receipt.v1
+schema_id: runtime_session_receipt.v2
+additive_note: >-
+  This schema is a superset of crypto.autoresearch.runtime_session_receipt.v1.
+  It adds three authoritative host_binding fields (host_id, filesystem_id,
+  filesystem_mount) with declared provenance, verification semantics, and
+  failure behavior, consistent with the authoritative-binding rule in
+  coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/tasks/TASK-20260825-74615f/j3-closure-v5.yaml
+  (operation_schema_v2.host_binding). It does not edit, replace, or
+  reinterpret the v5 closure file or the v1 schema; both remain the frozen,
+  immutable base. Where this schema restates a v5 value (e.g. normalization
+  rules) it is a literal copy for closure purposes, not a correction.
+
+# -----------------------------------------------------------------------
+# v1 backward compatibility
+# -----------------------------------------------------------------------
+v1_backward_compatibility:
+  statement: >-
+    A receipt carrying schema: crypto.autoresearch.runtime_session_receipt.v1
+    is parseable under v2 without modification. The v1 host_binding block
+    (which carries only a `note` field recording the absence of authoritative
+    binding fields) is accepted by the v2 parser as a structurally valid
+    host_binding object. No v1 field is removed, renamed, or reinterpreted.
+  v1_receipts_in_corpus:
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/reviews/TASK-20260825-0d566b/runtime-session-receipt.json
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/reviews/TASK-20260825-306cc8/runtime-session-receipt.json
+  v1_receipt_host_binding_shape: >-
+    { "host_binding": { "note": "<absence note string>" } }
+  v2_receipt_host_binding_shape: >-
+    { "host_binding": { "host_id": "<string>", "filesystem_id": "<string>",
+    "filesystem_mount": "<string>" } }
+
+# -----------------------------------------------------------------------
+# NAMED WEAKENING: where v1 compatibility weakens a v5 STOP
+# -----------------------------------------------------------------------
+v1_compatibility_weakening_of_v5_stop:
+  named_here: true
+  v5_rule_text_evaluated: >-
+    j3-closure-v5.yaml operation_schema_v2.host_binding:
+      missing_receipt_field: STOP
+      receipt_field_absent_handling: "If runtime-session-receipt.json lacks
+      host_binding.host_id, host_binding.filesystem_id, or
+      host_binding.filesystem_mount, the validity check itself is unevaluable
+      and STOPs; no fallback host source is substituted."
+  weakening: >-
+    The v2 parser accepts a v1 receipt (host_binding with only a `note` field,
+    no host_id/filesystem_id/filesystem_mount) as SCHEMA-VALID. The v5 rule
+    demands STOP when those fields are absent. Therefore: v2 schema-validity
+    does NOT imply v5 binding-rule satisfaction. A consumer that treats
+    "parses under v2" as "binding is present and authoritative" silently
+    weakens the v5 missing_receipt_field STOP. This weakening is NAMED here,
+    not hidden. The v5 STOP is preserved at the BINDING-RULE layer
+    (operation_schema_v2.host_binding.missing_receipt_field), not at the
+    schema-parser layer. The schema parser and the binding rule are separate
+    evaluation steps; the binding rule MUST be evaluated after parsing and
+    MUST STOP on absent fields regardless of schema-validity.
+  mitigation: >-
+    Any consumer (reviewer, dispatcher, or validity check) that reads a v2
+    receipt MUST evaluate the v5 binding_rule_v2 and missing_receipt_field
+    rule after parsing. A v1-shaped receipt that parses under v2 but lacks
+    the three authoritative fields MUST still STOP under the binding rule.
+    Schema-validity is necessary but not sufficient for binding-rule
+    satisfaction.
+
+# -----------------------------------------------------------------------
+# Authoritative host_binding fields (v2 additions)
+# -----------------------------------------------------------------------
+host_binding:
+  schema_id: authoritative_host_binding.v2
+  source: >-
+    The active execution binding used by host_observation.validity.binding_rule
+    is read exclusively from this task's own immutable
+    runtime-session-receipt.json fields host_binding.host_id,
+    host_binding.filesystem_id, and host_binding.filesystem_mount, emitted
+    by the runtime harness at session start via emit_host_binding.sh, which
+    reads the host's own identity surfaces and never accepts caller input.
+  caller_input_is_never_authoritative: true
+  forbidden_source: host_observation object supplied by the caller/consumer
+  normalization:
+    filesystem_id: lowercase, trimmed, no trailing slash
+    filesystem_mount: absolute POSIX path, trailing slash stripped except root "/"
+    host_id: trimmed, case-preserved
+  binding_rule_v2: >-
+    host_observation.host_id, host_observation.filesystem_id, and
+    host_observation.filesystem_mount (each normalized as above) must be
+    exactly equal to the corresponding normalized
+    runtime-session-receipt.json host_binding.* fields. Equality against
+    any other source (including a caller-declared "active binding" field)
+    is rejected.
+  missing_receipt_field: STOP
+  receipt_field_absent_handling: >-
+    If runtime-session-receipt.json lacks host_binding.host_id,
+    host_binding.filesystem_id, or host_binding.filesystem_mount, the
+    validity check itself is unevaluable and STOPs; no fallback host
+    source is substituted.
+
+  fields:
+    host_id:
+      provenance: >-
+        The machine's hostname surface. On macOS this is the value returned
+        by `hostname` (the system hostname, equivalent to the HostName /
+        LocalHostName / ComputerName surface exposed by scutil). On Linux
+        this is the value returned by `hostname` (from hostname(1), or
+        /proc/sys/kernel/hostname). The value is sourced from the host's
+        own identity surface at the moment emit_host_binding.sh runs; it is
+        never read from caller input, environment variables the caller
+        controls, or repository state.
+      verification_semantics: >-
+        A reviewer or dispatcher independently checks this value by running
+        `hostname` on the same host and comparing the trimmed, case-preserved
+        result to the receipt's host_binding.host_id. The verification
+        command is: `hostname`. Agreement means the receipt captured the
+        host's hostname surface; disagreement means the receipt value does
+        not match the host (either the host changed, or the emitting session
+        misreported it). This is an independent cross-check of the CAPTURED
+        value, not of the emitting session's honesty (see
+        what_this_does_not_attest below).
+      failure_behavior: >-
+        If `hostname` exits nonzero or returns an empty string after
+        trimming, emit_host_binding.sh writes a diagnostic to stderr, emits
+        NO partial JSON block on stdout, and exits nonzero. No placeholder
+        value is substituted. The receipt is not emitted, so the v5
+        missing_receipt_field STOP applies by absence.
+
+    filesystem_id:
+      provenance: >-
+        The filesystem device identifier of the working directory the
+        procedure runs in. On macOS this is the first column of `df -P .`
+        (the device path, e.g. /dev/disk5s1). On Linux this is the first
+        column of `df -P .` or `findmnt -no SOURCE .`. The value identifies
+        the block device backing the filesystem on which the session's
+        working directory resides. It is sourced from the host's own
+        filesystem identity surface at the moment emit_host_binding.sh runs;
+        it is never read from caller input.
+      verification_semantics: >-
+        A reviewer or dispatcher independently checks this value by running
+        `df -P .` on the same host (from the same working directory) and
+        comparing the first column, normalized to lowercase / trimmed / no
+        trailing slash, to the receipt's host_binding.filesystem_id. The
+        verification command is: `df -P . | tail -1 | awk '{print $1}'`
+        followed by the v5 normalization (lowercase, trim, strip trailing
+        slash). Agreement means the receipt captured the working directory's
+        backing device; disagreement means the receipt value does not match
+        the host's current filesystem mapping (the directory was moved, the
+        device was remounted, or the emitting session misreported it).
+      failure_behavior: >-
+        If `df -P .` exits nonzero, returns no data line, or the first
+        column is empty after normalization, emit_host_binding.sh writes a
+        diagnostic to stderr, emits NO partial JSON block on stdout, and
+        exits nonzero. No placeholder value is substituted.
+
+    filesystem_mount:
+      provenance: >-
+        The mount point of the filesystem on which the working directory
+        resides. On macOS this is the trailing field(s) of `df -P .` (the
+        "Mounted on" column, e.g. /Volumes/SSD990). On Linux this is the
+        trailing field(s) of `df -P .` or `findmnt -no TARGET .`. The value
+        is the absolute POSIX path at which the backing device is mounted.
+        It is sourced from the host's own filesystem identity surface at the
+        moment emit_host_binding.sh runs; it is never read from caller input.
+      verification_semantics: >-
+        A reviewer or dispatcher independently checks this value by running
+        `df -P .` on the same host (from the same working directory) and
+        comparing the mount-point column, normalized to absolute POSIX path
+        with trailing slash stripped except root "/", to the receipt's
+        host_binding.filesystem_mount. The verification command is:
+        `df -P . | tail -1 | sed -E 's/^([^[:space:]]+[[:space:]]+){5}//'`
+        followed by the v5 normalization. Agreement means the receipt
+        captured the working directory's mount point; disagreement means the
+        receipt value does not match the host's current mount table.
+      failure_behavior: >-
+        If `df -P .` exits nonzero, returns no data line, or the mount-point
+        field is empty after normalization, emit_host_binding.sh writes a
+        diagnostic to stderr, emits NO partial JSON block on stdout, and
+        exits nonzero. No placeholder value is substituted.
+
+  what_this_does_not_attest: >-
+    The host_binding fields attest that the emitting session's
+    emit_host_binding.sh captured the host's identity surfaces at emission
+    time. They do NOT attest that the emitting session is honest: a
+    compromised emitting session can still hand-write a receipt with
+    arbitrary host_binding values, or run the script on a different host
+    and paste the output. The v5 closure's threat model assumed
+    caller-supplied bindings were the attack; this v2 extension narrows
+    that gap (a caller can no longer supply arbitrary values THROUGH the
+    schema or the emit procedure) but does not fully close it (a
+    compromised emitting session can still misreport its host). Independent
+    verification by a reviewer or dispatcher (running the verification
+    commands on the same host) is the cross-check that detects a
+    misreported binding; it is not automatic and must be performed
+    deliberately.
+
+  limitation_disclosed: true
+  limitation: >-
+    LIMITATION (required disclosure, carried forward from the v5 closure and
+    narrowed, not closed): the v2 schema and emit_host_binding.sh move the
+    authoritative host binding from a SPECIFIABLE RULE to an EMITTED RULE
+    with a runnable procedure and declared verification semantics. The gap
+    narrows: a caller can no longer supply arbitrary host_binding values
+    through the schema (the emit procedure reads the host's own surfaces,
+    and the v5 binding_rule_v2 rejects equality against any non-receipt
+    source). The gap does not fully close: the emitting session's honesty
+    is assumed by the v5 threat model, and nothing in this package
+    INDEPENDENTLY cross-checks the capture at emission time. Independent
+    verification (a reviewer running the verification commands on the same
+    host) detects a misreported binding after the fact but is not enforced
+    automatically. This is the residual self-attestation gap. It is
+    disclosed here rather than hidden, and it is the expected scope of
+    what this batch closes: HOST-BINDING-ENFORCEABILITY is narrowed from
+    "specifiable rule, no harness" to "emitted rule with runnable harness
+    and declared verification, residual self-attestation gap disclosed,"
+    against the v5 threat model (caller-supplied bindings), not against a
+    malicious-runtime threat model.

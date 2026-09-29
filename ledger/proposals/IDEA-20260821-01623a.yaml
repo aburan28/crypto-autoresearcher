@@ -1,0 +1,912 @@
+idea:
+  id: IDEA-20260821-01623a
+  question_id: RQ-MLKEM-001
+  added: '2026-08-21'
+  title: >-
+    NoMod (arXiv 2510.02162) publishes its own inlier model, P_inlier = erf(q / (2*sqrt(2)*
+    sigma_btilde)) -- turn it against itself, but score it on the statistic a regression actually
+    needs: not lambda_1 but the p-th smallest ROW NORM of the omega-penalised embedding at
+    blocksize beta, where p is the number of unknowns recovered, and not the flat 1/2 breakdown
+    point but the finite-sample regression-equivariant bound (floor((m-p)/2)+1)/m. Derive the BKZ
+    blocksize any robust-regression attack needs to put ML-KEM's DENSE CBD secret above that
+    bound, compare it with the primal blocksize, and carry an empirical wrap-rate arm and a
+    NORM-MATCHED NON-LATTICE null that can void the erf model outright
+  class: measurement
+  claim: >-
+    (A) THE EXTERNAL INGREDIENT, STATED WITHOUT ENDORSEMENT. NoMod treats modular wrap-around as
+    statistical corruption: after lattice preprocessing it fits b~ = A s + e by robust regression
+    with Tukey's biweight loss, downweighting the equations that wrapped. Its reported successes
+    are at REDUCED parameters and SPARSE secrets -- from the paper's own tables as extracted this
+    session: Ring-LWE n=256 at max Hamming weight 6; Module-LWE (n,k) = (256,2) at max Hamming
+    weight 6; (n,k) = (128,3) at max Hamming weight 3; dense secrets only up to n = 120; and for
+    "Kyber (n=256, k=3)" the preprocessing was HALTED AT BLOCK SIZE 10 for time reasons. ML-KEM's
+    secret is not sparse: a CBD_2 coefficient is nonzero with probability 10/16, so ML-KEM-768's
+    key-side secret has expected Hamming weight 480 out of 768, roughly eighty times the largest
+    weight the paper reports recovering at comparable n.
+    (B) THE FORCED VALUE, WHICH USES THE PAPER'S OWN MODEL AND NOT A HOSTILE ONE. NoMod estimates
+    the per-equation inlier probability as P_inlier,i = erf(q / (2*sqrt(2)*sigma_btilde,i)). After
+    preprocessing, equation i is a short lattice vector v_i paired against the concatenated secret
+    and error, so sigma_btilde,i = ||v_i|| * sigma to first order, with sigma the standard
+    deviation of the joint (s,e) coordinates -- which is where SECRET DENSITY enters, since a
+    weight-h secret in n coordinates contributes variance proportional to h/n rather than to 1.
+    Inverting the erf converts a required inlier probability p_req into a ceiling on the admissible
+    reduced-row length, ||v||* = q / (2*sqrt(2)*erfinv(p_req)*sigma).
+    (B2) WHAT p_req IS, AND WHY IT IS NOT 1/2. An earlier draft of this record set p_req = 1/2 and
+    called it "a HARD CEILING", on the grounds that no affine-equivariant regression estimator has
+    breakdown point above 1/2. THAT VALUE IS THE ASYMPTOTIC LIMIT AND NOT THE BOUND THAT BINDS
+    HERE. For a regression-equivariant estimator fitting p unknowns from m rows, the finite-sample
+    Donoho-Huber breakdown point is at most (floor((m-p)/2)+1)/m, which is approximately
+    (1 - p/m)/2; the flat 1/2 is what that expression tends to as p/m -> 0 and is therefore the
+    MOST GENEROUS case, never the operating one. The required inlier fraction is
+    p_req = 1 - (floor((m-p)/2)+1)/m ~ (1 + p/m)/2. At m = 2p this is 0.75, not 0.5. Proposer's
+    arithmetic at q = 3329, sigma = 1, to be recomputed in-harness: ||v||* = 2467 at the asymptotic
+    p_req = 0.5; 2203 at m = 10p; 1876 at m = 4p; 1447 at m = 2p. The finite-sample ceiling at
+    m = 2p is a factor 1.705 SHORTER than the asymptotic one, hence strictly harder to reach.
+    (B3) THE STATISTIC THE CONDITION MUST BE IMPOSED ON, WHICH IS NOT lambda_1. An earlier draft
+    solved for "the smallest blocksize whose BEST ACHIEVABLE VECTOR LENGTH reaches ||v||*", i.e. a
+    lambda_1 condition. A robust regression fitting p unknowns needs at least p INLIER ROWS, not
+    one short vector, so the condition is a QUANTILE of the reduced ROW-NORM PROFILE at blocksize
+    beta. THE CLAIM: the right Stage-0 condition is that the p-th (equivalently, under the
+    tighter reading, the 2p-th) smallest row norm of the reduced basis of the omega-penalised
+    embedding at blocksize beta satisfies ||v|| <= ||v||*(p_req), where the profile is read off
+    the GSA/Z-shape model of that embedding rather than from lambda_1 alone; and that computing
+    the resulting beta_NoMod and comparing it with the blocksize beta_primal of the direct primal
+    attack at the same parameter set is a decisive, cheap scope test that NoMod's own paper does
+    not perform and that this repository has never performed for any attack. THE DIRECTION OF THE
+    EARLIER ERROR IS RECORDED BECAUSE IT MATTERS: a lambda_1 condition with p_req = 1/2 is a lower
+    bound on a lower bound, so it UNDERSTATES beta_NoMod and manufactures the E2 branch -- the very
+    branch the record says must be escalated. The corrected statistic moves beta_NoMod UP on both
+    counts, which makes E1 more likely and E2 correspondingly harder to reach, and that is the
+    honest direction for the record's own headline prediction to move.
+    (C) WHAT THE TWO OUTCOMES MEAN, DECLARED BEFORE THE RUN. E1 (SPARSITY PHENOMENON): beta_NoMod
+    > beta_primal at every ML-KEM parameter set, at every point of the (p_req, m/p) grid, and the
+    gap shrinks sharply when sigma is replaced by its sparse-secret value at the Hamming weights
+    the paper actually attacked. Then NoMod's successes are explained by sparsity and reduced
+    dimension, the robust-regression route is strictly dominated by the reduction it depends on,
+    and the lane gains a measured obstruction with a number: "robust-regression attacks on ML-KEM
+    require X more blocksize than the primal attack they preprocess with." E2 (PREPROCESSING
+    PHENOMENON): beta_NoMod <= beta_primal at some parameter set somewhere on that grid. Then
+    robust estimation over wrap-free equations is a genuinely cheaper route than the primal attack
+    whose preprocessing it borrows, ML-KEM has a live mechanism in it, and this is the
+    highest-value outcome available in the lane. E2 is only meaningful if it survives on the
+    CORRECTED statistic; an E2 read off the lambda_1 version at p_req = 1/2 is an artefact of the
+    wrong condition and must not be escalated.
+    (D) THE MODEL ITSELF IS ON TRIAL, NOT ONLY ITS CONSEQUENCE. The erf expression assumes the
+    reduced-equation value is Gaussian with standard deviation ||v||*sigma and that wrap events are
+    independent across equations. Both are testable directly and cheaply, and the empirical arm is
+    designed so the MODEL can fail even if the arithmetic is right.
+    (E) NOT CLAIMED. No attack, no break, no speedup, no exponent. No assertion that NoMod is
+    wrong: its reported results at its reported parameters are taken at face value and are not
+    re-run here. No assertion about what the literature does or does not contain. Every number in
+    this record is the proposer's arithmetic on published constants and on quantities extracted
+    from the paper's HTML this session, NOT a measurement from any committed run. No direction is
+    declared impossible.
+  mechanism: >-
+    STAGE 0 (closed form, no compute, the decider -- AND IT IS SCORED ON A ROW-NORM QUANTILE, NOT
+    ON lambda_1). Four quantities are fixed before anything is solved for, and each is reported:
+    (0a) sigma. From FIPS 203 constants compute sigma for the joint (s, e) vector at each parameter
+    set: for ML-KEM-768/1024 both s and e are CBD_2, sigma = 1; for ML-KEM-512 the key-side secret
+    is CBD_3 (sigma = sqrt(1.5) = 1.2247) and the error is CBD_2, so the joint sigma is the
+    appropriate mixture and must be computed per block rather than assumed uniform.
+    (0b) p, THE NUMBER OF UNKNOWNS THE FIT RECOVERS. Declared per configuration -- full-secret
+    recovery at ML-KEM-768 has p = 768 key-side coordinates (2*768 if the error block is also
+    fitted), and any block-wise or hybrid variant declares its own smaller p. p is a design choice
+    of the attack and the ledger reports beta_NoMod as a function of it, because the ceiling
+    depends on it through p/m.
+    (0c) m, THE ROW COUNT ACTUALLY USED, INCLUDING AMPLIFICATION. NoMod's algebraic amplification
+    and reduced-vector saving generate more equations than one reduced basis has rows, and those
+    extra rows are LONGER. m is therefore the post-amplification row count and the profile in (0e)
+    must be the profile of the rows actually fed to the estimator, not of one reduced basis. The
+    ledger sweeps m/p over {2, 4, 10, 100} and reports the whole curve.
+    (0d) p_req, FROM THE FINITE-SAMPLE BOUND. Compute the breakdown ceiling
+    eps* = (floor((m-p)/2)+1)/m ~ (1 - p/m)/2 and set p_req = 1 - eps* ~ (1 + p/m)/2. Report the
+    flat 1/2 ONLY as the p/m -> 0 asymptotic limit and label it as the most generous case; it is
+    never used as the operating point. Then invert the erf: ||v||*(p_req) =
+    q/(2*sqrt(2)*erfinv(p_req)*sigma).
+    (0e) THE CONDITION. Build the GSA/Z-shape row-norm profile of the OMEGA-PENALISED embedding at
+    blocksize beta -- omega = 4 for CBD errors and omega = 10 for Gaussian sigma = 3 per the
+    paper's own preprocessing -- with the sample count optimised exactly as the primal baseline
+    optimises it. Solve for the smallest beta such that THE p-th SMALLEST ROW NORM of that profile
+    satisfies ||v|| <= ||v||*(p_req). Report the same solve under the tighter 2p-th-smallest
+    reading, and under a refined expected-count variant in which the condition is
+    sum over rows of erf(q/(2*sqrt(2)*||v_i||*sigma)) >= p / (1 - eps*), so that the verdict is not
+    an artefact of one quantile convention. Report beta_NoMod beside beta_primal from the same
+    model, per parameter set, as a SIGNED DIFFERENCE, on the full (p, m/p, quantile-convention)
+    grid.
+    (0f) CALIBRATION FIRST. Run the identical arithmetic at NoMod's own attacked settings (n=256
+    k=2 with weight-6 sparse secrets; n=128 k=3 with weight-3), with p and m set to what those
+    experiments actually used, so the method is calibrated on a point where the paper reports
+    success. IF STAGE 0 SAYS THE PAPER'S OWN SUCCESSFUL CELLS ARE INFEASIBLE, STAGE 0 IS WRONG AND
+    NOTHING ELSE IS REPORTABLE. That calibration is the load-bearing control of the whole design,
+    it is run first, and the corrected (tighter) ceiling gives it MORE power to fail than the
+    earlier draft's version had -- which is the point of running it first.
+    STAGE 1 (sensitivity over BOTH axes, because varying one does not cover the other). The
+    earlier draft swept only the required inlier fraction over {0.5, 0.7, 0.9}, which does not
+    reach the defect: the finite-sample bound moves with the NUMBER OF ROWS PER UNKNOWN, not with
+    a freely chosen fraction. Sweep the two axes jointly: p_req over {the value forced by the
+    finite-sample bound at the current m/p, 0.7, 0.9} and m/p over {2, 4, 10, 100}, and report
+    beta_NoMod as a surface. 50% remains in the table only as the p/m -> 0 corner. Also report the
+    sensitivity to the Tukey tuning constant, which the paper does not state: a real
+    iteratively-reweighted biweight fit degrades well before its theoretical breakdown point and
+    in high dimension needs a comfortable inlier majority, so the surface's high-p_req corner is
+    the realistic one and the low corner is the generous one.
+    STAGE 2 (empirical wrap-rate arm, at reduced parameters, at true FIPS q). Build ML-KEM-shaped
+    q-ary lattices at q = 3329 with reduced (n, k) -- n in {64, 128, 256}, k in {2, 3} -- with real
+    CBD errors and real CBD secrets at declared densities (dense CBD_2; and sparsified variants at
+    the Hamming weights the paper reports, as the dose axis). Run LLL and BKZ at a ladder of
+    blocksizes on the omega-penalised embedding. RECORD THE FULL ROW-NORM PROFILE, not a single
+    representative length: for every row v used, record ||v|| and the ACTUAL wrap count of the
+    resulting equation, computed with knowledge of the planted secret. Compare the measured
+    wrap-free fraction against the erf prediction erf(q/(2*sqrt(2)*||v||*sigma)) row by row, and
+    compare the measured p-th and 2p-th smallest row norms against the GSA/Z-shape prediction used
+    in Stage 0 -- that comparison is what validates Stage 0's profile model and it has no analogue
+    in the earlier draft. Report residuals as signed absolute differences, not ratios.
+    STAGE 3 (the null that can void the model). Generate a NORM-MATCHED NON-LATTICE control: rows
+    drawn as random directions in R^d scaled to reproduce, row for row, the norm multiset of the
+    Stage-2 reduced basis, paired against the SAME planted (s, e). The erf model depends on the row
+    only through its norm, so IF THE MODEL IS RIGHT THE TWO ARMS MUST HAVE THE SAME WRAP-FREE
+    FRACTION AT MATCHED NORM. If they differ beyond the declared threshold, lattice reduction is
+    correlating the row with the secret in a way the model does not capture -- which would be a
+    finding in its own right and would void every Stage-0 number that rests on the erf. The
+    comparator is generated, so it is drawn at least 8 times and reported as an interval, never as
+    a point (KN-TECH-1a5b7e, mode 5).
+    STAGE 4 (independence, the model's second assumption, and it feeds straight back into p_req).
+    Reduced rows of one basis are strongly dependent. Measure the pairwise correlation of wrap
+    indicators across rows of the same reduced basis, and compare with the independent-Bernoulli
+    prediction at the matched per-row rate. A robust estimator's effective sample size is what
+    matters, and correlated corruption at a nominal 40% rate can behave like an uncorrelated 60%
+    rate. Report the measured EFFECTIVE inlier count, and re-enter it into (0d) as an effective m:
+    correlation reduces m at fixed p, which raises p/m, which raises p_req, which lowers ||v||*
+    and raises beta_NoMod again. That feedback path is the reason Stage 4 is not decorative.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX IS UNAVAILABLE THIS SESSION (in-memory Qdrant; it answers
+      nothing). NO SHELL is available either, so every corpus search was run with the Grep
+      (ripgrep) tool and is recorded below as a pattern and a path.
+      GREPS RUN:
+      (1) 'NoMod|wrap-around|wraparound|non-modular|Tukey|robust regression|breakdown point|
+      biweight' -i over the repository root -> 65 occurrences across 44 files, overwhelmingly
+      unrelated uses of "wrap-around".
+      (2) The narrowed follow-up 'NoMod|Tukey|biweight|breakdown point|robust regression|
+      non-modular' -i over the repository root -> 16 files: knowledge/sources.json,
+      knowledge/SOURCES.md, research_digest/manifest.jsonl, research_digest/chunks/chunk_095.txt,
+      ledger/proposals/IDEA-20260805-2b94fe.yaml, knowledge/techniques/KN-TECH-012.md,
+      knowledge/literature/{KN-LIT-4701, KN-LIT-030, KN-LIT-031}.md, two autolab task catalogues,
+      one MLKEM-DUAL-SOURCES HTML landing page, three GOAL-MLKEM-001 BATCH-001/002 task artifacts,
+      and one GOAL-HQC-001 validation report. NONE of these is a robust-regression or wrap-rate
+      record; the single ledger proposal hit, IDEA-20260805-2b94fe, is the per-coordinate
+      log-likelihood scoring functional and matches only on incidental wording.
+      (3) 'RQ-MLKEM-001' over ledger/proposals -> 38 files; the lane's 26 pre-extracted titles at
+      scratchpad/ctx/proposals-RQ-MLKEM-001.txt WERE READ IN FULL and none concerns wrap-around
+      rates, robust estimation, outlier fractions, or the scope of an external machine-learning
+      attack.
+      WEB QUERIES RUN (WebSearch): 'NoMod non-modular attack Module-LWE arXiv 2510.02162'.
+      WEB PAGES ACTUALLY FETCHED AND READ (WebFetch), all three succeeded:
+      (a) https://arxiv.org/abs/2510.02162 -- abstract, authors (Bassotto, Franch, Krcek, Picek),
+      method summary, and the headline results (binary secrets n=350; sparse binomial n=256;
+      "CRYSTALS-Kyber settings (n,k) = (128,3) and (256,2)").
+      (b) https://arxiv.org/pdf/2510.02162 -- summary extraction; confirmed BKZ preprocessing and
+      Tukey biweight, and confirmed that the paper states no explicit wrap-free fraction and no
+      explicit limitation statement for standardised Kyber.
+      (c) https://arxiv.org/html/2510.02162v1 -- THE LOAD-BEARING FETCH. Source of: the inlier
+      model "P_inlier,i = erf(q/(2*sqrt(2)*sigma_btilde,i))"; the preprocessing pipeline (four
+      FLATTER iterations at alpha=0.001, then BKZ 2.0 at delta=0.99 with a progressive block-size
+      schedule 20 to 40, +10 when progress stalls for four tours); the penalty parameter omega=4
+      for CBD errors and omega=10 for Gaussian sigma=3; the Tukey biweight loss form; the Table-1
+      cells quoted in the claim; and the statement that "for Kyber (n=256,k=3), we halted [BKZ] at
+      block size 10". The same fetch reports that the Tukey tuning constant and the breakdown
+      point are NOT numerically specified in the paper, and that no aggregate wrap-free percentage
+      is reported -- both of which are gaps this proposal fills rather than assumes.
+      NOT DONE, AND SAID SO: no targeted literature search of the form "has anyone computed the
+      breakdown-point-implied blocksize for a robust-regression LWE attack" was run, so the
+      novelty of the AUDIT ANGLE is unscreened.
+      2026-08-21 REPAIR PASS: no new external retrieval was performed. The correction below is a
+      change of STATISTIC (row-norm quantile in place of lambda_1) and of BOUND (finite-sample
+      Donoho-Huber in place of the flat asymptotic 1/2), and both rest on the robust-statistics
+      citation already listed, which remains provenance `recalled` and is now MORE load-bearing
+      than before -- so checking it against a primary source is upgraded to a proof obligation.
+    results: >-
+      Nothing in this repository -- no proposal, hypothesis, experiment, evidence or knowledge
+      entry -- mentions NoMod, robust regression, breakdown points, outlier fractions, or the
+      wrap-around rate of a preprocessed LWE system. The lane's 26 existing proposals cover
+      isometry-orbit batching and its DAG ceiling, per-coordinate log-likelihood scoring,
+      compression-cell decoding, the d_u=11 two-class mixture, weak-key lanes, failure-oracle
+      reachability, the DFR's two directions, quantum-route pricing, the enumeration/sieving
+      crossover, best-of-M and its Beta law, dense-CBD hybrid decoding, and the ring-deleted null.
+      The nearest neighbours are IDEA-20260805-2b94fe (replaces the Euclidean norm by an exact
+      per-coordinate log-likelihood as a SCORING functional) and IDEA-20260813-17acdf (dense-CBD
+      boundary test for ring-enhanced hybrid decoding, i.e. whether a reported online reuse
+      survives ML-KEM entropy). The second is the closest in spirit -- both ask whether an
+      external method's reported gains survive ML-KEM's DENSITY -- and the discrimination is given
+      below.
+    verdict: >-
+      UNVERIFIED. The audit angle was not literature-screened and no claim is made that it is
+      absent from the literature. CLAIMED NEW RELATIVE TO THIS REPOSITORY: the wrap-free fraction
+      of a preprocessed ML-KEM equation system as a tracked, measured quantity; the inversion of an
+      external attack's own published inlier model into a required-blocksize ceiling via the
+      FINITE-SAMPLE regression-equivariant breakdown bound imposed on a ROW-NORM QUANTILE of the
+      omega-penalised embedding; and a norm-matched non-lattice null capable of voiding that model.
+      WITHDRAWN FROM THE EARLIER DRAFT: that the Stage-0 condition is a lambda_1 condition, and
+      that 1/2 is "a hard ceiling" rather than the p/m -> 0 asymptotic limit of a bound that binds
+      more tightly at every finite m. ASSEMBLED FROM KNOWN PARTS: the erf inlier model is NoMod's,
+      quoted not derived; the finite-sample breakdown bound is standard robust statistics, recalled
+      and not re-derived here; the root-Hermite and GSA/Z-shape cost models are standard; the "does
+      it survive ML-KEM density" framing is IDEA-20260813-17acdf's and this record is downstream of
+      it.
+  object_first_candidate:
+    tracked_object: >-
+      THE CONTAMINATION SUPPORT of a preprocessed ML-KEM equation system: the subset W of reduced
+      equations whose integer inner product wrapped the modulus, i.e. the outlier support that a
+      robust estimator must tolerate. Followed from the CBD sampling of (s, e), through lattice
+      preprocessing (which chooses the rows), to the estimator's reweighting iterations. ITS SIZE
+      IS SCORED AGAINST A COUNT, NOT A FRACTION: the estimator needs at least p rows outside W, so
+      what matters is |W| relative to m - p, which is exactly why the finite-sample bound and not
+      the asymptotic 1/2 is the right yardstick.
+    lossiness: >-
+      GENUINELY LOSSY, and the discard is chosen to match the estimator's own arithmetic. From the
+      full state -- the integer values (<v_i, (s,e)>) for every reduced row -- the projection keeps
+      only the INDICATOR of wrapping and discards both the residue and the wrap magnitude. This is
+      not a change of coordinates: the fibre over a given support W contains all sign patterns and
+      all magnitudes, an astronomically large set. THE DISCARD IS COMPATIBLE WITH THE TARGET
+      OPERATION for a specific and checkable reason: Tukey's biweight assigns weight EXACTLY ZERO
+      to any residual beyond its cutoff, so at the estimator's fixed point the fit is a function of
+      the support and of the un-wrapped residuals alone -- the wrap magnitudes are annihilated by
+      construction. That is why the support, and not the residual vector, is the right object.
+      HONEST LIMIT, STATED: the support alone does NOT propagate through integer recombination of
+      equations -- combining two rows requires their residues, not just their wrap bits -- so the
+      object is lossy-and-propagating with respect to the ESTIMATOR's operations and lossy-and-
+      dissolving with respect to further lattice operations. Stage 4 exists because of that limit.
+    propagation: >-
+      One step = one reweighting iteration of the estimator, and the propagation law is explicit:
+      an equation enters the fit iff its current residual is inside the biweight cutoff, so the
+      support evolves as a deterministic function of the previous support and the current fit.
+      Measurable directly: instrument the estimator to emit the support at each iteration and
+      report its size, its stability, and its overlap with the TRUE wrap set (known, because the
+      instrument plants the secret). The one-step law is falsifiable -- if the emitted support does
+      not converge, or converges to something with low overlap with the true wrap set, the object
+      is not the one the estimator is actually using.
+    survival_score: >-
+      Survives the estimator's iterations (that is the whole design) and dissolves at the first
+      integer recombination of equations, because wrap bits do not add. In the ML-KEM regime the
+      more brutal dissolution is quantitative rather than structural: once |W| passes the
+      finite-sample breakdown count (floor((m-p)/2)+1) no regression-equivariant estimator can be
+      guaranteed to track the inliers at all, so the object survives exactly as long as the p-th
+      smallest row norm stays below ||v||*(p_req) and not one step further. The number of BKZ
+      blocksize units separating ML-KEM from that condition is the deliverable, and it is reported
+      as a surface over (p, m/p) rather than as one number, because the condition itself moves with
+      those.
+  null_object_control: >-
+    THREE controls, all able to fail, none decorative.
+    NULL-A, CALIBRATION ON THE PAPER'S OWN SUCCESSFUL CELLS: run Stage 0's arithmetic at (n,k) =
+    (256,2) with a weight-6 sparse secret and at (128,3) with weight 3 -- cells where the paper
+    reports recovery -- with p and m set to what those experiments used and with the CORRECTED
+    row-norm-quantile condition at the finite-sample p_req. The required blocksize computed there
+    must be FEASIBLE, i.e. consistent with the paper's reported preprocessing (BKZ 2.0, progressive
+    schedule 20 to 40). IF STAGE 0 SAYS THOSE CELLS ARE INFEASIBLE, THE STAGE-0 MODEL IS FALSIFIED
+    AND NO ML-KEM NUMBER FROM IT IS REPORTABLE. This control has real power to fail -- MORE power
+    than under the earlier draft's looser ceiling, which is why it is run before the ML-KEM arm and
+    why its prior is the lowest in this record.
+    NULL-B, THE NORM-MATCHED NON-LATTICE ARM (Stage 3): rows with the same norm multiset as the
+    reduced basis but random directions and no lattice membership, against the same planted secret.
+    The erf model reads the row only through its norm, so equal wrap-free fractions are FORCED
+    under the model. The control fails -- informatively -- if they differ, which would mean
+    reduction correlates rows with the secret and the model is incomplete. Drawn at least 8 times;
+    the interval is reported, never a single draw.
+    NULL-C, THE DENSITY DOSE AXIS: the same measurement at a graded sequence of secret Hamming
+    weights from the paper's weight 3-6 up to full CBD density, at least four interior points, with
+    MONOTONICITY of the wrap-free fraction in density explicitly reported. Two endpoints do not
+    give a direction (KN-TECH-1a5b7e, obligation-3 refinement); if the wrap-free fraction is not
+    monotone in density, the directional reading "density is what kills it" must be withdrawn.
+    FORCED-VALUE DERIVATION, DONE BEFORE THE RUN: under the erf model with rows of norm ||v||, the
+    wrap-free fraction is erf(q/(2*sqrt(2)*||v||*sigma)) in BOTH the lattice and the non-lattice
+    arm, so NULL-B's contrast is forced to zero and any nonzero contrast is the finding. The
+    comparator's spread is NOT zero -- it is the sampling spread of a binomial at the measured rate
+    over the number of rows, which is reported alongside -- so this is not a mode-1 null.
+  discriminated_from:
+    - >-
+      IDEA-20260813-17acdf asks whether a ring-enhanced hybrid decoding attack's reported O(N)
+      online reuse survives ML-KEM entropy, replacing sparse-weight enumeration by exact type-class
+      lists. Same instinct, different object and different method: that record tracks ENUMERATION
+      COST over type classes in a hybrid attack; this one tracks the CONTAMINATION SUPPORT of a
+      regression system and inverts a published inlier model into a blocksize. Neither's outcome
+      constrains the other's, and this proposal touches no hybrid enumeration.
+    - >-
+      IDEA-20260805-2b94fe replaces the Euclidean norm by the exact per-coordinate CBD
+      log-likelihood as the scoring functional. That is about HOW TO SCORE a candidate; this is
+      about WHICH EQUATIONS ARE USABLE AT ALL before any candidate is scored. A robust estimator
+      is in fact a third scoring rule, and the two records would compose rather than compete -- but
+      2b94fe computes no wrap rate and this record proposes no scoring functional.
+    - >-
+      IDEA-20260807-05e12c (the d_u = 11 two-class ciphertext noise mixture) and
+      IDEA-20260813-fbedca (exact compression-cell constrained decoding) both concern the
+      CIPHERTEXT-side compression map as a source of exactly-known information. The wrap event here
+      is a property of the KEY-side equation system after lattice preprocessing, involves no
+      compression, and would exist unchanged if ML-KEM compressed nothing.
+    - >-
+      IDEA-20260805-cdc87d moves the enumeration/sieving crossover under a memory price -- a change
+      to the cost model of the reduction step. This proposal consumes a reduction cost model as an
+      input and asks a different question of it (what quality is needed, at which row-norm
+      quantile), and would consume cdc87d's corrected crossover if available without changing the
+      sign of its own comparison, because both beta_NoMod and beta_primal are read from the same
+      model.
+    - >-
+      A replication of NoMod would re-run the attack. Nothing here re-runs it, and the design is
+      explicitly built so that NoMod's reported results are taken at face value: the audit attacks
+      the SCOPE of the method at FIPS parameters, using the paper's own model, and can vindicate it.
+  citations:
+    - ref: 'arXiv:2510.02162 -- Bassotto, Franch, Krcek, Picek, "NoMod: A Non-modular Attack on Module Learning With Errors"'
+      provenance: retrieved
+      claim: >-
+        Hybrid white-box method treating wrap-arounds as statistical corruption and casting secret
+        recovery as robust linear estimation; BKZ preprocessing (four FLATTER iterations at
+        alpha=0.001, then BKZ 2.0 at delta=0.99 with progressive block size 20 to 40, incremented
+        by 10 when progress stalls for four tours); penalty omega=4 for CBD errors, omega=10 for
+        Gaussian sigma=3; Tukey biweight loss; INLIER MODEL P_inlier,i = erf(q/(2*sqrt(2)*
+        sigma_btilde,i)); Table-1 cells including Ring-LWE n=256 at max hw 6, Module-LWE (256,2) at
+        max hw 6 and (128,3) at max hw 3, dense secrets to n=120; and the statement that for
+        "Kyber (n=256,k=3)" BKZ was halted at block size 10. The paper does NOT state a numeric
+        Tukey tuning constant, does NOT state a breakdown point, does NOT report an aggregate
+        wrap-free fraction, and does NOT state a limitation for standardised Kyber parameters.
+      verified_by: idea-generator@2026-08-21
+    - ref: 'Finite-sample breakdown point of regression-equivariant estimators (Donoho and Huber 1983; Rousseeuw and Leroy 1987)'
+      provenance: recalled
+      claim: >-
+        For a regression-equivariant estimator fitting p unknowns from m observations, the
+        finite-sample breakdown point is at most (floor((m-p)/2)+1)/m, which is approximately
+        (1 - p/m)/2 and tends to 1/2 only as p/m -> 0. RECALLED, NOT RE-READ, AND NOW LOAD-BEARING:
+        the earlier draft of this record used the flat 1/2 as "a hard ceiling", which is the
+        asymptotic corner of this expression rather than the bound that binds at any finite m. The
+        exact statement, its regularity conditions, and whether it binds for an M-estimator with a
+        redescending loss at fixed tuning constant in high dimension MUST be checked against a
+        primary source before Stage 0's ceiling is quoted; that check is a proof obligation of this
+        record and Stage 1's (p_req, m/p) surface exists so that the verdict does not depend on the
+        recall being exactly right.
+      verified_by: null
+    - ref: 'NIST FIPS 203 (ML-KEM) parameter tables'
+      provenance: recalled
+      claim: >-
+        n=256, q=3329; (k, eta1, eta2) = (2,3,2), (3,2,2), (4,2,2); CBD_eta has standard deviation
+        sqrt(eta/2), and a CBD_2 coefficient is nonzero with probability 10/16. Recalled; every
+        constant must be re-read and certified in-harness.
+      verified_by: null
+    - ref: IDEA-20260813-17acdf
+      provenance: internal
+      claim: >-
+        Prior record in this lane asking whether an external method's reported gains survive
+        ML-KEM's dense-CBD entropy. This proposal is downstream of that framing.
+      verified_by: idea-generator@2026-08-21
+  assumptions:
+    - >-
+      sigma_btilde,i = ||v_i|| * sigma to first order, i.e. the reduced row is effectively
+      uncorrelated with the planted (s,e). This is precisely what NULL-B tests, and it is the
+      assumption most likely to be wrong.
+    - >-
+      The finite-sample regression-equivariant breakdown bound (floor((m-p)/2)+1)/m applies to the
+      estimator NoMod uses. Stated as a recalled result and flagged for primary-source checking;
+      Stage 1's two-axis surface over (p_req, m/p) is the hedge. The flat 1/2 is retained ONLY as
+      the p/m -> 0 asymptotic limit and is never the operating point.
+    - >-
+      A robust fit of p unknowns requires at least p inlier rows, so the Stage-0 condition is a
+      QUANTILE of the row-norm profile and not a statement about lambda_1. This is the correction
+      the 2026-08-21 repair pass made; the earlier lambda_1 formulation produced a lower bound on a
+      lower bound and biased the verdict toward the E2 branch.
+    - >-
+      The GSA/Z-shape model of the omega-penalised embedding predicts the p-th and 2p-th smallest
+      row norms at blocksize beta well enough for the quantile condition to be meaningful. Stage 2
+      tests this directly by measuring the profile, and a failure voids Stage 0's beta_NoMod
+      exactly as an erf failure would.
+    - >-
+      The same cost model, version and sample-count optimisation are applied when computing
+      beta_NoMod and beta_primal, so the reported quantity is a difference under matched
+      accounting.
+    - >-
+      Reduced parameters (n in {64,128,256} at true q = 3329) are informative about the SHAPE of
+      the wrap-rate-versus-norm relation and of the row-norm profile, but NOT about the absolute
+      blocksize at ML-KEM-768. Every conclusion about FIPS parameters comes from Stage 0's closed
+      form, not from Stage 2's measurements, and the two must never be conflated in reporting.
+    - >-
+      The planted secret is known to the instrument, so wrap counts are computed exactly and not
+      estimated. This makes Stage 2 a measurement rather than an inference, and it also means
+      Stage 2 says nothing about an attacker's ability to identify wraps without the secret.
+  proof_search_map:
+    bottleneck: >-
+      The p-th smallest ROW NORM of the omega-penalised embedding's reduced profile at blocksize
+      beta -- not lambda_1. Every downstream quantity (inlier count, effective sample size, whether
+      any robust estimator can converge) is a function of the profile's low quantiles, and the cost
+      of producing them is the BKZ blocksize. Lowering that quantile at fixed cost, or lowering p,
+      is the only thing that would change the verdict.
+    baseline_embedding:
+      parameter_slice: >-
+        NoMod's own reported successful cells: (n,k) = (256,2) at max Hamming weight 6 and
+        (128,3) at max Hamming weight 3, with the paper's stated preprocessing and the p and m
+        those experiments used. These are the exact boundary at which the method is known to work,
+        and Stage 0 must reproduce their feasibility.
+      reproduction_check: >-
+        A frozen fixture asserting that Stage 0, evaluated at those cells with the reported sparse
+        weights and the CORRECTED quantile condition at the finite-sample p_req, returns a required
+        blocksize consistent with a progressive BKZ schedule capped at 40. Symbolic and instant.
+        Failure of this fixture voids Stage 0 entirely and is declared in advance so it cannot be
+        reinterpreted after the fact. A SECOND FIXTURE, ADDED BY THE REPAIR PASS: in the p/m -> 0
+        limit the Stage-0 evaluator must reproduce the flat-1/2 ceiling ||v||* = 0.7412*q/sigma, so
+        that a transcription error in the finite-sample expression is separable from a genuine
+        finite-sample effect.
+    observation_collision:
+      observable: >-
+        The wrap-free fraction of a preprocessed equation system, and the low quantiles of its
+        row-norm profile.
+      distinct_preimage_search: >-
+        A COLLISION IS EXPECTED AND IS THE POINT OF NULL-B: under the erf model, a genuine reduced
+        lattice basis and a norm-matched random-direction family have IDENTICAL wrap-free fractions,
+        so the observable cannot distinguish them. That is a direct falsifier of using the
+        wrap-free fraction as evidence of anything lattice-specific -- and it is exactly why the
+        proposal uses the observable only to answer a QUANTITATIVE feasibility question (is the
+        inlier COUNT above the finite-sample breakdown count) and never to argue that structure is
+        present. A second collision: a dense secret at small ||v|| and a sparse secret at large
+        ||v|| can give the same fraction, which is why the density dose axis (NULL-C) is run at
+        fixed ||v|| ladders. A THIRD, ADDED BY THE REPAIR PASS: two profiles with the same lambda_1
+        can have very different p-th quantiles, so lambda_1 is a genuine lossy collapse of the
+        object the estimator consumes -- which is the technical reason the earlier draft's
+        condition was on the wrong statistic.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the wrap-free fraction fixed and vary the forgotten structure -- lattice versus
+          norm-matched random, dense versus sparse secret -- to find an intrinsic invariant
+          distinguishing the resulting systems. The candidate invariant is the pairwise correlation
+          of wrap indicators across rows (Stage 4), which the erf model does not predict at all.
+        predicted_gain: >-
+          If wrap indicators are measurably correlated in the lattice arm and not in the
+          norm-matched arm, the EFFECTIVE m is strictly below the nominal one, p/m rises, p_req
+          rises, ||v||* falls and every Stage-0 ceiling becomes optimistic by a computable factor.
+          Predicted direction: lattice arm MORE correlated. Predicted minimum effect: a mean
+          pairwise wrap-indicator correlation exceeding 0.05 in the lattice arm against the
+          non-lattice arm's interval.
+    quantifier_order: >-
+      FOR ALL ML-KEM parameter sets P, FOR ALL declared unknown counts p, FOR ALL row budgets m in
+      the swept grid, and FOR ALL required inlier fractions p_req at or above the finite-sample
+      value (1 + p/m)/2, THERE EXISTS no BKZ blocksize beta with beta <= beta_primal(P) such that
+      the p-th smallest row norm of the omega-penalised reduced profile at beta satisfies
+      erf(q/(2*sqrt(2)*||v||*sigma_P)) >= p_req. The negation -- THERE EXISTS P, p, m, p_req and
+      such a beta -- is E2. The witness beta is allowed to depend on all four; no uniformity is
+      claimed.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "under NoMod's own inlier model, the recalled finite-sample regression-equivariant
+        breakdown bound, the GSA/Z-shape profile model of the omega-penalised embedding, and the
+        frozen root-Hermite model, a robust-regression route to ML-KEM requires at least X more
+        blocksize units than the primal attack at these parameter sets, over the swept (p, m/p,
+        quantile-convention) grid." It cannot certify that no robust or outlier-tolerant method
+        attacks ML-KEM, cannot certify anything about estimators that are not regression-equivariant
+        (which are outside the bound), cannot certify anything about NoMod's actual implementation,
+        which is not run, and cannot certify anything at values of p or m outside the swept grid.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion FAILS is the sparse-secret instance at the
+        paper's own weights: there the method demonstrably works. A version of this audit that
+        returns "infeasible" for both ML-KEM and the sparse cells has not identified DENSITY and
+        DIMENSION as the load-bearing structure and its ML-KEM verdict is empty. NULL-A is that
+        control and it is mandatory; the corrected, tighter ceiling makes it a stronger test.
+    proof_obligations:
+      - claim: 'THE ASYMPTOTIC LIMIT: as p/m -> 0 the regression-equivariant breakdown point tends to 1/2, giving ||v||* = q/(2*sqrt(2)*erfinv(1/2)*sigma) = 0.7412*q/sigma. Retained ONLY as the most generous corner.'
+        responsibility: baseline
+      - claim: 'THE BOUND THAT BINDS: the finite-sample breakdown point is at most (floor((m-p)/2)+1)/m ~ (1-p/m)/2, so p_req ~ (1+p/m)/2 and ||v||*(p_req) = q/(2*sqrt(2)*erfinv(p_req)*sigma); at m = 2p this is 0.4346*q/sigma, a factor 1.705 below the asymptotic value.'
+        responsibility: correctness
+      - claim: 'The Stage-0 condition is imposed on the p-th (and 2p-th) smallest row norm of the omega-penalised reduced profile, not on lambda_1; the expected-count variant is reported alongside.'
+        responsibility: correctness
+      - claim: 'p and m are declared per configuration, with m the POST-amplification row count and p the number of unknowns the fit recovers.'
+        responsibility: interface
+      - claim: 'sigma_btilde = ||v||*sigma to first order for a reduced row and a planted CBD (s,e).'
+        responsibility: feasibility
+      - claim: 'The GSA/Z-shape profile model predicts the measured p-th and 2p-th smallest row norms within a declared tolerance (Stage 2).'
+        responsibility: baseline
+      - claim: 'Stage 0 reproduces the feasibility of the paper''s own successful cells under the corrected condition.'
+        responsibility: baseline
+      - claim: 'beta_NoMod and beta_primal are computed under one identical cost model with identical sample-count optimisation.'
+        responsibility: interface
+      - claim: 'Wrap-indicator correlation is fed back as an effective m, which raises p/m and hence p_req.'
+        responsibility: feasibility
+      - claim: 'Every FIPS-parameter conclusion comes from the closed form, never from reduced-parameter measurement.'
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        beta_NoMod minus beta_primal at ML-KEM-768, computed under one identical cost model, with
+        beta_NoMod defined by the p-th-smallest-row-norm condition at the finite-sample p_req and
+        p = 768, m = 2p
+      direction: higher
+      minimum_effect: >-
+        +50 blocksize units. THE MAGNITUDE IS NOT DERIVED FROM THE lambda_1 VERSION AND NO NUMBER
+        FROM THAT VERSION IS CARRIED FORWARD. What is derived here is the ceiling itself
+        (ARITHMETIC, NOT A MEASUREMENT, to be recomputed and possibly overturned in-harness):
+        ||v||* = 1447 at m = 2p, 1876 at m = 4p, 2203 at m = 10p, and 2467 in the p/m -> 0 corner,
+        at q = 3329 and sigma = 1. The corrected condition is strictly tighter than the earlier
+        draft's on BOTH counts -- a quantile instead of a minimum, and a finite-sample instead of
+        an asymptotic bound -- so beta_NoMod can only move UP relative to that draft, and the
+        declared minimum effect is stated against the corrected quantity alone. Any value at or
+        below zero on the corrected statistic is E2 and must be escalated to independent review
+        rather than reported as a headline; a value at or below zero on the lambda_1 statistic is
+        NOT E2 and must not be escalated.
+    - metric: 'beta_NoMod minus beta_primal at NoMod''s own successful cells (256,2) hw 6 and (128,3) hw 3, corrected condition'
+      direction: lower
+      minimum_effect: >-
+        At most 0, i.e. the audit must find those cells feasible. A positive value there falsifies
+        the Stage-0 model, not the paper. This is now a harder test to pass than in the earlier
+        draft, because the ceiling is tighter, and that is deliberate.
+    - metric: >-
+        ratio of the measured p-th smallest row norm to the GSA/Z-shape prediction, per blocksize,
+        pooled over the Stage-2 ladder
+      direction: different
+      minimum_effect: >-
+        10% in relative terms. A departure above that means the profile model that Stage 0's
+        condition is imposed on does not describe real reduced bases of the omega-penalised
+        embedding, which voids beta_NoMod exactly as an erf failure would, and is itself the
+        finding.
+    - metric: >-
+        signed absolute difference between the measured wrap-free fraction and the erf prediction,
+        per reduced row, pooled over the Stage-2 ladder
+      direction: different
+      minimum_effect: >-
+        0.05 in absolute fraction. A difference above that means the published inlier model does
+        not describe real reduced bases, which voids Stage 0's ceiling and is itself the finding.
+    - metric: >-
+        difference in wrap-free fraction between the lattice arm and the norm-matched non-lattice
+        arm at matched norms
+      direction: different
+      minimum_effect: >-
+        0.03 in absolute fraction, scored against the 8-draw comparator interval and NOT against a
+        single draw. Zero is the forced value under the model.
+    - metric: 'mean pairwise correlation of wrap indicators across rows of one reduced basis, and the effective m it implies'
+      direction: higher
+      minimum_effect: >-
+        0.05 above the non-lattice arm's interval. Report the implied effective m and re-enter it
+        into p_req; an effective m below p makes the fit impossible at that blocksize regardless of
+        any norm.
+    - metric: 'wrap-free fraction as a function of secret Hamming weight, at fixed ||v|| ladder'
+      direction: lower
+      minimum_effect: >-
+        Monotone decreasing across at least four interior density points. Non-monotonicity
+        withdraws the directional reading "density is what kills it".
+  minimal_test:
+    design: >-
+      STAGE 0 PLUS NULL-A ONLY, as the minimal test. No lattice reduction, no sieve, no ML
+      training. Compute sigma per parameter set from FIPS 203 constants; declare p (unknowns
+      recovered) and m (post-amplification row count) per configuration; compute the finite-sample
+      breakdown ceiling eps* = (floor((m-p)/2)+1)/m and the required inlier fraction p_req = 1 -
+      eps*; invert the erf to get ||v||*(p_req); build the GSA/Z-shape row-norm profile of the
+      omega-penalised embedding and solve for the smallest beta at which the p-th smallest row norm
+      meets ||v||*; repeat at the 2p-th quantile and under the expected-count variant; read
+      beta_primal from the same model with the same sample-count optimisation; report the signed
+      difference for all three parameter sets over the (p, m/p) grid. THEN, BEFORE READING THE
+      ML-KEM ARM, run the identical arithmetic on NoMod's own successful cells at the sparse
+      weights and the p and m those experiments used, and check that it returns FEASIBLE. Compute
+      time: seconds, single core; the whole thing is well under an hour including writing the
+      script.
+      IT DISCRIMINATES BECAUSE the two explanations make opposite predictions about the SIGN of one
+      number computed the same way on both arms, and because NULL-A can independently declare the
+      instrument unfit before the ML-KEM number is looked at. IT DISCRIMINATES ON THE RIGHT
+      STATISTIC BECAUSE the condition is the one the estimator actually faces -- p inlier rows, not
+      one short vector -- and the ceiling is the one that binds at finite m; the earlier draft's
+      lambda_1-plus-flat-1/2 formulation was a lower bound on a lower bound and therefore generated
+      the E2 branch as an artefact rather than as a finding. A negative outcome (E1) is a measured
+      obstruction with a number and immediate forward guidance: robust-estimation attacks on ML-KEM
+      must first solve a reduction problem harder than the attack they are alternatives to, so the
+      family is dominated unless a preprocessing method reaching the p-th row-norm quantile below
+      ||v||*(p_req) at cost below beta_primal exists -- and naming that as the open sub-problem is
+      the deliverable. Stages 2-4 are the follow-on and cost hours to a day of single-core BKZ at
+      n <= 256.
+    controls:
+      - 'NULL-A: Stage-0 arithmetic on the paper''s own successful cells must return FEASIBLE under the CORRECTED condition, run FIRST.'
+      - 'Asymptotic-corner fixture: in the p/m -> 0 limit the evaluator must reproduce ||v||* = 0.7412*q/sigma, separating a transcription error from a real finite-sample effect.'
+      - 'NULL-B: norm-matched non-lattice arm, at least 8 draws, interval reported.'
+      - 'NULL-C: secret-density dose axis with at least four interior points and monotonicity reported.'
+      - 'Stage-1 sensitivity over BOTH axes: required inlier fraction AND rows-per-unknown m/p, since varying the fraction alone does not cover the finite-sample bound.'
+      - 'Quantile-convention control: the verdict reported at the p-th and 2p-th smallest row norms and under the expected-count variant.'
+      - 'Identical cost model, version and sample-count optimisation for beta_NoMod and beta_primal.'
+      - 'Seeds recorded; the planted secret known to the instrument so wrap counts are exact, not estimated.'
+    required_metrics:
+      - 'sigma per parameter set and the constants used'
+      - 'p and m per configuration, with m identified as the post-amplification row count'
+      - 'eps* and p_req from the finite-sample bound, beside the p/m -> 0 asymptotic value'
+      - '||v||* at each (p_req, m/p) grid point'
+      - 'the GSA/Z-shape row-norm profile used, and the p-th and 2p-th smallest row norms it predicts at each beta'
+      - 'beta_NoMod, beta_primal, and their signed difference, per parameter set, per grid point, per quantile convention'
+      - 'the same triple at NoMod''s own successful cells (NULL-A verdict)'
+      - 'measured versus predicted p-th smallest row norm, per blocksize (Stage 2 profile check)'
+      - 'measured wrap-free fraction versus erf prediction, per row, with signed absolute residual'
+      - 'lattice versus norm-matched non-lattice wrap-free fractions, with the 8-draw interval'
+      - 'mean pairwise wrap-indicator correlation, the implied effective m, and the p_req it forces'
+      - 'wrap-free fraction versus secret Hamming weight, with monotonicity flag'
+  falsification_conditions:
+    - >-
+      beta_NoMod <= beta_primal at any ML-KEM parameter set at any grid point ON THE CORRECTED
+      STATISTIC. The headline prediction is FALSIFIED and the correct response is escalation to
+      independent review, because it would mean a robust-regression route is estimated cheaper than
+      the primal attack it preprocesses with. An E2 read off the lambda_1 condition or off the flat
+      1/2 does NOT trigger this and must not be escalated.
+    - >-
+      NULL-A returns INFEASIBLE for the paper's own successful cells. The Stage-0 model is wrong,
+      every ML-KEM number from it is void, and the deliverable is the model's failure. This is the
+      likeliest way the design dies and the corrected ceiling makes it likelier still.
+    - >-
+      The asymptotic-corner fixture fails: the evaluator does not reproduce 0.7412*q/sigma as
+      p/m -> 0. The finite-sample expression is mis-transcribed and every ceiling is void.
+    - >-
+      The measured p-th smallest row norm departs from the GSA/Z-shape prediction by more than 10%.
+      The profile model on which Stage 0's condition is imposed does not describe real
+      omega-penalised reduced bases; beta_NoMod must be recomputed from the empirical profile.
+    - >-
+      The measured wrap-free fraction departs from the erf prediction by more than 0.05 in
+      absolute value. The published inlier model does not describe real reduced bases; Stage 0's
+      ceiling is void and must be recomputed from the empirical relation instead.
+    - >-
+      The lattice and norm-matched non-lattice arms differ by more than 0.03 against the 8-draw
+      interval. Reduction correlates rows with the secret in a way the model omits; this is a
+      finding and it invalidates the closed form.
+    - >-
+      Wrap-free fraction is not monotone in secret density across the four interior points. The
+      "density is what kills it" reading is withdrawn and only the non-directional statement
+      survives.
+    - >-
+      The estimator's emitted support does not converge across reweighting iterations, or converges
+      with low overlap against the true wrap set. The tracked object is not the one the estimator
+      uses and the object-first framing is withdrawn.
+  confounders:
+    - >-
+      NoMod's "algebraic amplification" and "reduced-vector saving" generate many more equations
+      than one reduced basis has rows, and those extra rows are longer. Modelling the system by a
+      single ||v|| understates the contamination. This is now structural rather than a footnote:
+      m is DEFINED as the post-amplification row count, the Stage-0 condition is a quantile of the
+      full profile of the rows actually used, and Stage 2 must record that whole profile.
+    - >-
+      p is a design choice of the attacker, and a block-wise or hybrid variant with small p faces a
+      much weaker finite-sample bound (p/m -> 0 recovers the generous 1/2) while paying elsewhere
+      in enumeration. The ledger reports beta_NoMod as a function of p precisely so that this
+      trade is visible rather than assumed away; a verdict quoted at a single p is incomplete.
+    - >-
+      Secret density enters sigma but also enters the fit's conditioning; a sparse secret is
+      easier to fit for reasons unrelated to wrap rate. The dose axis at fixed ||v|| ladder is the
+      mitigation, and the residual confound must be reported.
+    - >-
+      The Tukey tuning constant is not stated in the paper. A generous constant admits more
+      equations at the cost of bias. Stage 1's surface is the hedge, but the true operating point is
+      unknown and this must be said wherever a ceiling is quoted.
+    - >-
+      The breakdown bound is an equivariance argument; a redescending M-estimator with a good
+      starting point can sometimes exceed naive expectations, and in high dimension can do much
+      worse. The bound is used as a CEILING (a necessary condition), which is the safe direction,
+      and that framing must be preserved -- with the finite-sample form as the operating value and
+      the flat 1/2 only as the asymptotic limit.
+    - >-
+      GSA/Z-shape profile models and root-Hermite models disagree with each other, and the
+      disagreement is larger in the low quantiles of the profile than at lambda_1. Mitigated by
+      reporting a difference under one model, but a model whose error depends on the quantile index
+      would bias the comparison since beta_NoMod is read off a quantile and beta_primal off a
+      different condition. A real residual; report the verdict under at least two published profile
+      models.
+  interpretation_limits:
+    - >-
+      No attack, break, speedup or exponent movement is claimed here or would follow from any
+      outcome. E2 would be an estimator-relative anomaly requiring independent verification before
+      any security statement, and only an E2 on the corrected statistic counts as one.
+    - >-
+      Nothing here re-runs NoMod, and no statement is made about whether its reported results are
+      correct. The audit is of SCOPE at FIPS parameters, using the paper's own model, and it can
+      vindicate the method.
+    - >-
+      Every ceiling in this record is conditional on a RECALLED robust-statistics bound that no
+      agent in this program has read. The finite-sample expression is now load-bearing, so quoting
+      any ||v||* before that check is done is quoting an unverified recall, and the record says so
+      rather than hiding it in an assumption.
+    - >-
+      Stage 2's measurements are scoped to n in {64,128,256}, k in {2,3}, q = 3329, the declared
+      densities, the declared blocksize ladder and the declared seeds. Toy scale never speaks for
+      FIPS parameters, and every FIPS conclusion here comes from closed form, not from measurement.
+    - >-
+      The instrument knows the planted secret. Nothing here shows that an attacker could identify
+      wrapped equations without it; that is a separate and harder question and is not addressed.
+    - >-
+      The lane's claim-tier ceiling is toy-tier and this record does not raise it.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (GAUSSIAN REDUCED-VALUE LAW) For a reduced row v of an ML-KEM-shaped omega-penalised q-ary
+        lattice at blocksize beta, and (s,e) drawn from the FIPS 203 CBD distributions
+        independently of the reduction, the integer value <v,(s,e)> is distributed as a centred
+        Gaussian with standard deviation ||v||*sigma, uniformly over rows with ||v|| in the range
+        produced at that blocksize, up to a relative error o(1) in the tail region |x| > q/2 that
+        determines the wrap rate.
+      rigorous_support: >-
+        Rigorous ingredient: a Berry-Esseen bound for a weighted sum of independent bounded
+        (CBD_eta) variables with weights v_j, giving convergence to the Gaussian at rate
+        O(sum|v_j|^3 / (||v||^2 sigma^2)^{3/2}), which is small whenever no single coordinate of v
+        dominates. Classical distribution statement being imitated: the central limit theorem for
+        weighted sums of bounded independent variables. THE GAP H1 ASSERTS ACROSS is that the tail
+        beyond q/2 -- not the bulk -- is Gaussian, which Berry-Esseen does not give, and that v is
+        independent of (s,e), which lattice reduction does not guarantee.
+      validation_plan: >-
+        Sample 10^5 reduced rows across the Stage-2 blocksize ladder at n in {64,128,256}, k in
+        {2,3}, q = 3329. For each row compute the EXACT wrap probability by convolving the CBD
+        laws with the row's own weights (feasible: the CBD alphabet is size 5 or 7 and the
+        convolution is over at most a few thousand coordinates by FFT), and compare it against
+        erf(q/(2*sqrt(2)*||v||*sigma)). Report the empirical CDF of the signed relative difference,
+        AND report it separately for the rows at the p-th and 2p-th quantiles of the profile, since
+        those are the rows Stage 0's condition is actually imposed on and they are not typical rows.
+        TAIL CHECK: report the maximum-weight ratio max_j|v_j|/||v|| per row and the residual as a
+        function of it, since H1 fails exactly when one coordinate dominates -- and reduced bases
+        systematically produce such rows near the head of the profile. SAMPLED PARAMETERS AND
+        TRANSFER, DECLARED: n <= 256 and k <= 3 at true q; extrapolation to k = 4 and to the
+        blocksizes relevant at FIPS parameters is an assumption, and the validation constrains the
+        SHAPE of the residual versus max-weight-ratio relation, not its value at beta > 400.
+    - id: H2
+      statement: >-
+        (SUPPORT SUFFICIENCY) At the fixed point of the iteratively reweighted Tukey biweight fit,
+        the estimate is a function of the contamination support and the un-wrapped residuals alone,
+        with the wrap magnitudes entering only through which equations fall outside the cutoff.
+      rigorous_support: >-
+        Exact for the biweight's hard cutoff: the loss is constant beyond |r| > c, so its
+        derivative is exactly zero there and outlying equations contribute exactly zero to the
+        estimating equation at the fixed point. The classical statement imitated is the standard
+        redescending-M-estimator fixed-point characterisation. What is NOT rigorous is the PATH:
+        the iteration's trajectory, and hence which fixed point is reached, does depend on the wrap
+        magnitudes through the starting point.
+      validation_plan: >-
+        Instrument the estimator to emit its support at every iteration on the Stage-2 systems.
+        Measure (a) the iteration at which the support stabilises, (b) the Jaccard overlap between
+        the final support and the TRUE wrap set, (c) whether re-running from a support-only
+        reconstruction (wrap magnitudes replaced by arbitrary out-of-cutoff values) reaches the same
+        fixed point, and (d) the number of rows retained at the fixed point against p, since a
+        fixed point retaining fewer than p rows is not a fit at all and is the concrete form the
+        breakdown bound takes in practice. Predicted: identical fixed point in at least 95% of runs.
+        A lower rate falsifies H2 and means the tracked object is incomplete, which is reported
+        rather than patched.
+    - id: H3
+      statement: >-
+        (PROFILE PREDICTABILITY) For the omega-penalised ML-KEM embedding at blocksize beta, the
+        GSA/Z-shape model predicts the p-th and 2p-th smallest row norms of the reduced basis to
+        within a declared relative tolerance, uniformly over the blocksizes and p/m ratios in the
+        swept grid.
+      rigorous_support: >-
+        No rigorous bound is claimed. The GSA and the Z-shape correction for q-ary lattices are
+        standard modelling assumptions supported by extensive published experiment rather than by
+        theorem, and the omega-penalisation shifts one block of coordinates, which the standard
+        shape derivations do not treat. THIS HEURISTIC IS NEW IN THE 2026-08-21 REPAIR PASS and it
+        exists because moving the condition from lambda_1 to a quantile moves the modelling burden
+        with it: lambda_1 needed only the root-Hermite factor, a quantile needs the whole shape.
+      validation_plan: >-
+        Stage 2 measures the full row-norm profile at every blocksize on the ladder, at n in
+        {64,128,256} and k in {2,3}, with omega set to the paper's own values. Compare the measured
+        p-th and 2p-th smallest row norms against the GSA/Z-shape prediction and report the signed
+        relative residual as a function of beta and of the quantile index. TAIL CHECK: report the
+        residual separately in the Z-shape's flat q-vector region and in its sloped region, since
+        the quantile of interest may sit at the junction and that is where shape models are least
+        reliable. TRANSFER, DECLARED: the measurement is at n <= 256 and beta on the accessible
+        ladder; the extrapolation to the beta values relevant at ML-KEM-768 is an assumption, and a
+        residual that grows with beta over the measured range invalidates it explicitly.
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. The quantity produced is a required-blocksize comparison. If
+      E1 holds, the honest complexity statement is that the robust-regression family is dominated
+      at ML-KEM parameters by the primal attack whose preprocessing it consumes, with the domination
+      margin reported in blocksize units and in log2(cost) under a named model, over the swept
+      (p, m/p) grid. If E2 held on the corrected statistic, the exponent would be 0.292*beta_NoMod
+      in the standard core-SVP model and would have to be stated then. Measurement cost: Stage 0 is
+      seconds; Stage 2 is dominated by BKZ at n <= 256, hours to a day of single-core time.
+    memory_exponent: >-
+      No attack memory exponent is claimed. Stage 2 stores the reduced bases and the per-row wrap
+      records, O(rows * n) integers, comfortably under a gigabyte at the stated scales. If E2 held,
+      the memory would be the sieve's at beta_NoMod, 2^{0.208*beta} in the standard model, and the
+      robust fit's own O(m * p) storage would be negligible beside it.
+    best_known: >-
+      For ML-KEM-768 the incumbent is the direct primal/dual attack at the published core-SVP
+      blocksize; that is precisely beta_primal and it is the comparator. For the quantity this
+      proposal introduces -- the wrap-free fraction of a preprocessed ML-KEM system, and the
+      blocksize at which its p-th row-norm quantile clears a finite-sample breakdown ceiling --
+      there is NO incumbent in this repository and none was found in the source paper, which
+      reports no aggregate wrap-free percentage at all.
+    hidden_overhead: >-
+      Four disclosures. (1) The robust fit's own cost is not charged anywhere in this comparison;
+      it is polynomial and small beside BKZ, but "small beside BKZ" is an assumption, not a
+      measurement, and at the row counts amplification produces it may not hold. (2) The paper's
+      amplification step multiplies the number of equations and lengthens them; it RAISES m, which
+      lowers p/m and therefore LOOSENS the finite-sample ceiling, while simultaneously worsening
+      the profile's quantiles -- two effects in opposite directions that do not obviously cancel and
+      that the (p, m/p) grid exists to expose. (3) The breakdown ceiling is a NECESSARY condition
+      only: clearing it does not imply the estimator converges, so beta_NoMod as computed remains a
+      LOWER BOUND on what the method needs even after the correction, which is the direction that
+      makes an E1 verdict conservative and an E2 verdict alarming. (4) The finite-sample bound is a
+      recalled result and its applicability to a redescending M-estimator in high dimension is
+      unchecked; that check is a proof obligation and not an aside.
+    tradeoff_note: >-
+      There is a genuine tradeoff on the blocksize axis: more preprocessing buys shorter rows, hence
+      a higher inlier fraction, hence a feasible fit -- and the whole audit is the question of where
+      that curve crosses the primal attack's own cost. THE REPAIR PASS ADDS A SECOND TRADEOFF THAT
+      THE EARLIER DRAFT COLLAPSED AWAY: p versus m. Smaller p loosens the finite-sample ceiling
+      toward the generous 1/2 and lowers the quantile index, but a block-wise fit with small p must
+      pay for the remaining coordinates elsewhere; larger m loosens the ceiling but lengthens the
+      rows through amplification. beta_NoMod is therefore a SURFACE over (p, m/p), not a number,
+      and reporting the surface is the deliverable. Parallelisation is the reducer's concern and is
+      unchanged by anything here.
+  dominated_by: >-
+    On the ATTACK axis: 'n/a (no result claimed)' -- this proposal claims no attack, so no cost
+    triple exists and no frontier row applies; a null there would be a fabrication under AGENTS.md
+    rule 5. On the SCOPE-AUDIT axis, the honest statement is that nothing in this repository
+    computes a wrap-free fraction or a breakdown-implied blocksize for any scheme, so there is no
+    dominator; the nearest committed work is IDEA-20260813-17acdf, which dominates on directness
+    (it tests an external method's ML-KEM survival by enumeration cost) but measures a different
+    quantity and cannot answer this. On the EXTERNAL axis, NoMod itself dominates on having a
+    working implementation and real recoveries; this record has neither and does not claim to.
+  sota_delta: >-
+    No attack; measurement and scope contribution only. Quantitatively: the source paper reports no
+    wrap-free fraction and no scaling statement for standardised parameters, and this repository
+    contains no such number for any scheme, so the delta is the creation of first values --
+    ||v||*(p_req) as a curve in p/m (1447 at m = 2p, 1876 at m = 4p, 2203 at m = 10p, 2467 in the
+    asymptotic corner, at q = 3329 and sigma = 1), the implied beta_NoMod surface per parameter
+    set, and the empirical wrap-rate and row-norm-profile curves with their non-lattice null --
+    rather than an improvement on an existing number. Against the published attack frontier the
+    delta on cost is exactly zero.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    By part. (i) That ||v||*(p_req) = q/(2*sqrt(2)*erfinv(p_req)*sigma) follows from the paper's own
+    erf model plus the recalled FINITE-SAMPLE breakdown bound: ~0.85, with the residual risk
+    concentrated in whether that bound applies to a redescending M-estimator in high dimension --
+    which is why checking it against a primary source is now a proof obligation rather than an
+    assumption. (ii) That NULL-A passes, i.e. Stage 0 declares the paper's own successful cells
+    feasible under the CORRECTED, tighter condition: ~0.6, down from the earlier draft's 0.7
+    precisely because the correction makes the test harder; this remains the part I would bet
+    against most readily and its failure is the most likely way the whole design dies. (iii) That
+    beta_NoMod exceeds beta_primal at ML-KEM-768 by at least 50 blocksize units on the corrected
+    statistic at m = 2p: ~0.85, up from the earlier draft's 0.75, because both corrections move
+    beta_NoMod in the same direction -- a quantile is above a minimum, and the finite-sample
+    ceiling is below the asymptotic one. (iv) That the erf model survives the empirical arm within
+    0.05: ~0.5, and I genuinely do not know which way this goes; heavy-tailed departures from the
+    Gaussian in the wrap region are plausible for rows with a dominant coordinate. (v) That the
+    GSA/Z-shape profile predicts the p-th smallest row norm within 10% (H3, new): ~0.6; the
+    omega-penalised block is exactly where shape models are least tested. (vi) That the
+    norm-matched non-lattice null agrees with the lattice arm: ~0.65. (vii) That the run produces a
+    defensible number or a defensible model-failure either way: ~0.9.
+    PRIORITY UNCHANGED AT HIGH, AND THE REASON IS STATED: the correction did not weaken the
+    record's value, it moved the headline prediction in the direction that makes E1 easier and E2
+    harder, and it added a second falsifiable modelling arm (H3) at no extra compute. What the
+    correction did remove is the artefactual route to the escalation branch, which is the outcome
+    the record most needed to be protected against.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-21'
+  repair_provenance: >-
+    REPAIRED IN PLACE ON 2026-08-21 under a red-team screen of this record, at the orchestrating
+    session's instruction, keeping the same identifier and path. One BLOCKING finding was cleared:
+    Stage 0 -- the whole minimal test -- solved for the wrong statistic, and the error ran in
+    exactly the direction that manufactures the escalation branch. Two corrections, both structural
+    rather than verbal. (a) THE CONDITION. A robust regression fitting p unknowns needs at least p
+    INLIER ROWS, so the Stage-0 condition is a QUANTILE of the reduced row-norm profile at
+    blocksize beta -- the p-th (or 2p-th) smallest row norm of the omega-penalised embedding,
+    computed from its GSA/Z-shape profile -- and not the lambda_1 "best achievable vector length"
+    the earlier draft solved for. (b) THE CEILING. The flat 1/2 breakdown point is the p/m -> 0
+    asymptotic limit of the finite-sample Donoho-Huber bound (floor((m-p)/2)+1)/m ~ (1-p/m)/2, so
+    the required inlier fraction is p_req ~ (1+p/m)/2 -- 0.75 at m = 2p, not 0.5. Both are now
+    stated in proof_obligations, the flat 1/2 is retained only as the asymptotic corner (with its
+    own fixture), Stage 1 sweeps rows-per-unknown m/p as well as p_req because varying the fraction
+    alone does not cover the finite-sample bound, p and m are declared quantities including the
+    amplification factor, beta_NoMod is reported as a surface over (p, m/p) rather than as a number,
+    and a new heuristic H3 carries the profile-model burden the change of statistic introduces. The
+    earlier draft's calibration figure for the lambda_1 version is not carried forward. Readers of
+    any earlier copy should treat the lambda_1 condition and the flat-1/2 "hard ceiling" as
+    withdrawn, and should not read any E2 obtained under them as an escalation trigger.
+  source_refs:
+    - RQ-MLKEM-001
+    - GOAL-MLKEM-005
+    - IDEA-20260813-17acdf
+    - IDEA-20260805-2b94fe
+    - IDEA-20260805-cdc87d
+    - KN-TECH-1a5b7e
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+  id_allocation_provenance: >-
+    Pre-minted by the orchestrating session on 2026-08-21 with python3 tools/allocate_id.py --next
+    idea --date 20260821 (random 6-hex token, no state scanned), each id then verified free with
+    --check before assignment. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions). The identifier is UNCHANGED by the 2026-08-21 in-place repair.

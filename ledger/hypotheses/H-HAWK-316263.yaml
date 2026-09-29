@@ -1,0 +1,279 @@
+hypothesis:
+  id: H-HAWK-316263
+  question_id: RQ-HAWK-001
+  derived_from_idea: IDEA-20260801-019
+  added: '2026-08-25'
+  status: proposed
+  proposed_by: coordinator
+  statement: >-
+    The reported HAWK key-recovery attack - the reduction of HAWK key recovery to
+    the module lattice-isomorphism problem (module-LIP) in dimension n/2 + 1,
+    followed by a module-LIP solver - REPRODUCES under an independent
+    re-implementation written from the report's specification rather than from its
+    code: at the report's own reduced parameters, the independent implementation
+    recovers a valid HAWK private key on a fraction of instances within 20 percent
+    (relative) of the report's claimed success rate, and its measured time and
+    memory are within one order of magnitude of the report's claimed figures. The
+    hypothesis is about REPRODUCIBILITY at reduced parameters and asserts nothing
+    about full-size HAWK.
+  mechanism: >-
+    The reported break is a two-part object: a reduction that turns a HAWK public
+    key into a module-LIP instance of roughly half the ambient dimension, and a
+    solver for that instance. Both parts are specified in the report at a level of
+    detail that either is or is not sufficient to rebuild them without the
+    author's code - and which of those two it is, is precisely what this hypothesis
+    tests. An independent build separates three failure modes that a code re-run
+    cannot separate: the reduction is under-specified; the solver is
+    under-specified; or the attack works exactly as claimed. Running the rebuilt
+    pipeline at the report's reduced parameters and at one lower parameter set
+    produces a success-rate and cost curve that either meets the report's claimed
+    point or misses it by a measurable margin.
+  assumptions:
+    - >-
+      The report's specification of the reduction and of the solver is complete
+      enough for an independent implementation. This is NOT a background
+      assumption - it is half of what the experiment measures, and a specification
+      gap discovered during implementation is a first-class recordable outcome
+      rather than a blocker to route around.
+    - >-
+      The report's claimed reduced-parameter figures (success rate, time, memory)
+      are extractable in this environment. This container cannot reach external
+      literature; if the figures cannot be pinned to a read source at stage 0, the
+      comparison arm is UNAVAILABLE and the run reports an absolute measured curve
+      with no comparison, which is a different and weaker deliverable.
+    - >-
+      Reduced parameters keep the solver feasible inside the declared budget while
+      preserving the module structure the reduction produces. Checked per parameter
+      set, not assumed.
+  proof_search_map:
+    bottleneck: >-
+      Whether the dimension-halving reduction, as specified in the report, is
+      reproducible without the author's code - and whether the module-LIP solver it
+      feeds is. Everything downstream of a specification gap in either is
+      unmeasurable, so the gap-versus-no-gap question is the bottleneck and stage 1
+      of the paired contract resolves it before any solver time is spent.
+    baseline_embedding:
+      parameter_slice: >-
+        The report's own reduced parameter set is the exact old-method boundary,
+        and the report's claimed success rate at that set is the fixed reference
+        point every independent measurement is compared against.
+      reproduction_check: >-
+        A frozen regression fixture: at the smallest parameter set, a module-LIP
+        instance built by PLANTING a known isomorphism must be solved exactly by
+        the independent solver, integer-for-integer, before any HAWK-derived
+        instance is attempted. A failure means the solver harness is broken and no
+        HAWK number from it may be reported.
+    observation_collision:
+      observable: >-
+        "The independent implementation failed to recover the key."
+      distinct_preimage_search: >-
+        That single observable has at least four distinct preimages and the
+        contract must separate them or it measures nothing: (a) the attack does not
+        work as reported; (b) the reduction was re-implemented incorrectly; (c) the
+        solver was re-implemented incorrectly; (d) the budget was exhausted before
+        the solver converged. Separation is by construction - the planted-instance
+        fixture isolates (c), a reduction round-trip check isolates (b), an explicit
+        censoring flag isolates (d), and only the residue is admissible as (a).
+        Without that separation a non-reproduction is uninterpretable, and this is
+        the single most likely way this experiment would produce a false negative.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          The report's reduced parameter set plus one strictly lower set, run as a
+          two-point curve rather than a single point, so that a non-reproduction at
+          the report's set can be distinguished from a solver that never worked at
+          any size.
+        predicted_gain: >-
+          Not a speed gain. It converts a binary "reproduced / did not reproduce"
+          into a curve whose shape identifies WHICH part failed.
+    quantifier_order: >-
+      The reported claim is: for the report's reduced parameters, there EXISTS an
+      implementation of the specified reduction and solver such that FOR a stated
+      fraction of instances the key is recovered. This hypothesis tests the
+      existential with the implementation quantified INDEPENDENTLY of the report's
+      code - which is the entire content of the word "independent". The trap named:
+      an implementation that consults the report's code, even for a constant or a
+      parameter default, has answered a different question, and the run record must
+      show which artifacts the implementer read.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "at the tested reduced parameter sets, an implementation written
+        from the report's specification alone recovered HAWK keys at a measured
+        rate, with measured time and memory, compared against the report's claimed
+        figures where those figures were pinnable to a read source." It can never
+        certify the break at full HAWK parameters, and a NON-reproduction can never
+        certify that the reported break is wrong - only that this implementation, at
+        these parameters, within this budget, did not reproduce it.
+      nearby_object_control: >-
+        Random, non-key module-LIP instances of matched dimension and matched
+        determinant, on which the solver must NOT return an isomorphism at the rate
+        it does on HAWK-derived instances. If it succeeds equally on both, it is not
+        exploiting the HAWK structure and every positive result is void.
+    proof_obligations:
+      - claim: The re-implemented reduction maps a HAWK key to a module-LIP instance of the stated dimension.
+        responsibility: interface
+      - claim: The re-implemented solver returns a certified isomorphism on planted instances.
+        responsibility: correctness
+      - claim: A recovered key reproduces the HAWK public key under an independent re-check by the run wrapper.
+        responsibility: correctness
+      - claim: Reported time and memory are measured, not modelled, and censoring is flagged.
+        responsibility: runtime
+      - claim: Every conclusion is scoped to the tested reduced parameters.
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-HAWK-316263-1
+      formal_statement: >-
+        For the module-LIP solver as specified in the report, the success rate and
+        cost measured at a parameter set strictly below the report's reduced set is
+        monotonically related to the same quantities at the report's set - i.e. a
+        solver that fails at the lower set will not succeed at the higher one, and
+        the cost curve between the two sets has no crossover.
+      random_model_justification: >-
+        No random model is claimed. This is a monotonicity assumption used only to
+        interpret a two-point curve, and it is stated so it can be attacked rather
+        than absorbed into the reading of a non-reproduction.
+      supporting_results: []
+      validation_experiment_ids:
+        - EXP-HAWK-94b36c
+      falsification_condition: >-
+        The solver succeeds at the report's reduced set while failing at the
+        strictly lower set, or the measured cost is non-monotone between them.
+        Either means the two points do not lie on one curve and the lower set
+        supplies no information about the higher one.
+  structural_ingredients:
+    - description: >-
+        The reported reduction from HAWK key recovery to module-LIP in dimension
+        n/2 + 1, and the module-LIP solver it feeds.
+      citation: null
+      provenance: recalled
+      verified_by: >-
+        NOT VERIFIED. This container cannot reach external literature and no primary
+        source was read for this record. The reduction and the solver are taken from
+        the parent proposal IDEA-20260801-019, which itself records them as an
+        unverified relayed claim. Stage 0 of the paired contract must pin the
+        specification and the claimed figures to a source actually read, and if it
+        cannot, the comparison arm is unavailable and the contract says so rather
+        than substituting a remembered number.
+      role: the object being independently re-implemented
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: >-
+        recovered_key_success_rate at the report's reduced parameters, independent
+        implementation
+      direction: different
+      minimum_effect: >-
+        Within 20 percent relative of the report's claimed rate at the same
+        parameters constitutes CONFIRMATION. Materially below constitutes
+        NON-REPRODUCTION, subject to the four-way separation of preimages above.
+        The 20 percent figure is the parent proposal's own pre-registered tolerance.
+    - metric: planted_instance_fixture_pass
+      direction: higher
+      minimum_effect: >-
+        Exact recovery of the planted isomorphism, integer for integer, on 100
+        percent of fixture instances. POSITIVE CONTROL with a forced value: if it
+        fails, the solver is broken and no HAWK reading of any kind is admissible.
+    - metric: random_nonkey_instance_success_rate
+      direction: lower
+      minimum_effect: >-
+        Materially below the HAWK-derived rate. NULL CONTROL: a solver that
+        succeeds equally on random non-key instances of matched dimension is not
+        exploiting the reduction and every positive result it produced is void.
+    - metric: specification_gap_count
+      direction: different
+      minimum_effect: >-
+        The number of places where the implementer had to CHOOSE a value the
+        specification did not determine, each listed with the choice made and its
+        plausible alternatives. No pre-registered value is asserted - inventing one
+        would be a fabrication - but a non-zero count is itself a reportable finding
+        about the report's reproducibility and must not be buried.
+  test_boundary:
+    instances: >-
+      HAWK key pairs at the report's reduced parameter set and at one strictly lower
+      set; planted-isomorphism module-LIP fixtures at the lower set; random non-key
+      module-LIP instances of matched dimension and determinant.
+    parameters:
+      parameter_sets: >-
+        The report's own reduced set, pinned at stage 0, plus one strictly lower
+        set chosen so the solver terminates inside the per-run budget.
+      instances_per_set: at least 30 independent key pairs from declared seeds
+      comparison_tolerance: 20 percent relative on the success rate
+    implementation: >-
+      Independent implementation written from the report's SPECIFICATION only. The
+      report's code, if it exists and is reachable, is NOT read and the run record
+      lists every artifact the implementer did read.
+    budget:
+      total_cpu_hours: 12
+      maximum_runs: 40
+  falsification_conditions:
+    - >-
+      The independent implementation's success rate at the report's reduced
+      parameters is materially below the claimed rate, with the planted fixture
+      passing, the reduction round-trip passing, and no censoring - i.e. all three
+      alternative preimages excluded. The reported break did not reproduce and
+      requires scrutiny. This is the hypothesis's primary falsifier.
+    - >-
+      The planted-instance fixture fails. The solver is broken; nothing about HAWK
+      is reportable in either direction.
+    - >-
+      The solver succeeds at the same rate on random non-key instances. The pipeline
+      is not using the reduction and every positive result is void.
+    - >-
+      The specification cannot be turned into an implementation at all - a
+      load-bearing definition is missing. That is a REPRODUCIBILITY finding about the
+      report, recorded as such, and it is not evidence that the attack is wrong.
+  interpretation_limits:
+    - >-
+      Verification at reduced parameters only. No outcome supports, weakens, or
+      bears on any claim about full-size HAWK parameter sets (AGENTS.md rule 4).
+    - >-
+      A successful reproduction does NOT upgrade the reported break's claim tier at
+      cryptographic scale; it establishes that the specification is sufficient and
+      that the attack behaves as described where it can be checked.
+    - >-
+      A non-reproduction is a statement about THIS implementation at THESE
+      parameters within THIS budget. It is never a claim that the reported break is
+      false, and the record must not be written as one.
+    - >-
+      This environment cannot reach external literature. If the report's claimed
+      figures cannot be pinned to a read source, the comparison is unavailable and
+      the deliverable is an absolute measured curve, explicitly labelled as having
+      no comparison arm.
+  prior_evidence_refs: []
+  distinguishable_outcomes:
+    - outcome: >-
+        Fixture passes, null control separates, and the measured success rate at the
+        report's reduced parameters is within 20 percent relative of the claimed
+        rate, with time and memory within an order of magnitude.
+      means: >-
+        SUPPORTS the hypothesis. The reported break reproduces independently at
+        reduced parameters and the report's specification is sufficient. Next
+        decision: the reproduction is archived as the independent verification
+        RQ-HAWK-001 requires, and the parameter-level implications of the break may
+        be discussed at the reduced scale ONLY.
+    - outcome: >-
+        Fixture passes, null control separates, no censoring, and the success rate
+        is materially below the claimed rate.
+      means: >-
+        FALSIFIES the hypothesis. The break did not reproduce. Next decision: this
+        is a high-impact surprising result and goes to independent replication and
+        adversarial review BEFORE any status change; a single non-reproduction is a
+        weaken, never a reject_scoped.
+    - outcome: >-
+        Implementation stalls on a missing definition, or the claimed figures cannot
+        be pinned to a read source.
+      means: >-
+        NEITHER. It is a reproducibility/infrastructure finding about the report and
+        about this environment. Next decision: record the specification gaps
+        concretely, deliver the absolute measured curve without a comparison arm,
+        and re-scope the task rather than inventing the missing figure.
+    - outcome: >-
+        Fixture fails, or the solver succeeds equally on random non-key instances,
+        or a large fraction of runs is censored by the budget.
+      means: >-
+        NO EVIDENCE EITHER WAY. Instrument or infrastructure outcome (AGENTS.md
+        rule 5). Next decision: return to the Executor with the concrete defect.

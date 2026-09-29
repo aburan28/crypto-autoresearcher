@@ -1,0 +1,244 @@
+idea:
+  id: IDEA-20260816-9b3b6b
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: Measure how a single-bit state perturbation spreads forward through MD5's step function versus
+    backward through its exact inverse, treating the difference support as the tracked object, and
+    test whether the carry direction of modular addition makes the two wavefronts structurally unequal.
+  class: measurement
+  claim: '(A) Each MD5 step is a bijection on the 128-bit chaining state once the message word is
+    fixed, so the computation can be walked backwards exactly as easily as forwards. That fact alone
+    forbids the naive explanation that preimages are hard because the round function is one-way; it
+    is not. The interesting question is therefore not invertibility but the shape of diffusion in
+    each direction. (B) The claim under test is that the support of a state difference, grown from
+    a single-bit perturbation, has measurably different growth in the two directions, and that the
+    difference is attributable to a specific structural feature: modular addition propagates carries
+    only toward the most significant bit, while the rotations are one-directional by a fixed amount
+    per step, so the composition of the two produces a wavefront whose shape depends on direction.
+    Concretely, the tracked quantity is the expected Hamming weight and the bit-position histogram
+    of the difference after k steps, measured forward from step t and backward from step t, over random
+    states and random messages. (C) If the forward and backward growth curves coincide within the
+    null band at every k, the direction-asymmetry reading is closed with a measured number, and the
+    record redirects to the message schedule and the mode, which are where the remaining candidates
+    in this bucket live. (D) EXPLICITLY NOT CLAIMED: that a diffusion asymmetry has any implication
+    for attack cost, that it explains any historical frontier, that MD5 is or is not preimage-resistant,
+    or that a slower wavefront in one direction is favourable to an attacker in that direction. Diffusion
+    shape is a statistic of a permutation family; converting it to a complexity would require assumptions
+    this record does not make and does not test.'
+  mechanism: 'STAGE 1 implements MD5''s step both forwards and as an exact inverse, and validates
+    the inverse by round-tripping 10^6 random (state, word) pairs with equality required on every
+    bit. That validation is the whole credibility of the record and is not optional. STAGE 2 samples
+    a random state and message, flips one state bit at a declared position, and runs both the perturbed
+    and unperturbed states forward k steps, recording the XOR support. STAGE 3 does the same backwards
+    from the same starting point using the inverse step. STAGE 4 aggregates over 10^5 samples per
+    (t, k, bit position) cell, producing mean Hamming weight, its variance, and the per-bit-position
+    occupancy histogram in each direction. STAGE 5 runs the null arm. Refutation is direct: overlapping
+    forward and backward curves at every k closes the reading. A separation is only interesting if
+    it also survives the ablation in which modular additions are replaced by XOR, because that ablation
+    removes carries entirely and must collapse any carry-driven asymmetry to zero; if the separation
+    survives the XOR ablation, the mechanism named in the claim is wrong even though the effect is
+    real, and the record must say which.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rl MDFIVE over ledger/proposals/, ledger/hypotheses/, experiments/ (empty); grep
+      -ril for md5 and md4 over ledger/proposals/ (empty); grep -ril 'avalanche|diffusion' over ledger/proposals/
+      and knowledge/techniques/; read knowledge/techniques/KN-TECH-066 and KN-TECH-062; read RQ-MDFIVE-6870c1
+      in full, whose methods block names the MITM split accounting but no diffusion measurement.
+    results: No ledger proposal mentions MD5, MD4 or MDFIVE at all. KN-TECH-062 and KN-TECH-066 cover
+      differential propagation and message modification and treat difference propagation as a forward
+      notion throughout; neither defines a backward wavefront or compares the two directions. The
+      AES r=5..7 measured effects with their null controls, named as an established internal result
+      this session must not re-derive, concern a keyed block cipher, a different measured quantity
+      and a different null; nothing there measures a backward difference wavefront. No technique note
+      in knowledge/techniques/ was found defining an inverse-direction diffusion statistic.
+    verdict: 'UNVERIFIED. Avalanche measurement is textbook and the invertibility of an ARX step for
+      a fixed message word is immediate from the definition; both are assembled parts. What is claimed
+      new is only the pairing: the same statistic measured in both directions on the same primitive,
+      with an XOR ablation that isolates the carry mechanism, and with an explicit null that fixes
+      what coincidence of the two curves would mean. Whether this pairing has been published is not
+      adjudicable in this environment and is asserted neither way.'
+  object_first_candidate:
+    tracked_object: The support set of the 128-bit state difference, i.e. the set of bit positions
+      where the perturbed and unperturbed chaining states differ, carried through k steps in a chosen
+      direction and summarised by its size and its position histogram.
+    lossiness: 'Lossy. The support discards the values of both states and keeps only where they differ,
+      and it further discards the pairing between differing bits, so a support of weight w is shared
+      by very many state pairs. What survives propagates because a difference support evolves under
+      the step through operations whose effect on support is describable without the underlying values:
+      rotation permutes positions exactly, XOR unions supports exactly, and modular addition maps
+      a support to a distribution over supports governed by carry chains. That last one is where the
+      projection is genuinely lossy rather than merely re-coordinated, since the carry depends on
+      values the object has thrown away, and this is stated as the object''s limit rather than smoothed
+      over: the propagation is deterministic for the rotation and XOR parts and probabilistic for
+      the addition part.'
+    propagation: 'One forward step rotates one state word left by a fixed amount, adds the nonlinear
+      function output and a message word modulo 2^32, and rotates the word register. On the support,
+      the rotation acts as an exact position permutation, the nonlinear function maps input support
+      to output support probabilistically according to which of F, G, H, I is active in the round,
+      and the addition extends the support upward by a carry chain of geometrically distributed length.
+      One backward step applies the inverse: a right rotation and a modular subtraction, whose borrow
+      chain also runs upward. The tracked prediction is that the composition of an upward-running
+      carry with a left rotation is not the mirror of an upward-running borrow with a right rotation.'
+    survival_score: The wavefront is informative while the support is small relative to 128, which
+      is the regime where the position histogram still shows structure. It saturates once the mean
+      support approaches 64, at which point the object carries only its size and the histogram is
+      flat; the number of steps to saturation in each direction is itself the headline measurement.
+      The claim is that this saturation step count is stated explicitly per direction, per round,
+      and per starting bit position, and beyond it the record reports the structure as dissolved rather
+      than extrapolating.
+  null_object_control: 'Two nulls run in the same invocation. First, a random-bijection null: replace
+    MD5''s step by a state-size-preserving random bijection built from a keyed permutation over 128
+    bits, keyed by the message word, and run the identical forward and backward measurement. It must
+    show saturation within one or two steps in both directions and no direction asymmetry, since a
+    random bijection has no carry direction. Second, an XOR-ablated MD5 in which every modular addition
+    becomes XOR: it must show zero carry-driven asymmetry while preserving all rotation structure.
+    For the signal arm to mean anything, MD5''s forward and backward curves must separate by more
+    than the random-bijection null''s sampling band, and that separation must shrink materially under
+    the XOR ablation; if it does not shrink, the effect exists but the named mechanism is refuted.'
+  discriminated_from:
+  - 'The two schedule-statistic records in this same batch: those compute combinatorial functions
+    of the schedule permutation with no state, no values and no sampling. This one measures a sampled
+    statistic of state evolution and would give a nonzero answer even for a schedule-free primitive.'
+  - 'KN-TECH-062 keyed differential propagation: that framework collects pairs under a key and reasons
+    about probabilities across a family of permutations. Here there is one function, the attacker
+    chooses everything, and the measured quantity is a support size in each of two directions.'
+  - 'KN-TECH-066 message modification and rebound: those spend freedom to satisfy conditions along
+    a chosen path. This record chooses no path and satisfies no condition; it perturbs one bit and
+    watches.'
+  - 'The AES r=5..7 measured effects with null controls, named as an established internal result:
+    different primitive, keyed setting, different statistic, and no backward-direction arm.'
+  - 'A textbook avalanche or strict-avalanche-criterion test of full MD5: those measure output bit
+    dependence on input bits over the whole 64 steps and report a single saturation verdict. This
+    measures per-step support growth in both directions with a carry-isolating ablation, and its deliverable
+    is a pair of curves, not a pass or fail.'
+  assumptions:
+  - The inverse step implementation is exact, established by a round-trip test over 10^6 random pairs
+    before any measurement is used.
+  - Random states and random message words are an acceptable sampling distribution for a statistic
+    intended to describe the function rather than any attack, since no attack path constrains them
+    here.
+  - The XOR ablation isolates carry effects without materially changing rotation effects, which holds
+    because rotations are untouched by the ablation.
+  - Support size and position histogram jointly capture enough of the wavefront to detect a direction
+    asymmetry if one exists; finer statistics are available but are not needed to falsify the claim.
+  predictions:
+  - metric: steps to mean support saturation at weight 64, forward versus backward, averaged over
+      starting steps
+    direction: different
+    minimum_effect: 1.0
+  - metric: maximum absolute difference between forward and backward mean-support curves across k
+      = 1..8, in bits
+    direction: higher
+    minimum_effect: 3.0
+  - metric: that same maximum difference under the XOR ablation, as a fraction of the unablated value
+    direction: lower
+    minimum_effect: 0.5
+  - metric: forward-versus-backward difference in the random-bijection null
+    direction: lower
+    minimum_effect: 0.5
+  minimal_test:
+    design: One Python program with a validated forward and inverse MD5 step. For each of 8 starting
+      step indices spread across the four rounds, and for each of 8 starting bit positions spread
+      across a word, draw 10^4 random state-and-message samples, flip the bit, and record the XOR
+      support size after k = 1..12 steps forward and after k = 1..12 steps backward. That is about
+      5 million step evaluations per direction, which is seconds in numpy with vectorised 32-bit arithmetic.
+      Run the two nulls with identical code paths and identical sample counts in the same invocation.
+      The measurement discriminates because the two curves either separate beyond the null band or
+      they do not, and the XOR ablation then decides whether any separation is carry-driven as claimed
+      or comes from somewhere else. Every outcome is a usable measured obstruction or a usable measured
+      effect; there is no outcome in which the run produces nothing.
+    controls:
+    - Random-bijection null with a message-keyed 128-bit permutation, identical measurement, same
+      invocation.
+    - XOR-ablated MD5 isolating carry contributions while preserving rotations.
+    - Rotation-ablated MD5 with all rotation amounts set to zero, isolating rotation contributions
+      while preserving carries.
+    - Round-restricted arms so the four different nonlinear functions F, G, H, I are not silently
+      averaged together.
+    - An inverse-correctness round trip over 10^6 random pairs, run before and after the measurement
+      to catch state corruption.
+    required_metrics:
+    - mean support size versus k, forward and backward, per starting step and bit position
+    - variance of support size in each cell
+    - bit-position occupancy histogram of the support at k = 1, 2, 4, 8
+    - steps to saturation per direction
+    - the same set for each null and each ablation
+  falsification_conditions:
+  - Forward and backward mean-support curves lie within the random-bijection null's sampling band
+    at every k.
+  - The maximum curve separation is below 3 bits across k = 1..8.
+  - The separation is unchanged by the XOR ablation, refuting the carry mechanism named in the claim
+    even if a separation exists.
+  - The random-bijection null itself shows a direction asymmetry above 0.5 bits, indicating a measurement
+    or implementation artefact rather than a property of MD5.
+  - The inverse round-trip test fails on any sample, which invalidates every backward measurement
+    in the run.
+  confounders:
+  - 'Round mixing: averaging over the four nonlinear functions can create or hide an apparent asymmetry,
+    which the round-restricted arms exist to prevent.'
+  - Starting-bit position effects, since a bit near the top of a word behaves differently under carries
+    than one near the bottom.
+  - Implementation asymmetry, where the backward path is coded less carefully than the forward path
+    and the difference measures the code.
+  - Sampling noise at small support sizes, where discrete effects dominate and means are unstable.
+  - Saturation censoring, where both directions hit weight 64 and the comparison becomes uninformative
+    without being reported as such.
+  interpretation_limits:
+  - A diffusion asymmetry is a statistic of the function, not an attack cost, and no conversion between
+    the two is offered or implied.
+  - Results are scoped to single-bit initial perturbations; multi-bit perturbations and structured
+    differences are not measured.
+  - Because the addition part of propagation is value-dependent, the object's evolution is probabilistic
+    and its curves describe an average, not any particular execution.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a pair of growth curves in units
+      of Hamming weight per step.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the observation, immediate from RFC 1321 and stated here rather than
+      cited, that each step is invertible for a fixed message word, which already rules out the simplest
+      one-wayness story. RQ-MDFIVE-6870c1 supplies no quantitative diffusion incumbent, and the novelty
+      screen found none in this repository.
+    hidden_overhead: The visible cost is a few million vectorised step evaluations, which is trivial.
+      The hidden cost is that the entire record rests on the backward implementation being exactly
+      right, and an inverse that is subtly wrong in a way the round trip happens not to catch would
+      produce a beautiful and entirely fictitious asymmetry; the round trip is run twice for that
+      reason and still cannot prove more than it tests. A second lower-order term is saturation censoring,
+      which arrives fast in MD5 and leaves only a short window of k where the comparison is meaningful,
+      so the usable measurement is much smaller than the grid suggests. Third, the random-bijection
+      null must itself be direction-neutral, and constructing a 128-bit permutation that provably
+      is costs more design effort than the measurement costs compute.
+  dominated_by: n/a (no result claimed). All frontier rows this program holds for MD5 were checked,
+    namely the UNVERIFIED 2^123.4 preimage figure and the seconds-scale collision figure in RQ-MDFIVE-6870c1.
+    This record emits Hamming-weight curves, which occupy no axis on either row, so there is nothing
+    to be dominated by rather than a fabricated null.
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a bits-per-step curve
+    pair and a saturation step count, incomparable with any complexity figure.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Split by part. That the inverse step is implemented exactly and validated:
+    about 0.95, since round-tripping is a decisive test. That a forward-backward separation above
+    3 bits is observed at some k: about 0.45, because rotation directions and carry directions genuinely
+    interact but MD5 mixes fast and the window before saturation is short. That any observed separation
+    shrinks by half under the XOR ablation, confirming the carry mechanism specifically: about 0.3,
+    conditional on a separation existing. That the random-bijection null shows no asymmetry, i.e.
+    the instrument is clean: about 0.85. Joint survival of the full claim as stated: about 0.15.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-062
+  - KN-TECH-066
+  - KN-TECH-056
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-4e2ea8
