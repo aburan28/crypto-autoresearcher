@@ -879,3 +879,36 @@ For new curve comparisons and UI exports, follow [docs/curve-identities.md](docs
 and `tools/curve_identity.py`. Reuse EC1 aliases and full curve UIDs across IC and
 Pollard rho; keep factor-base/isogeny candidate identities separate. Preserve
 immutable historical names and never infer exact identity from field degree alone.
+
+## Cursor Cloud specific instructions
+
+The Cloud Agent image's Ubuntu `python3` is not the interpreter this repository
+tests against. `.python-version` pins CPython 3.12.8, and
+`tests/test_harness.py` requires a default CPython build whose `_md5` is a
+separate extension with a `__file__`. Ubuntu compiles `_md5` as a builtin, so
+`test_md5_pin_mechanism_real_registry_is_distinct` fails even though MD5
+itself works. Use `/usr/local/bin/python3` (3.12.8) and do not fall back to
+`/usr/bin/python3`.
+
+Install the CI extras, not only `make install`. `make install` is
+`.[agent,dev]`. The ledger job also needs `campaign-mcp`, `research-loop`,
+and `gf2`:
+
+```sh
+python3 -m pip install -e ".[dev,agent,campaign-mcp,research-loop,gf2]"
+```
+
+`pip` puts `autoresearch` and `pytest` in `~/.local/bin`, which is not on the
+default PATH. The environment links those scripts into `/usr/local/bin`.
+`python3 -m pytest` and `python3 -m orchestration` work either way.
+
+`autoresearch doctor` is ready with no API keys. The variables in
+`.env.example` are only for token-spending commands (`make loop`,
+`autoresearch adapter doctor --probe`). Do not treat those warnings as a
+broken install.
+
+The dashboard is `python3 -m ui --host 127.0.0.1 --port 8787`. Set
+`GITHUB_REPOSITORY=aburan28/crypto-autoresearcher` before starting it. Source
+links are built from `origin` when that variable is unset, and a Cloud Agent
+remote embeds a credential. `formal/setup.sh` (Lean) is not part of this
+environment.
