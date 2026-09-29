@@ -433,13 +433,9 @@ int quat_ideal_small_equivalent_coprime(quat_alg_elem_t *gen,
  */
 
 /**
-<<<<<<< HEAD
  * @brief QuaternionResponseComputation: Function to compute a response ideal
  *
- * Computes sk_chall_ideal and and resp_quat, the response ideal's norm and sk_chall_quat to obtain sk_chall_ideal
-=======
- * @brief QuaternionResponseComputation: Function to compute an response ideal resp
->>>>>>> main
+ * Computes sk_chall_ideal and resp_quat, the response ideal's norm and sk_chall_quat to obtain sk_chall_ideal
  *
  * @param sk_chall_ideal Output:  ideal of small prime norm equivalent to the intersection of skideal with
  * ideal_chall_two
