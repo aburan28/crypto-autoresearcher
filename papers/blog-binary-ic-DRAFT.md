@@ -23,6 +23,14 @@ units as Pollard rho?
 
 ## Finding 1: below about 300 bits, you can't even write the equations down
 
+> **HOLD (2026-09-29): Finding 1 is wrong as written and must be rewritten
+> before publication.** The table prices only the *expanded* encoding. The
+> symmetrized (FPPR 2012) and chained (Semaev 2015) encodings both fit under
+> the budget at n = 233, 239 and 283. The write-down barrier survives only at
+> ECC2K-130 (+7.3 bits at best) and K-163 (+0.6 at best), and the sign change
+> lies between 163 and 233. See `CORR-20260929-12a50e` and
+> `analysis/symmetrized-anf-20260929/README.md`.
+
 To decompose a point you Weil-descend a summation polynomial to F_2 and get
 a Boolean system. Before any solver runs, that system has to exist in
 memory.
@@ -86,9 +94,14 @@ Semaev's degree assumption, which is itself disputed.
   degree-12 Boolean system in about 392 variables within 2^79.3 operations.
 - **Every deployed binary curve up to 283 bits is protected by a margin
   that does not depend on any Gröbner-basis heuristic.**
+  *(HOLD 2026-09-29: false for 233 and 283 under the symmetrized or chained
+  encodings; true only for ECC2K-130, and marginal for K-163. See
+  `CORR-20260929-12a50e`.)*
 
 ## Checklist before publishing
 
+- [ ] Rewrite Finding 1 under `CORR-20260929-12a50e`: state the encoding
+      the charge applies to, and give the symmetrized and chained columns.
 - [ ] Independent replication of EXP-SEMBIN-992e73's per-curve table (the
       Semaev 2015 row numbers are not yet approved; this post quotes only
       the crossovers from EV-SEMBIN-4125ec).

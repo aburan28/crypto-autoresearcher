@@ -318,6 +318,23 @@ changed):
     1. Measure the symmetrised ideal degree and F4 cost at small p
        (EXP-GFPN-05ff43, queued).
     2. Then contact the curve's designer with the note before any blog post.
+  - **Erratum (2026-09-29): the two reduced figures above double-count the S₅
+    symmetry. Do not send them.**
+    - `CORR-20260923-27ce4f`, recorded three days before this review, shows
+      that Pornin's D ≈ 2^20 is already the degree of the S₅-*symmetrized*
+      system: total degree 16 in e₁..e₅, Bézout number 16⁵ = 2^20. The raw
+      system's mixed volume is 5!·2^20 ≈ 2^26.9.
+    - Dividing 2^20 by 120 therefore removes the S₅ factor a second time, and
+      2^128.6 and 2^120.6 are not supported.
+    - Re-anchored under Pornin's own D² model, per that correction: a genuine
+      (Z/2)⁴ ⋊ S₅ quotient has D ≈ 2^16 = 2^{(m−1)²}, giving about 2^134.4
+      (D²) to 2^152.7 (5D³). With the inverse success probability charged,
+      which Pornin's note omits, it is 2^144.3 to 2^162.6.
+    - What survives from this item: Pornin's 2^142 argument uses no torsion
+      symmetry, and the 2-torsion quotient is available in principle through
+      the rescaled factor base checked above. Whether its ideal degree really
+      is 2^16 is open (`KN-OPEN-9b4a2b`). None of the corrected figures is
+      below 128 bits.
 - **I3, "the ANF is too big to write down": plausibly new as a quantitative
   statement; related remarks are qualitative.**
   - The FFD-based crossovers are n ≈ 2000 (Petit–Quisquater 2012/146 p. 1;
@@ -332,3 +349,8 @@ changed):
     n ≤ 283; sign change in (283, 409]) is not in them. It remains
     conditional on the dense-ANF charge and the linear-algebra cap, which a
     write-up must state first.
+  - **Erratum (2026-09-29):** the claim holds only for the *expanded*
+    encoding. Under the FPPR symmetrized encoding or Semaev's chained S₃
+    encoding, the system fits under the budget at n = 233, 239 and 283, and
+    the barrier survives only at n = 131 and 163
+    (`CORR-20260929-12a50e`, `analysis/symmetrized-anf-20260929/`).
