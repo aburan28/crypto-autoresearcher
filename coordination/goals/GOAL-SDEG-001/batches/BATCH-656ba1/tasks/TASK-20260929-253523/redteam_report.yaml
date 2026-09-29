@@ -1,0 +1,440 @@
+# Red-team report, joint J2 of review_plan_RUN-SDEG-3de103.yaml.
+# Independent red team; holds no authority to change any status. Not committed
+# by the author; handed to the Coordinator's ledger archive task.
+red_team_report:
+  id: null   # not minted here (no RT type in tools/allocate_id.py); Coordinator assigns at archive
+  task_id: TASK-20260929-253523
+  joint: J2 interpretation and scope
+  experiment_id: EXP-SDEG-85eefd
+  hypothesis_id: H-SDEG-489b76
+  run_id: RUN-SDEG-3de103
+  snapshot_reviewed: >-
+    f11293a8ba (verified ancestor of worktree HEAD 4ab05d24c4; `git diff
+    f11293a8ba -- experiments/EXP-SDEG-85eefd` is empty, so every file read
+    under that path equals the snapshot). The three uncompressed L32
+    progression cells present on disk are NOT in the snapshot (only their .zst
+    are) and were not used.
+  claim_under_review: >-
+    outcome_C7 = B for EXP-SDEG-85eefd protocol v4: B1 (A1 serial-split
+    subresultant PRS, field-form) beta_work(all, worst) ~0.797 on interval_x
+    and random_x, ~0.647 on subgroup_x; B0 calibration 0.59-0.67; beta_elim
+    ~0.598; W_triple beta ~1.0 (median) / 0.834 (worst); L in {8,16,32}.
+
+  verdict_on_joint: >-
+    Outcome B SURVIVES, and on firmer ground than the headline 0.797 suggests,
+    but the load-bearing reason is not B1's slope. B1 overpays by a factor of
+    about 9|T| per backward triple relative to the best per-triple backend in
+    the same split (B0), so B1's beta measures the "PRS against F_T" operand
+    choice. B holds because the FLOOR of the split is itself above the gate:
+    the number of backward triples C(|V|+2,3) has slope 0.564 over these sizes
+    (-> 3/5), B0 has beta 0.59-0.67, and beta_elim is 0.598. No breaking
+    artifact of the kind the plan names was found: no A1-relevant cost has
+    beta < 0.30, and the one term B1 pays that a tighter A1 would not (the
+    per-triple |T| factor) only makes B1 dearer; removing it lands at B0,
+    which is still above the gate.
+
+  computations:
+    method: >-
+      Own scripts in scratch ($TMPDIR/rt253523/{a,b,c}.py, not durable, not
+      part of the record) reading only raw-result.json (3456 records) and the
+      27 non-progression charged/cells/*.json of the run. Slope = OLS of
+      log(stat) on per-L mean log q over L = 8, 16, 32, the same statistic as
+      analysis.py (read its docstring only). Reproduced metrics.json values
+      exactly where they overlap (e.g. B1 interval all-worst W 0.7971, W_triple
+      0.8338; B0 interval all-median 0.6382). Point estimates only; bootstrap
+      CIs are in metrics.json (see O5 for why they are not model uncertainty).
+    a_identity_check: >-
+      W_triple == W - W_fixed_xR for all 2304 B0/B1 records (0 exceptions);
+      W_fixed_xR = 52,488 for every B1 record and 0 for B0. The two quantities
+      the plan asks for are therefore the same quantity.
+    a_betas_B1:
+      # beta_hat [local slope L8->16, local slope L16->32]
+      interval_x:
+        W_all_worst: 0.797 [0.678, 0.916]
+        W_all_median: 0.813 [0.634, 0.992]
+        W_triple_all_worst: 0.834 [0.745, 0.922]
+        W_triple_all_median: 0.895 [0.785, 1.006]
+        W_triple_successful_median: 0.998 [0.959, 1.037]
+        W_triple_unsuccessful_median: 0.834 [0.746, 0.922]
+        W_full_minus_fixed_any_class: 0.834
+        W_query_unamortized_minus_fixed: 0.834
+        PRS_component_only_nonmembers: 0.914
+        per_triple_S5_specialization_total_nonmembers: 0.361
+      random_x:
+        W_all_worst: 0.797 [0.678, 0.916]
+        W_all_median: 0.864 [0.665, 1.063]
+        W_triple_all_worst: 0.834 [0.745, 0.922]
+        W_triple_all_median: 0.984 [0.888, 1.080]
+        W_triple_successful_median: 0.969
+        PRS_component_only_nonmembers: 0.914
+      subgroup_x:
+        W_all_worst: 0.647 [0.275, 1.019]
+        W_all_median: 0.358 [0.255, 0.461]
+        W_successful_median: 0.201 [0.012, 0.389]   # below 0.30; forbidden reading, artifact (O3)
+        W_triple_all_worst: 0.768 [0.448, 1.089]
+        W_triple_all_median: 0.570
+        W_triple_successful_median: 0.474
+        PRS_component_only_nonmembers: 0.941
+      progression_control:
+        W_all_worst: 0.520
+        W_triple_all_worst: 0.569
+        W_successful_median: 0.003   # first-triple hit + fixed term; control, never IC
+    a_cost_decomposition_nonmember_query:
+      note: >-
+        Per-triple components are identical across seeds to 4 significant
+        figures (deterministic given |V|), so these are exact, not estimates.
+      interval_x_and_random_x:
+        - {L: 8,  V: 8,  T: 65,   n_triples: 120,  prs_per_triple: 846.7, prs_per_triple_over_T: 13.03, S5_spec_per_triple: 655.2, B0_per_triple: 131}
+        - {L: 16, V: 16, T: 257,  n_triples: 816,  prs_per_triple: 2631.7, prs_per_triple_over_T: 10.24, S5_spec_per_triple: 294.4, B0_per_triple: 148}
+        - {L: 32, V: 32, T: 1025, n_triples: 5984, prs_per_triple: 9601.0, prs_per_triple_over_T: 9.37, S5_spec_per_triple: 160.4, B0_per_triple: 167}
+      identities: >-
+        |T| = |V|^2 + 1 exactly; n_triples = C(|V|+2,3); prs_steps = 8 per
+        triple at every size; PRS cost per triple ~ 9.07|T| + 300 (linear fit
+        through L16/L32; the amendment's "about 9|T|" confirmed).
+      shares_at_L32_nonmember_interval: >-
+        PRS 57.45M of 58.47M (98.3%); per-triple S5 specialization 0.96M
+        (1.6%); fixed x(R) specialization 52,488 (0.09%); amortized F_T build
+        ~16.7k (0.03%). At L8 the same shares are 43.6% / 33.8% / 22.5% / 0.04%.
+      slopes_vs_log_q: >-
+        n_triples 0.564; |T| 0.398; PRS per triple 0.350; PRS total 0.914;
+        n_triples*|T| 0.962; B0 per triple 0.035; F_T build (unamortized) 0.767.
+      slopes_vs_log_V: "B1 non-member total 3.99 (alpha in L-units; -> 5); B0 2.99 (-> 3). RT-1476 sub-rho needs alpha < 1.5."
+    a_answer: >-
+      No. B1's cost is not dominated by a term A1 would not pay. At L = 32 98%
+      of it is the per-triple PRS against F_T, which is A1's defining
+      operation ("for each candidate (x3,x4,x5) run PRS in u against the
+      forward table"). The fixed x(R) term (the plan's candidate) is 0.09% at
+      L32 and biases the slope DOWN: removing it raises beta from 0.797 to
+      0.834 (worst) and to 0.895-0.998 (medians). The term a tighter A1 would
+      not pay is the |T| factor inside each triple (see b); it pushes cost up,
+      and without it the backend is B0 (beta 0.59-0.67).
+    b_answer: >-
+      Neither can make B1 costlier than A1 needs in a way that rescues A1.
+      (1) Field-form vs fraction-free: field-form is ~9|T| per triple;
+      fraction-free Bareiss/Collins, as literally written in RT-1476 A1, would
+      be ~|T|^2/2 per triple (-> total ~ q^{7/5}). v4 D-1 took the cheaper
+      reading, so B1 as run is a lower bound on A1-as-written. (2) Early-abort
+      order changes only member queries; the all-worst statistic and outcome B
+      are governed by non-members, which enumerate all C(|V|+2,3) triples in
+      any order. Measured: W_full (no early abort) and W give the identical
+      all-worst beta 0.797. (3) What B1 does overpay is structural: the first
+      PRS step reduces deg-|T| F_T modulo deg-8 b, and all subsequent steps are
+      constant-size (8 steps per triple at all L). Every way to remove that |T|
+      factor lands at B0's cost or above: finding b's <= 8 roots and hashing
+      against T is B0 (constant ~150 ops/triple); a remainder tree over all
+      triples' b needs deg prod b ~ (4/3)|V|^3 > |T| and costs O~(|V|^3);
+      gcd(F_T, B_R) with the materialized backward eliminant costs >= deg B_R,
+      measured q^{0.598}. Nothing in the split gets below the triple count.
+    c_answer: >-
+      See forward_guidance and obstruction. Short form: the data plus counting
+      rule out every A1 variant that, per query, (i) processes each backward
+      triple (floor C(|V|+2,3), slope 0.564 here -> 3/5), (ii) materializes
+      B_R (deg = (4/3)|V|^3 within 2%, beta_elim 0.598), or (iii) touches
+      every forward-table entry (|T| = |V|^2 -> 2/5 alone, and alpha >= 2).
+      Amortizing a 3-sum table across relation queries (the swapped split) is
+      ruled out by counting rather than by this run: total ~ L^3 = q^{3/5}.
+      The smallest variant NOT ruled out is an implicit backward state with a
+      per-query decision cost below |V|^{1.5} that enumerates neither side,
+      i.e. a non-enumerative algebraic decider; within A1's representation
+      family no candidate is known, and the enumeration birthday argument
+      below says none built from enumeration can exist.
+    d_answer: >-
+      The short L range (factor ~1000 in q, 3 points) is real, but its bias is
+      toward outcome A, not against it. Local slopes increase monotonically
+      (0.68 -> 0.92 on interval worst W); the exact decomposition
+      W(V) = 52,488 + C(V+2,3)(9.075(V^2+1) + 299 + ~5280/V) reproduces the
+      measured W within 2.5% at all three sizes (238k/2.47M/58.49M vs
+      233k/2.44M/58.48M) and predicts local slopes 0.975 (32->64), 0.991
+      (64->128), 0.996 (128->256), W ~ 1.5 q per query. A hidden q^{0.3} term
+      is additive and cannot lower W; it could only matter if the dominant
+      terms were removed, which requires a different algorithm, not a
+      different fit. The one extrapolation risk that cuts the other way is
+      the unamortized F_T build (slope 0.77, naive product): irrelevant to B1,
+      but any future sub-|T| backend must build T by a product tree.
+    per_relation_cost:
+      note: >-
+        Per-attempt cost times inverse success probability, using the oracle's
+        UNCONDITIONAL member density distinct_members/q (the cells' P_success
+        is inflated by 16 planted positives per 32 queries and is not a
+        relation probability).
+      interval_x: {P_uncond: [0.279, 0.238, 0.237], B0_beta: 0.618, B1_beta: 0.813, B1_cost_L32: 2.11e8}
+      random_x:   {P_uncond: [0.270, 0.247, 0.236], B0_beta: 0.623, B1_beta: 0.815, B1_cost_L32: 2.06e8}
+      subgroup_x: {P_uncond: [0.0097, 0.0067, 0.0145], B0_beta: 0.570, B1_beta: 0.492, B1_cost_L32: 2.61e8}
+
+  objections:
+    # ranked by severity; none overturns outcome B
+    - rank: 1
+      severity: moderate
+      id: O1
+      title: B1's slope is the wrong load-bearing number for B
+      text: >-
+        B1 is dominated by B0 on the same fixtures by a factor that grows like
+        |T| (58x at L32: 58.5M vs ~1.0M per non-member query), because it
+        re-reduces the whole forward table for every triple. Citing 0.797 as
+        "the A1 exponent" invites the rebuttal "you metered a bad A1". The
+        evidence record should rest B on the split's floor: triple count
+        C(|V|+2,3) (slope 0.564, -> 0.6), B0 all-worst 0.59-0.67 (CIs far
+        above 0.30), and beta_elim 0.598, with B1's 0.797 (-> 1.0) reported as
+        the cost of the PRS operand choice.
+      effect_on_B: none; strengthens it
+    - rank: 2
+      severity: moderate
+      id: O2
+      title: Three-point fit understates the asymptotic exponent
+      text: >-
+        Local slopes rise 0.68 -> 0.92; the exact cost model tends to 1.0.
+        "beta_work ~0.80" must not be reported as A1's exponent; report it as
+        a pre-asymptotic fit with the decomposition W ~ 9|V|^2 C(|V|+2,3),
+        i.e. beta -> 1 (alpha -> 5). Direction conservative for B.
+      effect_on_B: none
+    - rank: 3
+      severity: moderate
+      id: O3
+      title: subgroup_x slopes are confounded and include a forbidden-reading value
+      text: >-
+        subgroup_x has |V| in {4,2,4}, {7,8,7}, {12,16,21}, not L, so a slope
+        in log q mixes |V| growth with q growth. The fixed 52,488 term is
+        85-88% of the successful-median W at L8 and L16, which is why the successful-median W
+        beta is 0.201 (< 0.30) and the all-median is 0.358; on W_triple they
+        rise to 0.474 and 0.570. Unconditional member density is ~1% (vs ~24%
+        on interval), so per-relation cost at L32 is 2.6e8, worse than
+        interval's 2.1e8. The Coordinator's prior (artifact of the median over
+        mixed members and non-members plus the fixed term) is confirmed. No
+        subgroup number may be carried as evidence of a structured-factor-base
+        advantage.
+      effect_on_B: none; the 0.201 value is exactly the C-7 forbidden reading
+    - rank: 4
+      severity: low-moderate
+      id: O4
+      title: Hypothesis wording of (B) does not match what was observed
+      text: >-
+        H-SDEG-489b76's (B) says the conditional low-beta mass is "a bounded
+        reweighting of an exponentially rare unconditional tail". The data
+        show the successful subset is NOT rare: unconditional member density
+        is 0.24-0.28 on interval/random and flat in L; and the successful
+        subset is not cheap (W_triple successful-median beta 0.97-1.0).
+        rho_c is bounded (B1 interval 0.39-0.64 per cell). The close follows
+        from the amended C-7 mapping, not from a rare-tail mechanism; the
+        evidence record should say the "rare tail" premise was contradicted.
+        Separately, the hypothesis's "beta -> 3/2" is a units slip (3/2 is the
+        alpha threshold; the beta counting prediction is 3/5, measured 0.598).
+      effect_on_B: wording only
+    - rank: 5
+      severity: low
+      id: O5
+      title: Bootstrap CIs are not extrapolation uncertainty
+      text: >-
+        Non-member W is a deterministic function of |V| (e.g. all-worst CI
+        [0.79713, 0.79721]); the CIs measure query resampling within three
+        sizes, not the uncertainty of the asymptotic exponent. They are valid
+        for the frozen C-7 test and should not be quoted as the precision of
+        "A1's exponent".
+      effect_on_B: none
+    - rank: 6
+      severity: low
+      id: O6
+      title: Coordinator-prior contamination cannot have produced B
+      text: >-
+        AMD-20260928-d3ed9e discloses an informal 0.797 slope seen before
+        ruling. The rulings took the cheaper B1 reading (field-form) and left
+        thresholds unchanged, and B follows from the triple-count floor and B0,
+        neither of which any v4 ruling touched. The disclosure should still be
+        carried; I find no route by which it biased the outcome.
+      effect_on_B: none
+    - rank: 7
+      severity: low
+      id: O7
+      title: cells' P_success is not a relation probability
+      text: >-
+        P_success in metrics.json cells (0.5-0.72) includes 16 planted
+        positives per cell. Any per-attempt x 1/P accounting (RT-1476 relation
+        cost) must use distinct_members/q (computed above). Using the planted
+        rate would understate per-relation cost by ~2.4x on interval and ~50x
+        on subgroup; exponents barely move on interval/random.
+      effect_on_B: none
+
+  what_outcome_B_closes: >-
+    At m = 5, L = |V| in {8,16,32} (subgroup |V| 2-21), q <= 2^25, 9 ordinary
+    prime-order fixtures (3 seeds per size), decks interval_x / random_x /
+    subgroup_x: (1) the RT-1476 A1 subresultant-PRS backend as specified
+    (serial S3 | S5 split, per-triple PRS against F_T, field-form, early abort)
+    has per-query beta_work well above 0.30 (0.797 fit, -> 1.0 by exact
+    decomposition), i.e. alpha ~ 4-5 >> 1.5; (2) A1's ORIGINAL promotion gate,
+    eliminant degree beta, also fails independently (beta_elim 0.598; deg B_R =
+    (4/3)|V|^3 within 2%, so the backward 3-sum map is essentially collision-
+    free on these decks); (3) A1's mechanism claim that a small first nonzero
+    subresultant means a cheap query is falsified as a cost argument (beta_sub
+    ~0 on members while beta_work >= 0.8), confirming the observation-collision
+    prediction of AMD-20260926-3479cf; (4) by the triple-count floor and B0,
+    every backend within this split that processes each backward triple per
+    query has beta_work >= 0.56 over these sizes (-> 3/5).
+  what_outcome_B_does_not_close:
+    - Non-enumerative membership deciders (Groebner/F4 on specialized summation polynomials, SAT/SMT); these are EXP-ICEX-fa2b37's territory and untouched here.
+    - Other m, other L = q^l exponents, other splits with cross-query amortization (the latter is excluded by counting, total >= q^{3/5}, not by this run).
+    - Extension-field / Weil-descent Semaev index calculus, and binary fields (outside the target family).
+    - Structured factor bases other than the three decks; only the progression control (known logs, never IC) showed small sumsets.
+    - The RT-1476 theorem itself (it is conditional on alpha and stands); only this alpha-meter is closed.
+    - Any statement at cryptographic size; the decomposition predicts B1 gets worse, but no run exceeds q ~ 2^25.
+
+  obstruction:
+    statement: >-
+      For the m = 5 serial split over an x-coordinate factor base V of a
+      prime-order curve, a per-query membership decision must account for the
+      signed backward 3-sum set of V, which is essentially collision-free
+      (|3-sums| ~ (4/3)|V|^3); any backend that enumerates it, materializes its
+      eliminant, or touches all |V|^2 forward entries per query costs at least
+      |V|^2 per query (alpha >= 2), against the RT-1476 sub-rho requirement
+      alpha < 1.5.
+    quantity: >-
+      (i) backward eliminant degree deg rad(I_R cap F_p[u]) vs (4/3)|V|^3;
+      (ii) per-query non-member work of the cheapest per-triple backend (B0);
+      (iii) B1 per-triple PRS cost / |T|.
+    value: >-
+      (i) beta_elim 0.598 (95% CI 0.597-0.598, interval_x), 0.597 random_x,
+      0.588 subgroup_x; median degree 695 / 5470 / 43,736 vs (4/3)|V|^3 =
+      683 / 5461 / 43,691. (ii) B0 all-worst beta 0.592 / 0.595 / 0.665
+      (interval / random / subgroup), alpha_B0 = 2.99 in log|V| units.
+      (iii) 13.0 / 10.2 / 9.37 F_p ops per triple per |T| entry at L = 8/16/32.
+    measured_by: [RUN-SDEG-3de103, EXP-SDEG-85eefd]
+    scope: >-
+      m = 5; |V| <= 32; q in {~2^15, ~2^20, ~2^25}; 9 ordinary prime-order
+      short-Weierstrass fixtures of ic_leads_fixtures_v2.json; decks
+      interval_x, random_x, subgroup_x; charged F_p operation counts under
+      protocol v4. The obstruction is claimed nowhere else.
+    argument: >-
+      Red-team derivation (internal analysis, generic-group heuristic, not a
+      proven theorem here): relation search by enumeration in any split
+      tests candidate sums against random targets; obtaining L relations
+      needs N1*N2 ~ L*q candidate/target pairs, so cost >= 2 sqrt(L q) =
+      q^{(1+l)/2} > q^{1/2} for L = q^l. At m = 5 the best split-and-table
+      balance is q^{5/9} (l = 1/9) and q^{3/5} at l = 1/5. Getting below
+      rho needs a decider that finds decompositions algebraically, not by
+      enumeration.
+    resource_check:
+      examined: true
+      reading: >-
+        Read the other way, the collision-free 3-sum set is what a
+        kernel-polynomial construction wants. If the signed 3-sums of V
+        formed a subgroup coset H, then B_R(u) = prod_{h in H}(u - x(R+h)) is
+        the fiber polynomial of the isogeny with kernel H. Membership would
+        reduce to evaluating that isogeny at R (Velu, or sqrt-elu at
+        ~sqrt|H| cost; provenance: recalled) plus one hash lookup, which is
+        sub-|V|^{1.5}. This is blocked in the target family because E(F_p)
+        has prime order, so no rational subgroup of size ~|V|^3 exists.
+        Small-sumset factor bases without subgroups are near-progressions by
+        Freiman-type inverse theorems (Freiman; Green-Ruzsa 2007; provenance:
+        recalled), which is the known-log progression control and not an IC.
+        So the reading exists, but only for curves with large rational
+        subgroups (composite order, which Pohlig-Hellman already handles;
+        recalled) or for extension-field factor bases. Neither is a live
+        prime-order lead. A second reading, that the O(1)-size decision
+        witness (beta_sub ~0) gives a verification/search asymmetry, is the
+        generic NP situation and gives no speedup. No resource was found for
+        prime-order ECDLP.
+      spawned_ids: []
+
+  forward_guidance:
+    - Stop metering the backward state of the S3|S5 split per query. Per-triple backends are floored at C(|V|+2,3), eliminant backends at q^{0.598}, and forward-table-touching backends at |V|^2.
+    - The only open class consistent with this run is non-enumerative decomposition solving, whose per-relation cost could fall below the enumeration birthday bound sqrt(L q). Route it to the Groebner/summation-polynomial experiments (EXP-ICEX-fa2b37). Pre-register the same B0 floor and the triple-count control so its W is compared with the enumeration floor, not with B1.
+    - If a structured factor base is ever proposed, test first whether its 3-sum set collides (deg B_R well below (4/3)|V|^3) while its logs are NOT known. subgroup_x did not collide (beta_elim 0.588); progression collides only because its logs are known.
+    - Any future sub-|T| backend must build F_T with a product tree. The naive build here has slope 0.77 unamortized.
+
+  required_controls:
+    - Report the triple-count floor C(|V|+2,3) and the B0 per-query W alongside B1 in the evidence record; they are what B rests on.
+    - Recompute per-relation cost with distinct_members/q, not cell P_success.
+    - Drop subgroup_x slopes from any headline, or regress them on log|V| with the fixed term removed.
+
+  counterexample_or_mutation: >-
+    Cheapest discriminating mutation: replace B1's per-triple PRS by
+    "compute the <= 8 roots of b(u) and probe the hash of T". If A1's split
+    had any sub-gate route, this mutation would show it. It is B0, already
+    measured at 0.59-0.67. No new trial needed.
+
+  baseline_comparison:
+    pollard_rho: >-
+      Rho with negation map measured in-run at 0.80-0.97 sqrt(q) group ops (64
+      of 64 solved on each of 9 fixtures; reference 0.886), beta 0.5, memory
+      O(1). A single B1 membership query at L32 costs 5.85e7 F_p ops against
+      ~5.2e3 rho group ops for a complete DLP. The units differ: a group op is
+      one inversion plus a few multiplications, and no conversion factor was
+      measured, so the ratio is only an order of magnitude. The IC also needs
+      ~L/P ~ 135 relations at L32 plus linear algebra and descent.
+    bsgs: "beta 0.5 time, 0.5 memory; beats B1 on time at every size tested; B1's table memory |V|^2 ~ q^{0.4} is below BSGS memory, but vOW/rho dominate on both axes."
+    closest_specialized: "B0 (MITM on the same split) dominates B1 on time, with equal table memory."
+  dominated_by:
+    - {candidate: Pollard rho with negation map, axes: "time q^{0.5} vs B1 >= q^{0.8} per query / ~q^{1.0} per IC; memory O(1) vs |V|^2 ~ q^{0.4}; data: one target"}
+    - {candidate: B0 MITM calibration (same run), axes: "time lower by ~9|T|/150 per triple (58x at L32, growing ~q^{0.4}); memory equal (T); queries identical"}
+  sota_delta: >-
+    Per query alone: beta_work(B1) - 0.5 = +0.30 (fit 0.797); asymptotic
+    decomposition gives +0.50. Per full IC, taking total ~ L x per-relation
+    cost: exponent ~ 0.2 + 0.813 = ~1.01 vs 0.5, i.e. +0.51 (-> +0.70
+    asymptotically). The split's floor (B0) is 0.2 + 0.62 = 0.82, i.e. +0.32.
+    These are toy-scale exponents, and the constants include the unmeasured
+    unit conversion between an F_p op and a group op.
+
+  heuristic_challenges:
+    - The random-model premise behind "the backward eliminant may be low-degree" (RT-1485's constant Kummer fibers) does not transfer. The 3-sum map is collision-free to within 2% on all non-progression decks.
+  cost_model_challenges:
+    - The fixed x(R) specialization (52,488 ops) is a per-query constant that biases short-range slopes DOWN; the W_triple requirement in v3 OQ-1 correctly guards outcome A against it.
+    - Early abort helps only members; the relation cost has to be per-attempt x 1/P_uncond.
+  reduction_and_scope_challenges:
+    - "B closes the A1 alpha-meter for RT-1476 at these fixtures, not RT-1476, and not subresultant methods in general."
+  proof_architecture_challenges:
+    - The enumeration-birthday argument above is a red-team sketch under a generic-group heuristic. If the Coordinator wants it as a closure argument, it needs its own proof record.
+
+  narrowest_supported_statement: >-
+    On RUN-SDEG-3de103 (EXP-SDEG-85eefd v4; m = 5, |V| <= 32, q <= 2^25, 9
+    ordinary prime-order fixtures, decks interval_x/random_x/subgroup_x), the
+    A1 serial-split subresultant-PRS membership backend has per-query charged
+    work with fitted beta 0.797 (all queries, worst; interval and random).
+    Its exact cost decomposition ~9|V|^2 C(|V|+2,3) implies beta -> 1. The
+    split's own floor (the backward triple count, slope 0.564; B0 MITM
+    0.59-0.67) and A1's original eliminant-degree gate (beta_elim 0.598) are
+    all above the 0.30 gate. Outcome B, a scoped negative for this alpha-meter
+    of RT-1476, stands. It says nothing about non-enumerative deciders, other
+    m or l, extension fields, or cryptographic sizes.
+
+  next_concrete_action: >-
+    Coordinator: in the EV record, state B on the split's floor (triple count,
+    B0, beta_elim) with B1's 0.797 as the operand-choice cost (O1-O2). Strike
+    subgroup_x headline slopes (O3). Record the obstruction block above.
+    Route the one open class (non-enumerative decomposition solving) to
+    EXP-ICEX-fa2b37 with the B0/triple-count floor pre-registered as its
+    comparator.
+
+  citations:
+    - {ref: "Collins 1967; Bareiss 1968 (subresultant PRS, fraction-free elimination)", provenance: recalled}
+    - {ref: "Velu 1971; Bernstein-De Feo-Leroux-Smith 2020 sqrt-elu", provenance: recalled}
+    - {ref: "Freiman inverse theorem; Green-Ruzsa 2007 (Freiman in abelian groups)", provenance: recalled}
+    - {ref: "Semaev 2004; Gaudry 2009; Diem 2011 (summation-polynomial IC)", provenance: recalled}
+    - {ref: "Pohlig-Hellman 1978", provenance: recalled}
+    - {ref: "van Oorschot-Wiener 1999 parallel collision search", provenance: recalled}
+
+  attestation:
+    independent_session: true
+    role: red-team
+    read:
+      - AGENTS.md, CLAUDE.md (as supplied in session rules)
+      - docs/inventor-protocol.md (section list and section 4 in full)
+      - agents/red-team.md (report schema); templates/research-records.md (obstruction block)
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/review_plan_RUN-SDEG-3de103.yaml
+      - experiments/EXP-SDEG-85eefd/specification.yaml and amendments AMD-20260926-3479cf, AMD-20260928-7ce387, AMD-20260928-d3ed9e
+      - inputs/idea_generation_20260718_batch2.md lines 88-212 (via git show HEAD; not checked out in worktree)
+      - ledger/hypotheses/H-SDEG-489b76.yaml (first ~60 lines, via git show HEAD)
+      - runs/RUN-SDEG-3de103/metrics.json, raw-result.json, compressed_cells.json, charged/cells/*.json (27 non-progression cells), directory listings
+      - implementation/analysis.py lines 1-80 (docstring and helpers only)
+    not_read:
+      - tasks/TASK-20260929-6d34cd and tasks/TASK-20260929-0bcd38 outputs (blindness honoured)
+      - validator reports, validation_report.yaml, other implementation sources
+    new_trials_run: none; only arithmetic over existing run data
+    commits_made: none
+  inference:
+    runtime: Cursor (red-team subagent)
+    requested_policy: review-adversarial
+    resolved_model_id: inherited from parent session (not exposed to this agent)
+    reasoning_effort: xhigh requested; unverifiable in this runtime
+    fallback_used: true
+    fallback_reason: Cursor runtime binds the inherited model; the policy resolution and effort level cannot be verified
+    degraded_requirements: [reasoning_effort xhigh unverifiable, model_verified false]
+  artifact_paths:
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260929-253523/redteam_report.yaml
