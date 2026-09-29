@@ -1,7 +1,7 @@
 """Protocol constants, seed labels and frozen fixtures for EXP-ICEX-aaccfc
-protocol v3 (specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11;
-later amendments govern). v3 accepts the v2 implementation's literal readings
-and changes no label, so the frozen namespace stays EXP-ICEX-aaccfc/v2.
+protocol v4 (specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 +
+AMD-20260929-5a84eb; later amendments govern). v3 and v4 change no label, so
+the frozen namespace stays EXP-ICEX-aaccfc/v2.
 
 Seed labels (SHA256 of UTF-8, ``|``-joined; C-4 / C-6 name the kinds marked
 "protocol", the rest are implementation choices disclosed in implementation.md):
@@ -18,6 +18,7 @@ Seed labels (SHA256 of UTF-8, ``|``-joined; C-4 / C-6 name the kinds marked
   <ns>|lanczos|<bits>|<seed>|<fb>|<try>|<i>    implementation (row scaling D)
   <ns>|audit|<bits>|<seed>|<j>                 implementation (C-6 10% audit selection)
   <ns>|bootstrap                               implementation (C-5 bootstrap)
+  <ns>|bootstrap|leave_out|<fixture_id>        implementation (v4 FX-8 non-verdict sensitivity)
 
 The frozen namespace is ``EXP-ICEX-aaccfc/v2``. Smoke checks use
 ``smoke|EXP-ICEX-aaccfc/v2`` so no frozen label is evaluated before an
@@ -37,12 +38,21 @@ HERE = Path(__file__).resolve().parent
 EXP_DIR = HERE.parent
 REPO_ROOT = EXP_DIR.parent.parent
 EXPERIMENT_ID = "EXP-ICEX-aaccfc"
-PROTOCOL_VERSION = 3
+HYPOTHESIS_ID = "H-ICEX-d8e858"
+PROTOCOL_VERSION = 4
+IMPL_REL = "experiments/EXP-ICEX-aaccfc/implementation"
 
 SPECIFICATION = EXP_DIR / "specification.yaml"
 AMENDMENT = EXP_DIR / "amendments" / "AMD-20260926-ced670.yaml"
+AMENDMENT_SHA256 = "b74b30022eecbb1fae503ef4d9f0a9aad706d1917cbc4f57c981c94f832394b2"
 AMENDMENT_V3 = EXP_DIR / "amendments" / "AMD-20260929-143d11.yaml"
 AMENDMENT_V3_SHA256 = "36cad68cee9ff8da0ce86e94c2f9548f05ffd95a5bdaf32eeaeaf32c0514dac7"
+AMENDMENT_V4 = EXP_DIR / "amendments" / "AMD-20260929-5a84eb.yaml"
+AMENDMENT_V4_SHA256 = "61926b8c691cfe48a00354939651314a9d5aee62432a4d671c8ec56f7ddb310d"
+DECISION_V3 = REPO_ROOT / "ledger" / "decisions" / "DEC-20260929-a8d594.yaml"
+DECISION_V4 = REPO_ROOT / "ledger" / "decisions" / "DEC-20260929-986b4c.yaml"
+# AMD-20260929-5a84eb F-5 / FX-8: descriptive leave-one-out sensitivity fixture.
+LEAVE_OUT_FIXTURE = "b16-s21"
 SDEG_DIR = EXP_DIR.parent / "EXP-SDEG-85eefd"
 B0_AMENDMENT = SDEG_DIR / "amendments" / "AMD-20260926-3479cf.yaml"
 FIXTURE_JSON = SDEG_DIR / "amendments" / "ic_leads_fixtures_v2.json"
@@ -52,6 +62,10 @@ FROZEN_GEN_SHA256 = "bde44afb3e14c34d97bf50c154456565d12f0b5a1d33d63b473f0f4124b
 
 FROZEN_NS = "EXP-ICEX-aaccfc/v2"
 SMOKE_NS = "smoke|EXP-ICEX-aaccfc/v2"
+
+
+def is_smoke_ns(ns) -> bool:
+    return isinstance(ns, str) and ns.startswith("smoke|")
 
 # C-3 cost units
 UNIT_MUL = 1
@@ -127,6 +141,15 @@ def fixture(bits: int, seed: int) -> dict:
 
 def fixture_id(f: dict) -> str:
     return f"b{f['bits']}-s{f['seed']}"
+
+
+def is_frozen_fixture(f: dict) -> bool:
+    """True if f is (or collides by id or curve with) a frozen EXP-ICEX-aaccfc fixture (FX-5)."""
+    for g in load_fixtures():
+        if (f.get("bits"), f.get("seed")) == (g["bits"], g["seed"]) or \
+                (f.get("p"), f.get("a"), f.get("b")) == (g["p"], g["a"], g["b"]):
+            return True
+    return False
 
 
 def fb_bound(p: int, m: int) -> int:

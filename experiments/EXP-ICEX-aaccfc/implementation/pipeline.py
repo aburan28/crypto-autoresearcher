@@ -46,6 +46,19 @@ class Incomplete(RuntimeError):
     """Machine-protection cap reached: infrastructure incompletion, never evidence."""
 
 
+class NamespaceRefused(RuntimeError):
+    """Frozen-namespace cell requested outside an admitted driver run (AMD-20260929-5a84eb FX-4)."""
+
+
+# Set only by cellrun.run_task after its admission guard accepts a frozen-namespace task.
+FROZEN_ADMITTED = False
+
+
+def _ns_guard(ns):
+    if ns == common.FROZEN_NS and not FROZEN_ADMITTED:
+        raise NamespaceRefused(f"namespace {ns!r} is frozen; only cellrun.py under an admitted driver run may use it")
+
+
 def _pt(P):
     return None if P is O else list(P)
 
@@ -290,6 +303,7 @@ def _sum_units(*costs):
 def run_primary(fx, ns, n_descents=common.N_DESCENTS, n_heldout=common.N_HELDOUT,
                 max_attempts=DEFAULT_MAX_ATTEMPTS, max_descent_attempts=DEFAULT_MAX_DESCENT_ATTEMPTS,
                 m=common.M_PRIMARY, log_fn=print):
+    _ns_guard(ns)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -348,6 +362,7 @@ def run_primary(fx, ns, n_descents=common.N_DESCENTS, n_heldout=common.N_HELDOUT
 
 
 def run_null_randfb(fx, ns, max_attempts=DEFAULT_MAX_ATTEMPTS, m=common.M_PRIMARY, log_fn=print):
+    _ns_guard(ns)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -383,6 +398,7 @@ def run_null_randfb(fx, ns, max_attempts=DEFAULT_MAX_ATTEMPTS, m=common.M_PRIMAR
 
 
 def run_stage_cost(fx, ns, m, n_heldout=common.N_HELDOUT, max_attempts=DEFAULT_MAX_ATTEMPTS, log_fn=print):
+    _ns_guard(ns)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -419,6 +435,7 @@ def run_stage_cost(fx, ns, m, n_heldout=common.N_HELDOUT, max_attempts=DEFAULT_M
 
 def run_rho_cell(fx, ns, n_targets=common.N_RHO_TARGETS, log_fn=print):
     import rho
+    _ns_guard(ns)
     t0 = time.time()
     r = rho.run_rho(fx, ns, n_targets)
     bad = [x["t"] for x in r["targets"] if not x.get("solved") or not x.get("k_true_matches")]

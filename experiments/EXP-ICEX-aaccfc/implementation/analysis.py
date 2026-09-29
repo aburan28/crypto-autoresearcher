@@ -38,6 +38,16 @@ a supplementary figure applying the same substitution to the descent
 attempts' r G + final addition is reported separately
 (complete_units_rj_incremental_with_descents, OQ-15). Neither enters the
 C-5 rule, which reads only complete_units.
+
+Protocol v4 (AMD-20260929-5a84eb):
+  * FX-3: `analyse` no longer computes FX-A by default (fxa=None). The driver
+    writes metrics.json first and then calls `fxa_report` separately, so an
+    FX-A defect cannot withhold or alter the C-5 outputs.
+  * FX-8: `analyse` also reports, DESCRIPTIVELY and NOT as a verdict input,
+    the exponent fit and its 95% percentile bootstrap CI recomputed with
+    fixture b16-s21 omitted (5 points; bootstrap seeded from
+    '<ns>|bootstrap|leave_out|b16-s21'), beside the primary fit. The verdict
+    reads only the primary fit.
 """
 
 from __future__ import annotations
@@ -143,12 +153,38 @@ def bootstrap_slope(xs, ys, label, n_resamples=common.BOOTSTRAP_RESAMPLES):
             "label": label}
 
 
+def fxa_report(primary: list[dict], fxa=None) -> list[dict]:
+    """FX-A per primary fixture, computed separately from `analyse` (FX-3)."""
+    fxa = fxa or fxa_figure
+    return [{"fixture_id": r["fixture_id"], "fxa_nonverdict": fxa(r)} for r in primary]
+
+
+def leave_out_sensitivity(per: list[dict], namespace: str, leave_out: str = common.LEAVE_OUT_FIXTURE) -> dict:
+    """FX-8: exponent fit and bootstrap CI without `leave_out`; descriptive only."""
+    label = "descriptive sensitivity, NOT a verdict input (AMD-20260929-5a84eb FX-8)"
+    kept = [p for p in per if p["fixture_id"] != leave_out]
+    base = {"left_out": leave_out, "label": label,
+            "fixtures": [p["fixture_id"] for p in kept]}
+    if len(kept) == len(per):
+        return {**base, "applicable": False, "reason": f"{leave_out} not among the primary fixtures",
+                "exponent": None, "exponent_bootstrap": None}
+    xs = [math.log(p["q"]) for p in kept]
+    ys = [math.log(p["complete_units"]) for p in kept]
+    if len(set(xs)) < 2:
+        return {**base, "applicable": False, "reason": "fewer than two distinct q after leave-out",
+                "exponent": None, "exponent_bootstrap": None}
+    return {**base, "applicable": True, "exponent": ols_slope(xs, ys),
+            "exponent_bootstrap": bootstrap_slope(xs, ys, common.lab(namespace, "bootstrap", "leave_out", leave_out))}
+
+
 def analyse(primary: list[dict], rho: list[dict] | None = None, null: list[dict] | None = None,
             stage_cost: list[dict] | None = None, namespace: str = common.FROZEN_NS,
-            fxa=fxa_figure) -> dict:
+            fxa=None, sensitivity: bool = True) -> dict:
     """primary: the 6 primary cell results (pipeline.run_primary outputs).
-    `fxa` computes the FX-A figure; results without stage-1 attempt logs
-    (synthetic inputs in tests) get None."""
+    `fxa`, if given, attaches the FX-A figure per fixture (results without
+    stage-1 attempt logs get None); the driver passes None and calls
+    `fxa_report` after metrics.json is written (FX-3). `sensitivity` adds the
+    FX-8 leave-b16-s21-out fit, which never enters the verdict."""
     per = []
     fxa_per = []
     for r in primary:
@@ -193,9 +229,12 @@ def analyse(primary: list[dict], rho: list[dict] | None = None, null: list[dict]
         "alpha2": alpha2,
         "alpha2_note": "C-4: trivial scan attains alpha2 = 1 < 3/2 by construction; reported, not a verdict input",
         "alpha2_distinct_L": sorted(set(p["L"] for p in per)),
-        "rule": "C-5 AMD-20260926-ced670 verbatim (unchanged by AMD-20260929-143d11)",
-        "fxa_note": "per_fixture[*].fxa_nonverdict is descriptive only (AMD-20260929-143d11 FX-A)",
+        "rule": "C-5 AMD-20260926-ced670 verbatim (unchanged by AMD-20260929-143d11 and AMD-20260929-5a84eb)",
+        "fxa_note": ("per_fixture[*].fxa_nonverdict is descriptive only (AMD-20260929-143d11 FX-A); "
+                     "the driver computes it after metrics.json into fxa_nonverdict.json (AMD-20260929-5a84eb FX-3)"),
     }
+    if sensitivity:
+        out["exponent_leave_out_b16_s21_nonverdict"] = leave_out_sensitivity(per, namespace)
     if rho:
         out["rho_baseline"] = [{"fixture_id": r["fixture_id"], "q": r["fixture"]["N"],
                                 "mean_units": r["mean_units"], "mean_walk_units": r["mean_walk_units"],

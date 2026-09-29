@@ -1,17 +1,19 @@
-# EXP-ICEX-aaccfc implementation (protocol v3)
+# EXP-ICEX-aaccfc implementation (protocol v4)
 
-Task: TASK-20260929-8586f2 (implementation only). Protocol v3 consists of:
+Tasks: TASK-20260929-8586f2 (implementation, protocol v3) and TASK-20260929-1211f7 (repair for protocol v4, fixes FX-1 to FX-8; details and file hashes in `repair_report_v4.yaml`). Protocol v4 consists of:
 
 - `specification.yaml` (v1, DEC-20260910-56fad5);
 - `amendments/AMD-20260926-ced670.yaml` (v2, DEC-20260926-6fe1a0);
 - `amendments/AMD-20260929-143d11.yaml` (v3, DEC-20260929-a8d594, commit 87f67dfc06). Its sha256 is `36cad68cee9ff8da0ce86e94c2f9548f05ffd95a5bdaf32eeaeaf32c0514dac7`, recomputed from the committed file. That equals the decision's `amendment_sha256_at_decision`. The prefix `b6be15f...` quoted in the Coordinator's instruction does not match the file and is not used.
+- `amendments/AMD-20260929-5a84eb.yaml` (v4, DEC-20260929-986b4c, commit 211f7ed79f). Its sha256 is `61926b8c691cfe48a00354939651314a9d5aee62432a4d671c8ec56f7ddb310d`, equal to the decision's `amendment_sha256_at_decision`.
 
-Later amendments govern where they differ. v3 accepts the literal readings OQ-1 to OQ-14 as implemented, and adds the non-verdict figure FX-A (below). The seed namespace stays `EXP-ICEX-aaccfc/v2`, because v3 changes no label. Stage 1 reuses the B0 backend of `EXP-SDEG-85eefd/amendments/AMD-20260926-3479cf.yaml` C-4 by reference.
+Later amendments govern where they differ. v3 accepts the literal readings OQ-1 to OQ-14 as implemented, and adds the non-verdict figure FX-A (below). v4 answers the implementation audit TASK-20260929-e3446a: it corrects the v3 pre-data statement (F-5), keeps fixture b16-s21, pre-registers a non-verdict leave-b16-s21-out exponent fit (FX-8) and requires fixes FX-1 to FX-8 to the driver, cell runner, smoke and analysis. The seed namespace stays `EXP-ICEX-aaccfc/v2`, because neither v3 nor v4 changes a label. Stage 1 reuses the B0 backend of `EXP-SDEG-85eefd/amendments/AMD-20260926-3479cf.yaml` C-4 by reference.
 
 No scientific run was made and no `runs/RUN-*` directory exists. Execution is
-not admitted: DEC-20260929-f45bf1 carries no `execution_admission` block and
-the driver refuses it. The Mac's readings at implementation time also fail
-C-7 (system volume about 1.6 GiB free, 15-minute load about 22).
+not admitted: no committed decision admits EXP-ICEX-aaccfc, and the driver
+refuses every existing one (DEC-20260929-f45bf1, -a8d594 and -986b4c). The
+Mac's readings at repair time also fail C-7 (repository volume about 6 GiB
+free, 15-minute load above 14).
 
 ## Layout
 
@@ -27,12 +29,13 @@ C-7 (system volume about 1.6 GiB free, 15-minute load about 22).
 | `pipeline.py` | cells: `primary`, `null_randfb`, `stage_cost` (m = 6, 8), `rho` |
 | `rho.py` | Pollard rho baseline (negation map, r = 32, fruitless cycles), C-3 units |
 | `audit.py` | independent accounting checker (C-6) |
-| `analysis.py` | C-5 ratio, exponent, bootstrap and verdict, verbatim; FX-A non-verdict figure |
-| `cellrun.py` | one cell per fresh process (FX-4); per-cell peak RSS |
-| `driver.py` | admission (FX-1), C-7 fail-closed (FX-2), plan and hash checks, cells, audit, analysis, manifest with inference fields (FX-5) |
-| `make_trial_plan.py` / `trial-plan-v2.json` | 6 fixtures x 5 cells = 30 cells; records protocol v3 (sha256 `61f48e95a1854c6841d4b44ac6bbfd1a8fd67abfefa616190638bfeea7b9957b`) |
-| `smoke.py` | driver smoke dry-run plus full-replay agreement summary |
-| `tests/` | 58 tests |
+| `analysis.py` | C-5 ratio, exponent, bootstrap and verdict, verbatim; FX-A non-verdict figure (`fxa_report`, called separately); v4 FX-8 leave-b16-s21-out fit (non-verdict) |
+| `cellrun.py` | one cell per fresh process; per-cell peak RSS; v4 FX-4 admission and namespace guard |
+| `driver.py` | admission (v4 FX-1), C-7 fail-closed, plan and protocol-v4 hash binding, snapshot pinning (v4 FX-6), cells, audit, analysis then FX-A, canonical run record and failure handling (v4 FX-2, FX-3), inference block (v4 FX-7) |
+| `make_trial_plan.py` / `trial-plan-v2.json` | 6 fixtures x 5 cells = 30 cells; records protocol v4 and the sha256 of the three amendments and the v3/v4 decisions (plan sha256 `58c36b6d1444dce4f4b539f7bb0175d24d29e30af5abfd81abe7eaef14c2e983`; the file name is kept) |
+| `synthetic.py` | deterministic non-frozen prime-order curves for smoke (v4 FX-5) |
+| `smoke.py` | driver smoke dry-run on a synthetic fixture plus a pass/fail-only full-replay summary (v4 FX-5) |
+| `tests/` | 86 tests |
 
 ## What is charged (C-3, C-5)
 
@@ -62,13 +65,17 @@ one LA modmul over Z/q 1. Every figure is reported as a `Cost` dict (op counts,
   - The recomputation uses the same charged `arith.Curve`, so an incremental walk is credited 1 op per attempt.
 - **Cross-check:** rj_ops_j <= pt_ops_j for every attempt. A violation raises `ProcedureDefect`.
 - **Output:** the ratio of the figure to 13 x 0.886 x sqrt(q), `ratio_rj_incremental_nonverdict`. It is attached to each point beside the primary ratio.
-- **Verdict isolation:** the figure is attached after the C-5 ratio, exponent, bootstrap and verdict are computed. The C-5 rule is unchanged.
+- **Verdict isolation (actual ordering, v4 FX-7/A-4 and FX-3).** In protocol v3 `analyse` computed FX-A first, before the C-5 block (the earlier text here said "after"; that was wrong). Since v4 the driver calls `analyse(..., fxa=None)`, writes `metrics.json`, and only then calls `analysis.fxa_report` into `fxa_nonverdict.json`. An FX-A `ProcedureDefect` therefore leaves `metrics.json` untouched and marks the run `invalid` with `failure_class: procedure_defect_fxa`. The C-5 rule is unchanged.
 
 **Which attempts are covered.**
 
 - **Named figure: stage-1 attempts only.** These are the only attempts that build R_j = a_j G + b_j Q.
 - **Supplementary figure: descents too.** Descent attempts build Q_t + r G (one scalar multiplication plus one addition), not a_j G + b_j Q. The same substitution applied to them is reported separately as `complete_units_rj_incremental_with_descents` and `ratio_rj_incremental_with_descents_nonverdict`, with the same cross-check. See OQ-15.
 - **Not covered:** null and stage-cost cells, which are not in the complete cost.
+
+## FX-8: leave-b16-s21-out sensitivity (AMD-20260929-5a84eb, descriptive, non-verdict)
+
+`analyse` adds `exponent_leave_out_b16_s21_nonverdict`: the OLS slope of log(complete units) against log q over the five primary fixtures other than b16-s21, with a 95% percentile bootstrap CI (2000 resamples, the same resampling rule as OQ-8) seeded from the new implementation label `<ns>|bootstrap|leave_out|b16-s21`. It sits beside the primary fit, carries the label "descriptive sensitivity, NOT a verdict input", and has no verdict field. The verdict, primary exponent, primary bootstrap and dominant stage are computed only from the six-point primary fit; tests check they are identical with and without the block, including a constructed case where the leave-out fit alone would satisfy the sub-rho condition.
 
 ## Stage definitions as implemented
 
@@ -117,44 +124,35 @@ A charged run is refused unless all of these hold, checked in order:
 1. the host is macOS;
 2. C-7 passes fail-closed (15-minute load <= 14, system volume >= 5 GiB free, repository volume >= 20 GiB free; unreadable values refuse);
 3. the run id is `RUN-*`;
-4. the admission decision is a `coordinator_decision` with a matching id, `EXP-ICEX-aaccfc` in `target_ids`, and `execution_admission.currently_admitted: true` (FX-1);
-5. the trial plan's protocol hashes match the files on disk, and the v3 amendment hash equals the DEC-20260929-a8d594 value;
-6. the run directory does not already exist.
+4. the admission decision passes v4 FX-1: a `coordinator_decision` with a matching id; `decision` one of `admit_execution`, `approve_execution`, `admit`, `approve`; `EXP-ICEX-aaccfc` in `target_ids`; `execution_admission.currently_admitted: true`; not superseded or withdrawn (status `superseded`/`withdrawn` at document, decision or `execution_admission` level, a non-null `superseded_by` -- `superseded_by: null` is accepted --, or any other decision file listing it under `supersedes`); and the file tracked by git and identical to HEAD. Any DEC id may be named, because the admission decision did not exist when v4 was frozen; the manifest records this under `inputs.admission_decision_pinning`;
+5. the trial plan's protocol hashes match the files on disk and the plan says protocol version 4;
+6. the protocol v4 records match: the three amendments and the fixtures against their pinned sha256, and the v3 and v4 amendment hashes against `amendment_sha256_at_decision` of DEC-20260929-a8d594 and DEC-20260929-986b4c;
+7. `--snapshot-receipt PATH` (v4 FX-6, required) pins every implementation `.py`, test and trial-plan file, every pinned implementation file matches, and `git status --porcelain --untracked-files=all` of the implementation directory is empty. The receipt file itself is excluded from every comparison;
+8. the run directory does not already exist.
 
-Next, C-1 fixture reproduction (Sage, byte-compare) runs; a mismatch stops the run as a procedure defect. After that:
+Then the run:
 
-- each of the 30 cells runs in a fresh `nice -n 10` process;
-- `audit.json`, `metrics.json` (C-5), `raw-result.json` (an index of the per-cell results with sha256), `manifest.yaml` (git state, readings, implementation hashes, inference fields) and the stdout/stderr logs are written.
+- `manifest.yaml` is written with status `running` before C-1 and before the first cell, and rewritten after every cell. Its top-level `run:` block (id, experiment_id, hypothesis_id, protocol_version, status, code, environment, inputs, timing, resources, result, inference, artifacts) mirrors `EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/manifest_v2.yaml`; `inputs.protocol` carries the path and sha256 of every governing record; `inputs.snapshot_verification` the FX-6 result. Driver detail (git state, cell list, C-1 result, audit outcome) sits under `driver:`.
+- `command.txt`, `environment.json`, `stdout.log` and `stderr.log` are written first; `raw-result.json` (index of the cells attempted so far, with result sha256) is rewritten with every manifest write, so it exists on every path.
+- C-1 fixture reproduction (Sage, byte-compare); a mismatch is a procedure defect.
+- Each of the 30 cells runs in a fresh `nice -n 10` process; the driver passes the admission decision, repository root and run directory to it in the environment (read by the FX-4 guard).
+- Then `audit.json`, `metrics.json` (C-5; verdict withheld if the audit rejects), and after that `fxa_nonverdict.json`.
+- Failure mapping (v4 FX-3): a procedure defect (cell, C-1 mismatch, or an FX-A cross-check) records `invalid`; any other exception, a failed cell of another kind (including a rho crash on a zero target, per the A-3 ruling), or SIGTERM/SIGHUP/SIGINT records `failed_infrastructure`, with the traceback in `stderr.log` and under `driver.traceback`.
+
+## Cell guard (v4 FX-4)
+
+`cellrun.run_task` refuses (status `refused`, exit 3, no computation) any namespace that is neither `EXP-ICEX-aaccfc/v2` nor starts with `smoke|`. The frozen namespace is accepted only if the driver's environment names a decision that still passes `driver.check_decision` and a run directory whose manifest is a `running` run for that decision in that namespace. As an extra layer, `pipeline.run_*` raise `NamespaceRefused` for the frozen namespace unless `cellrun` has set `pipeline.FROZEN_ADMITTED` after its guard accepted. An inline fixture in a task is accepted only in a smoke namespace and never if it matches a frozen fixture.
 
 ## Smoke (implementation check only)
 
-`smoke.py --run-id DRYRUN-smoke-003` (protocol v3, manifest `protocol_version: 3`) ran on fixture b16-s21 only, in the namespace `smoke|EXP-ICEX-aaccfc/v2`, with 2 descents, 16 held-out points and 4 rho targets. Output is under `smoke/`. It checks identities, controls and agreement. The C-5 ratio, exponent, verdict and FX-A values were not computed or reported.
+**Protocol v4 smoke (FX-5).** `smoke.py` now runs the driver's smoke dry run on a synthetic, non-frozen prime-order curve from `synthetic.py` (13-bit field; the frozen fixtures are 16- and 20-bit, and `common.is_frozen_fixture` is checked by the driver, `cellrun` and `smoke.py`), in the namespace `smoke|EXP-ICEX-aaccfc/v2`, with 2 descents, 16 held-out points and 4 rho targets. Output goes to `smoke/v4/`. The summary holds pass/fail fields only; `smoke.assert_no_cost_fields` refuses any key naming units, cost, ratio, exponent, verdict, attempts, time or memory. No C-5 analysis runs in smoke.
 
-- **FX-A:** all fields were present, and the cross-check passed.
-  - The named figure covered 6909 stage-1 attempts.
-  - The supplementary figure also covered 1042 descent attempts.
-  - The values were withheld.
+- `DRYRUN-smoke-v4-001` and `DRYRUN-smoke-v4-002` are two driver dry runs of the same command. Both reached `smoke_completed`. The first two summary attempts failed inside `smoke.py` because its own key guard rejected two of its key names (`fxa_nonverdict_written`, and cell ids such as `stage_cost_m6` used as keys). The summary was then changed to a list, and both existing directories were summarised with `smoke.py --summarize-only`; neither run was repeated.
+- Outcome in both: fixture reproduction byte-identical; every cell `ok` in the smoke namespace; sampled and full-replay audits accept; primary logs verified, k recovered, LA agrees with the dense reference, both descents verified, stage-2 scan agrees with brute force, known-false control passed (scrambled solve failed to verify); null factor base matches the interval size; stage-cost m = 6 and m = 8 logs verified with stage 2 agreeing; rho targets all solved and certified; `fxa_nonverdict.json` written after the audit.
 
-The identity and control outcomes are identical to DRYRUN-smoke-002 (protocol v2), whose summary and dry-run directory are kept.
+**Earlier smoke outputs (protocol v2/v3; immutable, excluded from every analysis by AMD-20260929-5a84eb F-5).** `smoke/DRYRUN-smoke-001*`, `smoke/DRYRUN-smoke-002*`, `smoke/DRYRUN-smoke-003*` and `smoke/driver_dryrun/` ran on frozen fixture b16-s21 at its frozen m and B in the smoke namespace. They are kept unchanged. This file previously quoted attempt counts from them; those figures are removed from this version because the attempt count approximately determines stage-1 cost (the earlier text remains in the v3 snapshot, commit d6da4cd606). Their identity and control outcomes matched the v4 smoke above.
 
-- **Fixture reproduction:** byte-identical.
-- **Primary cell** (L = 3, B = 10):
-  - 14 relations over 6909 attempts;
-  - every attempt replayed against the exact oracle, with op counts exact;
-  - all logs verified, and k recovered equals the target;
-  - LA agrees with the dense reference;
-  - descents 2/2 verified, and all 1042 descent attempts replayed;
-  - stage 2 matches brute force on 16/16 points;
-  - known false: 11 rows changed, the LA reported the system inconsistent, log verification failed, so the control passed.
-- **Null:** L matches the interval factor base, and all logs verified.
-- **m = 6:** L = 2; logs verified; stage 2 16/16.
-- **m = 8:** L = 1; 129,563 attempts; logs verified; stage 2 16/16.
-- **Rho:** 4/4 targets solved and certified.
-- **Audits:** the sampled audit and the full-replay audit both accept.
-
-An earlier smoke, DRYRUN-smoke-001, produced the same identity and control outcomes. It used a dict-per-attempt log format that made the dry-run directory 43 MB. That directory, which was never committed and is not a run record, was removed before snapshot. Its summary and logs are kept as `smoke/DRYRUN-smoke-001*`. The receipt format was then made columnar, and `raw-result.json` became an index.
-
-Pre-data fixture property (from the trial plan, computed by verifier liftability only): at m = 8, fixtures b16-s21 and b20-s23 have L = 1. Their stage-cost cells need on the order of 10^5 and 10^6 attempts respectively. The smoke m = 8 cell took 27 s.
+Pre-data fixture property (from the trial plan, computed by verifier liftability only): at m = 8, fixtures b16-s21 and b20-s23 have L = 1. Their stage-cost cells need on the order of 10^5 and 10^6 attempts respectively.
 
 ## Open questions
 
@@ -196,7 +194,11 @@ Each question below gives the literal reading this implementation uses. A differ
   - Descent attempts build Q_t + r G, not a_j G + b_j Q.
   - Reading: the named `complete_units_rj_incremental` covers stage-1 attempts only.
   - A supplementary with-descents figure is reported beside it. Both are non-verdict.
-  - The Coordinator may rule which one carries the name.
+  - Ruled by v4 (AMD-20260929-5a84eb, OQ-15 ruling): accepted as implemented; both non-verdict.
+- **OQ-16 (new, v4): decision values accepted as an admission.** FX-1 says "an admission/approve decision". Reading: `decision` in {`admit_execution`, `approve_execution`, `admit`, `approve`}; the SDEG precedent used `admit_execution`. `approve_amendment` and every other value refuse.
+- **OQ-17 (new, v4): superseding decisions that are not committed.** FX-1 names "a later committed decision". Reading (fail-closed): any decision file present in `ledger/decisions/` whose `supersedes` names the admission decision refuses, committed or not.
+- **OQ-18 (new, v4): tests still exercise frozen fixture b16-s21.** The pre-existing unit tests (`conftest.smoke_primary`, `test_charging`, `test_controls`, `test_fxa`) run pipeline code on frozen fixtures in the `smoke|...|tests` namespace. Nothing is committed or printed, and assertions are structural, but the process does evaluate cost on a frozen fixture at frozen (m, B). FX-5 names smoke runs only; moving these tests to `synthetic.py` would need their fixture-specific assertions rewritten. The Coordinator may rule.
+- **OQ-19 (new, v4): what the snapshot pins.** FX-6 reading: every `*.py` and `tests/*.py` and `trial-plan*.json` in the implementation directory must be pinned; other pinned implementation files (docs, smoke outputs) are hash-checked if the receipt lists them; governing records outside the directory (specification, amendments, decisions, fixtures) are bound by the protocol-v4 check instead. Sage is an external executable, recorded but not pinned.
 - **OQ-14: memory and caps.**
   - The 8 GB limit is an in-process `ru_maxrss` guard, because macOS does not enforce RLIMIT_AS.
   - The machine caps (5,000,000 attempts per cell, 1,000,000 per descent) are machine protection. Reaching one is an infrastructure incompletion, never evidence.
@@ -205,4 +207,4 @@ Each question below gives the literal reading this implementation uses. A differ
 
 - Python 3.12.8, numpy 2.4.4, pytest 9.1.1.
 - Sage: `/Users/adamburan/.local/bin/sage`, which launches `/Volumes/SSD990/cryptanalysis/sage`, with `DOT_SAGE` under `$TMPDIR`. Sage is used only for C-1 reproduction.
-- The worktree is `/Volumes/SSD990/wt-amend-ic`, branch `coord/ic-leads-impl-20260928`, at HEAD `bd7a47d71cf62896cd953b4ff48a3586054997a9` when the report was written. The tree is dirty only in this directory.
+- The worktree is `/Volumes/SSD990/wt-amend-ic`, branch `coord/ic-leads-impl-20260928`. At the v4 repair HEAD was `37e2e7d72e19a5390883db8ab81634579da5abf8`; the tree is dirty only in this directory (plus untracked task directories of other sessions).

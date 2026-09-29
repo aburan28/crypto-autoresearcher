@@ -1,4 +1,4 @@
-"""Write trial-plan-v2.json for EXP-ICEX-aaccfc protocol v3 (file name kept) (deterministic, no
+"""Write trial-plan-v2.json for EXP-ICEX-aaccfc protocol v4 (file name kept) (deterministic, no
 timestamps): 6 fixtures x 5 cells (primary, null_randfb, stage_cost_m6,
 stage_cost_m8, rho) = 30 cells, one run, one worker.
 
@@ -48,6 +48,15 @@ def build_plan() -> dict:
             "amendment_v3": str(common.AMENDMENT_V3.relative_to(common.REPO_ROOT)),
             "amendment_v3_sha256": common.sha256_file(common.AMENDMENT_V3),
             "amendment_v3_decision": "DEC-20260929-a8d594",
+            "amendment_v4": str(common.AMENDMENT_V4.relative_to(common.REPO_ROOT)),
+            "amendment_v4_sha256": common.sha256_file(common.AMENDMENT_V4),
+            "amendment_v4_decision": "DEC-20260929-986b4c",
+            "decision_v3": str(common.DECISION_V3.relative_to(common.REPO_ROOT)),
+            "decision_v3_sha256": common.sha256_file(common.DECISION_V3),
+            "decision_v4": str(common.DECISION_V4.relative_to(common.REPO_ROOT)),
+            "decision_v4_sha256": common.sha256_file(common.DECISION_V4),
+            "composition": ("specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 + "
+                            "AMD-20260929-5a84eb; later amendments govern"),
             "b0_definition": str(common.B0_AMENDMENT.relative_to(common.REPO_ROOT)) + " C-4",
             "b0_definition_sha256": common.sha256_file(common.B0_AMENDMENT),
             "fixtures": str(common.FIXTURE_JSON.relative_to(common.REPO_ROOT)),
@@ -78,6 +87,9 @@ def build_plan() -> dict:
             "fxa_nonverdict": ("AMD-20260929-143d11 FX-A: complete_units_rj_incremental = complete_units - "
                                "13 * sum over stage-1 attempts (rj_ops_j - 1); descriptive, not a verdict input; "
                                "supplementary figure also substitutes descent attempts (OQ-15)"),
+            "leave_out_sensitivity_nonverdict": ("AMD-20260929-5a84eb FX-8: exponent fit and 95% bootstrap CI "
+                                                 "with fixture " + common.LEAVE_OUT_FIXTURE + " omitted; "
+                                                 "descriptive, not a verdict input"),
             "max_attempts_machine_cap": 5_000_000, "max_descent_attempts_machine_cap": 1_000_000,
         },
         "labels": {
@@ -88,14 +100,17 @@ def build_plan() -> dict:
             "scramble": "<ns>|scramble|<bits>|<seed>|<fbkind>|<redraw>.<i>",
             "lanczos": "<ns>|lanczos|<bits>|<seed>|<fbkind>|<try>|<i>",
             "audit": "<ns>|audit|<bits>|<seed>|<j>", "bootstrap": "<ns>|bootstrap",
+            "bootstrap_leave_out": "<ns>|bootstrap|leave_out|<fixture_id>",
         },
         "machine_protection_C7": {"load_15min_max": hostinfo.MAC_LOAD_MAX,
                                   "system_volume_free_min_gib": hostinfo.MAC_SYS_FREE_MIN_GIB,
                                   "repo_volume_free_min_gib": hostinfo.MAC_REPO_FREE_MIN_GIB,
                                   "maximum_memory_gb": 8, "maximum_workers": 1, "maximum_runs": 1,
                                   "host": "macOS (repository Mac) only"},
-        "admission": "driver refuses unless --admission-decision names a coordinator_decision with "
-                     "execution_admission.currently_admitted true and EXP-ICEX-aaccfc in target_ids",
+        "admission": ("driver refuses unless --admission-decision names a committed, clean, live "
+                      "(not superseded or withdrawn) coordinator_decision whose decision is an admission, with "
+                      "execution_admission.currently_admitted true and EXP-ICEX-aaccfc in target_ids, and "
+                      "--snapshot-receipt pins every implementation file of a clean implementation tree"),
     }
 
 
