@@ -252,3 +252,40 @@ def generate_prime_order_curve(bits: int, seed: int = 0,
         E.order = m
         E.ops.group_ops = 0
         return E, P
+
+
+def generate_prime_order_curve_j0(bits: int, seed: int = 0,
+                                  p_filter: Callable[[int], bool] | None = None,
+                                  max_prime_draws: int = 100_000) -> tuple[Curve, Point]:
+    """A deterministic j = 0 curve y^2 = x^3 + b over F_p, p = 1 (mod 3), of prime order.
+
+    The j = 0 positive control: E has the order-3 automorphism
+    (x, y) -> (omega x, y), omega a primitive cube root of unity in F_p, which
+    acts on the prime-order group as multiplication by a root lambda of
+    lambda^2 + lambda + 1 = 0 mod N.  The prime is drawn as in
+    ``generate_prime_order_curve`` (same filter semantics) but must also satisfy
+    p % 3 == 1; the order is certified exactly as there.
+    """
+    if bits < 8:
+        raise ValueError("bits must be >= 8")
+    rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
+    for _ in range(max_prime_draws):
+        p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
+        if p.bit_length() == bits and p % 3 == 1 and (p_filter is None or p_filter(p)):
+            break
+    else:
+        raise ValueError(f"no {bits}-bit prime p = 1 mod 3 passed the filter in "
+                         f"{max_prime_draws} draws")
+    while True:
+        b = rng.randrange(1, p)
+        E = Curve(p, 0, b)
+        P = E.random_point(rng)
+        hits = E.point_order_in_hasse(P)
+        if len(hits) != 1:
+            continue
+        m = hits[0]
+        if m == p or m <= 4 * math.isqrt(p) + 4 or not is_probable_prime(m):
+            continue
+        E.order = m
+        E.ops.group_ops = 0
+        return E, P
