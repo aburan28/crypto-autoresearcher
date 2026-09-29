@@ -1,0 +1,180 @@
+execution_report:
+  experiment_id: EXP-PFDR-1b78f7
+  task_id: TASK-20260928-51b8c8
+  archived_by: TASK-20260928-f15632
+  status: STOPPED AT STEP (5) ON A CONTRACT AMBIGUITY (AMB-1). R01-R09 complete; R10-R15 not started; returned to the Coordinator per the card
+  implementation_commit: >-
+    None (no commits allowed). Uncommitted tree on dispatch base
+    c06f1ad8cb0fcd7bbd2ffb2afcd7a4cc8e22bf86; frozen source sha256 in
+    implementation-notes.yaml and in every run manifest.
+  authority_check:
+    specification_status: approved
+    frozen: true
+    approval_decision: DEC-20260928-ab2d31 (present in HEAD)
+  runs:
+    completed:
+      - {id: R01, run_id: RUN-PFDR-1b78f7-tests, status: completed_valid, result: "105 passed, 9 skipped (msolve binary not installed), 0 failed"}
+      - {id: R02, run_id: RUN-PFDR-1b78f7-reg-off-sweep-20260924, status: completed_valid, gate: G1, rows_compared: 440/440, mismatches: 0, wall_seconds: 3805}
+      - {id: R03, run_id: RUN-PFDR-1b78f7-reg-off-sweep-mitm-20260926, status: completed_valid, gate: G1, rows_compared: 380/380, mismatches: 0}
+      - {id: R04, run_id: RUN-PFDR-1b78f7-reg-off-sweep-arity-20260926, status: completed_valid, gate: G1, rows_compared: 335/335, mismatches: 0}
+      - {id: R05, run_id: RUN-PFDR-1b78f7-reg-off-sweep-minfill-20260926, status: completed_valid, gate: G1, rows_compared: 275/275, mismatches: 0}
+      - {id: R06, run_id: RUN-PFDR-1b78f7-reg-off-sweep-arity-minfill-20260926, status: completed_valid, gate: G1, rows_compared: 275/275, mismatches: 0}
+      - {id: R07, run_id: RUN-PFDR-1b78f7-reg-off-sweep-arity67-20260928, status: completed_valid, gate: G1, rows_compared: 240/240, mismatches: 0}
+      - {id: R08, run_id: RUN-PFDR-1b78f7-reg-census-sweep-minfill-20260926, status: completed_valid, gate: G2, rows_compared: 275/275, mismatches: 0}
+      - {id: R09, run_id: RUN-PFDR-1b78f7-reg-census-sweep-arity-minfill-20260926, status: completed_valid, gate: G2, rows_compared: 275/275, mismatches: 0, peak_rss_bytes: 1105571840}
+    invalid: []
+    failed: []
+    not_started: [R10 census-m3, R11 census-m4, R12 census-m5, R13 rho, R14 j0, R15 analysis]
+    conditional_not_triggered: ["R16 stage-r (needs R15 O-EXCURSION)", "R17 reg-attribution (G1 and G2 passed)"]
+  gates:
+    G1: {result: pass, detail: "all 6 committed sweep files: 1945/1945 rows, every non-timing committed key equal, row counts equal, no duplicate keys; la_pivot recorded == flag in every file (min_index for sweep-20260924/mitm/arity, min_fill for the rest)"}
+    G2: {result: pass, detail: "harvest census on both min_fill files: 550/550 rows equal on every committed key"}
+    G3: {result: pass, detail: "R01; tests/test_index_calculus_fp.py unedited"}
+    G4: {result: "pass on the 330 harvest instances run so far (R08, R09): cert_fail 0, cert_pass == rows_emitted in every class; every instance k verified", panel_instances: not yet run}
+    G5: {result: "pass on the 330 harvest instances of R08, R09 (identity_ok true)", panel_instances: not yet run}
+    G6: {result: "not evaluated on panel instances (R10, R14 not run); unit-tested in R01"}
+    G7: {result: "not evaluated on panel instances (R10-R12 not run); unit-tested in R01"}
+    PC-1: not evaluated (R10, R15 not run)
+    PC-2: not evaluated (R14 cannot run as frozen, AMB-1)
+  outcome_ids: none (R15 not run)
+  ambiguities:
+    - id: AMB-1
+      blocks: R14 (j0 panel), hence PC-2, G6 on j0 curves, and every R15 reading that needs PC-2
+      contract_text: >-
+        IC-2: generate_prime_order_curve_j0 -- prime drawn as in
+        generate_prime_order_curve but also requiring p % 3 == 1; then repeat
+        b = rng.randrange(1, p), E = Curve(p, 0, b), P = E.random_point(rng),
+        with exactly the existing order certification and rejections. cells.j0_panel:
+        generate_prime_order_curve_j0(bits, c, p_filter=j0_filter), c = 0..4, bits 12..24.
+      defect: >-
+        For a fixed p = 1 mod 3 every curve y^2 = x^3 + b is isomorphic to one
+        of the six sextic twists y^2 = x^3 + g^i (i = 0..5), so the b-loop
+        only ever meets six group orders. Two of the six are divisible by 2
+        and two more by 3 on every one of the 35 primes examined. When neither remaining twist has
+        prime order, the loop as written never terminates. The contract gives
+        no rule for that case (redraw p? which stream?). Implemented exactly as
+        written, R14 hangs. Observed: a scratch
+        crash-test of the j0 CLI at 12-16 bits ran 27 minutes on four workers
+        with only (16, curve 2) finishing, and was stopped. Nothing was
+        implemented around it.
+      diagnostic: >-
+        For each j0-panel cell, the prime the frozen generator draws (first
+        prime of its rng stream passing p % 3 == 1 and j0_filter) and the
+        orders of its six twists, each computed by BSGS on independent random
+        points until unique. No solver code ran. 22 of 35 cells have no
+        prime-order twist, so the frozen generator never returns for them.
+        13 cells terminate.
+      cells:
+        - {bits: 12, curve: 0, p: 3457, prime_order_twists: []}
+        - {bits: 12, curve: 1, p: 2593, prime_order_twists: [2521]}
+        - {bits: 12, curve: 2, p: 3109, prime_order_twists: []}
+        - {bits: 12, curve: 3, p: 3049, prime_order_twists: [3067]}
+        - {bits: 12, curve: 4, p: 3313, prime_order_twists: []}
+        - {bits: 14, curve: 0, p: 15919, prime_order_twists: [15817]}
+        - {bits: 14, curve: 1, p: 12853, prime_order_twists: [12799]}
+        - {bits: 14, curve: 2, p: 10321, prime_order_twists: []}
+        - {bits: 14, curve: 3, p: 8803, prime_order_twists: []}
+        - {bits: 14, curve: 4, p: 11197, prime_order_twists: []}
+        - {bits: 16, curve: 0, p: 40189, prime_order_twists: []}
+        - {bits: 16, curve: 1, p: 40189, prime_order_twists: []}
+        - {bits: 16, curve: 2, p: 64693, prime_order_twists: [64237]}
+        - {bits: 16, curve: 3, p: 51949, prime_order_twists: []}
+        - {bits: 16, curve: 4, p: 47791, prime_order_twists: []}
+        - {bits: 18, curve: 0, p: 187573, prime_order_twists: []}
+        - {bits: 18, curve: 1, p: 243391, prime_order_twists: [242413]}
+        - {bits: 18, curve: 2, p: 202183, prime_order_twists: [202729]}
+        - {bits: 18, curve: 3, p: 213613, prime_order_twists: []}
+        - {bits: 18, curve: 4, p: 228511, prime_order_twists: []}
+        - {bits: 20, curve: 0, p: 798271, prime_order_twists: [796633]}
+        - {bits: 20, curve: 1, p: 1011037, prime_order_twists: []}
+        - {bits: 20, curve: 2, p: 578467, prime_order_twists: []}
+        - {bits: 20, curve: 3, p: 611293, prime_order_twists: [612811]}
+        - {bits: 20, curve: 4, p: 542539, prime_order_twists: [541381]}
+        - {bits: 22, curve: 0, p: 2245951, prime_order_twists: []}
+        - {bits: 22, curve: 1, p: 3692107, prime_order_twists: []}
+        - {bits: 22, curve: 2, p: 2799661, prime_order_twists: []}
+        - {bits: 22, curve: 3, p: 3522877, prime_order_twists: []}
+        - {bits: 22, curve: 4, p: 3657259, prime_order_twists: [3653779]}
+        - {bits: 24, curve: 0, p: 16081801, prime_order_twists: []}
+        - {bits: 24, curve: 1, p: 13737781, prime_order_twists: [13744039]}
+        - {bits: 24, curve: 2, p: 14739001, prime_order_twists: []}
+        - {bits: 24, curve: 3, p: 16173667, prime_order_twists: []}
+        - {bits: 24, curve: 4, p: 13342309, prime_order_twists: [13349227]}
+      note_on_cells: (16, 0) and (16, 1) draw the same prime 40189.
+      options_for_the_coordinator_not_decisions:
+        - "Continue the same rng stream to the next prime that passes p % 3 == 1 and j0_filter AND has a prime-order twist (a deterministic change of IC-2; 13 cells unchanged)."
+        - "Bound the b-draws per prime and redraw p from the stream after the bound."
+        - "Any other versioned protocol_amendment. The executor implements none of these without one."
+      unit_test_note: >-
+        R01's j0 test (18 bits, curve 1) passed because that prime has a
+        prime-order twist; the defect is in the contract's generator
+        definition, not a test gap in the implemented code.
+    - id: AMB-2
+      blocks: one main-panel cell of R12 (m = 5); recorded now so one amendment round can cover it
+      contract_text: >-
+        cells.main_panel.sizes: size0 = default_fb_size(N, m); F_sub =
+        FactorBase.subgroup(E, size0, c); s_sub = max(4, len(F_sub)); the
+        subgroup arm uses F_sub.
+      defect: >-
+        At (14 bits, curve 4, m = 5) the subgroup base has |F_sub| = 1 (every
+        other arm gets s_sub = 4). No-solver diagnostic over all main-panel
+        cells (c = 0..4, m = 3..5, 12..32 bits; curves 5..9 built as well):
+        this is the only arm below 4 points, dickson d == subgroup d in every
+        cell, and every curve and base builds and terminates. With a 1-point
+        base at m = 5 a target decomposes only if it lies in {+-F, +-3F, +-5F},
+        so census mode cannot reach k before the solver's 50N attempt limit.
+        Meanwhile the SS store grows by 4 encodings per attempt at N ~ 2^14,
+        so the per-instance watchdog (7200 s) would likely end it first. As
+        implemented (frozen code), an instance that stops at attempt_limit
+        without k is classified `invalid`, and that stops the census run
+        (census code, _census_instance). The contract does not classify this
+        case. The executor did not change frozen code.
+      options_for_the_coordinator_not_decisions:
+        - "Classify an attempt_limit stop without k as failed_infrastructure / resource_exhaustion (A1 then drops that curve at that rung for the subgroup cell), which requires an __main__.py change and a new R01 attempt."
+        - "Amend the cell (e.g. a size floor for the subgroup arm)."
+  remaining_work_after_an_amendment:
+    - "Implement the amended IC-2 (curve.py) and, if ruled, the AMB-2 classification (__main__.py)."
+    - "Coordinator to rule whether R01-R09 must be re-executed on the amended build. G1 and G2 were measured on the current frozen build. An IC-2 change touches only the j0 generator, but the frozen-source hashes change."
+    - "Run R10 (census-m3), R11 (census-m4), R12 (census-m5), R13 (rho), R14 (j0), each with --workers 4, sequentially (4-worker machine limit), then compress and checksum."
+    - "Run R15 analyze_census.py (written: experiments/EXP-PFDR-1b78f7/analyze_census.py; not yet executed on real panel data; crash-test incomplete, see anomalies)."
+    - "R16 only on O-EXCURSION; write execution-report and hand back the artifact paths."
+    - "Measured planning figures for machine protection (scratch benchmark, 32-bit random base, curve 0, census mode): m = 4 about 195 s and 1.17 GB RSS per instance; m = 3 about 12 s; m = 5 about 8 s."
+  protocol_deviations:
+    - "Spec commands name `python3`; every run used the task venv interpreter (Python 3.11.15, numpy 2.4.6), recorded in command.txt and environment.json."
+    - "Per-instance watchdog (7200 s) is not enforceable inside the frozen `sweep` subcommand without changing it. R02-R09 ran under the per-run watchdog (86400 s) and the per-process address-space cap (RLIMIT_AS 3.5e9 bytes on every worker). The longest instance measured 692 s (R02; 712 s in the committed row)."
+    - "Per-process RSS cap enforced as RLIMIT_AS = 3.5e9 bytes (address space >= RSS) on the whole process tree via the run wrapper; no instance hit it."
+    - "Implementation deviations from IC-1..IC-8 are listed in implementation-notes.yaml (recorder informed at scan level rather than inside _m2_at/_tail_at; extra census-row keys status, status_reason, k_found, k_verified, checks; --instance-watchdog and --quiet options; j0 target-log rule; known_log cap-unavailable handling)."
+    - "poisson_mean formulas are those fixed in ledger/hypotheses/H-PFDR-4765e4.yaml (HEUR-4765e4-H1 specification_of_means, which names this experiment's analysis.poisson_means); the frozen specification lists the key but not the formula."
+    - "R02-R09 comparison, gzip -n and raw-result summarisation are post-processing steps recorded in each run's post-processing.json; the wrapper and summariser scripts are copied into each run directory (run_wrapper.py, summarize_run.py) and pinned by sha256."
+  anomalies:
+    - "Engineering before R01 (scratch directory outside the repository, not runs): smoke and benchmark solves on 16-32-bit instances to check census == off columns, G5 and certificates. Two memory reductions of the SS store followed (2.2 -> 1.7 -> 1.17 GB for one 32-bit m = 4 census instance) with identical counts. Only times and RSS were read from the benchmarks."
+    - "Scratch crash-test after G1-G3: census CLI on main-panel cells (m = 3, 5 at 12 and 20-26 bits; m = 4 at 12-14 bits), rho (12-14 bits) and j0 (12-16 bits). The main and rho parts exited 0. The j0 part hung (AMB-1) and was stopped, so analyze_census.py was never reached. The scratch outputs were not read beyond exit codes and one j0 status listing, and are not runs. They cover cells of the frozen panels on the frozen code and have no status in this experiment."
+    - "tests/test_index_calculus_fp.py: 9 msolve tests skip on this host (msolve not installed); the msolve path is outside this experiment."
+  observations: "No census, kappa or harvest-gain observation exists yet (R10-R15 not run). Regression and certificate counts are under gates."
+  artifact_paths:
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/curve.py
+    - src/crypto_autoresearcher/index_calculus/tails.py
+    - src/crypto_autoresearcher/index_calculus/decompose.py
+    - src/crypto_autoresearcher/index_calculus/solver.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - src/crypto_autoresearcher/index_calculus/harvest.py
+    - tests/test_index_calculus_harvest.py
+    - experiments/EXP-PFDR-1b78f7/compare_regression.py
+    - experiments/EXP-PFDR-1b78f7/analyze_census.py
+    - experiments/EXP-PFDR-1b78f7/implementation-notes.yaml
+    - experiments/EXP-PFDR-1b78f7/execution-report.yaml
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-tests/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-20260924/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-mitm-20260926/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity-20260926/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-minfill-20260926/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity-minfill-20260926/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-off-sweep-arity67-20260928/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-census-sweep-minfill-20260926/
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-reg-census-sweep-arity-minfill-20260926/
+  executor_assessment:
+    protocol_complete: false
+    data_quality: good (for the runs completed)
+    requires_rerun: false (no run is defective; R10-R15 are unexecuted, not failed)
+    blocking: AMB-1 requires a Coordinator protocol_amendment before R14; AMB-2 should be ruled in the same round

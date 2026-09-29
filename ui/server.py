@@ -57,8 +57,9 @@ class IndexHolder:
     `state: "building"` until it is ready and the page renders that.
     """
 
-    def __init__(self, repo: Path) -> None:
+    def __init__(self, repo: Path, progress_snapshot: Path | None = None) -> None:
         self.repo = repo
+        self.progress_snapshot = progress_snapshot
         self.index: ResearchIndex | None = None
         self.error: str | None = None
         self.state = "idle"
@@ -185,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         simple = {
             "index.json": lambda: payloads.index_rows(index),
             "overview.json": lambda: payloads.overview_payload(index),
+            "progress.json": lambda: payloads.progress_payload(index, self.holder.progress_snapshot),
+            "comparisons.json": lambda: payloads.comparisons_payload(index),
             "goals.json": lambda: payloads.goals_payload(index),
             "experiments.json": lambda: payloads.experiments_payload(index),
             "findings.json": lambda: payloads.findings_payload(index),
@@ -249,8 +252,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send(target.read_bytes(), ctype)
 
 
-def serve(repo: Path, host: str, port: int, open_browser: bool, verbose: bool) -> int:
-    holder = IndexHolder(repo)
+def serve(repo: Path, host: str, port: int, open_browser: bool, verbose: bool,
+          progress_snapshot: Path | None = None) -> int:
+    holder = IndexHolder(repo, progress_snapshot)
     holder.start()
 
     httpd = ThreadingHTTPServer((host, port), type("BoundHandler", (Handler,),
@@ -281,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
                     "`python3 -m ui.build` renders the same thing as a static site.")
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1],
                         help="repository root (default: the repo this file lives in)")
+    parser.add_argument("--progress-snapshot", type=Path, help="sanitized progress snapshot JSON")
     parser.add_argument("--host", default="127.0.0.1",
                         help="bind address (default: 127.0.0.1, loopback only)")
     parser.add_argument("--port", type=int, default=8787, help="bind port (default: 8787)")
@@ -291,4 +296,4 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo.resolve()
     if not (repo / "ledger").is_dir():
         parser.error(f"no ledger/ under {repo}: not a crypto-autoresearcher checkout")
-    return serve(repo, args.host, args.port, args.open, args.verbose)
+    return serve(repo, args.host, args.port, args.open, args.verbose, args.progress_snapshot)
