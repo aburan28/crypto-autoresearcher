@@ -1,5 +1,6 @@
 """C-5 verdict rule (AMD-20260926-a7d25d), applied verbatim with the literal
-readings recorded in implementation.md ("Open questions" OQ-2..OQ-5):
+readings accepted by AMD-20260929-988139 (OQ-2..OQ-5) and the fail-closed
+rulings of AMD-20260929-cc7226 (protocol v4):
 
   Under delta_proof: supercritical-enriched iff delta_proof lower 95% CI > 1/4
   at both budgets and all three sizes with a flat or rising trend, AND the
@@ -20,6 +21,19 @@ Literal readings (not protocol changes):
   * certified subcritical: both inequalities at every fixture and both budgets.
   * if both the supercritical and the subcritical rules fire, the verdict is
     inconclusive with reason 'both_rules_fired'.
+
+Protocol v4 rulings (AMD-20260929-cc7226):
+  * F-3: a size x budget cell with no feasible ER replicate has the ER clause
+    'undetermined'. An undetermined cell cannot satisfy supercritical-enriched:
+    if every other supercritical clause holds and no determined cell has ER
+    exceeding 1/4, the supercritical rule is 'undetermined' and the verdict is
+    inconclusive. Feasible ER replicates are counted per cell.
+  * F-4: known_positive = not_exercised is neither a pass nor a defect and does
+    not change the verdict. Cells where any fixture's known positive was not
+    exercised (or did not pass) are listed as lacking known-positive power
+    confirmation; negative conclusions are scoped to the other cells.
+  * FX-4 (F-6): where known_false = not_exercised the LP log recovery fraction
+    is reported as 'undetermined'.
 
   python3 analysis.py <raw-result.json> [--out analysis.json]
 """
@@ -73,16 +87,22 @@ def table(cells: list[dict]) -> dict:
         bits = c["fixture"]["bits"]
         for blk in c["budgets"]:
             g = blk["graph"]
-            er = [r["delta_proof"] for r in blk["null_er"]["replicates"] if r is not None]
+            er_reps = blk["null_er"]["replicates"]
+            er = [r["delta_proof"] for r in er_reps if r is not None]
             rw = [r["delta_proof"] for r in blk["null_rewire"]["replicates"]]
+            kp = (blk.get("known_positive") or {}).get("status")
+            kf = (blk.get("known_false") or {}).get("status")
             out.setdefault((bits, blk["budget"]), []).append({
                 "fixture_id": c["fixture_id"], "seed": c["fixture"]["seed"],
                 "delta_proof": g["delta_proof"], "delta_ratio": g["delta_ratio"],
                 "cycle_rank": g["cycle_rank"], "E": g["E"], "V": g["V"],
                 "giant_component_fraction": g["giant_component_fraction"],
                 "components_with_cycle": g["components_with_cycle"],
-                "er_delta_proof": er, "rewire_delta_proof": rw,
-                "lp_recovery_fraction": blk["recovery"]["lp_recovery_fraction"],
+                "er_delta_proof": er, "er_feasible_replicates": sum(1 for r in er_reps if r is not None),
+                "er_replicates": len(er_reps), "rewire_delta_proof": rw,
+                "known_positive_status": kp, "known_false_status": kf,
+                "lp_recovery_fraction": "undetermined" if kf == "not_exercised"
+                else blk["recovery"]["lp_recovery_fraction"],
                 "charged_work_over_sqrt_q": blk["charged"]["charged_work_over_sqrt_q"]})
     return out
 
@@ -92,19 +112,32 @@ def verdict(cells: list[dict]) -> dict:
     missing = [(b, bu) for b in SIZES for bu in BUDGETS if len(tab.get((b, bu), [])) != 3]
     per_cell = {}
     ci_ok, er_exceeds_any = True, False
+    er_undetermined_cells, no_power_cells = [], []
     for b in SIZES:
         for bu in BUDGETS:
             rows = sorted(tab.get((b, bu), []), key=lambda r: r["seed"])
             dp = [r["delta_proof"] for r in rows]
             lci = lower_ci(dp) if len(rows) == 3 else None
+            n_feasible = sum(r["er_feasible_replicates"] for r in rows)
             er_all = [v for r in rows for v in r["er_delta_proof"] if v is not None]
             er_mean = statistics.fmean(er_all) if er_all else None
-            er_exc = er_mean is not None and er_mean > GATE
-            er_exceeds_any |= er_exc
+            if n_feasible == 0:
+                er_exc = "undetermined"
+                er_undetermined_cells.append(f"{b}-{bu}")
+            else:
+                er_exc = er_mean is not None and er_mean > GATE
+                er_exceeds_any |= er_exc
+            kp_ok = len(rows) == 3 and all(r["known_positive_status"] == "pass" for r in rows)
+            if not kp_ok:
+                no_power_cells.append(f"{b}-{bu}")
             ok = lci is not None and lci > GATE
             ci_ok &= ok
             per_cell[f"{b}-{bu}"] = {"delta_proof": dp, "lower_95_ci": lci, "ci_gt_quarter": ok,
                                      "er_mean_delta_proof": er_mean, "er_exceeds_quarter": er_exc,
+                                     "er_feasible_replicates": n_feasible,
+                                     "er_replicates": sum(r["er_replicates"] for r in rows),
+                                     "known_positive_statuses": [r["known_positive_status"] for r in rows],
+                                     "known_positive_power_confirmed": kp_ok,
                                      "rows": rows}
     trend = {}
     trend_ok = True
@@ -119,15 +152,21 @@ def verdict(cells: list[dict]) -> dict:
         trend[bu] = {"slope_per_bit": slope, "slope_upper_95_ci": up, "flat_or_rising": ok}
         trend_ok &= ok
     supercritical = (not missing) and ci_ok and trend_ok and not er_exceeds_any
+    if supercritical and er_undetermined_cells:
+        supercritical = "undetermined"
     sub_rows = [r for rows in tab.values() for r in rows]
     subcritical = (not missing) and bool(sub_rows) and all(
         r["giant_component_fraction"] < 0.05 and r["cycle_rank"] <= 2 * r["components_with_cycle"]
         for r in sub_rows)
     if missing:
         v, why = "inconclusive", f"missing cells {missing}"
+    elif supercritical == "undetermined":
+        v, why = "inconclusive", (f"AMD-20260929-cc7226 F-3: ER null infeasible (no feasible replicate) in "
+                                  f"{er_undetermined_cells}; supercritical-enriched cannot be supported"
+                                  + ("; subcritical rule also fired" if subcritical else ""))
     elif supercritical and subcritical:
         v, why = "inconclusive", "both_rules_fired"
-    elif supercritical:
+    elif supercritical is True:
         v, why = "supercritical-enriched", "C-5 supercritical clauses all hold"
     elif subcritical:
         v, why = "certified-subcritical", "C-5 subcritical clauses hold at every fixture and budget"
@@ -136,12 +175,19 @@ def verdict(cells: list[dict]) -> dict:
     res = {"verdict": v, "reason": why, "clauses": {
         "ci_gt_quarter_all_cells": ci_ok, "trend_flat_or_rising_both_budgets": trend_ok,
         "er_null_exceeds_quarter_in_any_cell": er_exceeds_any,
+        "er_null_undetermined_cells": er_undetermined_cells,
         "supercritical_rule": supercritical, "subcritical_rule": subcritical},
+        "known_positive": {
+            "cells_lacking_power_confirmation": no_power_cells,
+            "negative_conclusion_scope_cells": [k for k in per_cell if k not in no_power_cells],
+            "note": "AMD-20260929-cc7226 F-4: a negative or ER-matched reading in a listed cell lacks "
+                    "known-positive power confirmation; negative conclusions are scoped to the other cells. "
+                    "The verdict is unchanged by this list."},
         "per_cell": per_cell, "trend": trend}
     if v == "supercritical-enriched":
         res["definitional_impediment"] = (
             "C-5: may not be read as crossing RT-1472's gate until the RT-1472 source is acquired "
-            "and a v3 amendment maps delta_proof onto it.")
+            "and a later protocol amendment maps delta_proof onto it (no amendment through v4 does).")
     return res
 
 

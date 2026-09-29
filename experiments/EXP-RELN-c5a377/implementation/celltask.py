@@ -5,6 +5,15 @@ audit; plus the rho baseline. Writes <out>.json and <out>.attempts.jsonl.
 
   python3 celltask.py --bits 16 --seed 11 --ns <ns> --a1 N --a2 N \
       --replicates 32 --rho-targets 64 --out PATH
+
+A namespace without 'smoke' (the frozen draws) is refused unless the process
+was launched by driver.py for an admitted run (AMD-20260929-cc7226 FX-5): the
+driver passes the decision id, repository root and run directory in the
+environment, and this process re-checks the decision and the run manifest.
+
+Known positive (AMD-20260929-cc7226 F-4): below the smallest |V| at which a
+planted graph of cycle rank ceil(|V|^1.5) can give delta_proof > 1/4 for the
+fixture's L, the control is recorded not_exercised (neither pass nor defect).
 """
 
 from __future__ import annotations
@@ -12,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import resource
 import statistics
 import sys
@@ -22,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import audit as audit_mod  # noqa: E402
 import fixtures  # noqa: E402
+import labels  # noqa: E402
 import lpgraph  # noqa: E402
 import nulls  # noqa: E402
 import recovery  # noqa: E402
@@ -50,6 +61,64 @@ def _null_row(m):
     return {k: m[k] for k in ("V", "E", "components", "cycle_rank", "giant_component_fraction",
                               "components_with_cycle", "delta_proof", "delta_ratio",
                               "cycle_rank_identity_ok")}
+
+
+def planted_gate_min_v(L: int):
+    """Smallest |V| >= 2 whose planted cycle rank ceil(|V|^1.5) gives
+    delta_proof > 1/4 at log base L; None if no |V| can (L < 2)."""
+    if L < 2:
+        return None
+    n = 2
+    while True:
+        cr = math.ceil(n ** 1.5)
+        if lpgraph.deltas(cr, cr + n - 1, L)["delta_proof"] > 0.25:
+            return n
+        n += 1
+
+
+def known_positive(n, L, ns, ctx, name, defects) -> dict:
+    vmin = planted_gate_min_v(L)
+    base = {"gate": "delta_proof > 1/4", "V": n, "L": L, "gate_min_V": vmin,
+            "exercised": False, "power_confirmed": False}
+    gp = nulls.planted_dense(n, ns, ctx)
+    if gp is None:
+        return {**base, "status": "not_exercised", "reason": "|V| < 2"}
+    mp = lpgraph.metrics(gp, L)
+    if mp["cycle_rank"] != gp["planted_cycle_rank"]:
+        defects.append(f"{name}: planted cycle rank {mp['cycle_rank']} != {gp['planted_cycle_rank']}")
+    row = {**base, "planted_cycle_rank": gp["planted_cycle_rank"], "metrics": _null_row(mp)}
+    if vmin is None or n < vmin:
+        return {**row, "status": "not_exercised",
+                "reason": f"AMD-20260929-cc7226 F-4: |V| = {n} is below the gate-reachable minimum "
+                          f"{vmin} for L = {L}; neither a pass nor a procedure defect"}
+    passed = mp["delta_proof"] is not None and mp["delta_proof"] > 0.25
+    if not passed:
+        defects.append(f"{name}: planted-dense known positive did not report delta_proof > 1/4")
+    return {**row, "status": "pass" if passed else "FAIL", "exercised": True, "power_confirmed": passed}
+
+
+def admission_guard(ns: str) -> tuple[bool, str]:
+    if labels.is_smoke_ns(ns):
+        return True, "smoke namespace"
+    import driver
+    import yaml
+    dec = os.environ.get(driver.ADMISSION_ENV)
+    repo = os.environ.get(driver.REPO_ENV)
+    run_dir = os.environ.get(driver.RUN_DIR_ENV)
+    if not (dec and repo and run_dir):
+        return False, "not launched by the admitted driver (admission environment absent)"
+    ok, why = driver.check_decision(Path(repo), dec)
+    if not ok:
+        return False, f"admission decision refused: {why}"
+    mp = Path(run_dir) / "manifest.yaml"
+    try:
+        run = yaml.safe_load(mp.read_text())["run"]
+    except (OSError, yaml.YAMLError, KeyError, TypeError) as e:
+        return False, f"run manifest {mp} unreadable: {e}"
+    inp = run.get("inputs") or {}
+    if run.get("status") != "running" or inp.get("admission_decision") != dec or inp.get("namespace") != ns:
+        return False, f"run manifest {mp} is not a running admitted run for {dec} in namespace {ns}"
+    return True, f"admitted by {dec} for {run.get('id')}"
 
 
 def budget_block(gen, records, A, name, ns, replicates, horton_on, defects):
@@ -109,19 +178,7 @@ def budget_block(gen, records, A, name, ns, replicates, horton_on, defects):
                                                  "delta_proof")},
         "frac_delta_proof_gt_quarter": (sum(1 for r in er_ok if (r["delta_proof"] or -9) > 0.25) / len(er_ok))
         if er_ok else None}
-    gp = nulls.planted_dense(g["n"], ns, ctx)
-    if gp is None:
-        out["known_positive"] = {"status": "not_exercised", "reason": "|V| < 2"}
-    else:
-        mp = lpgraph.metrics(gp, gen.L)
-        passed = mp["delta_proof"] is not None and mp["delta_proof"] > 0.25
-        out["known_positive"] = {"status": "pass" if passed else "FAIL",
-                                 "planted_cycle_rank": gp["planted_cycle_rank"],
-                                 "metrics": _null_row(mp)}
-        if not passed:
-            defects.append(f"{name}: planted-dense known positive did not report delta_proof > 1/4")
-        if mp["cycle_rank"] != gp["planted_cycle_rank"]:
-            defects.append(f"{name}: planted cycle rank {mp['cycle_rank']} != {gp['planted_cycle_rank']}")
+    out["known_positive"] = known_positive(g["n"], gen.L, ns, ctx, name, defects)
     rec = recovery.recover_and_verify(rels, gen.fb_x, gen.B, fx, gen.Q)
     out["recovery"] = rec
     if rec["verification_failures"] or rec["inconsistent_rows"]:
@@ -141,6 +198,9 @@ def budget_block(gen, records, A, name, ns, replicates, horton_on, defects):
 
 
 def run(bits, seed, ns, a1, a2, replicates, rho_targets, out_path: Path, horton_24=False):
+    ok, why = admission_guard(ns)
+    if not ok:
+        raise PermissionError(f"REFUSED: namespace {ns!r}: {why}")
     t0 = time.time()
     fx = fixtures.fixture(bits, seed)
     prm = fixtures.params(fx)
@@ -165,7 +225,7 @@ def run(bits, seed, ns, a1, a2, replicates, rho_targets, out_path: Path, horton_
               "ns": ns, "header": gen.header(), "budgets": blocks,
               "rho": {"targets": rres, "summary": rho.summary(rres, fx["N"])},
               "blind_descent_success": None,
-              "blind_descent_note": "no descent step is defined in protocol v2 (see open questions)",
+              "blind_descent_note": "no descent step is defined in protocol v4 (see open questions)",
               "procedure_defects": defects,
               "timing_seconds": {"generator": t_gen, "total": time.time() - t0},
               "peak_rss_bytes": peak_rss_bytes(),
@@ -190,6 +250,10 @@ def main(argv=None):
     if a.a1 > a.a2:
         print("a1 must be <= a2 (A2 is a prefix-continuation of A1)", file=sys.stderr)
         return 2
+    ok, why = admission_guard(a.ns)
+    if not ok:
+        print(f"REFUSED: namespace {a.ns!r}: {why}", file=sys.stderr)
+        return 3
     res = run(a.bits, a.seed, a.ns, a.a1, a.a2, a.replicates, a.rho_targets, Path(a.out), a.horton_24)
     print(json.dumps({"fixture": res["fixture_id"], "defects": res["procedure_defects"],
                       "peak_rss_bytes": res["peak_rss_bytes"]}))

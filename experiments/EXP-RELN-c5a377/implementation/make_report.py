@@ -1,6 +1,6 @@
 """Write implementation_report.yaml: files + sha256, tests, smoke, open questions.
 
-  python3 -m pytest -p no:cacheprovider -q tests > test-results.txt
+  python3 -m pytest -p no:cacheprovider -q -rs tests > test-results.txt
   python3 make_report.py
 """
 
@@ -13,6 +13,7 @@ from pathlib import Path
 
 import yaml
 
+import driver
 import fixtures
 
 HERE = Path(__file__).resolve().parent
@@ -108,7 +109,54 @@ OPEN_QUESTIONS = [
      "C-7 names macOS volumes; 'null controls passing' is not defined in v1 or v2.",
      "Same thresholds with '/' as the system volume. Null results are reported in full; the verdict "
      "follows C-5 only."),
+    ("OQ-21", "v4 F-3 when the subcritical rule also fires",
+     "The F-3 ruling covers a verdict that would otherwise be supercritical-enriched; it does not say what "
+     "happens when the ER clause is undetermined, every other supercritical clause holds, and the "
+     "subcritical rule also fires.",
+     "Fail closed: the supercritical rule is 'undetermined' and the verdict is inconclusive (never "
+     "certified-subcritical), with the reason naming the undetermined cells and that the subcritical rule "
+     "also fired. A cell with at least one feasible ER replicate is determined (mean over feasible ones)."),
+    ("OQ-22", "v4 F-4 cell-level power confirmation",
+     "F-4 is stated per cell; each size x budget cell holds three fixtures.",
+     "A size x budget cell has known-positive power confirmation only if all three fixtures' known "
+     "positive is 'pass'. Gate-reachable minimum |V| = smallest |V| >= 2 with "
+     "log_L(ceil(|V|^1.5)) - 1 > 1/4 (L < 2: unreachable, not_exercised). The planted cycle-rank "
+     "construction check stays a procedure defect even when the gate is not reachable."),
+    ("OQ-23", "v4 FX-5 decision supersession",
+     "'a superseded_by field' does not say whether superseded_by: null counts (3 committed decisions carry "
+     "an explicit null).",
+     "A non-null, non-empty superseded_by (in coordinator_decision, the document, or execution_admission) "
+     "or status superseded/withdrawn refuses; a null superseded_by does not. The driver also refuses a "
+     "decision that a later ledger decision lists under 'supersedes'."),
+    ("OQ-24", "v4 FX-6 'budgets different from every frozen (A1, A2)'",
+     "Exact inequality allows a smoke budget adjacent to a frozen one (e.g. 750 vs 751), which is nearly an "
+     "exchangeable replicate.",
+     "Refusal is on exact equality with any of the 18 frozen A1/A2 values, as written. The v4 smoke uses "
+     "b16-s13 (smallest q) at 64/256 and 400/1500, far from its frozen 199/574."),
+    ("OQ-25", "v4 FX-5 snapshot receipt coverage and the dirty-tree rule",
+     "Which implementation files must be pinned, and whether smoke output written after the snapshot "
+     "counts as a dirty tree.",
+     "Every receipt entry under implementation/ must match the working tree (the receipt itself excluded); "
+     "every implementation *.py, tests/*.py and trial-plan-v2.json must be pinned; git status of "
+     "implementation/ (untracked included, ignored excluded) must be empty. Any file added under "
+     "implementation/ after the snapshot (including smoke output) therefore blocks a scientific run until "
+     "a new snapshot covers it."),
+    ("OQ-26", "v4 run status vocabulary",
+     "FX-1 names failed_infrastructure; the status for a stopped procedure defect is not named.",
+     "completed_valid (all cells, no defect); invalid with failure_class procedure_defect (a failed "
+     "identity or reachable control); failed_infrastructure with failure_class exception | signal | "
+     "infrastructure_error | resource_exhaustion; running while in progress."),
 ]
+
+RULINGS = {
+    "OQ-4": "Accepted in v3 (AMD-20260929-988139); v4 F-3 adds: no feasible ER replicate in a cell -> "
+            "'undetermined', cannot support supercritical-enriched (inconclusive). Implemented in analysis.py.",
+    "OQ-13": "v4 F-4: below the gate-reachable |V| for the fixture's L the known positive is not_exercised "
+             "(not a defect, run continues; reported as lacking power confirmation). Implemented in celltask.py "
+             "and analysis.py.",
+    "OQ-14": "v4 FX-4: recovery fraction reported as 'undetermined' where known_false = not_exercised "
+             "(analysis.py table).",
+}
 
 
 def test_summary() -> dict:
@@ -119,25 +167,26 @@ def test_summary() -> dict:
     m = re.search(r"(\d+) passed", txt)
     f = re.search(r"(\d+) failed", txt)
     s = re.search(r"(\d+) skipped", txt)
-    return {"command": "python3 -m pytest -p no:cacheprovider -q tests", "log": "test-results.txt",
+    return {"command": "python3 -m pytest -p no:cacheprovider -q -rs tests", "log": "test-results.txt",
             "passed": int(m.group(1)) if m else 0, "failed": int(f.group(1)) if f else 0,
             "skipped": int(s.group(1)) if s else 0, "last_line": txt.strip().splitlines()[-1]}
 
 
 def main():
     files = sorted(p for p in HERE.rglob("*") if p.is_file() and "__pycache__" not in p.parts
-                   and p != REPORT)
-    smoke = json.loads((HERE / "smoke" / "smoke_summary.json").read_text())
+                   and p != REPORT and p.name != "repair_report_v4.yaml")
+    smoke = json.loads((HERE / "smoke" / "v4" / "smoke_summary.json").read_text())
     rep = {"implementation_report": {
-        "task_id": "TASK-20260929-7e6ea7", "experiment_id": "EXP-RELN-c5a377", "protocol_version": 2,
-        "protocol_files": {"specification.yaml": fixtures.sha256_file(fixtures.SPECIFICATION),
-                           "AMD-20260926-a7d25d.yaml": fixtures.sha256_file(fixtures.AMENDMENT),
-                           "ic_leads_fixtures_v2.json": fixtures.sha256_file(fixtures.FIXTURE_JSON),
-                           "ic_leads_fixtures_v2.py": fixtures.sha256_file(fixtures.FIXTURE_GEN)},
+        "task_id": "TASK-20260929-b72e82", "prior_task_ids": ["TASK-20260929-7e6ea7"],
+        "experiment_id": "EXP-RELN-c5a377", "protocol_version": driver.PROTOCOL_VERSION,
+        "protocol_files": {k: v for k, v in driver.protocol_binding(driver.REPO_ROOT_DEFAULT)["records"].items()},
+        "repair_report": "repair_report_v4.yaml",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "scientific_runs": 0, "run_directories_created": [],
         "execution_admitted": False,
-        "admission_note": "DEC-20260929-ee5b8a approves implementation only; driver refuses it (tested).",
+        "admission_note": "DEC-20260929-ee5b8a approves implementation only and DEC-20260929-7a62cc keeps "
+                          "currently_admitted false; the driver refuses both (tested). A scientific run also "
+                          "needs --snapshot-receipt of a new snapshot (FX-5).",
         "trial_plan": {"path": "trial-plan-v2.json",
                        "sha256": fixtures.sha256_file(HERE / "trial-plan-v2.json"),
                        "cells": 18, "fixtures": 9, "budgets": ["A1", "A2"]},
@@ -145,11 +194,22 @@ def main():
                                  "reproduced_sha256": fixtures.FROZEN_JSON_SHA256,
                                  "test": "tests/test_fixtures.py::test_fixture_regeneration_byte_identical"},
         "tests": test_summary(),
-        "smoke": {"summary_path": "smoke/smoke_summary.json",
-                  "summary_sha256": fixtures.sha256_file(HERE / "smoke" / "smoke_summary.json"),
+        "smoke_v2_historical": {
+            "summary_path": "smoke/smoke_summary.json",
+            "summary_sha256": fixtures.sha256_file(HERE / "smoke" / "smoke_summary.json"),
+            "note": "immutable protocol-v2 smoke; per AMD-20260929-cc7226 F-2 the smoke/dry/DRYRUN-controls "
+                    "delta, ER-null and subcritical-rule readings are excluded from every analysis and were not "
+                    "opened in this repair"},
+        "smoke": {"summary_path": "smoke/v4/smoke_summary.json",
+                  "summary_sha256": fixtures.sha256_file(HERE / "smoke" / "v4" / "smoke_summary.json"),
                   "fixture": smoke["fixture"], "namespace": "smoke|EXP-RELN-c5a377/v2",
+                  "frozen_budgets_avoided": True,
                   "runs": {rid: {"driver_exit_code": r["driver_exit_code"],
                                  "manifest_status": r["manifest_status"],
+                                 "run_record": {k: r["run_record"][k] for k in
+                                                ("top_level_run_block", "required_keys_present",
+                                                 "protocol_version", "files_present",
+                                                 "environment_sage_version", "environment_dependencies")},
                                  "C7_admitted_by_precondition": r["C7_readings"]["admitted_by_precondition"],
                                  "C7_reasons": r["C7_readings"]["reasons"],
                                  "cells": [{"fixture_id": c["fixture_id"],
@@ -165,7 +225,8 @@ def main():
                   "verdict_reported": False},
         "files": [{"path": str(p.relative_to(HERE)), "sha256": fixtures.sha256_file(p),
                    "bytes": p.stat().st_size} for p in files],
-        "open_questions": [{"id": i, "topic": t, "ambiguity": a, "literal_reading_implemented": r}
+        "open_questions": [{"id": i, "topic": t, "ambiguity": a, "literal_reading_implemented": r,
+                            **({"protocol_ruling": RULINGS[i]} if i in RULINGS else {})}
                            for i, t, a, r in OPEN_QUESTIONS],
         "inference": {"requested_policy": "executor-implementation", "fallback_used": True,
                       "fallback_reason": "Cursor runtime: subagent runs on the inherited session model",
