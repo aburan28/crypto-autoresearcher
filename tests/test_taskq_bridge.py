@@ -485,3 +485,19 @@ def test_certificate_rule_matches_runner_write_run(tmp_path, cert):
     assert (status, valid, reason) == (m["status"], m["result"]["valid"],
                                        m["result"]["invalid_reason"])
     assert bridge.certificate_summary(c, cairn) == m["result"]["certificate"]
+
+
+
+def test_worker_verify_spec_validates_and_oneof_is_enforced():
+    """The vendored schemas carry crypto#1091's `verify`. The offline fallback
+    validator must be no laxer than jsonschema: exactly one of builtin/argv."""
+    spec = bridge.build_spec("EXP-X-abcdef", "RUN-1", ["python3", "x.py"], "a" * 40,
+                             worker_verify=True)
+    assert spec["verify"] == {"builtin": "certificate"}
+    bridge.validate_spec(spec)
+    bridge._subset_validate(spec, bridge.SPEC_SCHEMA)
+    for bad in ({"builtin": "certificate", "argv": ["x"]}, {}):
+        with pytest.raises(bridge.BridgeError):
+            bridge._subset_validate(dict(spec, verify=bad), bridge.SPEC_SCHEMA)
+        with pytest.raises(bridge.BridgeError):
+            bridge.validate_spec(dict(spec, verify=bad))

@@ -163,6 +163,17 @@ def _subset_validate(doc: Any, schema: dict[str, Any], where: str = "") -> None:
                 raise BridgeError(f"{at}: unexpected property {key!r}")
             elif isinstance(schema.get("additionalProperties"), dict):
                 _subset_validate(value, schema["additionalProperties"], f"{where}/{key}")
+    if "oneOf" in schema:
+        passed = 0
+        for branch in schema["oneOf"]:
+            try:
+                _subset_validate(doc, branch, where)
+                passed += 1
+            except BridgeError:
+                pass
+        if passed != 1:
+            raise BridgeError(f"{at}: must match exactly one of {len(schema['oneOf'])} "
+                              f"alternatives, matched {passed}")
     if isinstance(doc, list):
         if "minItems" in schema and len(doc) < schema["minItems"]:
             raise BridgeError(f"{at}: fewer than {schema['minItems']} items")
@@ -299,7 +310,7 @@ def submit(spec: dict[str, Any], store: Any = None) -> dict[str, Any]:
     (`deduplicated: true`); the same key with a different spec is refused by
     the queue.
     """
-    validate_spec({k: v for k, v in spec.items() if k != "verify"})
+    validate_spec(spec)
     return _store(store).submit(spec)
 
 

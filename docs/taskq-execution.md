@@ -107,5 +107,5 @@ step must still go through `tools/taskq_run.py package`, so that this repo's
 verification decides the run.
 
 The schemas vendored in `harness/taskq_schemas/` are byte copies of
-aburan28/crypto `taskq/taskq/schemas/*.v1.json` at `a2968daa`. Refresh them
+aburan28/crypto `taskq/taskq/schemas/*.v1.json` at `c342af23` (after #1091, so `verify` is in the spec schema). Refresh them
 when the protocol version changes.
