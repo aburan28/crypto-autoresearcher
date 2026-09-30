@@ -150,13 +150,46 @@ threads.
 
 - **Regime B** (`EXP-CERTBIN-a58c63` `regimeB.py`). Its elimination is dense
   over F_{2^n}, not GF(2), and needs its own kernel.
-- **GPU.** There is no GPU in this environment. The chunked trailing update
-  maps naturally to a GPU (a thread block per column chunk, tables in shared
-  memory) but is unimplemented.
-- **Rank-profile-only solver.** M_D and W_D records need only the pivot-column
-  set, which any elimination gives. An F4/F5-style solver could exploit
-  sparsity and drop rows that reduce to zero (half of the rows at nv = 20,
-  D = 6). Certificates would come from its own log, not this op log.
+
+## Rank-only instrument (`rank_only`)
+
+A **separate** solver for questions that need the pivot-column set (is 1 in
+M_D, rank, dimensions by degree) and not the dense op log. Declared as
+instrument `gf2.rank_only`:
+
+- `rank_only.rank_profile(M, C)` — sparse GE with the same pivot rule as the
+  dense column pass (so `pivcols` match), densifying past
+  `CRYPTO_AR_GF2_RANK_DENSE_NNZ` or falling back to
+  `column_pass(keep_ops=False)` on large matrices;
+- `rank_only.macaulay_rank(eqs, nv, D, neq)` — M_D rank-profile record plus a
+  checkable combination certificate (`verify_certificate`);
+- certificates are **not** the dense op log and must not be mixed with
+  CERTBIN op-log certificates.
+
+```sh
+python3 tools/gf2_bench_rank.py            # small shapes
+python3 tools/gf2_bench_rank.py --large    # CERTBIN-shaped
+pytest tests/test_gf2_rank_only.py
+```
+
+A native sparse kernel (and a true mid-stream sparse→dense handoff) is the
+next speed step; the Python sparse path is the correctness scaffold.
+
+## GPU trailing update (`gf2.gpu`)
+
+`gpu/tail_update.cu` is a CuPy/NVRTC port of `_kernels.c::tail_chunk`. It is
+bit-identical to the CPU update on every tested input when a CUDA device is
+present (`tests/test_gf2_gpu_tail.py`). This environment has no GPU; use
+RunPod (or any CUDA host) to time it:
+
+```sh
+export RUNPOD_API_KEY=...          # https://www.runpod.io/console/user/settings
+python3 tools/gf2_runpod.py probe
+python3 tools/gf2_runpod.py bench --gpu-type "NVIDIA GeForce RTX 4090"
+python3 tools/gf2_bench_rank.py --gpu --large --out bench.json
+```
+
+Optional extra: `pip install -e ".[gf2-gpu]"` (pulls `cupy-cuda12x`).
 
 ## Tests
 
@@ -169,4 +202,8 @@ threads.
   - the reference equals the archived 4e92d7 code;
   - the closure reproduces archived RC-1 records and certificates;
   - the forced reference backend gives the same results.
+- `tests/test_gf2_rank_only.py`: sparse/dense/auto rank-only vs dense pivcols;
+  combination certificates verify.
+- `tests/test_gf2_gpu_tail.py`: CPU tables==direct; GPU==CPU when a device is
+  present (skipped otherwise).
 - `tools/gf2_replay_rc1.py`: the full RC-1 sweep.
