@@ -1,0 +1,192 @@
+backend_preflight_report:
+  task_id: TASK-20260921-443131
+  role: executor
+  experiment_id: EXP-CRYPTO-5e8beb
+  hypothesis_id: H-CRYPTO-acdb49
+  specification_approval_decision_id: DEC-20260907-ff7355
+  date: '2026-09-21'
+  scope: >-
+    Actual host-availability probing of the admitted execution backends for
+    EXP-CRYPTO-5e8beb on the executing host, per specification.runtime and
+    specification.launch_gate ("actual resource/backend preflight" item).
+    Zero scientific runs. No fixture generation/evaluation, kernel/transcript
+    computation, reference enumeration, or backend/transport measurement
+    beyond host-availability probing. No image pull, no container creation,
+    no writes outside this task's write_scope, and no
+    experiments/EXP-CRYPTO-5e8beb/runs/ directory created.
+
+  zero_run_attestation:
+    scientific_runs_performed: 0
+    fixtures_generated_or_evaluated: 0
+    kernel_or_transcript_computations: 0
+    reference_enumerations: 0
+    images_pulled: 0
+    containers_created_or_started: 0
+    bedrock_probes: 0
+    bedrock_status: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED
+    permitted_static_checks: >-
+      python3 -m py_compile on driver.py, runtime_preflight.py and
+      tools/audit_process.py only (exit code 0, no module bodies executed).
+      driver.py and runtime_preflight.py were read as text; fixtures.py,
+      kernels.py, transcripts.py, reference.py and certificates.py were
+      neither imported nor executed.
+
+  host_observed:
+    system: Darwin
+    release: 25.6.0
+    version: 'Darwin Kernel Version 25.6.0: Sat Jul 11 15:27:27 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6041'
+    machine: arm64
+    python_version: 3.12.8
+    free_disk_bytes_root: 20586450944
+    free_disk_bytes_tmp: 20586450944
+    tmp_note: /tmp and / resolve to the same volume on this host; the identical figures are one measurement reported twice, not two independent observations.
+    cgroup_v2_delegation_path_readable: null
+    cgroup_v2_delegation_reason: >-
+      Linux-only check per the task constraint; platform.system() is Darwin,
+      so no cgroup v2 delegation path exists here to read. Recorded as
+      unavailable rather than invented.
+
+  backends:
+
+    - backend: native
+      verdict: refused_on_this_host
+      evidence:
+        - observed_command: "python3 -c \"import platform; print(platform.system())\""
+          observed_output: "Darwin"
+        - specification_clause: >-
+            specification.yaml runtime.native.supported: "Documented Linux
+            single-process guarded backend; native macOS refuses."
+        - supervisor_code_clause: >-
+            tools/audit_process.py worker(): raise RuntimeError("native hard
+            address-space enforcement requires Linux") when platform.system()
+            != "Linux"; run(): raise RuntimeError("Native memory limits are
+            unsupported here; use a Linux container") for a native backend on
+            a non-Linux host.
+      interpretation_as_observation_only: >-
+        The refusal is by frozen specification design on a macOS host, not a
+        defect in driver.py or audit_process.py. RLIMIT_AS/RLIMIT_CPU were
+        readable in the probing process (both 9223372036854775807
+        soft/hard, i.e. unlimited), but that readback is not native-backend
+        viability evidence because the supervisor refuses native execution
+        off Linux before any rlimit enforcement applies.
+      remaining_launch_gate_items:
+        - A Linux host, or use of the Docker backend, is required; this host
+          provides no native path.
+
+    - backend: docker
+      verdict: available_pending_frozen_image_identity
+      evidence:
+        - observed_command: docker --version
+          observed_output: "Docker version 29.7.2, build a7dcaa6"
+        - observed_command: docker info --format {{.OSType}}
+          observed_output: "linux"
+        - observed_command: docker version --format {{.Server.Os}}/{{.Server.Arch}}
+          observed_output: "linux/arm64"
+        - observed_command: docker image ls --format "{{.ID}}|{{.Repository}}:{{.Tag}}|{{.Size}}"
+          observed_output: >-
+            8 preexisting local images, including python:3.12-slim
+            (2f17fc044b57, 205MB), ubuntu:22.04 (b8b6ee6aa931, 119MB),
+            hello-world:latest (5dd0d3e6e255, 22.6kB),
+            crypto-autoresearcher/bsgs-deps:task-20260908-6e8eee
+            (376f4a364f0b, 266MB), finite-yaml-qa-safe:20260909
+            (48055ba59697, 418MB), finite-yaml-qa:20260909
+            (1393eaf787f7, 418MB), finite-yaml-qa-base:20260909
+            (c89921a0c7b4, 213MB) and an untagged python:c89921a0c7b4 (213MB).
+        - observed_command: docker image inspect --format {{.Id}}|{{.Os}}|{{.Architecture}} python:3.12-slim
+          observed_output: "sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9|linux|arm64"
+        - observed_command: docker image inspect --format {{.Id}}|{{.Os}}|{{.Architecture}} finite-yaml-qa-base:20260909
+          observed_output: "sha256:c89921a0c7b42f27338ed8c279fb370e69e941c92460f91895d08304e844b0b4|linux|arm64"
+        - observed_command: docker image inspect --format {{.Id}}|{{.Os}}|{{.Architecture}} hello-world:latest
+          observed_output: "sha256:5dd0d3e6e255913fc30f90b9f2b1d359cc2cbdb48090cc4b65f1676e203243cc|linux|arm64"
+        - observed_command: docker image inspect --format {{.Id}}|{{.Os}}|{{.Architecture}} ubuntu:22.04
+          observed_output: "sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02||"
+          note: >-
+            The Os/Architecture template fields returned empty for this
+            reference as observed; no value was invented. This image is not
+            a frozen candidate and its identity is listed for completeness
+            only.
+      daemon_reachability: reachable (docker info and docker version succeeded with exit code 0; daemon reports linux/arm64)
+      image_availability: >-
+        The Docker daemon is reachable and preexisting local images are
+        present, including a python 3.12-slim Linux/arm64 image whose full
+        sha256 identity is observable. However, no sha256 image identity has
+        been frozen for EXP-CRYPTO-5e8beb by the Coordinator; the
+        specification requires "Preexisting full sha256 image identity frozen
+        before launch; no pull or assumed availability." This preflight
+        therefore does not select or freeze any image; it records that
+        image-freeze is an open gate item.
+      interpretation_boundary: >-
+        Host availability only. No container was created, no mount/tmpfs/
+        network/pids/memory configuration was exercised, and no LUMP1
+        transport was measured; those checks belong to a later
+        launch-binding/guard test, not to this zero-run preflight.
+
+  executable_unblocked:
+    path: experiments/EXP-CRYPTO-5e8beb/implementation/driver.py
+    launch_route: tools/audit_process.py (Docker backend on this host, per the native refusal above)
+    note: >-
+      driver.py is the guarded future scientific entry point; the supervisor
+      tools/audit_process.py with --backend docker and a Coordinator-frozen
+      local sha256 image ID is the only admitted route on this host.
+      driver.main() still refuses until check_launch_admission's four
+      bindings are supplied, which is by design.
+
+  remaining_launch_gate_items:
+    - item: completed_exact_coordinator_archive
+      status: >-
+        Present for the implementation stage (DEC-20260907-ff7355 archived;
+        snapshot verified in
+        coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/
+        implementation-review.yaml at commit
+        cd60e82c8bc68ef5766a366e0316fbb5c18353b4). A fresh archive of THIS
+        preflight report by the Coordinator snapshot task is still required
+        before any scientific handoff uses it.
+    - item: eligible_zero_run_implementation_and_snapshot
+      status: done (TASK-20260907-6bd7c0 implementation, snapshot under
+        TASK-20260907-c0a81d; implementation-report.yaml records
+        scientific_runs: 0)
+    - item: independent_implementation_review
+      status: >-
+        Completed with verdict REVISE in
+        coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/
+        implementation-review.yaml; the review records check C8 (panel
+        advantage scoring composition left to the later scientific task's
+        driver) as a disclosed gap against that task's completion-gate item.
+        The review's REVISE follow-through must be closed or accepted by the
+        Coordinator before the scientific handoff.
+    - item: actual_resource_backend_preflight
+      status: done_by_this_task (this report and
+        coordination/design/BATCH-6f38e8/preflight/environment.json)
+    - item: docker_image_sha256_freeze
+      status: open; no image identity frozen for this experiment yet (this
+        preflight lists observable local identities but selects none)
+    - item: separate_scientific_handoff
+      status: open; not yet issued
+    - item: genuine_launch_lock_and_run_allocation
+      status: open; driver.check_launch_admission still requires
+        approved-spec sha256 match, implementation manifest, independent
+        review receipt and launch lock; none is bound yet
+    - item: panel_advantage_scoring_composition
+      status: open; the later scientific task's driver must compose the 32
+        panels / 16 paired qualifiers using the frozen unmodified thresholds
+        (DEV-1 of the implementation report)
+
+  bedrock:
+    selected: false
+    configured: false
+    probed: false
+    contacted: false
+    used: false
+    note: Prohibited by task constraint; no provider, endpoint, model identifier or fallback was touched.
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    note: >-
+      All probes were read-only host-availability checks with exact observed
+      outputs captured in environment.json. Native backend is refused by
+      specification on this macOS host (observed, not a defect). Docker
+      daemon is reachable with preexisting local images, but the required
+      sha256 image freeze and the remaining launch-gate items are still open.
+      This report authorizes no scientific run, launch or claim.

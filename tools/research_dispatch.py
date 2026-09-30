@@ -1388,7 +1388,60 @@ def select(
     if content_only:
         plan["content_only_archives"] = content_only
     plan["plan_sha256"] = digest(plan)
+    # DELIBERATELY AFTER THE DIGEST. Unlanded output is a fact about one working
+    # tree, not about the queue, and run manifests record `dispatch_plan_sha256`
+    # (tools/experiment_execution.py). Folding tree state into the hash would
+    # make a later re-derivation of that hash differ for reasons having nothing
+    # to do with the plan, which is a false integrity alarm of exactly the kind
+    # CORR-20260915-654160 records. It is reported, not hashed.
+    unlanded = unlanded_producer_output(queue, repository_verifier)
+    if unlanded:
+        plan["unlanded_producer_output"] = unlanded
     return plan
+
+
+def unlanded_producer_output(
+    queue: dict[str, Any], repository_verifier: Any
+) -> list[dict[str, Any]]:
+    """Producer artifacts that exist on disk and are absent from `HEAD`.
+
+    Such a file exists on exactly one machine. When that machine goes away the
+    file goes with it, which is what happened to two blind source reads and a
+    completed run on 2026-09-21 (`CORR-20260921-942a62`). Binding an archival
+    owner before dispatch -- which the contract requires and which had been done
+    for all three -- does not help: an owner is not a commit.
+
+    Reported rather than enforced. A producer that is still running legitimately
+    has unlanded output, so refusing the plan over it would block the normal
+    case; the point is that the exposure should be VISIBLE while the machine
+    still exists, because previously it was visible only afterwards.
+    """
+    tracked = getattr(repository_verifier, "paths_tracked_at_head", None)
+    repo_root = getattr(repository_verifier, "repo_root", None)
+    if tracked is None or repo_root is None:
+        return []
+    rows: list[dict[str, Any]] = []
+    for task in queue["tasks"]:
+        if is_archive(task):
+            continue
+        declared = [p for p in task["artifact_paths"] if not _is_generated_path(p)]
+        if not declared:
+            continue
+        on_disk = [p for p in declared if (repo_root / p).exists()]
+        if not on_disk:
+            continue
+        missing_from_head = sorted(set(on_disk) - set(tracked(on_disk)))
+        if missing_from_head:
+            rows.append({
+                "id": task["id"],
+                "role": task["role"],
+                "state": task["state"],
+                "unlanded": missing_from_head,
+                "remedy": (
+                    f"python3 tools/producer_landing.py <queue> {task['id']} --push"
+                ),
+            })
+    return rows
 
 
 def markdown(plan: dict[str, Any]) -> str:
@@ -1478,6 +1531,26 @@ def markdown(plan: dict[str, Any]) -> str:
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
         lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
+    unlanded = plan.get("unlanded_producer_output") or []
+    if unlanded:
+        lines.extend([
+            "",
+            "## Unlanded producer output",
+            "",
+            "These declared artifacts exist in this working tree and are ABSENT",
+            "from `HEAD`. They exist on one machine. When it goes away they go with",
+            "it, which is what happened to two blind source reads and a completed",
+            "run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).",
+            "",
+            "A running producer legitimately appears here, so this is a report and",
+            "not a gate. Land anything whose producer has already returned.",
+            "",
+        ])
+        for row in unlanded:
+            lines.append(f"- `{row['id']}` ({row['role']}, {row['state']}):")
+            for path in row["unlanded"]:
+                lines.append(f"  - `{path}`")
+            lines.append(f"  - remedy: `{row['remedy']}`")
     lines.extend(["", f"Plan SHA-256: `{plan['plan_sha256']}`", ""])
     return "\n".join(lines)
 
@@ -1518,6 +1591,24 @@ class GitRepositoryVerifier:
                 f"git archive verification failed ({' '.join(arguments)}): {detail or 'unknown error'}"
             )
         return result.stdout
+
+    def paths_tracked_at_head(self, paths: Sequence[str]) -> list[str]:
+        """Which of these repository-relative paths exist in the `HEAD` tree?
+
+        One `ls-tree` for the whole set rather than one per path: this runs on
+        every plan render, and a per-path subprocess turns a cheap report into a
+        visible cost on large queues.
+        """
+        if not paths:
+            return []
+        try:
+            out = self._run(["ls-tree", "-r", "--name-only", "HEAD", "--", *paths])
+        except DispatchError:
+            # No HEAD yet, or an unreadable tree. Absence of an answer is not an
+            # answer: report nothing rather than claim everything is unlanded.
+            return list(paths)
+        listed = {line for line in out.decode("utf-8", "replace").splitlines() if line}
+        return [p for p in paths if p in listed]
 
     def _resolve_commit(self, reference: str, task_id: str, field: str) -> str:
         try:

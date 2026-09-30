@@ -1,0 +1,358 @@
+idea:
+  id: IDEA-20260920-204828
+  question_id: RQ-GFPN-c01af8
+  added: '2026-09-20'
+  status: proposed
+  approved_by: null
+  title: >-
+    Inversion through the field norm with the true inversion batched at
+    base-field level (Itoh-Tsujii in the z^5 - 3 basis, diagonal Frobenius as
+    arithmetic): a word-product tie or small loss bought for a 5x reduction in
+    per-walk batch scratch, decided by whether the rho kernel is state-bound
+  class: algorithm
+  claim: >-
+    In the affine rho step the denominator d = x_R - x_T in F_{p^5} can be
+    inverted as d^{-1} = c / N(d), with c = d^(p + p^2 + p^3 + p^4) computed by
+    two extension multiplications and three diagonal Frobenius maps (V1, V4)
+    and N(d) = (d c)_0 in F_p (five word products plus one constant
+    multiplication). The only true inversion is then of N(d) in F_p and can be
+    Montgomery-batched across walks with ONE-word prefix products; the cofactor
+    c overwrites the denominator slot in place, so the per-walk scratch beyond
+    the point state is one word instead of the five words an extension-level
+    prefix product needs. Derived per element at batch B, with M the extension
+    multiplication cost, F = 4 the diagonal Frobenius cost and I_p the F_p
+    inversion: norm path 2M + 25 + I_p/B word products; extension-level
+    Montgomery path 3M + (2M + 17 + I_p)/B. At B = 16 that is a WIN of about 3
+    word products with the schoolbook multiplier (76 versus 79) and a LOSS of
+    about 8 with Karatsuba (56 versus 48). The claim, stated so it can fail: on
+    the same kernel at the same register budget, (i) the two paths are within
+    15% of each other in word products per step, in the direction derived
+    above per multiplier; and (ii) steps per second under the norm path exceed
+    the extension path by at least 10% at B >= 16 if and only if the kernel is
+    state-bound, which the batch-size ladder decides. Both outcomes are
+    reportable; the record is a measurement of where this kernel sits, not a
+    speedup claim. Representation class R1 (RQ-ECDLP-623a32); stage whose
+    charged cost moves: the inversion sub-stage of step arithmetic.
+  mechanism: >-
+    OBJECT FRAME (card C-4). Representation: affine F_{p^5} coordinates in the
+    polynomial basis, with the batch inversion's prefix products held in F_p
+    rather than F_{p^5}. Operation set Sigma: the full translation action of
+    the r-adding walk. The tracked object is the lossless F1 walk-collision
+    object; nothing is discarded, the lossy-projection test is passed
+    trivially, and only the charged cost of the inversion sub-stage moves.
+    Trichotomy: coordinate-dependent (Class III) for the cost, as in
+    IDEA-20260920-0d218c.
+    THE ARITHMETIC. In F_p[z]/(z^5 - 3) with p = 1 mod 5, the Frobenius
+    a -> a^p multiplies the coefficient of z^i by zeta^i, zeta = 3^((p-1)/5)
+    (V1): four constant base-field multiplications. Itoh-Tsujii: c = d^(p+p^2)
+    . (d^(p+p^2))^(p^2) = d^(p+p^2+p^3+p^4), two extension multiplications and
+    three Frobenius maps; N(d) = d c lies in F_p and is the constant
+    coefficient of the product, so only that coefficient is computed (5 word
+    products, plus the multiplication by 3 that folds the wrapped terms). Then
+    d^{-1} = c . N(d)^{-1}, five word products once N(d)^{-1} is known.
+    Batching: the forward pass stores the one-word prefix P_i = P_{i-1} N_i
+    and overwrites d_i with c_i in place; one F_p inversion of P_B; the
+    backward pass recovers N_i^{-1} with two word products each and scales c_i
+    by it. Zero handling is identical to the extension path: N(d) = 0 iff
+    d = 0, because the norm is multiplicative on a field.
+    WHY THE COUNT IS A TIE AND THE STATE IS NOT. The extension path pays 3M
+    per element for the prefix and backward products, all in F_{p^5}, and
+    stores one F_{p^5} prefix per element (five words). The norm path pays
+    2M + 3F + 5 to reach the norm, then one-word prefix and backward products,
+    then a 5-word scale, and stores one word. The multiplication count nets to
+    about zero at schoolbook M = 25 and to about +8 at Karatsuba M = 15; the
+    scratch nets to one fifth. Whether one fifth of the scratch is worth
+    anything is a property of the kernel: the sibling ECC2K-130 client
+    measured +52% throughput from halving hot state at a HIGHER product count
+    (batch 32 -> 16, products per update 5.156 -> 5.3125, hot state 244.91 ->
+    121.54 MiB; BATCH-TUNING.md), and +14.76% from caching a denominator
+    (DENOMINATOR-CACHE.md), which is why this record predicts a sign change in
+    the steps-per-second delta with kernel regime rather than a fixed gain.
+    FIELD FROBENIUS. The Frobenius here acts on FIELD ELEMENTS inside the
+    inversion formula. It is never applied to a point, defines no equivalence
+    class on E, and changes neither the walk nor the collision structure; per
+    card C-2 it is arithmetic, and the record labels it so.
+  novelty_status: unverified
+  origin:
+    kind: user_supplied_idea
+    date: '2026-09-20'
+    seeded_from_sketch: S2
+    scope: >-
+      Sketch S2 seeded in the 2026-09-20 conversation and handed over in
+      TASK-20260920-0eace8 with the V4 arithmetic; the generator added the
+      per-batch term, the in-place cofactor accounting that produces the 5x,
+      the schoolbook win / Karatsuba loss split, and the state-bound
+      discriminator.
+    overlap_review: >-
+      No record in ledger/ or knowledge/ proposes norm-based batched inversion
+      for rho on any field (grep: Itoh, Tsujii, norm-based inversion, batched
+      inversion, Montgomery trick; hits are CSIDH batch inversion
+      IDEA-20260906-c9f6e0, the negation-walk records IDEA-20260807-6355c6 /
+      IDEA-20260807-59fed3 which charge simultaneous inversion per step on
+      prime fields, and H-PFDR-e0988d's sieve). RQ-ICPERF-94c86e owns matched
+      rho on toy F_{p^n} cells; this record is an inversion-path variant on
+      the deployed field and feeds ICPERF nothing until IDEA-20260920-0d218c's
+      exchange rate exists. RQ-GRUMPY-964876, IDEA-20260731-010, H-GFPN-ee4d45
+      and the GOAL-GFPN-380702 scope_exclusions are untouched. The sibling
+      repository notes (/home/user/crypto/ecc2k130/BATCH-TUNING.md,
+      DENOMINATOR-CACHE.md) are the precedent for "state is a lever"; they
+      measure a binary-field GPU kernel and say nothing about F_{p^5}. Nearest
+      owned record: IDEA-20260920-0d218c (this session), of which this is the
+      inversion-path arm; what is added at deployed parameters: the
+      base-field batching and its state accounting.
+  citations:
+    - ref: ledger/handoffs/TASK-20260920-0eace8.yaml
+      provenance: internal
+      claim: >-
+        V1 (diagonal Frobenius by zeta^i), V4 (Itoh-Tsujii two extension
+        multiplications plus three Frobenius maps; norm as constant coefficient;
+        per-element 2M + 26 versus 3M; tie at schoolbook, about 10 loss at
+        Karatsuba, 5x scratch reduction; "S2 is a measurement, not a claim").
+      verified_by: idea-generator, TASK-20260920-0eace8 (read from repository)
+    - ref: /home/user/crypto/ecc2k130/BATCH-TUNING.md
+      provenance: internal
+      claim: >-
+        On one RTX PRO 6000, batch 32 -> 16 raised complete-walk throughput
+        from 8.673 to 13.206 B/s (+52.26%) while products per update rose from
+        5.15625 to 5.3125 and hot state fell from about 244.91 to 121.54 MiB;
+        cache residency was not measured. Binary field, GPU; precedent for a
+        state-bound regime, not a number about this field.
+      verified_by: idea-generator, TASK-20260920-0eace8 (read from sibling checkout)
+    - ref: /home/user/crypto/ecc2k130/DENOMINATOR-CACHE.md
+      provenance: internal
+      claim: >-
+        Caching the packed-walk denominator raised throughput 14.76% at
+        unchanged occupancy on the same GPU; 20 extra bytes per walk. Same
+        caveat.
+      verified_by: idea-generator, TASK-20260920-0eace8 (read from sibling checkout)
+    - ref: KN-TECH-006
+      provenance: internal
+      claim: The rho baseline convention this record's step count is checked against; caveat carried from KN-LIT-012 (full paper not re-read there).
+      verified_by: idea-generator, TASK-20260920-0eace8 (read from repository)
+    - ref: IDEA-20260807-6355c6
+      provenance: internal
+      claim: >-
+        Records that the secp112r1 record computation used negation,
+        simultaneous inversion and explicit cycle handling; cited only to place
+        this record outside the negation-walk lane (card C-2).
+      verified_by: idea-generator, TASK-20260920-0eace8 (grep context read; full body not read)
+  citation_note: >-
+    The Itoh-Tsujii inversion and the Montgomery simultaneous-inversion trick
+    are textbook; no primary source was opened this session, and the
+    application of base-field batching through the norm to an affine rho step
+    was not found in the corpus. novelty_status is unverified for that reason;
+    a reviewer should check the extension-field ECC implementation literature
+    (norm-based inversion in F_{p^k} arithmetic for pairing-friendly fields is
+    recalled to exist and is the nearest work).
+  assumptions:
+    - Same kernel, same register and shared-memory budget, same B, same r, same walk, same distinguished-point density on both inversion paths; only the inversion routine differs.
+    - Plain r-adding walk with no negation map (card user_constraint); the sqrt(2) is applied arithmetically.
+    - The cofactor c_i overwrites the denominator slot in place; the state metric counts words per walk beyond the point and scalar state, and reports BOTH the in-place variant and a store-c_i variant so the 5x cannot be an accounting artefact.
+    - I_p is one 64-bit inversion per batch (Fermat chain or binary gcd), counted in word-product equivalents by measurement, not assumed.
+    - Uses the F1 walk-collision family as its component; nothing outside it.
+  proof_search_map:
+    bottleneck: >-
+      Whether the kernel's throughput is bound by multiplier issue (then the
+      per-multiplier word-product delta decides, and the norm path is a wash
+      or a small loss) or by per-walk state (then the 5x scratch reduction
+      decides).
+    baseline_embedding:
+      parameter_slice: >-
+        The extension-level Montgomery path at B = 16 IS IDEA-20260920-0d218c's
+        baseline step; its count must reproduce that record's number before
+        the norm path is read.
+      reproduction_check: >-
+        Counter reads 5M + 1S + (2M + 17 + I_p)/B on the extension path within
+        5%; isolated Itoh-Tsujii reads 2M + 3F + 5 + I_p.
+    observation_collision:
+      observable: >-
+        Word products per step, per-walk scratch words, steps per second, on a
+        batch-size ladder.
+      distinct_preimage_search: >-
+        A store-c_i variant of the norm path has the SAME word-product count
+        and 6 words of scratch; if it runs as fast as the in-place variant,
+        the scratch reduction is not what moved throughput and the reading is
+        void.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: The batch prefix chain represented in F_p (norms) instead of F_{p^5}
+        predicted_gain: Scratch per walk 5 -> 1 word; word products -3 (schoolbook) or +8 (Karatsuba) per element at B = 16
+    quantifier_order: >-
+      For the two multipliers and B in {8, 16, 32, 64}, there exists a
+      preregistered cell set on which both inversion paths are measured on the
+      same kernel with the same budget.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A per-cell table of (word products, scratch words, steps per second)
+        for the two paths on this field and a classification of the tested
+        kernel as state-bound or multiplier-bound. No statement about other
+        kernels or hardware.
+      nearby_object_control: >-
+        The store-c_i variant (same count, no scratch saving) and the
+        extension path at the same B; the batch-size ladder as the graded
+        control.
+    proof_obligations:
+      - claim: d^{-1} = c . N(d)^{-1} on random F_{p^5} elements, verified by multiplication to 1 on 10^6 samples.
+        responsibility: correctness
+      - claim: The counter charges the Frobenius constant multiplications and the fold-by-3.
+        responsibility: runtime
+      - claim: Zero denominators are handled identically on both paths (batch abort and re-seed behaviour byte-identical).
+        responsibility: correctness
+      - claim: Steps-to-solve is path-independent on the calibration subgroup.
+        responsibility: scope
+  predictions:
+    - metric: word_products_per_element_delta_norm_minus_extension
+      direction: different
+      minimum_effect: >-
+        Between -6 and +2 with the schoolbook multiplier and between +4 and +12
+        with Karatsuba, at B = 16 (derived: -3 and +8); magnitude under 15% of
+        the step either way.
+    - metric: scratch_words_per_walk_beyond_state
+      direction: lower
+      minimum_effect: Exactly 1 versus exactly 5 (in-place variant); 6 for the store-c_i variant.
+    - metric: steps_per_second_ratio_norm_over_extension
+      direction: different
+      minimum_effect: >-
+        EITHER at least 1.10 at B >= 16 with the ratio rising along the batch
+        ladder (state-bound reading) OR within [1 - delta_wp, 1 + 0.03] where
+        delta_wp is the word-product delta fraction (multiplier-bound reading).
+        A ratio in neither band is unexplained and reported as such.
+    - metric: steps_to_solve_ratio_path_independence
+      direction: flat
+      minimum_effect: Identical distribution on the calibration subgroup (KS test p > 0.05) across paths.
+  minimal_test:
+    design: >-
+      Instrument: the F_{p^5} rho backend of IDEA-20260920-68b279 with both
+      inversion paths behind a compile-time switch (new tooling, V5). Verify
+      the norm inverse on 10^6 random elements. Cells: multiplier in
+      {schoolbook, Karatsuba} x B in {8, 16, 32, 64} x path in {extension,
+      norm in-place, norm store-c_i}, on EcMasFp5 (and EcGFp5 for one cell to
+      show curve independence). Per cell: 2^24 steps, 5 repetitions; counters
+      for word products per element of the inversion and per step; scratch
+      words per walk from the layout; steps per second median and range. Then
+      100 planted solves per path on the about-2^36-to-2^40 calibration
+      subgroup with certificates. Read the sign of the steps-per-second delta
+      along the batch ladder and classify the kernel.
+    controls:
+      - >-
+        Extension-level Montgomery path at the same B and budget, as the null
+        (same walk, standard inversion).
+      - >-
+        Store-c_i variant with the same word count as the norm path and no
+        scratch saving; if it matches the in-place variant's throughput,
+        scratch is not the cause.
+      - Direct unbatched Itoh-Tsujii inversion per step (B = 1) as the upper-cost anchor on both paths.
+      - Batch-size ladder as the graded control; a throughput that does not respond to B on either path marks the kernel as bound elsewhere.
+      - Planted-log certificates on both paths; byte-identical trail outputs from a fixed seed (the inversion path must not change the walk).
+    required_metrics:
+      - word_products_per_inversion_element_per_path
+      - word_products_per_step_per_cell
+      - scratch_words_per_walk_per_variant
+      - steps_per_second_per_cell
+      - throughput_slope_along_batch_ladder_per_path
+      - trail_byte_identity_across_paths
+      - certificate_pass_rate
+      - kernel_regime_classification
+  falsification_conditions:
+    - Word-product delta outside the derived bands with a counter that passes the isolated checks (the V4 arithmetic is wrong for the built routine; the derivation is corrected and the record superseded).
+    - Norm in-place and norm store-c_i variants run within 2% of each other while both differ from the extension path (throughput moved for a reason other than scratch; the state-bound reading is void).
+    - Trails from a fixed seed differ between paths (the inversion changed the walk; instrument defect).
+    - Steps-per-second ratio in neither predicted band across the whole ladder (unexplained; reported, not interpreted).
+  confounders:
+    - Compiler scheduling differences between two routines of similar size; report instruction counts alongside word products.
+    - A register spill on one path only; the layout metric and spill report must be per path.
+    - The F_p inversion routine differing between paths (both must call the same I_p routine).
+    - Measuring on a core where neither multiplier nor state binds (memory bandwidth to the DP table, for example); the batch ladder's non-response flags this.
+  interpretation_limits:
+    - Proposal only; no experiment, run, approval or result exists here.
+    - >-
+      Constant factor at most, a few percent of the step in word products and
+      a 5x scratch change; no exponent, no security statement about either
+      curve.
+    - A state-bound reading on one core does not transfer to a GPU or SIMD kernel; it motivates a separate instrument there and nothing more.
+    - Nothing about any field other than F_p[z]/(z^5 - 3) at this p; the diagonal Frobenius depends on p = 1 mod 5 and the binomial modulus.
+  heuristic_assumptions:
+    - id: H-S2-0
+      statement: >-
+        NONE FOR THE ARITHMETIC. The inverse formula, the word-product counts
+        and the scratch accounting are unconditional; recorded so the absence
+        is explicit.
+      rigorous_support: N(d) = d . d^(p+...+p^4) is the field norm F_{p^5} -> F_p, multiplicative, zero iff d = 0; operation counting.
+      validation_plan: Multiply-to-1 check on 10^6 random elements; counters cross-checked in isolation.
+    - id: H-S2-1
+      statement: >-
+        HARDWARE HYPOTHESIS, not a mathematical heuristic: on the tested kernel
+        and core, throughput is bound by per-walk state (cache or register
+        residency) rather than by multiplier issue, so a 5x scratch reduction
+        moves steps per second by at least 10% at B >= 16.
+      rigorous_support: >-
+        None; it imitates the measured regime of the sibling ECC2K-130 client
+        (BATCH-TUNING.md, DENOMINATOR-CACHE.md) on different hardware and a
+        different field, which is precedent, not support.
+      validation_plan: >-
+        The batch-size ladder and the store-c_i variant on the built kernel;
+        the hypothesis is refuted on this kernel if the throughput delta does
+        not rise with B or if the store-c_i variant matches the in-place one.
+        Scale: single core, 2^24 steps per cell; no transfer to other hardware.
+  heuristic_note: >-
+    The record makes no claim that the norm path is faster; it claims the word
+    products tie within 15% and the scratch falls 5x, and that the sign of the
+    throughput delta identifies the kernel's regime. The a-priori expectation
+    is stated so the outcome cannot be read as "interesting" either way: a
+    multiplier-bound reading closes S2 as a small constant loss at Karatsuba
+    and a small win at schoolbook; a state-bound reading makes it a lever
+    worth carrying to a throughput instrument.
+  target_complexity:
+    time_exponent: Unchanged, n^{1/2}; per-step constant within +/- 15% in word products.
+    memory_exponent: Unchanged; per-walk scratch 5 -> 1 word beyond state.
+    best_known: Pollard rho 0.886*sqrt(n) group operations with negation (KN-TECH-006, KN-TECH-018), about 2^159.8 on EcMasFp5 and about 2^159.3 on EcGFp5.
+    hidden_overhead: The one F_p inversion per batch and the fold-by-3 constant multiplications; both charged.
+    tradeoff_note: Larger B at the same scratch budget is the tradeoff the norm path opens (5x more walks per batch at equal scratch); parallelization position unchanged.
+  estimated_cost:
+    implementation: medium
+    compute: low
+    qualification: >-
+      Shares the tooling of IDEA-20260920-68b279 (charged there); the
+      inversion-path switch and counters are a few hundred lines on top.
+      Single-core, hours.
+  asymptotic_claim:
+    problem: ECDLP on E(F_{p^5}) at p = 2^64 - 2^32 + 1 (EcGFp5, EcMasFp5)
+    prior_best: 0.886*sqrt(n) group operations (rho with negation)
+    time_exponent: 1/2 (unchanged)
+    memory_exponent: unchanged
+    hidden_cofactor: none claimed; per-step constant only
+    claim_kind: constant_factor
+  dominated_by: >-
+    Pollard rho with the extension-level Montgomery batch inversion, i.e. the
+    standard step, is the frontier row on time and memory; in word products
+    this record ties or loses to it by up to 15%, and in scratch it beats it
+    by 5x, so it is Pareto-incomparable on the (word products, scratch) plane
+    and dominated on time alone at Karatsuba. Other rows checked: BSGS,
+    multi-target rho, the S*T^2 preprocessing frontier, the a639a1 Gaudry
+    band; none is addressed. Stated as "Pareto-incomparable to the standard
+    step; no algorithmic result beyond it" after checking every row.
+  sota_delta:
+    time: -2% (schoolbook) to +9% (Karatsuba) per step in word products, derived; steps per second unmeasured and the sign is the deliverable.
+    memory: Per-walk scratch 5 words -> 1 word beyond point and scalar state (derived).
+    data_queries: Not applicable.
+  frontier_check:
+    status: pending
+    note: >-
+      Norm-based inversion in extension fields is standard in pairing-field
+      arithmetic (recalled); whether anyone batched the base-field inversion
+      across rho walks was not found in knowledge/ or ledger/. Coordinator
+      literature check recommended before approval.
+  recommended_priority: low
+  priority_rationale: >-
+    Constant-factor work is not target-class under docs/target-result-profile.md
+    rule A1, and this record says so. For GOAL-GFPN-380702 it decides nothing
+    on its own; it is an arm of IDEA-20260920-0d218c that costs little once
+    that instrument exists and tells the goal whether the rho ruler's price
+    on this field has a state-side lever. Low because its best outcome is a
+    single-digit-percent step change or a throughput lever on hardware the
+    goal does not run.
+  first_deliverable: >-
+    The inversion-path switch and multiply-to-1 verification inside the
+    F_{p^5} rho backend (IDEA-20260920-68b279), the isolated per-routine
+    counters, and the 2 x 4 x 3 cell table with the batch-ladder slopes.
+  next_gate: Coordinator decision to attach this as an arm of the 0d218c contract or to hold it until 0d218c reports its regime.

@@ -429,5 +429,66 @@ class BatchIdentifierTests(unittest.TestCase):
 
 
 
+class KnowledgeIdentifierTests(unittest.TestCase):
+    """KN-* and KR-* ids share the one identifier space.
+
+    Before this class existed, `--check KN-LIT-001` reported the id FREE while
+    knowledge/literature/KN-LIT-001.md sat on disk: the recursive scan only
+    knew ledger prefixes, so every knowledge id looked unallocated and the
+    curate-knowledge skill fell back to "grep for the next free number" --
+    the exact question CLAUDE.md forbids.
+    """
+
+    def test_existing_knowledge_files_are_seen_as_taken(self) -> None:
+        for rec_id in ("KN-LIT-001", "KN-TECH-001", "KN-FIND-001",
+                       "KN-OPEN-020"):
+            with self.subTest(rec_id):
+                if not ai.occurrences(rec_id):
+                    self.fail(f"{rec_id} exists on disk but was reported free")
+
+    def test_check_refuses_an_existing_knowledge_id(self) -> None:
+        with redirect_stdout(StringIO()):
+            self.assertEqual(ai.check("KN-LIT-001"), 1)
+
+    def test_knowledge_legacy_and_token_forms_are_well_formed(self) -> None:
+        for rec_id in ("KN-LIT-001", "KN-LIT-7604", "KN-LIT-0138f3",
+                       "KN-TECH-b18366", "KN-FIND-a8990a", "KN-OPEN-3c8f51",
+                       "KR-IC-3f9a21", "KR-RHO-00aa11"):
+            with self.subTest(rec_id):
+                ok, why = ai.well_formed(rec_id)
+                self.assertTrue(ok, f"{rec_id} rejected: {why}")
+
+    def test_malformed_knowledge_ids_are_refused(self) -> None:
+        for rec_id in ("KN-LIT-zzz", "KN-LIT-12", "KN-LIT-ABCDEF",
+                       "KR-IC-001", "KR-ic-3f9a21", "KR-I2C-3f9a21"):
+            with self.subTest(rec_id):
+                ok, _ = ai.well_formed(rec_id)
+                self.assertFalse(ok, f"{rec_id} should not be well-formed")
+
+    def test_literature_next_mints_a_free_random_token(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(ai.main(["--next", "literature", "--seed", "7"]), 0)
+        minted = out.getvalue().split("free literature: ", 1)[1].split()[0]
+        self.assertRegex(minted, r"^KN-LIT-[0-9a-f]{6}$")
+        self.assertEqual(ai.occurrences(minted), [])
+
+    def test_known_result_next_requires_area(self) -> None:
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            ai.main(["--next", "known_result"])
+
+    def test_known_result_next_uses_area(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(
+                ai.main(["--next", "known_result", "--area", "RHO",
+                         "--seed", "3"]), 0)
+        self.assertRegex(out.getvalue(), r"KR-RHO-[0-9a-f]{6}")
+
+    def test_knowledge_ids_refuse_sequential_allocation(self) -> None:
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            ai.main(["--next", "literature", "--sequential"])
+
+
 if __name__ == "__main__":
     unittest.main()

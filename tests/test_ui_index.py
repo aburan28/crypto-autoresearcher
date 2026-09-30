@@ -1165,3 +1165,213 @@ def test_every_record_has_lossless_separate_source(tiny_repo, built_site):
         assert source["path"] == record.path
         assert source["raw"] == (tiny_repo / record.path).read_text()
     assert payloads.source_payload(index, "MISSING") is None
+
+# Progress/receipt readers: generated fixtures are UI controls, not research runs.
+def _progress_snapshot(now):
+    from datetime import datetime, timezone
+    stamp = datetime.fromtimestamp(now, timezone.utc).isoformat()
+    return {"schema": 1, "available": True, "generated_at": stamp,
+            "source_updated_at": stamp, "metrics": {
+                "actions_last_24h": 0, "design_actions_last_24h": 0,
+                "run_actions_last_24h": 0, "runner_output_validated_trial_delta_24h": -1,
+                "next_action_latency_seconds_median_24h": 0,
+                "measured_cost_usd_last_24h": 0, "runner_coverage_24h": "1/1",
+                "cost_coverage_last_24h": "1/1", "verified_discoveries": 99,
+                "secret": "MUST_NOT_PUBLISH"}, "raw_log": "MUST_NOT_PUBLISH"}
+
+
+def test_progress_allowlist_staleness_and_unknowns(tmp_path):
+    import json
+    from ui import progress
+    now = 1800000000
+    snapshot = _progress_snapshot(now)
+    clean = progress.sanitize(snapshot, now=now)
+    assert clean["metrics"]["actions_last_24h"] == 0
+    assert clean["metrics"]["measured_cost_usd_last_24h"] == 0
+    assert clean["metrics"]["verified_discoveries"] is None
+    assert clean["metrics"]["runner_output_validated_trial_delta_24h"] == -1
+    assert not clean["stale"]
+    assert "MUST_NOT_PUBLISH" not in json.dumps(clean)
+    assert progress.sanitize(snapshot, now=now + 3601)["stale"]
+    assert not progress.sanitize(snapshot, now=now - 1000)["available"]
+    missing = progress.payload(tmp_path / "missing.json", now=now)
+    assert not missing["available"]
+    assert all(value is None for value in missing["metrics"].values())
+    snapshot["metrics"].update(actions_last_24h=float('nan'), cost_coverage_last_24h="8/2")
+    clean = progress.sanitize(snapshot, now=now)
+    assert clean["metrics"]["actions_last_24h"] is None
+    assert clean["metrics"]["cost_coverage_last_24h"] is None
+    assert clean["metrics"]["measured_cost_usd_last_24h"] is None
+
+
+def test_progress_export_reads_existing_report_without_publishing_logs(tmp_path):
+    import json
+    from ui import progress
+    now = 1800000000
+    assert not progress.export(tmp_path, now=now)["available"]
+    (tmp_path / 'events.jsonl').write_text(json.dumps({
+        "event": "finished", "time": now - 5, "action": {"kind": "run", "prompt": "PRIVATE"},
+        "trial_coverage": {"output_validated_delta": 2},
+        "result": {"ok": True, "attempts": [{"cost_usd": 0, "input_tokens": 1,
+                 "output_tokens": 1, "raw_output": "PRIVATE"}]}}) + '\n{partial')
+    output = progress.export(tmp_path, now=now)
+    assert output['available']
+    assert output['metrics']['run_actions_last_24h'] == 1
+    assert output['metrics']['runner_output_validated_trial_delta_24h'] == 2
+    assert output['metrics']['cost_coverage_last_24h'] == '1/1'
+    assert output['metrics']['measured_cost_usd_last_24h'] == 0
+    assert 'PRIVATE' not in json.dumps(output)
+
+
+def _receipt_catalog(repo):
+    import hashlib
+    import json
+    from ui.comparisons import _digest, SCOPE
+    folder = repo / 'ui' / 'fixture-receipts'
+    folder.mkdir(parents=True)
+    backend = {"id": "fixture-a", "mode": "cold", "command": ["DO_NOT_EXECUTE"]}
+    manifest = {"schema": 1, "ring": {"field": "GF(2)", "nvars": 1},
+                "encoding": "fixture", "instances": [{"id": "fixture", "equations": [[1]]}],
+                "backends": [backend]}
+    summary = {"schema": 1, "scope": SCOPE, "manifest_sha256": _digest(manifest),
+               "backend": backend, "timing_boundary": "fixture boundary", "excluded_costs": [],
+               "attempted_instances": 1, "verified_instances": 1, "verified_witness_instances": 0,
+               "total_wall_seconds": 0, "results": [{"instance_id": "fixture",
+               "input_sha256": _digest(manifest['instances'][0]), "status": "verified"}],
+               "raw_output": "PRIVATE_DO_NOT_PUBLISH"}
+    def pin(name, value):
+        data = (json.dumps(value) + '\n').encode()
+        path = folder / name
+        path.write_bytes(data)
+        return {"path": path.relative_to(repo).as_posix(), "sha256": hashlib.sha256(data).hexdigest()}
+    entry = {"id": "fixture-a", "label": "Synthetic fixture A", "fixture": True,
+             "manifest": pin('manifest.json', manifest), "summary": pin('summary.json', summary),
+             "events": pin('events.jsonl', {"operation": "solve", "status": "timeout", "response": {"error": "PRIVATE_DO_NOT_PUBLISH"}})}
+    catalog = {"schema": 1, "receipts": [entry]}
+    (repo / 'ui' / 'receipts.json').write_text(json.dumps(catalog))
+    return catalog, summary, pin
+
+
+def test_receipts_pin_sources_preserve_zeros_and_count_attempts(tiny_repo):
+    import json
+    from ui import comparisons
+    _receipt_catalog(tiny_repo)
+    data = comparisons.payload(tiny_repo)
+    assert data['errors'] == []
+    receipt = data['receipts'][0]
+    assert receipt['fixture']
+    assert receipt['metrics']['total_wall_seconds'] == 0
+    assert receipt['metrics']['peak_worker_process_rss_bytes'] is None
+    assert receipt['attempt_status']['timeout'] == 1
+    assert receipt['verification'] == 'recorded_verified'
+    assert receipt['complete']
+    assert len(receipt['sources']['summary']['sha256']) == 64
+    assert 'PRIVATE_DO_NOT_PUBLISH' not in json.dumps(data)
+    assert 'DO_NOT_EXECUTE' not in json.dumps(data)
+
+
+@pytest.mark.parametrize('fault', ['hash', 'workload', 'counts', 'escape', 'symlink', 'bad_json'])
+def test_receipts_fail_closed_on_untrusted_or_inconsistent_sources(tiny_repo, tmp_path, fault):
+    import json
+    from ui import comparisons
+    catalog, summary, pin = _receipt_catalog(tiny_repo)
+    entry = catalog['receipts'][0]
+    if fault == 'hash':
+        (tiny_repo / entry['summary']['path']).write_text('{}')
+    elif fault == 'workload':
+        summary['results'][0]['input_sha256'] = '0' * 64
+        entry['summary'] = pin('summary.json', summary)
+    elif fault == 'counts':
+        summary['verified_instances'] = 4
+        entry['summary'] = pin('summary.json', summary)
+    elif fault == 'escape':
+        entry['summary']['path'] = '../private.json'
+    elif fault == 'symlink':
+        outside = tmp_path.parent / (tiny_repo.name + '-outside.json')
+        outside.write_text('PRIVATE_DO_NOT_PUBLISH')
+        path = tiny_repo / entry['summary']['path']
+        path.unlink()
+        path.symlink_to(outside)
+    else:
+        entry['summary'] = pin('summary.json', 'PRIVATE_DO_NOT_PUBLISH')
+    (tiny_repo / 'ui' / 'receipts.json').write_text(json.dumps(catalog))
+    data = comparisons.payload(tiny_repo)
+    assert not data['receipts']
+    assert data['errors']
+    assert 'PRIVATE_DO_NOT_PUBLISH' not in json.dumps(data)
+
+
+def test_partial_receipt_and_missing_verification_stay_visible(tiny_repo):
+    import json
+    from ui import comparisons
+    catalog, summary, pin = _receipt_catalog(tiny_repo)
+    summary.update(results=[], attempted_instances=0, verified_instances=0)
+    catalog['receipts'][0]['summary'] = pin('summary.json', summary)
+    del catalog['receipts'][0]['events']
+    (tiny_repo / 'ui' / 'receipts.json').write_text(json.dumps(catalog))
+    receipt = comparisons.payload(tiny_repo)['receipts'][0]
+    assert not receipt['complete']
+    assert receipt['verification'] == 'incomplete_or_unknown'
+    assert receipt['attempt_status'] is None
+
+
+def test_new_payloads_match_static_files_and_http_without_writes(tiny_repo, tmp_path):
+    import json
+    import threading
+    import time
+    from http.server import ThreadingHTTPServer
+    from urllib.request import urlopen
+    from ui.server import Handler, IndexHolder
+    _receipt_catalog(tiny_repo)
+    snapshot = tiny_repo / 'ui' / 'progress.json'
+    snapshot.write_text(json.dumps(_progress_snapshot(time.time())))
+    index = ResearchIndex(tiny_repo).build()
+    holder = IndexHolder(tiny_repo)
+    holder.index = index
+    holder.state = 'ready'
+    httpd = ThreadingHTTPServer(('127.0.0.1', 0), type('TestHandler', (Handler,), {'holder': holder}))
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    before = {p: p.stat().st_mtime_ns for p in tiny_repo.rglob('*') if p.is_file()}
+    thread.start()
+    out = tmp_path.parent / (tmp_path.name + '-parity-site')
+    try:
+        ui_build.build(tiny_repo, out, verbose=False)
+        for name in ('progress', 'comparisons'):
+            with urlopen(f'http://127.0.0.1:{httpd.server_port}/data/{name}.json') as response:
+                live = json.load(response)
+            assert live == _json(out / 'data' / f'{name}.json')
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join()
+    assert before == {p: p.stat().st_mtime_ns for p in tiny_repo.rglob('*') if p.is_file()}
+
+
+def test_zero_duration_is_measured_in_both_aggregates(tiny_index):
+    experiment = tiny_index.experiments[0]
+    experiment.runs = [{"id": "zero-fixture", "duration_seconds": 0, "started": "", "committed": None},
+                       {"id": "unknown-fixture", "duration_seconds": None, "started": "", "committed": None}]
+    tiny_index.experiments = [experiment]
+    result = payloads.experiments_payload(tiny_index)
+    assert result['experiments'][0]['runs_measured'] == 1
+    assert result['experiments'][0]['total_seconds'] == 0
+    assert result['timing']['runs_with_duration'] == 1
+    assert result['timing']['total_measured_seconds'] == 0
+
+
+def test_host_provenance_is_bound_and_sanitized(tiny_repo):
+    import json
+    from ui import comparisons
+    catalog, summary, pin = _receipt_catalog(tiny_repo)
+    host = {"manifest_sha256": summary["manifest_sha256"], "source_sha256": {"runner.py": "a" * 64},
+            "python": "3.11", "platform": "fixture Linux", "cwd": "PRIVATE"}
+    entry = catalog["receipts"][0]
+    entry["host"] = pin("host.json", host)
+    (tiny_repo / "ui" / "receipts.json").write_text(json.dumps(catalog))
+    data = comparisons.payload(tiny_repo)
+    assert data["receipts"][0]["environment"]["python"] == "3.11"
+    assert "PRIVATE" not in json.dumps(data)
+    host["manifest_sha256"] = "b" * 64
+    entry["host"] = pin("host.json", host)
+    (tiny_repo / "ui" / "receipts.json").write_text(json.dumps(catalog))
+    assert not comparisons.payload(tiny_repo)["receipts"]

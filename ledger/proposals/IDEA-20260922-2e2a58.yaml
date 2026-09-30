@@ -1,0 +1,926 @@
+idea:
+  id: IDEA-20260922-2e2a58
+  question_id: RQ-BINSTD-b6f698
+  added: '2026-09-22'
+  status: proposed
+  approved_by: null
+  title: >-
+    THE CROSSOVER IS A SURFACE IN (TIME, MEMORY, PARALLEL WIDTH), AND BOTH
+    PREMISES OF THE SCALAR VERSION ARE WRONG. rho is NOT memory-free: its
+    storage floor is Theta(P), the parallel width, because the
+    distinguished-point granularity that sets storage also sets the end-of-run
+    overhead P/(2D) -- the 2^35.63 distinguished points of ECC2K-130 are a
+    granularity CHOICE, not a requirement. And index calculus does NOT
+    parallelise freely: its linear-algebra phase has a wall-clock FLOOR of
+    (2B'/n0) matrix-vector latencies that no number of processors removes,
+    because the Krylov sequence is a sequential chain. Compute the resulting
+    feasibility region per standardized row and report WHICH axis actually
+    binds. PREREGISTERED: the width axis binds at no row and the memory axis
+    binds at every row, by a factor B'/(g P).
+  class: measurement
+
+  claim: >-
+    (A) THE SCALAR CROSSOVER IS UNDER-DETERMINED. This lane's decision target
+    asks, per curve, whether any index-calculus line beats matched rho. That
+    question has no scalar answer, because the two algorithms are not
+    comparable points -- each is a REGION in the three-dimensional resource
+    space (wall-clock time T, peak memory M, parallel width P), and which one
+    is preferable depends on where in that space the comparison is taken. The
+    corpus currently collapses the comparison onto the time axis alone
+    (operation counts) and then reasons about memory and parallelism in prose.
+    This record replaces the scalar with the region and states the region in
+    closed form for both sides.
+    (B) THE rho SIDE, WHERE THE COMMON PREMISE IS FALSE. Under van
+    Oorschot-Wiener with distinguished-point probability theta, total iterations
+    T_rho, and P concurrent walks: the number of distinguished points that must
+    be STORED to detect the collision is D = theta * T_rho, and the end-of-run
+    waste is the P walks in flight, each of expected residual length 1/(2 theta),
+    i.e. P/(2 theta) iterations. The RELATIVE overhead is therefore
+    (P/(2 theta)) / T_rho = P/(2D). Eliminating theta: rho attains relative
+    overhead epsilon at storage D = P/(2 epsilon). ITS MEMORY FLOOR IS
+    Theta(P) RECORDS, PROPORTIONAL TO THE PARALLEL WIDTH AND INDEPENDENT OF THE
+    GROUP ORDER. The published 2^35.63 distinguished points for ECC2K-130
+    (KN-LIT-096, against 2^60.9 iterations, i.e. theta = 2^-25.27 -- consistent
+    with that record's own "2^25.27 iterations per distinguished point") is a
+    granularity choice costing roughly 2^35.63 * 32 bytes = about 1.5 TiB by
+    this session's arithmetic; the same attack at theta = 2^-35 would store
+    about 2^25.9 points, about 1 GiB, at relative overhead P/2^26.9. "rho is
+    memory-free" is false and "rho needs 1.5 TiB" is equally false; rho sits on
+    a tradeoff CURVE and the correct comparator is the curve, not a point.
+    (C) THE INDEX-CALCULUS SIDE, WHERE THE OTHER COMMON PREMISE IS FALSE.
+    Relation collection is embarrassingly parallel exactly as rho is: each
+    target is independent, so its wall clock is (R_need/p) C_att / P and falls
+    without bound in P. The LINEAR-ALGEBRA phase is not. Block Wiedemann
+    (Coppersmith, KN-LIT-017) computes a Krylov sequence of length about
+    2 B'/n0 matrix-vector products with blocking parameter n0, and those
+    products form a SEQUENTIAL CHAIN: product i + 1 needs product i. Each
+    individual product over the B' x B' relation matrix with m nonzeros per row
+    can be spread over many nodes, but its latency L_mv does not fall below the
+    cost of one distributed reduction. INDEX CALCULUS THEREFORE HAS A WALL-CLOCK
+    FLOOR T_IC_floor = (2 B'/n0) * L_mv THAT NO NUMBER OF PROCESSORS REMOVES,
+    while rho has none. (B' is the EFFECTIVE matrix dimension -- B/g after
+    Frobenius orbit collapse on Koblitz and subfield rows, B otherwise; which of
+    those is right is the subject of IDEA-20260922-b19793 in this lane and is an
+    INPUT here, swept in both readings.)
+    (D) THE FEASIBILITY REGION, STATED. Index calculus is preferable to rho at
+    operating point (T, M, P) iff ALL THREE hold:
+    (D1) TIME: (R_need/p) C_att / P + max(T_IC_floor, (B'^2 m)/P_LA) < c
+    sqrt(N)/(g_rho P f) where g_rho is the rho-side symmetry gain and f the
+    per-processor step rate;
+    (D2) MEMORY: M >= c_M B' words for index calculus, against M >= P/(2 epsilon)
+    records for rho at overhead epsilon;
+    (D3) WIDTH: P is available to both, and index calculus additionally cannot
+    use P beyond the point where T_IC_floor dominates.
+    (E) THE PREREGISTERED VERDICT, WHICH IS THE FALSIFIABLE CORE. For every row
+    of the standardized binary population, with n0 = 64, L_mv swept over
+    {10^-4, 10^-3, 10^-2} seconds and f from the one published per-platform
+    figure available (about 54.03 x 10^6 iterations/second on a GTX 295,
+    KN-LIT-096): (E1) the WIDTH axis binds at NO row -- the P at which rho's
+    wall clock falls to T_IC_floor exceeds any realisable processor count by
+    more than three orders of magnitude at every row, so condition (D3) is never
+    the operative constraint; and (E2) the MEMORY axis binds at EVERY row -- the
+    ratio of index-calculus memory to rho's memory floor is B'/(g_rho-corrected
+    P/(2 epsilon)) and exceeds 2^20 at every row where the index-calculus
+    operation count is even within reach. CONSEQUENCE IF (E1) AND (E2) HOLD: the
+    lane's habit of invoking "rho parallelises linearly and index calculus does
+    not" as the deciding asymmetry is measuring the wrong axis, and the honest
+    one-line summary of the standardized binary population is "index calculus
+    loses on memory, not on parallelism". A single row where the width axis does
+    bind falsifies (E1) and is worth more than the rest of the record.
+
+  mechanism: >-
+    OBJECT FRAME. Representation: a PHASE of the pipeline represented by its
+    DEPENDENCY CHAIN -- the partially ordered set of charged operations with
+    the edges that force sequencing -- rather than by its arithmetic. Tracked
+    object: the RESOURCE TRIPLE (critical-path length in latency units, peak
+    live words, maximum useful concurrency) extracted from that chain. This is
+    the same style of object as IDEA-20260830-4ab603's access footprint,
+    applied to a phase rather than to a query.
+    OPERATION SET SIGMA, NAMED AND NOT TRANSLATION. Sigma = {REPLICATE across
+    independent instances; RE-BLOCK the Krylov sequence by n0; RE-GRANULATE the
+    distinguished-point predicate by theta}. These are the three
+    schedule-preserving transformations that an implementer actually has. Sigma
+    is emphatically NOT the translation action on the group: it acts on
+    schedules, not on points, so the closure of IDEA-20260806-c5d183 and
+    KN-FIND-ffe1df Theorem C does not apply and is not being evaded -- it simply
+    quantifies over a different object.
+    TRICHOTOMY. CLASS III, COORDINATE-DEPENDENT. The resource triple is a
+    function of the representation of the computation (its schedule), not of the
+    group element, exactly as the cost object of IDEA-20260920-204828 is. It is
+    placed there deliberately: a record that claimed this triple was a property
+    of the group would be claiming far more than it can.
+    LOSSY-PROJECTION TEST, AGAINST THIS SIGMA. What is discarded: every
+    arithmetic value, the field representation, the monomial order, the solver,
+    the curve -- everything except three integers. Lossy in the representation
+    actually used: two pipelines with identical triples can differ in every
+    arithmetic detail, and the ECC2K-130 rho attack and a toy binary rho attack
+    have the same triple SHAPE with different values, so the projection is not
+    injective. COMPATIBLE WITH SIGMA, and this is the load-bearing part:
+    REPLICATE by k maps (T, M, P) -> (T, kM, kP) with the critical path fixed;
+    RE-BLOCK by n0 maps the chain length 2B'/n0' -> 2B'/n0 and the per-product
+    width by the inverse, so the PRODUCT of chain length and per-product width
+    is invariant; RE-GRANULATE by theta maps storage D -> theta T and overhead
+    -> P/(2 theta T). Each of the three transformations acts on the triple by a
+    rule that does not consult anything the projection discarded. The triple is
+    therefore a genuine block system of <Sigma> on schedules, not a change of
+    coordinates -- a change of coordinates would be the full dependency chain
+    itself, which discards nothing and says nothing.
+    THE ONE OPEN NUMBER, PRICED. For a Class III object the priced quantity is
+    the cost of realising the transformation. Here it is L_mv, the latency of one
+    distributed sparse matrix-vector product over a matrix with B' m nonzeros --
+    the single number that converts a Krylov chain length into wall clock and
+    therefore the only thing standing between (C) and a verdict. It is declared
+    as a swept parameter over three decades rather than assumed, and every row of
+    the output table is reported at all three values, so a verdict that flips
+    inside the sweep is labelled latency-dependent and is not read.
+    OFF-LIMITS COMPONENTS DECLARED. F1 walk-collision (rho) and F2 factor-base
+    decomposition are both used as COMPONENTS -- they are the two sides being
+    compared -- and neither is the lens. The lens is the schedule object above.
+    F7 preprocessing is explicitly NOT used: no precomputed table is charged on
+    either side, and a multi-instance amortised reading is a different row this
+    record does not compute.
+    WHAT THIS RECORD DOES NOT DO. It does not compute C_att, p, R_need, B or the
+    solving degree -- those belong to RQ-SDEG-001, RQ-RELN-001 and
+    RQ-ICPERF-94c86e and are consumed as inputs, with every row reported over
+    the full plausible range of each rather than at one value. It does not
+    re-open the exponent estimator (RQ-ICEX-001 owns that, and
+    IDEA-20260805-4d31bc, IDEA-20260805-c8524f and IDEA-20260805-bb4488 own its
+    identifiability); this record reports a REGION in resource space, which is
+    unit-covariant in none of its coordinates because all three are physical.
+
+  novelty_status: unverified
+
+  origin:
+    kind: generator_lane_F
+    date: '2026-09-22'
+    scope: >-
+      Lane F of the BINSTD ideation batch: the honest crossover accounting
+      against rho. This record owns the memory and parallel-width axes of the
+      comparison for the standardized binary population.
+    overlap_review: >-
+      Grepped ledger/ and knowledge/ for "van Oorschot", "vOW", "parallel
+      speedup", "distinguished point", "memory exponent", "time-memory". Nearest
+      filed neighbours and what is added beyond each. IDEA-20260830-4ab603
+      establishes that a time exponent without a query-space column is
+      unidentifiable and corrects a memory row from N^{1/3} to N^{2/3} at m = 2
+      on a prime field; it adds a MEMORY column but keeps the comparison
+      two-dimensional and says nothing about parallel width, and it is a
+      prime-field record. IDEA-20260808-2ef5c8 reports a memory column and a
+      time-memory product alongside every alpha, again without width.
+      IDEA-20260920-2e37b3 treats multi-instance pooled rho, Bernstein-Lange
+      precomputation tables and the Corrigan-Gibbs-Kogan S*T^2 frontier for a
+      deployed prime-extension curve -- adjacent, but it is the PREPROCESSING
+      (F7) axis on a different population, and this record explicitly excludes
+      preprocessing on both sides. IDEA-20260805-4d31bc replaces the exponent by
+      the crossover ORDER log ell*, which is the right move on the TIME axis and
+      is cited here as the time-axis companion; this record says the same
+      scalar-collapse objection applies again one level up, because even a
+      correct log ell* is a scalar where the answer is a surface.
+      IDEA-20260815-66496a supplies the operation-counts-alongside-wall-clock
+      discipline this record needs to convert a latency model into a comparison
+      at all. KN-TECH-008 documents block Wiedemann and Lanczos as the
+      index-calculus linear-algebra engines with an O(n w) time and O(n) memory
+      model, and explicitly says "any cheaper LA proposal must beat the
+      block-Wiedemann baseline"; what it does NOT contain, and what is added
+      here, is the sequential-chain WALL-CLOCK FLOOR and its comparison with a
+      parallel rho. No record found anywhere in this corpus derives rho's
+      storage floor as Theta(P) or states the crossover as a region.
+  citations:
+    - ref: RQ-BINSTD-b6f698
+      provenance: internal
+      claim: >-
+        Owning question. Its baseline clause requires rho "charged for memory and
+        parallel efficiency under van Oorschot-Wiener", which is the charge this
+        record actually computes; its decision target asks for a per-cell ratio
+        against matched rho.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: KN-LIT-012
+      provenance: internal
+      claim: >-
+        van Oorschot-Wiener parallel collision search: pseudo-random walks on
+        many processors with distinguished points; only distinguished points are
+        stored and compared, giving an explicit memory/processor/time tradeoff;
+        near-linear speedup ~m on m processors with each processor storing
+        little; distinguished-point granularity trades storage against extra walk
+        steps. The corpus entry records that the full paper was not re-read there
+        and the near-linear speedup rests on the usual random-walk heuristic.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: KN-LIT-096
+      provenance: internal
+      claim: >-
+        ECC2K-130: estimated total work 2^60.9 iterations, about 2^35.63
+        distinguished points at the chosen granularity, average 2^25.27
+        iterations per distinguished point; about 54.03 million iterations per
+        second on a GTX 295 and about 33.67 million on a Spartan-3 XC3S5000
+        FPGA; 1263 GPUs or 2026 FPGAs to finish in one year; an estimated 90nm
+        ASIC would need about 85 units. Recorded there as the authors' ESTIMATE
+        of required work, not a measured total.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: KN-LIT-017
+      provenance: internal
+      claim: >-
+        Coppersmith 1994, Mathematics of Computation 62(205):333-350, "Solving
+        homogeneous linear equations over GF(2) via block Wiedemann algorithm".
+        Bibliographic fields read from the corpus entry's front matter; the body
+        of that entry was not opened this session and the blocking-parameter
+        chain-length model used here is stated as RECALLED below.
+      verified_by: >-
+        idea-generator, 2026-09-22; front matter read via grep, body NOT read
+    - ref: KN-TECH-008
+      provenance: internal
+      claim: >-
+        Sparse and structured linear algebra over finite fields: Wiedemann is
+        about O(n) matrix-vector products at O(n) memory and never densifies;
+        block Wiedemann packs blocks of vectors into machine words for word-level
+        parallelism and multiple right-hand sides, time-competitive with
+        structured Gaussian elimination at far lower memory; structured Gaussian
+        elimination eliminates light rows and columns first. States that any
+        cheaper-LA proposal must beat the block-Wiedemann baseline on the same
+        matrix, and that Wiedemann's model assumes genuine sparsity.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: KN-TECH-036
+      provenance: internal
+      claim: >-
+        The public record set as calibration: largest publicly completed ECDLP is
+        117.35 bits over F_2^127 at about 2^60 iterations on up to 576 FPGAs over
+        more than six months; sect113r2 needed 82.2M distinguished points against
+        59.5M expected (about 1.38x expected work) on up to 120 Spartan-6 FPGAs
+        over about 48 days. Used here as the reality check on realisable P and as
+        the variance reference.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: >-
+        Coppersmith block Wiedemann's Krylov stage length as about (1/m0 + 1/n0)
+        times the matrix dimension in matrix-vector products, and the
+        block-Lanczos alternative of Montgomery
+      provenance: recalled
+      claim: >-
+        That the block Wiedemann Krylov stage runs about N(1/m0 + 1/n0)
+        matrix-vector products with blocking parameters m0, n0, and that these
+        form a sequential chain while the n0 sequences are independent, is
+        standard in that literature. NO SOURCE WAS OPENED THIS SESSION. The
+        record uses the conservative form 2B'/n0 and sweeps n0, and the
+        chain-length claim is subjected to direct measurement in the minimal test
+        precisely because it was not checked against a source.
+      verified_by: null
+  citation_note: >-
+    Limb (B)'s derivation (D = theta T, waste P/(2 theta), relative overhead
+    P/(2D), hence memory floor Theta(P)) is this session's own arithmetic on the
+    van Oorschot-Wiener model as the corpus states it, and is shown in full so it
+    can be checked line by line. The internal consistency of KN-LIT-096's three
+    figures -- 2^60.9 iterations, 2^35.63 distinguished points, 2^25.27
+    iterations per point -- was verified here by subtraction (60.9 - 35.63 =
+    25.27) and is the reason those three are quoted together. The 1.5 TiB and
+    1 GiB storage figures are this session's arithmetic at a DECLARED 32 bytes
+    per stored point and are labelled as such wherever they appear. Limb (C)'s
+    chain-length model is RECALLED and is therefore a measurement target, not a
+    premise. novelty_status is unverified: corpus and ledger were grepped, the
+    external parallel-cryptanalysis literature was not.
+
+  assumptions:
+    - >-
+      A stored distinguished point is one record of a declared size; 32 bytes is
+      the declared default (truncated x-coordinate plus the two scalars
+      truncated to the collision-resolution requirement) and every storage figure
+      is reported at 16, 32 and 64 bytes so no verdict rests on the choice.
+    - >-
+      P counts CONCURRENT WALKS, not machines. A GPU running 2^20 walks
+      contributes 2^20 to P and therefore to rho's storage floor; this is stated
+      because it is the difference between a 30 MB and a 30 KB floor and is
+      exactly where an informal argument goes wrong.
+    - >-
+      The rho side carries every symmetry the curve grants: negation on all rows
+      and the Frobenius class reduction with its sqrt-of-orbit-size gain on every
+      Koblitz and subfield row, per the question's baseline clause. Comparisons
+      against a stripped baseline are not computed and not reported.
+    - >-
+      C_att, p, R_need, B and l are INPUTS owned by RQ-SDEG-001, RQ-RELN-001 and
+      RQ-ICPERF-94c86e. Every output row is reported over a declared range of
+      each rather than at a point estimate, and the row's verdict is reported as
+      robust only if it holds across the whole range.
+    - >-
+      B' is B/g on orbit-collapse rows and B otherwise; BOTH readings are
+      computed for every Koblitz and subfield row, because which holds is
+      IDEA-20260922-b19793's question and is not settled here.
+    - >-
+      No preprocessing on either side, and single-instance amortisation only. A
+      multi-target or precomputed-table reading changes both sides and is a
+      different table this record does not compute and must not be quoted as
+      computing.
+    - >-
+      Deployed curves are ARITHMETIC ONLY. Every deployed row is a computed
+      cell; the executable cells are toy binary curves at n <= 41 and the two
+      instrument measurements described in the minimal test.
+
+  proof_search_map:
+    bottleneck: >-
+      The exact step whose removal changes the verdict is the SEQUENTIAL KRYLOV
+      CHAIN in the linear-algebra phase. If that chain could be broken -- if the
+      i-th matrix-vector product did not need the (i-1)-th -- index calculus
+      would parallelise as freely as rho and limb (C) would be vacuous. Every
+      other step in either pipeline is embarrassingly parallel. The whole width
+      axis of the comparison lives or dies on that one dependency.
+    baseline_embedding:
+      parameter_slice: >-
+        P = 1 collapses condition (D1) to the pure operation-count comparison the
+        corpus already makes, and T_IC_floor vanishes from the max because the
+        B'^2 m / P_LA term dominates. epsilon = 1 (accept 100 percent overhead)
+        collapses rho's storage floor to P/2. L_mv -> 0 collapses limb (C) to
+        "index calculus parallelises freely", which is the premise this record
+        disputes. Each incumbent position is therefore an exact parameter slice,
+        not a strawman.
+      reproduction_check: >-
+        At P = 1 the region's time condition must reproduce, term for term, the
+        operation-count comparison that RQ-ICPERF-94c86e's boundary table
+        computes for the same cell, and must reproduce KN-LIT-096's own three
+        ECC2K-130 figures: given T_rho = 2^60.9 and theta = 2^-25.27 the model
+        must emit D = 2^35.63 exactly, and given 54.03e6 iterations/second and
+        1263 GPUs it must emit a wall clock within 5 percent of one year. If
+        those two do not reproduce, the model is not describing the published
+        attack and nothing downstream may be read.
+    observation_collision:
+      observable: >-
+        "Index calculus beats rho on this curve", as a scalar verdict.
+      distinct_preimage_search: >-
+        COLLISION EXHIBITED. The same scalar verdict is produced by at least four
+        distinct operating points with incompatible requirements: (i) fewer
+        charged operations at unbounded memory and P = 1; (ii) fewer charged
+        operations at bounded memory, which may be infeasible because B' words
+        do not exist; (iii) lower wall clock at small P, reversed at large P
+        because rho keeps scaling and the Krylov chain does not; (iv) lower wall
+        clock at large P but only because L_mv was taken to be zero. A verdict
+        that does not say which of the four it is does not identify a
+        recommendation. The identifying tuple is (charged operations, peak words,
+        maximum useful P, L_mv), and this record proposes that every non-empty
+        cell of the reachability table carry all four.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the scalar verdict fixed and vary the operating point, exhibiting
+          four preimages with incompatible resource requirements.
+        predicted_gain: >-
+          Converts the lane's headline observable from a scalar to a region and
+          names the identifying tuple. NO ATTACK EXPONENT IS MOVED.
+      - transform: specialization_pack
+        proposed_object: >-
+          The resource triple specialised to the three schedule transformations
+          (replicate, re-block, re-granulate), giving a three-parameter family
+          whose feasible set is the crossover region, with L_mv as the single
+          priced open number.
+        predicted_gain: >-
+          Makes "rho parallelises and index calculus does not" a computable
+          number per row rather than a slogan, and makes it falsifiable by
+          exhibiting one row where the width axis binds.
+    quantifier_order: >-
+      CLAIMED, DERIVED. FOR ALL P, FOR ALL theta, the van Oorschot-Wiener
+      relative overhead is P/(2D) with D = theta T_rho; hence FOR ALL epsilon
+      EXISTS a storage requirement D >= P/(2 epsilon), and rho's storage floor is
+      Theta(P) independent of N. This is arithmetic within the stated model.
+      CLAIMED, CONDITIONAL ON THE RECALLED CHAIN MODEL AND MEASURED IN THE TEST.
+      FOR ALL P, the index-calculus wall clock is at least (2B'/n0) L_mv.
+      PREREGISTERED AND FALSIFIABLE. FOR ALL rows of the standardized binary
+      population and FOR ALL L_mv in the swept decade range, the width axis does
+      not bind and the memory axis does.
+      NOT CLAIMED: any lower bound on L_mv in a machine model. NOT CLAIMED: that
+      no linear-algebra algorithm with a shorter critical path exists -- a
+      shorter one falsifies (E1) and is the most valuable outcome here. NOT
+      CLAIMED: any exponent for either algorithm.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For each standardized binary row, and for each declared range of the
+        inputs, the set of operating points (T, M, P) at which the named
+        index-calculus column is preferable to matched rho, together with a
+        statement of which of the three conditions is the binding one." It can
+        NEVER certify that the crossover does not exist, that L_mv has any
+        particular value on unbuilt hardware, or anything about a linear-algebra
+        algorithm not in the compared set.
+      nearby_object_control: >-
+        THE PUBLISHED ATTACK IS THE NEARBY OBJECT AND IT IS THE ONE THAT MATTERS.
+        Instantiate the identical accounting on the ECC2K-130 rho attack as
+        KN-LIT-096 configures it and on the completed 117.35-bit binary record as
+        KN-TECH-036 reports it. The model must reproduce both attacks' published
+        (iterations, distinguished points, hardware count, duration) tuples, and
+        must ALSO show them at DIFFERENT points of the tradeoff curve from each
+        other. A model that places two attacks with different granularities and
+        different hardware at the same operating point is not resolving the axes
+        it claims to resolve. Second nearby object: apply the whole region
+        computation to a pseudorandom row (B-163 against K-163) where g_rho = 2
+        instead of about sqrt(2n); the binding axis must not change, since the
+        Frobenius gain is a constant factor on the time axis and should move no
+        verdict about WHICH axis binds -- if it does, the region is being driven
+        by the symmetry constant and not by the structural asymmetry.
+    proof_obligations:
+      - claim: >-
+          The model reproduces KN-LIT-096's (2^60.9, 2^35.63, 2^25.27) triple and
+          its 1263-GPU one-year figure within 5 percent.
+        responsibility: baseline
+      - claim: >-
+          rho's relative overhead measured on a toy binary cell equals P/(2D)
+          within 20 percent across a theta sweep of three decades.
+        responsibility: correctness
+      - claim: >-
+          The block Wiedemann Krylov chain length on real toy relation matrices
+          equals 2B'/n0 within 20 percent, or does not -- and if it does not, the
+          measured law replaces the recalled one before any row is computed.
+        responsibility: runtime
+      - claim: >-
+          Index-calculus peak live words equal c_M B' with c_M measured, not
+          assumed, on the toy pipeline.
+        responsibility: memory
+      - claim: >-
+          Every deployed row is emitted with its extrapolation distance from the
+          nearest measured toy cell printed beside it.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        measured rho relative overhead versus P/(2D) on a toy binary cell, over
+        a theta sweep of three decades at fixed P
+      direction: different
+      minimum_effect: >-
+        Must track P/(2D) within 20 percent across the whole sweep. A systematic
+        departure means the waste model is wrong and limb (B)'s memory floor is
+        not Theta(P); that is the cheapest way to break this record and it costs
+        minutes.
+    - metric: >-
+        block Wiedemann Krylov chain length (number of sequential matrix-vector
+        products to a solution) on relation matrices from toy binary cells, as
+        n0 is swept over {1, 8, 32, 64} and B' over a 16x range
+      direction: lower
+      minimum_effect: >-
+        PREREGISTERED. Chain length must scale as B'/n0 with the B' coefficient
+        constant to within 20 percent across the n0 sweep. TWO NAMED
+        ALTERNATIVES: (i) chain length proportional to B'/n0 confirms the
+        wall-clock floor as modelled; (ii) chain length materially BELOW B'/n0 on
+        the real matrices while matching it on the shape-matched random null
+        means the relation matrix's minimal polynomial has low degree -- the
+        matrix carries exploitable structure, the floor drops by that factor, and
+        THAT is a genuine finding about the linear-algebra column that no record
+        in this corpus has.
+    - metric: >-
+        shape-matched random sparse null -- same B', same m nonzeros per row,
+        same entry distribution, random support -- chain length
+      direction: different
+      minimum_effect: >-
+        FORCED COMPARISON. The null fixes what "no structure" looks like. A
+        real-matrix chain length within 5 percent of the null's means the
+        relation matrix is generic for this purpose and prediction (ii) above is
+        refuted; a real-matrix chain length below 0.5x the null's is the
+        structure finding. Without this null no chain-length number is
+        interpretable.
+    - metric: >-
+        P* per row -- the parallel width at which rho's wall clock falls to the
+        index-calculus wall-clock floor
+      direction: higher
+      minimum_effect: >-
+        PREREGISTERED (E1): P* exceeds 10^3 times the largest realisable width in
+        KN-TECH-036's record set (576 FPGAs, 1263 GPUs, about 120 Spartan-6
+        FPGAs) at EVERY standardized row and at every L_mv in the swept range. A
+        single row with P* below 10^6 concurrent walks falsifies (E1) and makes
+        the width axis operative on that row, which is the most valuable single
+        outcome available here.
+    - metric: >-
+        memory ratio per row -- index-calculus peak words divided by rho's
+        storage floor P/(2 epsilon) at epsilon = 0.01 and P = 10^9 concurrent
+        walks
+      direction: higher
+      minimum_effect: >-
+        PREREGISTERED (E2): above 2^20 at every row where the index-calculus
+        operation count is within 2^10 of matched rho. A ratio below 2^4 at any
+        such row falsifies (E2) and means memory is NOT the binding axis there.
+    - metric: >-
+        binding-axis label per row (TIME, MEMORY or WIDTH), and its stability
+        across the declared input ranges and the L_mv sweep
+      direction: different
+      minimum_effect: >-
+        FORCED SINGLE-VALUED PER ROW OR LABELLED UNSTABLE. A row whose binding
+        axis changes inside the sweep is reported as sweep-dependent and is not
+        given a verdict, which is itself the honest output for that row.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, HARD GATE). Implement the region model symbolically
+      and reproduce KN-LIT-096's ECC2K-130 configuration: given 2^60.9 iterations
+      and theta = 2^-25.27 emit 2^35.63 stored points; given 54.03e6
+      iterations/second emit 1263 GPUs for one year within 5 percent. Also
+      reproduce KN-TECH-036's sect113r2 row as a second anchor. Mismatch halts
+      before any row is computed.
+      STAGE 1 (low compute, minutes). rho tradeoff instrument on toy binary
+      cells, n in {23, 29, 31, 37, 41}, Koblitz and matched ordinary curves:
+      run parallel rho with P concurrent walks for P in {2^4, 2^8, 2^12} and
+      theta over three decades, counting stored distinguished points, useful
+      iterations and wasted in-flight iterations separately. Compare measured
+      relative overhead with P/(2D). This is a direct test of limb (B).
+      STAGE 2 (low compute, minutes to hours). Linear-algebra instrument. Collect
+      real relation matrices from the toy binary index-calculus pipeline at
+      B' from 2^6 to 2^10, and build for each a SHAPE-MATCHED RANDOM NULL with
+      identical dimension, identical nonzeros per row and identical entry
+      distribution but random support. Run block Wiedemann over Z/ell (ell the
+      toy subgroup order) at n0 in {1, 8, 32, 64}, recording the sequential chain
+      length, the total field operations and the peak live words for each. Repeat
+      with block Lanczos and with structured Gaussian elimination followed by an
+      iterative solve on the dense core, so the three engines KN-TECH-008 names
+      are all exercised rather than one of them assumed.
+      STAGE 3 (zero compute). Emit the region table: one block per standardized
+      row x index-calculus column, each carrying (charged operations, peak words,
+      P*, binding axis, L_mv sensitivity, input ranges swept, extrapolation
+      distance from the nearest measured toy cell). Both B' readings (B and B/g)
+      for every Koblitz and subfield row. Report (E1) and (E2) as confirmed,
+      refuted, or sweep-dependent per row.
+      STAGE 4 (zero compute). Hand the measured chain-length law and the measured
+      c_M back to RQ-ICPERF-94c86e as inputs to its boundary table, and to
+      IDEA-20260922-6028ed of this lane as the cost function for the
+      linear-algebra and memory columns of the reachability table.
+      MEMORY DISCIPLINE. The largest object is a 2^10 x 2^10 sparse matrix over a
+      toy prime plus its Krylov blocks: under 200 MB at n0 = 64. The rho
+      instrument stores at most 2^12 distinguished points. Nothing here needs a
+      Groebner engine or a watchdog.
+    controls:
+      - >-
+        PUBLISHED-ATTACK REPRODUCTION (blocking): KN-LIT-096's ECC2K-130 triple
+        and 1263-GPU figure, plus KN-TECH-036's sect113r2 row. A model that
+        cannot reproduce two published attacks is not charging them.
+      - >-
+        SHAPE-MATCHED RANDOM SPARSE NULL (blocking for Stage 2): same dimension,
+        density and entry distribution, random support. No chain-length
+        conclusion without it.
+      - >-
+        NULL-CURVE CONTROL: every Koblitz row computed beside its matched
+        pseudorandom row (B-m against K-m, c2tnb against c2pnb), so the binding
+        axis can be checked for sensitivity to the symmetry constant.
+      - >-
+        THREE-ENGINE CONTROL: block Wiedemann, block Lanczos and structured
+        Gaussian elimination on the same matrices, since a floor derived from one
+        engine is a statement about that engine.
+      - >-
+        L_mv SWEEP over three decades, with every row reported at all three
+        values and any verdict that flips labelled latency-dependent.
+      - >-
+        RECORD-SIZE SENSITIVITY: every storage figure at 16, 32 and 64 bytes per
+        distinguished point.
+      - >-
+        B' DOUBLE READING: every orbit-gain row computed at both B and B/g, since
+        which holds is another record's question.
+      - >-
+        PAIRED INSTANCE SET for Stage 1 and Stage 2's matrix source
+        (IDEA-20260815-95fefb), with operation counts reported alongside wall
+        clock (IDEA-20260815-66496a) so the latency model and the operation model
+        can be separated.
+    required_metrics:
+      - stored_distinguished_points_and_wasted_iterations_per_theta_per_P
+      - measured_relative_overhead_versus_P_over_2D
+      - krylov_chain_length_per_engine_per_n0_per_B_prime_real_and_null
+      - total_field_operations_and_peak_live_words_per_engine
+      - measured_c_M_words_per_relation_matrix_column
+      - P_star_per_row_per_L_mv
+      - memory_ratio_per_row
+      - binding_axis_label_and_its_stability_across_sweeps
+      - extrapolation_distance_per_deployed_row
+
+  falsification_conditions:
+    - >-
+      Measured rho relative overhead departs systematically from P/(2D). Limb
+      (B) is wrong, rho's storage floor is not Theta(P), and the memory side of
+      the region must be rebuilt before any row is quoted.
+    - >-
+      The Krylov chain length on real relation matrices is materially below
+      B'/n0 while the shape-matched null matches B'/n0. The relation matrix has
+      exploitable spectral structure, the index-calculus wall-clock floor drops
+      by that factor, and the finding is worth more than the region table -- it
+      would be the first measured statement in this corpus about the STRUCTURE of
+      an ECDLP relation matrix over a binary curve.
+    - >-
+      Any standardized row has P* below 10^6 concurrent walks. (E1) is falsified,
+      the width axis binds on that row, and the lane's informal argument was
+      right there and needs the number written down.
+    - >-
+      Any row where the index-calculus operation count is within 2^10 of matched
+      rho has a memory ratio below 2^4. (E2) is falsified on that row and memory
+      is not the obstacle there.
+    - >-
+      The model cannot reproduce KN-LIT-096's published figures. Infrastructure
+      or modelling failure; the record is withdrawn rather than re-scoped, since
+      a charge that cannot reproduce the one published attack in the population
+      is not a charge.
+    - >-
+      The binding axis is unstable across the input ranges at most rows. The
+      region is real but the inputs are too loose to decide anything, and the
+      honest output is a list of the input quantities whose tightening would
+      decide it -- which is a legitimate deliverable and is reported as such.
+    - >-
+      Everything holds as preregistered. Then the lane replaces "rho parallelises
+      and index calculus does not" with "index calculus loses on memory by a
+      factor B'/(g P), and the width axis binds at no standardized row", and
+      every future non-empty cell carries the identifying four-tuple.
+
+  confounders:
+    - >-
+      P MEANS CONCURRENT WALKS, NOT MACHINES, AND THIS IS WHERE THE ARGUMENT
+      BREAKS IF IT BREAKS. A GPU running 2^20 walks contributes 2^20 to rho's
+      storage floor. Every P in every table is labelled with its unit and the
+      machine count is reported separately.
+    - >-
+      L_mv IS NOT A CONSTANT OF NATURE. It depends on interconnect, matrix
+      partitioning and B'. Sweeping it over three decades bounds the conclusion
+      but does not make it hardware-independent; every P* carries its L_mv.
+    - >-
+      A CHAIN LENGTH MEASURED AT B' = 2^10 IS EXTRAPOLATED TO B' = 2^33 OR
+      BEYOND. The extrapolation distance is 23 doublings and is printed beside
+      every deployed row. The measurement establishes the LAW's form on toy
+      matrices only; if the form is confirmed, the deployed row is arithmetic on
+      a confirmed form, and if it is not, no deployed row is emitted.
+    - >-
+      THE TWO SIDES HAVE DIFFERENT HARDWARE AFFINITIES. rho is a small-state
+      integer kernel that runs well on FPGAs and ASICs; sparse linear algebra is
+      memory-bandwidth bound and does not. Charging both in "processor-seconds"
+      hides that. The table reports charged operations and words separately from
+      any wall clock, and every wall clock names its assumed platform.
+    - >-
+      SURVIVOR BIAS IN THE ROW SET. Rows where the index-calculus operation count
+      is hopeless will trivially have every axis binding. The (E2) prediction is
+      therefore restricted in advance to rows where the operation count is within
+      2^10 of matched rho, declared before the table is computed.
+    - >-
+      MODEL-RELATIVITY. Everything here is inside a declared cost model with
+      declared inputs; "the width axis does not bind" means it does not bind
+      under this model at these inputs, and the qualifier travels with the claim.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK IS PROPOSED AND NO EXPONENT IS MOVED IN EITHER DIRECTION. The
+      deliverable is a region replacing a scalar, two corrected premises, and a
+      per-row statement of which axis binds.
+    - >-
+      This record does not settle B' -- whether Frobenius orbit collapse shrinks
+      the relation matrix by g -- and every row is computed both ways. Quoting
+      one reading without the other misrepresents the record.
+    - >-
+      The chain-length law is measured at B' <= 2^10 on toy binary cells and its
+      extrapolation to deployed B' is arithmetic on an assumed form. No security
+      statement about any named curve follows, and no claim is made about any
+      linear-algebra algorithm outside the three engines tested.
+    - >-
+      The region is computed for the columns this program can actually define.
+      The GHS/cover column on the five composite-degree ANSI curves has no
+      defined B' here at all, so it gets no region -- consistent with
+      IDEA-20260922-77bf31 marking its descent cell OPEN.
+    - >-
+      FORWARD GUIDANCE, so this is not read as closing more than it closes.
+      Left open: whether a linear-algebra method with a SHORTER critical path
+      than the Krylov chain exists for these matrices (a genuinely parallel
+      sparse solver would falsify (E1) at every row and is the natural successor
+      object); the multi-instance and preprocessed readings, which change both
+      sides and are excluded here; and the hardware question of whether rho's
+      Theta(P) storage floor is reachable in practice when P is spread over
+      thousands of nodes with no shared memory, which is an engineering question
+      this record does not touch.
+
+  heuristic_assumptions:
+    - id: H-BINSTD-XOVER-1
+      statement: >-
+        In van Oorschot-Wiener parallel collision search with P concurrent walks
+        and distinguished-point probability theta, the expected wasted work at
+        termination is P/(2 theta) iterations and the number of stored
+        distinguished points at termination is theta T_rho, so the relative
+        overhead is P/(2D) and rho's storage floor at relative overhead epsilon
+        is D = P/(2 epsilon) records.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: given that walk lengths to a distinguished point are
+        geometric with parameter theta, the expected residual length of a walk
+        observed at a uniformly random time is 1/(2 theta) by the standard
+        inspection-paradox computation for the geometric distribution, and the
+        count of distinguished points emitted over T_rho iterations is theta
+        T_rho in expectation by linearity. THE GAP: both statements assume the
+        walk is a genuine random function iterate with no cycling, no fruitless
+        collisions from the negation map, and no correlation between the
+        distinguished-point predicate and the walk's step function. The classical
+        distribution theorem this imitates is the geometric/exponential
+        inter-arrival law for a memoryless hitting time; the Koblitz Frobenius
+        class reduction is exactly the kind of structure that can break
+        memorylessness, since the predicate is usually evaluated on a class
+        representative.
+      validation_plan: >-
+        SAMPLE. Toy binary cells n in {23, 29, 31, 37, 41}, Koblitz and matched
+        ordinary, P in {2^4, 2^8, 2^12}, theta over three decades, 30 seeds per
+        cell. COMPARISON DISTRIBUTION. The walk-length histogram against the
+        geometric with parameter theta (Kolmogorov-Smirnov), and measured
+        relative overhead against P/(2D). TAIL CHECKS. The upper tail of walk
+        lengths against the geometric tail -- a heavy tail is the signature of
+        cycling or of a predicate correlated with the walk -- and the count of
+        fruitless cycles under the negation and Frobenius maps, reported
+        separately. TRANSFER. Deployed rows inherit the LAW, not the measured
+        constants; the transfer assumption is that the walk remains memoryless at
+        n = 131 to 571, which is stated and not tested.
+    - id: H-BINSTD-XOVER-2
+      statement: >-
+        The block Wiedemann Krylov stage on a B' x B' relation matrix with
+        blocking parameter n0 requires a sequential chain of about 2B'/n0
+        matrix-vector products, and those products cannot be reordered or
+        overlapped, so the phase's wall clock is bounded below by (2B'/n0) L_mv
+        for any number of processors.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: the Krylov sequence is defined by iterated
+        multiplication, so product i + 1 is data-dependent on product i; that
+        dependency is a fact about the algorithm and needs no source. THE GAP:
+        the CONSTANT 2/n0 is RECALLED from the block Wiedemann literature and was
+        not checked against KN-LIT-017's body this session, and the claim that no
+        shorter critical path exists for THESE matrices is not proved -- a matrix
+        whose minimal polynomial has degree far below B' has a correspondingly
+        shorter chain, which is precisely what the shape-matched null exists to
+        detect. The classical statement this imitates is the degree bound on the
+        minimal polynomial of a generic matrix, which is its dimension; a
+        structured matrix need not be generic.
+      validation_plan: >-
+        SAMPLE. Real relation matrices from toy binary cells at B' from 2^6 to
+        2^10, both Koblitz (tau-stable base) and ordinary, 10 matrices per cell;
+        shape-matched random nulls at every cell. n0 in {1, 8, 32, 64}.
+        COMPARISON DISTRIBUTION. Measured chain length against 2B'/n0, and the
+        REAL against the NULL at matched shape. Predicted: null matches 2B'/n0
+        within 20 percent; real matches the null unless the relation matrix
+        carries spectral structure. TAIL CHECKS. The distribution of the degree
+        of the computed minimal (matrix) polynomial across matrices, and the
+        fraction of matrices whose degree falls below 0.8 B' -- a heavy left tail
+        is the structure signal and is reported per matrix, never pooled.
+        TRANSFER. The LAW's form only; deployed rows are arithmetic on a
+        confirmed form with the 23-doubling extrapolation distance printed.
+    - id: H-BINSTD-XOVER-3
+      statement: >-
+        Relation collection parallelises with efficiency within a constant factor
+        of 1 up to any P considered, because targets are independent and the only
+        shared object is the append-only relation list.
+      rigorous_support: >-
+        Rigorous by construction for the decomposition attempt itself; the
+        heuristic part is that the relation list's contention and the duplicate
+        rate do not grow with P. Duplicates ARE expected at large P by a birthday
+        argument on the target space, at rate about P^2/N per step, which is
+        negligible at every parameter here but is computed rather than waved
+        away.
+      validation_plan: >-
+        SAMPLE. The toy pipeline at P in {1, 16, 256} threads on one machine,
+        recording relations per charged operation. COMPARISON. Efficiency against
+        1 within 10 percent. TAIL CHECK. Duplicate-relation rate against the
+        predicted P^2/N per step. TRANSFER. None claimed; the deployed rows
+        assume efficiency 1 on this phase and say so.
+  heuristic_note: >-
+    The three assumptions carry very different weight and the record is designed
+    so that failure of any one is visible rather than absorbed. H-1 decides
+    whether rho's memory floor is Theta(P); it is cheap to test and its failure
+    rebuilds limb (B). H-2 decides whether the index-calculus wall-clock floor
+    exists at all; it is RECALLED, it is the one this record most wants
+    challenged, and its failure in the interesting direction -- a short chain on
+    real matrices but not on the null -- is a better result than the record's own
+    thesis. H-3 is the least doubtful and is tested anyway because an
+    unmeasured efficiency of 1 is exactly the kind of silent assumption this lane
+    exists to charge. The a-priori expectation is stated as a preregistration in
+    limb (E) so that neither outcome can be read as interesting after the fact.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED OR MOVED. What this record adds to the time
+      column is a floor term: index-calculus wall clock is
+      max(T_IC_floor, operations/P) rather than operations/P, with
+      T_IC_floor = (2B'/n0) L_mv independent of P. In exponent terms, with
+      B' = N^{1/(m+1)} the floor is N^{1/(m+1)} latencies, which is BELOW rho's
+      N^{1/2} operations for m >= 2 and is therefore not expected to bind -- that
+      expectation is the preregistered prediction (E1), not a conclusion.
+    memory_exponent: >-
+      THE AXIS THIS RECORD IS ABOUT. Index calculus: Theta(B') = N^{1/(m+1)}
+      words, with the constant c_M measured on the toy pipeline rather than
+      assumed. rho: Theta(P) records, which is N^0 in the group order and depends
+      only on the chosen parallel width. The memory EXPONENT gap is therefore
+      1/(m+1) versus 0 -- index calculus is worse on memory by a power of N at
+      every arity, unconditionally, and this is the only axis on which the two
+      algorithms differ by an exponent rather than by inputs.
+    best_known: >-
+      Matched rho with the curve's own symmetries under van Oorschot-Wiener
+      (KN-LIT-012): 2^60.9 iterations estimated for ECC2K-130 with negation and
+      the Frobenius class reduction already applied (KN-LIT-096); storage a free
+      parameter on the D = P/(2 epsilon) curve; parallel speedup near-linear in
+      P. The largest publicly completed binary ECDLP is 117.35 bits at about 2^60
+      iterations on up to 576 FPGAs over more than six months (KN-TECH-036),
+      which is the realisable-width reality check this record uses.
+    hidden_overhead: >-
+      DISCLOSED IN FULL. (i) L_mv is hardware-dependent and swept, not known.
+      (ii) The chain-length constant is RECALLED, not checked against a source.
+      (iii) C_att, p, R_need and B are inputs owned elsewhere, and every row is a
+      range rather than a point. (iv) B' is double-valued pending
+      IDEA-20260922-b19793. (v) The toy-to-deployed extrapolation on the
+      chain-length law is 23 doublings and is printed, not hidden in an o(1).
+      (vi) No preprocessing, no multi-instance amortisation, on either side.
+    tradeoff_note: >-
+      THIS RECORD IS THE TRADEOFF STATEMENT. rho's curve is
+      (T = c sqrt(N)/(g_rho P f), M = P/(2 epsilon) records, any P), i.e. time
+      falls and memory rises linearly in P with the product T*M*epsilon
+      invariant. Index calculus's curve is
+      (T = max((2B'/n0) L_mv, ops/P), M = c_M B' words, P useful only up to
+      ops/T_IC_floor), i.e. its memory is FIXED by the algorithm and does not
+      trade against time at all, while its time saturates. The two curves have
+      different shapes, which is why no scalar comparison between them is
+      well-posed. Parallelisation position: relation collection matches rho
+      exactly; linear algebra does not and has a floor; rho has no floor.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+    qualification: >-
+      Stage 0 is a few hundred lines of symbolic cost model plus two published
+      reproductions. Stage 1 needs a parallel-rho harness with separate counters
+      for useful and wasted iterations -- if RQ-ICPERF-94c86e's matched rho arm
+      already has one, this is a counter addition. Stage 2 is the real cost:
+      block Wiedemann and block Lanczos over a toy prime field plus structured
+      Gaussian elimination, roughly 1000-1500 lines, and this corpus has no such
+      engine installed. Stage 3 and 4 are zero compute. Single machine, hours of
+      compute, under 200 MB peak.
+
+  asymptotic_claim:
+    problem: >-
+      ECDLP on the standardized binary population of RQ-BINSTD-b6f698 -- the
+      resource-space comparison between decomposition-based index calculus and
+      matched van Oorschot-Wiener rho
+    prior_best: >-
+      Matched rho with the curve's symmetries: c sqrt(N)/g_rho group operations,
+      storage Theta(P) records, near-linear parallel speedup.
+    time_exponent: >-
+      Unchanged for both sides. This record adds a P-independent floor term to
+      the index-calculus side and removes an unstated zero from rho's memory.
+    memory_exponent: >-
+      Index calculus N^{1/(m+1)} words versus rho N^0 records. Not a new result
+      about either algorithm; a statement that this is the axis on which they
+      differ by an exponent and that the lane's comparisons do not report it.
+    hidden_cofactor: >-
+      L_mv (hardware), n0 (blocking), c_M (measured), epsilon (declared
+      overhead tolerance), and the factor g between the two B' readings.
+    claim_kind: cost_model_correction
+  dominated_by: >-
+    CHECKED ROW BY ROW ACROSS TIME, MEMORY AND DATA/QUERIES AGAINST EVERY ROW
+    THIS QUESTION'S BASELINE CLAUSE AND THIS CORPUS'S FRONTIER TABLE ENUMERATE.
+    As an ATTACK this record mounts none and every row dominates it: matched rho
+    with negation and the Frobenius class reduction under van Oorschot-Wiener
+    (2^60.9 iterations estimated for ECC2K-130, KN-LIT-096; storage Theta(P);
+    near-linear speedup, KN-LIT-012); matched rho with negation alone on the
+    pseudorandom rows; BSGS at (N^{1/2}, N^{1/2}); multi-target pooled rho at
+    sqrt(K N) with O(1) memory; kangaroo on a narrowed interval where a protocol
+    permits it; the S*T^2 preprocessing frontier, which this record excludes by
+    assumption and therefore does not approach; and the completed 117.35-bit
+    binary record as the feasibility ceiling (KN-TECH-036). On the record's own
+    axes it claims no point at all: it is a measurement of where the two existing
+    algorithms sit, not a third algorithm. NOT NULL ON ANY AXIS.
+  sota_delta:
+    time: >-
+      Zero speedup on every attack axis; no exponent improved. Quantified
+      deliverables: a per-row P* (the width at which the two wall clocks meet)
+      where the corpus currently has a prose assertion; a measured Krylov
+      chain-length law where it currently has a recalled model; and a corrected
+      statement of rho's parallel accounting that keeps the linear speedup but
+      attaches its true storage cost.
+    memory: >-
+      TWO CORRECTIONS, both quantified. (i) rho's memory is Theta(P) records, NOT
+      zero and NOT the 2^35.63 points of the published ECC2K-130 granularity --
+      about 1.5 TiB at 32 bytes each by this session's arithmetic, against about
+      1 GiB at theta = 2^-35, the same attack at a different point of the same
+      curve. (ii) The index-calculus memory exponent N^{1/(m+1)} is identified as
+      the ONLY axis on which the two algorithms separate by a power of N, which
+      redirects the lane's attention from the parallelism argument it currently
+      makes to the memory argument it does not.
+    data_queries: >-
+      Neither side makes queries; no separation. The nearest analogue is stored
+      distinguished points for rho and stored relation-matrix columns for index
+      calculus, and those are reported on the memory axis where they belong.
+  frontier_check:
+    status: pending
+    note: >-
+      The van Oorschot-Wiener storage/overhead tradeoff is explicitly described
+      in KN-LIT-012's corpus entry, so limb (B) is very likely KNOWN in the
+      parallel-cryptanalysis literature and this record's contribution there is
+      to state it as a floor and apply it to this population -- a reviewer should
+      expect to find it and the record should be downgraded to `known` on that
+      limb if so. The block Wiedemann chain-length model is RECALLED and must be
+      checked against KN-LIT-017 before any deployed row is quoted. What was
+      searched in this corpus and not found: any statement of rho's memory floor
+      as Theta(P), any index-calculus wall-clock floor, and any crossover stated
+      as a region rather than a scalar.
+  recommended_priority: high
+  priority_rationale: >-
+    Best case is not an exponent and the record says so; its class is a cost-model
+    correction. It is nonetheless HIGH, and the justification is specific rather
+    than enthusiastic. First, it is the only record in this lane that can INVERT
+    an existing verdict rather than refine one: a cost claim made on the time axis
+    alone can be defeated on the memory axis by a power of N, and the population
+    table this question is built to produce will otherwise be computed on the time
+    axis alone. Second, its two instrument stages are prerequisites for three
+    other things this program wants -- RQ-ICPERF-94c86e's phase table needs a
+    measured linear-algebra column, IDEA-20260922-b19793 needs an engine to test
+    orbit collapse on, and IDEA-20260922-6028ed's reachability table needs a cost
+    function for its memory and linear-algebra cells -- so the implementation cost
+    is shared three ways. Third, the preregistered verdict is falsifiable by a
+    single row and the test that would falsify it costs minutes. What it is NOT:
+    an exponent-moving line, and it should not be ranked as though it were.
+  first_deliverable: >-
+    Stage 0: the symbolic region model with both published reproductions passing
+    (KN-LIT-096's ECC2K-130 triple and 1263-GPU year; KN-TECH-036's sect113r2
+    row), plus limb (B)'s derivation written out in full and the ECC2K-130
+    storage figure recomputed at 16, 32 and 64 bytes per point and at theta from
+    2^-20 to 2^-40. Zero compute, no run, no status change.
+  next_gate: >-
+    Coordinator decision on whether Stage 2's linear-algebra engine is built here
+    or under GOAL-ICPERF-e6b6a4, since it is the shared instrument of three
+    records in this lane and building it twice would be the expensive mistake.

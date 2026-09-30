@@ -1,0 +1,238 @@
+handoff:
+  id: TASK-20260811-409237
+  recorded_at: '2026-08-11'
+  from: coordinator
+  to: executor
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-d7e255
+  experiment_id: EXP-INSTR-36c8cf
+  hypothesis_id: H-INSTR-444c7b
+  question_id: RQ-INSTR-f8faa0
+  contract_version: 3
+  not_a_new_experiment_contract: >-
+    SAME SHAPE AS TASK-20260811-bc336d (CTRL-VALUESHUFFLE precedent): a
+    bounded reanalysis/control producing a new immutable run under the
+    existing, approved EXP-INSTR-36c8cf contract. No new specification.yaml,
+    no amendment. Dispatched directly from
+    ledger/decisions/DEC-20260811-45583f.yaml's next_actions (the PRIMARY
+    item).
+
+  objective: >-
+    experiments/EXP-INSTR-36c8cf/amendments/v3.yaml change E11 (D3 leave-one-
+    out diagnostic, D4 Monte-Carlo-calibrated null threshold, D5 recurrence-
+    triggered early termination, both scoped to fb=18 and fb=22) is a real
+    repair the concurrent session bound into the NOW-APPROVED v3 contract, in
+    response to VAL-20260810-eddc0c's finding. DEC-20260811-45583f paused
+    dispatching a REAL successor run against v3 because it is not yet known
+    whether E11's D3/D4/D5, as specified, would actually have caught the kind
+    of alternative RUN-INSTR-r3r4-nullobj-d3efd7 already demonstrated slips
+    past v3's UNCHANGED T2 acceptance rule 18.8% of the time. This task
+    answers that question empirically, reusing the exact same 500-replication
+    Student-t(df=5) simulation (same master seed, same draws) rather than
+    drawing new data, by computing D3/D4/D5 exactly as change E11 specifies
+    and checking, per replication, whether D5 would have fired at or before
+    the rung T2 itself accepted.
+
+  uncertainty_reduced: >-
+    Whether v3's own repair (E11) closes the gap DEC-20260811-45583f's
+    rationale identifies, or whether a further v4 amendment binding a
+    diagnostic into T2's OWN accept condition (the original R1 recommendation
+    of RT-20260811-35ab34) is still required before a successor run may be
+    dispatched in good conscience. This directly clears (or does not clear)
+    DEC-20260811-45583f's pause.
+
+  inputs:
+    - ledger/decisions/DEC-20260811-45583f.yaml
+    - experiments/EXP-INSTR-36c8cf/amendments/v3.yaml (change E11 is the exact
+      specification to implement -- read D3, D4, D5 verbatim, do not
+      paraphrase or approximate any of the three)
+    - harness/exp_instr_36c8cf/ctrl_r3r4.py (the module whose R4 Student-t(5)
+      arm this task extends -- READ IN FULL before writing anything)
+    - experiments/EXP-INSTR-36c8cf/runs/RUN-INSTR-r3r4-nullobj-d3efd7/r4-student-t5-nullobject.json
+      (the ALREADY-COMMITTED, immutable record this task's own reproduction
+      must match exactly on accepted_rung/terminal_rung/exceed_total_at_terminal
+      for every replication index it checks -- this is your faithfulness
+      gate, read it first so you know what to reproduce)
+    - harness/exp_instr_36c8cf/sr3v3.py (interval_for_rung, z_from_coverage --
+      reuse unmodified, exactly as ctrl_r3r4.py already does)
+
+  what_to_build:
+    - >-
+      A NEW MODULE ONLY: harness/exp_instr_36c8cf/ctrl_r3r4_d5check.py. Do
+      NOT edit harness/exp_instr_36c8cf/ctrl_r3r4.py or any other existing
+      file. Import ctrl_r3r4's own public constants
+      (R4_MASTER_SEED=314159265, R4_RUNG_SIZES, and the replication count) by
+      IMPORTING THEM from ctrl_r3r4.py, not retyping them, so a transcription
+      drift between the two modules is structurally impossible.
+    - >-
+      FAITHFULNESS GATE, MANDATORY, RUN FIRST, BEFORE ANY D3/D4/D5 CODE IS
+      TRUSTED. Reimplement the Student-t(df=5) draw generation
+      (numpy.random.SeedSequence(314159265).spawn(500), then per replication
+      rep_seed.spawn(13) in ascending fb order, then per row
+      loc + (scale/sqrt(5/3)) * rng.standard_t(df=5, size=1536), loc/scale
+      from the row's own rung-3 mean/sd exactly as ctrl_r3r4.py's
+      draw_null_object_replication does it) and, for a spread of at least 20
+      replication indices across the full 0-499 range (not clustered), run
+      them through sr3v3.interval_for_rung/stability_check exactly as
+      ctrl_r3r4.py does, and assert your own recomputed accepted_rung,
+      terminal_rung and exceed_total_at_terminal match
+      r4-student-t5-nullobject.json's own committed records for those same
+      indices EXACTLY. If even one does not match, STOP, report it as a
+      defect (do not guess at what differs), and do not proceed to D3/D4/D5 --
+      a diagnostic computed on non-reproduced draws is worthless.
+    - >-
+      D3 (per amendment v3 change E11, verbatim): at every rung 4 through 8
+      REACHED by a given replication (i.e. up to and including
+      min(that replication's stopping rung, 8) -- see "what stopping means
+      for this check" below), for fb=18 AND fb=22 specifically: take that
+      row's single most extreme per-seed ratio at that rung (by absolute
+      deviation from that row's own in-sample mean at that rung), recompute
+      mean/sd EXCLUDING that one point (LOO), score the excluded point
+      against mean_loo +- z*sd_loo (same z as everywhere else,
+      sr3v3.z_from_coverage(519,520)), and record the LOO z-score
+      ((excluded_point - mean_loo) / sd_loo).
+    - >-
+      D4 (per amendment v3 change E11, verbatim): a Monte Carlo null
+      calibration, but note it depends ONLY on n (the rung's seed count),
+      not on any row's actual data -- compute it ONCE per distinct n in
+      {96, 192, 384, 768, 1536} (the five rungs 4-8), not once per
+      replication: draw n i.i.d. N(0,1) values, compute the LOO z-score of
+      the sample maximum (mean/sd of the other n-1), repeat for at least
+      20000 trials, record the median/90th/99th percentile/max. Use a single
+      declared, disclosed master seed for this calibration, distinct from
+      314159265 and 271828182 (state your choice explicitly, e.g. via
+      numpy.random.default_rng(<your seed>), one stream reused sequentially
+      across the five n values or five independently spawned sub-streams --
+      your choice, state which).
+    - >-
+      D5 (per amendment v3 change E11, verbatim): for a given replication and
+      a given row (fb=18 or fb=22 separately -- D5 fires per row, and the
+      amendment's "at fb=18 OR fb=22" wording means either row triggering it
+      is sufficient), count how many of the rungs 4-8 REACHED by that
+      replication show D3's LOO z-score exceeding D4's 99th-percentile
+      threshold FOR THAT RUNG'S OWN n. If that count is 2 or more (at the
+      SAME row), D5 has FIRED, and record the rung at which the count first
+      reached 2 (call it d5_fire_rung -- the second qualifying rung, not the
+      first, since recurrence requires two).
+    - >-
+      WHAT "STOPPING" MEANS FOR THIS CHECK, THE CENTRAL POINT OF THE WHOLE
+      TASK. T2's own text (unchanged, adopted by v3 verbatim) says the
+      characterisation STOPS at the first rung that passes the unchanged 5%
+      rule -- i.e. in the real contract, rungs after accepted_rung are never
+      even measured, so their D3/D4 data would never exist. For each of the
+      94 replications that reach accepted_rung <= 8 (per the already-
+      committed r4-student-t5-nullobject.json), compute D3/D4/D5 ONLY using
+      rungs 4 through min(accepted_rung, 8) -- i.e. only the rungs that
+      would ACTUALLY have been measured before T2 stopped the run. Report,
+      for each such replication: did D5 fire using only that truncated rung
+      window (yes/no), and if yes, at what d5_fire_rung relative to
+      accepted_rung (before, at, impossible-since-only-one-rung-existed).
+      For the 406 replications that never reach accepted_rung by rung 8, all
+      five rungs 4-8 are available (the simulated run would have continued
+      measuring through rung 8 before F4-equivalent fires); compute D3/D4/D5
+      across all five for these, for informational completeness, but this is
+      NOT the central question -- the 94 accepted replications are.
+
+  deliverable:
+    - >-
+      A NEW IMMUTABLE RUN RECORD under experiments/EXP-INSTR-36c8cf/runs/,
+      written via harness.runner.write_run, certificate {kind: none}, source-
+      provenance pinning ctrl_r3r4_d5check.py, ctrl_r3r4.py, sr3v3.py and
+      RUN-INSTR-r3r4-nullobj-d3efd7/r4-student-t5-nullobject.json's sha256.
+    - >-
+      THE HEADLINE NUMBER: of the 94 replications with accepted_rung set,
+      the fraction (and count) where D5 fires within the truncated rung
+      window available before T2's own stop point. State this as plainly and
+      neutrally as R3/R4's own execution report did -- an observation, not
+      an interpretation of what it means for whether v4 is required (that is
+      the Coordinator's, in a decision, after independent review).
+    - >-
+      Full per-replication D3/D4/D5 records (not just the aggregate),
+      analogous to r4-student-t5-nullobject.json's own per-replication
+      detail, so a reviewer can spot-check individual cases.
+    - >-
+      An execution report at
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/execution/EXP-INSTR-36c8cf/execution_report_d5check.md,
+      narrating the faithfulness-gate result first (pass/fail, which indices
+      checked), then D3/D4/D5's own results, with the same "underspecified
+      judgment calls, stated explicitly" discipline TASK-20260811-bc336d's
+      own execution report used.
+
+  what_this_does_not_do:
+    - >-
+      DOES NOT ITSELF CLEAR OR REAFFIRM DEC-20260811-45583f's PAUSE. That is
+      a Coordinator act, after independent review, in a decision record. This
+      task reports observations only.
+    - >-
+      DOES NOT APPROVE, REJECT OR AMEND amendments/v3.yaml or draft a v4.
+      Both remain the Coordinator's to do, informed by this task's results.
+    - >-
+      DOES NOT EDIT harness/exp_instr_36c8cf/ctrl_r3r4.py, sr3v3.py,
+      refvalues_v2.py, or any file under experiments/. Does not touch
+      RUN-INSTR-r3r4-nullobj-d3efd7 or RUN-INSTR-36c8cf-phaseA-v2-57ca9a
+      (both read-only inputs).
+    - >-
+      MAKES NO CURVE-SIDE CLAIM. claim_tier toy, sota_delta zero. Does not
+      move any hypothesis status.
+
+  constraints:
+    - >-
+      DETERMINISTIC. State every declared seed explicitly (the D4 calibration
+      seed is new; the D3 draw-generation seeds are ctrl_r3r4.py's own,
+      imported not retyped).
+    - >-
+      z IS COMPUTED, NEVER TRANSCRIBED (standing rule A4) -- call
+      sr3v3.z_from_coverage(519, 520) yourself.
+    - >-
+      Budget: pure post-hoc statistics and numpy simulation on already-
+      specified synthetic data, no elliptic-curve arithmetic. Expect well
+      under a minute; a generous 1800s cap applies. If the faithfulness gate
+      fails, that is the result to report -- do not spend budget debugging a
+      reproduction mismatch beyond what is needed to describe it accurately;
+      report it as a defect and stop.
+    - >-
+      If anything in amendment v3's own D3/D4/D5 text is ambiguous once you
+      are implementing it (e.g. exactly how ties are broken in "single most
+      extreme point," or whether D4's calibration should use a single shared
+      stream or per-n independent streams), STATE THE CHOICE YOU MADE AND WHY
+      in the execution report rather than silently picking one.
+
+  refs:
+    - GOAL-ENDO-001
+    - BATCH-d7e255
+    - EXP-INSTR-36c8cf
+    - H-INSTR-444c7b
+    - RQ-INSTR-f8faa0
+    - DEC-20260811-45583f
+    - DEC-20260810-00ee9d
+    - experiments/EXP-INSTR-36c8cf/amendments/v3.yaml
+    - RUN-INSTR-r3r4-nullobj-d3efd7
+    - TASK-20260811-bc336d
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 8
+    maximum_runs: 1
+    total_cpu_hours: 0.5
+    budget_note: >-
+      Same order of magnitude as TASK-20260811-bc336d (68s observed there for
+      a comparable amount of pure-numpy simulation); generous relative to
+      actual expected cost.
+
+  requested_policy: executor-implementation
+  effort_expected: medium
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: high
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on (AGENTS.md rule 11; CLAUDE.md "Model policy
+      note"). Recorded, never silently substituted.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.

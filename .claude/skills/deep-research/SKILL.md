@@ -113,8 +113,11 @@ scan. Read broadly before ranking anything:
   no index built (`:memory:` / empty), say so plainly rather than silently
   skipping novelty checks.
 
-Build, in your own working notes (not committed anywhere), a frontier map per
-live target problem in scope: current best internal/external result,
+Start from the committed known-results map for ECDLP
+(`knowledge/frontiers/ecdlp/`, rendered by `python3 tools/build_frontier_map.py`);
+any external result you find that it lacks is a proposed new row for
+`/curate-knowledge`, not a private note. Then build, in your working notes, a
+frontier map per live target problem in scope: current best internal/external result,
 `dominated_by` and `sota_delta` as last honestly recorded (never assume
 `null` without checking — `docs/inventor-protocol.md` §5), and which open
 problems or findings bound it.

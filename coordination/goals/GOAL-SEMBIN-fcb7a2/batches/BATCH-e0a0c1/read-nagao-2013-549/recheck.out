@@ -1,0 +1,180 @@
+RECHECK for TASK-20260916-9da6e0 -- hand-check, NOT a measurement.
+Exact arithmetic in F_p[X_1..X_N]; no sampling, no timing, no runs.
+
+==========================================================================
+CHECK 1  Example 1 of Nagao 2015/984 (PDF p.5) -- internal consistency
+==========================================================================
+printed line 1  F := (X^2+X)(Y^2+Y) + (X^2+X)(Y^2+Z)   = XY + XZ + X^2Y + X^2Z   deg 3
+printed expansion  X^2Y+Y^2Z+YZ+X^2Z+XY^2+XZ           = XZ + YZ + X^2Y + X^2Z + XY^2 + Y^2Z   deg 3
+printed middle line (three copies of (X^2+X)(Y^2+Y))   = XY + XZ + X^2Y + X^2Z   deg 3
+printed final line (X+Z)(Y^2+Y) + (X^2+X)(Y+Z)         = XZ + YZ + X^2Y + X^2Z + XY^2 + Y^2Z   deg 3
+
+line1 == printed expansion ? False
+line1 == middle line       ? True
+line1 == final line        ? False
+printed expansion == final ? True
+=> the printed chain is INTERNALLY INCONSISTENT: its first line and
+   its last line are different polynomials, differing by XY + YZ + XY^2 + Y^2Z
+
+reconstruction  F := (X^2+Z)(Y^2+Y) + (X^2+X)(Y^2+Z)   = XZ + YZ + X^2Y + X^2Z + XY^2 + Y^2Z   deg 3
+reconstruction == printed expansion ? True
+reconstruction == printed final     ? True
+reconstruction ==  0 mod S_fe       ? True
+printed line 1 ==  0 mod S_fe       ? True
+
+why it matters for the lemma being illustrated:
+  the reconstruction's multipliers are (X^2+Z) on (Y^2+Y) and
+  (Y^2+Z) on (X^2+X), both of degree 2 > deg F - p = 1, so it IS an
+  instance the lemma has to repair; the final line's multipliers
+  (X+Z) and (Y+Z) have degree 1 = deg F - p, which is the lemma's
+  conclusion.  Line 1 AS PRINTED collapses to (X^2+X)(Y+Z), whose
+  multiplier already has degree 1, so as printed the example
+  illustrates nothing.
+  line1 as printed == (X^2+X)(Y+Z) ? True
+
+==========================================================================
+CHECK 2  inductive step of Nagao 2013/549 Lemma 2 (= Lemma 3 of 2015/984)
+==========================================================================
+2a. identity (3):  (B^p-B)G == (B^p-B)(G - LT(G) + LT(G)/A^{p-1})
+                              + (LT(G)/A^p)(A^p-A)(B^p-B)
+   p=2  G = 1 + Y + X^2Y            LT(G) = X^2Y        identity holds ? True
+   p=3  G = 1 + Y + X^3Y            LT(G) = X^3Y        identity holds ? True
+
+2b. full descent, checking at every step: G^new gives the same F,
+    psi strictly decreases, and the terminal tuple meets the bound
+    deg G'_i <= deg F - p.
+   p=2 N=2  F = X^2Y + XY^2                  deg F = 3  steps = 1
+            start  ['Y^2', 'X^2']
+            end    ['Y', 'X']   max deg = 1   bound deg F - p = 1   OK ? True
+            terminated because NUM(G) = 1        [the paper's first branch]
+   p=2 N=2  F = X^2 + Y^2 + X^3 + X^2Y + XY^2 + Y^3 deg F = 3  steps = 1
+            start  ['X + Y^2', 'Y + X^2']
+            end    ['X + Y', 'X + Y']   max deg = 1   bound deg F - p = 1   OK ? True
+            terminated because NUM(G) = 1        [the paper's first branch]
+   p=3 N=2  F = 2X^3Y + 2XY^3 + 2X^3Y^3      deg F = 6  steps = 0
+            start  ['Y^3', 'X^3']
+            end    ['Y^3', 'X^3']   max deg = 3   bound deg F - p = 3   OK ? True
+            terminated because NUM(G) = 2 and deg psi(G) = 6 = D   [THE CASE THE PAPER'S WRITE-UP OMITS]
+   p=2 N=3  F = X^2Y^2Z + X^2YZ^2 + XY^2Z^2 + X^2Y^2Z^2 deg F = 6  steps = 0
+            start  ['Y^2Z^2', 'X^2Z^2', 'X^2Y^2']
+            end    ['Y^2Z^2', 'X^2Z^2', 'X^2Y^2']   max deg = 4   bound deg F - p = 4   OK ? True
+            terminated because NUM(G) = 3 and deg psi(G) = 6 = D   [THE CASE THE PAPER'S WRITE-UP OMITS]
+
+2d. claim 1) of the proof is printed as  X_{I_1}^p | G_{I_i}  (the whole
+    multiplier).  What the argument establishes, and all identity (3)
+    needs, is  X_{I_1}^p | LT(G_{I_i}).  Witness that the printed form
+    is strictly stronger and FALSE:
+    p=2 N=2, G = (X + Y^2, Y + X^2);  psi = (2, 2), IND = [0, 1]
+    X_{I_1}^p = X^2 divides the whole G_{I_2} = Y + X^2 ? False
+    X_{I_1}^p = X^2 divides LT(G_{I_2}) = X^2 ? True
+    -> printed claim 1) fails on this tuple; the LT form holds, and
+       the step goes through on the LT form (2b ran this tuple).
+
+2c. where the GRADED order is load-bearing (errata-extraction-20260921):
+    the NUM(G)=1 branch concludes D = deg F = deg psi(G).  That step
+    needs deg psi(G) >= deg G_i + p for every i, which is what a
+    graded order gives and a merely lexicographic one does not.
+    witness p=2 N=2, G=(Y^5, 0): psi = (2, 5), total degree 7, deg F = 7,
+    NUM = 1, so deg G_1 = 5 <= deg F - p = 5 ? True
+
+==========================================================================
+CHECK 3  counterexample to Lemma 4 of Nagao 2015/984 AS PRINTED
+==========================================================================
+p = 2,  F_2[X,Y],  S_fe = {X^2+X, Y^2+Y}
+f_1 = X^2Y   (deg 3, NOT reduced mod S_fe)
+f_2 = X + XY   (deg 2, reduced)
+Lemma 4 as printed: d_F of {f_1,f_2}  <=  d'_F of {f_1,f_2} u S_fe.
+
+fake d'_F  [EQ reading] = 2   witness g = ['XY', 'X']   sum mod S_fe = X
+fake d'_F  [GE reading] = 2   witness g = ['XY', 'X']   sum mod S_fe = X
+   (exhaustive over all 256 reduced multiplier pairs)
+
+does putting S_fe INSIDE the FAKE system change d'_F?  Definition 6
+gives multipliers only to f_1..f_M; the question is what happens if
+the field equations are given their own multipliers h_j too.
+   every product h_j * (X_j^p - X_j) reduces to 0 mod S_fe, so such a
+   member contributes deg = -inf to condition (1) and 0 to conditions
+   (2) and (3).  ALL THREE CONDITIONS ARE UNCHANGED.
+   [EQ reading]  d'_F({f_1,f_2}) = 2 ,  d'_F({f_1,f_2} u S_fe) = 2   same ? True
+   [GE reading]  d'_F({f_1,f_2}) = 2 ,  d'_F({f_1,f_2} u S_fe) = 2   same ? True
+   => 'field equations inside vs outside the FAKE system' is a
+      DISTINCTION WITHOUT A DIFFERENCE under Definition 6.  The
+      placement that does change the statement is on the TRUE side.
+
+true d_F   [EQ reading, no condition 4]
+   S_fe OUTSIDE the true system: d_F = 3   witness ['1', 'X'] -> X^2
+   S_fe INSIDE  the true system: d_F = 3   witness ['0', 'X', 'Y', '0'] -> X^2 + XY
+true d_F   [EQ reading, with condition 4]
+   S_fe OUTSIDE the true system: d_F = 3   witness ['1', 'X'] -> X^2
+   S_fe INSIDE  the true system: d_F = 3   witness ['0', 'X', 'Y', '0'] -> X^2 + XY
+   (exhaustive at every d = 0..4 over every multiplier with
+    deg(g_s * s) <= d, so the minima above are certified, not sampled)
+
+true d_F   [GE reading, multipliers bounded by deg(g s) <= 3]
+   S_fe OUTSIDE: d_F <= 3   witness ['1', 'X'] -> X^2
+   S_fe INSIDE : d_F <= 2   witness ['1', 'X', '1', '0'] -> X
+
+   lower-bound certificates (a bounded search cannot supply these):
+   phi: X:=0 sends f_1,f_2 -> 0, 0   (and X^2+X -> 0, Y^2+Y -> Y + Y^2)
+   psi: Y:=1 sends f_1,f_2 -> X^2, 0
+   OUTSIDE: nonzero h of deg <= 1 surviving both necessary
+            conditions for h in <f_1,f_2>: NONE
+            => min degree of a nonzero element is >= 2,
+               so d_F(outside)[GE] >= 3.  Matches the witness: = 3.
+   INSIDE : phi(I) <= <Y^2+Y> in F_2[Y]; every element of <Y^2+Y>
+            vanishes at Y=0, and phi(1)=1 does not, so 1 is not in I
+            => no degree-0 fall, d_F(inside)[GE] >= 2.  Witness: = 2.
+
+SUMMARY of CHECK 3
+   d'_F = 2 under both readings.
+   S_fe OUTSIDE the true system: d_F = 3 > 2 under BOTH readings
+        -> Lemma 4 as printed is FALSE.
+   S_fe INSIDE  the true system: d_F = 3 > 2 under the EQ reading
+        (with or without condition 4) -> the inside form is FALSE too
+        for this f_1, which is not reduced mod S_fe;
+        d_F = 2 = d'_F under the GE reading -> holds there, and
+        holds there WITHOUT Lemma 3 (see CHECK 4).
+
+==========================================================================
+CHECK 4  J-5 control: run the J-3 derivation on the object where Lemma 4's conclusion is known false
+==========================================================================
+the derivation, step by step, on the fake witness g = (1,1):
+   P    = g_1 f_1 + g_2 f_2               = X + XY + X^2Y   deg 3
+   Pbar = P mod S_fe                      = X   deg 1
+   R    = P - Pbar  (lies in <S_fe>)      = XY + X^2Y   deg 3
+   max_i deg(g_i f_i) UNREDUCED           = 3
+   max_i deg(g_i f_i mod S_fe)            = 2
+   Lemma 2 applied to R gives G' with deg G'_j <= deg R - p = 1:
+       G'_X = Y (deg 1), G'_Y = 0   and sum G'_j (X_j^p - X_j) = XY + X^2Y
+
+   WITH S_fe INSIDE the true system the constructed combination is
+   admissible:  1*f_1 + 1*f_2 + Y*(X^2+X) = X
+   products of degrees [3, 2, 3], max 3, sum of degree 1  -> a fall at 3,
+   i.e. the derivation yields  d_F(inside) <= max_i deg(g_i f_i) = 3,
+   NOT  d_F(inside) <= d'_F = 2.  The derivation is LOSSY by exactly
+   the gap between reduced and unreduced product degree.
+
+   WITH S_fe OUTSIDE the true system the term Y*(X^2+X) is not a
+   member of the system, so the only admissible combination from the
+   same witness is P itself:
+       products of degrees [3, 2], max 3, sum = X + XY + X^2Y of degree 3
+   no drop (3 < 3 is False) -> THE DERIVATION DOES NOT GO THROUGH.
+
+   CONTROL OUTCOME: PASS.  The derivation fails on the object where
+   the conclusion is false, and it fails at the one step that uses
+   the field equations as members -- the same step whose absence
+   makes the outside form false.  It does not prove too much.
+
+   second half of the control: under the GE reading the inside form
+   holds WITHOUT Lemma 3 at all.  Any representation of R will do,
+   because GE's condition (1) only needs SOME product of degree >= d
+   and a large product helps rather than hurts.  Witness with a
+   deliberately BAD (high-degree) field-equation multiplier:
+       1*f_1 + 1*f_2 + Y*(X^2+X) + Y^4*(Y^2+Y) + Y^4*(Y^2+Y) = X
+       products up to degree 6, sum still X of degree 1,
+       so GE still reports a fall at 2.  A statement Lemma 3 is
+       not needed for is not a statement Lemma 3 supports.
+
+==========================================================================
+ALL ASSERTIONS PASSED
+==========================================================================
