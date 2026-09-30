@@ -1,0 +1,101 @@
+correction:
+  id: CORR-20260811-b37856
+  recorded_at: '2026-08-11'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-74ebef)
+  type: documentation_only_defect_disclosure_no_repair_authorized
+  supersedes: []
+  corrects: []
+  record_type: source_code
+  record_id: harness/exp_icinv.py, harness/run_saturation.py
+  field: >-
+    Two independent computations of the same conceptual quantity (a row's
+    mean decomposition rate across curves) disagree at the last bit for
+    some inputs.
+  prior_value: >-
+    No committed record disclosed that harness/exp_icinv.py:422
+    (`rbar = sum(rates) / n`, inside `binomial_null_verdict`) and
+    harness/run_saturation.py:89 (`mean_rate = statistics.mean(rates)`)
+    compute the same row mean by two different methods that are not
+    guaranteed to agree bit-for-bit on floating-point input.
+  corrected_value: >-
+    DISCOVERED BY A DIFFERENT SESSION (BATCH-d7e255, during EXP-INSTR-36c8cf
+    Phase A's own faithfulness checking against the reference driver) and
+    surfaced to this branch only via merging origin/main; that session's own
+    next_action text named this defect and asked for a documentation-only
+    correction record but had "no spare identifier" to mint one. This
+    record fills that gap; it does not re-derive the finding independently
+    beyond confirming the two call sites and their exact line content
+    directly in the currently committed source, reproduced below.
+
+    `harness/exp_icinv.py:420-422`:
+    ```
+    n = len(hits)
+    rates = [h / trials for h in hits]
+    rbar = sum(rates) / n
+    ```
+    `harness/run_saturation.py:89`: `mean_rate = statistics.mean(rates)`.
+
+    Both compute the arithmetic mean of the same conceptual list of
+    per-curve rates. They are NOT guaranteed to agree bit-for-bit:
+    Python's `statistics.mean` converts inputs to exact `Fraction`s
+    internally before summing, avoiding the intermediate rounding a plain
+    `sum(...)/n` accumulates over a float list, so the two can differ by
+    one or more ULPs whenever floating-point rounding during summation is
+    input-dependent (in general, for lists whose partial sums are not
+    exactly representable in binary floating point). The originating
+    session reported this differing at the last bit at two specific rows
+    (fb = 7 and fb = 18) during an attempted faithfulness check that
+    demanded bit-exact agreement between a reproduction and the reference
+    driver's own output; that attempt aborted without consuming a run ID,
+    precisely because the demand itself (bit-exactness across two
+    different mean implementations) was unsatisfiable by construction, not
+    because either computation is wrong.
+  why_this_still_does_not_authorize_a_fix: >-
+    `harness/exp_icinv.py` MUST NOT BE EDITED under this campaign's
+    standing invalidation rule (bound to many committed experiment
+    contracts, most directly EXP-ICINV-4d33aa and its amendments), and
+    editing either call site would perturb the last bits of every
+    reproduction already committed against the current, unedited
+    behaviour of both files -- a materially worse outcome than a
+    documented ULP-level discrepancy between two mean implementations
+    that were never required to agree to that precision by any frozen
+    contract. No contract in this campaign gates on bit-exact agreement
+    between these two specific call sites; every gate that cares about
+    reproduction fidelity (e.g. EXP-ICINV-4d33aa amendment v2's own
+    `max_abs_delta_vs_reference` checks) uses an explicit, non-zero
+    tolerance for exactly this reason. This correction exists so that a
+    FUTURE faithfulness check does not re-demand bit-exactness across
+    these two sites and re-discover the same non-defect as if it were
+    new, and so a future reader of either file understands why the two
+    row-mean computations are not byte-identical without needing to
+    re-derive it.
+  required_action:
+  - >-
+    None. No code change is authorized by this record. Any future contract
+    that needs bit-level agreement between a reproduction and a reference
+    computation must either compute both via the identical code path, or
+    state an explicit, non-zero tolerance -- not assume `sum(x)/len(x)`
+    and `statistics.mean(x)` agree exactly.
+  evidence_artifacts:
+  - harness/exp_icinv.py
+  - harness/run_saturation.py
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-d7e255
+  - EXP-INSTR-36c8cf
+  - EXP-ICINV-4d33aa
+  - CORR-20260807-a24675
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
