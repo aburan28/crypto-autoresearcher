@@ -13,6 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
+import weakref
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -30,6 +32,11 @@ def _ptr(a):
 
 # Calls touching fewer words than this keep the GIL (see _native.load_holding_gil).
 GIL_RELEASE_WORDS = 1 << 15
+# matrices below this many words run one elimination on one thread by
+# default (measured crossover on 4 cores: threads start to pay near 1e7 words)
+INNER_MIN_WORDS = 1 << 23
+# words per super-block step of the "sb" column pass (1..8); speed only
+SB_WORDS = int(os.environ.get("CRYPTO_AR_GF2_SB_WORDS", "2"))
 
 
 def _lib_for(words):
@@ -110,12 +117,19 @@ class OpLog:
 # ---------------------------------------------------------------------------
 # column pass
 # ---------------------------------------------------------------------------
-def column_pass(M, C, keep_ops=True, algorithm="blocked") -> OpLog:
+def column_pass(M, C, keep_ops=True, algorithm="auto", threads=None) -> OpLog:
     """The declared column-major solver on packed M (modified in place).
 
-    algorithm: "blocked" (word-blocked with Gray-code tables) or "direct"
-    (per-column buckets); both native forms return the reference's op log and
-    final matrix, and are cross-checked in tests."""
+    algorithm: "sb" (super-blocked: SB_WORDS words per step, Gray-code tables,
+    threaded trailing update), "blocked" (one word per step), "direct"
+    (per-column buckets) or "auto" (the default: "sb" with more than one
+    thread, else "blocked", the faster of the two single-threaded). Every
+    native form returns the reference's op log and final matrix; they are
+    cross-checked in tests.
+
+    threads: threads for the trailing update inside this one matrix (default:
+    ``inner_threads()`` for matrices of at least INNER_MIN_WORDS words, else
+    1). Any value gives identical output."""
     _need(M, np.uint64, "M")
     R, W = M.shape
     lib = _native.load()
@@ -125,20 +139,40 @@ def column_pass(M, C, keep_ops=True, algorithm="blocked") -> OpLog:
     import ctypes
     tot = ctypes.c_int64(0)
     lib = _lib_for(R * W)
-    fn = {"blocked": lib.gf2_column_pass_blocked, "direct": lib.gf2_column_pass}[algorithm]
-    h = fn(_ptr(M), R, W, C, 1 if keep_ops else 0, ctypes.byref(tot))
+    if threads is None:
+        nt = inner_threads() if R * W >= INNER_MIN_WORDS else 1
+    else:
+        nt = max(1, int(threads))
+    if algorithm == "auto":
+        algorithm = "sb" if nt > 1 else "blocked"
+    if algorithm == "blocked":
+        h = lib.gf2_column_pass_blocked_mt(_ptr(M), R, W, C, 1 if keep_ops else 0,
+                                           ctypes.byref(tot), nt)
+    elif algorithm == "sb":
+        h = lib.gf2_column_pass_sb(_ptr(M), R, W, C, 1 if keep_ops else 0,
+                                   ctypes.byref(tot), nt, SB_WORDS)
+    elif algorithm == "direct":
+        h = lib.gf2_column_pass(_ptr(M), R, W, C, 1 if keep_ops else 0, ctypes.byref(tot))
+    else:
+        raise ValueError(f"unknown algorithm {algorithm!r}")
     if not h:
         raise MemoryError("gf2_column_pass: allocation failed")
-    try:
-        K = lib.gf2_log_K(h)
-        nx = lib.gf2_log_nx(h)
-        ps = np.empty(K, dtype=np.int32)
-        cs = np.empty(K, dtype=np.int32)
-        xoff = np.empty(K + 1, dtype=np.int64)
-        xs = np.empty(nx, dtype=np.int32)
-        lib.gf2_log_copy(h, _ptr(ps), _ptr(cs), _ptr(xoff), _ptr(xs))
-    finally:
+    K = lib.gf2_log_K(h)
+    nx = lib.gf2_log_nx(h)
+    ps = np.empty(K, dtype=np.int32)
+    cs = np.empty(K, dtype=np.int32)
+    xoff = np.empty(K + 1, dtype=np.int64)
+    lib.gf2_log_copy_meta(h, _ptr(ps), _ptr(cs), _ptr(xoff))
+    if not keep_ops or nx == 0:
         lib.gf2_log_free(h)
+        xs = np.zeros(0, dtype=np.int32)
+    else:
+        # The X list is often hundreds of MB: view the C buffer in place and
+        # free it with the view instead of copying it (a copy cost more than
+        # half the elimination at nv = 24, D = 5).
+        buf = (ctypes.c_int32 * nx).from_address(lib.gf2_log_xs(h))
+        weakref.finalize(buf, _native.load().gf2_log_free, h)
+        xs = np.frombuffer(buf, dtype=np.int32)
     if not keep_ops:
         return OpLog(ps, cs, None, None, tot.value)
     return OpLog(ps, cs, xoff, xs, tot.value)
@@ -306,14 +340,42 @@ def default_threads() -> int:
     return max(1, len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1)
 
 
+_tls = threading.local()
+
+
+def inner_threads() -> int:
+    """Threads one elimination may use for itself.
+
+    $CRYPTO_AR_GF2_INNER_THREADS if set; otherwise 1 inside a ``map_threads``
+    worker (the pool already fills the cores) and ``default_threads()``
+    elsewhere. Only speed depends on it, never output."""
+    env = os.environ.get("CRYPTO_AR_GF2_INNER_THREADS")
+    if env:
+        return max(1, int(env))
+    if getattr(_tls, "in_pool", False):
+        return 1
+    return default_threads()
+
+
+def _pooled(fn):
+    def run(x):
+        _tls.in_pool = True
+        try:
+            return fn(x)
+        finally:
+            _tls.in_pool = False
+    return run
+
+
 def map_threads(fn, items, threads=None):
     """``list(map(fn, items))`` on a thread pool, order preserved.
 
     Worth it when ``fn`` spends its time in native kernels (GIL released);
-    with the reference backend it only adds overhead, so it runs serially."""
+    with the reference backend it only adds overhead, so it runs serially.
+    Inside the pool each elimination runs single-threaded (``inner_threads``)."""
     items = list(items)
     threads = threads or default_threads()
     if threads == 1 or backend() != "native" or len(items) < 2:
         return [fn(x) for x in items]
     with ThreadPoolExecutor(max_workers=threads) as ex:
-        return list(ex.map(fn, items))
+        return list(ex.map(_pooled(fn), items))
