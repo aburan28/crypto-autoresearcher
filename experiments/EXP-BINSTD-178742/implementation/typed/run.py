@@ -4,6 +4,9 @@
 Launch:
   python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py --packaging-check
   python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py --run
+  python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py --run --score-part1
+  python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py --run --score-part2
+  python3 -I experiments/EXP-BINSTD-178742/implementation/typed/run.py --run --execute-scoring
 
 Under python3 -I the directory of run.py is NOT on sys.path. This file therefore
 inserts the absolute path of experiments/EXP-BINSTD-178742/implementation/typed/
@@ -13,10 +16,13 @@ before doing so (corrective.custody.run_entry_sys_path).
 Authorization:
   Packaging: TASK-20260930-d007a4 / DEC-20260930-70bff3 (implementation_authorized).
   Wiring: TASK-20260930-606126 / DEC-20260930-8de5ba (scientific_execution_authorized).
+  Scoring-impl: TASK-20260930-8ec263 / DEC-20260930-780151 (part12 scoring capability).
   --run REFUSES while scientific_execution_authorized is false or packaging_only
-  is true. When authorized, --run enters a dry contract-path check (custody +
-  stopping-rule presence) and does NOT score Part 1/Part 2 and does NOT mint
-  RUN-*. Opening/wiring is not a solve claim.
+  is true. Default --run enters authorized_dry_gate (contract_path_check) and
+  does NOT score Part 1/2. Explicit --score-part1 / --score-part2 /
+  --execute-scoring enters the scoring stage path (in-memory; does not mint
+  RUN-* or write under experiments/.../runs/ unless a later /run adds that).
+  Opening/wiring/scoring-impl is not a solve claim.
 """
 
 import os
@@ -44,10 +50,14 @@ EXPECTED_CONTRACT_SHA256 = (
 EXPERIMENT_ID = "EXP-BINSTD-178742"
 HYPOTHESIS_ID = "H-BINSTD-ce4f38"
 GOAL_ID = "GOAL-ECDLP2M-001"
-BATCH_ID = "BATCH-ccfdc6"
+BATCH_ID = "BATCH-075541"
 PACKAGING_TASK = "TASK-20260930-d007a4"
 PACKAGING_BATCH = "BATCH-8c7af6"
 WIRING_TASK = "TASK-20260930-606126"
+WIRING_BATCH = "BATCH-ccfdc6"
+SCORING_IMPL_TASK = "TASK-20260930-8ec263"
+SCORING_IMPL_BATCH = "BATCH-075541"
+SCORING_IMPL_DECISION = "DEC-20260930-780151"
 AUTH_DECISION = "DEC-20260930-8de5ba"
 IMPL_AUTH_DECISION = "DEC-20260930-70bff3"
 APPROVAL_DECISION = "DEC-20260930-735b4d"
@@ -163,6 +173,17 @@ def _check_stopping_rules_present() -> Dict[str, Any]:
     return item
 
 
+def _auth_gate(trial: Dict[str, Any]) -> Optional[str]:
+    """Return a refusal reason string, or None if authorized."""
+    if not trial.get("scientific_execution_authorized"):
+        return "scientific_execution_authorized is false in trial-plan.json"
+    if trial.get("packaging_only"):
+        return "packaging_only is true in trial-plan.json"
+    if trial.get("maximum_runs", 0) == 0:
+        return "maximum_runs is 0 in trial-plan.json"
+    return None
+
+
 def packaging_check() -> Dict[str, Any]:
     """Validate package integrity without scoring Part 1/Part 2."""
     root = _repo_root()
@@ -175,7 +196,9 @@ def packaging_check() -> Dict[str, Any]:
         "batch_id": BATCH_ID,
         "packaging_task": PACKAGING_TASK,
         "wiring_task": WIRING_TASK,
+        "scoring_impl_task": SCORING_IMPL_TASK,
         "authorization_decision": AUTH_DECISION,
+        "scoring_impl_decision": SCORING_IMPL_DECISION,
         "approval_decision": APPROVAL_DECISION,
         "typed_dir": _TYPED_DIR,
         "sys_path_0": sys.path[0],
@@ -184,6 +207,7 @@ def packaging_check() -> Dict[str, Any]:
         ),
         "packaging_only": bool(trial.get("packaging_only")),
         "maximum_runs": trial.get("maximum_runs"),
+        "task_id": trial.get("task_id"),
         "runs_launched": 0,
         "amazon_bedrock": "not_used",
         "ok": True,
@@ -203,7 +227,6 @@ def packaging_check() -> Dict[str, Any]:
         report["ok"] = False
         report["problems"].extend(hash_item["problems"])
 
-    # After wiring: expect authorized flags matching DEC-20260930-8de5ba.
     if trial.get("scientific_execution_authorized") is not True:
         report["ok"] = False
         report["problems"].append(
@@ -224,6 +247,12 @@ def packaging_check() -> Dict[str, Any]:
         report["ok"] = False
         report["problems"].append(
             f"trial-plan authorization_decision must be {AUTH_DECISION}"
+        )
+    if trial.get("task_id") != SCORING_IMPL_TASK:
+        report["ok"] = False
+        report["problems"].append(
+            f"trial-plan task_id must be {SCORING_IMPL_TASK}, "
+            f"got {trial.get('task_id')!r}"
         )
 
     audit = import_audit.audit_tree(Path(_TYPED_DIR))
@@ -266,7 +295,18 @@ def packaging_check() -> Dict[str, Any]:
             report["ok"] = False
             report["problems"].append(f"{name} packaging_surface failed")
 
-    # Confirm no RUN-* under this experiment (wiring card: still zero).
+    # Confirm score_* APIs are present (callable) without deploying census.
+    report["scoring_api"] = {
+        "score_part1": callable(getattr(part1_surface, "score_part1", None)),
+        "score_part2": callable(getattr(part2_surface, "score_part2", None)),
+    }
+    if not report["scoring_api"]["score_part1"]:
+        report["ok"] = False
+        report["problems"].append("part1_surface.score_part1 missing")
+    if not report["scoring_api"]["score_part2"]:
+        report["ok"] = False
+        report["problems"].append("part2_surface.score_part2 missing")
+
     runs_dir = root / "experiments" / EXPERIMENT_ID / "runs"
     if runs_dir.is_dir():
         run_kids = sorted(p.name for p in runs_dir.iterdir())
@@ -301,9 +341,12 @@ def contract_path_check() -> Dict[str, Any]:
         "goal_id": GOAL_ID,
         "batch_id": BATCH_ID,
         "wiring_task": WIRING_TASK,
+        "scoring_impl_task": SCORING_IMPL_TASK,
         "authorization_decision": AUTH_DECISION,
+        "scoring_impl_decision": SCORING_IMPL_DECISION,
         "implementation_authorization_decision": IMPL_AUTH_DECISION,
         "approval_decision": APPROVAL_DECISION,
+        "task_id": trial.get("task_id"),
         "scientific_execution_authorized": bool(
             trial.get("scientific_execution_authorized")
         ),
@@ -320,31 +363,16 @@ def contract_path_check() -> Dict[str, Any]:
         "classification_if_failed": "infrastructure_error",
         "note": (
             "Dry contract-path only. Does not write under experiments/.../runs/. "
-            "Does not score Part 1/Part 2. Does not mint RUN-*. Stopping rules "
-            "remain binding for any later scientific /run."
+            "Does not score Part 1/Part 2. Does not mint RUN-*. Pass "
+            "--score-part1 / --score-part2 / --execute-scoring with --run to "
+            "enter the scoring stage path. Stopping rules remain binding."
         ),
     }
 
-    if not trial.get("scientific_execution_authorized"):
+    reason = _auth_gate(trial)
+    if reason:
         report["ok"] = False
-        report["problems"].append(
-            "REFUSED_AUTH: scientific_execution_authorized is false in trial-plan"
-        )
-        report["classification_if_failed"] = "specification_error"
-        return report
-    if trial.get("packaging_only"):
-        report["ok"] = False
-        report["problems"].append(
-            "REFUSED_AUTH: packaging_only is true in trial-plan; "
-            "contract path is blocked until packaging_only=false"
-        )
-        report["classification_if_failed"] = "specification_error"
-        return report
-    if trial.get("maximum_runs", 0) == 0:
-        report["ok"] = False
-        report["problems"].append(
-            "REFUSED_AUTH: maximum_runs is 0 in trial-plan"
-        )
+        report["problems"].append(f"REFUSED_AUTH: {reason}")
         report["classification_if_failed"] = "specification_error"
         return report
     if trial.get("maximum_runs") != CONTRACT_MAXIMUM_RUNS:
@@ -388,7 +416,6 @@ def contract_path_check() -> Dict[str, Any]:
         report["ok"] = False
         report["problems"].extend(audit_item["problems"])
 
-    # Surface probes only (toy packaging surfaces) — not Part 1/2 scoring.
     import gf2n  # noqa: WPS433
     import part1_surface  # noqa: WPS433
     import part2_surface  # noqa: WPS433
@@ -403,7 +430,11 @@ def contract_path_check() -> Dict[str, Any]:
         "ok": True,
         "problems": [],
         "probes": surfaces,
-        "note": "packaging_surface only; Part 1/2 not scored",
+        "note": "packaging_surface only; Part 1/2 not scored on dry gate",
+        "scoring_api": {
+            "score_part1": callable(getattr(part1_surface, "score_part1", None)),
+            "score_part2": callable(getattr(part2_surface, "score_part2", None)),
+        },
     }
     for name, probe in surfaces.items():
         if not probe.get("ok"):
@@ -428,7 +459,7 @@ def contract_path_check() -> Dict[str, Any]:
         if kids:
             runs_item["ok"] = False
             runs_item["problems"].append(
-                f"unexpected runs/ entries on wiring dry gate: {kids!r}"
+                f"unexpected runs/ entries on dry gate: {kids!r}"
             )
     report["items"].append(runs_item)
     if not runs_item["ok"]:
@@ -438,11 +469,116 @@ def contract_path_check() -> Dict[str, Any]:
     return report
 
 
+def scoring_stage(
+    *,
+    score_part1: bool,
+    score_part2: bool,
+    include_toys: bool = False,
+) -> Dict[str, Any]:
+    """Enter scoring stage after auth + dry-gate checks pass.
+
+    Invokes score_part1 / score_part2 in-memory. Does NOT mint RUN-* and does
+    NOT write under experiments/.../runs/. A later /run that persists artifacts
+    must add that write path under the frozen contract budget.
+    """
+    trial = _load_trial_plan()
+    # Always run the dry gate first; refuse scoring if custody fails.
+    dry = contract_path_check()
+    report: Dict[str, Any] = {
+        "mode": "scoring_stage",
+        "stage": "part12_scoring",
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "goal_id": GOAL_ID,
+        "batch_id": BATCH_ID,
+        "scoring_impl_task": SCORING_IMPL_TASK,
+        "scoring_impl_decision": SCORING_IMPL_DECISION,
+        "task_id": trial.get("task_id"),
+        "authorization_decision": AUTH_DECISION,
+        "scientific_execution_authorized": bool(
+            trial.get("scientific_execution_authorized")
+        ),
+        "packaging_only": bool(trial.get("packaging_only")),
+        "maximum_runs": trial.get("maximum_runs"),
+        "runs_launched": 0,
+        "run_directory_minted": False,
+        "part1_scored": False,
+        "part2_scored": False,
+        "write_under_runs": False,
+        "amazon_bedrock": "not_used",
+        "dry_gate": dry,
+        "part1": None,
+        "part2": None,
+        "ok": True,
+        "problems": [],
+        "note": (
+            "Scoring stage: in-memory score_part1/score_part2 only. Does not "
+            "mint RUN-* or write part1_census.json under runs/. Persist "
+            "artifacts via a later /run under the contract budget."
+        ),
+    }
+    if not dry.get("ok"):
+        report["ok"] = False
+        report["problems"].append("authorized_dry_gate failed; scoring refused")
+        report["problems"].extend(dry.get("problems") or [])
+        return report
+
+    import part1_surface  # noqa: WPS433
+    import part2_surface  # noqa: WPS433
+
+    if score_part1:
+        # Full deployed census when called with defaults; toys optional.
+        p1 = part1_surface.score_part1(
+            include_toys=include_toys,
+            write_artifacts=False,
+        )
+        report["part1"] = p1
+        report["part1_scored"] = True
+        if not p1.get("ok"):
+            report["ok"] = False
+            report["problems"].append("score_part1 returned ok=false")
+        if p1.get("halt_before_part2_SR4"):
+            report["problems"].append(
+                "SR-4 signal: computed FALSE verdict(s) "
+                f"{p1.get('false_verdicts')!r}; Part 2 should halt on /run"
+            )
+
+    if score_part2:
+        # Stub curve builds: scoring-impl / default scientific path scaffolding.
+        p2 = part2_surface.score_part2(execute_curve_builds=False, write_artifacts=False)
+        report["part2"] = p2
+        report["part2_scored"] = True
+        # Stub status is expected and ok for the capability path.
+        if not p2.get("ok"):
+            report["ok"] = False
+            report["problems"].append("score_part2 returned ok=false")
+
+    # Reconfirm no runs/ pollution from this stage.
+    root = _repo_root()
+    runs_dir = root / "experiments" / EXPERIMENT_ID / "runs"
+    if runs_dir.is_dir():
+        kids = sorted(p.name for p in runs_dir.iterdir())
+        if kids:
+            report["ok"] = False
+            report["problems"].append(
+                f"unexpected runs/ entries after scoring stage: {kids!r}"
+            )
+            report["runs_directory_entries"] = kids
+        else:
+            report["runs_directory_entries"] = []
+    else:
+        report["runs_directory_entries"] = []
+
+    return report
+
+
 def refuse_auth(reason: str, argv: List[str]) -> int:
     """Refuse scientific launch while auth / packaging flags block --run."""
     msg = (
         f"REFUSED_AUTH: {reason}\n"
         f"wiring_task={WIRING_TASK} authorization={AUTH_DECISION} "
+        f"scoring_impl_task={SCORING_IMPL_TASK} "
+        f"scoring_impl_decision={SCORING_IMPL_DECISION} "
         f"packaging_task={PACKAGING_TASK}\n"
         f"argv={argv!r}\n"
     )
@@ -456,7 +592,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         prog="run.py",
         description=(
             "EXP-BINSTD-178742 typed entry "
-            "(--packaging-check default; --run → contract_path_check when authorized)"
+            "(--packaging-check default; --run → authorized_dry_gate; "
+            "--run --score-part1/--score-part2/--execute-scoring → scoring stage)"
         ),
     )
     parser.add_argument(
@@ -469,16 +606,44 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--run",
         action="store_true",
         help=(
-            "Enter dry contract_path_check when scientific_execution_authorized "
-            "is true and packaging_only is false. Does not score Part 1/2; "
-            "does not mint RUN-*. REFUSED while unauthorized or packaging_only."
+            "Enter authorized_dry_gate when scientific_execution_authorized "
+            "is true and packaging_only is false. Add --score-part1 / "
+            "--score-part2 / --execute-scoring to enter scoring stage. Does "
+            "not mint RUN-* by default."
         ),
+    )
+    parser.add_argument(
+        "--score-part1",
+        action="store_true",
+        default=False,
+        help="With --run: invoke part1_surface.score_part1 (in-memory census)",
+    )
+    parser.add_argument(
+        "--score-part2",
+        action="store_true",
+        default=False,
+        help=(
+            "With --run: invoke part2_surface.score_part2 (scaffolding; curve "
+            "builds stubbed unless a later amendment admits dependencies)"
+        ),
+    )
+    parser.add_argument(
+        "--execute-scoring",
+        action="store_true",
+        default=False,
+        help="With --run: score both Part 1 and Part 2 (in-memory)",
+    )
+    parser.add_argument(
+        "--include-toys",
+        action="store_true",
+        default=False,
+        help="With --score-part1: also score the seven toy degrees",
     )
     parser.add_argument(
         "--json-out",
         type=str,
         default="",
-        help="Optional path to write JSON packaging-check / contract-path report",
+        help="Optional path to write JSON packaging-check / contract-path / scoring report",
     )
     if not argv:
         argv = ["--packaging-check"]
@@ -488,25 +653,38 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.run:
         trial = _load_trial_plan()
-        if not trial.get("scientific_execution_authorized"):
+        reason = _auth_gate(trial)
+        if reason:
+            return refuse_auth(reason, argv)
+        if trial.get("maximum_runs") != CONTRACT_MAXIMUM_RUNS:
             return refuse_auth(
-                "scientific_execution_authorized is false in trial-plan.json",
+                f"maximum_runs {trial.get('maximum_runs')!r} != "
+                f"contract {CONTRACT_MAXIMUM_RUNS}",
                 argv,
             )
-        if trial.get("packaging_only"):
-            return refuse_auth(
-                "packaging_only is true in trial-plan.json",
-                argv,
+        want_p1 = bool(args.score_part1 or args.execute_scoring)
+        want_p2 = bool(args.score_part2 or args.execute_scoring)
+        if want_p1 or want_p2:
+            report = scoring_stage(
+                score_part1=want_p1,
+                score_part2=want_p2,
+                include_toys=bool(args.include_toys),
             )
-        if trial.get("maximum_runs", 0) == 0:
-            return refuse_auth(
-                "maximum_runs is 0 in trial-plan.json",
-                argv,
-            )
-        report = contract_path_check()
+        else:
+            report = contract_path_check()
         text = json.dumps(report, indent=2, sort_keys=True)
         if args.json_out:
             out = Path(args.json_out)
+            # Refuse writing under experiments/.../runs/ from this entry path.
+            runs_prefix = str(
+                _repo_root() / "experiments" / EXPERIMENT_ID / "runs"
+            )
+            if str(out.resolve()).startswith(runs_prefix):
+                sys.stderr.write(
+                    "REFUSED: --json-out under experiments/.../runs/ is "
+                    "forbidden on this entry path (no RUN-* minting here)\n"
+                )
+                return 2
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(text + "\n", encoding="utf-8")
         sys.stdout.write(text + "\n")
