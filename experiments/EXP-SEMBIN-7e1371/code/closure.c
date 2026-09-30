@@ -166,6 +166,49 @@ static long first_col(const mzd_t *M, long i) {
 }
 
 /* write product (mu * row given as masks) into row r of M, cancelling mod 2 */
+/* Elimination entry point. Every echelonization in this file goes through ech()
+ * so the routine can be swapped or cross-checked at build time:
+ *   default            mzd_echelonize(M, 1): Four Russians, switching to PLE once
+ *                      the trailing block passes density 0.15 (echelonform.h)
+ *   -DECH_PURE_M4RI    mzd_echelonize_m4ri(M, 1, 0) only, never PLE
+ *   -DECH_CROSSCHECK   runs the default AND pure Four Russians on a copy and
+ *                      compares the two RREFs; RREF is unique for a row space,
+ *                      so any difference is an error in one of them. Doubles
+ *                      the memory of each elimination.
+ * closure_ech_stats() reports calls, disagreements and the first bad call. */
+static long ech_calls_ = 0, ech_mismatch_ = 0, ech_first_bad_ = -1;
+void closure_ech_stats(long *calls, long *mismatch, long *first_bad) {
+    if (calls) *calls = ech_calls_;
+    if (mismatch) *mismatch = ech_mismatch_;
+    if (first_bad) *first_bad = ech_first_bad_;
+}
+void closure_ech_reset(void) { ech_calls_ = 0; ech_mismatch_ = 0; ech_first_bad_ = -1; }
+
+static rci_t ech(mzd_t *M) {
+#if defined(ECH_CROSSCHECK)
+    mzd_t *C = mzd_copy(NULL, M);
+    rci_t r1 = mzd_echelonize(M, 1);
+    rci_t r2 = mzd_echelonize_m4ri(C, 1, 0);
+    int same = (r1 == r2);
+    for (rci_t i = 0; i < r1 && same; i++) {
+        const word *a = mzd_row(M, i), *b = mzd_row(C, i);
+        for (wi_t w = 0; w < M->width; w++) {
+            word x = a[w] ^ b[w];
+            if (w == M->width - 1) x &= M->high_bitmask;
+            if (x) { same = 0; break; }
+        }
+    }
+    if (!same) { ech_mismatch_++; if (ech_first_bad_ < 0) ech_first_bad_ = ech_calls_; }
+    mzd_free(C);
+#elif defined(ECH_PURE_M4RI)
+    rci_t r1 = mzd_echelonize_m4ri(M, 1, 0);
+#else
+    rci_t r1 = mzd_echelonize(M, 1);
+#endif
+    ech_calls_++;
+    return r1;
+}
+
 /* DIAGNOSTIC: counts product terms whose degree exceeded D and were therefore
  * dropped by the col_of2 lookup below. A nonzero count means the row written is
  * a TRUNCATION of mu * g rather than mu * g itself, which is not an element of
@@ -245,7 +288,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         long cnt = gen_ptr[g + 1] - gen_ptr[g];
         write_product(M, g, gen_masks + gen_ptr[g], cnt, 0, tmp);
     }
-    long rk = mzd_echelonize(M, 1);
+    long rk = ech(M);
     install_basis(M, rk);
     mzd_free(M);
     iter_rows[0] = ngens; iter_rank[0] = rk; iter_newpiv[0] = rk; iter_wall[0] = now_sec() - t0;
@@ -342,7 +385,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             }
             if (filled == 0) { mzd_free(S); break; }   /* products exhausted */
             double tb = now_sec();
-            long rk2 = mzd_echelonize(S, 1);
+            long rk2 = ech(S);
             long old_rank = rank_;
             if (verbose()) fprintf(stderr, "[closure D=%d it=%d] batch rows=%ld (basis %ld + %ld products) -> rank %ld (+%ld) echelon %.1fs\n",
                                    D, it, rank_ + filled, rank_, filled, rk2, rk2 - old_rank, now_sec() - tb);

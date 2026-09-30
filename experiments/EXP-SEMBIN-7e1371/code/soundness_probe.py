@@ -97,7 +97,7 @@ def main():
     _lib.closure_eval_rows.argtypes = [ctypes.c_uint64, ctypes.POINTER(ctypes.c_long),
                                        ctypes.POINTER(ctypes.c_long)]
     for it in iters:
-        res = closure_cert._run(N, 4, eqs, max_iter=it, mem_cap_gb=3.0)
+        res = closure_cert._run(N, 4, eqs, max_iter=it, mem_cap_gb=float(__import__("os").environ.get("PROBE_MEM_GB", "3.0")))
         rank = _lib.closure_rank()
         fb, fc = ctypes.c_long(0), ctypes.c_long(0)
         offenders = _lib.closure_eval_rows(assign, ctypes.byref(fb), ctypes.byref(fc))
