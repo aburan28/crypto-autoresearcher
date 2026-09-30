@@ -35,7 +35,7 @@ combinations retain the scalar loop. Prefixes exceeding the gather budget also
 use the scalar path. Duplicate indices are retained, so even multiplicities
 cancel exactly. Inputs are not modified.
 
-A negative pivot column is now rejected explicitly. As before, the verifier
+A negative pivot column is now rejected explicitly. The batched path rejects floating-point and boolean row indices before converting to intp; it cannot silently truncate a row number. As before, the verifier
 checks the independence witnesses that were supplied. It does not independently
 prove that those rows span the whole input matrix; this is now stated in its
 docstring.
@@ -68,18 +68,18 @@ is the pre-change implementation from blob
 
 | Fixture | Baseline median, us | Candidate median, us | Ratio |
 | --- | ---: | ---: | ---: |
-| tiny_single | 3.177 | 2.486 | 1.28x |
-| short_combination | 3.551 | 3.716 | 0.96x |
-| medium_combination | 21.083 | 15.490 | 1.36x |
-| long_early_pivot | 378.225 | 74.311 | 5.09x |
-| long_late_pivot | 399.815 | 162.486 | 2.46x |
-| wide_late_pivot | 384.395 | 345.207 | 1.11x |
+| tiny_single | 3.166 | 3.396 | 0.93x |
+| short_combination | 9.878 | 8.211 | 1.20x |
+| medium_combination | 46.280 | 32.831 | 1.41x |
+| long_early_pivot | 678.300 | 179.879 | 3.77x |
+| long_late_pivot | 588.752 | 246.370 | 2.39x |
+| wide_late_pivot | 412.884 | 398.657 | 1.04x |
 
 These are phase-specific synthetic observations on a shared host. They do not
 establish an elimination speedup or an end-to-end solver gain. Each fixture is
 a single known-valid certificate, not a natural distribution of application
 certificates. Small timings were noisy; no universal crossover or
-hardware-independent ratio is claimed. The three-row fixture was about 4.6% slower in the final sample; gains are not uniform.
+hardware-independent ratio is claimed. The one-row fixture was about 7.3% slower in the final sample; gains are not uniform. Timings varied substantially between development attempts, so these are preliminary engineering observations.
 
 Environment: Intel Xeon Platinum 8370C, Linux x86_64, Python 3.12.14,
 NumPy 2.3.5, affinity pinned to CPU 0 (NUMA node 0). NUMA memory binding was
@@ -88,12 +88,12 @@ samples are retained. Input construction and hashing are excluded from both
 arms; reconstruction and verification are included. Arm order alternates.
 Peak RSS was not measured; the temporary-gather bound is from the code.
 
-first.json, second.json, and third.json preserve development timing attempts. The first revealed
+first.json through fourth.json preserve development timing attempts. The first revealed
 short-combination overhead; the scalar path was restored. The second showed
 substantial timing noise, prompting longer sampling of short fixtures and
 process-CPU timing. The third used a semantically equivalent scalar control;
 the final runner restores the exact original verifier body (apart from its
-function name/type annotation) and increases sampling. Earlier attempts are
+function name/type annotation) and increases sampling. The fourth precedes the final batched-index type checks, which are covered by regression cases. Earlier attempts are
 not measurements of the submitted final source.
 
 No formal EXP/RUN identifiers or independent-review attestations are asserted.

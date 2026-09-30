@@ -309,6 +309,12 @@ def verify_certificate(M: np.ndarray, C: int, cert: RankCertificate) -> bool:
                 acc ^= M[r]
         else:
             for r in rows:
+                # Advanced indexing casts to intp; never truncate floats or
+                # reinterpret booleans as row numbers during that conversion.
+                if type(r) is not int and (
+                    not isinstance(r, (int, np.integer)) or isinstance(r, bool)
+                ):
+                    return False
                 if r < 0 or r >= M.shape[0]:
                     return False
             acc = _certificate_prefix(M, rows, words)

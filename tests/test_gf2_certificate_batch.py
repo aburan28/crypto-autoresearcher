@@ -104,6 +104,8 @@ class CertificateBatchTests(unittest.TestCase):
             cert_at(0, ()), cert_at(0, (-1,)), cert_at(0, (10,)),
             cert_at(0, tuple(range(8)) + (-1,)),
             cert_at(0, tuple(range(8)) + (10,)),
+            cert_at(0, (0.0,) * 9), cert_at(0, (True,) * 9),
+            cert_at(0, (np.bool_(True),) * 9),
             cert_at(-1, (0,)), cert_at(64, (0,)),
             cert_at(0, (0, 0)),  # cancellation leaves no leading bit
             ro.RankCertificate((0, 0), (0, 0), ((0,), (0,))),
