@@ -7,3 +7,4 @@ them. See docs in each module and tests/test_gf2_kernels.py.
 """
 from . import kernels  # noqa: F401
 from .kernels import backend  # noqa: F401
+from . import rank_only  # noqa: F401

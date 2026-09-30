@@ -25,6 +25,9 @@ _SRC = Path(__file__).with_name("_kernels.c")
 # No -march=native: the cache may sit on a home directory shared by machines
 # with different CPUs, and the XOR loops vectorise on the baseline ISA.
 _FLAGS = ["-O3", "-fPIC", "-shared", "-std=gnu99"]
+# OpenMP threads the trailing update inside one elimination. A compiler or
+# runtime without it gets the same kernels single-threaded (same results).
+_OMP_FLAGS = ["-fopenmp"]
 _lib = None
 _lib_gil = None
 _tried = False
@@ -50,12 +53,22 @@ def _declare(lib):
     lib.gf2_column_pass.argtypes = [P, i64, i64, i64, ctypes.c_int, ctypes.POINTER(i64)]
     lib.gf2_column_pass_blocked.restype = P
     lib.gf2_column_pass_blocked.argtypes = [P, i64, i64, i64, ctypes.c_int, ctypes.POINTER(i64)]
+    lib.gf2_column_pass_sb.restype = P
+    lib.gf2_column_pass_sb.argtypes = [P, i64, i64, i64, ctypes.c_int, ctypes.POINTER(i64),
+                                       ctypes.c_int, ctypes.c_int]
+    lib.gf2_column_pass_blocked_mt.restype = P
+    lib.gf2_column_pass_blocked_mt.argtypes = [P, i64, i64, i64, ctypes.c_int, ctypes.POINTER(i64),
+                                               ctypes.c_int]
     lib.gf2_log_K.restype = i64
     lib.gf2_log_K.argtypes = [P]
     lib.gf2_log_nx.restype = i64
     lib.gf2_log_nx.argtypes = [P]
     lib.gf2_log_copy.restype = None
     lib.gf2_log_copy.argtypes = [P, P, P, P, P]
+    lib.gf2_log_copy_meta.restype = None
+    lib.gf2_log_copy_meta.argtypes = [P, P, P, P]
+    lib.gf2_log_xs.restype = P
+    lib.gf2_log_xs.argtypes = [P]
     lib.gf2_log_free.restype = None
     lib.gf2_log_free.argtypes = [P]
     lib.gf2_row_pass.restype = i64
@@ -117,8 +130,23 @@ def _build_and_load():
     if cc is None:
         raise RuntimeError("no C compiler found (set CC)")
     src = _SRC.read_bytes()
+    errors = []
+    for flags in ([*_FLAGS, *_OMP_FLAGS], list(_FLAGS)):
+        try:
+            so = _compile(cc, src, flags)
+            lib = _declare(ctypes.CDLL(str(so)))
+        except (RuntimeError, OSError) as exc:
+            errors.append(str(exc))
+            continue
+        build_info.update(backend="native", so=str(so), source_sha256=hashlib.sha256(src).hexdigest(),
+                          compiler=cc, flags=flags, openmp="-fopenmp" in flags)
+        return lib
+    raise RuntimeError("; ".join(errors))
+
+
+def _compile(cc, src, flags):
     key = hashlib.sha256(
-        src + " ".join([cc, *_FLAGS, platform.machine(), platform.system()]).encode()
+        src + " ".join([cc, *flags, platform.machine(), platform.system()]).encode()
     ).hexdigest()[:24]
     d = _cache_dir()
     d.mkdir(parents=True, exist_ok=True)
@@ -126,12 +154,9 @@ def _build_and_load():
     if not so.exists():
         with tempfile.TemporaryDirectory(dir=d) as tmp:
             out = Path(tmp) / so.name
-            cmd = [cc, *_FLAGS, str(_SRC), "-o", str(out)]
+            cmd = [cc, *flags, str(_SRC), "-o", str(out)]
             proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode != 0:
                 raise RuntimeError(f"{' '.join(cmd)} failed:\n{proc.stderr}")
             os.replace(out, so)  # atomic: concurrent builders race harmlessly
-    lib = _declare(ctypes.CDLL(str(so)))
-    build_info.update(backend="native", so=str(so), source_sha256=hashlib.sha256(src).hexdigest(),
-                      compiler=cc, flags=list(_FLAGS))
-    return lib
+    return so
