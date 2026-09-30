@@ -91,6 +91,24 @@ jobs:
       - name: Build generated artifacts
         run: python3 tools/build_knowledge_index.py
 
+      # github.event.pull_request.base.sha is frozen when the PR is opened and
+      # is not refreshed by later pushes, while actions/checkout gives a PR job
+      # the merge of the CURRENT base tip and the PR head. Diffing that frozen
+      # base against the merge commit counts everything the base branch changed
+      # since the PR opened as this PR's change, so a branch that touches no
+      # queue and no record fails on other lanes' breakage. The hygiene and
+      # knowledge-index steps below already use the live base; this resolves
+      # the same thing for the two steps that diff against a SHA: the merge
+      # commit's first parent, which is exactly the tip this PR merges into.
+      - name: Resolve the PR's effective base
+        if: github.event_name == 'pull_request'
+        run: |
+          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
+            echo "PR_BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          else
+            echo "PR_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+          fi
+
       # Check what this PR adds/changes, including non-batch proposal queues.
       # The historical all-queue census remains in main-health; repeating that
       # warning-only sweep on every PR costs time without gating regressions.
@@ -98,7 +116,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           mkdir -p "$RUNNER_TEMP/harness-ci/queues"
-          git diff --name-only --diff-filter=ACMR -z "$BASE_SHA" HEAD -- \
+          git diff --name-only --diff-filter=ACMR -z "${PR_BASE_SHA:-$BASE_SHA}" HEAD -- \
             'coordination/**/dispatch_queue.json' 'coordination/dispatch_queue.json' |
           while IFS= read -r -d '' q; do
             d=$(mktemp -d "$RUNNER_TEMP/harness-ci/queues/queue.XXXXXX")
@@ -125,7 +143,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_WORKTREE="$RUNNER_TEMP/validate-base-ledger"
             trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
-            git worktree add --detach "$BASE_WORKTREE" "$BASE_SHA"
+            git worktree add --detach "$BASE_WORKTREE" "${PR_BASE_SHA:-$BASE_SHA}"
             LOG_DIR="$RUNNER_TEMP/harness-ci"
             mkdir -p "$LOG_DIR"
             HEAD_STATUS=0
@@ -136,7 +154,7 @@ jobs:
               python3 tools/validate_ledger.py > "$LOG_DIR/ledger-base.log" 2>&1
             ) || BASE_STATUS=$?
             printf 'head=%s\nbase=%s\nbase_sha=%s\n' \
-              "$HEAD_STATUS" "$BASE_STATUS" "$BASE_SHA" > "$LOG_DIR/ledger-status.txt"
+              "$HEAD_STATUS" "$BASE_STATUS" "${PR_BASE_SHA:-$BASE_SHA}" > "$LOG_DIR/ledger-status.txt"
             python3 tools/ci_ledger_gate.py \
               --head-log "$LOG_DIR/ledger-head.log" --head-status "$HEAD_STATUS" \
               --base-log "$LOG_DIR/ledger-base.log" --base-status "$BASE_STATUS"
