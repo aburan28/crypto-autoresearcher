@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "taskq.task-spec/v1",
+  "title": "taskq task spec v1",
+  "description": "What a submitter asks a worker to run. Immutable once enqueued: its canonical sha256 is bound into every result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "queue",
+    "kind",
+    "source",
+    "command"
+  ],
+  "properties": {
+    "schema": {
+      "const": "taskq.task-spec/v1"
+    },
+    "queue": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "description": "Routing class, one per hardware shape (cpu, cpu-exclusive, gpu-sm120). Workers subscribe to queues; there is no scheduler."
+    },
+    "kind": {
+      "enum": [
+        "command",
+        "benchmark"
+      ],
+      "description": "command: run once. benchmark: warmups + timed repetitions, each measured separately."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "properties": {
+        "repo": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "description": "Alias from the worker's repo allowlist (crypto, crypto-autoresearcher, cryptanalysis). Never a URL."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Full commit sha. Branch names are refused: a task must name exactly the code it ran."
+        },
+        "sparse_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[^/.][^\\\\]*$"
+          },
+          "description": "Check out only these directories (cone mode) plus top-level files. For large repos: the tree then holds just what the task needs."
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argv"
+      ],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Executed without a shell."
+        },
+        "cwd": {
+          "type": "string",
+          "default": ".",
+          "description": "Relative to the checkout; may not escape it."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "setup": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "Build steps run before argv (e.g. cargo build --release). Timed separately and reported as setup cost, never folded into the measurement."
+        }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "warmups": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 1
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 5
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 3600,
+          "description": "Per execution of argv (per repetition for benchmark). Expiry yields status timeout, which is never negative evidence."
+        },
+        "setup_timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 3600
+        },
+        "memory_mb": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "default": null
+        },
+        "max_log_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "default": 16777216
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Worker labels that must match exactly (arch, cpu_model, node pool). A worker lacking them hands the task back."
+        },
+        "cpus": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "default": null,
+          "description": "Pin the child to this many CPUs from the worker's affinity set."
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3,
+          "description": "Counts infrastructure attempts only (worker lost, checkout failed). A nonzero exit or a timeout is an outcome and is never retried."
+        }
+      }
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Submitting the same key twice returns the first task id."
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Provenance, opaque to the queue: goal, experiment, task, submitted_by."
+    },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Check each timed run's certificate in a separate process after its timing stops. The result carries runs[].verification and a top-level verification rollup; the task status is unchanged. Consumers treat refuted as an invalid measurement, never as a negative result, and error as unverified.",
+      "oneOf": [
+        {
+          "required": [
+            "builtin"
+          ]
+        },
+        {
+          "required": [
+            "argv"
+          ]
+        }
+      ],
+      "properties": {
+        "builtin": {
+          "enum": [
+            "certificate"
+          ],
+          "description": "taskq.verify: independent recompute of discrete_log certificates over prime and binary fields."
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "A verifier in the checkout; exit 0 verified, 1 refuted, 2 no claim. Gets TASKQ_CERTIFICATE and TASKQ_OUTPUT_DIR."
+        },
+        "certificate_file": {
+          "type": "string",
+          "pattern": "^[^/]+$",
+          "default": "certificate.json"
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 600
+        }
+      }
+    }
+  }
+}
