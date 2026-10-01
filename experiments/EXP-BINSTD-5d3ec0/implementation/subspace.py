@@ -19,7 +19,10 @@ def _from_bits(v: np.ndarray) -> int:
 def random_subspace_basis(n: int, l_prime: int, rng) -> np.ndarray:
     """Return n x l' full-rank matrix over F_2 (columns = basis of V')."""
     while True:
-        B = rng.integers(0, 2, size=(n, l_prime), dtype=np.uint8)
+        if hasattr(rng, "integers"):
+            B = rng.integers(0, 2, size=(n, l_prime), dtype=np.uint8)
+        else:
+            B = np.array([[rng.randrange(2) for _ in range(l_prime)] for _ in range(n)], dtype=np.uint8)
         # rank check
         M = B.copy().astype(np.uint8)
         rank = 0
