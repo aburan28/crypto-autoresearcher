@@ -1,0 +1,33 @@
+# J5 coverage tables -- TASK-20260929-accb8e (own simulation code; no Stage 0 review material read).
+# Code: calibration/j5_calibration.py (sha256 9c0e87aa574b2c3ef9eb9ab10f77ca48ede71096e316e55045ee3771318d1300), calibration/j5_a2_calibration.py (sha256 5ec18f73b4f4fb91d51ef293d81ccb6e6ddcdd1416e200843cc8dc0c16c5fe3a).
+# Raw outputs: calibration/out/j5-a.json, j5-b.json, j5-c.json, j5-a2.json. Nominal level 0.95 everywhere; se = binomial standard error.
+j5_coverage_tables:
+  a_stats_bootstrap_slope:
+    procedure: "stats.bootstrap_slope (frozen: reps 2000, level 0.95, seed 0), loaded by file path"
+    design: "x = log2 N drawn as bits - 1 + U(0,1) per curve, groups = bits, five curves per rung; y = 1 + 0.6 x + e; e sd 0.3 (Gaussian) or Student-t3 scaled to the same variance"
+    master_seeds: "random.Random('J5a|<design>|<law>'); each series seeded from the master stream"
+    rows:
+      - {config: 'J5a|11x5_12..32|gauss', series: 1500, coverage: 0.9093, se: 0.0074, P_hi_below_truth: 0.0493, P_lo_above_truth: 0.0413, median_width: 0.0219}
+      - {config: 'J5a|11x5_12..32|t3', series: 1500, coverage: 0.8953, se: 0.0079, P_hi_below_truth: 0.0487, P_lo_above_truth: 0.056, median_width: 0.0194}
+      - {config: 'J5a|7x5_12..24|gauss', series: 1500, coverage: 0.896, se: 0.0079, P_hi_below_truth: 0.0513, P_lo_above_truth: 0.0527, median_width: 0.043}
+      - {config: 'J5a|7x5_12..24|t3', series: 1500, coverage: 0.8873, se: 0.0082, P_hi_below_truth: 0.0533, P_lo_above_truth: 0.0593, median_width: 0.0365}
+      - {config: 'J5a|7x5_20..32|gauss', series: 1500, coverage: 0.8993, se: 0.0078, P_hi_below_truth: 0.05, P_lo_above_truth: 0.0507, median_width: 0.0436}
+      - {config: 'J5a|7x5_20..32|t3', series: 1500, coverage: 0.8987, se: 0.0078, P_hi_below_truth: 0.0447, P_lo_above_truth: 0.0567, median_width: 0.0368}
+  b_A4_intervals:
+    procedures: "stats.fit_exponent over 12..32 (frozen defaults) for the on-mode exponent; my CV-11 paired bootstrap of delta (random.Random(0), 2000 replicates) -- the implementation used in J3"
+    design: "11 rungs x 5 instances; log2 S3 = const + 0.62 x + u + e_mode; u sd 0.25 shared by the two modes of an instance; e sd 0.15 per mode; delta = 0; Gaussian or t3"
+    master_seeds: "random.Random('J5b|11x5|<law>')"
+    rows:
+      - {config: 'J5b|11x5|gauss', series: 1000, exponent_coverage: 0.913, exponent_se: 0.0089, exponent_P_hi_below_truth: 0.048, exponent_P_lo_above_truth: 0.039, exponent_P_hi_below_truth_plus_0.03: 1.0, delta_coverage: 0.909, delta_se: 0.0091, delta_P_hi_below_0: 0.043, delta_P_lo_above_0: 0.048, delta_P_hi_below_0.03: 1.0, P_abs_delta_hat_le_0.03: 1.0}
+      - {config: 'J5b|11x5|t3', series: 1000, exponent_coverage: 0.916, exponent_se: 0.0088, exponent_P_hi_below_truth: 0.045, exponent_P_lo_above_truth: 0.039, exponent_P_hi_below_truth_plus_0.03: 0.985, delta_coverage: 0.903, delta_se: 0.0094, delta_P_hi_below_0: 0.043, delta_P_lo_above_0: 0.054, delta_P_hi_below_0.03: 0.995, P_abs_delta_hat_le_0.03: 1.0}
+  a_prime_A2_curve_index_bootstrap:
+    procedure: "my sealed A2 implementation (CV-7; random.Random(0), 2000 replicates, x_b fixed)"
+    design: "rungs 20..32, five curves x (one structured + three random arms); curve means 200*2^(0.3(b-20))*exp(0.5 Z); structured Poisson(kappa mu), randoms Poisson(mu); kappa_b = 1 + 0.3*2^(delta (x_b - 26))"
+    master_seeds: "random.Random('J5a2|delta=<delta>')"
+    rows:
+      - {config: 'delta=0.0', series: 1000, coverage: 0.875, se: 0.0105, P_lo_above_0: 0.07, P_lo_above_0_se: 0.0081}
+      - {config: 'delta=0.1', series: 1000, coverage: 0.864, se: 0.0108, P_lo_above_0: 1.0, P_lo_above_0_se: 0.0}
+  c_predicted_from_deflation:
+    rule: "percentile bootstrap resampling n units with replacement inside a stratum has plug-in variance (n-1)/n times the unbiased one; z_eff = 1.96*sqrt((n-1)/n); coverage ~ P(|T_df| <= z_eff)"
+    n_per_stratum=15: {z_eff: 1.8935, normal_known_variance: 0.9417, t_df28: 0.9313, t_df44: 0.9351, t_df154: 0.9398}
+    n_per_stratum=5: {z_eff: 1.753, normal_known_variance: 0.9204, t_df28: 0.9095, t_df44: 0.9134, t_df154: 0.9184}

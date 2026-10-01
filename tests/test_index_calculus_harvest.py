@@ -498,3 +498,148 @@ def test_sweep_harvest_off_rows_carry_no_new_key(tmp_path, capsys):
     assert main(["sweep", "--bits", "12", "--curves", "1", "--engine", "enumerate",
                  "--harvest", "census", "--quiet"]) == 2
     capsys.readouterr()
+
+
+# -- AMD-20260929-1de84f C-1: the amended j = 0 prime rule (T1-T3; T4 is the test above) ----
+
+J0_BITS = (12, 14, 16, 18, 20, 22, 24)
+
+
+def _j0_panel_curves(bits, pf, curves=5):
+    """The C-1 j0 panel at one rung: curves c = 0..curves-1 in order, each with the
+    primes selected for the lower curves excluded; (E, P, log, excluded) per curve."""
+    out, selected = [], []
+    for c in range(curves):
+        log: list = []
+        excl = tuple(selected)
+        E, P = generate_prime_order_curve_j0(bits, c, p_filter=pf, exclude_primes=excl,
+                                             generation_log=log)
+        out.append((E, P, log, excl))
+        selected.append(E.p)
+    return out
+
+
+def _twist_orders_exhaustive(p):
+    """#E for y^2 = x^3 + g^i, i = 0..5, by the Legendre-symbol sum over every x (no BSGS)."""
+    from crypto_autoresearcher.index_calculus.curve import primitive_root
+
+    sq = bytearray(p)
+    for y in range(1, p):
+        sq[y * y % p] = 1
+    g = primitive_root(p)
+    orders = []
+    for i in range(6):
+        b = pow(g, i, p)
+        s = 0
+        for x in range(p):
+            v = (x * x * x + b) % p
+            if v:
+                s += 1 if sq[v] else -1
+        orders.append(p + 1 + s)
+    return orders
+
+
+def test_j0_twist_check_agrees_with_exhaustive_point_counts_at_12_bits():
+    """T1: for every prime selected or skipped at 12 bits in the j0 panel,
+    _j0_has_prime_order_twist equals the exhaustive six-twist verdict."""
+    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
+
+    pf = j0_prime_filter(0.15)
+    primes = set()
+    for E, _, log, _ in _j0_panel_curves(12, pf):
+        primes.add(E.p)
+        primes.update(e["p"] for e in log)
+    verdicts = {}
+    for p in sorted(primes):
+        orders = _twist_orders_exhaustive(p)
+        expect = any(n != p and n > 4 * math.isqrt(p) + 4 and is_probable_prime(n) for n in orders)
+        # exact: the verdict does not depend on the point drawn, so any stream seed agrees
+        assert _j0_has_prime_order_twist(p, 12, 0) == expect, p
+        verdicts[p] = expect
+    # the helper is called with the curve seed that drew the prime; check each (p, seed) pair
+    for c, (E, _, log, _) in enumerate(_j0_panel_curves(12, pf)):
+        for p in [e["p"] for e in log if "reason" in e] + [E.p]:
+            assert _j0_has_prime_order_twist(p, 12, c) == verdicts[p], (c, p)
+        for e in log:
+            if e.get("reason") == "no_prime_order_twist":
+                assert verdicts[e["p"]] is False
+        assert verdicts[E.p] is True
+    assert any(v is False for v in verdicts.values())  # a twist-free prime was met and skipped
+
+
+def test_j0_amended_generator_terminates_on_all_35_cells():
+    """T2: all 35 j0 cells terminate with a == 0, p = 1 mod 3, p passing j0_filter,
+    certified prime order, and five distinct primes per rung; the CLI's
+    _instance_j0 path (exclusion recomputed from c' = 0) gives the same curves."""
+    pf = j0_prime_filter(0.15)
+    for bits in J0_BITS:
+        cur = _j0_panel_curves(bits, pf)
+        ps = [E.p for E, _, _, _ in cur]
+        assert len(set(ps)) == 5, (bits, ps)
+        for c, (E, P, log, excl) in enumerate(cur):
+            p, N = E.p, E.order
+            assert E.a == 0 and p % 3 == 1 and pf(p) and p.bit_length() == bits
+            assert p not in excl
+            assert is_probable_prime(N) and N != p and N > 4 * math.isqrt(p) + 4
+            assert abs(N - (p + 1)) <= 2 * math.isqrt(p) + 2
+            Ev = Curve(p, 0, E.b)
+            assert Ev.is_on_curve(P) and Ev.mul(N, P) is None
+            R = Ev.random_point(random.Random(f"t2|{bits}|{c}"))
+            assert Ev.mul(N, R) is None
+            assert log[-1] == {"prime_draws": log[-1]["prime_draws"], "p": p, "b": E.b}
+            assert all(e["reason"] in ("duplicate_prime", "no_prime_order_twist") for e in log[:-1])
+            glog: list = []
+            E2, P2, Q2, k2 = _instance_j0(bits, c, 0, pf, generation_log=glog)
+            assert (E2.p, E2.b, E2.order, P2) == (p, E.b, N, P)
+            assert glog == log
+            assert E2.mul(k2, P2) == Q2
+
+
+def _frozen_j0_first_prime(bits, seed, pf, max_prime_draws=100_000):
+    """Inline copy of the frozen (v1) generator's prime draw."""
+    from crypto_autoresearcher.index_calculus.curve import _seeded_rng, next_prime
+
+    rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
+    for _ in range(max_prime_draws):
+        p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
+        if p.bit_length() == bits and p % 3 == 1 and (pf is None or pf(p)):
+            break
+    else:
+        raise ValueError("no prime")
+    return p, rng
+
+
+def _frozen_j0_b_loop(p, rng):
+    """Inline copy of the frozen (v1) generator's b-loop."""
+    while True:
+        b = rng.randrange(1, p)
+        E = Curve(p, 0, b)
+        P = E.random_point(rng)
+        hits = E.point_order_in_hasse(P)
+        if len(hits) != 1:
+            continue
+        m = hits[0]
+        if m == p or m <= 4 * math.isqrt(p) + 4 or not is_probable_prime(m):
+            continue
+        E.order = m
+        return E, P
+
+
+def test_j0_amended_generator_equals_frozen_where_the_first_prime_survives():
+    """T3: where the frozen stream's first accepted prime is neither excluded nor
+    twist-free, the amended output equals the frozen algorithm's."""
+    from crypto_autoresearcher.index_calculus.curve import _j0_has_prime_order_twist
+
+    pf = j0_prime_filter(0.15)
+    compared = 0
+    for bits in J0_BITS:
+        for c, (E, P, log, excl) in enumerate(_j0_panel_curves(bits, pf)):
+            p0, rng = _frozen_j0_first_prime(bits, c, pf)
+            if p0 in excl or not _j0_has_prime_order_twist(p0, bits, c):
+                assert log[0].get("p") == p0 and "reason" in log[0]
+                continue
+            Ef, Pf = _frozen_j0_b_loop(p0, rng)
+            assert (E.p, E.a, E.b, E.order, P) == (Ef.p, Ef.a, Ef.b, Ef.order, Pf), (bits, c)
+            assert log == [{"prime_draws": log[0]["prime_draws"], "p": p0, "b": Ef.b}]
+            compared += 1
+    assert compared > 0
