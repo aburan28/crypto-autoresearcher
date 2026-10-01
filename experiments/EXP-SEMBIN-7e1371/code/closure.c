@@ -184,6 +184,44 @@ void closure_ech_stats(long *calls, long *mismatch, long *first_bad) {
 }
 void closure_ech_reset(void) { ech_calls_ = 0; ech_mismatch_ = 0; ech_first_bad_ = -1; }
 
+/* -DECH_EVALCHECK: a known common zero of the generators (set by
+ * closure_set_witness) is a linear functional that every element of the ideal
+ * vanishes on, and elimination only takes linear combinations. So in every
+ * call the rows going IN must all vanish at it, and so must the rows coming
+ * OUT. A non-vanishing row before elimination blames the product code; one
+ * that appears only after blames the elimination routine. One pass over the
+ * nonzeros per call, no second matrix -- unlike ECH_CROSSCHECK. */
+/* ECH_EVALCHECK only: which routine does the elimination, chosen at run time so
+ * one build can test all three on the same matrices.
+ * 0 = mzd_echelonize (default: Four Russians, hands off to PLE past density
+ *     0.15); 1 = mzd_echelonize_pluq (PLUQ throughout); 2 = mzd_echelonize_m4ri
+ *     (Four Russians throughout, never PLE). */
+static int ech_method_ = 0;
+void closure_set_method(int m) { ech_method_ = m; }
+static u64 witness_ = 0;
+static int witness_set_ = 0;
+void closure_set_witness(u64 assign) { witness_ = assign; witness_set_ = 1; }
+
+static long rows_not_vanishing(const mzd_t *M, rci_t upto, long *first) {
+    long bad = 0;
+    *first = -1;
+    for (rci_t i = 0; i < upto; i++) {
+        const word *r = mzd_row((mzd_t *)M, i);
+        int v = 0;
+        for (wi_t w = 0; w < M->width; w++) {
+            word x = r[w];
+            while (x) {
+                int b = __builtin_ctzll(x);
+                long j = (long)w * 64 + b;
+                if (j < M->ncols && (col_mask_[j] & witness_) == col_mask_[j]) v ^= 1;
+                x &= x - 1;
+            }
+        }
+        if (v) { if (bad == 0) *first = i; bad++; }
+    }
+    return bad;
+}
+
 static rci_t ech(mzd_t *M) {
 #if defined(ECH_CROSSCHECK)
     mzd_t *C = mzd_copy(NULL, M);
@@ -198,8 +236,27 @@ static rci_t ech(mzd_t *M) {
             if (x) { same = 0; break; }
         }
     }
+    /* Report on the spot, so a run killed before it finishes still leaves the
+     * evidence behind: one line per elimination, flushed immediately. */
+    fprintf(stderr, "[ech %ld] %d x %d  rank default=%d m4ri=%d  %s\n",
+            ech_calls_, (int)M->nrows, (int)M->ncols, (int)r1, (int)r2,
+            same ? "agree" : "*** RREF DISAGREES ***");
+    fflush(stderr);
     if (!same) { ech_mismatch_++; if (ech_first_bad_ < 0) ech_first_bad_ = ech_calls_; }
     mzd_free(C);
+#elif defined(ECH_EVALCHECK)
+    long fin = -1, fout = -1;
+    long bin = witness_set_ ? rows_not_vanishing(M, M->nrows, &fin) : -1;
+    rci_t r1 = ech_method_ == 1 ? mzd_echelonize_pluq(M, 1)
+             : ech_method_ == 2 ? mzd_echelonize_m4ri(M, 1, 0)
+             : mzd_echelonize(M, 1);
+    long bout = witness_set_ ? rows_not_vanishing(M, r1, &fout) : -1;
+    fprintf(stderr, "[ech %ld %s] %d x %d rank %d | rows not vanishing at the zero: in=%ld out=%ld%s\n",
+            ech_calls_, ech_method_ == 1 ? "pluq" : ech_method_ == 2 ? "m4ri" : "default", (int)M->nrows, (int)M->ncols, (int)r1, bin, bout,
+            (bin == 0 && bout > 0) ? "  *** ELIMINATION LEFT THE IDEAL ***" :
+            (bin > 0) ? "  *** PRODUCTS ALREADY OUTSIDE THE IDEAL ***" : "");
+    fflush(stderr);
+    if (bout > 0 || bin > 0) { ech_mismatch_++; if (ech_first_bad_ < 0) ech_first_bad_ = ech_calls_; }
 #elif defined(ECH_PURE_M4RI)
     rci_t r1 = mzd_echelonize_m4ri(M, 1, 0);
 #else
