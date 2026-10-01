@@ -52,8 +52,7 @@ mechanism, prediction, threshold, cost or novelty_status changed):
   deltas now sit. New `nearest`: KR-RHO-53c89f (special_case),
   KN-OPEN-3417fc (adjacent), KN-TECH-06bb4e (adjacent), KN-TECH-73630e
   (adjacent), KR-IC-cd159a (adjacent); KN-TECH-73630e also added to
-  `citations`. `novelty_status: adaptation` stands on the internal records
-  in `citations`.
+  `citations`.
 - IDEA-20260930-a6491b: removed from `nearest` IDEA-20260905-b6154d and
   IDEA-20260905-9c4f0c (both remain in `citations` and
   `discriminated_from`). New `nearest`: KR-RHO-13bf67, KR-RHO-898783,
@@ -62,6 +61,12 @@ mechanism, prediction, threshold, cost or novelty_status changed):
 - Every KN-* id used was verified to exist by Glob (knowledge/findings,
   literature, open-problems, techniques) before writing; `rows_checked`
   unchanged, KR-* only.
+- Second fix, same day: IDEA-20260930-8e3b75 `novelty_status` relabelled
+  `adaptation` -> `unverified` because tools/validate_ledger.py forces
+  `unverified` whenever any citation is `recalled` (citations[14] Katz /
+  deformation-theory facts and citations[15] Cartier descent / Hasse
+  congruence are recalled and are kept as such); nothing else in that file
+  changed. IDEA-20260930-a6491b untouched (already committed).
 
 ## One-line summaries
 
@@ -75,9 +80,10 @@ mechanism, prediction, threshold, cost or novelty_status changed):
   digit of IDEA-20260905-3a30d5, and reduces to Belding's dual-number
   anomalous attack at n = p; its DL-spectrum on generic prime-order curves is
   predicted white and is measured on the existing census instrument.
-  Trichotomy: Class III (coordinate-dependent). `novelty_status: adaptation`
-  (object exists as IDEA-20260905-3e9133 / H-ECDLP-a3598b; anomalous arm is
-  Belding 2007, abstract retrieved). Cost: implementation low, compute low
+  Trichotomy: Class III (coordinate-dependent). `novelty_status: unverified`
+  (the object exists as IDEA-20260905-3e9133 / H-ECDLP-a3598b and the
+  anomalous arm is Belding 2007 at abstract level, but two recalled citations
+  force the honest default). Cost: implementation low, compute low
   (CPU-hours).
 - **IDEA-20260930-a6491b** — class `mechanism`, filed under RQ-ECDLP-4fcbd3.
   Claim: for any subset S cut out by a bounded-degree coordinate condition
