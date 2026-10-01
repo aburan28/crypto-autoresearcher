@@ -347,6 +347,25 @@ void closure_free(void) {
     rank_ = 0; ncols_ = 0;
 }
 
+/* Largest batch b of products whose elimination fits mem_cap_bytes, given the
+ * basis rank at the moment S is built and nm_rows rows held in NM. Resident
+ * during ech(S): B_ (rank rows) + S (rank + b) + NM + PLUQ's ~r^2/8 workspace;
+ * during install_basis (B_ freed first): S + the new basis (r rows) + NM, with
+ * r <= min(ncols, rank + b). The need is increasing in b, so bisect. */
+__attribute__((unused)) static long batch_for(long rank, long nm_rows, double per_row, double mem_cap_bytes) {
+    long lo = 0, hi = (long)(mem_cap_bytes / per_row) + 1;
+    while (lo < hi) {
+        long mid = lo + (hi - lo + 1) / 2;
+        double r = (double)((rank + mid < ncols_) ? rank + mid : ncols_);
+        double ech_phase = (double)rank * per_row + r * r / 8.0;
+        double inst_phase = r * per_row;
+        double need = ((double)rank + (double)mid + (double)nm_rows) * per_row
+                    + (ech_phase > inst_phase ? ech_phase : inst_phase);
+        if (need <= mem_cap_bytes) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+}
+
 /* Returns: 0 ok, 1 memory cap hit (state left as reached), 2 error.
  * gens: CSR of generator masks.  iter_* arrays sized max_iter+2.
  */
@@ -438,22 +457,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
          * them; the generators in the single-level case are read in place). r is
          * bounded by min(ncols, rank + batch); the largest batch whose bound fits
          * is found by bisection (the need is increasing in batch). */
-        long batch_max = -1;
-        {
-            long lo = 0, hi = (long)(mem_cap_bytes / per_row) + 1;
-            while (lo < hi) {
-                long mid = lo + (hi - lo + 1) / 2;
-                double r = (double)((rank_ + mid < ncols_) ? rank_ + mid : ncols_);
-                /* during ech(S): B_ + S + NM + workspace; during install_basis
-                 * (B_ freed first): S + new B_ (r rows) + NM */
-                double ech_phase = (double)rank_ * per_row + r * r / 8.0;
-                double inst_phase = r * per_row;
-                double need = ((double)rank_ + (double)mid + (double)nm_rows) * per_row
-                            + (ech_phase > inst_phase ? ech_phase : inst_phase);
-                if (need <= mem_cap_bytes) lo = mid; else hi = mid - 1;
-            }
-            batch_max = lo;
-        }
+        long batch_max = batch_for(rank_, nm_rows, per_row, mem_cap_bytes);
 #endif
         /* Macaulay row count: every mu * g including mu = 1 for the single-level statistic */
         long total_rows = (single_level ? ngens : rank_) + n_prod;
@@ -489,7 +493,16 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         if (n_new > 0) LOAD_ROW(0);
         int dg_a = (n_new > 0) ? poly_deg(cur_m, cur_c) : 0;
         while (a < n_new) {
+#if defined(ECH_LEGACY)
             long batch = batch_max;
+#else
+            /* Re-sized before EVERY batch: the basis grows within an iteration
+             * (51952 -> 129383 rows after the first batch at N = 44), and a size
+             * fixed at the iteration's start let the second batch's S reach
+             * ~452k rows and the process 13.2 GB, OOM-killed. */
+            long batch = batch_for(rank_, nm_rows, per_row, mem_cap_bytes);
+            if (batch < 1024) { hit_cap = 1; break; }
+#endif
             if (batch > n_prod) batch = n_prod;
             mzd_t *S = mzd_init((rci_t)(rank_ + batch), (rci_t)ncols_);
             for (long i = 0; i < rank_; i++) mzd_copy_row(S, (rci_t)i, B_, (rci_t)i);
@@ -517,6 +530,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         free(newrows);
         iter_rows[it] = total_rows; iter_rank[it] = rank_; iter_newpiv[it] = total_new_piv; iter_wall[it] = now_sec() - t0;
         iters = it + 1;
+        if (hit_cap) break;     /* cap reached mid-iteration: state is partial, no verdict */
         if (found_one) break;   /* 1 in W_D: the closure is the whole space; verdict decided */
         if (total_new_piv == 0) break;
     }
