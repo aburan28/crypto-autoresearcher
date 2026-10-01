@@ -1,0 +1,368 @@
+# Independent validation of RUN-SDEG-3de103 (EXP-SDEG-85eefd, protocol v4) under
+# review_plan_RUN-SDEG-3de103.yaml. Joint J1 (run integrity) and the proves-too-much
+# control only. Written by the validator; not committed by it.
+validation_report:
+  id: VAL-20260929-6d34cd   # no allocator type exists for validation reports; named after the task token
+  task_id: TASK-20260929-6d34cd
+  run_ids: [RUN-SDEG-3de103, RUN-SDEG-5484a4]
+  experiment_id: EXP-SDEG-85eefd
+  hypothesis_id: H-SDEG-489b76
+  snapshot_validated:
+    commit: f11293a8ba
+    receipt: coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260929-3eefb6/snapshot-receipt.json
+    binding_mode: content_at_commit
+    note: >-
+      f11293a8ba is an ancestor of the worktree HEAD (4ab05d24c4). No file under
+      experiments/EXP-SDEG-85eefd differs between f11293a8ba and HEAD, and the
+      worktree has no uncommitted change there.
+
+  artifact_checks:
+    - check: snapshot receipt path_sha256 (103 files)
+      verdict: pass
+      detail: >-
+        All 103 declared hashes match both the working tree and `git show
+        f11293a8ba:<path>`. The commit changes exactly those 103 paths plus the
+        receipt itself (104 files).
+    - check: manifest protocol hashes
+      verdict: pass
+      detail: >-
+        specification.yaml b5bdad43..., AMD-20260926-3479cf 38d552b9...,
+        AMD-20260928-7ce387 71151441..., AMD-20260928-d3ed9e 24febe93...,
+        ic_leads_fixtures_v2.py bde44afb..., ic_leads_fixtures_v2.json 543f49ca...,
+        trial-plan-v2.json 4b1e11e7..., charged/opcounts.json 804b1bec... all
+        recomputed equal to manifest.yaml. Each is identical at run commit
+        ca34463291 and at HEAD.
+    - check: admission decision DEC-20260928-ad6451
+      verdict: pass
+      detail: >-
+        decision admit_execution, currently_admitted true, protocol_version 4,
+        maximum_workers 1, maximum_runs 1, trial_plan_sha256 4b1e11e7... equal to
+        the manifest's. Admitted implementation snapshot 8cd6700ea1 and run commit
+        ca34463291 have an empty diff under experiments/EXP-SDEG-85eefd. The
+        commands in charged/command.txt and sage/command.txt are `driver.py --mode
+        full --run-id RUN-SDEG-3de103 --admission-decision DEC-20260928-ad6451
+        --workers 1`. The decision was committed at c0b3a67f44
+        (2026-09-29T05:14:05Z), before charged started (05:16:04Z).
+    - check: revision and dirty tree
+      verdict: pass
+      detail: >-
+        All three manifests (charged, sage, merge) record commit ca34463291, dirty
+        true. The only porcelain entries are the two untracked run directories
+        (RUN-SDEG-3de103/ and RUN-SDEG-5484a4/), so no source file was dirty.
+    - check: C-9 readings in manifest
+      verdict: pass
+      detail: >-
+        load_15min 12.96 <= 14; system volume 9.07 GiB >= 5; repository volume
+        27.45 GiB >= 20. Recorded in the manifest as C-9 requires.
+    - check: 36/36 cells complete
+      verdict: pass
+      detail: >-
+        36 cell files (9 fixtures x 4 decks incl. progression). Each has
+        n_queries 32 with 32 query entries and 96 records (B0, B1, B2); 1152
+        queries and 3456 records in total. Each cell's records equal the
+        raw-result.json records record-for-record, and every status is ok.
+        cell_provenance.json lists 36 cells with 36 distinct worker pids (fresh
+        process per cell, FX-4). Hashes match the receipt, including the three
+        L32 progression originals.
+    - check: compressed_cells.json round-trip
+      verdict: pass
+      detail: >-
+        `zstd -dc` of the three committed .zst files yields sha256 1c9fb4eb...
+        (214920596 B), c1951722... (222993009 B) and 75969830... (212481040 B),
+        equal to original_sha256/original_bytes in compressed_cells.json. The
+        uncommitted originals still on this host hash identically, and the .zst
+        hashes match the receipt.
+    - check: failed attempt RUN-SDEG-5484a4 contributes nothing
+      verdict: pass
+      detail: >-
+        INFRA_INCOMPLETE.yaml records failed_infrastructure, "no cell completed",
+        evidence_value none. Its charged/cells/ is empty; only identity files and 7
+        console lines exist. Inside RUN-SDEG-3de103 the string 5484a4 appears only
+        in the manifests' git status_porcelain (an untracked directory). No cell,
+        record or statistic of the valid run derives from it.
+    - check: resources and watchdog
+      verdict: pass
+      detail: >-
+        Max per-cell peak RSS 1.27 GiB (L32-s2-progression), under the 8 GB cap.
+        Slowest single B0/B1 query 6.3 s in the non-progression-L32 cells scanned
+        (3600 s watchdog). No record has lower_bound true or a non-ok status.
+        charged/stderr.log and sage/stderr.log are empty, and no log contains
+        watchdog/defect/error/traceback.
+
+  metric_recomputations:
+    - check: per-query W composition (own script, all 2304 B0/B1 query results)
+      verdict: pass
+      detail: >-
+        ops.W = mul+inv+gcd_steps+probes = W_query (OQ-2 unit weights).
+        Amortization share = (table_ops.W + deck_construction_ops.W)/32 (OQ-3).
+        Decision cost = W_query_to_first_hit for members; it is null exactly for
+        the oracle non-members, which pay W_query (OQ-4); first-hit <= full.
+        W = decision + share, W_full = W_query + share, W_triple = W - W_fixed_xR.
+        Zero violations. W_fixed_xR = 52,488 on every B1 query except six
+        progression-deck planted targets with R = O, which carry 0 under the
+        frozen OQ-15 rule (B1 uses S4). None of the six is in a primary deck.
+    - check: beta_work recomputation (own script from C-6 + OQ-9/OQ-11, independent RNG)
+      verdict: pass
+      detail: >-
+        90 statistics recomputed: {B0,B1} x {W,W_full} plus B1 W_triple, each over
+        3 decks x 3 classes x {median, worst}. Point estimates agree with
+        metrics.json to max |diff| 1.0e-15. 95% bootstrap CI endpoints agree to max
+        |diff| 0.0195 (B0 subgroup_x successful median, a wide CI). This is
+        bootstrap noise: my generator is seeded differently and I resampled within
+        cells before class filtering, where analysis.py filters first; both fit
+        C-6's "resampling queries within cells".
+      table_primary_W:   # point / reported point / own CI95 / reported CI95
+        B1_interval_all_worst:   [0.7971, 0.7971, [0.797, 0.797], [0.797, 0.797]]
+        B1_interval_all_median:  [0.8131, 0.8131, [0.709, 0.866], [0.715, 0.870]]
+        B1_subgroup_all_worst:   [0.6470, 0.6470, [0.647, 0.647], [0.647, 0.647]]
+        B1_subgroup_all_median:  [0.3583, 0.3583, [0.354, 0.382], [0.358, 0.391]]
+        B1_random_all_worst:     [0.7971, 0.7971, [0.797, 0.797], [0.797, 0.797]]
+        B1_random_all_median:    [0.8644, 0.8644, [0.782, 0.918], [0.782, 0.918]]
+        B1_triple_interval_all_worst:  [0.8338, 0.8338, [0.834, 0.834], [0.834, 0.834]]
+        B1_triple_interval_all_median: [0.8954, 0.8954, [0.746, 0.970], [0.754, 0.988]]
+        B0_interval_all_worst:   [0.5918, 0.5918, [0.590, 0.596], [0.591, 0.596]]
+        B0_interval_all_median:  [0.6382, 0.6382, [0.513, 0.716], [0.519, 0.732]]
+        B0_subgroup_all_worst:   [0.6649, 0.6649, [0.665, 0.666], [0.665, 0.666]]
+        B0_subgroup_all_median:  [0.6659, 0.6659, [0.616, 0.766], [0.622, 0.766]]
+        B0_random_all_worst:     [0.5951, 0.5951, [0.595, 0.596], [0.595, 0.596]]
+        B0_random_all_median:    [0.7372, 0.7372, [0.605, 0.859], [0.606, 0.859]]
+      full_table: /Volumes/SSD990/.tmp-agent/val6d34cd/mine.json (sha256 2e31f463..., scratch, not in write_scope)
+    - check: C-7 mapping from my own statistics
+      verdict: pass
+      detail: >-
+        B conditions: B1 (interval_x, all) median lower CI 0.709 and worst lower
+        CI 0.797, both >= 0.30. B0 calibration (interval_x, all, median) 0.638 is
+        in [0.5, 0.7]. Outcome A fails on B1 worst upper CI 0.797 (not < 0.30),
+        on the W_triple worst upper CI, and on B1 below the null deck
+        (0.7971 is not < 0.7971). This gives outcome B, as reported.
+    - check: supplementary exact replay with the frozen analysis.py
+      verdict: pass
+      detail: >-
+        analysis.compute_metrics + outcome on raw-result.json records reproduces
+        metrics.json['metrics'] and outcome_mapping_C7 exactly (Python equality,
+        including CIs). The same holds for raw-result.json's outcome_mapping_C7.
+        This is replication with the producer's code; the independent check is
+        the row above.
+
+  control_checks:
+    - check: oracle / B0 / B1 decision agreement (recomputed per query, not read from agreement flags)
+      verdict: pass
+      detail: >-
+        1152/1152 queries have oracle_member == B0.member == B1.member.
+        raw oracle_agreement 1.0 over n_scored 1152. Oracle enumerated_multisets ==
+        expected in all 36 cells.
+    - check: equal hit-triple sets on every query
+      verdict: pass
+      detail: >-
+        Canonicalized B0 vs B1 hit_triples are equal on 1152/1152 queries, and a
+        hit set is non-empty iff the oracle says member. The stored agreement
+        flags are all {decision: true, hit_triple_sets_equal: true}. Every member
+        query has all_witnesses_verified true for both backends. Cell defects
+        lists are all empty.
+    - check: C-8 accounting audit
+      verdict: pass
+      detail: >-
+        audit.json (identical to charged/audit.json) has 232 entries = 116
+        queries x {B0, B1}, 116 = ceil(10% of 1152), spanning all four decks and
+        all three L. All accepted with no problems. W_recomputed,
+        W_decision_recomputed and W_fixed_xR_recomputed equal the cell values on
+        all 232. I did not re-derive the SHA256 selection ranking.
+    - check: B2 split cross-check
+      verdict: pass
+      detail: >-
+        raw b2_split: 12 L=8 cells checked, 0 mismatches. Each L=8 cell has
+        b2_split_checked true and an empty b2_split_mismatches, and no
+        per-query split_crosscheck.match is false.
+    - check: B2 literal FGLM cross-check (OQ-5 coverage)
+      verdict: pass
+      detail: >-
+        105 FGLM checks equal exactly the OQ-5 set: all 96 queries of the three
+        |V| <= 4 subgroup_x cells (|V| = 4, 2, 4) plus the first query of the
+        other nine L=8 cells. From Sage's own output files
+        (sage/b2_fglm_output_L8-s{1,2,3}.json), radical_degree equals B2
+        elim_degree on all 105. My sha256 of each sorted Sage root set
+        (comma-joined) equals B2's roots_sha256 in the cell files on all 105, an
+        independent root-set match. The fixture reproduction is byte-identical
+        (543f49ca...).
+    - check: progression control (known-structure positive)
+      verdict: pass
+      detail: beta_elim(progression) = 0.2007 < 0.30 (metrics.json; replayed exactly).
+    - check: known-false gate — B0 never below 0.30
+      verdict: pass
+      detail: >-
+        Over all 36 B0 statistics (3 decks x {W, W_full} x 3 classes x 2 stats),
+        the minimum point is 0.5605 (subgroup_x, successful, median) and the
+        minimum lower CI 0.336. known_false_B0_passes_A false. B0
+        calibration 0.638 lies in the pre-registered MITM range.
+    - check: baseline rho
+      verdict: pass (not a J1 gate; recorded)
+      detail: >-
+        9 fixtures x 64 targets, 64/64 solved_verified each. Mean walk ops/sqrt(q)
+        ranges 0.800-0.966 against the 0.886 reference.
+
+  proves_too_much:
+    object: >-
+      The run's own 3456 records (same L, seeds, q, decks, 32 queries per cell,
+      oracle member labels; B0 and B2 unchanged), with every B1 query's work
+      replaced by W_fixed_xR + c * q^e * exp(N(0, 0.1)). Members pay a
+      Uniform(0,1) fraction of the variable term, as with an early abort.
+      W_full = W_fixed_xR + c*q^e, W_triple = W - W_fixed_xR, and W_fixed_xR is
+      52,488 (0 for the six R = O progression queries, as in the run). Fed in
+      memory through implementation/analysis.py compute_metrics + outcome. No
+      protocol-labelled trial was run and nothing was written under experiments/.
+    script: /Volumes/SSD990/.tmp-agent/val6d34cd/proves_too_much.py (sha256 4ff92d98...); results ptm.json (sha256 bd76d4d9...)
+    results:   # e, c -> outcome; B1 (interval_x, all, worst) point [CI]; B1 median point [CI]
+      - {e: 0.20, c: 1.0e2,   outcome: inconclusive, worst: [0.009, [0.007, 0.010]], median: [0.005, [0.004, 0.006]]}
+      - {e: 0.20, c: 1.0e3,   outcome: inconclusive, worst: [0.059, [0.054, 0.059]], median: [0.041, [0.031, 0.044]]}
+      - {e: 0.20, c: 1.0e4,   outcome: inconclusive, worst: [0.158, [0.149, 0.162]], median: [0.139, [0.101, 0.155]]}
+      - {e: 0.20, c: 1.0e5,   outcome: inconclusive, worst: [0.208, [0.186, 0.214]], median: [0.193, [0.166, 0.220]]}
+      - {e: 0.20, c: 1.0e6,   outcome: A,            worst: [0.193, [0.182, 0.206]], median: [0.203, [0.175, 0.228]]}
+      - {e: 0.20, c: 1.8e6,   outcome: A,            worst: [0.202, [0.189, 0.212]], median: [0.198, [0.176, 0.231]]}
+      - {e: 0.40, c: 1.0e4,   outcome: B,            worst: [0.393, [0.370, 0.408]], median: [0.369, [0.340, 0.410]], role: positive control}
+      - {e: 0.40, c: 1.0e6,   outcome: B,            worst: [0.378, [0.372, 0.405]], median: [0.378, [0.366, 0.413]], role: positive control}
+    verdict: pass
+    reading: >-
+      The pipeline never returns B on the planted-0.20 object at any c. It
+      returns A when the planted term dominates. At small c it returns
+      inconclusive: both B conditions fail, and the only failing A condition is
+      "B1 below the null deck". That condition compares two synthetic decks with
+      the same planted law, so it can go either way. With a planted 0.40 it does
+      return B, so the mapping is not stuck on "not B". Across the sweep B0 stays
+      at calibration 0.638, minimum point 0.5605, minimum lower CI 0.336.
+      Observation (rule 8): with c <= 1e4 the fixed 52,488 term drags total-W
+      beta far below the planted 0.20 (0.009-0.158), while W_triple recovers
+      ~0.20-0.22. This is the downward bias OQ-1 anticipated. It can hide an
+      exponent (toward A), never manufacture B.
+
+  heuristic_validation_checks:
+    - check: pre-registration
+      verdict: pass
+      detail: >-
+        The gate (0.30), statistic (C-6), abscissa (OQ-11), classes and mapping
+        (C-7, OQ-9) were frozen in AMD-20260926-3479cf and AMD-20260928-7ce387
+        before any data. AMD-20260928-d3ed9e discloses the validator's informal
+        slope (~0.80) and states that no threshold, statistic or mapping changed.
+        I confirmed the implemented statistic matches that frozen text by
+        independent re-derivation.
+  cost_model_checks:
+    - check: cost unit
+      verdict: pass
+      detail: >-
+        W is in charged F_p operations: mul + inv + extended-gcd steps + hash
+        probes at unit weights (OQ-2), and is host-independent. Memory is
+        recorded per cell. B1's per-triple cost uses the field-form
+        pseudo-remainder (D-1), the cheaper reading, which can only move B1
+        toward A.
+  proof_architecture_checks: []   # not a proof-oriented task
+
+  findings:
+    blocking: []
+    non_blocking:
+      - id: NB-1
+        text: >-
+          DEC-20260928-ad6451 sets decided_at 2026-09-29T05:20:00Z, which is after
+          the charged part started (05:16:04Z). The commit c0b3a67f44 is
+          timestamped 05:14:05Z, before the start, so admission did precede
+          execution and the field is simply inaccurate. The decision's
+          c9_readings_at_admission ({8.53 11.71 13.46}) also differ from the
+          manifest's claim-time reading ({9.53 11.06 12.96}, 05:16:04Z). Both pass
+          the C-9 thresholds.
+      - id: NB-2
+        text: >-
+          The snapshot receipt has commit_sha null (binding_mode
+          content_at_commit). I validated by content at f11293a8ba, the commit that
+          adds the receipt. The Coordinator's ledger archive should record the
+          sha.
+      - id: NB-3
+        text: >-
+          Six B1 queries have W_fixed_xR = 0: progression-deck planted targets with
+          R = O, frozen OQ-15 handling. None enters a primary beta.
+      - id: NB-4
+        text: >-
+          Observation for the Coordinator (not an integrity defect; J2 owns
+          interpretation): B1 (subgroup_x, successful, median) = 0.2006, CI [0.056,
+          0.299]. This is a successful-subset statistic, which C-7's
+          forbidden_reading excludes from outcome A. B1 (subgroup_x, all, median)
+          0.358 has lower CI 0.354-0.358. Subgroup_x does not enter the C-7
+          mapping (OQ-9 names interval_x).
+      - id: NB-5
+        text: >-
+          Run manifests carry null/unverified inference fields. DEC-20260928-ad6451
+          disclosed this in advance; the run is deterministic code with no model
+          in the loop.
+
+  joint_verdicts:
+    J1_run_integrity: holds
+    proves_too_much: holds (pipeline does not manufacture B; B0 never below 0.30)
+  verdict: passed
+  verdict_scope: >-
+    RUN-SDEG-3de103 is an admissible receipt, and its reported beta_work values
+    and outcome_C7 = B reproduce from raw-result.json under the frozen statistic.
+    This says nothing about what outcome B closes (J2) or whether per-query W is
+    correctly charged against A1's definition (J3 blind re-derivation). It
+    supports no ECDLP claim and authorizes no promotion.
+
+  limitations:
+    - >-
+      The per-query W values themselves (op counts produced by the charged
+      backends) were checked for internal consistency, audit agreement and
+      raw/cell agreement, not re-derived from first principles. That is J3's
+      blind re-derivation.
+    - The audit's SHA256 selection ranking was not re-derived; coverage (116 = ceil(10%)) and per-entry agreement were checked.
+    - >-
+      The two L32 progression cells above 50 MB were not scanned for per-query
+      seconds (their peak RSS was read). Their integrity checks (decision, hit
+      sets, W composition, records) were run on the hash-verified originals,
+      which equal the committed .zst content.
+    - Bootstrap CIs are compared within noise, not bit-exactly; exact CI equality was shown only by replay with the producer's analysis.py.
+    - Scope as declared by the run: L in {8, 16, 32}, 3 seeds, q <= 2^25, one Mac worker.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260929-6d34cd/validation_report.yaml
+  scratch_not_archived:
+    dir: /Volumes/SSD990/.tmp-agent/val6d34cd
+    files:
+      integrity.py: 8db7b985465fecf2550e9daeb2868d4391f0f1e563b5ae9adc89ded027509b49
+      beta.py: 54b16edc2cea132633824a5572f164eb9ea1f892c0c56fbd692a8bf8a41d9d3c
+      proves_too_much.py: 4ff92d9861819736c910db307d55b664e7f4487bd1696899857958f8f4f77c1a
+      mine.json: 2e31f463df1538a937185782e3de5689ce5d6c61dc124fba7629880207e13b05
+      ptm.json: bd76d4d9cc68a6027ec8ec11b171bca3d26837c4293971bda92b898382bf79d1
+
+  inference:
+    runtime: cursor
+    requested_policy: review-adversarial
+    resolved_model_id: inherited (Cursor subagent, model not exposed)
+    model_verified: false
+    reasoning_effort: xhigh requested; unverifiable under this runtime
+    fallback_used: true
+    fallback_reason: Cursor runtime inherits the parent model; the review-adversarial binding could not be resolved or probed.
+    degraded_requirements: [reasoning_effort xhigh unverifiable]
+    independent_session: true
+
+review_attestation:
+  task_id: TASK-20260929-6d34cd
+  joints_owned: [J1 run integrity, proves_too_much control]
+  sources_read:
+    - AGENTS.md (workspace rule)
+    - CLAUDE.md (workspace rule)
+    - agents/validator.md
+    - templates/research-records.md (review_attestation section)
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/review_plan_RUN-SDEG-3de103.yaml
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260929-3eefb6/snapshot-receipt.json
+    - ledger/decisions/DEC-20260928-ad6451.yaml
+    - experiments/EXP-SDEG-85eefd/specification.yaml (grep of metric/outcome lines; hashed in full)
+    - experiments/EXP-SDEG-85eefd/amendments/AMD-20260926-3479cf.yaml
+    - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-7ce387.yaml
+    - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-d3ed9e.yaml
+    - experiments/EXP-SDEG-85eefd/implementation/implementation_report.yaml (open_questions OQ-1..OQ-19 section)
+    - experiments/EXP-SDEG-85eefd/implementation/analysis.py (read after my own beta script was written)
+    - experiments/EXP-SDEG-85eefd/implementation/audit.py (header, lines 1-30)
+    - experiments/EXP-SDEG-85eefd/implementation/backends.py (grep of first_hit lines only)
+    - experiments/EXP-SDEG-85eefd/implementation/cellrun.py (grep of first_hit lines only)
+    - experiments/EXP-SDEG-85eefd/implementation/make_report.py (grep of first_hit lines only)
+    - experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/ (manifest.yaml, raw-result.json, metrics.json, audit.json, charged/audit.json, cell_provenance.json, compressed_cells.json, charged/cells/*.json and *.zst, charged/command.txt, charged/stdout.log, charged/stderr.log, sage/command.txt, sage/stdout.log, sage/stderr.log, sage/b2_fglm_output_L8-s{1,2,3}.json, sage/*.stderr)
+    - experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-5484a4/ (INFRA_INCOMPLETE.yaml, driver_console.log, directory listing)
+    - git log / git show / git diff metadata for f11293a8ba, ca34463291, 8cd6700ea1, c0b3a67f44
+  read_sibling_reports: false   # tasks/TASK-20260929-253523 and tasks/TASK-20260929-0bcd38 not opened
+  blind_from_respected: null    # not a re-derivation task
+  verdict: holds
