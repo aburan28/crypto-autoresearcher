@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8087 |
-| — with a resolvable external identifier | 2473 |
+| Literature entries (`KN-LIT-*`) | 8094 |
+| — with a resolvable external identifier | 2480 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 175, eprint 829, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 830, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7521, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 517.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7521, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -217,7 +217,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2473 of 8087 `KN-LIT-*` entries carry an
+2480 of 8094 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1825,6 +1825,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-4c0e6f | QUBE（NGCC 公钥第一轮候选 · 密钥封装 33） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-4c1133 | Compact HQC with new (un)balance | 2026 | `eprint:2026/461` | web |
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | 2024 | `arxiv:2304.14757` | web |
+| KN-LIT-4db619 | New Public-Key Schemes Based on Elliptic Curves over the Ring Z_n | 1992 | `doi:10.1007/3-540-46766-1_20` | web |
 | KN-LIT-4e5e30 | 关于公布新一代商用密码算法全球征集活动公钥密码算法第一轮候选算法名单的通知 | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-4e8513 | Solving degree, last fall degree, and related invariants | 2021 | `eprint:2021/1611` | web |
 | KN-LIT-4f0d26 | DOVE（NGCC 公钥第一轮候选 · 数字签名 9） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
@@ -2450,6 +2451,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-907 | Online-Extractability in the Quantum Random-Oracle Model? | 2021 | `eprint:2021/280` | read |
 | KN-LIT-908 | Plectic p-adic invariants | 2021 | `arxiv:2104.12566` | read |
 | KN-LIT-909 | Post-quantum Resettably-Sound Zero Knowledge? | 2021 | `eprint:2021/349` | read |
+| KN-LIT-90e34c | Security Analysis of the Strong Diffie-Hellman Problem | 2006 | `doi:10.1007/11761679_1` | web |
 | KN-LIT-910 | PRIMITIVE DIVISORS OF SEQUENCES ASSOCIATED TO ELLIPTIC CURVES OVER FUNCTION FIELDS | 2021 | `arxiv:2103.06787` | read |
 | KN-LIT-911 | privateDH: An Enhanced Diffie-Hellman Key-Exchange Protocol using RSA and AES Algorithms | 2021 | `eprint:2021/647` | read |
 | KN-LIT-912 | Probability Distributions for Elliptic Curves in the CGL Hash Function | 2021 | `arxiv:2108.06457` | read |
@@ -2458,6 +2460,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-915 | Quadratic Fields Admitting Elliptic Curves with | 2021 | `arxiv:2103.09814` | read |
 | KN-LIT-916 | QUADRATIC POINTS ON BIELLIPTIC MODULAR CURVES | 2021 | `arxiv:2112.03226` | read |
 | KN-LIT-917 | RANK GROWTH OF ELLIPTIC CURVES OVER N -TH ROOT EXTENSIONS | 2021 | `arxiv:2112.12864` | read |
+| KN-LIT-917094 | Designing and Detecting Trapdoors for Discrete Log Cryptosystems | 1993 | `doi:10.1007/3-540-48071-4_5` | web |
 | KN-LIT-918 | REPRESENTATIONS ATTACHED TO ELLIPTIC CURVES WITH A NON-TRIVIAL ODD TORSION POINT | 2021 | `arxiv:2106.15722` | read |
 | KN-LIT-919 | Resistance of Isogeny-Based Cryptographic | 2021 | `eprint:2021/850` | read |
 | KN-LIT-920 | Revisiting Homomorphic Encryption Schemes for Finite Fields ? | 2021 | `eprint:2021/204` | read |
@@ -2555,12 +2558,14 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-99d262 | NEV-AKE（NGCC 公钥第一轮候选 · 密钥交换 7） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-99dfe4 | On the discrete logarithm problem for prime-field elliptic curves | 2018 | `eprint:2017/609` | web |
 | KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
+| KN-LIT-9d845c | Kleptography: Using Cryptography Against Cryptography | 1997 | `doi:10.1007/3-540-69053-0_6` | web |
 | KN-LIT-9e78f8 | Origami（NGCC 公钥第一轮候选 · 数字签名 18） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
 | KN-LIT-a25516 | Quantum Resource Optimization for CSIDH | 2026 | `eprint:2026/1707` | web |
 | KN-LIT-a2a423 | Rigorous Statements and Proofs of the Lemmas in Simon's Algorithm for the Dihedral Coset Problem and Their Underlying Hypothesis | 2026 | `eprint:2026/1714` | web |
 | KN-LIT-a2bc76 | NTRE Key Encapsulation Mechanism（NGCC 公钥第一轮候选 · 密钥封装 27） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a2f7b3 | Last fall degree of semi-local polynomial systems | 2023 | `arxiv:2311.02804` | web |
+| KN-LIT-a3244d | The Dark Side of "Black-Box" Cryptography, or: Should We Trust Capstone? | 1996 | `doi:10.1007/3-540-68697-5_8` | web |
 | KN-LIT-a36af1 | DKEX (Ding Key Exchange)（NGCC 公钥第一轮候选 · 密钥交换 4） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4b3d8 | RCKangaroo (SOTA/SOTA+ kangaroo with symmetry) and Kang-1/Kang-2 method write-ups | 2024 | `url:github.com/retiredc/rckangaroo` | web |
@@ -2586,11 +2591,13 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-b46f62 | Implementation of Classic McEliece key generation based on Goppa binary code | 2022 | `doi:10.1109/icsict55466.2022.9963372` | web |
 | KN-LIT-b4a89c | Cover attacks for elliptic curves with prime order | 2023 | `arxiv:2012.07173` | web |
 | KN-LIT-b5686a | McBits revisited | 2017 | `doi:10.1007/978-3-319-66787-4_11` | web |
+| KN-LIT-b58682 | A Riddle Wrapped in an Enigma | 2015 | `eprint:2015/1018` | web |
 | KN-LIT-b66899 | Statistical decoding | 2017 | `arxiv:1701.07416` | web |
 | KN-LIT-b777d1 | Algebraic approach for code equivalence | 2018 | `doi:10.70675/4409179fzb277z4e80z8334z16f39e22980c` | web |
 | KN-LIT-b8093a | Solving the Shortest Vector Problem in 2^{0.6039n} Time via Mid-point Hessian | 2026 | `eprint:2026/1597` | read |
 | KN-LIT-b8a8be | Memory-efficient quantum information set decoding algorithm | 2023 | `doi:10.1007/978-3-031-35486-1_20` | web |
 | KN-LIT-b901b9 | Optimal Bucket Set Construction for Multi-scalar Multiplication with Endomorphisms | 2026 | `eprint:2026/1902` | web |
+| KN-LIT-b95db3 | Elliptic Curve Paillier Schemes | 2002 | `doi:10.1007/s00145-001-0015-6` | web |
 | KN-LIT-b97b9f | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) — August revision | 2026 | `eprint:2026/1630` | web |
 | KN-LIT-b98c5d | AFS-KEX（NGCC 公钥第一轮候选 · 密钥交换 2） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-b9d3e0 | How to backdoor (Classic) McEliece and how to guard against backdoors | 2022 | `eprint:2022/362` | web |
