@@ -420,9 +420,32 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             iters = it + 1;
             break;
         }
-        /* batch size from memory cap: (rank + batch) * ncols / 8 <= cap */
         double per_row = (double)ncols_ / 8.0 + 64.0;
+#if defined(ECH_LEGACY)
+        /* batch size from memory cap: (rank + batch) * ncols / 8 <= cap. Kept
+         * as it was so -DECH_LEGACY rebuilds RUN-SEMBIN-9bb990's exact matrices. */
         long batch_max = (long)((mem_cap_bytes - (double)rank_ * per_row) / per_row);
+#else
+        /* batch size from memory cap. Resident at once during ech(S): the basis
+         * B_ (rank rows), S itself (rank + batch rows), and PLUQ's full-reduction
+         * workspace, a copy of the r x r block of U, r = output rank <= ncols
+         * (measured: peak - matrix = 0.12/0.25/0.79 GiB at r = 20k/40k/80k,
+         * ncols 149986, i.e. ~ r^2/8 bytes). Counting only S, as before, let
+         * (43,2,2,22) N=44 at a 7 GiB cap reach 13.6 GB and be OOM-killed. r is
+         * bounded by min(ncols, rank + batch); the largest batch whose bound fits
+         * is found by bisection (the need is increasing in batch). */
+        long batch_max = -1;
+        {
+            long lo = 0, hi = (long)(mem_cap_bytes / per_row) + 1;
+            while (lo < hi) {
+                long mid = lo + (hi - lo + 1) / 2;
+                double r = (double)((rank_ + mid < ncols_) ? rank_ + mid : ncols_);
+                double need = (2.0 * (double)rank_ + (double)mid) * per_row + r * r / 8.0;
+                if (need <= mem_cap_bytes) lo = mid; else hi = mid - 1;
+            }
+            batch_max = lo;
+        }
+#endif
         /* Macaulay row count: every mu * g including mu = 1 for the single-level statistic */
         long total_rows = (single_level ? ngens : rank_) + n_prod;
         if (batch_max < 1024) { hit_cap = 1; iter_rows[it] = total_rows; iter_rank[it] = -1; iter_newpiv[it] = -1; iter_wall[it] = 0; iters = it + 1; break; }
