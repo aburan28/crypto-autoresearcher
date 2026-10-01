@@ -234,3 +234,64 @@ and reports to the user. Filing under this brief approves nothing: every
 accepted record enters `python3 tools/ecc_priority.py --open-ideas` as ranked
 design work for the next `/coordinate` selection point, where it competes with
 the 94 already there.
+
+## 7. Corrections (2026-10-01, dispatching session)
+
+Recorded additively; the text above is left as written so the dispatch it
+drove stays auditable.
+
+1. **The lane-context extractor under-reported GOAL-ENDO-001.** The L2 lane
+   (TASK-20260930-34b1ce) found by literal grep that nine of the goal's
+   fourteen lane questions, listed in `context/L2-ENDO.md` with zero
+   proposals and zero hypotheses, are heavily populated. Re-counted by the
+   dispatcher at `1abae22c8` over `ledger/proposals/` + `ledger/ideas/` and
+   `ledger/hypotheses/`, by `question_id`:
+
+   | question | proposals (status `proposed`) | hypotheses |
+   | --- | --- | --- |
+   | RQ-JINV-8fc13a | 40 (40) | 32 |
+   | RQ-ICINV-475b5e | 24 (23) | 19 |
+   | RQ-INSTR-f8faa0 | 23 (23) | 14 |
+   | RQ-VOLC-f6253b | 21 (21) | 10 |
+   | RQ-MTGT-2cabee | 19 (19) | 10 |
+   | RQ-CLGP-b99df5 | 19 (19) | 10 |
+   | RQ-EQIC-8cb959 | 17 (17) | 9 |
+   | RQ-CANL-63098f | 17 (17) | 11 |
+   | RQ-PAIR-21313f | 17 (17) | 10 |
+   | RQ-EWALK-8fa147 | 16 (16) | 6 |
+   | RQ-MODEL-e61cb2 | 16 (16) | 7 |
+   | RQ-TORS-8c7b79 | 15 (15) | 8 |
+   | RQ-EQLA-0d3f40 | 14 (14) | 6 |
+   | RQ-GGMB-6eaabc | 14 (14) | 2 |
+   | RQ-ECDLP-912694 | 5 (5) | 5 |
+   | **total** | **277 (276)** | **159** |
+
+   Cause: the extractor selected records by a hand-listed subset of question
+   ids and by area token, not by the goal head's `question_ids` list. The
+   sentence in section 2 ("fourteen lanes, several with no proposal at all")
+   and the L2 card's instruction to "prefer lanes with no open proposal" were
+   therefore wrong; the L2 report documents the lane choices it made instead
+   and the two near-duplicates it caught and dropped. Section 1c's statement
+   that ENDO carries zero open ECC ideas remains literally true only because
+   those 276 `proposed` records sit under non-ECC area tokens — which makes
+   finding 1d.1 (the classification gap) larger than stated: it hides roughly
+   two hundred and seventy `proposed` records under one active ECC goal, not a
+   dozen. `IDEA-20260930-655544` (L2) proposes the extractor control.
+2. **`ledger/ideas/` is a second proposals directory** (18 records;
+   `tools/ecc_priority.py` reads both). The dispatcher's first existence check
+   looked only in `ledger/proposals/` and wrongly told lane L3 that
+   `IDEA-20260831-ccb587` did not exist; the lane resolved it correctly.
+3. **Prior-art `nearest` refs.** Section 3 did not say that
+   `prior_art.nearest[].ref` accepts only `KR-*` rows and `KN-*` entries
+   (`templates/research-records.md`; `tools/validate_ledger.py`
+   `check_prior_art`). Lanes L2, L3 and L6 cited `IDEA-*`/`CORR-*` ids, ledger
+   paths or URLs there and were each returned once for that single fix; the
+   displaced pointers moved to `citations` and `discriminated_from`.
+4. **Dispatch log.** All six lanes were first launched on 2026-09-30 and
+   terminated by an API spend limit before any file was written; relaunched
+   2026-10-01 after the reset. L1 and L4 were then terminated by a
+   content-safeguards classifier false positive on the session model and
+   relaunched on a different model under the cards' `fallback_allowed: true`,
+   with `fallback_used: true` and the reason recorded in their reports.
+   Records are therefore filed with `added: '2026-10-01'` under ids minted
+   2026-09-30.
