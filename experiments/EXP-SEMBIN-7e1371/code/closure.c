@@ -421,6 +421,8 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             break;
         }
         double per_row = (double)ncols_ / 8.0 + 64.0;
+        long nm_rows = single_level ? 0 : n_new;
+        (void)nm_rows;
 #if defined(ECH_LEGACY)
         /* batch size from memory cap: (rank + batch) * ncols / 8 <= cap. Kept
          * as it was so -DECH_LEGACY rebuilds RUN-SEMBIN-9bb990's exact matrices. */
@@ -431,7 +433,9 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
          * workspace, a copy of the r x r block of U, r = output rank <= ncols
          * (measured: peak - matrix = 0.12/0.25/0.79 GiB at r = 20k/40k/80k,
          * ncols 149986, i.e. ~ r^2/8 bytes). Counting only S, as before, let
-         * (43,2,2,22) N=44 at a 7 GiB cap reach 13.6 GB and be OOM-killed. r is
+         * (43,2,2,22) N=44 at a 7 GiB cap reach 13.6 GB and be OOM-killed. Also
+         * resident: NM, the dense copy of the rows being multiplied (nm_rows of
+         * them; the generators in the single-level case are read in place). r is
          * bounded by min(ncols, rank + batch); the largest batch whose bound fits
          * is found by bisection (the need is increasing in batch). */
         long batch_max = -1;
@@ -440,7 +444,12 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             while (lo < hi) {
                 long mid = lo + (hi - lo + 1) / 2;
                 double r = (double)((rank_ + mid < ncols_) ? rank_ + mid : ncols_);
-                double need = (2.0 * (double)rank_ + (double)mid) * per_row + r * r / 8.0;
+                /* during ech(S): B_ + S + NM + workspace; during install_basis
+                 * (B_ freed first): S + new B_ (r rows) + NM */
+                double ech_phase = (double)rank_ * per_row + r * r / 8.0;
+                double inst_phase = r * per_row;
+                double need = ((double)rank_ + (double)mid + (double)nm_rows) * per_row
+                            + (ech_phase > inst_phase ? ech_phase : inst_phase);
                 if (need <= mem_cap_bytes) lo = mid; else hi = mid - 1;
             }
             batch_max = lo;
@@ -456,27 +465,29 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         long k = 0;
         if (single_level) { for (long g = 0; g < ngens; g++) newrows[k++] = g; }
         else { for (long i = 0; i < rank_; i++) if (row_new_[i]) newrows[k++] = i; }
-        /* copy the rows' masks out first, since B_ is replaced batch by batch */
-        u64 **nm = malloc(sizeof(u64 *) * (n_new ? n_new : 1));
-        long *nc = malloc(sizeof(long) * (n_new ? n_new : 1));
-        for (long a = 0; a < n_new; a++) {
-            long cnt;
-            if (single_level) {
-                cnt = gen_ptr[newrows[a] + 1] - gen_ptr[newrows[a]];
-                memcpy(rbuf, gen_masks + gen_ptr[newrows[a]], sizeof(u64) * cnt);
-            } else {
-                cnt = row_masks(B_, newrows[a], rbuf);
-            }
-            nm[a] = malloc(sizeof(u64) * (cnt ? cnt : 1));
-            memcpy(nm[a], rbuf, sizeof(u64) * cnt);
-            nc[a] = cnt;
+        /* copy the rows out first, since B_ is replaced batch by batch. Kept
+         * DENSE (ncols/8 bytes a row) and expanded to masks only when used:
+         * a sparse u64 list costs 8 bytes per nonzero, and reduced rows at
+         * N = 44 carry up to ~19k nonzeros, so the old sparse copy of ~80k
+         * rows ran to gigabytes outside the memory cap and was OOM-killed.
+         * row_masks() yields the same masks in the same order either way. */
+        mzd_t *NM = NULL;
+        if (!single_level) {
+            NM = mzd_init((rci_t)(n_new ? n_new : 1), (rci_t)ncols_);
+            for (long a2 = 0; a2 < n_new; a2++) mzd_copy_row(NM, (rci_t)a2, B_, (rci_t)newrows[a2]);
         }
+        const u64 *cur_m = NULL; long cur_c = 0;
+#define LOAD_ROW(idx) do { \
+            if (single_level) { cur_m = gen_masks + gen_ptr[newrows[idx]]; \
+                                 cur_c = gen_ptr[newrows[idx] + 1] - gen_ptr[newrows[idx]]; } \
+            else { cur_c = row_masks(NM, (idx), rbuf); cur_m = rbuf; } } while (0)
         for (long i = 0; i < rank_; i++) row_new_[i] = 0;
         memset(pivot_new_, 0, ncols_);
         /* stream products in batches */
         int found_one = 0;
         long a = 0; int md = 1; long mi = 0;
-        int dg_a = (n_new > 0) ? poly_deg(nm[0], nc[0]) : 0;
+        if (n_new > 0) LOAD_ROW(0);
+        int dg_a = (n_new > 0) ? poly_deg(cur_m, cur_c) : 0;
         while (a < n_new) {
             long batch = batch_max;
             if (batch > n_prod) batch = n_prod;
@@ -484,9 +495,9 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             for (long i = 0; i < rank_; i++) mzd_copy_row(S, (rci_t)i, B_, (rci_t)i);
             long filled = 0;
             while (a < n_new && filled < batch) {
-                if (md > D - dg_a) { a++; md = 1; mi = 0; if (a < n_new) dg_a = poly_deg(nm[a], nc[a]); continue; }
+                if (md > D - dg_a) { a++; md = 1; mi = 0; if (a < n_new) { LOAD_ROW(a); dg_a = poly_deg(cur_m, cur_c); } continue; }
                 if (mi >= mult_cnt[md]) { md++; mi = 0; continue; }
-                write_product(S, rank_ + filled, nm[a], nc[a], mult[md][mi], tmp);
+                write_product(S, rank_ + filled, cur_m, cur_c, mult[md][mi], tmp);
                 filled++; mi++;
             }
             if (filled == 0) { mzd_free(S); break; }   /* products exhausted */
@@ -501,8 +512,9 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             mzd_free(S);
             if (is_pivot_[ncols_ - 1]) { found_one = 1; break; }
         }
-        for (long b = 0; b < n_new; b++) free(nm[b]);
-        free(nm); free(nc); free(newrows);
+#undef LOAD_ROW
+        if (NM) mzd_free(NM);
+        free(newrows);
         iter_rows[it] = total_rows; iter_rank[it] = rank_; iter_newpiv[it] = total_new_piv; iter_wall[it] = now_sec() - t0;
         iters = it + 1;
         if (found_one) break;   /* 1 in W_D: the closure is the whole space; verdict decided */
