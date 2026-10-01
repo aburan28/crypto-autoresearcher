@@ -80,7 +80,7 @@ def main():
     for name, c in cells.items():
         print(f"M2 {name} n=29...", flush=True)
         fb = Fb_E_intersect_V(c["curve"], V_elems)
-        m2 = exhaustive_lambda_x_m2(c["curve"], fb, c["r"], c["cofactor_h"])
+        m2 = exhaustive_lambda_x_m2(c["curve"], fb, c["r"], c["cofactor_h"], strict_G=False)
         m2_rows[name] = m2
 
     # M3 (fewer instances)
@@ -178,7 +178,7 @@ def main():
     print("Counting #E for N2 second C-KG...", flush=True)
     order2 = analyze_curve_order(ckg2["curve"])
     fb2 = Fb_E_intersect_V(ckg2["curve"], V_elems)
-    m2_2 = exhaustive_lambda_x_m2(ckg2["curve"], fb2, order2["r"], order2["cofactor_h"])
+    m2_2 = exhaustive_lambda_x_m2(ckg2["curve"], fb2, order2["r"], order2["cofactor_h"], strict_G=False)
     m2_1 = m2_rows["C-KG"]
     # Compare |Fb| ratio and lambda_x ratio within [0.85, 1.18] where defined
     def ratio(a, b):

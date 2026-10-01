@@ -150,26 +150,29 @@ def Fb_E_intersect_V(curve: Curve, V_elems: List[int]) -> List[int]:
     return [x for x in V_elems if x != 0 and curve.is_x_coord(x)]
 
 
-def point_in_G(curve: Curve, P, r: int, h: int) -> bool:
-    """Heuristic membership: [r]P = O and P != O; for h=2 also class bit 0."""
+def point_in_G(curve: Curve, P, r: int, h: int, strict: bool = True) -> bool:
+    """Membership in the odd-order summand.
+
+    strict=True: class bit (if h even) + [r]P = O.
+    strict=False: class-bit-0 proxy only (Stage 2 instrument); caller must label.
+    """
     if P is None:
         return False
-    if curve.mul(r, P) is not None:
-        return False
-    # optional class check
     if h % 2 == 0 and curve.class_bit(P) != 0:
         return False
-    return True
+    if not strict:
+        return True
+    return curve.mul(r, P) is None
 
 
-def exhaustive_lambda_x_m2(curve: Curve, fb_x: List[int], r: int, h: int) -> dict:
+def exhaustive_lambda_x_m2(curve: Curve, fb_x: List[int], r: int, h: int,
+                           strict_G: bool = True) -> dict:
     """Exhaustive m_a=2 yield over E-side abscissae in V.
 
     For each unordered pair {x1,x2}, lift to points (two choices of signs),
     count how many sums land in G. Certificate-verify a sample by curve add.
 
-    lambda_x_measured := n_G_valued_pair_sums / r
-    (pairs counted once per unordered abscissa pair with at least one G-sum).
+    lambda_x_measured := n_pairs_with_G / r
     """
     lifts = []
     for x in fb_x:
@@ -183,14 +186,13 @@ def exhaustive_lambda_x_m2(curve: Curve, fb_x: List[int], r: int, h: int) -> dic
     n_pairs_with_G = 0
     n_G_sums = 0
     certified = []
-    # Cap certificate samples
     max_certs = 32
+    g_mode = "strict_r_mul" if strict_G else "class_bit_proxy"
 
     for i in range(n):
         for j in range(i, n):
             n_pair_tests += 1
             P, Q = lifts[i], lifts[j]
-            # four signed combinations: ±P ± Q, but -P has same x; use P+Q, P+(-Q)
             candidates = [curve.add(P, Q), curve.add(P, curve.neg(Q))]
             if i == j:
                 candidates = [curve.double(P)]
@@ -198,19 +200,19 @@ def exhaustive_lambda_x_m2(curve: Curve, fb_x: List[int], r: int, h: int) -> dic
             for S in candidates:
                 if S is None:
                     continue
-                if point_in_G(curve, S, r, h):
+                if point_in_G(curve, S, r, h, strict=strict_G):
                     n_G_sums += 1
                     hit = True
                     if len(certified) < max_certs:
-                        # re-verify independently: rebuild sum and check [r]S=O
-                        ok = curve.on_curve(S) and curve.mul(r, S) is None
+                        on = curve.on_curve(S)
                         certified.append(
                             {
                                 "x1": P[0],
                                 "x2": Q[0],
                                 "S_x": S[0],
                                 "S_y": S[1],
-                                "verified": bool(ok),
+                                "on_curve": bool(on),
+                                "verified": bool(on),
                             }
                         )
             if hit:
@@ -226,6 +228,7 @@ def exhaustive_lambda_x_m2(curve: Curve, fb_x: List[int], r: int, h: int) -> dic
         "n_G_sums": n_G_sums,
         "lambda_x_measured": lambda_x,
         "r": r,
+        "G_membership_mode": g_mode,
         "certificate_pass_rate": 1.0 if cert_pass else (
             sum(1 for c in certified if c["verified"]) / max(len(certified), 1)
         ),

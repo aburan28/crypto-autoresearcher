@@ -20,6 +20,10 @@
    `m_a=3` recorded as `instrument_ceiling`.
 5. **N1 noise floor** for exact GE ranks is identically 0 (deterministic
    arithmetic); reported as such.
+6. **Stage 2 M2 G-membership**: exhaustive census uses class-bit-0 proxy
+   (`G_membership_mode: class_bit_proxy`) because strict `[r]P=O` at n=29 with
+   `r~2^{28}` is not feasible for a full pair table; certificates verify
+   on-curve arithmetic of sampled sums.
 
 ## Measured vs modeled
 
