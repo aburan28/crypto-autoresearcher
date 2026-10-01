@@ -1,0 +1,398 @@
+red_team_report:
+  id: RT-20261001-ece593
+  task_id: TASK-20261001-ece593
+  role: red-team
+  joint: J2 (interpretation and scope of the verdict for H-RELN-4d092c)
+  review_plan: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/review_plan_RUN-RELN-a695fe.yaml
+  run_id: RUN-RELN-a695fe
+  experiment_id: EXP-RELN-c5a377
+  protocol_version: 4
+  hypothesis_id: H-RELN-4d092c
+  source_idea_id: IDEA-20260909-860d1e
+  reviewed_commit: b2875431e406006d3d0235516d54e0bd8b336eae
+  recorded_at: '2026-10-01'
+
+  frozen_verdict_as_obtained:
+    command: >-
+      nice -n 10 python3 experiments/EXP-RELN-c5a377/implementation/analysis.py
+      experiments/EXP-RELN-c5a377/runs/RUN-RELN-a695fe/raw-result.json
+      --out coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/frozen_analysis_output.json
+    analysis_py_sha256: 7dc7fdada7d87e12620544d8d0236d2850a8b1c8a39ac33b7d0efd84bc7d989c
+    analysis_py_sha256_matches_run_manifest: true
+    verdict: inconclusive
+    reason: neither C-5 rule holds
+    clauses:
+      ci_gt_quarter_all_cells: false
+      trend_flat_or_rising_both_budgets: false
+      er_null_exceeds_quarter_in_any_cell: true
+      er_null_undetermined_cells: []
+      supercritical_rule: false
+      subcritical_rule: false
+    full_output: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/frozen_analysis_output.json
+    note: >-
+      I did not run make_report.py. In this implementation it writes
+      implementation_report.yaml into the implementation directory, which is
+      outside my write scope, and it is not the verdict code. The C-5 verdict is
+      computed by analysis.py, as the run manifest's verdict_note says.
+
+  j2_verdict:
+    follows_from_frozen_rule: true
+    informative_about_the_dichotomy: false
+    breaking_artifact_found: true
+    summary: >-
+      The label "inconclusive" is a correct application of C-5 to the run's data.
+      It is forced by the protocol's parameter rule, though, not by the graph.
+      With B = ceil(p^{1/5}), B2 = ceil(p^{2/5}), A1 = ceil(q^{1/2}) and
+      A2 = ceil(q^{3/5}), an honest 2-large-prime graph is a subcritical forest
+      at A1 and supercritical at A2. Both regimes are predictable from point
+      counts before any data, and they move further apart as q grows. A1 makes
+      delta_proof undefined (cycle_rank = 0) in 8 of 9 fixtures, which fails the
+      supercritical CI and trend clauses mechanically. A2 has a giant component
+      in 9 of 9 fixtures, which fails the subcritical clause. At 16 bits the
+      subcritical giant-fraction test cannot pass for any graph with an edge.
+      So for honest graphs "inconclusive" was the only reachable outcome.
+      The label closes neither branch of H-RELN-4d092c's dichotomy as stated.
+    what_it_does_close_narrowly: >-
+      Scope: the nine frozen fixtures (16/20/24 bits x seeds 11/12/13), the
+      v4 relation generator (exact prime-field point scan over x < B2),
+      B = ceil(p^{1/5}), B2 = ceil(p^{2/5}), budget A2 = ceil(q^{3/5}), toy tier.
+      In that scope the cycle rank of the honest 2-LP graph shows no enrichment
+      beyond its degree-preserving rewire null. The excess is 0.033 delta_proof
+      units (s.e. 0.028, 95% t-CI [-0.031, 0.098], n = 9), against a 1/4 gate.
+      The hypothesis's own heuristic falsification condition (HEUR-RELN-4d092c-1:
+      "apparent delta>1/4 reproduced by degree-preserving rewire null") is met in
+      8 of 8 fixtures where the treatment exceeds 1/4. AMD-20260929-988139
+      (OQ-4 disclosure) pre-registers an ER-matched result as a reportable
+      finding, so stating this is not a post-hoc re-reading. It is still a
+      reading beside the C-5 label, not a replacement for it. Whether it moves
+      hypothesis status is the Coordinator's decision.
+    what_it_leaves_open: >-
+      Enrichment measured by any statistic that (|E|, |V|, c) does not fix.
+      Budgets inside the percolation window between A1 and A2. Other B2
+      exponents. Semaev summation-polynomial or extension-field decompositions.
+      Larger q. The RT-1472 definition of delta (the C-5 definitional
+      impediment is still open).
+
+  objections:
+    - id: O-1
+      severity: high
+      title: The A1 budget makes supercritical-enriched unreachable for honest graphs; the verdict comes from the budget rule
+      argument: >-
+        C-5 requires the supercritical clauses at BOTH budgets. Each attempt
+        yields a relation with probability about #{pairs with x < B2}/q, which
+        scales like p^{-1/5}. So |E| at A1 scales like q^{1/2-1/5} = q^{0.3},
+        while the LP vertex pool (liftable classes in [B, B2)) scales like
+        q^{0.4}. A1 therefore sits below the percolation threshold, and its
+        relative edge density shrinks like q^{-0.1}. Cycle rank stays O(1) and
+        delta_proof is undefined or tends to -1. A1 alone makes the CI and trend
+        clauses fail for every honest graph at every q. The fixture point counts
+        predict this before any data, and the run confirms it quantitatively.
+      computation: >-
+        j2_controls.py on raw-result.json. Relation yield per attempt against
+        log q: OLS slope -0.170 +- 0.026 (1 s.e., n = 9), heuristic -0.2.
+        |E|/(n_lp_liftable+1) at A1 against log q: slope -0.083 +- 0.023,
+        heuristic -0.1. A1 mean degree over all liftable LP classes is
+        0.37-0.87, below 1 everywhere. A1 cycle_rank is 0 in 8/9 fixtures and 1
+        in b20-s12. delta_proof is null in 8/9 A1 fixtures, so lower_ci is None
+        at every A1 size cell and slope_upper_ci is None for A1.
+    - id: O-2
+      severity: high
+      title: The subcritical branch is unreachable at 16 bits by arithmetic and at every size under A2
+      argument: >-
+        Certified subcritical needs giant fraction < 0.05 at every fixture and
+        both budgets. Any graph with one edge has a component of at least 2
+        vertices, so the giant fraction is at least 2/|V|. That is above 0.05
+        whenever |V| <= 40. All six 16-bit cells have |V| in 14..34, so the rule
+        cannot fire there even on a pure forest. Separately, A2 holds |E| at a
+        constant multiple of the vertex pool, so A2 graphs are supercritical and
+        stay that way as q grows. A1 graphs are forests (cycle rank 0) but cannot
+        be certified at 16 bits. Combined with O-1, both branches were closed off
+        to honest graphs by the parameter choices.
+      computation: >-
+        j2_obstruction.py. min_giant = 2/|V| exceeds 0.05 in all 6 b16 cells.
+        A2 giant fraction is 0.750-0.963 in 9/9 fixtures. A2 |E|/(n_lp+1)
+        against log q: slope +0.013 +- 0.021 (flat). A2 mean degree is
+        1.71-2.57. The A1 forests (cr = 0, cwc = 0) satisfy rule 2 but miss
+        giant < 0.05 in 8/9 fixtures (observed 0.047-0.458).
+    - id: O-3
+      severity: high
+      title: delta_proof > 1/4 at A2 measures the budget constant, not enrichment
+      argument: >-
+        delta_proof = log_L(cycle_rank) - 1, where L counts factor-base classes
+        (2..14 here). The LP graph lives on about L^2 vertices. At A2 the edge
+        count is a constant multiple of the vertex pool, so cycle_rank grows
+        like q^{0.4}, roughly L^2, and delta_proof tends to 1 from counting
+        alone. At toy L, log_L is coarse: b16-s12 has L = 2, so cycle_rank 4
+        gives delta_proof exactly 1.0 and 6 gives 0.0 on b16-s13 with L = 6.
+        That noise alone sinks the 16-bit A2 CI (lower 95% = -0.728).
+      computation: >-
+        log cycle_rank at A2 against log q: slope +0.413 +- 0.071 (heuristic
+        0.4). cycle_rank/L^2 at A2 = 0.17-1.00. A2-only counterfactual with the
+        frozen helpers: lower95 by size = -0.728 (16), 0.372 (20), 0.281 (24).
+        A2 slope upper95 = 0.095.
+    - id: O-4
+      severity: medium
+      title: The Erdos-Renyi null is biased upward by isolated vertices the treatment cannot have
+      argument: >-
+        Under OQ-6 the treatment vertex set holds only LP classes on an edge
+        (plus the root), so it has no isolated vertices. G(|V|,|E|) on the same
+        |V| has about |V|exp(-2|E|/|V|) isolated vertices. Each one adds a
+        component, and cycle_rank = |E| - |V| + c. So ER cycle rank exceeds the
+        treatment's systematically, and the ER clause fires more easily, which
+        is the fail-closed direction. The pre-registered disclosure said the
+        enriched verdict is reachable only if the treatment is much more
+        fragmented than ER. Under OQ-6 the treatment is systematically LESS
+        fragmented, so the clause was close to unsatisfiable. The conclusion
+        "no enrichment" survives this objection because the degree-preserving
+        rewire null gives the same answer (O-6). But the ER clause alone is not
+        a clean identical-|V|,|E| control.
+      computation: >-
+        A2 components, treatment against ER mean: b16 3/2.91, 3/4.59, 2/2.94;
+        b20 4/10.31, 3/9.47, 3/8.22; b24 11/29.0, 10/35.0, 12/27.1. Predicted
+        isolated ER vertices are 2.1-30.7 and track the gap. Treatment cycle
+        rank z-score against ER at A2 is -0.95 to -6.19 (mean -2.69); against
+        rewire it is -1.05 to +2.27 (mean +0.375).
+    - id: O-5
+      severity: medium
+      title: No control has power against the mechanism the idea names (graphic-matroid / cycle-basis enrichment)
+      argument: >-
+        Cycle rank is fixed by |E| and |V| up to the component count, so the
+        frozen statistic cannot see cycle-basis structure. The only
+        enrichment-sensitive quantity computed is the Horton minimum cycle
+        basis, at 16 and 20 bits. Its basis sizes are 4-44 and mean lengths
+        3.0-6.3, and it has no null comparator. The known-positive control
+        plants cycle rank ceil(|V|^1.5) by adding edges. It checks that the
+        delta pipeline reads a dense graph correctly, but an ER null with the
+        planted graph's |E| would also exceed 1/4. So "known-positive power
+        confirmed" in all 18 cells confirms the meter, not power to detect
+        enrichment at fixed edge count.
+      computation: >-
+        known_positive.status = pass in 18/18 cells. horton.basis_size and
+        mean_length per A2 cell are as above (24-bit: not computed, as C-4
+        allows). null_rewire and null_er store summary statistics only, with
+        no Horton data.
+    - id: O-6
+      severity: medium
+      title: The inconclusive label hides a pre-registered rewire-matched negative finding on enrichment
+      argument: >-
+        At A2 the treatment's cycle rank is indistinguishable from its
+        degree-preserving rewire null in every fixture. The informative
+        content of the run is "no enrichment beyond random rewiring at A2",
+        which the hypothesis names as its own falsification condition. If the
+        evidence record carries only "inconclusive", it understates the run.
+        If it calls the result "certified subcritical" or "supercritical",
+        it overstates it.
+      computation: >-
+        Per-fixture A2 cycle_rank against rewire mean (32 replicates):
+        16/14.72, 4/3.38, 6/5.59, 17/17.25, 18/19.44, 44/43.97, 73/73.22,
+        54/55.12, 83/78.03. Total excess is 4.28 +- 4.93 cycles (1 sd), which
+        is 1.4% +- 1.6% of total cycle rank 315. In delta units the excess is
+        log_L(cr/rw_mean) = 0.0334 mean, sd 0.0838, 95% t-CI [-0.031, 0.098].
+        The rewire fraction with delta_proof > 1/4 is 1.0 in 7/9 A2 fixtures,
+        0.84 in b16-s12, and 0.0 in b16-s13, where the treatment is also below
+        1/4 (0.000).
+    - id: O-7
+      severity: low
+      title: Cost - the budget at which the graph becomes supercritical is far above rho
+      argument: >-
+        A2 is the only budget with a giant component. There the run determines
+        and verifies the target log k in 9/9 fixtures, and LP recovery is
+        74-97%. That costs 318-4125 sqrt(q) charged group operations, rising
+        with q, while Pollard rho on the same fixtures takes 0.82-1.00 sqrt(q).
+        Asymptotically, q^{3/5} attempts times a 2*B2 ~ q^{2/5} scan gives
+        q^{1}. Not part of C-5. The F-8 exclusions recorded by the implementation
+        audit apply to any cost ratio (I did not read that audit; it is outside my
+        read scope).
+      computation: >-
+        charged.charged_work_over_sqrt_q at A2: 393, 329, 318 (16-bit);
+        1066, 1098, 1200 (20-bit); 3662, 4125, 3825 (24-bit).
+        rho.summary.mean_walk_ops_over_sqrt_q: 0.818-1.002, 64/64 solved per
+        fixture. recovery.k_verified = true in 9/9 A2 cells and false in 9/9
+        A1 cells.
+    - id: O-8
+      severity: low
+      title: Transfer to q -> infinity - trends are clean but rest on a stated point-count heuristic from three sizes
+      argument: >-
+        The coordinator's prior expected me to argue that 24 bits says nothing
+        about the asymptotic regime. That is only partly right. The run's
+        scaling exponents match the point-count heuristic within 1-1.3 s.e.
+        (yield, A1 density, A2 density, A2 cycle rank). Under that heuristic,
+        the extrapolation is that A1 graphs stay subcritical, A2 graphs stay
+        supercritical with delta_proof -> 1, and rewire-matching should
+        persist. That is a transfer assumption: three sizes over an 8-bit span,
+        n = 9. It is not a measurement at large q.
+      computation: Slopes as in O-1 and O-3 (j2_controls.out).
+
+  required_controls:
+    - >-
+      Enrichment statistic not fixed by (|E|,|V|,c): Horton minimum-cycle-basis
+      length distribution and short-cycle counts (length <= 4) on the treatment
+      against the same statistic on the 32 rewire replicates at A2. The
+      replicate edge lists are not stored, so regenerating them would use
+      protocol seed labels and needs an additive amendment.
+    - >-
+      ER null on a matched vertex set: either condition G(n,m) on minimum
+      degree >= 1, or use all liftable LP classes as vertices in both treatment
+      and null.
+    - >-
+      Enrichment known-positive at fixed |E| and |V| (for example a planted
+      graph with the treatment's degree sequence and its cycles concentrated
+      in short cycles), so the ER/rewire clause itself is exercised.
+
+  obstruction:
+    statement: >-
+      The honest 2-LP summation graph's cycle rank equals what a random graph
+      with the same degree sequence gives. Cycle rank is |E| - |V| + c, so once
+      the budget fixes the edge count the graph carries no cycle-space
+      enrichment. Whether the graph is supercritical is decided by the attempt
+      budget relative to the point-count percolation threshold: below at A1,
+      above at A2.
+    quantity: >-
+      Cycle-rank excess of the honest 2-LP summation graph over its
+      degree-preserving configuration-model rewire null at budget A2, in
+      delta_proof units: log_L(cycle_rank_treatment / mean cycle_rank_rewire),
+      averaged over fixtures.
+    value: >-
+      0.033 delta_proof units (dimensionless; log base L of a cycle-rank
+      ratio), s.e. 0.028, n = 9 fixtures, 95% t-CI [-0.031, 0.098]. Gate for
+      comparison: 0.25. Aggregate excess is 4.28 +- 4.93 cycles of 315 total
+      (1.4% +- 1.6%).
+    measured_value: 0.033
+    units: delta_proof units (log base L of a cycle-rank ratio; dimensionless)
+    uncertainty: >-
+      s.e. 0.028 (n = 9 fixtures). 95% t-CI [-0.031, 0.098]. Aggregate excess
+      is 4.28 +- 4.93 cycles of 315 total (1.4% +- 1.6%).
+    gate_for_comparison: 0.25
+    measured_by: [RUN-RELN-a695fe, EXP-RELN-c5a377]
+    secondary_quantity: >-
+      Relative edge density |E|/(n_lp_liftable + 1) against log q. A1:
+      slope -0.083 +- 0.023 per unit log q (heuristic -0.1), so subcritical
+      and diverging from threshold. A2: slope +0.013 +- 0.021 (flat; mean
+      degree 1.7-2.6). A1 never reaches a giant component and A2 always has one.
+    read_from_runs: [RUN-RELN-a695fe]
+    computed_by:
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_obstruction.py
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_controls.py
+    scope: >-
+      Same as claimed_scope below.
+    claimed_scope: >-
+      The nine EXP-RELN-c5a377 v4 fixtures (16/20/24-bit ordinary prime-field
+      curves, seeds 11/12/13), exact x < B2 two-point decomposition generator,
+      B = ceil(p^{1/5}), B2 = ceil(p^{2/5}), A2 = ceil(q^{3/5}), the cycle-rank
+      statistic only, toy tier. Not claimed over other statistics, budgets, B2
+      exponents, Semaev or extension-field decompositions, or larger q.
+    resource_check:
+      examined: true
+      reading: >-
+        (1) The treatment matches its rewire null, i.e. the 2-LP graph behaves
+        like a random graph with its degree sequence. That is the modelling
+        assumption on which double-large-prime index-calculus cost analyses
+        rest (Gaudry, Thome, Theriault, Diem, "A double large prime variation
+        for small genus hyperelliptic index calculus", Math. Comp. 2007;
+        provenance: recalled, not opened in this session). So the obstruction
+        is toy-scale validation evidence FOR that random-graph model in the
+        prime-field point-decomposition setting. That is an asset to
+        GOAL-ICEX-001's charged cost model, not to the enrichment claim.
+        (2) The flat A2 density (mean degree about 2) means the
+        percolation-critical budget can be predicted from fixture point counts:
+        attempts* ~ (n_lp + 1) / (2 * yield). Future 2-LP experiments can be
+        placed inside the critical window instead of straddling it, as A1/A2
+        do. Neither reading supports enrichment beyond edge count.
+      spawned_ids: []
+
+  dominated_by:
+    status: dominated_on_measured_axes
+    rows_checked:
+      - name: Pollard rho with negation map (measured on the same fixtures in this run)
+        time: 0.82-1.00 sqrt(q) walk ops, 64/64 targets per fixture
+        memory: O(1) serial
+        data: one target
+      - name: BSGS
+        time: Theta(sqrt(q)) (not measured in this run)
+        memory: Theta(sqrt(q)) point words
+        data: table of Theta(sqrt(q)) entries
+      - name: This run's 2-LP pipeline at A2 (supercritical budget)
+        time: 318-4125 sqrt(q) charged group ops (relation collection), asymptotically about q^1
+        memory: O(B2) scan plus O(|E|) graph; peak RSS <= 45 MB
+        data: one target; 9/9 k verified
+    note: >-
+      Only the cost that C-5 does not use. Comparison against the GOAL-ICEX-001
+      charged pipeline was not made (out of joint scope). F-8 exclusions apply
+      to any cost ratio quoted.
+  sota_delta:
+    established_time_exponent_improvement: 0
+    established_memory_exponent_improvement: 0
+    measured: >-
+      Enrichment excess over rewire null: 0.033 +- 0.028 delta units against a
+      0.25 gate. Measured cost at the supercritical budget is 318-4125x rho's
+      sqrt(q) constant, and the ratio grows with q.
+
+  forward_guidance:
+    smallest_change_not_ruled_out: >-
+      Keep the generator, B and B2 fixed. Replace the frozen statistic with one
+      that (|E|,|V|,c) does not determine: the Horton minimum-cycle-basis length
+      distribution or the count of cycles of length <= 4, compared against the
+      same statistic on matched-degree rewire replicates. Measure it at budgets
+      swept across the percolation window, attempts = kappa (n_lp + 1)/yield for
+      kappa in {0.25, 0.5, 1, 2}, rather than at A1 and A2. The data do not
+      rule out short-cycle enrichment at fixed edge count, because nothing in
+      this run measured it against a null.
+    other_open_routes:
+      - Normalise delta by the LP vertex pool (log base n_lp), or report cycle-rank excess over the rewire null directly, so the gate does not reduce to a budget constant.
+      - Acquire the RT-1472 delta definition (C-5 definitional impediment) before any gate reading.
+      - Other B2 exponents (for example p^{1/2}) and Semaev summation-polynomial / extension-field decompositions, which the idea's mechanism names and this generator does not implement.
+    not_recommended: >-
+      Re-running v4 at larger q unchanged. O-1 and O-2 predict "inconclusive"
+      again for honest graphs, independent of enrichment.
+    next_concrete_action: >-
+      The Coordinator writes the evidence record with two readings side by side:
+      the C-5 label "inconclusive (protocol-forced; see O-1/O-2)" and the
+      pre-registered rewire-matched finding scoped as above. Then an additive
+      amendment (v5) or successor experiment adopts the forward-guidance
+      statistic and budget sweep.
+
+  scope_limits:
+    - Toy tier only (q < 2^24). No cryptographic-size or deployed-curve statement.
+    - This report covers joint J2. It is not a whole-claim verdict and does not adjudicate J1 integrity or the J3 re-derivation.
+    - All numbers are computed from RUN-RELN-a695fe's committed raw-result.json. No new protocol-labelled runs or draws were made.
+
+  scratch_artifacts:
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/frozen_analysis_output.json
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_scaling.py
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_rows.json
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_controls.py
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_controls.out
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_obstruction.py
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/j2_obstruction.out
+
+  attestation:
+    files_read:
+      - AGENTS.md (workspace rule text)
+      - CLAUDE.md (workspace rule text)
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/dispatch_queue.json (own card TASK-20261001-ece593 only)
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/review_plan_RUN-RELN-a695fe.yaml
+      - experiments/EXP-RELN-c5a377/specification.yaml
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260926-a7d25d.yaml
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260929-988139.yaml
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260929-cc7226.yaml
+      - ledger/hypotheses/H-RELN-4d092c.yaml
+      - ledger/proposals/IDEA-20260909-860d1e.yaml
+      - experiments/EXP-RELN-c5a377/implementation/analysis.py
+      - experiments/EXP-RELN-c5a377/implementation/make_report.py (first 80 lines; open-question text)
+      - experiments/EXP-RELN-c5a377/runs/RUN-RELN-a695fe/raw-result.json
+      - experiments/EXP-RELN-c5a377/runs/RUN-RELN-a695fe/command.txt
+      - experiments/EXP-RELN-c5a377/runs/RUN-RELN-a695fe/stdout.log
+      - experiments/EXP-RELN-c5a377/runs/RUN-RELN-a695fe/manifest.yaml (analysis.py hash and verdict_note lines only)
+      - templates/research-records.md (obstruction block section and its explanatory paragraph)
+    not_read: >-
+      Anything under batches/BATCH-229ce4/archives/, including the F-8 audit
+      text. Any other experiment implementation module beyond analysis.py and
+      the first 80 lines of make_report.py.
+    sibling_reports_read: none
+    independent_session: true
+    requested_policy: review-adversarial
+    resolved_model_id: unknown (Cursor runtime)
+    fallback_used: true
+    degraded_requirements: [xhigh reasoning effort not verifiable under the Cursor runtime (DEC-20261001-ba1026)]
+    scientific_runs_performed: 0
+    frozen_label_draws: 0
