@@ -523,7 +523,13 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             install_basis(S, rk2);
             total_new_piv += (rk2 - old_rank);
             mzd_free(S);
-            if (is_pivot_[ncols_ - 1]) { found_one = 1; break; }
+            /* 1 in the row space settles the CLOSURE's verdict, so it stops. The
+             * single-level statistic is the RANK of the whole degree-D Macaulay
+             * block, so it must take every product: stopping here returned a
+             * truncated rank whenever the block needed more than one batch and 1
+             * appeared before the last (N=42 D=4: 8556 against 36739 at a
+             * 0.25 GiB cap), labelled completed. */
+            if (is_pivot_[ncols_ - 1] && !single_level) { found_one = 1; break; }
         }
 #undef LOAD_ROW
         if (NM) mzd_free(NM);
