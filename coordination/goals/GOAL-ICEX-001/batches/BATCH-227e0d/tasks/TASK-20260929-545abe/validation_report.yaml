@@ -1,0 +1,401 @@
+# Independent re-check of the EXP-ICEX-aaccfc v4b repair (repair round 2)
+# (pre-admission implementation check; zero scientific runs).
+validation_report:
+  id: VAL-20260929-545abe
+  task_id: TASK-20260929-545abe
+  role: validator
+  reviewer_continuity: >-
+    Same reviewer as TASK-20260929-e3446a (VAL-20260929-e3446a) and
+    TASK-20260929-1344ef (VAL-20260929-1344ef), whose findings G-1..G-4 and
+    advisories G-5..G-7 (called A-1..A-3 in the repair) motivated
+    TASK-20260929-ffd37e. This checks their closure; it is not a fresh pair of
+    eyes on the original findings.
+  experiment_id: EXP-ICEX-aaccfc
+  subject: experiments/EXP-ICEX-aaccfc/implementation/ (snapshot TASK-20260929-c0b8b3; repair TASK-20260929-ffd37e)
+  snapshot_commit: 339fb8bc27e72faea524d2402859e77430ea9bbd
+  snapshot_parent: 4874469b6be2d080344b46cba3a630002851a612
+  head_at_validation: 1314b11d76
+  protocol: v4 = specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 + AMD-20260929-5a84eb (DEC-20260929-986b4c)
+  run_ids: []
+  scientific_runs_performed: 0
+  verdict: PASS_WITH_FINDINGS
+  verdict_meaning: >-
+    G-1, G-2, G-3 and G-4 are closed as written and verified by direct
+    adversarial tests on a temporary copy with real driver and cellrun
+    processes. A-1 and A-2 are closed.
+    A-3 is not closed. On a failing test, pytest's default traceback prints
+    the test function's fixture arguments. Twelve tests take smoke_primary
+    (frozen b16-s21) as an argument, so any failure among them prints that
+    fixture's cost fields, whether or not assertion rewriting is on. One
+    must_fix_before_run finding (H-1); the fix is one line.
+    Two advisories: the parent-is-driver test matches driver.py anywhere in
+    the parent's argv (H-2), and a committed hand-written receipt under
+    archives/TASK-* is accepted (H-3). Both need deliberate forgery; no
+    accidental path passes.
+    Regression is clean. This report makes no ECDLP claim and authorizes
+    nothing.
+
+  checks:
+    - id: 1
+      name: snapshot integrity, tree clean
+      result: PASS
+      evidence:
+        - >-
+          Commit 339fb8bc27 ('snapshot(TASK-20260929-c0b8b3): ...'); its parent
+          4874469b6b equals the receipt's parent_sha.
+        - >-
+          The receipt has 182 path_sha256 entries; all 182 match the worktree
+          (0 mismatches).
+        - >-
+          The commit changes 15 files: the receipt plus 14 declared paths. The
+          other 168 are unchanged carry-overs bound by content
+          (binding_mode content_at_commit).
+        - >-
+          `git status --porcelain` shows nothing under the 182 paths or under
+          experiments/.
+          trial-plan-v2.json sha256 = 58c36b6d...c2e983 (unchanged).
+        - >-
+          driver.verify_snapshot(real repo, c0b8b3 receipt): checked 182, 0
+          mismatches, 0 missing, 0 unpinned, dirty false.
+        - >-
+          OQ-20..OQ-23 rulings are present in the receipt.
+    - id: 2
+      name: pytest (expected 103)
+      result: PASS
+      evidence:
+        - >-
+          `TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10
+          python3 -m pytest -q -rs -p no:cacheprovider tests` (from the
+          implementation directory) gave 103 passed, 0 failed, 0 skipped in
+          73.09 s (exit 0).
+        - >-
+          No cellrun or pytest process remained afterwards (pgrep).
+    - id: 3
+      name: G-1 orphan child (real child), SIGTERM and exception paths
+      result: PASS
+      evidence:
+        - >-
+          Harness: a real `python3 driver.py --smoke-dry-run` process on a
+          temporary copy (smoke namespace, synthetic b13-s900, C-1 Sage
+          stubbed, --dry-rho-targets 10^7). The long rho cell's real cellrun
+          child was confirmed alive, with ppid equal to the driver pid, before
+          each action.
+        - >-
+          SIGKILL of the driver: the child was gone after 0.07 s. The rho cell
+          has neither result.json nor result.json.tmp. The driver exited with
+          -9, and the manifest was left 'running' (non-stub), which is the case
+          OQ-20 ruled to be read as failed_infrastructure.
+        - >-
+          SIGTERM of the driver: the child was gone after 0.09 s with no
+          result.json. Driver exit 8; manifest and raw-result.json
+          failed_infrastructure, failure_class signal.
+        - >-
+          Injected RuntimeError in the driver's wait loop: the child was reaped
+          with no result.json. Driver exit 8; failure_class exception.
+        - >-
+          No process matching the copy path remained after any case.
+        - >-
+          An earlier harness attempt caught the fast primary cell as it
+          finished, which was ambiguous; it was discarded and re-run on the
+          rho cell.
+    - id: 4
+      name: G-2 hand-written running manifest; genuine driver-launched cell accepted
+      result: PASS
+      evidence:
+        - >-
+          Temporary git repo with a committed stand-in decision
+          DEC-20260929-aaaaaa (admit_execution, target EXP-ICEX-aaccfc,
+          currently_admitted true; temp repo only). The real check_decision
+          accepts it.
+        - >-
+          Real parent check: a hand-written manifest, whose parent process is
+          not driver.py, is refused.
+        - >-
+          With only the parent check stubbed to isolate each field, each of
+          these is refused: stub flag; status; id; decision; namespace; token
+          hash wrong or missing; driver_pid wrong, missing or given as a string;
+          commit not HEAD or missing; environment token different or missing;
+          environment driver pid missing; environment decision missing or
+          uncommitted; environment repo missing; run directory outside runs/,
+          not named RUN-*, or nested; decision file present but uncommitted.
+          The one case accepted under the stub was a consistently different
+          driver pid in both environment and manifest. That is an artifact of
+          the stub: the real parent check refuses it, as shown above.
+        - >-
+          Genuine case: the real driver.py from the copy ran the scientific
+          path, with C-7, plan, protocol and snapshot gates stubbed and one
+          frozen-namespace cell of unknown kind 'validator_noop'. That cell
+          passed admission_guard and failed only at kind dispatch
+          (implementation_error: unknown cell kind), so the guard accepted the
+          genuine launch and no pipeline computation ran. The manifest carries
+          run_token_sha256 and driver_pid; the raw token appears in no run
+          file.
+        - >-
+          See H-2 (advisory) for the one forgery that passes.
+    - id: 5
+      name: G-3 receipt provenance
+      result: PASS
+      evidence:
+        - >-
+          The unpatched worktree driver.verify_snapshot was run against a
+          temporary git repo. Refused:
+            - byte-identical copy outside the repo;
+            - untracked;
+            - staged but not committed;
+            - edited after commit, unstaged and staged;
+            - committed symlink;
+            - committed at the repo root, in the implementation dir, under
+              another file name, or under archives/misc;
+            - task_id different from its TASK directory;
+            - kind 'ledger' or missing.
+        - >-
+          Real repository: the c0b8b3 receipt is accepted (checked 182, clean).
+          The 8428ad receipt passes the file checks and is refused for pin
+          mismatch: 12 changed files and 1 unpinned file (test_process.py).
+        - >-
+          A symlinked TASK directory pointing at a genuine archive resolves to
+          that genuine receipt and is accepted, which is harmless.
+          See H-3 (advisory) for a committed hand-written receipt.
+    - id: 6
+      name: G-4 exception or signal during the environment probe
+      result: PASS
+      evidence:
+        - >-
+          Real driver process (python -c wrapper around the copy's unmodified
+          driver.main, smoke dry run) with driver.environment_info replaced:
+            - raise OSError: exit 8; manifest.yaml has stub true, status
+              failed_infrastructure, failure_class exception, the reason,
+              finished_at, result.valid false and the traceback;
+              raw-result.json has status failed_infrastructure.
+            - sleep then external SIGTERM: during the probe the stub manifest
+              is present with status running. Afterwards the same fields as
+              above, with failure_class signal and reason RunInterrupted:
+              signal SIGTERM.
+        - >-
+          Run directory contents: command.txt, manifest.yaml, raw-result.json,
+          stdout.log, stderr.log. No child process remained.
+    - id: 7
+      name: A-1..A-3
+      result: FAIL
+      evidence:
+        - >-
+          A-1 PASS. Real cellrun subprocesses refused, each with exit 3,
+          status refused and no result key:
+            - a smoke task naming frozen 16/21 in the smoke namespace, in
+              'smoke|adhoc', and in the '|tests' prefix;
+            - a smoke task with an inline frozen fixture;
+            - a frozen-namespace task launched without the driver.
+          pipeline._ns_guard refuses a frozen fixture in the smoke namespace
+          and in 'smoke|adhoc', allows it only under
+          'smoke|EXP-ICEX-aaccfc/v2|tests*', and refuses the unadmitted frozen
+          namespace.
+        - >-
+          A-2 PASS. Committed stand-in decisions: admit_execution is accepted;
+          approve_execution, admit, approve and Admit_Execution are refused.
+          The value is whitespace-stripped (harmless).
+          ADMIT_DECISIONS = ('admit_execution',).
+        - >-
+          A-3 FAIL. Method: a deliberately failing probe test was added to the
+          temporary copy's tests directory, marked PYTEST_DONT_REWRITE, taking
+          smoke_primary and asserting a frozen units value == -1. It was
+          checked by hashing every numeric token of the output against the
+          sha256 of the value; no value was printed or stored in clear.
+          Results:
+            - default traceback: the value is present. The masked output shows
+              the funcarg line 'smoke_primary = {..., complete_units: ...}'.
+              The AssertionError itself carries no value.
+            - unmarked control: the value is present.
+            - --tb=short, --tb=native and --tb=line: the value is absent.
+          The worktree's pytest config (pyproject.toml) sets no traceback
+          style, so the documented command is affected. See H-1.
+    - id: 8
+      name: regression (FX-1..FX-8; charged code; C-5; admission without DEC-20260929-47a574)
+      result: PASS
+      evidence:
+        - >-
+          arith, b0, la, oracle, rho, verify, audit and hostinfo are
+          hash-identical to d04f29 (and to 8428ad).
+          analysis, common, make_trial_plan, smoke, synthetic and the trial
+          plan are hash-identical to 8428ad.
+          pipeline.py's diff against 8428ad is the A-1 guard only: the
+          _ns_guard(ns, fx) signature, TESTS_NS_PREFIX and four call sites.
+        - >-
+          C-5: `git diff d6da4cd606 339fb8bc27 -- analysis.py` contains no
+          changed line touching sub_rho_signal, scoped_negative, inconclusive,
+          0.5, 0.886, 2000, or the upper/lower CI.
+        - >-
+          DEC-20260929-47a574 is absent from ledger/decisions:
+            - check_decision refuses it ('does not exist');
+            - driver.main on the real worktree returns 3 (C-7 refused: 15-min
+              load 49.47, repo volume 4.2 GiB free) and, with C-7 stubbed
+              in-process, 4 (decision refused);
+            - no file was written; experiments/EXP-ICEX-aaccfc/runs holds only
+              .gitkeep.
+        - >-
+          FX-1: a later uncommitted superseding decision is refused;
+          currently_admitted false (dirty) is refused; uncommitted decision
+          files are refused (check 4).
+          FX-2: the genuine-run manifest has the run block (id, status, code,
+          environment, inputs, inference, timing, resources, result,
+          artifacts).
+          FX-3: a cell failure gives failed_infrastructure,
+          cell_implementation_error, certificate.verified false.
+          FX-4: check 4. FX-5: check 7 A-1. FX-6: check 5.
+          FX-7: the inference block has requested_policy, resolved_model_id,
+          model_verified, fallback and degraded fields.
+          FX-8: analysis.py unchanged, and the test_analysis leave-out tests
+          pass in the suite.
+    - id: 9
+      name: old smoke artifacts unchanged, not opened
+      result: PASS
+      evidence:
+        - >-
+          All 77 d04f29 smoke paths and all 151 8428ad smoke paths have the
+          same hash in the c0b8b3 receipt (151 smoke paths).
+          The worktree hashes of all 151 match c0b8b3.
+        - >-
+          Hashed only; no smoke artifact was opened this session.
+
+  findings:
+    - id: H-1
+      severity: must_fix_before_run
+      check: 7
+      summary: >-
+        A-3 is not closed: a failing frozen-fixture test prints frozen cost
+        fields through pytest's funcarg display.
+      detail: >-
+        With the default --tb=auto (long for the test frame), pytest shows the
+        test function's arguments. Twelve tests take the smoke_primary
+        fixture, which holds frozen b16-s21 results:
+          - test_charging.py lines 138-227 (8 tests);
+          - test_controls.py lines 17, 27, 34;
+          - test_fxa.py line 64.
+        Any failure in these (assert or exception) prints the fixture's dict,
+        including complete_units, which is the F-5 preview of a verdict input.
+        PYTEST_DONT_REWRITE only removes assertion introspection; it does not
+        cover this channel.
+        The executor's probe (test_frozen_fixture_test_modules_disable_assertion_rewriting)
+        only tests a local variable, so it cannot see this. The repair report's
+        closure claim for A-3 is therefore not supported.
+      remedy: >-
+        Make a non-long traceback the default for this suite, for example
+        implementation/pytest.ini with addopts = --tb=short -p no:cacheprovider
+        (verified: short, native and line all hide the value). Or, more
+        robustly, have smoke_primary return an object with a non-revealing
+        __repr__.
+        Extend the A-3 probe to use a failing test that takes a fixture
+        argument, and assert that the value is absent.
+        Note that -l/--showlocals would still print values; document that.
+    - id: H-2
+      severity: advisory
+      check: 4
+      summary: >-
+        parent_is_driver accepts any parent whose argv mentions this
+        implementation's driver.py.
+      detail: >-
+        cellrun.parent_is_driver checks `any(...)` over the whole cmdline.
+        Demonstrated in the temp repo with the committed stand-in decision and
+        a guard-only child, with no computation: a plain Python parent that
+        wrote a self-consistent hand-written manifest (its own pid, the hash of
+        a token it chose, commit = HEAD) and passed <impl>/driver.py as an
+        extra argv element was admitted by admission_guard. Without that argv
+        element it was refused.
+        This is deliberate forgery. No accidental or careless path passes, and
+        an in-repo guard cannot stop a determined local actor anyway.
+      remedy: >-
+        Require the driver script at the interpreter's script position (for
+        example cmdline[1] resolves to driver.py and cmdline[0] is a Python
+        executable), and state in implementation.md that the guard prevents
+        mistakes, not forgery.
+    - id: H-3
+      severity: advisory
+      check: 5
+      summary: >-
+        A committed hand-written receipt under any archives/TASK-*/ directory
+        is accepted.
+      detail: >-
+        check_receipt_file verifies location, task_id-to-directory match,
+        tracking, cleanliness and HEAD identity. Nothing ties the receipt to
+        the Coordinator's snapshot task. A receipt listing the current hashes,
+        committed at archives/TASK-20260929-abcdef/, passed in the temp repo.
+        Committing is a durable, auditable act, and the pin and clean-tree
+        checks already guarantee the code equals the committed tree. The
+        residual is provenance only.
+        This is narrower than the remedy option offered in VAL-20260929-1344ef
+        G-3 (task_id equal to the snapshot task named in the admission
+        decision).
+      remedy: >-
+        When DEC-20260929-47a574 restates the admission snapshot, have the
+        driver require the receipt's task_id to equal the snapshot task named
+        there (or its execution_admission block), and record it in
+        inputs.snapshot_verification.
+
+  artifact_checks:
+    - 182/182 receipt hashes match the worktree; parent matches; commit 339fb8bc27 changes the receipt plus 14 declared paths; tree clean
+    - trial-plan-v2.json sha256 58c36b6d...c2e983 unchanged
+    - experiments/EXP-ICEX-aaccfc/runs/ holds only .gitkeep
+  metric_recomputations:
+    - none of scientific type (maximum_runs 0)
+  control_checks:
+    - charged and verifier code hash-identical to d04f29; suite control tests pass (103/103)
+    - proves-too-much / null style checks in this round were guard-level (known-forged manifests, receipts and decision verbs must be refused); all refused except H-2 and H-3
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  limitations:
+    - All adversarial tests ran on a temporary copy or a temporary git repo, with C-1 (Sage) stubbed and a synthetic 13-bit fixture. The real frozen pipeline was not exercised, and C-1 was not re-run (15-min load about 40-49; repo volume 4.2 GiB free).
+    - The genuine-launch test stubbed the driver's C-7, plan, protocol-binding and snapshot gates in the copy and used an unknown cell kind; the guard path is real, but no frozen cell computed.
+    - The cellrun orphan check has a microsecond window between the final getppid test and os.replace; not exploitable by accident and not a finding.
+    - After a driver SIGKILL the non-stub manifest stays 'running'; the OQ-20 reading (failed_infrastructure) is a Coordinator rule, not rewritten by code.
+    - The pytest run rewrote scratch files in the shared $TMPDIR/icex-aaccfc-tests (created by the suite; executor-owned); left in place.
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-545abe/validation_report.yaml
+
+  commands_run:
+    - git log --grep='snapshot(TASK-20260929-c0b8b3)' --format='%H %s'; git rev-parse 339fb8bc27^
+    - python3 (hash all 182 receipt entries vs worktree; commit file list vs receipt; git status on the pinned paths)
+    - shasum -a 256 experiments/EXP-ICEX-aaccfc/implementation/trial-plan-v2.json
+    - TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -q -rs -p no:cacheprovider tests   # 103 passed in 73.09s
+    - python3 $TMPDIR/val545abe/g1.py sigkill|sigterm|exception   # real driver.py --smoke-dry-run on a temp copy, real cellrun child
+    - python3 $TMPDIR/val545abe/g2.py   # admission_guard vs hand-written manifests, temp repo, committed stand-in decision
+    - python3 <copy>/driver.py --run-id RUN-val-genuine --admission-decision DEC-20260929-aaaaaa (temp copy, gates stubbed, unknown-kind frozen cell)
+    - python3 $TMPDIR/val545abe/spoof_parent.py (with and without driver.py in argv)   # H-2
+    - python3 $TMPDIR/val545abe/g3.py   # verify_snapshot receipts (temp repo + real c0b8b3 / 8428ad)
+    - python3 $TMPDIR/val545abe/g4.py   # environment_info exception / SIGTERM during probe
+    - python3 -m pytest -q -p no:cacheprovider [--tb=short|native|line] tests/test_zz_a3_{marked,ctrl}.py   # temp copy; hash-only value detection; probes deleted
+    - python3 $TMPDIR/val545abe/a12.py   # A-1 cellrun / _ns_guard; A-2 decision verbs
+    - git diff d6da4cd606 339fb8bc27 -- analysis.py; git diff 9698f4a36a 339fb8bc27 -- pipeline.py
+    - python3 (receipt hash comparisons d04f29 / 8428ad / c0b8b3 for code and smoke paths)
+    - python3 (driver.check_decision and driver.main on the real worktree with DEC-20260929-47a574; C-7 real then stubbed in-process)
+    - rm -rf $TMPDIR/val545abe; pgrep for leftover processes (none)
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    independence_note: same reviewer session lineage as TASK-20260929-e3446a and TASK-20260929-1344ef (closure re-check), independent of the producer and the repair executor
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - AGENTS.md
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-c0b8b3/snapshot-receipt.json
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-{d04f29,8428ad}/snapshot-receipt.json (hashes only)
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-1344ef/validation_report.yaml (own prior report)
+      - experiments/EXP-ICEX-aaccfc/implementation/repair_report_v4b.yaml
+      - experiments/EXP-ICEX-aaccfc/implementation/cellrun.py (full)
+      - experiments/EXP-ICEX-aaccfc/implementation/driver.py (decision, receipt, snapshot, cell process, RunRecord, stub, execute, main)
+      - experiments/EXP-ICEX-aaccfc/implementation/pipeline.py (diff vs 8428ad; _ns_guard)
+      - experiments/EXP-ICEX-aaccfc/implementation/common.py (paths, namespace helpers, reproduce_fixtures header)
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/{test_process,test_guard,conftest}.py (excerpts); other tests (grep)
+    not_read:
+      - old smoke artifacts (hashed only)
+      - frozen fixture JSON contents (copied into the temp repo, never printed)
+      - implementation.md, implementation_report.yaml (verified against code and tests instead)
+      - the executor's conversation, other agents' transcripts or reports
+
+  review_attestation:
+    joints_owned: [checks 1-9]
+    read_sibling_reports: false
+    verdict: PASS_WITH_FINDINGS

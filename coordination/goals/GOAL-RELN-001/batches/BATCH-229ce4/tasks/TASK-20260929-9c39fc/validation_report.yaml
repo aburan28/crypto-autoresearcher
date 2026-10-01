@@ -1,0 +1,165 @@
+validation_report:
+  task_id: TASK-20260929-9c39fc
+  role: validator
+  kind: independent re-check of repair round 2 (findings R-1, R-2, R-3, R-5 of TASK-20260929-2ec518)
+  experiment_id: EXP-RELN-c5a377
+  hypothesis_id: H-RELN-4d092c
+  batch_id: BATCH-229ce4
+  goal_id: GOAL-RELN-001
+  validated_at: '2026-09-29'
+  worktree: /Volumes/SSD990/wt-amend-ic
+  head_checked: 37e2e7d72e (snapshot commit a7e33d2ccf is an ancestor; later commits touch only claims/ and dispatch_queue.json)
+  snapshot_validated:
+    receipt: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-a68d0c/snapshot-receipt.json
+    commit: a7e33d2ccf  # 'snapshot(TASK-20260929-a68d0c): ...'
+    parent: 9b6ffc0c15f777b965d0e7406827ded720da7479
+    binding_mode: content_at_commit
+    coordinator_rulings: [OQ-27, OQ-28, OQ-29]
+  repair_report: experiments/EXP-RELN-c5a377/implementation/repair_report_v4b.yaml
+  protocol: v4 = specification.yaml + AMD-20260926-a7d25d + AMD-20260929-988139 + AMD-20260929-cc7226 (DEC-20260929-7a62cc)
+  blindness_note: >-
+    Same reviewer as TASK-20260929-2ec518, which raised R-1..R-5. This is therefore not an independent
+    second reviewer of those findings: it re-checks its own findings against the repair. The executor's
+    conversation was not read. The repair report was read only for its OQ-27..OQ-29 readings and test
+    names; every PASS below rests on probes the validator ran itself.
+  verdict: PASS
+  verdict_summary: >-
+    R-1, R-2, R-3 and R-5 are repaired and verified by direct probes; 127/127 tests pass; the snapshot is
+    exact; FX-1..FX-7 spot checks still pass; charging, label, null, audit and analysis code is unchanged;
+    all old smoke files are untouched and were not opened. No must-fix finding. This report makes the
+    implementation receipt admissible. It does not admit execution, which still needs DEC-20260929-74b866
+    and C-7, and it supports no ECDLP claim.
+
+  checks:
+    - id: 1
+      name: snapshot_integrity
+      result: PASS
+      evidence:
+        - "All 69 receipt path_sha256 entries match both the blobs at commit a7e33d2ccf and the working tree; 0 mismatches. file_count 69."
+        - "Commit parent = receipt parent_sha 9b6ffc0c15. Commit changes 10 paths = 9 implementation files + the receipt itself."
+        - "No file on disk under implementation/ (excluding gitignored __pycache__) is missing from the receipt. git status --porcelain --ignored experiments/EXP-RELN-c5a377 shows only '!! implementation/__pycache__/'."
+        - "Observation: the shared worktree has uncommitted modifications under experiments/EXP-ICEX-aaccfc/ from another session. They are outside this experiment and outside verify_snapshot's implementation-scoped dirty check, but would show as code.dirty = true in a run manifest's git state."
+    - id: 2
+      name: tests
+      result: PASS
+      evidence:
+        - "PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q -> '127 passed in 24.55s' (0 failed, 0 skipped); matches the expected 127."
+    - id: 3
+      name: R-1 child and process group killed on driver interruption; SIGKILL covered
+      result: PASS
+      evidence:
+        - "Code: run_cell launches with start_new_session=True, tracks `reaped` only when wait4 returns the child pid, and in finally kills the group (os.killpg SIGKILL) and reaps with a blocking wait4. celltask.watch_parent exits with code 9 when re-parented."
+        - "SIGTERM probe (temp copy outside the repo, b16-s13, smoke namespace, budgets 400/100000; nearest same-fixture ratio 1.435): the celltask child (pid 59832) had its own process group (pgid 59832; driver pgid 59182). kill -TERM <driver> -> driver exit 8; celltask gone; 0 processes left in pgid 59832. Manifest failed_infrastructure / signal / 'RunInterrupted: signal SIGTERM'. stat of cells/* and manifest.yaml unchanged over the following 12 s; cells/b16-s13.json never created."
+        - "SIGKILL probe (same configuration): kill -KILL <driver> -> exit 137; celltask gone about 750 ms later (parent-watch); 0 processes left in its group; no file changed over 8 s; no cell JSON. Manifest stays 'running' and records driver_pid (60839), so OQ-29's reading (running + dead driver pid = failed_infrastructure) is applicable."
+        - "Completed smoke run (64/256): completed_valid, cell completed, process_group recorded. Reaping and then killing the group does not disturb a normal completion."
+        - "An earlier first SIGTERM attempt captured the pid of the sage --version probe rather than the celltask, so it was inconclusive and was repeated as above. Its attempts-file mtime equalled its manifest finish second."
+    - id: 4
+      name: R-2 stub manifest on early exception
+      result: PASS
+      evidence:
+        - "environment_info patched to raise: at the moment the probe ran, manifest.yaml already existed with run.status running (stub). Final manifest: status failed_infrastructure, stub true, failure_class exception, failure_reason 'RuntimeError: validator-injected-env', finished_at set, result.valid False. Driver exit 8."
+        - "KeyboardInterrupt raised in the probe: stub manifest failed_infrastructure with failure_class signal; exit 8."
+    - id: 5
+      name: R-3 inclusive 1.25 same-fixture margin in driver and smoke.py (refusal path only)
+      result: PASS
+      method: >-
+        driver.execute, driver.run_cell and smoke.driver.main were replaced by stubs that raise before any
+        cell could start, so a missing refusal would show up as 'accepted' without running anything. No
+        cell was run near a frozen budget.
+      evidence:
+        - "driver --smoke-dry-run on b16-s13 (frozen 199/574): refused (exit 5) for 160 (1.244), 248, 249, 460 (1.248), 717 (1.249), 574 (equal), 223 and 3127 (equal to another fixture's frozen value) and 0. The execute stub was reached, meaning the budget was accepted, for 159 (1.252), 459 (1.251), 718 (1.251) and 256 (1.286). No run directory was created for any refused case."
+        - "smoke_budget_violations on a synthetic plan X = (200, 800): 160, 250 and 640 (exactly 1.25) refused, so the margin is inclusive; 159, 251 and 639 accepted; 1000 refused (equals fixture Y's frozen value); 1250 accepted (1.25 from Y's 1000, a different fixture; per fixture as ruled in OQ-27)."
+        - "smoke.check_budgets(default CONFIGS 64/256, 400/1500) -> []. With configs 160/700 -> both flagged. smoke.main with CONFIGS mutated in place to 160/1000 -> exit 2 REFUSED; smoke/v4 not created."
+    - id: 6
+      name: R-5 receipt committed, clean and identical to HEAD; hand-written manifest refused
+      result: PASS
+      evidence:
+        - "Throwaway git repo: committed clean snapshot receipt under archives/ -> ok. Refused: kind 'ledger'; not under archives/; receipt outside the repository; untracked copy with identical content; committed receipt modified in the worktree; modified and staged but not committed. Restored -> ok."
+        - "Real repo: a68d0c receipt -> ok (0 mismatches, 0 unpinned, clean). 3f7b98 receipt -> refused (8 mismatches). 03d6bf receipt -> refused."
+        - "celltask.admission_guard with a synthetic admitted decision and a running manifest for that decision and namespace. Refused: no token env; old-style manifest without run_token_sha256; manifest carrying another token's sha256; token matching but no driver_pid; driver_pid = self; driver_pid = the real parent when that parent is not driver.py (a zsh shell)."
+        - "Subprocess celltask.py, frozen namespace, --bits 99 --seed 99999 as a safety net, fully hand-written manifest naming its real parent pid with a matching token -> exit 3 'parent ... is not driver.py'. RELN_C5A377_DRIVER_PID != parent -> exit 9. No output written."
+    - id: 7
+      name: regression (FX-1..FX-7, code unchanged, admission refusal)
+      result: PASS
+      evidence:
+        - "Files changed vs the 3f7b98 receipt: celltask.py, driver.py, smoke.py, tests/test_v4.py, make_report.py, implementation.md, implementation_report.yaml, test-results.txt, plus the new repair_report_v4b.yaml. relgen.py, ecarith.py, audit.py, labels.py, nulls.py, lpgraph.py, recovery.py, rho.py, vcurve.py, fixtures.py, hostinfo.py, analysis.py, make_trial_plan.py and trial-plan-v2.json are byte-identical. make_report.py adds only note text."
+        - "FX-1: completed smoke run has the run: block, protocol_version 4 and all seven run files; interruption paths as in checks 3-4."
+        - "FX-2: check_protocol_binding(real repo) -> (True, []); PROTOCOL_VERSION 4."
+        - "FX-3 / FX-4: analysis.py unchanged since the verified 3f7b98 snapshot."
+        - "FX-5: check_decision refuses DEC-20260929-74b866 (absent) and DEC-20260929-7a62cc (currently_admitted false); old receipts refused (check 6)."
+        - "FX-6: exact frozen values refused (574, 3127)."
+        - "FX-7: command.txt holds the driver argv; import_psutil = None -> exit 9."
+        - "Admission: real CLI with DEC-20260929-74b866 and the a68d0c receipt -> exit 3 (C-7: 15-min load 24.03 > 14.0; repository volume 7.4 GiB free < 20); no runs directory. With C-7 bypassed and execute stubbed -> exit 4 'DEC-20260929-74b866.yaml does not exist'; no runs directory."
+    - id: 8
+      name: old smoke files unchanged and unopened
+      result: PASS
+      evidence:
+        - "All 17 files under implementation/smoke/ in the TASK-20260929-03d6bf receipt (smoke/dry/DRYRUN-controls, DRYRUN-tiny, smoke_summary.json) hash equal to that receipt on disk and in the a68d0c receipt."
+        - "All 21 smoke/v4 files hash equal to the 3f7b98 receipt on disk and in the a68d0c receipt."
+        - "git log 38e00ad45d..HEAD -- implementation/smoke: no commits. No implementation .py reads smoke/dry; only note strings mention it."
+        - "The validator computed sha256 only and opened, printed or summarised no value from any smoke file in this task."
+  findings:
+    - id: N-1
+      severity: informational
+      must_fix_before_admission: false
+      title: smoke.py refusal message wording
+      detail: "smoke.main still prints 'smoke budgets equal frozen A1/A2 budgets' when the violation is the 1.25 margin. The listed reasons are correct."
+      remedy: Reword when the file is next touched.
+    - id: N-2
+      severity: informational
+      must_fix_before_admission: false
+      title: Residual limits accepted by OQ-28
+      detail: >-
+        The parent check identifies the driver by the basename 'driver.py' in the parent's command line, and
+        the admission decision pin on the receipt path and sha256 is procedural, not enforced by code. Both
+        are disclosed in repair_report_v4b OQ-28 and accepted by the Coordinator. They matter only against
+        a same-user process acting deliberately.
+      remedy: DEC-20260929-74b866 pins the a68d0c receipt path and sha256 as ruled; the operator passes exactly it.
+    - id: N-3
+      severity: informational
+      must_fix_before_admission: false
+      title: Shared-worktree dirt outside the experiment
+      detail: >-
+        Uncommitted EXP-ICEX-aaccfc changes belong to another session. They do not affect verify_snapshot,
+        but a run launched now would record code.dirty = true in its manifest.
+      remedy: Launch the admitted run from a clean worktree or after those changes are committed.
+    - id: carried
+      note: "R-4 (OQ-21 unreachable edge case) from TASK-20260929-2ec518 is to be restated in DEC-20260929-74b866 per the a68d0c receipt note. No code change was expected."
+  procedure_deviations: []
+  scope_and_limits:
+    - "No scientific run; no frozen-namespace draw evaluated. Frozen-namespace guard probes used a non-existent fixture as a safety net. Margin probes stubbed execute, run_cell and smoke's driver.main. main() admission probes stubbed execute."
+    - "Every cell actually run used the smoke namespace at b16-s13 budgets 64/256 or 400/100000 (same-fixture ratios of at least 1.286), in a temp copy under /Volumes/SSD990/.tmp-agent/val-9c39fc, since removed. Peak RSS about 25 MB."
+    - "All processes started were verified gone, including every celltask after the SIGTERM and SIGKILL probes. No shared TMPDIR content from other sessions was touched."
+    - "SIGHUP and SIGINT go through the same handler as SIGTERM (code inspection) and were not separately signalled."
+  commands_run:
+    - "git log --oneline -8; git status --short; git status --porcelain --ignored experiments/EXP-RELN-c5a377; git diff --stat / git diff 38e00ad45d a7e33d2ccf -- experiments/EXP-RELN-c5a377"
+    - "python3 (a68d0c receipt vs git show a7e33d2ccf:<path> and working tree; git diff-tree a7e33d2ccf)"
+    - "PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q"
+    - "rsync implementation (excluding smoke/, __pycache__) to $TMPDIR/val-9c39fc/repo; python3 driver.py --smoke-dry-run --dry-a1 400 --dry-a2 100000 ... with kill -TERM and kill -KILL of the driver pid; ps -o pid,ppid,pgid; ps -axo pgid; stat -f '%N %z %m' before and after"
+    - "python3 in-process: environment_info exception and KeyboardInterrupt injection (R-2); smoke_budget_violations and driver.main / smoke.main refusal probes with stubbed execute, run_cell and driver.main (R-3); verify_snapshot on a throwaway git repo and the real repo (R-5); celltask.admission_guard variants; FX spot checks"
+    - "python3 celltask.py --bits 99 --seed 99999 --ns EXP-RELN-c5a377/v2 ... (hand-written manifest and DRIVER_PID mismatch)"
+    - "python3 driver.py --run-id RUN-validator-9c39fc-probe --admission-decision DEC-20260929-74b866 --snapshot-receipt <a68d0c> --runs-dir $TMPDIR/... -> exit 3"
+    - "python3 (hashes of the 17 old smoke files vs 03d6bf, 21 v4 smoke files vs 3f7b98, unchanged-module hashes vs 3f7b98); git log 38e00ad45d..HEAD -- implementation/smoke"
+    - "rm -rf /Volumes/SSD990/.tmp-agent/val-9c39fc"
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    reviewer_continuity: same reviewer as TASK-20260929-2ec518 (see blindness_note)
+    read_sources:
+      - AGENTS.md and CLAUDE.md (workspace rules)
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-a68d0c/snapshot-receipt.json
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-3f7b98/snapshot-receipt.json (hashes)
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-03d6bf/snapshot-receipt.json (hashes)
+      - "git diff 38e00ad45d..a7e33d2ccf of driver.py, celltask.py, smoke.py; driver.py run_cell/_kill_group/verify_snapshot (current)"
+      - experiments/EXP-RELN-c5a377/implementation/repair_report_v4b.yaml (lines 190-218: OQ-27..OQ-29, file hashes)
+      - experiments/EXP-RELN-c5a377/implementation/trial-plan-v2.json (fixture A1/A2 only)
+      - ledger/decisions/DEC-20260929-7a62cc.yaml (via check_decision / check_protocol_binding only)
+    not_read:
+      - "implementation/smoke/** contents (sha256 only)"
+      - executor conversation for TASK-20260929-b81ea5
+      - other agents' conversations

@@ -1,0 +1,229 @@
+# v4b repair of the EXP-ICEX-aaccfc implementation (re-check TASK-20260929-1344ef findings G-1..G-4, advisories A-1..A-3).
+# Supersedes repair_report_v4.yaml by reference. Zero scientific runs, zero smoke runs, no cost figures.
+repair_report:
+  task_id: TASK-20260929-ffd37e
+  experiment_id: EXP-ICEX-aaccfc
+  hypothesis_id: H-ICEX-d8e858
+  role: executor
+  archived_by: TASK-20260929-c0b8b3
+  recheck_task: TASK-20260929-545abe
+  supersedes:
+    path: experiments/EXP-ICEX-aaccfc/implementation/repair_report_v4.yaml
+    sha256: 39fc0b81c3b5f09fdcc45478720a06687ed58b53db1186e5f83d18ddf9c7e32c
+    how: by reference; repair_report_v4.yaml is unchanged and remains the record of FX-1..FX-8
+  input_snapshot: TASK-20260929-8428ad (commit 9698f4a36a)
+  findings_source: coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-1344ef/validation_report.yaml
+    (PASS_WITH_FINDINGS)
+  protocol:
+    version: 4
+    composition: specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 + AMD-20260929-5a84eb
+    amendment_v2_sha256: b74b30022eecbb1fae503ef4d9f0a9aad706d1917cbc4f57c981c94f832394b2
+    amendment_v3_sha256: 36cad68cee9ff8da0ce86e94c2f9548f05ffd95a5bdaf32eeaeaf32c0514dac7
+    amendment_v4_sha256: 61926b8c691cfe48a00354939651314a9d5aee62432a4d671c8ec56f7ddb310d
+    unchanged_by_this_task: true
+  status: repair_complete_not_admitted
+  scientific_runs: 0
+  run_directories_created: []
+  new_smoke_runs: 0
+  existing_smoke_files_modified: false
+  commits: 0
+  git_head_at_repair: eecc610b3c
+  fixes:
+  - id: G-1
+    status: implemented
+    files_changed:
+    - driver.py
+    - cellrun.py
+    - tests/test_process.py
+    - tests/test_guard.py
+    implementation: 'driver.run_cell_process launches cellrun with subprocess.Popen(start_new_session=True) (own session and
+      process group), writes cells/<cell>/process.json (pid, pgid, driver_pid), passes ICEX_AACCFC_DRIVER_PID=<driver pid>,
+      and tracks reaping explicitly: os.wait4(pid, WNOHANG) is polled and only a returned pid equal to the child''s sets reaped
+      (a live child returns 0). In finally, if not reaped (exception, or SIGTERM/SIGHUP/SIGINT raised as RunInterrupted),
+      the group is SIGKILLed and the child reaped with a blocking waitpid (retried if a second signal interrupts); stray group
+      members are SIGKILLed after every cell. cellrun: if ICEX_AACCFC_DRIVER_PID is set and is not os.getppid() it exits 9
+      without writing; otherwise a daemon thread polls getppid every 0.2 s and calls os._exit(9) once re-parented; the result
+      goes to result.json.tmp and is renamed into place only after a final parent check (orphan: tmp removed, os._exit(9)).'
+    tested_by:
+    - tests/test_process.py::test_real_child_completes_and_is_reaped
+    - tests/test_process.py::test_sigterm_to_driver_kills_and_reaps_child
+    - tests/test_process.py::test_exception_in_driver_kills_and_reaps_child
+    - tests/test_process.py::test_driver_sigkill_orphan_exits_without_writing
+    - tests/test_guard.py::test_watch_parent_exits_on_reparent
+    - tests/test_guard.py::test_cellrun_with_wrong_driver_pid_exits_without_writing
+    test_design: test_process.py runs a stand-in driver process that calls driver.run_cell_process on a REAL cellrun.py child
+      (smoke namespace, synthetic non-frozen fixture b13-s900, a rho cell long enough to still be running); the driver is
+      then ended by SIGTERM (exit 8, child gone within 5 s), by an injected exception (exit 1, child gone within 5 s), or
+      by SIGKILLing itself (orphan gone within 3 s); no result.json in any case. The fixture SIGKILLs both process groups
+      and reaps the stand-in on teardown; no stray process remained after the suite.
+  - id: G-2
+    status: implemented
+    files_changed:
+    - driver.py
+    - cellrun.py
+    - tests/test_guard.py
+    - tests/test_driver.py
+    implementation: 'driver.execute draws token = secrets.token_hex(32) per run, records inputs.run_token_sha256 = sha256(token)
+      and inputs.driver_pid = os.getpid() in the stub and full manifest, and passes the token only in the cells'' environment
+      (ICEX_AACCFC_RUN_TOKEN; an inherited value is stripped; the token is never written). driver.main refuses a scientific
+      run whose --runs-dir is not experiments/EXP-ICEX-aaccfc/runs (exit 11). cellrun.admission_guard (frozen namespace) requires:
+      all five environment values; run directory == RUNS_ROOT/RUN-*; check_decision passes; manifest is the full record (stub
+      refused), status running, id == directory name, matching decision and namespace, code.commit == repository HEAD; run_token_sha256
+      == sha256(env token); driver_pid == env driver pid == os.getppid(), and that parent''s command line runs this implementation
+      directory''s driver.py (psutil; ps fallback).'
+    tested_by:
+    - tests/test_guard.py::test_frozen_guard_binds_to_real_driver
+    - tests/test_guard.py::test_parent_is_driver_real_processes
+    - tests/test_guard.py::test_default_runs_root_is_the_experiment_runs_dir
+    - tests/test_guard.py::test_env_names_agree
+    - tests/test_driver.py::test_manifest_binds_driver_pid_and_run_token
+    - tests/test_driver.py::test_main_refuses_runs_dir_other_than_experiment_runs
+    hand_written_manifest: 'refused on each of: stub flag, status, id, decision, namespace, wrong or missing token hash, wrong
+      or missing driver pid, commit != HEAD, parent not a live driver.py, run dir outside runs/ or not RUN-*, missing token
+      or driver pid in the environment, different token in the environment'
+  - id: G-3
+    status: implemented
+    files_changed:
+    - driver.py
+    - tests/test_driver.py
+    implementation: 'driver.check_receipt_file (called by verify_snapshot before any pin comparison): kind == ''snapshot'';
+      not a symlink; inside the repository; path matches (.+/)?archives/TASK-<8 digits>-<3..6 hex>/snapshot-receipt.json;
+      task_id equals that TASK directory; git ls-files --error-unmatch; git status --porcelain empty (neither modified nor
+      staged-only); bytes identical to git show HEAD:<path>.'
+    tested_by:
+    - tests/test_driver.py::test_snapshot_receipt_must_be_committed_dispatcher_receipt
+    - tests/test_driver.py::test_verify_snapshot
+    - tests/test_driver.py::test_real_snapshot_receipt_passes_file_checks
+    - tests/test_driver.py::test_main_requires_snapshot_receipt
+    refused_cases:
+    - byte-identical copy outside the repository
+    - committed copies at the repo root, in the implementation dir, with another file name, or under archives/<non-TASK>
+    - committed copy under another TASK directory (task_id mismatch)
+    - kind 'ledger' or missing
+    - untracked
+    - staged but not committed
+    - modified after commit (unstaged and staged)
+    - symlink
+    note: 'test_verify_snapshot was rewritten: its receipts are now committed under coordination/.../archives/TASK-*/ in the
+      tmp repository'
+  - id: G-4
+    status: implemented
+    files_changed:
+    - driver.py
+    - tests/test_driver.py
+    implementation: 'driver.write_stub_manifest writes manifest.yaml (stub: true, status running, driver pid, token hash,
+      command) and raw-result.json immediately after the run directory is created, before stdout/stderr tees, command.txt,
+      environment_info (Sage probe) and git_state. If the RunRecord never comes into existence, finally rewrites the stub
+      as failed_infrastructure with failure_class exception or signal, failure_reason, finished_at, driver.traceback, and
+      raw-result.json with status failed_infrastructure.'
+    tested_by:
+    - tests/test_driver.py::test_stub_manifest_precedes_environment_probe[exception]
+    - tests/test_driver.py::test_stub_manifest_precedes_environment_probe[signal]
+  - id: A-1
+    finding: G-5 in the re-check report
+    status: implemented
+    files_changed:
+    - cellrun.py
+    - pipeline.py
+    - tests/test_guard.py
+    implementation: cellrun.task_fixture refuses any smoke-namespace task that names a fixture by bits/seed (inline fixtures
+      remain smoke-only and never frozen), so cellrun, which always persists result.json, never evaluates a frozen fixture
+      in a smoke namespace. pipeline._ns_guard(ns, fx) additionally refuses a frozen fixture in any smoke namespace not starting
+      with smoke|EXP-ICEX-aaccfc/v2|tests (pipeline.TESTS_NS_PREFIX).
+    exempt_path: 'the in-process unit tests only: tests/conftest.py smoke_primary, test_charging, test_controls and test_fxa
+      call pipeline.run_* / stage functions directly in smoke|EXP-ICEX-aaccfc/v2|tests* and persist nothing; cellrun is never
+      exempt'
+    tested_by:
+    - tests/test_guard.py::test_smoke_task_naming_frozen_fixture_refused
+    - tests/test_guard.py::test_pipeline_frozen_fixture_only_in_unit_test_namespace
+    - tests/test_guard.py::test_inline_fixture_only_in_smoke_and_never_frozen
+  - id: A-2
+    finding: G-6 in the re-check report
+    status: implemented
+    files_changed:
+    - driver.py
+    - tests/test_driver.py
+    implementation: driver.ADMIT_DECISIONS = ('admit_execution',); approve_execution, admit and approve now refuse
+    tested_by:
+    - tests/test_driver.py::test_decision_rules
+  - id: A-3
+    finding: G-7 in the re-check report
+    status: implemented
+    files_changed:
+    - tests/conftest.py
+    - tests/test_charging.py
+    - tests/test_controls.py
+    - tests/test_fxa.py
+    - tests/test_fixtures.py
+    - tests/test_guard.py
+    implementation: assertion rewriting disabled (PYTEST_DONT_REWRITE in the module docstring) in every module that evaluates
+      frozen fixtures, so a failing assert shows only its source line and message, never compared values; the value-bearing
+      assert messages (audit failure list, SDEG subprocess stderr, Sage stderr, reproduction dict) replaced with fixed strings
+    tested_by:
+    - tests/test_guard.py::test_frozen_fixture_test_modules_disable_assertion_rewriting
+    test_design: 'checks the marker in each module, then runs pytest on two probe files with the same failing comparison:
+      the rewritten one prints the computed value (probe is sensitive), the PYTEST_DONT_REWRITE one does not'
+  tests:
+    command: TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -q -rs -p no:cacheprovider
+      tests
+    passed: 103
+    failed: 0
+    skipped: 0
+    previous_count_v4: 86
+    by_file:
+      test_analysis.py: 11
+      test_charging.py: 17
+      test_controls.py: 7
+      test_driver.py: 25
+      test_fixtures.py: 3
+      test_fxa.py: 8
+      test_guard.py: 18
+      test_la.py: 10
+      test_process.py: 4
+    processes: every process started by the tests is SIGKILLed by process group and reaped; none remained after the suite
+      (ps check)
+  trial_plan:
+    path: experiments/EXP-ICEX-aaccfc/implementation/trial-plan-v2.json
+    sha256: 58c36b6d1444dce4f4b539f7bb0175d24d29e30af5abfd81abe7eaef14c2e983
+    changed: false
+  new_open_questions:
+  - OQ-20
+  - OQ-21
+  - OQ-22
+  - OQ-23
+  open_questions_note: stated with literal readings in implementation.md and implementation_report.yaml; OQ-16 resolved by
+    A-2; OQ-18 narrowed by A-1/A-3
+  snapshot_pinnable_files:
+    experiments/EXP-ICEX-aaccfc/implementation/analysis.py: 07a2de337c599d880e21fab8ffe8edc5f8462385568a3d3c0915e992147a1f12
+    experiments/EXP-ICEX-aaccfc/implementation/arith.py: 22003f759b509835e5b18d2e58bedb80d8d8e6d804597bfbefbca0638549f7d7
+    experiments/EXP-ICEX-aaccfc/implementation/audit.py: a7b31da18eb5b6d2e1e26e2f090d7cad5b1e2973fd287c40054c8b08ccf09a86
+    experiments/EXP-ICEX-aaccfc/implementation/b0.py: c00b0cc2164cfc2360f4157783f4df7659e9a390fe6765c63816e95ba80128bf
+    experiments/EXP-ICEX-aaccfc/implementation/cellrun.py: 557301d77ed4b005a3d58d90b2d2608250c5b367994b94aa4c65d9310d9676ed
+    experiments/EXP-ICEX-aaccfc/implementation/common.py: 37c06853053c72c305aebc686ee9295cdb03c1872cdb162bc84c07d62ec4e8c2
+    experiments/EXP-ICEX-aaccfc/implementation/driver.py: 77380eaaba438106d8408363b3973b65a9f9d7c3e2dd38e57256940bc5bd6071
+    experiments/EXP-ICEX-aaccfc/implementation/hostinfo.py: bec76f1e933e4a0f8e8b202154e2dfe78f9dbc09800f1e26a7282ab043a26c95
+    experiments/EXP-ICEX-aaccfc/implementation/la.py: 05150dde73d80439a6778121f21cf34e502c77fbe6314065f290daab1ac432e6
+    experiments/EXP-ICEX-aaccfc/implementation/make_trial_plan.py: 35b5abb7ff3e4d062a53557626019840c09a589674ad00a5a6963ff1d9016da4
+    experiments/EXP-ICEX-aaccfc/implementation/oracle.py: 4fd5a7ab57b3f39a187bb3b434913f99272bc46588cebf3a53414bc7ecd30176
+    experiments/EXP-ICEX-aaccfc/implementation/pipeline.py: 51f9a3da1159bfe03233073fb8365c1f6bbcf150cac5b32e1b33dc6ac2517822
+    experiments/EXP-ICEX-aaccfc/implementation/rho.py: 7554233b1a6c9dd615a278a07d271b72133f7fb38033d8dd15565f62e26534e5
+    experiments/EXP-ICEX-aaccfc/implementation/smoke.py: adf47963f4f7625dcc7cb407720bc1ee184b4b363b57e98b5ac6459e17ff68e8
+    experiments/EXP-ICEX-aaccfc/implementation/synthetic.py: 73359678b126af5dea66e857ced9309a84e42615d3e4b74e6a8cfdb80013d70f
+    experiments/EXP-ICEX-aaccfc/implementation/tests/conftest.py: 677cd9402c040de3d1a7cdf35a0618e002b029107be81a178595db50d26f1c33
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_analysis.py: bd3ed96a6c6dbee0b3ad8432a19dfe51c8f041787b7e3b978de6cd44a2ef99d4
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_charging.py: 67f86ebe6937258dd3999521743868a88355580a3ebae9c02af288b4efb36e9f
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_controls.py: 9b88c863851e27c4163ef374d0cfad0e02eef39eb9cd10897e032c886542cb6c
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_driver.py: dc07051baf220b8a420773919e7cc61a29d04841c7292b335b8832e96c56b391
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_fixtures.py: fd97153ebdb1b273b26daadec46570e526a920a03c827ac359685cb0bb2b0a44
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_fxa.py: f0a7c920cef945c6354617e7d8f5bf3e2b7d6f2deff33b117d17a753364d8ad7
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_guard.py: ad92808ffdff332d18782aca81e3eaa595f832d24575b001ada4b8de360715b9
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_la.py: 118ce2eb9199287b2f667ebbf73c8cb4ea1e63ccf6da5125c9c83f45b44487f1
+    experiments/EXP-ICEX-aaccfc/implementation/tests/test_process.py: e290dba3dcb878c68824524cf441756258915569e9d05baafca0aafc5b2f7dbd
+    experiments/EXP-ICEX-aaccfc/implementation/trial-plan-v2.json: 58c36b6d1444dce4f4b539f7bb0175d24d29e30af5abfd81abe7eaef14c2e983
+    experiments/EXP-ICEX-aaccfc/implementation/verify.py: 6b58432644b194f59739ecead94269e2e99db453f11b5e15afc22e504506ccab
+  documentation_files:
+    experiments/EXP-ICEX-aaccfc/implementation/implementation.md: c19e56829e0bc85adcddbf601725cb10cf3ffa967670e55007bfdbfa841df98b
+    experiments/EXP-ICEX-aaccfc/implementation/implementation_report.yaml: 4c5c1a96ea7ecdee7cc7eface67c6da118842946c78116b52561c2c3f9dfd554
+  write_scope:
+    declared: experiments/EXP-ICEX-aaccfc/implementation/
+    writes_outside: none in the repository; test scratch only under $TMPDIR/icex-aaccfc-tests

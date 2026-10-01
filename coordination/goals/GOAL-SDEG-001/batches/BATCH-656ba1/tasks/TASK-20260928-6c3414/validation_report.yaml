@@ -1,0 +1,245 @@
+validation_report:
+  id: VAL-20260928-873c70
+  task: TASK-20260928-6c3414
+  role: validator
+  kind: targeted_recheck
+  experiment: EXP-SDEG-85eefd
+  goal: GOAL-SDEG-001
+  batch: BATCH-656ba1
+  recorded_at: '2026-09-28T19:53:46Z'
+  prior_report: VAL-20260928-a2bc32   # TASK-20260928-796dfe, protocol v3
+  protocol_version_checked: 4
+  amendment: AMD-20260928-d3ed9e
+  amendment_sha256: 24febe938a5df12aa2e7bff16d7bbe399c6bad7b36204c836149bca59627ac33
+  approving_decision: DEC-20260928-48a648
+  snapshot:
+    task: TASK-20260928-c52cec
+    commit: 8cd6700ea1
+    parent: cd018399c7
+    receipt: coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260928-c52cec/snapshot-receipt.json
+  worktree_head_at_review: 0fcd5b6c9af68f7c26ed32e5c6fcbc7c7079abd8
+  worktree_head_note: >-
+    The two commits after 8cd6700ea1 (22ae187577 queue update, 0fcd5b6c9a claim) do not
+    touch experiments/EXP-SDEG-85eefd/ (empty diff), and there are no uncommitted changes
+    under experiments/. What I tested is exactly the FX snapshot.
+
+  overall: PASS_WITH_FINDINGS
+  verdict: >-
+    Protocol-v4 FX-1..FX-5 are implemented as worded, and each has a test that fails when
+    that fix is reverted (mutation-checked). The core code (analysis, backends, audit,
+    accounting, oracle, rho) is byte-unchanged from v3. The trial plan changed only in its
+    header, and its new sha matches both the receipt and check_plan. The Mac smoke op-counts
+    reproduce at 79e80dd1...ca80651. No blocking findings. Blocking findings F-1 and F-2 from
+    VAL-20260928-a2bc32 were closed by the rulings in AMD-20260928-d3ed9e, not by code. This
+    report does not rule on them; it only confirms the implementation matches the rulings'
+    required fixes. Admission is still refused by construction until a future decision with
+    execution_admission.currently_admitted true exists (see N-2).
+  blocking_findings: []
+
+  checks:
+    - id: C0
+      name: snapshot content binding
+      result: PASS
+      evidence: >-
+        All 42 path_sha256 entries in the receipt match both the worktree and the blobs at
+        8cd6700ea1 (git show). The commit has 43 changed paths; the extra one is the receipt
+        itself. Binding mode is content_at_commit, with parent cd018399c7 as declared.
+    - id: C1
+      name: FX-1..FX-5 implemented as worded, with regression-sensitive tests
+      result: PASS
+      evidence:
+        FX-1: >-
+          driver.check_decision yaml-parses the explicitly passed file and requires: a
+          coordinator_decision mapping; an id equal to the filename id; target_ids containing
+          EXP-SDEG-85eefd; and execution_admission.currently_admitted `is True` (an exact
+          boolean, so a string "true" or the integer 1 is not accepted). Run directly:
+          DEC-20260928-6b03c5 is REFUSED (currently_admitted absent);
+          DEC-20260928-48a648 is REFUSED (currently_admitted false);
+          DEC-20260928-7f2cad is REFUSED; a synthetic DEC-20260928-c0ffee with
+          currently_admitted true, the right target and a matching id is ADMITTED.
+          tests/test_fx.py covers the same cases, plus refusal of driver.main in every mode.
+        FX-2: >-
+          hostinfo on Linux sets cpu_max_error when cpu.max is unreadable or unparseable
+          (including a non-positive quota or period) or loadavg is bad; check_admission then
+          refuses with "(fail closed)". The test cases None, "", "garbage", "max",
+          "0 100000", "100000 0" and "abc 100000" all fail closed, and "2380000 100000" is
+          admitted with limit 23. Scope caveat: see N-1.
+        FX-3: >-
+          In cellrun.py, a B0/B1 hit-triple set mismatch appends a cell defect. A defect stops
+          the run through the same path as a decision disagreement. The test tampers with
+          b1_query to drop a hit triple and asserts a defect and a stop.
+        FX-4: >-
+          driver._schedule now always uses ProcessPoolExecutor(spawn, max_tasks_per_child=1),
+          including when workers is 1; the in-process path was removed. Each task therefore
+          runs in a fresh process, and ru_maxrss is measured per cell. The test asserts
+          distinct pids for 3 tasks with workers 1 and 2.
+        FX-5: >-
+          inference_block() reads AUTORESEARCH_* for requested_policy, resolved_model_id
+          (default "unverified"), reasoning_effort, fallback_used, fallback_reason,
+          degraded_requirements and independent_session. The INFERENCE_KEYS are copied to the
+          top level of every part manifest and of the merged manifest (with parts_inference).
+          The DRYRUN-v4-mac charged manifest carries them: all null or "unverified", because
+          the environment variables were unset (see N-3).
+        mutation_check: >-
+          I copied the implementation, the amendments and the two real DEC files to a scratch
+          mirror, reverted each fix separately, and ran tests/test_fx.py under Python 3.12.8.
+          Unmutated: 19 passed. Each revert produced exactly one failure, in its own test:
+          FX-1 (text-mention admission) failed test_fx1_real_non_admitting_decisions_refused[6b03c5];
+          FX-2 (fallback to 'max') failed test_fx2_linux_cpu_max_fails_closed[None];
+          FX-3 (defect removed) failed test_fx3_hit_triple_mismatch_is_defect_and_stops;
+          FX-4 (max_tasks_per_child dropped) failed test_fx4_fresh_process_per_task_and_per_task_peak;
+          FX-5 (manifest keys dropped) failed test_fx5_part_manifest_carries_inference.
+    - id: C2
+      name: no change to thresholds, statistics, cost accounting, backend paths or outcome mapping
+      result: PASS
+      evidence: >-
+        git diff cd018399c7 8cd6700ea1 is empty for analysis.py, backends.py, audit, polyfp,
+        fparith, semaev, oracle, decks, labels, celltask, b2split, rho and verify. The changed
+        files are driver.py (admission, provenance, scheduling, plan check), hostinfo.py
+        (admission), cellrun.py (+2 lines, FX-3 defect only), fixtures.py (AMENDMENT_V4
+        constant), make_trial_plan.py and trial-plan-v2.json (header), pod_sync.sh, and tests.
+        No charging counter, statistic, tolerance, window or outcome label is touched. The v4
+        dry-run charged op-counts (sha bf4f31fe...9fbac7) are identical to the v3 dry run.
+    - id: C3
+      name: protocol-v4 checks and trial-plan sha consistency
+      result: PASS
+      evidence: >-
+        Regenerating the plan with make_trial_plan.py gives byte-identical output, sha
+        4b1e11e7...215d41; this equals the receipt's trial_plan_sha256, and check_plan returns
+        (True, []). Compared with the v3 plan, the cells, rho targets, fixtures and totals are
+        identical. Only header keys changed: protocol_version 4, protocol_v4_note, trial_plan,
+        amendment_v4, amendment_v4_decision and amendment_v4_sha256. amendment_v4_sha256 equals
+        the actual AMD-20260928-d3ed9e sha (24febe93...ac33) and DEC-20260928-48a648's
+        amendment_sha256_at_decision. PROTOCOL_VERSION = 4. Full pytest: 72 passed.
+    - id: C4
+      name: Mac smoke op-counts unchanged
+      result: PASS
+      evidence: >-
+        The committed smoke/mac_v4/opcounts.json has sha 79e80dd11f48c5c6553e1782e74605656ca6c2a1178b2428c5c35eb00ca80651,
+        identical to v3's smoke/mac/opcounts.json. I reran it myself: smoke.py --no-sage, run
+        in the scratch mirror because smoke.py refuses an --out-dir outside
+        implementation/smoke/, under Python 3.12.8. rc 0; op-counts sha 79e80dd1...ca80651;
+        identity True; 4/4 cells with no defects; rho 8/8. Only the smoke namespace
+        'smoke|EXP-SDEG-85eefd/v2' appears in the mac_v4 and DRYRUN-v4-mac artifacts; no frozen
+        label was evaluated. The rerun printed per-query W values; I computed no slope or beta
+        from them.
+    - id: C5
+      name: receipt correction that the earlier pod pytest never ran
+      result: PASS
+      evidence: >-
+        The correction is accurate and properly disclosed. The v3 claim of "pod pytest 53/53
+        passed" was unfounded, because the pod image lacked pytest. The only real v3 cross-host
+        check was pod op-count equality with the Mac (79e80dd1...), and it still holds from the
+        committed smoke/pod artifacts. The v4 receipt honestly records the pod as NOT RUN
+        (endpoint refused 90/90 probes; container not found). pod_sync.sh now installs pytest
+        into an isolated $POD_ROOT/.pytest_pkgs before running it. Consequence: the pod test
+        suite has never been verified to pass under v3 or v4 (N-4).
+
+  non_blocking_findings:
+    - id: N-1
+      area: FX-2 scope
+      text: >-
+        A readable cpu.max of "max <period>" (no quota) is still admitted, with
+        load_limit = os.cpu_count() (112 on the pod host). This follows FX-2's literal wording
+        (fail closed on unreadable or unparseable input), but on an unquota'd host the load
+        admission becomes much looser than the v3 intent of 23. Consider failing closed or
+        using the declared floor of 23 on "max".
+    - id: N-2
+      area: admission
+      text: >-
+        No admitting decision exists yet. DEC-20260928-48a648 has currently_admitted false and
+        names a future DEC-20260928-ad6451. pod_sync.sh does not sync that future decision, so
+        the pod would refuse until the script is updated. This fails safe, but it is a required
+        step before execution.
+    - id: N-3
+      area: FX-5
+      text: >-
+        When the AUTORESEARCH_* variables are unset, the manifests record null or "unverified"
+        and the driver does not refuse. The DRYRUN-v4-mac manifest shows exactly this. That is
+        honest, but a protocol-labelled run should be launched with the variables set, or the
+        driver should refuse a non-smoke run without requested_policy.
+    - id: N-4
+      area: pod verification
+      text: >-
+        The pod was unreachable for v4. Pod pytest has never run successfully, and FX-2's Linux
+        cgroup path has been exercised only through synthetic test inputs, never on a real
+        cgroup-v2 host. Run pod pytest and a pod dry run before the admitting decision.
+    - id: N-5
+      area: interpreter floor
+      text: >-
+        max_tasks_per_child requires Python 3.11 or later. Under Python 3.9 (my scratch shell's
+        default pyenv shim), test_fx4 fails with a TypeError, so the run would crash loudly
+        rather than degrade silently. The recorded Mac (3.12.8) and pod (3.12.3) interpreters
+        are fine. An explicit version check in the driver would make the requirement visible.
+    - id: N-6
+      area: receipt / process
+      text: >-
+        The receipt's commit_sha is null, because it is written inside its own commit; binding
+        is by content, and parent cd018399c7 is correct. The receipt records that origin/main
+        was not re-fetched before the snapshot (base_check), and that the claim for
+        TASK-20260928-5fb050 was not published (procedure_deviations). Both are disclosed
+        deviations and are not integrity defects.
+    - id: N-7
+      area: carried from VAL-20260928-a2bc32
+      text: >-
+        Minor items N-6 (small uncharged arithmetic) and N-8 (docstrings) from the prior report
+        were outside the FX scope and are unchanged. N-3 of the prior report (frozen bootstrap
+        label evaluated in tests) was not re-examined here. The prior N-1, N-2, N-4, N-5 and
+        N-7 are addressed by FX-1, FX-2, FX-5, FX-3 and FX-4 respectively.
+
+  incidental_observations:
+    beta_on_new_targets_computed: false
+    note: >-
+      I computed no beta or slope in this task. The smoke rerun uses the smoke namespace and
+      only prints per-query W. The informal B1 slope of about 0.797 recorded in
+      VAL-20260928-a2bc32 is prior-task information; AMD-20260928-d3ed9e already discloses that
+      the Coordinator read it.
+
+  scratch:
+    location: /Volumes/SSD990/.tmp-agent/val6c3 (a mirror of the implementation, amendments and two DEC files, about 4 MB; mutation script; smoke rerun output)
+    removed_after_review: true
+  writes_to_repository:
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260928-6c3414/validation_report.yaml
+  commits_made: none
+  runs_created: none
+
+  inference:
+    runtime: cursor
+    requested_policy: review-adversarial
+    resolved_model_id: inherited Cursor session model (not probe-verified)
+    reasoning_effort: xhigh requested; unverifiable under this runtime
+    fallback_used: true
+    fallback_reason: >-
+      Cursor runtime with an inherited model; the policy binding and effort cannot be verified
+      with orchestration.adapter doctor --probe from this session.
+    degraded_requirements: [reasoning_effort_unverified, model_not_probe_verified]
+    independent_session: true
+    note: >-
+      This is the same validator session that produced VAL-20260928-a2bc32; it did not author
+      the FX implementation or the amendment.
+
+  review_attestation:
+    read:
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260928-c52cec/snapshot-receipt.json
+      - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-d3ed9e.yaml
+      - ledger/decisions/DEC-20260928-48a648.yaml
+      - ledger/decisions/DEC-20260928-6b03c5.yaml
+      - ledger/decisions/DEC-20260928-7f2cad.yaml
+      - git diff cd018399c7 8cd6700ea1 -- experiments/EXP-SDEG-85eefd/implementation/ (full)
+      - experiments/EXP-SDEG-85eefd/implementation/driver.py, hostinfo.py, cellrun.py, fixtures.py, make_trial_plan.py, pod_sync.sh
+      - experiments/EXP-SDEG-85eefd/implementation/tests/test_fx.py, tests/test_driver_plan.py
+      - experiments/EXP-SDEG-85eefd/implementation/trial-plan-v2.json (header and cell comparison with v3)
+      - experiments/EXP-SDEG-85eefd/implementation/smoke/mac_v4/*, smoke/mac_v4.stdout
+      - experiments/EXP-SDEG-85eefd/implementation/smoke/driver_dryrun/DRYRUN-v4-mac/charged/{manifest.yaml,command.txt,opcounts.json}
+      - experiments/EXP-SDEG-85eefd/implementation/smoke/driver_dryrun/DRYRUN-v3-mac/charged/opcounts.json, smoke/mac/opcounts.json
+    executed:
+      - pytest (full suite, worktree, Python 3.12.8) -> 72 passed
+      - check_decision on DEC-6b03c5, DEC-48a648, DEC-7f2cad and a synthetic admitting decision
+      - make_trial_plan regeneration, sha comparison and check_plan
+      - mutation check of FX-1..FX-5 in a scratch mirror
+      - smoke.py --no-sage in a scratch mirror (smoke namespace only)
+    not_read_or_not_done:
+      - pod host (unreachable; I did not retry)
+      - no protocol-labelled trials and no frozen seed labels evaluated
+      - origin/main was not fetched by this validator
+    sibling_reports_read: none for this round
