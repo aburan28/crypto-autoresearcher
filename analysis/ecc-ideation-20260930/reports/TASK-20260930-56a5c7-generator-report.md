@@ -51,6 +51,14 @@ and KN-* entries resolve there). What changed, and nothing else:
   (704e43) so every `nearest` ref also appears as a citation with its
   verification note. No claim, mechanism, prediction, threshold, cost or
   novelty_status changed.
+- **Second return, one field (2026-10-01):** `IDEA-20260930-6bde2d.yaml`
+  `novelty_status` relabelled `adaptation` -> `unverified` because the
+  record carries two `recalled` citations (the Boneh-Boyen generic bound
+  and the Dirichlet/Mertens pointer) and the validator rule is that any
+  recalled citation forces `unverified`; the recalled citations are kept
+  as hedged pointers, nothing else in that file changed, 68326c and 704e43
+  were not touched, and the one-line summary below that still reads
+  `adaptation` for 6bde2d is superseded by this note.
 
 ## Ids used and unused
 
@@ -257,13 +265,15 @@ in the record and a single mismatch falsifies the priced claim.
   edited (the three proposal files were created by this task; the
   truncated first write of 68326c was replaced in full before anything
   else was written; the returned-once fix rewrote only the three proposal
-  files and this report).
+  files and this report; the second return rewrote only
+  IDEA-20260930-6bde2d.yaml and this report).
 - Every number is re-derived in the record from a stated bracket or
   retrieved size and labelled estimate, or marked recalled/unchecked
   (the 2-adicities 32 and 28, the Sapling power count 2^22 - 1, the
   Filecoin/Aztec sizes, the G_T TNFS cost).
 - Every citation carries provenance; `verified_by: null` exactly on the
-  recalled entries; every `prior_art.nearest[].ref` is a KN-* or KR-* id.
+  recalled entries; every `prior_art.nearest[].ref` is a KN-* or KR-* id;
+  every record with a recalled citation is `novelty_status: unverified`.
 - Each record states time and memory exponents against the memory-charged
   rho baseline of the same curve (KR-RHO-825bca constants, KR-RHO-7d93f6
   bound) and prices the kangaroo stage rather than assuming it.
