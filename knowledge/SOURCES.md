@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8086 |
+| Literature entries (`KN-LIT-*`) | 8087 |
 | — with a resolvable external identifier | 2473 |
-| — with no identifier recorded | 5613 |
+| — with no identifier recorded | 5614 |
 
 Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 175, eprint 829, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7520, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 517.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7521, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 517.
 
 ## 1. Frozen source packages
 
@@ -217,7 +217,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2473 of 8086 `KN-LIT-*` entries carry an
+2473 of 8087 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2698,7 +2698,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5613 entries name a source this index cannot resolve to a
+5614 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -3912,6 +3912,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-3167 | Coordinate Blinding over Large Prime Fields |  |  | read |
 | KN-LIT-3168 | Correcting Errors in RSA Private Keys |  |  | read |
 | KN-LIT-3169 | Correcting Subverted Random Oracles |  |  | read |
+| KN-LIT-316c94 | Hamming ideals and Gröbner bases for ISD-like syndrome decoding | 2026 | preprint, 2026 (venue and identifier not recorded in the text read; see Not verified here) | read |
 | KN-LIT-3170 | Correlated Extra-Reductions Defeat |  |  | read |
 | KN-LIT-3171 | Correlated Product Security From Any One-Way Function |  |  | read |
 | KN-LIT-3172 | Correlated Pseudorandomness from Expand-Accumulate Codes |  |  | read |
