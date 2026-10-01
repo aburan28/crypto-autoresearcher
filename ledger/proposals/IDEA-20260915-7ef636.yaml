@@ -1,0 +1,550 @@
+idea:
+  id: IDEA-20260915-7ef636
+  title: >-
+    Separate the branching-order effect from the structure effect with a 2x2 plus a
+    PLANTED-CORE null: a structure-preserving relabelling makes the order random while
+    holding the system fixed, and a random system built with a propagating ml-variable
+    core makes the core exist while holding the algebra random - the four cells decide
+    whether WDSat's advantage is the descended algebra, the existence of any
+    propagating core, or the variable numbering the generator happens to emit
+  class: control
+  research_question_id: RQ-ICPERF-94c86e
+  question_id: RQ-ICPERF-94c86e
+  question_ids: [RQ-ICPERF-94c86e, RQ-SATIC-1ae57a]
+  area: ICPERF
+  goal_ids: [GOAL-ICPERF-e6b6a4]
+  status: proposed
+  proposed_by: idea-generator
+  task_id: TASK-20260915-5ba08b
+  recorded_at: '2026-09-15'
+  kind: instrument
+
+  claim: >-
+    P3b and P6 of H-ICPERF-cc4847 are measured on objects that differ in TWO ways at
+    once, and as measured in RUN-ICPERF-305ca3 they may be one mechanism rather than
+    two. P3b changes the branching ORDER on a fixed instance (non-core-first, censored
+    wall ratio lower bounds 51-1843x); P6 changes the instance CONTENT at fixed shape
+    (matched random Boolean systems, 20.06x and 114.30x in conflicts where they
+    finish, all six n19l6 nulls censored at 180 s). A random Boolean system differs
+    from a structured one in content AND in whether its first ml variables propagate
+    anything, so P6's ratio is an upper bound on the content effect and contains an
+    unknown part of the order effect. This record claims the two are separable by a
+    2x2 design plus one new null object, and predicts the separation quantitatively.
+    Write L(content, order) = log2(median WDSat conflicts) over the four cells
+    {structured, random-content} x {core-first order, random order}. Then:
+    (D1) Delta_order := L(structured, random) - L(structured, core-first) >= 6 bits at
+    l = 6 - i.e. scrambling the variable numbering of an OTHERWISE IDENTICAL system
+    costs at least 64x in conflicts, which P3b's censored wall bound could not
+    quantify;
+    (D2) Delta_content := L(random, core-first) - L(structured, core-first) >= 3 bits;
+    (D3) the effects are NOT additive in logs - the interaction
+    L(random, random) - L(random, core) - L(structured, random) +
+    L(structured, core) is <= -2 bits, because a core-first order can only pay off
+    when a propagating core exists;
+    and (D4, the discriminating cell) a PLANTED-CORE null - a random Boolean system
+    whose N - ml non-core variables are defined as random XOR combinations of the ml
+    core variables, so that assigning the core determines everything by unit
+    propagation exactly as the Weil-descent linking equations e_k = sigma_k(x) do -
+    lands within 2 bits of the structured instance under the core-first order. If D4
+    holds, WDSat's advantage on these instances is the EXISTENCE of a propagating
+    linear core, not the S_4 algebra, and P6's mechanism sentence ("Random systems of
+    the same shape have no such core") is the whole of it. If the planted-core null is
+    instead more than 4 bits slower than the structured instance, the descended S_4
+    content contributes independently and P6's structure reading survives with a
+    measured size.
+    Nothing here is about any curve and no exponent is claimed.
+
+  mechanism: >-
+    THE OBJECT. WDSat is a DPLL solver with a STATIC branching order supplied by -g
+    and a default order that is the variable numbering of the input file
+    (KN-LIT-6e036d). Proposition 1 of KN-LIT-102cdb, quoted in H-ICPERF-cc4847's
+    mechanism paragraph, says that assigning the ml core variables x_{i,j} determines
+    every e-variable by unit propagation through the linking equations e_k =
+    sigma_k(x), so a search that branches only on the core visits 2^{ml} leaves and
+    never pays for the e-layer. That statement has TWO ingredients - a set of ml
+    variables that determines the rest by propagation, and the algebraic content of
+    the descended S_4 equations that prunes among those 2^{ml} assignments. The four
+    arms below hold each fixed in turn.
+
+    ARM 1, RELABELLING (order changed, system identical). Apply a uniformly random
+    permutation pi to the variable indices of the shipped .anf and .dimacs, renaming
+    only. The system is the SAME system - every model maps through pi, every equation
+    is the same equation - so any change in conflicts is attributable to the order
+    alone. This is the lossy-projection discipline applied to an instrument: the
+    projection "which variables are the first ml in the file" discards everything
+    about the algebra and is exactly what the default order reads, so relabelling
+    isolates it. Run both (a) default order on the relabelled file, and (b) -g
+    pi(core) on the relabelled file, which must reproduce the original conflict count
+    EXACTLY (WDSat is deterministic and the search tree is isomorphic). Arm 1(b) is a
+    hard identity check: if it does not reproduce, the relabelling script or -g is
+    wrong and no other arm may be read.
+
+    ARM 2, PLANTED-CORE NULL (core exists, algebra random). Generate a random Boolean
+    system of the template's shape but with the propagation structure planted: choose
+    the ml core variables; for each of the N - ml remaining variables e_k, emit a
+    definition e_k = (random XOR of a random subset of the core monomials of the
+    template's degree profile); then emit the template's number of remaining equations
+    as random Boolean polynomials over all N variables matching the per-equation
+    monomial-count and degree profile. Such a system has a core that determines
+    everything by propagation and has no S_4 content. It is the null object the
+    existing 18 nulls are NOT: `shape_matches_template: true` in RUN-ICPERF-305ca3
+    matches variable count, equation count and degree profile, and says nothing about
+    propagation.
+
+    ARM 3, CONFLICT BUDGET INSTEAD OF A WALL TIMEOUT. RUN-ICPERF-305ca3 censors on
+    wall (120 s for noncore_first, 180 s for nulls), so 22 of 30 noncore rows and 9 of
+    18 null rows are right-censored on a hardware-dependent axis, and the reported
+    ratios are lower bounds of unknown looseness on the hardware-INDEPENDENT metric the
+    question designates as primary. Budget on conflicts instead (e.g. 2^{31} conflicts,
+    with wall recorded but not used for censoring): every censored row then has a
+    lower bound in the primary unit, and a per-cell Kaplan-Meier median over the
+    censored sample is computable rather than a median over survivors only.
+
+    WHAT EACH OUTCOME MEANS. If D1 and D2 both hold and D3 is negative, the boundary
+    table needs TWO columns - an order-sensitivity column and a content column - and
+    every wall time in it is conditional on the generator's numbering, which must then
+    be recorded as an instance property. If D1 holds and D2 collapses (Delta_content
+    under 1 bit), the entire measured advantage is order and P6 is not a structure
+    result. If D4 holds, the mechanism is the linear linking layer - which is a
+    property of Weil descent as such and transfers to every (m, l) and to the
+    Nagao/chained presentations - and the correct headline is that the SAT advantage
+    is bought by the descent's own linear structure and not by S_4.
+
+  what_this_would_have_caught_in_RUN_ICPERF_305ca3: >-
+    (1) The 20-114x null/structured conflict ratio (P6) is reported as "the solver's
+    speed is a property of the descended structure, not of the size", but the nulls
+    differ from the structured instances in propagation as well as in content, so the
+    ratio cannot support that attribution; this design would have said which part is
+    which. It is the same gap the review plan's own proves-too-much object 2 names -
+    that object runs ONE relabelled instance as a review control; this record turns it
+    into a measured axis with an error bar over K relabellings and adds the
+    planted-core null, which no queued task has. (2) The >= 50x P3b bound is a
+    right-censored WALL ratio (22 of 30 rows at the 120 s cap) on a question whose
+    primary unit is conflicts; a conflict budget would have produced the number
+    instead of a bound. (3) All six n19l6 nulls were censored at 180 s, so the P6
+    aggregation reports `holds: true` with one of three cells null - a conflict budget
+    plus a censored-median estimator would have given n19l6 a value or an honest
+    lower bound in the primary unit.
+
+  novelty_status: unverified
+  novelty_screen:
+    what_is_not_new: >-
+      Variable-order sensitivity of DPLL is elementary and is the subject of C2 of
+      SRC-SATIC-TRIMOSKA-2019 and of P3 of H-ICPERF-cc4847. Random-instance controls
+      are standard. Isomorphism-invariance under variable renaming is a textbook
+      property of CNF/ANF and is the basis of every graph-automorphism symmetry-breaking
+      tool.
+    what_is_new: >-
+      Within this program: (i) the 2x2 with the relabelled arm as the order-only cell
+      and the explicit interaction term, (ii) the PLANTED-CORE null, which no record in
+      this corpus proposes and which is the object that separates "the descent's linear
+      linking layer" from "the S_4 algebra", and (iii) censoring on conflicts rather
+      than wall so the primary unit carries the bound. Whether the Trimoska line or any
+      later SAT-for-PDP work already reports a planted-core control is UNCHECKED; the
+      program's records of that line (KN-LIT-102cdb, KN-LIT-6e036d) are abstract- and
+      code-level and do not mention one.
+    searched: >-
+      Read this session: RUN-ICPERF-305ca3 task-report.md, H-ICPERF-cc4847,
+      the review plan (including its proves_too_much objects), KN-LIT-6e036d,
+      KN-LIT-036049, and the four sibling proposals IDEA-20260915-{0d8e90, 3119c9,
+      3f1964, eee7e4}. `rg` over ledger/proposals/ and knowledge/ for "relabel",
+      "permutation", "null object", "planted", "branching order". No web search;
+      hence unverified.
+
+  citations:
+    - ref: experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/task-report.md
+      provenance: internal
+      claim: >-
+        UNREVIEWED OBSERVATIONS - noncore_first: 8 of 30 rows finished, 22 timeouts at
+        120 s, censored wall ratio lower bounds 51.68-1843.32; null objects: 9 of 18
+        finished, all 18 `shape_matches_template: true`, null/structured-U median
+        conflicts 3540911.5/30978.5 = 114.30 at (15,5) and 5109609.75/254656.5 = 20.06
+        at (17,6), n19l6 ratio null (all six nulls censored at 180 s); WDSat default U
+        median conflicts 30978.5 / 254656.5 / 255301.0.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: ledger/hypotheses/H-ICPERF-cc4847.yaml
+      provenance: internal
+      claim: >-
+        P3(b) words the non-core-first prediction on median WALL time with timeout rows
+        counted at their bound; P6 words the null prediction on median CONFLICTS; the
+        mechanism paragraph asserts "Random systems of the same shape have no such
+        core, so branching on the first ml variables propagates nothing."
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: coordination/review/icperf-20260913-66fd51/review-plan.yaml
+      provenance: internal
+      claim: >-
+        proves_too_much object 2 assigns ONE relabelled Xn15l5-11-U run to
+        TASK-20260913-6c5729 and states the disjunction this record generalises: "if it
+        comes out at null order, WDSat's speed is a property of the VARIABLE ORDER the
+        generator emits and P6's null comparison measured that order, not structure."
+        Cited as a review control and a prior, NOT as a result.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: KN-LIT-6e036d
+      provenance: internal
+      claim: >-
+        WDSat takes a static branching order with -g, is deterministic, reports conf[0]
+        as its conflict counter, and is statically allocated so __MAX_ID__ must be
+        exact per cell.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: KN-LIT-102cdb
+      provenance: internal
+      claim: >-
+        Proposition 1 - assigning the ml core variables determines the e-variables by
+        propagation through e_k = sigma_k(x), bounding the search space by 2^{ml}. Used
+        here as the statement whose TWO ingredients the design separates. This program's
+        record of it is abstract/paper-level.
+      verified_by: idea-generator TASK-20260915-5ba08b (corpus record KN-LIT-102cdb read this session; the underlying paper was not opened)
+    - ref: >-
+        Kaplan-Meier product-limit estimator for right-censored samples (Kaplan and
+        Meier, JASA 1958)
+      provenance: recalled
+      claim: >-
+        RECALLED, THEREFORE A POINTER AND NOT SUPPORT. Standard nonparametric estimator
+        of a median from right-censored observations; named so the reviewer can check
+        that a censored median is estimable rather than reported as "none". No agent
+        here has opened it and nothing rests on it beyond the choice of estimator,
+        which is itself declared in the design.
+      verified_by: null
+
+  assumptions:
+    - >-
+      A variable renaming of the .anf and .dimacs is a system isomorphism and WDSat's
+      answer set maps through it. Verified by arm 1(b)'s exact conflict-count identity
+      before anything else is read; if 1(b) fails, the whole design is void.
+    - >-
+      WDSat's default order is the file's variable numbering. Stated in KN-LIT-6e036d
+      and checked by P3a of RUN-ICPERF-305ca3 (core_order reproduced default exactly
+      on 60/60, unreviewed). If the default is instead an internal heuristic, arm 1(a)
+      measures that heuristic's dependence on numbering, which is still a separation
+      but must be reworded.
+    - >-
+      Rebuilding WDSat per cell with an exact __MAX_ID__ is required for every arm,
+      including the planted-core null, whose variable count matches the template by
+      construction.
+    - This record approves nothing and runs nothing.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Control/measurement proposal. No theorem, no bound, no certificate family. The
+      audits are recorded where they bear, because D1-D4 are quantitative predictions
+      that can fail.
+    bottleneck: >-
+      The attribution of the measured solver advantage. Every later ICPERF row's
+      SAT column inherits it, and at present it is confounded between order and content.
+    baseline_embedding:
+      parameter_slice: >-
+        The structured/core-first cell IS the shipped default configuration; its
+        median conflicts must reproduce 30978.5 / 254656.5 / 255301.0 (U) from
+        results.jsonl before any other cell is interpreted.
+      reproduction_check: >-
+        Exact conflict-count equality on arm 1(b) (relabelled file with the permuted
+        core order) against the original default row, per instance, on all 60.
+    observation_collision:
+      observable: median WDSat conflicts per (content, order) cell.
+      distinct_preimage_search: >-
+        A 100x conflict ratio between a structured and a random instance has at least
+        three preimages - the algebra prunes, the core propagates, the numbering
+        happens to put the core first. The four cells plus the planted-core null are
+        chosen so that each preimage predicts a different sign pattern for
+        (Delta_order, Delta_content, interaction, planted-core gap). A pattern matching
+        none of them is reported as unexplained rather than assigned.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The fiber of "same system, different numbering" - K uniformly random
+          relabellings of one instance - and the fiber of "same shape and propagation,
+          different algebra" - the planted-core nulls.
+        predicted_gain: >-
+          An error bar on the order effect (IQR over K = 32 relabellings) where the run
+          has a single censored point estimate, and a decomposition of P6's 20-114x
+          into a propagation part and an algebra part.
+    quantifier_order: >-
+      For each cell (n, l) in {(15,5), (17,6), (19,6)} and each label in {S, U}: over
+      the 10 shipped instances and K = 32 relabellings each, the medians in the four
+      cells satisfy D1-D3; over 10 planted-core nulls per cell, D4. Nothing is claimed
+      for other engines, other orders, or l >= 7.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A decomposition, on these 60 instances with this solver on this host, of the
+        measured advantage into an order component and a content component with error
+        bars, plus the identification of the propagating-core layer as sufficient or
+        not. It cannot certify anything about Groebner engines, about the PDP's
+        asymptotic cost, or about any curve.
+      nearby_object_control: >-
+        A structured instance from a DIFFERENT (m, l) or from the chained-S_3
+        presentation, where the core/e-layer split has a different shape: the
+        decomposition must not depend on that shape in the same way, or Delta_order is
+        measuring the file format rather than the search.
+    proof_obligations:
+      - claim: arm 1(b) reproduces the original conflict counts exactly
+        responsibility: baseline
+      - claim: the relabelling is a system isomorphism
+        responsibility: correctness
+      - claim: the planted-core null propagates the core exactly as the template does
+        responsibility: correctness
+      - claim: censored medians are estimated, not dropped
+        responsibility: runtime
+      - claim: every conclusion scoped to WDSat, these cells, this host
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        Delta_order = log2(median conflicts, relabelled default order) -
+        log2(median conflicts, original default order), same instances, l = 6
+      direction: higher
+      minimum_effect: '>= 6 bits (64x), with IQR over K = 32 relabellings reported'
+    - metric: >-
+        Delta_content = log2(median conflicts, shape-matched random null, core-first)
+        - log2(median conflicts, structured, core-first)
+      direction: higher
+      minimum_effect: '>= 3 bits (8x); under 1 bit falsifies the content half of P6'
+    - metric: interaction term of the 2x2 in bits
+      direction: lower
+      minimum_effect: '<= -2 bits (sub-additive: the core order pays off only when a core exists)'
+    - metric: >-
+        planted-core-null median conflicts / structured median conflicts, core-first
+        order, same cell
+      direction: different
+      minimum_effect: >-
+        within 4x (i.e. <= 2 bits) if the propagating core is the whole mechanism;
+        above 16x (>= 4 bits) if the S_4 algebra contributes independently. Both are
+        reportable and they mean opposite things
+    - metric: >-
+        arm 1(b) conflict-count identity, relabelled file with permuted core order vs
+        original default
+      direction: different
+      minimum_effect: exact equality on 60 of 60; any mismatch voids the design
+    - metric: >-
+        fraction of rows right-censored under a 2^{31}-conflict budget, versus the
+        wall-censored fractions of RUN-ICPERF-305ca3 (22/30 noncore, 9/18 null)
+      direction: lower
+      minimum_effect: >-
+        <= 20% of rows censored in every cell, so a censored median is estimable in the
+        primary unit rather than reported as `none`
+
+  minimal_test:
+    design: >-
+      Per cell (15,5), (17,6), (19,6) and per label S/U, take the 10 shipped instances.
+      Build four arms: (A) original file, default order - the reproduction arm;
+      (B) original file, -g listing a uniformly random permutation of ALL N variables
+      (a complete order, so the search stays complete) - order-only, K = 8 seeds;
+      (C) relabelled file (uniform permutation of variable indices in both .anf and
+      .dimacs), default order, K = 32 seeds - order-only, and the arm the review plan's
+      object 2 samples once; (C') relabelled file with -g pi(core) - the identity
+      check; (D) shape-matched random null, default order and -g core - the existing
+      null repeated under a conflict budget; (E) PLANTED-CORE null, default order and
+      -g core, 10 seeds per cell. Every row is budgeted on 2^{31} conflicts with wall
+      recorded, and WDSat is rebuilt per cell with the exact __MAX_ID__. Report per
+      cell the four 2x2 medians with IQR, the interaction, the planted-core gap, and
+      Kaplan-Meier medians where censoring occurs.
+    execution_status: design_only_not_approved_in_this_record
+    controls:
+      - kind: reproduction
+        design: arm A must reproduce the run's per-cell default medians from results.jsonl.
+      - kind: identity
+        design: >-
+          arm C' must reproduce arm A's conflict counts EXACTLY per instance. This is
+          the control that makes C interpretable as order-only.
+      - kind: null_object
+        design: >-
+          the existing 18 shape-matched random systems (arm D), so the new
+          decomposition is anchored to the run's own P6 numbers.
+      - kind: known_false
+        design: >-
+          a relabelling that is NOT a permutation (e.g. mapping two variables to one
+          index) must produce a DIFFERENT satisfying set or an error; if the harness
+          accepts it silently, the relabeller is unsafe and arm C is void.
+      - kind: matched_size
+        design: >-
+          a random null with the template's shape but a DIFFERENT variable count
+          (+-10%), to confirm that Delta_content is not a size effect at the margin.
+      - kind: load
+        design: >-
+          conflicts are the primary metric and are load-independent; wall is recorded
+          and reported with loadavg per row, and no verdict rests on wall.
+    required_metrics:
+      - conflicts, decisions, status, wall_s, cpu_s, loadavg, seed and arm per row
+      - per-cell median and IQR of conflicts per arm; Kaplan-Meier median where censored
+      - Delta_order, Delta_content, interaction in bits with bootstrap CIs over instances and seeds
+      - planted-core gap in bits per cell
+      - arm C' identity result per instance (equal / not equal, with both counts)
+
+  falsification_conditions:
+    - >-
+      Arm C' fails to reproduce arm A's conflict counts exactly on any instance: the
+      relabelling or -g wiring is wrong, every other arm is uninterpretable, and the
+      finding is a procedure defect, not a result.
+    - >-
+      Delta_order under 2 bits at l = 6: the order effect P3b measured on wall is not
+      present in conflicts at this magnitude, and P3b's censored wall bound was
+      measuring propagation cost per node rather than tree size.
+    - >-
+      Delta_content under 1 bit: content contributes nothing once the order is
+      controlled, and P6 as a structure claim fails - the honest statement becomes
+      "P3b and P6 measure one mechanism", exactly as the review plan's object 2
+      anticipates.
+    - >-
+      The interaction term positive (super-additive): the two effects reinforce rather
+      than gate each other, contradicting the propagation reading of Proposition 1, and
+      the mechanism paragraph of H-ICPERF-cc4847 needs rewriting.
+    - >-
+      Planted-core null within 4x of the structured instance AND the existing
+      shape-matched null more than 16x slower: then P6's 20-114x is essentially the
+      absence of a propagating core, the descended S_4 algebra contributes under 4x,
+      and the SAT advantage is a Weil-descent property rather than a summation-polynomial
+      property. (This is a falsification of P6's wording and a positive mechanism
+      result at the same time; it must be reported as both.)
+
+  confounders:
+    - >-
+      Relabelling changes cache locality and the static arrays' access pattern, so
+      WALL may move for reasons conflicts do not; this is why every verdict is on
+      conflicts and wall is reported separately.
+    - >-
+      A uniformly random complete order (arm B) may by chance place many core
+      variables early; with K = 8 seeds the distribution, not a single draw, is the
+      measurement, and the fraction of the ml core inside the first ml positions is
+      recorded per seed as a covariate.
+    - >-
+      The planted-core null's degree profile must match the template's per-equation
+      monomial counts as well as its propagation structure, or it becomes an easier
+      instance for an unrelated reason; the shape check that the existing nulls pass is
+      necessary here too and is reported.
+    - >-
+      A conflict budget of 2^{31} is itself a censoring threshold; the fraction
+      censored per arm must be reported, and a cell where arm C is censored at over
+      50% supports only a lower bound.
+    - >-
+      Symmetry breaking (-b) interacts with the order (the run's unreviewed observation
+      is a ~2.5x conflict reduction, not the m! = 6 the Coordinator expected); every arm
+      is run WITHOUT -b for the primary 2x2, with -b as a secondary sweep.
+
+  interpretation_limits:
+    - >-
+      Scoped to WDSat on the 60 shipped S_4 instances at l <= 6 on this host. It says
+      nothing about Groebner engines, about other SAT solvers' order sensitivity, or
+      about any curve.
+    - >-
+      A decomposition of a measured advantage is not a mechanism proof; it bounds how
+      much of the advantage each candidate mechanism can explain on these instances.
+    - >-
+      The review plan already assigns ONE relabelled run to TASK-20260913-6c5729 as a
+      proves-too-much control. If that control returns before this is dispatched, its
+      single point must be treated as one draw from arm C's distribution and must not
+      be substituted for the distribution.
+    - >-
+      Deciding D1-D4 does not move any hypothesis status; that is the Coordinator's act.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a fixed system, WDSat's conflict count under a uniformly random complete
+        branching order is concentrated enough that K = 32 draws estimate its median to
+        within a factor 2 with 95% confidence, i.e. the log-conflict distribution over
+        orders has interquartile range under about 3 bits.
+      rigorous_support: >-
+        Rigorous side: the conflict count is deterministic given (system, order), so
+        the only randomness is the order, and the sample median of K = 32 i.i.d. draws
+        is within the empirical [0.34, 0.66] quantile band with probability about 0.95
+        by the binomial tail - no distributional assumption needed for THAT. Imitated
+        side: that the log-conflict distribution over orders is unimodal with moderate
+        spread, in the same way that DPLL runtime distributions over random restarts
+        are commonly heavy-tailed but log-concentrated in the bulk. The heavy tail is
+        the named risk.
+      validation_plan: >-
+        Take one instance per cell and run K = 256 relabellings (cheap at (15,5):
+        median 0.065 s default, and censored rows bounded by the conflict budget).
+        Compare the empirical log-conflict CDF against a fitted log-normal and against
+        a Pareto tail; report the estimated tail index. Tail check: the maximum over
+        256 draws against the 99th percentile of the fitted bulk - if the maximum
+        exceeds it by more than 4 bits, the distribution is heavy-tailed, K = 32 is
+        insufficient, and every Delta must be reported as a quantile statement rather
+        than a median ratio. Sampled parameters: 3 instances, K = 256; transfer to the
+        other 57 instances is an explicit assumption, not a measurement.
+    - id: H2
+      statement: >-
+        A random Boolean system whose N - ml non-core variables are random XOR
+        definitions of the core behaves, under a core-first order, like a system with
+        2^{ml} leaves and O(N) propagation per leaf - i.e. planting the definitions is
+        sufficient to reproduce the template's propagation behaviour.
+      rigorous_support: >-
+        Rigorous side: if every non-core variable has a definitional XOR equation in
+        terms of assigned variables, then unit propagation determines it, so the leaf
+        count is at most 2^{ml} unconditionally - this direction is a proof, not a
+        heuristic. Imitated side: that the REMAINING random equations prune the 2^{ml}
+        assignments like independent uniform Boolean constraints, in the same way that
+        a random k-SAT instance at fixed clause density is modelled by independent
+        clauses.
+      validation_plan: >-
+        For the planted-core nulls, record decisions as well as conflicts and check
+        decisions <= 2^{ml} exactly (a proof-backed inequality that the instrument must
+        satisfy); compare the observed conflict count against the binomial prediction
+        2^{ml}(1 - 2^{-E}) for E the number of non-definitional equations, over 10 seeds
+        per cell. Tail check: the seed with the largest conflict count against the
+        binomial 99th percentile. If decisions exceed 2^{ml} on any planted-core null,
+        the planting is wrong and arm E is void.
+
+  target_complexity:
+    time_exponent: >-
+      No exponent claimed for any algorithm. The quantity this record makes measurable
+      is the ORDER-sensitivity of the SAT column, which conditions every wall time and
+      conflict count in the boundary table's PDP row. If D4 holds, the mechanism behind
+      the SAT column's cost is the descent's linear linking layer, which is present at
+      every (m, l) and in the chained-S_3 presentation, so the attribution transfers
+      across the table even though no exponent moves.
+    memory_exponent: >-
+      Unchanged. WDSat's memory is fixed at compile time; the relabelled and planted
+      nulls have the template's variable count by construction, so all arms share one
+      static build per cell.
+    best_known: >-
+      For the same measurement: nothing. P3b (censored wall ratios 51.68-1843.32) and
+      P6 (20.06x, 114.30x in conflicts, one cell null) of RUN-ICPERF-305ca3, both
+      unreviewed and both confounded in the way this record separates.
+    hidden_overhead: >-
+      The relabelling and planting scripts are O(instance size). The real hidden cost
+      is that arm C at l = 6 may be censored at a high rate, in which case the reported
+      Delta_order is a lower bound and must be stated as one - the same censoring
+      problem this record criticises, moved from wall to conflicts where at least the
+      unit is invariant.
+    tradeoff_note: >-
+      Not an algorithm. Operationally, K relabellings x 60 instances x 3 cells is
+      embarrassingly parallel and the conflict budget bounds each row, so the cost is
+      chosen rather than discovered.
+
+  dominated_by: >-
+    Not applicable as an algorithmic claim ("n/a (no cost result claimed)"): this
+    record proposes a control, occupies no point on any time/memory/data frontier, and
+    makes no attack faster. The frontier check that IS meaningful, and was done: the
+    alternative ways to attribute the measured advantage are (i) the single relabelled
+    run already assigned to TASK-20260913-6c5729 (one draw, no error bar, no
+    planted-core arm) - strictly weaker on information and strictly cheaper on compute,
+    so it dominates on cost and is dominated on information; (ii) re-running
+    noncore_first with a longer wall timeout, which buys a tighter censored bound but
+    no separation; (iii) an exhaustive enumeration of V^3 (IDEA-20260915-3f1964), which
+    dominates on certainty about SOLUTIONS but says nothing about search cost, which is
+    what this measures. Nothing on the frontier separates order from content.
+  sota_delta: >-
+    Zero exponent change and zero change to any attack cost. The delta is in
+    attribution: P6's 20.06x/114.30x conflict ratio (unreviewed) is currently a single
+    number carrying two mechanisms, and P3b's >= 50x is a censored wall bound; this
+    design replaces them with (Delta_order, Delta_content, interaction, planted-core
+    gap) in bits with error bars, and it can falsify either of the two mechanisms
+    outright. Predicted magnitudes: Delta_order >= 6 bits, Delta_content >= 3 bits,
+    interaction <= -2 bits.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+    wall_clock_seconds: 28800
+    memory_gb: 1
+    note: >-
+      Advisory. Row count: 3 cells x 2 labels x 10 instances x (1 + 8 + 32 + 1) arms
+      ~ 2520 WDSat runs plus 60 nulls plus 60 planted-core nulls. At (15,5) and (17,6)
+      most rows are under 3 s; the cost is concentrated in censored arm-C rows at
+      (19,6), which the 2^{31}-conflict budget bounds. Single-core, single-threaded,
+      no memory pressure. Order the cells (15,5) then (17,6) then (19,6) and stop a cell
+      when its censoring fraction exceeds 50%.
+  recommended_priority: high
+  inference:
+    policy: research-deep
+    reasoning_effort: null

@@ -1,0 +1,128 @@
+research_question:
+  id: RQ-GFPN-c01af8
+  title: >-
+    For the elliptic curves over F_{p^5}, p = 2^64 - 2^32 + 1, now deployed in
+    STARK/ZK systems (EcGFp5 and EcMasFp5), what is the concrete,
+    symmetrization-aware cost of Gaudry/Diem/Joux-Vitse index calculus, of
+    oracle-assisted static Diffie-Hellman, and of odd-characteristic cover
+    attacks -- and does the advertised 128-bit level survive once the
+    symmetry the curves' own torsion provides is charged to the attacker
+    rather than ignored?
+  scope:
+    curve_families:
+      - >-
+        EcGFp5 (Pornin 2022): double-odd curve y^2 = x(x^2 + 2x + 263z) over
+        F_{p^5} = F_p[z]/(z^5 - 3), order 2n with n a 319-bit prime; rational
+        2-torsion point (0,0) by construction
+      - >-
+        EcMasFp5 (Polygon Hermez, 2025): prime-order curve y^2 = x^3 + 3x + 8z^4
+        over the same field, 320-bit prime order, cofactor 1, NO rational
+        2-torsion; self-reported twist security 101.9 bits and an inherited
+        "142-bit field security" claim copied from the EcGFp5 design note
+      - >-
+        random ordinary curves over F_{p^5} with and without a rational 2-torsion
+        point, as the nearby-object control (the mechanism is generic in n = 5;
+        the named curves must NOT behave differently from random ones)
+      - >-
+        toy ladders: the same curve shapes over F_{p'^5} for p' from ~2^10 to
+        ~2^30, n = 5 fixed, where every PDP cell is solved end to end
+    field_types: [low_degree_extension, prime]
+    bit_sizes:
+      - >-
+        executable: n = 5 fixed, base prime p' of 10-30 bits; per-PDP cost is
+        measured in F_{p'} operations and the ideal degree D is measured by FGLM
+      - >-
+        arithmetic only: p = 2^64 - 2^32 + 1 (320-bit group), reached by scaling
+        the NUMBER of systems and the linear algebra along the p-axis under the
+        stated p-independence heuristic, never by extrapolating wall time
+    methods:
+      - >-
+        Gaudry (2009) n-point decomposition on E(F_{p^5}) via the 6th summation
+        polynomial with Weil restriction to F_p; double-large-prime balancing
+        giving ~p^{2-2/5} systems and ~p^{2-2/5} sparse linear algebra
+      - >-
+        symmetrization levels as SEPARATE arms: (i) raw descended S_6; (ii) S_5
+        symmetrization in elementary symmetric functions (Gaudry / FGHR); (iii)
+        (Z/2)^4 x| S_5 symmetrization through the 2-torsion translation
+        x -> b/x, i.e. t = x + b/x (FHJRV 2014), available on EcGFp5 and not on
+        EcMasFp5
+      - >-
+        Joux-Vitse (n-1)-point variant with the F4-remake, for full ECDLP (closed
+        by arithmetic at p = 2^64) and for oracle-assisted SDHP (open)
+      - >-
+        FGLM / msolve degree measurement of the descended ideal; Macaulay2,
+        Singular, msolve as installed for ICPERF
+      - >-
+        Diem (2003) odd-characteristic GHS cover construction and its
+        isogeny-class extension (Galbraith-Hess-Smart), at n = 5, where Diem's
+        "n >= 11 is safe" theorem cited by the design note does not apply
+      - matched Pollard rho baseline (2^160 on the 320-bit group) as the ruler
+  motivation: >-
+    Galbraith's 2015 verdict -- summation-polynomial index calculus is hopeless
+    for E(F_{2^n}) with prime n > 160 -- is confirmed by everything since, and
+    this program's SATIC/DREG/SEMBIN lanes are closing that regime as theorems.
+    The complement of that verdict is where the same machinery WORKS: small
+    prime n. The ZK ecosystem then deployed exactly that regime. Pornin's
+    EcGFp5 design note defends n = 5 by counting ~p^{8/5} = 2^102.4 Groebner
+    systems of ideal degree D ~ 2^{k(k-1)} = 2^20 at a per-system floor of
+    O(D^2) = 2^40, i.e. ">= 2^142", and the Hermez EcMasFp5 note inherits
+    "142 bits" as if it were a property of the field. That D is the degree of
+    the RAW descended system. The double-odd construction hands the attacker a
+    rational 2-torsion point, so the (Z/2)^4 x| S_5 symmetrization of FGHR /
+    FHJRV applies and solutions come in orbits of size 1920 ~ 2^10.9; the
+    symmetrized ideal degree is ~2^9, not 2^20. Redoing the same arithmetic
+    gives a band of roughly 2^121 (D^2 floor) to 2^132 (nominal kD^3 FGLM) for
+    EcGFp5, and 2^129 to 2^144 for prime-order EcMasFp5 (S_5 only, |G| = 120).
+    The advertised 128 bits is INSIDE the uncertainty band for one deployed
+    curve and at its edge for the other. Separately, Joux-Vitse's
+    oracle-assisted static DH needs ~p oracle queries and one decomposition,
+    which at p = 2^64 is far below 128 bits in both dimensions and is not
+    discussed in either design note. And the cover-attack theorem the design
+    note cites (Diem: prime n >= 11) says nothing about n = 5; the Gorla-
+    Massierer remark that some n = 5 curves map to genus-5 Picard groups at
+    O~(q^{4/3}) means a deterministic per-curve check is owed, not a citation.
+  decision_target: >-
+    A committed Coordinator decision that states, per named curve and per
+    symmetrization arm, (a) the measured ideal degree D and per-PDP cost in
+    F_p operations at n = 5, m = 5, with the p-independence of D verified
+    across the toy ladder; (b) the resulting concrete full-ECDLP cost band
+    at p = 2^64 under the stated heuristic, side by side with the design
+    note's ">= 2^142"; (c) the oracle-assisted SDHP cost (queries, work);
+    (d) a yes/no on odd-characteristic cover applicability for each curve and
+    its isogeny-class neighbourhood; and (e) whether each curve's 128-bit
+    claim stands, is inside the band, or fails -- with every extrapolation
+    named. "The design note's floor is loose by ~11 bits but 128 still holds"
+    is a first-class outcome and must be reported as such.
+  constraints:
+    - >-
+      Public curve parameters only. No keys, no signatures, no live systems;
+      every DLP instance is generated with a known scalar and verified.
+    - >-
+      Every cost is charged: symmetrized-polynomial construction, descent,
+      Groebner/FGLM, extraction, orbit-lifting back to points, verification,
+      relation rank and the final sparse linear algebra. A PDP that "solves"
+      but does not lift to verified points scores zero.
+    - >-
+      The ideal degree D and the per-PDP operation count are the transferable
+      quantities; wall time is not. Transfer along the p-axis requires the
+      measured D to be flat across at least three toy primes spanning >= 12
+      bits; a p-dependent D voids the extrapolation for that arm.
+    - >-
+      Symmetrization arms are compared on the SAME targets and the same solver.
+      The orbit-size reduction |G| is a prediction to be measured, not assumed:
+      non-free orbits (repeated x_i, fixed points of x -> b/x) make D_sym >
+      D_raw/|G|, and the measured gap is reported.
+    - >-
+      Timeouts and memory exhaustion at m = 5 are "not measured" (AGENTS rule 3),
+      never evidence of high degree. The m = 4 (Joux-Vitse) system is the
+      fallback observable.
+    - >-
+      Full-ECDLP cost, oracle-assisted SDHP cost and cover-attack applicability
+      are reported as three separate numbers; a protocol-level claim about
+      what an attacker can query is out of scope and is stated as an input.
+    - >-
+      No claim about any curve other than the two named ones and the random
+      controls; "n = 5 over a 64-bit prime is weak/strong" is not a permitted
+      conclusion, only the per-curve, per-arm numbers are.
+  status: active
+  owner: coordinator

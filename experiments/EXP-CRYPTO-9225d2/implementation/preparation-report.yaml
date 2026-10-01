@@ -49,24 +49,47 @@ preparation_report:
         check_cgroup_admission/read_cgroup_resource_accounting that refuse
         rather than fabricate; acquire_exclusive_output_directory that
         checks-only in this task; CheckpointIndexEntry/watchdog_seconds;
-        main() guarded to raise.
+        main() guarded to raise. AS OF TASK-20260912-2100f6 (C12),
+        check_cgroup_admission now takes a required job_type parameter
+        ("rho"/"arithmetic") selecting between the two required cpu.max
+        strings, refuses admission on a cpu.max mismatch, and requires
+        pids_max == 3 exactly (previously accepted pids_max <= 3). See
+        revise_fix_verification.C12 for the acceptance/refusal table.
       gap: >-
         No real cgroup, host, or filesystem interaction has been exercised;
-        these are unexercised interfaces pending a real admission task.
+        these are unexercised interfaces pending a real admission task
+        (unchanged by TASK-20260912-2100f6's source-only fix).
     - requirement: "arithmetic.py: frozen field API, EFD co-Z rescaling/addition/doubling, normalization, scalar routine and planted variant; preserve separate non-field counters."
       built: >-
         FieldElement.mul/sqr/inv/add/sub/neg/scale_small with OperationCounters
         tallying M/S/I separately from linear_ops/integer_work/
         branch_copy_ops/hash_calls/sink_bytes; point_add (rescale + common-Z,
-        12M+4S generic, exceptional branches per spec); point_double
-        (dbl-2007-bl, a=0 -> 1M+7S, a=1 -> 1M+8S); normalize (3M+1S+1I);
-        scalar_multiply (256-bit MSB-first double-and-add); planted_mul with
-        the exact 2*M_reference identity and consumed SHA-256 integrity
-        sink; planted_expected_factor as an exact rational.
+        12M+4S generic, exceptional branches per spec, Y3 formula corrected
+        under TASK-20260912-2100f6 per C6 -- see revise_fix_verification.C6);
+        point_double (dbl-2007-bl, a=0 -> 1M+7S, a=1 -> 1M+8S); normalize
+        (3M+1S+1I); scalar_multiply (256-bit MSB-first double-and-add,
+        documented under TASK-20260912-2100f6 per C6 (b) as returning the raw
+        Jacobian point, with normalization a deliberate caller responsibility
+        -- see revise_fix_verification.C8); planted_mul with the exact
+        2*M_reference identity and consumed SHA-256 integrity sink;
+        planted_expected_factor as an exact rational; AS OF
+        TASK-20260912-2100f6 (C9), a complete planted scalar-multiplication
+        composition also exists -- point_add_planted, point_double_planted,
+        and scalar_multiply_planted, structurally mirroring the reference/
+        null routines with every top-level M call site routed through
+        planted_mul -- so the "planted" routine cell now has a callable
+        realization, not only the low-level primitive. See
+        revise_fix_verification.C9 for the structural self-check.
       gap: >-
-        Not benchmarked or run against any real scalar/operand in this task;
-        no exact-count agreement with a predictor has been checked (there is
-        no independent predictor yet -- see independence gap below).
+        Not benchmarked or run against any real scalar/operand in this task
+        (unchanged by TASK-20260912-2100f6, which only edits source, per its
+        own zero-run constraint); no exact-count agreement with a predictor
+        has been checked (there is no independent predictor yet -- see
+        independence gap below). The previously outstanding "planted scalar
+        routine does not exist as a callable" completeness gap (identified by
+        independent review as C9) is RESOLVED by point_add_planted/
+        point_double_planted/scalar_multiply_planted above; no completeness
+        gap remains for this requirement as of TASK-20260912-2100f6.
     - requirement: "independent_checker.py: separate affine verification and certificate-check interface, source-dependency restrictions and explicit soundness limits; independently authored/reviewed status recorded rather than inferred."
       built: >-
         AffinePoint/affine_add/affine_double/affine_scalar_multiply using
@@ -124,10 +147,18 @@ preparation_report:
         implementing the three-process barrier and out-of-order/duplicate
         refusal; run_worker/run_coordinator guarded to raise;
         RhoCheckpoint dataclass matching spec.runtime.continuation's binding
-        list.
+        list. AS OF TASK-20260912-2100f6 (C11), EndpointTable.insert_if_absent's
+        probe loop now compares the occupant's stored (x, y) endpoint against
+        the candidate's at each occupied probed index, returning
+        (False, occupant) on an actual match and continuing to probe only on
+        a genuine mismatch -- the previously unreachable repeated-endpoint
+        detection is now reachable. See revise_fix_verification.C11 for the
+        paper walk-through.
       gap: >-
         No walk has been executed; EndpointTable/CoordinatorBarrier have not
-        been exercised against real transitions.
+        been exercised against real transitions (unchanged by
+        TASK-20260912-2100f6's source-only fix -- the fix corrects control
+        flow that remains unexecuted in this delivery).
     - requirement: "schemas.json: structural schemas for inputs, hashes, counts, blind reports, fixtures/certificates, job records, summary/model rows, checkpoints, incomplete/failure outcomes; explicit disclosure that structural validity does not prove correctness/independence/validity."
       built: >-
         JSON Schema (draft 2020-12) definitions for all eleven named
@@ -168,6 +199,205 @@ preparation_report:
       external references beyond what the parent Coordinator session
       already read and transmitted (per source-packet.json and this
       hypothesis's citations); this executor session read no external URL.
+
+  revise_fix_verification:
+    task_id: TASK-20260912-2100f6
+    source_review: coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    method_statement: >-
+      Every self-check below is a paper/symbolic re-derivation or a static
+      structural comparison performed by reading source text; none was
+      established by importing arithmetic.py, rho.py, or driver.py in a way
+      that calls any of their functions, and none of the five guarded entry
+      points (construct_pocklington_certificate, construct_reduced_curve_
+      fixture, run_worker, run_coordinator, main) was invoked. The only
+      computation actually run by this task was `python3 -m py_compile` on
+      the three edited .py files (all three passed; see
+      no_new_execution_this_task below).
+    C6:
+      claim: >-
+        arithmetic.py:302-311's generic-branch Y3 computation now matches
+        specification.yaml's literal common_z_formula text
+        "Y3=M(j,B-X3)-M(V1,C-B)" token for token.
+      self_check: >-
+        Symbolic/textual comparison, term by term: the corrected code reads
+        (arithmetic.py:308-311) `X3 = D.sub(B, counters).sub(C, counters)`
+        [X3=D-B-C, unchanged, matches spec], `BX3 = B.sub(X3, counters)`
+        [B-X3], `CB = C.sub(B, counters)` [C-B], `Y3 = j.mul(BX3,
+        counters).sub(V1.mul(CB, counters), counters)` [j*(B-X3) -
+        V1*(C-B)]. Mapping code identifiers to spec identifiers one-for-one
+        (j->j, BX3->"B-X3", V1->V1, CB->"C-B") gives exactly
+        "Y3=M(j,B-X3)-M(V1,C-B)", the spec's literal text, with the two
+        subtrahend expressions now DIFFERENT (B-X3 for the first product,
+        C-B for the second), resolving the defect the review located (both
+        products previously used C-B). No fixture, scalar, or curve value
+        was substituted to check this; it is a pure symbol-for-symbol textual
+        match against the frozen spec string.
+      count_impact_check: >-
+        The corrected line still performs exactly two FieldElement.mul calls
+        (j.mul(BX3,...) and V1.mul(CB,...)) and two linear sub() calls to
+        form BX3 and CB, plus the two linear sub() calls already present for
+        X3 -- the same linear-op and M-call counts as the pre-fix line (which
+        computed C-B twice, once via the CB variable and once inline, also
+        two linear ops). M/S/I tallies for a generic full ADD remain 12 M + 4
+        S, as the specification and the prior review both state should be
+        unaffected by this fix.
+      execution_required: false
+    C8:
+      claim: >-
+        scalar_multiply's own charged-count contract now documents
+        normalization as a deliberate caller responsibility (branch b of the
+        two acceptable resolutions offered by the handoff).
+      self_check: >-
+        The docstring/contract text itself, quoted verbatim from
+        arithmetic.py:400-414: "Normalization is a DELIBERATE CALLER
+        RESPONSIBILITY, not part of this routine's own charged-count contract
+        (C8 resolution, branch b): this function returns the raw,
+        unnormalized Jacobian point `R`. ... A caller that needs canonical
+        affine coordinates (or the normalization charge counted against a
+        specific cell) must call `normalize(R, curve, counters)` explicitly
+        on the returned point... `scalar_multiply_null` and
+        `scalar_multiply_planted` inherit this same caller-responsibility
+        contract, for consistency across all three routine variants." This
+        satisfies the handoff's own stated self-check for C8 ("the
+        docstring/contract text itself, whichever branch is chosen") by
+        construction -- the artifact IS the verification.
+      branch_chosen: b (document caller responsibility; no return-type or
+        call-site change)
+      execution_required: false
+    C9:
+      claim: >-
+        A complete planted scalar-multiplication routine now exists
+        (point_add_planted, point_double_planted, scalar_multiply_planted at
+        arithmetic.py:494-543, 545-577, 588-613 respectively), not only the
+        low-level planted_mul primitive.
+      self_check: >-
+        Structural mirror comparison, function by function: (1)
+        scalar_multiply_planted's control flow (256-bit MSB-first loop,
+        identity start, DOUBLE-then-conditional-ADD) is line-for-line
+        identical to scalar_multiply's (arithmetic.py:392-413) and
+        scalar_multiply_null's (which literally calls scalar_multiply),
+        differing only in calling point_double_planted/point_add_planted
+        instead of point_double/point_add and threading a `sink_state`
+        parameter through, exactly as planted_mul itself requires a
+        sink_state. (2) point_add_planted's branch structure (identity
+        checks, rescale block, equal-U/equal-V exceptional handling, common-Z
+        block) is identical to point_add's, verified by diffing the two
+        function bodies mentally clause-by-clause; the only substitutions are
+        each of the twelve `.mul(x, counters)` call sites becoming
+        `planted_mul(a, x, counters, sink_state)` calls (z1cube, z2cube, U1,
+        V1, U2, V2, Z in the rescale block; B, C, and the two multiplicands
+        of the corrected Y3 line, plus Z3, in the common-Z block) -- twelve
+        substitution sites counted, matching the twelve M call sites
+        independently confirmed by the prior review's C6/hand-tally of
+        point_add. All `.sqr(counters)` (S) and `.add`/`.sub` (linear) call
+        sites are untouched, per planted.definition's "do not duplicate
+        operations inside S or I." (3) point_double_planted mirrors
+        point_double identically except for its single M call site
+        (Y3 = M(W, V-T) - 8*YYYY) becoming a planted_mul call -- one
+        substitution site, matching point_double's single M call
+        independently confirmed by the prior review's C5 hand-tally.
+        (4) The equal-U/equal-V exceptional branch inside point_add_planted
+        calls point_double_planted (not point_double), so the planted
+        property is preserved recursively through that branch too.
+      branch_chosen: >-
+        a (complete the routine as a direct structural mirror) -- judged not
+        materially more involved than a mirror because point_add/
+        point_double already take a bound `counters` object as their sole
+        side-channel parameter, so adding a second bound `sink_state`
+        parameter for the planted variants required no broader refactor of
+        either function's control flow or of scalar_multiply's loop
+        structure.
+      execution_required: false
+    C11:
+      claim: >-
+        rho.py EndpointTable.insert_if_absent (lines 181-209 after the fix)
+        now reaches `return False, occupant` on a genuine repeated-endpoint
+        insert, where before the fix that branch was unreachable dead code.
+      self_check: >-
+        Paper walk-through of a synthetic repeated-key scenario, entirely on
+        paper (no EndpointTable instance was constructed or called): Let
+        capacity=1024 (TABLE_INITIAL_CAPACITY, unchanged). Choose key_hash=5
+        (so _probe_index(5) = 5 % 1024 = 5, deterministic, matching the
+        handoff's "a chosen key_hash and a matching endpoint inserted
+        twice"). Construct a TableSlot S1 with x=b"\\x01"*32, y=b"\\x02"*32
+        (an arbitrary but fixed synthetic endpoint) and call
+        insert_if_absent(5, S1): idx=5 is not in self.slots (table starts
+        empty), so the while loop body never executes, falls through to the
+        capacity/resize check (count=0+1=1 <= 512, no resize needed), and
+        self.slots[5]=S1 is set, count becomes 1, returns (True, S1) -- a
+        normal first insert. Now construct a second TableSlot S2 with the
+        SAME endpoint (x=b"\\x01"*32, y=b"\\x02"*32, matching S1 -- e.g. a
+        second lane arriving at the identical affine point with different
+        trail metadata) and call insert_if_absent(5, S2) (same key_hash,
+        since _probe_index is a deterministic function of key_hash and the
+        spec/review both note the same endpoint hashes to the same
+        key_hash): idx=5 IS in self.slots (occupied by S1) so the while loop
+        body now executes; `occupant = self.slots[5]` binds S1; the new
+        `if occupant.x == slot.x and occupant.y == slot.y` check compares
+        S1.x==S2.x (True, both b"\\x01"*32) and S1.y==S2.y (True, both
+        b"\\x02"*32) -- both true, so the function immediately executes
+        `return False, occupant`, i.e. `return False, S1`, WITHOUT
+        incrementing probes, advancing idx, or touching self.count. This is
+        the exact "genuine repeated endpoint -> (False, existing_slot)"
+        behavior the spec and the prior review required and the pre-fix code
+        could never reach. For contrast, a genuine table-hash collision
+        scenario (S3 with a DIFFERENT endpoint, e.g. x=b"\\x03"*32, that
+        happens to also hash to key_hash=5) reaches the same occupied idx=5,
+        finds occupant.x=b"\\x01"*32 != slot.x=b"\\x03"*32, so the match
+        check is False, execution falls through to the unchanged
+        `probes >= self.capacity` guard and `idx = (idx+1) % self.capacity`
+        advance -- i.e. probing continues past the collision exactly as
+        before, only skipping past a GENUINE mismatch rather than a genuine
+        match. This confirms both halves of the C11 fix requirement.
+      capacity_and_resize_guard_check: >-
+        The `probes >= self.capacity` RuntimeError and the post-loop
+        `self.count + 1 > self.capacity // 2` resize-refusal RuntimeError are
+        byte-for-byte unchanged in wording and trigger condition from the
+        pre-fix version; only their position relative to the new
+        endpoint-comparison check (which runs first, before the capacity
+        check, on each occupied probe) changed, and that ordering does not
+        change when either guard fires relative to the fixed original code
+        (the capacity guard only ever fired after `probes` had already
+        reached `self.capacity` well after any single comparison).
+      execution_required: false
+    C12:
+      claim: >-
+        driver.py check_cgroup_admission now refuses admission on a cpu.max
+        mismatch (selected by a new job_type parameter) and now requires
+        pids.max == 3 exactly rather than accepting any value <= 3.
+      self_check: >-
+        Table of exact readback values that would now be accepted vs refused
+        under the corrected logic (assuming memory.max and memory.swap.max
+        already read back correctly, so only the pids.max/cpu.max fields
+        named by C12 vary; verified by reading the corrected branch order at
+        driver.py:257-291, not by calling the function):
+          | job_type    | pids.max readback | cpu.max readback   | outcome (post-fix) | outcome (pre-fix, for contrast) |
+          |-------------|--------------------|---------------------|---------------------|----------------------------------|
+          | arithmetic  | 3                  | "100000 100000"     | ADMITTED            | ADMITTED (cpu.max was never checked) |
+          | arithmetic  | 3                  | "300000 100000"     | REFUSED (cpu.max mismatch for job_type=arithmetic) | ADMITTED (bug: wrong job's cpu.max silently accepted) |
+          | rho         | 3                  | "300000 100000"     | ADMITTED            | ADMITTED |
+          | rho         | 3                  | "100000 100000"     | REFUSED (cpu.max mismatch for job_type=rho) | ADMITTED (bug) |
+          | rho         | 1                  | "300000 100000"     | REFUSED (pids.max 1 != required exactly 3) | ADMITTED (bug: 1 process cannot run 3) |
+          | rho         | 2                  | "300000 100000"     | REFUSED (pids.max 2 != required exactly 3) | ADMITTED (bug: 2 processes cannot run 3) |
+          | rho         | 3                  | "300000 100000"     | ADMITTED            | ADMITTED |
+          | rho         | 4                  | "300000 100000"     | REFUSED (pids.max 4 != required exactly 3) | REFUSED (pre-fix already rejected >3) |
+          | rho         | None (file absent/"max") | "300000 100000" | REFUSED (None != 3) | REFUSED (pre-fix already rejected None) |
+        Each post-fix row was derived by tracing `if pids_max !=
+        REQUIRED_PIDS_MAX: return ... refused` (driver.py:274-280, exact
+        equality, no longer a one-sided `> REQUIRED_PIDS_MAX` bound) followed
+        by `if cpu_max != required_cpu_max: return ... refused`
+        (driver.py:281-289, `required_cpu_max` selected from
+        REQUIRED_CPU_MAX_BY_JOB_TYPE[job_type] at function entry,
+        driver.py:215-220) in source-reading order; no cgroup path or file
+        was actually read to produce this table -- it is a symbolic trace of
+        the corrected branch logic against hypothetical readback values, per
+        this task's execution prohibition.
+      unchanged_checks: >-
+        memory.max (driver.py:260-266) and memory.swap.max (driver.py:267-273)
+        checks, and the path-existence check (driver.py:222-230), are
+        byte-for-byte unchanged from the pre-fix version; this table does not
+        vary them because C12 named only cpu.max and pids.max.
+      execution_required: false
 
   no_scientific_jobs_authorized_by_this_task: >-
     This preparation handoff never authorizes any of the 40 scientific jobs

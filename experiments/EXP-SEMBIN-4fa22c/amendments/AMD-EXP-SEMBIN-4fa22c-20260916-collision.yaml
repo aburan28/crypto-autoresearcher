@@ -1,0 +1,249 @@
+amendment:
+  id: AMD-EXP-SEMBIN-4fa22c-20260916-collision
+  experiment_id: EXP-SEMBIN-4fa22c
+  decision_id: DEC-20260916-b0e654
+  recorded_at: '2026-09-16'
+  kind: additive_protocol_amendment
+  supersedes_fields: null
+  does_not_rewrite: experiments/EXP-SEMBIN-4fa22c/specification.yaml
+  does_not_rewrite_note: >-
+    The contract is frozen at version 1 and its own what_changed_at_approval says so. Nothing below
+    edits it. Every clause here ADDS a requirement or grants a permission the contract did not
+    address; none removes, weakens or reinterprets a declared convention, arm, metric, control,
+    success criterion, falsification criterion, stopping rule or budget. Where a clause makes
+    something explicit that the contract already implies (A-2), it says so rather than claiming new
+    ground.
+  cites:
+    - TASK-20260916-fc72a6
+    - coordination/goals/GOAL-SEMBIN-fcb7a2/batches/BATCH-cbb416/collision-audit/verdict.json
+    - coordination/goals/GOAL-SEMBIN-fcb7a2/batches/BATCH-cbb416/collision-audit/report.md
+    - TASK-20260916-81fa8c
+    - DEC-20260916-88ac73
+    - DEC-20260916-6ce039
+
+  why_this_amendment_exists: >-
+    The contract's proof_search_map required an observation-collision audit before the first run and
+    recorded it as not yet performed. TASK-20260916-fc72a6 performed it. It returned `collision:
+    partial` and three things the contract could not have known when it was frozen: that this
+    program cannot currently BUILD a shifted instance at all, that the contract's control arm is
+    substantially pre-measured by two other campaigns under a different fall criterion, and that the
+    only Macaulay rank code in the tree that runs without an algebra engine belongs to another
+    campaign whose reuse the contract neither permits nor forbids. The first is scope, the second is
+    a free control the contract was not claiming, the third is a permission question an executor
+    cannot answer for itself. This amendment answers them.
+
+  # ==========================================================================
+  changes:
+    A-1:
+      title: REUSE RULING -- reference and test oracle, never the measurement path
+      binds: the contract's `dependencies` block, which forbids importing EXP-ICPERF's converter
+        and is silent about EXP-ECTD-9e4248, EXP-SIG-007, EXP-ALPF-012 and src/semaev_tree.py
+      permitted:
+        - >-
+          READ any of them. The executor may read
+          experiments/EXP-ECTD-9e4248/driver/reused/macaulay.py and mvpoly.py,
+          experiments/EXP-SIG-007/src/ic_first_fall_fast.py,
+          experiments/EXP-ALPF-012/source/round006_exp011_binary_fppr.sage and
+          src/semaev_tree.py, and must record in the run manifest which files it read and what it
+          took from each. An unrecorded read is how a coupling claim becomes unfalsifiable later.
+        - >-
+          USE macaulay.rank_mod_p(rows, ncols, 2) AS A TEST ORACLE ONLY, inside the C-3 fixture
+          suite, to cross-check the instrument's own GF(2) rank on small random matrices. It may not
+          appear anywhere in the measurement path. This is the blind-re-derivation argument applied
+          to linear algebra: two rank routines written independently agreeing is evidence about the
+          rank, where one routine checked against itself is not.
+      forbidden:
+        - >-
+          IMPORTING any of them into the measurement path. The instrument -- descent builder,
+          Boolean reduction, Macaulay construction, rank, Koszul projection, fall criterion -- is
+          written under this contract.
+        - >-
+          Taking src/semaev_tree.py as the descent builder. It cannot express a coset (A-2) and it
+          builds the chained system with an auxiliary full-field variable rather than the single
+          three-point S_3 descent DC-4 specifies.
+      rationale:
+        - >-
+          COUPLING. The contract's stated reason for excluding EXP-ICPERF's converter -- that reuse
+          couples two audits through one implementation -- applies by parity to any shared
+          measurement code, and the audit found the program already holds one instance of the
+          defect: EXP-DREG-001's d_ff ladder is a reimplementation of EXP-SIG-007's algorithm, so
+          two nominally separate measurements share one fall criterion. A test oracle does not
+          couple, because it never produces a reported number.
+        - >-
+          FITNESS. No candidate computes this contract's quantity. Each needs the fall criterion
+          replaced, the Koszul submodule added, M-2 emitted as a measured degree and the rank series
+          retained; the audit's own summary is "most of a rewrite".
+        - >-
+          PERFORMANCE, which is the one reason a reader might otherwise think the ruling perverse.
+          rank_mod_p is dense list-of-lists Gaussian elimination in Python. A Macaulay matrix over
+          Boolean monomials at n = 12 is wide, and bitset elimination over machine words is the
+          difference between a feasible series and a censored one. The contract's budget is 1800 s
+          per arm per n; the kernel is where that is spent.
+      correction_to_the_audit:
+        what_the_audit_said: >-
+          That rank_mod_p would have to be "specialised to GF(2)" because "its Fermat inverse
+          pow(x, p-2, p) degenerates at p = 2".
+        what_is_actually_true: >-
+          IT IS CORRECT AT p = 2 AND NEEDS NO SPECIALISATION. The only invertible residue mod 2 is
+          1, and pow(1, 0, 2) = 1, which is its own inverse -- so the Fermat step returns the right
+          value for the only input it can receive. The Coordinator checked rank_mod_p(rows, ncols, 2)
+          against an independently written bitset eliminator on 300 random 0/1 matrices of sizes up
+          to 9x9 and they agreed on every one.
+        why_it_is_recorded_here: >-
+          Because it CHANGES THE RULING'S REASONS AND NOT ITS OUTCOME, and both halves of that
+          matter. It removes a correctness objection the audit raised, which is why the routine is
+          promoted to test oracle rather than merely referenced; the ruling still keeps it out of the
+          measurement path on the coupling and performance grounds above. An audit finding corrected
+          by the ruling that reads it is the review architecture working, not a defect in the audit.
+        this_is_not_a_run: >-
+          The Coordinator's 300-matrix check is a five-second sanity check on a rank routine, not a
+          measurement of any quantity this contract defines, and no metric or criterion is discharged
+          by it. It is cited so the executor can reproduce it, and C-3 repeats it inside the
+          instrument.
+    A-2:
+      title: ONE BUILDER, BOTH ARMS -- and the shifted construction is new code
+      binds: DC-3, C-1
+      requirement: >-
+        A-SHIFTED and A-UNSHIFTED are produced by the SAME builder invoked with different v_i,
+        A-UNSHIFTED being exactly v_1 = ... = v_N = 0. The run records, per n, that the two
+        generator sets differ in precisely the recorded shifts -- which M-4's canonical hash already
+        makes checkable -- and the builder emits the cosets V + v_i of Definition 8 rather than a
+        subspace through the origin.
+      is_this_new: >-
+        NO AS TO INTENT, YES AS TO EMPHASIS. C-1 already says A-UNSHIFTED is measured "by the
+        identical code path", so this clause adds nothing the contract did not require. It is written
+        down because the audit established that the program's existing builder CANNOT do it: the
+        Coordinator confirmed independently that src/semaev_tree.py contains no occurrence of coset,
+        shift, v_i or offset, and that make_V_subspace returns the F2-span of {1, alpha, ...,
+        alpha^{k-1}}, a subspace through the origin. An executor reaching for the obvious existing
+        code would therefore have produced EQS2 in both arms and satisfied C-1 trivially, with the
+        mechanism untested and nothing in the artifacts to show it.
+      what_this_costs: >-
+        The shifted descent is new implementation work with no precedent in the tree. That is the
+        honest scope change this amendment records, and it is a cost of the contract as frozen, not
+        one this amendment adds.
+    A-3:
+      title: THE UNSHIFTED ARM REPORTS AS A REPLICATION WITH A CHANGED INSTRUMENT
+      binds: C-1, and adopts the audit's recommendation R-1
+      requirement: >-
+        The run's report frames A-UNSHIFTED as a re-measurement of an object two prior instruments
+        have already scanned -- EXP-SIG-007's ic_first_fall_fast.py and EXP-DREG-001's DREG_dff.sage,
+        both on EQS2-shaped chained-S_3 Weil descents over F_{2^n} with n inside this contract's
+        range -- and includes a comparison table against their recorded values, with the four
+        differences the audit named (fall-to-linear versus this contract's equality-form degree drop;
+        no Koszul exclusion; chained system with an auxiliary variable; and the prior runs'
+        evidential status) stated beside it.
+      what_it_buys: >-
+        A control the contract does not currently have, for free. Where the definitions agree the
+        two should agree; where they differ the divergence should have the sign the definitions
+        predict, since fall-to-linear is a strictly stronger event than a degree drop and so is
+        weakly the larger number. Either outcome is informative and neither is a headline.
+      what_it_is_not: >-
+        NOT a validation of this instrument against those values. The prior runs are
+        failed_infrastructure or censored_timeout, no EV-DREG-* record carries their numbers, and a
+        comparison against an unvalidated prior cannot certify anything. It is a cross-instrument
+        sanity read, reported as one.
+      leak_discipline: >-
+        The comparison is made in the run report, which is written after the measurement. It is NOT
+        made in any card, plan, amendment or bus message, and no prior value is quoted outside the
+        run's own artifacts. review-plan-addendum-2.yaml puts the paths holding those integers under
+        the blind re-deriver's blind_from for the same reason.
+    A-4:
+      title: THE RANK KERNEL IS CHECKED BEFORE IT IS TRUSTED
+      binds: C-3, and extends its fixture set
+      requirement: >-
+        C-3's fixture suite additionally asserts, before any Nagao instance is measured, that the
+        instrument's GF(2) rank routine agrees with an independent computation on at least 200
+        pseudorandom 0/1 matrices with a recorded seed, and on at least three constructed matrices
+        of known rank (a zero matrix, a permutation matrix, and a block-diagonal matrix whose rank is
+        the sum of its blocks'). The independent computation may be macaulay.rank_mod_p at p = 2
+        under A-1.
+      why: >-
+        Every metric this contract defines is read off a rank, this environment has no algebra
+        engine to fall back on (the Coordinator confirmed sage, sympy and galois are all absent;
+        numpy is present but is not an exact GF(2) linear algebra library), so the rank routine is
+        written here from scratch. An unchecked rank routine does not fail loudly -- it returns a
+        plausible integer, and every M-1, M-2 and M-3 downstream of it inherits the error silently.
+        This is SR-3's logic one level lower: measuring an unknown with an unchecked instrument is
+        worthless, and the check costs seconds.
+      stopping_rule_it_inherits: >-
+        SR-3. A failure here stops the run before any Nagao instance is measured and is reported as
+        an instrument failure, exactly as a C-3 fixture failure is.
+    A-5:
+      title: THE COLLISION AUDIT IS DISCHARGED, AND ITS RECALL IS A FLOOR
+      binds: proof_search_map.observation_collision_search, whose status read "REQUIRED BEFORE THE
+        FIRST RUN and not yet performed"
+      status_now: >-
+        PERFORMED, by TASK-20260916-fc72a6, archived at TASK-20260916-81fa8c. Verdict `partial`. The
+        contract's own statement of what a collision would mean is answered: on the headline arm
+        there is none, so the run is not a replication there; on the control arm there is a partial
+        one, which A-3 reframes; and nothing found contradicts the prediction, which the audit
+        establishes on three independent grounds (wrong arm, wrong quantity, and the goal's own
+        objective (2), which already bars internal degree measurements from bearing on a Nagao
+        assumption until the d_F/d'_F map is stated).
+      what_is_NOT_discharged: >-
+        The recall claim. The kb retrieval index -- the instrument both AGENTS.md and this
+        contract's proof_search_map name for this audit -- could not be called, verified by six
+        probes, and 63 direct tree queries were substituted. Semantic recall, corpus material not in
+        this checkout, and ranking are all lost. THE AUDIT IS A FLOOR ON WHAT EXISTS, NEVER A CLEAN
+        BILL OF NOVELTY, and no record produced by this experiment may cite it as one.
+      how_to_raise_the_floor: >-
+        make -C kb qdrant-up; create kb/.env; install uv; crypto-kb stage-repo . && crypto-kb
+        ingest; re-run the audit. Cheaper and larger than that: sweep the other 17 experiments that
+        vendor semaev_tree.py for a completed_valid first-fall run, which the audit names as its
+        largest open hole.
+
+  # ==========================================================================
+  declined:
+    R-2:
+      what_was_recommended: >-
+        Widening C-3's known-answer fixture set to include one prior EQS2 instance from
+        EXP-DREG-001 or EXP-SIG-007, converting "two campaigns measured nearby things" into a
+        checkable cross-instrument agreement.
+      ruling: DECLINED as a fixture, ADOPTED as a post-hoc comparison under A-3.
+      reasons:
+        - >-
+          A KNOWN-ANSWER FIXTURE NEEDS A KNOWN ANSWER. The candidate values come from runs recorded
+          failed_infrastructure or censored_timeout, with 2 of 8 targets resolved and no evidence
+          record carrying them. Admitting them as a fixture would make an unvalidated number the
+          standard the new instrument is held to, and SR-3 would then stop the run on a disagreement
+          that says nothing.
+        - >-
+          THE FIXTURE IS NOT CHEAP HERE. Reconstructing that instance means building the chained
+          system with its auxiliary full-field variable, and both prior instruments are Sage
+          scripts in a checkout with no algebra engine. The cost is the engine impediment, not a
+          small addition to a fixture list.
+        - >-
+          IT WOULD IMPORT AN ANCHOR. Putting prior d_ff integers inside the instrument's validation
+          set puts them in front of the executor as an expected answer, at the one point in the
+          protocol where the instrument is supposed to be judged against algebra nobody disputes.
+      revisit_condition: >-
+        If an algebra engine becomes available AND a valid EQS2 run is reproduced with a
+        completed_valid record, R-2 becomes cheap and should be reconsidered as an additive
+        amendment then. Nothing about this declination is permanent.
+      what_is_kept: >-
+        A-3's comparison achieves the cross-instrument read that R-2 was after, after the
+        measurement rather than inside its validation set.
+
+  # ==========================================================================
+  what_this_amendment_does_not_do:
+    - >-
+      It does not change any declared convention, arm, metric, control, success criterion,
+      falsification criterion, stopping rule, budget or required artifact of the frozen contract.
+    - >-
+      It does not authorize a claim about Proposition 5. DC-1 and S-1 stand unchanged: a measured
+      d'_F > 4 is consistent with d_F <= 4 because Lemma 4 runs d_F <= d'_F, and the instrument is
+      structurally blind to the X^2 -> X falls that make d_F small.
+    - >-
+      It does not assert that the shifted arm is novel in the corpus. It asserts that the audit
+      found no prior measurement of it in this tree, that the program's existing builder cannot
+      construct it, and that recall is a floor.
+    - >-
+      It does not move any hypothesis, experiment or goal status, and it discharges no completion
+      criterion. Only run or read evidence can do that (CORR-20260916-402547).
+    - >-
+      It quotes no measured degree. The audit deliberately disclosed one scoped relation between
+      prior unshifted values and this contract's threshold; it is recorded in verdict.json under
+      values_disclosed_deliberately with the paths that hold the integers, and is referenced here by
+      pointer only. A document written to protect a blind assignment has already leaked the value it
+      protected once in this repository (CORR-20260916-292e53).

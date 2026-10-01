@@ -1,0 +1,70 @@
+correction:
+  id: CORR-20260913-561456
+  recorded_at: '2026-09-13'
+  recorded_by: coordinator
+  goal_id: GOAL-SEMBIN-fcb7a2
+  batch_id: BATCH-efea59
+  produced_by: null
+  archived_by: TASK-20260913-2372a1
+
+  corrects:
+    - inputs/NAGAO-2013-548/provenance.json
+    - inputs/NAGAO-2013-549/provenance.json
+
+  nature: >-
+    ONE METADATA FIELD IN TWO FREEZE RECEIPTS IS WRONG, AND THE RECEIPTS ARE LEFT AS
+    COMMITTED. Both provenance.json files record `"pages": 2` for the vendored PDF.
+    The true counts are 6 pages (2013/548) and 9 pages (2013/549). The frozen bytes,
+    their sha256 values, the extracted texts and their sha256 values are all correct
+    and unaffected; the page count was the only field taken from a heuristic rather
+    than from the file.
+
+  how_the_error_was_made: >-
+    The coordinator session that froze the packages (commit 28c44d512) read the page
+    count off `file -b <pdf>`, which reported "PDF document, version 1.4, 2 page(s)"
+    for both files. That utility estimates the count from early object headers and
+    was wrong for both. The 2015/984 freeze recorded its count (8) correctly because
+    that session counted pages with the extractor rather than with file(1).
+
+  how_it_was_found: >-
+    TASK-20260913-0188bf, reading 2013/548 in full, cited PDF pages 4-5 for Section 7
+    and noted in KN-LIT-ebd657 that the receipt's `pages: 2` was inconsistent with a
+    six-page file, documenting the discrepancy in the source record rather than
+    editing the immutable receipt -- which is the right handling. The coordinator then
+    counted both files with pdfminer's PDFPage.get_pages(): 548 -> 6, 549 -> 9.
+
+  corrected_values:
+    inputs/NAGAO-2013-548/eprint-2013-548.pdf:
+      recorded_pages: 2
+      actual_pages: 6
+      sha256_unchanged: 9406f2f7f01ae9339757dd2f760c84f6e627298f6af16bc18ca04262bf13503b
+    inputs/NAGAO-2013-549/eprint-2013-549.pdf:
+      recorded_pages: 2
+      actual_pages: 9
+      sha256_unchanged: 5971667527aad7af2d19a9a5690a753b0585a0f168cbb835b3fa477b056f4c15
+    method: >-
+      python3 -c "from pdfminer.pdfpage import PDFPage; ..." counting
+      PDFPage.get_pages() over each frozen file, run 2026-09-13 in the freezing
+      session's worktree against the committed bytes.
+
+  why_the_receipts_are_not_edited: >-
+    A provenance receipt is the record of what was fetched and what the fetching
+    session believed about it at the time; editing it in place would make the receipt
+    disagree with the commit that carries it and would hide that the session got a
+    field wrong. Core rule 4: corrections create new records. Readers should take the
+    page counts from this record and everything else from the receipts.
+
+  consequence: >-
+    None for any citation. Page anchors in KN-LIT-ebd657 and KN-LIT-c5dceb are PDF
+    page numbers of the actual files and were never derived from the wrong field. The
+    extracted texts are complete (15,293 and 26,975 characters respectively) and were
+    produced from the full files, as their sha256 sidecars bind.
+
+  forward_guidance: >-
+    Take PDF page counts from the extractor that produces the frozen text, never from
+    file(1). The 2015/984 freeze's provenance.json shows the field populated correctly
+    and is the shape to copy.
+
+  what_this_correction_does_not_assert:
+    - anything about the content of either paper
+    - anything about Lemma 3, Proposition 5, or the disjoint-factor-base priority question

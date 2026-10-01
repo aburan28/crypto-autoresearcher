@@ -25,22 +25,112 @@ implementation_manifest:
     commit of these ten files.
 
   prepared_files_sha256:
-    driver.py: bc437aa4ed25611b82baa2dcc3b5f07cac7ae2b7435280521e3e3f7d44f803b0
-    arithmetic.py: b48a8b96fc757fca92cd2aa27e9182a014625154b993a38c074c5b0814ff9f04
+    driver.py: f11392f01343e1f40ab412eca1943f8bfcffd761b6f8668031ae9210e79be39a
+    arithmetic.py: a1e914ce2870a253f69e1b14cdcff297518eb1f1076febb47687c3e92e3567af
     independent_checker.py: 5f46d592462b5a34c6fdcd2823a426fc5ba73ce6252c7f9ad9588feab98128f8
     count_predictor.py: faa1a0791560fac775207358c316120461978ef64c80c84afae267fc7d7fc2e4
     fixture_generator.py: 83c02dd60e5fb9904a699a4d0e9792a6ebb5dfe210d041b70f72c27269ca9de1
-    rho.py: 722e056a7bdd8078f8506aa59ab68a40dc8943647f5cbc6faee54eec3feec791
+    rho.py: f9e3e6bd2e0d8ec9313bcfa91586a7caefa6cdcf90ac8e924f7eb269187cdd9c
     schemas.json: 99dbbb5a50457723e55a63bc359d70d5741b3c3c15493a12a749bbb01ed503bd
     admission-template.json: 21c5270a7416595c224f78205d35629c73e01d512630e66afa32887dadd882f5
+    hashes_updated_by: >-
+      TASK-20260912-2100f6 (revise-fix task). driver.py, arithmetic.py, and
+      rho.py were re-hashed after the C6/C8/C9/C11/C12 fixes below;
+      independent_checker.py, count_predictor.py, fixture_generator.py,
+      schemas.json, and admission-template.json are byte-for-byte unchanged
+      from TASK-20260907-ecd3a2 and retain their original hashes.
     note: >-
       implementation-manifest.yaml and preparation-report.yaml are not
       self-hashed here (a file cannot bind its own final hash before being
       written); the Coordinator's snapshot/archive step computes and binds
       the hashes of all ten files, including these two, at commit time.
+    coordinator_correction_at_archive_time: >-
+      TASK-20260912-8178a2 (this archive): the executor's recorded
+      arithmetic.py hash above (5bf8f2ac...) did not match sha256sum against
+      the actual file bytes on disk at archive time (actual:
+      a1e914ce2870a253f69e1b14cdcff297518eb1f1076febb47687c3e92e3567af,
+      confirmed independently by both hashlib and the sha256sum binary from
+      repository root); most likely an intermediate hash computed before a
+      later edit to the same file was not refreshed by the producing task.
+      driver.py and rho.py's recorded hashes matched exactly and needed no
+      correction. The value above has been corrected to the verified actual
+      hash as part of this archive's binding step, per this same note's own
+      statement that the Coordinator's archive step is what binds these
+      hashes authoritatively; snapshot.json under
+      coordination/design/BATCH-bb548b/archives/TASK-20260912-8178a2/
+      carries the same corrected value and is the record this correction is
+      disclosed against.
     hash_method: sha256sum, computed against the exact bytes on disk at the
-      time this manifest was written, from repository root
-      /home/user/crypto-autoresearcher.
+      time this manifest was written (originally under TASK-20260907-ecd3a2;
+      re-run for the three edited files under TASK-20260912-2100f6), from
+      repository root /home/user/crypto-autoresearcher.
+
+  revise_fixes_20260912:
+    task_id: TASK-20260912-2100f6
+    source_review: coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    findings_addressed: [C6, C8, C9, C11, C12]
+    summary:
+      C6: >-
+        arithmetic.py point_add's generic-branch Y3 line corrected: the first
+        product's second multiplicand is now B.sub(X3, counters) (i.e. B-X3),
+        matching specification.yaml's literal common_z_formula
+        "Y3=M(j,B-X3)-M(V1,C-B)" token for token. The second product
+        (V1*(C-B)) is unchanged. M/S counts unaffected (still 2 M for this
+        line, 12 M + 4 S for a generic full ADD overall) -- pure formula fix.
+      C8: >-
+        Branch (b) chosen: scalar_multiply's docstring now states explicitly
+        that normalization is a deliberate caller responsibility, not part of
+        this routine's own charged-count contract -- it returns the raw,
+        unnormalized Jacobian point, and a caller must call normalize()
+        explicitly to obtain canonical affine coordinates and to charge the
+        3M+1S+1I normalization cost. scalar_multiply_null and
+        scalar_multiply_planted inherit the same documented contract. No
+        return type, call site, or behavior changed; this is a documentation-
+        only resolution, chosen over branch (a) to avoid widening this fix
+        task's scope with a return-type change and downstream call-site
+        review for code that has zero real callers today (this is still a
+        zero-run implementation).
+      C9: >-
+        Branch (a) chosen (completed the routine, not the gap-note branch):
+        added point_add_planted, point_double_planted, and
+        scalar_multiply_planted to arithmetic.py, structurally mirroring
+        point_add/point_double/scalar_multiply respectively, with every
+        top-level M call site routed through planted_mul instead of
+        FieldElement.mul (S and I call sites unchanged). This was judged NOT
+        materially more involved than a direct mirror: point_add/
+        point_double take a bound `counters` object already, and the planted
+        variants simply also take a bound `sink_state` buffer alongside it,
+        with no other structural change needed. All three new functions are
+        exported in __all__.
+      C11: >-
+        rho.py EndpointTable.insert_if_absent's probe loop now compares the
+        occupant's stored (x, y) endpoint against the candidate slot's (x, y)
+        at each occupied probed index, returning (False, occupant)
+        immediately on an actual match, and continuing to probe only on a
+        genuine mismatch. The unreachable post-loop
+        "if idx in self.slots: return False, ..." line is removed (it is now
+        subsumed by the in-loop check). The capacity guard and resize-
+        refusal RuntimeErrors are unchanged in wording and trigger condition.
+      C12: >-
+        driver.py check_cgroup_admission now takes a required `job_type`
+        parameter ("rho" or "arithmetic") selecting between the two required
+        cpu.max strings via REQUIRED_CPU_MAX_BY_JOB_TYPE ("300000 100000" /
+        "100000 100000"), with a new refusal branch comparing the cpu.max
+        readback against the selected required string and a refusal_reason
+        distinct from all pre-existing ones. The pids.max check now requires
+        `pids_max == REQUIRED_PIDS_MAX` exactly (was `pids_max is None or
+        pids_max > REQUIRED_PIDS_MAX`, which wrongly accepted 1 or 2).
+        memory.max, memory.swap.max, and path-existence checks are
+        byte-for-byte unchanged.
+    no_new_execution: >-
+      Only python3 -m py_compile was run against the three edited files
+      (arithmetic.py, rho.py, driver.py) under this fix task; no function
+      from any of the six .py files was imported in a way that calls it, and
+      no guarded entry point (construct_pocklington_certificate,
+      construct_reduced_curve_fixture, run_worker, run_coordinator, main) was
+      invoked. See preparation-report.yaml's revise_fix_verification section
+      for the non-executing self-check recorded for each of the five
+      findings.
 
   source_inputs_read_sha256:
     ledger/proposals/IDEA-20260801-001.yaml: 6a57dd6207f6dfd22ec50d1e95225f34d3b7dfcb2e816250db0da085ed269aca
@@ -146,6 +236,18 @@ implementation_manifest:
     requested_policy: executor-implementation
     requested_reasoning_effort: medium
     actual_model_identifier_self_reported: claude-sonnet-5
+    fallback_used: false
+    degraded_used: false
+    bedrock_status: NOT_SELECTED, NOT_CONFIGURED, NOT_PROBED, NOT_CONTACTED, NOT_USED
+
+  model_self_report_revise_fixes_20260912:
+    task_id: TASK-20260912-2100f6
+    requested_policy: executor-implementation
+    requested_reasoning_effort: null
+    actual_model_identifier_self_reported: claude-sonnet-5
+    verification_status: >-
+      Genuine self-report per this session's own runtime environment
+      information; no external model-registry probe was performed or needed.
     fallback_used: false
     degraded_used: false
     bedrock_status: NOT_SELECTED, NOT_CONFIGURED, NOT_PROBED, NOT_CONTACTED, NOT_USED

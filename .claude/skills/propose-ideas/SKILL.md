@@ -24,12 +24,21 @@ step 2).
 2. Gather context for the prompt: the research question record, relevant
    entries from `knowledge/` (grep by area tags), existing hypotheses in
    `ledger/hypotheses/`, and existing proposals in `ledger/proposals/` so
-   duplicates are avoided.
+   duplicates are avoided. For ECDLP questions, render the known-results map
+   (`python3 tools/build_frontier_map.py --area index-calculus` or
+   `--area generic-rho`, or both) and paste it into the handoff verbatim, with
+   the commit it was rendered at. The idea generator has no Bash; the map is
+   what lets it see a published result before it re-derives it
+   (`knowledge/frontiers/ecdlp/README.md`).
 3. Dispatch the **idea-generator** subagent with a handoff that includes the
    research question, the context found above, how many ideas are wanted
    (default 3–5), and any user constraints. Remind it that every idea record
    must be schema-complete and novelty-checked against `knowledge/` before
-   any novelty label stronger than `unverified`. The handoff must also direct
+   any novelty label stronger than `unverified`, and must carry a `prior_art`
+   block naming the map rows it was positioned against (required by
+   `tools/validate_ledger.py` for IDEA-20261001-* onward). After ideas come
+   back, run `python3 tools/build_frontier_map.py --match "<claim + mechanism>"`
+   on each and send back any idea whose top hit is a row it did not cite. The handoff must also direct
    it to the exemplar search heuristics in `agents/idea-generator.md` and the
    target profile in `docs/target-result-profile.md`: exponent-first ambition,
    hunting external structural ingredients, meet-in-the-middle decompositions,

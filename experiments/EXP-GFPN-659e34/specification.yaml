@@ -1,0 +1,430 @@
+# =============================================================================
+# EXP-GFPN-659e34 -- Oracle-assisted SDHP (Joux-Vitse, n=5, m=4) cost on
+# EcGFp5- and EcMasFp5-shaped curves: queries, D_4, per-attempt cost,
+# decomposition rate; arithmetic-only (queries, work) at p=2^64.
+# Hypothesis: H-GFPN-3366ea / IDEA-20260920-73dc35
+# Heuristics under test: HEUR-GFPN-DFLAT4, HEUR-GFPN-RATE4
+# Ranking: DEC-20260921-683a85. Approval: DEC-20260921-b5c2da
+# (standing user authorization 2026-09-06).
+# =============================================================================
+experiment:
+  id: EXP-GFPN-659e34
+  hypothesis_id: H-GFPN-3366ea
+  question_id: RQ-GFPN-c01af8
+  goal_id: GOAL-GFPN-380702
+  version: 1
+  title: >-
+    Oracle-assisted SDHP cost on E(F_{p'^5}) at n=5, m=4: simulated-oracle
+    Joux-Vitse descent; D_4 and per-attempt F_p cost on a toy cost ladder;
+    decomposition rate on a small-p' rate ladder; (queries, work) per curve
+    at p = 2^64 - 2^32 + 1, labeled measured vs modeled
+  status: approved
+  status_note: >-
+    APPROVED 2026-09-21 by DEC-20260921-b5c2da under AGENTS.md standing user
+    authorization of 2026-09-06, after the protocol-completeness check
+    recorded there. Cost-model measurement contract with two named
+    heuristics. The preregistered prediction, HEUR-GFPN-DFLAT4 and
+    HEUR-GFPN-RATE4 are frozen; never retune after a run. Approval
+    authorizes implementation and toy-ladder measurement as defined.
+    Simulated oracle with generator-known d only; every oracle answer and
+    every SDHP answer is re-verified independently. /run is a separate
+    invocation, sequenced after EXP-GFPN-05ff43's implementation commit
+    (TASK-20260921-838c4a). Amendments only under
+    experiments/EXP-GFPN-659e34/amendments/.
+  approved_by: coordinator
+  approved_at: '2026-09-21'
+  approval_decision: DEC-20260921-b5c2da
+  approval_basis: >-
+    Standing user authorization recorded in AGENTS.md on 2026-09-06.
+    Coordinator completeness check is DEC-20260921-b5c2da. User confirmation
+    is not an outstanding gate.
+  frozen: true
+  frozen_at: '2026-09-21'
+  execution_authorized: true
+  execution_authorized_note: >-
+    Authorized: toy-p' cost ladder (D_4, F_{p'} ops per attempt) and rate
+    ladder (end-to-end simulated-oracle SDHP solves) on EcGFp5-shaped,
+    EcMasFp5-shaped and matched random curves; arms (i)(ii)(iii);
+    arithmetic-only projection to p = 2^64; independent verification of
+    every oracle answer and SDHP answer. NOT authorized: any query to a real
+    key, signature, protocol or live system; unknown-d instances; full-DLP
+    solves of the challenge; extrapolating wall time; any claim that a
+    deployed protocol exposes a static-DH oracle.
+  execution_authorized_decision: DEC-20260921-b5c2da
+  source_proposal: IDEA-20260920-73dc35
+  ranking_decision: DEC-20260921-683a85
+  designed_by: coordinator
+  archived_by: TASK-20260921-539d4e
+  class: cost-model measurement (with heuristic validation of HEUR-GFPN-DFLAT4 and HEUR-GFPN-RATE4)
+  claim_tier: toy
+  claim_tier_note: >-
+    Direct measurement is on toy p' only. The (queries, work) pair at
+    p = 2^64 is: queries = arithmetic on |F| (no heuristic); work = modeled
+    under HEUR-GFPN-DFLAT4 and HEUR-GFPN-RATE4 from measured constants.
+    Never measured wall time.
+  certificate:
+    kind: decomposition
+    kind_note: >-
+      Every accepted 4-point decomposition emits a decomposition certificate
+      (X_r, r, the four signed factor-base points) and every SDHP answer
+      emits an answer certificate (X, Y, and the verifier's independent
+      [d]X), both re-verified by code independent of the solver before the
+      cell may be completed_valid (docs/claims-and-verification.md). The
+      known d is held by the oracle harness only; a run in which the solver
+      code path receives d is invalid. Attempts that time out set validity
+      not_measured for that attempt, never negative_observation.
+  objective: >-
+    Measure, on toy ladders at n = 5, m = 4, the constants of Joux-Vitse's
+    oracle-assisted SDHP algorithm (frozen text, section 5) for EcGFp5-shaped
+    and EcMasFp5-shaped curves over F_{p'^5} with matched random controls:
+    (1) COST LADDER (>= 3 primes spanning >= 12 bits): the factor-base
+    representative count |F| (the model's query count), the FGLM ideal degree
+    D_4 per arm, and F_{p'} operations per decomposition attempt (scalar
+    multiplication [r]X + symmetrized system construction + Groebner/FGLM +
+    root extraction + lifting), on 20 random X_r per cell without requiring
+    success; verify HEUR-GFPN-DFLAT4. (2) RATE LADDER (3 primes near 2^10,
+    2^11, 2^12): end-to-end simulated-oracle SDHP solves, 6 challenges per
+    cell with an attempt cap of 8 x 24 p' per challenge, recording attempts
+    to success, success count over total attempts, lazily-issued oracle
+    queries, and verified answers; verify HEUR-GFPN-RATE4. (3) PROJECTION:
+    queries_bits = log2(|F| at p = 2^64) per curve (arithmetic);
+    work_bits = log2(24 p / rate_constant) + log2(C_pdp4) per curve and arm,
+    modeled, with the D-based band [D_4^2, 4 D_4^3] as the fallback when the
+    engine exposes no operation counter; plus the modeled (n-1) full-DLP
+    attempts lower bound that closes IDEA-20260920-9e672a's bookkeeping.
+    Report the rho ruler as the generic full-DLP comparison row and the
+    oracle model as an input.
+
+  inputs:
+    frozen_sources:
+      - path: inputs/JOUX-VITSE-2010-157/paper_fulltext.md
+        kn_lit: KN-LIT-673219
+        role: >-
+          Section 5 (lines 718-799): oracle-assisted SDHP definition,
+          algorithm, ~q/2 queries, degree-5 complexity, 130-bit estimate;
+          section 4 (lines 678-716): 5-equation degree-8 4-variable system
+          shape and F4 basis size <= 329 generators (anchor).
+      - path: inputs/PORNIN-2022-274-ECGFP5/
+        kn_lit: KN-LIT-8aff72
+        role: EcGFp5 parameters, double-odd model, security-section scope (no SDH)
+      - path: inputs/ECMASFP5-HACKMD-2025/
+        kn_lit: KN-LIT-47d541
+        role: EcMasFp5 parameters, prime order, no 2-torsion
+      - path: research/equation-schemes-20260905/retrieved-pages/hal-00935050.txt
+        kn_lit: null
+        role: FHJRV (Z/2)^{m-1} x| S_m symmetrization (arm iii at m = 4)
+    instrument:
+      named: >-
+        The m = 4 Joux-Vitse descended-system driver of EXP-GFPN-05ff43
+        (experiments/EXP-GFPN-05ff43/implementation/, its m=4 fallback path),
+        reused when committed; whatever it lacks for this contract (the
+        signed 4-point lifting, the simulated-oracle harness, the modified
+        descent X_r = [r]X, the (Z/2)^3 x| S_4 arm at m = 4, the attempt
+        budget loop, the independent verifier) is built under
+        experiments/EXP-GFPN-659e34/implementation/ and charged to this
+        contract.
+      solver: msolve or Macaulay2 F4 + FGLM over F_{p'} (same family as EXP-GFPN-05ff43; solver_id recorded per cell)
+      verifier: PARI/GP or Sage scalar multiplication over F_{p'^5}, sharing no code with the solver
+    field:
+      n: 5
+      m: 4
+      modulus_form: z^5 - c  # c chosen so irreducible over F_{p'}
+      p_crypto: '18446744069414584321'  # 2^64 - 2^32 + 1; arithmetic-only projection
+    cost_ladder:
+      rule: >-
+        Select >= 3 primes p' spanning >= 12 bits (candidates near 2^12,
+        2^18, 2^24). Exact primes are computed by the executor with a
+        deterministic primality test and recorded in the run; the drafting
+        Coordinator does not invent unverified literals (AGENTS.md rule 9).
+      min_primes: 3
+      min_bit_span: 12
+      attempts_per_cell: 20  # random X_r; success not required
+    rate_ladder:
+      rule: >-
+        Three primes p' near 2^10, 2^11 and 2^12 (recorded as above), chosen
+        so that 8 x 24 p' attempts per challenge is affordable end to end.
+      challenges_per_cell: 6
+      attempt_cap_per_challenge: 8 * 24 * p'
+      attempt_budget_for_rate: 6 * 24 * p'  # expected 6 successes under HEUR-GFPN-RATE4
+    curve_shapes:
+      ecgfp5_shaped: >-
+        Double-odd y^2 = x(x^2 + 2x + c z) with c chosen so the group order is
+        2 x prime (or 2 x nearly-prime with recorded cofactor); rational
+        2-torsion (0,0) required for arm (iii).
+      ecmas_shaped: >-
+        Prime-order y^2 = x^3 + 3x + c z^4 (arms i-ii only).
+      control_random_with_2torsion: matched random ordinary curve with a rational 2-torsion point
+      control_random_without_2torsion: matched random ordinary curve without rational 2-torsion
+    arms:
+      - id: raw
+        label: '(i) raw descended 4-variable system'
+        symmetrization: none
+      - id: S4
+        label: '(ii) S_4 elementary-symmetric (the JV form)'
+        symmetrization: S_4
+      - id: torsion_S4
+        label: '(iii) 2-torsion + S_4'
+        symmetrization: (Z/2)^3 rtimes S_4
+        requires_rational_2torsion: true
+    factor_base:
+      definition: >-
+        F = {P in E(F_{p'^5}) : x(P) in F_{p'}, y(P) in S}, S a fixed half-set
+        of representatives up to negation; |F| counted exactly per cell.
+      query_count_model: '|F| (learning phase over all of F, as in JV section 5)'
+      query_count_measured: 'oracle queries actually issued by the lazy simulated oracle (reported separately, never substituted)'
+    oracle_simulation:
+      d: generator-known random scalar per cell, held by the oracle harness only
+      answers: Q = [d]P computed by the independent verifier implementation
+      lazy: true  # queries issued on demand; the model count is |F|
+    known_scalar: true
+
+  controls:
+    - name: jv_system_shape_anchor
+      object: >-
+        At |p'| ~ 16 bits (or the smallest cost-ladder prime), the S_4 system
+        has exactly 5 equations of total degree 8 in 4 variables and its
+        reduced degrevlex Groebner basis has <= 329 generators, matching the
+        frozen JV description; failure marks the construction as not the JV
+        system (implementation defect) and blocks scoring.
+      blocking: true
+    - name: simulated_oracle_verified
+      object: >-
+        Every oracle answer Q = [d]P is produced by the independent verifier
+        implementation and every SDHP answer Y is compared with [d]X computed
+        independently; a mismatch invalidates the cell.
+      blocking: true
+    - name: no_secret_leakage
+      object: >-
+        The solver code path never receives d and never solves the DLP of X;
+        the manifest records the process/code separation; a violation
+        invalidates the run.
+      blocking: true
+    - name: random_with_2torsion
+      object: Random ordinary curve with rational 2-torsion at each p' (all three arms).
+      blocking: true
+    - name: random_without_2torsion
+      object: Random ordinary curve without rational 2-torsion at each p' (arms i-ii).
+      blocking: true
+    - name: degenerate_symmetrization_identity
+      object: Identity symmetrization must reproduce arm (i) D_4 and solutions exactly on the smallest cost-ladder prime.
+      blocking: true
+    - name: lifting_verifier
+      object: >-
+        Independent verifier rejects any solution that does not lift to four
+        signed factor-base points summing to X_r on the curve.
+      blocking: true
+    - name: rho_ruler_comparison_row
+      object: >-
+        The projection table carries the program's rho ruler (0.886*sqrt(n);
+        KN-TECH-006, KN-TECH-018) as the generic full-DLP comparison row,
+        labeled modeled; Cheon-type auxiliary-input costs are NOT computed
+        here (RQ-AUXIN-f8d8c0 owns them) and the row says so.
+      blocking: false
+
+  independent_variables:
+    - p_prime
+    - ladder  # cost | rate
+    - curve_shape  # ecgfp5_shaped | ecmas_shaped | random_2torsion | random_no_2torsion
+    - arm  # raw | S4 | torsion_S4
+
+  metrics:
+    primary:
+      - factor_base_representatives_per_cell
+      - ideal_degree_D4_per_arm
+      - fp_operations_per_attempt
+      - attempts_to_first_success_per_challenge
+      - successes_over_total_attempts_per_cell
+      - decomposition_rate_times_24p
+      - orbit_nonfreeness_ratio
+      - sdhp_answers_verified_per_cell
+      - D4_variation_across_ladder
+      - heur_dflat4_pass
+      - heur_rate4_pass
+      - projected_queries_bits_at_p_2_64_per_curve
+      - projected_work_bits_at_p_2_64_per_curve_per_arm
+      - full_dlp_n_minus_1_attempts_lower_bound_bits
+    secondary:
+      - oracle_queries_actually_issued_per_cell
+      - lifted_verified_points_per_success
+      - scalar_mult_ops_per_attempt
+      - reduced_gb_generator_count_at_anchor
+      - fglm_exponent_estimate
+      - wall_seconds_per_cell
+      - peak_memory_bytes
+      - attempt_timeout_count
+      - challenge_cap_hit_count
+      - solver_id
+      - certificate_verify_pass_rate
+
+  heuristic_under_test: HEUR-GFPN-DFLAT4, HEUR-GFPN-RATE4
+  preregistered_prediction:
+    quantity: >-
+      Query count |F| and its bit-length at p = 2^64; ideal degree D_4 per
+      arm and its flatness; decomposition rate constant; per-attempt cost;
+      (queries, work) per curve at p = 2^64.
+    formula: >-
+      queries_bits = log2(|F|) with |F| ~ p/2, predicted 63.0 +/- 1 at
+      p = 2^64 - 2^32 + 1 for both curves (arithmetic, no heuristic).
+      rate = c_rate / (24 p') with c_rate in [0.25, 4] (HEUR-GFPN-RATE4).
+      D_4: raw <= 8^4 = 2^12; S4 at least 2^3 below raw; torsion_S4 at least
+      2^2 below S4 on EcGFp5-shaped cells (free-orbit prediction |G| = 192);
+      D_4 flat within 10% across the cost ladder per arm (HEUR-GFPN-DFLAT4).
+      work_bits(curve, arm) = log2(24 p / c_rate) + log2(C_pdp4) with C_pdp4
+      the measured F_{p'} ops per attempt on the arm, or the band
+      [D_4^2, 4 D_4^3] when no operation counter exists; predicted in
+      [84, 93] bits (proposal), reported wherever it lands.
+      full_dlp_n_minus_1_attempts_lower_bound_bits = log2(|F| / rate) at
+      p = 2^64 = log2(24 p^2 / (2 c_rate)), ~ 131.6 bits at c_rate = 1
+      (modeled; IDEA-20260920-9e672a closure input).
+      Design-note comparison: no SDH figure exists in either note
+      (KN-LIT-8aff72, KN-LIT-47d541); JV's 130-bit estimate ~ 2^25 queries
+      (frozen line 785) is the literature anchor at q ~ 2^26.
+    source: >-
+      inputs/JOUX-VITSE-2010-157/paper_fulltext.md section 5 (lines 740-785)
+      and section 4 (lines 678-716); IDEA-20260920-73dc35;
+      research/gfp5_deployed_curves_20260920.md; H-GFPN-9a29be (FHJRV action
+      at m = 5, restated for m = 4); KN-TECH-006 (rho ruler row).
+    claim_tier: toy
+    optimistic_assumptions:
+      - Free-orbit degree drop (actual D_sym >= D_raw/|G|; the gap is measured as orbit_nonfreeness_ratio).
+      - FGLM exponent between 2 and 3 for the band fallback (both edges reported).
+      - Rate constant transfers from p' ~ 2^10-2^12 to p = 2^64 as a constant (HEUR-GFPN-RATE4; the rate ladder spans only 2 bits and cannot detect a slow p'-dependence, stated as a limit).
+      - The learning phase is charged as |F| queries with no memory or time cost beyond storing ~p/2 group elements (memory term stated, not costed in time).
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      D_4, per-attempt cost and the rate constant are measured at toy p'.
+      Transfer to p = 2^64 is arithmetic-only under HEUR-GFPN-DFLAT4 (D_4
+      flat) and HEUR-GFPN-RATE4 (rate constant). The query term needs no
+      heuristic. Wall time is never extrapolated. If either heuristic fails,
+      the affected projection is void and reported as not transferable.
+    correspondence: null
+
+  measured_vs_modeled:
+    measured:
+      - factor_base_representatives_per_cell
+      - ideal_degree_D4_per_arm
+      - fp_operations_per_attempt
+      - attempts_to_first_success_per_challenge
+      - successes_over_total_attempts_per_cell
+      - decomposition_rate_times_24p
+      - orbit_nonfreeness_ratio
+      - sdhp_answers_verified_per_cell
+      - D4_variation_across_ladder
+      - oracle_queries_actually_issued_per_cell
+    modeled:
+      - projected_queries_bits_at_p_2_64_per_curve
+      - projected_work_bits_at_p_2_64_per_curve_per_arm
+      - full_dlp_n_minus_1_attempts_lower_bound_bits
+    modeled_note: >-
+      projected_work and the (n-1) bound require heur_dflat4_pass and
+      heur_rate4_pass true for the arm; otherwise emit null with reason
+      heur_failed. projected_queries is arithmetic and is emitted regardless.
+
+  tail_checks:
+    - >-
+      Slowest challenge per rate cell: attempts to success versus the
+      geometric prediction with mean 24 p' / c_rate; flag if beyond the 99th
+      percentile on two cells (heavy tail or instrument defect).
+    - >-
+      Lowest-D_4 cell per arm versus the free-orbit prediction: report
+      D_sym x |G| / D_raw and flag if < 0.5.
+    - >-
+      Highest fp_operations_per_attempt on the S4 arm: if the projected
+      work_bits exceeds 100 on every completed EcMasFp5-shaped cell, the
+      proposal's "below 100 bits" prediction fails for that curve and is
+      reported as such.
+
+  replication:
+    seeds:
+      - 2026092101
+      - 2026092102
+    independent_instances: 20
+  replication_plan: >-
+    Cost ladder: >= 3 primes x 4 curve shapes x applicable arms, 20 random
+    X_r per cell. Rate ladder: 3 primes x 4 curve shapes x arms (ii) and
+    (iii) where applicable, 6 challenges per cell, fresh d per cell, fresh X
+    per challenge. Seeds govern curve, d, X and r sampling streams; record
+    every RNG source in the manifest.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 16
+    maximum_runs: 48
+    maximum_workers: 1
+    per_cell_watchdog_seconds: null
+    budget_note: >-
+      Advisory nulls for wall/CPU per docs/research-budget-policy.md.
+      memory_gb=16 is machine protection (m=4 systems are smaller than the
+      m=5 systems of EXP-GFPN-05ff43). ECC unlimited (GOAL-GFPN-380702). A
+      per-cell soft watchdog may checkpoint; expiry is not_measured /
+      resource_exhaustion, never negative evidence.
+
+  stopping_rules:
+    - Cost ladder -- stop a cell when 20 attempts are recorded (each with D_4 and ops, or not_measured on timeout) or the watchdog fires.
+    - Cost ladder -- stop an arm when >= 3 primes spanning >= 12 bits have completed D_4 measurements (or all attempted cells timed out).
+    - Rate ladder -- stop a challenge on the first verified success or at the attempt cap (8 x 24 p'); stop a cell after 6 challenges.
+    - Any attempt timeout or OOM is not_measured; a cell with more than 25% not_measured attempts is not completed and is reported as such.
+    - Stop the experiment after primary metrics, heur_dflat4_pass and heur_rate4_pass are recorded for every arm with >= 1 completed cell on each ladder, or after all cells are exhausted/timed out.
+
+  invalidation_rules:
+    - Missing required artifacts or certificate re-verify failure on an accepted decomposition or SDHP answer invalidates that cell (invalid_measurement).
+    - Overwriting a run directory invalidates the procedure.
+    - Using wall time to extrapolate to p = 2^64 invalidates the projection.
+    - Scoring a timeout or a cap hit as evidence that D_4 is large or the rate is low invalidates the run (rule 3); cap hits are reported as censored attempts.
+    - Editing the preregistered_prediction or either heuristic after any run without an amendment invalidates subsequent scoring.
+    - The solver code path receiving d, or solving the DLP of X, invalidates the scientific boundary.
+    - Substituting the lazily-issued query count for the model count |F| invalidates the query metric.
+    - Counting solutions instead of verified lifted points invalidates success metrics.
+
+  success_criterion: >-
+    For each curve shape and each arm with >= 3 completed cost cells spanning
+    >= 12 bits: |F|, D_4 and fp_operations_per_attempt recorded;
+    heur_dflat4_pass decided; orbit_nonfreeness_ratio recorded. For each
+    curve shape with >= 2 completed rate cells on arm (ii) (and (iii) where
+    applicable): successes_over_total_attempts, decomposition_rate_times_24p
+    and sdhp_answers_verified recorded; heur_rate4_pass decided. Projection
+    table emitted per curve with projected_queries_bits (arithmetic) and, if
+    both heuristics pass for the arm, projected_work_bits and the (n-1) bound
+    with measured-vs-modeled labels and the rho ruler row. Success is
+    protocol completion with decidable metrics -- not "SDH is broken".
+
+  falsification_criterion: >-
+    On completed cells: (F1) heur_rate4_pass false (success count <= 1 over
+    the 6 x 24 p' attempt budget, or decomposition_rate_times_24p outside
+    [0.25, 4], on two completed rate cells of an arm); or (F2)
+    heur_dflat4_pass false (D_4 variation > 10% across the cost ladder for an
+    arm); or (F3) D_4 on the S4 arm not at least 2^3 below the raw arm on a
+    completed cost cell; or (F4) named-shape D_4 differs from the matched
+    random same-torsion control by > 10% on matched cells (mechanism not
+    generic). Instrument falsification: a failed jv_system_shape_anchor,
+    simulated_oracle_verified or no_secret_leakage control. Timeouts and cap
+    hits do not fire F1-F4.
+
+  required_artifacts:
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/command.txt
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/environment.json
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/cost-ladder-table.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/rate-ladder-table.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/heur-dflat4.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/heur-rate4.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/sdhp-projection-p64.yaml
+    - experiments/EXP-GFPN-659e34/runs/<RUN-ID>/certificates/
+    - experiments/EXP-GFPN-659e34/implementation.md
+
+  assigned_to: executor
+  scientific_boundary: >-
+    Toy measurement of a published algorithm's constants under a declared,
+    simulated oracle model, plus an arithmetic-only projection under two
+    named heuristics. Known-d instances only. No real key, signature,
+    protocol or live system is touched. No full-DLP solve of any challenge.
+    No wall-time extrapolation. No claim that any deployment exposes a
+    static-DH oracle. Full-ECDLP bands, certificate audits and cover
+    applicability are other GFPN experiments.

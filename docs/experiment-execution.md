@@ -1,9 +1,19 @@
 # Execution-first experiments
 
-Unqualified **run the harness**, **keep running**, and **run experiments** use
-execution mode in the canonical `crypto-autoresearcher-harness` skill. Existing
-experiments are the backlog. Idea intake, portfolio ideation and scientific
-conclusions are explicit modes, not substitutes for running that backlog.
+Unqualified **run**, **run the harness**, **keep running**, and **run experiments**
+use the single [`run`](../plugins/crypto-autoresearcher-harness/skills/run/SKILL.md)
+skill. It executes existing programs and reports their outputs without an
+agent-led protocol/schema-validation phase. Existing command-based experiments
+keep their documented launchers; adopting the trial-plan format is not a run
+prerequisite.
+
+This document describes the process adapter and preparation of new trial plans.
+Read those preparation details only when preparing or maintaining that adapter,
+not as a checklist before every run. The runner retains its built-in checks.
+The separate Coordinator archive/review workflow is needed before a scientific
+state transition, not before returning execution results to the user. That
+Coordinator work uses [`/coordinate`](../.claude/skills/coordinate/SKILL.md);
+it is not part of `/run`.
 
 ## Boundary and responsibilities
 
@@ -84,6 +94,17 @@ prove that a manually authored list covers a mathematical protocol. A trial
 can be a complete paired comparison. Dependent trials name earlier trial IDs;
 a failed or unresolved control prevents dependent execution. No adaptive
 search or automatic early-stopping policy is introduced here.
+
+Required artifacts must exist as regular files and are nonempty by default.
+A trial may optionally declare `"allow_empty_artifacts": ["counterexamples.jsonl"]`
+when its frozen protocol gives an empty file a defined meaning. This list must
+contain unique canonical relative paths already named in `artifacts`; reserved
+supervisor paths, wildcard exemptions, and missing files are not allowed.
+Listed files may also be nonempty. The independent `check_argv` still runs and
+must validate the scientific meaning of their contents, including emptiness.
+Empty files receive ordinary SHA-256 bindings, so later modification or deletion
+still requires reconciliation. Adding this field changes the frozen plan hash
+and requires the normal additive approval and claim bindings.
 
 Allocate/check the run IDs before freezing with `tools/allocate_id.py`; IDs
 and artifact paths must already appear in the committed handoff. Bind the

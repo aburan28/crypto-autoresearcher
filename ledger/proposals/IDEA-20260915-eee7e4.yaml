@@ -1,0 +1,321 @@
+idea:
+  id: IDEA-20260915-eee7e4
+  title: >-
+    Side-constrained core: adding the E-membership constraint x_i in x(E) for each
+    of the m core blocks to the descended S_4 instance shrinks the DPLL leaf count
+    from |V|^m to |V ∩ x(E)|^m ~ 2^{m(l-1)} without losing any E-decomposition,
+    predicting a 2^m = 8x reduction of UNSAT conflicts on WDSat and the removal of
+    every twist-side root from the S column
+  class: mechanism
+  research_question_id: RQ-ICPERF-94c86e
+  question_id: RQ-ICPERF-94c86e
+  area: ICPERF
+  goal_ids: [GOAL-ICPERF-e6b6a4]
+  status: proposed
+  proposed_by: idea-generator
+  task_id: TASK-20260915-5ba08b
+  recorded_at: '2026-09-15'
+  claim: >-
+    Let E: y^2 + xy = x^3 + a x^2 + b over F_q, q = 2^n, and V = {deg x < l} the
+    Trimoska factor-base subspace. For x != 0, x is the x-coordinate of an
+    F_q-point of E iff s(x) := Tr(x + a + b/x^2) = 0 (the E-side bit of
+    IDEA-20260915-3f1964); the complementary x are x-coordinates of the quadratic
+    twist E'. The descended S_4 system is satisfied by every triple of x-coordinates
+    of points over the algebraic closure summing to +-R, so a solver walking the
+    full 2^{3l} core assignments spends the fraction 1 - (|V_E|/|V|)^3 ~ 7/8 of its
+    leaves on assignments in which at least one x_i is twist-side; by the
+    side-dichotomy of IDEA-20260915-3f1964 those leaves can only be roots through
+    2-torsion coincidences or through an all-twist root when x_R itself is
+    twist-side, and for a side-0 target (every R = uP + vQ in the attack) they
+    contain NO E-decomposition. Adding the constraint x_i in V_E := V ∩ x(E) for
+    i = 1, 2, 3 - encoded as one blocking clause per excluded value of the l block
+    bits, 2^l - |V_E| ~ 2^{l-1} clauses of width l per block, or as a bijective
+    (l-1)-bit re-encoding of V_E - is SOUND (loses no E-decomposition) and reduces
+    the leaf count to |V_E|^3 ~ 2^{3(l-1)}. This record predicts that WDSat's UNSAT
+    conflict count on side-0 certified-U targets drops by a factor in [6, 8]
+    (blocking-clause encoding) or [7.5, 8.5] (re-encoding), that the S column's
+    answers are 100% E-decompositions (zero twist-side roots), and that the
+    per-instance wall time drops by a factor >= 4 after the extra clauses' propagation
+    cost. It is a constant-factor mechanism: it divides the relation-search cost
+    3 c 2^{n+l} of IDEA-20260915-0d8e90 by ~8 and changes no exponent.
+  mechanism: >-
+    OBJECT TRACKED. The side bit s(x) of each core block. Under the block-level
+    operations of the DPLL (assign the l bits of one x_i), s(x_i) is a Boolean
+    function of the block alone, so the constraint s(x_i) = 0 is local to the block
+    and never interacts with the e-variables - it is a filter on the alphabet of
+    each block, not on the relation. Lossy-projection test against the operation
+    set {assign block i}: the projection (x_1, x_2, x_3) -> (s(x_1), s(x_2), s(x_3))
+    discards l - 1 bits per block and propagates deterministically because the
+    side of a block is fixed as soon as the block is assigned - it is a genuine
+    lossy object under this operation set, and it is EXACTLY the object the
+    3f1964 table classifies roots by, moved from the analysis stage into the
+    solver.
+
+    COUNTING. |V_E| = |{x in V, x != 0 : s(x) = 0}| + [0 in x(E)]. For V = {deg x <
+    l}, the proposal-time exhaustive count of this session (script in
+    IDEA-20260915-3f1964, NOT evidence) gave |Fb_E| = 2|V_E| - 1 with |V_E| = 16,
+    30, 32 at (15,5), (17,6), (19,6) against |V| = 32, 64, 64 - i.e. |V_E|/|V| in
+    [0.47, 0.50]. The leaf ratio (|V|/|V_E|)^3 is then 8.0, 9.7, 8.0.
+
+    WHY THE BLOCKING-CLAUSE ENCODING GETS MOST OF IT. A blocking clause on block i
+    is the width-l clause forbidding one excluded value; unit propagation fires when
+    l - 1 of the bits are assigned and the remaining bit's forced value is the only
+    completion not excluded. With the core-first order the solver assigns block 1's
+    bits consecutively; at depth l - 1 each pair {v, v xor e_l} of completions
+    contains 2, 1 or 0 members of V_E with probabilities ~1/4, 1/2, 1/4 (s is
+    balanced and not bit-l-linear, H1), so the expected number of leaves entered per
+    depth-(l-1) node is 1 and block 1 contributes ~|V_E| completions, as does each
+    later block: leaves ~ |V_E|^3, i.e. the full factor ~8 in leaves; the
+    conflicts counter additionally records the 1/4 of depth-(l-1) nodes that are
+    refuted without a leaf, so the measured CONFLICT ratio is predicted in [6, 8]
+    rather than exactly 8. A bijective re-encoding of V_E by l - 1 bits (a table
+    V_E -> F_2^{l-1}, substituted into the linear Weil-descent relations x_i =
+    sum_j bit_{ij} theta^j as a block of XORs of the new bits - requires
+    regenerating the instance, not post-processing the DIMACS) has no such
+    overhead and predicts [7.5, 8.5].
+
+    WHAT IT DOES TO THE S COLUMN. With all x_i forced E-side and x_R side-0 (a
+    subgroup target), every remaining root is a triple of E(F_q) points whose sum is
+    +-R up to the 2-torsion coincidences (measured zero at l <= 6 in the
+    proposal-time count); the side-classification step of 3f1964 becomes a
+    check that must return 100% E-decomposition. On a side-1 (twist) target such as
+    the unreviewed n19l6-19-U the constrained instance is predicted UNSAT - which is
+    the answer the attack wants, since no E-decomposition exists.
+
+    WHAT WOULD MAKE THIS INTERESTING BEYOND A FACTOR 8. If c drops by MORE than
+    the leaf ratio (conflicts / |V_E|^3 well below the unconstrained c ~ 0.95 of
+    IDEA-20260915-0d8e90), propagation is pruning inside the E-side tree, i.e. the
+    descended equations become inconsistent earlier once twist-side noise is
+    removed. That outcome would be the first sub-exhaustive signal in this row and
+    is the one to look for; the prior is that it does not happen.
+  novelty_status: unverified
+  novelty_screen:
+    what_is_not_new: >-
+      That summation-polynomial roots include twist-side points is folklore and is
+      the Coordinator's prior in coordination/review/icperf-20260913-66fd51/
+      review-plan.yaml (under review, not a result). Restricting a factor base to
+      points of E is the definition of the factor base in every index calculus;
+      the Trimoska instances constrain only x_i in V because the Weil descent is
+      linear in the bits. The trace criterion Tr(x + a + b/x^2) = 0 for x in x(E)
+      is textbook (halving/point-compression literature, recalled, not opened).
+    what_is_new: >-
+      Encoding the side constraint INTO the SAT instance as a block-local alphabet
+      filter and predicting its effect on the DPLL leaf count and conflict count
+      in closed form; no corpus record or shipped Trimoska instance carries such a
+      constraint. Whether any published S_4-SAT work (Trimoska-Ionica-Dequen or
+      later) already adds E-membership clauses is UNCHECKED - the WDSat paper as
+      recorded in KN-LIT-102cdb/KN-LIT-6e036d does not mention it, but those
+      records are abstract-level.
+    searched: >-
+      rg over knowledge/ and ledger/proposals/ for "twist", "x(E)", "membership",
+      "blocking clause", "side" (hits: review-plan prior, IDEA-20260915-3f1964,
+      IDEA-20260913-cedd2f on the parity class - none add a solver-side
+      constraint); KN-LIT-102cdb and KN-LIT-6e036d in full. No web search for this
+      specific mechanism; hence unverified.
+  citations:
+    - ref: IDEA-20260915-3f1964
+      provenance: internal
+      claim: >-
+        Side dichotomy of F_q-rational roots of the descended S_4 system; the
+        proposal-time exhaustive counts |V_E| = 16, 30, 32 at the shipped cells
+        (NOT evidence; formula check only).
+      verified_by: idea-generator TASK-20260915-5ba08b (same session)
+    - ref: IDEA-20260915-0d8e90
+      provenance: internal
+      claim: UNSAT conflicts ~ c 2^{3l}, c in [0.9, 1.0] (proposed law, fitted to unreviewed medians).
+      verified_by: idea-generator TASK-20260915-5ba08b (same session)
+    - ref: coordination/review/icperf-20260913-66fd51/review-plan.yaml
+      provenance: internal
+      claim: >-
+        Coordinator PRIOR under review - twist decomposition explains the P1
+        failure on n19l6-19-U; expected decomposable-target rate 2^{3l-3}/(6 2^{n-1}).
+      verified_by: idea-generator TASK-20260915-5ba08b (read this session; cited as a prior, not a result)
+    - ref: experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/task-report.md
+      provenance: internal
+      claim: >-
+        UNREVIEWED OBSERVATIONS - n19l6-19-U is SAT by every solver with an x-set
+        the curve check rejects; WDSat default U medians 30978.5 / 254656.5 /
+        255301 conflicts at (15,5) / (17,6) / (19,6).
+      verified_by: idea-generator TASK-20260915-5ba08b (read this session)
+    - ref: KN-LIT-6e036d
+      provenance: internal
+      claim: WDSat is a DPLL solver with XOR reasoning and a fixed branching order on the core variables; no clause learning.
+      verified_by: coordinator (record author); re-read by TASK-20260915-5ba08b
+    - ref: inputs/TRIMOSKA-ECICB-2024/upstream/Weil_descent.sage
+      provenance: internal
+      claim: The generator emits x_i in V as l free bits per block and the e_k = sigma_k(x) relations; no curve-membership constraint is emitted.
+      verified_by: idea-generator TASK-20260915-5ba08b (find_points.sage and Weil_descent.sage read this session)
+  assumptions:
+    - The core-first branching order of WDSat assigns the l bits of one block consecutively (P3a of H-ICPERF-cc4847, unreviewed; if bits of different blocks interleave, the blocking-clause pruning happens later and the conflict ratio falls toward [2, 6]).
+    - Targets in the attack are side-0 (R in the subgroup is on E); the mechanism is evaluated on side-0 certified-U targets and on S targets from the 3f1964 table.
+    - The extra clauses are appended to the DIMACS/ANF after generation; WDSat accepts them as ordinary clauses over existing variables (to be confirmed on the vendored build; if the XOR-module rejects mixed input, use the re-encoding variant).
+  proof_search_map:
+    bottleneck: >-
+      The per-instance UNSAT cost of the SAT PDP, which is the leaf count of the
+      core tree times the per-leaf propagation cost.
+    baseline_embedding:
+      parameter_slice: >-
+        The three shipped cells with default WDSat; the unconstrained c must
+        reproduce 0.945 / 0.971 / 0.974 from results.jsonl before the constrained
+        instances are run.
+      reproduction_check: >-
+        Unconstrained and constrained instances differ ONLY in the appended
+        clauses; a diff of the two DIMACS files must show exactly the blocking
+        clauses and nothing else.
+    observation_collision:
+      observable: ratio of UNSAT conflicts, unconstrained / constrained.
+      distinct_preimage_search: >-
+        A ratio of 8 is produced by (i) the alphabet shrinking to |V_E| per block
+        with no other change, and (ii) the clauses accidentally strengthening
+        propagation for unrelated reasons (e.g. by changing WDSat's internal
+        variable order). Broken by the KNOWN-FALSE control - a random subset of V of
+        size |V_E| per block, encoded identically - which must give the same ratio
+        under (i) and a different one under (ii), and by the DECISIONS count, which
+        under (i) equals the leaf count |V_E|^3 up to the depth-(l-1) refutations.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          The per-block alphabet V_E in place of V; the descended relation is
+          unchanged, the domain of each block is specialised.
+        predicted_gain: >-
+          (|V|/|V_E|)^3 ~ 8 in leaves on every UNSAT instance; zero twist roots on
+          SAT instances.
+    quantifier_order: >-
+      For every cell (n, l) with l <= 8, every side-0 certified-U target and the
+      default core-first order, the constrained instance's conflicts lie in
+      [1/8, 1/6] of the unconstrained instance's conflicts, up to per-instance
+      spread of at most 15%.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A factor in [6, 8.5] on UNSAT conflicts and the elimination of twist roots
+        at l <= 8 with WDSat; a constant factor, independent of n; no change to the
+        exponent 1 in n of the SAT pipeline.
+      nearby_object_control: >-
+        Random-subset alphabet of the same size (KNOWN-FALSE for the side
+        semantics, TRUE for the counting): it must reproduce the conflict ratio
+        but NOT the zero-twist-root outcome on S instances - this separates the
+        counting mechanism from the side mechanism.
+    proof_obligations:
+      - claim: unconstrained c reproduces the shipped medians
+        responsibility: baseline
+      - claim: no E-decomposition is lost (soundness of the constraint)
+        responsibility: correctness
+      - claim: leaf count |V_E|^3 under the core-first order
+        responsibility: runtime
+      - claim: constrained S instances return 100% E-decompositions
+        responsibility: success_probability
+    not_applicable_reason: null
+  predictions:
+    - metric: median UNSAT conflicts, unconstrained / constrained (blocking-clause encoding), side-0 certified-U, WDSat default
+      direction: different
+      minimum_effect: ratio in [6, 8] at (17,6), (19,6), (21,7)
+    - metric: same ratio with the (l-1)-bit re-encoding
+      direction: different
+      minimum_effect: ratio in [7.5, 8.5]
+    - metric: fraction of twist-side roots among constrained S answers (3f1964 classification)
+      direction: lower
+      minimum_effect: exactly 0 out of >= 40 S instances per cell (unconstrained fraction predicted ~ half of side-1-target instances)
+    - metric: median wall_s ratio unconstrained / constrained
+      direction: higher
+      minimum_effect: '>= 4 (propagation cost of ~3 2^{l-1} extra width-l clauses eats at most half the gain)'
+    - metric: constrained conflicts / |V_E|^3 (the constrained c)
+      direction: different
+      minimum_effect: in [0.85, 1.05]; a value below 0.5 is the sub-exhaustive signal and is reported as the headline if it occurs
+  minimal_test:
+    design: >-
+      For each of (17,6), (19,6), (21,7): 20 side-0 certified-U targets and 20 S
+      targets from the IDEA-20260915-3f1964 table. Generate the Trimoska instance
+      with the vendored Weil_descent program; produce (a) the unconstrained DIMACS,
+      (b) the same file plus 3 (2^l - |V_E|) blocking clauses, (c) a regenerated
+      instance with each block re-encoded on l - 1 bits via a fixed bijection
+      F_2^{l-1} -> V_E, and (d) the random-subset control. Run WDSat default on all
+      four, record conflicts, decisions, wall_s, status, model; classify every
+      model by side; compute the ratios per cell.
+    controls:
+      - NULL - matched random Boolean systems with the same number of appended clauses of the same width; the ratio there measures propagation overhead only.
+      - KNOWN-FALSE (side semantics) - random subset of V of size |V_E| per block, same encoding; must match the conflict ratio and must NOT remove twist roots.
+      - RECONSTRUCTION - unconstrained c at the three shipped cells from results.jsonl.
+      - SOUNDNESS - every S target's known E-decompositions (from the table) must be found by the constrained instance; any missing one falsifies soundness of the encoding.
+    required_metrics:
+      - conflicts, decisions, wall_s, cpu_s, status per row and variant
+      - "|V_E| per cell (exact, from the table)"
+      - conflict ratio and decision ratio per cell with median and IQR
+      - side classification of every S model (E / twist / non-root)
+      - constrained c = conflicts / |V_E|^3
+  falsification_conditions:
+    - Conflict ratio below 4 on side-0 certified-U instances with the blocking-clause encoding AND below 6 with the re-encoding - the leaf-count reading of WDSat's cost is wrong (propagation, not leaf count, dominates) and IDEA-20260915-0d8e90's law needs a different mechanism.
+    - Any S target whose table-known E-decomposition is NOT returned by the constrained instance - the encoding is unsound; the record is withdrawn until the encoding is fixed.
+    - Any twist-side root returned by a constrained instance - the side criterion s(x) is misimplemented or the dichotomy of 3f1964 fails; report which.
+    - Random-subset control giving a conflict ratio differing from the side-constrained ratio by more than 25% - the gain is not (only) alphabet size and the mechanism paragraph is wrong.
+  confounders:
+    - WDSat's XOR module may treat appended CNF clauses differently from the generated ones (e.g. different watch scheme); the re-encoding variant is the control for this.
+    - MAX_ID and static array sizes must be rebuilt for the extra clauses; a rebuild changes wall time but not conflicts.
+    - At l = 5 the pair-completion argument has only 16 depth-(l-1) nodes per block and the [6, 8] band widens; report (15,5) but fit the ratio on l >= 6.
+    - Certified-U side-0 targets drawn uniformly on side-0 x versus on subgroup points differ by parity class (IDEA-20260915-3119c9); draw both and stratify.
+  interpretation_limits:
+    - Scoped to WDSat on S_4 Weil-descent instances with V = {deg x < l}, l <= 8, on this host; a constant-factor statement, not an exponent statement.
+    - Says nothing about Groebner engines (the analogous move there is adding the side polynomial to the ideal, IDEA-20260915-3476de's column could test it) or about m != 3.
+    - The zero-twist-root prediction is exact only up to 2-torsion coincidences, whose rate the 3f1964 table measures.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        Within V = {deg x < l}, the side bit s(x) is balanced and its restriction
+        to each pair {v, v + theta^{l-1}} is independent of the pair, so the
+        depth-(l-1) completion counts are Binomial(2, 1/2).
+      rigorous_support: >-
+        s(x) = Tr(x) + Tr(a) + Tr(b/x^2); Tr(x) is F_2-linear and Tr(b/x^2) is a
+        Kloosterman-type character sum whose bias over an affine subspace is bounded
+        by Weil-type estimates (|sum| <= 2 sqrt(q) over the whole field; over a
+        subspace the bound is weaker and is imitated, not proved). Balance to within
+        3% is what the proposal-time counts showed at l = 5, 6.
+      validation_plan: >-
+        Exhaustively tabulate s on V for every cell up to l = 8 and for 100 random
+        l-dimensional subspaces per n in {17, 19, 21}; compare |V_E|/|V| against
+        1/2 +- 2^{-l/2} and the pair-completion histogram against (1/4, 1/2, 1/4);
+        tail check - the fraction of subspaces with |V_E|/|V| outside [0.4, 0.6]
+        must be consistent with the binomial tail.
+  target_complexity:
+    time_exponent: >-
+      Divides the relation-search cost 3 c 2^{n+l} conflicts by (|V|/|V_E|)^3 ~ 8;
+      exponent in n unchanged at 1 for the SAT pipeline; the same factor applies
+      to any exhaustive-core PDP over V^3.
+    memory_exponent: >-
+      Unchanged; +3 2^{l-1} clauses of width l in the instance (a few KB at l <= 8).
+    best_known: >-
+      Unconstrained Trimoska instance at c 2^{3l} conflicts per UNSAT target
+      (IDEA-20260915-0d8e90, from unreviewed medians); rho at 0.886 2^{n/2}
+      (KN-LIT-73f7e1 / KN-LIT-042).
+    hidden_overhead: >-
+      Propagation cost of the blocking clauses (polynomial in l per node); at
+      l >= 10 the 2^{l-1} clauses per block become a cost and the re-encoding is the
+      only sensible variant.
+    tradeoff_note: >-
+      No memory traded; embarrassingly parallel per target as before. The factor 8
+      does not move the SAT pipeline's exponent-1 cost anywhere near rho's
+      exponent 1/2 at any n in the table.
+  dominated_by: >-
+    rho with negation, 0.886 2^{n/2} group operations and O(w) memory (KN-LIT-042,
+    KN-LIT-73f7e1); frontier rows checked - rho (dominates on time at every
+    n >= 6 for l >= 1), exhaustive group search 2^n (dominates the SAT pipeline
+    3 c 2^{n+l}/8 on time for l >= 2), the exhaustive V^3 table 2^{3l}/6 per cell
+    (dominates per-target UNSAT cost at fixed l). The constrained SAT PDP is
+    dominated on time by all three; it is proposed as a measured constant-factor
+    move inside a dominated row, not as a frontier point.
+  sota_delta: >-
+    Constant factor ~8 (predicted band [6, 8.5]) on the UNSAT PDP cost and the
+    relation-search cost of the SAT-driven S_4 pipeline; exponent unchanged at 1
+    in n. At (19,6) from unreviewed inputs - relation search ~900 s -> ~110 s of
+    WDSat time; rho's column stays at a few hundred group operations.
+  estimated_cost:
+    implementation: low
+    compute: low
+    wall_clock_seconds: 14400
+    memory_gb: 1
+    note: >-
+      Advisory. Depends on the 3f1964 sampler for certified-U/S targets and on a
+      WDSat rebuild per cell. 3 cells x 40 targets x 4 variants ~ 480 runs, each
+      <= 30 s at (21,7) constrained; well under 4 h on one core.
+  recommended_priority: high
+  inference:
+    policy: research-deep
+    reasoning_effort: null

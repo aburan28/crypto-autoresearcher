@@ -21,6 +21,7 @@ from orchestration.campaign.mcp_server import (
     workspace_fingerprint,
 )
 from orchestration.campaign.store import CampaignStore
+from orchestration.campaign.session_tools import SESSION_TOOL_NAMES
 
 
 class Clock:
@@ -69,7 +70,7 @@ async def test_exact_peer_tool_catalog_has_no_authoritative_mutations(peer_app) 
     app, _, _ = peer_app
     async with fastmcp.Client(app) as client:
         names = {tool.name for tool in await client.list_tools()}
-    assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"}
+    assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"} | SESSION_TOOL_NAMES
     forbidden = {
         "dispatch",
         "claim",
@@ -290,7 +291,7 @@ async def test_real_loopback_http_daemon_shares_presence_between_clients(tmp_pat
             try:
                 async with fastmcp.Client(endpoint, timeout=1) as client:
                     names = {tool.name for tool in await client.list_tools()}
-                assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"}
+                assert names == {"check_in", "list_peers", "get_coordination_status", "check_out"} | SESSION_TOOL_NAMES
                 break
             except BaseException as exc:  # server startup races are expected briefly
                 last_error = exc

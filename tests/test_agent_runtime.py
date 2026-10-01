@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -372,6 +373,11 @@ def test_runner_refuses_a_role_this_runtime_cannot_host(cfg, tmp_path):
         runner_module.run_task(handoff, config=cfg, repo_root=_mini_repo(tmp_path))
 
 
+def test_revision_request_is_not_silently_ignored_without_sparse_mode(tmp_path):
+    with pytest.raises(ValueError, match="requires sparse_worktree"):
+        runner_module.run_task(_handoff(tmp_path), repo_root=tmp_path, revision="HEAD~1")
+
+
 def test_runner_derives_write_scope_from_the_declared_artifact_paths(tmp_path):
     task = runner_module.load_task(_handoff(tmp_path))
     scope = runner_module.task_scope(task, repo_root=tmp_path, api_config={})
@@ -402,9 +408,47 @@ def test_runner_executes_a_task_and_records_an_immutable_receipt(cfg, tmp_path,
     assert receipt["runtime"] == "api_direct"
     assert receipt["execution"]["stop_reason"] == "completed"
     assert receipt["execution"]["files_written"] == run.files_written
+    assert receipt["execution"]["context"]["read_scope_source"] == "derived"
+    assert receipt["execution"]["context"]["retrieval_limits"]["max_read_bytes"] == 20_000
     assert receipt["resolution"]["resolved_model_id"]
     with pytest.raises(FileExistsError):
         runner_module.write_artifacts(run, tmp_path / "out", config=cfg)
+
+
+def test_sparse_runner_and_reuse_keep_policy_lookups_in_the_full_repository(cfg, tmp_path, monkeypatch):
+    from orchestration import research_budget
+    source = tmp_path / "source"
+    source.mkdir()
+    repo = _mini_repo(source)
+    for args in [("init", "-q"), ("add", "."), ("commit", "-qm", "fixture")]:
+        subprocess.run(["git", "-C", str(repo), "-c", "core.hooksPath=/dev/null",
+            "-c", "user.name=Test", "-c", "user.email=test@example.invalid", *args], check=True)
+    lookups = []
+    def policy(handoff, *, repo_root):
+        lookups.append(repo_root)
+        return None
+    monkeypatch.setattr(research_budget, "agent_wall_limit", policy)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    destination = tmp_path / "sparse"
+    run = runner_module.run_task(_handoff(tmp_path), config=cfg, repo_root=repo,
+        sparse_worktree=destination, backend="anthropic", opener=scripted_opener([
+            anthropic_tool_use("write_file", {"path": "coordination/tasks/TASK-9/report.md",
+                                                "content": "observed"}),
+            anthropic_text("done")]))
+    assert run.completed
+    assert (destination / "coordination/tasks/TASK-9/report.md").read_text() == "observed"
+    assert not (repo / "coordination/tasks/TASK-9/report.md").exists()
+    assert run.workspace["source_repository"] == str(repo)
+    assert run.workspace["history"] == "complete"
+    again = runner_module.run_task(_handoff(tmp_path), config=cfg, repo_root=destination,
+        backend="anthropic", opener=scripted_opener([anthropic_text("checked")]))
+    assert again.completed and again.workspace == run.workspace
+    assert lookups == [repo, repo]
+    changed = _handoff(tmp_path)
+    changed["handoff"]["id"] = "TASK-someone-else"
+    with pytest.raises(ValueError, match="identity or scopes"):
+        runner_module.run_task(changed, config=cfg, repo_root=destination,
+            backend="anthropic", opener=scripted_opener([]))
 
 
 def test_runner_records_denied_writes_rather_than_failing_silently(cfg, tmp_path,

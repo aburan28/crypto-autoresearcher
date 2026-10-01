@@ -1,0 +1,108 @@
+protocol_amendment:
+  id: DEC-20260921-f1d95a
+  experiment_id: EXP-ECDLP-fac9ea
+  version_from: 2
+  version_to: 3
+  recorded_at: '2026-09-21'
+  predecessor_path: experiments/EXP-ECDLP-fac9ea/specification.yaml
+  predecessor_sha256: d7434225ebbaed536057fd0c1f7645fa9ec5df8c91884a67688cd587a06fecd7
+  predecessor_amendments: [DEC-20260921-d3fafb]
+
+  reason: >-
+    Pre-run correction of a normalisation defect discovered during
+    implementation validation, BEFORE any cell has run (registry.json does
+    not exist; no transform has been executed on any statistic). The frozen
+    specification normalises every statistic to L2 norm 1 and defines
+    lambda on log||vhat||_1^*. Three independent checks show this breaks
+    the contract's own gate and control semantics:
+    (1) GATE CONSISTENCY. The two committed gate consumers define their
+    spectral-norm quantity on probability-scaled statistics: f68c7f (E)
+    composes A(v) <= ||vhat||_1 * n^{-1/2+o(1)} with bias quantities of
+    scale 1/M, and states the interval and top-bit families have
+    L = O(log p)^{O(1)} -- true only for v = 1_A/|A| (for an interval of
+    length L0, ||vhat||_1 ~ c*log p), NOT for the L2 normalisation, under
+    which a sharp interval carries ~ sqrt(p)*log p mass and reads
+    lambda ~= 1/2. Under L2, every indicator row in the registry reads
+    lambda >= 1/2, both gate thresholds are cleared trivially, and the
+    gate column is systematically vacuous -- a census that cannot close
+    anything.
+    (2) CONTROL ANALYTIC VALUES. Under probability normalisation the
+    frozen control bands are exactly right: C01 (v = 1/p everywhere)
+    reads lambda = 0 (all nontrivial coefficients vanish); C02 (random
+    set) reads lambda = 1/2 + o(1), the Parseval level for probability-
+    normalised sets (|vhat(k)| ~ |A|^{-1/2}, L1 ~ p*|A|^{-1/2} ~ sqrt(p));
+    interval and AP rows read lambda <= o(1) (polylog L1), matching the
+    idea record's registered predictions. Under L2 none of these hold:
+    measured at p = 4099 and 10139 during validation, the L2 interval
+    row reads L1* ~ sqrt(p)*c*log p (lambda ~ 1/2) and the L2 random-sign
+    row reads L1* ~ c*p (lambda ~ 1). The frozen C02 band (1/2) and the
+    interval prediction would fail mechanically, voiding the census on a
+    known-wrong control.
+    (3) REPRODUCTION TARGET. KN-FIND-ffe1df's committed digit-family
+    measurement (L ~ p^{0.39}) is a probability-scaled quantity (the same
+    record measures interval-family L1 = 7.56*log p at p = 65539); the
+    [0.36, 0.42] reproduction band is only meaningful against a
+    probability-normalised construction.
+    The defect originates in IDEA-20260921-6a29df's minimal_test ("the
+    registry fixes one normalisation (||v||_2 normalised to 1)"), which is
+    internally inconsistent with that same record's registered
+    predictions (interval lambda <= 0.05; random-sign null at 1/2), both
+    of which are correct only under probability normalisation. The
+    hypothesis H-ECDLP-4e1880 assumption clause stating L2 normalisation
+    is superseded PROSPECTIVELY by this amendment; the hypothesis record
+    itself is not edited (corrections supersede, they do not rewrite), and
+    this amendment is the supersession record.
+    No cell has run; no scientific sample, ladder, control role, gate
+    threshold, verdict vocabulary, seed stream, budget, stopping rule, or
+    success/falsification criterion is changed. What changes is the
+    normalisation of the measured quantity, which is the correction that
+    makes the frozen gates, control bands, and reproduction target
+    semantically valid.
+
+  changes:
+    - >-
+      CONVENTION (supersedes the L2 clause): every statistic is
+      probability-normalised: set rows are v = 1_A/|A| on their support A
+      (so vhat(0) = sum v = 1 exactly, a per-cell analytic check that is
+      now logged), and the measured quantity remains the nontrivial L1
+      norm ||vhat||_1^* = sum over k != 0 of |vhat(k)| with lambda fitted
+      on log||vhat||_1^* vs log p.
+    - >-
+      R01/R02: v = 1_A/sqrt-nothing -- restated: v = 1_A/|A| for the
+      interval {0..L-1}, L = p div 8, and the AP {3j mod p : j < L}.
+    - >-
+      R03 (reproduction row) and R03B: the digit-family statistic is the
+      LEVEL INDICATOR of the popcount partition: t* = the most populated
+      popcount level over [0, p), v = 1_{x : popcount(x) = t*}/|A_t*|.
+      R04/R05: the same construction on the base-3 and base-10 digit-sum
+      partitions.
+    - >-
+      R06/R07/R08: v = 1_{gH}/|gH| for the index-3, index-5 cosets and the
+      quadratic residues (x = 0 excluded and logged, as frozen).
+    - >-
+      R09: v = 1_{x : x mod 2^8 = 0}/|A| (the low-bit-mask level set, an
+      AP of difference 256; the frozen centred-mask construction is
+      superseded by the level-set form for the same reason as every other
+      row).
+    - >-
+      C01: v = 1/p everywhere (probability-normalised all-ones); lambda
+      reads 0 exactly as frozen. C02: the random-set control, A = {x :
+      the frozen sign bit is 1} (density ~ 1/2), seed sets A and B as
+      frozen; analytic level lambda = 1/2 + o(1) as frozen.
+    - >-
+      C03 PGL_2 battery: composition v o M unchanged in mechanism; the
+      compared quantities are the probability-normalised lambdas.
+    - >-
+      Curve-restriction variants for R06/R07/R08: v =
+      1_{gH cap x(E)}/|gH cap x(E)|.
+    - >-
+      manifest convention block records: vhat(0) must equal 1 within 1e-9
+      for every ok cell (new free analytic invariant implied by the
+      normalisation, logged per cell), in addition to the frozen
+      per-cell abs_vhat0 logging.
+  execution_scope: >-
+    No additional run, no re-run, no budget change (maximum_runs stays 1):
+    the census has not executed, so version 3 is the contract the single
+    frozen run executes. The implementation and checker implement version
+    3 and cite this amendment and DEC-20260921-d3fafb in their manifests.
+  decided_by: coordinator

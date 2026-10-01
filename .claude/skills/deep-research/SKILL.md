@@ -27,10 +27,9 @@ as symmetric: overclaiming a result, and prematurely closing a promising lead
 changes no hypothesis or goal status, and commits nothing. It is safe to run
 from any worktree, on any branch, at any time — no git hygiene, ID
 pre-allocation, or snapshot/ledger archive is needed, because the output is a
-report handed to the user (or fed into the Coordinator inside
-`/coordinate-research-goal`), never a durable artifact by itself. Acting on a
-shortlist entry still goes through `/propose-ideas`, `/design-experiment`,
-`/run-experiment`, `/curate-knowledge`, or a Coordinator ledger archive,
+report handed to the user or the Coordinator, never a durable artifact by
+itself. Acting on a shortlist entry still goes through `/propose-ideas`, `/design-experiment`,
+`/run`, `/curate-knowledge`, or a Coordinator ledger archive,
 exactly as it would without this skill.
 
 ## Scope
@@ -39,7 +38,7 @@ Take a scope from the user's request, in priority order:
 
 1. An explicit `RQ-*`, `GOAL-*`, or `H-*` — analyze within that boundary.
 2. "the active goal" / current branch context — resolve the same way
-   `/launch-research-harness` step 3 resolves goal selection.
+   the coordination lifecycle resolves goal selection.
 3. No scope given — analyze the whole portfolio. This is the expensive,
    comprehensive mode and is the default for a bare `/deep-research`.
 
@@ -114,8 +113,11 @@ scan. Read broadly before ranking anything:
   no index built (`:memory:` / empty), say so plainly rather than silently
   skipping novelty checks.
 
-Build, in your own working notes (not committed anywhere), a frontier map per
-live target problem in scope: current best internal/external result,
+Start from the committed known-results map for ECDLP
+(`knowledge/frontiers/ecdlp/`, rendered by `python3 tools/build_frontier_map.py`);
+any external result you find that it lacks is a proposed new row for
+`/curate-knowledge`, not a private note. Then build, in your working notes, a
+frontier map per live target problem in scope: current best internal/external result,
 `dominated_by` and `sota_delta` as last honestly recorded (never assume
 `null` without checking — `docs/inventor-protocol.md` §5), and which open
 problems or findings bound it.
@@ -222,8 +224,8 @@ Present, in this order:
    a one-line description, the rubric axes from step 4 that drove its rank,
    its `dominated_by`/`sota_delta` line, and the exact next skill/command to
    run it (`/propose-ideas RQ-...`, `/design-experiment IDEA-...`,
-   `/run-experiment EXP-...`, `/curate-knowledge KN-...`, or "feed to
-   `/coordinate-research-goal` as `next_action` for `GOAL-...`").
+   `/run EXP-...`, `/curate-knowledge KN-...`, or "feed to
+   the Coordinator as `next_action` for `GOAL-...`").
 3. **Red-team objections**, if run, and how each was resolved.
 4. **One explicit top pick** — "if only one thing happens next, it is X,
    because Y" — mirroring the idea-generator's own single-pick convention.
