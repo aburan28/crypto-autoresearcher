@@ -584,8 +584,112 @@ def stage5(ratio_doc: dict) -> None:
         )
         print("Stage 5 skipped (trigger not fired)", flush=True)
         return
-    # If triggered, would run n=19 — not implementing unless trigger fires
-    raise RuntimeError("Stage 5 trigger fired; n=19 census not yet coded in this driver path")
+
+    print("Stage 5: concentration trigger fired — n=19 Koblitz sibling census ...", flush=True)
+    from freeleg import N19_ORDER, generic_zn_census, run_census_n19
+
+    t0 = __import__("time").perf_counter()
+    r = run_census_n19("V", recombination=True, verify_all_combined=True)
+    print(
+        f"  n19 V: T={r.T} full={r.full_relation_count} combined={r.combined_relation_count} "
+        f"pass={r.certificate_pass_rate_combined} ratio={r.residual_collision_rate_ratio} S={r.residual_support_S_fitted}",
+        flush=True,
+    )
+    # matched-size generic replica in Z/(4*130873)
+    g = generic_zn_census(r.window_size, SEEDS[0], modulus=N19_ORDER)
+    print(
+        f"  n19 generic: T={g['T']} combined={g['combined_relation_count']} "
+        f"ratio={g['residual_collision_rate_ratio']} pass={g['certificate_pass_rate_combined']}",
+        flush=True,
+    )
+    cog = (
+        r.combined_relation_count / g["combined_relation_count"]
+        if g["combined_relation_count"]
+        else None
+    )
+    wall = __import__("time").perf_counter() - t0
+    finished = utc_now()
+    cert_ok = r.combined_failed == 0 and r.certificate_pass_rate_combined == 1.0
+    payload = {
+        "experiment_id": "EXP-BINSTD-cedae5",
+        "run_id": RUN_S5,
+        "skipped": False,
+        "trigger_source": ratio_doc,
+        "curve": "y^2 + xy = x^3 + 1",
+        "n": 19,
+        "group_order": N19_ORDER,
+        "window_deg_lt": 10,
+        "census": result_to_metrics(r),
+        "generic_replica": g,
+        "curve_over_generic_ratio_n19": cog,
+        "band": [0.5, 2.0],
+        "inside_band_n19": cog is not None and 0.5 <= cog <= 2.0,
+        "claim_boundary": {
+            "deployed_curve_break_claimed": False,
+            "rho_competitiveness_claimed": False,
+            "gttd_claimed": False,
+        },
+    }
+    dump_yaml(ROOT / "stage5" / "n19-census.yaml", payload)
+    dump_yaml(
+        ROOT / "stage5" / "n19-curve-over-generic.yaml",
+        {
+            "curve_over_generic_ratio_n19": cog,
+            "curve_combined": r.combined_relation_count,
+            "generic_combined": g["combined_relation_count"],
+            "curve_collision_rate_ratio": r.residual_collision_rate_ratio,
+            "generic_collision_rate_ratio": g["residual_collision_rate_ratio"],
+            "inside_band": payload["inside_band_n19"],
+        },
+    )
+    write_run_package(
+        RUN_S5,
+        stage=5,
+        arm="n19_koblitz_sibling",
+        seed=SEEDS[0],
+        command="python3 experiments/EXP-BINSTD-cedae5/implementation/run_all.py --stage 5",
+        parameters={"n": 19, "curve": "y^2+xy=x^3+1", "window_deg_lt": 10},
+        metrics=payload,
+        valid=cert_ok and g["combined_failed"] == 0,
+        invalid_reason=None if cert_ok else "n19 certificate failure",
+        termination_reason="completed",
+        stdout_text=json.dumps(payload, indent=2, default=str) + "\n",
+        started_at=started,
+        finished_at=finished,
+        wall_seconds=wall,
+        certificate={
+            "kind": "decomposition",
+            "verified": cert_ok,
+            "verifier": "freeleg.verify_combined on n=19 Curve + Z/n signed cancel",
+            "artifact": f"experiments/EXP-BINSTD-cedae5/runs/{RUN_S5}/raw-result.json",
+            "combined_verified": r.combined_verified,
+            "combined_failed": r.combined_failed,
+        },
+    )
+    # secondary package for generic arm
+    write_run_package(
+        "RUN-BINSTD-981b8a",
+        stage=5,
+        arm="n19_generic_replica",
+        seed=SEEDS[0],
+        command="python3 experiments/EXP-BINSTD-cedae5/implementation/run_all.py --stage 5",
+        parameters={"group": f"Z/{N19_ORDER}", "window_size": r.window_size},
+        metrics=g,
+        valid=g["combined_failed"] == 0,
+        invalid_reason=None if g["combined_failed"] == 0 else "n19 generic cert fail",
+        termination_reason="completed",
+        stdout_text=json.dumps(g, indent=2, default=str) + "\n",
+        started_at=started,
+        finished_at=finished,
+        wall_seconds=wall,
+        certificate={
+            "kind": "decomposition",
+            "verified": g["combined_failed"] == 0,
+            "verifier": "Z/n signed residual cancel",
+            "artifact": "experiments/EXP-BINSTD-cedae5/runs/RUN-BINSTD-981b8a/raw-result.json",
+        },
+    )
+    print(f"Stage 5 done; curve_over_generic_n19={cog}", flush=True)
 
 
 def main(argv: list[str]) -> int:

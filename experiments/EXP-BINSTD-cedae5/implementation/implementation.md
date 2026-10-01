@@ -24,9 +24,13 @@ that are neither equal nor opposite residuals → measurable failure.
 
 ## Deviations
 
-- None from frozen protocol stages/metrics.
+- Char-2 certificate form documented above (required correctness fix vs a
+  naive four-sum); metrics otherwise follow the frozen protocol.
 - Stage-4 exhaustive verification of all truncated-key matched pairs
   (large C(k,2) count); wall-clock recorded in run package.
+- Stage 5 ran because `curve_over_generic_ratio ≈ 3.13` left `[0.5, 2]`.
+  n=19 Koblitz `y^2+xy=x^3+1`, modulus `t^19+t^5+t^2+t+1`, window
+  `deg(x)<10`, plus matched `Z/(4·130873)` replica.
 
 ## Out of scope
 

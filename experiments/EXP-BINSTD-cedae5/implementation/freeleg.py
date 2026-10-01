@@ -528,3 +528,113 @@ def result_to_metrics(r: CensusResult) -> dict:
         "modeled_T2_over_2S": r.modeled_T2_over_2S,
         **{f"extra_{k}": v for k, v in r.extra.items()},
     }
+
+
+# ---- Stage 5 optional n=19 Koblitz sibling ---------------------------------
+N19 = 19
+MOD19 = (1 << 19) | (1 << 5) | (1 << 2) | (1 << 1) | 1  # t^19+t^5+t^2+t+1
+N19_A = 0
+N19_B = 1
+N19_ORDER = 4 * 130873  # 523492
+N19_WINDOW_DEG = 10  # analogous l ≈ ceil(n/2)
+
+
+def build_n19() -> tuple[TableField, Curve, int]:
+    F = TableField(N19, MOD19)
+    E = Curve(F, N19_A, N19_B)
+    order = E.count_by_trace()
+    if order != N19_ORDER:
+        raise RuntimeError(f"n=19 order {order} != {N19_ORDER}")
+    return F, E, order
+
+
+def enumerate_window_n19(E: Curve, kind: str = "V") -> list[tuple]:
+    pts: list[tuple] = []
+    for x in range(1 << N19_WINDOW_DEG):
+        P = E.lift_x(x)
+        if P is None:
+            continue
+        if kind == "V0" and (x & 1) != 0:
+            continue
+        pts.append(P)
+        Pn = E.neg(P)
+        if Pn != P:
+            pts.append(Pn)
+    seen = set()
+    out = []
+    for P in pts:
+        if P in seen:
+            continue
+        seen.add(P)
+        if kind == "V0" and (P[0] & 1) != 0:
+            continue
+        out.append(P)
+    return out
+
+
+def run_census_n19(
+    window_kind: str = "V",
+    *,
+    hash_key_bits: int | None = None,
+    recombination: bool = True,
+    verify_all_combined: bool = True,
+) -> CensusResult:
+    from runpack import peak_rss_bytes
+
+    F, E, order = build_n19()
+    E_cert = Curve(TableField(N19, MOD19), N19_A, N19_B)
+    window = enumerate_window_n19(E, "V0" if window_kind in ("V0", "V'_0") else "V")
+    attempts, identity, collect_s = collect_attempts(E, window, hash_key_bits=hash_key_bits)
+    # Temporarily patch RC1_ORDER usages inside merge via local N
+    stats = merge_and_certify(
+        E_cert,
+        attempts,
+        window,
+        recombination=recombination,
+        verify_all_combined=verify_all_combined,
+    )
+    # Recompute ratio against n19 order (merge_and_certify uses RC1_ORDER)
+    T = stats["T"]
+    collisions = stats["collision_pair_count"]
+    modeled_2N = (T * T) / (2.0 * order) if T else 0.0
+    ratio = (collisions / modeled_2N) if modeled_2N > 0 else None
+    S_fit = (T * T) / (2.0 * collisions) if collisions else None
+    att_B, att_B_log2 = attempts_to_B_scan(E_cert, attempts, window)
+    return CensusResult(
+        window_kind=f"n19_{window_kind}",
+        window_size=len(window),
+        T=T,
+        identity_sum_pairs=identity,
+        full_relation_count=stats["full_relation_count"],
+        combined_relation_count=stats["combined_relation_count"],
+        combined_verified=stats["combined_verified"],
+        combined_failed=stats["combined_failed"],
+        certificate_pass_rate_combined=stats["certificate_pass_rate_combined"]
+        if stats["certificate_pass_rate_combined"] is not None
+        else (1.0 if stats["combined_relation_count"] == 0 else 0.0),
+        residual_support_S_fitted=S_fit,
+        residual_collision_rate_ratio=ratio,
+        max_residual_multiplicity=stats["max_residual_multiplicity"],
+        residual_value_histogram=stats["residual_key_multiplicity_histogram"],
+        attempts_to_B_relations=att_B,
+        attempts_to_B_relations_log2=att_B_log2,
+        collection_wall_clock_s=collect_s,
+        merge_wall_clock_s=stats["merge_wall_clock_s"],
+        peak_rss_bytes=peak_rss_bytes(),
+        N=order,
+        modeled_T2_over_2N=modeled_2N,
+        modeled_T2_over_2S=(T * T) / (2.0 * S_fit) if S_fit else None,
+        extra={
+            "full_verified": stats["full_verified"],
+            "full_failed": stats["full_failed"],
+            "combined_verified_pairs": stats["combined_verified_pairs"],
+            "distinct_residual_keys": stats["distinct_residual_keys"],
+            "collision_pair_count": collisions,
+            "bucket_size_histogram": stats["bucket_size_histogram"],
+            "hash_key_bits": hash_key_bits,
+            "recombination": recombination,
+            "curve": "y^2+xy=x^3+1",
+            "n": 19,
+            "modulus": hex(MOD19),
+        },
+    )
