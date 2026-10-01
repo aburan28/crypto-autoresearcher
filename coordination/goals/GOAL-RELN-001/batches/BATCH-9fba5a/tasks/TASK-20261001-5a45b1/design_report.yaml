@@ -1,0 +1,267 @@
+task_id: TASK-20261001-5a45b1
+goal_id: GOAL-RELN-001
+batch_id: BATCH-9fba5a
+role: coordinator (design session)
+recorded_at: '2026-10-01'
+deliverables:
+  hypothesis: ledger/hypotheses/H-RELN-940f14.yaml (status specified, parent H-RELN-4d092c)
+  experiment: experiments/EXP-RELN-dc761f/specification.yaml (status review_required, approved_by null, execution_admission false)
+supersedes_design_of: EXP-RELN-c5a377 v4 (stays frozen; successor per DEC-20261001-7fa9f9 NA-1/NA-2)
+scope_statement: >-
+  Design only. No scientific run, no frozen-label draw, no protocol-labelled
+  randomness, no curve arithmetic on protocol labels. The only computation was
+  (a) a label-free exact enumeration of decomposition yields on the nine v4
+  fixtures, to freeze the attempt budgets, and (b) a NON-PROTOCOL synthetic
+  power and proves-too-much check on surrogate graphs seeded from a
+  non-protocol string. No git write was performed.
+
+statistic_choice:
+  primary: >-
+    C34 = C3 + C4, the multiplicity-weighted number of cycles of length 3 and 4
+    on distinct vertices of the LP multigraph (root always present; loops and
+    parallel edges kept). C3 = tr(W^3)/6 and C4 = (tr(W^4) - 2 sum_i s_i^2 +
+    sum_ij W_ij^4)/8 with s_i = sum_j W_ij^2 (specification S-1). Loops and
+    2-cycles are excluded from C34 because they are reported separately.
+  reference: >-
+    Matched-degree configuration-model rewire conditioned on no root-root edge
+    (N-1), R = 999 per cell, one-sided Monte Carlo p-values pooled over the
+    fixture-by-kappa cells with kappa in {1, 2} (S-5).
+  rationale:
+    - >-
+      v4 statistics (cycle rank, giant fraction) are functions of (|E|, |V|,
+      number of components), so any null matched on those quantities makes
+      them uninformative (DEC-20261001-7fa9f9 NA-1, red-team O-1). C34 is not
+      determined by those quantities: graphs with equal |E|, |V| and component
+      count can have very different C34, and C34 is zero on every forest.
+    - >-
+      Short cycles are where a relation-structure bias would show first: two
+      relations sharing two LP classes produce a 2-cycle, and three or four
+      relations closing on shared classes produce C3 or C4. Long cycles are
+      dominated by the giant component and add little beyond degree sequence.
+    - >-
+      Degree-matched rewiring removes the degree-sequence explanation (hub
+      classes near the root create short cycles for degree reasons alone).
+      What remains is clustering beyond degree, which is the quantity
+      H-RELN-940f14 is about.
+    - >-
+      The conditioned null is required. The unconditioned configuration model
+      places root-root edges that the treatment can never contain (a relation
+      cannot have both large primes equal to the root). This biased the null
+      mean low and made the no-enrichment surrogate read about 9% enriched
+      (superseded_unconstrained_null/, H0 pooled ratio median 1.087, p < 0.01
+      in 13% of experiments). Conditioning removes that bias (H0 median 0.99).
+  secondary_readings:
+    - delta_short (loops and 2-cycles against the rewire, report-only)
+    - >-
+      M4 = GF(2) rank of the cycles of length <= 4. By the matroid greedy
+      property this equals the number of Horton minimum-cycle-basis cycles of
+      length <= 4, so the MCB length distribution is reported without an MCB
+      solver.
+    - N-2 Erdos-Renyi simple-graph null, every replicate kept including zero-cycle ones (report-only)
+    - C-SUB certified-subcritical certificate, only where |V| > 40 (report-only)
+  log_base: >-
+    Every logarithm uses L = ceil(q^{1/5}), the smoothness bound B of the
+    fixture (P-1). No other base appears in the protocol.
+
+power_check:
+  label: NON-PROTOCOL
+  script: power_check.py
+  seed: numpy PCG64 from sha256('TASK-20261001-5a45b1|non-protocol|power-check')
+  design: >-
+    For each experiment, every fixture-by-kappa cell (kappa in {1, 2}) gets a
+    surrogate graph with that cell's exact expected edge count (from
+    exact_yield_budgets_out.json) and the lp1 share observed in RUN-RELN-a695fe.
+    The S-5 pooled test and verdict rule run unchanged, with R = 399 rewires
+    (the protocol uses 999, which only sharpens the p-values). 100 experiments
+    per condition.
+  conditions:
+    H0: independent-edge surrogate with no enrichment (the expected treatment law if H-RELN-940f14 is false)
+    CM_pseudo: a draw from the conditioned configuration model used as the treatment (proves-too-much control; the null tested against itself)
+    forest: a spanning forest with the same |V| and components (known-false object; C34 = 0)
+    planted_x: >-
+      H0 graph rewired by degree-preserving, vertex-anchored double-edge swaps
+      that are accepted only when they raise C34, until C34 >= ceil(x * mu_c),
+      where mu_c is that cell's null mean (known-positive object; at most 20000
+      proposals per cell)
+  results_9_fixtures:
+    fixture_set: 9 v4 fixtures (16, 20, 24 bits)
+    output: power_check_out_9fx.json
+    verdicts:
+      H0: {ENRICHED: 0, NULL_MATCHED: 98, INCONCLUSIVE: 2}
+      CM_pseudo: {ENRICHED: 0, NULL_MATCHED: 94, INCONCLUSIVE: 6}
+      forest: {ENRICHED: 0, NULL_MATCHED: 100, INCONCLUSIVE: 0}
+      planted_1.25: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+      planted_1.5: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+      planted_2.0: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+    fraction_p_up_below_0.01: {H0: 0.0, CM_pseudo: 0.0, forest: 0.0, planted_1.25: 1.0, planted_1.5: 1.0, planted_2.0: 1.0}
+    pooled_ratio_median_p05_p95:
+      H0: [0.998, 0.915, 1.084]
+      CM_pseudo: [1.003, 0.910, 1.098]
+      planted_1.25: [1.296, 1.277, 1.328]
+      planted_1.5: [1.540, 1.527, 1.559]
+      planted_2.0: [2.041, 2.025, 2.069]
+    planting_cells_short_of_target: 0
+    wall_seconds: 864
+  results_12_fixtures:
+    fixture_set: 9 v4 fixtures + 3 estimated 28-bit surrogates (n_lp 950 / 1000 / 1100, lp1 share 0.048)
+    output: power_check_out_12fx.json
+    verdicts:
+      H0: {ENRICHED: 0, NULL_MATCHED: 99, INCONCLUSIVE: 1}
+      CM_pseudo: {ENRICHED: 0, NULL_MATCHED: 96, INCONCLUSIVE: 4}
+      forest: {ENRICHED: 0, NULL_MATCHED: 100, INCONCLUSIVE: 0}
+      planted_1.25: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+      planted_1.5: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+      planted_2.0: {ENRICHED: 100, NULL_MATCHED: 0, INCONCLUSIVE: 0}
+    fraction_p_up_below_0.01: {H0: 0.0, CM_pseudo: 0.0, forest: 0.0, planted_1.25: 1.0, planted_1.5: 1.0, planted_2.0: 1.0}
+    pooled_ratio_median_p05_p95:
+      H0: [0.993, 0.938, 1.047]
+      CM_pseudo: [1.001, 0.930, 1.072]
+      planted_1.25: [1.281, 1.272, 1.302]
+      planted_1.5: [1.529, 1.520, 1.540]
+      planted_2.0: [2.029, 2.019, 2.041]
+    planting_cells_short_of_target: 0
+    wall_seconds: 1314
+  noise_calibration: >-
+    The H0 surrogate reproduces the noise level of RUN-RELN-a695fe. Its
+    cycle-rank excess over a rewire null, in the run's delta units, was
+    -0.004 +- 0.051 (9 fixtures) and -0.008 +- 0.058 (12 fixtures), over 40
+    repetitions with 32 rewires each. The run value is 0.033 +- 0.028 (s.e.;
+    TASK-20261001-ece593). The surrogate is therefore no quieter than the real
+    treatment, and the power figures are not inflated by an artificially clean
+    surrogate.
+  rewire_rejection_cost: >-
+    Tries per conditioned replicate: mean 2.34 (9 fixtures) / 2.46 (12
+    fixtures), 99th percentile 20 / 17, maximum 979 / 3528. The protocol cap is
+    therefore 100000 tries per replicate (N-1).
+  unit_check: 200/200 random multigraphs (3-8 vertices, loops and parallel edges); dense and sparse trace formulas match brute-force enumeration
+  certificate_reachability:
+    rule: C-SUB = giant fraction < 0.05 and cycle_rank <= 2 * components_with_cycle, evaluated only where |V| > 40
+    certified_fraction_kappa_quarter: {b20_like: 0.0, b24_like: 0.05, b28_like_estimated: 0.38-0.41}
+    eligible_fraction_kappa_quarter: {b20_like: 0.61, b24_like: 1.0, b28_like_estimated: 1.0}
+    certified_fraction_kappa_half: {b20_like: 0.0, b24_like: 0.0, b28_like_estimated: 0.0}
+    giant_fraction_median_kappa_quarter: {b20_like: 0.17-0.18, b24_like: 0.08, b28_like_estimated: 0.056}
+    sixteen_bit: never eligible (|V| <= 39 at every kappa)
+    reading: >-
+      C-SUB is reachable only at kappa = 1/4, rarely at 24 bits and in roughly
+      two of five cells at 28 bits. That is why C-SUB is report-only and why
+      28-bit fixtures are specified (F-2), behind IMP-1.
+  superseded_attempts:
+    - path: superseded_unconstrained_null/
+      why_superseded: >-
+        The unconditioned configuration-model null allowed root-root edges and
+        biased the null mean low. H0 read ENRICHED 1/100, NULL_MATCHED 58/100,
+        pooled ratio median 1.087, p_up < 0.01 in 13/100. The other rows were
+        unaffected (CM_pseudo and forest never ENRICHED; planted 100%). The
+        12-fixture run was stopped part-way once the bias was diagnosed.
+    - path: superseded_edgepair_planting/
+      why_superseded: >-
+        Planting by random two-edge swaps rarely closes a short cycle in sparse
+        28-bit graphs, because two random edges seldom share a vertex. The
+        9-fixture run was fine (planted ENRICHED 100/100 at each level, but 294
+        cells were short of target). The partial 12-fixture run had planted
+        1.25x ENRICHED in only 32/46 experiments, a planting failure rather than
+        a test failure. Replaced by vertex-anchored proposals (K-POS
+        design_note); the final runs have 0 cells short of target.
+  limits:
+    - >-
+      Surrogates are independent-edge graphs matched on the cell's exact
+      expected edge count and lp1 share. They do not reproduce every
+      correlation of the real generator, which is why the real run carries
+      K-FALSE-2 and K-POS as in-protocol controls.
+    - The 28-bit rows use estimated n_lp and lp1 share because the F-2 fixtures are not derived (IMP-1).
+    - R = 399 in the design check against 999 in the protocol.
+
+fixture_sizes:
+  F-1:
+    fixtures: nine v4 fixtures, b16/b20/b24 x seeds 11/12/13, from experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json (sha256 543f49ca...)
+    why: >-
+      Same curves as RUN-RELN-a695fe, so the successor reads the same
+      treatment graphs with a better statistic, and the yields are already
+      checked (b24-s11 exact edge yield 0.02255 against 0.02252 observed).
+  F-2:
+    fixtures: three 28-bit prime-order curves derived from label 'EXP-RELN-dc761f/v1|curve|28|<seed>|<c>'
+    why: >-
+      Sixteen-bit graphs can never reach the |V| > 40 eligibility for C-SUB, and
+      at 20 and 24 bits it is certified in 0% and 5% of kappa = 1/4 cells. 28
+      bits is the smallest size where C-SUB is reachable in a meaningful share
+      of cells (about 38-41%), and the C34 test keeps full power there.
+    status: not derived; derivation hashes protocol labels, which this design session may not do (IMP-1)
+  exact_budgets: >-
+    exact_yield_budgets.py enumerates all decomposition pairs i <= k over the
+    scan set S without any label, giving exact full / lp1 / lp2 counts and
+    A_kappa = ceil(kappa (n_lp + 1) q / n_edge). Table in specification P-6 and
+    exact_yield_budgets_out.json.
+
+open_choices_made:
+  - L = ceil(q^{1/5}) for every logarithm (P-1)
+  - B = ceil(q^{1/5}) and B2 = ceil(q^{2/5}) via the integer ceiling root (fixtures.iroot_ceil semantics), unchanged from v4
+  - >-
+    Fresh seed namespace 'EXP-RELN-dc761f/v1'. Re-using the v4 namespace would
+    reproduce the already-analysed v4 draws.
+  - uniform() rejects on the 256-bit digest and re-hashes with a '|rej<r>' suffix; digest bytes read big-endian (seed_rules)
+  - Decomposition choice: first decomposition in (x, y) scan order, as in v4 (G-rules; OQ rulings inline)
+  - Null N-1 conditioned on no root-root edge, with '|try<r>' suffixes for rejection
+  - ER null N-2 uses m_s = number of distinct non-loop vertex pairs and keeps every replicate, including zero-cycle ones
+  - Pooled over kappa in {1, 2}; kappa in {1/4, 1/2} feed C-SUB and the descriptive table only
+  - >-
+    Thresholds: ENRICHED needs p_up < 0.01 and r >= 1.25. NULL_MATCHED needs
+    p_up >= 0.05 and r_up < 1.25. DEPLETED needs p_lo < 0.01. Anything else is
+    INCONCLUSIVE.
+  - K-POS plants to ceil(1.5 mu_c) by vertex-anchored C34-increasing swaps with a 20000-proposal cap
+  - Every open-question ruling (OQ-1..OQ-29 and rederivation U-1..U-13) is inlined in specification open_question_rulings
+
+runtime_and_memory_per_cell:
+  basis: >-
+    RUN-RELN-a695fe timing (about 5.5e5 group operations per second, 24-bit
+    cells 22-32 s at the v4 budget) scaled to the exact A_kappa, plus the
+    measured cost of the design-check rewires.
+  generation_at_kappa_2: {b16: ~0.3 s, b20: ~4 s, b24: 38-62 s, b28: ~12 min per fixture (estimated)}
+  nulls: >-
+    999 conditioned rewires plus 999 ER replicates per cell. Seconds at 16-24
+    bits; about 1-2 min per 28-bit fixture.
+  whole_run_estimate: about 60-75 min single worker with F-2; about 10 min for F-1 alone
+  peak_memory: < 1 GB estimated (sparse C34; the largest 28-bit graph has about 2200 edges); the budget limit is 4 GB
+  advisory: true (research budget policy; estimates do not gate the run)
+
+impediments:
+  - id: IMP-1
+    what_is_blocked: derivation of the three F-2 28-bit fixtures
+    why: deriving them hashes protocol-labelled strings, which the design session's hard constraints forbid
+    clears_when: an approved fixture-derivation task (or the executor under the approved contract) derives and records the F-2 curves with their sha256
+    recheck: specification inputs.F-2.status reads derived and the fixture file hash is recorded
+    fallback: >-
+      If F-2 cannot be derived, run F-1 alone. The C34 verdict keeps its design
+      power (9-fixture check: planted 1.25x ENRICHED 100/100, H0 NULL_MATCHED
+      98/100), and C-SUB is reported as nearly unreachable (5% at 24 bits).
+    asserts_nothing_about: the science
+
+validation:
+  parse: both records parse with yaml.safe_load
+  validate_ledger: see validator_status below
+
+validator_status:
+  command: python3 tools/validate_ledger.py 2>&1 | rg 'H-RELN-940f14|EXP-RELN-dc761f'
+  result: no lines match (0 errors on either record)
+  overall_exit: 1, with 5300 output lines, all pre-existing sparse-checkout artifacts (files absent from this worktree); none name these records
+
+files_written:
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/exact_yield_budgets.py, sha256: c5f9f6c2b2ebc5062fe7afd64b79cf4f9915175b7515489066756b3bf2bf4de3}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/exact_yield_budgets.time, sha256: ce0baec8d206e579cb4e785d0e49b2af4ff4b4ef3b31e790bc12cd33f0a8a4db}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/exact_yield_budgets_out.json, sha256: 4c9a762d7d64e7d1921a8996bcc857c008648c10fa91f97da436644e66089b3a}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/exact_yield_budgets_stdout.log, sha256: cbba59c906e0198bd07c6551b6a3ce5ab8ef2df85d9e13f6e3b0b2e028b6948d}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/power_check.py, sha256: b27cd4846b678280f8d665b3843bef2f0710027cf81f6e117960be1ec64e6dc4}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/power_check_12fx_stdout.log, sha256: faf07bffa88f69666e6704f08bb8ec2517f588102cbacdc411a591c545ef0f56}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/power_check_9fx_stdout.log, sha256: a18dc5b02a246a71e1c8e21262b21ca4db518be612200283974211ad271bcd94}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/power_check_out_12fx.json, sha256: e9112ef59801bce5a6beb28db3f3e1323081990ccf3db6615c53f8dc743d0bae}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/power_check_out_9fx.json, sha256: b016bf0ae2af298cb9c84c472bc8eb4199904fa44d164092479b8a115e482d27}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_edgepair_planting/power_check_12fx_edgepair_planting_partial_killed_stdout.log, sha256: 62c0794b470be6619747a2aa0a174b13881a50c10e13cf3c70cde03926261c0f}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_edgepair_planting/power_check_9fx_edgepair_planting_stdout.log, sha256: cc77cb8b9043abfcfe2c9e515bd8c26f69466e83223f3227d45aa0094444f568}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_edgepair_planting/power_check_edgepair_planting.py, sha256: f82cbb17548c2154d50546993d28d0e9d7435432f489a21e4a3b19ca3ca353a2}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_edgepair_planting/power_check_out_9fx_edgepair_planting.json, sha256: 02b9f2957c4a8f05669b58a0eddfefff89d39a336e6b32be5ed0de278036a21d}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_unconstrained_null/power_check_12fx_unconstrained_partial_killed_stdout.log, sha256: 4d654463356cd9f141071005b9d72df8eef48e686f3f152b1829b3b25e0aa0da}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_unconstrained_null/power_check_9fx_unconstrained_stdout.log, sha256: 6ccd0482784d2a495f75abb01f17fdff9d5e6cecc0425abf5d0cab866bb90c27}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_unconstrained_null/power_check_out_9fx_unconstrained.json, sha256: 29bfd93fdc66123d5f462138d22610d28fce830ce30c97101849560933777c4d}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/superseded_unconstrained_null/power_check_unconstrained.py, sha256: 2cb33e890211a18938a5ad7d32790d276d0bdfbffaac3704fa61f87dd12e5954}
+  - {path: experiments/EXP-RELN-dc761f/specification.yaml, sha256: a9bbabef868bc1393d22948ea7ae8324a04bf02ea0e449bf55261bdf09cb1004}
+  - {path: ledger/hypotheses/H-RELN-940f14.yaml, sha256: 2145f9720c21ced74fe87130e53620e3d3326ba5036e2f9ddc83482aa490bc3e}
+  - {path: coordination/goals/GOAL-RELN-001/batches/BATCH-9fba5a/tasks/TASK-20261001-5a45b1/design_report.yaml, sha256: not self-recordable (this file)}

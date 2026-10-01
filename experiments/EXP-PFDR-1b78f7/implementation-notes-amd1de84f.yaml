@@ -1,0 +1,203 @@
+implementation_notes_amendment:
+  experiment_id: EXP-PFDR-1b78f7
+  protocol_version: 2 (specification.yaml v1, frozen, + AMD-20260929-1de84f)
+  amendment_id: AMD-20260929-1de84f
+  approval_decisions: [DEC-20260928-ab2d31, DEC-20260929-523aab]
+  task_id: TASK-20260929-f90fed
+  continues_task: TASK-20260928-51b8c8
+  base_commit: 3d91cd302918c20bf53e39a74345a8e690a71618
+  frozen_reference_commit: 1a037688c (TASK-20260928-f15632 archive; git show bytes equal the implementation-notes.yaml pins, function-diff.json frozen_reference_integrity)
+  implementation_commit: >-
+    None. Uncommitted working tree on base 3d91cd302 (the card forbids
+    commits); every run manifest pins each executed source file by sha256.
+    The Coordinator archive TASK-20260929-599b4b makes it a commit.
+
+  # ---------------------------------------------------------------------------
+  analysis_pin_C7:
+    file: experiments/EXP-PFDR-1b78f7/analyze_census.py
+    sha256: c40ea02fb10097643a67fc069e054b0adfb52cba8dbe8303fc02423dbae46794
+    frozen_sha256_at_1a037688c: a1f55e5bd4511d83aee2b19236db2c7451cc7c9d6c8951d267d4f66ee5794043
+    recorded_at: '2026-09-29T04:06:33Z'
+    recorded_before: R10 (RUN-PFDR-1b78f7-census-m3), which had not been launched when this pin was written
+    exercised_before_R15_on: >-
+      Synthetic fixtures only: every row, staircase record, regression report,
+      raw-result and Stage 0 fits file of the fixture was generated from
+      random.Random(12345) by a scratch generator
+      (scratchpad/f90fed/fixture/make_fixture.py, outside the repository;
+      no solver ran, no panel row, no archived run file and no Stage 0 file
+      was read). Planted cases: unmatched_size at (m 5, 14 bits, curve 4,
+      subgroup, |F| = 1) with a C-3 failed_infrastructure census row, a
+      watchdog failed_infrastructure random arm, a censored structured arm,
+      and a Stage R directory. The script ran to completion on the full
+      synthetic panel and on --stage-r, and each planted case appeared in
+      excluded_instances, incomplete_cells, A4 excluded_instances and
+      A6 excluded_instances as specified.
+    later_edits: none
+
+  # ---------------------------------------------------------------------------
+  contract_map:
+    C-1:
+      resolves: AMB-1
+      files_and_functions:
+        - "src/crypto_autoresearcher/index_calculus/curve.py: generate_prime_order_curve_j0(bits, seed=0, p_filter=None, max_prime_draws=100_000, *, exclude_primes=(), generation_log=None) -- the C-1 `algorithm` verbatim: cumulative draw counter over the whole prime selection with the stated ValueError text; (a) frozen draw on the same rng; (b) duplicate_prime skip; (c) no_prime_order_twist skip via the helper (no draw of rng); (d) the frozen b-loop unchanged; generation_log receives {p, reason} per skipped prime in draw order and finally {prime_draws, p, b}"
+        - "src/crypto_autoresearcher/index_calculus/curve.py: _j0_has_prime_order_twist(p, bits, seed) (new) -- g = primitive_root(p); trng = _seeded_rng('crypto_autoresearcher.index_calculus.curve.j0.twistcheck', bits, seed, p); i = 0..5 in order, E = Curve(p, 0, g^i), one point from trng, the frozen certification (one BSGS hit, m != p, m > 4 isqrt(p) + 4, m prime)"
+        - "src/crypto_autoresearcher/index_calculus/__main__.py: _j0_exclude_primes(bits, curve_seed, p_filter) (new helper, called only from _instance_j0) -- exclusion_set_rule: primes selected by the amended generator for c' = 0..c-1 at the same bits and filter, in that order, recomputed from c' = 0 in every job"
+        - "src/crypto_autoresearcher/index_calculus/__main__.py: _instance_j0(bits, curve_seed, target_seed=0, p_filter=None, generation_log=None) -- passes exclude_primes and generation_log; target log unchanged (C-5)"
+        - "src/crypto_autoresearcher/index_calculus/__main__.py: _census_job -- the j0 branch passes a fresh generation log and merges j0_generation into the curve fields, so every j0-panel row (census, on, rho and a G6 lambda-failure row) carries exactly one new key, j0_generation"
+      generate_prime_order_curve: not modified (E-2)
+    C-2:
+      files: experiments/EXP-PFDR-1b78f7/amd-1de84f/function_diff.py (no engine import; frozen bytes by `git show 1a037688c:<path>`), source.diff, function-diff.json
+      result: E-1, E-2, E-3, E-4 pass (function-diff.json all_pass true); E-5 = R01a completed_valid
+      e4_instrument_control: the same graph from cmd_census reaches all six changed or added units, so the empty sweep intersection is not vacuous
+    C-3:
+      file: src/crypto_autoresearcher/index_calculus/__main__.py
+      function: _census_instance
+      rule: >-
+        After the unchanged gate check (G4/G5/G6/G7 failure -> invalid, stops
+        the run), an instance with not ok, harvest.terminated_by ==
+        "attempt_limit" and ic.k None is failed_infrastructure with
+        status_reason "attempt_limit_without_k (AMD-20260929-1de84f C-3)" and
+        stop_run False; the row keeps every solver column and the harvest
+        block. Every other invalid case is unchanged. _census_job's later
+        formal-rank gate check still turns such a row invalid on failure.
+        known_log with random_sub_r0 not completed_valid stays
+        failed_infrastructure (cap unavailable), unchanged (C-8 D-7).
+    C-4:
+      file: experiments/EXP-PFDR-1b78f7/analyze_census.py
+      functions:
+        - "unmatched_size(idx, m, bits, j, A) (new): structured arm A's fb_size vs its matched random arms' fb_size (either mode), whatever the statuses"
+        - "kappa_cell: a curve with unmatched_size is dropped for A and R(A) (rule unmatched_size); every curves_dropped entry now carries a rule (missing | failed_infrastructure | invalid | censored | unmatched_size)"
+        - "analyze: UM set of unmatched (m, bits, curve, arm); excluded from A3 (per-instance rho and the H3 permutation staircases, which now also require a usable census row), A4 (medians and exponent fits; every group's fit record carries fit_uses and excluded_instances with reasons) and A7 (counted as excluded_unmatched_size)"
+        - "A6: failed_infrastructure (and invalid) random-arm instances excluded as before and now listed per (class, m) as excluded_instances"
+        - "analysis.json: excluded_instances (one entry per excluded (panel, bits, curve, m, arm, mode) with status, status_reason, rule, rules, excluded_from), incomplete_cells (every A1 cell with fewer than five curves, curves used, kept and dropped), unmatched_size_instances"
+        - "raw-result.json: excluded_instances_count, excluded_instances_by_rule, incomplete_cells_count, unmatched_size_instances"
+    C-5:
+      text: target log k = Random(f"target|{bits}|{c}|0").randrange(1, N), Q = k P -- as implemented in _instance_j0 before this task; unchanged
+    C-6:
+      file: experiments/EXP-PFDR-1b78f7/analyze_census.py
+      implementation: >-
+        harvest.py (byte-unchanged) already computes poisson_mean as
+        C(E'_t,2)*2/N, E'_t*|F|*2/N and C(X'_s,2)*2/N (at_A_fix and at_stop).
+        A6 reads mu from the harvest block (unchanged); analysis.json gains
+        A6_poisson_mean_source (the C-6 text) and a conformance check that
+        recomputes every mu A6 uses from the block's own counts
+        (table.formally_distinct_tails, fb_size, SS at_A_fix
+        formally_distinct_encodings, N) and reports mismatches.
+    C-7:
+      implementation: analysis_pin_C7 above; analyze_census.py writes analysis_script_sha256 (its own sha256) into analysis.json and raw-result.json
+    C-8:
+      D-2_implementation: >-
+        _census_instance: a MemoryError is failed_infrastructure with
+        status_reason prefixed "address-space cap:" and the row gains
+        ru_maxrss_bytes (the worker's ru_maxrss at the stop). Required by
+        D-2 and by the card's MACHINE PROTECTION constraint ("record
+        ru_maxrss on any MemoryError"); a watchdog expiry is unchanged.
+      D-1_D-4: the census commands pass no --instance-watchdog, so the 7200 s default is in force for R10-R14 (recorded in each manifest)
+
+  # ---------------------------------------------------------------------------
+  analysis_G3_reading_v2: >-
+    gates() in analyze_census.py reads G3 from both R01 (RUN-PFDR-1b78f7-tests,
+    frozen build) and R01a (RUN-PFDR-1b78f7-tests-amd1de84f, amended build,
+    C-2 E-5) and passes only if both pass. Version 1 read R01 only; under
+    protocol v2 the build that runs R10-R14 is checked by R01a.
+
+  tests:
+    added:
+      - "T1 test_j0_twist_check_agrees_with_exhaustive_point_counts_at_12_bits -- every prime selected or skipped at 12 bits in the j0 panel: #E of all six twists by the Legendre-symbol sum over every x (no BSGS); the helper equals the exhaustive verdict for seed 0 and for the drawing curve's seed; a twist-free prime is met"
+      - "T2 test_j0_amended_generator_terminates_on_all_35_cells -- bits 12..24 step 2, c = 0..4, j0_filter, exclusion rule: a == 0, p % 3 == 1, filter, bit length, p not excluded, N prime, N != p, N > 4 isqrt(p) + 4, N in the Hasse interval, N P = O and N R = O for an independent point, five distinct primes per rung, log format; _instance_j0 (exclusion recomputed from c' = 0) gives the same curve and log and k P = Q"
+      - "T3 test_j0_amended_generator_equals_frozen_where_the_first_prime_survives -- inline copies of the frozen prime draw and b-loop; wherever the frozen first prime is neither excluded nor twist-free, (p, a, b, N, P) equal; elsewhere the first log entry is that prime with a skip reason"
+      - "T4 test_j0_generator_lambda_and_formal_basis -- the existing test, unedited, passes"
+    existing_tests_edited: none (no expected value changed under C-1)
+    fp_tests: tests/test_index_calculus_fp.py unedited (sha256 268b153d9c02fa124ebea975e18a9efc13c843a5cfe5969026c68759bbe7c487)
+
+  # ---------------------------------------------------------------------------
+  sha256_frozen_vs_amended:
+    changed:
+      src/crypto_autoresearcher/index_calculus/curve.py:
+        frozen: 1c36e5371b9415eed35e60b6ee51dc87f99ec165d8eb22018166a1481421dda3
+        amended: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+      src/crypto_autoresearcher/index_calculus/__main__.py:
+        frozen: 515c2f354bf9cd672399fd81665a37d812fd9533a0c012738efa856f853e589b
+        amended: b9211a81b4476dcd482197bdd3c2d377c3e8ecbaab21ce0b1008a1e32b30d293
+      tests/test_index_calculus_harvest.py:
+        frozen: 4943d15aab8a13eefabfef1fa48b5a8a23e122c62a5e7a2ac2998b7466de3fb3
+        amended: 4668ffafa6392f70c25676c41d48f56edc7539cfe5f86deff51de22b4682e8a1
+      experiments/EXP-PFDR-1b78f7/analyze_census.py:
+        frozen: a1f55e5bd4511d83aee2b19236db2c7451cc7c9d6c8951d267d4f66ee5794043
+        amended: c40ea02fb10097643a67fc069e054b0adfb52cba8dbe8303fc02423dbae46794
+    byte_identical_to_frozen_pin:
+      note: E-1 in function-diff.json lists each file's pin and amended sha256 (22 files, all identical)
+      src/crypto_autoresearcher/index_calculus/factor_base.py: 8d3f48d2d9ee10692a748dc4b6d5078f47ed8038fb8fad54fd656c5588396781
+      src/crypto_autoresearcher/index_calculus/tails.py: 4316aa7563728d91ff620c0f0145a5fded3bd3b538510e81e5d6bb050e67c188
+      src/crypto_autoresearcher/index_calculus/decompose.py: 523e17b9ec5318302b3a7f67ccb9b46aecfaebc26c9a7612717eaa008166802b
+      src/crypto_autoresearcher/index_calculus/solver.py: 1ca158f404e5f27db3b8f78ba15a48b0910f6af2c9490fe1687b0da36031db07
+      src/crypto_autoresearcher/index_calculus/harvest.py: 74f85c2373692996d4899e4d215d432d8911509593809783e8b19046c83b5372
+      src/crypto_autoresearcher/index_calculus/linalg.py: d186d65c84d134df1fb9263995909f974b103d2f99c46b31ee06f2ae2139e7b4
+      src/crypto_autoresearcher/index_calculus/_accel.py: 84b1ac45865791f1a3cd8eb86c15c89ea6fbbfc89318b9e93e8632e1e3e8aefb
+      src/crypto_autoresearcher/index_calculus/rho.py: b3a4cc3c67d9c32235ae9abb7ac8e96742ee79d1ac35df9d0b142fa624fde7c3
+      src/crypto_autoresearcher/index_calculus/semaev.py: 9eaa6ae4ea8626a92d8e28a19448e7d24841915d3d2b5dc2488b49cee3a08cc4
+      src/crypto_autoresearcher/index_calculus/msolve.py: 9bf69444642828c821cd2170fb83cd86b3f7ecaba0f207b1544fcbb422773e72
+      src/crypto_autoresearcher/index_calculus/polyfp.py: da750e19263aa5efbdb71ab9b7932dee5b21daf12d2a544437a2f7d74f70a743
+      src/crypto_autoresearcher/index_calculus/stats.py: 0f23c26f83742fb91920956178f182cd7a619423caead44e5e4dc399ae384cef
+      src/crypto_autoresearcher/index_calculus/README.md: 01fdffe4b594d16abd7f73c0b2d7ee3c8898cfb2f6f3a0515f7387af217993b4
+      src/crypto_autoresearcher/index_calculus/__init__.py: 1621dd80d60f183c39b371e0114c3d5e9d857999c38fb9b4b79340c239d432d2
+      tests/test_index_calculus_fp.py: 268b153d9c02fa124ebea975e18a9efc13c843a5cfe5969026c68759bbe7c487
+      src/crypto_autoresearcher/index_calculus/results/engines-20260924.jsonl.gz: 85e7d1cb6e6e7ddde52fa4d819b6b08e311e0bb9fb540572f6629842cdecb521
+      src/crypto_autoresearcher/index_calculus/results/sweep-20260924.jsonl.gz: 57cf3f72f0b0e4f166a93f2204c3f039e9470f067774063fc2ec34582f8de6ca
+      src/crypto_autoresearcher/index_calculus/results/sweep-arity-20260926.jsonl.gz: e1e3cf0f3509ff098162e16e8eb3014d7059ad4f2a6d9835237691dc0a1479b2
+      src/crypto_autoresearcher/index_calculus/results/sweep-arity-minfill-20260926.jsonl.gz: a0fd55609a86a3d7f6aac7efd2b2f875a7dca0c0911f46728da63947ff9f041f
+      src/crypto_autoresearcher/index_calculus/results/sweep-arity67-20260928.jsonl.gz: a1dd28f57d35e632b81256ad46e97e8cdc208a594d5b76bd81e2b7688ef724d5
+      src/crypto_autoresearcher/index_calculus/results/sweep-minfill-20260926.jsonl.gz: fbf2e63698698841b0831159fc497dde834c166e2423c218722f4fd128c5d7c5
+      src/crypto_autoresearcher/index_calculus/results/sweep-mitm-20260926.jsonl.gz: 5f3474158b2dc6dc866f5588ea19e4fec349a7fa178336c49cd172c8a9539931
+      experiments/EXP-PFDR-1b78f7/compare_regression.py: fd0a3d973a48056c8dd84a938e0ac756d40b12b02917716ff0bb7028305e9dad
+    new_files_of_this_task:
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/function_diff.py: 2395c634ba4252048aec403eb1818015d63d0cbc538a66128616ae424c53b082
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py: 0be59f9f23b6b47254426d96999a90ea6e2e95bd3a2253b894f482106671920a
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/summarize_run.py: 68165e094c51f90c2aafd4e51510f414622b53b2145a0af6c279c32af93f5e68 (was 247a9ae9ecae48d22cb4d3a1b1df1699d4f997d58ba6a59c549031f66b89374d until the DEV-4 fix; see deviations)
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/function-diff.json: a3192738d0866c3752870851ad97a0e9a610acdb1fb459d9198c43f10f2b6550
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/source.diff: 6c4c73b90e48374aad8213818a99c3364973dd4349d8a1d67ab4d93934ce7ab7
+    wrapper_note: >-
+      run_wrapper.py is the archived wrapper of TASK-20260928-51b8c8
+      (runs/RUN-PFDR-1b78f7-tests/run_wrapper.py, read as an archived run
+      artifact, not scratch) with the task id, a protocol block, the inference
+      block of the launch facts, three more pinned files and the amd-1de84f
+      directory in the porcelain scope. summarize_run.py is new: counts,
+      statuses and gates only (no kappa, rank ratio, harvest ratio, exponent
+      or floor ratio).
+
+  deviations_from_the_card_or_amendment:
+    - id: DEV-1
+      item: D-2 ru_maxrss recording in _census_instance
+      text: >-
+        The card's CODE CHANGES list for __main__.py names C-1 and C-3 only;
+        AMD-20260929-1de84f C-8 D-2 ("the row records the instance's ru_maxrss
+        and labels the stop 'address-space cap'") and the card's MACHINE
+        PROTECTION constraint ("record ru_maxrss on any MemoryError") require
+        a row-level record the frozen code did not make. Implemented inside
+        _census_instance only (an E-3-allowed function); E-3 passes. Recorded
+        here as a deviation from the card's enumeration, not from protocol v2.
+    - id: DEV-2
+      item: analyze_census.py G3 reading
+      text: >-
+        G3 now requires both R01 and R01a raw-result G3_pass (see
+        analysis_G3_reading_v2). Not in the card's C-4/C-6 list; follows from
+        C-2 E-5, which makes R01a the G3 check of the amended build.
+    - id: DEV-3
+      item: analyze_census.py A3 permutation staircases restricted to usable census instances
+      text: >-
+        Version 1's code read every census-mode staircase record; the C-4
+        exclusion of failed_infrastructure and unmatched_size instances from
+        A3 is applied to the H3 permutation-stability tally as well.
+    - id: DEV-4
+      item: summarize_run.py corrected after R11 execution (post-processing only; no engine or analysis file)
+      text: >-
+        Its main-panel prime-coincidence listing treated job-crash rows
+        (which carry no p) as five curves sharing p = None. Fixed to skip rows
+        without p; sha256 247a9ae9ecae48d22cb4d3a1b1df1699d4f997d58ba6a59c549031f66b89374d
+        -> 68165e094c51f90c2aafd4e51510f414622b53b2145a0af6c279c32af93f5e68.
+        R10's raw-result.json (old version) is unaffected (no p-less rows;
+        its coincidence list is empty under both versions). R11's
+        raw-result.json is the corrected output; both invocations are in its
+        post-processing.json. analyze_census.py is untouched (pin unchanged).
+  engineering_record:
+    - "Development checks before R01a, in this session: pytest of the two test files (108 passed, 9 skipped), the synthetic-fixture exercise of analyze_census.py and summarize_run.py described above, and the certificate script. No solver was run on any panel cell or on any other curve outside the unit tests."
