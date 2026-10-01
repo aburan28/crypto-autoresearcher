@@ -58,7 +58,16 @@ promote it.
    Before curating, merge `origin/main` into the working branch (merge,
    never rebase) so the entry and index are built against current knowledge —
    see "Branch and PR hygiene" below.
-2. Pick the next free ID in that class (grep existing files).
+2. Mint the ID; never grep for "the next free number" (CLAUDE.md
+   Conventions): `python3 tools/allocate_id.py --next literature` (or
+   `technique`, `internal_finding`, `open_problem`), then `--check` the
+   emitted `KN-*-<tok>` before writing. Before minting a `KN-LIT`, check the
+   paper is not already there by identifier (`grep -n "<eprint-or-arxiv-id>"
+   knowledge/SOURCES.md`) and by title words; an existing bulk stub is
+   upgraded by a NEW entry that the stub's `superseded_by` points to.
+   A literature entry that establishes a claim agents keep re-deriving also
+   earns a known-result row in `knowledge/frontiers/ecdlp/` (see that
+   directory's README) -- the row, not the paper note, is what ideation reads.
 3. Write the entry using the frontmatter schema from `knowledge/README.md`
    (id, type, title, tags, confidence, source/citation or internal refs,
    added date, superseded_by).

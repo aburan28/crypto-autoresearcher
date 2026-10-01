@@ -1,0 +1,412 @@
+# =============================================================================
+# H-CERTBIN-b20d4e -- Regime contrast at matched l (Stage 2 of
+# IDEA-20260923-5d0b8e): is the per-attempt Macaulay trace stable when the
+# system stays over F_{2^n} (regime B), unlike regime A, and does the regime-B
+# computation actually decide the attempt at the degree where it is measured?
+#
+# Tested by EXP-CERTBIN-a58c63. Designed under DEC-20260923-f25b97 NA-2;
+# approved by DEC-20260924-8e2f47.
+#
+# PRE-COMPUTE AUDIT FINDING CARRIED HERE (KN-TECH-080 method ceiling): at the
+# requested cell (l = 6, D = 2^l + 2 = 66), the regime-B Macaulay row space
+# contains 1 for an unsatisfiable target only if the reduced interpolant of
+# 1/S_3 on V x V has total degree <= 62, which is generically false (Lemma B-S
+# below). So that cell's elimination does not decide the attempt, and its
+# trace stability cannot bear on P-GPU by itself. The design therefore keeps
+# the requested l = 6 cell unchanged and adds the l = 5 cells, where the same
+# D = 66 equals 2^{l+1} + 2 and the elimination provably decides every attempt.
+#
+# ID PROVENANCE (disclosed): minted WITHOUT A SHELL (random 6-hex token, grep
+# checked only). TASK-20260924-d3a90c runs allocate_id.py --check first.
+# =============================================================================
+hypothesis:
+  id: H-CERTBIN-b20d4e
+  question_id: RQ-CERTBIN-836ce2
+  question_ids: [RQ-CERTBIN-836ce2, RQ-ICPERF-94c86e]
+  proposal_id: IDEA-20260923-5d0b8e
+  proposal_stage: 2
+  source_decision: DEC-20260923-f25b97 (NA-2)
+  secondary_hypothesis_ids: [H-CERTBIN-7c3a18]
+  secondary_hypothesis_note: >-
+    The regime-A arm of EXP-CERTBIN-a58c63 tests H-CERTBIN-7c3a18 (full hull
+    rank, TS1R) at l in {5, 6}. This record carries the regime-B claims and
+    the contrast.
+  goal_ids: []
+  goal_ids_note: No goal head is attached or edited (DEC-20260922-61cdc1 NA-2 pending).
+  designed_by: coordinator
+  proposed_by: idea-generator
+  recorded_at: '2026-09-24'
+
+  statement: >-
+    CEILING FIRST. Constant factor at most; no exponent moves. P-GPU is the
+    premise that a per-attempt Macaulay elimination trace can be learned once
+    and replayed branch-free across relation attempts. Even if it held
+    completely in regime B, per attempt at m = 2 oracle A (2^l root-findings:
+    32 at l = 5, 64 at l = 6) decides satisfiability and returns the
+    solutions far more cheaply than a 2028 x 2278 or 3276 x 2278 elimination
+    over F_{2^n}, and parallel Pollard rho dominates the whole DLP. sota_delta
+    is zero. This is a go/no-go on a GPU design premise, not a cost claim.
+
+    Setting. m = 2, V = {deg < l} (polynomial basis) in F_{2^n}, n in {17, 19},
+    l in {5, 6}. Regime A: the Weil-descended Boolean system (n quadratics in
+    2l variables), Macaulay D in {3, 4}. Regime B: unknowns x_1, x_2 over
+    F_{2^n}, generators g_0 = S_3(x_1, x_2, x_R) = x_1^2 x_2^2 + x_R^2 x_1^2 +
+    x_R^2 x_2^2 + x_R x_1 x_2 + B, g_1 = L_V(x_1), g_2 = L_V(x_2), with
+    L_V(X) = prod_{v in V} (X - v), a separable linearized polynomial of
+    degree 2^l. The regime-B Macaulay matrix M_D has rows mu*g_0
+    (deg mu <= D - 4) and nu*g_i (deg nu <= D - 2^l), columns the monomials
+    of degree <= D. D = 66 at every cell (= 2^l + 2 at l = 6, = 2^{l+1} + 2
+    at l = 5). Both regimes run on identical target bytes x_R.
+
+    Claim, in four parts.
+    (C1, exact; Lemma B-S; an instrument check here.) In regime B:
+    (a) R_D lies in I = (g_0, g_1, g_2);
+    (b) for an unsatisfiable target, 1 is in R_D iff D >= delta(x_R) + 4,
+        where delta(x_R) is the total degree of the reduced representative
+        (exponents < 2^l) of the function 1/S_3(., ., x_R) on V x V;
+    (c) for D >= 2^{l+1} + 2, R_D = I_{<=D}, so the elimination decides every
+        attempt: rank_D = C_D for unsatisfiable targets and C_D - s for a
+        target with s solutions in V x V;
+    (d) at l = 6, D = 66, for an unsatisfiable target the 2028 rows are
+        linearly independent (rank 2028), and 1 is in R_66 iff delta <= 62.
+    (C2, the hypothesis under test; HEUR-CERTBIN-TS2B.) In regime B the
+    reference's pivot schedule is broken only by targets x_R that are roots
+    of its leading minors, and these behave like random polynomials over
+    F_{2^n} (about one root each). So whole-trace T_strict retention of
+    unsatisfiable targets against an unsatisfiable reference is at least 0.9
+    at every tested (n, l), with the per-reference break count consistent
+    with Poisson(N * K_B / 2^n).
+    (C3, E3 localisation, at the deciding cells l = 5.) A satisfiable target
+    diverges from an unsatisfiable reference's T_strict exactly at its own
+    first non-pivot column (a standard monomial of its solution set), and not
+    before, for at least 95% of the satisfiable arm.
+    (C4, contrast and consequence.) At matched (n, l) on identical target
+    bytes, regime A (D = 4) has unsat T_strict retention below 0.5 and regime
+    B at least 0.9. P-GPU (strict replay) SURVIVES in regime B at a cell iff
+    that cell's regime-B elimination decides the attempt (C1(c): the l = 5
+    cells), C2 holds there, and C3 holds there. At l = 6, D = 66 a stability
+    verdict alone does not bear on P-GPU (C1(d)).
+
+  mechanism: >-
+    LEMMA B-S (regime-B Macaulay closure; derived by the Coordinator for this
+    record; the review round must check it).
+    Let A_V = F[x_1, x_2]/(L_V(x_1), L_V(x_2)). Because L_V is separable with
+    root set V, A_V is isomorphic to the functions on V x V, and every
+    function has a unique reduced representative with both exponents
+    < 2^l. Division by {L_V(x_1), L_V(x_2)} (a Groebner basis for any order,
+    since the leading monomials x_1^{2^l} and x_2^{2^l} are coprime) never
+    raises degree. Hence the reduced representative has the minimum total
+    degree among all representatives.
+    (b) If 1 = a*g_0 + b_1*g_1 + b_2*g_2 with deg a <= D - 4, then a = 1/S_3
+    on V x V, so delta <= deg a <= D - 4. Conversely, take a = the reduced
+    representative (degree delta <= D - 4). Then a*g_0 - 1 vanishes on V x V,
+    so it lies in (L_V(x_1), L_V(x_2)), and division gives b_i with
+    deg(b_i * g_i) <= D. So 1 is in R_D.
+    (c) For g in I with deg g <= D: g = alpha*g_0 on V x V. Take a = the
+    reduced representative of alpha (degree <= 2^{l+1} - 2 <= D - 4); then
+    g - a*g_0 lies in (L_V(x_1), L_V(x_2)) with degree <= D, and division
+    places it in the span of the nu*g_i rows. So R_D = I_{<=D}. For a
+    degree-compatible order, dim Pol_{<=D} / I_{<=D} counts the standard
+    monomials of degree <= D, which is s when D >= s - 1.
+    (d) A row dependency sum a_mu mu g_0 + b_1 g_1 + b_2 g_2 = 0 with
+    deg a <= 62 forces a*S_3 = 0 on V x V, hence a = 0 on V x V for an
+    unsatisfiable target; a has exponents < 64, so a = 0 as a polynomial;
+    then b_1 g_1 = b_2 g_2 with deg b_i <= 2 forces b_1 = b_2 = 0.
+    GENERICITY (heuristic HEUR-CERTBIN-TS2G). Lagrange interpolation on V with
+    L_V'(v) = lambda_0 (the linear coefficient of L_V; derivatives of x^{2^i},
+    i >= 1, vanish in characteristic 2) shows that the coefficient of
+    x_1^{2^l - 1} x_2^{2^l - 1} in the reduced representative of f is
+    sum_{V x V} f / lambda_0^2. So delta = 2^{l+1} - 2 unless
+    sum_{V x V} 1/S_3 = 0. At l = 6, 1 in R_66 would need ALL coefficients of
+    degree 63..126 to vanish.
+    CONSEQUENCE FOR THE REQUESTED CELL. At l = 6 the regime-B refutation
+    degree is generically 130, not 66. The 2^l + 2 of IDEA-20260923-5d0b8e is
+    NOT a solving degree for this system, and the l = 6, D = 66 elimination
+    decides nothing (full row rank for sat and unsat alike, generically).
+    At l = 5, D = 66 = 2^{l+1} + 2, and C1(c) makes the elimination a
+    complete solver.
+
+    LEMMA 2B (what replaces regime A's Lemma 2). In regime B the pivot entries
+    are not F_2-affine in the target. For a fixed pivot sequence
+    (p_0, c_0), ..., (p_{L-1}, c_{L-1}) of the declared elimination (rows
+    never move; row p_j is added into other unused rows only), the entry at
+    (p_k, c_k) before step k is the Schur complement
+    e_k(x_R) = Delta_{k+1}(x_R) / Delta_k(x_R), where Delta_k is the minor of
+    M_D(x_R) on rows p_0..p_{k-1} and columns c_0..c_{k-1} (Delta_0 = 1). Each
+    Delta_k is a polynomial in x_R over F_{2^n}, of degree at most
+    2 * #{g_0-rows among p_0..p_{k-1}}. The fixed-schedule survival set is
+    therefore the COMPLEMENT of the root set of prod_k Delta_k, a cofinite
+    set, not an affine subspace. Each nonconstant pivot condition removes at
+    most deg Delta_{k+1} points; it does not halve the survivors. The rigorous
+    root bound sum_k deg Delta_k is up to about K_B^2 (millions) and exceeds
+    2^n at every tested cell, so the idea's H2 bound (sum_k d_k / 2^n) is
+    VACUOUS here as a guarantee. HEUR-CERTBIN-TS2B replaces it as the
+    predictive statement.
+    TRACE STATE. If T_strict(t) and T_strict(ref) agree on steps < k, then the
+    two elimination states before step k are identical functions of the
+    respective targets (the reduced unused rows are the Schur complements for
+    the same pivot rows and columns). So the first divergence of the target's
+    own elimination classifies exactly as: ZERO-PIVOT (e_k(t) = 0: a root of
+    Delta_{k+1}), ROW-ORDER (e_k(t) != 0 but a smaller-index unused row is
+    nonzero at c_k), or COLUMN (no unused row is nonzero at c_k; for a
+    satisfiable target at l = 5 this is a standard monomial).
+
+  assumptions:
+    - >-
+      Satisfiability is ALGEBRAIC and regime-independent: s = #{(x_1, x_2) in
+      V^2 : S_3(x_1, x_2, x_R) = 0}, the same number in both regimes, decided
+      by oracle A (O(2^l) root-finding) and cross-checked by oracle C (direct
+      evaluation on V x V) and, in regime A, oracle B (exhaustive 2^{2l}).
+    - >-
+      The n = 17 cells reuse the Stage-1 curve (A = 97044, B = 126251) and its
+      P, Q (RUN-CERTBIN-3b7e05 curve.json), so Stage 2 links to Stage 1. The
+      n = 19 cells use a curve drawn from a frozen seed.
+    - >-
+      The F_{2^19} modulus is fixed by rule (the pentanomial
+      t^19 + t^a + t^b + t^c + 1, 19 > a > b > c > 0, irreducible, with the
+      lexicographically smallest (a, b, c)), not from memory. No irreducible
+      trinomial of degree 19 is assumed or needed.
+
+  proof_search_map:
+    bottleneck: >-
+      P-GPU's premise in regime B: a learned trace that replays across
+      attempts AND belongs to a computation that decides the attempt. It is
+      the only route left for P-GPU after DR-1 and the T_set conjunct failed
+      at the Stage-1 cell (DEC-20260923-f25b97 NA-2).
+    baseline_embedding:
+      parameter_slice: >-
+        The idea's baseline embedding asked for "stable trace in regime B"
+        before believing "unstable in regime A". Its reproduction check (iii)
+        (regime-B unsat retention >= 0.9 at n = 17, l = 6) is kept as DB-1 at
+        the requested cell. The audit adds the condition the idea omitted: the
+        regime-B computation must decide the attempt at the measured D,
+        otherwise "stable" is cheap. Regime A at matched (n, l) runs the
+        reviewed Stage-1 instrument generalized to (n, l) (C-PROV).
+      reproduction_check: >-
+        (i) C-FIX dimensions for every (regime, n, l, D). (ii) C-DELTA: every
+        regime-B instance's "1 in R_D" flag equals [delta(x_R) + 4 <= D]
+        (unsat) and 0 (sat); C-RANKB: rank_66 = 2278 (unsat) and 2278 - s
+        (sat) at l = 5, and rank_66 = 2028 on unsat at l = 6. (iii) C-BREAK:
+        every regime-B zero-pivot break is re-verified by an independent
+        determinant. (iv) regime-A C-FORMS and C-SURV.
+    observation_collision:
+      observable: The trace at four granularities, per regime.
+      distinct_preimage_search: >-
+        Trace-class sizes, modal class and H(T) per regime and arm. In regime
+        B at l = 6, D = 66, sat and unsat targets are PREDICTED to collide in
+        T_rank (all 2028) and possibly T_set: that collision is exactly what
+        makes the cell non-deciding, and it is measured, not assumed.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: The l = 5 cells, where D = 66 = 2^{l+1} + 2 is a solving degree at the same column count as the requested cell.
+        predicted_gain: A regime-B stability measurement that bears on P-GPU.
+      - transform: observable_fiber
+        proposed_object: The divergence classification (zero-pivot / row-order / column) of each target against each reference.
+        predicted_gain: Separates generic breaks (TS2B) from satisfiability-localised divergence (E3).
+    quantifier_order: >-
+      Lemma B-S and Lemma 2B: FORALL targets x_R, exact. Empirical: FOR each
+      tested (n, l), with curve, V and references fixed from frozen seeds
+      before any test target, retention_family >= 0.9 or not; break count
+      inside or outside the exact 99.9% Poisson band of N * K_B / 2^n; E3
+      fraction >= 95% or not.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At the tested (n, l, D), with the declared row order, column order and
+        pivot rule: per regime and arm, retention at four granularities,
+        first-divergence position and type, the exact delta distribution,
+        break sets with independent verification, K_B, sizes and saving
+        ratios. Nothing about GPU speed, D other than 66 in regime B, F4
+        pair-list traces, other V, m = 3 or n outside {17, 19}.
+      nearby_object_control: >-
+        Regime-B same-support nulls: F-NULLB (random nonzero F_{2^n}
+        coefficients on S_3's five monomials, redrawn per target) and F-AFFB
+        (one draw of five nonzero multipliers, coefficient alpha_m * x_R^{e_m}
+        with S_3's x_R-degrees, paired with the F-S3 targets). Under TS2B they
+        are as stable as S_3 (stability is generic large-field behaviour); a
+        large S_3-vs-null gap in either direction would be S_3-specific.
+    proof_obligations:
+      - claim: Lemma B-S (a)-(d).
+        responsibility: correctness
+      - claim: Lemma 2B (Schur-complement form of the pivot entries under the declared elimination; the divergence classification).
+        responsibility: correctness
+      - claim: The top-coefficient formula sum_{V x V} f / lambda_0^2 and L_V'(x) = lambda_0.
+        responsibility: correctness
+      - claim: Fixture dimensions (regime B 2028 x 2278 at l = 6 and 3276 x 2278 at l = 5, D = 66; regime A per (n, l, D)).
+        responsibility: size
+      - claim: The saving-ratio definitions bound any trace-based constant over masked elimination at the tested cells.
+        responsibility: runtime
+    not_applicable_reason: >-
+      Measurement hypothesis. The map is filled because Lemma B-S changed the
+      design before any data: it showed the requested cell cannot decide the
+      attempt, and it supplies exact per-instance instrument predictions.
+
+  rerandomization: null
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    No complexity claim; claim_kind would be constant_factor at most. The
+    promotion gates do not apply.
+
+  heuristic_assumptions:
+    - id: HEUR-CERTBIN-TS2B
+      source_label: replaces H2 of IDEA-20260923-5d0b8e at these cells
+      formal_statement: >-
+        (Random-polynomial minors.) Fix a tested regime-B cell and an
+        unsatisfiable reference with pivot sequence (p_k, c_k), k < L. Let K_B
+        be the number of k for which e_k(x) = Delta_{k+1}(x) / Delta_k(x) is
+        nonconstant in x (estimated by evaluating the replay at 3 independent
+        points drawn from S_selftest; a pivot is nonconstant iff its entry
+        differs among them or from the reference's). Then the set of x in
+        F_{2^n} that break the fixed schedule has expected size about K_B, its
+        members are spread like uniform elements of F_{2^n} (independently of
+        membership in x(2E)), and the number of breaking targets among N
+        targets drawn without replacement from the test family is
+        Poisson(N * K_B / 2^n) to first order.
+      random_model_justification: >-
+        For a uniformly random monic polynomial f of degree d >= 1 over F_q,
+        each a in F_q is a root with probability exactly 1/q (the constant
+        term is uniform), so the expected number of F_q-roots is exactly 1.
+        The heuristic content is treating each new minor as such a polynomial
+        and the roots as independent of the target family.
+      supporting_results:
+        - Lemma 2B (derived in mechanism; rigorous given the elimination rule)
+        - The expected-root computation above (elementary)
+      validation_experiment_ids: [EXP-CERTBIN-a58c63]
+      falsification_condition: >-
+        At a cell, for at least 2 of the 3 unsatisfiable references, the
+        observed break count lies outside the exact two-sided 99.9% Poisson
+        interval of mean N_unsat * K_B / 2^n; OR unsat T_strict
+        retention_family < 0.9 at that cell.
+    - id: HEUR-CERTBIN-TS2G
+      formal_statement: >-
+        (Genericity of the refutation degree.) For unsatisfiable subgroup
+        targets at the tested (n, l), delta(x_R) = 2^{l+1} - 2 except for a
+        fraction of targets at most 1%.
+      random_model_justification: >-
+        delta < 2^{l+1} - 2 needs sum_{V x V} 1/S_3 = 0, one F_{2^n}-valued
+        condition, which a random element meets with probability 2^{-n}.
+      supporting_results:
+        - The top-coefficient formula (mechanism)
+      validation_experiment_ids: [EXP-CERTBIN-a58c63]
+      falsification_condition: More than 1% of the unsatisfiable arm at any cell has delta < 2^{l+1} - 2.
+
+  structural_ingredients:
+    - description: S_3 for Y^2 + XY = X^3 + AX^2 + B
+      citation: KN-TECH-b18366
+      provenance: internal
+      verified_by: RUN-CERTBIN-3b7e05 C-SELF; REVIEW-CERTBIN-20260923-c51f07 J1
+      role: the relation equation
+    - description: >-
+        Joux-Vitse F4' pair-list replay: 2.43x / 3.40x / 2.88x over their own
+        F4 at |p| = 16 / 25 / 32 bits over F_{p^5}, after 11.31 s of
+        precomputation.
+      citation: KN-LIT-673219
+      provenance: internal
+      verified_by: idea-generator 2026-09-23 (frozen full text lines 645-710, per IDEA-20260923-5d0b8e); not re-read by this Coordinator
+      role: the only source-verified anchor for a trace-reuse constant in a large base field; F4 pair lists, not Macaulay traces
+    - description: Joux-Vitse remake success heuristic c(p)^{n_step}, c(p) = 1 - 1/p + O(1/p^2) (KN-LIT-275)
+      citation: KN-LIT-275
+      provenance: recalled
+      verified_by: null
+      role: >-
+        Pointer only (the idea says it was not read at source). If confirmed,
+        TS2B is its q = 2^n corner for Macaulay traces. Not relied on.
+
+  reduction_chain:
+    core_problem: Trace replay of the per-attempt relation solve in index calculus on E(F_{2^n}), m = 2.
+    corollaries: []
+
+  predictions:
+    - id: PB-1
+      metric: Regime-B T_strict retention_family, unsat arm, per (n, l), D = 66
+      direction: higher
+      minimum_effect: '>= 0.9 at every cell (< 0.9 falsifies TS2B there); predicted about 1 - K_B / 2^n.'
+    - id: PB-2
+      metric: Per-reference regime-B break count against Poisson(N_unsat * K_B / 2^n)
+      direction: different
+      minimum_effect: Inside the exact two-sided 99.9% interval for at least 2 of the 3 unsat references at every cell.
+    - id: PB-3
+      metric: Break rate ratio n = 19 over n = 17 at fixed l
+      direction: lower
+      minimum_effect: >-
+        Decreases; predicted about (K_B(19) / K_B(17)) / 4. A rate that does
+        not decrease is the canonical artifact tell and is flagged.
+    - id: PB-4
+      metric: E3 fraction (sat targets whose first divergence is a COLUMN divergence at their first non-pivot column), l = 5 cells
+      direction: higher
+      minimum_effect: '>= 0.95 (E3 holds); < 0.95 falsifies E3 at that cell.'
+    - id: PB-5
+      metric: Regime-B "1 in R_66" rate and rank_66 on the unsat arm at l = 6
+      direction: lower
+      minimum_effect: Predicted 0 and 2028 exactly (C1(d)); the per-instance check is C-DELTA / C-RANKB.
+    - id: PB-6
+      metric: Regime-A T_strict unsat retention_family at D = 4 on the same target bytes, per (n, l)
+      direction: lower
+      minimum_effect: < 0.5 (contrast), unless H-CERTBIN-7c3a18 P-C1 fails at that cell.
+    - id: PB-7
+      metric: Regime-B full and pruned matrix bytes versus 32 B per system and 233,472 B per SM
+      direction: lower
+      minimum_effect: Predicted to fail both (dense 3276 x 2278 or 2028 x 2278 entries of ceil(n/8) = 3 bytes, about 13.9-22.4 MB).
+  predictions_source: >-
+    PB-1 keeps IDEA-20260923-5d0b8e's threshold (>= 0.9; < 0.9 falsifies). The
+    idea's ">= 0.99 via H2" is replaced by TS2B's number because the audit
+    shows H2's bound is vacuous at these cells; the threshold 0.9 is not
+    moved. PB-4 restates the idea's E3 falsification (> 5% diverging early) at
+    the deciding cells. PB-5 is Lemma B-S. All were fixed before any Stage-2
+    run.
+
+  test_boundary:
+    instances:
+      - (n, l) in {(17, 6), (19, 6)}  -- requested cells; regime B at D = 66 = 2^l + 2 (not a solving degree)
+      - (n, l) in {(17, 5), (19, 5)}  -- deciding cells; regime B at D = 66 = 2^{l+1} + 2
+      - regime A at every cell, D in {3, 4}, identical target bytes
+    parameters:
+      references: 3 unsat + 2 sat + modal, per cell and regime
+      counts: per EXP-CERTBIN-a58c63 (standard or reduced schedule, chosen by an outcome-blind timing pilot)
+      nulls_regime_B: F-NULLB, F-AFFB
+      nulls_regime_A: F-AFF (one draw), F-NULLF2
+    implementation: experiments/EXP-CERTBIN-a58c63/impl/
+    budget:
+      enforcement: advisory
+    excluded_from_boundary:
+      - regime B at D = 130 (the generic refutation degree at l = 6); a successor contract if the l = 5 result warrants it
+      - F4 pair-list traces; GPU execution; m = 3; random V; n >= 23
+
+  falsification_conditions:
+    - TS2B is falsified at a cell per its falsification condition.
+    - E3 (C3) is falsified at an l = 5 cell if more than 5% of the satisfiable arm diverges before its first non-pivot column.
+    - The contrast (C4) is not confirmed at a cell if regime A retains >= 0.5 or regime B < 0.9.
+    - TS2G is falsified per its condition.
+    - >-
+      A C-DELTA or C-RANKB mismatch contradicts Lemma B-S or the
+      implementation. The regime-B metrics are held as INVALID until the
+      review round adjudicates which; it is never evidence about C2-C4.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: toy. A regime-B "stable" verdict at l = 6, D = 66 is not a
+      P-GPU result (C1(d)); only the l = 5 cells can support "P-GPU survives in
+      regime B", and then only as a trace-stability statement about a
+      computation dominated per attempt by oracle A.
+    - >-
+      dominated_by: oracle A per attempt (2^l root-findings); parallel Pollard
+      rho for the DLP; FES GPU exhaustive search (KN-LIT-287) and WDSat not
+      compared. sota_delta zero.
+    - Python/numpy wall time is not GPU cost. Only op counts, sizes and stability transfer, and only as measured.
+
+  status: approved
+  status_history:
+    - status: specified
+      at: '2026-09-24'
+      by: coordinator
+      ref: DEC-20260924-8e2f47
+      note: Specified from IDEA-20260923-5d0b8e Stage 2, with the Lemma B-S audit applied before any data.
+    - status: approved
+      at: '2026-09-24'
+      by: coordinator
+      ref: DEC-20260924-8e2f47
+      note: >-
+        Approved for execution of EXP-CERTBIN-a58c63 under the standing user
+        authorization and the user's explicit approval of Stage 2 on
+        2026-09-24. Asserts nothing about C2-C4. Not official until
+        TASK-20260924-d3a90c verifies.
+  claim_tier: toy

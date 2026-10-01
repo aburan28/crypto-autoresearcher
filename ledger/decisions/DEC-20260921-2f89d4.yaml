@@ -1,0 +1,158 @@
+coordinator_decision:
+  id: DEC-20260921-2f89d4
+  decided_by: coordinator
+  decided_at: '2026-09-21'
+
+  context: >-
+    NA-1 of ledger/corrections/CORR-20260921-9dc350.yaml (the independent
+    validator + red-team audit of round 2's J3/J4 findings,
+    TASK-20260921-aac8e7), on explicit user instruction: "yes, design and
+    dispatch it" (this session, 2026-09-21, replying to "check on C2's
+    per-slot subspace fix"). This decision approves protocol_amendment
+    experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-2f89d4.yaml
+    (specification.yaml v2 -> v3), which extends EXP-FROB-91ee9c's
+    maximum_runs from 2 to 3 and authorizes exactly one additional bounded
+    Executor run recomputing control C2 with a corrected, genuinely
+    per-slot-independent subspace construction on the same two (cell, curve)
+    pairs RUN-FROB-91ee9c-51bc02 already covers (FROB-SPLIT-q11n5 A=1,B=2,
+    N=10061; FROB-EQDEG-q19n5 A=1,B=1,N=117991).
+
+  decision: approve
+
+  target_ids:
+    - EXP-FROB-91ee9c
+    - H-FROB-d93575
+    - CORR-20260921-9dc350
+    - DEC-20260921-d5e997
+    - EV-FROB-576872
+
+  rationale:
+    - >-
+      WHAT IS BROKEN, PRECISELY. `non_stable_subspace_of_dim(d, M, F, n)` in
+      both existing runs' implementation.py is a pure deterministic function
+      of `(d, M, F, n)` alone -- it has no notion of "already assigned to
+      another slot." The C2 construction loop caches its result ONCE per
+      DISTINCT dimension appearing in the object partition
+      (`dims_present = sorted(set(...))`), then reuses that single cached
+      point-set for every slot of that dimension. On the only non-trivial
+      partition either tested cell reaches -- `[2,2]`, two slots of
+      dimension 2 -- this sums a subspace with itself, a swap-symmetry
+      artifact independent of Frobenius structure. Confirmed by this session
+      independently via both code-reading (implementation.py lines
+      222-238/429-470) and raw U_neg arithmetic in metrics.json, and
+      independently again by NA-1's validator (algebraic/mechanical) and
+      red-team (code-reading) reports, which is what triggered
+      CORR-20260921-9dc350's C2 correction and its NA-1 next_action.
+    - >-
+      WHY AN AMENDMENT AND NOT A NEW EXPERIMENT. SR-6 requires an additive
+      protocol_amendment for any change to a control, and permits nothing
+      else in the frozen contract to be touched. The fix here is exactly a
+      clarification of C2's design text (one independent subspace PER SLOT,
+      not per distinct dimension, via a deterministic per-(cell,curve,
+      dimension) pool grown in lexicographic order -- fully consistent with,
+      and a strict refinement of, the existing "lexicographically first"
+      language) plus a budget/execution-scope extension. No metric
+      definition, threshold, success_criterion, falsification_criterion or
+      decision_branches text changes, and C1/C3-C8's designs are untouched.
+    - >-
+      WHY C3/C4 ARE NOT RE-RUN. Both were independently re-verified correct
+      by NA-1 (validator's algebraic proof that C3/C4's m=1 endpoint is
+      forced-tied by construction and its one-directional
+      spread(C3/C4)<=spread(object) bound; red-team's code-reading finding
+      that C2's defect is specific to `non_stable_subspace_of_dim`'s
+      per-dimension cache and does not apply to C3's per-slot random draw or
+      C4's independent null-curve construction). Re-running them would add
+      cost against a control already known sound, contrary to the
+      "recompute only what is in question" discipline this contract's own
+      amendments have followed throughout.
+    - >-
+      WHAT THIS DECISION DOES NOT DO. It does not change H-FROB-d93575's
+      status (unchanged: `weakened_control_battery_spread_ties_and_c2_excess`,
+      set by DEC-20260921-d5e997, until the new run is itself reviewed); it
+      does not re-score, re-open, or edit RUN-FROB-91ee9c-7119f2 or
+      RUN-FROB-91ee9c-51bc02, both of which remain exactly as committed
+      (PR #1311, PR #1330) -- their C2 results on the `[2,2]` partition stay
+      exactly as recorded, documented as construction-defective by
+      CORR-20260921-9dc350 rather than edited or invalidated wholesale; and
+      it asserts nothing about whether the corrected C2 will show a strictly
+      smaller, equal, or larger spread once measured.
+    - >-
+      STANDING AUTHORIZATION. AGENTS.md's standing user authorization
+      (2026-09-06) is the general user-approval basis for experiment
+      execution under this program; the user's specific, explicit
+      instruction in this session ("yes, design and dispatch it") is the
+      basis for this particular fix and recheck. No further user
+      confirmation is sought or required. This Coordinator checked that the
+      amendment's scope is genuinely additive (SR-6-compliant) and that the
+      new handoff's budget, constraints, and completion gate are complete
+      and non-null before recording approval.
+
+  approval_checklist:
+    protocol_complete: true
+    sr6_compliance_confirmed: >-
+      No control design other than C2's own clarifying extension is changed;
+      no metric definition, threshold, success_criterion,
+      falsification_criterion or decision_branches text is touched. Verified
+      against experiments/EXP-FROB-91ee9c/specification.yaml directly
+      (predecessor sha256
+      9d66c4f7914250a09a5083a3e97c85af9f26ba04755b906105c200d41c75daa4,
+      matching the amendment's own predecessor_sha256 field, unchanged since
+      DEC-20260921-e81e25).
+    fields_verified_non_null:
+      - amendment reason, changes, unchanged, affected_runs, confirmatory_status
+      - handoff objective, constraints, deliverables, budget, completion_gate
+
+  affected_runs: []
+  confirmatory_status: not_applicable
+
+  evidence_refs:
+    - experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-2f89d4.yaml
+    - ledger/corrections/CORR-20260921-9dc350.yaml
+    - experiments/EXP-FROB-91ee9c/validation-20260921-round2.md
+    - experiments/EXP-FROB-91ee9c/redteam-20260921-round2.md
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/implementation.py
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/metrics.json
+    - experiments/EXP-FROB-91ee9c/specification.yaml
+
+  limitations:
+    - >-
+      THIS DECISION APPROVES AN AMENDMENT AND A DISPATCH, NOT EVIDENCE. No
+      new run exists yet; H-FROB-d93575's status is unchanged by this
+      decision.
+    - >-
+      Scope is exactly C2's corrected recomputation plus an object-arm
+      consistency recheck on the two already-identified curves; C1, C3-C8,
+      FROB-NOLATTICE-q13n5, and FROB-EXT-q13n7 are untouched.
+    - >-
+      A future /review-evidence round is required to interpret whether the
+      corrected C2 result changes clause (6)/(c)'s reading or
+      H-FROB-d93575's status; this decision pre-judges neither.
+
+  next_actions:
+    - >-
+      NA-1 (coordinator, dispatching session): merge origin/main, then make
+      ONE isolated snapshot archive staging exactly
+      experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-2f89d4.yaml,
+      ledger/decisions/DEC-20260921-2f89d4.yaml and
+      ledger/handoffs/TASK-20260921-819bc0.yaml under archived_by
+      TASK-20260921-5e9726, then push and open or refresh a PR against main
+      naming all three records.
+    - >-
+      NA-2 (coordinator, dispatching session): after the snapshot is
+      verified and published, dispatch the Executor against
+      TASK-20260921-819bc0.
+    - >-
+      NA-3 (coordinator): on the new run's completion, decide whether the
+      corrected C2 result warrants a further /review-evidence round against
+      H-FROB-d93575 (a status change is plausible only if C2's corrected
+      spread comparison differs materially from the defective one, given
+      C3/C4's ties already independently suffice for the falsification
+      trigger regardless of C2's outcome).
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT AN EVIDENCE-REVIEW DECISION. This decision approves a protocol
+      amendment and a bounded execution dispatch; no EV-* record is in scope
+      and no run has executed under it yet. The knowledge-promotion gate
+      applies at NA-3, if a review round follows.

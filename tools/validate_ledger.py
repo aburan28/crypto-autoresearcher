@@ -379,6 +379,128 @@ def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
                               f"read the source")
 
 
+# ---- prior_art on ideas (knowledge/frontiers/ecdlp/README.md) --------------
+# The program re-derived published results because ideas were generated BEFORE
+# anyone compared them with the literature (docs/novelty-screen-20260729.md;
+# DEC-20260916-3c0cf5). A `prior_art` block records that comparison: which
+# known-result rows the idea was positioned against and the nearest prior work.
+# It follows this file's optional-when-present rule for existing records and
+# becomes REQUIRED only for ideas minted on or after the cutover, so no
+# immutable record changes state and the prune-only baseline never grows. Move
+# or remove the cutover here; nothing else keys on it.
+PRIOR_ART_CUTOVER = 20261001
+PRIOR_ART_NOVELTY = {"known", "adaptation", "speculative", "unverified"}
+PRIOR_ART_RELATIONS = {"same", "special_case", "generalizes", "adjacent",
+                       "orthogonal"}
+_IDEA_DATE = re.compile(r"^IDEA-(\d{8})-")
+_KN_REF = re.compile(r"^KN-(LIT|TECH|FIND|OPEN)-(?:\d{3,4}|[0-9a-f]{6})$")
+_KN_DIRS = {"LIT": "literature", "TECH": "techniques", "FIND": "findings",
+            "OPEN": "open-problems"}
+_FRONTIER_ROW_IDS: set[str] | None = None
+
+
+def _frontier_row_ids() -> set[str]:
+    global _FRONTIER_ROW_IDS
+    if _FRONTIER_ROW_IDS is None:
+        tools_dir = os.path.dirname(os.path.abspath(__file__))
+        if tools_dir not in sys.path:
+            sys.path.insert(0, tools_dir)
+        import build_frontier_map  # noqa: E402  (sibling tool, no package)
+        _FRONTIER_ROW_IDS = build_frontier_map.row_ids()
+    return _FRONTIER_ROW_IDS
+
+
+def _prior_art_ref_resolves(ref: str) -> bool:
+    if ref.startswith("KR-"):
+        return ref in _frontier_row_ids()
+    m = _KN_REF.match(ref)
+    if m:
+        return os.path.exists(os.path.join(REPO, "knowledge",
+                                           _KN_DIRS[m.group(1)], ref + ".md"))
+    return False
+
+
+def check_prior_art(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate an idea's `prior_art` block; require it after the cutover."""
+    rec_id = str(body.get("id") or "")
+    m = _IDEA_DATE.match(rec_id)
+    post_cutover = bool(m) and int(m.group(1)) >= PRIOR_ART_CUTOVER
+    novelty = body.get("novelty_status")
+    if post_cutover and novelty not in PRIOR_ART_NOVELTY:
+        ctx.err(path, f"novelty_status '{novelty}' must be one of "
+                      f"{sorted(PRIOR_ART_NOVELTY)} for ideas from "
+                      f"IDEA-{PRIOR_ART_CUTOVER} on (agents/idea-generator.md)")
+    block = body.get("prior_art")
+    if block is None:
+        if post_cutover:
+            ctx.err(path, "prior_art is required for ideas from "
+                          f"IDEA-{PRIOR_ART_CUTOVER} on: name the known-result "
+                          "rows checked and the nearest prior work "
+                          "(knowledge/frontiers/ecdlp/README.md)")
+        return
+    if not isinstance(block, dict):
+        ctx.err(path, "prior_art must be a mapping")
+        return
+    fmap = block.get("frontier_map")
+    if fmap == "not_applicable":
+        if not str(block.get("not_applicable_reason") or "").strip():
+            ctx.err(path, "prior_art.frontier_map is 'not_applicable' and "
+                          "requires not_applicable_reason")
+    elif isinstance(fmap, str) and fmap.startswith("knowledge/frontiers/"):
+        if not os.path.isdir(os.path.join(REPO, fmap.rstrip("/"))):
+            ctx.err(path, f"prior_art.frontier_map '{fmap}' is not a directory")
+        rows = block.get("rows_checked")
+        if not isinstance(rows, list) or not rows:
+            ctx.err(path, "prior_art.rows_checked must list the KR-* rows the "
+                          "idea was positioned against")
+        else:
+            for row in rows:
+                if not _prior_art_ref_resolves(str(row)) or \
+                        not str(row).startswith("KR-"):
+                    ctx.err(path, f"prior_art.rows_checked '{row}' is not a "
+                                  "known-result row on disk")
+    else:
+        ctx.err(path, "prior_art.frontier_map must be a knowledge/frontiers/"
+                      "... path or 'not_applicable'")
+    nearest = block.get("nearest")
+    if nearest in (None, []):
+        if not block.get("none_found_after"):
+            ctx.err(path, "prior_art needs `nearest` (>= 1 entry) or "
+                          "`none_found_after` listing the searches that found "
+                          "nothing")
+        nearest = []
+    if not isinstance(nearest, list):
+        ctx.err(path, "prior_art.nearest must be a list")
+        nearest = []
+    grounded_same = False
+    for i, entry in enumerate(nearest):
+        where = f"prior_art.nearest[{i}]"
+        if not isinstance(entry, dict):
+            ctx.err(path, f"{where} must be a mapping")
+            continue
+        ref = str(entry.get("ref") or "")
+        if not _prior_art_ref_resolves(ref):
+            ctx.err(path, f"{where}.ref '{ref}' must resolve to a KR-* row or "
+                          "a knowledge/ entry")
+        provenance = entry.get("provenance")
+        if provenance not in CITATION_PROVENANCE:
+            ctx.err(path, f"{where}.provenance must be "
+                          "recalled|retrieved|kb|internal")
+        relation = entry.get("relation")
+        if relation not in PRIOR_ART_RELATIONS:
+            ctx.err(path, f"{where}.relation must be one of "
+                          f"{sorted(PRIOR_ART_RELATIONS)}")
+        if not str(entry.get("delta") or "").strip():
+            ctx.err(path, f"{where}.delta is required: what the idea adds "
+                          "over this work, quantitatively, or 'none'")
+        if relation in ("same", "special_case") and provenance != "recalled":
+            grounded_same = True
+    if novelty == "known" and not grounded_same:
+        ctx.err(path, "novelty_status 'known' requires a prior_art.nearest "
+                      "entry with relation same|special_case whose provenance "
+                      "is not 'recalled'")
+
+
 def check_obstruction(path: str, body: dict, ctx: Ctx) -> None:
     """Validate an `obstruction` block: a measurement, not a verdict."""
     block = body.get("obstruction")
@@ -531,6 +653,8 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         if not isinstance(body.get("proof_refs"), list):
             ctx.err(path, "proof_refs must be a list")
     check_citations(path, body, rec_type, ctx)
+    if rec_type == "idea":
+        check_prior_art(path, body, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
     if rec_type == "handoff":

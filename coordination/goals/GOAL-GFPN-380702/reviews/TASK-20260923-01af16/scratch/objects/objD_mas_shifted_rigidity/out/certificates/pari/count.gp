@@ -1,0 +1,12 @@
+default(parisizemax, 2000000000);
+p = 18446744069414584321; z = ffgen(Mod(1,p)*(x^5-3), 'z);
+A = 3*z^0 + 0*z^1 + 0*z^2 + 0*z^3 + 0*z^4; B = 0*z^0 + 0*z^1 + 0*z^2 + 0*z^3 + 8*z^4;
+E = ellinit([A, B]);
+print("J=", E.j);
+t0 = getwalltime(); N = ellcard(E); print("N=", N); print("SEA_MS=", getwalltime() - t0);
+d = 0; forstep(k = 1, 200, 1, cand = z + k; if(!issquare(cand), d = cand; break));
+print("TWIST_D=", d);
+Et = ellinit([A*d^2, B*d^3]);
+t0 = getwalltime(); Nt = ellcard(Et); print("NT=", Nt); print("SEA_TWIST_MS=", getwalltime() - t0);
+print("SUM_CHECK=", N + Nt == 2*p^5 + 2);
+print("APRCL_N_OVER_H=", isprime(N / 1));

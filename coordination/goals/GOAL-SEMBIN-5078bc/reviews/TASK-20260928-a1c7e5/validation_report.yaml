@@ -1,0 +1,367 @@
+# TASK-20260928-a1c7e5 -- Validator report on joint J1 (THE COST-MODEL ALGEBRA)
+# of REVIEW-SEMBIN-20260928-04ec3c (plan: ledger/handoffs/TASK-20260928-e4f7b2.yaml,
+# key handoff.review_plan). The task asked for report.md beside this file; the
+# harness refuses .md report files from subagents, so the full report is carried
+# here, in the role contract's required validation_report form. Not committed.
+validation_report:
+  id: VAL-20260930-9e4591
+  task_id: TASK-20260928-a1c7e5
+  review_plan_id: REVIEW-SEMBIN-20260928-04ec3c
+  joint: J1
+  joint_verdict: breaks
+  run_ids: [RUN-SEMBIN-c68773]
+  object_under_review:
+    experiment: EXP-SEMBIN-04ec3c
+    contract: experiments/EXP-SEMBIN-04ec3c/specification.yaml (incl. coordinator_amendments_pre_approval A1-A8)
+    driver: experiments/EXP-SEMBIN-04ec3c/code/memory_charged_family.py
+    run: experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-c68773/
+    hypothesis: ledger/hypotheses/H-SEMBIN-8e7ae3.yaml
+    approval: ledger/decisions/DEC-20260928-7c3d91.yaml (NOT read; see review_attestation)
+    committed_at:
+      run_directory: 3c97c0d4057b81cd969583dedb74213a9a69bcd6 (merged to main by PR #1470)
+      driver_contract_hypothesis_decision: e56b0a2155f5be9b4189c0667c1c03bcdfac1f84
+      working_tree_only: false
+
+  breaking_artifact:
+    cell: {n: 131, m: 8, d: 26.7, s: 4}
+    note: the run's own ECC2K-130 "cheapest entry", min_store_by_degree["131"]
+    closed_form_1_plus_linear_algebra_log2: 64.20
+    correct_total_log2_lower_bound: 106.8
+    difference_bits: 42.6
+    why: >-
+      The MITM_CAPPED oracle probes a table of |F|^s = 2^(sd) entries (the model's
+      own store, the driver's log2_store_entries). The table is target-independent,
+      is built once, and must exist before any probe hits at the modelled rate.
+      Writing 2^(sd) group elements costs at least 2^(sd) operations, so the true
+      stage-1 time is max(|F|^s, m! N |F|^(1-s)). The product "relations x trials x
+      oracle" charges probe work only. That is harmless while the number of oracle
+      calls |F|/p >= 1, but at this cell |F|/p = 2^-42.6. The model then charges
+      2^-42.6 of one call and never charges the table.
+
+  artifact_checks:
+    - check: sha256 of all eight entries in artifact-digests.json, including the driver
+      result: all match (raw-result.json 9569c9c0..., driver 75cd2252...)
+    - check: re-execution of the exact command in command.txt (CPython 3.11.15, 2026-09-30, scratch output)
+      result: exit 0, about 22 s wall, output BYTE-IDENTICAL to raw-result.json (same sha256; cmp passes)
+    - check: commit binding
+      result: >-
+        Every reviewed path is committed and reachable from origin/main. The driver
+        was added in the approval commit e56b0a215 itself, so git shows approval
+        preceding EXECUTION (run at 3c97c0d40) but cannot show it preceding
+        IMPLEMENTATION.
+    - check: dirty tree at execution
+      result: manifest records dirty=true with only the run directory untracked; consistent with the commit history
+    - check: deliverables against TASK-20260928-9e14ac
+      result: >-
+        experiments/EXP-SEMBIN-04ec3c/RESULTS.md DOES NOT EXIST. The producer card
+        requires it to carry the A1 signature check and per-bound C-BOUND-PROBE
+        reporting. TASK-20260928-e4f7b2 still reads written_not_dispatched, and I
+        found no archive receipt for it.
+
+  metric_recomputations:
+    - id: S0
+      what: independent re-implementation from the cost_model block only (no import of the driver)
+      result: >-
+        Reproduces all 1,500 reported cells (150 store-free, 1,200 capped, 150
+        minimum-store rows) with zero mismatches in total, store or optimising d.
+        Reproduces the sub-rho counts 14 (capped) and 90 (distinct store-free
+        (n, m)). The driver's "720" is those 90 cells times the 8 budget labels,
+        which do not apply to the store-free treatment.
+      meaning: >-
+        Faithful transcription of the model. Not evidence for the model: both
+        implementations share any defect of the text, and section S6 is such a
+        defect.
+    - id: S1
+      closed_form: relations x trials x oracle = m! * 2^(n + d(1-s))
+      my_derivation: 2^d * m! N 2^(-md) * 2^((m-s)d) = m! N 2^(d(1-s)) -- PROBE WORK ONLY
+      driver_vs_closed_form: >-
+        0.000 bits at nine degrees. -2.000 bits at n = 131, where the driver uses
+        r = ECC2K-130's subgroup order (about 2^129) in place of 2^n.
+      contract_vs_both: >-
+        The contract defines N as the prime subgroup order. The closed form, and
+        the driver at nine of ten degrees, use 2^n. An ordinary binary curve always
+        has the 2-torsion point (0, sqrt b), so N <= 2^(n-1) at every listed degree.
+      sensitivity_S7: >-
+        Setting cofactor 2 or 4 at every n != 131: the sub-rho capped count stays
+        14, cells at B <= 2^80 stay 0, and the n = 97 minimum store moves from 85.4
+        to 84.8 or 84.2. The driver's "changes no sign" claim holds for these
+        quantities.
+      omission: the |F|^s table-construction term (breaking_artifact; S6)
+    - id: S2
+      closed_form: store-free MITM total = 2^(2n/(floor(m/2)+1))
+      my_derivation: >-
+        Balancing L + N + d(1-S) against 2d gives d* = (N+L)/(S+1) and total
+        2(N+L)/(S+1) + 1, where L = log2 m! and the +1 comes from summing two
+        equal terms.
+      driver_minus_stated_form_n131_bits: {m4: 2.64, m6: 4.77, m8: 6.29, m10: 7.52, m12: 8.53, m14: 9.46, m16: 10.16}
+      driver_minus_my_form_max_abs_bits: 0.23
+      consequence: >-
+        The stated form omits log2 m! and the +1, an error that grows with m. The
+        driver minimises numerically with m! included, so NO reported cell
+        inherits it. What inherits it is P2's "m = 6 landing near it" and the
+        Coordinator prior's "m = 6 lands at 2^65.5". The driver puts m = 6 at
+        2^70.27, 9.46 bits above the published 2^60.8090. This meets the
+        breaking-artifact definition on its own, e.g. at (131, 8, 29, 4) the stated
+        form gives 2^52.4 against a correct 2^58.69, but it is secondary because it
+        moves no reported cell.
+    - id: S3
+      closed_form: minimum store = S/(S-1) * (n/2 + log2 m!)
+      my_derivation: >-
+        Probe work < vOW requires d(S-1) > log2N/2 + L + 0.1747, so the store Sd
+        must exceed S/(S-1)(log2N/2 + L + 0.1747).
+      agreement: >-
+        My form is within +0.10 to +0.29 bits of the driver, the residual being the
+        0.05-step d grid. The stated form is within -0.93 to +0.51 bits: the -0.93
+        at n = 131 is r against 2^n, the rest the 0.886 constant.
+      domain_defect: >-
+        The form omits the linear-algebra constraint 2^(2d) < W. At S = 2 and 3
+        (m = 4..7) the d it requires gives 2d > n/2 at EVERY degree, so no sub-rho
+        cell exists for m <= 7 at any store. The driver handles this correctly and
+        reports m = 2..7 unreachable at all ten degrees. Consequently the values
+        A2/A2b quote at n = 131, 140.2 (m = 4) and 112.5 (m = 6), are not the
+        minimum store of any cell, and A2b's argument that P3b contradicts P4
+        rests on them. Over reachable m >= 8 the even-m minimum store at n = 131
+        rises monotonically (106.8, 108.25, 112.5, 117.95, 124.8), which is what
+        P3b's withdrawn clause said. Revisiting the withdrawal is the
+        Coordinator's call.
+    - id: S6
+      what: the build term the model omits, measured in the producer's own cells and then charged
+      producer_cells_with_store_exceeding_reported_total_time:
+        capped_subrho: "14 of 14 (min gap 41.86 bits; e.g. n=97 m=10 B=2^100: total 2^40.5, store 2^100.0)"
+        store_free_subrho_distinct: "90 of 90 (min gap 44.10 bits; P2's n=131 m=8 cell: total 2^58.69, store 2^116.0)"
+        min_store_rows_reachable: "90 of 90"
+      with_build_charged:
+        subrho_cells_any_budget_any_degree: 0
+        cells_below_published_2^60.8090_at_131: 0
+        corrected_margin_over_vow_bits: {n97: 16.5, n109: 17.7, n131: 19.1, n163: 21.5, n191: 23.5, n233: 26.2, n239: 26.6, n283: 29.0, n409: 35.5, n571: 42.7}
+        n131_best: 2^83.44 at m = 8, s = 4, d = 20.55, against vOW 2^64.33
+        ECC2-79_and_ECC2-89_best: 2^54.1 and 2^60.1, about 15-16 bits above vOW
+      analytic_floor: >-
+        For every m, d and s, not only m <= 16: total >= max(sd, L + log2N + d - sd)
+        >= (log2N + L + d)/2 > log2N/2 > log2N/2 + log2(0.886). P3a, read correctly,
+        says each sub-rho cell's table takes more operations to WRITE than rho's
+        entire work. It is a proof inside the model that no cell is sub-rho, not
+        the price of entry to one.
+      sanity_pointer:
+        citation: Shoup, generic-group lower bound Omega(sqrt N)
+        provenance: recalled
+        load_bearing: false
+        note: >-
+          A reason to distrust sub-sqrt(N) time from a generic-m-SUM pipeline. Not
+          used in the argument: an x-coordinate factor base is not a generic object.
+
+  control_checks:
+    - control: C-NULL-NO-MEMORY-CHARGE, relabelled C-BINDINGNESS-DIAGNOSTIC by A4
+      finding: >-
+        Recomputed with the build term charged, A4's genuine null ("does the
+        family's VERDICT differ between store-free and store-budgeted?") returns
+        the SAME verdict both ways: nothing beats rho. That is the branch A4 says
+        refutes the premise that the oracle's unpriced STORE was the asymmetry.
+        The unpriced asymmetry was BUILD TIME; the store budget was standing in for
+        it. "720 -> 14, the charge is what does the work" is void as stated, and
+        the 720 is a count of 90 cells.
+    - control: C-M3-ANCHOR, C-DEGENERATE-M
+      finding: reproduced as reported; unaffected, since m = 3 is never sub-rho in either accounting
+    - control: C-FLOOR-REPRO (A1)
+      finding: OUT OF JOINT (J2). See out_of_joint_observations.
+    - control: C-BOUND-PROBE (A3), C-BASELINE-CONSISTENCY (A7), A6 realisation table
+      finding: >-
+        Not implemented in the driver and not reported in raw-result.json or the
+        manifest. raw-result.json carries three controls; the manifest claims four.
+        A7's pass criterion ("vOW column reproduces 0.886*2^(n/2) at every listed
+        degree") would fail at n = 131 by 1.000 bit.
+
+  weak_point_checks:
+    excess_relation_count:
+      verdict_on_this_point: holds
+      deterministic: >-
+        |F|+1 vectors in an |F|-dimensional space over the field Z/NZ are always
+        dependent. One more relation guarantees a dependency with sum lambda_i b_i
+        != 0 (failure probability about 1/N). So at most |F|+2 relations are needed
+        for EVERY m, and stage 1 is multiplied by at most (1 + 2^(1-d)).
+      simulation_S4: >-
+        Exact rank over GF(2^31-1); |F| in {32, 64, 96}; m in {2..8, 10, 12, 14,
+        16}; 30 trials per cell; seed 20260930. The maximum excess over |F| is +1 at
+        every m. The requirement rises toward |F|+1 FROM BELOW as m grows (about
+        0.67|F| at m = 2, 0.94-0.97|F| at m = 3, |F|+1 from m around 7), matching
+        the empty-column fixed point x = 1 - exp(-m x). Bounded, not growing.
+      subtlety: >-
+        In the sub-rho regime |F|/p < 1. If every relation decomposes the SAME
+        target, every kernel vector has sum lambda = 0 and the system is useless,
+        so relations must come from at least two targets. This costs nothing extra
+        with a shared table, so it is not counted as a break.
+    odd_m:
+      verdict_on_this_point: holds under the frozen cap s <= floor(m/2)
+      analytic: >-
+        Odd m = 2S+1 shares s = S with m-1 and carries m! larger by a factor m, so
+        its minimum store exceeds that of m-1 by S/(S-1) log2 m. It cannot beat
+        even its lower neighbour.
+      measured_S5: >-
+        No odd m at any degree has a lower required store than either even
+        neighbour. Among MITM_CAPPED pairs (odd m against m-1, same degree and
+        budget), none has a lower total. Measured gaps at n = 131 are 4.20, 4.25,
+        4.20, 4.55 bits against 4.23, 4.32, 4.44, 4.56 predicted.
+      sensitivity_S5b: >-
+        If s = ceil(m/2) is permitted (tabulate the larger half), odd m = 5, 7, 9
+        (and 11 at n = 131) beat BOTH even neighbours, and the n = 131 argmin moves
+        from m = 8 at 2^106.6 to m = 7 at 2^102.6. The only reason to cap s at
+        floor(m/2) is that a table bigger than the probe side dominates the TIME,
+        which is the term the model never charges. So P4's argmin is a property of
+        the cap.
+
+  heuristic_validation_checks:
+    - not in this joint. HEUR-GENERIC-MSUM is J3 and was not tested; every finding here holds within the stated oracle class only.
+  cost_model_checks:
+    - check: unit declared
+      result: >-
+        No. Totals are "log2 operations" with no declared operation type. Store is
+        log2 entries; the manifest also lists bits, but no entry width is used. The
+        headline "store exceeds rho's entire work by 42.5 bits" compares log2
+        entries with log2 operations.
+    - check: memory reported alongside time
+      result: >-
+        Yes, but the time column omits the cost of filling the memory it reports,
+        which in every sub-rho cell is the dominant term (S6).
+    - check: per-attempt cost x inverse success probability
+      result: >-
+        relations x (1/p) x oracle is applied literally even where the number of
+        oracle calls is below 1 (|F|/p down to 2^-42.6), i.e. fractional attempts
+        with the fixed per-oracle setup omitted. The validator.md bookkeeping rule
+        is met in form and broken in substance in exactly that regime.
+  proof_architecture_checks: []
+
+  comparison_with_coordinator_prior:
+    locked_before_reading: >-
+      verdict_lock_before_prior.txt, written 2026-09-30T21:17:31Z, sha256
+      f94787b9bb413441b98b59423dffecea38360948da3230c2cf64ebda9e6a7c2b
+    prior_expected: >-
+      Closed forms hold. Overturned only by a sub-rho cell at a holdable store, a
+      P5 counterexample at n = 97 or 109, or a mis-accounting of "the relation
+      count or the linear algebra".
+    found: >-
+      Relation count holds. Closed form #3 DOES mis-account the linear algebra for
+      m <= 7 (A2/A2b values), which is one of the prior's named overturning
+      conditions; it moves no driver cell. The principal break is in a place the
+      prior did not name: the oracle's own time. "m = 6 lands at 2^65.5" is 2^70.27
+      in the driver. "Confirmation nearly worthless" is right in a stronger sense:
+      the confirmed P2 and P4 cells are not sub-rho once time is counted. The P5
+      margin at n = 97 is reproduced (2^85.4 against 2^80) in the model as written.
+
+  effect_on_claim_scoped_to_J1: >-
+    H-SEMBIN-8e7ae3's statement survives A FORTIORI: under correct time accounting
+    nothing in the model falls below rho at any store. The following are void as
+    stated:
+    (i) the 720 -> 14 bindingness reading;
+    (ii) P2's confirmation;
+    (iii) the "14 survivors at n = 97, 109";
+    (iv) reading P4's 2^106.8 as "the store needed to beat rho". It is the store at
+    which PROBE-ONLY work crosses the vOW column.
+    The correction touches only table-based oracle models. FREE, ENUM and any
+    smoothness-test oracle are unchanged, so it does not by itself make the
+    proves-too-much objects (J2's) find nothing.
+
+  what_this_check_could_not_detect:
+    - >-
+      Shared misreadings: my implementation and the driver come from the same
+      cost_model text, so any misreading we share reproduces identically. S0's
+      agreement is transcription evidence only.
+    - >-
+      Correlated blind spots: this harness resolves every role to one underlying
+      model, so my "holds" sub-verdicts (excess, odd m under the cap) are weak
+      evidence about quantities the author also derived.
+    - >-
+      Single-instance accounting is assumed, as in the contract. Under a
+      precomputation or multi-instance reading the table build amortises and the
+      break weakens; the baseline would then have to be rho with precomputation,
+      which nobody modelled.
+    - >-
+      The rank simulation uses random relations at |F| <= 96 over a 31-bit field,
+      not structured Semaev relations at |F| = 2^27 over Z/rZ.
+    - >-
+      HEUR-GENERIC-MSUM (J3) is not tested, nor whether some generic oracle builds
+      its table in less than table-size time.
+    - >-
+      Not verified: r's primality, each listed curve's true cofactor, and the
+      published reference's provenance. Checked only that r is about 2^129 per the
+      frozen input and that 2^60.8090 = sqrt(pi r/(4*131)) to four decimals.
+    - >-
+      No cost unit is declared. I assume a table write costs at least one
+      operation in the probe's unit.
+
+  out_of_joint_observations:
+    - joint: J2 (TASK-20260928-3f90b8)
+      note: >-
+        A1 SIGNATURE CHECK FIRED AND WAS NOT REPORTED. In A1's sign convention
+        (committed - recomputed) the offsets are +1.67, +1.77, +1.98, +2.21, +2.42,
+        +2.78. They depart from 2 log2 m by 2.02, 2.44, 2.76 and 3.22 bits at
+        m = 4, 5, 6 and 8, beyond A1's 1.5-bit limit. A1 says such a departure is
+        reported as a suspected implementation defect and the run stops; the
+        approval-time falsification criterion adds "no row may be read". The
+        manifest says "growing monotonically in m as the amendment's declared
+        signature requires", records protocol_deviations: [], and the run did not
+        stop. Not adjudicated here.
+    - joint: Coordinator
+      note: >-
+        Process: RESULTS.md is missing; TASK-20260928-e4f7b2 still reads
+        written_not_dispatched with no archive receipt found; this task's card
+        (TASK-20260928-a1c7e5) is not a committed handoff file, and I was
+        dispatched by message.
+
+  verdict: failed
+  verdict_reason: >-
+    Integrity checks pass: committed, digests match, byte-identical re-execution.
+    The receipt is nonetheless NOT admissible as evidence of the quantities it
+    names. Its headline metrics ("min_store_to_beat_rho", the sub-rho cell counts,
+    P2's below-reference row) rest on a time accounting that omits a term
+    dominating every reported sub-rho cell by at least 41.9 bits. Separately, the
+    frozen contract's A3 and A7 controls and A6 table are absent, and A1's
+    declared stop condition fired unreported. "failed" is a validation verdict on
+    the receipt, not a mathematical result about any curve.
+  limitations:
+    - Claim tier of everything above is heuristic_estimate within the stated oracle class; no curve is touched.
+    - Degrees are parameter labels; n = 131 additionally uses ECC2K-130's subgroup order, as the driver does.
+    - The joint verdict is on J1 only; this report does not vote on the whole claim.
+  artifact_paths:
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/validation_report.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/j1_rederive.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/j1_rederive_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/j1_rederive_stdout.txt
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/verdict_lock_before_prior.txt
+  reproduce: python3 coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-a1c7e5/j1_rederive.py --json <out>  # about 52 s; --skip-sim omits S4
+
+review_attestation:
+  task_id: TASK-20260928-a1c7e5
+  joints_owned: [J1]
+  independent_session: true
+  independent_session_note: >-
+    A separate subagent session from the producer and the Coordinator. Under this
+    harness every policy alias resolves to one underlying model, so independence
+    is of session, not of model.
+  requested_policy: review-adversarial
+  resolved_model_id: claude-opus-5-5
+  fallback_used: true
+  fallback_reason: this runtime cannot resolve policy aliases per role; the session model serves every alias
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - CLAUDE.md
+    - "ledger/handoffs/TASK-20260928-e4f7b2.yaml (lines 1-104 and 135-353 first; lines 105-134, coordinator_prior, only AFTER verdict_lock_before_prior.txt was written)"
+    - ledger/handoffs/TASK-20260928-9e14ac.yaml (deliverables and write-scope lines only)
+    - experiments/EXP-SEMBIN-04ec3c/specification.yaml (whole file, incl. amendments)
+    - experiments/EXP-SEMBIN-04ec3c/code/memory_charged_family.py
+    - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-c68773/ (all eight files)
+    - ledger/hypotheses/H-SEMBIN-8e7ae3.yaml
+    - inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md (grep for the subgroup order and the break-date lines)
+    - inputs/BAILEY-2009-541-ECC2K130/talk-ecc2010_text.md (grep hit for the subgroup order only)
+    - experiments/EXP-NISTBIN-451dfa/specification.yaml (grep lines 195-221, ECC2-79 / ECC2-89 cofactors)
+    - "ledger/hypotheses/H-ECQ-0ed5c8.yaml (grep: one line, n = 79)"
+    - templates/research-records.md (review_attestation and archive-receipt schemas)
+    - tools/check_review_independence.py (parser sections only)
+    - "git metadata: commits 3c97c0d40, e56b0a215, bbe4411c5 (messages and name-status)"
+  not_read:
+    - "ledger/decisions/DEC-20260928-7c3d91.yaml: not opened (only its commit message, as part of e56b0a215)"
+    - "coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-4e5c26/: the directory name appeared in a listing; contents not opened"
+  read_sibling_reports: false
+  blind_from_respected: null
+  verdict:
+    J1: breaks

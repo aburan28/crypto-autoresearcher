@@ -184,7 +184,7 @@ const state = {
   meta: null,
   records: [],                 // decoded index rows, in file order
   byId: new Map(),
-  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null,
+  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null, ops: null,
   searchShards: new Map(),     // kind -> Map(id -> excerpt)
   ready: false,
   fatal: null,
@@ -314,6 +314,112 @@ function clip(text, n) {
   const s = String(text ?? '');
   return s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}…`;
 }
+
+function fmtCount(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  return Math.round(n).toLocaleString();
+}
+function fmtIops(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k/s`;
+  return `${Math.round(n).toLocaleString()}/s`;
+}
+function fmtBytes(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  const units = [['TiB', 1024 ** 4], ['GiB', 1024 ** 3], ['MiB', 1024 ** 2], ['KiB', 1024]];
+  for (const [unit, size] of units) {
+    if (abs >= size) return `${(n / size).toFixed(abs >= size * 10 ? 1 : 2)} ${unit}`;
+  }
+  return `${Math.round(n)} B`;
+}
+function fmtBytesPerSec(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  return `${fmtBytes(n)}/s`;
+}
+
+function latestPointNote(ops) {
+  if (!ops?.latest_point) return 'no samples';
+  const age = relative(ops.latest_point);
+  if (ops.last_hour?.basis === 'latest_sample') {
+    return `latest point ${age} · hour ending at that sample`;
+  }
+  return `latest point ${age}`;
+}
+
+function opsWindow(title, rates, extra, note, empty) {
+  const value = (n, unit) => h('div', { class: 'ops-line' },
+    h('strong', {}, empty ? '—' : n), h('span', {}, unit));
+  return h('div', { class: `ops-window${empty ? ' empty' : ''}` },
+    h('div', { class: 'kicker' }, title),
+    empty
+      ? h('p', { class: 'ops-empty' }, 'No samples in this window.')
+      : h('div', { class: 'ops-rates' },
+          value(fmtIops(rates.write_iops), 'writes'),
+          value(fmtIops(rates.read_iops), 'reads'),
+          value(fmtBytesPerSec(rates.write_bytes_per_sec), 'write throughput'),
+          value(fmtBytesPerSec(rates.read_bytes_per_sec), 'read throughput'),
+          extra),
+    h('div', { class: 'ops-note faint' }, note));
+}
+
+function opsPanel(ops) {
+  if (!ops || !ops.available) {
+    if (ops && ops.reason && !/no AWS credentials/i.test(ops.reason)) {
+      return h('div', { class: 'banner warn' },
+        'Database metrics unavailable · ', ops.reason);
+    }
+    return null;
+  }
+  const hour = ops.last_hour || {};
+  const day = ops.last_24h || {};
+  const storage = ops.storage || {};
+  const usedPct = storage.allocated_bytes && storage.used_bytes != null
+    ? Math.min(100, (storage.used_bytes / storage.allocated_bytes) * 100) : null;
+  const db = ops.database || {};
+  const dayExtra = h('div', { class: 'ops-line ops-total' },
+    h('strong', {}, fmtCount(day.write_ops)), h('span', {}, 'write ops'),
+    h('strong', {}, fmtCount(day.read_ops)), h('span', {}, 'read ops'));
+  return h('section', { class: 'ops-board', 'aria-label': 'Database load' },
+    h('div', { class: 'ops-head' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Distinguished-point database'),
+        h('h2', {}, db.id || 'rho-dp'),
+        h('p', { class: 'faint' },
+          [db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
+      ops.stale ? tag('stale', 'warn', latestPointNote(ops)) : tag('live', 'ok', latestPointNote(ops))),
+    h('div', { class: 'ops-windows' },
+      opsWindow(hour.basis === 'latest_sample' ? 'Hour at latest sample' : 'Last hour',
+        hour, null, latestPointNote(ops), hour.empty),
+      opsWindow('Last 24 hours', day, dayExtra, `${(day.samples || 0).toLocaleString()} samples`,
+        day.samples === 0)),
+    h('div', { class: 'ops-storage' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Storage'),
+        h('div', { class: 'ops-storage-values' },
+          h('strong', {}, fmtBytes(storage.used_bytes)), ' used · ',
+          fmtBytes(storage.free_bytes), ' free · ',
+          fmtBytes(storage.allocated_bytes), ' allocated')),
+      usedPct === null ? null : h('div', { class: 'ops-bar', title: `${usedPct.toFixed(1)}% used` },
+        h('i', { style: `width:${usedPct.toFixed(1)}%` }))),
+    ops.object_store ? h('p', { class: 'ops-store faint' },
+      'Object store ', h('span', { class: 'mono' }, ops.object_store.bucket), ' · ',
+      fmtBytes(ops.object_store.bytes),
+      ops.object_store.objects != null ? ` · ${fmtCount(ops.object_store.objects)} objects` : '',
+      ops.object_store.as_of ? ` · as of ${relative(ops.object_store.as_of)}` : '') : null,
+    h('p', { class: 'ops-meta faint' },
+      cpuLine(ops.cpu_percent, ops.connections)));
+}
+
+function cpuLine(cpu, connections) {
+  const parts = [];
+  if (cpu != null) parts.push(`CPU ${cpu.toFixed(1)}%`);
+  if (connections != null) parts.push(`${connections.toFixed(0)} connection${connections === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
 const sum = (map) => Object.values(map || {}).reduce((a, b) => a + (b || 0), 0);
 const split = (v) => (v || '').split(',').filter(Boolean);
 
@@ -326,6 +432,7 @@ const NAV = [
   { route: '#/goals', label: 'Research', count: (s) => s.meta?.goals },
   { route: '#/experiments', label: 'Experiments', count: (s) => s.meta?.experiments },
   { route: '#/records', label: 'Records', count: (s) => s.records.length || null },
+  { route: '#/compare', label: 'Compare' },
   { route: '#/integrity', label: 'Integrity', count: (s) => s.overview
       ? Object.entries(s.overview.integrity_totals)
           .filter(([k]) => !k.endsWith('_state'))
@@ -986,11 +1093,190 @@ function recentWorkFeed(rows) {
   return h('div', { class: 'activity-panel' }, tabs, list, more);
 }
 
+// Research telemetry is an explicitly supplied aggregate snapshot, never worker logs.
+function progressPanel(p) {
+  const body = h('div', { class: 'panel-body stack', style: 'gap:12px' });
+  const section = panel('Research progress', 'Observed activity and evidence coverage', body,
+    { id: 'research-progress' });
+  if (!p?.available) {
+    body.append(h('p', { class: 'muted' }, 'Research telemetry unavailable. No observed progress snapshot has been supplied.'));
+    return section;
+  }
+  const m = p.metrics || {};
+  const stamps = [p.generated_at, p.source_updated_at].map(x => Date.parse(x));
+  const stale = p.stale || stamps.some(t => !Number.isFinite(t) || Date.now() - t > 3600000);
+  const n = key => m[key] === null || m[key] === undefined ? '—' : m[key].toLocaleString();
+  body.append(
+    h('div', { class: 'row faint' }, tag(stale ? 'Stale snapshot' : 'Observed snapshot', stale ? 'warn' : 'info'),
+      '24 hours ending ', timeEl(p.generated_at, { label: 'report generated' }),
+      ' · last event ', timeEl(p.source_updated_at, { label: 'latest observed event' })),
+    h('div', { class: 'stat-row' },
+      statCard(n('actions_last_24h'), 'finished actions'),
+      statCard(n('design_actions_last_24h'), 'design actions'),
+      statCard(n('run_actions_last_24h'), 'run actions'),
+      statCard(n('runner_output_validated_trial_delta_24h'), 'validated-output change',
+        { title: 'Signed change under the same frozen trial plan; not discoveries.' }),
+      statCard(m.next_action_latency_seconds_median_24h == null ? '—' : fmtDuration(m.next_action_latency_seconds_median_24h), 'median handoff delay'),
+      statCard(m.measured_cost_usd_last_24h == null ? '—' : `$${m.measured_cost_usd_last_24h.toFixed(4)}`, 'measured model cost')),
+    h('div', { class: 'row faint' }, `Trial coverage: ${m.runner_coverage_24h ?? 'unknown'}`, ' · ',
+      `Cost coverage: ${m.cost_coverage_last_24h ?? 'unknown'}`),
+    h('p', { class: 'muted' }, 'Action counts describe activity. Verified discoveries and independent relations are not yet measured in this panel.'),
+    h('a', { class: 'text-link', href: '#/compare' }, 'Compare archived run receipts →'));
+  return section;
+}
+
+function comparisonReasons(a, b) {
+  if (!a || !b) return ['Choose two archived receipts.'];
+  const reasons = [];
+  if (a.id === b.id) reasons.push('Choose two different receipts.');
+  if (!a.manifest_sha256 || a.manifest_sha256 !== b.manifest_sha256) reasons.push('Frozen manifests differ or are missing.');
+  if (!a.scope || a.scope !== b.scope) reasons.push('Measurement scopes differ or are missing.');
+  if (!a.timing_boundary || a.timing_boundary !== b.timing_boundary ||
+      !Array.isArray(a.excluded_costs) || !Array.isArray(b.excluded_costs) ||
+      JSON.stringify(a.excluded_costs) !== JSON.stringify(b.excluded_costs)) reasons.push('Accounting boundaries differ or are missing.');
+  if (!a.environment || !b.environment || JSON.stringify(a.environment) !== JSON.stringify(b.environment)) reasons.push('Host or harness provenance is missing or differs.');
+  if (!a.complete || !b.complete) reasons.push('At least one receipt is incomplete.');
+  if (a.verification !== 'recorded_verified' || b.verification !== 'recorded_verified') reasons.push('Verification is missing or an outcome is unknown.');
+  if (a.metrics?.total_wall_seconds == null || b.metrics?.total_wall_seconds == null) reasons.push('Charged time is missing.');
+  if (a.fixture || b.fixture) reasons.push('Synthetic fixture — not performance evidence.');
+  return reasons;
+}
+
+function comparisonTable(a, b) {
+  const metric = (r, key, fmt = String) => r.metrics?.[key] == null ? '—' : fmt(r.metrics[key]);
+  const sources = r => h('div', { class: 'stack', style: 'gap:8px' },
+    Object.entries(r.sources || {}).map(([kind, source]) => h('div', {},
+      pathLink(source.path, `${kind} source`),
+      h('div', { class: 'mono receipt-hash' }, source.sha256))));
+  const count = r => Object.entries(r.outcomes || {}).map(([key, value]) => `${value} ${key}`).join(' · ') || 'unknown';
+  const attempts = r => r.attempt_status == null ? 'Not supplied' :
+    Object.entries(r.attempt_status).map(([key, value]) => `${value} ${key}`).join(' · ');
+  const rows = [
+    ['Backend / mode', r => `${r.backend?.id || 'unknown'} / ${r.backend?.mode || 'unknown'}`],
+    ['Scope', r => r.scope || 'unknown'],
+    ['Recorded environment', r => r.environment ? `${r.environment.python} · ${r.environment.platform}` : 'Not supplied'],
+    ['Harness source digest', r => h('span', { class: 'mono receipt-hash' }, r.environment?.harness_sha256 || 'Not supplied')],
+    ['Receipt completeness', r => r.complete ? 'All input results recorded' : 'Incomplete'],
+    ['Verification in receipt', r => r.verification === 'recorded_verified' ? 'Verified outputs recorded' : 'Incomplete or unknown'],
+    ['Final outcomes', count],
+    ['Worker attempts (includes fallback)', attempts],
+    ['Charged wall time', r => metric(r, 'total_wall_seconds', fmtDuration)],
+    ['CPU time (parent + reaped children)', r => metric(r, 'parent_and_reaped_children_cpu_seconds', fmtDuration)],
+    ['Peak single-worker RSS', r => metric(r, 'peak_worker_process_rss_bytes', fmtBytes)],
+    ['Recorded independent rank', r => r.relation_verification_complete ? metric(r, 'verified_relation_rank') : 'Unknown — verification incomplete or absent'],
+    ['Fallback attempts', r => metric(r, 'fallback_attempts')],
+    ['Timing boundary', r => r.timing_boundary || 'unknown'],
+    ['Excluded costs', r => r.excluded_costs == null ? 'unknown' : (r.excluded_costs.join('; ') || 'None recorded')],
+    ['Frozen manifest SHA-256', r => h('span', { class: 'mono receipt-hash' }, r.manifest_sha256)],
+    ['Pinned sources', sources],
+  ];
+  return h('div', { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': 'Run comparison, scroll horizontally for both runs' }, h('table', { class: 'comparison-table' },
+    thead(['Recorded quantity', a.label, b.label]),
+    h('tbody', {}, rows.map(([label, render]) => h('tr', {},
+      h('th', { scope: 'row' }, label), h('td', {}, render(a)), h('td', {}, render(b)))))));
+}
+
+function benchmarkPanel(data = {}) {
+  const section = h('section', { class: 'stack' }, h('h2', {}, 'Curve benchmark archive'));
+  section.append(h('p', { class: 'muted' },
+    'Archived toy-curve measurements. Verification is reported by the source, not rerun here. This is an evidence table, with no cross-curve ranking or inferred speedup.'));
+  if (data.error) { section.append(h('div', {class:'banner warn', role:'alert'}, data.error)); return section; }
+  const rows = data.rows || [];
+  section.append(h('p', {class:'faint'}, data.coverage || 'No snapshot supplied.'));
+  if (!rows.length) return section;
+  section.append(h('p', {class:'mono receipt-hash'}, `Source: ${data.source_repository} @ ${data.source_commit}`));
+  const choose = h('select', {class:'field', 'aria-label':'Filter benchmark curve'},
+    h('option', {value:''}, 'All recorded curves'),
+    Object.entries(data.identities || {}).map(([uid, value]) => h('option', {value:uid}, value.curve_id)));
+  const host = h('div', {class:'stack', 'aria-live':'polite'});
+  const number = value => value == null ? '—' : String(value);
+  const draw = () => {
+    const selected = rows.filter(row => !choose.value || row.curve_uid === choose.value);
+    fill(host, h('p', {class:'muted'}, `${selected.length} recorded runs`),
+      ...selected.map(r => {
+        const identity = data.identities[r.curve_uid];
+        const details = h('details', {}, h('summary', {}, 'Identity, accounting and sources'),
+          h('dl', {class:'benchmark-details'},
+            h('dt', {}, 'Global curve ID'), h('dd', {class:'mono receipt-hash'}, r.curve_uid),
+            h('dt', {}, 'Candidate / workload'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_id} / ${r.workload_id}`),
+            h('dt', {}, 'Full candidate / workload digests'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_sha256} / ${r.workload_sha256}`),
+            h('dt', {}, 'Field and curve record'), h('dd', {}, h('pre', {class:'raw'}, JSON.stringify({field:identity.field, curve:identity.curve}, null, 2))),
+            h('dt', {}, 'Factor base points / enumerated-set digest'), h('dd', {class:'mono receipt-hash'}, `${number(r.factor_base_points)} / ${r.factor_base_sha256 || 'unknown'}`),
+            h('dt', {}, 'Receipt factor-base artifact digest (separate namespace)'), h('dd', {class:'mono receipt-hash'}, r.receipt_factor_base_sha256 || 'unknown'),
+            h('dt', {}, 'Isogeny route'), h('dd', {}, r.isogeny || 'unknown'),
+            h('dt', {}, 'Scope'), h('dd', {}, r.scope),
+            h('dt', {}, 'Online interval'), h('dd', {}, r.online_boundary || 'Not recorded'),
+            h('dt', {}, 'Total recorded operations / unit'), h('dd', {}, `${number(r.total_operations)} / ${r.operation_unit || 'unknown'}`),
+            h('dt', {}, 'Calibration / resource envelope'), h('dd', {class:'mono receipt-hash'}, `${r.calibration_id || 'unknown'} / ${r.resource_envelope_id || 'unknown'}`)),
+          ...r.sources.map(path => {const source = data.sources[path]; return h('p', {},
+            h('a', {href:source.url, target:'_blank', rel:'noopener noreferrer'}, path),
+            h('span', {class:'mono receipt-hash'}, ` SHA-256: ${source.sha256}`));}));
+        return h('article', {class:'card stack'},
+          h('h3', {class:'mono receipt-hash'}, r.curve_id),
+          h('p', {class:'mono receipt-hash'}, r.run_id),
+          h('p', {}, `${r.method} · ${r.suite || 'unknown suite'} · ${r.status} · ${r.verification === 'recorded_verified' ? 'source reports verified' : 'verification unknown'} · targets ${number(r.targets_verified)}/${number(r.target_count)}`),
+          h('div', {class:'row'},
+            statCard(r.ic_online_ns == null ? '—' : `${(r.ic_online_ns / 1e6).toFixed(3)} ms`, 'IC online (recorded)'),
+            statCard(r.rho_online_ns == null ? '—' : `${(r.rho_online_ns / 1e6).toFixed(3)} ms`, 'Paired rho online (recorded)')),
+          details);
+      }));
+  };
+  choose.addEventListener('change', draw);
+  section.append(h('label', {}, 'Curve ', choose), host);
+  draw();
+  return section;
+}
+
+async function viewCompare(params = new URLSearchParams()) {
+  setCrumb('Compare run receipts');
+  const root = fill(view(), loading('Reading archived receipts…'));
+  if (!state.ready) return;
+  let data;
+  try { data = await getJSON('comparisons.json', { cached: state.meta?.mode === 'static' }); }
+  catch {
+    fill(root, h('div', { class: 'banner warn', role: 'alert' },
+      'Run receipts could not be loaded. ', h('button', { class: 'btn', onclick: () => viewCompare(params) }, 'Retry')));
+    return;
+  }
+  const receipts = data.receipts || [];
+  const host = h('div', { class: 'stack', 'aria-live': 'polite' });
+  const choice = (label, key) => h('label', { class: 'comparison-choice' }, h('span', {}, label),
+    h('select', { class: 'field', 'aria-label': label, 'data-side': key },
+      h('option', { value: '' }, 'Choose a receipt…'), receipts.map(r =>
+        h('option', { value: r.id, selected: params.get(key) === r.id }, `${r.label}${r.fixture ? ' (fixture)' : ''}`))));
+  const controls = h('div', { class: 'comparison-choices' }, choice('First run', 'a'), choice('Second run', 'b'));
+  const draw = () => {
+    const keys = [...controls.querySelectorAll('select')].map(el => el.value);
+    const [a, b] = keys.map(key => receipts.find(r => r.id === key));
+    replaceRoute('#/compare', { a: keys[0], b: keys[1] });
+    const reasons = comparisonReasons(a, b);
+    fill(host, h('div', { class: `banner ${reasons.length ? 'warn' : 'info'}` },
+      reasons.length ? reasons.join(' ') : 'Matched frozen inputs and accounting; recorded verification is present.'),
+      a && b ? comparisonTable(a, b) : null);
+  };
+  controls.addEventListener('change', draw);
+  fill(root, h('div', { class: 'stack' }, snapshotBanner(),
+    h('div', {}, h('h1', {}, 'Compare run receipts'),
+      h('p', { class: 'muted' }, 'Read archived measurements side by side. Source hashes are checked; scientific verification is reported from the receipt, not rerun by this dashboard. No automatic winner or full-algorithm speedup is inferred.')),
+    ...(data.errors || []).map(e => h('div', { class: 'banner warn' }, `${e.id}: ${e.reason}`)),
+    receipts.length ? controls : h('div', { class: 'empty' }, 'No archived comparison receipts are registered in this snapshot.'),
+    receipts.length ? h('p', { class: 'faint', style: 'font-size:12px' }, 'On narrow screens, scroll the table horizontally to see both runs.') : null,
+    host, benchmarkPanel(data.benchmarks)));
+  if (receipts.length) draw();
+}
+
 async function viewOverview() {
   setCrumb('Research overview');
   const root = fill(view(), loading('Reading the latest research…'));
   if (!state.ready) return;
-  state.overview ??= await getJSON('overview.json');
+  if (!state.overview) state.overview = await getJSON('overview.json');
+  if (state.ops === null) {
+    try { state.ops = await getJSON('ops.json'); }
+    catch { state.ops = { available: false, reason: 'ops.json was not in this snapshot' }; }
+  }
+  let progress;
+  try { progress = await getJSON('progress.json', { cached: state.meta?.mode === 'static' }); }
+  catch { progress = { available: false }; }
   const o = state.overview;
   const findings = o.findings || { current: 0, latest: [] };
   const work = o.current_work || o.ecc_first || [];
@@ -1015,6 +1301,8 @@ async function viewOverview() {
       metric(o.goals.active, 'active research goals', '#/goals?status=active'),
       metric(findings.current, 'current findings', '#/findings'),
       metric(o.experiments.total, 'experiments recorded', '#/experiments')),
+    progressPanel(progress),
+    opsPanel(state.ops),
     homeSection('What we’re working on',
       'Recently updated active goals, with elliptic-curve research first. An active goal may be waiting on a next step.',
       '#/goals', 'All research',
@@ -2160,7 +2448,7 @@ async function viewExperiments(params) {
             : h('span', { class: 'faint', title: 'this contract declares no date of its own' }, '—')),
           td(timeEl(e.committed, { label: 'first committed', style: 'date' })),
           td(timeEl(e.last_run, { label: 'latest run activity' })),
-          td(e.total_seconds
+          td(e.total_seconds != null
             ? h('span', { class: 'mono', title: `${e.runs_measured} of ${e.run_count} runs report a duration` },
                 fmtDuration(e.total_seconds))
             : h('span', { class: 'faint' }, '—')),
@@ -2181,7 +2469,7 @@ async function viewExperiments(params) {
         statCard(`${timing.runs_with_declared_start ?? 0}`, 'declare a start time',
           { title: 'run manifests carrying started_at' }),
         statCard(`${timing.runs_with_duration ?? 0}`, 'report a duration'),
-        statCard(timing.total_measured_seconds ? fmtDuration(timing.total_measured_seconds) : '—',
+        statCard(timing.total_measured_seconds != null ? fmtDuration(timing.total_measured_seconds) : '—',
           'total measured', { title: 'summed across only the runs that report one' }),
         statCard(`${timing.experiments_dated ?? 0}`, 'contracts self-dated',
           { title: `of ${timing.experiments ?? 0}; the rest are dated by their commit` })),
@@ -2197,6 +2485,7 @@ async function viewExperiments(params) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
+    h('a', { class: 'text-link', href: '#/compare' }, 'Compare archived run receipts →'),
     timingPanel,
     // Twenty-four statuses, of which the first four are 97% of the runs. Full
     // height pushed the table -- the point of the page -- below the fold, so
@@ -2315,6 +2604,7 @@ async function route() {
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);
     if (path === '/experiments') return await viewExperiments(params);
+    if (path === '/compare') return await viewCompare(params);
     if (path === '/integrity') return await viewIntegrity();
     return await viewOverview();
   } catch (err) {
@@ -2383,7 +2673,7 @@ function initChrome() {
 
   $('#refresh').addEventListener('click', async () => {
     state.ready = false;
-    state.overview = state.goals = state.experiments = state.findings = null;
+    state.overview = state.goals = state.experiments = state.findings = state.ops = null;
     state.experimentsPayload = null;
     state.searchShards.clear();
     cache.clear();

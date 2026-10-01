@@ -21,7 +21,7 @@ tags: [curve-arithmetic, dlp, ecdlp, elliptic-curve, factoring, fhe, pairing, qu
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-f34f74
 ---
 
 ## Contribution

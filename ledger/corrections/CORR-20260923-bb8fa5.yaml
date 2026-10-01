@@ -1,0 +1,143 @@
+# =============================================================================
+# CORR-20260923-bb8fa5 -- SUPERSEDES THE READING, NOT THE FILE: the failure
+# class of RUN-GFPN-3377f1 (EXP-GFPN-05ff43 v2 gate package 2, F-1..F-3
+# fixture at p' = 16777291). The manifest and raw-result record
+# `infrastructure_error`, the v2 wrapper's default when a driver exits without
+# a raw result. The Coordinator reads the failure as `implementation_error`: a
+# resource-configuration defect in implementation-v2 (an in-process PARI stack
+# ceiling left at its default) exposed deterministically at GF(16777291^3).
+# NEITHER CLASS IS EVIDENCE. This is not a D mismatch, not "implementation or
+# derivation", and never a mathematical result about the quotient.
+# WRITE-ONCE. Written by the Coordinator under TASK-20260923-6b492f
+# (DEC-20260923-c1fb69 ruling R-2). The run package is not edited.
+# =============================================================================
+correction:
+  id: CORR-20260923-bb8fa5
+  recorded_at: '2026-09-23'
+  recorded_by: coordinator
+  goal_id: GOAL-GFPN-380702
+  batch_id: BATCH-6b1c29
+  task_id: TASK-20260923-6b492f
+  decision_id: DEC-20260923-c1fb69
+  archived_by: TASK-20260923-e830a0
+
+  record_type: run
+  record_id: RUN-GFPN-3377f1
+  field: run.failure_class (manifest.yaml line 20; raw-result.json line 3)
+  prior_value: infrastructure_error
+  corrected_value: implementation_error
+  corrected_value_is: >-
+    THE OFFICIAL READING for every later record: the evidence review, the
+    review plan, the repair's documents and any aggregate that cites this
+    run. The run's bytes are immutable and keep `infrastructure_error`. Both
+    values are preserved: the recorded value is the wrapper's, the reading is
+    the Coordinator's.
+
+  facts:
+    - >-
+      stderr.log lines 1-20: "*** ellcard: Warning: increasing stack size to
+      8003584." followed by a Python traceback through v2_driver.py line 279
+      (cmd_fixture) -> line 308 (fixture_core, `N = C.curve_order_pari(F, E)`)
+      -> v2_common.py line 261 (`return int(pari(expr))`), ending
+      "cypari2.handle_error.PariError: ellcard: the PARI stack overflows
+      (current size: 8003584; maximum size: 8003584)". Line 21: "You can use
+      pari.allocatemem() to change the stack size and try again".
+    - >-
+      v2_common.py lines 249-261: curve_order_pari creates `cypari2.Pari()`
+      (line 253) and evaluates ellcard over F_p[w]/(M) in the DRIVER process.
+      A search of experiments/EXP-GFPN-05ff43/ by this act for
+      `allocatemem|parisize|stacksize` finds no match under
+      implementation-v2/; the only matches are the 3377f1 stderr hint,
+      implementation-v2-a1/a1_pari.py line 38 and v1
+      implementation/ladder_select.py line 25. This agrees with the
+      Executor's observation (execution-report-v2.yaml lines 76-82).
+    - >-
+      manifest.yaml lines 79-87 and execution-report-v2.yaml lines 131-139:
+      wall 0.286 s, no child RLIMIT_AS read-back (no capped child was
+      launched), driver_and_children_maxrss 74854400 B. The failure happened
+      in the uncapped driver, before any build, solve or capped child, far
+      below every AC-1 limit (10 GiB child cap; 1 GiB driver RSS).
+    - >-
+      raw-result.json lines 1-5: {"run_status": "failed", "failure_class":
+      "infrastructure_error", "note": "driver exited 1 without writing
+      raw-result.json"}. This text is written by v2_run_wrapper.py lines
+      193-195 whenever a driver leaves no raw result. It is a default, not a
+      diagnosis.
+    - >-
+      The same code path completed at GF(4111^3) in RUN-GFPN-ac4487 and
+      recorded group order 69477519282 (execution-report-v2.yaml line 100).
+
+  reason: >-
+    agents/executor.md lines 47-54 define the classes.
+    - infrastructure_error is "dependency, host, scheduler, storage, or
+      environment failure". Nothing of that kind happened: no host limit, no
+      kill, no scheduler, no storage fault. The dependency did not fail. It
+      behaved as documented, reported its own configured ceiling, and named
+      the fix.
+    - resource_exhaustion ("timeout, memory limit, ...") would misdirect. It
+      suggests the declared envelope (AC-1) was too small. It was not: no
+      capped child ran, and the driver used about 75 MB of its 1 GiB. The
+      limit that was hit is a library default that the implementation never
+      configured.
+    - implementation_error is "code does not implement the intended
+      experiment". The protocol requires the fixture group order at
+      p' = 16777291 (TASK-20260923-cd932c EC-3 (1); trial-plan-v2.json
+      package 2). The code as frozen cannot compute it there, on any run,
+      because the ceiling is fixed by the code, not by the host. The failure
+      is deterministic and the fix is in code. This is the class that points
+      at the correct remedy, which is an implementation repair, not a re-run.
+
+  what_it_is_not:
+    - >-
+      NOT A D MISMATCH. No D value was computed at p' = 16777291 for any arm.
+      No build, solve or certificate exists in the package.
+    - >-
+      NOT "IMPLEMENTATION OR DERIVATION" under DEC-20260923-e788a1 AC-5. That
+      reading applies only to a mismatch confined to raw_u = 384 or
+      S3_rescaled = 64. There is no mismatch of any value.
+    - >-
+      NEVER A MATHEMATICAL RESULT about the quotient, the construction, D,
+      HEUR-GFPN-DFLAT or H-GFPN-9a29be (AGENTS.md core rule 5; AC-5; EC-7;
+      DC-3 gate). H-GFPN-9a29be stays inconclusive and HEUR-GFPN-DFLAT stays
+      untested.
+    - >-
+      NOT A HOST OR ENVIRONMENT DEFECT to be waited out. Re-running the same
+      bytes would fail the same way.
+
+  consequences:
+    - >-
+      The v2 gate stays FAILED as recorded. Stage 2 of TASK-20260923-cd932c
+      is terminal `failed` (DEC-20260923-c1fb69 R-1).
+    - >-
+      The reading does not unlock any contingency id. trial-plan-v2.json's
+      contingency_rule (line 185) never applies to a gate package, and
+      v2_run_wrapper.py line 141 refuses it, whatever the class.
+    - >-
+      The remedy is the additive repair drafted as
+      AMD-EXP-GFPN-05ff43-20260923-paristack, to be decided by Act 4
+      (reserved DEC-20260923-80e280). It is a successor task under a new
+      Coordinator decision (EC-3), never a re-iteration inside
+      TASK-20260923-cd932c.
+
+  evidence_artifacts:
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/stderr.log
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/raw-result.json
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/manifest.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/command.txt
+    - experiments/EXP-GFPN-05ff43/execution-report-v2.yaml
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_common.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_driver.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_run_wrapper.py
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-0fa03f/post-run-receipt.json
+    - agents/executor.md
+
+  interpretation_limits:
+    - >-
+      The reading rests on reading the committed files. This act did not
+      reproduce the overflow (no shell). The repair addendum makes the
+      reproduction a required negative control (its DV-3) before any fix is
+      accepted.
+    - >-
+      Whether a larger PARI stack suffices at GF(16777291^3) inside the 1 GiB
+      driver limit is not known. The addendum makes it a checked
+      precondition with a pre-declared capped-child fallback.

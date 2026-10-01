@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from . import payloads
+from . import ops, payloads
 from .build import resolve_repo_url
 from .index import ResearchIndex
 
@@ -57,14 +57,17 @@ class IndexHolder:
     `state: "building"` until it is ready and the page renders that.
     """
 
-    def __init__(self, repo: Path) -> None:
+    def __init__(self, repo: Path, progress_snapshot: Path | None = None) -> None:
         self.repo = repo
+        self.progress_snapshot = progress_snapshot
         self.index: ResearchIndex | None = None
         self.error: str | None = None
         self.state = "idle"
         self.started_at = 0.0
         self.repo_url = resolve_repo_url(repo)
         self._lock = threading.Lock()
+        self._ops: dict[str, Any] | None = None
+        self._ops_at = 0.0
 
     def start(self) -> None:
         with self._lock:
@@ -104,6 +107,17 @@ class IndexHolder:
             "deep_scan_seconds": round(index.deep_scan_seconds, 1),
         }
 
+    def ops(self, *, force: bool = False) -> dict[str, Any]:
+        """CloudWatch snapshot, cached briefly so a refresh is not a stampede."""
+        now = time.time()
+        with self._lock:
+            if not force and self._ops is not None and now - self._ops_at < 45:
+                return self._ops
+        snapshot = ops.collect_payload()
+        with self._lock:
+            self._ops, self._ops_at = snapshot, time.time()
+            return self._ops
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "autoresearch-ui"
@@ -136,6 +150,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if urlparse(self.path).path.rstrip("/").endswith("/api/refresh"):
             self.holder.start()
+            self.holder.ops(force=True)
             self._json(self.holder.meta())
             return
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
@@ -158,6 +173,9 @@ class Handler(BaseHTTPRequestHandler):
         if rel == "meta.json":
             self._json(self.holder.meta())
             return
+        if rel == "ops.json":
+            self._json(self.holder.ops())
+            return
 
         index = self.holder.index
         if index is None:
@@ -168,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         simple = {
             "index.json": lambda: payloads.index_rows(index),
             "overview.json": lambda: payloads.overview_payload(index),
+            "progress.json": lambda: payloads.progress_payload(index, self.holder.progress_snapshot),
+            "comparisons.json": lambda: payloads.comparisons_payload(index),
             "goals.json": lambda: payloads.goals_payload(index),
             "experiments.json": lambda: payloads.experiments_payload(index),
             "findings.json": lambda: payloads.findings_payload(index),
@@ -232,8 +252,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send(target.read_bytes(), ctype)
 
 
-def serve(repo: Path, host: str, port: int, open_browser: bool, verbose: bool) -> int:
-    holder = IndexHolder(repo)
+def serve(repo: Path, host: str, port: int, open_browser: bool, verbose: bool,
+          progress_snapshot: Path | None = None) -> int:
+    holder = IndexHolder(repo, progress_snapshot)
     holder.start()
 
     httpd = ThreadingHTTPServer((host, port), type("BoundHandler", (Handler,),
@@ -264,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
                     "`python3 -m ui.build` renders the same thing as a static site.")
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1],
                         help="repository root (default: the repo this file lives in)")
+    parser.add_argument("--progress-snapshot", type=Path, help="sanitized progress snapshot JSON")
     parser.add_argument("--host", default="127.0.0.1",
                         help="bind address (default: 127.0.0.1, loopback only)")
     parser.add_argument("--port", type=int, default=8787, help="bind port (default: 8787)")
@@ -274,4 +296,4 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo.resolve()
     if not (repo / "ledger").is_dir():
         parser.error(f"no ledger/ under {repo}: not a crypto-autoresearcher checkout")
-    return serve(repo, args.host, args.port, args.open, args.verbose)
+    return serve(repo, args.host, args.port, args.open, args.verbose, args.progress_snapshot)

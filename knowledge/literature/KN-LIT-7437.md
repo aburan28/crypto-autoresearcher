@@ -16,7 +16,7 @@ tags: [abelian-variety, dlp, elliptic-curve, fhe, finite-field, pairing, pollard
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-f7558f
 ---
 
 ## Contribution

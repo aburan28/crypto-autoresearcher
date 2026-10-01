@@ -1,0 +1,290 @@
+# Independent implementation audit of EXP-SDEG-85eefd (protocol v3) before run admission.
+# Validator session; read-only on the worktree except this file. No scientific run, no frozen
+# planted/random/rho/identity/audit label evaluated, no experiments/EXP-SDEG-85eefd/runs/ entry created.
+validation_report:
+  id: VAL-20260928-a2bc32
+  task_id: TASK-20260928-796dfe
+  experiment_id: EXP-SDEG-85eefd
+  hypothesis_id: H-SDEG-489b76
+  goal_id: GOAL-SDEG-001
+  batch_id: BATCH-656ba1
+  kind: pre-run implementation audit (no run under review)
+  run_ids: []
+  snapshot_under_audit:
+    commit: 5254ab7e54ebf92e1e3dfbebb92ec4b23556be50
+    receipt: coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260928-a3269a/snapshot-receipt.json
+    worktree: /Volumes/SSD990/wt-amend-ic
+    worktree_head_at_audit: 2c87b4272958c27e1a404ebf9ef817c0ad02c16f
+    branch: coord/ic-leads-impl-20260928
+  contract:
+    governing: protocol v3 = specification.yaml + amendments/AMD-20260926-3479cf.yaml (v2) + amendments/AMD-20260928-7ce387.yaml (v3, governs)
+    b1_source: inputs/idea_generation_20260718_batch2.md lines 88-212 (Candidate A1), read via `git show HEAD:` (path not in sparse checkout)
+
+  overall: FAIL
+  overall_note: >-
+    No computational defect was found. Every arithmetic, oracle, fixture, Semaev, control and
+    analysis check passed, including independent re-derivations. FAIL is PROCEDURAL: three items
+    that fix the value of beta_work or the outcome-A gate were never ruled pre-data. They are the
+    D-1 pseudo-remainder deviation from C-4 (finding F-1) and OQ-17/OQ-18 (finding F-2). Until the
+    Coordinator records an additive ruling on them, a run would not measure beta_work "as frozen".
+    If the ruling accepts the implemented readings, no code change or re-audit of the code is
+    needed. If it requires literal fraction-free (Collins) pseudo-division, polyfp.prem must change
+    and checks 4, 5 and 10 must be re-run.
+  verdict: incomplete
+  verdict_mapping: >-
+    incomplete = the contract lacks pre-data rulings (F-1, F-2) needed to fix the metric. It does
+    not mean "implementation wrong" (that would be failed) or "artifacts corrupt" (invalid).
+
+  checks:
+  - id: 1
+    name: Snapshot integrity
+    verdict: PASS
+    evidence:
+    - Recomputed sha256 of all 145 paths in snapshot-receipt.json path_sha256. Result was 145 present, 0 mismatched, 0 missing.
+    - "`git diff-tree -r 5254ab7e54` changes exactly the receipt's 145-path set (set equality True). The parent is 086c58578f, which matches the receipt."
+    - "`git diff --stat 5254ab7e54 HEAD` touches only the receipt and the claim file. Nothing under experiments/ changed since the snapshot."
+    - "`git status --short` was empty before and after the audit. Pre-existing implementation __pycache__/ directories are gitignored."
+    - experiments/EXP-SDEG-85eefd/runs/ contains only .gitkeep, which is tracked and dated 2026-09-26. No RUN-* directory exists.
+  - id: 2
+    name: Fixture reproduction
+    verdict: PASS
+    evidence:
+    - "Command: nice -n 10 /usr/local/bin/sage -python experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.py > $TMPDIR/val796/fixtures_repro.json. It used SageMath 10.9, exited rc=0 and took 7 s."
+    - Output sha256 543f49ca5304f4e61085305ca2ea01ccc0085298db26368d7362f96b1b6a5a45, and `cmp` against amendments/ic_leads_fixtures_v2.json showed the two are byte-identical. Generator sha256 bde44afb...f3b2 matches AMD-20260926-3479cf C-1.
+    - fixtures.py:13,19,28-37 loads only amendments/ic_leads_fixtures_v2.json (key EXP-SDEG-85eefd). driver.check_plan (driver.py:89-101) refuses when the JSON hash differs from FROZEN_JSON_SHA256. No other fixture source exists on any code path (checked with rg for json.load/load_fixtures/fixture().
+    - All 9 loaded fixtures (L, seed, p, a, b, N) match the frozen JSON. The seed-1 group orders 32479, 1047539 and 33563891 match P1480 as C-1 states.
+  - id: 3
+    name: Semaev polynomials (S3 formula, committed S4/S5)
+    verdict: PASS
+    evidence:
+    - "Own throwaway code: $TMPDIR/val796/semaev_indep.py. It shares no code with the implementation: my own affine EC arithmetic, S3 typed from the C-3 text, S4/S5 evaluated term-by-term from semaev_polys.json, and my own F_p[t] gcd."
+    - "Fixtures L8-s2 (p=32801), L16-s1 (p=1048609) and L32-s3 (p=33554593), 30 random point tuples each: zero failures."
+    - "What was checked for S3: it vanishes on x(P1+-P2), and a random t is zero iff it is in that set."
+    - "S4 and S5 exact root sets: for each tuple, deg gcd(f(t), t^p - t) equals |{x(P1 +- P2 +- ...)}|, and every candidate is a root. This is exact root-set equality, stronger than sampled evaluation."
+    - Random t was never a false zero.
+    - Degrees are S4 = 4 and S5 = 8 in every variable. Content removed is 1.
+    - "The leading coefficient of S5(u,x3,x4,x5,xR) in u equals S4(x3,x4,x5,xR)^2 exactly (ratio 1 on every tuple, all three fixtures). Constructing xR = x(P3+P4+P5) drops deg_u to 7. This is the identity behind B1's point-at-infinity detection (backends.py:8-14, 177, 185)."
+    - The implementation's own C-3 identity check (semaev.identity_check, 1000 tuples) was not re-run on frozen labels. It is a runtime stop in the driver (driver.py:286-300).
+  - id: 4
+    name: B1 faithfulness to A1
+    verdict: FAIL (procedural, F-1 only)
+    evidence:
+    - "Per-triple PRS: backends.py:163-194 loops over unordered triples i3<=i4<=i5 and calls polyfp.subresultant_prs(F, FT, bu) per triple (line 181)."
+    - "b(u) = S5(u, x3, x4, x5, x(R)): b(u) is formed by charged Horner specialization of the dense S5 array. The last axis is fixed at x(R) (line 157), then V[i3], V[i4], V[i5] (lines 167, 171, 175), leaving axis 0 = u. For R = O it uses S4(u,x3,x4,x5) (lines 152-154; OQ-15 ruled)."
+    - "Early abort: polyfp.py:116-135 is Cohen Alg. 3.3.7 (Collins/Brown subresultant PRS) with abort at the first zero pseudo-remainder (gcd = last nonzero) or the first constant. The g/h update is correct for delta = 0, 1 and >1."
+    - "No composed resultant or eliminant: none is formed on the B1 path. `rg -i 'resultant|eliminant|groebner|sage'` in backends/polyfp/cellrun/celltask hits only the PRS and docstrings. B2 and b2split build the eliminant degree / rad lcm as uncharged diagnostics outside B1's counter."
+    - "Hit rule: deg gcd(F_T,b) >= 1, OR a degree drop with INF in T (OQ-6 ruled). Witnesses are replayed by independent verifier arithmetic, with deg_gcd == number of distinct finite common roots enforced (backends.py:278-282)."
+    - "F-1: \"fraction-free (Bareiss/Collins) steps\" (C-4) is NOT implemented literally. polyfp.prem (lines 81-92) computes lc(b)^(delta+1) * (a mod b) through one charged field inversion (disclosed as D-1). The PRS polynomials are identical over F_p. The charged cost is not: roughly 9|T| per triple, versus about |T|^2/2 for literal pseudo-division, with |T| = 1024 at L = 32. D-1 is not among the items AMD-20260928-7ce387 rules on (OQ-1..OQ-16 only)."
+  - id: 5
+    name: Charging completeness and W definitions
+    verdict: PASS (non-blocking N-6; OQ-17 pending in F-2)
+    evidence:
+    - "Charged primitives (fparith.py): mul/sqr/pow count every product, inv counts 1 plus its Euclid steps, and probe counts hash probes. W = mul + inv + gcd_steps + probes (lines 34-35; OQ-2 ruled)."
+    - "Charged paths: B0 uses only Curve.add (charged mul/inv) plus F.probe per candidate (backends.py:111-131). B1 uses spec_last (charged as out.size*d, semaev.py:68-75) and polyfp rem/prem/scale/pow/inv. Each bulk count equals the product count of its loop (polyfp.py:25-78)."
+    - "Forward table: point additions and insert probes are charged (backends.py:73-81), and F_T via from_roots is charged. Deck construction is charged to its own counter (decks.py). Both are amortized over the deck's 32 queries (cellrun.py:99; OQ-3 ruled)."
+    - "Uncounted arithmetic found (N-6): small-constant scalings 3*x^2 and 2*y in Curve.add doubling (fparith.py:206-207); per-fixture reduction of the 131,005-term S5 over Z[a,b] to F_p using Python pow (semaev.py:52-65; constant in L, amortized about 1% of B1 W at L=8); witness replay (Python pow; excluded by OQ-14). numpy is used only inside spec_last, whose count formula is exact for dense Horner. b2split/oracle/verify are uncharged by design and never touch a query counter."
+    - "W definitions (cellrun.py:107-118): W = W_query_to_first_hit (non-members and stops: W_query) + amortized share. This is OQ-4 primary decision cost. W_full = W_query + share (secondary). W_fixed_xR is B1's charged x(R) specialization, recomputed on a fresh counter after a watchdog stop, and 0 for B0. W_triple = W - W_fixed_xR (OQ-1). rho_c uses primary W (analysis.py:168-177). All match v3 OQ-1/OQ-4."
+    - The accounting audit (audit.py) recomputes W_query, decision W, W_full, W_fixed_xR and W_triple from the op log. It rejects zero-work triples, B0 triples without exactly 8 probes, and zero table or probe charges.
+  - id: 6
+    name: Oracle exhaustiveness and correctness
+    verdict: PASS
+    evidence:
+    - "oracle.py:34-49 enumerates non-decreasing index 5-tuples over the 2|V| signed points, i.e. all 5-multisets with repetition. It asserts count == C(2|V|+4, 5). P1 = -P2 is included (OQ-6), and O is tracked as has_O. Membership is by x plus y-parity bit, which is sound for odd p."
+    - "Independent comparison ($TMPDIR/val796/backend_indep.py agree): my own itertools.combinations_with_replacement oracle with my own EC arithmetic, on fixtures L8-s2 and L8-s3 and decks interval/subgroup/progression/random_x built in a validator namespace."
+    - "Distinct-member counts are identical: 8952, 36, 81, 8666, 9127, 456, 81, 9402. The progression count of 81 matches the 5*8*2+1 structure."
+    - "176 validator-own targets (R = O, random kG, planted with repetition, and signed-3-sum targets that exercise the INF/degree-drop path): 0 disagreements among my oracle, A5Oracle, B0 and B1."
+    - "Smoke artifacts (mac/cells, pod/smoke/cells, driver dry run): 64 + 64 + 16 queries, decision agreement 100%, hit_triple_sets_equal 100%, 0 defects."
+  - id: 7
+    name: Seed-label discipline
+    verdict: PASS (non-blocking N-3)
+    evidence:
+    - "labels.py shapes: random_x and planted are verbatim C-2/C-5. random/rho/rho_walk/identity/audit follow the OQ-7 shapes accepted by v3. bootstrap is verbatim C-6. tests/test_driver_plan.py::test_label_shapes_verbatim passes."
+    - "Smoke namespace 'smoke|EXP-SDEG-85eefd/v2' is disjoint, since no frozen label starts with 'smoke|'. driver._selection switches to it only with --smoke-dry-run, which also forces output under implementation/smoke/ and a DRYRUN- id (driver.py:220-228, 599-610)."
+    - "All 111 files under implementation/smoke/ were grepped for 'EXP-SDEG-85eefd/v2|<kind>' outside the smoke prefix: no hits. Every recorded namespace is the smoke one (16 occurrences)."
+    - make_trial_plan.py enumerates label strings only and evaluates none.
+    - "N-3: analysis.BOOT_LABEL is hard-wired to the frozen 'EXP-SDEG-85eefd/v2|bootstrap' (analysis.py:43), and tests/test_analysis.py evaluates it on synthetic data. The single-size dry-run merge returns before the bootstrap (analysis.py:127-128), so smoke artifacts did not. The stream is data-independent and reveals nothing about any query, but implementation_report's 'no_frozen_label_evaluated: PASS' is literally inaccurate for tests."
+  - id: 8
+    name: Analysis / verdict code (v2 C-6/C-7 as modified by v3)
+    verdict: PASS (OQ-18 pending in F-2)
+    evidence:
+    - "analysis.outcome (analysis.py:215-271), outcome A: B1 (interval_x, all, worst) upper CI < 0.30 on BOTH W and W_triple (OQ-1); per-size median log W / log q rising by at most 0.02 per size (OQ-9, lines 199-208); B1 (all, worst) point below random_x (all, worst); B0 (interval_x, all, median) point in [0.5, 0.7]; oracle agreement 1.0; all witnesses verified."
+    - "Outcome B: both median and worst lower CIs >= 0.30 on total primary W, with calibration."
+    - "Forbidden readings: no A condition uses beta_sub or the successful class."
+    - "Bootstrap: 2000 resamples within (fixture, deck) cells, seeded from the C-6 label."
+    - "Own synthetic scenarios ($TMPDIR/val796/analysis_synth.py): low/flat B1 gives A; high gives B; the successful-subset loophole is not A; a fixed term hiding the slope gives W total slope 0.00 but W_triple 0.45, so not A; a per-size rise of 0.03 fails the flat test; a rise of 0.015 passes it; low B0 gives procedure_defect; progression beta_elim 0.5 gives procedure_defect; calibration 0.9 gives inconclusive; B1 not below null is not A."
+    - "Unit tests: `python3 -m pytest -q -p no:cacheprovider tests` gives 53 passed in 20.3 s."
+  - id: 9
+    name: Driver (C-9 precondition, watchdog, manifest, no Sage on charged path)
+    verdict: PASS (non-blocking N-1, N-2, N-4, N-7)
+    evidence:
+    - "hostinfo.check_admission on synthetic readings. Linux: load 23.5 against limit 23 refused; 22.9 accepted; run volume 19.9 GiB refused; / at 4.9 GiB refused; parse_cpu_max('2380000 100000') gives load_limit 23. macOS: 14.1 refused; 14.0 accepted; repo volume 19 GiB refused."
+    - "Live Mac reading at audit time was refused ('repo volume free 18.7 GiB < 20.0'). The driver refuses charged/sage modes with EXIT_REFUSED_ADMISSION when unmet (driver.py:611-616)."
+    - "Watchdog: 3600 s per query via SIGALRM/setitimer inside each worker process (cellrun.py:30-40). A stop is recorded as status watchdog_stop, lower_bound true, member None, and enters class (iii) only (OQ-12)."
+    - "Workers: 16 on Linux, 1 elsewhere (driver.py:560, 591). Peak-RSS 8 GiB guard per process checked once per i3 (backends.py:42-49)."
+    - "Manifest (driver.py:186-198, 534-551): command, git commit/branch/dirty, per-file implementation sha256, host/python/numpy/psutil/sage versions, cgroup quota, C-9 readings, trial-plan sha256, protocol hashes, namespace, timestamps, wall and peak RSS, validity, stdout/stderr tees, raw results and opcounts sha256."
+    - "No Sage on the charged path: importing celltask, cellrun, backends, oracle, decks, semaev, polyfp, fparith, analysis, audit, b2split and rho leaves no sage modules. The import lists contain only stdlib, numpy and repo modules. The charged-part summary records sage_imported, and merge rejects True (driver.py:487-488). test_charged_path_never_imports_sage passes."
+    - Cross-host claim in the receipt verified. smoke/mac/opcounts.json and smoke/pod/smoke/opcounts.json both hash to 79e80dd1...0651. The pod host record shows container 839460d1abea, cpu.max 2380000/100000 and load_limit 23. The two driver dry runs (Mac, pod) both hash to bf4f31fe...fbac7.
+  - id: 10
+    name: Proves-too-much (B0 cannot pass A; progression beta_elim < 0.30)
+    verdict: PASS
+    evidence:
+    - "By construction, outcome A reads only B1 entries (analysis.py:219-236). B0 enters only as calibration, which must lie in [0.5, 0.7] and therefore cannot sit below the 0.30 gate at the same time. A separate known-false check (analysis.py:245-254) turns 'B0 worst upper CI < 0.30 and B0 flat' into procedure_defect. The synthetic scenario with B0 at 0.2 gave procedure_defect."
+    - "Progression: a failing beta_elim(progression) < 0.30 is a procedure_defect (analysis.py:243-253)."
+    - "Tiny computation on validator-own targets (python random, NOT protocol labels): 9 fixtures, one random non-member target each, per-query W before amortization. This is pipeline sanity, not evidence."
+    - "Results: beta_elim(progression) = 0.198, with degrees 49/97/193 = 6L+1 as predicted by structure; beta_elim(interval_x) = 0.598; B0 W slope = 0.594, inside the calibration window and far above the gate."
+    - "Also observed (recorded because rule 8 forbids discarding it; NOT evidence, not frozen targets, unamortized, non-members only): B1 total W_query slope = 0.797, with W_fixed_xR = 52,488 at every size."
+  - id: 11
+    name: Other threats to measuring beta_work as frozen
+    verdict: FAIL (procedural; F-1, F-2) with non-blocking N-5, N-7
+    evidence:
+    - "F-1 and F-2 below."
+    - "N-5: a disagreement between B0 and B1 hit-triple sets is recorded (cellrun.py:141-142) but is not a stop. Primary W depends on the first hit triple, so a B1 that missed the earliest true hit would be over-charged silently. Decision agreement would still hold, and the audit reuses B1's own hit list. The smoke runs showed 144/144 equal."
+    - "N-7: ProcessPoolExecutor reuses workers and ru_maxrss is monotone, so per-cell peak_rss_bytes (a spec-required per-cell metric) can carry an earlier cell's peak."
+
+  blocking_findings:
+  - id: F-1
+    severity: blocking (procedural; resolved by an additive Coordinator ruling)
+    what: >-
+      C-4 freezes B1 as a subresultant PRS "with fraction-free (Bareiss/Collins) steps". polyfp.prem
+      computes the pseudo-remainder in field form: one charged inversion of lc(b), a charged
+      reduction and one scaling. This is producer deviation D-1. The PRS polynomials are identical
+      over F_p, but charged W is not. The first step reduces F_T (degree |T|, e.g. 1024 at L = 32) by
+      b (degree 8), costing about 9|T| here versus about |T|^2/2 for literal pseudo-division. A1's
+      own wording ("structured Gaussian elimination on the Sylvester matrix ... Bareiss/Collins")
+      admits a third, costlier reading. The per-triple cost exponent in |T| differs across readings,
+      so the reported beta_work(B1) value depends on the choice.
+    why_blocking: >-
+      AMD-20260928-7ce387 rules only OQ-1..OQ-16. D-1 was disclosed but not ruled, and the frozen
+      text says fraction-free. Changing the charged algorithm of a frozen backend requires an
+      additive pre-data amendment.
+    evidence: polyfp.py:81-92, polyfp.py:120; implementation_report.yaml deviations D-1; AMD-20260926-3479cf C-4 B1_subresultant_prs_A1; AMD-20260928-7ce387 rulings list.
+    remedy: >-
+      A Coordinator ruling in an additive amendment. The field-form route looks like the right
+      choice: over F_p it is the cheapest correct realization, so it cannot inflate cost toward
+      outcome B, and any outcome A it produced would be achievable. Alternatively require literal
+      Collins, which means a code change and re-audit of checks 4, 5 and 10.
+  - id: F-2
+    severity: blocking (procedural; resolved by an additive Coordinator ruling)
+    what: >-
+      OQ-17 defines where a member's decision cost stops: at the END of the first hit triple, with
+      the amortized share added. OQ-18 asks whether the 0.02 flat criterion also applies to
+      W_triple. Both are unruled (implementation_report blocking_for_scientific_run lists them).
+      OQ-17 fixes the primary W of every member query. OQ-18 can change an outcome-A verdict.
+    evidence: implementation_report.yaml open_questions_v3 OQ-17/OQ-18; cellrun.py:107-112; analysis.py:199-208, 228-236.
+    remedy: >-
+      Rule both pre-data. The implemented literal readings look sound: end-of-triple stopping,
+      share added, flatness on total W only. OQ-19 (copy-back mechanism) is operational and not
+      blocking.
+
+  non_blocking_findings:
+  - id: N-1
+    what: >-
+      driver.check_decision accepts ANY ledger decision whose text mentions EXP-SDEG-85eefd. Verified:
+      DEC-20260928-6b03c5 (the v3 amendment approval, "Execution stays NOT admitted") and
+      DEC-20260926-7f2cad (v2 approval) both return True. The admission-decision gate therefore does
+      not distinguish admission from approval.
+    remedy: Require an explicit admission field (e.g. execution_admission.currently_admitted true, naming EXP-SDEG-85eefd and snapshot 5254ab7e54).
+  - id: N-2
+    what: >-
+      Linux C-9 fails open. If /sys/fs/cgroup/cpu.max is unreadable, the load limit becomes
+      os.cpu_count(), which is 112 on the pod host, instead of v3's 23. Observation, not an
+      implementation defect: /proc/loadavg inside a container usually reports host-wide load, so
+      the frozen threshold may refuse spuriously.
+    remedy: Fail closed (refuse) or hard-floor the limit at 23 when cpu.max is absent.
+  - id: N-3
+    what: The frozen bootstrap label is evaluated by unit tests on synthetic data (see check 7). It is data-independent and leaks nothing.
+    remedy: Parameterize the label namespace in tests; correct the report wording.
+  - id: N-4
+    what: >-
+      Part manifests do not carry reasoning_effort, fallback_used or degraded_requirements (AGENTS.md
+      artifact policy). The resolved model is read from AUTORESEARCH_MODEL_ID, which may be unset.
+      On the pod there is no git checkout, so git commit is null. This is mitigated by --source-commit
+      plus per-file implementation sha256, and merge checks cross-host identity.
+    remedy: Add the three inference fields; require --source-commit on hosts without a checkout.
+  - id: N-5
+    what: A B0/B1 hit-triple-set mismatch is not a stop, although primary W depends on the first hit triple (check 11).
+    remedy: Treat hit_triple_sets_equal == false as a procedure defect.
+  - id: N-6
+    what: >-
+      Minor uncharged arithmetic: small-constant scalings in point doubling; per-fixture reduction of
+      S5's 131,005 Z[a,b] terms mod p (constant in L, about 1% of B1 W at L=8, amortized). Omitting a
+      constant term biases the B1 slope slightly upward, not toward outcome A.
+    remedy: Disclose in the run record, or charge the per-fixture reduction to the table cost.
+  - id: N-7
+    what: Per-cell peak_rss_bytes can be inherited from an earlier task in a reused worker process.
+    remedy: ProcessPoolExecutor(max_tasks_per_child=1), or record the per-task RSS delta.
+  - id: N-8
+    what: Docstrings cite tests/test_fparith.py and tests/test_poly.py, which do not exist (the tests live in tests/test_arith.py).
+    remedy: Cosmetic.
+  - id: N-9
+    what: Operational. The Mac C-9 precondition is currently unmet (repo volume 18.7 GiB free < 20 GiB), so the Sage part is not admissible at audit time.
+    remedy: Recheck at claim time.
+
+  artifact_checks:
+  - snapshot receipt: 145/145 hashes match; commit changes exactly the declared set
+  - frozen fixture JSON and generator hashes match C-1
+  - smoke artifacts: smoke namespace only; cross-host opcounts identical (79e80dd1...0651)
+  - runs/ contains only the pre-existing .gitkeep
+  metric_recomputations:
+  - fixture JSON regenerated byte-identically with Sage 10.9
+  - Semaev S3/S4/S5 root sets recomputed independently on 3 fixtures x 30 tuples
+  - A5 oracle distinct-member counts recomputed independently on 8 decks (all equal)
+  - B0/B1/oracle decisions on 176 validator-own targets (0 disagreements)
+  - "pipeline-sanity slopes on validator-own targets: beta_elim progression 0.198, interval 0.598; B0 W 0.594 (not evidence)"
+  control_checks:
+  - known_false_gate (B0) and known_structure_positive (progression) are wired as procedure_defect triggers; exercised on synthetic data and on a validator-namespace computation
+  - matched_null random_x is implemented per C-2 and compared on (all, worst) per OQ-9
+  - accounting_audit recomputes W, W_full and W_triple from op logs of a 10% SHA256 sample
+  heuristic_validation_checks:
+  - "Pre-registered: the C-7 thresholds, the 0.02 flat tolerance and the dual-slope rule were frozen in v2/v3 before any data. Only smoke-namespace L=8 runs exist."
+  - "Scale binding: toy q <= 2^25 (15/20/25-bit p) is disclosed as a deviation from nominal bits in C-1. No transfer claim is made."
+  cost_model_checks:
+  - "Unit declared: W is in charged F_p operations with unit weights (OQ-2). Memory is recorded as peak RSS, but per cell it may be inflated (N-7)."
+  - "The charged-algorithm choice for the B1 pseudo-remainder changes W (F-1)."
+  proof_architecture_checks: []
+  limitations:
+  - The rho baseline (rho.py, C-8) was not audited beyond import hygiene. It does not enter beta_work.
+  - The Sage FGLM cross-check (sage_b2_crosscheck.py) and b2split.py were read only at the level of their role (uncharged diagnostics). Their mathematics was not re-derived.
+  - The C-3 identity check was verified via my own independent Semaev check, not by re-running the producer's check on frozen labels (not permitted).
+  - The pod was not accessed. Pod behaviour was verified only from committed smoke artifacts and hashes.
+  - My Semaev tuple count per fixture (30) is below C-3's runtime 1000 per fixture. The root-set checks are exact per tuple.
+  artifact_paths:
+  - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260928-796dfe/validation_report.yaml
+  scratch_outside_repo:
+  - /Volumes/SSD990/.tmp-agent/val796/fixtures_repro.json
+  - /Volumes/SSD990/.tmp-agent/val796/semaev_indep.py
+  - /Volumes/SSD990/.tmp-agent/val796/backend_indep.py
+  - /Volumes/SSD990/.tmp-agent/val796/analysis_synth.py
+
+  inference:
+    runtime: cursor
+    role: validator
+    requested_policy: review-adversarial
+    resolved_model_id: cursor-inherited session model (exact identifier not exposed to the subagent)
+    model_verified: false
+    fallback_used: true
+    fallback_reason: Cursor runtime; subagent inherits the session model. The inference card's inference_amendment notes that xhigh effort is unverifiable on this runtime.
+    reasoning_effort: unverifiable (requested xhigh)
+    degraded_requirements: [reasoning_effort xhigh not verifiable]
+    independent_session: true
+
+  review_attestation:
+    reviewer: validator (TASK-20260928-796dfe)
+    joints_owned: [implementation fidelity of EXP-SDEG-85eefd protocol v3 checks 1-11 as listed in the task card]
+    read_sibling_reports: false
+    sources_read:
+    - agents/validator.md
+    - experiments/EXP-SDEG-85eefd/specification.yaml
+    - experiments/EXP-SDEG-85eefd/amendments/AMD-20260926-3479cf.yaml
+    - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-7ce387.yaml
+    - experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.py
+    - inputs/idea_generation_20260718_batch2.md (lines 88-212, via git show HEAD:)
+    - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/TASK-20260928-a3269a/snapshot-receipt.json
+    - experiments/EXP-SDEG-85eefd/implementation/{fparith,polyfp,backends,semaev,derive_semaev,oracle,labels,decks,fixtures,analysis,cellrun,celltask,driver,hostinfo,audit,verify,make_trial_plan}.py
+    - experiments/EXP-SDEG-85eefd/implementation/b2split.py (header only)
+    - experiments/EXP-SDEG-85eefd/implementation/open_questions.yaml
+    - experiments/EXP-SDEG-85eefd/implementation/implementation_report.yaml (lines 740-976, deviations and open questions, read as claims)
+    - experiments/EXP-SDEG-85eefd/implementation/tests/test_driver_plan.py (lines 60-103)
+    - experiments/EXP-SDEG-85eefd/implementation/smoke/** (namespaces, opcounts, cell agreement fields)
+    - ledger/decisions/DEC-20260928-6b03c5.yaml (grep only)
+    verdict: FAIL (procedural; F-1, F-2), with no computational defect found

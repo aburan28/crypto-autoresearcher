@@ -1,0 +1,220 @@
+review:
+  idea_id: IDEA-20260922-6237e5
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-843cf5
+  ranking_context:
+    rank: 36
+    disposition: hold
+    hold_id: HOLD-V
+  claim_restated: >-
+    The Bailey et al. rho campaign on ECC2K-130 (KN-LIT-661e97) produced
+    about 2^33 distinguished points as a free byproduct of 2^58.3
+    iterations, each DP selected by HW(x) <= 34 in a type-2 normal basis.
+    The record asks, at toy scale, whether a DP pool participates in
+    low-arity Semaev relations (m = 2, 3) over a fixed factor base at a
+    different rate than a size-matched uniform random pool, and adds a third
+    arm (rejection-sampled to the same weight cutoff, no walk) to separate a
+    filter effect from a walk effect. Pre-registered H_null: no difference
+    (weight in a basis is unrelated to algebraic decomposability). It
+    explicitly charges the replay cost of recovering a DP's coefficients
+    (about 2^25.27 iterations per DP) and claims at best a constant factor.
+  core_argument_check:
+    - step: 'Bailey figures: 2^58.3 of 2^60.9 = 16.5 percent; 2^33.1 DPs at 2^25.27 iterations each; 2^35.63 DPs expected; about 850 GB'
+      verdict: holds
+      note: >-
+        Re-computed: 2^{-2.6} = 0.165; 60.9 - 25.27 = 35.63; 2^{35.63} x
+        16 bytes = 2^{39.63} bytes = 851 GB. All match KN-LIT-661e97.
+    - step: 'The DP filter is "structurally unrelated" to algebraic structure (H_null as stated)'
+      verdict: defective
+      note: >-
+        One exact correlation exists and the record misses it. In a normal
+        basis {alpha^{2^i}} with Tr(alpha) = 1, Tr(x) = sum of the
+        coordinates = HW(x) mod 2. On y^2 + xy = x^3 + ax^2 + b a point lies
+        in 2E iff Tr(x_P) = Tr(a) (the halving criterion IDEA-20260922-1b16d7
+        carries); with a = 0 on ECC2K-130, HW(x) even iff P in 2E, which is
+        exactly why KN-LIT-661e97 notes the weights are even in the order-l
+        subgroup. So the weight filter carries the E -> E/2E quotient
+        (HOLD-O's chain). Consequence for the design: if the "uniform random
+        pool" is drawn from all of E(F_{2^n}) (cofactor cosets included)
+        while the DP pool lives in the subgroup, m = 2 relations over a
+        trace-zero factor base are parity-forbidden for half the uniform
+        pool and the DP/uniform yield ratio reads about 2 by bookkeeping, a
+        manufactured H_alt. Drawn from the same subgroup, the parity
+        correlation is identical in both arms and H_null is expected to
+        hold. The record does not say which; it must.
+    - step: 'The DP set {x : HW(x) <= w} is a Frobenius-stable set'
+      verdict: holds
+      note: >-
+        Squaring is a cyclic shift of normal-basis coordinates, so weight is
+        Frobenius-invariant; the DP set is an orbit union with an implicit
+        O(n) membership test (KN-OPEN-020 implicit class), the second
+        Frobenius-stable set family this corpus has met after
+        KN-FIND-47da4e's subspace orbit unions. The record does not notice
+        this; it is the only structural content of the DP pool and the seam
+        below.
+    - step: 'Replay cost per contributing DP is about 2^25.27 iterations and is not free'
+      verdict: holds
+      note: >-
+        Correct and honestly charged; it equals the walk length to the DP,
+        which the server protocol already pays for every hash collision.
+        Relation-realisation therefore costs about m * 2^25.27 per relation
+        on top of relation-finding.
+    - step: 'The uniform-random arm reproduces the |F|^m/(m! * group_size) heuristic'
+      verdict: holds
+      note: 'Standard; at m = 2, l = 9 on RC-1 (|V| = 512, N about 2^17) the per-target decomposition probability is about 1, so the cell must use a smaller V (l = 6-7) to leave room for a ratio.'
+    - step: 'Best case is a constant factor, no exponent'
+      verdict: holds
+      note: Correct; and the product law makes even that constant irrelevant on ECC2K-130 (below).
+  verdict: sound_with_corrections
+  defects:
+    - what: >-
+        H_null ignores the exact trace-parity correlation HW(x) mod 2 =
+        Tr(x) = 2E-membership indicator (a = 0); the control pool's sampling
+        domain (full group versus prime-order subgroup) is unspecified and
+        decides whether a spurious factor-2 effect appears at m = 2.
+      where: claim H_null; minimal_test Stage 1; proof_search_map.baseline_embedding
+      fix: >-
+        Draw every arm from the same prime-order subgroup (or condition all
+        arms on Tr(x) = Tr(a)), cite IDEA-20260922-1b16d7 for the criterion,
+        and pre-register the parity-corrected H_null.
+    - what: The DP set is a Frobenius-stable orbit union with implicit membership; the record classifies it as an explicit listed set and misses the only structure it has.
+      where: mechanism "F2 DECLARATION AND KN-OPEN-020"
+      fix: Reclassify as implicit-membership, Frobenius-stable, and say what the walk adds beyond the filter (nothing, on the null reading).
+    - what: The n = 131-specific HW <= 34 cutoff is scaled to toy size by DP density only; at n = 17 the analogous weight cutoff is a few bits and the pool is tiny.
+      where: assumptions[0]; confounders[0]
+      fix: State the toy cutoff and resulting pool size per cell before the run.
+    - what: No normal-basis arithmetic exists in the repository instruments (gf2n.py is polynomial basis); the HW filter is basis-specific.
+      where: minimal_test Stage 0; estimated_cost
+      fix: Budget a normal-basis constructor and conversion matrix (about 50 lines) as a named prerequisite.
+    - what: No arity/budget pricing against the product law.
+      where: target_complexity; dominated_by
+      fix: One line per ecc2k130_bearing.
+  ecc2k130_bearing: >-
+    None against 2^60.8. Even under H_alt the record claims a constant on
+    relation yield; the product law (relations x targets x oracle =
+    m*2^131, independent of dim V) puts the free-oracle floor at 2^68.58
+    for m = 3 and 2^89.25 for m = 2, the two arities the record tests, so a
+    constant-factor relation bonus cannot cross rho; at m = 4 the
+    per-attempt budget is about 2^4.4 group operations and a DP-sourced
+    target changes neither the attempt count nor the oracle. The DP pool
+    itself is interesting only as a Frobenius-stable implicit-membership set
+    of size about 2^{131 H(34/131)} (entropy bound, about 2^108, unchecked
+    against the exact binomial sum), far above any balanced factor base,
+    and relation realisation costs m * 2^25.27 iterations per relation on
+    top. Bearing on 2^60.8: zero.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-V (the record's own H_null is its expected outcome; a correlation
+    through x-coordinate weight cannot be excluded without a toy) is right.
+    Refinement: one correlation CAN be excluded, or rather named, without a
+    toy -- the trace-parity / 2E quotient -- and once both arms are drawn
+    from the same subgroup it cancels exactly; what remains (a weight-versus-
+    Semaev-root correlation beyond parity) has no proposed mechanism.
+    Release condition as stated ("CERTBIN designs its hybrid line, or any
+    run reports a DP-versus-decomposability correlation") stands; add the
+    parity-conditioning as a requirement on any such run. Cheap enough to
+    take as bycatch of a G3-lane task on the 2^33 DPs as data, not worth a
+    batch slot on its own.
+  concrete_experiment:
+    cell:
+      curve: >-
+        Koblitz-shaped y^2 + xy = x^3 + 1 over F_2[t]/(t^19 + t^5 + t^2 + t + 1)
+        (the CERTBIN n = 19 field), #E = 4 * 130873 with 130873 prime
+        (computed here; same cofactor-4 shape as ECC2K-130), all arms in the
+        order-130873 subgroup; a normal basis of F_{2^19} constructed by
+        linear-independence search over {alpha^{2^i}} and a fixed
+        conversion matrix.
+      m: 2
+      l: 7
+      factor_base: 'random 7-dimensional polynomial-basis subspace V of x-coordinates (|V| = 128; per-target m = 2 decomposition probability about 2^{14}/2^{18} = 1/16, leaving room for a ratio).'
+      targets: '2000 per arm: (a) DP arm -- walk P_{i+1} = sigma^j(P_i) + P_i with j = ((HW(x)/2) mod 8) + 3 and cutoff HW(x) <= w_toy chosen so the DP density is about 2^{-5} (w_toy tabulated before the run); (b) uniform arm -- rejection sampling in the subgroup; (c) filter-only arm -- rejection sampling in the subgroup restricted to HW(x) <= w_toy.'
+      seeds: 'committed list of 5 seeds per arm; walks replayed byte-identically from seed before any DP is counted.'
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/gf2n.py
+      - experiments/EXP-CERTBIN-e94b27/impl/curve.py
+      - experiments/EXP-CERTBIN-e94b27/impl/stats_exact.py
+      - 'new: about 200 lines -- normal-basis constructor and conversion, toy walk with replay check, three-arm sampler, exhaustive m = 2 decomposition test over V (128 lookups per target), permutation test.'
+    procedure:
+      - Construct the normal basis and verify Tr(x) = HW_NB(x) mod 2 on 10^4 random elements, and that every subgroup point has even weight (the 2E criterion with a = 0).
+      - Tabulate w_toy from the exact weight distribution of subgroup x-coordinates so that the DP density is about 2^{-5}; commit it.
+      - Generate the three pools of 2000 targets; log walk collision rate and replay checks.
+      - For every target, decide m = 2 decomposability over V exhaustively (R - P for P in V-points, both signs) and certificate-verify each relation.
+      - Compare yield rates pairwise (DP vs uniform, DP vs filter-only, filter-only vs uniform) with a permutation test; repeat at n = 23 (y^2 + xy = x^3 + 1, #E = 4 * 2095853, 2095853 prime, computed here) and at a second cutoff.
+    metrics:
+      - name: yield_ratio_dp_uniform
+        unit: dimensionless
+        definition: relations per target in the DP arm over the uniform arm, with a permutation-test p-value; pre-registered band [0.7, 1.4].
+      - name: yield_ratio_dp_filter
+        unit: dimensionless
+        definition: DP arm over filter-only arm; separates walk from filter.
+      - name: parity_check
+        unit: fraction
+        definition: fraction of subgroup points with even normal-basis weight (must be 1.0; any deviation is a basis or subgroup error).
+      - name: replay_cost
+        unit: iterations per DP
+        definition: measured walk length to each DP, median and mean.
+      - name: certificate_pass_rate
+        unit: fraction
+        definition: verified relations over claimed; must be 1.0.
+    controls:
+      - 'Null object: uniform pool from the SAME subgroup (the baseline every F2 line uses), parity-matched by construction.'
+      - 'Filter-only pool (rejection to the same weight cutoff, no walk): isolates the filter from the walk.'
+      - 'Ordinary-curve control: y^2 + xy = x^3 + t over the same field, where sigma is not an endomorphism and the walk step is not well defined on Frobenius orbits; run the filter-only vs uniform comparison there to show the weight filter alone does nothing.'
+      - 'Relabelled Z/NZ generic-group control: not applicable (no group-structure claim beyond parity, which is checked directly).'
+      - 'Second cutoff and second field size to check any effect does not scale with DP density alone.'
+    outcomes:
+      positive: >-
+        yield_ratio_dp_uniform outside [0.7, 1.4] with p < 0.01 at both
+        field sizes AND yield_ratio_dp_filter also outside the band: a
+        walk-structure correlation with Semaev decomposability, beyond
+        parity -- a genuinely new relation-supply constant, to be replicated
+        before any reading.
+      negative: >-
+        all three ratios inside the band with parity_check = 1.0: H_null
+        confirmed with the parity confound removed; the composition is
+        closed at toy scale with a measured ratio and the forward guidance
+        that a DP pool is relation-neutral once parity-conditioned.
+      artifact: >-
+        parity_check < 1.0, or a ratio outside the band that appears only
+        against a uniform pool drawn from the full group: the trace-parity
+        quotient, not the walk; instrument or sampling-domain error.
+    falsification_threshold: 'Record''s own: a ratio outside [0.7, 1.4] replicated at a second independently seeded field size; with the added requirement that parity_check = 1.0 in every arm.'
+    estimated_cost:
+      implementation: medium
+      compute: 'estimate: minutes of pure Python (6000 targets x 128 lookups per field size plus the walks; the walks to reach 2000 DPs at density 2^{-5} are about 2^16 steps).'
+    zero_run_prerequisites:
+      - Tabulate the exact weight distribution of subgroup x-coordinates at n = 19 and pick w_toy.
+      - Cite IDEA-20260922-1b16d7 for the 2E criterion and state the subgroup-only sampling rule.
+  successor_seam: >-
+    The DP set as an object rather than as data: W_w = {x in F_{2^131} :
+    HW_NB(x) <= w} is a Frobenius-stable set (weight is invariant under the
+    cyclic shift) with an O(n) implicit membership test, i.e. a factor base
+    in KN-OPEN-020's implicit-membership class that exists at n = 131 where
+    no stable subspace does (KN-OPEN-095df5) and is not the (representative,
+    shift) parameterisation KN-FIND-47da4e priced. A proposal under
+    RQ-FROB-7d8dd4 or RQ-BINSTD-b6f698 would price its decomposition
+    oracle -- S_{m+1} descended in normal basis with a cardinality
+    constraint on each block -- against the product-law per-attempt budget
+    (2^4.4 at m = 4), state |W_w| exactly (binomial sum, about 2^{131
+    H(w/131)}), and run the m = 2 toy at n = 17/19 with the subspace V of
+    matched size as the null object; novelty unverified (no corpus record
+    names a weight-set factor base; external literature unchecked). The
+    pre-registered expectation is that the cardinality constraint is as
+    inert under unit propagation as the F-set clauses of IDEA-20260904-3c7a91,
+    so the oracle stays exhaustive; the value is the first Frobenius-stable
+    non-linear factor base at n = 131 with a cheap membership test.
+  records_read:
+    - IDEA-20260922-6237e5
+    - KN-LIT-661e97
+    - KN-FIND-aa2efc
+    - KN-FIND-47da4e
+    - KN-OPEN-095df5
+    - IDEA-20260922-1b16d7 (grep of the Tr(x) = Tr(a) lines only)
+    - experiments/EXP-CERTBIN-e94b27/impl/README.md
+    - analysis/binstd-idea-review-20260926/BRIEF.md
+    - analysis/binstd-idea-review-20260926/ranking-context-DEC-20260924-99ce20.yaml
+  not_read:
+    - KN-LIT-096
+    - IDEA-20260906-cd7b7e
+    - IDEA-20260830-21e7c4
+    - inputs/BAILEY-2009-541-ECC2K130/paper_fulltext.md

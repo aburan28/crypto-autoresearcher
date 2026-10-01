@@ -1,0 +1,201 @@
+review:
+  idea_id: IDEA-20260922-faa8d2
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-843cf5
+  ranking_context:
+    rank: 30
+    disposition: consolidated_into_845a77
+    hold_id: HOLD-P
+  claim_restated: >-
+    A "solver-query" meet-in-the-middle: enumerate all m1 = ceil(m/2)-fold
+    sums of factor-base points into a table (2^{m1 l} entries), then for
+    EACH table entry call the CNF-XOR/Groebner solver on the residual
+    m2 = floor(m/2)-arity system with the target fixed. By
+    IDEA-20260904-3c7a91's law each unsat query costs 2^{m2 l}/m2! leaves,
+    so the total is 2^{ml}/m2!, which exceeds IDEA-20260904-96c4f3's
+    straight (m-1)-fold loop (2^{(m-1)l}/(m-1)!) by 2^l (m-1)!/m2!, at least
+    2^l (m-1): the naive construction is retired by derivation before any
+    run. The residual open axis is whether incremental SAT solving across
+    the stream of near-identical queries amortises below the per-query law
+    (pre-registered: it does not), and a bucketed-residual escape is shown
+    to fail the lossy-projection test because EC addition is nonlinear in
+    the coordinates, with its branching b(pi) priced as near-maximal.
+  core_argument_check:
+    - step: 'Ratio [2^{ml}/m2!] / [2^{(m-1)l}/(m-1)!] = 2^l (m-1)!/m2!; values 192 at (m,l) = (4,6) and 1280 at (6,6)'
+      verdict: holds
+      note: >-
+        Re-computed: 2^6 * 3!/2! = 192; 2^6 * 5!/3! = 1280; also 768 at
+        m = 5. And (m-1)!/m2! >= m-1 checked at m = 3..6 (2, 3, 12, 20).
+    - step: 'Units: solver LEAVES (per query) are compared against GROUP OPERATIONS (loop)'
+      verdict: defective
+      note: >-
+        A leaf of the CNF-XOR search is a unit-propagation pass over the
+        descended system, not one curve addition; the two closed forms are
+        in different units and the "factor 2^l (m-1)!/m2!" is a ratio of
+        counts, not of costs. It does not change the ordering (a leaf is not
+        cheaper than an addition), but the record presents it as exact.
+    - step: 'The construction being dominated is the one 845a77 proposes (i.e. the bound retires the MITM idea)'
+      verdict: defective
+      note: >-
+        It is not. The standard two-list MITM (845a77, Horowitz-Sahni) joins
+        the halves by a HASH LOOKUP, total 2^{m1 l} + 2^{m2 l}; this record
+        replaces the lookup by a full solver call per table entry, which is
+        why it pays 2^{m1 l} * 2^{m2 l}. The bound is correct arithmetic on
+        a construction nobody filed. Consequence for HOLD-P: the factor
+        "MITM dominated by 2^l (m-1)!/m2!" quoted there is about this
+        strawman, not about the hash-join, which sits on an undominated
+        time/memory row (see the 845a77 review).
+    - step: 'Tying threshold c_amort* for the amortised variant'
+      verdict: defective
+      note: >-
+        Re-derived from c * 2^{ml}/m2! = 2^{(m-1)l}/(m-1)!: c* =
+        2^{-l} m2!/(m-1)!, i.e. 2^{-l}/3 at m = 4. The record states it
+        three inconsistent ways: claim (C) "2^{-l}(m-1)!/m1!" (inverted,
+        3*2^{-l} at m = 4); predictions[2] "2^{-l}(m2!)/(m1!)" (2^{-l} at
+        m = 4, off by 3); minimal_test Stage 3 "m1!/(2^l (m-1)!)" (correct
+        at m = 4 only because m1 = m2 there; wrong at m = 5: 6/24 vs 2/24).
+    - step: 'Stage 1 reproduction numbers: 2^18/6 = 43,691; 2^{2*6}/2 = 2,048; 2^{12} = 4,096 queries'
+      verdict: holds
+      note: Re-computed 43,690.7; 2,048; 4,096.
+    - step: 'Memory: m1-table 2^{m1 l} is smaller than 96c4f3 (D)''s 2^{(m-1)l} for m >= 3'
+      verdict: holds
+      note: m1 = ceil(m/2) < m-1 for m >= 4 (equal at m = 3). The record's own text trips over this ("only when... actually") but lands right.
+    - step: 'Bucketed residual: the top-k bits of x(A+B) are not a function of the top-k bits of x(A), x(B); the object is branching, not partial-action'
+      verdict: holds
+      note: >-
+        Re-derived: x(A+B) = lambda^2 + lambda + x_A + x_B + a with lambda =
+        (y_A + y_B)/(x_A + x_B); the inversion and squaring mix every
+        coordinate, in any F_2-basis. The classification is right; the
+        predicted b(pi) near 2^k is plausible and is a measurement, not a
+        derivation, as the record says. Note the same projection on the
+        relabelled group Z/NZ has b(pi) of order 2 (only a carry), which is
+        the control that shows the meter distinguishes the EC law from an
+        additive one.
+    - step: '3c7a91''s law extends to the m2-arity sub-instance with x_T fixed'
+      verdict: unchecked
+      note: Plausible (same backdoor shape); not measured anywhere; the record names it as H1.
+  verdict: sound_with_corrections
+  defects:
+    - what: The headline domination bound retires a construction no record proposed; the hash-join MITM of 845a77 is not the object being bounded, and the ranking's consolidation reads the bound as if it were.
+      where: title; claim (B); dominated_by; overlap_review
+      fix: >-
+        State plainly that the solver-per-entry hybrid is a strawman relative
+        to the hash-join, give the hash-join's cost 2^{m1 l} + 2^{m2 l} in
+        the same table, and drop "MITM" from the title in favour of
+        "solver-query hybrid".
+    - what: The tying threshold c_amort* is stated three inconsistent ways; the correct form is 2^{-l} m2!/(m-1)!.
+      where: claim (C); predictions[2]; minimal_test Stage 3
+      fix: Replace all three with the derived form and tabulate it at m in {4,5,6}.
+    - what: Leaves and group operations are compared as if commensurable.
+      where: claim (B); sota_delta.time
+      fix: Label the ratio as a count ratio and charge a leaf in field operations (or measure both in the same unit at Stage 1).
+    - what: Incremental solving (Stage 3) and the CNF-XOR arms need WDSat / CryptoMiniSat / CaDiCaL with an assumptions API; none is installed.
+      where: minimal_test Stages 1-4; estimated_cost
+      fix: Declare the missing engines as prerequisites; only Stage 0 and Stage 5 (b(pi)) run on the pure-Python instruments.
+    - what: No arity/budget pricing against the product law on ECC2K-130.
+      where: target_complexity; dominated_by
+      fix: One line, see ecc2k130_bearing.
+  ecc2k130_bearing: >-
+    None. The record is a toy-scale falsification of a construction and
+    claims nothing on the curve. Priced anyway: under the product law the
+    per-attempt oracle budget to tie rho's 2^60.8 is about 2^4.4 group
+    operations at m = 4 and 2^25.2 at m = 8 (BRIEF section 2; my own
+    naive balance reproduces the table within 0.3-2.1 bits). The
+    solver-query hybrid costs at least 2^{m1 l} solver calls per target,
+    which with the balanced l of order 27 (m = 4) is 2^54 calls before any
+    amortisation; the amortised variant can at best reach c* * 2^{ml}/m2!
+    = 2^{(m-1)l}/(m-1)!, the loop's cost, still 2^76 at m = 4. The bucketed
+    escape is a Class III branching object with b(pi) near 2^k and cannot
+    lower the attempt count. Nothing here touches the 2^60.8 column.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-P holds the pair on the attempts-column argument, which stands.
+    The hold's quoted rationale for the MITM half ("faa8d2 derives MITM
+    dominated by a factor 2^l (m-1)!/m2!") misattributes this record's
+    bound to 845a77's hash-join; the correct reason both are held is the
+    product law, not this bound. What would release the hold for this
+    record specifically: an installed incremental SAT engine and a measured
+    amortisation factor below 2^{-l} m2!/(m-1)! on the pdp stream but not on
+    the null stream -- a headline about SAT engineering with, by the
+    product-law arithmetic above, no route to ECC2K-130. Not worth taking
+    now; the one runnable piece (b(pi)) is a known-answer calibration.
+  concrete_experiment:
+    cell:
+      curve: >-
+        CERTBIN RC-1: F_2[t]/(t^17 + t^3 + 1), A = 97044, B = 126251,
+        x(2E) subgroup targets (DEC-20260926-cb4487 SUPPORT).
+      m: 4
+      l: 9
+      factor_base: 'the RC-1 polynomial-basis V = {deg < 9}, |V| = 512, as the m1 = 2 table source; residual pairs are x(A + B) for A, B in V-points.'
+      targets: 'not needed for b(pi); 2^5 random (prefix_A, prefix_B) fibres per k, each fibre enumerated exhaustively.'
+      seeds: 'one committed seed for the fibre draw; the fibre enumeration is exhaustive.'
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/gf2n.py
+      - experiments/EXP-CERTBIN-e94b27/impl/curve.py
+      - 'new: about 80 lines -- top-k prefix map, fibre enumeration, distinct-prefix count, the Z/NZ and random-bijection controls.'
+      - 'missing: WDSat / CryptoMiniSat / CaDiCaL with an assumptions API for Stages 1-4 (the record''s actual question); not runnable here.'
+    procedure:
+      - Fix k in {5, 7}. Draw 32 prefix pairs (p_A, p_B); for each, enumerate every (A, B) with x-prefixes (p_A, p_B) in V (fibre size about (512/2^k)^2 pairs), compute x(A+B) by curve.py, and count distinct top-k prefixes; b(pi) = mean distinct count; L(pi) = log2 of the mean fibre size.
+      - Repeat with the group law replaced by a fixed random bijection of x-values composed with XOR (null: no structure, b(pi) should be the saturation value 2^k (1 - exp(-fibre/2^k))).
+      - Repeat on the relabelled generic group Z/NZ with the same prefix map on the integer label (additive structure: predicted b(pi) about 2).
+      - 'Stage 0 table, zero compute: tabulate 2^l (m-1)!/m2! and c* = 2^{-l} m2!/(m-1)! at m in {4,5,6}, l in {5..8}, and commit it.'
+    metrics:
+      - name: b_pi
+        unit: mean distinct output prefixes per input fibre (count)
+        definition: IDEA-20260802-002's branching meter for the top-k projection under the EC addition law.
+      - name: b_pi_saturation
+        unit: count
+        definition: the same statistic under a random bijection at the same fibre size (the no-structure reference).
+      - name: b_pi_znz
+        unit: count
+        definition: the same statistic on Z/NZ (the additive reference, predicted about 2).
+      - name: L_pi
+        unit: bits
+        definition: log2 of the mean fibre size, to confirm the projection is lossy at the tested k.
+    controls:
+      - 'Null object: random bijection (structureless) -- b_pi must match b_pi_saturation within sampling error for the record''s (D) prediction to hold.'
+      - 'Relabelled Z/NZ generic-group control -- demonstrates the meter separates additive from EC structure (b about 2 versus near-maximal).'
+      - 'Ordinary versus Koblitz-shaped curve: RC-1 is ordinary; adding y^2 + xy = x^3 + x^2 + 1 at n = 17 (#E = 2 * 65587) must give the same b_pi (the addition law''s nonlinearity does not depend on b in F_2).'
+    outcomes:
+      positive: >-
+        b_pi materially below b_pi_saturation on E (say < 0.3 * 2^k) and
+        replicated at both k: the top-k prefix propagates partially under
+        the EC law, contradicting (D)'s derivation and KN-FIND-ffe1df's
+        reading for this projection -- to review-breakthrough.
+      negative: >-
+        b_pi within [0.6, 1.0] of b_pi_saturation on E while b_pi_znz is
+        about 2: (D) confirmed by measurement; the bucketed escape is
+        closed with a measured obstruction (a number, per the closure
+        standard), reusable as the calibration fixture for any future
+        "bucketed key" proposal.
+      artifact: >-
+        b_pi_znz far from 2, or b_pi on the random bijection far from the
+        saturation formula: the prefix map or fibre enumeration is wrong;
+        nothing is read.
+    falsification_threshold: 'Record''s own: measured b(pi) < 0.3 * 2^k at any tested k with a passing random-bijection check.'
+    estimated_cost:
+      implementation: low
+      compute: 'estimate: seconds of pure Python (32 fibres x about 2^{2(9-k)} pairs per k).'
+    zero_run_prerequisites:
+      - Commit the corrected c* table (2^{-l} m2!/(m-1)!) and the Stage 0 domination table.
+      - Read IDEA-20260802-002's calibration rows so the b(pi) numbers are reported on the same scale.
+  successor_seam: >-
+    Only a fixture: the (L, b) meter run once on EC addition versus the
+    relabelled Z/NZ and a random bijection, at the RC-1 cell, gives every
+    later "bucket the residual / truncate the key" proposal a measured
+    control to beat before it is filed. That is a line in an
+    RQ-CERTBIN-836ce2 instrument note, not a proposal; no new ID.
+  records_read:
+    - IDEA-20260922-faa8d2
+    - IDEA-20260922-845a77
+    - IDEA-20260904-3c7a91 (claim section A-B only)
+    - IDEA-20260904-96c4f3 (sections D-F only)
+    - KN-FIND-aa2efc
+    - experiments/EXP-CERTBIN-e94b27/impl/README.md
+    - analysis/binstd-idea-review-20260926/BRIEF.md
+    - analysis/binstd-idea-review-20260926/ranking-context-DEC-20260924-99ce20.yaml
+  not_read:
+    - IDEA-20260802-002
+    - IDEA-20260904-7fd218
+    - IDEA-20260904-b40e6d
+    - KN-FIND-ffe1df
