@@ -295,3 +295,15 @@ drove stays auditable.
    with `fallback_used: true` and the reason recorded in their reports.
    Records are therefore filed with `added: '2026-10-01'` under ids minted
    2026-09-30.
+5. **Filing in two commits, not one (deviation from section 6).** At 03:30 UTC
+   on 2026-10-01 every running lane was terminated by an API session limit
+   (resets 06:50 UTC) after writing its records. Fourteen records were on
+   disk and all fourteen pass the dispatcher's acceptance check; the full
+   ledger validator then rejected two of them on one rule — `novelty_status:
+   adaptation` with `recalled` citations (`IDEA-20260930-6bde2d`,
+   `IDEA-20260930-8e3b75`; the honest label is `unverified`). Because the
+   container is ephemeral, the twelve clean records are filed now
+   (L2 ×3, L3 ×2, L4 ×3, L5 ×1, L6 ×3) and the two held records are filed
+   after their own lanes relabel them; L4's lane report (which carries its
+   `fallback_used: true` note — recorded in item 4 meanwhile) and lane L1,
+   which never got to write, follow after the reset. Filing approves nothing.
