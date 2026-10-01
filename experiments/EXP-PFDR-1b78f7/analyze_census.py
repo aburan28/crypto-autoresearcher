@@ -15,6 +15,12 @@ only: the outcome ids are computed from the table; nothing is interpreted.
 
 stats.bootstrap_slope / fit_exponent (unchanged) are loaded from their file by
 importlib (no solver module is imported).
+
+Protocol version 2 (AMD-20260929-1de84f): C-4 unmatched-size exclusion and
+failed-instance treatment in A1, A3, A4, A6 and A7, with the excluded_instances
+and incomplete_cells blocks; C-6 poisson_mean source and a conformance check;
+G3 read from R01 and R01a (C-2 E-5); the script's own sha256 in analysis.json
+(C-7).
 """
 from __future__ import annotations
 
@@ -198,23 +204,53 @@ def build_index(rows):
     return idx
 
 
+def unmatched_size(idx, m, bits, j, A, panel="main"):
+    """AMD-20260929-1de84f C-4: (True, |A|, |R|) when the structured arm A's base on
+    curve j differs in size from its matched random arms' base (s_sub for subgroup
+    and small_x, s_dick for dickson), whatever the instance statuses.  Sizes are read
+    from the rows' fb_size (either mode); undeterminable sizes give False."""
+    if panel != "main" or A not in STRUCT:
+        return False, None, None
+    sA = sR = None
+    for mode in ("census", "on"):
+        r = idx.get((panel, m, bits, j, A, mode))
+        if sA is None and r is not None and r.get("fb_size") is not None:
+            sA = r["fb_size"]
+        for arm in RANDOMS[A]:
+            r = idx.get((panel, m, bits, j, arm, mode))
+            if sR is None and r is not None and r.get("fb_size") is not None:
+                sR = r["fb_size"]
+    if sA is None or sR is None:
+        return False, sA, sR
+    return sA != sR, sA, sR
+
+
 def kappa_cell(idx, m, bits, cname, A, curves, kind="pairs_nonformal", panel="main", rands=None):
     rands = rands or RANDOMS[A]
     kept, dropped = [], []
     for j in curves:
         rs = [idx.get((panel, m, bits, j, arm, "census")) for arm in (A,) + tuple(rands)]
+        um, sA, sR = unmatched_size(idx, m, bits, j, A, panel)
+        if um:
+            # C-4: curve j dropped for A AND R(A) in this cell, whatever the statuses
+            dropped.append({"curve": j, "why": [f"{A}:unmatched_size(|F_A|={sA},|F_R|={sR})"],
+                            "rule": "unmatched_size"})
+            continue
         if all(usable(r) for r in rs) and not any(censored(r) for r in rs):
             kept.append((j, rs))
         else:
-            why = []
+            why, rules = [], []
             for arm, r in zip((A,) + tuple(rands), rs):
                 if r is None:
                     why.append(f"{arm}:missing")
+                    rules.append("missing")
                 elif not usable(r):
                     why.append(f"{arm}:{r.get('status')}")
+                    rules.append(str(r.get("status")))
                 elif censored(r):
                     why.append(f"{arm}:censored_at_A_fix")
-            dropped.append({"curve": j, "why": why})
+                    rules.append("censored")
+            dropped.append({"curve": j, "why": why, "rule": rules[0] if rules else None})
     nA = [count(rs[0], cname, kind) for _, rs in kept]
     nR = [[count(r, cname, kind) for r in rs[1:]] for _, rs in kept]
     st = kappa_stats(nA, nR)
@@ -304,8 +340,12 @@ def gates(runs_dir: str, panel_rows: list[dict]) -> dict:
             else:
                 det[rid] = {"pass": False, "missing": True}
         g[gate] = {"pass": all(d["pass"] for d in det.values()), "runs": det}
-    p = os.path.join(runs_dir, P + "tests", "raw-result.json")
-    g["G3"] = {"pass": os.path.exists(p) and json.load(open(p)).get("G3_pass", False)}
+    # G3 under protocol v2: R01 (frozen build) and R01a (amended build, AMD-20260929-1de84f C-2 E-5)
+    g3 = {}
+    for rid in ("tests", "tests-amd1de84f"):
+        p = os.path.join(runs_dir, P + rid, "raw-result.json")
+        g3[rid] = bool(os.path.exists(p) and json.load(open(p)).get("G3_pass", False))
+    g["G3"] = {"pass": all(g3.values()), "runs": g3}
     reg_census = []
     for rid in regs["G2"]:
         reg_census += rows_of(os.path.join(runs_dir, P + rid, "rows.jsonl"))
@@ -361,9 +401,24 @@ def analyze(a) -> dict:
     rho_rows = rows_of(os.path.join(rd, P + "rho", "rows.jsonl"))
     stairs = []
     for name in ("census-m3", "census-m4", "census-m5", "j0"):
-        stairs += rows_of(os.path.join(rd, P + name, "staircase.jsonl"))
+        for s in rows_of(os.path.join(rd, P + name, "staircase.jsonl")):
+            s["_panel"] = "j0" if name == "j0" else "main"
+            stairs.append(s)
     panel_rows = main_rows + j0_rows + rho_rows
     idx = build_index(main_rows + j0_rows)
+
+    # AMD-20260929-1de84f C-4: unmatched-size structured instances (main panel)
+    um_info = {}
+    for r in main_rows:
+        if r.get("arm") in STRUCT:
+            key = (m_of(r) or r.get("m"), r["bits"], r["curve"], r["arm"])
+            if key not in um_info:
+                um_info[key] = unmatched_size(idx, *key)
+    UM = {k for k, v in um_info.items() if v[0]}
+
+    def is_um(r) -> bool:
+        return (r.get("panel") == "main"
+                and (m_of(r) or r.get("m"), r.get("bits"), r.get("curve"), r.get("arm")) in UM)
     out: dict = {"inputs": {"main_rows": len(main_rows), "j0_rows": len(j0_rows),
                             "rho_rows": len(rho_rows), "staircase_records": len(stairs)}}
     # expected instance count (cells): 3040 main + 280 j0 solver instances, 110 + 35 rho
@@ -434,12 +489,58 @@ def analyze(a) -> dict:
     out["A2_slopes"] = {"tests": slopes, "family": sorted(pvals), "holm_alpha": ALPHA,
                         "tail_check_max_abs_z": tail}
 
+    # C-4 reporting: excluded_instances and incomplete_cells ------------------------------------
+    excl = []
+    for r in main_rows + j0_rows:
+        if r.get("method") == "rho" or not r.get("arm"):
+            continue
+        rules = []
+        if is_um(r):
+            rules.append("unmatched_size")
+        st_ = r.get("status")
+        if st_ == "invalid":
+            rules.append("invalid")
+        elif st_ == "failed_infrastructure":
+            rules.append("failed_infrastructure")
+        elif (r.get("panel") == "main" and r.get("mode") == "census" and usable(r)
+              and r["arm"] in STRUCT + RANDOM_ARMS and censored(r)):
+            rules.append("censored")
+        if not rules:
+            continue
+        frm = set()
+        for rule in rules:
+            if rule == "censored":
+                frm.add("A1")
+            elif rule == "unmatched_size":
+                frm |= {"A1", "A3", "A4", "A7"}
+            else:
+                frm |= {"A3", "A4", "A7"}
+                if r.get("panel") == "main" and r["arm"] in STRUCT + RANDOM_ARMS:
+                    frm.add("A1")
+                if r.get("panel") == "main" and r["arm"] in RANDOM_ARMS:
+                    frm.add("A6")
+                if r["arm"] in ("known_log",) + J0_RANDOMS + ("j0_coset",):
+                    frm.add("A5")
+        excl.append({"panel": r.get("panel"), "bits": r.get("bits"), "curve": r.get("curve"),
+                     "m": m_of(r) or r.get("m"), "arm": r["arm"], "mode": r.get("mode"),
+                     "status": st_, "status_reason": r.get("status_reason"),
+                     "rule": rules[0], "rules": rules, "excluded_from": sorted(frm)})
+    excl.sort(key=lambda e: (e["panel"] or "", e["bits"] or 0, e["curve"] or 0, e["m"] or 0,
+                             e["arm"], e["mode"] or ""))
+    out["excluded_instances"] = excl
+    out["incomplete_cells"] = [
+        {"arm": A, "class": cn, "m": m, "bits": b, "curves_used": len(v["curves_kept"]),
+         "curves_kept": v["curves_kept"], "curves_dropped": v["curves_dropped"]}
+        for (A, cn, m, b), v in sorted(cells.items(), key=lambda kv: (kv[0][2], kv[0][3], kv[0][0], kv[0][1]))
+        if len(v["curves_kept"]) < 5]
+    out["unmatched_size_instances"] = sorted([list(k) + [um_info[k][1], um_info[k][2]] for k in UM])
+
     # A3 -------------------------------------------------------------------------------------
     rho_tab = defaultdict(list)
     per_m = defaultdict(list)
     h3_rank = defaultdict(lambda: [0, 0])
     for r in main_rows + j0_rows:
-        if not usable(r) or r.get("mode") != "census":
+        if not usable(r) or r.get("mode") != "census" or is_um(r):
             continue
         for cname in CLASSES:
             rho, n = a3_rho(r, cname)
@@ -473,6 +574,10 @@ def analyze(a) -> dict:
     for s in stairs:
         if s.get("mode") != "census" or s.get("perm_saturation_indices") is None:
             continue
+        # C-4: only instances that qualify for A3 (usable, not unmatched_size)
+        sr = idx.get((s["_panel"], s.get("m"), s.get("bits"), s.get("curve"), s.get("arm"), "census"))
+        if not usable(sr) or is_um(sr):
+            continue
         if s["rows_emitted"] < 10 or s.get("saturation_index") is None:
             continue
         ps = [v for v in s["perm_saturation_indices"] if v is not None]
@@ -492,15 +597,33 @@ def analyze(a) -> dict:
               "random_sub": ("random_sub_r0", "random_sub_r1", "random_sub_r2"),
               "random_dick": ("random_dick_r0", "random_dick_r1", "random_dick_r2")}
     pairs = defaultdict(list)
+    a4_excluded = defaultdict(list)  # C-4: every instance of a group not in its fit, with the reason
     for r in main_rows:
-        if r.get("mode") != "census" or not usable(r) or not r.get("k_verified"):
+        if r.get("mode") != "census" or r.get("arm") not in sum(groups.values(), ()):
             continue
-        on = idx.get(("main", m_of(r), r["bits"], r["curve"], r["arm"], "on"))
-        if not usable(on) or not on.get("k_verified"):
+        mm = m_of(r) or r.get("m")
+        gname = next(g for g, arms in groups.items() if r["arm"] in arms)
+        on = idx.get(("main", mm, r["bits"], r["curve"], r["arm"], "on"))
+        why = None
+        if is_um(r):
+            why = "unmatched_size"
+        elif not usable(r):
+            why = f"census:{r.get('status')}"
+        elif not r.get("k_verified"):
+            why = "census:k_not_verified"
+        elif on is None:
+            why = "on:missing"
+        elif not usable(on):
+            why = f"on:{on.get('status')}"
+        elif not on.get("k_verified"):
+            why = "on:k_not_verified"
+        if why is not None:
+            a4_excluded[(mm, gname)].append({"bits": r["bits"], "curve": r["curve"], "arm": r["arm"],
+                                             "why": why,
+                                             "status_reason": r.get("status_reason") if why.startswith("census")
+                                             else (on or {}).get("status_reason")})
             continue
-        for gname, arms in groups.items():
-            if r["arm"] in arms:
-                pairs[(m_of(r), gname)].append((r, on))
+        pairs[(mm, gname)].append((r, on))
     a4 = {"ratio_medians": {}, "exponents": {}}
     met_1a, met_1b = True, True
     for m in (3, 4, 5):
@@ -536,7 +659,10 @@ def analyze(a) -> dict:
                     boots.append(so - sc)
             dci = list(pct(boots)) if boots else None
             rec = {"n_pairs": len(sel), "census": fc, "on": fo, "delta": delta, "delta_ci95_paired": dci,
-                   "range_bits": [min(c["bits"] for c, _ in sel), max(c["bits"] for c, _ in sel)]}
+                   "range_bits": [min(c["bits"] for c, _ in sel), max(c["bits"] for c, _ in sel)],
+                   "fit_uses": "the completed instances (both modes solved and verified); "
+                               "excluded instances listed (AMD-20260929-1de84f C-4)",
+                   "excluded_instances": a4_excluded.get((m, gname), [])}
             if m in (3, 5) and delta is not None:
                 rec["abs_delta_le_0_03"] = abs(delta) <= 0.03
                 met_1b &= rec["abs_delta_le_0_03"]
@@ -598,16 +724,38 @@ def analyze(a) -> dict:
 
     # A6 -------------------------------------------------------------------------------------
     a6 = {}
+    c6 = {"checked_values": 0, "mismatches": []}
     for cname in CLASSES:
         for m in (3, 4, 5):
             us_all, us_hi = [], []
             per_rung = defaultdict(list)
             n_cens = 0
+            a6_excl = []
             for r in main_rows:
-                if r.get("arm") not in RANDOM_ARMS or r.get("mode") != "census" or not usable(r):
+                if r.get("arm") not in RANDOM_ARMS or r.get("mode") != "census":
                     continue
-                if m_of(r) != m:
+                if (m_of(r) or r.get("m")) != m:
                     continue
+                if not usable(r):
+                    # C-4: failed_infrastructure (and invalid) random-arm instances are excluded and listed
+                    a6_excl.append({"bits": r["bits"], "curve": r["curve"], "arm": r["arm"],
+                                    "status": r.get("status"), "status_reason": r.get("status_reason")})
+                    continue
+                # C-6: the harvest block's poisson_mean is the HEUR-4765e4-H1 operational form;
+                # recomputed here from the block's own counts as a conformance check
+                hb, NN = r["harvest"], r["N"]
+                Et = hb["table"]["formally_distinct_tails"]
+                if cname == "TT":
+                    ref = Et * (Et - 1) / 2 * 2 / NN
+                elif cname == "TB":
+                    ref = Et * r["fb_size"] * 2 / NN
+                else:
+                    Xs = hb["SS"]["at_A_fix"]["formally_distinct_encodings"]
+                    ref = Xs * (Xs - 1) / 2 * 2 / NN
+                got = hb["SS"]["at_A_fix"]["poisson_mean"] if cname == "SS" else hb[cname]["at_stop"]["poisson_mean"]
+                c6["checked_values"] += 1
+                if not math.isclose(got, ref, rel_tol=1e-12, abs_tol=1e-300):
+                    c6["mismatches"].append([r["bits"], r["curve"], m, r["arm"], cname, got, ref])
                 h = r["harvest"]
                 if cname == "SS":
                     blk = h["SS"]["at_A_fix"]
@@ -632,12 +780,23 @@ def analyze(a) -> dict:
                 tails[str(b)] = {"max_count": mx, "p_max_ge_observed": pmax, "flag_lt_0_001": pmax < 0.001}
             a6[f"{cname}|{m}"] = {"ks_12_32": ks_uniform(us_all), "ks_20_32": ks_uniform(us_hi),
                                   "ss_censored_instances_included": n_cens if cname == "SS" else None,
-                                  "max_count_tail": tails}
+                                  "max_count_tail": tails,
+                                  "excluded_instances": a6_excl}
     out["A6_poisson"] = a6
+    out["A6_poisson_mean_source"] = {
+        "text": ("mu per class from the harvest block poisson_mean (SS at A_fix): mu_TT = C(E'_t, 2)*2/N; "
+                 "mu_TB = E'_t*|F|*2/N; mu_SS = C(X'_s, 2)*2/N; AMD-20260929-1de84f C-6 = "
+                 "H-PFDR-4765e4 HEUR-4765e4-H1 specification_of_means"),
+        "conformance_check": {"checked_values": c6["checked_values"],
+                              "mismatch_count": len(c6["mismatches"]),
+                              "mismatches": c6["mismatches"][:50]}}
 
     # A7 -------------------------------------------------------------------------------------
-    a7, below1, below09, excluded = [], [], [], 0
+    a7, below1, below09, excluded, excluded_um = [], [], [], 0, 0
     for r in main_rows + j0_rows:
+        if is_um(r):
+            excluded_um += 1  # C-4
+            continue
         if not usable(r) or not r.get("k_verified"):
             excluded += 1
             continue
@@ -658,6 +817,7 @@ def analyze(a) -> dict:
             below09.append(rec)
     stage0 = json.load(open(a.stage0)) if a.stage0 and os.path.exists(a.stage0) else None
     out["A7_floor"] = {"instances": len(a7), "excluded_no_verified_k_or_r0": excluded,
+                       "excluded_unmatched_size": excluded_um,
                        "min": min(a7, key=lambda x: x["ratio"]) if a7 else None,
                        "below_1_0": below1, "below_0_9": below09,
                        "per_mode_m_median": {f"{mo}|{m}": statistics.median(x["ratio"] for x in a7 if x["mode"] == mo and x["m"] == m)
@@ -788,6 +948,9 @@ def main(argv=None) -> int:
         print(json.dumps({"replicated": res["replicated"], "reading": res["reading"]}, indent=2))
         return 0
     out, cell_lines, slopes = analyze(a)
+    import hashlib
+    with open(os.path.abspath(__file__), "rb") as fh:
+        out["analysis_script_sha256"] = hashlib.sha256(fh.read()).hexdigest()  # C-7
     with open(os.path.join(a.out, "analysis.json"), "w") as fh:
         json.dump(out, fh, indent=2, sort_keys=True, default=str)
     with open(os.path.join(a.out, "kappa-cells.jsonl"), "w") as fh:
@@ -799,7 +962,14 @@ def main(argv=None) -> int:
     raw = {"outcomes": out["outcomes"], "gates": out["gates"],
            "positive_controls": out["A5_positive_controls"],
            "instance_accounting": out["instance_accounting"],
-           "metrics_file": "analysis.json (A1-A9 in full)",
+           "excluded_instances_count": len(out["excluded_instances"]),
+           "excluded_instances_by_rule": dict(sorted(
+               (rule, sum(1 for e in out["excluded_instances"] if e["rule"] == rule))
+               for rule in {e["rule"] for e in out["excluded_instances"]})),
+           "incomplete_cells_count": len(out["incomplete_cells"]),
+           "unmatched_size_instances": out["unmatched_size_instances"],
+           "analysis_script_sha256": out["analysis_script_sha256"],
+           "metrics_file": "analysis.json (A1-A9 in full, excluded_instances, incomplete_cells)",
            "certificate": {"kind": "none", "note": "analysis of certified runs; no new solve or relation"}}
     with open(os.path.join(a.out, "raw-result.json"), "w") as fh:
         json.dump(raw, fh, indent=2, sort_keys=True, default=str)

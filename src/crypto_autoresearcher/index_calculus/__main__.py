@@ -537,11 +537,29 @@ def j0_prime_filter(tolerance: float = 0.15):
     return accept
 
 
-def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None):
-    """_instance with the j = 0 generator (same target-log rule)."""
+def _j0_exclude_primes(bits: int, curve_seed: int, p_filter=None) -> tuple[int, ...]:
+    """AMD-20260929-1de84f C-1 exclusion_set_rule: the primes SELECTED by the
+    amended j0 generator for curve seeds 0, 1, ..., curve_seed - 1 at the same
+    bits and filter, computed in that order from c' = 0 (curve 0: empty)."""
     from .curve import generate_prime_order_curve_j0
 
-    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter)
+    selected: list[int] = []
+    for c in range(curve_seed):
+        E, _ = generate_prime_order_curve_j0(bits, c, p_filter=p_filter,
+                                             exclude_primes=tuple(selected))
+        selected.append(E.p)
+    return tuple(selected)
+
+
+def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None,
+                 generation_log: list | None = None):
+    """_instance with the j = 0 generator (same target-log rule, AMD-20260929-1de84f
+    C-5) and the C-1 prime rule: exclude_primes by the C-1 exclusion_set_rule."""
+    from .curve import generate_prime_order_curve_j0
+
+    excl = _j0_exclude_primes(bits, curve_seed, p_filter)
+    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter,
+                                         exclude_primes=excl, generation_log=generation_log)
     k = random.Random(f"target|{bits}|{curve_seed}|{target_seed}").randrange(1, E.order)
     Q = E.mul(k, P)
     E.ops.group_ops = 0
@@ -648,10 +666,21 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
         return head | tail | {"ok": False, "status": "invalid",
                               "status_reason": f"I-3 certificate failure: {exc}",
                               "checks": checks, "seconds": time.perf_counter() - t0}, True
-    except (_InstanceTimeout, MemoryError) as exc:
+    except _InstanceTimeout as exc:
         _alarm_off()
         return head | tail | {"ok": False, "status": "failed_infrastructure",
                               "status_reason": f"{type(exc).__name__}: {exc}",
+                              "checks": checks, "seconds": time.perf_counter() - t0}, False
+    except MemoryError as exc:
+        # AMD-20260929-1de84f C-8 D-2: the stop is labelled "address-space cap" and the
+        # row records ru_maxrss, so an AS stop with RSS below the cap is visible as such.
+        _alarm_off()
+        import resource
+
+        return head | tail | {"ok": False, "status": "failed_infrastructure",
+                              "status_reason": f"address-space cap: {type(exc).__name__}: {exc}",
+                              "ru_maxrss_bytes":
+                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
                               "checks": checks, "seconds": time.perf_counter() - t0}, False
     _alarm_off()
     h = ic.harvest
@@ -674,6 +703,12 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
     if bad:
         row["status"], row["status_reason"] = "invalid", "gate failure: " + ", ".join(bad)
         return row, True
+    if not ok and h["terminated_by"] == "attempt_limit" and ic.k is None:
+        # AMD-20260929-1de84f C-3: an attempt-limit stop without k is an
+        # infrastructure / feasibility signal, never evidence; the run continues.
+        row["status"] = "failed_infrastructure"
+        row["status_reason"] = "attempt_limit_without_k (AMD-20260929-1de84f C-3)"
+        return row, False
     if not ok:
         row["status"] = "invalid"
         row["status_reason"] = "instance stopped without a verified k and without the attempt cap"
@@ -710,13 +745,17 @@ def _census_job(job: dict) -> dict:
     rows: list[dict] = []
     hrows: list[dict] = []
     stairs: list[dict] = []
+    gen_log: list[dict] = []
     if panel in ("main", "rho"):
         pf = subgroup_prime_filter([3, 4, 5], 0.15)
         E, P, Q, k = _instance(bits, c, 0, pf)
     else:
         pf = j0_prime_filter(0.15)
-        E, P, Q, k = _instance_j0(bits, c, 0, pf)
+        E, P, Q, k = _instance_j0(bits, c, 0, pf, generation_log=gen_log)
     base = _curve_fields(E, bits, c, pf.label)
+    if panel == "j0":
+        # AMD-20260929-1de84f C-1: every j0-panel row carries the generation log
+        base = base | {"j0_generation": gen_log}
     if panel == "rho":
         rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd))
         return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": False}
