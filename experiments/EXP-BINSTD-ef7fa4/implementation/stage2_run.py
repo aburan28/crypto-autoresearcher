@@ -67,6 +67,18 @@ def main():
         poly_sf = None
         if stage1.get("cells", {}).get(l):
             poly_sf = stage1["cells"][l].get("spurious_factor")
+        # Prefer scaled estimate for l=6; for undefined zero-genuine, compare e-rates
+        poly_sf_num = poly_sf if isinstance(poly_sf, (int, float)) else None
+        if (
+            poly_sf_num is None
+            and isinstance(stage1.get("cells", {}).get(l), dict)
+            and stage1["cells"][l].get("sampling", {}).get("spurious_factor_estimated_scaled")
+        ):
+            poly_sf_num = stage1["cells"][l]["sampling"]["spurious_factor_estimated_scaled"]
+        p3_ge = None
+        if poly_sf_num is not None and isinstance(cell["spurious_factor"], (int, float)):
+            if cell["spurious_factor"] != float("inf"):
+                p3_ge = cell["spurious_factor"] >= poly_sf_num
         cells[l] = {
             "V_basis": [int(b) for b in V],
             "dims_Vk": cell["dims_Vk"],
@@ -75,17 +87,26 @@ def main():
             "genuine_decomposition_count_pooled_ordered": cell[
                 "genuine_decomposition_count_pooled_ordered"
             ],
-            "spurious_factor": cell["spurious_factor"],
+            "spurious_factor": (
+                cell["spurious_factor"]
+                if cell["spurious_factor"] != float("inf")
+                else "undefined_zero_genuine"
+            ),
             "spurious_factor_label": cell["spurious_factor_label"],
             "lift_agreement": cell["lift_agreement"],
             "poly_basis_spurious_factor": poly_sf,
-            "P3_ge_poly": (
-                None
-                if poly_sf is None or cell["spurious_factor"] in (None, float("inf"))
-                else cell["spurious_factor"] >= poly_sf
+            "poly_basis_spurious_factor_numeric": poly_sf_num,
+            "P3_ge_poly": p3_ge,
+            "P3_compare_note": (
+                "poly-basis P1 undefined at this l (zero genuine); "
+                "compare e_per_target / dims instead"
+                if poly_sf_num is None
+                else "numeric spurious comparison"
             ),
+            "e_per_target": cell["e_space_solution_count_pooled"] / max(len(targets), 1),
             "decomposition_certificates": cell["decomposition_certificates"],
             "mode": mode,
+            "pre_dims": dims,
         }
 
     metrics = {

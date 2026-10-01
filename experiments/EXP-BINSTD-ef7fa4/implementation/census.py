@@ -144,7 +144,6 @@ def e_space_exhaustive(F, B, bases_Vk: list[list[int]], xR: int, V_set: set[int]
 def e_space_sampled(F, B, bases_Vk, xR, V_set, n_samples: int, rng: np.random.Generator):
     """Sample assignments; report lower-bound style counts + censoring."""
     import numpy as np
-    from symmetrised_s4 import s4_sym_batch_e3
 
     b1, b2, b3 = bases_Vk
     d1, d2, d3 = len(b1), len(b2), len(b3)
@@ -152,27 +151,30 @@ def e_space_sampled(F, B, bases_Vk, xR, V_set, n_samples: int, rng: np.random.Ge
     n_e = 0
     t0 = time.time()
     poly_fast = all(b == [1 << j for j in range(len(b))] for b in bases_Vk)
-    # Draw n_samples random (c1,c2,c3); evaluate in batches
+    # Precompute coordinate tables for non-window bases
+    if poly_fast:
+        tab1 = np.arange(1 << d1, dtype=np.int64)
+        tab2 = np.arange(1 << d2, dtype=np.int64)
+        tab3 = np.arange(1 << d3, dtype=np.int64)
+    else:
+        tab1 = np.array([coords_to_field(i, b1) for i in range(1 << d1)], dtype=np.int64)
+        tab2 = np.array([coords_to_field(i, b2) for i in range(1 << d2)], dtype=np.int64)
+        tab3 = np.array([coords_to_field(i, b3) for i in range(1 << d3)], dtype=np.int64)
+
     batch = min(1 << 16, n_samples)
     done = 0
+    B2 = F.mul(B, B)
+    xR_2 = F.mul(xR, xR)
+    xR_3 = F.mul(xR_2, xR)
+    xR_4 = F.mul(xR_2, xR_2)
     while done < n_samples:
         m = min(batch, n_samples - done)
         c1 = rng.integers(0, 1 << d1, size=m, dtype=np.int64)
         c2 = rng.integers(0, 1 << d2, size=m, dtype=np.int64)
         c3 = rng.integers(0, 1 << d3, size=m, dtype=np.int64)
-        if poly_fast:
-            e1, e2, e3 = c1, c2, c3
-        else:
-            e1 = np.array([coords_to_field(int(x), b1) for x in c1], dtype=np.int64)
-            e2 = np.array([coords_to_field(int(x), b2) for x in c2], dtype=np.int64)
-            e3 = np.array([coords_to_field(int(x), b3) for x in c3], dtype=np.int64)
-        # evaluate one-by-one in chunks grouped by unique (e1,e2) for batch e3
-        # simpler: scalar vectorized per row using vmul on length-m arrays
-        # Reuse s4_sym_batch_e3 only works for fixed e1,e2 — fall back to row loop with numpy field ops
-        B2 = F.mul(B, B)
-        xR_2 = F.mul(xR, xR)
-        xR_3 = F.mul(xR_2, xR)
-        xR_4 = F.mul(xR_2, xR_2)
+        e1 = tab1[c1]
+        e2 = tab2[c2]
+        e3 = tab3[c3]
         e1_2 = F.vmul(e1, e1)
         e1_4 = F.vmul(e1_2, e1_2)
         e2_2 = F.vmul(e2, e2)
