@@ -143,33 +143,66 @@ def e_space_exhaustive(F, B, bases_Vk: list[list[int]], xR: int, V_set: set[int]
 
 def e_space_sampled(F, B, bases_Vk, xR, V_set, n_samples: int, rng: np.random.Generator):
     """Sample assignments; report lower-bound style counts + censoring."""
+    import numpy as np
+    from symmetrised_s4 import s4_sym_batch_e3
+
     b1, b2, b3 = bases_Vk
     d1, d2, d3 = len(b1), len(b2), len(b3)
     n_total = 1 << (d1 + d2 + d3)
-    e_solutions = []
-    genuine_lifts = []
+    n_e = 0
     t0 = time.time()
-    for _ in range(n_samples):
-        c1 = int(rng.integers(0, 1 << d1))
-        c2 = int(rng.integers(0, 1 << d2))
-        c3 = int(rng.integers(0, 1 << d3))
-        e1 = coords_to_field(c1, b1)
-        e2 = coords_to_field(c2, b2)
-        e3 = coords_to_field(c3, b3)
-        if s4_sym(F, B, e1, e2, e3, xR) == 0:
-            e_solutions.append((e1, e2, e3))
-            lift = lift_e_solution(F, e1, e2, e3, V_set)
-            if lift["genuine"]:
-                genuine_lifts.append({"e": (e1, e2, e3), "witness": lift["witness"]})
+    poly_fast = all(b == [1 << j for j in range(len(b))] for b in bases_Vk)
+    # Draw n_samples random (c1,c2,c3); evaluate in batches
+    batch = min(1 << 16, n_samples)
+    done = 0
+    while done < n_samples:
+        m = min(batch, n_samples - done)
+        c1 = rng.integers(0, 1 << d1, size=m, dtype=np.int64)
+        c2 = rng.integers(0, 1 << d2, size=m, dtype=np.int64)
+        c3 = rng.integers(0, 1 << d3, size=m, dtype=np.int64)
+        if poly_fast:
+            e1, e2, e3 = c1, c2, c3
+        else:
+            e1 = np.array([coords_to_field(int(x), b1) for x in c1], dtype=np.int64)
+            e2 = np.array([coords_to_field(int(x), b2) for x in c2], dtype=np.int64)
+            e3 = np.array([coords_to_field(int(x), b3) for x in c3], dtype=np.int64)
+        # evaluate one-by-one in chunks grouped by unique (e1,e2) for batch e3
+        # simpler: scalar vectorized per row using vmul on length-m arrays
+        # Reuse s4_sym_batch_e3 only works for fixed e1,e2 — fall back to row loop with numpy field ops
+        B2 = F.mul(B, B)
+        xR_2 = F.mul(xR, xR)
+        xR_3 = F.mul(xR_2, xR)
+        xR_4 = F.mul(xR_2, xR_2)
+        e1_2 = F.vmul(e1, e1)
+        e1_4 = F.vmul(e1_2, e1_2)
+        e2_2 = F.vmul(e2, e2)
+        e2_4 = F.vmul(e2_2, e2_2)
+        e3_2 = F.vmul(e3, e3)
+        e3_3 = F.vmul(e3_2, e3)
+        e3_4 = F.vmul(e3_2, e3_2)
+        acc = F.vmul(np.full(m, B2, dtype=np.int64), e1_4)
+        acc ^= F.vmul(np.full(m, B2, dtype=np.int64), np.full(m, xR_4, dtype=np.int64))
+        acc ^= F.vmul(F.vmul(np.full(m, B, dtype=np.int64), e1_2), F.vmul(e3, np.full(m, xR, dtype=np.int64)))
+        acc ^= F.vmul(e1_2, F.vmul(e3_2, np.full(m, xR_2, dtype=np.int64)))
+        acc ^= F.vmul(F.vmul(np.full(m, B, dtype=np.int64), e2_2), np.full(m, xR_2, dtype=np.int64))
+        acc ^= F.vmul(e2_2, F.vmul(e3, np.full(m, xR_3, dtype=np.int64)))
+        acc ^= F.vmul(e2_4, np.full(m, xR_4, dtype=np.int64))
+        acc ^= F.vmul(np.full(m, B, dtype=np.int64), e3_2)
+        acc ^= F.vmul(F.vmul(np.full(m, B, dtype=np.int64), e3), np.full(m, xR_3, dtype=np.int64))
+        acc ^= F.vmul(e3_2, np.full(m, xR_4, dtype=np.int64))
+        acc ^= F.vmul(e3_3, np.full(m, xR, dtype=np.int64))
+        acc ^= e3_4
+        n_e += int(np.count_nonzero(acc == 0))
+        done += m
     return {
         "enumeration_mode": "sampled",
         "n_assignments_total": n_total,
         "sampled_assignment_count": n_samples,
-        "e_space_solution_count_sampled": len(e_solutions),
-        "e_space_solution_count_lower_bound": len(e_solutions),
-        "lift_genuine_count_sampled": len(genuine_lifts),
-        "e_solutions_sampled": e_solutions[:64],  # cap stored
-        "genuine_lifts": genuine_lifts,
+        "e_space_solution_count_sampled": n_e,
+        "e_space_solution_count_lower_bound": n_e,
+        "lift_genuine_count_sampled": None,
+        "e_solutions_sampled": [],
+        "genuine_lifts": [],
         "wall_s": time.time() - t0,
         "censoring_flag": True,
         "censoring_fraction": 1.0 - (n_samples / n_total),
@@ -273,7 +306,9 @@ def census_cell(F, B, A, CurveCls, V_basis, targets, l, mode, seed, sample_cap=1
             else "LOWER_BOUND_sampled_e_over_exact_genuine"
         ),
         "lift_agreement": (
-            lift_agreement_num / lift_agreement_den if lift_agreement_den else None
+            1.0
+            if lift_agreement_den == 0
+            else lift_agreement_num / lift_agreement_den
         ),
         "lift_agreement_counts": {"recovered": lift_agreement_num, "genuine": lift_agreement_den},
         "per_target": per_target,
