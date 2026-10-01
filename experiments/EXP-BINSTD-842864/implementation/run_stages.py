@@ -134,17 +134,77 @@ def write_run_package(
     return run_dir
 
 
-def run_cmd(command: list[str], timeout: float | None = None) -> tuple[int, str, str, dict | None]:
-    proc = subprocess.run(
-        command,
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-    result = None
-    # If command wrote --json, caller loads it; here just return streams
-    return proc.returncode, proc.stdout, proc.stderr, result
+def run_cmd(
+    command: list[str],
+    timeout: float | None = None,
+    log_path: Path | None = None,
+) -> tuple[int, str, str, dict | None]:
+    """Run command; optionally tee stdout/stderr to log_path continuously."""
+    if log_path is None:
+        proc = subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return proc.returncode, proc.stdout, proc.stderr, None
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    out_chunks: list[str] = []
+    err_chunks: list[str] = []
+    with open(log_path, "w") as logf:
+        proc = subprocess.Popen(
+            command,
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        assert proc.stdout is not None and proc.stderr is not None
+
+        def pump(stream, chunks, prefix: str) -> None:
+            for line in stream:
+                chunks.append(line)
+                logf.write(prefix + line)
+                logf.flush()
+                print(prefix + line, end="", flush=True)
+
+        import threading
+
+        t_out = threading.Thread(target=pump, args=(proc.stdout, out_chunks, ""))
+        t_err = threading.Thread(target=pump, args=(proc.stderr, err_chunks, "[stderr] "))
+        t_out.start()
+        t_err.start()
+        try:
+            rc = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            t_out.join(timeout=5)
+            t_err.join(timeout=5)
+            raise
+        t_out.join()
+        t_err.join()
+    return rc, "".join(out_chunks), "".join(err_chunks), None
+
+
+def load_census_json(out_json: Path) -> dict:
+    """Load final JSON, falling back to pre-enrich snapshot if needed."""
+    if out_json.exists() and out_json.stat().st_size > 0:
+        return json.loads(out_json.read_text())
+    pre = Path(str(out_json) + ".pre_enrich.json")
+    if pre.exists() and pre.stat().st_size > 0:
+        data = json.loads(pre.read_text())
+        data["loaded_from_pre_enrich"] = True
+        return data
+    ck_candidates = list(out_json.parent.glob(out_json.name + "*.checkpoint.json"))
+    if ck_candidates:
+        # newest checkpoint
+        ck = max(ck_candidates, key=lambda p: p.stat().st_mtime)
+        data = {"searches": [json.loads(ck.read_text())], "loaded_from_checkpoint": str(ck)}
+        return data
+    raise FileNotFoundError(f"no census output at {out_json} or pre_enrich/checkpoint")
 
 
 def main() -> None:
@@ -351,8 +411,10 @@ Structural census runs set `certificate.kind: none` (closed set:
             run_unf, run_filt = run_map[g]
             # Unfiltered (also collects modulus-131 hits in the same pass)
             out_json = EXP / "stage1" / f"census-g{g}-unfiltered.json"
+            log_path = EXP / "stage1" / f"census-g{g}-unfiltered.live.log"
             cmd = [
                 sys.executable,
+                "-u",
                 str(IMPL),
                 "--mode",
                 "census",
@@ -363,17 +425,28 @@ Structural census runs set `certificate.kind: none` (closed set:
                 "--json",
                 str(out_json),
                 "--progress-every",
-                "200000",
+                "100000",
                 "--wall-limit",
                 "86400",
+                "--checkpoint",
+                str(EXP / "stage1" / f"census-g{g}-unfiltered.checkpoint.json"),
             ]
             print(f"Starting unfiltered census g={g} ...", flush=True)
             t0 = time.time()
+            data: dict = {"timed_out": True, "searches": []}
+            out, err = "", ""
             try:
-                rc, out, err, _ = run_cmd(cmd, timeout=86400)
-                status = "completed_valid"
-                term = "completed"
-                invalid = None
+                rc, out, err, _ = run_cmd(cmd, timeout=86400, log_path=log_path)
+                try:
+                    data = load_census_json(out_json)
+                    status = "completed_valid" if rc == 0 else "failed_infrastructure"
+                    term = "completed" if rc == 0 else f"census_exit_{rc}"
+                    invalid = None if rc == 0 else f"census process exit code {rc}"
+                except FileNotFoundError as e:
+                    status = "failed_infrastructure"
+                    term = "missing_output"
+                    invalid = str(e)
+                    rc = rc if rc != 0 else -1
             except subprocess.TimeoutExpired as e:
                 rc = -1
                 out = (e.stdout or "") if isinstance(e.stdout, str) else ""
@@ -381,10 +454,11 @@ Structural census runs set `certificate.kind: none` (closed set:
                 status = "failed_infrastructure"
                 term = "timeout"
                 invalid = "wall-clock timeout"
-                data = {"timed_out": True, "searches": []}
+                try:
+                    data = load_census_json(out_json)
+                except FileNotFoundError:
+                    data = {"timed_out": True, "searches": []}
             t1 = time.time()
-            if status != "failed_infrastructure":
-                data = json.loads(out_json.read_text())
             row = data["searches"][0] if data.get("searches") else {}
             metrics = {
                 "dimension": g,
@@ -399,15 +473,10 @@ Structural census runs set `certificate.kind: none` (closed set:
                 "timed_out": row.get("timed_out"),
                 "measured": True,
             }
-            if row.get("timed_out"):
+            if row.get("timed_out") or row.get("partial"):
                 status = "failed_infrastructure"
-                term = "timeout"
-                invalid = "advisory wall-clock exceeded during census"
-            elif status == "completed_valid":
-                # validity of measurement: completed enumeration; LMFDB match is a metric not infra
-                if row.get("ambiguous_count", 0) > 0:
-                    # still a valid measurement, outcome C later
-                    pass
+                term = "timeout" if row.get("timed_out") else "partial_checkpoint"
+                invalid = "census did not complete (timeout or interrupted)"
             write_run_package(
                 run_unf,
                 f"1-unfiltered-g{g}",
@@ -425,8 +494,10 @@ Structural census runs set `certificate.kind: none` (closed set:
 
             # Separate filtered-only pass (congruence-pinned last coeff) for explicit filtered run id
             out_json_f = EXP / "stage1" / f"census-g{g}-filtered.json"
+            log_path_f = EXP / "stage1" / f"census-g{g}-filtered.live.log"
             cmd_f = [
                 sys.executable,
+                "-u",
                 str(IMPL),
                 "--mode",
                 "census",
@@ -438,17 +509,27 @@ Structural census runs set `certificate.kind: none` (closed set:
                 "--json",
                 str(out_json_f),
                 "--progress-every",
-                "200000",
+                "100000",
                 "--wall-limit",
                 "86400",
+                "--checkpoint",
+                str(EXP / "stage1" / f"census-g{g}-filtered.checkpoint.json"),
             ]
             print(f"Starting filtered census g={g} ...", flush=True)
             t0 = time.time()
+            data_f = {"timed_out": True, "searches": []}
+            out, err = "", ""
             try:
-                rc, out, err, _ = run_cmd(cmd_f, timeout=86400)
-                status = "completed_valid"
-                term = "completed"
-                invalid = None
+                rc, out, err, _ = run_cmd(cmd_f, timeout=86400, log_path=log_path_f)
+                try:
+                    data_f = load_census_json(out_json_f)
+                    status = "completed_valid" if rc == 0 else "failed_infrastructure"
+                    term = "completed" if rc == 0 else f"census_exit_{rc}"
+                    invalid = None if rc == 0 else f"census process exit code {rc}"
+                except FileNotFoundError as e:
+                    status = "failed_infrastructure"
+                    term = "missing_output"
+                    invalid = str(e)
             except subprocess.TimeoutExpired as e:
                 rc = -1
                 out = (e.stdout or "") if isinstance(e.stdout, str) else ""
@@ -456,15 +537,16 @@ Structural census runs set `certificate.kind: none` (closed set:
                 status = "failed_infrastructure"
                 term = "timeout"
                 invalid = "wall-clock timeout"
-                data_f = {"timed_out": True, "searches": []}
+                try:
+                    data_f = load_census_json(out_json_f)
+                except FileNotFoundError:
+                    data_f = {"timed_out": True, "searches": []}
             t1 = time.time()
-            if status != "failed_infrastructure":
-                data_f = json.loads(out_json_f.read_text())
             row_f = data_f["searches"][0] if data_f.get("searches") else {}
-            if row_f.get("timed_out"):
+            if row_f.get("timed_out") or row_f.get("partial"):
                 status = "failed_infrastructure"
-                term = "timeout"
-                invalid = "advisory wall-clock exceeded during filtered census"
+                term = "timeout" if row_f.get("timed_out") else "partial_checkpoint"
+                invalid = "filtered census did not complete"
             write_run_package(
                 run_filt,
                 f"1-filtered-g{g}",

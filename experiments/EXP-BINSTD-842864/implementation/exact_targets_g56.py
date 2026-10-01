@@ -443,6 +443,8 @@ def census(
     collect_all_classes: bool = False,
     progress_every: int = 100000,
     wall_limit_s: float | None = None,
+    checkpoint_path: str | None = None,
+    max_ambiguous_stored: int = 100,
 ) -> dict[str, Any]:
     """Enumerate integer real Weil polynomials of degree g over F_2.
 
@@ -455,6 +457,7 @@ def census(
     class_count = 0
     hits: list[dict[str, Any]] = []
     ambiguous: list[dict[str, Any]] = []
+    ambiguous_count = 0
     survivors = [0] * (g + 1)
     exact_tests = 0
     t0 = time.time()
@@ -467,19 +470,37 @@ def census(
             return True
         return False
 
+    def write_checkpoint() -> None:
+        if not checkpoint_path:
+            return
+        ck = {
+            "dimension": g,
+            "exact_tests_performed": exact_tests,
+            "classes_found": class_count,
+            "hit_count": len(hits),
+            "hits": hits,
+            "ambiguous_count": ambiguous_count,
+            "survivors_per_level": survivors,
+            "wall_s": time.time() - t0,
+            "timed_out": timed_out,
+            "partial": True,
+        }
+        tmp = checkpoint_path + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(ck, fh)
+        os.replace(tmp, checkpoint_path)
+
     def recurse(k: int, chosen: list[int]) -> None:
-        nonlocal exact_tests, class_count
+        nonlocal exact_tests, class_count, ambiguous_count
         if timed_out or maybe_timeout():
             return
         limit = int(bounds[k]) + 1
         if k == g and modulus is not None and filtered_only:
             # Pin a_g by congruence: h(3) ≡ 0 (mod modulus)
             partial_sum = sum(c * (Q + 1) ** (g - i) for i, c in enumerate(chosen))
-            # a_g ≡ -partial_sum (mod modulus)
             target_mod = (-partial_sum) % modulus
             candidates = []
             a = target_mod
-            # cover negative residues too
             while a <= limit:
                 candidates.append(a)
                 a += modulus
@@ -502,13 +523,18 @@ def census(
             if progress_every and exact_tests % progress_every == 0:
                 print(
                     f"  g={g} k={k} tests={exact_tests} survivors={survivors} "
-                    f"classes={class_count} hits={len(hits)} "
+                    f"classes={class_count} hits={len(hits)} amb={ambiguous_count} "
                     f"wall={time.time()-t0:.1f}s",
                     flush=True,
                 )
+                write_checkpoint()
             verdict, is_amb = exact_real_rooted_in_box(derivative)
             if is_amb:
-                ambiguous.append({"level": k, "partial": list(partial), "derivative": derivative})
+                ambiguous_count += 1
+                if len(ambiguous) < max_ambiguous_stored:
+                    ambiguous.append(
+                        {"level": k, "partial": list(partial), "derivative": derivative}
+                    )
             if not verdict:
                 continue
             survivors[k] += 1
@@ -527,7 +553,7 @@ def census(
     recurse(1, [1])
 
     wall = time.time() - t0
-    return {
+    result = {
         "dimension": g,
         "modulus": modulus,
         "filtered_only": filtered_only,
@@ -539,14 +565,20 @@ def census(
         "hits": hits,
         "hit_count": len(hits),
         "ambiguous_near_boundary": ambiguous,
-        "ambiguous_count": len(ambiguous),
+        "ambiguous_count": ambiguous_count,
+        "ambiguous_stored": len(ambiguous),
         "survivors_per_level": survivors,
         "exact_tests_performed": exact_tests,
         "wall_s": wall,
         "timed_out": timed_out,
         "termination_reason": "timeout" if timed_out else "completed",
         "classes": found_classes if collect_all_classes else None,
+        "partial": False,
     }
+    if checkpoint_path:
+        with open(checkpoint_path, "w") as fh:
+            json.dump({**result, "checkpoint_final": True}, fh)
+    return result
 
 
 def enrich_hit(hit: dict[str, Any]) -> dict[str, Any]:
@@ -654,6 +686,7 @@ def main() -> None:
     ap.add_argument("--wall-limit", type=float, default=None)
     ap.add_argument("--sample-size", type=int, default=10000)
     ap.add_argument("--progress-every", type=int, default=100000)
+    ap.add_argument("--checkpoint", type=str, default=None)
     args = ap.parse_args()
 
     # Self-tests
@@ -683,17 +716,46 @@ def main() -> None:
     elif args.mode == "census":
         searches = []
         for g in args.dims:
-            print(f"=== census g={g} filtered_only={args.filtered_only} modulus={args.modulus} ===", flush=True)
+            print(
+                f"=== census g={g} filtered_only={args.filtered_only} modulus={args.modulus} ===",
+                flush=True,
+            )
+            ck = args.checkpoint
+            if ck is None and args.json:
+                ck = args.json + f".g{g}.checkpoint.json"
             row = census(
                 g,
                 modulus=args.modulus,
                 filtered_only=args.filtered_only,
-                collect_all_classes=(g <= 5),
+                collect_all_classes=False,
                 progress_every=args.progress_every,
                 wall_limit_s=args.wall_limit,
+                checkpoint_path=ck,
             )
-            # Enrich hits
-            row["hits"] = [enrich_hit(h) for h in row["hits"]]
+            # Write pre-enrich snapshot so a sympy failure cannot erase the census.
+            if args.json:
+                pre = {
+                    "base_field": Q,
+                    "modulus": args.modulus,
+                    "filtered_only": args.filtered_only,
+                    "searches": [row],
+                    "peak_rss_bytes": peak_rss_bytes(),
+                    "pre_enrich": True,
+                }
+                pre_path = args.json + ".pre_enrich.json"
+                with open(pre_path, "w") as fh:
+                    json.dump(pre, fh)
+                print(f"wrote pre-enrich snapshot {pre_path}", flush=True)
+            enriched_hits = []
+            for h in row["hits"]:
+                try:
+                    enriched_hits.append(enrich_hit(h))
+                except Exception as exc:  # noqa: BLE001 — record and continue
+                    bad = dict(h)
+                    bad["enrich_error"] = repr(exc)
+                    bad["sympy_agreement"] = False
+                    enriched_hits.append(bad)
+            row["hits"] = enriched_hits
             searches.append(row)
             print(
                 f"g={g}: classes={row['classes_found']} hits={row['hit_count']} "
@@ -775,4 +837,25 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        import traceback
+
+        traceback.print_exc()
+        # Best-effort crash breadcrumb next to --json if present
+        try:
+            argv = sys.argv
+            if "--json" in argv:
+                jpath = argv[argv.index("--json") + 1]
+                crumb = {
+                    "error": repr(exc),
+                    "traceback": traceback.format_exc(),
+                    "termination_reason": "implementation_error",
+                }
+                with open(jpath + ".crash.json", "w") as fh:
+                    json.dump(crumb, fh, indent=2)
+                print(f"wrote crash breadcrumb {jpath}.crash.json", flush=True)
+        except Exception:
+            pass
+        raise

@@ -18,6 +18,11 @@ Does **not** import or call `analysis/couveignes-lercier-131/weil_census.py`.
    and filtered hit counts (expected 5,35,215,1645 and 0 hits).
 2. Unfiltered Stage-1 census uses modulus=131 only to tag hits in the same
    pass; a separate `--filtered-only` pass congruence-pins `a_g`.
+3. First Stage-1 g=5 attempt (~77 min wall) exited without writing the final
+   JSON (captured-stdout driver swallowed the child's trail); instrument
+   hardened with live logs, checkpoints, pre-enrich snapshots, and capped
+   ambiguous storage; g=5/6 re-run under the hardened driver. That aborted
+   attempt is infrastructure, not a mathematical observation.
 
 ## Not claimed
 
