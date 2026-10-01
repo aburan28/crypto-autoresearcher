@@ -56,6 +56,7 @@ _lib.closure_count_deg.argtypes = [ctypes.c_int]
 _lib.closure_dropped_terms.restype = ctypes.c_longlong
 _lib.closure_reset_dropped.restype = None
 _lib.closure_elimination.restype = ctypes.c_char_p
+_lib.closure_resumed.restype = ctypes.c_long
 ELIMINATION = _lib.closure_elimination().decode()
 _lib.closure_row_masks.restype = ctypes.c_long
 _lib.closure_row_masks.argtypes = [ctypes.c_long, ctypes.c_void_p]
@@ -132,7 +133,10 @@ def _run(N, D, equations, max_iter, mem_cap_gb):
             "dropped_terms_above_D": int(_lib.closure_dropped_terms()),
             # The elimination routine this build ran. RUN-SEMBIN-9bb990 used
             # mzd_echelonize, found unsound at N=44 (see closure.c, ech()).
-            "elimination": ELIMINATION}
+            "elimination": ELIMINATION,
+            # Times this process resumed the closure from a CLOSURE_CKPT_DIR
+            # checkpoint (cumulative per process); 0 when checkpointing is off.
+            "checkpoint_resumes": int(_lib.closure_resumed())}
 
 
 def _lm_stats(D):

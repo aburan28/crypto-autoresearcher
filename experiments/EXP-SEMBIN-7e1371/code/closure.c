@@ -24,6 +24,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 
 typedef uint64_t u64;
 
@@ -366,6 +367,221 @@ __attribute__((unused)) static long batch_for(long rank, long nm_rows, double pe
     return lo;
 }
 
+/* ---- checkpoint / resume (opt-in: environment variable CLOSURE_CKPT_DIR) ----
+ * A long closure (N = 44, D = 4: hours per iteration) outlives the container it
+ * runs in. With CLOSURE_CKPT_DIR set, the state is written after every batch and
+ * a later call on the SAME system (hash of N, D and the generators) resumes at
+ * the exact product cursor, so it builds the same matrices an uninterrupted run
+ * would. Multi-iteration closures in non-legacy builds only; the single-level
+ * statistic is one iteration and is never checkpointed.
+ *   ckpt.bin  cursor, history, flags, and the basis. B_ is in reduced row
+ *             echelon form, so each row is its pivot plus its bits on the
+ *             NON-pivot columns; only those are stored (N = 44: ~0.3 GB rather
+ *             than 2.3 GB dense). A row that is not reduced aborts the write.
+ *   nm.<it>.bin  NM, the rows being multiplied in iteration <it>, dense, written
+ *             once per iteration. The previous iteration's file is removed only
+ *             after a checkpoint of the new iteration is committed: the last
+ *             checkpoint of an iteration can still point into its NM (cursor on
+ *             its final row), so overwriting a single nm.bin at the start of the
+ *             next iteration made such a checkpoint unresumable.
+ * Both are written to a temporary name, fsync'd and renamed, so a kill mid-write
+ * leaves the previous checkpoint intact. */
+#define CKPT_MAGIC 0x434c4f53434b5031ULL   /* "CLOSCKP1" */
+#define NM_MAGIC   0x434c4f534e4d5031ULL   /* "CLOSNMP1" */
+typedef struct {
+    u64 magic, hash;
+    long ncols, ngens, hist_n;
+    int N, D, max_iter, it, md, iters;
+    long a, mi, total_new_piv, n_new, n_prod, total_rows, rank, max_rows_seen;
+    long long dropped;
+} ckpt_hdr;
+typedef struct { u64 magic, hash; long it, n_new, ncols, width; } nm_hdr;
+
+static long resumed_ = 0;
+long closure_resumed(void) { return resumed_; }
+static const char *ckpt_dir(void) {
+    const char *d = getenv("CLOSURE_CKPT_DIR");
+    return (d && *d) ? d : NULL;
+}
+__attribute__((unused)) static u64 gens_hash(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_masks) {
+    u64 h = 1469598103934665603ULL;
+#define HMIX(v) do { u64 v_ = (u64)(v); for (int k_ = 0; k_ < 8; k_++) { h ^= (v_ >> (8 * k_)) & 0xff; h *= 1099511628211ULL; } } while (0)
+    HMIX(N); HMIX(D); HMIX(ngens);
+    for (long g = 0; g <= ngens; g++) HMIX(gen_ptr[g]);
+    for (long q = 0; q < gen_ptr[ngens]; q++) HMIX(gen_masks[q]);
+#undef HMIX
+    return h;
+}
+static int wr(FILE *f, const void *b, size_t sz, size_t n) { return n == 0 || fwrite(b, sz, n, f) == n; }
+static int rd(FILE *f, void *b, size_t sz, size_t n) { return n == 0 || fread(b, sz, n, f) == n; }
+static int commit_file(FILE *f, const char *tmp, const char *dst) {
+    int ok = (fflush(f) == 0) && (fsync(fileno(f)) == 0);
+    ok = (fclose(f) == 0) && ok;
+    if (!ok || rename(tmp, dst) != 0) { remove(tmp); return 0; }
+    return 1;
+}
+/* non-pivot column mask of the current basis, with prefix counts per word */
+static long nonpivot_mask(u64 *npm, long *npos, long nw) {
+    memset(npm, 0, sizeof(u64) * nw);
+    for (long j = 0; j < ncols_; j++) if (!is_pivot_[j]) npm[j >> 6] |= 1ULL << (j & 63);
+    long nnp = 0;
+    for (long w = 0; w < nw; w++) { npos[w] = nnp; nnp += __builtin_popcountll(npm[w]); }
+    return nnp;
+}
+__attribute__((unused)) static void ckpt_save(const ckpt_hdr *H0, const long *iter_rows, const long *iter_rank,
+                      const long *iter_newpiv, const double *iter_wall) {
+    const char *dir = ckpt_dir();
+    if (!dir) return;
+    char tmp[4096], dst[4096];
+    snprintf(tmp, sizeof tmp, "%s/ckpt.bin.tmp", dir);
+    snprintf(dst, sizeof dst, "%s/ckpt.bin", dir);
+    long nw = (ncols_ + 63) / 64;
+    u64 *npm = malloc(sizeof(u64) * nw); long *npos = malloc(sizeof(long) * nw);
+    long nnp = nonpivot_mask(npm, npos, nw);
+    if (ncols_ - nnp != rank_) {
+        fprintf(stderr, "[ckpt] pivot count %ld != rank %ld; checkpoint NOT written\n", ncols_ - nnp, rank_);
+        free(npm); free(npos); return;
+    }
+    long pw = (nnp + 63) / 64;
+    u64 *out = malloc(sizeof(u64) * (pw ? pw : 1));
+    FILE *f = fopen(tmp, "wb");
+    int ok = f != NULL;
+    ckpt_hdr H = *H0;
+    H.magic = CKPT_MAGIC; H.rank = rank_; H.dropped = dropped_terms_;
+    if (ok) ok = wr(f, &H, sizeof H, 1) && wr(f, iter_rows, sizeof(long), H.hist_n) &&
+                 wr(f, iter_rank, sizeof(long), H.hist_n) && wr(f, iter_newpiv, sizeof(long), H.hist_n) &&
+                 wr(f, iter_wall, sizeof(double), H.hist_n) && wr(f, lm_col_, sizeof(long), rank_) &&
+                 wr(f, row_new_, 1, rank_) && wr(f, is_pivot_, 1, ncols_) && wr(f, pivot_new_, 1, ncols_);
+    u64 tail = ncols_ & 63 ? (1ULL << (ncols_ & 63)) - 1 : ~0ULL;
+    for (long i = 0; ok && i < rank_; i++) {
+        memset(out, 0, sizeof(u64) * (pw ? pw : 1));
+        const word *r = mzd_row(B_, (rci_t)i);
+        for (long w = 0; w < nw; w++) {
+            u64 x = r[w];
+            if (w == nw - 1) x &= tail;
+            u64 expect = ((lm_col_[i] >> 6) == w) ? (1ULL << (lm_col_[i] & 63)) : 0;
+            if ((x & ~npm[w]) != expect) {
+                fprintf(stderr, "[ckpt] basis row %ld is not reduced; checkpoint NOT written\n", i);
+                ok = 0; break;
+            }
+            u64 y = x & npm[w];
+            while (y) {
+                int b = __builtin_ctzll(y);
+                long idx = npos[w] + __builtin_popcountll(npm[w] & ((1ULL << b) - 1));
+                out[idx >> 6] |= 1ULL << (idx & 63);
+                y &= y - 1;
+            }
+        }
+        if (ok) ok = wr(f, out, sizeof(u64), pw);
+    }
+    u64 trailer = CKPT_MAGIC;
+    if (ok) ok = wr(f, &trailer, sizeof trailer, 1);
+    if (f && ok) ok = commit_file(f, tmp, dst);
+    else if (f) { fclose(f); remove(tmp); }
+    if (!ok) fprintf(stderr, "[ckpt] write failed; previous checkpoint kept\n");
+    else {
+        /* the committed checkpoint is in iteration H.it; older NM files are dead */
+        for (long k = 1; k < H.it; k++) {
+            snprintf(dst, sizeof dst, "%s/nm.%ld.bin", dir, k);
+            remove(dst);
+        }
+    }
+    free(npm); free(npos); free(out);
+}
+__attribute__((unused)) static void nm_save(u64 hash, long it, long n_new, const mzd_t *NM) {
+    const char *dir = ckpt_dir();
+    if (!dir) return;
+    char tmp[4096], dst[4096];
+    snprintf(tmp, sizeof tmp, "%s/nm.%ld.bin.tmp", dir, it);
+    snprintf(dst, sizeof dst, "%s/nm.%ld.bin", dir, it);
+    nm_hdr H = {NM_MAGIC, hash, it, n_new, ncols_, NM->width};
+    FILE *f = fopen(tmp, "wb");
+    int ok = f != NULL && wr(f, &H, sizeof H, 1);
+    for (long i = 0; ok && i < n_new; i++) ok = wr(f, mzd_row((mzd_t *)NM, (rci_t)i), sizeof(word), NM->width);
+    u64 trailer = NM_MAGIC;
+    if (ok) ok = wr(f, &trailer, sizeof trailer, 1);
+    if (f && ok) ok = commit_file(f, tmp, dst);
+    else if (f) { fclose(f); remove(tmp); }
+    if (!ok) fprintf(stderr, "[ckpt] NM write failed\n");
+}
+/* Loads ckpt.bin into the globals (B_, flags) and *H and the history arrays.
+ * Returns 1 on a valid checkpoint for this system, else 0 with nothing changed
+ * that closure_run does not rebuild. */
+__attribute__((unused)) static int ckpt_load(u64 hash, int N, int D, long ngens, int max_iter, ckpt_hdr *H,
+                     long *iter_rows, long *iter_rank, long *iter_newpiv, double *iter_wall) {
+    const char *dir = ckpt_dir();
+    if (!dir) return 0;
+    char path[4096];
+    snprintf(path, sizeof path, "%s/ckpt.bin", dir);
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+    int ok = rd(f, H, sizeof *H, 1) && H->magic == CKPT_MAGIC && H->hash == hash && H->N == N &&
+             H->D == D && H->ngens == ngens && H->ncols == ncols_ && H->max_iter == max_iter &&
+             H->hist_n == max_iter + 2;
+    if (!ok) { fclose(f); fprintf(stderr, "[ckpt] %s is for a different system; ignored\n", path); return 0; }
+    long rk = H->rank;
+    long *lm = malloc(sizeof(long) * (rk ? rk : 1));
+    char *rn = malloc(rk ? rk : 1);
+    ok = rd(f, iter_rows, sizeof(long), H->hist_n) && rd(f, iter_rank, sizeof(long), H->hist_n) &&
+         rd(f, iter_newpiv, sizeof(long), H->hist_n) && rd(f, iter_wall, sizeof(double), H->hist_n) &&
+         rd(f, lm, sizeof(long), rk) && rd(f, rn, 1, rk) && rd(f, is_pivot_, 1, ncols_) &&
+         rd(f, pivot_new_, 1, ncols_);
+    long nw = (ncols_ + 63) / 64;
+    u64 *npm = malloc(sizeof(u64) * nw); long *npos = malloc(sizeof(long) * nw);
+    long nnp = nonpivot_mask(npm, npos, nw);
+    if (ok && ncols_ - nnp != rk) ok = 0;
+    long *npcol = malloc(sizeof(long) * (nnp ? nnp : 1));
+    for (long j = 0, q = 0; j < ncols_; j++) if (!is_pivot_[j]) npcol[q++] = j;
+    long pw = (nnp + 63) / 64;
+    u64 *in = malloc(sizeof(u64) * (pw ? pw : 1));
+    mzd_t *Bn = ok ? mzd_init((rci_t)(rk ? rk : 1), (rci_t)ncols_) : NULL;
+    for (long i = 0; ok && i < rk; i++) {
+        if (!rd(f, in, sizeof(u64), pw)) { ok = 0; break; }
+        mzd_write_bit(Bn, (rci_t)i, (rci_t)lm[i], 1);
+        for (long w = 0; w < pw; w++) {
+            u64 y = in[w];
+            while (y) { int b = __builtin_ctzll(y); long idx = w * 64 + b;
+                        if (idx >= nnp) { ok = 0; break; }
+                        mzd_write_bit(Bn, (rci_t)i, (rci_t)npcol[idx], 1); y &= y - 1; }
+        }
+    }
+    u64 trailer = 0;
+    if (ok) ok = rd(f, &trailer, sizeof trailer, 1) && trailer == CKPT_MAGIC;
+    fclose(f);
+    free(npm); free(npos); free(npcol); free(in);
+    if (!ok) {
+        fprintf(stderr, "[ckpt] %s truncated or corrupt; ignored\n", path);
+        if (Bn) mzd_free(Bn);
+        free(lm); free(rn);
+        memset(is_pivot_, 0, ncols_); memset(pivot_new_, 0, ncols_);
+        return 0;
+    }
+    if (B_) mzd_free(B_);
+    B_ = Bn;
+    free(lm_col_); free(row_new_);
+    lm_col_ = lm; row_new_ = rn; rank_ = rk;
+    dropped_terms_ = H->dropped;
+    return 1;
+}
+static mzd_t *nm_load(u64 hash, long it, long n_new) {
+    const char *dir = ckpt_dir();
+    char path[4096];
+    snprintf(path, sizeof path, "%s/nm.%ld.bin", dir, it);
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    nm_hdr H;
+    mzd_t *NM = NULL;
+    int ok = rd(f, &H, sizeof H, 1) && H.magic == NM_MAGIC && H.hash == hash && H.it == it &&
+             H.n_new == n_new && H.ncols == ncols_;
+    if (ok) { NM = mzd_init((rci_t)(n_new ? n_new : 1), (rci_t)ncols_); ok = (H.width == NM->width); }
+    for (long i = 0; ok && i < n_new; i++) ok = rd(f, mzd_row(NM, (rci_t)i), sizeof(word), NM->width);
+    u64 trailer = 0;
+    if (ok) ok = rd(f, &trailer, sizeof trailer, 1) && trailer == NM_MAGIC;
+    fclose(f);
+    if (!ok) { if (NM) mzd_free(NM); return NULL; }
+    return NM;
+}
+
 /* Returns: 0 ok, 1 memory cap hit (state left as reached), 2 error.
  * gens: CSR of generator masks.  iter_* arrays sized max_iter+2.
  */
@@ -382,21 +598,40 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
     long max_rows_seen = 0;
     u64 *tmp = malloc(sizeof(u64) * (ncols_ + 1));
     u64 *rbuf = malloc(sizeof(u64) * (ncols_ + 1));
-
-    /* iteration 0: echelonize the generators themselves */
-    double t0 = now_sec();
-    mzd_t *M = mzd_init((rci_t)(ngens ? ngens : 1), (rci_t)ncols_);
-    for (long g = 0; g < ngens; g++) {
-        long cnt = gen_ptr[g + 1] - gen_ptr[g];
-        write_product(M, g, gen_masks + gen_ptr[g], cnt, 0, tmp);
-    }
-    long rk = ech(M);
-    install_basis(M, rk);
-    mzd_free(M);
-    iter_rows[0] = ngens; iter_rank[0] = rk; iter_newpiv[0] = rk; iter_wall[0] = now_sec() - t0;
-    if (ngens > max_rows_seen) max_rows_seen = ngens;
+    int single_level = (max_iter == 1);
     int iters = 1;
     int hit_cap = 0;
+    double t0 = now_sec();
+
+    /* resume from a checkpoint of this same system, if one exists */
+    u64 ghash = 0;
+    ckpt_hdr R;
+    int resume_now = 0;
+#if !defined(ECH_LEGACY)
+    if (ckpt_dir() && !single_level) {
+        ghash = gens_hash(N, D, ngens, gen_ptr, gen_masks);
+        resume_now = ckpt_load(ghash, N, D, ngens, max_iter, &R, iter_rows, iter_rank, iter_newpiv, iter_wall);
+        if (resume_now) {
+            resumed_++;
+            iters = R.iters; max_rows_seen = R.max_rows_seen;
+            fprintf(stderr, "[ckpt] resumed: iteration %d, row %ld of %ld, rank %ld\n", R.it, R.a, R.n_new, rank_);
+        }
+    }
+#endif
+
+    if (!resume_now) {
+        /* iteration 0: echelonize the generators themselves */
+        mzd_t *M = mzd_init((rci_t)(ngens ? ngens : 1), (rci_t)ncols_);
+        for (long g = 0; g < ngens; g++) {
+            long cnt = gen_ptr[g + 1] - gen_ptr[g];
+            write_product(M, g, gen_masks + gen_ptr[g], cnt, 0, tmp);
+        }
+        long rk = ech(M);
+        install_basis(M, rk);
+        mzd_free(M);
+        iter_rows[0] = ngens; iter_rank[0] = rk; iter_newpiv[0] = rk; iter_wall[0] = now_sec() - t0;
+        if (ngens > max_rows_seen) max_rows_seen = ngens;
+    }
 
     /* multiplier lists per degree */
     long mult_cnt[8] = {0};
@@ -411,12 +646,29 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
      * reduced basis iteration 0 installed: a reduced row whose degree dropped under cancellation
      * would be multiplied by more monomials than any generator, and the row space would exceed
      * the degree-D Macaulay matrix of the generators. */
-    int single_level = (max_iter == 1);
 
-    for (int it = 1; it <= max_iter; it++) {
+    for (int it = resume_now ? R.it : 1; it <= max_iter; it++) {
         t0 = now_sec();
+        long n_new = 0, n_prod = 0, total_rows = 0, total_new_piv = 0;
+        long *newrows = NULL;
+        mzd_t *NM = NULL;
+        long a = 0; int md = 1; long mi = 0;
+        double per_row = (double)ncols_ / 8.0 + 64.0;
+        long nm_rows = 0;
+#if defined(ECH_LEGACY)
+        long batch_max = 0;
+#endif
+        if (resume_now) {
+            resume_now = 0;
+            n_new = R.n_new; n_prod = R.n_prod; total_rows = R.total_rows; total_new_piv = R.total_new_piv;
+            a = R.a; md = R.md; mi = R.mi; nm_rows = n_new;
+            if (a < n_new) {
+                NM = nm_load(ghash, it, n_new);
+                if (!NM) { fprintf(stderr, "[ckpt] nm.%d.bin missing or stale; cannot resume\n", it);
+                           hit_cap = 2; break; }
+            }
+        } else {
         /* collect rows to multiply */
-        long n_new = 0, n_prod = 0;
         if (single_level) {
             n_new = ngens;
             for (long g = 0; g < ngens; g++) {
@@ -439,13 +691,12 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             iters = it + 1;
             break;
         }
-        double per_row = (double)ncols_ / 8.0 + 64.0;
-        long nm_rows = single_level ? 0 : n_new;
+        nm_rows = single_level ? 0 : n_new;
         (void)nm_rows;
 #if defined(ECH_LEGACY)
         /* batch size from memory cap: (rank + batch) * ncols / 8 <= cap. Kept
          * as it was so -DECH_LEGACY rebuilds RUN-SEMBIN-9bb990's exact matrices. */
-        long batch_max = (long)((mem_cap_bytes - (double)rank_ * per_row) / per_row);
+        batch_max = (long)((mem_cap_bytes - (double)rank_ * per_row) / per_row);
 #else
         /* batch size from memory cap. Resident at once during ech(S): the basis
          * B_ (rank rows), S itself (rank + batch rows), and PLUQ's full-reduction
@@ -460,12 +711,11 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         long batch_max = batch_for(rank_, nm_rows, per_row, mem_cap_bytes);
 #endif
         /* Macaulay row count: every mu * g including mu = 1 for the single-level statistic */
-        long total_rows = (single_level ? ngens : rank_) + n_prod;
+        total_rows = (single_level ? ngens : rank_) + n_prod;
         if (batch_max < 1024) { hit_cap = 1; iter_rows[it] = total_rows; iter_rank[it] = -1; iter_newpiv[it] = -1; iter_wall[it] = 0; iters = it + 1; break; }
-        long total_new_piv = 0;
         if (total_rows > max_rows_seen) max_rows_seen = total_rows;
         /* snapshot which rows are new (install_basis will reset flags) */
-        long *newrows = malloc(sizeof(long) * (n_new ? n_new : 1));
+        newrows = malloc(sizeof(long) * (n_new ? n_new : 1));
         long k = 0;
         if (single_level) { for (long g = 0; g < ngens; g++) newrows[k++] = g; }
         else { for (long i = 0; i < rank_; i++) if (row_new_[i]) newrows[k++] = i; }
@@ -475,24 +725,26 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
          * N = 44 carry up to ~19k nonzeros, so the old sparse copy of ~80k
          * rows ran to gigabytes outside the memory cap and was OOM-killed.
          * row_masks() yields the same masks in the same order either way. */
-        mzd_t *NM = NULL;
         if (!single_level) {
             NM = mzd_init((rci_t)(n_new ? n_new : 1), (rci_t)ncols_);
             for (long a2 = 0; a2 < n_new; a2++) mzd_copy_row(NM, (rci_t)a2, B_, (rci_t)newrows[a2]);
+#if !defined(ECH_LEGACY)
+            if (ckpt_dir()) nm_save(ghash, it, n_new, NM);
+#endif
         }
+        for (long i = 0; i < rank_; i++) row_new_[i] = 0;
+        memset(pivot_new_, 0, ncols_);
+        }   /* end of the fresh-iteration prelude */
         const u64 *cur_m = NULL; long cur_c = 0;
 #define LOAD_ROW(idx) do { \
             if (single_level) { cur_m = gen_masks + gen_ptr[newrows[idx]]; \
                                  cur_c = gen_ptr[newrows[idx] + 1] - gen_ptr[newrows[idx]]; } \
             else { cur_c = row_masks(NM, (idx), rbuf); cur_m = rbuf; } } while (0)
-        for (long i = 0; i < rank_; i++) row_new_[i] = 0;
-        memset(pivot_new_, 0, ncols_);
         /* stream products in batches */
-        int found_one = 0;
-        long a = 0; int md = 1; long mi = 0;
-        if (n_new > 0) LOAD_ROW(0);
-        int dg_a = (n_new > 0) ? poly_deg(cur_m, cur_c) : 0;
-        while (a < n_new) {
+        int found_one = (!single_level && rank_ > 0 && is_pivot_[ncols_ - 1]);
+        if (a < n_new) LOAD_ROW(a);
+        int dg_a = (a < n_new) ? poly_deg(cur_m, cur_c) : 0;
+        while (a < n_new && !found_one) {
 #if defined(ECH_LEGACY)
             long batch = batch_max;
 #else
@@ -523,6 +775,16 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             install_basis(S, rk2);
             total_new_piv += (rk2 - old_rank);
             mzd_free(S);
+#if !defined(ECH_LEGACY)
+            if (ckpt_dir() && !single_level) {
+                ckpt_hdr H = {0};
+                H.hash = ghash; H.ncols = ncols_; H.ngens = ngens; H.hist_n = max_iter + 2;
+                H.N = N; H.D = D; H.max_iter = max_iter; H.it = it; H.md = md; H.iters = iters;
+                H.a = a; H.mi = mi; H.total_new_piv = total_new_piv; H.n_new = n_new; H.n_prod = n_prod;
+                H.total_rows = total_rows; H.max_rows_seen = max_rows_seen;
+                ckpt_save(&H, iter_rows, iter_rank, iter_newpiv, iter_wall);
+            }
+#endif
             /* 1 in the row space settles the CLOSURE's verdict, so it stops. The
              * single-level statistic is the RANK of the whole degree-D Macaulay
              * block, so it must take every product: stopping here returned a
@@ -546,7 +808,15 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
     *out_rank = rank_;
     *out_contains_one = (rank_ > 0 && is_pivot_[ncols_ - 1]) ? 1 : 0;
     *out_max_rows_seen = max_rows_seen;
-    return hit_cap ? 1 : 0;
+    if (!hit_cap && ckpt_dir()) {
+        /* finished: a checkpoint of a completed run has no further use */
+        char path[4096];
+        snprintf(path, sizeof path, "%s/ckpt.bin", ckpt_dir()); remove(path);
+        for (int k = 1; k <= max_iter + 1; k++) {
+            snprintf(path, sizeof path, "%s/nm.%d.bin", ckpt_dir(), k); remove(path);
+        }
+    }
+    return hit_cap == 2 ? 2 : (hit_cap ? 1 : 0);
 }
 
 long closure_rank(void) { return rank_; }
