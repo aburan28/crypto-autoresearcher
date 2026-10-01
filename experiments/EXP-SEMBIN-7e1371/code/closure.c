@@ -168,8 +168,15 @@ static long first_col(const mzd_t *M, long i) {
 /* write product (mu * row given as masks) into row r of M, cancelling mod 2 */
 /* Elimination entry point. Every echelonization in this file goes through ech()
  * so the routine can be swapped or cross-checked at build time:
- *   default            mzd_echelonize(M, 1): Four Russians, switching to PLE once
- *                      the trailing block passes density 0.15 (echelonform.h)
+ *   default            mzd_echelonize_pluq(M, 1): PLUQ throughout.
+ *   -DECH_LEGACY       mzd_echelonize(M, 1): Four Russians, switching to PLE once
+ *                      the trailing block passes density 0.15 (echelonform.h).
+ *                      This was the default for RUN-SEMBIN-9bb990. With M4RI
+ *                      0.0.20200125 it is UNSOUND on (43,2,2,22) N=44: under
+ *                      -DECH_EVALCHECK its second elimination (199768 x 149986)
+ *                      takes 0 rows not vanishing at a verified common zero and
+ *                      returns 68559 that do, rank 139898 where PLUQ gives
+ *                      129376 with 0 bad rows. Kept only to reproduce that run.
  *   -DECH_PURE_M4RI    mzd_echelonize_m4ri(M, 1, 0) only, never PLE
  *   -DECH_CROSSCHECK   runs the default AND pure Four Russians on a copy and
  *                      compares the two RREFs; RREF is unique for a row space,
@@ -193,16 +200,16 @@ void closure_ech_reset(void) { ech_calls_ = 0; ech_mismatch_ = 0; ech_first_bad_
  * nonzeros per call, no second matrix -- unlike ECH_CROSSCHECK. */
 /* ECH_EVALCHECK only: which routine does the elimination, chosen at run time so
  * one build can test all three on the same matrices.
- * 0 = mzd_echelonize (default: Four Russians, hands off to PLE past density
- *     0.15); 1 = mzd_echelonize_pluq (PLUQ throughout); 2 = mzd_echelonize_m4ri
- *     (Four Russians throughout, never PLE). */
-static int ech_method_ = 0;
+ * 0 = mzd_echelonize (legacy: Four Russians, hands off to PLE past density
+ *     0.15); 1 = mzd_echelonize_pluq (PLUQ throughout, the default);
+ *     2 = mzd_echelonize_m4ri (Four Russians throughout, never PLE). */
+static int ech_method_ = 1;
 void closure_set_method(int m) { ech_method_ = m; }
 static u64 witness_ = 0;
 static int witness_set_ = 0;
 void closure_set_witness(u64 assign) { witness_ = assign; witness_set_ = 1; }
 
-static long rows_not_vanishing(const mzd_t *M, rci_t upto, long *first) {
+__attribute__((unused)) static long rows_not_vanishing(const mzd_t *M, rci_t upto, long *first) {
     long bad = 0;
     *first = -1;
     for (rci_t i = 0; i < upto; i++) {
@@ -259,11 +266,30 @@ static rci_t ech(mzd_t *M) {
     if (bout > 0 || bin > 0) { ech_mismatch_++; if (ech_first_bad_ < 0) ech_first_bad_ = ech_calls_; }
 #elif defined(ECH_PURE_M4RI)
     rci_t r1 = mzd_echelonize_m4ri(M, 1, 0);
-#else
+#elif defined(ECH_LEGACY)
     rci_t r1 = mzd_echelonize(M, 1);
+#else
+    rci_t r1 = mzd_echelonize_pluq(M, 1);
 #endif
     ech_calls_++;
     return r1;
+}
+
+/* Which routine ech() runs in this build, recorded in every result so a
+ * verdict always says what produced it. */
+const char *closure_elimination(void) {
+#if defined(ECH_CROSSCHECK)
+    return "mzd_echelonize+crosscheck_m4ri";
+#elif defined(ECH_EVALCHECK)
+    return ech_method_ == 1 ? "mzd_echelonize_pluq+evalcheck"
+         : ech_method_ == 2 ? "mzd_echelonize_m4ri+evalcheck" : "mzd_echelonize+evalcheck";
+#elif defined(ECH_PURE_M4RI)
+    return "mzd_echelonize_m4ri";
+#elif defined(ECH_LEGACY)
+    return "mzd_echelonize";
+#else
+    return "mzd_echelonize_pluq";
+#endif
 }
 
 /* DIAGNOSTIC: counts product terms whose degree exceeded D and were therefore

@@ -55,6 +55,8 @@ _lib.closure_count_deg.restype = ctypes.c_long
 _lib.closure_count_deg.argtypes = [ctypes.c_int]
 _lib.closure_dropped_terms.restype = ctypes.c_longlong
 _lib.closure_reset_dropped.restype = None
+_lib.closure_elimination.restype = ctypes.c_char_p
+ELIMINATION = _lib.closure_elimination().decode()
 _lib.closure_row_masks.restype = ctypes.c_long
 _lib.closure_row_masks.argtypes = [ctypes.c_long, ctypes.c_void_p]
 _lib.closure_standard_count.restype = ctypes.c_long
@@ -127,7 +129,10 @@ def _run(N, D, equations, max_iter, mem_cap_gb):
             # the true degree-D slice -- which makes 1 appear spuriously and biases
             # the verdict toward sufficiency. MUST be 0 for a verdict to mean
             # anything; recorded per instance so no future run can hide it.
-            "dropped_terms_above_D": int(_lib.closure_dropped_terms())}
+            "dropped_terms_above_D": int(_lib.closure_dropped_terms()),
+            # The elimination routine this build ran. RUN-SEMBIN-9bb990 used
+            # mzd_echelonize, found unsound at N=44 (see closure.c, ech()).
+            "elimination": ELIMINATION}
 
 
 def _lm_stats(D):
@@ -278,4 +283,4 @@ def macaulay_single_level(N, equations, D, mem_cap_gb):
             "rows": rows, "cols": res["ncols"], "rank": res["rank"] if res["status"] == "completed" else None,
             "sr_pred_rank": pred[D], "sr_HF": HF[: D + 1],
             "deficit_vs_semiregular": (pred[D] - res["rank"]) if res["status"] == "completed" else None,
-            "wall_s": res["wall_s"], "contains_one": res["contains_one"]}
+            "wall_s": res["wall_s"], "contains_one": res["contains_one"], "elimination": ELIMINATION}
