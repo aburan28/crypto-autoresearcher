@@ -1,0 +1,29 @@
+$ /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python -c import json, sys, hashlib
+import xml.etree.ElementTree as ET
+rd = sys.argv[1]
+t = ET.parse(f"{rd}/junit.xml").getroot()
+suites = t.findall("testsuite") if t.tag == "testsuites" else [t]
+cases = []
+for s in suites:
+    for c in s.findall("testcase"):
+        st = "passed"
+        if c.find("failure") is not None: st = "failed"
+        elif c.find("error") is not None: st = "error"
+        elif c.find("skipped") is not None: st = "skipped"
+        cases.append({"classname": c.get("classname"), "name": c.get("name"), "status": st,
+                      "skip_reason": (c.find("skipped").get("message") if st == "skipped" else None)})
+cnt = {}
+for c in cases: cnt[c["status"]] = cnt.get(c["status"], 0) + 1
+obj5 = [c for c in cases if "obj5" in c["name"]]
+raw = {"run_id": "RUN-PFDR-011cd0-tests", "tests": len(cases), "counts": cnt,
+       "G3_prime": {"all_non_skipped_pass": cnt.get("failed", 0) == 0 and cnt.get("error", 0) == 0,
+                    "T_OBJ5_cases": obj5,
+                    "T_OBJ5_demonstrates_undercount_on_prefix_code": all(c["status"] == "passed" for c in obj5) and len(obj5) == 2},
+       "skips": sorted({c["skip_reason"] for c in cases if c["status"] == "skipped"}),
+       "junit_sha256": hashlib.sha256(open(f"{rd}/junit.xml", "rb").read()).hexdigest(),
+       "certificate": {"instances_claimed": 0, "note": "a test run claims no solve"},
+       "cases": cases}
+json.dump(raw, open(f"{rd}/raw-result.json", "w"), indent=1)
+print(json.dumps({k: raw[k] for k in ("tests", "counts")} | {"G3_prime": {k: v for k, v in raw["G3_prime"].items() if k != "T_OBJ5_cases"}})) experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-tests
+{"tests": 143, "counts": {"passed": 134, "skipped": 9}, "G3_prime": {"all_non_skipped_pass": true, "T_OBJ5_demonstrates_undercount_on_prefix_code": true}}
+[exit 0]

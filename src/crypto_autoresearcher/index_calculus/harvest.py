@@ -42,13 +42,33 @@ instance (curve.py add/mul, its own OpCounter, no numpy) BEFORE it enters any
 elimination.  A failure raises ``CertificateFailure``.
 
 Nothing here touches the solver's E.ops, DecompStats, table or elimination.
+
+EXP-PFDR-011cd0 additions
+-------------------------
+* EC-1 (NA-7 repair): ``end_attempt`` collects the earlier members of an x-group
+  from EVERY sorted run holding the key (older runs first; within a run, stored
+  order), so pair counts are C(k', 2) per group.  The dict path is unchanged.
+* EC-2 (``relcount=True``): per class (and, for SS, per scope) the distinct
+  projective relations of CC-1 (``relations_distinct``), the sign-only count of
+  CC-1b, the nonformal count of CC-2, R_star (distinct normalised star-row
+  relations) and the multiplicity histogram are counted in process.  Without
+  ``relcount`` no key is added.
+* EC-3 (``x_fix``): every formally distinct SS encoding gets a 0-based sequence
+  number in recording order; the ``at_X_fix`` SS snapshot counts pairs, rows and
+  relations whose later (new) element has sequence number < X_fix.
+* ``retain`` ("default" = the IC-5 rule, "all", "xfix") selects the rows sent to
+  the sink; ``digest_classes`` replaces a class's rows by the sha256 of its
+  canonical row stream (``rows_digest``).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import random
 import resource
+import struct
 import time
 from collections import Counter
 
@@ -311,6 +331,125 @@ class _Class:
                 "pairs_nonformal": self.pairs_raw - self.pairs_formal}
 
 
+_K_IDX = 1 << 40   # coordinate index of kcoef in a relation vector (after every base index)
+_R_IDX = _K_IDX + 1  # coordinate index of rhs (after kcoef)
+RELCOUNT_VERSION = 1
+RETAIN_MODES = ("default", "all", "xfix")
+
+
+def canonical_row_line(rec: dict) -> bytes:
+    """One line of a class's canonical row stream (``rows_digest``): the sink record
+    without instance-key fields, JSON with sorted keys and no spaces, newline-terminated."""
+    return (json.dumps(rec, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+
+class _RelCounter:
+    """EC-2: CC-1 (projective), CC-1b (sign-only), CC-2 (nonformal), R_star and the
+    multiplicity histogram of one (class, scope), fed with the class's STAR rows.
+
+    A star row of x-group g (first element vs element j) carries the relation of
+    pair (1, j); with the group's earlier star rows row_i it also yields the
+    relations row_j - row_i of pairs (i, j).  Vectors are reduced mod N
+    (coordinates: base indices ascending, then kcoef, then rhs); a zero vector is
+    a formal duplicate and dropped; the monic form divides by the first nonzero
+    coordinate.  Keys are packed exactly (no hashing)."""
+
+    def __init__(self, N: int, formal_test, star_pairs_only: bool = False) -> None:
+        self.N = N
+        self.half = N // 2
+        self.formal_test = formal_test  # callable(dict over base indices) -> bool
+        # TB: the class's pairs are (base, tail) pairs only -- the star pairs (1, j);
+        # two tails of one x-group form a TT pair (counted in TT, CC-4), never a TB pair.
+        self.star_pairs_only = star_pairs_only
+        self.groups: dict = {}
+        self.mult: dict[bytes, int] = {}
+        self.sign: set[bytes] = set()
+        self.star: set[bytes] = set()
+        self.nonformal: set[bytes] = set()
+        self.pairs = 0
+        self.zero_pairs = 0
+
+    @staticmethod
+    def _pack(items) -> bytes:
+        flat = [v for it in items for v in it]
+        return struct.pack(f"<{len(flat)}Q", *flat)
+
+    def vector(self, coeffs: dict, kcoef: int, rhs: int) -> dict:
+        N = self.N
+        v = {i: c % N for i, c in coeffs.items() if c % N}
+        if kcoef % N:
+            v[_K_IDX] = kcoef % N
+        if rhs % N:
+            v[_R_IDX] = rhs % N
+        return v
+
+    def monic_key(self, v: dict) -> bytes | None:
+        if not v:
+            return None
+        items = sorted(v.items())
+        N = self.N
+        inv = pow(items[0][1], -1, N)
+        return self._pack((i, c * inv % N) for i, c in items)
+
+    def _sign_key(self, v: dict) -> bytes:
+        items = sorted(v.items())
+        N = self.N
+        if items[0][1] > self.half:  # lexicographically smaller of v and -v
+            return self._pack((i, (N - c) % N) for i, c in items)
+        return self._pack(items)
+
+    def _is_formal(self, v: dict) -> bool:
+        if _K_IDX in v or _R_IDX in v:
+            return False
+        return self.formal_test(v)
+
+    def add_star(self, gid, coeffs: dict, kcoef: int, rhs: int) -> None:
+        N = self.N
+        v = self.vector(coeffs, kcoef, rhs)
+        prev = self.groups.get(gid)
+        if prev is None:
+            prev = self.groups[gid] = []
+        rels = [v]
+        for u in (() if self.star_pairs_only else prev):
+            d = dict(v)
+            for i, c in u.items():
+                nv = (d.get(i, 0) - c) % N
+                if nv:
+                    d[i] = nv
+                else:
+                    d.pop(i, None)
+            rels.append(d)
+        prev.append(v)
+        for idx, r in enumerate(rels):
+            self.pairs += 1
+            key = self.monic_key(r)
+            if key is None:
+                self.zero_pairs += 1
+                continue
+            m = self.mult.get(key)
+            if m is None:
+                self.mult[key] = 1
+                if not self._is_formal(r):
+                    self.nonformal.add(key)
+            else:
+                self.mult[key] = m + 1
+            self.sign.add(self._sign_key(r))
+            if idx == 0:
+                self.star.add(key)
+
+    def block(self) -> dict:
+        hist = Counter(self.mult.values())
+        return {"relations_distinct": len(self.mult),
+                "relations_distinct_sign": len(self.sign),
+                "relations_nonformal": len(self.nonformal),
+                "R_star": len(self.star),
+                "multiplicity_histogram": {str(k): hist[k] for k in sorted(hist)},
+                "relation_pairs": self.pairs,
+                "relation_pairs_zero": self.zero_pairs,
+                "star_groups": len(self.groups),
+                "star_groups_with_ge2_star_rows": sum(1 for g in self.groups.values() if len(g) >= 2)}
+
+
 class _SSGroup:
     """One x-key of the SS store with >= 2 encodings: the first distinct member
     (t, sigma, oriented A as a key, descriptor, y-bit, formal key) and the
@@ -333,9 +472,18 @@ class Harvester:
 
     def __init__(self, E: Curve, P: Point, Q: Point, fb, table, mode: str,
                  target_label: str | None, formal_basis: dict | None = None,
-                 attempt_budget: int | None = None, sink=None) -> None:
+                 attempt_budget: int | None = None, sink=None, *,
+                 relcount: bool = False, retain: str = "default",
+                 digest_classes=(), x_fix: int | None = None) -> None:
         if table is None or table.arity < 2:
             raise ValueError("harvest needs a mitm table of arity >= 2")
+        if retain not in RETAIN_MODES:
+            raise ValueError(f"unknown retain mode {retain!r}; choose from {RETAIN_MODES}")
+        if retain == "xfix" and x_fix is None:
+            raise ValueError("retain 'xfix' needs an encoding budget X_fix")
+        bad = [c for c in digest_classes if c not in CLASSES]
+        if bad:
+            raise ValueError(f"unknown digest classes {bad}")
         t0 = time.perf_counter()
         self.E, self.P, self.Q, self.fb, self.table = E, P, Q, fb, table
         self.N, self.p = E.order, E.p
@@ -362,6 +510,16 @@ class Harvester:
         self.ss_dup = 0
         self.at_A_fix = None
         self.table_info: dict = {}
+        # EXP-PFDR-011cd0 (EC-2, EC-3, EC-7); all inert at their defaults
+        self.relcount, self.retain, self.x_fix = relcount, retain, x_fix
+        self.digest_classes = tuple(digest_classes)
+        self._digests = {c: hashlib.sha256() for c in self.digest_classes}
+        self._digest_rows = {c: 0 for c in self.digest_classes}
+        self.rel = ({c: _RelCounter(self.N, self._formal_test, star_pairs_only=(c == "TB"))
+                     for c in CLASSES} if relcount else None)
+        self.rel_xf = _RelCounter(self.N, self._formal_test) if (relcount and x_fix is not None) else None
+        self.xf = ({"pairs_raw": 0, "pairs_formal": 0, "rows_emitted": 0, "rows_formal": 0,
+                    "rows_nonformal": 0, "cert_pass": 0} if x_fix is not None else None)
         self.seconds = time.perf_counter() - t0
 
     # -- helpers ------------------------------------------------------------------------
@@ -397,6 +555,18 @@ class Harvester:
             self._resid_cache[key] = out
         return out
 
+    def _formal_test(self, v: dict) -> bool:
+        """CC-2: is the base-index vector v (kcoef = rhs = 0) in the arm's formal span?"""
+        if not self.formal_rows:
+            return not v
+        res = self._residual(v)
+        if self.formal_kind == "known_log":
+            return res == (0,)
+        return res == ()
+
+    def formally_distinct_encodings(self) -> int:
+        return self.recorder.encodings_recorded - self.ss_dup
+
     def certify(self, coeffs: dict, kcoef: int, rhs: int) -> bool:
         Ev, N = self.Ev, self.N
         S: Point = None
@@ -406,9 +576,11 @@ class Harvester:
         return S == Ev.mul(rhs % N, self.P)
 
     def _emit(self, cname: str, coeffs: dict, kcoef: int, rhs: int, formal: bool,
-              attempt: int, elements: list) -> None:
+              attempt: int, elements: list, gid=None, seq: int | None = None) -> None:
         """Certify, count, feed the census elimination, retain."""
         c = self.cls[cname]
+        in_xf = (cname == "SS" and self.x_fix is not None and seq is not None
+                 and seq < self.x_fix)
         c.rows_emitted += 1
         if formal:
             c.rows_formal += 1
@@ -420,6 +592,15 @@ class Harvester:
             raise CertificateFailure(f"{cname} row {c.rows_emitted} failed: "
                                      f"coeffs={coeffs} kcoef={kcoef} rhs={rhs}")
         c.cert_pass += 1
+        if in_xf:
+            xf = self.xf
+            xf["rows_emitted"] += 1
+            xf["rows_formal" if formal else "rows_nonformal"] += 1
+            xf["cert_pass"] += 1
+        if self.rel is not None:
+            self.rel[cname].add_star(gid, coeffs, kcoef, rhs)
+            if in_xf and self.rel_xf is not None:
+                self.rel_xf.add_star(gid, coeffs, kcoef, rhs)
         st = self.census[cname]
         saturated_before = c.saturated_at is not None
         rank_after = None
@@ -436,11 +617,25 @@ class Harvester:
             rank_after = st.rank - self.formal_rank
         if self.retain_all:
             c.kept_rows.append((dict(coeffs), kcoef, rhs))
-        if self.sink is not None and (self.retain_all or not saturated_before):
-            self.sink({"class": cname, "attempt": attempt, "elements": elements,
-                       "coeffs": sorted([i, v] for i, v in coeffs.items()),
-                       "kcoef": kcoef % self.N, "rhs": rhs % self.N, "formal": formal,
-                       "cert_ok": ok, "census_rank_after": rank_after})
+        digest = cname in self._digests
+        if self.retain == "default":
+            keep = self.retain_all or not saturated_before
+        elif self.retain == "all":
+            keep = True
+        else:  # "xfix": SS rows of the X_fix prefix only; table rows are budget-free
+            keep = in_xf if cname == "SS" else True
+        if digest or (self.sink is not None and keep):
+            rec = {"class": cname, "attempt": attempt, "elements": elements,
+                   "coeffs": sorted([i, v] for i, v in coeffs.items()),
+                   "kcoef": kcoef % self.N, "rhs": rhs % self.N, "formal": formal,
+                   "cert_ok": ok, "census_rank_after": rank_after}
+            if cname == "SS" and self.x_fix is not None:
+                rec["seq"] = seq
+            if digest:
+                self._digests[cname].update(canonical_row_line(rec))
+                self._digest_rows[cname] += 1
+            else:
+                self.sink(rec)
 
     # -- table classes ------------------------------------------------------------------
     def table_phase(self) -> list[tuple]:
@@ -489,7 +684,7 @@ class Harvester:
                     for i, c in ov.items():
                         _vec_add(co, i, -c)
                     tb.append(((b, code), co, res == beta[2],
-                               [{"base": b}, {"tail": tail, "ybit": yb}]))
+                               [{"base": b}, {"tail": tail, "ybit": yb}], x))
             if kp >= 2:
                 self.cls["TT"].pairs_raw += kp * (kp - 1) // 2
                 cnt = Counter(d[2] for d in distinct)
@@ -500,13 +695,13 @@ class Harvester:
                     for i, c in ov.items():
                         _vec_add(co, i, -c)
                     tt.append(((x, code), co, res == f[2],
-                               [{"tail": f[3], "ybit": f[4]}, {"tail": tail, "ybit": yb}]))
+                               [{"tail": f[3], "ybit": f[4]}, {"tail": tail, "ybit": yb}], x))
         tb.sort(key=lambda r: r[0])
         tt.sort(key=lambda r: r[0])
         fed = []
         for cname, rows in (("TB", tb), ("TT", tt)):
-            for _, co, formal, el in rows:
-                self._emit(cname, co, 0, 0, formal, -1, el)
+            for _, co, formal, el, gx in rows:
+                self._emit(cname, co, 0, 0, formal, -1, el, gid=gx)
                 fed.append((cname, co, 0, 0))
         E_t = tab.entries - tail_dups
         dk = tab.distinct_keys()
@@ -540,8 +735,10 @@ class Harvester:
             g = self._ss_add(g, d, False, None)
         return g
 
-    def _ss_add(self, g, desc: int, is_new: bool, out):
-        """Add one encoding to group state g (None: start a group); return the state."""
+    def _ss_add(self, g, desc: int, is_new: bool, out, seq: int | None = None, x=None):
+        """Add one encoding to group state g (None: start a group); return the state.
+        ``seq`` is the encoding's formally-distinct sequence number (EC-3) and ``x``
+        its x-key (the group id of the relation counter); both only for new ones."""
         t, A, yb, descr = self._element(desc)
         if g is None:
             g = _SSGroup(yb)
@@ -559,8 +756,11 @@ class Harvester:
         c = self.cls["SS"]
         if is_new:
             c.pairs_raw += len(g.keys)
-            if fkey is not None:
-                c.pairs_formal += sum(1 for _, fk in g.keys if fk == fkey)
+            pf = sum(1 for _, fk in g.keys if fk == fkey) if fkey is not None else 0
+            c.pairs_formal += pf
+            if self.xf is not None and seq is not None and seq < self.x_fix:
+                self.xf["pairs_raw"] += len(g.keys)
+                self.xf["pairs_formal"] += pf
         g.keys.append((dkey, fkey))
         if g.first is None:
             g.first = (t, sig, dkey[2], descr, yb, fkey)
@@ -576,7 +776,7 @@ class Harvester:
             rhs = sX * aX - sig * aY
             formal = fkey is not None and fkey == ffk
             out.append((co, kcoef, rhs, formal,
-                        [{"enc": fdescr, "ybit": fyb}, {"enc": descr, "ybit": yb}]))
+                        [{"enc": fdescr, "ybit": fyb}, {"enc": descr, "ybit": yb}], seq, x))
         return g
 
     def end_attempt(self) -> list[tuple]:
@@ -586,6 +786,10 @@ class Harvester:
         self.last_batch = (xs, ds)
         rows: list = []
         n = len(xs)
+        # EC-3: formally distinct encodings recorded before this attempt; the
+        # sequence number of position q is X_before + q - (dups at positions < q)
+        X_before = self.recorder.encodings_recorded - n - self.ss_dup
+        dups0 = self.ss_dup
         if n:
             np = self.recorder.np
             self.store_entries += n
@@ -594,13 +798,16 @@ class Harvester:
                 order = np.argsort(xs32, kind="stable")
                 bx, bd = xs32[order], ds[order]
                 coll: dict[int, list[int]] = {}
-                for rx, rd in self.runs:
+                for rx, rd in self.runs:  # EC-1: every run, older runs first
                     L = np.searchsorted(rx, bx, "left")
                     R = np.searchsorted(rx, bx, "right")
+                    seen_in_run: set[int] = set()
                     for q in np.flatnonzero(R > L).tolist():
                         x = int(bx[q])
-                        if x not in coll:
-                            coll[x] = [int(v) for v in rd[L[q]:R[q]]]
+                        if x in seen_in_run:
+                            continue
+                        seen_in_run.add(x)
+                        coll.setdefault(x, []).extend(int(v) for v in rd[L[q]:R[q]])
                 same = np.flatnonzero(bx[1:] == bx[:-1])
                 hot = set(coll) | {int(bx[q]) for q in same.tolist()}
                 if hot:
@@ -608,8 +815,9 @@ class Harvester:
                     states: dict = {}
                     for q in np.flatnonzero(np.isin(xs32, hx)).tolist():  # recording order
                         x = int(xs32[q])
+                        seq = X_before + q - (self.ss_dup - dups0)
                         g = states[x] if x in states else self._group_from(coll.get(x, []))
-                        states[x] = self._ss_add(g, int(ds[q]), True, rows)
+                        states[x] = self._ss_add(g, int(ds[q]), True, rows, seq, x)
                 del order, xs32
                 self._merge_run(bx, bd)
             else:
@@ -620,16 +828,17 @@ class Harvester:
                     x, d = xs[q], ds[q]
                     prev = store.get(x)
                     if prev is not None:
-                        self._ss_add(self._group_from(prev), d, True, rows)
+                        seq = X_before + q - (self.ss_dup - dups0)
+                        self._ss_add(self._group_from(prev), d, True, rows, seq, x)
                         prev.append(d)
                     else:
                         store[x] = [d]
-        for co, kcoef, rhs, formal, el in rows:
-            self._emit("SS", co, kcoef, rhs, formal, self.t, el)
+        for co, kcoef, rhs, formal, el, seq, x in rows:
+            self._emit("SS", co, kcoef, rhs, formal, self.t, el, gid=x, seq=seq)
         if self.A_fix is not None and self.t == self.A_fix:
             self.at_A_fix = self._ss_snapshot(censored=False)
         self.seconds += time.perf_counter() - t0
-        return [("SS", co, kcoef, rhs) for co, kcoef, rhs, _, _ in rows]
+        return [("SS", co, kcoef, rhs) for co, kcoef, rhs, _, _, _, _ in rows]
 
     def _merge_run(self, bx, bd) -> None:
         np = self.recorder.np
@@ -721,6 +930,28 @@ class Harvester:
                 "k_determining_rows": c.k_determining_rows, "poisson_mean": means[cname]},
                 "census_saturated_at_row": c.saturated_at}
         block["SS"]["at_A_fix"] = self.at_A_fix
+        if self.rel is not None:
+            for cname in CLASSES:
+                block[cname]["at_stop"].update(self.rel[cname].block())
+            block["relcount_version"] = RELCOUNT_VERSION
+        if self.x_fix is not None:
+            xf = dict(self.xf)
+            xf["pairs_nonformal"] = xf["pairs_raw"] - xf["pairs_formal"]
+            snap = {"X_fix": self.x_fix, "censored": X < self.x_fix,
+                    "formally_distinct_encodings": min(X, self.x_fix)} | xf
+            snap["poisson_mean"] = snap["formally_distinct_encodings"] * (
+                snap["formally_distinct_encodings"] - 1) / N
+            if self.rel_xf is not None:
+                snap.update(self.rel_xf.block())
+            block["SS"]["at_X_fix"] = snap
+        if self.digest_classes:
+            block["rows_digest"] = {c: self._digests[c].hexdigest() for c in self.digest_classes}
+            block["rows_digest_rows"] = dict(self._digest_rows)
+            block["rows_digest_rule"] = ("sha256 over every emitted row of the class, in emission "
+                                         "order, each line = JSON(sink record without instance "
+                                         "key fields, sorted keys, separators ',' ':') + newline")
+        if self.retain != "default":
+            block["retain"] = self.retain
         peak = self.store_entries
         block["ss_store"] = {
             "encodings_recorded": rec.encodings_recorded, "search_s3_charged": search,
