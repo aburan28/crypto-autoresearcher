@@ -20,6 +20,23 @@ pivot rule (linalg.py); it changes ``la_ops`` and nothing else.  The mitm
 table is built once per run and
 its S_3 solves are inside ``s3_solves`` (and also reported on their own as
 ``table_s3_solves``).  Wall time is reported per phase.
+
+Collision harvest (EXP-PFDR-1b78f7): ``harvest="census"`` runs the recorder
+and harvester (harvest.py) passively -- every TT, TB and SS row is certified
+and counted, none enters the solver's elimination, and every solver column is
+the one ``harvest="off"`` gives.  ``harvest="on"`` also feeds the rows: TB
+then TT after the table build, and after each attempt its decomposition row
+first, then that attempt's SS rows; the run stops at the first row that
+determines k.  ``ICResult.harvest`` carries the harvest block.
+
+EXP-PFDR-011cd0 (EC-3, EC-4): ``harvest="table"`` builds the base and the mitm
+table, harvests TT and TB exactly as census mode does and returns without any
+target, attempt or search.  ``harvest="search"`` runs census mode's attempts
+with the recorder and SS harvester, but no row (and no decomposition) enters the
+solver's elimination and k is never determined; it stops at the end of the
+attempt in which the formally distinct encodings reach ``encoding_budget``
+(X_fix), terminated_by ``encoding_budget``.  ``encoding_budget`` passed with
+``harvest="census"`` only adds the at_X_fix snapshot (--budget-snapshot-only).
 """
 
 from __future__ import annotations
@@ -35,7 +52,9 @@ from .linalg import PIVOT_RULES, EliminationState
 from .tails import TailTable, default_table_arity
 
 ENGINES = ("enumerate", "mitm", "msolve")
-__all__ = ["ENGINES", "FACTOR_BASES", "ICResult", "PIVOT_RULES", "build_factor_base",
+HARVEST_MODES = ("off", "census", "on")
+HARVEST_MODES_ALL = HARVEST_MODES + ("table", "search")  # EXP-PFDR-011cd0 EC-3, EC-4
+__all__ = ["ENGINES", "FACTOR_BASES", "HARVEST_MODES", "ICResult", "PIVOT_RULES", "build_factor_base",
            "default_fb_size", "solve_index_calculus"]
 
 
@@ -67,6 +86,7 @@ class ICResult:
     seconds_relations: float
     seconds_linalg: float
     seconds_total: float
+    harvest: dict | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -79,7 +99,16 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
                          factor_base: FactorBase | None = None,
                          msolve_timeout: float | None = 600.0,
                          table_arity: int | None = None,
-                         la_pivot: str = "min_fill") -> ICResult:
+                         la_pivot: str = "min_fill",
+                         harvest: str = "off",
+                         target_label: str | None = None,
+                         formal_basis: dict | None = None,
+                         attempt_budget: int | None = None,
+                         harvest_sink=None, *,
+                         encoding_budget: int | None = None,
+                         relcount: bool = False,
+                         retain: str = "default",
+                         digest_classes=()) -> ICResult:
     N = E.order
     if N is None:
         raise ValueError("curve order must be known")
@@ -89,7 +118,16 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         raise ValueError(f"unknown engine {engine!r}; choose from {ENGINES}")
     if la_pivot not in PIVOT_RULES:
         raise ValueError(f"unknown pivot rule {la_pivot!r}; choose from {PIVOT_RULES}")
-    rng = random.Random(f"ic|{E.p}|{E.a}|{E.b}|{m}|{fb_kind}|{seed}")
+    if harvest not in HARVEST_MODES_ALL:
+        raise ValueError(f"unknown harvest mode {harvest!r}; choose from {HARVEST_MODES_ALL}")
+    if harvest != "off" and engine != "mitm":
+        raise ValueError("harvest census/on needs the mitm engine")
+    if harvest == "search" and encoding_budget is None:
+        raise ValueError("harvest search needs an encoding budget X_fix")
+    if encoding_budget is not None and harvest not in ("search", "census"):
+        raise ValueError("an encoding budget applies to harvest search or census only")
+    label = fb_kind if target_label is None else target_label
+    rng = random.Random(f"ic|{E.p}|{E.a}|{E.b}|{m}|{label}|{seed}")
     ops0 = E.ops.group_ops
     t0 = time.perf_counter()
 
@@ -114,11 +152,75 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     k: int | None = None
     t_la = 0.0
     limit = max_attempts if max_attempts is not None else 50 * N
+    harv = None
+    on = None
+    search_only = harvest == "search"
+    budget_reached = False
+    if harvest != "off":
+        from .harvest import Harvester
+
+        harv = Harvester(E, P, Q, fb, table, harvest, target_label, formal_basis,
+                         attempt_budget, harvest_sink, relcount=relcount, retain=retain,
+                         digest_classes=digest_classes, x_fix=encoding_budget)
+        table_rows = harv.table_phase()
+        if harvest == "table":
+            limit = 0  # EC-4: no target, attempt or search
+        if harvest == "on":
+            on = {"rows_fed": {"TT": 0, "TB": 0, "SS": 0},
+                  "solver_rank_increments": {"decomp": 0, "TT": 0, "TB": 0, "SS": 0},
+                  "k_determined_by": None}
+            ta = time.perf_counter()
+            for cname, co, kc, rh in table_rows:
+                r0 = la.rank
+                k = la.add_row(dict(co), kc, rh)
+                on["rows_fed"][cname] += 1
+                on["solver_rank_increments"][cname] += la.rank - r0
+                if k is not None:
+                    on["k_determined_by"] = cname
+                    break
+            t_la += time.perf_counter() - ta
     while k is None and stats.attempts < limit:
         a, b = rng.randrange(N), rng.randrange(1, N)
         before = E.ops.group_ops
         R = E.add(E.mul(a, P), E.mul(b, Q))
         target_ops += E.ops.group_ops - before
+        if harv is not None:
+            harv.begin_attempt(stats.attempts + 1, a, b)
+            rel = decompose(E, fb, R, m, stats, accelerate=accel, table=table,
+                            recorder=harv.recorder)
+            ss_rows = harv.end_attempt()
+            if search_only:  # EC-3: nothing enters the solver's elimination
+                if rel is not None:
+                    relations += 1
+                if harv.formally_distinct_encodings() >= encoding_budget:
+                    budget_reached = True
+                    break
+                continue
+            if rel is not None:
+                relations += 1
+                coeffs: dict[int, int] = {}
+                for i, s in rel:
+                    coeffs[i] = coeffs.get(i, 0) + s
+                ta = time.perf_counter()
+                r0 = la.rank
+                k = la.add_row(coeffs, -b, a)
+                if on is not None:
+                    on["solver_rank_increments"]["decomp"] += la.rank - r0
+                    if k is not None:
+                        on["k_determined_by"] = "decomp"
+                t_la += time.perf_counter() - ta
+            if on is not None and k is None:
+                ta = time.perf_counter()
+                for cname, co, kc, rh in ss_rows:
+                    r0 = la.rank
+                    k = la.add_row(dict(co), kc, rh)
+                    on["rows_fed"][cname] += 1
+                    on["solver_rank_increments"][cname] += la.rank - r0
+                    if k is not None:
+                        on["k_determined_by"] = cname
+                        break
+                t_la += time.perf_counter() - ta
+            continue
         if engine != "msolve":
             rel = decompose(E, fb, R, m, stats, accelerate=accel, table=table)
         else:
@@ -140,6 +242,20 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
 
     group_ops = E.ops.group_ops - ops0
     verified = k is not None and E.mul(k, P) == Q
+    harvest_block = None
+    if harv is not None:
+        if k is not None:
+            terminated_by = "k_found"
+        elif harvest == "table":
+            terminated_by = "table_only"
+        elif budget_reached:
+            terminated_by = "encoding_budget"
+        elif max_attempts is not None and stats.attempts >= max_attempts:
+            terminated_by = "attempt_cap"
+        else:
+            terminated_by = "attempt_limit"
+        harvest_block = harv.finish(stats.s3_solves + table.s3_solves, table.s3_solves,
+                                    terminated_by, on)
     return ICResult(
         k=k, verified=verified, m=m, engine=engine, accelerated=accel,
         factor_base=fb.describe(), relations=relations, rank=la.rank,
@@ -155,6 +271,7 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         seconds_table=table.seconds if table else 0.0,
         seconds_relations=t2 - t1 - t_la,
         seconds_linalg=t_la, seconds_total=t2 - t0,
+        harvest=harvest_block,
     )
 
 

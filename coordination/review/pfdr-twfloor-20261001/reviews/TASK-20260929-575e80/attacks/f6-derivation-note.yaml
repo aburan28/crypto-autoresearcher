@@ -1,0 +1,165 @@
+# TASK-20260929-575e80 -- F6 derivation note (F6 a; choices F6-1).
+# Derivation tier, this task, unreviewed. Every probability fact used below is proved here
+# (elementary: linearity of expectation, Markov, the Poisson/Gamma duality, optional
+# stopping for a compound-Poisson martingale) or marked recalled. Numbers quoted are exact
+# evaluations by attacks/numlib.py (gammainc_lower_reg, poisson_sf), not simulations.
+derivation_note:
+  id: DN-575e80-F6
+  scope: >-
+    What the floor lemma of H-PFDR-0cc7e8 / IDEA-20260928-ce3ab0 claim (A) bounds, and what a
+    per-instance predicate "ratio < 0.9" can and cannot be calibrated against. Toy scale,
+    this engine; no statement about any deployed curve (RF-9).
+  knowledge_index: >-
+    search_knowledge was NOT available in this session: no such tool is exposed to this
+    subagent, kb/.venv does not exist and kb/.env is absent (the server's default store is
+    the empty in-memory index). The index did not answer. Nothing below is called "known" on
+    the strength of a retrieval; corpus files KN-TECH-005 and KN-LIT-011 were opened
+    (internal) and relay Shoup's single-DLP bound only.
+
+  notation:
+    N: odd prime group order; z = (k, f_1..f_B) the unknown logs; an encoding is an affine form L(z) = d + <c, z>.
+    x_key: the class {L(z), -L(z)} of a finite point (L(z) != 0).
+    S: S_3 units at the stop (s3_solves, table included); X = 2S (c = 2); B = |F|.
+    R: the count A7 uses (r_frozen = relations, or relations + rows fed, mode on).
+    r_rank: solver pivots at the stop (row `rank`).
+    u: X^2/N, the floor's natural time variable; ratio = 2S/sqrt(R N) = sqrt(u/R).
+
+  models:
+    M-GGM: z uniform on Z_N^(B+1); the base logs are independent uniform unknowns (premise, step 0).
+    M-NA: the set of compared pairs is fixed in advance (independent of z).
+    M-CP: >-
+      the count R, as a function of u, is a compound Poisson process: events at intensity
+      kappa/E[J] per unit u, each contributing a jump J >= 1 drawn i.i.d. from a bundle law;
+      E[R(u)] = kappa*u, kappa <= 1 under the lemma. This is HEUR-0cc7e8-H1's random model with
+      the bundle dependence that one relation creates (EV-PFDR-1faf10 OBS-3) made explicit.
+
+  steps:
+    - id: D0
+      title: x-classes and the pair probability (lemma step i)
+      statement: >-
+        For N an odd prime the N - 1 finite points form (N-1)/2 x-classes {P, -P}. For two
+        affine forms L1, L2 with c(L1) - c(L2) != 0 and c(L1) + c(L2) != 0:
+        P(L1 = L2) = P(L1 = -L2) = 1/N, the two events meet only in {L1 = L2 = 0}, and
+        P(x-key(L1) = x-key(L2), both finite) = 2/N - 2 P(L1 = L2 = 0) <= 2/N, with equality up to
+        2/N^2 when c(L1), c(L2) are linearly independent. If c(L1) = +-c(L2) the probability is
+        at most 1/N (or the pair is a formal duplicate, probability 1).
+      proof: >-
+        A non-zero linear part makes an affine form uniform on Z_N under uniform z. 2*L1 = 0
+        forces L1 = 0 because N is odd. Inclusion-exclusion, then remove the infinite case.
+      consequence: >-
+        2/N is an UPPER bound, essentially exact for generic pairs. It fails (probability 1)
+        for formally related pairs: every TT/TB pair on known_log (all base logs are known
+        multiples of log F_1) and the automorphism pairs on j0_coset.
+    - id: D1
+      title: non-adaptive expectation (lemma step ii)
+      statement: >-
+        Under M-GGM and M-NA, E[number of colliding compared pairs] = sum over compared pairs of
+        their collision probability <= (number of compared pairs) * 2/N <= X'(X'-1)/N, X' the
+        number of distinct compared encodings. No independence between pairs is needed.
+      engine_instantiation: >-
+        Each fed row is a distinct compared pair that collided: a decomposition relation is
+        one TS pair, a TT/TB/SS star row is one (centre, member) pair. Hence r_frozen <= the
+        number of colliding pairs, and E[r_frozen] <= X'^2/N in M-NA. The compared encodings are
+        the stored tails, the base points (TB) and the recorded search encodings, so
+        X' = table_entries + B + encodings_recorded, and by the closed forms verified on every
+        row (02_f3_f4_checks) X' <= 2S (D7): A7's 4S^2/N needs no free-input correction here.
+    - id: D2
+      title: fixed budget, per instance (the Coordinator's sketch)
+      statement: >-
+        If S is FIXED in advance and R <= colliding pairs with E[R] <= 4S^2/N, then
+        P(ratio <= t) = P(R >= 4S^2/(t^2 N)) <= t^2 (Markov). At t = 0.9 the bound is 0.81.
+      verdict_on_the_sketch: CORRECT as stated ("for a fixed S").
+    - id: D3
+      title: where the engine leaves M-NA (open obligation of the source record)
+      statement: >-
+        The mitm engine computes a predetermined family of forms but truncates adaptively:
+        each attempt's scan returns at the first TS hit, and the run stops at the first row that
+        determines k. S is a stopping time and the compared set depends on z. D1 and D2 do not
+        apply as written. The source record asserts E[#independent relations after S units] <=
+        4S^2/N(1+o(1)) "FOR ALL generic engines" (IDEA-20260928-ce3ab0 quantifier_order (i))
+        but gives no argument for adaptive continuation after the first collision; the corpus
+        relay of Shoup's technique (KN-TECH-005) counts linear combinations formed before the
+        FIRST non-trivial collision. Under M-GGM, conditioning on past outcomes restricts z to an
+        affine subspace minus the hyperplanes of every non-colliding compared pair; once the
+        number of such constraints is of order N or more (it is, here: compared pairs ~ X^2/2 ~ r*N/2 >> N)
+        the naive conditional bound P <= 1/(N - #constraints) is vacuous. The expectation form
+        of the lemma for THIS engine is therefore not derived by the record; this note does not
+        derive it either. It is checked numerically in the exact generic model by PTM-5
+        (aggregate T there) and on the committed rows by the F6 aggregate test.
+    - id: D4
+      title: stopping at a count threshold (the frame for r_rank)
+      statement: >-
+        Let Q(s) be nondecreasing in the budget s with E[Q(s)] <= 4s^2/N for every fixed s, and
+        let the run stop at tau = min{s : Q(s) >= q} for a deterministic q. Then {S_tau <= s} =
+        {Q(s) >= q}, so P(S_tau <= t*(1/2)*sqrt(qN)) = P(Q(s_t) >= q) <= E[Q(s_t)]/q <= t^2. The
+        per-instance t^2 bound SURVIVES the stopping time for the count that IS the stopping
+        criterion. The engine's criterion (k determined) is closest to the rank count, so D4
+        is the frame for r_rank, not for r_frozen.
+      realistic_tail: >-
+        In M-CP with unit jumps (independent relations as a Poisson process in u at rate
+        kappa), u_tau ~ Gamma(q, 1/kappa) and P(ratio_rank <= t) = P(Gamma(q, 1/kappa) <= t^2 q).
+        At kappa = 1 (the floor attained exactly) and t = 0.9: q = 5: 0.381; 10: 0.296; 25: 0.171;
+        50: 0.082; 100: 0.0227; 300: 2.3e-4; 1000: 6.5e-11. Chernoff: <= exp(-q*(t^2 - 1 -
+        2 ln t)) = exp(-0.0207 q). So even at the floor the per-instance rate is material for
+        q <= 50 and negligible only for q >= 300. Small-base instances (B = 4..25) cannot be
+        read per instance even under r_rank at the boundary.
+    - id: D5
+      title: a count that is NOT the stopping criterion (r_frozen)
+      statement: >-
+        At the stop, r_frozen (rows fed, dependent rows and bundle rows included) is not the
+        stopping count. In M-CP with a bounded stopping time, R(u) - kappa*u is a martingale and
+        E[R(u_tau)] = kappa*E[u_tau]: the floor bounds E[R] by E[X^2]/N in AGGREGATE, but no
+        Markov-type per-instance bound follows, because u_tau is random and the joint law of
+        (R, u) at tau is not fixed by the first moment. Explicit example inside M-CP at the
+        floor (kappa = 1): rows in bundles of M = 40 at Poisson rate u/40; at a stop with
+        u = 120 the predicate fires iff R > u/0.81 = 148.1, i.e. iff at least 4 bundles arrived:
+        P(Poisson(3) >= 4) = 0.353. A per-instance firing rate of about one third is therefore
+        compatible with the floor holding EXACTLY in expectation.
+      consequence: >-
+        For r_frozen the per-instance predicate is a statement about the dispersion of the
+        compound count, not about the floor. Its null rate must be computed from that
+        dispersion (NULL-P, NULL-B, PTM-5); it is not "negligible" by any argument from the
+        lemma.
+    - id: D6
+      title: what the lemma bounds in aggregate (the testable statement)
+      statement: >-
+        Wherever fixed-budget validity and optional stopping hold (M-CP; or M-NA with a
+        bounded stopping time whose increments obey the same pair bound conditionally), for
+        deterministic weights w_i >= 0 over independent instances:
+        E[sum_i w_i (S_i^2 - R_i N_i / 4)] >= -(free-input terms of D7).
+        The statistic T = sum w_i S_i^2 / sum w_i R_i N_i / 4 is a ratio estimator of
+        E[sum w S^2]/E[sum w R N/4] >= 1 and is consistent for it; "T below 1 beyond calibrated
+        error" is what a violation of the lemma looks like. Chosen weights w_i = 1/(N_i B_i)
+        (deterministic; each instance contributes O(1)).
+      not_bounded: >-
+        Neither the mean of per-instance ratios nor the mean of R N/(4 S^2) is bounded by the
+        lemma. With R = q deterministic: E[ratio^2] = 4E[S^2]/(qN) >= 1, yet E[ratio] <=
+        sqrt(E[ratio^2]) may lie below 1, and E[qN/(4S^2)] >= qN/(4E[S^2]) may exceed 1 (Jensen).
+        A per-row predicate is the extreme case of reading a non-bounded quantity.
+    - id: D7
+      title: free inputs and formal pairs
+      statement: >-
+        In general D1's X' must count every compared FREE encoding (base points enter TB rows
+        without an S_3 charge). In THIS engine the closed forms verified on all 3480 harvest rows
+        (02_f3_f4_checks) give: h = 2: table_entries = B^2 = 2*table_s3 - B, hence
+        X' = table_entries + B + encodings_recorded = 2*S_3 - degenerate_roots; h = 3:
+        table_entries = 2*u3 = 2*table_s3 - B(B+1), hence X' = 2*S_3 - B^2 - degenerate_roots.
+        So X' <= 2*S_3 on every row: the B free base points are paid for by charged encodings
+        that are never compared (the B dropped F_a - F_a zero sums at h = 2; the 2*u2 = B^2 + B
+        level-2 intermediates at h = 3). A7's X = 2*S_3 needs no free-input correction; the
+        plan's X_total = 2S + B + attempts + 2 is a conservative over-count (targets are compared
+        only as recorded roots at m = 4, 5, where they are charged; P and Q are never compared).
+        Formal pairs collide with probability 1 (D0), so on known_log and j0_coset E[R] has no
+        X^2/N bound at all: those arms violate the premise by construction.
+
+  checks_of_the_coordinator_prior_sketch:
+    - claim: E[colliding pairs among X encodings] <= X^2/N; E[r] <= c^2 S^2/N.
+      finding: Correct in M-NA (D1); for this engine X = 2S already covers the free base points (D7). For this adaptive engine the expectation form is an unproved obligation of the source record (D3), checked numerically only (PTM-5 aggregate T, F6 aggregate test).
+    - claim: For a fixed S, Markov gives only P(ratio <= t) <= t^2, up to 0.81 at t = 0.9.
+      finding: Correct (D2).
+    - claim: So one instance below 0.9 is not by itself evidence against the lemma; the lemma constrains an aggregate.
+      finding: Correct, and stronger than stated. For S a stopping time the t^2 bound survives only for the stopping count (D4, r_rank); for r_frozen there is no per-instance bound (D5). The aggregate is the ratio of sums of S^2 and R N/4 (D6), not a mean of ratios.
+    - claim: Every fed row is a colliding pair, so A7's on-mode r is still bounded in expectation if the premise holds.
+      finding: Correct in M-NA/M-CP (no free-input correction needed here, D7); inherits D3's open obligation in the adaptive generic model.
+    - claim: Multiplicity does not move the mean past the bound; it makes r compound and heavily overdispersed.
+      finding: Correct in M-CP (D5); the example there shows overdispersion alone produces per-instance firing rates of order 0.3 at the floor.

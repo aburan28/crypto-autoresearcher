@@ -15,15 +15,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 typedef uint64_t u64;
 typedef int32_t i32;
 typedef int64_t i64;
 
-/* Run-time ISA dispatch (glibc ifunc): AVX2 where the CPU has it, baseline
- * otherwise. The arithmetic is identical; only the XOR width changes. */
+/* Run-time ISA dispatch (glibc ifunc): AVX-512 or AVX2 where the CPU has it,
+ * baseline otherwise. The arithmetic is identical; only the XOR width changes. */
 #if defined(__x86_64__) && defined(__GNUC__) && !defined(__clang__)
-#define HOT __attribute__((target_clones("avx2", "default")))
+#define HOT __attribute__((target_clones("avx512f", "avx2", "default")))
 #else
 #define HOT
 #endif
@@ -173,7 +176,346 @@ fail:
  * byte of coef instead of one row XOR per absorbed pivot. XOR is associative
  * and commutative, so the final matrix equals the step-by-step one.
  */
-HOT oplog_t *gf2_column_pass_blocked(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_strict)
+/*
+ * Trailing update of one word block (words w0 .. w0+tail-1 of every active
+ * row): row act[a] ^= XOR of Bs[i] over the set bits i of coef[a], where
+ * Bs[i] is the pre-block tail of the i-th pivot of the block. The result is a
+ * fixed function of (coef, Bs), so neither the chunking nor the thread count
+ * can change a single output bit.
+ *
+ * Columns are cut into chunks of CH words. For each chunk all ceil(npiv/8)
+ * Gray-code tables (256 x CH words each) are built once and every row chunk
+ * is read and written once with all its lookups applied (M4RI's multi-table
+ * form; the previous version streamed each row once per 8-pivot group).
+ * Chunks own disjoint columns, so threads take whole chunks: no two threads
+ * write the same word, and each thread's tables are private.
+ */
+#define TAIL_TABLE_WORDS (1 << 17)   /* 1 MiB of tables per thread */
+
+HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *rows,
+                           const u64 *cfs, int cw, i64 nr, const u64 *Bs, i64 tail, int npiv,
+                           int tables, u64 *T)
+{
+    int ngroups = (npiv + 7) / 8;
+    if (!tables) {
+        for (i64 a = 0; a < nr; a++) {
+            u64 *row = M + (size_t)rows[a] * W + w0 + x0;
+            for (int q = 0; q < cw; q++) {
+                u64 cf = cfs[(size_t)a * cw + q];
+                while (cf) {
+                    int i = 64 * q + __builtin_ctzll(cf);
+                    cf &= cf - 1;
+                    const u64 *bi = Bs + (size_t)i * tail + x0;
+                    for (i64 x = 0; x < ch; x++)
+                        row[x] ^= bi[x];
+                }
+            }
+        }
+        return;
+    }
+    for (int g = 0; g < ngroups; g++) {
+        int k = npiv - 8 * g < 8 ? npiv - 8 * g : 8;
+        int ns = 1 << k;
+        u64 *Tg = T + (size_t)g * 256 * ch;
+        memset(Tg, 0, (size_t)ch * sizeof(u64));
+        for (int s2 = 1; s2 < ns; s2++) {
+            int lb = __builtin_ctz(s2);
+            const u64 *src = Tg + (size_t)(s2 & (s2 - 1)) * ch;
+            const u64 *bi = Bs + (size_t)(8 * g + lb) * tail + x0;
+            u64 *dst = Tg + (size_t)s2 * ch;
+            for (i64 x = 0; x < ch; x++)
+                dst[x] = src[x] ^ bi[x];
+        }
+    }
+    const u64 *t[64];                       /* <= 64*SB_MAX/8 groups */
+    for (i64 a = 0; a < nr; a++) {
+        const u64 *cf = cfs + (size_t)a * cw;
+        u64 *row = M + (size_t)rows[a] * W + w0 + x0;
+        int nt = 0;
+        for (int g = 0; g < ngroups; g++) {
+            int s2 = (int)((cf[g >> 3] >> (8 * (g & 7))) & 0xFF);
+            if (s2)
+                t[nt++] = T + ((size_t)g * 256 + s2) * ch;
+        }
+        int j = 0;
+        for (; j + 4 <= nt; j += 4) {
+            const u64 *a0 = t[j], *a1 = t[j + 1], *a2 = t[j + 2], *a3 = t[j + 3];
+            for (i64 x = 0; x < ch; x++)
+                row[x] ^= a0[x] ^ a1[x] ^ a2[x] ^ a3[x];
+        }
+        for (; j + 2 <= nt; j += 2) {
+            const u64 *a0 = t[j], *a1 = t[j + 1];
+            for (i64 x = 0; x < ch; x++)
+                row[x] ^= a0[x] ^ a1[x];
+        }
+        if (j < nt) {
+            const u64 *a0 = t[j];
+            for (i64 x = 0; x < ch; x++)
+                row[x] ^= a0[x];
+        }
+    }
+}
+
+static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u64 *coef,
+                       int cw, i64 na, const u64 *Bs, int npiv, int nthreads, i32 *rows, u64 *cfs,
+                       u64 *Tpool)
+{
+    i64 nr = 0, pops = 0;
+    for (i64 a = 0; a < na; a++) {
+        const u64 *cf = coef + (size_t)a * cw;
+        i64 pc = 0;
+        for (int q = 0; q < cw; q++)
+            pc += __builtin_popcountll(cf[q]);
+        if (pc) {
+            rows[nr] = act[a];
+            memcpy(cfs + (size_t)nr * cw, cf, (size_t)cw * sizeof(u64));
+            pops += pc;
+            nr++;
+        }
+    }
+    if (!nr)
+        return 0;
+    int ngroups = (npiv + 7) / 8;
+    /* tables cost ~2^8 row XORs per group to build, then <= 1 per group per row */
+    int tables = pops > (i64)ngroups * (256 + nr);
+    i64 ch = tables ? TAIL_TABLE_WORDS / (256 * ngroups) : tail;
+    if (ch < 8)
+        ch = 8;
+    if (ch > tail)
+        ch = tail;
+    if (ch >= 8)
+        ch &= ~(i64)7;                       /* whole cache lines per chunk */
+    i64 nch = (tail + ch - 1) / ch;
+    int nt = 1;
+#ifdef _OPENMP
+    /* threads only where the block carries enough work to pay for them */
+    if (nthreads > 1 && (double)nr * (double)tail > (double)(1 << 15)) {
+        nt = nthreads;
+        if (nch < nt) {                       /* split finer so every thread has columns */
+            ch = (tail + nt - 1) / nt;
+            if (ch >= 8)
+                ch = (ch + 7) & ~(i64)7;
+            nch = (tail + ch - 1) / ch;
+        }
+        if (nch < nt)
+            nt = (int)nch;
+    }
+#endif
+    (void)nt;                                /* unused without OpenMP */
+    /* Tpool: nthreads private table areas of TAIL_TABLE_WORDS words each,
+     * allocated once per pass (a fresh 1 MiB malloc per step is an mmap and a
+     * page-fault storm per step). ngroups * 256 * ch <= TAIL_TABLE_WORDS. */
+#ifdef _OPENMP
+#pragma omp parallel num_threads(nt) if (nt > 1)
+#endif
+    {
+        int tid = 0;
+#ifdef _OPENMP
+        tid = omp_get_thread_num();
+#endif
+        u64 *T = Tpool + (size_t)tid * TAIL_TABLE_WORDS;
+#ifdef _OPENMP
+#pragma omp for schedule(dynamic, 1)
+#endif
+        for (i64 q = 0; q < nch; q++) {
+            i64 x0 = q * ch, c2 = tail - x0 < ch ? tail - x0 : ch;
+            tail_chunk(M, W, w0, x0, c2, rows, cfs, cw, nr, Bs, tail, npiv, tables, T);
+        }
+    }
+    return 0;
+}
+
+/*
+ * Super-blocked column pass: the declared solver, output for output (op log,
+ * final matrix, ops_strict) equal to gf2_column_pass, processing SB words
+ * (64*SB columns) per step instead of one.
+ *
+ * Why the op log cannot change: when the pass reaches column c of the
+ * super-block [w, w+SB), every unused row with a 1 in c has its lead in
+ * [w*64, c] (all columns left of w*64 are eliminated from unused rows), so it
+ * is in the super-block's active set, whose super-block words are held exactly
+ * in val. The pivot (smallest unused row index with bit c) and X (the other
+ * such rows, ascending) are therefore the ones the column-at-a-time pass
+ * picks. Only the far tail (words >= w+SB) is deferred: each active row
+ * carries its combination of the super-block pivots' pre-step far tails in
+ * coef (up to 64*SB bits), applied once at the end of the step. A pivot's own
+ * far tail at its pivot time is its pre-step tail plus its own coef
+ * combination, which is why pc = coef[p] ^ e_slot is the right thing to XOR.
+ *
+ * The payoff is memory traffic: a row that travels right through the matrix
+ * is read and written once per 64*SB columns rather than once per 64.
+ */
+#define SB_MAX 8
+
+oplog_t *gf2_column_pass_sb(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_strict,
+                            int nthreads, int SB)
+{
+    if (SB < 1)
+        SB = 1;
+    if (SB > SB_MAX)
+        SB = SB_MAX;
+    oplog_t *L = (oplog_t *)calloc(1, sizeof(oplog_t));
+    size_t rn = (size_t)(R > 0 ? R : 1), wn = (size_t)(W > 0 ? W : 1);
+    size_t bmw = (rn + 63) / 64;
+    int NB = 64 * SB;                                  /* columns per step */
+    i32 *lw = (i32 *)malloc(rn * sizeof(i32));         /* lead word, -1 = zero or pivot */
+    i64 *wcount = (i64 *)calloc(wn, sizeof(i64));
+    i32 *act = (i32 *)malloc(rn * sizeof(i32));
+    u64 *val = (u64 *)malloc(rn * SB * sizeof(u64));
+    u64 *coef = (u64 *)malloc(rn * SB * sizeof(u64));
+    uint8_t *isp = (uint8_t *)malloc(rn);
+    u64 *bm = (u64 *)malloc((size_t)NB * bmw * sizeof(u64));   /* per-column bitmaps over act */
+    u64 *Bs = (u64 *)malloc((size_t)NB * wn * sizeof(u64));
+    i32 *rows = (i32 *)malloc(rn * sizeof(i32));
+    u64 *cfs = (u64 *)malloc(rn * SB * sizeof(u64));
+    i32 *piv_a = (i32 *)malloc((size_t)NB * sizeof(i32));
+    int ntp = nthreads < 1 ? 1 : nthreads;
+    u64 *Tpool = (u64 *)malloc((size_t)ntp * TAIL_TABLE_WORDS * sizeof(u64));
+    i64 kmax = R < C ? R : C;
+    if (!L || !lw || !wcount || !act || !val || !coef || !isp || !bm || !Bs || !rows || !cfs || !piv_a || !Tpool)
+        goto fail;
+    L->ps = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
+    L->cs = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
+    L->xoff = (i64 *)malloc((size_t)(kmax + 2) * sizeof(i64));
+    if (!L->ps || !L->cs || !L->xoff)
+        goto fail;
+    for (i64 r = 0; r < R; r++) {
+        int lc = lowest_bit_from(M + (size_t)r * W, (int)W, 0);
+        lw[r] = (lc >= 0 && lc < C) ? (i32)(lc >> 6) : -1;
+        if (lw[r] >= 0)
+            wcount[lw[r]]++;
+    }
+    i64 total = 0;
+    L->xoff[0] = 0;
+    for (i64 w = 0; w < W; w += SB) {
+        int sw = (int)(W - w < SB ? W - w : SB);       /* words in this step */
+        i64 any = 0;
+        for (int q = 0; q < sw; q++)
+            any += wcount[w + q];
+        if (!any)
+            continue;
+        i64 na = 0;
+        for (i64 r = 0; r < R; r++)
+            if (lw[r] >= (i32)w && lw[r] < (i32)(w + sw))
+                act[na++] = (i32)r;
+        size_t nwa = ((size_t)na + 63) / 64;
+        int nbits = 64 * sw;
+        memset(bm, 0, (size_t)nbits * nwa * sizeof(u64));
+        for (i64 a = 0; a < na; a++) {
+            u64 *v = val + (size_t)a * SB, *cf = coef + (size_t)a * SB;
+            const u64 *row = M + (size_t)act[a] * W + w;
+            int lead = -1;
+            for (int q = 0; q < sw; q++) {
+                v[q] = row[q];
+                cf[q] = 0;
+                if (lead < 0 && row[q])
+                    lead = 64 * q + __builtin_ctzll(row[q]);
+            }
+            isp[a] = 0;
+            bm[(size_t)lead * nwa + (a >> 6)] |= 1ULL << (a & 63);
+        }
+        int npiv = 0;
+        u64 pv[SB_MAX], pc[SB_MAX];
+        for (int b = 0; b < nbits; b++) {
+            i64 c = w * 64 + b;
+            if (c >= C)
+                break;
+            u64 *bb = bm + (size_t)b * nwa;
+            size_t q = 0;
+            while (q < nwa && !bb[q])
+                q++;
+            if (q == nwa)
+                continue;
+            i32 p = (i32)(q * 64 + __builtin_ctzll(bb[q]));
+            bb[q] &= bb[q] - 1;
+            int slot = npiv++;
+            piv_a[slot] = p;
+            isp[p] = 1;
+            const u64 *vp = val + (size_t)p * SB, *cp = coef + (size_t)p * SB;
+            for (int k = 0; k < sw; k++) {
+                pv[k] = vp[k];
+                pc[k] = cp[k];
+            }
+            pc[slot >> 6] ^= 1ULL << (slot & 63);
+            int b0 = b >> 6;                            /* words below b0 are zero in X rows */
+            i64 n = 1;
+            for (; q < nwa; q++) {
+                u64 word = bb[q];
+                bb[q] = 0;
+                while (word) {
+                    i32 x = (i32)(q * 64 + __builtin_ctzll(word));
+                    word &= word - 1;
+                    if (keep_ops && push_x(L, act[x]))
+                        goto fail;
+                    u64 *vx = val + (size_t)x * SB, *cx = coef + (size_t)x * SB;
+                    int nb = -1;
+                    for (int k = b0; k < sw; k++) {
+                        vx[k] ^= pv[k];
+                        if (nb < 0 && vx[k])
+                            nb = 64 * k + __builtin_ctzll(vx[k]);
+                    }
+                    for (int k = 0; k <= (slot >> 6); k++)
+                        cx[k] ^= pc[k];
+                    if (nb >= 0)                        /* nb > b */
+                        bm[(size_t)nb * nwa + (x >> 6)] |= 1ULL << (x & 63);
+                    n++;
+                }
+            }
+            total += n - 1;
+            L->ps[L->K] = act[p];
+            L->cs[L->K] = (i32)c;
+            L->K++;
+            L->xoff[L->K] = L->nx;
+        }
+        /* bring words >= w+sw up to date */
+        i64 w1 = w + sw, tail = W - w1;
+        if (tail > 0 && npiv) {
+            for (int i = 0; i < npiv; i++)
+                memcpy(Bs + (size_t)i * tail, M + (size_t)act[piv_a[i]] * W + w1,
+                       (size_t)tail * sizeof(u64));
+            int cw = (npiv + 63) / 64;
+            if (cw < SB) {                              /* compact coef to cw words per row */
+                for (i64 a = 0; a < na; a++)
+                    for (int k = 0; k < cw; k++)
+                        coef[(size_t)a * cw + k] = coef[(size_t)a * SB + k];
+            }
+            if (tail_update(M, W, w1, tail, act, coef, cw < SB ? cw : SB, na, Bs, npiv, ntp,
+                            rows, cfs, Tpool))
+                goto fail;
+        }
+        for (int q = 0; q < sw; q++)
+            wcount[w + q] = 0;
+        for (i64 a = 0; a < na; a++) {
+            i32 r = act[a];
+            u64 *row = M + (size_t)r * W;
+            for (int q = 0; q < sw; q++)
+                row[w + q] = val[(size_t)a * SB + q];
+            if (isp[a]) {
+                lw[r] = -1;
+                continue;
+            }
+            /* every unused active row is now zero in words w .. w+sw-1 */
+            int lc = lowest_bit_from(row, (int)W, (int)w1);
+            lw[r] = (lc >= 0 && lc < C) ? (i32)(lc >> 6) : -1;
+            if (lw[r] >= 0)
+                wcount[lw[r]]++;
+        }
+    }
+    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs);
+    free(rows); free(cfs); free(piv_a); free(Tpool);
+    *ops_strict = total;
+    return L;
+fail:
+    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs);
+    free(rows); free(cfs); free(piv_a); free(Tpool);
+    if (L) {
+        free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
+    }
+    return NULL;
+}
+
+oplog_t *gf2_column_pass_blocked_mt(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_strict,
+                                    int nthreads)
 {
     oplog_t *L = (oplog_t *)calloc(1, sizeof(oplog_t));
     size_t rn = (size_t)(R > 0 ? R : 1), wn = (size_t)(W > 0 ? W : 1);
@@ -186,10 +528,13 @@ HOT oplog_t *gf2_column_pass_blocked(u64 *M, i64 R, i64 W, i64 C, int keep_ops, 
     uint8_t *isp = (uint8_t *)malloc(rn);
     u64 *bm = (u64 *)malloc(64 * bmw * sizeof(u64));  /* per-bit bitmaps over act */
     u64 *Bs = (u64 *)malloc((size_t)64 * wn * sizeof(u64));
-    u64 *T = (u64 *)malloc((size_t)256 * wn * sizeof(u64));
+    i32 *rows = (i32 *)malloc(rn * sizeof(i32));
+    u64 *cfs = (u64 *)malloc(rn * sizeof(u64));
+    int ntp = nthreads < 1 ? 1 : nthreads;
+    u64 *Tpool = (u64 *)malloc((size_t)ntp * TAIL_TABLE_WORDS * sizeof(u64));
     i64 kmax = R < C ? R : C;
     i32 piv_a[64];
-    if (!L || !lw || !wcount || !act || !val || !coef || !isp || !bm || !Bs || !T)
+    if (!L || !lw || !wcount || !act || !val || !coef || !isp || !bm || !Bs || !rows || !cfs || !Tpool)
         goto fail;
     L->ps = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
     L->cs = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
@@ -269,53 +614,8 @@ HOT oplog_t *gf2_column_pass_blocked(u64 *M, i64 R, i64 W, i64 C, int keep_ops, 
             for (int i = 0; i < npiv; i++)
                 memcpy(Bs + (size_t)i * tail, M + (size_t)act[piv_a[i]] * W + w + 1,
                        (size_t)tail * sizeof(u64));
-            i64 pops = 0, nrow = 0;
-            for (i64 a = 0; a < na; a++)
-                if (coef[a]) {
-                    pops += __builtin_popcountll(coef[a]);
-                    nrow++;
-                }
-            int ngroups = (npiv + 7) / 8;
-            /* tables cost ~2^8 row XORs per group to build, then ~1 per group per row */
-            int use_tables = pops > (i64)ngroups * (256 + nrow);
-            if (!use_tables) {
-                for (i64 a = 0; a < na; a++) {
-                    u64 cf = coef[a];
-                    if (!cf)
-                        continue;
-                    u64 *row = M + (size_t)act[a] * W + w + 1;
-                    while (cf) {
-                        int i = __builtin_ctzll(cf);
-                        cf &= cf - 1;
-                        const u64 *bi = Bs + (size_t)i * tail;
-                        for (i64 x = 0; x < tail; x++)
-                            row[x] ^= bi[x];
-                    }
-                }
-            } else {
-                for (int g = 0; g < ngroups; g++) {
-                    int k = npiv - 8 * g < 8 ? npiv - 8 * g : 8;
-                    int ns = 1 << k;
-                    memset(T, 0, (size_t)tail * sizeof(u64));
-                    for (int s2 = 1; s2 < ns; s2++) {
-                        int lb = __builtin_ctz(s2);
-                        const u64 *src = T + (size_t)(s2 & (s2 - 1)) * tail;
-                        const u64 *bi = Bs + (size_t)(8 * g + lb) * tail;
-                        u64 *dst = T + (size_t)s2 * tail;
-                        for (i64 x = 0; x < tail; x++)
-                            dst[x] = src[x] ^ bi[x];
-                    }
-                    for (i64 a = 0; a < na; a++) {
-                        int s2 = (int)((coef[a] >> (8 * g)) & 0xFF);
-                        if (!s2)
-                            continue;
-                        u64 *row = M + (size_t)act[a] * W + w + 1;
-                        const u64 *src = T + (size_t)s2 * tail;
-                        for (i64 x = 0; x < tail; x++)
-                            row[x] ^= src[x];
-                    }
-                }
-            }
+            if (tail_update(M, W, w + 1, tail, act, coef, 1, na, Bs, npiv, ntp, rows, cfs, Tpool))
+                goto fail;
         }
         wcount[w] = 0;
         for (i64 a = 0; a < na; a++) {
@@ -333,15 +633,20 @@ HOT oplog_t *gf2_column_pass_blocked(u64 *M, i64 R, i64 W, i64 C, int keep_ops, 
                 wcount[lw[r]]++;
         }
     }
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(T);
+    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(rows); free(cfs); free(Tpool);
     *ops_strict = total;
     return L;
 fail:
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(T);
+    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(rows); free(cfs); free(Tpool);
     if (L) {
         free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
     }
     return NULL;
+}
+
+oplog_t *gf2_column_pass_blocked(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_strict)
+{
+    return gf2_column_pass_blocked_mt(M, R, W, C, keep_ops, ops_strict, 1);
 }
 
 i64 gf2_log_K(const oplog_t *L) { return L->K; }
@@ -355,6 +660,17 @@ void gf2_log_copy(const oplog_t *L, i32 *ps, i32 *cs, i64 *xoff, i32 *xs)
     if (L->nx)
         memcpy(xs, L->xs, (size_t)L->nx * sizeof(i32));
 }
+
+/* Zero-copy hand-off of the X list: the caller views L->xs in place and calls
+ * gf2_log_free when its view is released (ps, cs, xoff are copied). */
+void gf2_log_copy_meta(const oplog_t *L, i32 *ps, i32 *cs, i64 *xoff)
+{
+    memcpy(ps, L->ps, (size_t)L->K * sizeof(i32));
+    memcpy(cs, L->cs, (size_t)L->K * sizeof(i32));
+    memcpy(xoff, L->xoff, (size_t)(L->K + 1) * sizeof(i64));
+}
+
+i32 *gf2_log_xs(const oplog_t *L) { return L->xs; }
 
 void gf2_log_free(oplog_t *L)
 {

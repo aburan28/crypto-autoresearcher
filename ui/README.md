@@ -408,3 +408,25 @@ jsdom is a development-only dependency for testing lazy source loading,
 project-Pages base paths, safe text rendering, source copy, keyboard tabs,
 deep links, retry after failed requests, and the database-load panel. It is
 not shipped in the site.
+
+## Progress and receipt comparisons
+
+Home includes a **Research progress** panel for an explicitly supplied,
+sanitized supervisor-report snapshot. It shows the observed 24-hour window,
+actions, validated-output change, handoff latency, measured cost and coverage.
+Unavailable and stale data stay explicit; discoveries and relation counts are
+not inferred from action traffic. Use `--progress-snapshot FILE` with either
+`python -m ui` or `python -m ui.build`; the default is `ui/progress.json`.
+
+**Compare** reads hash-pinned, archived `groebner_compare` summaries selected in
+`ui/receipts.json`. Choose two receipts to inspect scope, accounting, outcomes,
+attempt failures/timeouts (when journals are supplied), source hashes and
+verification state. The initial catalog is empty pending real archived inputs.
+No solver runs or automatic winner claims occur in the reader.
+
+Both hosts serve `data/progress.json` and `data/comparisons.json`. See
+[`docs/ui-research-readers.md`](../docs/ui-research-readers.md) for the exporter,
+catalog contract, deployment inputs, evidence boundaries and regression checks.
+
+Compare also includes a pinned, offline curve benchmark archive with exact EC1 /
+global identities and recorded IC/rho timings. See [the cross-repository contract](../docs/curve-identities.md).

@@ -252,3 +252,88 @@ def generate_prime_order_curve(bits: int, seed: int = 0,
         E.order = m
         E.ops.group_ops = 0
         return E, P
+
+
+def generate_prime_order_curve_j0(bits: int, seed: int = 0,
+                                  p_filter: Callable[[int], bool] | None = None,
+                                  max_prime_draws: int = 100_000, *,
+                                  exclude_primes=(),
+                                  generation_log: list | None = None) -> tuple[Curve, Point]:
+    """A deterministic j = 0 curve y^2 = x^3 + b over F_p, p = 1 (mod 3), of prime order.
+
+    The j = 0 positive control: E has the order-3 automorphism
+    (x, y) -> (omega x, y), omega a primitive cube root of unity in F_p, which
+    acts on the prime-order group as multiplication by a root lambda of
+    lambda^2 + lambda + 1 = 0 mod N.  The prime is drawn as in
+    ``generate_prime_order_curve`` (same filter semantics) but must also satisfy
+    p % 3 == 1; the order is certified exactly as there.
+
+    Prime rule of AMD-20260929-1de84f C-1: a drawn prime is skipped, and the
+    same rng stream continues to the next prime, when it is in
+    ``exclude_primes`` (reason duplicate_prime) or when none of its six sextic
+    twists has certified prime order (reason no_prime_order_twist; decided by
+    ``_j0_has_prime_order_twist``, which consumes no draw of the stream).  The
+    b-loop runs unchanged on the first prime that survives.  With the default
+    arguments and a first prime that has a prime-order twist the result is the
+    frozen generator's.  When ``generation_log`` is a list it receives one dict
+    {p, reason} per skipped prime in draw order and finally
+    {prime_draws, p, b}.
+    """
+    if bits < 8:
+        raise ValueError("bits must be >= 8")
+    rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0", bits, seed)
+    draws = 0
+    while True:
+        while True:
+            if draws == max_prime_draws:
+                raise ValueError(f"no {bits}-bit prime p = 1 mod 3 passed the filter "
+                                 f"and the j0 prime rule in {max_prime_draws} draws")
+            draws += 1
+            p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
+            if p.bit_length() == bits and p % 3 == 1 and (p_filter is None or p_filter(p)):
+                break
+        if p in exclude_primes:
+            if generation_log is not None:
+                generation_log.append({"p": p, "reason": "duplicate_prime"})
+            continue
+        if not _j0_has_prime_order_twist(p, bits, seed):
+            if generation_log is not None:
+                generation_log.append({"p": p, "reason": "no_prime_order_twist"})
+            continue
+        break
+    while True:
+        b = rng.randrange(1, p)
+        E = Curve(p, 0, b)
+        P = E.random_point(rng)
+        hits = E.point_order_in_hasse(P)
+        if len(hits) != 1:
+            continue
+        m = hits[0]
+        if m == p or m <= 4 * math.isqrt(p) + 4 or not is_probable_prime(m):
+            continue
+        E.order = m
+        E.ops.group_ops = 0
+        if generation_log is not None:
+            generation_log.append({"prime_draws": draws, "p": p, "b": b})
+        return E, P
+
+
+def _j0_has_prime_order_twist(p: int, bits: int, seed: int) -> bool:
+    """AMD-20260929-1de84f C-1 (c): does some twist y^2 = x^3 + g^i (i = 0..5) of
+    the j = 0 curve over F_p pass the frozen order certification on one point?
+
+    Exact, not probabilistic: the six classes exhaust the group orders the b-loop
+    can meet, and the certification on any finite point decides "#E prime, != p".
+    Uses its own stream, so the generator's stream is not consumed.
+    """
+    g = primitive_root(p)
+    trng = _seeded_rng("crypto_autoresearcher.index_calculus.curve.j0.twistcheck", bits, seed, p)
+    for i in range(6):
+        E = Curve(p, 0, pow(g, i, p))
+        P = E.random_point(trng)
+        hits = E.point_order_in_hasse(P)
+        if len(hits) == 1:
+            m = hits[0]
+            if m != p and m > 4 * math.isqrt(p) + 4 and is_probable_prime(m):
+                return True
+    return False
