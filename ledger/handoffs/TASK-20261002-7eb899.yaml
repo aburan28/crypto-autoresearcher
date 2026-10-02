@@ -1,0 +1,168 @@
+handoff:
+  id: TASK-20261002-7eb899
+  created_at: '2026-10-02'
+  created_by: coordinator
+  from: coordinator
+  to: validator
+  goal_id: GOAL-ECDLP2M-001
+  batch_id: BATCH-2d2fa1
+  title: >-
+    Independently validate the bound EXP-QSP-70b731 run files: run count,
+    manifest schema, seed integrity, raw/summary agreement, control
+    comparability, provenance and custody (V1 to V8)
+  objective: >-
+    Independently verify the snapshot-bound EXP-QSP-70b731 run files against
+    the frozen contract (experiments/EXP-QSP-70b731/specification.yaml,
+    approved by DEC-20260920-2b276f) and its trial plans, check by check, and
+    report per check and per directory. Certifies validity only.
+  checks_owned:
+    - id: V1
+      name: run count
+      attack: >-
+        For each trial plan file (trial-plan.json, -run.json, -run2.json,
+        -run3.json, -cont.json, -v2.json), list its trials and run ids and
+        match them to the bound directories using the inventory's map. State
+        which plan each present receipt binds to (its plan_sha256 against
+        each plan file's sha256), and list every planned trial with no
+        directory on main. Absence is a completeness finding, never negative.
+    - id: V2
+      name: manifest schema completeness
+      attack: >-
+        Check every manifest against the run-record schema validate_ledger.py
+        applies and against the AGENTS.md artifact policy list (exact command,
+        git commit and dirty state, environment and versions, parameters and
+        seeds, inference block, stdout and stderr, raw results, validity
+        status and reason, timestamps and resources). Report which
+        validate_ledger errors name these files.
+    - id: V3
+      name: seed integrity
+      attack: >-
+        Compare seeds and parameters in command.txt, launch.json and the
+        manifest with the plan's entry for that trial; flag any extra seed,
+        any rerun outside the plan, any trial run out of plan order.
+    - id: V4
+      name: raw/summary agreement
+      attack: >-
+        Compare raw-result.json with every summary in the manifest, the
+        execution receipt and the checker output; where implementation/check.py
+        is a pure function of the committed raw result, re-run it in scratch
+        and compare its verdict and return code.
+    - id: V5
+      name: control comparability
+      attack: >-
+        From the specification, list the controls and calibrations; state
+        which are present, whether they ran under the same environment,
+        source hash and parameters as the trials they gate, and whether the
+        plan's dependency order (a failed or unresolved control prevents its
+        dependents) was respected.
+    - id: V6
+      name: provenance and binding
+      attack: >-
+        For each receipt: plan_sha256 against the plan files; source_sha256
+        closure against experiments/EXP-QSP-70b731/implementation/ at the run
+        commit; specification_sha256 against the specification; the
+        introducing commit from the inventory; whether a live claim of the
+        producing card covered the run time (claim and release files).
+    - id: V7
+      name: per-directory classification
+      attack: >-
+        Classify each directory valid_observation, infrastructure_failure,
+        incomplete_attempt, invalid (defects listed) or not_checkable (reason),
+        citing the checks that decide it.
+    - id: V8
+      name: custody
+      attack: >-
+        Confirm the bytes read equal the snapshot receipt's path_sha256 and
+        the inventory; report any difference as a custody finding.
+  uncertainty_reduced: >-
+    Whether each existing run directory is a valid observation of the
+    approved contract, an infrastructure failure, an incomplete attempt,
+    invalid, or not checkable, and what the bound set lacks against the
+    plans. It measures nothing about the quasi-subfield mechanism.
+  inputs:
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2d2fa1/archives/TASK-20261002-5e1246/snapshot-receipt.json
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2d2fa1/custody/TASK-20261002-345dbd/run-inventory.json
+    - experiments/EXP-QSP-70b731/specification.yaml
+    - experiments/EXP-QSP-70b731/ (trial plans and implementation/)
+    - experiments/EXP-QSP-70b731/runs/ (the bound set only, R-READ-LIFT L3)
+    - ledger/decisions/DEC-20261002-86a7e0.yaml (rulings R-BIND, R-READ-LIFT, R-OUTCOME and the validator_checks list only)
+    - ledger/decisions/DEC-20260920-2b276f.yaml
+    - ledger/decisions/DEC-20260921-f0e100.yaml, DEC-20260921-5de324.yaml, DEC-20260921-7a8d6b.yaml, DEC-20260921-e9f312.yaml
+    - the claim and release files of BATCH-2c4a9c, BATCH-9dbda3, BATCH-ed05f2 and BATCH-ee209c
+    - coordination/bus/messages/MSG-20260921-2f25b1.yaml, MSG-20260921-ec3b3d.yaml, MSG-20260921-6b90fe.yaml (the owner's claims, to be checked, never evidence)
+    - tools/experiment_execution.py and tools/validate_ledger.py (behaviour only)
+  read_scope_note: >-
+    R-READ-LIFT L3: full read of every bound file under
+    experiments/EXP-QSP-70b731/runs/ at the snapshot-bound bytes, for V1 to
+    V8 only. Not read: H-QSP-cd0c90, EV-QSP-a6aa4b, DEC-20261002-86a7e0
+    R-PRIOR and R-KEYS, any composition file of BATCH-2d2fa1. Excluded reads
+    otherwise as on every card of BATCH-2d2fa1 (experiments/EXP-FROB-30006a/,
+    the ref origin/cursor/semaev-2015-audit-program-5b8b, PR #1377, the
+    branch cursor/ecdlp2m-revision-design-3d1a).
+  write_scope:
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2d2fa1/reviews/TASK-20261002-7eb899/
+  constraints:
+    - Read the run files at the snapshot-bound bytes; a file differing from the receipt's path_sha256 is a custody finding (V8), reported, never repaired.
+    - Modify no run artifact and no record. Write only the two report files.
+    - >-
+      Compute only in <session scratchpad>/BATCH-2d2fa1/TASK-20261002-7eb899/.
+      V4 may re-run implementation/check.py in scratch where it is a pure
+      function of a committed raw result. Never run driver.py, never run
+      tools/experiment_execution.py run, never run a trial, mint no RUN id.
+      Never list the scratchpad root, a sibling subdirectory or the batch's
+      composition directory.
+    - Report per check and per directory, pass, fail or not_checkable, with reasons and file references. Do not compose a whole-claim verdict.
+    - >-
+      R-OUTCOME: quote a run value only where a check requires it; never state
+      whether any trial supports, weakens or contradicts H-QSP-cd0c90 or
+      EV-QSP-a6aa4b.
+    - A timeout, crash, expired claim or infrastructure failure is classified as such and is never negative evidence.
+    - Check the owner's bus statements (plan binding, which trials ran, the flat-manifest non-conformance) as claims; report agreement or disagreement with the bytes.
+    - Bedrock providers, endpoints and model identifiers are prohibited.
+  deliverables:
+    - >-
+      run-validation.yaml with review_attestation (task_id, checks_owned V1 to
+      V8, a per-check verdicts mapping keyed V1 to V8, sources_read,
+      read_sibling_reports false, an inference block with requested_policy,
+      served model, fallback_used), a per-directory table, the absent-trial
+      list per plan, and every defect with its file reference
+    - computations.json embedding every computation the report relies on (hashes, schema checks, seed comparisons, checker re-runs)
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2d2fa1/reviews/TASK-20261002-7eb899/run-validation.yaml
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2d2fa1/reviews/TASK-20261002-7eb899/computations.json
+  archived_by: TASK-20261002-9a734c
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: true
+    fallback_note: >-
+      Runtime inheritance; backend substitution only. If review-adversarial
+      cannot be served at xhigh the card is not dispatched and the impediment
+      is recorded on the still-active goal.
+    degraded_allowed: false
+    independent_session_required: true
+    independent_session_note: >-
+      An independent validator session that did not author DEC-20261002-86a7e0,
+      is not coordinator-qsp-run-20260921 or session wt-qsp-run, did not
+      perform the inventory or snapshot, and is not the composer.
+  budget:
+    wall_clock_seconds: 10800
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - V1 to V8 each carry a verdict with reasons; every directory of the bound set is classified under V7
+    - the absent planned trials are listed per plan, each as a completeness finding, never negative
+    - every computation relied on is embedded in computations.json
+    - no run file or record modified; zero runs; no scientific reading
+  review_plan: null
+  review_plan_note: >-
+    No review plan (DEC-20261002-86a7e0 PD-4). The Coordinator prior is
+    R-PRIOR of that decision; the validator does not read it before
+    reporting.
+  dispatch_preconditions:
+    - TASK-20261002-5e1246's receipt verified under content_first and pushed
+    - archived_by TASK-20261002-9a734c bound (on this card)
+    - the scratch subdirectory <session scratchpad>/BATCH-2d2fa1/TASK-20261002-7eb899/ exists and is named in the launch prompt
+    - an independent session meeting the independence note; the launch prompt names the card, its inputs and its scratch path, and carries no run value and no R-PRIOR text
+    - git fetch, then research_dispatch.py --claims refs on every GOAL-ECDLP2M-001 queue; a published lane claim on BATCH-2d2fa1 (TTL about 240 minutes) with the goal-wide live count at most 2; released on return
+  runs_launched: 0
