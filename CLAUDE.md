@@ -320,6 +320,15 @@ collisions were the first instance of it and are already fixed the same way.
   120), merges rather than rebases, requires no new validation errors, and
   reports branches past `--fork-threshold` as needing a human decision rather
   than a sync.
+- **Research state can travel through a cairn lab instead of git.**
+  `tools/lab_sync.py sync` reconciles `ledger/`, `coordination/`,
+  `experiments/` and `knowledge/` with other machines as signed ops that merge
+  like a CRDT, and the `cairn-lab` MCP server gives agents the same state. Bus
+  messages and lane claims arrive on the next pull, with no merge in between.
+  A concurrent edit is kept as a visible `PATH.lab-conflict-<id>`, never
+  merged textually. It relaxes nothing above: authority, schemas and
+  validation are unchanged, and git stays the record archive receipts bind.
+  Setup, scope and what is write-once: `docs/cairn-lab.md`.
 
 ## Model policy note
 
