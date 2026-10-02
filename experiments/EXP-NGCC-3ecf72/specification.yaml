@@ -1,0 +1,113 @@
+experiment:
+  id: EXP-NGCC-3ecf72
+  hypothesis_id: H-NGCC-624765
+  version: 1
+  title: >-
+    MoFang hash-19-1 reproduction: published full-round colliding pairs,
+    checked by a separate hasher
+  status: review_required
+  objective: >-
+    Decide H-NGCC-624765 on the official round-1 MoFang package by hashing
+    the published hash-19-1 message pairs with a separately compiled
+    full-round implementation.
+  inputs:
+    candidate_id: hash-19
+    roster: inputs/ngcc-round1-20260920/candidates.yaml
+    package_url: >-
+      https://www.niccs.org.cn/niccs/Proposal/Cryptographic%20Hash%20Algorithms/Round%201%20candidates/MoFang.zip
+    literature_pointer: https://eprint.iacr.org/2026/2266
+    related_eprint: https://eprint.iacr.org/2026/2152
+    finding_id: hash-19-1
+  controls:
+    - >-
+      Separate hasher: the binary that emits the digests is a second
+      compilation of the official sources and is not the tool that parsed
+      the published pair.
+    - >-
+      Distinctness: the two messages must differ as byte strings. An equal
+      pair is invalid, not a collision.
+    - >-
+      Full rounds: a digest from a reduced-round or truncated call does
+      not count. The instance's declared full round count is recorded
+      before hashing.
+    - >-
+      Null pair: for each instance, hash two fixed distinct messages that
+      are not the published pair and record whether they collide. That
+      pair is a control, not a substitute witness. The run is invalid if
+      the reported witness is this null pair.
+    - >-
+      Self-check: both compilations must agree on the digest of a fixed
+      32-byte message before any witness is hashed. Disagreement is an
+      infrastructure failure.
+  independent_variables:
+    - instance name, as declared by the official package
+  metrics:
+    primary:
+      - messages_differ
+      - full_round_digests_equal
+      - null_pair_collided
+      - compilations_agree_on_fixed_message
+    secondary:
+      - digest_length_bytes
+      - hash_wall_clock_seconds
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: full_round_digests_equal
+    formula: >-
+      For every declared instance, the published pair has messages_differ
+      true and full_round_digests_equal true, null_pair_collided false,
+      and compilations_agree_on_fixed_message true.
+    source: >-
+      Saarinen, ePrint 2026/2266, finding hash-19-1, as indexed in
+      inputs/ngcc-round1-20260920/paper_mentions.yaml. The prediction was
+      written before any run of this experiment.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      The instances are the submitted full-round MoFang instances, not
+      round-reduced toys. No extrapolation beyond those instances is claimed.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: []
+    independent_instances: 1
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: null
+  stopping_rules:
+    - Stop after every declared instance has hashed its published pair or has been recorded as having no published pair.
+    - If neither hash-19-1 nor ePrint 2026/2152 supplies a message pair, stop and record the run invalid.
+    - A timeout or crash stops that instance and is recorded as infrastructure. It does not falsify the hypothesis.
+  invalidation_rules:
+    - The two witness messages are equal.
+    - The reported witness is the null pair.
+    - The two compilations disagree on the fixed message.
+    - A reduced-round digest is used as the full-round result.
+    - Submission binaries, object files, or submission build scripts were executed.
+  success_criterion: >-
+    For every instance the official package declares, the published pair
+    consists of two different messages whose full-round digests are equal
+    under the separate hasher, the null pair does not collide, and the two
+    compilations agreed on the fixed message.
+  falsification_criterion: >-
+    For some declared instance, the published pair is hashed to completion
+    on the full-round function and the digests differ, after the
+    compilation self-check passed.
+  required_artifacts:
+    - package sha256 and the instance list, recorded before hashing
+    - the source the message pair was copied from, with a quote of the pair's location
+    - message lengths and a statement that the messages differ
+    - both digests and the separate-hasher command
+    - null-pair verdict and fixed-message cross-check
+    - run manifest with git commit and dirty-tree state
+  assigned_to: executor
+  approved_by: null
+  approval_withheld_because: >-
+    The design-experiment skill treats a contract as approved only after
+    a snapshot archive commit. This checkout is on branch
+    exec/aes-14352a-stage1, and git status in this worktree fails because
+    a linked worktree gitdir is missing. Approval waits for a commit on
+    an NGCC branch. The fields above are otherwise filled.

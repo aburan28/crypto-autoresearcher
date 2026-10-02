@@ -1,0 +1,113 @@
+# Review plan for RUN-RELN-a695fe (EXP-RELN-c5a377, protocol v4).
+# Written by the coordinator 2026-10-01, BEFORE any reviewer of this round runs
+# and BEFORE the coordinator opened any per-cell delta, verdict or analysis
+# output. The coordinator has seen only: driver exit 0, raw-result status
+# completed_valid, 9 cells, zero procedure_defects, peak RSS <= 43 MB, and the
+# fixture curve parameters.
+review_plan:
+  claim_under_review: >-
+    Whatever verdict EXP-RELN-c5a377 v4's frozen analysis (make_report.py /
+    analysis.py, as pinned by snapshot receipt TASK-20260929-a68d0c) returns
+    on RUN-RELN-a695fe: supercritical (delta > 1/4), certified subcritical
+    (delta = 0), or inconclusive, at L = q^{1/5} on the nine fixtures
+    (16/20/24 bits x seeds 11/12/13), with rewiring/null controls as
+    specified. Claim tier: toy (specification claim_ceiling).
+  coordinator_prior: >-
+    Recorded before any result value was seen. I expect J1 to PASS: the
+    implementation was audited three times and the run reports zero
+    procedure defects. On the science, I expect certified-subcritical or
+    inconclusive rather than supercritical. Honest 2-large-prime graphs at
+    L = q^{1/5} on 16-24-bit fields have few relations per vertex, so a giant
+    component with delta > 1/4 would surprise me. My rough split is
+    supercritical 0.15, certified subcritical 0.45, inconclusive 0.40. I
+    expect the red team to argue that a subcritical verdict at <= 24 bits
+    says nothing about the q -> infinity regime the idea targets. I also
+    expect it to argue that the frozen L rule, not the graph, drives any
+    verdict.
+  joints:
+    - joint: >-
+        J1 run integrity and statistic reproduction: admission, trial-plan,
+        amendment and snapshot hashes in the manifest; C-7 readings recorded
+        and passing at launch; 9/9 cells complete with no watchdog, memory or
+        infrastructure stop; null controls present per cell; the verdict and
+        every per-cell delta reproduced from the raw cell outputs by an
+        independent re-computation of the frozen statistic.
+      assigned_to: TASK-20261001-25c0f3
+      attack_plan: >-
+        Write your own script from the specification + AMD-20260926-a7d25d +
+        AMD-20260929-988139 + AMD-20260929-cc7226 definitions of delta,
+        cycle_rank, components_with_cycle, giant fraction and the
+        subcritical/supercritical rules. Recompute every cell's
+        classification from the per-cell raw outputs under runs/, then diff
+        against the frozen analysis output (run make_report.py read-only into
+        your task directory). Check every cell for a budget-margin violation
+        (OQ-27), a dead-driver manifest (OQ-29) and the R-4 unreachable
+        combination. If it breaks anywhere, I expect it to be in how ER cells
+        that are undetermined are aggregated into the per-size verdict.
+      breaking_artifact: a cell or aggregate where your recomputation disagrees with the frozen analysis, or an unrecorded watchdog/infra event
+    - joint: >-
+        J2 interpretation and scope: does the verdict follow from the frozen
+        rule for H-RELN-4d092c, and what exactly does it close or leave open?
+      assigned_to: TASK-20261001-ece593
+      attack_plan: >-
+        (a) Show whether the verdict is driven by the L rule (L = ceil(q^{1/5}))
+        or by relation scarcity at toy q. Compute from the run's own data how
+        |E|/|V| and cycle_rank scale with bits, and whether the trend points
+        toward or away from delta > 1/4. (b) Check whether the null/rewiring
+        control can tell the treatment apart at all at these sizes (controls
+        before belief). (c) State the smallest change to the idea that the
+        data does NOT rule out, as forward guidance. (d) Name the obstruction
+        quantity with units, as the closure standard requires, and run the
+        resource_check reversal question on it.
+      breaking_artifact: a computation from the run's data showing the verdict is an artifact of the L rule or of an uninformative control
+    - joint: >-
+        J3 blind re-derivation of the 2-large-prime graph statistics for
+        fixture b16-s13 (see blind_rederivation).
+      assigned_to: TASK-20261001-4aefce
+      attack_plan: see blind_rederivation
+      breaking_artifact: |V|, |E|, cycle_rank or classification for b16-s13 that disagrees with the run
+  blindness:
+    mutual: true
+    lifted_for: []
+    rationale: null
+  proves_too_much:
+    objects:
+      - >-
+        A planted supercritical graph: an Erdos-Renyi graph with the run's
+        |V| for b20-s11 and mean degree 3 (known giant component), fed through
+        the frozen analysis path. It must classify as not-subcritical.
+      - >-
+        A planted forest (cycle_rank 0) with the same |V|. It must not
+        classify as supercritical.
+    failure_signature: >-
+      If the frozen analysis certifies the planted mean-degree-3 ER graph as
+      subcritical, or calls the forest supercritical, the pipeline
+      manufactures its verdict and the claim falls.
+    assigned_to: TASK-20261001-25c0f3
+  blind_rederivation:
+    required: true
+    quantity: >-
+      For fixture b16-s13 at L = ceil(q^{1/5}): the 2-large-prime summation
+      graph built from the protocol-defined relation stream (seed rule
+      SHA256 of 'EXP-RELN-c5a377/v1|label|args', budgets as frozen). Report
+      |V|, |E|, number of components, components_with_cycle, cycle_rank,
+      giant-component fraction, and the resulting classification under the
+      frozen rules.
+    parameters: >-
+      specification.yaml, the three amendments, IDEA-20260909-860d1e, and the
+      fixture curve parameters extracted by the coordinator into
+      coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-4aefce/inputs_fixtures.json.
+      If the protocol text underdetermines the relation stream, that is a
+      finding. Report exactly where, and do not guess.
+    blind_from:
+      - experiments/EXP-RELN-c5a377/implementation/
+      - experiments/EXP-RELN-c5a377/runs/
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-25c0f3/
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20261001-ece593/
+    assigned_to: TASK-20261001-4aefce
+  procedure_deviations:
+    - >-
+      The run was launched through /run before this batch had run-stage task
+      cards. The run task TASK-20261001-f2f8ba was recorded after execution,
+      with archived_by bound afterwards. This is disclosed on that card.

@@ -1,0 +1,92 @@
+name: Integrate SQIsign into liboqs
+description: >
+  Clone upstream liboqs, apply the SQIsign core patch, and run
+  copy_from_upstream against this checkout. Leaves the integrated tree in
+  ./liboqs-ci and the Python venv on PATH.
+
+inputs:
+  liboqs-ref:
+    description: Upstream liboqs git ref (tag/branch/SHA) to integrate into.
+    required: true
+  liboqs-url:
+    description: Upstream liboqs git URL.
+    required: false
+    default: https://github.com/open-quantum-safe/liboqs.git
+
+runs:
+  using: composite
+  steps:
+    - name: Preflight (self-hosted runners are provisioned by hand)
+      shell: bash
+      run: |
+        set -eu
+        missing=""
+        for tool in git python3 cmake make cc; do
+          command -v "$tool" >/dev/null || missing="$missing $tool"
+        done
+        if [ -n "$missing" ]; then
+          echo "::error::missing on this runner:$missing -- install with e.g. 'sudo apt install git python3 cmake build-essential'"
+          exit 1
+        fi
+
+    - name: Clone pristine liboqs @ liboqs-ref
+      # Fresh tree every run: copy_from_upstream's repo cache can serve stale files.
+      shell: bash
+      run: |
+        set -eu
+        rm -rf liboqs-ci
+        git clone --quiet --depth 1 --branch "${{ inputs.liboqs-ref }}" "${{ inputs.liboqs-url }}" liboqs-ci
+
+    - name: Set up Python deps (venv, not system-wide)
+      # liboqs' pinned Python deps, in a per-run venv used by all later steps.
+      shell: bash
+      run: |
+        set -eu
+        rm -rf .venv
+        # Some runners lack python3-venv; create the venv without pip and
+        # bootstrap it with get-pip.py.
+        if ! python3 -m venv .venv 2>/dev/null; then
+          python3 -m venv --without-pip .venv
+        fi
+        if ! ./.venv/bin/python -m pip --version >/dev/null 2>&1; then
+          curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          ./.venv/bin/python get-pip.py
+        fi
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+        ./.venv/bin/python -m pip install --upgrade pip
+        # Install each file separately: they are compiled independently and pin
+        # conflicting transitive versions (e.g. certifi), so a single combined
+        # resolve fails. Each file is internally consistent; later shared deps win.
+        ./.venv/bin/python -m pip install -r liboqs-ci/scripts/copy_from_upstream/requirements.txt
+        ./.venv/bin/python -m pip install -r liboqs-ci/.github/workflows/requirements.txt
+
+    - name: Integrate SQIsign into liboqs
+      # Apply the core patch, point the-sqisign upstream at this checkout, and copy.
+      # copy_from_upstream `git commit`s the patched upstream repos, which needs a
+      # git identity. Provide it via env vars (process-scoped) rather than
+      # `git config --global` so we don't mutate the shared self-hosted runner.
+      shell: bash
+      env:
+        GIT_AUTHOR_NAME: sqisign-ci
+        GIT_AUTHOR_EMAIL: sqisign-ci@localhost
+        GIT_COMMITTER_NAME: sqisign-ci
+        GIT_COMMITTER_EMAIL: sqisign-ci@localhost
+        # The repo is private, so the copy tooling cannot fetch the commit from
+        # the GitHub URL anonymously. Rewrite that URL to the local checkout for
+        # git only (process-scoped): the yml keeps the GitHub URL, which the docs
+        # tooling requires, while the fetch is served from the workspace.
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_CONFIG_COUNT: "1"
+        GIT_CONFIG_KEY_0: url.file://${{ github.workspace }}.insteadOf
+        GIT_CONFIG_VALUE_0: ${{ github.server_url }}/${{ github.repository }}
+      run: |
+        set -eu
+        git -C liboqs-ci apply "$GITHUB_WORKSPACE/integration/liboqs/ci/liboqs-core.patch"
+        # Substitute the CI-injected fields (only the-sqisign block uses @...@ tokens).
+        sed -i \
+          -e "s|@SQISIGN_GIT_URL@|$GITHUB_SERVER_URL/$GITHUB_REPOSITORY|" \
+          -e "s|@SQISIGN_GIT_BRANCH@|$GITHUB_REF_NAME|" \
+          -e "s|@SQISIGN_GIT_COMMIT@|$GITHUB_SHA|" \
+          liboqs-ci/scripts/copy_from_upstream/copy_from_upstream.yml
+        cd liboqs-ci
+        LIBOQS_DIR="$PWD" python3 scripts/copy_from_upstream/copy_from_upstream.py copy

@@ -1,0 +1,560 @@
+# Independent validation of the EXP-ICEX-aaccfc protocol-v3 implementation
+# (pre-admission implementation check; zero scientific runs).
+validation_report:
+  id: VAL-20260929-e3446a
+  task_id: TASK-20260929-e3446a
+  role: validator
+  experiment_id: EXP-ICEX-aaccfc
+  subject: experiments/EXP-ICEX-aaccfc/implementation/ (snapshot TASK-20260929-d04f29)
+  snapshot_commit: d6da4cd606fb9fd855f75f2299966bacd9c35f62
+  snapshot_parent: 7eed07b53be1263ff98bf2eafbb063b01b834dcd
+  worktree: /Volumes/SSD990/wt-amend-ic
+  branch: coord/ic-leads-impl-20260928
+  head_at_validation: e07dec588b
+  protocol: v3 = specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 (DEC-20260929-a8d594)
+  run_ids: []
+  scientific_runs_performed: 0
+  verdict: PASS_WITH_FINDINGS
+  verdict_meaning: >-
+    The implementation executes protocol v3 faithfully in charging, controls,
+    C-5 analysis, FX-A and seed discipline, and it refuses to run on current
+    state. No blocking defect was found. Six must_fix_before_run findings
+    concern the driver's admission guard and its run-record form, a lower-level
+    bypass, implementation-hash binding, and a disclosure about committed
+    smoke outputs. This report makes no ECDLP claim, demonstrates no speedup,
+    and authorizes nothing.
+
+  checks:
+    - id: 1
+      name: snapshot integrity
+      result: PASS
+      evidence:
+        - >-
+          Receipt coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-d04f29/snapshot-receipt.json
+          lists 103 path_sha256 entries. All 103 hashes match both the working tree
+          and `git show d6da4cd606:<path>` (0 mismatches).
+        - >-
+          The parent of d6da4cd606 is 7eed07b53b, which equals the receipt's parent_sha.
+          The commit changes 104 paths: the 103 declared files plus the receipt
+          itself. Nothing declared is missing and nothing else was added.
+        - >-
+          No file under experiments/EXP-ICEX-aaccfc differs between d6da4cd606 and
+          HEAD (`git diff --name-only d6da4cd606 HEAD -- experiments/EXP-ICEX-aaccfc`
+          prints nothing).
+        - >-
+          AMD-20260929-143d11.yaml sha256 is 36cad68c...14dac7, matching the
+          expected value. trial-plan-v2.json sha256 is 61f48e95...b9957b, matching
+          the expected value.
+        - >-
+          The receipt has commit_sha null and binding_mode content_at_commit, so it
+          binds by content. The commit was located by its message prefix.
+    - id: 2
+      name: fixture reproduction and tests
+      result: PASS
+      evidence:
+        - >-
+          `nice -n 10 python3 -m pytest experiments/EXP-ICEX-aaccfc/implementation
+          -q -rs -p no:cacheprovider` gave 58 passed, 0 skipped, 0 failed, 0 xfail
+          in 17.29 s (exit 0). This matches the executor's reported count of 58.
+        - >-
+          I did not re-run C-1 fixture reproduction with Sage myself; the machine is
+          heavily loaded and the system volume has 0.8 GiB free. The committed smoke
+          manifests record byte_identical true (driver_dryrun/DRYRUN-smoke-003/manifest.yaml,
+          fixture_reproduction). The driver re-runs C-1 at the start of every
+          charged run and stops on a mismatch (driver.py:277-282).
+        - >-
+          The trial plan's six fixtures and five cells per fixture (30 cells) match
+          the frozen protocol-hash set checked by driver.check_plan (driver.py:111-129).
+    - id: 3
+      name: charging completeness (C-3/C-4) and rho accounting (OQ-6)
+      result: PASS
+      evidence:
+        - >-
+          Every group operation, including doubling and P + (-P) = O, is charged as
+          13 flat units, with field-level work tallied separately (arith.py:167-189,
+          units at :39-42). F_p mul/inv outside point arithmetic are charged 1 and 10.
+          LA modmul is charged 1 and LA inversion 10 (OQ-2). Probes are 1 unit each.
+        - >-
+          Stage 1 charges: factor-base liftability tests and lifts (b0.py:62-73);
+          the forward table n(n+1) operations plus n(n+1) probes, once per fixture
+          and factor base (b0.py:101-121); every attempt's R_j by double-and-add
+          (pipeline.py:129); the full B0 scan with no early abort (b0.py:130-165);
+          and one extraction addition for each member (b0.py:168-180). Failed
+          attempts are logged columnar (pipeline.py:53-86).
+        - >-
+          Stage 3 charges: rank tracking (la.py:31-75), SGE merges, and Lanczos with
+          its right-hand side, every iteration, breakdown iterations, retries and
+          the solution check. Back-substitution is also charged (la.py:140-273).
+          Descents charge every attempt's Q_t + rG, the scan and extraction
+          (pipeline.py:208-247).
+        - >-
+          The complete cost is stage1 + stage3 + descents (pipeline.py:325). Stage 2
+          and the controls are kept separate. There is no cross-cell caching: each
+          cell runs in a fresh `nice -n 10` process (driver.py:206-219), and the
+          null and stage-cost cells build and charge their own factor bases and
+          tables. Reusing the forward table for descents within the primary cell
+          matches C-4 ("built once per fixture ... charged once").
+        - >-
+          Rho (rho.py) charges the 32 multipliers and the start by double-and-add
+          (the same literal measurement as R_j), one probe per step, fruitless-cycle
+          escapes and restarts. It reports total, walk-only and precompute-only
+          figures (OQ-6).
+        - >-
+          Full-replay audits on two synthetic, non-frozen curves (validator
+          namespace) accepted. They rejected a dropped failed attempt, a zeroed
+          forward-table count, and a shaved per-attempt operation count.
+    - id: 4
+      name: controls and v3 rulings (OQ-3, OQ-13)
+      result: PASS
+      evidence:
+        - >-
+          The random-x null (b0.py:76-97) is drawn without replacement at the
+          interval size, uses the same attempt stream and the same stage-1 + LA
+          code, and charges liftability tests of all draws (OQ-12).
+        - >-
+          The scrambled-relations known-false control permutes factor-base
+          coefficient vectors across rows while keeping (a_j, b_j) with their rows,
+          and forces a non-identity permutation (pipeline.py:251-283). The cell
+          stops as a procedure defect if the scrambled solve verifies (:322-324).
+        - >-
+          The m = 6 and m = 8 stage-cost cells use the same collect, B0 and LA
+          code at B_m = ceil(p^(1/m)) (pipeline.py:385-417).
+        - >-
+          Rho uses the same Cost units and the same curve arithmetic, so the
+          measurement is identical across treatment and controls.
+        - >-
+          OQ-3: the columns are the classes plus Q, the target rank is L + 1 plus
+          10 excess rows, and the kernel is fixed by log G = 1 (pipeline.py:107-147;
+          la.py docstring).
+        - >-
+          OQ-13: R_j is computed by fresh charged double-and-add, and
+          complete_units, which alone feeds C-5, uses it (pipeline.py:129, 325).
+    - id: 5
+      name: FX-A (complete_units_rj_incremental)
+      result: PASS
+      evidence:
+        - >-
+          analysis.fxa_figure (analysis.py:61-117) recomputes rj_ops_j from the
+          run's own labels (pipeline.attempt_ab, target_k) with the charged
+          arith.Curve. It checks the recomputed Q against the receipt, raises
+          ProcedureDefect when rj_ops_j > pt_ops_j, and computes
+          complete_units - 13 * sum(rj_ops_j - 1) over the stage-1 attempts. The
+          ratio is labelled non-verdict.
+        - >-
+          The OQ-15 literal reading applies: the named figure covers stage-1
+          attempts only, and the with-descents figure is supplementary.
+        - >-
+          I recomputed sum(rj_ops_j - 1) independently with audit.scalar_ops
+          (verify.py arithmetic) on a synthetic curve. It agreed exactly, and the
+          formula identity held. A receipt with zeroed pt_ops raised ProcedureDefect.
+        - >-
+          Verdict isolation: on synthetic inputs, analyse(fxa=fxa_figure) and
+          analyse(fxa=None) gave identical verdict, exponent, bootstrap CI, per-fixture
+          ratios and dominant stage. The C-5 code (analysis.py:167-179) reads only
+          complete_units and its components.
+        - >-
+          Caveat: FX-A is evaluated before the C-5 block (analysis.py:155), not
+          after it as implementation.md:66 states. Its value cannot change C-5, but
+          an FX-A ProcedureDefect aborts analyse() before metrics.json is written
+          (see F-3).
+    - id: 6
+      name: C-5 analysis rule verbatim, bootstrap per OQ-8
+      result: PASS
+      evidence:
+        - >-
+          ratio = complete_units / (13 * 0.886 * sqrt(q)), with q = N, per fixture
+          (analysis.py:162; common.py:175-177).
+        - >-
+          exponent = OLS slope of log(complete) against log q over the primary
+          fixtures (:166-168). The 95% percentile bootstrap uses 2000 resamples
+          with replacement, redraws degenerate all-equal-log-q resamples and counts
+          them, and seeds PCG64 from '<ns>|bootstrap' (:129-143).
+        - >-
+          sub_rho_signal iff upper CI < 0.5 and ratio < 1 on every 20-bit fixture;
+          scoped_negative iff lower CI >= 0.5; otherwise inconclusive (:174-179).
+          This matches AMD-20260926-ced670 C-5 word for word.
+        - >-
+          The dominant stage uses units pooled over the 20-bit fixtures (OQ-8) and
+          is named only on scoped_negative (:190). The weak-exponent disclosure is
+          present (:188).
+        - >-
+          When the audit rejects, the driver withholds the verdict (driver.py:319-321).
+    - id: 7
+      name: seed-label discipline
+      result: PASS
+      evidence:
+        - >-
+          The frozen namespace is 'EXP-ICEX-aaccfc/v2'. Smoke uses
+          'smoke|EXP-ICEX-aaccfc/v2' and tests use 'smoke|EXP-ICEX-aaccfc/v2|tests*'
+          (common.py:53-54; tests/conftest.py:25; tests/test_controls.py:11;
+          tests/test_fxa.py:34). Every label is '<ns>|<kind>|...'. Frozen labels
+          begin 'EXP-ICEX' and smoke labels begin 'smoke|', so no two strings can
+          coincide.
+        - >-
+          Every committed smoke cell result and task in DRYRUN-smoke-002 and
+          DRYRUN-smoke-003 records namespace 'smoke|EXP-ICEX-aaccfc/v2'. A regex
+          search of implementation/smoke/ for a frozen-namespace label not
+          preceded by 'smoke|' found 0 occurrences.
+        - >-
+          FROZEN_NS is referenced only by make_trial_plan.py:58 (the plan's
+          namespace string); no test evaluates it.
+        - >-
+          The driver's smoke mode is confined: runs-dir must be under
+          implementation/smoke/ (exit 5 verified), and the run id must be
+          DRYRUN-*smoke*.
+        - >-
+          Limit: nothing technically stops cellrun.py or pipeline.* from being
+          invoked with the frozen namespace outside the driver (F-4).
+    - id: 8
+      name: admission fail-closed
+      result: FAIL
+      evidence:
+        - >-
+          On the live machine, `driver.py --check-admission-only` and
+          `driver.py --run-id RUN-VALIDATOR-probe --admission-decision DEC-20260929-47a574
+          --runs-dir $TMPDIR/...` both exit 3 on C-7 (15-min load 18.86 > 14;
+          system volume 0.8 GiB < 5; repo volume 6.3 GiB < 20).
+        - >-
+          With the C-7 readings monkeypatched to pass: the missing
+          DEC-20260929-47a574 exits 4 ("does not exist"), and DEC-20260929-a8d594
+          exits 4 (currently_admitted False). No runs directory was created.
+        - >-
+          check_decision against synthetic decisions in a temporary repo root
+          refuses: a missing file, the wrong target (EXP-ICEX-fa2b37),
+          currently_admitted given as the string 'true', and the id '../x'.
+        - >-
+          check_decision ACCEPTS: status superseded with currently_admitted true;
+          a superseded_by field present; decision 'pause'; and any other DEC id
+          (e.g. DEC-20260101-abcdef) whose body targets EXP-ICEX-aaccfc and is
+          admitted. It is not pinned to DEC-20260929-47a574, and a decision that
+          exists only in the working tree is accepted, because git commit status
+          is not checked (driver.py:83-108). See F-1.
+        - >-
+          The C-7 host precondition fails closed on: a readings error, a non-macOS
+          host, a missing reading, NaN values, and values past each threshold. The
+          boundary values 14.0, 5.0 and 20.0 admit, consistent with <= and >=
+          (driver.py:72-80; hostinfo.check_admission).
+        - >-
+          cellrun.py has no admission or namespace guard (cellrun.py:30-48, 51-75).
+          See F-4.
+    - id: 9
+      name: no scientific metric previewed by smoke
+      result: FAIL
+      evidence:
+        - >-
+          Checked by key presence only; no value was printed, read or summarised.
+        - >-
+          The committed files implementation/smoke/driver_dryrun/DRYRUN-smoke-002/
+          and DRYRUN-smoke-003/cells/b16-s21__primary/result.json contain
+          complete_units, complete_units_components and stage1.units for FROZEN
+          fixture b16-s21, at frozen m = 5 and B, under the frozen full stage-1
+          collector rule. Only the seed namespace (smoke) and the descent count (2
+          instead of 16) differ.
+        - >-
+          Per-attempt charge under the full scan is nearly deterministic
+          (13 * pt_ops + a constant probe count). The smoke stage-1 figure is
+          therefore a same-distribution sample of the dominant component of
+          b16-s21's complete cost, which is one of the six exponent inputs to C-5.
+          No ratio, exponent or verdict was computed, and the frozen draws were not
+          evaluated.
+        - >-
+          implementation.md:141-151 states smoke attempt counts in prose. The
+          DRYRUN-smoke-003 summary JSON carries attempt counts but no unit fields.
+        - >-
+          This conflicts with AMD-20260929-143d11 pre_data_status ("The coordinator
+          has seen no data bearing on the C-5 verdict") to the extent that these
+          committed files carry such data. See F-5.
+    - id: 10
+      name: run-record conformance
+      result: FAIL
+      evidence:
+        - >-
+          The driver writes a FLAT manifest (driver.py:247-256): run_id,
+          experiment_id and status at top level, with no top-level `run:` and no
+          code/environment/inputs/timing/result sub-blocks. It does not conform to
+          the repository minimum run manifest (docs/evidence-and-reproducibility.md,
+          "Minimum run manifest"). The committed smoke manifest
+          DRYRUN-smoke-003/manifest.yaml has the same flat form. See F-2.
+        - >-
+          The companion files command.txt, environment.json, stdout.log and
+          stderr.log are written before any cell (driver.py:240-245). raw-result.json
+          is written only after every cell succeeds (driver.py:300-308); the failure
+          paths return first (:293-296).
+        - >-
+          An initial manifest is written before C-1 and before the first cell
+          (driver.py:276), and a cell failure is recorded as failed_infrastructure
+          (:295-296) or invalid for a procedure defect (:293-294).
+        - >-
+          But run() has no try/except. An exception in the driver itself (Sage
+          TimeoutExpired in common.reproduce_fixtures, an audit or analysis
+          exception, or an FX-A ProcedureDefect raised inside analyse()) leaves the
+          manifest at status 'running' with no validity and no ended_at. See F-3.
+        - >-
+          The protocol v3 amendment hash is bound in the manifest
+          (protocol.amendment_v3_sha256) and checked against the constant from
+          DEC-20260929-a8d594 (driver.py:121-122).
+        - >-
+          Inference fields come from AUTORESEARCH_* (driver.py:170-185), but the
+          block reads AUTORESEARCH_RESOLVED_MODEL_ID / AUTORESEARCH_REQUESTED_POLICY,
+          which orchestration/adapter never exports; the adapter exports only
+          AUTORESEARCH_POLICY, AUTORESEARCH_BACKEND and three flags. It does not
+          use orchestration/adapter/manifest.py block_from_env. See F-7.
+        - >-
+          Implementation hashes: sha256 of *.py files is recorded (driver.py:143-144)
+          but NOT verified against the snapshot receipt or HEAD. A dirty
+          implementation tree would run and merely record git dirty=true. See F-6.
+    - id: proves_too_much
+      name: known-answer spot check through the smoke path
+      result: PASS
+      evidence:
+        - >-
+          Two synthetic, non-frozen prime-order curves (p = 1511, N = 1531;
+          p = 6007, N = 6091) were run through pipeline.run_primary in namespace
+          'validator-e3446a|synthetic' with 2 descents and 4 held-out points.
+        - >-
+          Genuine logs verified. The known-false control passed, meaning the
+          scrambled solve did not verify.
+        - >-
+          A system with random right-hand sides gave an LA error and did not
+          verify. Random logs did not verify.
+        - >-
+          The full-replay audit accepted the genuine receipts and rejected every
+          tampered receipt.
+        - >-
+          No spurious verification or signal appeared.
+
+  findings:
+    - id: F-1
+      severity: must_fix_before_run
+      check: 8
+      summary: >-
+        Admission guard accepts superseded, non-approving, uncommitted or
+        differently named decisions.
+      detail: >-
+        check_decision (driver.py:83-108) checks only the id and file match, the
+        target_ids and currently_admitted is True. Verified acceptance of:
+        status superseded; a superseded_by field; decision 'pause'; any DEC id
+        other than DEC-20260929-47a574; and a working-tree-only file.
+      remedy: >-
+        Refuse when coordinator_decision.status is anything other than a live
+        value (e.g. superseded, withdrawn), when superseded_by is present, or
+        when decision is not 'approve'. Also scan ledger/decisions for any
+        decision whose supersedes list names the admission decision. Require the
+        decision file to be tracked and clean at HEAD (git ls-files, plus
+        `git diff --quiet HEAD -- <path>`). Either pin the expected id
+        (DEC-20260929-47a574) through a plan field, or record in the manifest why
+        any id is acceptable. Add tests for each case.
+    - id: F-2
+      severity: must_fix_before_run
+      check: 10
+      summary: >-
+        The run manifest does not follow the repository run schema.
+      detail: >-
+        driver.py:247-256 writes a flat mapping, not
+        `run: {id, experiment_id, status, code, environment, inputs, timing,
+        resources, result, inference}`.
+      remedy: >-
+        Emit `run:` as the top-level key, with the id, experiment_id and status
+        fields plus code (commit, dirty, command), environment, inputs (fixtures,
+        seeds and namespace, plan sha256, protocol hashes), timing, resources
+        (peak RSS) and result (metrics path, valid, invalid_reason, certificate
+        kind and verified). Keep the current detail as extra keys under run.
+        Add a test that loads the manifest and checks those keys.
+    - id: F-3
+      severity: must_fix_before_run
+      check: 10
+      summary: >-
+        A driver-level exception leaves the manifest at 'running'.
+      detail: >-
+        run() has no try/except (driver.py:231-325). A Sage timeout, an audit or
+        analysis exception, or an FX-A ProcedureDefect leaves status 'running',
+        validity null and ended_at absent. raw-result.json is also absent on
+        every failure path.
+      remedy: >-
+        Wrap everything after the first write_manifest in try/except. Map
+        ProcedureDefect (including FX-A) to 'invalid' and any other exception to
+        'failed_infrastructure', recording the traceback in stderr.log and the
+        manifest. Always write raw-result.json (the index of cells attempted so
+        far) in a finally block. Optionally compute FX-A in its own try block,
+        after metrics.json is written, so that the non-verdict figure cannot
+        withhold C-5 outputs silently; if it defects, record that explicitly.
+    - id: F-4
+      severity: must_fix_before_run
+      check: 7
+      summary: >-
+        cellrun.py and pipeline.* have no admission or namespace guard.
+      detail: >-
+        `python3 cellrun.py --task t.json` with namespace 'EXP-ICEX-aaccfc/v2'
+        would evaluate frozen draws with no admission decision and no C-7 check
+        (cellrun.py:30-75). Not executed by the validator.
+      remedy: >-
+        In cellrun.run_task, refuse namespace == common.FROZEN_NS unless the task
+        JSON carries the admitting run_id and decision path, and the driver's run
+        directory with an admitted manifest exists (or an env token that the
+        driver sets). Also refuse any namespace other than FROZEN_NS or one that
+        starts with 'smoke|'. Add a test.
+    - id: F-5
+      severity: must_fix_before_run
+      check: 9
+      summary: >-
+        Committed smoke outputs contain a same-distribution preview of one C-5
+        exponent input.
+      detail: >-
+        DRYRUN-smoke-002 and DRYRUN-smoke-003 primary result.json on frozen
+        fixture b16-s21 (frozen m, B and collector rule; smoke namespace; 2
+        descents) contain complete_units and stage1.units. Values were not read.
+        This bears on the b16-s21 complete cost, contrary to the unqualified
+        statement in AMD-20260929-143d11 pre_data_status.
+      remedy: >-
+        Do not delete or rewrite anything (immutability). The admission decision
+        (DEC-20260929-47a574) should disclose that these smoke receipts exist, what
+        they contain, and that the verdict rule and thresholds were frozen before
+        they were produced (the v2 C-5 rule was frozen 2026-09-26). It should also
+        state whether the Coordinator viewed them. Future smoke checks should use
+        a non-frozen fixture, or strip unit and cost fields from committed smoke
+        receipts.
+    - id: F-6
+      severity: must_fix_before_run
+      check: 10
+      summary: >-
+        Implementation hashes are recorded but never verified against the
+        snapshot.
+      detail: >-
+        driver.py:143-144 hashes *.py only and compares them to nothing. A dirty
+        or modified implementation would run and record only git dirty=true.
+        Tests, trial-plan and verify helpers outside *.py are not included.
+      remedy: >-
+        Before the first cell, verify every implementation file's sha256 against
+        the TASK-20260929-d04f29 snapshot receipt (or a successor snapshot named in
+        the admission decision), or require
+        `git status --porcelain experiments/EXP-ICEX-aaccfc/implementation`
+        to be empty with HEAD containing the snapshot commit. Refuse otherwise,
+        and record the verification in the manifest.
+    - id: F-7
+      severity: advisory
+      check: 10
+      summary: >-
+        Inference block reads environment names the adapter does not export.
+      detail: >-
+        driver.py:170-185 reads AUTORESEARCH_RESOLVED_MODEL_ID and
+        AUTORESEARCH_REQUESTED_POLICY, whereas orchestration/adapter exports
+        AUTORESEARCH_POLICY, AUTORESEARCH_BACKEND, AUTORESEARCH_FALLBACK_ALLOWED,
+        AUTORESEARCH_DEGRADED_ALLOWED and AUTORESEARCH_INDEPENDENT_SESSION.
+        resolved_model_id will read 'unverified'. This is honest, but it does not
+        resolve.
+      remedy: >-
+        Build the block with orchestration.adapter.manifest.block_from_env()
+        (fall back to the present code if the import fails).
+    - id: F-8
+      severity: advisory
+      check: 4
+      summary: >-
+        The audit does not re-derive factor-base membership.
+      detail: >-
+        audit.py:272-273 lifts the receipt's V without checking that V equals
+        {liftable x < B} (interval) or the randfb draw sequence (null). A receipt
+        with a truncated V and self-consistent counts would pass.
+      remedy: >-
+        In audit_cell, recompute V independently with verify.py liftability for
+        interval factor bases and by replaying randfb labels for the null, then
+        compare.
+    - id: F-9
+      severity: advisory
+      check: 3
+      summary: >-
+        Rho degenerate target Q = O crashes the cell.
+      detail: >-
+        rho.py:46-47 returns without 'units', so run_rho's mean (rho.py:103)
+        raises KeyError and the audit would flag zero units. The probability is
+        about 1/N per target. It would be classified implementation_error, so
+        failed_infrastructure (not evidence). Frozen labels were not evaluated to
+        check this.
+      remedy: >-
+        Return units, precompute_units and walk_units (0) for the degenerate
+        case, and let the audit accept k = 0 with Q = O.
+    - id: F-10
+      severity: advisory
+      check: 5
+      summary: >-
+        implementation.md misdescribes FX-A ordering.
+      detail: >-
+        implementation.md:66 says FX-A is attached after C-5 is computed.
+        analysis.py:155 computes it first; values are independent.
+      remedy: >-
+        Correct the description in a successor note, or move the FX-A computation
+        after the verdict (see F-3).
+
+  artifact_checks:
+    - snapshot receipt: 103/103 hashes match (worktree and commit); parent matches
+    - AMD-20260929-143d11 sha256 36cad68c...14dac7 matches
+    - trial-plan-v2.json sha256 61f48e95...b9957b matches
+    - experiments/EXP-ICEX-aaccfc/runs/ is empty; no RUN-* exists
+  metric_recomputations:
+    - FX-A excess operations recomputed independently (audit.scalar_ops) on a synthetic curve; exact agreement
+    - C-5 outputs identical with and without FX-A on synthetic inputs
+    - no scientific metric recomputed or viewed (none exists; smoke values deliberately not read)
+  control_checks:
+    - known-false scrambled control fails verification on 2 synthetic curves (as required)
+    - random-rhs and random-log systems fail verification
+    - audit rejects dropped failed attempt, zeroed table and shaved op count
+  heuristic_validation_checks: []
+  cost_model_checks:
+    - unit declared (C-3) in arith.py and the trial plan; field-level secondary figure present; peak RSS beside every stage
+    - ratio uses the frozen reference 13*0.886*sqrt(q), not a measured rho (OQ-8); rho measured in the same units
+  proof_architecture_checks: []
+  limitations:
+    - C-1 Sage reproduction not re-executed by the validator (load and disk); relied on committed smoke manifests plus the driver's mandatory in-run check.
+    - Frozen-namespace draws deliberately never evaluated; therefore frozen-specific edge cases (rho k = 0, attempt caps) are unverified.
+    - Smoke unit values not read, by instruction; check 9 is by key presence only.
+    - Admission tests used synthetic decision files in a temporary repo root, not ledger records.
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-e3446a/validation_report.yaml
+
+  commands_run:
+    - git log --grep='snapshot(TASK-20260929-d04f29)' --format='%H %P %s'
+    - python3 (hash every receipt path_sha256 entry against the worktree and `git show d6da4cd606:<path>`; diff commit file list vs receipt)
+    - git diff --name-only d6da4cd606 HEAD -- experiments/EXP-ICEX-aaccfc
+    - sha256 of AMD-20260929-143d11.yaml and trial-plan-v2.json
+    - nice -n 10 python3 -m pytest experiments/EXP-ICEX-aaccfc/implementation -q -rs -p no:cacheprovider   # 58 passed in 17.29s
+    - python3 (key-presence and namespace scan of implementation/smoke/**; no values printed)
+    - python3 (driver.check_decision on synthetic decisions in $TMPDIR; driver.check_c7 edge cases)
+    - python3 driver.py --check-admission-only   # exit 3 (C-7)
+    - python3 driver.py --run-id RUN-VALIDATOR-probe --admission-decision DEC-20260929-47a574 --runs-dir $TMPDIR/...   # exit 3 (C-7)
+    - python3 (driver.main with C-7 monkeypatched to pass; DEC-20260929-47a574 missing -> exit 4; DEC-20260929-a8d594 -> exit 4; smoke outside smoke dir -> exit 5)
+    - python3 (synthetic non-frozen curves p=1511, p=6007; run_primary in 'validator-e3446a|synthetic'; controls, audit tampering, FX-A cross-check and independent recount, verdict isolation)
+    - rg for AUTORESEARCH_* in orchestration/adapter
+    - temporary files under /Volumes/SSD990/.tmp-agent/val-e3446a removed after use
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - AGENTS.md
+      - agents/validator.md
+      - templates/research-records.md (run index, coordinator_decision)
+      - docs/evidence-and-reproducibility.md (run layout, minimum run manifest)
+      - experiments/EXP-ICEX-aaccfc/specification.yaml
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260926-ced670.yaml
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-143d11.yaml
+      - experiments/EXP-ICEX-aaccfc/implementation/implementation.md
+      - experiments/EXP-ICEX-aaccfc/implementation/{driver,common,cellrun,analysis,pipeline,b0,arith,la,rho,audit,smoke}.py
+      - experiments/EXP-ICEX-aaccfc/implementation/hostinfo.py (grep only)
+      - experiments/EXP-ICEX-aaccfc/implementation/trial-plan-v2.json (non-cell fields)
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/* (grep only)
+      - experiments/EXP-ICEX-aaccfc/implementation/implementation_report.yaml (grep only)
+      - experiments/EXP-ICEX-aaccfc/implementation/smoke/** (keys, namespaces and manifest structure only; no cost values)
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-d04f29/snapshot-receipt.json
+      - orchestration/adapter/manifest.py (grep only)
+    not_read:
+      - ledger/decisions/DEC-20260929-a8d594.yaml body (only its admission refusal was exercised through the driver)
+      - other agents' conversations, transcripts or review reports
+
+  review_attestation:
+    joints_owned: [checks 1-10, proves_too_much]
+    read_sibling_reports: false
+    verdict: PASS_WITH_FINDINGS

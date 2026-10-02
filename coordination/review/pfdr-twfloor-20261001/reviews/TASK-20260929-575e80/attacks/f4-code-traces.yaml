@@ -1,0 +1,113 @@
+# TASK-20260929-575e80 -- F4 code traces (choices F4-1). Static reading of the engine at
+# 66d6eab71 (no execution, RF-4). Paths relative to src/crypto_autoresearcher/index_calculus/.
+# Row-level witnesses are in out/02_f3_f4_checks.json.
+f4_code_traces:
+  a_charged_range_rule:
+    scalar_path: >-
+      decompose.py _level2 lines 207-221 (no numpy, or fewer than 48 indices left): the loop
+      visits i = lo, lo+1, ... and _tail_at charges one S_3 per visited index (line 173); at the
+      first index whose roots meet a table tail with first index >= i the scan calls
+      recorder.scan(R, lo, i) and returns (215-218); otherwise recorder.scan(R, lo, n-1)
+      (219-220). The charged set is exactly [lo, i].
+    vectorised_path_m3: >-
+      _accel.m2_candidates_multi (lines 106-132) computes both roots x(R - F_i), x(R + F_i) for
+      EVERY i >= lo in one numpy pass (uncharged computation) but only MARKS the indices whose
+      own roots meet a tail with first index >= i (line 130, hit is a function of index i
+      alone). decompose.py _walk_candidates (227-257) charges every skipped index (240,
+      c - pos), visits the marked indices in ascending order through _tail_at (+1 S_3, 173),
+      and returns at the first one that yields a relation, after recorder.scan(R, lo, c)
+      (249-252). Roots at indices > c were computed by the scan but are never charged, never
+      recorded and never used: the returned relation is built from index c's roots only, and
+      every index < c was unmarked (a marked index always yields a relation, since one of the two
+      signs reproduces the root).
+    vectorised_path_m4_m5: >-
+      decompose.py _level3 (263-313; m = h + 2): subtract_many and m2_candidates_multi compute
+      R - s F_i and the level-2 roots for blocks of 64 (i, s) heads (uncharged); the walk visits
+      the heads in order, charges one group operation per visited head (299) and the last-level
+      S_3 through _walk_candidates inside recorder.push/pop (303-306), and returns at the first
+      relation (311-312). Heads after the early return are never charged or recorded.
+    simulation_argument: >-
+      The vectorised paths are observationally identical to the scalar path: the same indices
+      are charged, the same relation is returned and the recorder sees the same [lo, hi]
+      (decompose.py docstring; README section 4). Every comparison whose OUTCOME the run uses
+      belongs to the charged range, so the uncharged roots carry no information into the run.
+    recorder: >-
+      harvest.SearchRecorder.scan (196-208) records, for the charged range only, both finite
+      points R' - F_j and R' + F_j (_scan_np 228-270; _scan_py 210-226; degenerate index: the
+      finite one only), computed by the recorder itself. They are the same x-values as the
+      charged S_3 roots.
+    witness: >-
+      Identity G5 (encodings_recorded == 2*(s3_solves - table_s3_solves) - degenerate_roots)
+      recomputed from fields: 73/73 firing rows, 73/73 census twins, 3480/3480 rows with a
+      harvest block; identity_ok true on all; search_s3_charged == s3_solves - table_s3_solves
+      on all.
+    finding: >-
+      No root computed beyond the early-return index reaches the solver's match or a harvested
+      group, on the scalar, m = 3 vectorised or m = 4, 5 vectorised paths. HOLDS.
+  b_free_inputs:
+    compared_set: >-
+      The encodings whose x-keys are compared are: stored tails (TT; TB; TS lookups), base
+      points (TB only: harvest.table_phase 446-492 puts the base element first in a group when
+      its x is a stored key), and recorded search encodings (SS; TS). Targets R_t: never a root
+      at m = 3 (roots are R -+ F_j); at m = 4, 5 R_t is the j = i root of every head, so it is
+      recorded and charged, and its repeats are formal duplicates (harvest._ss_add 551-556).
+      P and Q are only used in aP + bQ and in certificates and are never compared. Head points
+      R - s F_i (m = 4, 5) are computed (group_ops) but never compared or recorded.
+      Intermediate table levels (h = 3) are computed and charged but not stored.
+    exact_count: >-
+      X_cmp = table_entries + B + encodings_recorded. With the closed forms verified on every
+      row: h = 2: X_cmp = 2*S_3 - degenerate_roots; h = 3: X_cmp = 2*S_3 - B^2 -
+      degenerate_roots. X_cmp/(2*S_3) lies in [0.921, 1.000] on the 73 firing rows.
+    X_total: >-
+      The plan's X_total = 2*S_3 + B + attempts + 2 (a conservative over-count): 70 of 73
+      firings survive (dropped: (j0,12,c0,m3,j0_coset,on), (j0,18,c2,m3,j0_coset,on),
+      (main,22,c0,m5,random_dick_r2,on)); free share (B + attempts + 2)/(2*S_3) <= 0.074 on the
+      firing rows and <= 0.116 on any row (m 3, 12 bits); no new firing. Under X_cmp all 73
+      survive.
+    finding: >-
+      The free inputs do not escape the count: X = 2*S_3 already bounds the compared set on
+      every row. The firing set changes by 3 of 73 under the plan's over-count. HOLDS.
+  c_table:
+    build: >-
+      tails.py _build_numpy (288-349): level k is built from level k-1; for each base index a
+      and each stored level-(k-1) tail with first index >= a both F_a + S and F_a - S are formed
+      and ONE S_3 is charged per (a, S) (307); zero sums are dropped (ok masks); only the last
+      level is kept as (x, code) (329-333); non-last levels are intermediates (334-337).
+    depth3: >-
+      At h = 3 (m = 5) the level-2 intermediates are charged (B(B+1)/2 units, 2*u2 = B^2 + B
+      encodings) and never stored, so they never enter a TT or TB group: TT/TB are formed from
+      tab.iter_keys_selected over the stored last level only (tails.py 212-235; harvest.py
+      453). Level-3 entries are exactly 2*u3, u3 = B(B+1)(2B+1)/6.
+    witness: >-
+      table_entries <= 2*table_s3_solves on 73/73 firing rows, 73/73 twins and 3480/3480 rows;
+      h = 2: entries == B^2 and table_s3 == B(B+1)/2 on every row (2450); h = 3: table_s3 ==
+      B(B+1)/2 + B(B+1)(2B+1)/6 and entries == 2*u3 (deficit 0 on the 11 firing m = 5 rows)
+      on every row (1030).
+    finding: No uncharged intermediate x-key enters a TT or TB group. HOLDS.
+  d_ss_store:
+    trace: >-
+      harvest.end_attempt (582-632) compares the batch's x-keys with each stored sorted run by
+      searchsorted and within the batch by adjacent equality; _merge_run (634-651) merges two
+      sorted (x, descriptor) arrays by position arithmetic and copies; _group_from (536-541)
+      re-derives elements from stored descriptors (unpack), computing no point. No x-key is
+      created by the store.
+    cost_terms_not_floor: >-
+      SS store memory (ss_store.peak_bytes = entries x 12 bytes, analytic) and harvest time
+      (harvest_seconds) belong to the cost account (F-COST-1), not to the floor.
+    finding: HOLDS.
+  e_certificates_and_recorder:
+    trace: >-
+      Harvester.certify (400-406) computes sum c_i F_i + kcoef Q and rhs P on an independent curve
+      Ev (own OpCounter) and returns a boolean; nothing it computes is stored or keyed. Its group
+      operations are harvest_verify_group_ops (736), a cost term. The recorder's affine
+      additions (_affine_add 119-133; _scan_np) compute the charged roots with their y-bit; the
+      y-bit is used only to orient group members.
+    finding: No certificate or recorder point is fed back as a key. HOLDS.
+  uncharged_cost_terms_found:
+    - head points R - s F_i at m = 4, 5 and target generation aP + bQ (group_ops / target_ops columns)
+    - vectorised-scan roots computed beyond the early return (computation spent, information unused)
+    - level-2 intermediates at h = 3 (charged, never compared -- a cost the floor counts but the harvest does not use)
+    - harvest_verify_group_ops (row certificates; can exceed S_3 in census mode, EV-PFDR-1faf10 OBS-14)
+    - SS store memory (peak_bytes) and harvest_seconds
+    - la_ops (elimination), and the base construction (lift_x square roots, membership tests)
+    - none of these is an x-key compared without a charge; all belong to F-COST-1, not to the floor
