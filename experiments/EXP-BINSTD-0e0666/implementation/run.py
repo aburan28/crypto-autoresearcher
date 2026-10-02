@@ -70,6 +70,22 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _git_commit() -> str:
+    """Best-effort HEAD sha for run.code.commit; never fabricates success."""
+    import subprocess
+
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(EXP_ROOT.parents[1]),
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "UNKNOWN"
+
+
 def ord_n_of_2(n: int) -> int:
     if n <= 0 or n % 2 == 0:
         raise ValueError("n must be a positive odd integer")
@@ -314,23 +330,29 @@ def find_generator(curve: Curve, order: int, r: int, seed: int) -> dict[str, Any
 
 
 def find_lambda(curve: Curve, gen: tuple[int, int], r: int, n: int) -> dict[str, Any]:
-    """Find lambda in 0..r-1 with [lambda]P = sigma(P) via BSGS on <gen>."""
+    """Find lambda in 0..r-1 with [lambda]P = sigma(P) via BSGS on <gen>.
+
+    Baby steps index j*G for j in 0..m-1 with 0*G = O (None as dict key).
+    RUN-BINSTD-9e0ac1 started the baby walk at G labelled j=0, so reconstructed
+    scalars were short by one and every candidate failed [lam]G==sigma(G)
+    (O-IMPEDIMENT lambda_not_found_n17). Implementation defect, not evidence
+    against H-BINSTD-6428a3. See AMD-EXP-BINSTD-0e0666-20261002-ed46f5.
+    """
     target = curve.frobenius(gen)
     if target is None:
         return {"lambda": None, "ok": False, "reason": "target_was_O"}
     m = int(math.isqrt(r)) + 1
-    table: dict[tuple[int, int], int] = {}
-    X = gen
+    # Point -> j; None keys the identity so j=0 is O, j=1 is G, ...
+    table: dict[Any, int] = {}
+    X: Any = None
     for j in range(m):
-        if X is None:
-            break
         table[X] = j
         X = curve.add(X, gen)
     factor = curve.mul(m, gen)
     inv_factor = curve.neg(factor) if factor is not None else None
     gamma = target
     for i in range(m + 1):
-        if gamma is not None and gamma in table:
+        if gamma in table:
             lam = (i * m + table[gamma]) % r
             if curve.mul(lam, gen) == target:
                 # Order of lambda on G must equal n.
@@ -706,10 +728,14 @@ def stage1(run_dir: Path) -> dict[str, Any]:
         "Claims: no break / no exponent / no deployed attack.",
         "",
     ]
-    # Only write RESULTS.md once (Stage 1). Stage 2 would supersede via amendment.
+    # Canonical RESULTS.md may already hold a prior failed-infrastructure note
+    # (RUN-BINSTD-9e0ac1). Write live Stage-1 RESULTS when absent; else run-local.
     results_path = EXP_ROOT / "RESULTS.md"
+    results_body = "\n".join(results_lines)
     if not results_path.exists():
-        write_text(results_path, "\n".join(results_lines))
+        write_text(results_path, results_body)
+    else:
+        write_text(run_dir / "RESULTS.md", results_body)
 
     raw = {
         "experiment_id": EXPERIMENT_ID,
@@ -728,23 +754,55 @@ def stage1(run_dir: Path) -> dict[str, Any]:
         "amazon_bedrock": "NOT_USED",
     }
     write_json(run_dir / "raw-result.json", raw)
+    # Nested top-level run: shape required by tools/validate_ledger.check_run.
+    run_id = run_dir.name
+    commit = _git_commit()
+    command = (
+        f"python3 experiments/EXP-BINSTD-0e0666/implementation/run.py "
+        f"--stage 1 --trial-plan experiments/EXP-BINSTD-0e0666/trial-plan-v1.json "
+        f"--run-dir {run_dir.as_posix()}"
+    )
     write_text(
         run_dir / "manifest.yaml",
         "\n".join(
             [
-                f"experiment_id: {EXPERIMENT_ID}",
-                f"hypothesis_id: {HYPOTHESIS_ID}",
-                "stage: 1",
-                f"status: {status}",
-                f"outcome: {outcome}",
-                f"f0_overall_ok: {str(f0_info.get('overall_ok')).lower()}",
-                "artifacts:",
-                "  - manifest.yaml",
-                "  - raw-result.json",
-                "  - experiments/EXP-BINSTD-0e0666/stage1/curves-bases-lambda.json",
-                "  - experiments/EXP-BINSTD-0e0666/stage1/cayley-accident.json",
-                "  - experiments/EXP-BINSTD-0e0666/stage1/fixture-F0.json",
-                "amazon_bedrock: NOT_USED",
+                "run:",
+                f"  id: {run_id}",
+                f"  experiment_id: {EXPERIMENT_ID}",
+                f"  hypothesis_id: {HYPOTHESIS_ID}",
+                f"  approved_by: {APPROVED_BY}",
+                "  stage: 1",
+                f"  status: {status}",
+                "  code:",
+                f"    commit: {commit}",
+                f"    command: {json.dumps(command)}",
+                "    dirty: true",
+                "  environment:",
+                "    artifact: environment.json",
+                "  inputs:",
+                "    parameters:",
+                "      stage: 1",
+                f"      master_seed: {MASTER_SEED}",
+                "      n: 17",
+                "      a: 1",
+                "  timing:",
+                f"    wall_seconds: {raw['wall_clock_seconds']}",
+                "  result:",
+                f"    outcome: {outcome}",
+                f"    f0_overall_ok: {str(f0_info.get('overall_ok')).lower()}",
+                f"    impediments: {json.dumps(impediments)}",
+                "    validity_status: "
+                + ("valid" if status == "completed" else status),
+                "    certificate:",
+                "      kind: none",
+                "      verified: true",
+                "  artifacts:",
+                "    - manifest.yaml",
+                "    - raw-result.json",
+                "    - experiments/EXP-BINSTD-0e0666/stage1/curves-bases-lambda.json",
+                "    - experiments/EXP-BINSTD-0e0666/stage1/cayley-accident.json",
+                "    - experiments/EXP-BINSTD-0e0666/stage1/fixture-F0.json",
+                "  amazon_bedrock: NOT_USED",
                 "",
             ]
         ),
