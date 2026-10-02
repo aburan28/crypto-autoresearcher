@@ -1,0 +1,431 @@
+# =============================================================================
+# TASK-20261002-8a6b8a -- EXECUTOR implementation-and-execution task for
+# EXP-PFDR-0b3699 (Part A: single-cell confirmatory test of small_x TT4 at 30
+# and 32 bits on fresh curves; H-PFDR-2765d2). Implements EC-A1 (one additive
+# base builder and arm name, plus one new test file), writes the four
+# experiment scripts and their fixtures, then runs RA-01 to RA-06 in the
+# frozen order (RA-07 only if G-REPRO fails). Approved by DEC-20261002-e7f8c9.
+# Modelled on TASK-20261002-71b610, with constraints at least as strict.
+# NOT DISPATCHABLE until the TASK-20261002-4b35db ledger receipt verifies AND
+# records check (j) of DEC-20261002-e7f8c9 approval_reference_table with no
+# MISS (see dispatch_preconditions).
+# =============================================================================
+handoff:
+  id: TASK-20261002-8a6b8a
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check, then supplied to this Coordinator. The Coordinator has
+    no shell and minted no identifier.
+  created_at: '2026-10-02'
+  created_by: coordinator
+  from: coordinator
+  to: executor
+  status: written_not_dispatched
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  experiment_id: EXP-PFDR-0b3699
+  hypothesis_id: H-PFDR-2765d2
+  question_id: RQ-PFDR-ae2fba
+  approval_decisions: [DEC-20261002-e7f8c9]
+  protocol: >-
+    experiments/EXP-PFDR-0b3699/specification.yaml (v1, FROZEN), including
+    its experiment.approval_rulings AR-1 to AR-7, which govern where they
+    name a clause. No amendment exists.
+  title: >-
+    Implement EC-A1 and the EXP-PFDR-0b3699 scripts and fixtures, then run
+    RA-01 (tests), RA-02 (G-REPRO), RA-03 (P0 design), RA-04 (table census and
+    its checks), RA-05 (blinded calibration) and RA-06 (unmask), RA-07 only if
+    G-REPRO fails
+  objective: >-
+    Produce the complete EXP-PFDR-0b3699 run set exactly as the frozen
+    contract states:
+    - verify the build base (every engine and existing test file equal to its
+      38be58dad bytes) before any write;
+    - implement EC-A1 exactly and nothing else in src/ or tests/;
+    - write run_jobs.py (with its merge subcommand), design_a.py, analyze_a.py
+      (p0, checks, calibrate, unmask) and reproduce_check.py, exercise them on
+      synthetic fixtures, and pin them;
+    - run RA-01 to RA-06 in the fixed order with every gate, pin and blinding
+      rule, and RA-07 only on its trigger.
+    Observations only; no interpretation beyond the outcome table.
+  uncertainty_reduced: >-
+    Whether the small_x TT4 relation-level excess seen in EXP-PFDR-011cd0
+    recurs on fresh 30- and 32-bit prime-order curves under one
+    pre-registered single test with its own calibrated null, a planted arm at
+    the target size, a real-data permutation null and an offset base
+    mutation (EXP-PFDR-0b3699 objective). The task produces the run package;
+    it decides nothing.
+  inputs:
+    - experiments/EXP-PFDR-0b3699/specification.yaml (FROZEN; read in full; approval_rulings included)
+    - ledger/decisions/DEC-20261002-e7f8c9.yaml -- the fields id, decision, decision_label, target_ids, approval, transcription and official_transitions ONLY
+    - ledger/hypotheses/H-PFDR-2765d2.yaml (HEUR-2765d2-H1c, H2, H4 and lemmas L1, L2, for the model means mu_model; read only)
+    - experiments/EXP-PFDR-011cd0/specification.yaml -- counting_conventions CC-1 to CC-10, cells.design_curves, analysis.A-CAL_calibration and A-INT_intervals, gates G1', G4 and G7 ONLY (conventions by clause; read only)
+    - "experiments/EXP-PFDR-011cd0/ read-only inputs, invoked or read by path only: verify_rows.py (invoked); run_jobs.py and merge_relcensus.py (copy sources only, AR-2 (2); never invoked); runs/RUN-PFDR-011cd0-table/attempt-1/jobs/4-b30-c10/ and 4-b32-c10/ (command.txt, rows.jsonl.gz, harvest-rows.jsonl.gz, staircase.jsonl.gz; G-REPRO); the archived R12 m = 4 rows and harvest rows at 30 and 32 bits (P0X-A recount); runs/RUN-PFDR-011cd0-calibrate/calibration.json and runs/RUN-PFDR-011cd0-analysis/analysis.json at the fields of the specification's p0_inputs_by_path_and_field only; runs/RUN-PFDR-011cd0-p0-design/attempt-3/design.json (curves; G-FRESH and mu_model)"
+    - "coordination/review/pfdr-011cd0-20261002/reviews/TASK-20261002-87ffc4/: attacks/j6/out/smallx-tt4-localise.json, attacks/j6/out/replication-sizing.json and red-team-report.yaml, at the fields of the specification's p0_inputs_by_path_and_field ONLY (P0 inputs)"
+    - experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py (invoked by path, read-only)
+    - the committed engine and tests (src/crypto_autoresearcher/index_calculus/**, tests/test_index_calculus_*.py) at the base commit named in the launch prompt
+  read_scope_excludes:
+    - coordination/review/pfdr-twfloor-20261001/ and every TW-FLOOR record (never read, at any point)
+    - "every file under ledger/decisions/ beyond what inputs allows; in particular the rulings, approval_checklist, defect_closure, approval_reference_table and rationale of DEC-20261002-e7f8c9, and all of DEC-20261002-d0594a, DEC-20261002-c3f49b and EV-PFDR-ad6274 (Coordinator reasoning and evidence prose are not inputs)"
+    - "the design drafts coordination/design/TASK-20261002-33047e/ and coordination/design/TASK-20261002-729fc9/ (the frozen specification is the contract; the drafts are not read)"
+    - "every review report, attestation and attack output of coordination/review/ other than the three P0-input files at their named fields"
+    - "every archive card and receipt (a receipt's path_sha256 map may be read for an identity check; nothing else)"
+    - "any scratch output of an earlier session: every scratchpad subdirectory not created by this task. Do not list the scratchpad root directory; create and use your own directory by its absolute path. The venv-ci interpreter is the only exception."
+    - "any PR text or comment, and coordination/bus/"
+  constraints:
+    - >-
+      AUTHORITY. Refuse to start unless all of the following hold.
+      (1) experiments/EXP-PFDR-0b3699/specification.yaml reads status
+          approved, frozen true, approval_decision DEC-20261002-e7f8c9 and
+          execution_handoff TASK-20261002-8a6b8a.
+      (2) ledger/decisions/DEC-20261002-e7f8c9.yaml exists and reads
+          decision approve.
+      (3) The launch prompt names the base commit and states that the
+          TASK-20261002-4b35db ledger receipt has verified and records check
+          (j) of DEC-20261002-e7f8c9 with no MISS.
+      A message saying "approved" is not an approval.
+    - >-
+      FRESH CONTEXT AND NO SCRATCH READS. This is a new executor session. It
+      is not the session of TASK-20261001-7f7a33 or of any of its
+      continuations (TASK-20261002-ce5403, -7cf711, -e5139f, -1069c1,
+      -71b610), and not a session that wrote any EXP-PFDR-011cd0 artifact
+      (specification review_requirements.executor_independence). Create your
+      own scratch directory by its absolute path,
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/8a6b8a/
+      (it must not exist before you create it), for everything temporary:
+      development copies (8a6b8a/dev), job lists, views, the RA-07 engine
+      extraction (8a6b8a/engine-38be58dad, only if RA-07 runs). State in the
+      execution report that you complied.
+    - >-
+      INTERPRETER AND WORKTREE. Every command runs with
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python,
+      with PYTHONDONTWRITEBYTECODE=1 in its environment, and with working
+      directory /home/user/crypto-autoresearcher. Where the specification
+      writes <PY>, substitute this interpreter and nothing else. If the
+      interpreter is missing, or its Python or numpy version differs from the
+      EXP-PFDR-011cd0 R12 manifests (3.11.15, numpy 2.4.6), stop and return;
+      that is an environment finding, not a reason to build another venv.
+    - >-
+      ORDER STEP (a): BUILD-BASE VERIFICATION, BEFORE ANY WRITE. Compare every
+      file of src/crypto_autoresearcher/index_calculus/ and every
+      tests/test_index_calculus_*.py with its bytes at commit 38be58dad (git
+      show 38be58dad:<path>; read-only git only); confirm
+      tests/test_index_calculus_smallx_offset.py and every
+      experiments/EXP-PFDR-0b3699/ path other than specification.yaml are
+      absent; hash experiments/EXP-PFDR-011cd0/verify_rows.py and
+      experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py and confirm the
+      G-REPRO input files exist. Any mismatch: stop and return before
+      writing anything. Otherwise create the scratch directory and write
+      experiments/EXP-PFDR-0b3699/implementation-notes.yaml (append-only)
+      with the build-base table and the two tool pins (verify_rows.py and
+      run_wrapper.py sha256, pinned at first use).
+    - >-
+      ORDER STEP (b): EC-A1, EXACTLY AND ONLY (specification
+      inputs.engine_build.change_EC-A1; DEC-20261002-e7f8c9 na5_lift).
+      (1) src/crypto_autoresearcher/index_calculus/factor_base.py: the new
+      classmethod FactorBase.small_x_offset(E, size, seed) exactly as
+      specified, and nothing else. (2)
+      src/crypto_autoresearcher/index_calculus/__main__.py: the builder entry
+      "small_x_offset" with seed c + 9000 and the name inserted in
+      MAIN_ARMS_ALL immediately after "planted_sub"; MAIN_ARMS unchanged;
+      nothing else. (3) tests/test_index_calculus_smallx_offset.py (new):
+      T-OFFSET-1, T-OFFSET-2, T-PLANT-M4 and T-DET as specified. Every other
+      engine file, every existing test, tests/fixtures/** and every results
+      file stay byte-identical (I-A2). Map EC-A1 to functions in
+      implementation-notes.yaml.
+    - >-
+      ORDER STEP (c): SCRIPTS, FIXTURES AND PINS (specification
+      inputs.experiment_scripts_new and AR-2). Write exactly four scripts in
+      experiments/EXP-PFDR-0b3699/: run_jobs.py (launcher, imports no engine
+      module; its merge subcommand per AR-2 (2) and AR-1 (3)); design_a.py
+      (may import curve.py and factor_base.py only); analyze_a.py (subcommands
+      p0, checks, calibrate, unmask; imports no crypto_autoresearcher module;
+      its CC-1 to CC-3 recount is written from the clauses and shares no code
+      with harvest.py; the simulation rule of analysis.upper_bound_U_A is
+      implemented from the text); reproduce_check.py (standard library only).
+      Write the synthetic fixtures of required_artifacts.per_experiment under
+      experiments/EXP-PFDR-0b3699/fixtures/ and run the fixture exercise
+      before any use on real data, logging it there. Then record pins.scripts
+      (sha256 of each of the four scripts and of the three EC-A1 files,
+      pinned_at, basis "fixture exercise passed") in implementation-notes.yaml
+      BEFORE RA-01 starts. A pinned file is never edited afterwards; if one
+      must change, stop and return.
+    - >-
+      ORDER, EXACTLY (specification stopping_rules [0]; AR-2):
+      RA-01 (G-T) into runs/RUN-PFDR-0b3699-tests/;
+      RA-02 (G-REPRO) into runs/RUN-PFDR-0b3699-repro/;
+      if G-T or G-REPRO fails: stop before RA-03; if G-REPRO failed, run RA-07
+      into runs/RUN-PFDR-0b3699-repro-attribution/ per AR-7; return;
+      RA-03 (design_a.py, analyze_a.py p0: P0X-A including AR-4, G-FRESH,
+      sizing, S, x0, height screen) into runs/RUN-PFDR-0b3699-p0-design/; pin
+      design.json (pins.design_json) before RA-04; on P0X-A or G-FRESH failure
+      or any design_stop, stop before RA-04 and return;
+      RA-04: run_jobs.py over design.json's jobs (each job under
+      run_wrapper.py), run_jobs.py merge, then analyze_a.py checks (G4, G4-R
+      via verify_rows.py with --out /dev/stdout parsed in memory, G-CURVE,
+      G-REL, G7-OFFSET, PC-R-iii) into runs/RUN-PFDR-0b3699-table/;
+      RA-05: analyze_a.py calibrate into runs/RUN-PFDR-0b3699-calibrate/; pin
+      calibration.json (pins.calibration_json) before RA-06;
+      RA-06: analyze_a.py unmask --calibration-sha256 <pinned> into
+      runs/RUN-PFDR-0b3699-analysis/.
+      Every path argument is a full repository-relative path.
+    - >-
+      BLINDING BEFORE RA-06 (specification stopping_rules [5], I-A7, AR-1).
+      No script and no agent action reads, prints, summarises or copies a
+      relation count, row count, total, kappa or z of small_x,
+      small_x_offset, subgroup, planted_sub or planted_target before RA-06.
+      In particular: never open, cat, head or grep an RA-04 job's stdout.log,
+      rows file, harvest-rows file or staircase file yourself; only the
+      scripts parse them, and only as AR-1 (2) and AR-2 allow. RA-05 filters
+      by arm name before parsing any count and writes arm-read-log.json. The
+      RA-04 checks emit per-instance PASS/FAIL and mismatch keys only. A
+      breach is an I-A7 invalidation: record it, finalize the run invalid,
+      and return.
+    - >-
+      STOPS. Stop and return, after finalizing the location concerned, when:
+      - a gate or design stop of the specification fires (stopping_rules,
+        design_stop, gate_rule);
+      - a certificate or row-verification failure occurs (that run is invalid;
+        rows so far retained);
+      - a checkpoint fires (TW-DISK, a file above 95 MB, the task watchdog;
+        checkpoint with a remaining-work list);
+      - a tool verdict disagrees with the frozen gate text, or any case the
+        contract does not classify.
+      A per-instance, per-job or address-space stop is failed_infrastructure
+      for that instance or job and is not a stop of the task (stopping_rules
+      [4]).
+    - >-
+      GATES AND CERTIFICATES, UNRELAXED. Every gate of the specification runs
+      as written. A gate failure is an implementation finding, never evidence
+      about the hypothesis. Every manifest's certificate block is kind none
+      with instances_claimed 0 and instances_verified 0 written explicitly
+      (no run of this experiment determines a discrete log).
+    - >-
+      MANIFESTS AND REQUIRED ARTIFACTS (specification required_artifacts;
+      AGENTS.md "Artifact policy"). Every attempt, run root and run directory
+      holds manifest.yaml (run id, experiment id EXP-PFDR-0b3699, task id
+      TASK-20261002-8a6b8a, status completed_valid | failed_infrastructure |
+      invalid with completeness, code commit and dirty state, sha256 of every
+      executed source file, exact command and job list, environment, inputs,
+      curves and every seed, non-null started_at and finished_at, peak RSS,
+      CPU and wall seconds, the certificate block), command.txt,
+      environment.json, stdout.log, stderr.log, raw-result.json and a
+      checksums.sha256 covering every file beneath it, plus the per-run data
+      files of required_artifacts.per_run_data, each written only by the
+      writer AR-2 names. The inference block: requested policy
+      executor-implementation, backend, resolved model identifier recorded as
+      null with provenance "withheld by the session's artifact policy; not
+      probe-verified", model_verified false, reasoning effort, fallback_used
+      and degraded requirements; never a Bedrock provider.
+    - >-
+      MACHINE PROTECTION (binding; time is advisory). Host: 4 cores, about
+      15 GB memory.
+      - At most 4 job processes at once; nothing else runs during RA-04.
+      - Every job process runs under
+        experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py (RLIMIT_AS
+        3.5e9); so do the RA-03, RA-05 and RA-06 analysis processes.
+      - No job starts while MemAvailable < 4 GB or free disk < 2.5 GB.
+      - Watchdogs: 1800 s per instance; 21600 s per job; 86400 s per attempt;
+        and the task watchdog below.
+      - If experiments/EXP-PFDR-0b3699/ exceeds 1.0 GB, checkpoint and return
+        (TW-DISK).
+      - Every JSONL is gzip -n compressed when its job ends and hashed after
+        compression. No single file may exceed 95 MB; if one would, stop and
+        return.
+      Timeouts, memory stops, disk checkpoints and crashes are
+      failed_infrastructure or checkpoints, retained with their logs, never a
+      mathematical result. Do not raise a cap, a watchdog or the worker count,
+      and do not bypass run_wrapper.py, for any reason.
+    - >-
+      OUTPUT PATHS. Write only under write_scope. Never modify, rename,
+      recompress or delete any existing file, in particular:
+      experiments/EXP-PFDR-0b3699/specification.yaml; every path under
+      experiments/EXP-PFDR-011cd0/ and experiments/EXP-PFDR-1b78f7/ (I-A2);
+      every engine file other than factor_base.py and __main__.py; every
+      existing test; tests/fixtures/**; any ledger record or coordination/
+      path. No __pycache__ or .pyc file is an artifact; if one appears under
+      an archived directory, do not delete it; report it.
+    - >-
+      RA-07 REALISATION (AR-7). Only if G-REPRO fails: extract the 38be58dad
+      bytes of src/ with "git archive 38be58dad src | tar -x -C
+      <scratch>/8a6b8a/engine-38be58dad/", put that src/ ahead of the
+      repository's src/ on the import path for the RA-07 commands only, run
+      the failing comparison restricted to the mismatching instances, and
+      write the outputs under runs/RUN-PFDR-0b3699-repro-attribution/. No git
+      worktree, checkout, branch, stash, index or other repository-metadata
+      change. Record the exact commands.
+    - >-
+      NO COMMITS. Do not commit, push, stage, rebase or merge. The Coordinator
+      archives by exact path in TASK-20261002-33afa9.
+    - >-
+      NO JUDGMENT ON SCOPE. Change no threshold, seed, curve range, arm,
+      convention, flag, rule, fixture expectation, control parameter, status
+      rule or definition after seeing any output. If the contract is
+      ambiguous or unimplementable at some point (a data file or rule
+      application with no named means, an unforeseen row shape, a pinned
+      script that cannot express a step, a tool verdict that contradicts the
+      gate text), implement nothing around it: stop that step, record the
+      ambiguity with options in execution-report.yaml, and return.
+    - >-
+      NO INTERPRETATION. Report outcome ids as RA-06 computes them. Do not
+      describe any result as a lever, a closure, support or refutation.
+      Report TW-ALIVE as fired, nothing more. Compute no floor ratio and run
+      no harvest-on mode (TW-FLOOR-INDEPENDENCE).
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock (AGENTS.md rule 16).
+  deliverables:
+    - src/crypto_autoresearcher/index_calculus/factor_base.py and __main__.py with the EC-A1 changes only; tests/test_index_calculus_smallx_offset.py
+    - experiments/EXP-PFDR-0b3699/run_jobs.py, design_a.py, analyze_a.py, reproduce_check.py
+    - experiments/EXP-PFDR-0b3699/fixtures/ (synthetic fixtures and the fixture exercise log)
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml (build-base table; tool pins; EC-A1 map; pins.scripts; pins.design_json; pins.calibration_json; every writer subcommand named before first use; every deviation with reason and both hashes; append-only)
+    - experiments/EXP-PFDR-0b3699/runs/ RUN-PFDR-0b3699-tests, -repro, -p0-design, -table, -calibrate, -analysis (those reached), and -repro-attribution only if G-REPRO failed, each with all required artifacts
+    - >-
+      experiments/EXP-PFDR-0b3699/execution-report.yaml: build-base result;
+      fixture exercise; runs and attempts with statuses and completeness;
+      every gate and control result with its report path; the outcome id;
+      failed_infrastructure instances, CC-6 exclusions and height-screen
+      exclusions; unexpected observations; the TW-DISK state and any
+      __pycache__ found; the no-scratch-read and read-scope statement; the
+      artifact paths, which conditional paths exist, and the stop point
+      reached (one of the TASK-20261002-33afa9 check (d) branches); no
+      interpretation beyond the outcome table.
+  artifact_paths:
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - tests/test_index_calculus_smallx_offset.py
+    - experiments/EXP-PFDR-0b3699/run_jobs.py
+    - experiments/EXP-PFDR-0b3699/design_a.py
+    - experiments/EXP-PFDR-0b3699/analyze_a.py
+    - experiments/EXP-PFDR-0b3699/reproduce_check.py
+    - experiments/EXP-PFDR-0b3699/fixtures/
+    - experiments/EXP-PFDR-0b3699/implementation-notes.yaml
+    - experiments/EXP-PFDR-0b3699/execution-report.yaml
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-tests/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-repro/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-p0-design/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-table/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-calibrate/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-analysis/
+    - experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-repro-attribution/ (only if G-REPRO failed)
+  write_scope:
+    - experiments/EXP-PFDR-0b3699/
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - tests/test_index_calculus_smallx_offset.py
+  write_scope_note: >-
+    experiments/EXP-PFDR-0b3699/ means experiments/EXP-PFDR-0b3699/** EXCEPT
+    specification.yaml, which is frozen and not writable. The three source
+    files are exactly the EC-A1 files of DEC-20261002-e7f8c9 na5_lift. Plus
+    the task's own scratch directory
+    /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/8a6b8a/,
+    outside the repository and never archived. Every other path, every ledger
+    record and every coordination/ path is NOT writable.
+  archived_by: TASK-20261002-33afa9
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    fresh_session_required: true
+    model_identifier_rule: >-
+      The resolved model identifier is recorded as null, with provenance
+      "withheld by the session's artifact policy; not probe-verified" and
+      model_verified false, as in every run of this line. Bedrock is never
+      selected.
+  budget:
+    wall_clock_seconds: 259200
+    wall_clock_note: >-
+      Task-level watchdog (machine protection, 72 h). Expiry checkpoints the
+      task with every completed attempt retained and a remaining-work list in
+      execution-report.yaml; it exhausts nothing and is never a result.
+      Advisory compute: about 6 CPU-hours (specification budget), about 1-3
+      hours wall for the census on 4 processes, plus implementation, tests
+      and fixtures. A continuation task, if the watchdog fires, is a
+      Coordinator act.
+    memory_gb: 14
+    maximum_runs: 7
+    maximum_runs_note: RA-01 to RA-06 planned, RA-07 conditional (G-REPRO fails). Continuation attempts belong to their run id. The fixture exercise is not a run.
+    per_attempt_watchdog_seconds: 86400
+    per_job_watchdog_seconds: 21600
+    per_instance_watchdog_seconds: 1800
+    maximum_concurrent_processes: 4
+    per_process_address_space_bytes: 3500000000
+    disk_floor_gb: 2.5
+    package_guard_gb: 1.0
+    total_cpu_hours_advisory: 6
+  completion_gate:
+    - order step (a) passed and is tabled in implementation-notes.yaml, or the task stopped and returned naming the failing file
+    - the diff of factor_base.py and __main__.py against 38be58dad contains only EC-A1; tests/test_index_calculus_smallx_offset.py exists; every other engine and test file equals its 38be58dad bytes
+    - the fixture exercise ran before any real-data use and pins.scripts was recorded before the earliest RA-01 started_at; no pinned file changed afterwards
+    - every run reached carries its required artifacts and a checksums.sha256 covering every file beneath it; every data file was written by its AR-2 writer; every manifest's certificate block is kind none with instances_claimed 0 and instances_verified 0
+    - pins.design_json precedes the earliest RA-04 started_at; pins.calibration_json precedes RA-06's started_at and RA-06 ran with that sha256; RA-05's arm-read-log shows no structured or planted arm parsed; the RA-05 and RA-06 view-maps agree (AR-2 (4))
+    - row-verify.json and checks-report.json carry no row count, relation count, total, kappa or z; merge-report.json carries no structured-inclusive total (AR-1 (3)); no RA-04 job stdout was echoed or read beyond the AR-1 (2) keys
+    - tools/validate_ledger.py (run read-only before returning) reports no error naming a new path; its output for the new paths is listed
+    - no file outside write_scope changed; no file exceeds 95 MB; every command ran with PYTHONDONTWRITEBYTECODE=1; the package size is reported
+    - execution-report.yaml lists everything its deliverable names, including the stop point reached and the no-scratch-read and read-scope statement
+  return_format: >-
+    A short report listing: the build-base result; EC-A1 and the scripts with
+    their pins; the fixture exercise; runs and attempts with statuses and
+    completeness; every gate and control result with its report path; the
+    outcome id; failed instances, CC-6 and height-screen exclusions;
+    unexpected observations; the package size; every deviation or ambiguity
+    recorded; the stop point reached (one of the TASK-20261002-33afa9 check
+    (d) branches); and the exact artifact paths for TASK-20261002-33afa9 to
+    stage, including which conditional paths exist.
+  review_required: true
+  review_required_note: >-
+    A claim-relevant producer. Its dependent validator and red-team tasks are
+    minted after TASK-20261002-33afa9 verifies, under a review_plan written
+    first (DEC-20261002-e7f8c9 NA-4; specification review_requirements). No
+    output of this task is read as evidence before they report.
+  review_plan: null
+  review_plan_note: No review round opens here.
+  dispatch_preconditions:
+    - >-
+      LEDGER ARCHIVE VERIFIED, CHECK (j) CLEAN. The TASK-20261002-4b35db
+      ledger receipt has verified with tools/research_dispatch.py, records
+      check (j) of DEC-20261002-e7f8c9 approval_reference_table (AP-001 to
+      AP-115, AP-K1, AP-K2) with no MISS, and the branch is pushed, so
+      DEC-20261002-e7f8c9, the frozen specification, this card and
+      TASK-20261002-33afa9 are committed and published. Until it holds, this
+      card is not dispatched, whatever else holds.
+    - archived_by is bound on this card (TASK-20261002-33afa9); satisfied as written.
+    - >-
+      CLAIMED BEFORE LAUNCH. The task is claimed before the subagent starts
+      (tools/goal_lanes.py claim on its dispatch queue if one exists;
+      otherwise a tools/agent_bus.py claim message addressed to coordinator,
+      as for TASK-20261002-33047e and TASK-20261002-729fc9) and released with
+      its outcome on return. goal_id is null, so there is no goal lane.
+    - >-
+      ENGINE IDENTITY ON THE MERGED TREE. origin/main is merged into the
+      working branch (merge, never rebase) immediately before launch, and
+      then every file of src/crypto_autoresearcher/index_calculus/ and every
+      tests/test_index_calculus_*.py equals its 38be58dad bytes;
+      tests/test_index_calculus_smallx_offset.py is absent;
+      experiments/EXP-PFDR-0b3699/ holds only specification.yaml. Otherwise a
+      Coordinator decision comes first.
+    - >-
+      NO COMPETING WRITER. No other open task, lane claim, bus-announced work
+      or unmerged branch holds write scope over the three EC-A1 files,
+      src/crypto_autoresearcher/index_calculus/**, tests/test_index_calculus_*.py,
+      tests/fixtures/**, experiments/EXP-PFDR-0b3699/** or
+      experiments/EXP-PFDR-011cd0/** (check open PRs and the coordinator
+      inbox).
+    - >-
+      RESOURCES. No other solver, review computation or archive is running on
+      the host at launch; at least 14 GB of memory and at least 4 GB of free
+      disk are available; the interpreter of the INTERPRETER constraint
+      exists (AP-100).
+    - The working tree is /home/user/crypto-autoresearcher on branch claude/point-decomposition-index-calculus-1rfntm or its successor carrying the TASK-20261002-4b35db commit.
+    - >-
+      A FRESH executor subagent context, not a resumed session of any task
+      named in the FRESH CONTEXT constraint. The launch prompt names: this
+      card; experiments/EXP-PFDR-0b3699/specification.yaml;
+      "DEC-20261002-e7f8c9, fields id, decision, decision_label, target_ids,
+      approval, transcription and official_transitions only"; the verified
+      TASK-20261002-4b35db receipt and that its check (j) recorded no MISS;
+      the base commit. It carries no summary of any review report, any
+      EXP-PFDR-011cd0 result beyond the specification's P0 inputs, the
+      reasoning of any decision, or any earlier session's conversation.
+  runs_launched: 0
