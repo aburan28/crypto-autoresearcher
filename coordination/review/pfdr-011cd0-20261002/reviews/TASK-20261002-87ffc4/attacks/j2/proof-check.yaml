@@ -1,0 +1,175 @@
+# TASK-20261002-87ffc4 red team -- J2 step-by-step check of Lemmas L1, L2 and the L3 sketch
+# (ledger/hypotheses/H-PFDR-2765d2.yaml lemmas, read at the package commit 5753edf2e).
+# Every "verified" item names the computation it rests on (attacks/j2/out/*.json).
+# Provenance: everything here is internal (files opened by this reviewer). The knowledge index
+# (search_knowledge) is not exposed in this session; no index answer was obtained, and no
+# number-theoretic or statistical fact below is cited from it. The facts used are elementary
+# (linear algebra over a field; finite points of a prime-order group) and are argued here.
+L1:
+  statement_checked: >-
+    For N prime, L uniform on (Z/N)^s and a FIXED finite set V of nonzero integer vectors:
+    outside the null event, n_P = sum_r M_r I_r and R = sum_r I_r, with E[n_P] = sum M_r / N,
+    Var[n_P] = (1/N)(1 - 1/N) sum M_r^2, E[R] = |RR|/N, Var[R] = (1/N)(1 - 1/N)|RR|.
+  steps:
+    - step: setting -- "u, w linearly independent mod N coincide in x iff (u-w).L = 0 or (u+w).L = 0; both hold only if u.L = w.L = 0"
+      check: >-
+        Two FINITE points of a group of odd prime order have equal x iff they are equal or
+        opposite, i.e. u.L = +-w.L (mod N). If exactly one of u.L, w.L is 0 the identity has no
+        x and neither condition holds ((u-w).L = -w.L != 0). Both conditions together give
+        2u.L = 0, so u.L = 0 because N is odd. Correct; uses N odd (true: N prime > 4 sqrt(p)).
+      verdict: holds
+    - step: null event bound "probability <= |V|/N"
+      check: >-
+        Union bound over u in V of P(u.L = 0) = 1/N (each u nonzero mod N since its coefficients
+        are small and N is large). Valid, loose. Exact toy (A2: h 2, s 4, N 31, every L):
+        P(null) = 0.054 (TT) and 0.149 (TB) against bounds 0.516 and 0.645.
+      verdict: holds
+    - step: "the engine stores no point at infinity"
+      check: >-
+        Code read at the package commit: tails.py _build_numpy drops identity sums through the
+        ok1/ok2 masks and _plus_minus returning None (lines 309-337, 367-382); _build_python
+        appends only non-None sums (275-282); FactorBase._from_xs/random/small_x keep only lifted
+        points with y != 0 (factor_base.py 156-189); harvest.py records only the finite
+        encodings R' -/+ F_j (docstring lines 10-12). Engine validation (validate.json): every
+        stored code decodes to a finite point whose y-bit equals the code's low bit, 24/24 cases.
+      verdict: holds
+    - step: proof (1) "v nonzero mod N => v.L uniform"
+      check: >-
+        Needs some coordinate v_i to be a UNIT mod N; true for every nonzero v when N is prime.
+        PTM-L (N = 16, composite, every L enumerated): 16 relation classes such as (2, 14, 0, 0)
+        have P(v.L = 0) = 0.125 = 2/N; the proof fails visibly at this step there.
+      verdict: holds (for N prime)
+    - step: proof (2) "distinct projective classes => representatives linearly independent => (v_r.L, v_r'.L) uniform on (Z/N)^2 => I_r, I_r' independent"
+      check: >-
+        Over a field two nonzero vectors are dependent iff one is a scalar multiple of the other,
+        so distinct projective classes are independent and the linear map is onto F_N^2; the
+        pushforward of the uniform law under a surjective linear map is uniform. Correct.
+        PTM-L (N = 15, composite): 144 class pairs, e.g. (3,1,0,0) and (3,4,0,0), have
+        P(both) = 0.0133 against P*P = 0.0044 although no class is a unit multiple of the other;
+        Var[R*] = 8.75 against the formula's 5.97 (D_R 1.37 against 0.93). The proof fails
+        visibly at step (2) there, as it must.
+      verdict: holds (for N prime)
+    - step: proof (3) moments by linearity and vanishing covariances
+      check: >-
+        Exact enumeration (toy_enum.json part A, h 2, s 4, N 31, all 923521 L): E and Var of
+        R* = sum I_r and of nP* = sum M_r I_r equal the four formulas as exact rationals, for TT
+        (|RR| 96, sum M 240, sum M^2 912) and for TB with the bipartite pair set (|RR| 44, sum M
+        120, sum M^2 384). Part C1 (h 3, s 6, N 7, all 117649 L): exact equality again (TT |RR|
+        2648; TB |RR| 456).
+      verdict: holds
+    - step: proof (4) every x-coincident signed pair lies in exactly one class; n_P and R equal the representations outside the null event
+      check: >-
+        Exact (toy_enum2 part A2, identity-only drops, every L in (Z/31)^4): R_engine == R* and
+        nP_engine == nP* on EVERY L outside the null event, TT and TB. Dependent pairs
+        (e.g. TB (e_b, 2e_b), 8 signed pairs in the toy) never coincide off the null event (0
+        coincidences counted). h = 3 (l2_splits.json C3b, admissible law, s 8, N 1009, 20000
+        draws): every one of the 816 engine-vs-representation disagreements falls on a draw with
+        the null event (>= 2 formally distinct stored candidates summing to the identity); 0 off it.
+      verdict: holds
+    - step: corollary C1 (pair counts not Poisson; D_P = (1 - 1/N) Mbar_w >= 1)
+      check: >-
+        Cauchy-Schwarz step correct. "TT at arity 2 (generic relations only) D_P = 3(1 - 1/N); at
+        arity 3, 10(1 - 1/N)": correct for generic-only sets, but at m = 5 the stored set carries
+        non-generic relations with large multiplicity (4-term relations: M = 36 at s = 8, about
+        6s at s ~ 100; observed TT5 multiplicities up to 642), so the realised TT5 D_P is about
+        30, not 10 (heuristics.json and attacks/j8). C1 is used only through H1b with OBSERVED
+        multiplicities, which is the right use.
+      verdict: holds (the "generic only" qualifier is load-bearing at m = 5)
+    - step: corollary C2 (D_R = 1 - 1/N; higher moments not covered)
+      check: >-
+        Third cumulant, exact toy (part A, TT): k3(R*) = 15.274 against 2.804 for mutually
+        independent indicators; the excess equals EXACTLY 6 T (p^2 - p^3) with T = 2064 dependent
+        (rank-2) class triples (TB: 192 triples, also exact). This is where pairwise independence
+        stops. Scale: the relative excess of k3 over the Poisson value is about 6 |V| / N, i.e.
+        large at the toy (|V|/N ~ 0.5) and of order 1e-3 or less at 30-32 bits (|V| = s^2 ~ 1e5-1e6
+        at m = 3, N ~ 2^30-2^32).
+      verdict: holds (caveat confirmed and located)
+  wording_findings:
+    - id: L1-W1
+      text: >-
+        For TB the setting sentence ("V = the stored tails together with the unit vectors e_b")
+        read literally over ALL pairs of V would also count tail-tail (TT) pairs and base-base
+        pairs. The harvester and I-1 count TB on the bipartite (base, tail) pair set only. The
+        proof uses only "a fixed set of pairs, each mapped to one class", so it holds unchanged on
+        the bipartite set; the statement should say so. Not a proof defect.
+    - id: L1-W2
+      text: >-
+        "Then E[n_P] = ..." states moments of the representations sum M_r I_r and sum I_r, which
+        equal the engine counts only outside the null event; the engine counts' moments differ by
+        the null event's contribution (toy A2 under U: E[R] -0.9%, Var[R] -10.6% at N = 31;
+        negligible at N ~ 2^30). Precise wording: the moments are exact for R* and nP*.
+  application_to_the_engine:
+    question: Is the engine's stored set V independent of L (no x-key deduplication, cap or early return at build)?
+    finding: >-
+      YES, up to identity drops that are harmless outside L1's null event. tails.py stores every
+      ordering ((i_1, s_1)..(i_h, s_h)), i_1 <= .. <= i_h, s_1 = +1, whose suffix sums are all
+      nonzero; it keeps every tail sharing an x (x-groups are kept, sorted, never deduplicated),
+      has no cap, and has no early return in either build. The only L-dependence is the drop of
+      a candidate whose sum is the identity: at h = 2 never, given the engine's distinct-x base
+      (deterministic drop of (a,+1),(a,-1) only); at h = 3 the 3-term and (2,1)-type zero sums
+      (28.7% of draws at s 8, N 1009; changing no count off the null event, C3b). The harvester's
+      formal deduplication (oriented vectors equal) and the removal of +-e_b tails from TT (they
+      are TB formal duplicates of the base element, harvest.py table_phase) are functions of
+      the integer vectors only. This reviewer's reimplementation of the stored set equals the
+      engine's TailTable multiset exactly (validate.json: 6 curves (12-14 bits, s 6-10) x {h 2, h 3} x {numpy,
+      Python} builds, all_ok true).
+    qualifications:
+      - id: A-Q1
+        text: TB pair set is bipartite (L1-W1).
+      - id: A-Q2
+        text: >-
+          The stored set contains repeated-index tails that L2's assumption does not mention:
+          2e_a at h = 2 (s of them); at h = 3 2e_a +- e_c, e_a +- 2e_b, 3e_a and the single-element
+          vectors +-e_c (stored 2c + 1 times each, merged as formal duplicates and removed from TT).
+          They generate the non-generic relation classes (l2_splits.json M_by_shape).
+      - id: A-Q3
+        text: >-
+          The engine's L is NOT U: FactorBase.random draws distinct x (L_i != 0, L_i != +-L_j).
+          Under that admissible law, classes such as [e_a - e_b] have probability 0, not 1/N, and
+          a pair of tails sharing an index loses one of its two coincidence classes. Effects
+          (toy_enum2 part G, MC 20000 draws, h 2): E[R]/formula 0.960 +- 0.012 (s 10, N 10007),
+          0.9957 +- 0.003 (s 20); D_R 1.012, 0.982 (formula 0.9999); the PAIR first moment is
+          lower by about 2/s (-19% at s 10, -9% at s 20). At 30-32 bits (s ~ 740-930 at m = 3) the
+          pair-moment bias is about -0.2% to -0.3%, consistent with the archived H1a TT3 ratio
+          0.9976. These are HEUR-2765d2-H4's subject, which the experiment tests empirically;
+          L1 itself is exact only under U.
+  verdict_L1: >-
+    holds -- correct as stated within U, proof complete (steps 1-4 checked; exact toy moments),
+    applies to the engine's stored set (V independent of L off the null event), with wording
+    fixes L1-W1, L1-W2 and the U-versus-admissible-law gap A-Q3 routed to H4.
+L2:
+  assumption_checked: >-
+    "The table stores exactly one representative of each +- pair of signed h-term sums over h
+    distinct base indices (s_1 = +1)." TRUE for distinct-index sums (each such sum has exactly one
+    ordering with i_1 < .. < i_h and s_1 = +1; validate.json all_s1_plus true on every case),
+    but the table ALSO stores repeated-index sums (A-Q2), so "exactly" must not be read as "the
+    table contains only these".
+  claim_checked: >-
+    Enumeration on the engine's stored set at s = 8 over F_(2^31 - 1) (l2_splits.json): every
+    generic TT relation has M = 3 at h = 2 (560 classes) and M = 10 at h = 3 (896 classes);
+    every generic TB relation has M = 3 at h = 2 (224) and M = 4 at h = 3 (560). Repeated-index
+    tails never split a generic relation (support or coefficient mismatch), so A-Q2 does not
+    touch the claim.
+  nongeneric_M_examples:
+    h2: 'TT 2e_a - e_b - e_c: M = 2 (L2 formula would give 3); TT 3e_a + e_b: M = 1 (the only M = 1 shape at h = 2 in the enumeration, so the single M = 1 relation in the archived TT3 histogram can only be of the form 3e_a +- e_b; inferred, the relation itself was not opened); TB 2e_a + e_b: M = 2'
+    h3: 'TT e_a + e_b + e_c - e_d (4-term): M = 36 at s = 8 (about 6s, i.e. ~600 at s ~ 100, matching the archived TT5 multiplicities 233-642); TT 5-term with one coefficient 2: M = 7; TB 2e_a + e_b + e_c: M = 3'
+  verdict_L2: holds -- correct under its assumption; the assumption holds for distinct-index sums in the engine's table; non-generic relations are, as L2 says, left to the analysis (which uses observed multiplicities).
+L3:
+  where_the_fixed_set_hypothesis_fails: >-
+    (1) Early return: decompose.py _level2 and _walk_candidates return at the first index whose
+    tail lookup completes a decomposition (lines 210-218 and 244-252), and the recorder is told to
+    scan only the CHARGED range [lo, i] (recorder.scan(R, lo, i)); the recorded encodings of an
+    attempt therefore depend on where the first decomposition falls, i.e. on L (and on the
+    target's log). Search mode keeps this behaviour (EC-3: "exactly as in census mode").
+    (2) X_fix truncation: the at_X_fix snapshot counts pairs whose later element has
+    formally-distinct sequence number < X_fix (EC-3); sequence numbers follow recording order,
+    which inherits (1). Formal-duplicate detection itself is a function of integer vectors.
+  reliance_check: >-
+    The design does not rely on L3 as proved: for SS, G-NB-R takes m_j = the rung mean of the
+    three randoms and D from the randoms (A-CAL; analyze_relcensus build_calibration_groups
+    1278-1281), so t*, z, X_rel and A-INT for SS are empirical; H1a/H1b for SS TEST the L3 fixed-
+    set prediction rather than assume it. The one design-side use of the fixed-set first moment
+    for SS is CC-9 resolvability (E[C_R] from X_fix(X_fix - 1)/N / Mbar), a membership check that
+    every SS cell met by a wide margin (design.json E_C_R_uniform 5149-21714 >= 100); it is not
+    decision-bearing.
+  verdict_L3: holds as a sketch whose non-reliance is honoured; no proof and no counterexample.
