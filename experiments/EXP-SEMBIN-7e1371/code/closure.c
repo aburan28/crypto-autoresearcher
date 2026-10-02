@@ -18,6 +18,8 @@
  *
  * Exact arithmetic; deterministic; single-threaded; no randomness anywhere.
  */
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <m4ri/m4ri.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -230,6 +232,53 @@ __attribute__((unused)) static long rows_not_vanishing(const mzd_t *M, rci_t upt
     return bad;
 }
 
+/* Structural check of every elimination's output, always on. ech(M, full)
+ * must leave rows 0..r-1 in REDUCED row echelon form -- leading columns
+ * strictly increasing, and each pivot column zero in every other row -- and
+ * rows r.. zero. M4RI 0.0.20200125's mzd_echelonize_pluq returned a 148601 x
+ * 149986 output at (43,2,2,22) N=44 claiming rank 139204 with only 131030
+ * distinct leading columns; the run went on to a verdict. Any violation now
+ * counts as a fault and closure_run stops with an error instead. Costs one
+ * pass over the matrix, small beside the elimination. It cannot see a wrong
+ * matrix that is still well formed: that is what ECH_EVALCHECK is for. */
+static long ech_faults_ = 0;
+long closure_ech_faults(void) { return ech_faults_; }
+static int ech_output_ok(const mzd_t *M, rci_t r) {
+    long nw = M->width;
+    word tail = (M->ncols & 63) ? ((1ULL << (M->ncols & 63)) - 1) : ~0ULL;
+    u64 *pm = calloc(nw ? nw : 1, sizeof(u64));
+    long *lm = malloc(sizeof(long) * (r ? r : 1));
+    long prev = -1;
+    int ok = 1;
+    for (rci_t i = 0; ok && i < r; i++) {
+        const word *row = mzd_row((mzd_t *)M, i);
+        long fc = -1;
+        for (long w = 0; w < nw; w++) {
+            word x = row[w]; if (w == nw - 1) x &= tail;
+            if (x) { fc = w * 64 + __builtin_ctzll(x); break; }
+        }
+        if (fc < 0 || fc <= prev) { ok = 0; fprintf(stderr, "[ech check] row %d: leading column %ld after %ld\n", (int)i, fc, prev); break; }
+        lm[i] = prev = fc;
+        pm[fc >> 6] |= 1ULL << (fc & 63);
+    }
+    for (rci_t i = 0; ok && i < r; i++) {
+        const word *row = mzd_row((mzd_t *)M, i);
+        for (long w = 0; w < nw; w++) {
+            word expect = ((lm[i] >> 6) == w) ? (1ULL << (lm[i] & 63)) : 0;
+            if ((row[w] & pm[w]) != expect) { ok = 0; fprintf(stderr, "[ech check] row %d not reduced\n", (int)i); break; }
+        }
+    }
+    for (rci_t i = r; ok && i < M->nrows; i++) {
+        const word *row = mzd_row((mzd_t *)M, i);
+        for (long w = 0; w < nw; w++) {
+            word x = row[w]; if (w == nw - 1) x &= tail;
+            if (x) { ok = 0; fprintf(stderr, "[ech check] row %d beyond rank %d is nonzero\n", (int)i, (int)r); break; }
+        }
+    }
+    free(pm); free(lm);
+    return ok;
+}
+
 static rci_t ech(mzd_t *M) {
 #if defined(ECH_CROSSCHECK)
     mzd_t *C = mzd_copy(NULL, M);
@@ -272,8 +321,31 @@ static rci_t ech(mzd_t *M) {
 #else
     rci_t r1 = mzd_echelonize_pluq(M, 1);
 #endif
+    if (!ech_output_ok(M, r1)) {
+        ech_faults_++;
+        fprintf(stderr, "[ech check] call %ld (%d x %d, rank %d): output NOT in reduced echelon form\n",
+                ech_calls_, (int)M->nrows, (int)M->ncols, (int)r1);
+        r1 = -1;   /* callers treat a negative rank as an instrument fault */
+    }
     ech_calls_++;
     return r1;
+}
+
+/* The M4RI shared object actually loaded, resolved at run time from the address
+ * of mzd_init (its file name carries the release, e.g. libm4ri-0.0.20240729.so).
+ * Recorded with every result: 0.0.20200125 lacks upstream commit 34b1b56
+ * (2020-05-14, "fix count for remaining number of rows in a block", M4RI issue
+ * #74), which corrects row windows into multi-block matrices -- the regime of
+ * every elimination found unsound here. */
+const char *closure_m4ri_library(void) {
+    static char buf[4096];
+    Dl_info info;
+    if (dladdr((void *)&mzd_init, &info) && info.dli_fname) {
+        char *rp = realpath(info.dli_fname, NULL);
+        snprintf(buf, sizeof buf, "%s", rp ? rp : info.dli_fname);
+        free(rp);
+    } else snprintf(buf, sizeof buf, "unknown");
+    return buf;
 }
 
 /* Which routine ech() runs in this build, recorded in every result so a
@@ -627,6 +699,12 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             write_product(M, g, gen_masks + gen_ptr[g], cnt, 0, tmp);
         }
         long rk = ech(M);
+        if (rk < 0) {
+            mzd_free(M);
+            free(tmp); free(rbuf);
+            *out_iters = 0; *out_rank = 0; *out_contains_one = 0; *out_max_rows_seen = ngens;
+            return 2;
+        }
         install_basis(M, rk);
         mzd_free(M);
         iter_rows[0] = ngens; iter_rank[0] = rk; iter_newpiv[0] = rk; iter_wall[0] = now_sec() - t0;
@@ -658,6 +736,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
 #if defined(ECH_LEGACY)
         long batch_max = 0;
 #endif
+        int resumed_here = resume_now;
         if (resume_now) {
             resume_now = 0;
             n_new = R.n_new; n_prod = R.n_prod; total_rows = R.total_rows; total_new_piv = R.total_new_piv;
@@ -741,7 +820,11 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
                                  cur_c = gen_ptr[newrows[idx] + 1] - gen_ptr[newrows[idx]]; } \
             else { cur_c = row_masks(NM, (idx), rbuf); cur_m = rbuf; } } while (0)
         /* stream products in batches */
-        int found_one = (!single_level && rank_ > 0 && is_pivot_[ncols_ - 1]);
+        /* On resume, 1 may already be in the restored basis (the kill came
+         * after its batch). A fresh iteration keeps the original behaviour --
+         * found_one is only set after a batch -- so ranks reported when 1 lies
+         * in the generators' span match RUN-SEMBIN-9bb990. */
+        int found_one = resumed_here && rank_ > 0 && is_pivot_[ncols_ - 1];
         if (a < n_new) LOAD_ROW(a);
         int dg_a = (a < n_new) ? poly_deg(cur_m, cur_c) : 0;
         while (a < n_new && !found_one) {
@@ -769,6 +852,18 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             double tb = now_sec();
             long rk2 = ech(S);
             long old_rank = rank_;
+            if (rk2 >= 0) {
+                /* S contains the old basis, so every old leading column must
+                 * still lead: the set of leading monomials only grows */
+                char *np = calloc(ncols_, 1);
+                for (long i = 0; i < rk2; i++) { long fc = first_col(S, i); if (fc >= 0) np[fc] = 1; }
+                for (long j = 0; j < ncols_; j++) if (is_pivot_[j] && !np[j]) {
+                    fprintf(stderr, "[ech check] pivot column %ld lost in elimination\n", j);
+                    ech_faults_++; rk2 = -1; break;
+                }
+                free(np);
+            }
+            if (rk2 < 0) { mzd_free(S); hit_cap = 2; break; }
             if (verbose()) fprintf(stderr, "[closure D=%d it=%d] batch rows=%ld (basis %ld + %ld products) -> rank %ld (+%ld) echelon %.1fs\n",
                                    D, it, rank_ + filled, rank_, filled, rk2, rk2 - old_rank, now_sec() - tb);
             /* install: keep previous new flags */

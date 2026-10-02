@@ -57,6 +57,9 @@ _lib.closure_dropped_terms.restype = ctypes.c_longlong
 _lib.closure_reset_dropped.restype = None
 _lib.closure_elimination.restype = ctypes.c_char_p
 _lib.closure_resumed.restype = ctypes.c_long
+_lib.closure_ech_faults.restype = ctypes.c_long
+_lib.closure_m4ri_library.restype = ctypes.c_char_p
+M4RI_LIBRARY = _lib.closure_m4ri_library().decode()
 ELIMINATION = _lib.closure_elimination().decode()
 _lib.closure_row_masks.restype = ctypes.c_long
 _lib.closure_row_masks.argtypes = [ctypes.c_long, ctypes.c_void_p]
@@ -136,7 +139,11 @@ def _run(N, D, equations, max_iter, mem_cap_gb):
             "elimination": ELIMINATION,
             # Times this process resumed the closure from a CLOSURE_CKPT_DIR
             # checkpoint (cumulative per process); 0 when checkpointing is off.
-            "checkpoint_resumes": int(_lib.closure_resumed())}
+            "checkpoint_resumes": int(_lib.closure_resumed()),
+            # Eliminations whose output failed the structural check in ech()
+            # (cumulative per process); a fault ends the run with rc 2, "error".
+            "elimination_faults": int(_lib.closure_ech_faults()),
+            "m4ri_library": M4RI_LIBRARY}
 
 
 def _lm_stats(D):
