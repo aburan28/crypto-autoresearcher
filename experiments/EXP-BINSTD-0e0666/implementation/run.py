@@ -371,6 +371,122 @@ def build_window_basis(n: int, l: int) -> list[int]:
     return [1 << i for i in range(l)]
 
 
+def _poly_mod(a: int, mod: int) -> int:
+    md = mod.bit_length() - 1
+    r = a
+    while r and r.bit_length() - 1 >= md:
+        r ^= mod << (r.bit_length() - 1 - md)
+    return r
+
+
+def _poly_divmod(a: int, b: int) -> tuple[int, int]:
+    q = 0
+    r = a
+    bd = b.bit_length() - 1
+    while r and r.bit_length() - 1 >= bd:
+        shift = (r.bit_length() - 1) - bd
+        q ^= 1 << shift
+        r ^= b << shift
+    return q, r
+
+
+def _apply_linearized(poly: int, x: int, F: Field) -> int:
+    """Evaluate linearized associate of poly = sum a_i X^i at x: sum a_i x^{2^i}."""
+    y = 0
+    p = poly
+    xi = x
+    while p:
+        if p & 1:
+            y ^= xi
+        xi = F.square(xi)
+        p >>= 1
+    return y
+
+
+def _kernel_basis_f2(poly: int, F: Field, n: int) -> list[int]:
+    """Nullspace basis over F_2 of the linearized map attached to poly."""
+    mats = [_apply_linearized(poly, 1 << i, F) for i in range(n)]
+    rows = [0] * n
+    for i in range(n):
+        row = 0
+        for j in range(n):
+            if (mats[j] >> i) & 1:
+                row |= 1 << j
+        rows[i] = row
+    rank = 0
+    pivots = [-1] * n
+    for col in range(n):
+        piv = None
+        for r in range(rank, n):
+            if (rows[r] >> col) & 1:
+                piv = r
+                break
+        if piv is None:
+            continue
+        rows[rank], rows[piv] = rows[piv], rows[rank]
+        for r in range(n):
+            if r != rank and (rows[r] >> col) & 1:
+                rows[r] ^= rows[rank]
+        pivots[col] = rank
+        rank += 1
+    free = [c for c in range(n) if pivots[c] < 0]
+    basis: list[int] = []
+    for fvar in free:
+        vec = 0
+        for c in range(n):
+            if pivots[c] >= 0:
+                if (rows[pivots[c]] >> fvar) & 1:
+                    vec |= 1 << c
+            elif c == fvar:
+                vec |= 1 << c
+        basis.append(vec)
+    return basis
+
+
+def build_stable_phi_ker_basis(n: int, l: int, F: Field, which: int = 0) -> dict[str, Any]:
+    """Sigma-stable basis of dim l via ker of a deg-ord_n(2) Phi_n factor (+ const).
+
+    For odd prime n with d=ord_n(2) and f=(n-1)/d Phi_n factors of deg d over F_2,
+    each factor's linearized kernel is a d-dimensional sigma-stable subspace.
+    Dim d+1 appends the constants (span{1}). Used for Stage-1 F0 on true stable
+    arms (AMD-EXP-BINSTD-0e0666-20261002-694b9f); window proxy remains recorded.
+    """
+    d = ord_n_of_2(n)
+    if l not in (d, d + 1):
+        return {"ok": False, "reason": f"l={l} not in {{d,d+1}} for d={d}"}
+    xn1 = (1 << n) ^ 1  # X^n + 1 in char 2
+    phi, rem = _poly_divmod(xn1, 0b11)  # / (X+1)
+    if rem != 0:
+        return {"ok": False, "reason": "X^n+1 not divisible by X+1"}
+    factors = []
+    for low in range(1 << d):
+        cand = (1 << d) | low
+        if _poly_mod(phi, cand) == 0:
+            factors.append(cand)
+    if not factors:
+        return {"ok": False, "reason": "no deg-d Phi_n factors found"}
+    fac = factors[which % len(factors)]
+    basis = _kernel_basis_f2(fac, F, n)
+    if len(basis) != d:
+        return {"ok": False, "reason": f"ker dim {len(basis)} != {d}", "factor": hex(fac)}
+    if l == d + 1:
+        # append constant 1 if independent
+        if not subspace_member(1, basis):
+            basis = basis + [1]
+        else:
+            return {"ok": False, "reason": "constant already in ker; cannot form d+1"}
+    return {
+        "ok": True,
+        "basis": basis,
+        "kind": "phi_n_ker_stable",
+        "l": l,
+        "phi_factor": hex(fac),
+        "factor_index": which % len(factors),
+        "factor_count": len(factors),
+        "ord_n_2": d,
+    }
+
+
 def subspace_member(coords: int, basis: list[int]) -> bool:
     """Whether field element (bit vector) lies in span of basis over F_2."""
     # Gauss: try to express coords as combo of basis
@@ -629,25 +745,32 @@ def stage1(run_dir: Path) -> dict[str, Any]:
         if not lam_rec["ok"]:
             impediments.append("lambda_not_found_n17")
 
+    # True sigma-stable bases via Phi_n linearized kernels (ord_17(2)=8).
+    # Window / random arms remain recorded as non-stable controls.
+    stab8 = build_stable_phi_ker_basis(n, 8, F, which=0)
+    stab9 = build_stable_phi_ker_basis(n, 9, F, which=0)
+    if not stab8.get("ok") or not stab9.get("ok"):
+        impediments.append(
+            f"stable_basis_build_failed: l8={stab8.get('reason')} l9={stab9.get('reason')}"
+        )
     bases = {
-        "stable_l8": build_window_basis(n, 8),  # window coincides with a stable dim set member;
-        "stable_l9": build_window_basis(n, 9),
+        "stable_l8": stab8.get("basis") or build_window_basis(n, 8),
+        "stable_l9": stab9.get("basis") or build_window_basis(n, 9),
         "window_deg_l9": build_window_basis(n, 9),
         "random_l9": random_basis(n, 9, seed=MASTER_SEED + 17),
     }
-    # Note: true sigma-stable bases of dim 8/9 require ker of Phi_n factors;
-    # window deg<l is a protocol non-stable / window arm. For F0(iii) the
-    # protocol asks stable bases; we mark window-as-proxy and record honesty.
     bases_meta = {
-        "stable_l8": {"kind": "window_proxy_for_stable_dim", "l": 8, "note": "explicit Phi_n-ker basis deferred if factorisation path impedes"},
-        "stable_l9": {"kind": "window_proxy_for_stable_dim", "l": 9, "note": "explicit Phi_n-ker basis deferred if factorisation path impedes"},
+        "stable_l8": {k: v for k, v in stab8.items() if k != "basis"} if stab8.get("ok")
+        else {"kind": "window_proxy_for_stable_dim", "l": 8, "note": stab8.get("reason")},
+        "stable_l9": {k: v for k, v in stab9.items() if k != "basis"} if stab9.get("ok")
+        else {"kind": "window_proxy_for_stable_dim", "l": 9, "note": stab9.get("reason")},
         "window_deg_l9": {"kind": "window_deg", "l": 9},
         "random_l9": {"kind": "random", "l": 9, "seed": MASTER_SEED + 17},
     }
 
-    if lam_rec.get("ok"):
+    if lam_rec.get("ok") and stab8.get("ok") and stab9.get("ok"):
         cayley_info["n17_a1"] = cayley_accident(lam_rec["lambda"], n, r)
-        # F0 — full G scan (protocol). May take wall-clock; watchdog covers it.
+        # F0 on true sigma-stable arms (window proxy was O-ARTIFACT on transport).
         f0_info = fixture_f0_n17(curve, gen, r, lam_rec["lambda"], {
             "stable_l8": bases["stable_l8"],
             "stable_l9": bases["stable_l9"],
@@ -655,6 +778,9 @@ def stage1(run_dir: Path) -> dict[str, Any]:
         if not f0_info.get("overall_ok"):
             # Still write artifacts; outcome O-ARTIFACT per protocol
             pass
+    elif lam_rec.get("ok"):
+        cayley_info["n17_a1"] = cayley_accident(lam_rec["lambda"], n, r)
+        f0_info = {"overall_ok": False, "reason": "stable_basis_unavailable"}
     else:
         cayley_info["n17_a1"] = {"ok": False, "reason": "no_lambda"}
         f0_info = {"overall_ok": False, "reason": "no_lambda"}
