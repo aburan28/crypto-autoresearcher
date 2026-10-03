@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""EXP-BINSTD-27f623 Stages 0-1 driver: usable-dimensions emptiness gate.
+"""EXP-BINSTD-27f623 Stages 0-2 driver: usable-dimensions emptiness gate.
 
 Stdlib-only. Reimplements the Part-1 ord_n(2) / usable_dimensions predicates
 from EXP-BINSTD-178742 part1_surface.py so Stages 0-1 admit without Magma/Sage.
-No factor-base construction. No AUXIN. Amazon Bedrock prohibited.
+Stage 2 (DEC-20261003-6d20b7): independent re-derive ord_n(2) for 3 frozen
+forced-negative members without reading Stage-1 census rows for the
+measurement. No factor-base construction. No AUXIN. Amazon Bedrock prohibited.
 """
 from __future__ import annotations
 
@@ -18,6 +20,10 @@ from typing import Any, Dict, List, Optional
 EXPERIMENT_ID = "EXP-BINSTD-27f623"
 HYPOTHESIS_ID = "H-BINSTD-b1f016"
 SEED = 2026100311
+STAGE2_ADMISSION = "DEC-20261003-6d20b7"
+STAGE2_TASK_ID = "TASK-20261003-a5bab8"
+# IDEA-20261001-11aa69: independent re-derive ord for 3 list members.
+STAGE2_MEMBER_COUNT = 3
 
 # Stage-0-frozen panels (also written to stage0/frozen-panels.json).
 FORCED_NEGATIVE: List[int] = [11, 13, 19, 29, 37, 53, 59, 61, 67, 83, 101, 107]
@@ -430,9 +436,274 @@ def stage1(run_dir: Path, exp_root: Path) -> Dict[str, Any]:
     return result
 
 
+def independent_ord_n_of_2(n: int) -> Dict[str, Any]:
+    """Stage-2-only order re-derive: divisor ladder via pow only.
+
+    Deliberately does not call score_ord_row / ord_n_of_2_by_iteration /
+    ord_n_of_2_by_divisor_test used by Stage 1. Reads no Stage-1 census rows.
+    """
+    if n <= 2 or n % 2 == 0:
+        raise ValueError("n must be an odd integer > 2")
+    nm1 = n - 1
+    # Ascending divisor scan of n-1 using modular exponentiation only.
+    order = None
+    for d in _positive_divisors(nm1):
+        if pow(2, d, n) == 1:
+            order = d
+            break
+    if order is None:
+        raise ValueError(f"no order of 2 mod {n}")
+    # Minimal-order check: no proper prime-factor quotient also hits 1.
+    verified = True
+    for p in _prime_factors(order):
+        if pow(2, order // p, n) == 1:
+            verified = False
+            break
+    # Structural usable set when order divides n-1 (Part-1 filter).
+    usable: List[int] = []
+    stable: List[int] = []
+    if verified and nm1 % order == 0:
+        f = nm1 // order
+        for b in range(f + 1):
+            stable.append(b * order)
+            stable.append(b * order + 1)
+        usable = [x for x in stable if x not in (0, 1, n - 1, n)]
+    return {
+        "n": n,
+        "ord_n_2_independent": order,
+        "order_verified": verified,
+        "ord_equals_n_minus_1": order == nm1,
+        "stable_dimensions": stable,
+        "usable_dimensions": usable,
+        "method": "divisor_ladder_pow_only",
+        "reads_stage1_census": False,
+    }
+
+
+def stage2(run_dir: Path, exp_root: Path) -> Dict[str, Any]:
+    """Independent re-derive ord for 3 forced-negative panel members."""
+    stage0_dir = exp_root / "stage0"
+    panels_path = stage0_dir / "frozen-panels.json"
+    if not panels_path.is_file():
+        result = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "stage": 2,
+            "status": "failed_infrastructure",
+            "outcome": "O-IMPEDIMENT",
+            "reason": "Stage-0 freeze artifacts missing",
+            "certificate": {"kind": "none"},
+            "amazon_bedrock": "NOT SELECTED",
+            "task_id": STAGE2_TASK_ID,
+            "admission_decision": STAGE2_ADMISSION,
+            "recorded_at": utc_now(),
+        }
+        write_json(run_dir / "raw-result.json", {"result": result})
+        (run_dir / "manifest.yaml").write_text(
+            "\n".join(
+                [
+                    f"experiment_id: {EXPERIMENT_ID}",
+                    f"run_id: {run_dir.name}",
+                    "stage: 2",
+                    "status: failed_infrastructure",
+                    "outcome: O-IMPEDIMENT",
+                    f"admission_decision: {STAGE2_ADMISSION}",
+                    f"recorded_at: {utc_now()}",
+                    "",
+                ]
+            )
+        )
+        return result
+
+    panels = json.loads(panels_path.read_text())
+    forced = list(panels["forced_negative"])
+    members = forced[:STAGE2_MEMBER_COUNT]
+    if len(members) < STAGE2_MEMBER_COUNT:
+        result = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "stage": 2,
+            "status": "failed_infrastructure",
+            "outcome": "O-IMPEDIMENT",
+            "reason": f"forced_negative panel shorter than {STAGE2_MEMBER_COUNT}",
+            "certificate": {"kind": "none"},
+            "amazon_bedrock": "NOT SELECTED",
+            "task_id": STAGE2_TASK_ID,
+            "admission_decision": STAGE2_ADMISSION,
+            "recorded_at": utc_now(),
+        }
+        write_json(run_dir / "raw-result.json", {"result": result})
+        (run_dir / "manifest.yaml").write_text(
+            "\n".join(
+                [
+                    f"experiment_id: {EXPERIMENT_ID}",
+                    f"run_id: {run_dir.name}",
+                    "stage: 2",
+                    "status: failed_infrastructure",
+                    "outcome: O-IMPEDIMENT",
+                    f"admission_decision: {STAGE2_ADMISSION}",
+                    f"recorded_at: {utc_now()}",
+                    "",
+                ]
+            )
+        )
+        return result
+
+    rows = [independent_ord_n_of_2(n) for n in members]
+
+    # Optional post-hoc agreement vs Stage-1 census (not an input to re-derive).
+    census_path = exp_root / "stage1" / "census-matrix.json"
+    comparisons: List[Dict[str, Any]] = []
+    stage1_present = census_path.is_file()
+    if stage1_present:
+        census = json.loads(census_path.read_text())
+        by_n = {
+            int(r["n"]): r
+            for r in census.get("forced_negative_rows", [])
+            if "n" in r
+        }
+        for row in rows:
+            prior = by_n.get(int(row["n"]), {})
+            comparisons.append(
+                {
+                    "n": row["n"],
+                    "independent_ord": row["ord_n_2_independent"],
+                    "stage1_ord": prior.get("ord_n_2"),
+                    "ord_agree": prior.get("ord_n_2") == row["ord_n_2_independent"],
+                    "independent_usable_empty": row["usable_dimensions"] == [],
+                    "stage1_usable_empty": prior.get("usable_dimensions") == [],
+                    "usable_empty_agree": (
+                        (row["usable_dimensions"] == [])
+                        == (prior.get("usable_dimensions") == [])
+                    ),
+                }
+            )
+
+    structural_ok = all(
+        r["order_verified"]
+        and r["ord_equals_n_minus_1"]
+        and r["usable_dimensions"] == []
+        for r in rows
+    )
+    if stage1_present:
+        posthoc_ok = all(
+            c.get("ord_agree") and c.get("usable_empty_agree") for c in comparisons
+        )
+        outcome = (
+            "S2-REPLICATE-AGREE"
+            if structural_ok and posthoc_ok
+            else "S2-REPLICATE-DISAGREE"
+        )
+    else:
+        # Stage-1 matrix missing is not disagreement; structural check alone.
+        outcome = "S2-REPLICATE-AGREE" if structural_ok else "S2-REPLICATE-DISAGREE"
+
+    stage2_dir = exp_root / "stage2"
+    payload = {
+        "schema": "binstd.usable_emptiness.stage2_independent_rederive.v1",
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "admission_decision": STAGE2_ADMISSION,
+        "task_id": STAGE2_TASK_ID,
+        "members": members,
+        "member_count": STAGE2_MEMBER_COUNT,
+        "rows": rows,
+        "posthoc_stage1_comparison": comparisons,
+        "stage1_census_present": stage1_present,
+        "metrics": {
+            "independent_ord_eq_n_minus_1_rate": (
+                sum(1 for r in rows if r["ord_equals_n_minus_1"]) / len(rows)
+            ),
+            "independent_usable_empty_rate": (
+                sum(1 for r in rows if r["usable_dimensions"] == []) / len(rows)
+            ),
+            "posthoc_ord_agreement_rate": (
+                (
+                    sum(1 for c in comparisons if c.get("ord_agree"))
+                    / max(len(comparisons), 1)
+                )
+                if comparisons
+                else None
+            ),
+        },
+        "outcome": outcome,
+        "certificate": {"kind": "none"},
+        "amazon_bedrock": "NOT SELECTED",
+        "note": (
+            "Independent pow-only divisor ladder on first 3 Stage-0 forced-"
+            "negatives; does not call Stage-1 score_ord_row. No break/exponent."
+        ),
+    }
+    h_rederive = write_json(stage2_dir / "independent-rederive.json", payload)
+
+    # Append Stage-2 block; do not erase Stage-0/1 RESULTS lines.
+    results_md = exp_root / "RESULTS.md"
+    prior = results_md.read_text() if results_md.is_file() else ""
+    marker = "## Stage 2 — independent re-derive"
+    block = "\n".join(
+        [
+            marker,
+            "",
+            f"- Admission: `{STAGE2_ADMISSION}` / `{STAGE2_TASK_ID}`",
+            f"- Outcome: **{outcome}**",
+            f"- Members: {members}",
+            f"- independent_ord_eq_n_minus_1_rate: "
+            f"{payload['metrics']['independent_ord_eq_n_minus_1_rate']}",
+            f"- independent_usable_empty_rate: "
+            f"{payload['metrics']['independent_usable_empty_rate']}",
+            f"- posthoc_ord_agreement_rate: "
+            f"{payload['metrics']['posthoc_ord_agreement_rate']}",
+            "",
+            "No break. No exponent. No deployed insecurity claim.",
+            "Amazon Bedrock not selected.",
+            "",
+        ]
+    )
+    if marker in prior:
+        head, _sep, _tail = prior.partition(marker)
+        results_md.write_text(head.rstrip() + "\n\n" + block)
+    else:
+        results_md.write_text(prior.rstrip() + "\n\n" + block)
+
+    result = {
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "stage": 2,
+        "status": "completed_valid",
+        "outcome": outcome,
+        "metrics": payload["metrics"],
+        "members": members,
+        "artifact_sha256": {
+            "stage2/independent-rederive.json": h_rederive,
+        },
+        "certificate": {"kind": "none"},
+        "amazon_bedrock": "NOT SELECTED",
+        "task_id": STAGE2_TASK_ID,
+        "admission_decision": STAGE2_ADMISSION,
+        "recorded_at": utc_now(),
+    }
+    write_json(run_dir / "raw-result.json", {"result": result})
+    (run_dir / "manifest.yaml").write_text(
+        "\n".join(
+            [
+                f"experiment_id: {EXPERIMENT_ID}",
+                f"run_id: {run_dir.name}",
+                "stage: 2",
+                "status: completed_valid",
+                f"outcome: {outcome}",
+                f"admission_decision: {STAGE2_ADMISSION}",
+                f"task_id: {STAGE2_TASK_ID}",
+                f"recorded_at: {utc_now()}",
+                "",
+            ]
+        )
+    )
+    return result
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", type=int, required=True, choices=[0, 1])
+    parser.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
     parser.add_argument("--trial-plan", type=str, required=True)
     parser.add_argument("--run-dir", type=str, required=True)
     args = parser.parse_args(argv)
@@ -443,8 +714,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.stage == 0:
         stage0(run_dir, exp_root)
-    else:
+    elif args.stage == 1:
         stage1(run_dir, exp_root)
+    else:
+        stage2(run_dir, exp_root)
     print(json.dumps({"ok": True, "stage": args.stage, "run_dir": str(run_dir)}))
     return 0
 

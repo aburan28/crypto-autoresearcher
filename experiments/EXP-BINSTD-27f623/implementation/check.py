@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post-run checker for EXP-BINSTD-27f623 Stages 0-1."""
+"""Post-run checker for EXP-BINSTD-27f623 Stages 0-2."""
 from __future__ import annotations
 
 import json
@@ -35,6 +35,16 @@ def main(argv: list[str] | None = None) -> int:
         "O-IMPEDIMENT",
     ):
         print(f"FAIL: stage1 outcome {result.get('outcome')!r}", file=sys.stderr)
+        return 1
+    if stage == 2 and result.get("outcome") not in (
+        "S2-REPLICATE-AGREE",
+        "S2-REPLICATE-DISAGREE",
+        "O-IMPEDIMENT",
+    ):
+        print(f"FAIL: stage2 outcome {result.get('outcome')!r}", file=sys.stderr)
+        return 1
+    if stage not in (0, 1, 2):
+        print(f"FAIL: unexpected stage {stage!r}", file=sys.stderr)
         return 1
     print(json.dumps({"ok": True, "stage": stage, "outcome": result.get("outcome")}))
     return 0
