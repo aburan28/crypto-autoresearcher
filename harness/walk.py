@@ -236,7 +236,10 @@ def solve_dp(inst: ECDLPInstance, dp_bits: int | None = None,
              branches: int = 32, max_walks: int = 4096,
              max_steps_per_walk: int | None = None,
              record_paths: bool = False, stop_on_solution: bool = True,
-             walk: AddingWalk | None = None) -> DPSearchResult:
+             walk: AddingWalk | None = None,
+             store: object | None = None,
+             campaign_id: str | None = None,
+             worker_id: str | None = None) -> DPSearchResult:
     """Recover k by distinguished-point parallel collision search.
 
     This is the method a real campaign runs: independent short walks are
@@ -251,9 +254,17 @@ def solve_dp(inst: ECDLPInstance, dp_bits: int | None = None,
     golden collision, up to `max_walks`. The first verified relation is still
     what is reported; the extra walks exist to observe the DP forest (yield,
     merge structure, drawings) and change no reported scalar.
+
+    Optional `store` is a DPStore (see `harness.rho_dp_store`): each hit DP is
+    also reported via `report_dp()`. Collisions detected remotely use the prior
+    (a,b) returned by the store. Local in-memory table is always kept so the
+    toy path works without Postgres; with a store, remote collisions can arrive
+    from other workers. Requires `campaign_id` when `store` is set.
     """
     E = inst.curve()
     n = inst.n
+    if store is not None and not campaign_id:
+        raise ValueError("solve_dp(store=...) requires campaign_id")
     if dp_bits is None:
         # Aim for ~sqrt(n)/8 walks of ~8*log2(n) steps at toy scale.
         dp_bits = max(1, (n.bit_length() // 2) - 1)
@@ -263,11 +274,16 @@ def solve_dp(inst: ECDLPInstance, dp_bits: int | None = None,
     if max_steps_per_walk is None:
         max_steps_per_walk = max(64, 40 << dp_bits)
 
+    # Late import keeps the walk kernel usable without the DP-store module path.
+    if store is not None:
+        from .rho_dp_store import coeff_bytes, point_key_from_affine
+
     ops0 = walk.group_operations
     seen: dict[Point, WalkState] = {}
     walks: list[DPWalk] = []
     steps = 0
     solved: tuple[int, Collision] | None = None
+    remote_dp_count = 0
     for w in range(max_walks):
         dw = walk_to_dp(walk, walk.start(f"dp{w}"), label=f"W{w}",
                         max_steps=max_steps_per_walk, record_path=record_paths)
@@ -275,6 +291,35 @@ def solve_dp(inst: ECDLPInstance, dp_bits: int | None = None,
         steps += dw.steps
         if not dw.hit_dp:
             continue
+
+        if store is not None:
+            pk = point_key_from_affine(dw.end.R, E.p)
+            outcome = store.report_dp(
+                campaign_id,
+                pk,
+                coeff_bytes(dw.end.a, n),
+                coeff_bytes(dw.end.b, n),
+                walk_seed=coeff_bytes(walk.seed),
+                steps=dw.steps,
+                worker_id=worker_id,
+            )
+            if outcome.is_new:
+                remote_dp_count += 1
+            elif outcome.is_collision and solved is None:
+                prior = WalkState(
+                    dw.end.R,
+                    outcome.prior_a_int if outcome.prior_a_int is not None else 0,
+                    outcome.prior_b_int if outcome.prior_b_int is not None else 0,
+                )
+                col = Collision(prior, dw.end)
+                k = walk.scalar_from(col)
+                if k is not None:
+                    solved = (k, col)
+                    if stop_on_solution:
+                        break
+                # Non-verifying remote collision: keep searching; do not treat as
+                # mathematical evidence against the instance.
+
         prev = seen.get(dw.end.R)
         if prev is None:
             seen[dw.end.R] = dw.end
@@ -289,11 +334,12 @@ def solve_dp(inst: ECDLPInstance, dp_bits: int | None = None,
         solved = (k, col)
         if stop_on_solution:
             break
+    dp_count = max(len(seen), remote_dp_count) if store is not None else len(seen)
     if solved is not None:
         return DPSearchResult(True, solved[0], walk.group_operations - ops0,
-                              walks, steps, len(seen), solved[1])
+                              walks, steps, dp_count, solved[1])
     return DPSearchResult(False, None, walk.group_operations - ops0, walks,
-                          steps, len(seen), None,
+                          steps, dp_count, None,
                           reason="no distinguished-point collision yielded an "
                                  "invertible relation within the walk budget")
 
