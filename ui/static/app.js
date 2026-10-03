@@ -2108,6 +2108,7 @@ async function viewRecord(id, params = new URLSearchParams()) {
   const src = sourceUrl(s.path);
   const isEntry = s.kind === 'KN';
   const front = isEntry && body.body && typeof body.body === 'object' ? body.body : null;
+  const corrections = Array.isArray(body.corrections) ? body.corrections : [];
 
   const panes = {};
   const paneHost = h('div', { class: 'panel-body record-pane', role: 'tabpanel', id: 'record-pane', tabindex: '0' });
@@ -2178,6 +2179,18 @@ async function viewRecord(id, params = new URLSearchParams()) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
+    corrections.length ? h('section', {
+      class: 'banner warn record-corrections', 'aria-label': 'Corrections to this record',
+    }, h('div', { class: 'stack' },
+      h('h2', {}, `Corrections to this record (${corrections.length})`),
+      h('p', {}, 'Read these corrections alongside the original record preserved below.'),
+      corrections.map(correction => h('article', { class: 'stack', style: 'gap:6px' },
+        h('div', { class: 'row' }, idLink(correction.id),
+          correction.date ? timeEl(correction.date, { dateOnly: true, style: 'date' }) : null),
+        h('p', {}, correction.summary || correction.field || 'See the linked correction.'),
+        correction.corrected_value ? h('details', {}, h('summary', {}, 'Read corrected scope and value'),
+          h('p', {}, correction.corrected_value),
+          correction.reason ? h('p', {}, correction.reason) : null) : null)))) : null,
     !body.verified && body.parse_error && !isEntry
       ? h('div', { class: 'banner bad' },
           h('div', {}, h('b', {}, 'this record does not parse. '), body.parse_error,
