@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent checker for EXP-SEMBIN-d830d5 Stage 0-1 run artifacts.
+"""Independent checker for EXP-SEMBIN-d830d5 Stage 0-2 run artifacts.
 
 Recomputes the EXP-SEMBIN-92724f D1 finite-k counting-cap identity without
 importing run.py stage drivers. Verifies raw-result.json / manifest.yaml.
@@ -15,7 +15,15 @@ from pathlib import Path
 EXPERIMENT_ID = "EXP-SEMBIN-d830d5"
 STAGE0_OK = {"S0-FREEZE-OK"}
 STAGE1_OK = {"SMOKE_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
+STAGE2_OK = {
+    "O-CONSERVED",
+    "O-EXCHANGED",
+    "O-NO-YIELD",
+    "O-ARTIFACT",
+    "O-IMPEDIMENT",
+}
 CANDIDATE_CELLS = [(24, 6, 3), (30, 7, 3), (36, 8, 4)]
+STAGE2_CELLS = [(30, 7, 3), (36, 8, 4)]
 
 
 def exact_counting_identity(k: int, m: int) -> bool:
@@ -102,6 +110,39 @@ def main() -> int:
             cap = json.loads(cap_path.read_text())
             if cap.get("all_identities_hold") is not True:
                 errs.append("stage1 cap file reports identities not holding")
+    elif stage == 2:
+        if outcome not in STAGE2_OK:
+            errs.append(f"stage2 outcome {outcome!r}")
+        for rel in (
+            "stage2/c2-rescope.json",
+            "stage2/ladder-rows.json",
+            "stage2/arm-summaries.json",
+            "stage2/ladder-note.md",
+            "RESULTS.md",
+        ):
+            if not (root / rel).is_file():
+                errs.append(f"missing stage2 file {rel}")
+        # Stage 0/1 must remain present (not rewritten away).
+        for rel in (
+            "stage0/preregistered-predictions.json",
+            "stage0/backend-probe.json",
+            "stage1/finite-k-cap-identity.json",
+        ):
+            if not (root / rel).is_file():
+                errs.append(f"missing required prior artifact {rel}")
+        rescope_path = root / "stage2/c2-rescope.json"
+        if rescope_path.is_file():
+            rs = json.loads(rescope_path.read_text())
+            cells = {(c["n"], c["k"], c["m"]) for c in rs.get("rescoped_cells") or []}
+            if cells != set(STAGE2_CELLS):
+                errs.append(f"c2-rescope cells {sorted(cells)} != {STAGE2_CELLS}")
+            if rs.get("rescoped_C2_sizes_required") != 2:
+                errs.append("c2-rescope sizes_required != 2")
+        results = (root / "RESULTS.md").read_text(encoding="utf-8")
+        if f"**{outcome}**" not in results and outcome not in results:
+            errs.append("RESULTS.md does not name the Stage-2 outcome")
+        if "Bedrock" not in results and "BEDROCK" not in results:
+            errs.append("RESULTS.md missing Bedrock marker")
     else:
         errs.append(f"unexpected stage {stage!r}")
 
