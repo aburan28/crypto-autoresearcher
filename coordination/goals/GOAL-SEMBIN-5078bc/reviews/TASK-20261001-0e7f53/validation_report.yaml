@@ -1,0 +1,582 @@
+# =============================================================================
+# VAL-20261002-2e4fd7 -- JV-1 of REVIEW-SEMBIN-20261001-04ec3c-v2
+# Validator, TASK-20261001-0e7f53. Snapshot b8019a6fb (RUN-SEMBIN-be48b7,
+# code/v2/, RESULTS-amd-e61f2b.md). Uncommitted review artifact; the
+# Coordinator's ledger archive task owns it. Changes no status.
+#
+# JOINT VERDICT: breaks, NARROWLY, on one clause of the joint: "FILL = s d is a
+# LOWER bound on building the table (not over- or under-charged)". FILL = s d
+# counts ORDERED s-tuples. The table is keyed by a symmetric sum, so the same
+# probe law is served exactly by a distinct-sum table that is ~log2(s!) bits
+# smaller. Every other clause holds: the arithmetic, the CALLS < 0 domain, and
+# the single-instance reading, including against precomputation baselines.
+# The break changes NO sub-rho count (0 remain under every variant). In domain
+# it moves no total by more than 0.968 bit, and per-degree minima by 0.40-0.92
+# bit.
+# =============================================================================
+validation_report:
+  id: VAL-20261002-2e4fd7
+  id_provenance: >-
+    Random 6-hex token (python secrets), since tools/allocate_id.py has no VAL
+    type (prior-round convention). `allocate_id.py --check VAL-20261002-2e4fd7`
+    -> "well-formed and free across the union" (36595 paths). The token also
+    occurs as a substring of unrelated hashes in two autolab file_manifest.jsonl
+    files. Neither is an identifier.
+  task_id: TASK-20261001-0e7f53
+  review_plan: REVIEW-SEMBIN-20261001-04ec3c-v2 (ledger/handoffs/TASK-20261001-41f6b3.yaml)
+  joint: JV-1
+  snapshot_commit: b8019a6fbf77ca1ddd1daf6c13b3e2d56d0a6639
+  head_at_review: 4a0b13aec8a48b49d6dd66c3dbefe986c51dc625 (no change under experiments/ vs b8019a6fb; every read was via `git show b8019a6fb:<path>`)
+  run_ids: [RUN-SEMBIN-be48b7]
+  experiment_id: EXP-SEMBIN-04ec3c
+  amendment: AMD-20261001-e61f2b
+
+  # ---------------------------------------------------------------------------
+  joint_verdict: breaks
+  joint_verdict_by_clause:
+    C1_driver_computes_header_block: holds
+    C2_FILL_is_a_lower_bound_not_over_or_under_charged: breaks
+    C3_CALLS_lt_0_exclusion_removes_exactly_the_out_of_domain_cells: holds (with a non-material labelling limitation, see L-4)
+    C4_single_instance_is_the_right_reading_for_the_vOW_comparison: holds (no v2 row falls below any precomputation or multi-instance baseline)
+  breaking_artifact:
+    statement: >-
+      A primary cell whose correctly construction-charged total differs from the
+      v2 value by more than rounding. FILL = s d charges |F|^s ordered s-tuples.
+      The table stores SUMS, and a sum is symmetric in its tuple, so each distinct
+      key is written ~s! times. A table of s-multiset sums has
+      binom(2^d + s - 1, s) ~ |F|^s / s! entries, and it serves the v2 probe law
+      o = (m - s) d with identical success. Any decomposition R = sum_I f_i is
+      hit through an (m - s)-sub-multiset probe whose complement's sum is in the
+      table, perhaps under a different representative, which still yields a
+      valid relation. It is built at one group addition plus one write per entry:
+      depth-first over non-decreasing index tuples, each node = parent sum + one
+      element, internal nodes ~1/|F| of the total. So FILL over-charges by
+      log2 s!, from 1 bit (s = 2) to 15.30 bits (s = 8).
+    cells:
+      - cell: n = 131, MITM, B unlimited, m = 8, s = 4, d = 20.5 (the v2 per-degree primary minimum at n = 131)
+        v2: {PROBE: 82.7992, FILL: 82.0000, LA: 41.0, TOTAL: 83.4543, margin_vs_VOW: +19.129, margin_vs_PUB: +22.645}
+        distinct_entry_FILL: 77.4150
+        corrected_TOTAL: 82.8332
+        delta_bits: -0.621
+        corrected_margins: {vs_VOW: +18.508, vs_PUB: +22.024}
+      - cell: n = 131, MITM, B unlimited, m = 10, s = 5, d = 16.75 (largest in-domain change, budget law unchanged)
+        v2_TOTAL: 84.7707
+        corrected_TOTAL: 83.8027
+        delta_bits: -0.968
+      - cell: n = 233, MITM_CAPPED, B = 2^100, m = 4, d = 50.5 (budget law applied to the distinct entries actually stored)
+        v2: {s: 1, TOTAL: 237.585}
+        corrected: {s: 2, TOTAL: 187.085, log2_distinct_entries: 100.0}
+        delta_bits: -50.5
+        note: both totals are far above VOW (116.33). Shown only as the largest per-cell effect.
+    bounded_consequence: >-
+      (i) Every variant leaves the sub-rho count at 0: VD (distinct FILL, budget
+      law unchanged) and VDB (budget law on distinct entries), against both VOW
+      and PUB at n = 131. (ii) In domain PROBE >= FILL holds exactly (max
+      FILL - PROBE = 0.0, reached only at CALLS = 0), so with the budget law
+      unchanged the FILL term moves any in-domain TOTAL by less than 1 bit (max
+      0.968). (iii) Per-degree minimum margins vs VOW move 97: 16.551 -> 15.857;
+      109: 17.699 -> 16.781; 131: 19.129 -> 18.508; 163: 21.648 -> 21.244;
+      191: 23.648 -> 23.244; 233: 26.220 -> 25.474; 239: 26.779 -> 26.264;
+      283: 29.037 -> 28.472; 409: 35.497 -> 34.761; 571: 42.852 -> 42.012.
+      (iv) With the budget law on distinct entries, per-budget minima drop by up
+      to 3.508 bits (233, B = 2^100) and the B = 2^80 rows by 0.694-3.000 bits.
+      The smallest per-budget margin stays +15.857 (n = 97). (v) E-1 survives
+      intact. E-2 survives as a fixture of the header model (v2 implements the
+      header exactly). As a "construction-charged cost", E-2 overstates by
+      0.40-0.92 bits per degree. The v2 TOTALs are upper bounds on the
+      construction-charged cost of their own oracle, not lower bounds. They may
+      not be quoted as lower bounds.
+    escalation: >-
+      None warranted by this break. It makes IC cheaper by under 1 bit in domain
+      and creates no sub-rho cell. It is a model-specification over-count in the
+      amendment header (ordered table size inherited from v1's MITM "memory
+      |F|^floor(m/2)"), not an implementation defect in the v2 driver.
+
+  # ---------------------------------------------------------------------------
+  artifact_checks:
+    - check: snapshot bytes bound to the run
+      result: pass
+      detail: >-
+        49 of 49 sha256 digests in runs/RUN-SEMBIN-be48b7/artifact-digests.json
+        (run directory, code_v2, inputs_read, v1_artifacts) match the bytes at
+        b8019a6fb (jv1_artifact_binding.py). Inputs: the r source
+        inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md = a21e56ef...,
+        and AMD-20261001-e61f2b.yaml = c2cee118...
+    - check: reproducibility pointer exercised (rebuilt from scratch, not asserted)
+      result: pass
+      detail: >-
+        `git archive b8019a6fb` of experiments/EXP-SEMBIN-04ec3c and
+        inputs/BAILEY-2009-541-ECC2K130 was extracted into the session
+        scratchpad, outside the shared worktree. Then
+        `PYTHONDONTWRITEBYTECODE=1 PYTHONHASHSEED=0 python3
+        experiments/EXP-SEMBIN-04ec3c/code/v2/run_v2.py --run-dir rerun` ran
+        (exit 0, 23.5 s wall). Rebuilt artifacts: rerun/raw-result.json,
+        rerun/gate/gate_report.json, rerun/gate/mutants/{M1..M4}_gate_output.json,
+        and the four mutant sources. raw-result.json is byte-identical (sha256
+        4df28d20...). The mutant sources are byte-identical. gate_report.json and
+        the four mutant gate outputs differ only in measured `seconds` fields
+        (1 field each). Scratch files are not committed and are not review
+        artifacts.
+    - check: command / revision / dirty-tree / seed / environment
+      result: pass, with a disclosed dirty tree
+      detail: >-
+        command.txt records run_v2.py via launch.py with RLIMIT_AS = 2 GiB and a
+        1800 s timeout. The manifest records code.commit 271fc205 with
+        dirty: true. The only dirty path was untracked code/v2/, bound by the
+        code_v2 digests above, which match the snapshot. The run is seedless and
+        deterministic, which the byte-identical rebuild confirms. Python 3.11.15,
+        standard library only.
+    - check: snapshot provenance (procedure, not content)
+      result: deviation recorded, content unaffected
+      detail: >-
+        b8019a6fb is committed and pushed (branch up to date with origin), so
+        the receipt is not working-tree-only. However: (a) its message names
+        TASK-20261001-c2a58e, not TASK-20261001-41f6b3, and it carries outcome
+        claims ("C-IMPL-GATE passes ... 0 primary sub-rho cells") beyond "v2
+        producer artifacts, unreviewed". TASK-20261001-41f6b3's completion_gate
+        forbids both. (b) `git grep` finds no post-commit snapshot receipt for
+        TASK-20261001-41f6b3 in committed state. Content verification above does
+        not depend on either point. The Coordinator should resolve both by
+        correction record, not by editing anything.
+
+  metric_recomputations:
+    - id: R1 every cell vs the snapshot driver
+      script: jv1_every_cell_vs_driver.py
+      method: >-
+        JV-1's header-block implementation (jv1_header_model.py) was written and
+        run BEFORE code/v2/ was opened. It was then compared field by field with
+        model_v2.py, extracted from b8019a6fb, on every cell of the sweep: 10
+        degrees x 4 models x {1 or 9} budgets x m 2..16 x d grid, at both
+        d-bounds.
+      result: 2,609,280 cells; s mismatches 0; domain-flag mismatches 0; max |diff| 0.0 bits on TPR, CALLS, PROBE, FILL, LA, TOTAL.
+      harness_power: >-
+        The same comparison against the snapshot's four mutants (degrees 97 and
+        131, 163,080 cells) flags M1 on 100% of cells (max |dTOTAL| 44.25), M2
+        on 15.6% (131.0), M3 on 67.8% (1300.0) and M4 on 53.2% (85.6)
+        (jv1_harness_power.py). The 0.0 against the true driver is not vacuous.
+    - id: R2 raw-result argmin rows
+      script: jv1_diff_primary.py (D1, D2)
+      result: >-
+        3600 of 3600 rows: every field (s, TPR, CALLS, PROBE, FILL, LA, TOTAL,
+        VOW, margin_vs_VOW, margin_vs_PUB, subrho flags, log2_table_entries)
+        matches with max |diff| 0.0. No argmin row is out of domain. PUB appears
+        only at n = 131. An independent grid argmin reproduces every row's TOTAL
+        (max |diff| 0.0) and every unique argmin d.
+    - id: R3 cell counts
+      script: jv1_diff_primary.py (D3)
+      result: >-
+        240 of 240 cell_counts rows match exactly (cells, in_domain,
+        out_of_domain, subrho_vs_VOW, subrho_vs_PUB). Primary at bound n:
+        362,219 in domain and 1,233,991 out of domain, 0 sub-rho vs VOW, 0 vs
+        PUB(131). The out-of-domain counts by (degree, model) all match. FREE
+        control sub-rho counts are reproduced (e.g. 304 at n = 97). The
+        accounting can produce sub-rho cells when the oracle is charged nothing,
+        so its 0 on the primary is not blindness.
+    - id: R4 generic-lower-bound flag (C-3)
+      script: jv1_diff_primary.py (D4), jv1_flag_slack_check.py
+      result: >-
+        It fires on 0 cells. The per-degree minimum slack in raw is taken over
+        ALL primary cells, in and out of domain. Recomputed on that scope it
+        matches raw exactly (0.0 at every degree). Restricted to in-domain cells
+        it is up to 0.21 bits higher at 163, 191, 239 and 571. That is a scope
+        difference, not a defect, and RESULTS T2 says "in or out of domain".
+    - id: R5 E-2 localisation (Coordinator prior item (d) fires)
+      script: jv1_diff_primary.py (D5, D6), jv1_continuous_minima.py
+      result: >-
+        The exact real-d minima (convex per constant-s piece, golden section)
+        reproduce E-2 within 0.006 bits at all ten degrees: margins vs VOW are
+        +16.541, +17.688, +19.117, +21.545, +23.545, +26.216, +26.550, +28.994,
+        +35.488, +42.701. At n = 131 the minimum is 2^83.442 at m = 8, s = 4,
+        d = 20.555 (vs PUB +22.633). The v2 driver reports grid minima on the
+        inherited v1 0.25-step d grid, and every per-degree argmin sits within
+        one grid step of the CALLS = 0 edge. Grid minus real-d: 239 +0.230,
+        571 +0.151, 163 and 191 +0.103, all others <= 0.043. Both >0.1-bit E-2
+        disagreements that RESULTS T5 left unresolved therefore localise to the
+        v2 driver's d GRID. They do not localise to its cost function, which is
+        exact (R1), nor to J1 or J3, whose values the real-d minimum reproduces.
+        Grid excess elsewhere: up to 0.333 bits on a per-budget minimum (283,
+        B = 2^50, m 6, s 3, real d = 50/3) and up to 1.286 bits on a single
+        (m, B) argmin row (571, MITM_CAPPED, B = 2^40, m 15, real d = 40/7,
+        where the budget step s = floor(log2 B / d) falls between grid points).
+        Every excess is upward, so grid minima overstate margins; that is
+        conservative for the negative. Raw per-budget minima equal the JV-1
+        grid minima exactly.
+    - id: R6 domain exclusion clamped instead of dropped
+      script: jv1_diff_primary.py (D7)
+      result: >-
+        Every CALLS < 0 primary cell is re-costed at one oracle call
+        (PROBE = o). 0 become sub-rho. The minimum clamped margin vs VOW is
+        +17.17 (n = 97). The exclusion hides no would-be sub-rho cell.
+
+  control_checks:
+    - control: attribution of the v1 sub-rho cells between C-1 (construction charge) and C-2 (CALLS >= 0)
+      script: jv1_fill_charge_variants.py (VNOFILL, VNOGUARD, VNEITHER)
+      result: >-
+        C-2 alone (FILL removed, guard kept): 0 sub-rho cells, per-degree
+        margins +15.666 .. +42.010. C-1 alone (FILL kept, guard removed,
+        unclamped): 0 sub-rho cells. Neither (= v1 probe-only reading): 19,434
+        sub-rho cells vs VOW and 638 vs PUB(131). Each correction is
+        individually sufficient. In domain, C-1 moves no total by 1 bit or more,
+        because PROBE >= FILL there (K1). FINDING: the v2 receipt does not
+        isolate build time as "the asymmetry". RESULTS headline 9 and C-6(iv)'s
+        reported branch ("the oracle's unpriced STORE was not the asymmetry; the
+        unpriced BUILD TIME was") is one of two equally supported attributions.
+        The other is the sub-one-oracle-call extrapolation that C-2 removes. The
+        wording is JV-3's; the substance is reported here because it concerns
+        what the construction charge does inside the domain.
+    - control: small-d yield (in-domain cells where the |F|^m / m! decomposition count is invalid)
+      script: jv1_domain_checks.py (K2)
+      result: >-
+        With TPR recomputed from the exact m-multiset count binom(2^d + m - 1, m),
+        and the guard recomputed, there are 0 sub-rho cells (minimum margin
+        +16.551). 13,530 in-domain primary cells have 2^d < m (fewer than m
+        factor-base elements). 500 argmin rows sit at such cells: 280 ENUM rows
+        at d = 1.0 (ENUM's total is d-independent, so its argmin d is a
+        tie-break at the lower bound), 200 rows with s = 1 at d = 1.0, and 20
+        MITM_CAPPED rows at d = 3.75. Their minimum margin is +51.26. v2's
+        C-DEGENERATE-M rule ("k = N/m < 2, or m > n, or d < 1") does not flag
+        |F| < m. The flag at_d_lower_bound is set on these rows.
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction
+      result: not applicable as validation
+      detail: >-
+        The experiment is a cost-model fixture. E-1..E-4 are declared post-data,
+        reviewer-derived, and exploratory_only. Their agreement is evidence about
+        the v2 implementation, not about the model, as the Coordinator's prior
+        itself states.
+    - check: sample integrity / correspondence validity
+      result: not applicable (deterministic, seedless arithmetic; no sampling; no curve)
+
+  cost_model_checks:
+    - check: unit declared
+      result: pass
+      detail: >-
+        One operation per group op, probe, multiply-add or table write (RESULTS
+        line 10; C-1). Attainability of one op per table entry (attack step 3):
+        ATTAINABLE. Depth-first enumeration gives one group addition per entry
+        plus one write. This matches the v1 convention that a probe (one group
+        op plus one lookup) counts as one. Under a stricter unit that counts the
+        group op and the memory access separately, both FILL and PROBE gain
+        about 1 bit, and so does the rho iteration (step plus distinguished-point
+        check). FILL is therefore NOT under-charged. It IS over-charged by
+        ~log2 s! relative to the distinct-entry table (the breaking artifact).
+    - check: optimistic assumptions flagged
+      result: pass
+      detail: >-
+        The unit, LA = |F|^2, the relation count |F| and HEUR-VOW-CURVE are
+        flagged in RESULTS. Not flagged: the ordered-tuple table size (the
+        over-count above) and the ordered-probe redundancy (m - s)!. X-1 covers
+        the probe side; nothing in the receipt covers the table side.
+    - check: memory reported alongside time
+      result: partial
+      detail: >-
+        log2_table_entries is reported per row. log2 bits is not reported (PD-7
+        "store in entries only"), although v1 metrics[2] asks for entries AND
+        bits. The entries are themselves overstated by log2 s! (ordered count).
+    - check: total = per-attempt cost x inverse success probability
+      result: pass
+      detail: >-
+        PROBE = K + TPR + o = log2(relations x m! N / |F|^m x per-trial oracle
+        cost), with p from the declared heuristic and recomputed exactly (R1).
+        Where TPR < 0 (p > 1), the model reads 1/p < 1 as several relations per
+        oracle call, which is consistent with an MITM call that returns every
+        decomposition of its target. C-2 floors the relation phase at one call.
+        At every per-degree argmin the whole relation phase is 2^0.24 .. 2^2.04
+        oracle calls (n = 97: 2^0.24 calls, each yielding ~2^21.0 relations).
+        The v2 minima are "one or two full MITM passes" figures, and the
+        construction charge binds only at that edge.
+    - check: most IC-favourable constant accounting within the v2 s-range (exploratory, not a v2 row)
+      script: jv1_favourable_constants.py
+      result: >-
+        X-1's probe side (s! for m!) combined with distinct-entry FILL and the
+        budget on distinct entries gives 0 sub-rho cells. Per-degree margins vs
+        VOW: under X-1's own CALLS guard, +9.59 (97) .. +27.97 (571); under a
+        bare at-least-one-probe floor, +5.48 (97) .. +21.39 (571). The latter is
+        bound-tracking at m = 16 (s = 8). Analytically the balanced minimum is
+        N/2 + (N/2 + log2 s!)/(2s - 1) + 1, which exceeds VOW = N/2 - 0.175 at
+        every s, so no constant-level re-accounting of this generic MITM class
+        reaches rho at any m.
+
+  precomputation_reading_checks:
+    scope: >-
+      Attack step 2. All 362,219 in-domain v2 primary cells (bound n, ENUM / MITM
+      / MITM_CAPPED, every budget, v2 oracle laws). Script
+      jv1_precomputation_readings.py; per-degree minima in jv1_summary.json.
+    readings:
+      P1: free table; per-target online = log2(2^PROBE + 2^LA); advice = s d entries
+      P2: free table AND free factor-base logs + LA; per-target online = one descent = max(TPR, 0) + o; advice = log2(2^(s d) + 2^d)
+      P3a: T = 2^t targets, table built once and charged, relation phase + LA per target, amortised per target
+      P3b: T targets, table + factor-base logs + LA built once and charged, one descent per target, amortised
+      t_values: [0, 10, 20, 30, 40, N/4, N/3, N/2]
+    baselines:
+      VOW: log2 0.886 + N/2 (HEUR-VOW-CURVE, unvalidated). Rho may ignore advice or targets, so every reading's best baseline is <= VOW.
+      BL_on(a): >-
+        log2 1.77 + (N - a)/2, floored at 0. Bernstein-Lange 2012, KN-LIT-7cc07f
+        (kb; confidence reported; full text not read): anchor 1.77 l^(1/3)
+        online with an l^(1/3) table. The sqrt(N/A) scaling off-anchor is an
+        assumption.
+      CGK(a): >-
+        (N - a)/2. Shape of the S T^2 ~ N generic preprocessing bound,
+        KN-LIT-013 (kb; confidence reported; full text not read). S is taken in
+        ENTRIES (IC-favourable), with epsilon = 1 and polylog factors dropped.
+      BLopt(t): >-
+        log2(2 sqrt(1.24 x 1.77)) + (N - t)/2. BL precomputation
+        1.24 sqrt(N A) + T x 1.77 sqrt(N/A), with table A optimised, amortised
+        per target. Derived here from the KN-LIT-7cc07f anchor.
+      KS(t): >-
+        0.5 + (N - t)/2, i.e. sqrt(2 T N) total. Kuhn-Struik, KN-LIT-f47b10
+        (kb; the record marks the constant "standard statement; exact constant
+        not re-verified"). Yun 2015's matching generic lower bound is named
+        inside that record and is recalled, not read.
+    result_on_v2_rows: >-
+      0 cells below baseline in any reading, at any degree or T. Minimum margins
+      per degree, with 97 and 571 as the ends: P1 vs min(VOW, BL_on) +46.54 ..
+      +204.51; P1 vs VOW +15.67 .. +42.01; P2 vs min(VOW, BL_on) +24.18 ..
+      +142.68; P2 vs VOW +0.675 at every degree; P3a vs min(VOW, KS, BLopt)
+      +16.55 .. +42.85; P3b +14.52 .. +40.50; vs the CGK shape, P1 >= +47.37
+      and P2 >= +25.00. THE v2-ROW CONCLUSION NEEDS NO RECALLED CONSTANT. With
+      table, factor-base logs and linear algebra ALL free, the per-target
+      descent of every in-domain v2 cell costs at least (N + L)/2 >= (N + 1)/2.
+      The proof: s <= m/2 together with at least one oracle call. That is VOW
+      + 0.675 bits, attained by ENUM m = 2 at d = (N + 1)/2, whose advice is
+      just F. Every reading's best baseline is <= VOW, so no precomputation or
+      multi-instance reading of the v2 rows can win. Prior item (c) does not
+      fire on the v2 rows.
+    exploratory_extension_EXT:
+      definition: >-
+        NOT a v2 row; outside the v2 oracle laws. Table side s in 1..m-1,
+        distinct-entry table FILL = log2 binom(2^d + s - 1, s), one probe per
+        group op hitting with probability 2^(FILL - N), descent
+        max(N - FILL, 0), relation phase d + max(N - FILL, 0). This is the
+        strongest IC-favourable precomputation oracle this reviewer could
+        construct. Algebraically it is randomised baby-step giant-step whose
+        baby steps are s-sums of F.
+      result: >-
+        Free-precomputation online vs BL_on at matched advice (a <= N/2):
+        >= +23.47 bits, 0 below. Vs the CGK shape: >= 0.00, touching only when
+        the table holds the whole group. Amortised over T: vs KS >= +0.50 at
+        every degree and T (0 below); vs min(VOW, KS, BLopt) >= +0.50 (0 below).
+        Vs BLopt alone: -0.567 bits at T >= ~2^10..2^30, i.e. 2 sqrt(N/T)
+        against 2.96 sqrt(N/T).
+      reading_of_the_BLopt_crossing: >-
+        Not a break and not breakthrough-shaped, in this reviewer's judgement;
+        the Coordinator decides. (1) EXT is not a v2 row. (2) BLopt is BL's
+        small-table point. It is the right baseline for online time against
+        ADVICE SIZE, where EXT loses by >= 23 bits. It is not the best generic
+        algorithm for AMORTISED time with unconstrained memory; Kuhn-Struik is
+        cheaper there, and EXT loses to it by 0.50. (3) The 0.567-bit gap is
+        exactly the constant ratio of randomised BSGS (2 sqrt(TN), memory
+        sqrt(TN)) to BL's optimised amortisation (2.96 sqrt(TN), memory ~T). It
+        is a known property of generic algorithms, not an index-calculus
+        advantage. (4) The +0.50 margin over KS rests on a constant that
+        KN-LIT-f47b10 marks as not re-verified. It is a pointer for retrieval,
+        not support.
+
+  proof_architecture_checks:
+    - check: baseline fixture
+      result: pass
+      detail: The v2 cost function reproduces the amendment header block exactly on every cell (R1). The A1/C-FLOOR-REPRO table is outside JV-1.
+    - check: interface preservation (oracle table -> construction charge)
+      result: fail on one clause
+      detail: >-
+        The ordered-to-distinct loss is not recorded. FILL and the store budget
+        inherit the ordered size |F|^s from v1's MITM memory law, so the charge
+        is an upper bound on the table's construction rather than the declared
+        lower bound. This is the breaking artifact.
+
+  verdict: passed
+  verdict_scope: >-
+    The RECEIPT is admissible as an implementation-fidelity fixture of the
+    AMD-20261001-e61f2b header model. Every cell reproduces exactly, the rebuild
+    is byte-identical, and digests bind 49/49. The JOINT breaks on the FILL
+    lower-bound clause. The two verdicts answer different questions: v2 computes
+    exactly what the header says, and what the header says over-counts the
+    table by ~log2 s!. A passed report makes the receipt admissible evidence. It
+    does not support an ECDLP claim, demonstrate or refute a speedup, authorize
+    promotion, or license quoting v2 TOTALs as lower bounds on
+    construction-charged cost.
+
+  limitations:
+    - id: L-1
+      text: >-
+        Dispatch precondition gap. No committed handoff card for
+        TASK-20261001-0e7f53 exists in committed state (`git grep` finds the id
+        only in TASK-20261001-41f6b3's reviewer_cards reservation). The plan
+        requires each reviewer card written and committed, with archived_by
+        bound, BEFORE dispatch. AGENTS.md standing precondition 1 also applies.
+        This reviewer was dispatched by message. This report is therefore an
+        unowned working-tree artifact until the Coordinator's ledger archive
+        commits it. Recorded as the dispatcher's deviation; it does not change
+        any computation here.
+    - id: L-2
+      text: >-
+        Snapshot gate items for TASK-20261001-41f6b3 are unmet in committed
+        state: the commit message names the executor task and carries outcome
+        claims, and no post-commit snapshot receipt exists. Content is
+        independently bound (artifact_checks). The Coordinator should record a
+        correction.
+    - id: L-3
+      text: >-
+        All baselines other than VOW rest on kb records with confidence
+        `reported` whose full texts were not read: KN-LIT-7cc07f, KN-LIT-013,
+        KN-LIT-f47b10. BL's off-anchor scaling and KS's constant are assumptions
+        or recalled. The conclusion on v2 rows does not depend on them (P2
+        floor vs VOW). Only the EXT exploratory margins do.
+    - id: L-4
+      text: >-
+        C-2's domain is "at least one oracle call". It does not exclude 13,530
+        in-domain cells with 2^d < m, and 500 argmin rows sit there. None is
+        sub-rho or a per-degree minimum. Their argmin d is a lower-bound
+        tie-break, not an optimum.
+    - id: L-5
+      text: >-
+        Grid minima are not real-d minima. They exceed them by up to 0.230 bits
+        per degree, 0.333 per budget minimum and 1.286 per (m, B) row, always
+        upward. Any figure quoted as "the minimum over d" should say "on the
+        v1 0.25 grid", or use the real-d values in R5.
+    - id: L-6
+      text: >-
+        Scope. Cost-model arithmetic only, claim tier heuristic_estimate. No
+        curve was instantiated. No statement is made about any curve's security.
+        The m range is 2..16 except for the analytic floors stated.
+    - id: L-7
+      text: >-
+        This reviewer did not read the previous round's reports (permitted but
+        not needed), so J3 section 3's "every store-free cell loses to
+        Bernstein-Lange at matched store" was neither checked against nor used.
+        The precomputation results above are independent of it.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/validation_report.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_header_model.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_diff_primary.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_diff_primary_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_every_cell_vs_driver.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_every_cell_vs_driver_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_harness_power.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_harness_power_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_flag_slack_check.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_flag_slack_check_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_continuous_minima.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_continuous_minima_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_fill_charge_variants.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_fill_charge_variants_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_domain_checks.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_domain_checks_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_precomputation_readings.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_precomputation_readings_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_favourable_constants.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_favourable_constants_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_artifact_binding.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_artifact_binding_output.json
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_summarise.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-0e7f53/jv1_summary.json
+  reproduce: >-
+    From the repository root, run each script with python3 3.11, standard
+    library only, in this order: jv1_header_model.py, jv1_diff_primary.py (~5
+    min), jv1_every_cell_vs_driver.py, jv1_harness_power.py,
+    jv1_flag_slack_check.py, jv1_continuous_minima.py,
+    jv1_fill_charge_variants.py, jv1_domain_checks.py,
+    jv1_precomputation_readings.py, jv1_favourable_constants.py,
+    jv1_artifact_binding.py, jv1_summarise.py. Every snapshot input is read via
+    `git show b8019a6fb:<path>`.
+
+  handoff: >-
+    For the Coordinator's ledger archive task of this round. Not committed by
+    the Validator. No ledger, status or producer artifact was changed.
+
+  review_attestation:
+    task_id: TASK-20261001-0e7f53
+    joints_owned: [JV-1]
+    verdict: breaks
+    verdict_note: >-
+      Breaks on the clause "FILL = s d is a LOWER bound on building the table
+      (not over- or under-charged)" by ~log2 s! (artifact above). Holds on the
+      driver-computes-header clause (exact, 2,609,280 cells), on the CALLS < 0
+      domain clause, and on the single-instance-reading clause. No v2 row falls
+      below any precomputation or multi-instance baseline. 0 sub-rho cells under
+      every variant computed.
+    read_sibling_reports: false
+    read_sibling_reports_note: >-
+      At task start, before any TASK-20261001-* reviewer directory existed,
+      coordination/goals/GOAL-SEMBIN-5078bc/reviews/ was listed by name only.
+      The listing showed the five TASK-20260928-* directories. No
+      TASK-20261001-* report was listed or opened at any point. From the
+      previous round (permitted), only the three `id: VAL-...` lines returned by
+      a grep for the identifier convention were seen. After this report was
+      written, a final `git status --porcelain` printed the NAMES of three
+      untracked sibling directories (reviews/TASK-20261001-6a4d08/, -b2c916/,
+      -f39c27/). None of their files was listed or opened, and nothing in this
+      report was changed in response.
+    incidental_exposures:
+      - >-
+        `git show --stat 4a0b13aec` displayed the commit message of
+        TASK-20261001-9b3e70 (zero-compute successor drafts), including the
+        phrase "D2 hybrid-oracle question (literal C-yes trigger fired via PCS
+        batched harvesting, no sub-rho cell; flagged for Coordinator ruling)".
+        That is not a reviewer report of this round. No file of that task was
+        opened, and nothing here relies on it.
+      - >-
+        A `git grep TASK-20261001-41f6b3` showed single-line fragments of
+        ledger/decisions/DEC-20261001-5c9e7a.yaml (lines 330, 578, 715, 800,
+        823, 843), TASK-20261001-7d04c9.yaml (96), TASK-20261001-c2a58e.yaml
+        (118, 145), and coordination/events/main/3feb29161b7e.yaml (30). The
+        files themselves were not opened.
+    sources_read:
+      - agents/validator.md
+      - AGENTS.md (heading outline; lines 156-215, 491-660)
+      - CLAUDE.md (session-provided)
+      - ledger/handoffs/TASK-20261001-41f6b3.yaml (full)
+      - experiments/EXP-SEMBIN-04ec3c/amendments/AMD-20261001-e61f2b.yaml @b8019a6fb (full)
+      - experiments/EXP-SEMBIN-04ec3c/specification.yaml @b8019a6fb (lines 57-615 and a grep outline)
+      - inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md @b8019a6fb (grep excerpt, lines 227-338; sha256)
+      - knowledge/literature/KN-LIT-7cc07f.md (full)
+      - knowledge/literature/KN-LIT-013.md (full)
+      - knowledge/literature/KN-LIT-f47b10.md (lines 1-40)
+      - knowledge/literature/KN-LIT-7e25f1.md (lines 1-40)
+      - knowledge/literature/KN-LIT-5023.md (lines 1-40, incidental to the same loop)
+      - knowledge/literature/ (grep file lists for Kuhn, Struik, multi-instance, Yun)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/raw-result.json @b8019a6fb (full, programmatically)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/artifact-digests.json @b8019a6fb (full)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/manifest.yaml @b8019a6fb (lines 1-120)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/command.txt @b8019a6fb (full)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/gate/gate_report.json and gate/mutants/M1..M4_gate_output.json @b8019a6fb (programmatic diff against the rebuild only)
+      - experiments/EXP-SEMBIN-04ec3c/RESULTS-amd-e61f2b.md @b8019a6fb (lines 1-60 and grep hits)
+      - experiments/EXP-SEMBIN-04ec3c/code/v2/model_v2.py @b8019a6fb (full; opened AFTER jv1_header_model.py was written and run)
+      - experiments/EXP-SEMBIN-04ec3c/code/v2/run_v2.py @b8019a6fb (grep of import and file-access lines; executed in the rebuild)
+      - experiments/EXP-SEMBIN-04ec3c/code/v2/mutants/M1..M4 @b8019a6fb (executed in jv1_harness_power.py; header grep hits)
+      - experiments/EXP-SEMBIN-04ec3c/code/ (all of code/v2 executed in the scratchpad rebuild)
+      - experiments/EXP-SEMBIN-04ec3c/code/memory_charged_family.py (grep hits only, lines containing ECC2K130)
+      - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/pre-run-smoke-test-NOT-A-RUN/gate/mutants/*.py (grep hits only)
+      - tools/check_review_independence.py (lines 84-200, 340-470 and grep)
+      - tools/allocate_id.py (--help and --check output only)
+      - templates/research-records.md (lines 600-726)
+      - .claude/agents/validator.md (model and effort lines only)
+      - output of `python3 -m orchestration.adapter resolve --role validator --independent-session`
+      - "git metadata - `git show --stat` of b8019a6fb and 4a0b13aec; `git log --oneline`; `git grep` for TASK-20261001-0e7f53, TASK-20261001-41f6b3 and VAL-id conventions"
+      - coordination/goals/GOAL-SEMBIN-5078bc/reviews/ (directory names only)
+      - "coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-* (only the `id: VAL-` lines via grep; previous round, permitted)"
+    blind_from_respected: null
+    independent_session: true
+    independent_session_note: >-
+      Separate validator subagent context, launched by the Coordinator's
+      message. It shares the top-level harness session
+      (session_01QJpjKnWL42QvowBRsJ1gWZ, the same session URL as the executor's
+      commit b8019a6fb), but no producer context was visible to this reviewer
+      beyond the task message. This reviewer did not author the claim, the
+      amendment, the v2 code or E-2. The task was interrupted once by an API
+      session limit and resumed on the Coordinator's message under the same
+      rules.
+    requested_policy: review-adversarial
+    resolved_binding_per_adapter: anthropic:claude-opus-5 (effort=xhigh)
+    resolved_model_id: claude-opus-5-5
+    model_provenance: session-reported. The session was not launched through `adapter env` (AUTORESEARCH_POLICY unset). Effort xhigh comes from .claude/agents/validator.md.
+    model_verified: false
+    fallback_used: true
+    fallback_reason: >-
+      The policy alias was not resolved by the adapter at launch. The serving
+      model id the session reports (claude-opus-5-5) differs in string from the
+      adapter binding (anthropic:claude-opus-5), and whether they are the same
+      binding cannot be verified from inside the session. Declared rather than
+      assumed.
