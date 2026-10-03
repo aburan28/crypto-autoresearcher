@@ -1,0 +1,180 @@
+# EXP-CERTBIN-ec9d83
+# Half-fold memory identity vs the audit 16-byte pair column.
+# Approved by DEC-20261003-61f2d6. Stages 0-1 only. Arithmetic only.
+experiment:
+  id: EXP-CERTBIN-ec9d83
+  hypothesis_id: H-CERTBIN-e50e56
+  source_idea: IDEA-20260930-77ec1c
+  question_id: RQ-CERTBIN-836ce2
+  goal_id: GOAL-ECDLP2M-001
+  version: 1
+  title: Half-fold R_mem versus the audit pair column (printed-B rows)
+  status: approved
+  designed_at: '2026-10-03'
+  approved_by: coordinator
+  approval_decision_id: DEC-20261003-61f2d6
+  frozen: true
+  frozen_at: '2026-10-03'
+  execution_authorized: true
+  execution_authorized_stages: [0, 1]
+  execution_authorized_note: >-
+    Stages 0-1 authorized under DEC-20261003-61f2d6 and executor
+    TASK-20261003-f6dff4. Stage 0 freezes the printed table. Stage 1
+    is dual-route integer recomputation. Stage 2+ SAT/solver/MITM is
+    not authorized. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
+  class: measurement
+  claim_tier: measurement
+  objective: >-
+    Freeze the closed-form R_mem table from IDEA-20260930-77ec1c for
+    m in {3,4,7} and degrees 83/131 where B is printed, then
+    recompute those integers by two independent arithmetic routes
+    and emit exactly one of O-IDENTITY, O-COUNTEREXAMPLE,
+    O-ARTIFACT, O-IMPEDIMENT from Stage 1.
+
+  inputs:
+    proposal: ledger/proposals/IDEA-20260930-77ec1c.yaml
+    hypothesis: ledger/hypotheses/H-CERTBIN-e50e56.yaml
+    question: ledger/questions/RQ-CERTBIN-836ce2.yaml
+    entry_bytes: 16
+    gib_denominator: 1073741824
+    k_rule: floor(m/2)
+    m_k_formula: C(B+k-1, k)
+    m_pair_formula: B*(B-1)/2
+    rows:
+      - {id: n83-m3, degree: 83, m: 3, k: 1, B: 52544464, R_mem_printed: 3.806e-8, pair_gib_printed: 20570462.6}
+      - {id: n83-m4, degree: 83, m: 4, k: 2, B: 872790, R_mem_printed: 1.000002, pair_gib_printed: 5675.6}
+      - {id: n131-m4, degree: 131, m: 4, k: 2, B: 3574951633, R_mem_printed: 1.000000, pair_gib_printed: null}
+      - {id: n83-m7, degree: 83, m: 7, k: 3, B: 5325, R_mem_printed: 1776.33, pair_gib_printed: 0.211, fold_gib_printed: 375.2, complementary_C_Bplus3_4_printed: 3.353949e13}
+      - {id: n131-m7, degree: 131, m: 7, k: 3, B: 617668, R_mem_printed: 2.058907e5, pair_gib_printed: null}
+    omitted_rows:
+      - {id: n131-m3, degree: 131, m: 3, reason: B not printed in IDEA-20260930-77ec1c}
+      - {id: m10, m: 10, reason: out of this contract; remains on the idea}
+    successor_pointer: IDEA-20260930-14c753
+    trial_plan: experiments/EXP-CERTBIN-ec9d83/trial-plan-v1.json
+    implementation:
+      - experiments/EXP-CERTBIN-ec9d83/implementation/run.py
+      - experiments/EXP-CERTBIN-ec9d83/implementation/check.py
+      - experiments/EXP-CERTBIN-ec9d83/implementation/route_product.py
+      - experiments/EXP-CERTBIN-ec9d83/implementation/route_closedform.py
+
+  controls:
+    - >-
+      Pair-GiB reproduction at degree 83: B(B-1)/2 * 16 / 2^30 matches
+      20570462.6, 5675.6, and 0.211 to three significant figures
+      before any R_mem score is read.
+    - Two arithmetic routes. They must not import each other.
+    - Nearby-object: m=2 is not scored. Degree-131 m=3 is omitted.
+    - k is floor(m/2): (m=3,k=1), (m=4,k=2), (m=7,k=3).
+    - No curve law, SAT, Gröbner, MITM engine, or discrete logarithm.
+
+  independent_variables:
+    - name: row_id
+      levels: [n83-m3, n83-m4, n131-m4, n83-m7, n131-m7]
+    - name: route
+      levels: [product, closedform]
+    - name: statistic
+      levels: [R_mem, pair_gib, M_k, M_pair]
+
+  metrics:
+    primary:
+      - implementations_agree
+      - R_mem_degree83_m7
+      - R_mem_degree83_m4
+      - outcome
+    secondary:
+      - pair_gib_degree83_m3
+      - pair_gib_degree83_m4
+      - pair_gib_degree83_m7
+      - R_mem_degree83_m3
+      - R_mem_degree131_m4
+      - R_mem_degree131_m7
+      - complementary_C_Bplus3_4
+      - fold_gib_degree83_m7
+
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: R_mem and pair-GiB on the five printed-B rows
+    formula: >-
+      k = floor(m/2); M_k = C(B+k-1, k); M_pair = B(B-1)/2;
+      R_mem = M_k / M_pair; pair_gib = M_pair * 16 / 2^30.
+    source: >-
+      IDEA-20260930-77ec1c claim and proof_search_map, read
+      2026-10-03. Printed figures are frozen in Stage 0. Design-time
+      inspection of those integers is not a run.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Closed-form integers at the audit's printed (degree, m, B)
+      rows. No table is allocated. No transfer of solver behavior.
+      Combinatorial identity is the only transfer: it does not use
+      ord_m(2).
+    correspondence: null
+
+  tail_checks:
+    - Degree-83 m=7 R_mem must be scored; stopping after m=4 is invalid.
+    - Pair-GiB three-significant-figure check runs before R_mem scoring.
+
+  seeds_and_replication:
+    seeds: []
+    independent_instances: 2
+    replication_note: >-
+      Deterministic. The two instances are the two arithmetic routes
+      inside Stage 1. No RNG.
+
+  replication:
+    seeds: []
+    independent_instances: 2
+    replication_note: Deterministic dual-route recomputation.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: null
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+
+  stopping_rules:
+    - Stop after Stage 0 freeze and Stage 1 dual-route comparison.
+    - A crash or missing freeze table is O-IMPEDIMENT, not a negative result.
+    - Do not open Stage 2 or allocate a degree-83 B=52-million table.
+
+  invalidation_rules:
+    - Either route imports the other.
+    - Magma, Sage, AUXIN, or Amazon Bedrock is selected.
+    - A SAT/MITM/Gröbner solver is invoked.
+    - An ECDLP instance is solved or a break/exponent claim is written.
+    - Degree-131 m=3 is filled with an invented B.
+    - n>=131 is treated as a cryptographic solve.
+
+  success_criterion: >-
+    Stage 1 outcome is O-IDENTITY: both routes agree on every printed-B
+    row, degree-83 pair-GiB figures match 20570462.6, 5675.6, and 0.211
+    to three significant figures, degree-83 m=7 |R_mem - 1776.33| <= 0.1,
+    and degree-83 m=4 |R_mem - 1.000002| <= 5e-7.
+
+  falsification_criterion: >-
+    Stage 1 outcome is O-COUNTEREXAMPLE: both routes agree with each
+    other, and either degree-83 m=7 |R_mem - 1776.33| > 0.1 or
+    degree-83 m=4 |R_mem - 1.000002| > 5e-7.
+
+  required_artifacts:
+    - experiments/EXP-CERTBIN-ec9d83/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-CERTBIN-ec9d83/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-CERTBIN-ec9d83/runs/<RUN-ID>/command.txt
+    - experiments/EXP-CERTBIN-ec9d83/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-CERTBIN-ec9d83/runs/<RUN-ID>/stderr.log
+
+  assigned_to: executor
+  amazon_bedrock: NOT SELECTED
+  out_of_scope:
+    - Stage 2+ SAT, MITM, Gröbner, or any solver
+    - IDEA-20260930-14c753 T_test design (pointer only)
+    - m=10 rows and degree-131 m=3 without printed B
+    - Toy-cell planted 7-sum discrimination
+    - HEUR-CERTBIN-e50e56-H1 fiber uniqueness
+    - Any ECDLP solve, break, exponent, or n>=131 security verdict
+    - Magma, Sage, AUXIN, Amazon Bedrock
+    - Editing ledger/goals/GOAL-ECDLP2M-001.yaml
+    - Editing IDEA-20260930-77ec1c claim text
