@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Independent checker for EXP-BINSTD-a8bfd8 Stage 0-1 run artifacts.
+"""Independent checker for EXP-BINSTD-a8bfd8 Stage 0-3 run artifacts.
 
 Recomputes one irreducible modulus and one m=7 tensor distinct-quadratic
 count without importing run.py stage drivers. Verifies raw-result.json /
-manifest.yaml agreement and Bedrock/claim hygiene.
+manifest.yaml agreement, Stage 2/3 artifact presence, and Bedrock/claim hygiene.
 """
 from __future__ import annotations
 
@@ -20,6 +20,25 @@ STAGE1_OK = {
     "O-B-FALSE",
     "O-IMPEDIMENT",
     "O-ARTIFACT",
+}
+STAGE2_OK = {
+    "O-STAGES-2-CONTROLS-OK",
+    "O-ARTIFACT",
+    "O-9d12bd-FALSE",
+    "O-99294c-FALSE",
+    "O-A-FALSE",
+    "O-B-FALSE",
+    "O-IMPEDIMENT",
+}
+STAGE3_OK = {
+    "O-E1-CONFIRMED",
+    "O-E2",
+    "O-IMPEDIMENT",
+    "O-ARTIFACT",
+    "O-9d12bd-FALSE",
+    "O-99294c-FALSE",
+    "O-A-FALSE",
+    "O-B-FALSE",
 }
 
 
@@ -178,6 +197,44 @@ def main() -> int:
             errs.append("missing RESULTS.md")
         elif outcome and outcome not in results.read_text(encoding="utf-8"):
             errs.append("RESULTS.md does not name the outcome")
+    elif stage == 2:
+        if outcome not in STAGE2_OK:
+            errs.append(f"unexpected stage2 outcome {outcome!r}")
+        controls = root / "stage2" / "controls.json"
+        if outcome != "O-IMPEDIMENT":
+            if not controls.is_file() or controls.stat().st_size == 0:
+                if outcome not in {"O-A-FALSE"}:
+                    errs.append("missing stage2/controls.json")
+            else:
+                doc = json.loads(controls.read_text(encoding="utf-8"))
+                if doc.get("outcome") != outcome:
+                    errs.append("stage2/controls.json outcome mismatch vs raw-result")
+                if "amazon_bedrock" not in doc:
+                    errs.append("stage2 controls missing amazon_bedrock marker")
+    elif stage == 3:
+        if outcome not in STAGE3_OK:
+            errs.append(f"unexpected stage3 outcome {outcome!r}")
+        results = root / "RESULTS.md"
+        if not results.is_file() or results.stat().st_size == 0:
+            errs.append("missing RESULTS.md")
+        elif outcome and outcome not in results.read_text(encoding="utf-8"):
+            errs.append("RESULTS.md does not name the outcome")
+        controls = root / "stage2" / "controls.json"
+        if not controls.is_file():
+            errs.append("stage3 requires stage2/controls.json")
+        imped = root / "stage3" / "impediment.json"
+        solver = root / "stage3" / "solver-arm.json"
+        if outcome == "O-IMPEDIMENT":
+            if not imped.is_file() or imped.stat().st_size == 0:
+                # Terminal Stage-2 outcomes skip impediment file
+                detail = (raw.get("result") or {}).get("detail") or {}
+                if detail.get("reason") and "Stage 2 control outcome is terminal" in str(detail.get("reason")):
+                    pass
+                elif not imped.is_file():
+                    errs.append("missing stage3/impediment.json for O-IMPEDIMENT")
+        elif outcome in {"O-E1-CONFIRMED", "O-E2"}:
+            if not solver.is_file() or solver.stat().st_size == 0:
+                errs.append("missing stage3/solver-arm.json")
     else:
         errs.append(f"unexpected stage {stage!r}")
 
