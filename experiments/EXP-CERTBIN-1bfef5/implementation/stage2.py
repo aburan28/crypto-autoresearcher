@@ -665,7 +665,7 @@ def run_stage2(progress_every: int = 8) -> Dict[str, Any]:
         "per_set": summary_sets,
         "per_set_rows": full_rows,
         "control_policy": {
-            "amendment_id": "AMD-20261003-894083",
+            "amendment_id": "AMD-20261003-d292c9",
             "prior_void_evidence": "EV-CERTBIN-383c07",
             "soundness_void": "oracle_A_sat(current V) and (M_4 or W_4) one",
             "archive_S62_transfer_is_artifact": False,
