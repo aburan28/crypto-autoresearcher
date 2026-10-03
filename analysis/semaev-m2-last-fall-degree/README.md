@@ -47,7 +47,7 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
 | $m=t=2$ | 17–33 | random | **4** (26 of 26) |
 | $m=t=2$ | 33 | random $\subset\ker\operatorname{Tr}$ | **≥ 5** (2 of 2) |
 | $m=t=2$ | 35 | random | **= 5** on R35a (via branching); **≥ 5** on 2 of 2 |
-| $m=t=2$ | 37 | random | **≥ 5** |
+| $m=t=2$ | 37, 39 | random | **≥ 5** (4 of 4) |
 | $m=t=3$ (chained, $u_1$ free) | 17 | random | ≤ 4 (2 of 2) |
 | $m=t=3$ (chained, $u_1$ free) | 19 | random | **≥ 5** (2 of 2) |
 

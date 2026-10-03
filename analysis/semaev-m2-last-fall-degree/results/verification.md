@@ -74,6 +74,22 @@ before doing anything else. For the polynomial basis (P23a), the explicit falls
 are in $W_3$, but $\dim(W_3\cap B_{\le2})=114=5n-1>3n$: the extra falls are
 specific to the polynomial basis.
 
+## Agreement with this program's earlier engine
+
+`EV-CERTBIN-091c56` was produced by the native backend of
+`crypto_autoresearcher.gf2`, a third implementation. It reports this degree-4
+Macaulay profile for the $m=2$ polynomial-basis system at $n=19$, $l=10$:
+
+```text
+dims_by_deg [0, 1-2, 110-112, 1246, 3711]
+```
+
+Here `dims_by_deg[d]` is the dimension of $M_4\cap B_{\le d}$.
+`code/lfdclose2.c` gives exactly these values on the four P19 instances:
+`[0,1,111,1246,3711]`, `[0,2,112,1246,3711]` (twice) and `[0,2,110,1246,3711]`.
+That record used a different curve and different targets on the same field and
+subspace, so the agreement is on the instance-independent part of the profile.
+
 ## Proposition 2.6 hypotheses (`verify/g1g2_check.py`)
 
 On the 77 instances of `instances.json`:

@@ -361,7 +361,9 @@ Proposition 2.6 is sharp: $d_{\tilde F}=3$ is attained at $n=17,19$ (§3).
 ## 3. Computer-assisted results
 
 All instances are on Semaev's diagonal $k=\lceil n/2\rceil$ and are
-unsatisfiable: the solution count is 0, computed by two different algorithms.
+unsatisfiable. The solution count is 0 by `code/s3count2.c`. For every
+instance checked by implementation B (`results/verification.md`), a second,
+different enumeration also gives 0.
 "Random $V$" means $k$ uniformly random independent elements of $K$; "poly $V$"
 means $\langle1,t,\dots,t^{k-1}\rangle$. The modulus is the lexicographically
 first irreducible trinomial, or pentanomial if there is none.
@@ -388,7 +390,8 @@ For each of the following unsatisfiable instances, $1\notin W_4(F)$. Hence
 $d_{\tilde F}\ge5$ and every F4 run has $d_{F4}\ge5$.
 
 - R35a and R35b: $n=35$, $k=18$, random $V$.
-- R37a: $n=37$, $k=19$, random $V$.
+- R37a and R37b: $n=37$, $k=19$, random $V$.
+- R39a and R39b: $n=39$, $k=20$, random $V$.
 - T33a and T33b: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
 
 R35a's closure, $\dim W_4\cap B_{\le d}=(0,1,105,3885,61425)$, is
