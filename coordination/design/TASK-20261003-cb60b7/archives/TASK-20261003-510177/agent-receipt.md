@@ -1,7 +1,7 @@
 # Agent receipt — EXP-CERTBIN-1bfef5 Stages 0–1 (retry)
 
 - **branch**: `cursor/run-certbin-1bfef5-stages01-ed0c`
-- **tip SHA**: `be576938f96b0cc7be1d1aa7e25b18e56930f78d`
+- **tip SHA**: `0057dbebeb189c279c1fe655cb2738b05da7b06b`
 - **snapshot archive**: TASK-20261003-510177 @ commit `62d229ed2c4214807dfaae7f0ea72caf407404bc`
 - **cloud agent**: bc-66d00895-a4c2-5040-b939-79f0ca9b740b (retry after bc-935698de abort)
 - **PR**: not created (403 standing instruction)
