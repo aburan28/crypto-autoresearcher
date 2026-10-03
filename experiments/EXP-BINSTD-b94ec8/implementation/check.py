@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent checker for EXP-BINSTD-b94ec8 Stage 0-1 run artifacts.
+"""Independent checker for EXP-BINSTD-b94ec8 Stage 0-2 run artifacts.
 
 Recomputes ord_n(2) and the m=4 admissibility screen without importing
 run.py stage logic. Verifies raw-result.json / manifest.yaml agreement.
@@ -13,6 +13,7 @@ from pathlib import Path
 
 EXPERIMENT_ID = "EXP-BINSTD-b94ec8"
 STAGE1_OUTCOMES = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
+STAGE2_OUTCOMES = {"O-NULL", "O-DIVISOR", "O-SHAPE", "O-ARTIFACT", "O-IMPEDIMENT"}
 WORKSHEET_NS = (17, 23, 29, 31, 37, 41)
 ADMISSIBLE = {(31, 5), (31, 6)}
 M_ARITY = 4
@@ -118,6 +119,37 @@ def main() -> int:
                 errs.append("SETUP_PASS requires e0_overall_ok true")
             if raw.get("structure_equal_across_curve_shapes") is not True:
                 errs.append("SETUP_PASS requires structure equality")
+        if ords[31] != 5:
+            errs.append("ord_31(2) self-check failed")
+
+    elif stage == 2:
+        outcome = raw.get("outcome")
+        if outcome not in STAGE2_OUTCOMES:
+            errs.append(f"bad stage2 outcome {outcome!r}")
+        man = man_path.read_text(encoding="utf-8")
+        if outcome and f"outcome: {outcome}" not in man:
+            errs.append("manifest outcome disagrees with raw-result")
+        for rel in (
+            "stage2/leaf-counts.jsonl",
+            "stage2/arm-summaries.json",
+            "RESULTS.md",
+        ):
+            if not (root / rel).is_file():
+                errs.append(f"missing {rel}")
+        if (root / "RESULTS.md").is_file() and outcome:
+            body = (root / "RESULTS.md").read_text(encoding="utf-8")
+            if f"**{outcome}**" not in body and f"outcome: **{outcome}**" not in body:
+                # Accept either bold outcome form used by Stage-2 RESULTS.
+                if outcome not in body:
+                    errs.append("RESULTS.md does not name the Stage-2 O-* outcome")
+        if raw.get("claims", {}).get("deployed_attack"):
+            errs.append("forbidden deployed_attack claim present")
+        # Exactly one O-* in arm-summaries when present
+        arm_path = root / "stage2" / "arm-summaries.json"
+        if arm_path.is_file():
+            arms = json.loads(arm_path.read_text(encoding="utf-8"))
+            if arms.get("outcome") != outcome:
+                errs.append("arm-summaries outcome disagrees with raw-result")
         if ords[31] != 5:
             errs.append("ord_31(2) self-check failed")
     else:

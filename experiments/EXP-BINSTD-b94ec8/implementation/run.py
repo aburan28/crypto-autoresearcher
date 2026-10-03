@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""EXP-BINSTD-b94ec8 Stages 0-1 launcher (HOLD-X1 / HOLD-T supersession).
+"""EXP-BINSTD-b94ec8 Stages 0-2 launcher (HOLD-X1 / HOLD-T supersession).
 
 Stage 0: Zero-compute worksheet — counting identity (A); ord_n(2)/stable
          lattices at n in {17,23,29,31,37,41}; m=4 admissibility screen
@@ -8,16 +8,24 @@ Stage 0: Zero-compute worksheet — counting identity (A); ord_n(2)/stable
 Stage 1: Setup — F_{2^31}, Phi_31 factors, V5/V6 + window bases, Koblitz
          a=0/a=1 and ordinary curves; fixture E0 (equal CNF-XOR export
          structure + 20 planted SAT certified by group arithmetic).
+Stage 2: CNF-XOR leaf-count null at n=31, m=4, l in {5,6} on
+         Frobenius-stable V and window controls; emit exactly one O-*.
+         Admitted by trial-plan-v2 / AMD-EXP-BINSTD-b94ec8-20261003-stage2
+         under DEC-20261003-8881ef expand + DEC-20261002-e6818c.
 
-Observations only. Stages 2 remain on the design contract /
-TASK-20261002-b92ba4 and are NOT enumerated in trial-plan-v1. No Magma/
-Sage/AUXIN/Bedrock. No ECDLP solve. No n>=131 attack.
+Observations only. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
+No n>=131 attack.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
+import re
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -38,9 +46,13 @@ from gf2 import MODULI, field_for, is_irreducible  # noqa: E402
 EXPERIMENT_ID = "EXP-BINSTD-b94ec8"
 HYPOTHESIS_ID = "H-BINSTD-dfc684"
 APPROVED_BY = "DEC-20261002-e6818c"
-TASK_ID = "TASK-20261003-4d4739"
+EXPAND_DEC = "DEC-20261003-8881ef"
+TASK_ID_STAGES01 = "TASK-20261003-4d4739"
+TASK_ID = "TASK-20261003-43c403"  # live Stage-2 executor (trial-plan-v2)
 MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
 EXP_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = EXP_ROOT.parents[1]
+WDSAT_SRC = REPO_ROOT / "inputs" / "TRIMOSKA-WDSAT-2024" / "upstream"
 
 WORKSHEET_NS = (17, 23, 29, 31, 37, 41)
 ADMISSIBLE_CELLS = {(31, 5), (31, 6)}
@@ -48,7 +60,9 @@ M_ARITY = 4
 RATIO_BAND = [0.8, 1.25]
 WITHDRAWN_RATIO = 1.0 / 31.0
 PLANTED_SAT_PER_ARM = 20
+UNSAT_TARGETS_PER_ARM = 50
 ALLOWED_STAGE1 = {"SETUP_PASS", "O-ARTIFACT", "O-IMPEDIMENT"}
+ALLOWED_STAGE2 = {"O-NULL", "O-DIVISOR", "O-SHAPE", "O-ARTIFACT", "O-IMPEDIMENT"}
 
 
 def write_json(path: Path, obj: Any) -> None:
@@ -695,9 +709,364 @@ def stage1(run_dir: Path) -> dict[str, Any]:
     return raw
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def probe_wdsat_build(run_dir: Path) -> dict[str, Any]:
+    """Build a capacity-smoke WDSat from the vendored TRIMOSKA source."""
+    out: dict[str, Any] = {
+        "source": str(WDSAT_SRC.relative_to(REPO_ROOT)) if WDSAT_SRC.is_dir() else None,
+        "available_source": WDSAT_SRC.is_dir(),
+        "build_ok": False,
+        "binary": None,
+        "binary_sha256": None,
+        "make_returncode": None,
+        "error": None,
+    }
+    if not WDSAT_SRC.is_dir():
+        out["error"] = "vendored WDSat source missing"
+        return out
+    bdir = run_dir / "builds" / "wdsat_stage2_probe"
+    if bdir.exists():
+        shutil.rmtree(bdir)
+    shutil.copytree(WDSAT_SRC / "src", bdir / "src")
+    consts = {
+        "MAX_ANF_ID": 64,
+        "MAX_DEGREE": 8,
+        "MAX_ID": 512,
+        "MAX_BUFFER_SIZE": 8192,
+        "MAX_EQ": 1024,
+        "MAX_EQ_SIZE": 32,
+        "MAX_XEQ": 128,
+        "MAX_XEQ_SIZE": 512,
+    }
+    cfg = bdir / "src" / "config.h"
+    text = cfg.read_text(encoding="utf-8")
+    lines: list[str] = []
+    in_comment = False
+    for ln in text.splitlines():
+        stripped = ln.strip()
+        if in_comment:
+            lines.append(ln)
+            if "*/" in stripped:
+                in_comment = False
+            continue
+        if stripped.startswith("/*") and "*/" not in stripped:
+            in_comment = True
+            lines.append(ln)
+            continue
+        m = re.match(r"#define __(\w+)__\s", stripped)
+        if m and m.group(1) in consts:
+            continue
+        lines.append(ln)
+    lines.append("/* EXP-BINSTD-b94ec8 Stage-2 capacity smoke */")
+    for k, v in consts.items():
+        lines.append(f"#define __{k}__ {v}")
+    cfg.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (bdir / "config_used.json").write_text(
+        json.dumps(consts, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    log = subprocess.run(
+        ["make"],
+        cwd=bdir / "src",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    (bdir / "make.log").write_text(
+        (log.stdout or "") + "\n--- stderr ---\n" + (log.stderr or ""),
+        encoding="utf-8",
+    )
+    out["make_returncode"] = log.returncode
+    exe = bdir / "wdsat_solver"
+    if log.returncode == 0 and exe.is_file() and os.access(exe, os.X_OK):
+        out["build_ok"] = True
+        out["binary"] = str(exe.relative_to(run_dir))
+        out["binary_sha256"] = _sha256_file(exe)
+    else:
+        out["error"] = "WDSat make failed or binary missing"
+    return out
+
+
+def stage2(run_dir: Path) -> dict[str, Any]:
+    """Stage-2 leaf-count null attempt; emit exactly one O-*."""
+    t0 = time.time()
+    stage2_dir = EXP_ROOT / "stage2"
+    stage2_dir.mkdir(parents=True, exist_ok=True)
+
+    impediments: list[str] = []
+    prereg_path = EXP_ROOT / "stage0" / "preregistered-predictions.json"
+    e0_path = EXP_ROOT / "stage1" / "fixture-E0.json"
+    bases_path = EXP_ROOT / "stage1" / "curves-and-bases.json"
+    for p, label in (
+        (prereg_path, "stage0_preregistered_predictions"),
+        (e0_path, "stage1_fixture_E0"),
+        (bases_path, "stage1_curves_and_bases"),
+    ):
+        if not p.is_file():
+            impediments.append(f"missing_{label}")
+
+    e0_ok = False
+    if e0_path.is_file():
+        e0 = json.loads(e0_path.read_text(encoding="utf-8"))
+        e0_ok = bool(e0.get("overall_ok"))
+        if not e0_ok:
+            # Contract: fixture failure → O-ARTIFACT, do not read leaf ratios.
+            outcome = "O-ARTIFACT"
+            status = "artifact"
+            reason = "Stage-1 fixture E0 overall_ok is false; leaf ratios not read"
+            arm_summaries = {
+                "outcome": outcome,
+                "reason": reason,
+                "e0_overall_ok": False,
+                "leaf_census_attempted": False,
+                "amazon_bedrock": "NOT_USED",
+            }
+            leaf_path = stage2_dir / "leaf-counts.jsonl"
+            if not leaf_path.exists():
+                leaf_path.write_text("", encoding="utf-8")
+            write_json(stage2_dir / "arm-summaries.json", arm_summaries)
+            results = "\n".join(
+                [
+                    f"# RESULTS — {EXPERIMENT_ID} (Stage 2)",
+                    "",
+                    f"Hypothesis: {HYPOTHESIS_ID}",
+                    f"Approved by: {APPROVED_BY}",
+                    f"Expand decision: {EXPAND_DEC}",
+                    f"Live executor: {TASK_ID}",
+                    "",
+                    f"Stage-2 outcome: **{outcome}**",
+                    "",
+                    reason,
+                    "",
+                    "Amazon Bedrock: NOT_USED",
+                    "No Magma/Sage/AUXIN.",
+                    "Claims: no break / no exponent / no deployed attack.",
+                    "",
+                ]
+            )
+            (EXP_ROOT / "RESULTS.md").write_text(results, encoding="utf-8")
+            raw = {
+                "experiment_id": EXPERIMENT_ID,
+                "hypothesis_id": HYPOTHESIS_ID,
+                "approved_by": APPROVED_BY,
+                "expand_decision": EXPAND_DEC,
+                "task_id": TASK_ID,
+                "stage": 2,
+                "status": status,
+                "outcome": outcome,
+                "reason": reason,
+                "impediments": impediments,
+                "wall_clock_seconds": time.time() - t0,
+                "peak_rss_bytes": None,
+                "claims": {
+                    "break": False,
+                    "exponent_move": False,
+                    "deployed_attack": False,
+                },
+                "amazon_bedrock": "NOT_USED",
+            }
+            write_json(run_dir / "raw-result.json", raw)
+            write_text(
+                run_dir / "manifest.yaml",
+                "\n".join(
+                    [
+                        f"experiment_id: {EXPERIMENT_ID}",
+                        f"hypothesis_id: {HYPOTHESIS_ID}",
+                        "stage: 2",
+                        f"status: {status}",
+                        f"outcome: {outcome}",
+                        "artifacts:",
+                        "  - manifest.yaml",
+                        "  - raw-result.json",
+                        f"  - experiments/{EXPERIMENT_ID}/stage2/leaf-counts.jsonl",
+                        f"  - experiments/{EXPERIMENT_ID}/stage2/arm-summaries.json",
+                        "amazon_bedrock: NOT_USED",
+                        "",
+                    ]
+                ),
+            )
+            return raw
+
+    wdsat = probe_wdsat_build(run_dir)
+    if not wdsat.get("build_ok"):
+        impediments.append("wdsat_build_failed")
+
+    stable_proxy = False
+    bases_meta: dict[str, Any] = {}
+    if bases_path.is_file():
+        bases_doc = json.loads(bases_path.read_text(encoding="utf-8"))
+        bases_meta = bases_doc.get("bases") or {}
+        for name in ("stable_V5", "stable_V6"):
+            kind = (bases_meta.get(name) or {}).get("kind")
+            if kind == "window_proxy_for_stable_dim":
+                stable_proxy = True
+        if stable_proxy:
+            impediments.append(
+                "frobenius_stable_bases_are_window_proxy_stage1_deferred_phi31_ker"
+            )
+
+    # H1 requires a Frobenius-stable V distinct from the window control.
+    # Stage 1 deferred Phi_31-ker construction and recorded window proxies.
+    # Leaf-count ratios under that mislabel would not test H1; stop as
+    # O-IMPEDIMENT (instrument), never as negative mathematical evidence.
+    leaf_census_attempted = False
+    outcome = "O-IMPEDIMENT"
+    status = "failed_infrastructure"
+    reason = (
+        "Stage-2 H1 leaf-count null requires Frobenius-stable V5/V6 distinct "
+        "from window_deg controls. Stage-1 curves-and-bases.json records "
+        "stable_V5/stable_V6 as kind=window_proxy_for_stable_dim (Phi_31-ker "
+        "deferred). Leaf census not started. "
+        + (
+            "WDSat capacity-smoke build_ok=true from vendored "
+            "inputs/TRIMOSKA-WDSAT-2024 (not the blocking impediment)."
+            if wdsat.get("build_ok")
+            else "WDSat capacity-smoke build also failed; see builds/."
+        )
+    )
+
+    arm_summaries = {
+        "n": 31,
+        "m": M_ARITY,
+        "l_values": [5, 6],
+        "unsat_targets_per_arm": UNSAT_TARGETS_PER_ARM,
+        "planted_sat_per_arm": PLANTED_SAT_PER_ARM,
+        "ratio_band": RATIO_BAND,
+        "withdrawn_ratio_comparator": WITHDRAWN_RATIO,
+        "outcome": outcome,
+        "reason": reason,
+        "leaf_census_attempted": leaf_census_attempted,
+        "e0_overall_ok": e0_ok,
+        "stage1_bases": bases_meta,
+        "stable_bases_are_window_proxy": stable_proxy,
+        "wdsat_probe": {
+            "available_source": wdsat.get("available_source"),
+            "build_ok": wdsat.get("build_ok"),
+            "binary_sha256": wdsat.get("binary_sha256"),
+            "make_returncode": wdsat.get("make_returncode"),
+            "error": wdsat.get("error"),
+            "source": wdsat.get("source"),
+        },
+        "koblitz_ordinary_median_leaf_ratio": None,
+        "window_stable_ratio": None,
+        "impediments": impediments,
+        "expand_decision": EXPAND_DEC,
+        "amazon_bedrock": "NOT_USED",
+        "claims": {
+            "break": False,
+            "exponent_move": False,
+            "deployed_attack": False,
+        },
+    }
+    leaf_path = stage2_dir / "leaf-counts.jsonl"
+    if not leaf_path.exists():
+        # One probe note line only; no fabricated conflict counts.
+        note = {
+            "record_type": "stage2_probe_note",
+            "leaf_census_attempted": False,
+            "outcome": outcome,
+            "reason": "no per-target leaf rows; instrument impediment before census",
+            "wdsat_build_ok": wdsat.get("build_ok"),
+            "stable_bases_are_window_proxy": stable_proxy,
+        }
+        leaf_path.write_text(json.dumps(note, sort_keys=True) + "\n", encoding="utf-8")
+    if not (stage2_dir / "arm-summaries.json").exists():
+        write_json(stage2_dir / "arm-summaries.json", arm_summaries)
+
+    results = "\n".join(
+        [
+            f"# RESULTS — {EXPERIMENT_ID} (Stage 2)",
+            "",
+            f"Hypothesis: {HYPOTHESIS_ID}",
+            f"Approved by: {APPROVED_BY}",
+            f"Expand decision: {EXPAND_DEC}",
+            f"Live executor: {TASK_ID}",
+            f"Prior Stages 0-1 executor: {TASK_ID_STAGES01}",
+            "",
+            f"Stage-2 outcome: **{outcome}**",
+            "",
+            reason,
+            "",
+            f"WDSat vendored build_ok: {wdsat.get('build_ok')}",
+            f"stable_bases_are_window_proxy: {stable_proxy}",
+            f"leaf_census_attempted: {leaf_census_attempted}",
+            f"impediments: {impediments}",
+            "",
+            "Primary metrics (unset — census not started):",
+            "- koblitz_ordinary_median_leaf_ratio: null",
+            "- window_stable_ratio: null",
+            "",
+            "This is infrastructure / instrument readiness, **not** negative "
+            "mathematical evidence against H1. Revisit when Phi_31-ker "
+            "Frobenius-stable bases are constructed and bound into Stage-2 "
+            "ANF export (additive amendment).",
+            "",
+            "Amazon Bedrock: NOT_USED",
+            "No Magma/Sage/AUXIN.",
+            "Claims: no break / no exponent / no deployed attack.",
+            "",
+        ]
+    )
+    (EXP_ROOT / "RESULTS.md").write_text(results, encoding="utf-8")
+
+    raw = {
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "approved_by": APPROVED_BY,
+        "expand_decision": EXPAND_DEC,
+        "task_id": TASK_ID,
+        "stage": 2,
+        "status": status,
+        "outcome": outcome,
+        "reason": reason,
+        "leaf_census_attempted": leaf_census_attempted,
+        "stable_bases_are_window_proxy": stable_proxy,
+        "wdsat_build_ok": wdsat.get("build_ok"),
+        "wdsat_binary_sha256": wdsat.get("binary_sha256"),
+        "impediments": impediments,
+        "wall_clock_seconds": time.time() - t0,
+        "peak_rss_bytes": None,
+        "claims": {
+            "break": False,
+            "exponent_move": False,
+            "deployed_attack": False,
+        },
+        "amazon_bedrock": "NOT_USED",
+    }
+    write_json(run_dir / "raw-result.json", raw)
+    write_text(
+        run_dir / "manifest.yaml",
+        "\n".join(
+            [
+                f"experiment_id: {EXPERIMENT_ID}",
+                f"hypothesis_id: {HYPOTHESIS_ID}",
+                "stage: 2",
+                f"status: {status}",
+                f"outcome: {outcome}",
+                f"wdsat_build_ok: {str(bool(wdsat.get('build_ok'))).lower()}",
+                f"stable_bases_are_window_proxy: {str(stable_proxy).lower()}",
+                "artifacts:",
+                "  - manifest.yaml",
+                "  - raw-result.json",
+                f"  - experiments/{EXPERIMENT_ID}/stage2/leaf-counts.jsonl",
+                f"  - experiments/{EXPERIMENT_ID}/stage2/arm-summaries.json",
+                "amazon_bedrock: NOT_USED",
+                "",
+            ]
+        ),
+    )
+    return raw
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-1")
-    ap.add_argument("--stage", type=int, required=True, choices=[0, 1])
+    ap = argparse.ArgumentParser(description=f"{EXPERIMENT_ID} Stages 0-2")
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
     ap.add_argument("--trial-plan", required=True)
     ap.add_argument("--run-dir", required=True)
     args = ap.parse_args()
@@ -709,10 +1078,24 @@ def main() -> int:
         return 2
     if args.stage == 0:
         raw = stage0(run_dir)
-    else:
+        ok = raw.get("status") in ("completed",) or raw.get("outcome") in ALLOWED_STAGE1
+    elif args.stage == 1:
         raw = stage1(run_dir)
-    print(json.dumps({"stage": args.stage, "status": raw.get("status"), "outcome": raw.get("outcome")}, sort_keys=True))
-    return 0 if raw.get("status") in ("completed",) or raw.get("outcome") in ALLOWED_STAGE1 else 1
+        ok = raw.get("status") in ("completed",) or raw.get("outcome") in ALLOWED_STAGE1
+    else:
+        raw = stage2(run_dir)
+        ok = raw.get("outcome") in ALLOWED_STAGE2
+    print(
+        json.dumps(
+            {
+                "stage": args.stage,
+                "status": raw.get("status"),
+                "outcome": raw.get("outcome"),
+            },
+            sort_keys=True,
+        )
+    )
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
