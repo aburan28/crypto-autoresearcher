@@ -491,6 +491,27 @@ counterexamples here use random subspaces, which the assumption also covers.
 | 19 | 7 | random | 2 | **no, 0 of 2** | $d_{F4}\ge5$: counterexample |
 | 21 | 7 | random | 2 | **no, 0 of 2** (8 rounds each) | $d_{F4}\ge5$: counterexample |
 | 17 | 6 | polynomial | 2 | yes, 2 of 2 (5 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Tables 1–2 |
+| 19 | 7 | polynomial | 1 | yes (6 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 2 |
+
+**Proposition 3.7** (general upper bound for $t=3$). **Proved** for every $n$, every $V$ and every $z$.
+If the $t=3$ system has no Boolean zero, then $1\in M_{3k+3}(F)$, so
+$d_{\tilde F}\le3k+3$.
+
+*Proof.* Fix $x_1,x_2,x_3\in V$. Then
+
+$$S_3(u,X_1,X_2)=u^2(X_1+X_2)^2+uX_1X_2+X_1^2X_2^2+a_6,$$
+$$S_3(u,X_3,z)=u^2(X_3+z)^2+uX_3z+X_3^2z^2+a_6 .$$
+
+Both are affine in the Boolean coordinates of $u$, since $u\mapsto u^2$ is
+$\mathbb F_2$-linear. So every descended equation is affine in $u$ once the
+$3k$ $x$-variables are fixed. The indicator argument of Theorem 2.5 then
+applies, with $e_\sigma$ ranging over the $2^{3k}$ assignments of the
+$x$-variables and generators of degree $\le3$. $\square$
+
+For C19a this gives $5\le d_{\tilde F}\le24$. Branching on one variable does
+not close the gap: both restrictions $x_{1,1}=0$ and $x_{1,1}=1$ (variable
+index 19) also have $1\notin W_4$, after 9 rounds each. So C19a's exact last
+fall degree is not determined here.
 
 ---
 

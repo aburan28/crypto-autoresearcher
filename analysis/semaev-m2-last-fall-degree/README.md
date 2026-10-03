@@ -27,7 +27,7 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
    - The degree-3 identities $\omega a_j\equiv$ (quadratic) also hold.
    - On random subspaces these falls span the whole degree-$\le2$ part of $W_3$, of dimension exactly $3n$. This was checked on instances.
 3. **General bounds on the last fall degree.**
-   - Upper bound (Thm 2.5): every unsatisfiable instance is refuted inside the degree-$(k+2)$ Macaulay matrix, so $d_{\rm LFD}\le k+2$.
+   - Upper bound (Thm 2.5): every unsatisfiable instance is refuted inside the degree-$(k+2)$ Macaulay matrix, so $d_{\rm LFD}\le k+2$. For the chained $t=3$ system the bound is $d_{\rm LFD}\le3k+3$ (Prop 3.7).
    - Lower bound (Prop 2.6): $d_{\rm LFD}\ge3=d_{\rm ff}+1$ under two explicit, checkable genericity conditions. They hold on every random-subspace instance computed.
 4. **Bridges** (Props 1.1, 1.2, 1.4; Lemma 1.3).
    - The Boolean closure $W_d$ equals the polynomial closure $V_{\tilde F,d}$ modulo field equations.
@@ -53,7 +53,8 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
 | $m=t=2$ | 35, satisfiable | random | **≥ 5** (2 of 2, by Prop 1.4: $\operatorname{codim}W_4=5287\gg$ #solutions) |
 | $m=t=2$ | 37, 39 | random | **≥ 5** (4 of 4) |
 | $m=t=3$ (chained, $u_1$ free) | 17 | random, polynomial | ≤ 4 (4 of 4) |
-| $m=t=3$ (chained, $u_1$ free) | 19, 21 | random | **≥ 5** (4 of 4) |
+| $m=t=3$ (chained, $u_1$ free) | 19 | polynomial | ≤ 4 (1 of 1) |
+| $m=t=3$ (chained, $u_1$ free) | 19, 21 | random | **≥ 5** (4 of 4; C19a: $5\le d_{\rm LFD}\le24$) |
 
 At $m=2$ the last fall degree rises $3\to4\to5$ along Semaev's diagonal
 $k=\lceil n/2\rceil$, while the first fall degree stays at 2. At these
