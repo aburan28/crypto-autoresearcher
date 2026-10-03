@@ -73,21 +73,25 @@ ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-2.yaml"
 # which commits at batch close -- far too late to prove anything.
 PRIOR_ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-3.yaml"
 
-# ADDED 2026-10-02 UNDER DEC-20261002-4242bd (DEC-20260928-3f71c4 NA-3). The
-# execution card was written and last widened on 2026-09-16, so it never named
-# the 2026-09-21 amendment that binds execution (L-2's per-instance
-# u4_bookkeeping block, L-4's labelling of C-6) or the decision behind it.
-# DEC-20260928-3f71c4 R-2 held the card for that reason. The names below are
-# used ONLY by the additions to EXECUTE's read_scope, inputs, constraints and
-# completion_gate, and by the 2026-10-02 REVISIONS entry. No existing entry is
-# reworded, reordered or removed.
+# ADDED 2026-10-02 UNDER DEC-20261002-4242bd (DEC-20260928-3f71c4 NA-3), AND CUT
+# THE SAME DAY UNDER DEC-20261002-31a715. PR #1515 had already performed the same
+# NA-3 on the execution card under DEC-20261001-4076d1 (its blocks below are headed
+# "ADDED 2026-10-01"), unseen by the 2026-10-02 pass because it sat on an unmerged
+# branch, and that revision is AUTHORITATIVE. The 2026-10-02 additions were cut to
+# those that add a requirement or check the 2026-10-01 revision does not impose,
+# directly or by its reference to L-2 requirements 1-6 and L-4. DEC-20261002-31a715
+# records every item kept or dropped and why. The names below are used ONLY by those
+# surviving additions to EXECUTE's read_scope, inputs, constraints and
+# completion_gate, and by the 2026-10-02 REVISIONS entry. No entry of main's queue is
+# reworded, reordered or removed. LEMMA4_AMENDMENT_PATH was removed with the two
+# duplicate entries that were its only users.
 LEMMA4_AMENDMENT = "AMD-EXP-SEMBIN-4fa22c-20260921-lemma4"
-LEMMA4_AMENDMENT_PATH = f"{EXP}/amendments/{LEMMA4_AMENDMENT}.yaml"
 LEMMA4_DECISION = "DEC-20260916-87fc5c"
 S1_AMENDMENT = "AMD-EXP-SEMBIN-4fa22c-20261002-s1reason"
 S1_AMENDMENT_PATH = f"{EXP}/amendments/{S1_AMENDMENT}.yaml"
 CARD_REVISION = "DEC-20261002-4242bd"
 OOB_REF = "origin/cursor/semaev-2015-audit-program-5b8b"
+RECONCILIATION = "DEC-20261002-31a715"
 
 
 def od(pairs):
@@ -865,12 +869,15 @@ tasks.append(od([
         "ledger/decisions/DEC-20260916-87fc5c.yaml",
         "ledger/decisions/DEC-20261001-4076d1.yaml",
         # Added 2026-10-02 under DEC-20261002-4242bd (NA-3 of
-        # DEC-20260928-3f71c4). Read scope is closed, so an amendment not listed
-        # here cannot be honoured, however binding it is.
-        LEMMA4_AMENDMENT_PATH,
-        f"ledger/decisions/{LEMMA4_DECISION}.yaml",
+        # DEC-20260928-3f71c4) and cut under DEC-20261002-31a715. The lemma4
+        # amendment and DEC-20260916-87fc5c, which this block also listed, are
+        # already in the 2026-10-01 block above and were dropped as duplicates.
+        # What remains is the source of each 2026-10-02 requirement kept below,
+        # plus the reconciliation itself. Read scope is closed, so a record not
+        # listed here cannot be honoured, however binding it is.
         S1_AMENDMENT_PATH,
         f"ledger/decisions/{CARD_REVISION}.yaml",
+        f"ledger/decisions/{RECONCILIATION}.yaml",
     ]),
     ("read_scope_note",
      "WIDENED AT UNBLOCK, 2026-09-16T12:05Z, and not before: the card was written `blocked` on a "
@@ -949,14 +956,13 @@ tasks.append(od([
             "ledger/decisions/DEC-20261001-4076d1.yaml -- Coordinator disposition for this card "
             "revision: S-1 stands as frozen with tension disclosed in the report; PR #1377 is not the "
             "binding pre-dispatch supplement (lemma4 + DEC-20260916-87fc5c on this tree are).",
-            # Added 2026-10-02 under DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4).
-            f"{LEMMA4_AMENDMENT_PATH} -- the 2026-09-21 additive protocol amendment, BINDING "
-            f"beside the frozen contract and {AMENDMENT}. L-1 records S-5's premise as refuted "
-            "at the declared equality convention (S-5 is not edited and still binds). L-2 adds the "
-            "per-instance u4_bookkeeping block and the rules on what may and may not be said "
-            "about d_F (requirements 1-6). L-3 adds the 2015/310 citation anchor. L-4 says how "
-            "C-6 is reported (structurally forced, not removed). Its "
-            "naming_convention_this_amendment_obeys binds every placement you name.",
+            # Added 2026-10-02 under DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4) and
+            # cut under DEC-20261002-31a715. Its lemma4-amendment entry was dropped: the
+            # 2026-10-01 entry above binds the same file, and the one requirement it added
+            # (the amendment's naming convention) is carried by the L-2 REQUIREMENT 2
+            # constraint kept below. The DEC-20260916-87fc5c entry is kept because it alone
+            # says that decision's `limitations` block bounds the report. Its "that
+            # amendment" means the lemma4 amendment, as the reconciliation entry states.
             f"ledger/decisions/{LEMMA4_DECISION}.yaml -- the decision whose NA-1 that amendment "
             "implements. Its `limitations` block bounds what your report may assert.",
             f"{S1_AMENDMENT_PATH} -- the Coordinator's disposition of the S-1 reason-text flag. "
@@ -965,6 +971,18 @@ tasks.append(od([
             f"ledger/decisions/{CARD_REVISION}.yaml -- the decision that revised this card on "
             "2026-10-02. It also rules that nothing on "
             f"{OOB_REF} (PR #1377) is an input to this task.",
+            f"ledger/decisions/{RECONCILIATION}.yaml -- the reconciliation of this card's two "
+            "revisions for DEC-20260928-3f71c4 NA-3. The 2026-10-01 revision under "
+            "DEC-20261001-4076d1 is AUTHORITATIVE. The 2026-10-02 entries under "
+            f"{CARD_REVISION} that remain each add a requirement or check the 2026-10-01 "
+            "revision does not impose. If any of them reads differently from a 2026-10-01 entry, "
+            "the 2026-10-01 entry governs and your report names the difference. Printing the "
+            f"{S1_AMENDMENT} annotation verbatim directly after the S-1 sentence is the form the "
+            "S-1 tension disclosure required by DEC-20261001-4076d1 takes. S-1 still stands as "
+            "frozen and is satisfied as written. If you judge that the annotation leaves out "
+            "something that disclosure requires, add it after the annotation in your own words, "
+            f"and never edit the annotation. In the {LEMMA4_DECISION} entry above, \"that "
+            f"amendment\" means {LEMMA4_AMENDMENT}.",
         ]),
         ("constraints", [
             "CONTROLS BEFORE BELIEF, AND IN THAT ORDER. C-3's known-answer fixture runs FIRST and "
@@ -1026,26 +1044,20 @@ tasks.append(od([
             "'Lemma 4 runs d_F <= d'_F', which L-1 records as refuted at the declared equality "
             "convention, while S-1's CONCLUSION (instrument cannot refute Proposition 5) also rests on "
             "DC-1's structural blindness, which L-1 does not touch. Disclose; do not rewrite S-1.",
-            # ---- ADDED 2026-10-02 UNDER DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4) ----
-            # Each constraint below quotes its source sentence verbatim and names the clause. The
+            # ---- ADDED 2026-10-02 UNDER DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4), CUT
+            # UNDER DEC-20261002-31a715 ----
+            # Four of the nine 2026-10-02 constraints remain. Each adds a requirement the
+            # 2026-10-01 constraints above do not impose, directly or by their reference to L-2
+            # requirements 1-6 and L-4. The five dropped were verbatim restatements of L-2
+            # requirements 1, 3, 4 and 5 and of L-4, which those constraints already bind.
+            # Kept: requirement 2, for the amendment's naming convention it adds; requirement 6,
+            # for the second-witness recording rule and the no-expected-outcome rule it adds
+            # from outside requirements 1-6; the S-1 annotation; and the PR #1377 ruling. A kept
+            # entry may still quote a requirement the 2026-10-01 constraints bind. Deletion was
+            # the only edit allowed, so that wording stays, duplicates, and changes nothing.
+            # Each constraint quotes its source sentence verbatim and names the clause. The
             # source files are in this card's read_scope; where a quote and its source differ,
             # the source governs.
-            f"L-2 REQUIREMENT 1, u4_bookkeeping PER REPORTED M-1 ({LEMMA4_AMENDMENT}, "
-            "changes.L-2.requirement_1_what_is_recorded_per_instance), quoted: \"FOR EVERY REPORTED "
-            "VALUE OF M-1 (d'_F), per arm per n, the run records a `u4_bookkeeping` block in its "
-            "machine-readable results, in the same machine-readable artifact that carries that M-1 "
-            "value. IT IS RECORDED, NOT RE-DERIVED: a kernel vector is not recoverable from the rank "
-            "series M-3, which records ranks and not witnesses, so a witness that is not written down "
-            "is not recoverable at all. The block records, at minimum: (i) THE REALISING FAKE WITNESS "
-            "-- the non-trivial degree-M-1 kernel vector the instrument reads M-1 off, per the "
-            "contract's declared Koszul exclusion -- in canonical serialisation, as a multiplier tuple "
-            "(g_1..g_M) with one multiplier g_i per generator f_i; (ii) for each i, the UNREDUCED "
-            "TOTAL DEGREE deg(g_i f_i), computed in F_2[X_1..X_N] as an ordinary polynomial product "
-            "BEFORE the Boolean identification X^2 = X (which at p = 2 IS reduction mod S_fe, so "
-            "\"unreduced\" here means \"before the Boolean reduction the instrument otherwise "
-            "applies\"); (iii) max_i deg(g_i f_i); (iv) the reported d'_F; (v) the boolean verdict "
-            "`max_i deg(g_i f_i) <= d'_F` AT THAT INSTANCE.\" The witness is written AT RUN TIME. It "
-            "cannot be recovered afterwards.",
             f"L-2 REQUIREMENT 2, WHICH SIDE ({LEMMA4_AMENDMENT}, "
             "changes.L-2.requirement_2_which_side_the_multipliers_are_read_on), quoted: \"The "
             "multipliers g_i are the multipliers of the FAKE-side witness -- the witness realising the "
@@ -1056,38 +1068,6 @@ tasks.append(od([
             "amendment's naming_convention_this_amendment_obeys, quoted: \"EVERY PLACEMENT NAMED "
             "BELOW NAMES ITS SIDE.\" Every placement of the field equations your report names states "
             "whether it is on the FAKE side or the TRUE side.",
-            f"L-2 REQUIREMENT 3, CENSORED INSTANCES ({LEMMA4_AMENDMENT}, "
-            "changes.L-2.requirement_3_censored_instances), quoted: \"Where M-1 is censored under "
-            "SR-1 or SR-2 there is no realising witness, so the block records `not_applicable: "
-            "censored` with the censoring flag the contract already requires, and NO consequence of "
-            "any kind is stated for that instance. A censored observation is not a value (M-1 "
-            "`censoring`) and this clause does not make it one.\"",
-            f"L-2 REQUIREMENT 4, THE ONLY PERMITTED d_F CONSEQUENCE ({LEMMA4_AMENDMENT}, "
-            "changes.L-2.requirement_4_what_the_report_MAY_state_where_the_verdict_holds), quoted: "
-            "\"Only where `max_i deg(g_i f_i) <= d'_F` holds at that instance may the report state "
-            "the d_F consequence, and it then states it in exactly this shape, on the TRUE side and "
-            "with the field equations named as members: \"at this instance, d_F of the TRUE system "
-            "{the reduced degree-3 descent generators} u S_fe is <= d'_F, DISCHARGED BY THE "
-            "BOOKKEEPING RECORDED IN u4_bookkeeping.\" It states it as discharged by that "
-            "bookkeeping and NOT by citing Lemma 4, in any direction, as a theorem. The report "
-            "additionally states the hypotheses the derivation still consumes and that this "
-            "bookkeeping does not discharge: (H1) = 2013/549's Lemma 2; U-2, the reduction-to-zero "
-            "<=> ideal-membership equivalence that 2015/984 adds with an \"i.e.\" and neither "
-            "paper proves; U-5, that reduction mod S_fe is linear and never raises total degree; and "
-            "U-6, the declared equality reading of condition (1), which L-1 records is a declared "
-            "interpretation and not a settled fact.\"",
-            f"L-2 REQUIREMENT 5, THE PROHIBITION ({LEMMA4_AMENDMENT}, "
-            "changes.L-2.requirement_5_what_the_report_MAY_NOT_state), quoted: \"It may not state "
-            "any consequence for d_F of the descent generators ALONE with S_fe OUTSIDE the TRUE "
-            "system. That is Lemma 4's printed true-side placement, the derivation does not deliver "
-            "it (step 6 of TASK-20260916-9da6e0's derivation fails: the witness it constructs needs "
-            "the field equations as members), and witness A of EV-SEMBIN-1ca3c8 refutes it. It may "
-            "not cite Lemma 4 as a theorem in support of any d_F consequence stated under this "
-            "clause, and it may not present the bookkeeping verdict at one instance as evidence about "
-            "any other instance, any other n, any other arm, or any family.\" Its scope, from "
-            "changes.L-2.what_requirement_5_does_NOT_reach, quoted: \"THE PROHIBITION ABOVE IS "
-            "SCOPED TO THE d_F CONSEQUENCE STATEMENTS THIS CLAUSE GOVERNS, and it is scoped "
-            "deliberately.\" S-1 is not reached by it. S-1 is handled by the S-1 constraint below.",
             f"L-2 REQUIREMENT 6, WHERE THE VERDICT FAILS ({LEMMA4_AMENDMENT}, "
             "changes.L-2.requirement_6_where_the_verdict_FAILS), quoted: \"Where `max_i deg(g_i f_i) "
             "<= d'_F` fails at that instance, the run records the verdict, the value max_i deg(g_i "
@@ -1106,23 +1086,6 @@ tasks.append(od([
             "not complete is reported as not completed rather than as an absence.\" And from "
             "changes.L-2.what_is_not_assumed, quoted: \"it predicts no outcome for that verdict at "
             "any n, and an executor must not treat either outcome as expected.\"",
-            f"L-4, C-6 IS RUN AND REPORTED AS STRUCTURALLY FORCED ({LEMMA4_AMENDMENT}, "
-            "changes.L-4), quoted from the_control_is_NOT_removed: \"C-6 IS NOT REMOVED, NOT "
-            "DOWNGRADED, AND NOT MADE OPTIONAL. Removing or relaxing a declared control is a rewrite "
-            "and is forbidden to this amendment. C-6 is still run at one n and its both-placements "
-            "comparison is still reported, exactly as C-6 and S-2 require.\" From "
-            "how_its_verdict_is_reported: \"Where C-6 agrees -- the only outcome a correct "
-            "implementation can produce -- the run reports that outcome LABELLED AS STRUCTURALLY "
-            "FORCED, in the shape \"C-6 agreed, and agreement is forced by inertness, so this "
-            "outcome is not a passed check\", rather than as a control that passed. No conclusion "
-            "of the run may rest on C-6's agreement, and C-6's agreement may not be offered as "
-            "evidence that the declared convention is the one the code implements, nor as evidence "
-            "of anything else. Report it, labelled; do not count it.\" And for a disagreement, from "
-            "a_reading_that_is_explicitly_not_a_requirement: \"THIS AMENDMENT DECLARES NO CRITERION, "
-            "NO VERDICT, AND NO STOPPING RULE FOR THAT CASE, and does not route it to F-4 or to "
-            "SR-3: adding a falsification route would be a rewrite. The requirement is only the one "
-            "above -- report the outcome, labelled, and interpret it as a fact about the systems in "
-            "neither direction.\"",
             f"S-1 STANDS AS FROZEN, WITH AN ADJACENT ANNOTATION ({S1_AMENDMENT}, changes.S1-A). "
             "The objective above tells you to state S-1's reason \"in those words\". Do so. Then, "
             "quoted from requirement: \"Directly after the S-1 sentence (same section, no "
@@ -1158,7 +1121,8 @@ tasks.append(od([
             "M-1, M-2, M-4, M-5 per arm per n with censoring flags",
             "the C-3 fixture verdicts, the C-4 order-sensitivity comparison, the C-6 "
             "both-placements comparison",
-            "a per-criterion verdict table for S-1..S-7",            # ---- ADDED 2026-10-01 UNDER DEC-20261001-4076d1 (PR #1515, session coordinator-portfolio-ed0c),
+            "a per-criterion verdict table for S-1..S-7",
+            # ---- ADDED 2026-10-01 UNDER DEC-20261001-4076d1 (PR #1515, session coordinator-portfolio-ed0c),
             # encoded here verbatim from the queue as committed at ec903bbd7f, which was hand-edited
             # without re-running this script. Encoded under DEC-20261002-31a715 so the script again
             # reproduces the committed queue. ----
@@ -1207,26 +1171,17 @@ tasks.append(od([
             "forced per L-4",
             "the report satisfies S-1 as frozen AND discloses the S-1 reason-text tension per "
             "DEC-20261001-4076d1",
-            # ---- ADDED 2026-10-02 UNDER DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4) ----
-            f"every reported M-1 value has a u4_bookkeeping block in the same machine-readable "
-            f"artifact that carries it, recording (i) the realising FAKE-side witness as a multiplier "
-            f"tuple, (ii) each unreduced deg(g_i f_i), (iii) their max, (iv) the reported d'_F and "
-            f"(v) the boolean verdict ({LEMMA4_AMENDMENT} L-2 requirements 1 and 2)",
-            f"every censored M-1 has u4_bookkeeping `not_applicable: censored` with its censoring "
-            f"flag, and no consequence of any kind is stated for it ({LEMMA4_AMENDMENT} L-2 "
-            f"requirement 3)",
-            f"every d_F consequence the report states is at an instance whose recorded verdict is "
-            f"true. It uses requirement 4's shape on the TRUE side with S_fe as members, names (H1), "
-            f"U-2, U-5 and U-6, and cites Lemma 4 as a theorem nowhere. No d_F consequence is "
-            f"stated for the generators alone with S_fe OUTSIDE the TRUE system, and no verdict at "
-            f"one instance is offered about another instance, n, arm or family "
-            f"({LEMMA4_AMENDMENT} L-2 requirements 4 and 5)",
+            # ---- ADDED 2026-10-02 UNDER DEC-20261002-4242bd (NA-3 of DEC-20260928-3f71c4), CUT
+            # UNDER DEC-20261002-31a715 ----
+            # Three of the seven 2026-10-02 gate lines remain, each checking something the
+            # 2026-10-01 gate lines above do not: a second witness recorded beside a failing
+            # one, never replacing it; the S-1 annotation and its separate verdict field; and
+            # the absence of PR #1377 material. The four dropped checked L-2 requirements 1-5
+            # and L-4, which the 2026-10-01 lines already check by reference.
             f"every instance whose verdict fails records the verdict, max_i deg(g_i f_i) and the "
             f"gap, and states that no d_F bound follows, never that d_F > d'_F. Any second witness "
             f"is recorded beside the failing one and never replaces it ({LEMMA4_AMENDMENT} L-2 "
             f"requirement 6)",
-            f"C-6 was run at one n and its both-placements comparison reported, labelled "
-            f"structurally forced and counted toward no conclusion ({LEMMA4_AMENDMENT} L-4)",
             f"the S-1 sentence appears as frozen, with the {S1_AMENDMENT} annotation verbatim "
             f"directly after it, and the verdict table carries `s1_annotation_present` separately "
             f"from S-1's PASS/FAIL",
@@ -2061,41 +2016,54 @@ REVISIONS = [
         ("decision_ref", "DEC-20261001-4076d1"),
         ("implements", "DEC-20260928-3f71c4 NA-3"),
     ]),
-    # ADDED 2026-10-02 UNDER DEC-20261002-4242bd. Time of day not recorded: the
-    # authoring Coordinator subagent holds no clock or shell, so the date stands
-    # alone rather than an invented timestamp.
+    # ADDED 2026-10-02 UNDER DEC-20261002-4242bd AND REWRITTEN THE SAME DAY UNDER
+    # DEC-20261002-31a715, before it ever reached main. As first written it described
+    # nine constraints, seven gate lines and the clearing of IMP-SEMBIN-FCB7A2-CARD-LEMMA4,
+    # most of which the reconciliation removed as duplicates or found already done on
+    # 2026-10-01. A log entry that misdescribes the final card would be worse than a
+    # rewritten one that never left the branch. The first wording stays readable at
+    # f0b60d2961, whose bytes TASK-20261002-81ff3c's receipt binds. Time of day not
+    # recorded: neither authoring Coordinator subagent holds a clock or shell, so the
+    # date stands alone rather than an invented timestamp.
     od([
         ("at", "2026-10-02"),
         ("task_id", EXECUTE),
         ("from_state", "queued"),
         ("to_state", "queued"),
         ("decision", CARD_REVISION),
+        ("reconciled_by", RECONCILIATION),
         ("reason",
-         "NOT A STATE CHANGE. A CARD REVISION, DEC-20260928-3f71c4 NA-3, performed under "
-         + CARD_REVISION + ". DEC-20260928-3f71c4 R-2 held dispatch of this card because its "
-         "read_scope and inputs predate " + LEMMA4_AMENDMENT + ", which binds execution: L-2 "
-         "requires a per-instance u4_bookkeeping block that cannot be reconstructed after the "
-         "run, and L-4 fixes how C-6 is reported. Additions, all appended, none reworded or "
-         "reordered: read_scope +4 (" + LEMMA4_AMENDMENT + ", " + LEMMA4_DECISION + ", "
-         + S1_AMENDMENT + ", " + CARD_REVISION + "); inputs +4 (the same four, each with what it "
-         "binds); constraints +9 (L-2 requirements 1 to 6 across six entries, with requirement 5's "
-         "prohibition and its stated scope; L-4; the S-1 disposition; the PR #1377 ruling), each "
-         "quoting its source sentence; completion_gate +7, checking the u4_bookkeeping blocks, the "
-         "requirement 4/5/6 statements, C-6's labelling, the S-1 annotation and the absence of "
-         + OOB_REF + " material. The S-1 reason-text flag is DISPOSED OF by " + S1_AMENDMENT
-         + ": S-1 stands as frozen, and the report prints a verbatim annotation directly after "
-         "it. The PR #1377 'supplement' report (DEC-20260924-f0a9c7) is SUPERSEDED, not read: "
-         "this revision on main is the complete pre-dispatch specification of this card. The "
-         "card's title, objective, write_scope, artifact_paths, budget, maximum_runs, "
-         "dispatch_preconditions and every existing entry are byte-unchanged. EXP-SEMBIN-4fa22c "
-         "stays `approved` under DEC-20260916-6ce039 and is not re-approved here. The card "
-         "returns to the Ready list once this revision's ledger archive TASK-20261002-81ff3c is "
-         "committed and verified. IMP-SEMBIN-FCB7A2-CARD-LEMMA4 clears at that commit. The claim "
-         "history is unchanged: epochs 1 and 2 by coordinator-sembin-cbb416 on "
+         "NOT A STATE CHANGE. A SECOND, NARROWER REVISION FOR THE SAME DEC-20260928-3f71c4 NA-3, "
+         "kept only where it adds to the first. The 2026-10-01 entry above (DEC-20261001-4076d1, "
+         "PR #1515) performed NA-3 first and is AUTHORITATIVE. Its work, not this entry's: "
+         + LEMMA4_AMENDMENT + " and " + LEMMA4_DECISION + " in read_scope and inputs; L-2 "
+         "requirements 1-6, requirement 5's prohibition and L-4 in constraints and "
+         "completion_gate; S-1 standing frozen with its tension disclosed; and the #1377 concern "
+         "superseded. This entry was authored under " + CARD_REVISION + " without sight of that "
+         "revision, which was then on an unmerged branch, and was reconciled under "
+         + RECONCILIATION + ". It adds only: read_scope +3 (" + S1_AMENDMENT + ", "
+         + CARD_REVISION + ", " + RECONCILIATION + "); inputs +4 (" + LEMMA4_DECISION + ", whose "
+         "limitations bound the report; " + S1_AMENDMENT + "; " + CARD_REVISION + "; "
+         + RECONCILIATION + "); constraints +4 (L-2 requirement 2 with the amendment's naming "
+         "convention, so every placement the report names states its side; L-2 requirement 6 "
+         "with the second-witness recording rule and the rule that no verdict outcome is treated "
+         "as expected; the S-1 annotation of " + S1_AMENDMENT + ", which is the form the "
+         "2026-10-01 S-1 disclosure takes; nothing from " + OOB_REF + " (PR #1377), with a stop "
+         "if experiments/EXP-SEMBIN-4fa22c/code/ or runs/ already exist); completion_gate +3 (a "
+         "second witness is recorded beside a failing one and never replaces it; the S-1 "
+         "annotation appears verbatim after S-1, with `s1_annotation_present` reported apart "
+         "from S-1's PASS/FAIL; nothing was read or imported from " + OOB_REF + ", and the run "
+         "manifest records its base commit and the prior absence of code/ and runs/). Every "
+         "addition is appended after the 2026-10-01 entries. Nothing in main's queue is "
+         "reworded, reordered or removed, and the card's title, objective, write_scope, "
+         "artifact_paths, budget, maximum_runs and dispatch_preconditions are unchanged. "
+         "EXP-SEMBIN-4fa22c stays `approved` under DEC-20260916-6ce039 and is not re-approved. "
+         "IMP-SEMBIN-FCB7A2-CARD-LEMMA4 was cleared by DEC-20261001-4076d1, not by this entry. "
+         "Claim history unchanged: epochs 1 and 2 by coordinator-sembin-cbb416 on "
          "cursor/semaev-2015-audit-program-5b8b, with no release on main; an epoch-3 claim that "
          "DEC-20260923-763547 reports was published only on 778d2b3e8a; epoch 4, by "
-         "coordinator-portfolio-ed0c, released `abandoned` (as reported by the dispatching "
-         "session). The next claimant takes the next epoch. Zero runs."),
+         "coordinator-portfolio-ed0c, released `abandoned`, both files now in claims/ through "
+         "PR #1515. The next claimant takes the next epoch. Zero runs."),
     ]),
 ]
 
@@ -2242,8 +2210,9 @@ queue = od([
 path = pathlib.Path(BASE) / "dispatch_queue.json"
 path.parent.mkdir(parents=True, exist_ok=True)
 # ensure_ascii=False since 2026-10-02 (DEC-20261002-31a715): PR #1515's hand edit
-# committed one raw em dash (U+2014) in a constraint, and escaping it would make this
-# script disagree with the committed queue by that one character. The queue held no
-# other non-ASCII text and no \u escape, so no earlier byte changes.
+# committed five raw em dashes (U+2014), on three lines of the queue, and escaping them
+# would make this script disagree with the committed queue at exactly those characters.
+# (The merge commit 2eec04fc06 that introduced this said "one"; five is the count.)
+# The queue held no other non-ASCII text and no \u escape, so no earlier byte changes.
 path.write_text(json.dumps(queue, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 print(f"wrote {path} with {len(tasks)} tasks")
