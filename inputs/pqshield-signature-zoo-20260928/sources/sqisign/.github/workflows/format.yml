@@ -1,0 +1,65 @@
+name: Formatting (clang-format)
+
+# Verifies that every C source in scope is formatted exactly as clang-format would write it, on a self-hosted x64 runner
+# (directly, not in Docker). Mirrors scripts/format.sh --check, which is the same thing `make check-format` and the
+# pre-commit hook run locally.
+#
+# The clang-format version and the list of excluded (vendored or generated) files are read from .pre-commit-config.yaml
+# by scripts/format.sh, so this workflow hardcodes neither: bumping the pin in that one file updates the hook, the CMake
+# targets and this job together.
+#
+# The pinned clang-format is installed into a version-keyed directory under $HOME. The runners are not containerized, so
+# that install persists and only the very first run downloads anything.
+
+on:
+  push:
+    branches: ["**"]
+  #pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs of this workflow on the same ref to save runner time.
+concurrency:
+  group: format-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: clang-format
+    runs-on: [self-hosted, x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provision the pinned clang-format
+        run: |
+          set -eu
+          PINNED=$(sed -n 's/^[[:space:]]*rev:[[:space:]]*v\{0,1\}\([0-9][0-9.]*\)[[:space:]]*$/\1/p' \
+                   .pre-commit-config.yaml)
+          if [ -z "$PINNED" ]; then
+            echo "::error file=.pre-commit-config.yaml::could not read the pinned clang-format version ('rev:')"
+            exit 1
+          fi
+          echo "Pinned version: clang-format $PINNED"
+
+          # Keyed on the version, so bumping the pin provisions afresh rather than silently reusing a stale binary.
+          # Lives in $HOME, never the workspace, so it cannot dirty the checkout and survives between runs.
+          VENV="$HOME/.local/share/sqisign-clang-format/$PINNED"
+          if [ -x "$VENV/bin/clang-format" ]; then
+            echo "Reusing the copy already installed in $VENV"
+          else
+            echo "Installing clang-format $PINNED into $VENV"
+            rm -rf "$VENV"   # discard any half-finished venv from an interrupted run
+            python3 -m venv "$VENV"
+            "$VENV/bin/pip" install --quiet --disable-pip-version-check "clang-format==$PINNED"
+          fi
+
+          "$VENV/bin/clang-format" --version
+          echo "CLANG_FORMAT=$VENV/bin/clang-format" >> "$GITHUB_ENV"
+
+      - name: Check formatting
+        # On failure clang-format --dry-run --Werror has already printed every offending file:line, and the script
+        # prints how to fix it locally.
+        run: scripts/format.sh --check

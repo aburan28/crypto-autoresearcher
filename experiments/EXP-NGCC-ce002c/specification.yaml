@@ -1,0 +1,116 @@
+experiment:
+  id: EXP-NGCC-ce002c
+  hypothesis_id: H-NGCC-0313ae
+  version: 1
+  title: >-
+    Facto-DSA-128 sign-10-2 reproduction: public key to a fresh-message
+    forgery, checked by a separate verifier
+  status: review_required
+  objective: >-
+    Decide H-NGCC-0313ae on the official round-1 Facto-DSA package by
+    running the published sign-10-2 argument on Facto-DSA-128 public keys
+    and retaining only a fresh-message signature that a separately
+    compiled verifier accepts.
+  inputs:
+    candidate_id: sign-10
+    roster: inputs/ngcc-round1-20260920/candidates.yaml
+    package_url: >-
+      https://www.niccs.org.cn/niccs/Proposal/Public-Key%20Cryptographic%20Algorithms/Round%201%20candidates/Facto-DSA.zip
+    literature_pointer: https://eprint.iacr.org/2026/2266
+    finding_id: sign-10-2
+    corpus_listing: KN-LIT-5e5a42
+    parameter_set: Facto-DSA-128
+  controls:
+    - >-
+      Separate verifier: the process that checks the fresh signature is
+      not the process that recovered the trapdoor, and it is compiled from
+      the same official sources.
+    - >-
+      Null public key: on each seed, run the same recovery on a public-key
+      buffer of the official length filled from a fixed non-key byte
+      pattern, and require that no signature it emits verifies under an
+      honest Facto-DSA-128 key. A run that treats that buffer as a working
+      trapdoor is invalid.
+    - >-
+      Honest baseline: before recovery, the official signer and verifier
+      must accept one honest signature on a known message for that key.
+      A package that fails this check is an infrastructure failure, not a
+      falsification.
+    - >-
+      Public-key-only input: the recovery process receives the public key
+      and no signature. A run whose transcript shows a signature among
+      the recovery inputs is invalid.
+  independent_variables:
+    - keygen seed in {0, 1}
+  metrics:
+    primary:
+      - fresh_signature_accepted
+      - null_control_verified
+      - honest_self_test_passed
+      - recovery_saw_a_signature
+    secondary:
+      - recovery_wall_clock_seconds
+      - peak_rss_bytes
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: fresh_signature_accepted
+    formula: >-
+      For both seeds on Facto-DSA-128, fresh_signature_accepted is true,
+      null_control_verified is false, recovery_saw_a_signature is false,
+      and honest_self_test_passed is true. Wall-clock time is recorded
+      and compared with the published 6.4 seconds; it is not part of the
+      pass-fail formula.
+    source: >-
+      Saarinen, ePrint 2026/2266, finding sign-10-2, as indexed in
+      inputs/ngcc-round1-20260920/paper_mentions.yaml. The prediction was
+      written before any run of this experiment.
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      Facto-DSA-128 is a submitted parameter set of a round-1 candidate,
+      not a scaled-down toy. No extrapolation to other sets is claimed.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: [0, 1]
+    independent_instances: 2
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 8
+    maximum_runs: null
+  stopping_rules:
+    - Stop after both seeds have a completed attempt on Facto-DSA-128.
+    - If the package declares no parameter set identifiable as Facto-DSA-128, stop and record the run invalid.
+    - A timeout or crash stops that attempt and is recorded as infrastructure. It does not falsify the hypothesis.
+  invalidation_rules:
+    - The null public-key control produces a verifying signature.
+    - The honest self-test fails before recovery.
+    - Recovery inputs include a signature.
+    - Submission binaries, object files, or submission build scripts were executed.
+    - The fresh message was chosen before recovery finished.
+  success_criterion: >-
+    For both seeds on the parameter set identified as Facto-DSA-128 before
+    recovery, the public key alone yields a signature on a message chosen
+    after recovery, the separate verifier accepts it, the null control
+    does not verify, and the honest self-test passed.
+  falsification_criterion: >-
+    Both seeds finish a recovery attempt on Facto-DSA-128 without an
+    accepted fresh-message signature, the honest self-test had passed, and
+    the null control did not fire.
+  required_artifacts:
+    - package sha256 and the parameter-set list, recorded before recovery
+    - the name in the package that was identified as Facto-DSA-128
+    - exact compile and run commands
+    - per seed: public key hash, recovery transcript hash, fresh message, signature bytes, verifier verdict, wall-clock seconds
+    - null-control verdict
+    - run manifest with git commit and dirty-tree state
+  assigned_to: executor
+  approved_by: null
+  approval_withheld_because: >-
+    The design-experiment skill treats a contract as approved only after
+    a snapshot archive commit. This checkout is on branch
+    exec/aes-14352a-stage1, and git status in this worktree fails because
+    a linked worktree gitdir is missing. Approval waits for a commit on
+    an NGCC branch. The fields above are otherwise filled.
