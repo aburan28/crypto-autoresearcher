@@ -430,7 +430,11 @@ __attribute__((unused)) static long batch_for(long rank, long nm_rows, double pe
     while (lo < hi) {
         long mid = lo + (hi - lo + 1) / 2;
         double r = (double)((rank + mid < ncols_) ? rank + mid : ncols_);
-        double ech_phase = (double)rank * per_row + r * r / 8.0;
+        /* B_ is freed once S holds the basis (see the batch loop), so the
+         * elimination phase is S + NM + PLUQ's ~r^2/8 workspace; while S is
+         * filled, B_ and S coexist (rank more rows), which the install phase
+         * (S + new basis of r >= rank rows + NM) always dominates. */
+        double ech_phase = r * r / 8.0;
         double inst_phase = r * per_row;
         double need = ((double)rank + (double)mid + (double)nm_rows) * per_row
                     + (ech_phase > inst_phase ? ech_phase : inst_phase);
@@ -853,6 +857,15 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
                 filled++; mi++;
             }
             if (filled == 0) { mzd_free(S); break; }   /* products exhausted */
+#if !defined(ECH_LEGACY)
+            /* Products are written (and filled > 0, so install_basis will run).
+             * Nothing reads B_ again before install_basis replaces it (the rows
+             * being multiplied are in NM), so drop it rather than hold two
+             * copies of the basis through the elimination: at (45,2,2,23),
+             * N = 46, an 11 GiB cap and rank ~150k, the second copy cost
+             * ~3.4 GB and cut each batch to ~14k products. */
+            mzd_free(B_); B_ = NULL;
+#endif
             double tb = now_sec();
             long rk2 = ech(S);
             long old_rank = rank_;
