@@ -1,0 +1,83 @@
+# The program's research state in a cairn lab space (docs/cairn-lab.md).
+#
+# Read by tools/lab_sync.py. `policy` is handed to `cairn lab init --policy`
+# verbatim; `scope` decides which paths the bridge commits and checks out.
+#
+# What the lab carries is research STATE: records, coordination traffic, run
+# outputs and the knowledge corpus. Code (tools/, harness/, orchestration/,
+# agents/) stays in git, where review and CI already live.
+
+scope:
+  include:
+    - ledger/**
+    - coordination/**
+    - experiments/**
+    - knowledge/**
+  # Never committed even when in scope. The same files .gitignore keeps out,
+  # plus everything generated: a generated file in a CRDT is a conflict that
+  # nobody can resolve by hand.
+  exclude:
+    - knowledge/INDEX.md
+    - knowledge/frontiers/ecdlp/MAP.md
+    - "**/dispatch_plan.json"
+    - "**/dispatch_plan.md"
+
+policy:
+  # Write-once means the lab refuses any edit or deletion and keeps two
+  # different first writes of one path as an open conflict. Listed here only
+  # where the program writes once BY CONSTRUCTION (O_EXCL files with unique
+  # names), measured against git history: from 2026-08-15 these paths saw no
+  # in-place modification at all.
+  #
+  # Deliberately NOT write-once, although they are immutable once landed:
+  # run directories and ledger/decisions, ledger/evidence and
+  # ledger/corrections. Their immutability is relative to `main` --
+  # tools/check_run_immutability.py fails a branch that modifies a run already
+  # on main -- while ON a branch they are rewritten as work proceeds: in that
+  # window run files were re-committed in place 490 times (progress logs,
+  # checkpoints, manifests of in-progress runs) and decisions, evidence and
+  # corrections 83, 13 and 5 times. A path glob cannot tell an in-progress run
+  # from a finished one, so the lab keeps them as mutable registers -- a
+  # concurrent edit is a visible conflict, never a silent overwrite -- and the
+  # landed-record rules keep being enforced where they are today, in CI.
+  write_once:
+    - coordination/bus/messages/**
+    - coordination/bus/receipts/**
+    - coordination/events/**
+    - "**/claims/*.claim.json"
+    - "**/claims/*.release.json"
+    - "**/lanes/*.lane.json"
+    - "**/lanes/*.closed.json"
+    - ledger/goals/*/checkpoints/**
+  ignore:
+    - .env
+    - .tmp/**
+    - .agent-state/**
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+    - "**/*.pyo"
+    - "**/*.raw"
+    - "**/*.pkl"
+    - "**/*.so"
+    - "**/*.dylib"
+    - "**/.DS_Store"
+    - "**/*.sage.py"
+    - knowledge/INDEX.md
+    - knowledge/frontiers/ecdlp/MAP.md
+    - "**/dispatch_plan.json"
+    - "**/dispatch_plan.md"
+    - experiments/**/smoke_work/**
+    - experiments/**/runtime/sage/**
+
+# Execution environments the program's experiments name. Recipes live in the
+# cairn repository (examples/lab/environments/); `tools/lab_sync.py envs`
+# reports which are imported into the configured lab on this machine.
+environments:
+  numtheory:
+    recipe: examples/lab/environments/numtheory
+    provides: [pari-gp 2.15.4, msolve 0.6.5, valgrind, python-flint 0.9.0, cypari2 2.2.0]
+  sage:
+    recipe: examples/lab/environments/sage
+    provides: [sage 10.9 at /opt/conda-sage/envs/sage]
+    # EXP-GFPN-05ff43's comparator calls this interpreter by absolute path.
+    python: /opt/conda-sage/envs/sage/bin/python
