@@ -129,27 +129,40 @@ def main() -> int:
         man = man_path.read_text(encoding="utf-8")
         if outcome and f"outcome: {outcome}" not in man:
             errs.append("manifest outcome disagrees with raw-result")
-        for rel in (
-            "stage2/leaf-counts.jsonl",
-            "stage2/arm-summaries.json",
-            "RESULTS.md",
-        ):
-            if not (root / rel).is_file():
-                errs.append(f"missing {rel}")
-        if (root / "RESULTS.md").is_file() and outcome:
-            body = (root / "RESULTS.md").read_text(encoding="utf-8")
-            if f"**{outcome}**" not in body and f"outcome: **{outcome}**" not in body:
-                # Accept either bold outcome form used by Stage-2 RESULTS.
-                if outcome not in body:
-                    errs.append("RESULTS.md does not name the Stage-2 O-* outcome")
+        # Prefer refine r2 paths; fall back to legacy Stage-2 paths.
+        r2 = root / "stage2" / "r2-phi31ker"
+        legacy = root / "stage2"
+        if (r2 / "arm-summaries.json").is_file():
+            stage2_root = r2
+            results_candidates = [r2 / "RESULTS.md", root / "RESULTS.md"]
+        else:
+            stage2_root = legacy
+            results_candidates = [root / "RESULTS.md"]
+        for rel in ("leaf-counts.jsonl", "arm-summaries.json"):
+            if not (stage2_root / rel).is_file():
+                errs.append(f"missing {stage2_root.relative_to(root)}/{rel}")
+        results_ok = any(p.is_file() for p in results_candidates)
+        if not results_ok:
+            errs.append("missing RESULTS.md (legacy or r2-phi31ker)")
+        else:
+            body = next(p for p in results_candidates if p.is_file()).read_text(
+                encoding="utf-8"
+            )
+            if outcome and outcome not in body:
+                errs.append("RESULTS.md does not name the Stage-2 O-* outcome")
         if raw.get("claims", {}).get("deployed_attack"):
             errs.append("forbidden deployed_attack claim present")
-        # Exactly one O-* in arm-summaries when present
-        arm_path = root / "stage2" / "arm-summaries.json"
+        arm_path = stage2_root / "arm-summaries.json"
         if arm_path.is_file():
             arms = json.loads(arm_path.read_text(encoding="utf-8"))
             if arms.get("outcome") != outcome:
                 errs.append("arm-summaries outcome disagrees with raw-result")
+        # Refine path: when phi31_ker_bound, stable bases must not be window_proxy.
+        if raw.get("phi31_ker_bound") is True and raw.get("stable_bases_are_window_proxy"):
+            errs.append("phi31_ker_bound true but stable_bases_are_window_proxy still true")
+        bind = root / "stage1" / "phi31-ker-bases.json"
+        if raw.get("phi31_ker_bound") is True and not bind.is_file():
+            errs.append("phi31_ker_bound true but stage1/phi31-ker-bases.json missing")
         if ords[31] != 5:
             errs.append("ord_31(2) self-check failed")
     else:
