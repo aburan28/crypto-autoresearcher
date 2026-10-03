@@ -41,6 +41,12 @@ env = {
     "cwd": str(CODE),
     "msolve_version": sh(["msolve", "-h"]).splitlines()[0] if sh(["msolve", "-h"]) else None,
     "m4ri_package": sh(["dpkg-query", "-W", "-f=${Version}", "libm4ri-dev"]),
+    # The M4RI shared object libclosure.so actually loads (resolved at run time
+    # by closure_m4ri_library). It can differ from the system package above:
+    # 0.0.20200125 is unsound at N = 44, so libclosure is built against a fixed
+    # release with `make M4RI_PREFIX=...` (see Makefile).
+    "m4ri_library": subprocess.run([sys.executable, "-c", "import closure_cert; print(closure_cert.M4RI_LIBRARY)"],
+                                   capture_output=True, text=True, timeout=60, cwd=CODE).stdout.strip() or None,
     "singular_package": sh(["dpkg-query", "-W", "-f=${Version}", "singular"]),
     "gcc_version": sh(["gcc", "--version"]).splitlines()[0],
     "git_commit": sh(["git", "rev-parse", "HEAD"]),

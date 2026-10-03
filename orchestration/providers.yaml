@@ -138,6 +138,40 @@ backends:
       namespaced (`vendor/model`), so its binding table differs from a direct
       vendor backend even when the underlying model is identical.
 
+  abliteration:
+    display_name: Abliteration.ai (OpenAI-compatible)
+    wire: openai_chat
+    base_url: https://api.abliteration.ai/v1
+    base_url_env: ABLIT_BASE_URL
+    api_key_env: ABLIT_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Serves the vendor's published ids (`abliterated-model`,
+      `abliterated-model-large`, `abliterated-model-large-v2`). These are
+      refusal-reduced open-weight derivatives, not Anthropic or OpenAI
+      proprietary models. Chat Completions takes `reasoning_effort`.
+      `abliterated-model-large-v2` collapses that ladder to three modes
+      (low, high, max): xhigh and max are the same mode. Select this backend
+      with AUTORESEARCH_BACKEND; it is not in the fallback order.
+
+  abliteration-anthropic:
+    display_name: Abliteration.ai via its Anthropic-compatible endpoint
+    wire: anthropic_messages
+    # The wire protocol appends /v1/messages, so the composed endpoint is
+    # https://api.abliteration.ai/v1/messages. Claude Code wants the same host
+    # in ANTHROPIC_BASE_URL.
+    base_url: https://api.abliteration.ai
+    base_url_env: ABLIT_ANTHROPIC_BASE_URL
+    api_key_env: ABLIT_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Same models as `abliteration`, spoken as Anthropic Messages. Effort is
+      sent as `output_config.effort` (the vendor's native control). A thinking
+      budget would be remapped by the provider to an undisclosed effort, so
+      bindings on this backend do not use `anthropic_thinking`. This does NOT
+      provide Claude. The endpoint accepts `x-api-key`, which is this wire's
+      default, so a separate auth override is unnecessary.
+
   local:
     display_name: Self-hosted OpenAI-compatible server (vLLM, SGLang, Ollama)
     wire: openai_chat
@@ -171,7 +205,8 @@ runtimes:
       api_key: ANTHROPIC_AUTH_TOKEN
       model: ANTHROPIC_MODEL
       small_model: ANTHROPIC_SMALL_FAST_MODEL
-    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic]
+    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic,
+                          abliteration-anthropic]
     notes: >-
       Subagent frontmatter accepts only the runtime's own model names, so
       per-role model selection here is process-level: launch one runtime per
@@ -186,7 +221,7 @@ runtimes:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
-    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    compatible_backends: [openai, zai, fireworks, openrouter, abliteration, local]
     notes: >-
       This runtime previously bound roles by convention — a session read
       AGENTS.md and agents/<role>.md and was trusted to behave. Nothing checked
@@ -208,7 +243,7 @@ runtimes:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
-    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    compatible_backends: [openai, zai, fireworks, openrouter, abliteration, local]
     notes: >-
       Of the CLI runtimes this is the one with real per-role enforcement: its
       `permission` block denies a tool outright rather than asking the model
@@ -227,7 +262,8 @@ runtimes:
     tool_loop: langgraph
     env: {}
     compatible_backends: [anthropic, zai, zai-anthropic, fireworks,
-                          fireworks-anthropic, openai, openrouter, local]
+                          fireworks-anthropic, openai, openrouter, abliteration,
+                          abliteration-anthropic, local]
     notes: >-
       Executes a role against any backend above, with the tool surface derived
       from orchestration/roles.yaml and the task's write_scope enforced by the
