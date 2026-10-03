@@ -266,6 +266,15 @@ def _certificate_prefix(M: np.ndarray, rows: tuple[int, ...], words: int) -> np.
     rows deliberately remain in the reduction: their contributions cancel.
     """
     acc = np.zeros(words, dtype=np.uint64)
+    if len(rows) == 0:
+        return acc
+    lib = kernels._native.load()
+    if lib is not None and len(rows) >= _CERT_BATCH_MIN_ROWS:
+        idx = np.ascontiguousarray(rows, dtype=np.int32)
+        lib.gf2_xor_rows_prefix(
+            kernels._ptr(M), M.shape[1], kernels._ptr(idx), len(rows), words, kernels._ptr(acc)
+        )
+        return acc
     if len(rows) < _CERT_BATCH_MIN_ROWS or acc.nbytes > _CERT_BATCH_BYTES:
         for r in rows:
             acc ^= M[r, :words]
@@ -339,9 +348,9 @@ def macaulay_rank(eqs, nv: int, D: int, neq: int, *, want_cert: bool = True,
     ``dims_by_deg``, ``pivcols``, ``instrument: gf2.rank_only``, and optional
     ``certificate``. Does not produce an op-log certificate.
     """
-    from .closure import Closure
+    from .closure import cached_closure
 
-    cl = Closure(nv, D, neq)
+    cl = cached_closure(nv, D, neq)
     M = cl.build_M(eqs)
     res = rank_profile(M, cl.C, want_cert=want_cert, algorithm=algorithm)
     leads = np.array(res.pivcols, dtype=np.int64)

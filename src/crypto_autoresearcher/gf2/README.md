@@ -54,6 +54,8 @@ Speed knobs; none of them can change an output bit:
 | `CRYPTO_AR_GF2_INNER_THREADS` | threads inside one elimination (default: all cores for matrices of at least 2^23 words, 1 below that and inside `map_threads` workers) |
 | `CRYPTO_AR_GF2_THREADS` | `map_threads` pool size (default: all cores) |
 | `CRYPTO_AR_GF2_SB_WORDS` | words per step of the `sb` column pass, 1..8 (default 2) |
+| `CRYPTO_AR_GF2_TAIL_TABLE_WORDS` | Gray-table scratch per OpenMP thread, in uint64 words (default 2^17 = 1 MiB) |
+| `CC` | C compiler for the native kernels (default: prefer `gcc` then `cc`/`clang`, so OpenMP is used when libgomp is present) |
 
 `kernels._native.build_info` records which backend served a run and the
 compiled binary's source hash. A run manifest should copy it.
@@ -93,6 +95,12 @@ compiled binary's source hash. A run manifest should copy it.
    certificate back-trace and the W_D products are all native. Native calls
    release the GIL, so `kernels.map_threads` runs independent instances in
    parallel.
+8. **Reusable scratch + a working OpenMP build.** Blocked / super-blocked
+   passes keep buffers and the Gray-table pool in a grow-only thread-local
+   arena (no malloc/mmap per call). The build prefers `gcc` so `-fopenmp`
+   succeeds when `cc` is clang without `omp.h`. Same-key compiles take a
+   file lock. Certificate checks use native `gf2_xor_rows_prefix` when the
+   combination is long enough.
 
 ## Measured (this container, 4 cores, no GPU)
 
