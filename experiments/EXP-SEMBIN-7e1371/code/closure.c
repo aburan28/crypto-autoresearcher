@@ -446,11 +446,15 @@ __attribute__((unused)) static long batch_for(long rank, long nm_rows, double pe
  * the exact product cursor, so it builds the same matrices an uninterrupted run
  * would. Multi-iteration closures in non-legacy builds only; the single-level
  * statistic is one iteration and is never checkpointed.
- *   ckpt.bin  cursor, history, flags, and the basis. B_ is in reduced row
+ * Files are named by the system hash H (16 hex digits), so closures of different
+ * systems -- including the D = 2 and D = 3 closures run_cert re-runs before a
+ * resumed D = 4 one -- never touch each other's state (a single ckpt.bin let
+ * them overwrite, then delete, a D = 4 checkpoint).
+ *   ckpt.H.bin  cursor, history, flags, and the basis. B_ is in reduced row
  *             echelon form, so each row is its pivot plus its bits on the
  *             NON-pivot columns; only those are stored (N = 44: ~0.3 GB rather
  *             than 2.3 GB dense). A row that is not reduced aborts the write.
- *   nm.<it>.bin  NM, the rows being multiplied in iteration <it>, dense, written
+ *   nm.H.<it>.bin  NM, the rows being multiplied in iteration <it>, dense, written
  *             once per iteration. The previous iteration's file is removed only
  *             after a checkpoint of the new iteration is committed: the last
  *             checkpoint of an iteration can still point into its NM (cursor on
@@ -505,8 +509,8 @@ __attribute__((unused)) static void ckpt_save(const ckpt_hdr *H0, const long *it
     const char *dir = ckpt_dir();
     if (!dir) return;
     char tmp[4096], dst[4096];
-    snprintf(tmp, sizeof tmp, "%s/ckpt.bin.tmp", dir);
-    snprintf(dst, sizeof dst, "%s/ckpt.bin", dir);
+    snprintf(tmp, sizeof tmp, "%s/ckpt.%016llx.bin.tmp", dir, (unsigned long long)H0->hash);
+    snprintf(dst, sizeof dst, "%s/ckpt.%016llx.bin", dir, (unsigned long long)H0->hash);
     long nw = (ncols_ + 63) / 64;
     u64 *npm = malloc(sizeof(u64) * nw); long *npos = malloc(sizeof(long) * nw);
     long nnp = nonpivot_mask(npm, npos, nw);
@@ -554,7 +558,7 @@ __attribute__((unused)) static void ckpt_save(const ckpt_hdr *H0, const long *it
     else {
         /* the committed checkpoint is in iteration H.it; older NM files are dead */
         for (long k = 1; k < H.it; k++) {
-            snprintf(dst, sizeof dst, "%s/nm.%ld.bin", dir, k);
+            snprintf(dst, sizeof dst, "%s/nm.%016llx.%ld.bin", dir, (unsigned long long)H.hash, k);
             remove(dst);
         }
     }
@@ -564,8 +568,8 @@ __attribute__((unused)) static void nm_save(u64 hash, long it, long n_new, const
     const char *dir = ckpt_dir();
     if (!dir) return;
     char tmp[4096], dst[4096];
-    snprintf(tmp, sizeof tmp, "%s/nm.%ld.bin.tmp", dir, it);
-    snprintf(dst, sizeof dst, "%s/nm.%ld.bin", dir, it);
+    snprintf(tmp, sizeof tmp, "%s/nm.%016llx.%ld.bin.tmp", dir, (unsigned long long)hash, it);
+    snprintf(dst, sizeof dst, "%s/nm.%016llx.%ld.bin", dir, (unsigned long long)hash, it);
     nm_hdr H = {NM_MAGIC, hash, it, n_new, ncols_, NM->width};
     FILE *f = fopen(tmp, "wb");
     int ok = f != NULL && wr(f, &H, sizeof H, 1);
@@ -584,7 +588,7 @@ __attribute__((unused)) static int ckpt_load(u64 hash, int N, int D, long ngens,
     const char *dir = ckpt_dir();
     if (!dir) return 0;
     char path[4096];
-    snprintf(path, sizeof path, "%s/ckpt.bin", dir);
+    snprintf(path, sizeof path, "%s/ckpt.%016llx.bin", dir, (unsigned long long)hash);
     FILE *f = fopen(path, "rb");
     if (!f) return 0;
     int ok = rd(f, H, sizeof *H, 1) && H->magic == CKPT_MAGIC && H->hash == hash && H->N == N &&
@@ -638,7 +642,7 @@ __attribute__((unused)) static int ckpt_load(u64 hash, int N, int D, long ngens,
 static mzd_t *nm_load(u64 hash, long it, long n_new) {
     const char *dir = ckpt_dir();
     char path[4096];
-    snprintf(path, sizeof path, "%s/nm.%ld.bin", dir, it);
+    snprintf(path, sizeof path, "%s/nm.%016llx.%ld.bin", dir, (unsigned long long)hash, it);
     FILE *f = fopen(path, "rb");
     if (!f) return NULL;
     nm_hdr H;
@@ -743,7 +747,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             a = R.a; md = R.md; mi = R.mi; nm_rows = n_new;
             if (a < n_new) {
                 NM = nm_load(ghash, it, n_new);
-                if (!NM) { fprintf(stderr, "[ckpt] nm.%d.bin missing or stale; cannot resume\n", it);
+                if (!NM) { fprintf(stderr, "[ckpt] nm.%016llx.%d.bin missing or stale; cannot resume\n", (unsigned long long)ghash, it);
                            hit_cap = 2; break; }
             }
         } else {
@@ -903,12 +907,14 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
     *out_rank = rank_;
     *out_contains_one = (rank_ > 0 && is_pivot_[ncols_ - 1]) ? 1 : 0;
     *out_max_rows_seen = max_rows_seen;
-    if (!hit_cap && ckpt_dir()) {
-        /* finished: a checkpoint of a completed run has no further use */
+    if (!hit_cap && ckpt_dir() && !single_level) {
+        /* finished: this system's checkpoint has no further use (other
+         * systems' files in the directory are left alone) */
+        if (!ghash) ghash = gens_hash(N, D, ngens, gen_ptr, gen_masks);
         char path[4096];
-        snprintf(path, sizeof path, "%s/ckpt.bin", ckpt_dir()); remove(path);
+        snprintf(path, sizeof path, "%s/ckpt.%016llx.bin", ckpt_dir(), (unsigned long long)ghash); remove(path);
         for (int k = 1; k <= max_iter + 1; k++) {
-            snprintf(path, sizeof path, "%s/nm.%d.bin", ckpt_dir(), k); remove(path);
+            snprintf(path, sizeof path, "%s/nm.%016llx.%d.bin", ckpt_dir(), (unsigned long long)ghash, k); remove(path);
         }
     }
     return hit_cap == 2 ? 2 : (hit_cap ? 1 : 0);
