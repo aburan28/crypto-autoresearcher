@@ -1,14 +1,15 @@
-# RESULTS — EXP-BINSTD-a8bfd8 (Stages 0-1 admission plan)
+# RESULTS — EXP-BINSTD-a8bfd8 (Stages 0-3 expand plan)
 
 - Hypothesis: `H-BINSTD-85e778`
 - Approved by: `DEC-20261002-b1f692`
-- Executor task: `TASK-20261003-a5391d`
-- Outcome (exactly one): **O-STAGES-0-1-COMPLETE**
-- Stage: 1
+- Expand decision: `DEC-20261003-d323c0`
+- Executor task: `TASK-20261003-dbe1ab`
+- Outcome (exactly one): **O-IMPEDIMENT**
+- Stage: 3
 - Status: `completed_valid`
 - Claim (A) ok (Stage 0): `see stage0/tensor-census.json`
-- Claim (B) ok (Stage 1): `True`
+- Claim (B) ok (Stage 1): `see stage1/support-census.json`
+- Stage-2 controls: same_weight_isolates_w=see stage2/controls.json; 9d12bd=n/a; 99294c=n/a
 - Break / exponent / attack: false / false / false
 - Amazon Bedrock: NOT USED
-- Stages 2-3: not enumerated in trial-plan-v1; remain on design card `TASK-20261002-c39f37`.
-- Recorded at: 2026-10-03T01:22:02Z
+- Recorded at: 2026-10-03T01:39:15Z
