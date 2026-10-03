@@ -1,0 +1,80 @@
+# TASK-20261002-87ffc4 red team -- J4 / PTM readings of the frozen A-CAL, PC-NULL
+# and A-INT text, written BEFORE reading implementation-notes I-10/I-11,
+# calibration.json (any field), analysis.json, heuristics.json, cells.jsonl or
+# analyze_relcensus.py. Source: specification.yaml v1 analysis block (lines
+# 651-694) and amendments AMD-280481, -c7ccde, -f3fa33, -594eab, -236691 (none
+# of which changes A-CAL, PC-NULL, A-INT or A6R; checked by reading/grep).
+written_at_utc: '2026-10-02 (session start; before any producer statistic was read)'
+readings:
+  R-ACAL-1_scope_of_generator: >-
+    "For each (family, class, m, rung)": every generator parameter is indexed
+    by family (SUB, DICK), class, m and rung. The frozen text writes
+    rho1_hat(class, m, rung) without a family index; PRIMARY reading: rho1_hat
+    per (family, class, m, rung) = sum over r0..r2 and the rung's curves of n /
+    (3 * sum_j mu_model(j)) (the "For each" scoping); ALTERNATIVE: pooled over
+    both families' six randoms. Reason: |F| differs between families, so
+    mu_model differs, and the opening clause scopes the whole generator.
+    Location cancels in z to first order, so the choice matters only through
+    the NB shape; both are reported if they differ.
+  R-ACAL-2_D: >-
+    D = max(D_hat, 1), D_hat = sum_j s_j^2 / sum_j nbar_j over the rung's
+    curves, s_j^2 the ddof-1 variance and nbar_j the mean of r0..r2 on curve
+    j, per (family, class, m, rung). D_hat is a ratio of sums, not a mean of
+    ratios.
+  R-ACAL-3_NB: >-
+    NB with mean m_j and variance D m_j: n = m_j/(D-1) (size), p = 1/D. D == 1
+    exactly is Poisson(m_j). m_j <= 0 gives a zero count.
+  R-ACAL-4_SS_mean: >-
+    SS: m_j = the rung mean of the three randoms, i.e. mean over r0..r2 and
+    over the rung's curves of the observed count (one value per (family, SS,
+    m, rung)). TT/TB: m_j = rho1_hat * mu_model(j), mu_model(j) = |RR_gen|/N_j
+    with |RR_gen| = (number of independent signed pairs)/M_gen, M_gen = 3 (TT,
+    h 2), 10 (TT, h 3), 3 (TB, h 2), computed from each curve's |F| and N.
+    Because rho1_hat multiplies mu_model, an error in mu_model's constant is
+    absorbed; only its curve-to-curve shape matters.
+  R-ACAL-5_sharing: >-
+    Within one replicate and one family: r0, r1, r2 drawn once per curve and
+    shared by every pseudo-structured arm of the family (SUB: subgroup,
+    small_x, known_null_sub; DICK: dickson, known_null_dick). Each
+    pseudo-structured arm's counts are independent draws from the same NB as
+    the randoms. Classes and m are independent of each other (no cross-class
+    correlation is generated). The 30 and 32 rungs of a band cell are drawn
+    with their own (m_j, D) and pooled in the CC-8 sums.
+  R-ACAL-6_tstar: >-
+    t* = mean over 5 seed families (SeedSequence([0x011cd0, f]), f = 0..4) of
+    the 0.95 quantile of max over the 21 FAM-1 band cells of z, >= 20000
+    replicates per family. t_carry = 0.99 quantile of the CARRY-1 (subgroup,
+    TT, 3, 28 bits, 100 curves) null z, same averaging. My own generator uses
+    MY OWN seeds (SeedSequence([0x87ffc4, f]), f = 0..4), not the producer's,
+    so the seed-family spread is an independent Monte-Carlo replication.
+  R-PCNULL: >-
+    (i) K = number of the 14 known-null family (band) pseudo-cells with z >
+    t*; P(K_null >= K) under the same generator with known-null arms
+    simulated alongside; pass iff >= 0.01. (ii) KS of the 98 per-rung
+    known-null z values (2 families x 7 (class, m) x 7 rungs 20..32) against
+    the simulated null z distribution pooled over the same 98 cells; pass
+    iff p >= 0.01. Undefined z (SD_null == 0) has no frozen rule; I record
+    how many there are and test both "drop" and "z = 0".
+  R-AINT: >-
+    SE = SD_null / C_R. Upper bound = kappa_hat + q95 * SE, two-sided
+    interval kappa_hat +- q975 * SE, where q is the simulated quantile of
+    |kappa_hat - kappa| / SE with kappa = kappa_hat planted. I also compute
+    the one-sided version (quantile of (kappa - kappa_hat)/SE) and report the
+    difference (the absolute-value reading is the conservative one).
+  R-XREL: >-
+    Achieved X_rel = smallest kappa on {1.00, 1.01, ..., 2.00, 2.5, 3, 5}
+    with P(z > t*) >= 0.5. Poisson-planted: n_A = NB(m_j, D) + Poisson((kappa
+    - 1) m_j). Compound-planted (my reading; text silent on the compound law):
+    n_A = NB(m_j, D) + NB(mean (kappa - 1) m_j, variance D (kappa - 1) m_j),
+    i.e. the excess inherits the null dispersion. X_rel = max of the two.
+    The power uses the per-cell z (cell-level threshold t*), not the family
+    maximum.
+  R-PTM1: >-
+    PTM-1 choice (made now, before computing): score each random r_k of a
+    family as "structured" against the OTHER TWO randoms plus the family's
+    known-null arm as the third random (so df stays 3 randoms, CC-8
+    unchanged). Over the 21 FAM-1 (class, m) cells mapped to families: SUB
+    cells (subgroup/small_x rows) and DICK cells use their own family's
+    randoms. Each r_k gives one pseudo-cell per (family, class, m): 2 x 7 x 3
+    = 42 pseudo-cells at the 30-32 band. Reported: count with z > t* and the
+    z distribution vs my simulated null (same construction simulated).

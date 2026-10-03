@@ -1,0 +1,226 @@
+BLIND RE-DERIVATION -- TASK-20261001-f39c27
+Validator (review-adversarial), GOAL-SEMBIN-5078bc, quantity for EXP-SEMBIN-04ec3c
+Written 2026-10-02, BEFORE any producer artifact was opened.
+(.txt rather than .md: this runtime's harness instructions forbid writing .md
+report files; the task card names .txt as the fallback.)
+
+======================================================================
+0. BLINDNESS AND SOURCES
+======================================================================
+Read before this file was hashed (complete list):
+  - AGENTS.md, agents/validator.md, CLAUDE.md (role/contract)
+  - experiments/EXP-SEMBIN-04ec3c/specification.yaml lines 89-138 ONLY
+    (the cost_model block; found by grepping for the key and for the next
+    sibling key; nothing else in that file was displayed)
+  - inputs/BAILEY-2009-541-ECC2K130/paper_fulltext.md lines 1088-1102
+    (Appendix A) plus grep hits for "order|prime|ell" in that file
+  - inputs/BAILEY-2009-541-ECC2K130/source_record.yaml (first 60 lines),
+    paper_fulltext.md.sha256
+  - directory listings: experiments/EXP-SEMBIN-04ec3c/ (top level names only),
+    coordination/goals/GOAL-SEMBIN-5078bc/ (top level names only),
+    inputs/BAILEY-2009-541-ECC2K130/
+  - a files-with-matches grep for "TASK-20261001-f39c27" under ledger/
+    returned one path, ledger/handoffs/TASK-20261001-41f6b3.yaml, which is
+    on the blind list and was NOT opened. A Glob under
+    coordination/goals/GOAL-SEMBIN-5078bc/batches/ for the same id found
+    nothing. Consequence: no committed handoff card for THIS task was found
+    outside the blind list; the task statement used is the one in the
+    dispatch prompt.
+NOT opened: everything on the blind list (code/, runs/, RESULTS-amd-e61f2b.md,
+amendments/, DEC-20261001-5c9e7a, CORR-20261001-a38d14,
+TASK-20261001-41f6b3, reviews/ other than this task's own directory,
+coordination/tasks/TASK-20260929-c05f6e/). The reviews/ directory was not
+listed; this task directory was created with mkdir -p after a test -e on
+its own path only.
+
+======================================================================
+1. THE QUANTITY AS STATED
+======================================================================
+TOTAL(n) = min over m in 2..16, s in 0..floor(m/2), real d of
+           log2( 2^PROBE + 2^FILL + 2^LA )
+PROBE = relations x trials_per_relation x oracle_time
+  relations           = |F| = 2^d
+  trials_per_relation = 1/p,  p = |F|^m / (m! N)
+  oracle_time         = |F|^(m-s)  at store |F|^s
+FILL  = |F|^s   (one operation per table entry)
+LA    = |F|^2
+N     = ell (ECC2K-130 prime subgroup order) at n = 131; N = 2^n otherwise
+margin(n) = TOTAL(n) - log2(0.886 sqrt(N))
+SIGN CONVENTION: positive margin = the index-calculus total costs MORE than
+the rho baseline.
+UNIT: abstract operations, exactly as the statement charges them (one per
+oracle step, one per table entry, |F|^2 for LA). No conversion to bit
+operations or field multiplications. Memory is not part of TOTAL; it is
+reported alongside (store = |F|^s entries).
+
+======================================================================
+2. N FOR n = 131 (ECC2K-130)
+======================================================================
+Taken from inputs/BAILEY-2009-541-ECC2K130/paper_fulltext.md Appendix A
+(line 1096; file sha256 519f330a...b4d967 matches its sidecar and
+source_record.yaml):
+  ell = 680564733841876926932320129493409985129
+Independently re-derived from the curve definition, not just copied:
+  E: y^2 + xy = x^3 + 1 over F_2 has 4 points, so Frobenius trace t = -1.
+  With V_0 = 2, V_1 = t, V_k = t V_{k-1} - 2 V_{k-2}:
+  #E(F_2^131) = 2^131 + 1 - V_131
+             = 2722258935367507707729280517973639940516 = 4 * ell   (checked)
+  ell is prime (sympy.isprime, and Miller-Rabin to the 78 prime bases < 400)
+  log2(ell) = 129.0000000000000000000118 (ell is a 130-bit integer just above 2^129)
+Cross-check: log2 sqrt(pi*ell/(2*2*131)) = 60.80903656, which reproduces the
+cost_model's "published 2^60.8090" ECC2K-130 baseline column. That column is
+informational only here; the task asks for the margin against 0.886 sqrt(N).
+
+======================================================================
+3. ALGEBRA
+======================================================================
+Let L = log2(m!) + log2(N). In log2 units:
+  log2 PROBE = d + (L - m d) + (m - s) d = L + (1 - s) d
+  log2 FILL  = s d
+  log2 LA    = 2 d
+  log2(total trials) = log2(relations x trials_per_relation) = L - (m - 1) d
+  log2(trials_per_relation) = L - m d   (p > 1 exactly when this is < 0)
+The script builds PROBE from the three factors and asserts it equals the
+closed form; max abs discrepancy 8e-59.
+
+TOTAL(d) is a log-sum-exp of affine functions of d, so it is convex in d.
+That justifies golden-section search and also makes the derivative's sign
+change unique.
+  s = 0: PROBE = L + d, increasing. Minimum at d = 0, value ~ L > log2 N.
+  s = 1: PROBE = L, constant. Minimum at d = 0, value ~ L.
+  s >= 2: PROBE decreases in d at slope (s-1); FILL and LA increase.
+    Stationary point: (s-1) 2^PROBE = s 2^FILL + 2*2^LA.
+    For s >= 3 (LA negligible):
+      d* = (L - log2(s/(s-1))) / (2s - 1)
+      TOTAL* = s d* + log2((2s-1)/(s-1))
+      log2(total trials at d*) = L - (m-1) d*
+    With m = 2s this gives log2(total trials) = log2(s/(s-1)) > 0, so the
+    optimum lies just INSIDE the feasible region (total trials = s/(s-1)).
+    With m > 2s (odd m, or s < m/2) the optimum lies in the excluded region.
+
+STRUCTURAL LOWER BOUND (holds for every n, independent of the scan):
+  For s >= 2: TOTAL >= max(L - (s-1)d, s d) >= s L / (2s - 1) > L/2.
+  For s <= 1: TOTAL >= L.
+  Since m >= 2, L/2 >= (1 + log2 N)/2, while log2(0.886 sqrt N) =
+  log2(N)/2 - 0.17455. So margin > 0.67 bits for EVERY (m, s, d) and every
+  N. Under this cost model, index calculus cannot beat the 0.886 sqrt(N)
+  baseline at any size. Because s <= 8, TOTAL >= (8/15) L, so the margin
+  grows at least like (1/30) log2 N. The positive margins below are a
+  property of the model, not of the particular degrees.
+
+======================================================================
+4. EXCLUSION CONVENTIONS (stated as the task requires)
+======================================================================
+The statement says: when trials_per_relation x relations < 1, flag and
+exclude that cell.
+  C1 PRIMARY (pointwise): a cell is a point (m, s, d). Points with
+     L - (m-1) d < 0 are excluded, so d is restricted to [0, L/(m-1)].
+     An (m, s) pair is FLAGGED when its unconstrained minimiser falls in
+     the excluded region; its reported value is then the constrained
+     boundary minimum.
+  C2 (pairwise): flagged (m, s) pairs are dropped entirely.
+  C0 (no exclusion): computed for transparency only.
+  C3 SENSITIVITY, NOT IN THE STATEMENT: additionally require p <= 1
+     (trials_per_relation >= 1), i.e. d <= L/m.
+  C4 SENSITIVITY, NOT IN THE STATEMENT: C1 with integer d.
+Lower bound d >= 0. It binds only for s <= 1 pairs, which are never optimal.
+
+Flagged (m, s) pairs (the same set at every degree; 42 pairs):
+  every (m, s) with 2 <= s and 2s < m, i.e.
+  (5,2) (6,2) (7,2) (7,3) (8,2) (8,3) (9,2..4) (10,2..4) (11,2..5)
+  (12,2..5) (13,2..6) (14,2..6) (15,2..7) (16,2..7).
+  Pairs with s <= 1 are not flagged: their minimum is at d = 0, where total
+  trials = 2^L. Pairs with m = 2s are not flagged: see section 3.
+
+======================================================================
+5. RESULTS -- PRIMARY (C1). C0 and C2 give identical optima at every degree.
+======================================================================
+    n        log2N        rho   m  s          d      TOTAL     margin    PROBE       FILL        LA     log2T   p>1
+   97    97.000000    48.3254   6  3    21.1814    64.8661    16.5407   64.129     63.544    42.363    0.5850  True
+  109   109.000000    54.3254   8  4    17.6977    72.0133    17.6880   71.206     70.791    35.395    0.4150  True
+  131   129.000000    64.3254   8  4    20.5549    83.4419    19.1165   82.635     82.220    41.110    0.4150  True
+  163   163.000000    81.3254   8  4    25.4120   102.8705    21.5451  102.063    101.648    50.824    0.4150  True
+  191   191.000000    95.3254   8  4    29.4120   118.8705    23.5451  118.063    117.648    58.824    0.4150  True
+  233   233.000000   116.3254  10  5    28.2743   142.5417    26.2163  141.694    141.372    56.549    0.3219  True
+  239   239.000000   119.3254  10  5    28.9410   145.8750    26.5496  145.027    144.705    57.882    0.3219  True
+  283   283.000000   141.3254  10  5    33.8299   170.3194    28.9941  169.471    169.150    67.660    0.3219  True
+  409   409.000000   204.3254  12  6    39.7793   239.8134    35.4880  238.939    238.676    79.559    0.2630  True
+  571   571.000000   285.3254  14  7    46.7016   328.0267    42.7013  327.134    326.911    93.403    0.2224  True
+(rho = log2(0.886 sqrt N); log2T = log2(total trials); n=131 uses log2 ell.)
+Store at the optimum = 2^FILL entries (s = m/2 every time), e.g. 2^82.2 at
+n = 131 and 2^326.9 at n = 571. Memory is 1.12 to 1.32 bits below TOTAL
+(TOTAL - FILL = log2((2s-1)/(s-1))).
+Full-precision values are in blind_rederive_output.json.
+
+ECC2K-130 (n = 131), informational only: TOTAL 83.4419 minus the published
+rho of 60.8090 gives a margin of +22.633 bits.
+
+Runner-up m under C1 (gap to optimum, bits). This matters because a small
+convention change can flip the arg-min m even when TOTAL barely moves:
+   97: m=8  +0.29     109: m=6  +0.053    131: m=6  +0.62
+  163: m=10 +0.78     191: m=10 +0.33     233: m=8  +0.33
+  239: m=8  +0.42     283: m=12 +0.77     409: m=10 +0.50
+  571: m=12 +0.15
+n = 109 is near-degenerate: m=8 gives 72.013 and m=6 gives 72.066.
+
+======================================================================
+6. SENSITIVITY (C2 / C3 / C4) -- format: m s d TOTAL/margin
+======================================================================
+    n | C2 pairwise excl                | C3 p<=1 (not in stmt)            | C4 integer d
+   97 | m= 6 s=3 d= 21.181   64.866/+16.541 | m= 8 s=4 d= 14.037   70.187/+21.862 | m= 6 s=3 d= 21.000   64.931/+16.605
+  109 | m= 8 s=4 d= 17.698   72.013/+17.688 | m= 8 s=4 d= 15.537   77.687/+23.362 | m= 6 s=3 d= 23.000   72.615/+18.289
+  131 | m= 8 s=4 d= 20.555   83.442/+19.117 | m= 8 s=4 d= 18.037   90.187/+25.862 | m= 8 s=4 d= 20.000   84.371/+20.045
+  163 | m= 8 s=4 d= 25.412  102.870/+21.545 | m=10 s=5 d= 18.479  110.875/+29.549 | m= 8 s=4 d= 25.000  103.439/+22.113
+  191 | m= 8 s=4 d= 29.412  118.870/+23.545 | m=10 s=5 d= 21.279  127.675/+32.349 | m= 8 s=4 d= 29.000  119.439/+24.113
+  233 | m=10 s=5 d= 28.274  142.542/+26.216 | m=12 s=6 d= 21.820  152.737/+36.412 | m=10 s=5 d= 28.000  142.986/+26.660
+  239 | m=10 s=5 d= 28.941  145.875/+26.550 | m=12 s=6 d= 22.320  156.237/+36.912 | m= 8 s=4 d= 36.000  146.566/+27.241
+  283 | m=10 s=5 d= 33.830  170.319/+28.994 | m=12 s=6 d= 25.986  181.904/+40.579 | m=12 s=6 d= 28.000  171.933/+30.608
+  409 | m=12 s=6 d= 39.779  239.813/+35.488 | m=14 s=7 d= 31.810  254.482/+50.156 | m=14 s=7 d= 34.000  241.479/+37.153
+  571 | m=14 s=7 d= 46.702  328.027/+42.701 | m=16 s=8 d= 38.453  346.078/+60.753 | m=16 s=8 d= 41.000  329.130/+43.805
+The margin is positive under every convention at every degree. C3, which
+is not in the statement, raises it by 5.3 to 18.1 bits.
+
+======================================================================
+7. FINDINGS ABOUT THE QUANTITY ITSELF (for the Coordinator)
+======================================================================
+F1. The stated exclusion does not bind at any global optimum. Every
+    optimum has m = 2s and total trials = s/(s-1), between 1.17 and 1.5,
+    which is just above the exclusion threshold of 1.
+F2. Every optimum sits where p > 1: p = |F| (s-1)/s, between 2^17.28
+    (n=109) and 2^46.48 (n=571).
+    The decomposition-probability formula p = |F|^m/(m! N) is being used
+    where it exceeds 1. The cost then describes one MITM enumeration of
+    ~1.2-1.5 targets that each decompose ~|F| ways. The statement does not
+    say whether ~|F| decompositions of ONE target are |F| linearly useful
+    relations. That is an unverified modelling assumption carried by the
+    optimum. If p <= 1 is imposed (C3), every margin grows.
+F3. The optimum always uses maximal store (s = m/2), with memory
+    |F|^(m/2) between 1.12 and 1.32 bits below TOTAL. TOTAL charges only time.
+    A rho baseline that charges no memory against an IC side whose store
+    is ~ its time is the comparison as stated; flagged, not adjudicated.
+F4. The structural bound in section 3 makes margin > 0 a theorem of this
+    cost model for every N. A producer report claiming a negative margin
+    under this model would be an arithmetic error, not a finding.
+F5. FILL counts |F|^s ordered table entries. Counting multisets
+    (~ |F|^s / s!) would lower FILL by log2(s!) bits. This was not
+    computed. It does not affect F4: PROBE's lower bound alone keeps
+    margin > 0 unless FILL is dropped entirely.
+
+======================================================================
+8. REPRODUCTION
+======================================================================
+Command: /usr/local/bin/python3 blind_rederive.py > blind_rederive_output.json
+  (run from this directory). Output and timings: run_log.txt.
+Environment: CPython 3.11.15 (/usr/local/bin/python3; the repo pins 3.12.8,
+  which is not installed here), mpmath 1.3.0 at 60 digits, sympy 1.14.0.
+Repo HEAD at derivation time: 4a0b13aec8a48b49d6dd66c3dbefe986c51dc625,
+  clean tree apart from this task directory.
+Method agreement: golden-section (300 iterations) matches derivative-sign
+  bisection (300 iterations) to < 1e-25 on every (n, m, s, convention).
+  The closed form in section 3 matches to ~1e-13; at n = 97 it differs by
+  2.4e-7, which is the LA term 22.5 bits down that the closed form omits.
+  A float grid at step 0.01 picks the same (m, s) at every degree, and its
+  TOTAL is above the exact value by at most 1.3e-4 bits.
+Resources: 64.5 s wall, 63.6 s user CPU, 50 MB max RSS.
+  An earlier attempt failed before Python started because /usr/bin/time is
+  absent (exit 127); it is disclosed in run_log.txt.
