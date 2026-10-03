@@ -8,7 +8,9 @@ Stage 0: freeze band 1.25, seeds, ℓ panel, τ-closure definition, solver pin,
 Stage 1: n=17. Default frozen panel ℓ∈{3,4} (v1). Amendment
          AMD-EXP-BINSTD-8bdf86-20261003-ell89 re-targets ℓ∈{8,9} into
          additive stage0-ell89/ / stage1-ell89/ paths (no overwrite of v1).
-         Certify φ-invariant dims; per ℓ structural emptiness or yield.
+         AMD-EXP-BINSTD-8bdf86-20261003-ell89r1 replicates that panel with a
+         new Stage-0 seed into stage0-ell89r1/ / stage1-ell89r1/ (prior RUNs
+         immutable). Certify φ-invariant dims; per ℓ structural emptiness or yield.
 
 Authorized stages: 0, 1 only. Stage 2 NOT authorized under this card.
 """
@@ -43,14 +45,48 @@ EXPERIMENT_ID = "EXP-BINSTD-8bdf86"
 HYPOTHESIS_ID = "H-BINSTD-5a212b"
 APPROVED_BY = "DEC-20261003-555f72"
 SEED = 0x202610010FCBE2
+SEED_ELL89R1 = 8999122336642658
 BAND = 1.25
 N_STAGE1 = 17
 ELLS = [3, 4]
 ELLS_ELL89 = [8, 9]
 ARTIFACT_TAG_ELL89 = "ell89"
+ARTIFACT_TAG_ELL89R1 = "ell89r1"
 AMENDMENT_ELL89 = "AMD-EXP-BINSTD-8bdf86-20261003-ell89"
+AMENDMENT_ELL89R1 = "AMD-EXP-BINSTD-8bdf86-20261003-ell89r1"
 APPROVED_BY_ELL89 = "DEC-20261003-8b3da8"
+APPROVED_BY_ELL89R1 = "DEC-20261003-e97263"
 TARGET_COUNT = 40
+
+
+def panel_meta(artifact_tag: str) -> Dict[str, Any]:
+    """Amendment / approval / prior-immutability fields for an additive tag."""
+    if artifact_tag == ARTIFACT_TAG_ELL89R1:
+        return {
+            "amendment_id": AMENDMENT_ELL89R1,
+            "approved_by_panel": APPROVED_BY_ELL89R1,
+            "prior_panel_immutable": (
+                "stage0-ell89/ + RUN-BINSTD-6f1bcc / RUN-BINSTD-43abd4 and "
+                "v1 stage0/ + RUN-BINSTD-ebac66 / RUN-BINSTD-5cb940 remain "
+                "immutable under DEC-20261003-637059 / DEC-20261003-e97263"
+            ),
+        }
+    if artifact_tag == ARTIFACT_TAG_ELL89:
+        return {
+            "amendment_id": AMENDMENT_ELL89,
+            "approved_by_panel": APPROVED_BY_ELL89,
+            "prior_panel_immutable": (
+                "stage0/freeze.json ells [3,4] and RUN-BINSTD-ebac66 / "
+                "RUN-BINSTD-5cb940 remain immutable under DEC-20261003-2425f3"
+            ),
+        }
+    return {
+        "amendment_id": None,
+        "approved_by_panel": APPROVED_BY,
+        "prior_panel_immutable": None,
+    }
+
+
 OUTCOMES = (
     "E-TAU-RICHER",
     "E-TAU-NOT-RICHER",
@@ -599,12 +635,19 @@ def results_path_for(tag: str) -> Path:
     return EXP_ROOT / ("RESULTS.md" if not tag else f"RESULTS-{tag}.md")
 
 
-def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[str, Any]:
+def stage0(
+    run_dir: Path,
+    ells: Sequence[int],
+    artifact_tag: str = "",
+    seed: Optional[int] = None,
+) -> Dict[str, Any]:
     stage0_dir = stage0_dir_for(artifact_tag)
+    meta = panel_meta(artifact_tag)
+    freeze_seed = SEED if seed is None else int(seed)
     freeze = {
         "experiment_id": EXPERIMENT_ID,
         "hypothesis_id": HYPOTHESIS_ID,
-        "seed": SEED,
+        "seed": freeze_seed,
         "band": BAND,
         "ells": list(ells),
         "n_stage1": N_STAGE1,
@@ -631,16 +674,9 @@ def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[s
             "is E-NO-TAU-CLOSED-AT-ELL and the ≥1.25 band does not apply."
         ),
         "artifact_tag": artifact_tag or None,
-        "amendment_id": AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else None,
-        "approved_by_panel": (
-            APPROVED_BY_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else APPROVED_BY
-        ),
-        "prior_panel_immutable": (
-            "stage0/freeze.json ells [3,4] and RUN-BINSTD-ebac66 / "
-            "RUN-BINSTD-5cb940 remain immutable under DEC-20261003-2425f3"
-            if artifact_tag == ARTIFACT_TAG_ELL89
-            else None
-        ),
+        "amendment_id": meta["amendment_id"],
+        "approved_by_panel": meta["approved_by_panel"],
+        "prior_panel_immutable": meta["prior_panel_immutable"],
     }
     predictions = {
         "heuristic": "HEUR-BINSTD-0fcbe2-H1",
@@ -685,11 +721,13 @@ def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[s
         {
             "experiment_id": EXPERIMENT_ID,
             "hypothesis_id": HYPOTHESIS_ID,
-            "approved_by": APPROVED_BY,
+            "approved_by": meta["approved_by_panel"],
             "stage": 0,
             "status": "completed_valid",
             "outcome": "S0-FREEZE-OK",
-            "seed": SEED,
+            "seed": freeze_seed,
+            "artifact_tag": artifact_tag or None,
+            "amendment_id": meta["amendment_id"],
             "recorded_at": utc_now(),
             "amazon_bedrock": "NOT SELECTED",
         },
@@ -697,8 +735,14 @@ def stage0(run_dir: Path, ells: Sequence[int], artifact_tag: str = "") -> Dict[s
     return result
 
 
-def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: str = "") -> Dict[str, Any]:
+def stage1(
+    run_dir: Path,
+    ells: Optional[Sequence[int]] = None,
+    artifact_tag: str = "",
+    seed: Optional[int] = None,
+) -> Dict[str, Any]:
     stage0_dir = stage0_dir_for(artifact_tag)
+    meta = panel_meta(artifact_tag)
     required = [
         stage0_dir / "freeze.json",
         stage0_dir / "preregistered-predictions.json",
@@ -732,10 +776,17 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
 
     freeze_obj = json.loads((stage0_dir / "freeze.json").read_text(encoding="utf-8"))
     panel = list(ells) if ells is not None else list(freeze_obj.get("ells") or ELLS)
+    if seed is not None:
+        run_seed = int(seed)
+    else:
+        run_seed = int(freeze_obj.get("seed", SEED))
 
     try:
         adm = admissible_phi_invariant_dims(N_STAGE1)
-        cells = [measure_cell(N_STAGE1, ell, SEED, adm["admissible_dimensions"]) for ell in panel]
+        cells = [
+            measure_cell(N_STAGE1, ell, run_seed, adm["admissible_dimensions"])
+            for ell in panel
+        ]
     except Exception as exc:
         result = {
             "experiment_id": EXPERIMENT_ID,
@@ -772,24 +823,25 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         "band": BAND,
         "solver_pin": SOLVER_PIN,
         "ells": panel,
+        "seed": run_seed,
         "artifact_tag": artifact_tag or None,
-        "amendment_id": AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else None,
+        "amendment_id": meta["amendment_id"],
         "note": "Toy / structural meter only; no break / exponent / n>=131 transfer.",
     }
     h_matrix = write_json(stage1_dir / "yield-matrix.json", matrix)
     h_adm = write_json(stage1_dir / "admissible-phi-dims.json", adm)
 
-    approved_panel = (
-        APPROVED_BY_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else APPROVED_BY
-    )
+    approved_panel = meta["approved_by_panel"]
+    amendment_label = meta["amendment_id"] or "none"
     results_md = (
         f"# RESULTS — {EXPERIMENT_ID}"
         + (f" ({artifact_tag})" if artifact_tag else "")
         + "\n\n"
         f"- hypothesis: {HYPOTHESIS_ID}\n"
         f"- approved_by: {approved_panel}\n"
-        f"- amendment: {AMENDMENT_ELL89 if artifact_tag == ARTIFACT_TAG_ELL89 else 'none'}\n"
+        f"- amendment: {amendment_label}\n"
         f"- ells: {panel}\n"
+        f"- seed: {run_seed}\n"
         f"- outcome: **{outcome}**\n"
         f"- band: {BAND}\n"
         f"- admissible φ-dims at n={N_STAGE1}: {adm['admissible_dimensions']}\n"
@@ -844,11 +896,13 @@ def stage1(run_dir: Path, ells: Optional[Sequence[int]] = None, artifact_tag: st
         {
             "experiment_id": EXPERIMENT_ID,
             "hypothesis_id": HYPOTHESIS_ID,
-            "approved_by": APPROVED_BY,
+            "approved_by": approved_panel,
             "stage": 1,
             "status": status,
             "outcome": outcome,
-            "seed": SEED,
+            "seed": run_seed,
+            "artifact_tag": artifact_tag or None,
+            "amendment_id": meta["amendment_id"],
             "recorded_at": utc_now(),
             "amazon_bedrock": "NOT SELECTED",
         },
@@ -871,7 +925,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--artifact-tag",
         type=str,
         default="",
-        help="Additive artifact directory tag (ell89). Empty = v1 stage0/stage1 paths.",
+        help="Additive artifact directory tag (ell89 / ell89r1). Empty = v1 paths.",
+    )
+    p.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Stage-0 freeze seed. Default: SEED, or SEED_ELL89R1 for tag ell89r1.",
     )
     args = p.parse_args(argv)
     run_dir = Path(args.run_dir)
@@ -880,14 +940,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     ells: Optional[List[int]]
     if args.ells.strip():
         ells = [int(x) for x in args.ells.split(",") if x.strip() != ""]
-    elif tag == ARTIFACT_TAG_ELL89:
+    elif tag in (ARTIFACT_TAG_ELL89, ARTIFACT_TAG_ELL89R1):
         ells = list(ELLS_ELL89)
     else:
         ells = list(ELLS)
-    if args.stage == 0:
-        stage0(run_dir, ells=ells, artifact_tag=tag)
+    if args.seed is not None:
+        seed = int(args.seed)
+    elif tag == ARTIFACT_TAG_ELL89R1:
+        seed = SEED_ELL89R1
     else:
-        stage1(run_dir, ells=ells, artifact_tag=tag)
+        seed = SEED
+    if args.stage == 0:
+        stage0(run_dir, ells=ells, artifact_tag=tag, seed=seed)
+    else:
+        stage1(run_dir, ells=ells, artifact_tag=tag, seed=seed)
     return 0
 
 
