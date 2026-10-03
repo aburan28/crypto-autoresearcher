@@ -169,9 +169,14 @@ class FakeGitVerifier:
         self.is_head_ancestor = is_head_ancestor
         self.parent_matches = parent_matches
         self.calls: list[tuple[str, tuple[str, ...]]] = []
+        self.void_calls: list[tuple[str, tuple[str, ...]]] = []
 
-    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+    def verify_archive(
+        self, task: dict[str, Any], expected_paths: Sequence[str],
+        void_paths: Sequence[str] = (),
+    ) -> None:
         self.calls.append((task["id"], tuple(expected_paths)))
+        self.void_calls.append((task["id"], tuple(void_paths)))
         if not self.resolves:
             raise dispatch.DispatchError("fake archive commit does not resolve")
         if not self.is_head_ancestor:
@@ -1742,3 +1747,117 @@ class UnlandedProducerOutputTests(unittest.TestCase):
         worker = task("WORK", 50)
         plan = dispatch.select(queue(worker, archive_task("ARCHIVE", [worker])))
         self.assertNotIn("unlanded_producer_output", plan)
+
+
+class VoidSourceArtifactTests(unittest.TestCase):
+    """`archive.void_source_artifacts`: an explicit opt-out for sources that produced nothing.
+
+    Reproduces GOAL-AUXIN-a93442 BATCH-aedb4e: the design producer failed twice
+    with zero deliverables, so the batch's ledger archive could never be marked
+    completed -- its required coverage contained the two artifact paths the
+    producer was dispatched to write and never did. The opt-out is explicit,
+    limited to terminal non-completed sources, and verified: the voided paths
+    must be absent from the tree the archive is checked against.
+    """
+
+    def _voided_queue(self, *, worker_state: str = "failed"):
+        worker = task("WORK", 1, state=worker_state)
+        archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+        receipt = archive["artifact_paths"][0]
+        contents = {receipt: b"archive snapshot\n"}
+        archive["archive"].update({
+            "commit_sha": "a" * 40,
+            "parent_sha": "b" * 40,
+            "path_sha256": {receipt: hashlib.sha256(contents[receipt]).hexdigest()},
+            "void_source_artifacts": ["WORK"],
+        })
+        return queue(worker, archive), contents, worker, archive
+
+    def test_voided_failed_source_is_exempt_from_coverage_and_handed_to_the_verifier(self) -> None:
+        for state in ("failed", "invalid", "cancelled"):
+            with self.subTest(state=state):
+                plan_queue, contents, worker, archive = self._voided_queue(worker_state=state)
+                receipt = archive["artifact_paths"][0]
+                verifier = FakeGitVerifier(
+                    changed_paths=[receipt], contents=contents, message="ARCHIVE REC-ARCHIVE")
+                dispatch.validate_queue(plan_queue, repository_verifier=verifier)
+                self.assertEqual(verifier.calls, [("ARCHIVE", (receipt,))])
+                self.assertEqual(verifier.void_calls, [("ARCHIVE", tuple(worker["artifact_paths"]))])
+
+    def test_without_the_opt_out_the_same_archive_is_still_rejected(self) -> None:
+        plan_queue, contents, worker, archive = self._voided_queue()
+        del archive["archive"]["void_source_artifacts"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "must cover every"):
+            dispatch.validate_queue(plan_queue)
+
+    def test_void_may_name_only_terminal_noncompleted_sources(self) -> None:
+        for state in ("queued", "running", "completed"):
+            with self.subTest(state=state):
+                plan_queue, _, _, _ = self._voided_queue(worker_state=state)
+                with self.assertRaisesRegex(
+                        dispatch.DispatchError, "only a failed, invalid, or cancelled source"):
+                    dispatch.validate_queue(plan_queue)
+
+    def test_void_may_name_only_archived_sources_and_rejects_bad_shapes(self) -> None:
+        plan_queue, _, _, archive = self._voided_queue()
+        archive["archive"]["void_source_artifacts"] = ["OTHER"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "may name only archived source tasks"):
+            dispatch.validate_queue(plan_queue)
+        archive["archive"]["void_source_artifacts"] = ["WORK", "WORK"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "contains duplicates"):
+            dispatch.validate_queue(plan_queue)
+        archive["archive"]["void_source_artifacts"] = "WORK"
+        with self.assertRaisesRegex(dispatch.DispatchError, "must be a list of task ids"):
+            dispatch.validate_queue(plan_queue)
+
+    def test_git_verifier_requires_voided_paths_to_be_absent_from_the_verified_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments], check=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ).stdout.strip()
+
+            def write(path: str, content: bytes) -> None:
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            write("README.md", b"base\n")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+            parent = git("rev-parse", "HEAD")
+
+            worker = task("WORK", 1, state="failed")
+            archive = archive_task("ARCHIVE", [worker], state="completed", record_ids=["REC-ARCHIVE"])
+            receipt = archive["artifact_paths"][0]
+            write(receipt, b"snapshot receipt\n")
+            git("add", ".")
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE snapshot of a batch whose producer failed")
+            commit = git("rev-parse", "HEAD")
+            archive["archive"].update({
+                "commit_sha": commit,
+                "parent_sha": parent,
+                "path_sha256": {receipt: hashlib.sha256(b"snapshot receipt\n").hexdigest()},
+                "void_source_artifacts": ["WORK"],
+            })
+
+            # Nothing was produced: the archive verifies with the producer voided.
+            dispatch.validate_queue(
+                queue(worker, archive), repository_verifier=dispatch.GitRepositoryVerifier(root))
+
+            # The same declaration is refused once the voided artifact exists in
+            # the verified tree: partial output cannot be hidden behind the opt-out.
+            write(worker["artifact_paths"][0], b"partial output\n")
+            git("add", ".")
+            git("commit", "-m", "late partial output")
+            archive["archive"]["binding_mode"] = "content_first"
+            with self.assertRaisesRegex(dispatch.DispatchError, "present in HEAD"):
+                dispatch.validate_queue(
+                    queue(worker, archive),
+                    repository_verifier=dispatch.GitRepositoryVerifier(root))
