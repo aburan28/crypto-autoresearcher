@@ -226,13 +226,25 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         }
         if system:
             body["system"] = system
-        budget = _thinking_budget(reasoning, resolution.reasoning_effort, limit)
-        if budget:
-            body["thinking"] = {"type": "enabled", "budget_tokens": budget}
-        elif temperature is not None:
-            # Extended thinking pins temperature; only set it when off -- which
-            # is exactly the case for the calibrated-low tiers.
-            body["temperature"] = temperature
+        if reasoning.get("mode") == "output_effort":
+            # Some Anthropic-compatible gateways (Abliteration) take a named
+            # effort and, if also given a thinking budget, ignore the budget.
+            # Send the name the binding asked for and nothing else, so the
+            # manifest's effort and the wire agree.
+            effort_map = reasoning.get("effort_map") or {}
+            mapped = effort_map.get(resolution.reasoning_effort)
+            if mapped:
+                body["output_config"] = {"effort": mapped}
+            elif temperature is not None:
+                body["temperature"] = temperature
+        else:
+            budget = _thinking_budget(reasoning, resolution.reasoning_effort, limit)
+            if budget:
+                body["thinking"] = {"type": "enabled", "budget_tokens": budget}
+            elif temperature is not None:
+                # Extended thinking pins temperature; only set it when off -- which
+                # is exactly the case for the calibrated-low tiers.
+                body["temperature"] = temperature
     elif resolution.wire == "openai_chat":
         body = {
             "model": resolution.resolved_model_id,
