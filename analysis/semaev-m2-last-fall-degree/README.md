@@ -39,31 +39,35 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
 [`results/instances_t3.json`](results/instances_t3.json),
 [`results/summary.md`](results/summary.md)):
 
-| system | $n$ | $V$ | last fall degree $d_{\rm LFD}$ of the unsatisfiable instances |
+| system | $n$ | $V$ (and $z$) | last fall degree $d_{\rm LFD}$ of the unsatisfiable instances |
 |---|---|---|---|
 | $m=t=2$ | 17, 19 | polynomial | **3** (10 of 10) |
 | $m=t=2$ | 21 | polynomial | 3 (2 instances), 4 (2 instances) |
-| $m=t=2$ | 23–35 | polynomial | **4** (23 of 23) |
-| $m=t=2$ | 17–33 | random | **4** (26 of 26) |
+| $m=t=2$ | 23–35, 41 | polynomial | **4** (24 of 24) |
+| $m=t=2$ | 40, Semaev's cell | polynomial, uniform $z$ | **4** (2 of 2), matching his $d_{F4}=4$ |
+| $m=t=2$ | 11, 13 | random | **3** (6 of 6) |
+| $m=t=2$ | 15–33 | random | **4** (29 of 29; plus 2 of 2 with uniform $z$ at $n=33$) |
 | $m=t=2$ | 33 | random $\subset\ker\operatorname{Tr}$ | **≥ 5** (2 of 2) |
-| $m=t=2$ | 35 | random | **= 5** on R35a (via branching); **≥ 5** on 2 of 2 |
+| $m=t=2$ | 35 | random | **= 5** on R35a (via branching); **≥ 5** on 4 of 4, including 2 with uniform $z$ |
+| $m=t=2$ | 35, satisfiable | random | **≥ 5** (2 of 2, by Prop 1.4: $\operatorname{codim}W_4=5287\gg$ #solutions) |
 | $m=t=2$ | 37, 39 | random | **≥ 5** (4 of 4) |
 | $m=t=3$ (chained, $u_1$ free) | 17 | random | ≤ 4 (2 of 2) |
-| $m=t=3$ (chained, $u_1$ free) | 19 | random | **≥ 5** (2 of 2) |
+| $m=t=3$ (chained, $u_1$ free) | 19, 21 | random | **≥ 5** (4 of 4) |
 
 At $m=2$ the last fall degree rises $3\to4\to5$ along Semaev's diagonal
 $k=\lceil n/2\rceil$, while the first fall degree stays at 2. At these
 instances this settles the gap between the first fall degree and the solving
 degree that `KN-OPEN-d218ec` and `KN-OPEN-3c8f51` leave open.
 
-**Consequence: Semaev's Assumption 1 is false as stated** (Corollaries 3.3
-and 3.5). The assumption says $d_{F4}\le4$ for every $2\le t\le m<n$,
+**Consequence: Semaev's Assumption 1 is false as stated** (Corollaries 3.4
+and 3.6). The assumption says $d_{F4}\le4$ for every $2\le t\le m<n$,
 $k=\lceil n/m\rceil$ and every $k$-dimensional subspace $V$. The explicit
 counterexamples are:
 
 - $(n,m,t,k)=(35,2,2,18)$, instance R35a;
-- $(19,3,3,7)$, instance C19a. This is the chained system with an auxiliary
-  variable, inside the $n$-range of Semaev's own experimental tables.
+- $(19,3,3,7)$, instance C19a, and $(21,3,3,7)$, instances C21a and C21b.
+  This is the chained system with an auxiliary variable, inside the $n$-range
+  of Semaev's own experimental tables.
 
 Every F4 run on either instance reaches total degree at least 5. Both
 non-refutations were reproduced exactly by an implementation that shares no
@@ -71,8 +75,8 @@ code with the first.
 
 **Consistency with the published data.** Semaev's cells use his default
 polynomial subspace.
-- Our polynomial-$V$ instances are refuted at degree 4 at $n=40$ (his
-  $m=t=2$ cell) and at $n=41$.
+- Our polynomial-$V$ instances are refuted at degree 4 at $n=40$, in his
+  $m=t=2$ cell with uniform $z$, and at $n=41$.
 - Our random-subspace $m=t=3$ instances at $n=17$ are refuted at degree 4,
   as in his random-subspace row.
 - Kosters reported step degree 5 on a *satisfiable* $n=45$, $m=t=2$ system

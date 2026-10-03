@@ -19,5 +19,6 @@ for basis, lab in (("rand", "C"), ("poly", "D")):
                              modulus_hex=format(e["f"], "x"), a2=e["a2"], a6_hex=format(e["a6"], "x"), z_hex=format(e["z"], "x"),
                              V_basis_hex=[format(b, "x") for b in e["basis"]], boolean_solutions=e["nsol"],
                              closure_D4=outcome.get(fn), d_ref=("<=4" if outcome.get(fn, {}).get("W4_one") else (">=5" if fn in outcome else None))))
+recs = [r for r in recs if r["closure_D4"] is not None]   # only instances whose closure has finished
 json.dump(recs, open("results/instances_t3.json", "w"), indent=1)
 for r in recs: print(r["name"], r["n"], r["k"], r["basis"], r["d_ref"])

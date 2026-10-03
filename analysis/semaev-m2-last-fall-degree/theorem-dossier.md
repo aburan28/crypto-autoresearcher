@@ -360,8 +360,9 @@ Proposition 2.6 is sharp: $d_{\tilde F}=3$ is attained at $n=17,19$ (§3).
 
 ## 3. Computer-assisted results
 
-All instances are on Semaev's diagonal $k=\lceil n/2\rceil$ and are
-unsatisfiable. The solution count is 0 by `code/s3count2.c`. For every
+All $m=2$ instances are on Semaev's diagonal $k=\lceil n/2\rceil$. Apart from
+the two satisfiable instances of Theorem 3.3, they are unsatisfiable: the
+solution count is 0 by `code/s3count2.c`. For every
 instance checked by implementation B (`results/verification.md`), a second,
 different enumeration also gives 0.
 "Random $V$" means $k$ uniformly random independent elements of $K$; "poly $V$"
@@ -375,11 +376,13 @@ it has this last fall degree $d_{\tilde F}$ and solving degree
 parameters and closure dimensions are in `results/instances.json`; the
 per-$(n,V)$ summary is `results/summary.md`.
 
-- **$d_{\tilde F}=3$:** polynomial $V$, all 6 instances at $n=17$ and all 4 at
-  $n=19$; P21c and P21d. ($1\notin W_2$, $1\in W_3$.)
+- **$d_{\tilde F}=3$:** ($1\notin W_2$, $1\in W_3$.)
+  - polynomial $V$: all 6 instances at $n=17$, all 4 at $n=19$, and P21c, P21d;
+  - random $V$: all 6 instances at $n=11,13$.
 - **$d_{\tilde F}=4$:** ($1\notin W_3$, $1\in W_4$.)
-  - polynomial $V$: P21a, P21b, and every instance with $23\le n\le35$ (23 instances);
-  - random $V$: every instance with $17\le n\le33$ (26 instances);
+  - polynomial $V$: P21a, P21b, every instance with $23\le n\le35$ (23 instances), and P41a;
+  - polynomial $V$ with uniform $z$ in Semaev's own $m=t=2$ cell ($n=40$, $k=20$): S40a, S40b;
+  - random $V$: every instance with $15\le n\le33$ (29 instances), plus U33a and U33b with uniform $z$;
   - trace-zero $V$: every instance at $n=29,31$ (4 instances).
 - **$d_{\tilde F}=5$:** R35a ($n=35$, $k=18$, random $V$). Here $1\notin W_4$, and
   $1\in W_5$ by Lemma 1.3, because both restrictions $a_1=0$ and $a_1=1$ are
@@ -390,6 +393,7 @@ For each of the following unsatisfiable instances, $1\notin W_4(F)$. Hence
 $d_{\tilde F}\ge5$ and every F4 run has $d_{F4}\ge5$.
 
 - R35a and R35b: $n=35$, $k=18$, random $V$.
+- U35a and U35b: $n=35$, $k=18$, random $V$, with $z$ uniform in $K^{\times}$ as in Semaev's experiments.
 - R37a and R37b: $n=37$, $k=19$, random $V$.
 - R39a and R39b: $n=39$, $k=20$, random $V$.
 - T33a and T33b: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
@@ -398,15 +402,25 @@ R35a's closure, $\dim W_4\cap B_{\le d}=(0,1,105,3885,61425)$, is
 reproduced exactly by implementation B. The closure stalls in a regular way: it
 adds exactly $4n$ new cubic dimensions per round, then stops.
 
-**Corollary 3.3** (Semaev's Assumption 1 is false as stated). **Proved, given Theorem 3.2.**
+**Theorem 3.3** (satisfiable instances). **Computer-verified (instance).**
+Q35a and Q35b are random-$V$ instances with $n=35$ and $k=18$, having 6 and 2
+Boolean solutions respectively (`results/instances_sat.json`). Their closure
+$W_4$ has the same dimensions $(0,1,105,3885,61425)$ as the unsatisfiable
+instances, so $\operatorname{codim}W_4=5287$, far above the solution count. By
+Proposition 1.4, $d_{\tilde F}\ge5$ and every F4 run reaches degree $\ge5$.
+
+So at $n=35$ the failure of $d_{F4}\le4$ does not depend on
+satisfiability: it holds on all six random-$V$ instances tested.
+
+**Corollary 3.4** (Semaev's Assumption 1 is false as stated). **Proved, given Theorem 3.2.**
 Semaev's Assumption 1 [ePrint 2015/310, §4.5] reads:
 
 > Let $q=2^n$ and $2\le m<n$, $k=\lceil n/m\rceil$. Also let $V$ be a subspace of dimension $k$ in $\mathbb F_{2^n}$. Then $d_{F4}\le4$ for a Boolean equation system equivalent to (5) for any $2\le t\le m$.
 
 Take $m=t=2$, $n=35$, $k=18$, and $(V,a_6,z)$ from instance R35a. Then by
 Proposition 1.2 and Theorem 3.2, every F4 run has $d_{F4}\ge 5$, indeed
-$d_{F4}\ge d_{\tilde F}=5$. Every other instance in Theorem 3.2 is a further
-counterexample.
+$d_{F4}\ge d_{\tilde F}=5$. Every other instance in Theorems 3.2 and 3.3 is a
+further counterexample.
 
 ### The chained system for $t=3$
 
@@ -424,7 +438,7 @@ $d\ge\max\deg=3$ in the lemma. So $d_{F4}\ge d_{\rm ref}$ applies verbatim. The
 instances are in [`results/instances_t3.json`](results/instances_t3.json);
 the generator is `code/gen3.py`.
 
-**Theorem 3.4** (refutation degree at least 5 for $m=t=3$). **Computer-verified (instance).**
+**Theorem 3.5** (refutation degree at least 5 for $m=t=3$). **Computer-verified (instance).**
 Instance C19a has $n=19$, $k=7$, $f=t^{19}+t^5+t^2+t+1$, $a_2=1$,
 $a_6$=`1926`, $z$=`79a26`, and random
 $V=\langle$`e632 61ca0 32488 12079 5788e 589e 11c0a`$\rangle$. It is
@@ -432,18 +446,21 @@ unsatisfiable, and $1\notin W_4(F)$:
 - the closure stabilizes after 8 rounds at $\dim W_4\cap B_{\le d}=(0,2,272,7000,92838)$;
 - the independent implementation `verify/indep_verify_t3.py` reproduces these dimensions exactly.
 
-So $d_{\tilde F}\ge5$, and $d_{F4}\ge5$ for every F4 run. A second random-$V$
-instance at $n=19$, C19b, also has $1\notin W_4$. That one was computed by
-implementation A only.
+So $d_{\tilde F}\ge5$, and $d_{F4}\ge5$ for every F4 run. Three more
+random-$V$ instances also have $1\notin W_4$: C19b at $n=19$, and C21a and C21b at
+$n=21$ ($k=7$). Those three were computed by implementation A only.
 
-**Corollary 3.5.** Assumption 1 is false at $(n,m,t,k)=(19,3,3,7)$, for the
-chained system it was designed for. This lies inside the parameter range of
-Semaev's own tables ($n\le21$, $m=t=3$), which report $d_{F4}=4$ there.
+**Corollary 3.6.** Assumption 1 is false at $(n,m,t,k)=(19,3,3,7)$ and
+$(21,3,3,7)$, for the chained system it was designed for. This lies inside
+the parameter range of Semaev's own tables ($n\le21$, $m=t=3$). Those report
+$d_{F4}=4$ at these cells for his default polynomial subspace; the
+counterexamples here use random subspaces, which the assumption also covers.
 
 | $n$ | $k$ | $V$ | unsatisfiable instances | $1\in W_4$? | consequence |
 |---|---|---|---|---|---|
 | 17 | 6 | random | 2 | yes, 2 of 2 (6 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 1 (random subspace, $d_{F4}=4$) |
 | 19 | 7 | random | 2 | **no, 0 of 2** | $d_{F4}\ge5$: counterexample |
+| 21 | 7 | random | 2 | **no, 0 of 2** (8 rounds each) | $d_{F4}\ge5$: counterexample |
 
 ---
 
@@ -459,7 +476,7 @@ the first non-positive coefficient of $(1+z)^{N}/(1+z^2)^{3n}$. This is
 
 | step | model A predicts first $n$ | observed |
 |---|---|---|
-| $3\to4$ | 21 | random $V$: already at $n\le17$; polynomial $V$: at $n=21$ (2 of 4 instances) |
+| $3\to4$ | 21 | random $V$: at $n=15$ ($n=11,13$ give 3); polynomial $V$: at $n=21$ (2 of 4 instances) |
 | $4\to5$ | 37 | random $V$: at $n=35$; polynomial $V$: not by $n=41$ |
 | $5\to6$ | 55 | not reached |
 | $6\to7$ | 75 | — |
@@ -475,10 +492,11 @@ random", and only by an $n$-independent amount.
 
 Model A is a heuristic. For random $V$ it predicts the $4\to5$ step within
 one step in $n$. It places the $3\to4$ step too late: random-$V$ systems
-already need degree 4 at $n=17$. It also misses the other families:
+already need degree 4 at $n=15$. It also misses the other families:
 
 - for polynomial $V$, with $5n-1$ quadratics, it predicts $3\to4$ only at
-  $n=31$;
+  $n=31$, and $4\to5$ at $n=59$. The observed $4\to5$ step has not occurred by
+  $n=41$;
 - for trace-zero $V$, with $2n-1$ quadratics, it predicts $4\to5$ at $n=25$
   against the observed $n=33$.
 
