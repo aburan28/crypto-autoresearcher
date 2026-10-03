@@ -11,6 +11,8 @@
 | P: polynomial | curve | 33 | 17 | 3 | 0/3 | 0/3 | 3/3 | 3×4 |
 | P: polynomial | curve | 35 | 18 | 2 | 0/2 | 0/2 | 2/2 | 2×4 |
 | P: polynomial | curve | 41 | 21 | 1 | 0/1 | 0/1 | 1/1 | 1×4 |
+| P: polynomial | curve | 43 | 22 | 1 | 0/1 | 0/1 | 1/1 | 1×4 |
+| P: polynomial | curve | 45 | 23 | 1 | 0/1 | 0/1 | 0/1 | 1×≥5 |
 | R: random | curve | 11 | 6 | 3 | 0/3 | 3/3 | 3/3 | 3×3 |
 | R: random | curve | 13 | 7 | 3 | 0/3 | 3/3 | 3/3 | 3×3 |
 | R: random | curve | 15 | 8 | 3 | 0/3 | 0/3 | 3/3 | 3×4 |

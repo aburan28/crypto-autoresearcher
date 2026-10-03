@@ -12,6 +12,9 @@ S_3(X1, X2, xR) = 0, X1, X2 in V (Weil descent to F_2, Boolean ring):
      B_{<=D}, B = F2[x]/(x_i^2 + x_i)) with Python integers and report whether
      1 in W_D, plus dims of W_D cap B_{<=d}.
 Usage: indep_verify.py n f_hex a2 a6_hex xR_hex D basis_hex...
+Environment: FIX=var=val[,var=val] restricts the system (skips the count);
+NOCOUNT=1 skips the count; NOCLOSURE=1 skips the closure; COUNT_SHARD=i/k
+counts only the s-values with index g = i mod k (sum the k shard counts).
 """
 import sys, random, itertools, time
 
@@ -152,7 +155,9 @@ def main():
                 x ^= ech[hb]
             return True
         cnt = 0
-        for g in range(1 << l):
+        shard = os.environ.get("COUNT_SHARD", "")
+        si, sk = (int(x) for x in shard.split("/")) if shard else (0, 1)
+        for g in range(si, 1 << l, sk):
             s = X(tuple((g >> i) & 1 for i in range(l)))
             if tr(s) != tr(alpha): continue
             u0 = htr(sq(s) ^ alpha)
@@ -170,12 +175,15 @@ def main():
                 for yy in (y, y ^ 1):
                     X1 = mul(s, yy)
                     if inV(X1) and inV(X1 ^ s): cnt += 1
-        print(f"boolean solutions (ordered pairs): {cnt}  [{time.time()-t0:.1f}s]")
+        tag = f" in shard {si}/{sk}" if shard else ""
+        print(f"boolean solutions (ordered pairs){tag}: {cnt}  [{time.time()-t0:.1f}s]")
     if not skip_count:
         _count()
     else:
         print("boolean solution count skipped (restricted system or NOCOUNT)")
     # ---- 4. exact closure W_D with Python ints ----
+    if os.environ.get("NOCLOSURE", ""):
+        print("closure skipped (NOCLOSURE)"); return
     t0 = time.time()
     order = []  # bit position -> monomial mask; low degree = low bits
     for d in range(D + 1):

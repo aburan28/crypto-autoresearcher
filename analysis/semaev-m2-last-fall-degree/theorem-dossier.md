@@ -6,17 +6,19 @@ This is a proof dossier plus computer-assisted results on explicit instances.
 It is **not** an evidence record and does not promote, supersede or close any
 `KN-*`, `EV-*`, `DEC-*`, `H-*` or `GOAL-*` record. Every computational claim is
 about an explicit instance whose parameters are in
-[`results/instances.json`](results/instances.json). Each claim was checked by
-two implementations that share no code
-([`results/verification.md`](results/verification.md)).
+[`results/instances.json`](results/instances.json). Every instance was computed
+by implementation A (`code/`). The instances that carry the main claims were
+also recomputed by implementation B (`verify/`), which shares no code with A.
+[`results/verification.md`](results/verification.md) lists exactly which ones.
 
 **Claim tiers used below.**
 
 - **Proved** means a complete pen-and-paper proof is given here, valid for
   every $n$ and every subspace $V$ the statement names.
 - **Computer-verified (instance)** means an exact finite computation on one
-  named instance, reproduced by an independent implementation. Nothing is
-  extrapolated beyond the named instance.
+  named instance. Nothing is extrapolated beyond the named instance. An
+  instance marked *(B)* was reproduced by implementation B with identical
+  results. Every other instance was computed by implementation A alone.
 - **Observed** means a pattern seen on every instance computed, with no proof
   and no claim beyond those instances.
 
@@ -403,13 +405,17 @@ Every instance below is unsatisfiable, and its refutation degree is exact. So
 it has this last fall degree $d_{\tilde F}$ and solving degree
 (Proposition 1.2), while $d_{\rm ff}=2$ (Corollary 2.2). Per-instance
 parameters and closure dimensions are in `results/instances.json`; the
-per-$(n,V)$ summary is `results/summary.md`.
+per-$(n,V)$ summary is `results/summary.md`. Implementation B reproduced every
+instance below with $n\le29$ *(B)*, 61 instances. It found the same solution
+count (0), $1\notin W_{d-1}$ with identical dimensions of
+$W_{d-1}\cap B_{\le e}$ for every $e$, and $1\in W_d$
+(`verify/b_sweep.py`, `results/verification.md`).
 
 - **$d_{\tilde F}=3$:** ($1\notin W_2$, $1\in W_3$.)
   - polynomial $V$: all 6 instances at $n=17$, all 4 at $n=19$, and P21c, P21d;
   - random $V$: all 6 instances at $n=11,13$.
 - **$d_{\tilde F}=4$:** ($1\notin W_3$, $1\in W_4$.)
-  - polynomial $V$: P21a, P21b, every instance with $23\le n\le35$ (23 instances), and P41a;
+  - polynomial $V$: P21a, P21b, every instance with $23\le n\le35$ (23 instances), P41a and P43a;
   - polynomial $V$ with uniform $z$ in Semaev's own $m=t=2$ cell ($n=40$, $k=20$): S40a, S40b;
   - random $V$: every instance with $15\le n\le33$ (29 instances), plus U33a and U33b with uniform $z$;
   - trace-zero $V$: every instance at $n=29,31$ (4 instances).
@@ -421,18 +427,30 @@ per-$(n,V)$ summary is `results/summary.md`.
 For each of the following unsatisfiable instances, $1\notin W_4(F)$. Hence
 $d_{\tilde F}\ge5$ and every F4 run has $d_{F4}\ge5$.
 
-- R35a and R35b: $n=35$, $k=18$, random $V$.
+- R35a *(B)* and R35b: $n=35$, $k=18$, random $V$.
 - U35a and U35b: $n=35$, $k=18$, random $V$, with $z$ uniform in $K^{\times}$ as in Semaev's experiments.
 - R37a and R37b: $n=37$, $k=19$, random $V$.
 - R39a and R39b: $n=39$, $k=20$, random $V$.
 - T33a and T33b: $n=33$, $k=17$, random $V\subset K_0$, with $\operatorname{Tr}\alpha=0$.
+- P45a: $n=45$, $k=23$, Semaev's default polynomial subspace
+  $V=\langle1,t,\dots,t^{22}\rangle$. Here $f=t^{45}+t^4+t^3+t+1$
+  (`20000000001b`), $a_2=0$, $a_6$=`17cadafccda0` and $z$=`13ffe62d3f4d`.
 
 R35a's closure, $\dim W_4\cap B_{\le d}=(0,1,105,3885,61425)$, is
 reproduced exactly by implementation B. The closure stalls in a regular way: it
 adds exactly $4n$ new cubic dimensions per round, then stops.
 
+P45a's closure stalls after 3 rounds at
+$\dim W_4\cap B_{\le d}=(0,1,224,8950,166705)$, out of $179447$ monomials. Its
+quadratic part has dimension $224=5n-1$, the polynomial-basis count of
+Observation 2.4. So at degree 4 the closure finds no quadratic falls beyond
+the degree-3 ones, as for R35a ($105=3n$). The same polynomial family is
+refuted at degree 4 at $n=41$ and $n=43$ (Theorem 3.1). On these instances,
+the step to degree $\ge5$ comes between $n=43$ and $n=45$ for polynomial $V$,
+against $n=35$ for random $V$.
+
 **Theorem 3.3** (satisfiable instances). **Computer-verified (instance).**
-Q35a and Q35b are random-$V$ instances with $n=35$ and $k=18$, having 6 and 2
+Q35a *(B)* and Q35b are random-$V$ instances with $n=35$ and $k=18$, having 6 and 2
 Boolean solutions respectively (`results/instances_sat.json`). Their closure
 $W_4$ has the same dimensions $(0,1,105,3885,61425)$ as the unsatisfiable
 instances, so $\operatorname{codim}W_4=5287$, far above the solution count. By
@@ -450,6 +468,10 @@ Take $m=t=2$, $n=35$, $k=18$, and $(V,a_6,z)$ from instance R35a. Then by
 Proposition 1.2 and Theorem 3.2, every F4 run has $d_{F4}\ge 5$, indeed
 $d_{F4}\ge d_{\tilde F}=5$. Every other instance in Theorems 3.2 and 3.3 is a
 further counterexample.
+
+The counterexample does not depend on choosing an unusual subspace.
+Instance P45a uses Semaev's own default polynomial subspace, so the assumption
+also fails for it, at $(n,m,t,k)=(45,2,2,23)$.
 
 ### The chained system for $t=3$
 
@@ -491,24 +513,108 @@ counterexamples here use random subspaces, which the assumption also covers.
 | 19 | 7 | random | 2 | **no, 0 of 2** | $d_{F4}\ge5$: counterexample |
 | 21 | 7 | random | 2 | **no, 0 of 2** (8 rounds each) | $d_{F4}\ge5$: counterexample |
 | 17 | 6 | polynomial | 2 | yes, 2 of 2 (5 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Tables 1–2 |
-| 19 | 7 | polynomial | 1 | yes (6 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 2 |
+| 19 | 7 | polynomial | 2 | yes, 2 of 2 (6 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 2 |
+| 21 | 7 | polynomial | 2 | yes, 2 of 2 (5 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 2 |
 
-**Proposition 3.7** (general upper bound for $t=3$). **Proved** for every $n$, every $V$ and every $z$.
-If the $t=3$ system has no Boolean zero, then $1\in M_{3k+3}(F)$, so
-$d_{\tilde F}\le3k+3$.
+At $m=t=3$ the subspace decides the outcome at $n=19$ and $n=21$. All four
+polynomial-$V$ instances there are refuted at degree 4, and all four random-$V$
+instances are not. Their Macaulay spaces $M_4$ have the same dimension and
+differ only in $\dim M_4\cap B_{\le3}$: $2344$ against $2338$ at $n=19$, and
+$2710$ against $2702$ at $n=21$. Yet their closures diverge.
 
-*Proof.* Fix $x_1,x_2,x_3\in V$. Then
+**Proposition 3.7** (general upper bound for the chained system). **Proved** for every $t\ge2$, $n$, $V$ and $z\ne0$.
+Let $F$ be the Weil descent of Semaev's system (5) for $t$:
 
-$$S_3(u,X_1,X_2)=u^2(X_1+X_2)^2+uX_1X_2+X_1^2X_2^2+a_6,$$
-$$S_3(u,X_3,z)=u^2(X_3+z)^2+uX_3z+X_3^2z^2+a_6 .$$
+$$S_3(x_1,x_2,u_1)=0,\qquad S_3(u_{j-1},x_{j+1},u_j)=0\quad(2\le j\le t-1),$$
 
-Both are affine in the Boolean coordinates of $u$, since $u\mapsto u^2$ is
-$\mathbb F_2$-linear. So every descended equation is affine in $u$ once the
-$3k$ $x$-variables are fixed. The indicator argument of Theorem 2.5 then
-applies, with $e_\sigma$ ranging over the $2^{3k}$ assignments of the
-$x$-variables and generators of degree $\le3$. $\square$
+with the convention $u_{t-1}:=z$. Here $x_1,\dots,x_t\in V$, and
+$u_1,\dots,u_{t-2}\in K$ are free. If $F$ has no Boolean zero, then
+$1\in W_{(t-1)k+t}(F)$, so
 
-For C19a this gives $5\le d_{\tilde F}\le24$. Branching on one variable does
+$$d_{\tilde F}\le(t-1)k+t .$$
+
+For $t=2$ this is the bound $k+2$ of Theorem 2.5. For $t=3$ it is $2k+3$.
+Each auxiliary element $u_j$ has $n$ Boolean coordinates but adds only 1 to
+the bound.
+
+*Proof.* (a) *One link.* For $x,y\in K$ put $\Lambda_{x,y}(u)=(x+y)^2u^2+xy\,u$.
+This map is $\mathbb F_2$-linear in $u$, and
+
+$$S_3(u,x,y)=\Lambda_{x,y}(u)+x^2y^2+a_6 .$$
+
+Its kernel is $\{0,\,xy/(x+y)^2\}$ if $x\ne y$, it is $\{0\}$ if $x=y\ne0$, and
+it is all of $K$ if $x=y=0$. In the last case $S_3(u,0,0)=a_6\ne0$ for every
+$u$. So for fixed $x,y$ the $n$ coordinate functions of $S_3(u,x,y)$ are affine
+in the coordinates of $u$. Either their linear parts have rank $\ge n-1$, or
+they are constants, not all zero. Since $S_3$ is symmetric, the same holds in
+each argument.
+
+(b) *Fixing $x_2,\dots,x_t$.* Let $\sigma$ assign the $(t-1)k$ coordinates of
+$x_2,\dots,x_t$, and let $F_\sigma$ be the restricted system. The degree-3
+monomials of $F$ come only from the terms $x_1x_2u_1$ and $u_{j-1}x_{j+1}u_j$,
+and each of these contains a fixed coordinate. So $F_\sigma$ has degree
+$\le2$. We show $1\in W_t(F_\sigma)$.
+
+Two facts are used.
+- Restricting a variable maps $W_d(G)$ into $W_d$ of the restricted system.
+  Restriction is a ring map that does not raise degree and sends each
+  variable to a variable or a constant, so it respects both closure rules.
+- An invertible affine change of variables preserves $W_d$ (Lemma 1.3).
+
+Say $u_i$ is *pinned* at a node if $W_2$ of that node contains $n$ affine
+forms in the coordinates of $u_i$ whose only common zero is one point
+$\gamma_i\in\mathbb F_2^n$. Then $W_2$ also contains each form
+$u_{i,l}+\gamma_{i,l}$. Put $\gamma_{t-1}=z$, so $u_{t-1}$ is pinned at the
+root.
+
+Build a decision tree on $F_\sigma$, pinning $u_{t-2},\dots,u_1$ in turn. At a
+node where $u_{j+1}$ is pinned, take the coordinates $g$ of the link
+$S_3(u_j,x_{j+2},u_{j+1})$. They have degree $\le2$, so $g\in W_2$. In the
+Boolean ring,
+
+$$g-g|_{u_{j+1}=\gamma_{j+1}}=\sum_i(u_{j+1,i}+\gamma_{j+1,i})\,h_i,\qquad\deg h_i\le1 .$$
+
+This holds because $g$ is multilinear of degree $\le2$. Each pinning form
+$u_{j+1,i}+\gamma_{j+1,i}$ is a degree-1 element of $W_2$, and the closure
+rule multiplies it by variables. So the coordinates of
+$S_3(u_j,x_{j+2},\gamma_{j+1})$ lie in $W_2$. For $j=t-2$ there is nothing to
+substitute, since $u_{t-1}=z$.
+By (a) they are affine in $u_j$. Gaussian elimination now gives one of three
+outcomes:
+- $1\in W_2$, and the node is a leaf;
+- $n$ independent forms, and $u_j$ is pinned;
+- $n-1$ independent forms. The node then splits on a complementary linear
+  form $\varepsilon_j$ in the coordinates of $u_j$, and $u_j$ is pinned in
+  both children.
+
+At a node where $u_1$ is pinned, the same substitution puts the coordinates of
+$S_3(x_1,x_2,\gamma_1)$ in $W_2$. They are affine in the coordinates of $x_1$.
+A common Boolean zero of them would give a zero of $F$, built from it, $\sigma$
+and the pinned values $\gamma_1,\dots,\gamma_{t-2}$, each of which satisfies
+its link by construction. $F$ has no zero, so the affine forms are
+inconsistent and $1\in W_2$.
+
+So every leaf has $1\in W_2$, the tree has depth $\le t-2$, and every node has
+degree $\le2$. Lemma 1.3, applied after an affine change of variables that
+makes $\varepsilon_j$ a variable, gives $1\in W_{2+(t-2)}(F_\sigma)=W_t(F_\sigma)$.
+
+(c) *Lifting.* $F$ has degree $\le3\le t$ for $t\ge3$, and degree 2 for $t=2$.
+By (b), $1\in W_t(F_\sigma)$ for all $2^{(t-1)k}$ assignments $\sigma$. Lemma 1.3,
+iterated over the coordinates of $x_2,\dots,x_t$, gives
+$1\in W_{t+(t-1)k}(F)$. $\square$
+
+For $t=3$ the plain indicator argument of Theorem 2.5, which fixes all $3k$
+$x$-coordinates, gives only $1\in M_{3k+3}(F)$.
+
+Part (b) was checked on a small instance, `gen3.py 13 5 1 77 rand unsat`
+($n=13$, $k=5$, random $V$, unsatisfiable), with `verify/check_prop37.py`.
+All $2^{10}$ restrictions of $x_2,x_3$ have degree $\le2$, and each has
+$1\in W_2$; 608 of them already have $1\in W_1$. So the split on
+$\varepsilon_1$ was never needed there. That is **observed** on this
+instance, not proved. It would not improve the bound anyway: step (c) splits
+systems of degree 3, so Lemma 1.3 needs $d\ge3$ there.
+
+For C19a this gives $5\le d_{\tilde F}\le17$. Branching on one variable does
 not close the gap: both restrictions $x_{1,1}=0$ and $x_{1,1}=1$ (variable
 index 19) also have $1\notin W_4$, after 9 rounds each. So C19a's exact last
 fall degree is not determined here.
@@ -528,7 +634,7 @@ the first non-positive coefficient of $(1+z)^{N}/(1+z^2)^{3n}$. This is
 | step | model A predicts first $n$ | observed |
 |---|---|---|
 | $3\to4$ | 21 | random $V$: at $n=15$ ($n=11,13$ give 3); polynomial $V$: at $n=21$ (2 of 4 instances) |
-| $4\to5$ | 37 | random $V$: at $n=35$; polynomial $V$: not by $n=41$ |
+| $4\to5$ | 37 | random $V$: at $n=35$; polynomial $V$: at $n=45$ (P43a refuted at degree 4, P45a not) |
 | $5\to6$ | 55 | not reached |
 | $6\to7$ | 75 | — |
 
@@ -546,8 +652,8 @@ one step in $n$. It places the $3\to4$ step too late: random-$V$ systems
 already need degree 4 at $n=15$. It also misses the other families:
 
 - for polynomial $V$, with $5n-1$ quadratics, it predicts $3\to4$ only at
-  $n=31$, and $4\to5$ at $n=59$. The observed $4\to5$ step has not occurred by
-  $n=41$;
+  $n=31$, and $4\to5$ at $n=59$. Both observed steps come earlier: $3\to4$ at
+  $n=21$ and $4\to5$ at $n=45$;
 - for trace-zero $V$, with $2n-1$ quadratics, it predicts $4\to5$ at $n=25$
   against the observed $n=33$.
 
@@ -567,16 +673,21 @@ section.
   $3\le d_{\tilde F}$ on the instances listed and $d_{\tilde F}\le k+2$ in
   general.
 - **The polynomial subspace.** Semaev's own $m=t=2$ data point ($n=40$, Table
-  2) uses his default polynomial subspace. Our polynomial-$V$ instances are
-  refuted at degree 4 through $n=33$. Polynomial subspaces have $2n-1$ extra
-  degree-3 falls (Observation 2.4). Whether polynomial $V$ also reaches degree
-  $\ge5$, and at what $n$, is open here.
+  2) uses his default polynomial subspace. Polynomial subspaces have $2n-1$
+  extra degree-3 falls (Observation 2.4), and our polynomial-$V$ instances are
+  refuted at degree 4 through $n=43$, including his $n=40$ cell. The single
+  instance P45a at $n=45$ is not refuted at degree 4. This is one instance per
+  $n$ at $n\ge41$. It places the polynomial family's $4\to5$ step near
+  $n=45$; it does not show that every polynomial-$V$ instance at $n\ge45$
+  needs degree 5.
 - **$m\ge3$.** Semaev's asymptotic algorithm uses $m\approx\sqrt{n/\ln n}$ and
-  the chained systems with auxiliary variables. Nothing here measures them.
-  For $m\ge3$ the $t=2$ subsystems have $k=\lceil n/m\rceil<n/2$, which is off
-  the diagonal studied here. The counterexample therefore falsifies the
-  assumption *as stated* but does not by itself bound the complexity of the
-  $m\ge3$ algorithm.
+  the chained systems with auxiliary variables. Here they are computed only at
+  $m=t=3$ and $n\le21$ (Theorem 3.5 and the table after Corollary 3.6). The
+  proved general bound for system (5) is $d_{\tilde F}\le(t-1)k+t$
+  (Proposition 3.7). With $k=\lceil n/m\rceil$ and $t=m$ this is about $n$,
+  far above the observed values. The counterexamples falsify the assumption
+  *as stated*. They do not by themselves bound the complexity of the
+  algorithm as $m$ grows.
 - **No cost claim.** At $m=2$ root-finding decides each decomposition in
   $2^k$ field operations, and Pollard rho dominates the DLP. Nothing here
   speeds up, or slows down, an ECDLP attack.

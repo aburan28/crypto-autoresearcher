@@ -60,6 +60,30 @@ and its last fall degree is exactly 5.
 solutions and `W4 dims [1, 34, 595, 6579, 52484] contains_one 1`;
 implementation A reports `W4_one 1 iters 4`.
 
+## Every exact last fall degree with $n\le29$ (`verify/b_sweep.py`)
+
+There are 61 instances in `instances.json` with $n\le29$, all with an exact
+refutation degree $d\in\{3,4\}$. For each one, implementation B was run at
+$D=d-1$ and $D=d$ and compared with implementation A. Four checks were made:
+- the same Boolean solution count (0);
+- $1\notin W_{d-1}$;
+- the same dimensions of $W_{d-1}\cap B_{\le e}$ for every $e$ (both closures
+  run to completion there);
+- $1\in W_d$.
+
+```text
+$ python3 verify/b_sweep.py results/instances.json 29
+R11a   n=11 d=3 B_count=0 B_W2=[0, 1, 22] A_W2=[0, 1, 22] B_one(W2)=0 B_one(W3)=1 AGREE
+...
+T29b   n=29 d=4 B_count=0 B_W3=[0, 0, 56, 1708] A_W3=[0, 0, 56, 1708] B_one(W3)=0 B_one(W4)=1 AGREE
+done; disagreements: 0
+```
+
+All 61 agree. The full output is in [`b_sweep_n11-29.txt`](b_sweep_n11-29.txt).
+Implementation B is pure Python, so it was not run on every larger instance.
+Instances with $n\ge31$ that are not named in a section of this file were
+computed by implementation A only.
+
 ## Lemma 2.3 and Observation 2.4 (`verify/falls_check.py`)
 
 On R23a, R23b, R25a, R25b, R27a and R27b, each line prints:
@@ -106,17 +130,18 @@ subspace, so the agreement is on the instance-independent part of the profile.
 
 ## Proposition 2.6 hypotheses (`verify/g1g2_check.py`)
 
-On the 77 instances of `instances.json`:
+On the 93 instances of `instances.json`:
 
 | family | hypotheses hold | hypotheses fail |
 |---|---|---|
-| random $V$ (R) | 32 of 32 | 0 |
+| random $V$ (R) | 41 of 41 | 0 |
+| random $V$, uniform $z$ (U) | 4 of 4 | 0 |
 | trace-zero $V$ (T) | 6 of 6 | 0 |
-| polynomial $V$, odd $n$ (P) | 14 | 23: (G2) fails, giving a second linear equation |
+| polynomial $V$, odd $n$ (P) | 15 | 25: (G2) fails, giving a second linear equation |
 | polynomial $V$, $n=40$ (S) | 1 | 1: (G1) fails, since $\dim\operatorname{span}(V\!\cdot\!V)=n-1$ for even $n$ |
 
 Where the proposition does not apply, $1\notin W_2$ was computed directly. On
-all 77 instances the column "$W_2$ refutes" in `summary.md` is 0, so
+all 93 instances the column "$W_2$ refutes" in `summary.md` is 0, so
 $d_{\rm LFD}\ge3$ holds everywhere.
 
 ## The chained $m=t=3$ counterexample C19a (`verify/indep_verify_t3.py`)
@@ -144,3 +169,36 @@ how the two implementations differ:
 - **Validation of A.** `s3c3count.c` agrees with exhaustive enumeration over
   all $(u_1,X_1,X_2,X_3)$ on 12 instances with $n\le8$. `gen3.py` agrees with
   direct evaluation of both $S_3$ equations at 300 random points.
+
+## Proposition 3.7, step (b) (`verify/check_prop37.py`)
+
+The instance is `gen3.py 13 5 1 77 rand unsat c3tiny`: $n=13$, $k=5$,
+random $V$, $t=3$, unsatisfiable, with 28 variables. For each of the $2^{10}$
+assignments of the coordinates of $x_2$ and $x_3$, the script restricts the
+system and runs `lfdclose2` at $D=1,2,3$:
+
+```text
+$ python3 ../verify/check_prop37.py c3tiny/c3_n13_k5_rand_77_0.sys 13 5
+assignments 1024; max degree of restricted systems 2; least D with 1 in W_D: {2: 416, 1: 608}
+```
+
+Every restriction has degree $\le2$ and is refuted at $W_2$. The proposition
+needs only $W_3$.
+
+## Polynomial $V$ at $n=41,43,45$ (P41a, P43a, P45a)
+
+Their degree-4 closures were run in a batch before these instances were added
+to `tabulate.py`. To tie the batch to the table, `gen2.py` regenerated each
+instance from its seed. All three files are byte-identical to the batch files
+(`cmp`). The degree-4 outcomes were imported from the batch logs, with a
+`provenance` field in `instances.json`, and `tabulate.py` computed $D=2,3$:
+
+| instance | $W_2$ | $W_3$ | $W_4$ |
+|---|---|---|---|
+| P41a | $(0,2,122)$, no 1 | $(0,2,204,6328)$, no 1 | contains 1 (3 rounds) |
+| P43a | $(0,2,128)$, no 1 | $(0,2,214,6980)$, no 1 | contains 1 (4 rounds) |
+| P45a | $(0,1,90)$, no 1 | $(0,1,224,8465)$, no 1 | $(0,1,224,8950,166705)$, no 1 (3 rounds, 179447 columns) |
+
+Implementation A's solution count is 0 for all three. On these instances,
+$\dim W_3\cap B_{\le2}=5n-1$, the polynomial-basis count of Observation 2.4.
+P45a's $W_4$ adds no further quadratic.
