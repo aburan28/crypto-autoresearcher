@@ -655,7 +655,7 @@ def stage1(run_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stage", type=int, required=True, choices=[0, 1])
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2, 3])
     ap.add_argument("--trial-plan", required=True)
     ap.add_argument("--run-dir", required=True)
     args = ap.parse_args()
@@ -670,8 +670,16 @@ def main() -> int:
         return 2
     if args.stage == 0:
         stage0(run_dir)
-    else:
+    elif args.stage == 1:
         stage1(run_dir)
+    else:
+        # Stages 2-3: additive drivers; do not rewrite stage0/stage1/RESULTS.md
+        from stages23 import stage2, stage3
+
+        if args.stage == 2:
+            stage2(run_dir)
+        else:
+            stage3(run_dir)
     return 0
 
 
