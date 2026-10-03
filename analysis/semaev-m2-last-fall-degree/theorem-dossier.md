@@ -356,6 +356,35 @@ $1\notin W_2$ is computer-verified instead (§3).
 
 Proposition 2.6 is sharp: $d_{\tilde F}=3$ is attained at $n=17,19$ (§3).
 
+**Corollary 2.7** (the whole chained system (5) has first fall degree 2). **Proved** for every $t\ge2$.
+In Semaev's system (5) for any $t\ge2$, the last equation is
+$S_3(y,x_t,R_X)=0$, where $y=x_1\in V$ if $t=2$ and $y=u_{t-2}\in K$ (free) if
+$t\ge3$. Its descent contains the affine-linear consequence
+
+$$\operatorname{Tr}\!\big(S_3(Y,X_t,R_X)/R_X^2\big)=\operatorname{Tr}(Y+X_t)+\operatorname{Tr}(a_6/R_X^2).$$
+
+Here $Y$ and $X_t$ are the linear forms of $y$ and $x_t$ in the Boolean
+variables. Suppose the descended coordinates of this last equation all have
+degree 2, which holds on every instance computed. Then the descended system
+(5) has $d_{\rm ff}=2$ in the Caminata–Gorla sense. It is also 2 in the
+Petit–Quisquater sense when the form above is nonzero.
+
+*Proof.* The proof of Theorem 2.1(a) and (c) uses only that $X_1$ and $X_2$
+are linear forms in $B_K$, never that they range over $V$. So it applies
+verbatim to $(Y,X_t)$. The resulting combination is a degree-2 syzygy of the
+top forms that involves only quadratic generators. Every trivial syzygy has
+degree $\ge4$: Koszul syzygies have degree $\deg f_i+\deg f_j$, and field
+syzygies $f^{\rm top}e_f$ have degree $2\deg f$. $\square$
+
+The C19a instance ($t=3$) shows this directly: $\dim M_2\cap B_{\le d}=(0,1,19)$,
+one affine-linear form already in the span of the equations.
+
+This contradicts the value "4" that Semaev states for the first fall degree
+(§4.5 of the paper). His argument there concerns only the cubic equations
+$S_3(u_i,u_{i+1},x_{i+2})$, which do have a fall at degree 4, and the
+experiments he cites for $S_3(x_1,x_2,z)$. Under the definition he quotes,
+the trace relation makes the first fall degree of the system 2.
+
 ---
 
 ## 3. Computer-assisted results
@@ -461,6 +490,7 @@ counterexamples here use random subspaces, which the assumption also covers.
 | 17 | 6 | random | 2 | yes, 2 of 2 (6 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Table 1 (random subspace, $d_{F4}=4$) |
 | 19 | 7 | random | 2 | **no, 0 of 2** | $d_{F4}\ge5$: counterexample |
 | 21 | 7 | random | 2 | **no, 0 of 2** (8 rounds each) | $d_{F4}\ge5$: counterexample |
+| 17 | 6 | polynomial | 2 | yes, 2 of 2 (5 rounds) | $d_{\tilde F}\le4$, consistent with Semaev Tables 1–2 |
 
 ---
 

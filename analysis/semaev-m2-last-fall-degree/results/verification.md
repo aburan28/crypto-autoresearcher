@@ -74,6 +74,20 @@ before doing anything else. For the polynomial basis (P23a), the explicit falls
 are in $W_3$, but $\dim(W_3\cap B_{\le2})=114=5n-1>3n$: the extra falls are
 specific to the polynomial basis.
 
+## Satisfiable instance Q35a (Theorem 3.3), checked by implementation B
+
+```text
+$ python3 indep_verify.py 35 800000005 0 291215786 1a90965f6 4 <18 basis words of Q35a>
+selftest ok; xR on curve: True
+descent ok: 361 monomials with nonzero K-coefficient; equations 35, vars 36
+boolean solutions (ordered pairs): 6  [288.0s]
+W4 dims [0, 1, 105, 3885, 61425] contains_one 0 rank 61425 cols 66712 [1154.6s]
+```
+
+Implementation A agrees on the solution count (6) and on the closure,
+`W4_dims 0 1 105 3885 61425`. So $\operatorname{codim}W_4=66712-61425=5287>6$,
+and Proposition 1.4 applies.
+
 ## Agreement with this program's earlier engine
 
 `EV-CERTBIN-091c56` was produced by the native backend of

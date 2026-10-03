@@ -22,6 +22,7 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
    - Hence $\operatorname{span}F=\{\operatorname{Tr}(\delta w):\operatorname{Tr}\delta=0\}+\mathbb F_2\ell_0$.
    - The affine-linear form $\ell_0=\operatorname{Tr}(S/z^2)$ always lies in the span of the equations.
 2. **The first fall degree is 2 for every $n$** (Cor 2.2), under both the Caminata–Gorla and the Petit–Quisquater definitions.
+   - The same holds for Semaev's whole chained system (5), for every $t\ge2$ (Cor 2.7). The last equation $S_3(u_{t-2},x_t,R_X)$ always yields the linear relation $\operatorname{Tr}(u_{t-2}+x_t)+\operatorname{Tr}(a_6/R_X^2)$. This contradicts the value 4 stated in the paper.
    - The degree-3 falls are explicit and independent of $n$ (Lemma 2.3): $\operatorname{Tr}(\lambda X_iw)$ for $\lambda\perp V$, plus $\operatorname{Tr}(sw)+\operatorname{Tr}(\alpha)\omega$.
    - The degree-3 identities $\omega a_j\equiv$ (quadratic) also hold.
    - On random subspaces these falls span the whole degree-$\le2$ part of $W_3$, of dimension exactly $3n$. This was checked on instances.
@@ -51,7 +52,7 @@ free and $\dim V=\lceil n/3\rceil$. The statements and proofs are in
 | $m=t=2$ | 35 | random | **= 5** on R35a (via branching); **≥ 5** on 4 of 4, including 2 with uniform $z$ |
 | $m=t=2$ | 35, satisfiable | random | **≥ 5** (2 of 2, by Prop 1.4: $\operatorname{codim}W_4=5287\gg$ #solutions) |
 | $m=t=2$ | 37, 39 | random | **≥ 5** (4 of 4) |
-| $m=t=3$ (chained, $u_1$ free) | 17 | random | ≤ 4 (2 of 2) |
+| $m=t=3$ (chained, $u_1$ free) | 17 | random, polynomial | ≤ 4 (4 of 4) |
 | $m=t=3$ (chained, $u_1$ free) | 19, 21 | random | **≥ 5** (4 of 4) |
 
 At $m=2$ the last fall degree rises $3\to4\to5$ along Semaev's diagonal
