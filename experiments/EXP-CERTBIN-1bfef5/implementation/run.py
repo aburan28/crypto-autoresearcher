@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""EXP-CERTBIN-1bfef5 Stages 0-1: descent-basis closure control admit surface.
+"""EXP-CERTBIN-1bfef5 Stages 0-2: descent-basis closure control admit surface.
 
 Stage 0: Freeze preregistered predictions, Proposition B/F note, seed stream,
          instrument pin list, and precommit hashes (zero scientific closures).
@@ -8,9 +8,11 @@ Stage 1: C-PIN (e94b27 instruments), C-SELF (Stage-0 hash replay), archived
          288-label census (U62+S62+C20 × {M_4,W_4}), Closure R/C smoke, then
          arm-(a) random-basis re-descent via basis_swap.py (IMP-ARM-A-BASIS-SWAP
          cleared under AMD-20261003-9ef431 / DEC-20261003-954f1b).
+Stage 2: Arms (b)–(d) structured V rates + Prop F orbit check under
+         AMD-20261003-9e0869 / DEC-20261003-a6c85a, citing Stage-1
+         O-ARM-A-PASS 288/288 (EV-CERTBIN-f218ae).
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No break / exponent.
-Stage 2 is not authorized under this trial-plan card.
 """
 from __future__ import annotations
 
@@ -29,17 +31,14 @@ HYPOTHESIS_ID = "H-CERTBIN-4d3853"
 APPROVED_BY = "DEC-20261002-711879"
 ADMIT_BY = "DEC-20261003-f1d0f6"
 READMIT_BY = "DEC-20261003-954f1b"
+STAGE2_ADMIT_BY = "DEC-20261003-a6c85a"
 AMENDMENT_ID = "AMD-20261003-9ef431"
+STAGE2_AMENDMENT_ID = "AMD-20261003-9e0869"
 TASK_ID = "TASK-20261003-1782c9"
+STAGE2_TASK_ID = "TASK-20261003-656718"
 SEED = 2026092691
-# Stage-1 outcomes under this card: arm-(a) exact is reported as the identity
-# gate before Stage 2 assigns E-SET/E-POLY; use O-E-SET only when Stage 2 runs.
-# For Stage-1-only cards, exact arm-(a) maps to a dedicated observational label
-# carried as O-ARTIFACT's complement via RESULTS: we emit O-E-SET only if the
-# trial plan later opens Stage 2. Under Stages 0-1, exact agreement is reported
-# as outcome O-ARM-A-PASS folded into the hypothesis table as the blocking gate
-# succeeded — the distinguishable Stage-1 stop before Stage 2 is recorded as
-# the string below and accepted by check.py alongside the hypothesis O-* set.
+# Stage-1 outcomes include O-ARM-A-PASS (identity gate). Stage 2 assigns
+# O-E-SET / O-E-POLY / O-MIXED from structured W_4 rates.
 OUTCOMES = (
     "O-E-SET",
     "O-E-POLY",
@@ -47,6 +46,13 @@ OUTCOMES = (
     "O-ARTIFACT",
     "O-IMPEDIMENT",
     "O-ARM-A-PASS",
+)
+STAGE2_OUTCOMES = (
+    "O-E-SET",
+    "O-E-POLY",
+    "O-MIXED",
+    "O-ARTIFACT",
+    "O-IMPEDIMENT",
 )
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO = EXP_ROOT.parents[1]
@@ -618,9 +624,155 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
     return result
 
 
+def stage2(run_dir: Path) -> Dict[str, Any]:
+    """Stage 2: arms (b)–(d) after cleared Stage-1 O-ARM-A-PASS precondition."""
+    stage1_dir = EXP_ROOT / "stage1"
+    stage2_dir = EXP_ROOT / "stage2"
+    stage2_dir.mkdir(parents=True, exist_ok=True)
+
+    admission_path = stage1_dir / "arm-a-admission.json"
+    if not admission_path.is_file():
+        result = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "stage": 2,
+            "status": "impediment",
+            "outcome": "O-IMPEDIMENT",
+            "reason": "Stage-1 arm-a-admission.json missing; cannot clear precondition",
+            "claims": {"break": False, "exponent_move": False},
+            "amazon_bedrock": "NOT SELECTED",
+            "certificate": {"kind": "none"},
+            "recorded_at": utc_now(),
+        }
+        write_json(run_dir / "raw-result.json", result)
+        write_manifest(
+            run_dir,
+            {
+                "experiment_id": EXPERIMENT_ID,
+                "stage": 2,
+                "status": "impediment",
+                "outcome": "O-IMPEDIMENT",
+            },
+        )
+        return result
+
+    admission = json.loads(admission_path.read_text(encoding="utf-8"))
+    if not (
+        admission.get("arm_a_executed") is True
+        and admission.get("arm_a_agreement") == "288/288"
+    ):
+        result = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "stage": 2,
+            "status": "impediment",
+            "outcome": "O-IMPEDIMENT",
+            "reason": (
+                "Stage-1 O-ARM-A-PASS precondition not met "
+                f"(arm_a_executed={admission.get('arm_a_executed')}, "
+                f"arm_a_agreement={admission.get('arm_a_agreement')})"
+            ),
+            "claims": {"break": False, "exponent_move": False},
+            "amazon_bedrock": "NOT SELECTED",
+            "certificate": {"kind": "none"},
+            "recorded_at": utc_now(),
+        }
+        write_json(run_dir / "raw-result.json", result)
+        write_manifest(
+            run_dir,
+            {
+                "experiment_id": EXPERIMENT_ID,
+                "stage": 2,
+                "status": "impediment",
+                "outcome": "O-IMPEDIMENT",
+            },
+        )
+        return result
+
+    from stage2 import run_stage2  # noqa: WPS433
+
+    t0 = time.monotonic()
+    payload = run_stage2()
+    elapsed = time.monotonic() - t0
+    outcome = payload.get("outcome", "O-IMPEDIMENT")
+    if outcome not in STAGE2_OUTCOMES:
+        outcome = "O-IMPEDIMENT"
+
+    # Persist per-set summaries and bulky rows under stage2/ and run_dir.
+    rows = payload.pop("per_set_rows", {})
+    write_json(stage2_dir / "per-set-summary.json", payload.get("per_set", {}), overwrite=True)
+    write_json(run_dir / "per-set-summary.json", payload.get("per_set", {}))
+    write_json(stage2_dir / "per-set-rows.json", rows, overwrite=True)
+    write_json(run_dir / "per-set-rows.json", rows)
+    write_json(stage2_dir / "stage2-result.json", payload, overwrite=True)
+    write_json(run_dir / "stage2-result.json", payload)
+
+    results_lines = [
+        f"# RESULTS — {EXPERIMENT_ID}",
+        "",
+        f"Label: **{outcome}**",
+        "",
+        f"- hypothesis: {HYPOTHESIS_ID}",
+        f"- approved_by: {APPROVED_BY}",
+        f"- admit_by: {ADMIT_BY}",
+        f"- stage2_admit_by: {STAGE2_ADMIT_BY}",
+        f"- amendment_id: {STAGE2_AMENDMENT_ID}",
+        f"- task_id: {STAGE2_TASK_ID}",
+        f"- stage1_precondition: O-ARM-A-PASS 288/288 (EV-CERTBIN-f218ae / DEC-20261003-b8f938)",
+        f"- structured_w4_rates: {json.dumps(payload.get('structured_w4_rates'), sort_keys=True)}",
+        f"- reason: {payload.get('reason')}",
+        "- claims: break=false, exponent_move=false",
+        "- amazon_bedrock: NOT SELECTED",
+        "- note: Stage-2 arms (b)–(d); prior Stage-0/1 RUNs immutable.",
+        "",
+    ]
+    write_text(EXP_ROOT / "RESULTS.md", "\n".join(results_lines), overwrite=True)
+    write_text(run_dir / "RESULTS.md", "\n".join(results_lines))
+
+    result = {
+        "experiment_id": EXPERIMENT_ID,
+        "hypothesis_id": HYPOTHESIS_ID,
+        "approved_by": APPROVED_BY,
+        "admit_by": ADMIT_BY,
+        "stage2_admit_by": STAGE2_ADMIT_BY,
+        "amendment_id": STAGE2_AMENDMENT_ID,
+        "prior_amendment_id": AMENDMENT_ID,
+        "task_id": STAGE2_TASK_ID,
+        "stage": 2,
+        "status": "completed_valid" if outcome in STAGE2_OUTCOMES else "impediment",
+        "outcome": outcome,
+        "reason": payload.get("reason"),
+        "structured_w4_rates": payload.get("structured_w4_rates"),
+        "thresholds": payload.get("thresholds"),
+        "precondition": payload.get("precondition"),
+        "certificate": payload.get("certificate") or {"kind": "none"},
+        "claims": {"break": False, "exponent_move": False},
+        "amazon_bedrock": "NOT SELECTED",
+        "elapsed_s": elapsed,
+        "recorded_at": utc_now(),
+    }
+    write_json(run_dir / "raw-result.json", result)
+    write_manifest(
+        run_dir,
+        {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "stage": 2,
+            "stage2_admit_by": STAGE2_ADMIT_BY,
+            "amendment_id": STAGE2_AMENDMENT_ID,
+            "task_id": STAGE2_TASK_ID,
+            "status": result["status"],
+            "outcome": outcome,
+            "elapsed_s": elapsed,
+            "recorded_at": result["recorded_at"],
+        },
+    )
+    return result
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--stage", type=int, required=True, choices=[0, 1])
+    ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2])
     ap.add_argument("--trial-plan", type=str, required=True)
     ap.add_argument("--run-dir", type=str, required=True)
     args = ap.parse_args(argv)
@@ -633,8 +785,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.stage == 0:
             raw = stage0(run_dir)
             return 0 if raw.get("worksheet_ok") else 1
-        raw = stage1(run_dir)
-        return 0 if raw.get("outcome") in OUTCOMES else 1
+        if args.stage == 1:
+            raw = stage1(run_dir)
+            return 0 if raw.get("outcome") in OUTCOMES else 1
+        raw = stage2(run_dir)
+        return 0 if raw.get("outcome") in STAGE2_OUTCOMES else 1
     except FileExistsError as exc:
         print(f"refuse overwrite: {exc}", file=sys.stderr)
         return 1

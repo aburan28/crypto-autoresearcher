@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent checker for EXP-CERTBIN-1bfef5 Stages 0-1 run artifacts."""
+"""Independent checker for EXP-CERTBIN-1bfef5 Stages 0-2 run artifacts."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,14 @@ _IMPL = Path(__file__).resolve().parent
 if str(_IMPL) not in sys.path:
     sys.path.insert(0, str(_IMPL))
 
-from run import EXPERIMENT_ID, OUTCOMES, PINNED, REPO, sha256_file  # noqa: E402
+from run import (  # noqa: E402
+    EXPERIMENT_ID,
+    OUTCOMES,
+    PINNED,
+    REPO,
+    STAGE2_OUTCOMES,
+    sha256_file,
+)
 
 EXP_ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,7 +93,6 @@ def main() -> int:
             ):
                 if not (EXP_ROOT / rel).is_file():
                     errs.append(f"missing {rel}")
-            # After AMD-20261003-9ef431, executed arm-(a) must leave a basis-swap receipt.
             admission = json.loads(
                 (EXP_ROOT / "stage1/arm-a-admission.json").read_text(encoding="utf-8")
             )
@@ -105,6 +111,44 @@ def main() -> int:
                 errs.append(
                     "O-E-SET forbidden under Stages 0-1 card (Stage 2 not authorized)"
                 )
+    elif stage == 2:
+        outcome = raw.get("outcome")
+        if outcome not in STAGE2_OUTCOMES:
+            errs.append(f"stage2 outcome {outcome!r} not in {STAGE2_OUTCOMES}")
+        results = EXP_ROOT / "RESULTS.md"
+        if outcome in STAGE2_OUTCOMES:
+            if not results.is_file():
+                errs.append("missing RESULTS.md")
+            else:
+                text = results.read_text(encoding="utf-8")
+                hits = [lab for lab in STAGE2_OUTCOMES if f"**{lab}**" in text]
+                if len(hits) != 1:
+                    errs.append(
+                        f"RESULTS.md must name exactly one Stage-2 O-* label, found {hits}"
+                    )
+                elif hits[0] != outcome:
+                    errs.append("RESULTS.md label disagrees with raw-result outcome")
+        for rel in (
+            "stage1/arm-a-admission.json",
+            "stage2/per-set-summary.json",
+            "stage2/stage2-result.json",
+        ):
+            if not (EXP_ROOT / rel).is_file():
+                errs.append(f"missing {rel}")
+        admission = json.loads(
+            (EXP_ROOT / "stage1/arm-a-admission.json").read_text(encoding="utf-8")
+        )
+        if not (
+            admission.get("arm_a_executed") is True
+            and admission.get("arm_a_agreement") == "288/288"
+        ):
+            errs.append("Stage-2 requires Stage-1 arm_a_agreement 288/288")
+        if not (run_dir / "stage2-result.json").is_file():
+            errs.append("missing run_dir/stage2-result.json")
+        if claims.get("break") or claims.get("exponent_move"):
+            errs.append("forbidden break/exponent after Stage 2")
+        if outcome == "O-ARM-A-PASS":
+            errs.append("O-ARM-A-PASS is Stage-1 only; Stage 2 must emit E-SET/E-POLY/MIXED/ARTIFACT/IMPEDIMENT")
     else:
         errs.append(f"unknown stage {stage!r}")
 
