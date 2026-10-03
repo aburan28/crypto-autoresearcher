@@ -129,10 +129,20 @@ def main() -> int:
         man = man_path.read_text(encoding="utf-8")
         if outcome and f"outcome: {outcome}" not in man:
             errs.append("manifest outcome disagrees with raw-result")
-        # Prefer refine r2 paths; fall back to legacy Stage-2 paths.
+        # Prefer Semaev-census r3 when this run declares the Semaev AMD / DEC,
+        # else phi31ker r2, else legacy Stage-2 paths. Do not let a prior r2
+        # receipt validate a Semaev-census run that never wrote r3.
+        r3 = root / "stage2" / "r3-semaev"
         r2 = root / "stage2" / "r2-phi31ker"
         legacy = root / "stage2"
-        if (r2 / "arm-summaries.json").is_file():
+        semaev_run = (
+            raw.get("amd") == "AMD-EXP-BINSTD-b94ec8-20261003-semaev"
+            or raw.get("refine_decision") == "DEC-20261003-8eeef1"
+        )
+        if semaev_run or (r3 / "arm-summaries.json").is_file():
+            stage2_root = r3
+            results_candidates = [r3 / "RESULTS.md", root / "RESULTS.md"]
+        elif (r2 / "arm-summaries.json").is_file():
             stage2_root = r2
             results_candidates = [r2 / "RESULTS.md", root / "RESULTS.md"]
         else:
@@ -143,7 +153,7 @@ def main() -> int:
                 errs.append(f"missing {stage2_root.relative_to(root)}/{rel}")
         results_ok = any(p.is_file() for p in results_candidates)
         if not results_ok:
-            errs.append("missing RESULTS.md (legacy or r2-phi31ker)")
+            errs.append("missing RESULTS.md (legacy / r2 / r3)")
         else:
             body = next(p for p in results_candidates if p.is_file()).read_text(
                 encoding="utf-8"

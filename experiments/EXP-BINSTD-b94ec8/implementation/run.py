@@ -44,21 +44,26 @@ from curve import (  # noqa: E402
 )
 from gf2 import MODULI, field_for, is_irreducible  # noqa: E402
 from phi31_ker import build_phi31_ker_bases  # noqa: E402
+from stage2_census import run_census  # noqa: E402
 
 EXPERIMENT_ID = "EXP-BINSTD-b94ec8"
 HYPOTHESIS_ID = "H-BINSTD-dfc684"
 APPROVED_BY = "DEC-20261002-e6818c"
 EXPAND_DEC = "DEC-20261003-8881ef"
 REFINE_DEC = "DEC-20261003-031dba"
+REFINE_DEC_SEMAEV = "DEC-20261003-8eeef1"
 TASK_ID_STAGES01 = "TASK-20261003-4d4739"
 TASK_ID_STAGE2_V1 = "TASK-20261003-43c403"  # prior Stage-2 (window_proxy O-IMPEDIMENT)
-TASK_ID = "TASK-20261003-81632a"  # live Stage-2 refine executor (trial-plan-v3)
+TASK_ID_PHI31KER = "TASK-20261003-81632a"  # prior Stage-2 refine (Phi_31-ker)
+TASK_ID = "TASK-20261003-4956ee"  # live Stage-2 Semaev census executor (trial-plan-v4)
 AMD_PHI31KER = "AMD-EXP-BINSTD-b94ec8-20261003-phi31ker"
+AMD_SEMAEV = "AMD-EXP-BINSTD-b94ec8-20261003-semaev"
 MASTER_SEED = 0x20261002E7  # design token 20261002e7 as int; not YAML float
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = EXP_ROOT.parents[1]
 WDSAT_SRC = REPO_ROOT / "inputs" / "TRIMOSKA-WDSAT-2024" / "upstream"
 STAGE2_R2_DIR = EXP_ROOT / "stage2" / "r2-phi31ker"
+STAGE2_R3_DIR = EXP_ROOT / "stage2" / "r3-semaev"
 PHI31_BIND_PATH = EXP_ROOT / "stage1" / "phi31-ker-bases.json"
 
 WORKSHEET_NS = (17, 23, 29, 31, 37, 41)
@@ -1011,122 +1016,149 @@ def stage2(run_dir: Path) -> dict[str, Any]:
             "started. Missing solver is never negative mathematical evidence."
         )
     else:
-        # Bases and WDSat OK. Full Semaev m=4 CNF-XOR instance export is not
-        # yet implemented under this experiment (Stage-1 only exported
-        # structure skeletons + planted group-arithmetic certificates). Do
-        # not fabricate leaf ratios; record the next instrument debt.
-        impediments.append("semaev_m4_cnf_xor_instance_export_not_implemented")
-        outcome = "O-IMPEDIMENT"
-        status = "failed_infrastructure"
-        reason = (
-            "Phi_31-ker Frobenius-stable V5/V6 bound successfully "
-            f"(g={phi_bind.get('selected_factor_hex') if phi_bind else '?'}; "
-            "distinct from window_deg; not window_proxy). WDSat "
-            "capacity-smoke build_ok=true. Leaf census not started: Semaev "
-            "m=4 CNF-XOR/ANF instance export is not implemented under "
-            "EXP-BINSTD-b94ec8 (Stage-1 fixture E0 is structure + planted "
-            "certificates only). This is an instrument debt after clearing "
-            "the window_proxy refine gate — not H1 falsification."
+        # Bases OK. Run Semaev m=4 export + leaf census under AMD_SEMAEV into
+        # stage2/r3-semaev/ (r2-phi31ker and prior stage2/ remain immutable).
+        census = run_census(
+            exp_root=EXP_ROOT,
+            repo_root=REPO_ROOT,
+            run_dir=run_dir,
+            out_dir=STAGE2_R3_DIR,
+            master_seed=MASTER_SEED,
+            amd_id=AMD_SEMAEV,
+            refine_dec=REFINE_DEC_SEMAEV,
+            expand_dec=EXPAND_DEC,
+            task_id=TASK_ID,
         )
+        leaf_census_attempted = bool(census.get("leaf_census_attempted"))
+        outcome = census.get("outcome") or "O-IMPEDIMENT"
+        status = census.get("status") or "failed_infrastructure"
+        reason = census.get("reason") or "census returned no reason"
+        koblitz_ordinary_ratio = census.get("koblitz_ordinary_median_leaf_ratio")
+        window_stable_ratio = census.get("window_stable_ratio")
+        impediments.extend(census.get("impediments") or [])
+        wdsat = {
+            "build_ok": census.get("wdsat_build_ok"),
+            "binary_sha256": census.get("wdsat_binary_sha256"),
+            "available_source": True,
+            "source": str(WDSAT_SRC.relative_to(REPO_ROOT)),
+        }
+        out_dir = STAGE2_R3_DIR
+        arm_summaries = census.get("summary") or {
+            "outcome": outcome,
+            "reason": reason,
+            "leaf_census_attempted": leaf_census_attempted,
+            "amd": AMD_SEMAEV,
+        }
+        # Ensure r3 artifacts exist even if census wrote them.
+        if not (out_dir / "arm-summaries.json").exists():
+            write_json(out_dir / "arm-summaries.json", arm_summaries)
+        raw = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "approved_by": APPROVED_BY,
+            "expand_decision": EXPAND_DEC,
+            "refine_decision": REFINE_DEC_SEMAEV,
+            "prior_refine_decision": REFINE_DEC,
+            "amd": AMD_SEMAEV,
+            "prior_amd": AMD_PHI31KER,
+            "task_id": TASK_ID,
+            "stage": 2,
+            "status": status,
+            "outcome": outcome,
+            "reason": reason,
+            "leaf_census_attempted": leaf_census_attempted,
+            "phi31_ker_bound": phi_ok,
+            "phi31_ker_factor_hex": (phi_bind or {}).get("selected_factor_hex"),
+            "stable_bases_are_window_proxy": stable_proxy,
+            "wdsat_build_ok": wdsat.get("build_ok"),
+            "wdsat_binary_sha256": wdsat.get("binary_sha256"),
+            "koblitz_ordinary_median_leaf_ratio": koblitz_ordinary_ratio,
+            "window_stable_ratio": window_stable_ratio,
+            "n_leaf_rows": census.get("n_leaf_rows"),
+            "impediments": impediments,
+            "wall_clock_seconds": time.time() - t0,
+            "peak_rss_bytes": None,
+            "claims": {
+                "break": False,
+                "exponent_move": False,
+                "deployed_attack": False,
+            },
+            "amazon_bedrock": "NOT_USED",
+        }
+        write_json(run_dir / "raw-result.json", raw)
+        write_text(
+            run_dir / "manifest.yaml",
+            "\n".join(
+                [
+                    f"experiment_id: {EXPERIMENT_ID}",
+                    f"hypothesis_id: {HYPOTHESIS_ID}",
+                    "stage: 2",
+                    f"status: {status}",
+                    f"outcome: {outcome}",
+                    f"refine_decision: {REFINE_DEC_SEMAEV}",
+                    f"amd: {AMD_SEMAEV}",
+                    f"phi31_ker_bound: {str(phi_ok).lower()}",
+                    f"wdsat_build_ok: {str(bool(wdsat.get('build_ok'))).lower()}",
+                    f"leaf_census_attempted: {str(leaf_census_attempted).lower()}",
+                    "artifacts:",
+                    "  - manifest.yaml",
+                    "  - raw-result.json",
+                    f"  - experiments/{EXPERIMENT_ID}/stage2/r3-semaev/leaf-counts.jsonl",
+                    f"  - experiments/{EXPERIMENT_ID}/stage2/r3-semaev/arm-summaries.json",
+                    f"  - experiments/{EXPERIMENT_ID}/stage2/r3-semaev/RESULTS.md",
+                    "amazon_bedrock: NOT_USED",
+                    "",
+                ]
+            ),
+        )
+        return raw
 
+    # Pre-census instrument stops (phi31 / wdsat capacity-smoke) still write
+    # additive notes under r2 only when that path is empty — never rewrite.
     arm_summaries = {
         "n": 31,
         "m": M_ARITY,
         "l_values": [5, 6],
-        "unsat_targets_per_arm": UNSAT_TARGETS_PER_ARM,
-        "planted_sat_per_arm": PLANTED_SAT_PER_ARM,
-        "ratio_band": RATIO_BAND,
-        "withdrawn_ratio_comparator": WITHDRAWN_RATIO,
         "outcome": outcome,
         "reason": reason,
-        "leaf_census_attempted": leaf_census_attempted,
-        "e0_overall_ok": e0_ok,
-        "stage1_bases_immutable": stage1_bases_meta,
-        "stage1_stable_were_window_proxy": stage1_proxy,
+        "leaf_census_attempted": False,
         "phi31_ker_bound": phi_ok,
-        "phi31_ker_factor_hex": (phi_bind or {}).get("selected_factor_hex"),
-        "bound_bases": bases_meta,
         "stable_bases_are_window_proxy": stable_proxy,
         "wdsat_probe": {
-            "available_source": wdsat.get("available_source"),
             "build_ok": wdsat.get("build_ok"),
             "binary_sha256": wdsat.get("binary_sha256"),
-            "make_returncode": wdsat.get("make_returncode"),
             "error": wdsat.get("error"),
-            "source": wdsat.get("source"),
         },
-        "koblitz_ordinary_median_leaf_ratio": koblitz_ordinary_ratio,
-        "window_stable_ratio": window_stable_ratio,
         "impediments": impediments,
-        "expand_decision": EXPAND_DEC,
-        "refine_decision": REFINE_DEC,
         "amd": AMD_PHI31KER,
-        "prior_stage2_task": TASK_ID_STAGE2_V1,
         "amazon_bedrock": "NOT_USED",
-        "claims": {
-            "break": False,
-            "exponent_move": False,
-            "deployed_attack": False,
-        },
+        "claims": {"break": False, "exponent_move": False, "deployed_attack": False},
     }
     leaf_path = out_dir / "leaf-counts.jsonl"
     if not leaf_path.exists():
-        note = {
-            "record_type": "stage2_refine_probe_note",
-            "leaf_census_attempted": False,
-            "outcome": outcome,
-            "phi31_ker_bound": phi_ok,
-            "stable_bases_are_window_proxy": stable_proxy,
-            "wdsat_build_ok": wdsat.get("build_ok"),
-            "reason": "no per-target leaf rows; instrument stop after Phi_31-ker bind",
-            "amd": AMD_PHI31KER,
-        }
-        leaf_path.write_text(json.dumps(note, sort_keys=True) + "\n", encoding="utf-8")
+        leaf_path.write_text(
+            json.dumps(
+                {
+                    "record_type": "stage2_refine_probe_note",
+                    "leaf_census_attempted": False,
+                    "outcome": outcome,
+                    "reason": reason,
+                    "amd": AMD_PHI31KER,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     if not (out_dir / "arm-summaries.json").exists():
         write_json(out_dir / "arm-summaries.json", arm_summaries)
-
-    results = "\n".join(
-        [
-            f"# RESULTS — {EXPERIMENT_ID} (Stage 2 refine / Phi_31-ker)",
-            "",
-            f"Hypothesis: {HYPOTHESIS_ID}",
-            f"Approved by: {APPROVED_BY}",
-            f"Expand decision: {EXPAND_DEC}",
-            f"Refine decision: {REFINE_DEC}",
-            f"Amendment: {AMD_PHI31KER}",
-            f"Live executor: {TASK_ID}",
-            f"Prior Stage-2 executor: {TASK_ID_STAGE2_V1}",
-            f"Prior Stages 0-1 executor: {TASK_ID_STAGES01}",
-            "",
-            f"Stage-2 outcome: **{outcome}**",
-            "",
-            reason,
-            "",
-            f"Phi_31-ker bound: {phi_ok}",
-            f"selected_factor: {(phi_bind or {}).get('selected_factor_hex')}",
-            f"WDSat vendored build_ok: {wdsat.get('build_ok')}",
-            f"stable_bases_are_window_proxy: {stable_proxy}",
-            f"leaf_census_attempted: {leaf_census_attempted}",
-            f"impediments: {impediments}",
-            "",
-            "Primary metrics (unset — census not started):",
-            "- koblitz_ordinary_median_leaf_ratio: null",
-            "- window_stable_ratio: null",
-            "",
-            "Prior Stage-2 RESULTS.md / stage2/{{leaf-counts,arm-summaries}} "
-            "remain immutable (RUN-BINSTD-e8660a). This refine writes only "
-            "stage1/phi31-ker-bases.json and stage2/r2-phi31ker/*.",
-            "",
-            "Amazon Bedrock: NOT_USED",
-            "No Magma/Sage/AUXIN.",
-            "Claims: no break / no exponent / no deployed attack.",
-            "",
-        ]
-    )
     results_path = out_dir / "RESULTS.md"
     if not results_path.exists():
-        results_path.write_text(results, encoding="utf-8")
-
+        results_path.write_text(
+            f"# RESULTS — {EXPERIMENT_ID} (Stage 2 pre-census stop)\n\n"
+            f"Outcome: **{outcome}**\n\n{reason}\n",
+            encoding="utf-8",
+        )
     raw = {
         "experiment_id": EXPERIMENT_ID,
         "hypothesis_id": HYPOTHESIS_ID,
@@ -1139,20 +1171,13 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "status": status,
         "outcome": outcome,
         "reason": reason,
-        "leaf_census_attempted": leaf_census_attempted,
+        "leaf_census_attempted": False,
         "phi31_ker_bound": phi_ok,
-        "phi31_ker_factor_hex": (phi_bind or {}).get("selected_factor_hex"),
         "stable_bases_are_window_proxy": stable_proxy,
         "wdsat_build_ok": wdsat.get("build_ok"),
-        "wdsat_binary_sha256": wdsat.get("binary_sha256"),
         "impediments": impediments,
         "wall_clock_seconds": time.time() - t0,
-        "peak_rss_bytes": None,
-        "claims": {
-            "break": False,
-            "exponent_move": False,
-            "deployed_attack": False,
-        },
+        "claims": {"break": False, "exponent_move": False, "deployed_attack": False},
         "amazon_bedrock": "NOT_USED",
     }
     write_json(run_dir / "raw-result.json", raw)
@@ -1161,22 +1186,10 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "\n".join(
             [
                 f"experiment_id: {EXPERIMENT_ID}",
-                f"hypothesis_id: {HYPOTHESIS_ID}",
                 "stage: 2",
                 f"status: {status}",
                 f"outcome: {outcome}",
-                f"refine_decision: {REFINE_DEC}",
                 f"amd: {AMD_PHI31KER}",
-                f"phi31_ker_bound: {str(phi_ok).lower()}",
-                f"wdsat_build_ok: {str(bool(wdsat.get('build_ok'))).lower()}",
-                f"stable_bases_are_window_proxy: {str(stable_proxy).lower()}",
-                "artifacts:",
-                "  - manifest.yaml",
-                "  - raw-result.json",
-                f"  - experiments/{EXPERIMENT_ID}/stage1/phi31-ker-bases.json",
-                f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/leaf-counts.jsonl",
-                f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/arm-summaries.json",
-                f"  - experiments/{EXPERIMENT_ID}/stage2/r2-phi31ker/RESULTS.md",
                 "amazon_bedrock: NOT_USED",
                 "",
             ]
