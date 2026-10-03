@@ -2,7 +2,8 @@
 """Stages 2-3 drivers for EXP-BINSTD-591d28 (TASK-20261002-d8df85).
 
 Does not rewrite stage0/, stage1/, or RESULTS.md from Stages 0-1.
-Writes stage2/, stage3/, and RESULTS-stages2-3.md only.
+Writes stage2/, stage3/, and RESULTS-stages2-3.md by default;
+replication uses stage2-<tag>/, stage3-<tag>/, RESULTS-stages2-3-<tag>.md.
 No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.
 """
 from __future__ import annotations
@@ -39,6 +40,44 @@ N_TARGETS_E = 10
 N_KOBLITZ_TARGETS = 5
 G_SIGMA = 0b100111001
 SAMPLE_E_BUDGET_S23 = {4: 1 << 16, 5: 1 << 14, 6: 1 << 12}
+# Replication knobs (set via configure_replication; default = original package).
+ARTIFACT_TAG = ""  # "" → stage2/, stage3/, RESULTS-stages2-3.md
+REPLICATION_NOTE = ""
+
+
+def configure_replication(
+    *,
+    master_seed: int | None = None,
+    e_budget_mult: int = 1,
+    artifact_tag: str = "",
+    task_id: str | None = None,
+    note: str = "",
+) -> None:
+    """Additive replication config. Never rewrites stage2/stage3 defaults on disk."""
+    global MASTER_SEED, SAMPLE_E_BUDGET_S23, ARTIFACT_TAG, TASK_ID, REPLICATION_NOTE
+    if master_seed is not None:
+        MASTER_SEED = int(master_seed)
+    if e_budget_mult < 1:
+        raise ValueError("e_budget_mult must be >= 1")
+    if e_budget_mult != 1:
+        SAMPLE_E_BUDGET_S23 = {l: n * e_budget_mult for l, n in SAMPLE_E_BUDGET_S23.items()}
+    ARTIFACT_TAG = artifact_tag or ""
+    if task_id:
+        TASK_ID = task_id
+    REPLICATION_NOTE = note
+
+
+def _stage_dir(name: str) -> Path:
+    """stage2 → stage2/ or stage2-repl/ when ARTIFACT_TAG=repl."""
+    if ARTIFACT_TAG:
+        return EXP_ROOT / f"{name}-{ARTIFACT_TAG}"
+    return EXP_ROOT / name
+
+
+def _results_path() -> Path:
+    if ARTIFACT_TAG:
+        return EXP_ROOT / f"RESULTS-stages2-3-{ARTIFACT_TAG}.md"
+    return EXP_ROOT / "RESULTS-stages2-3.md"
 
 
 def utc_now() -> str:
@@ -475,6 +514,7 @@ def stage2(run_dir: Path) -> dict[str, Any]:
     artifact = any(c["genuine"]["lift_agreement"] != 1.0 for c in rand_cells)
     outcome = "O-ARTIFACT" if artifact else "O-STAGES-2-PARTIAL"
 
+    s2_dir = _stage_dir("stage2")
     summary = {
         "experiment_id": EXPERIMENT_ID,
         "hypothesis_id": HYPOTHESIS_ID,
@@ -482,19 +522,30 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "task_id": TASK_ID,
         "stage": 2,
         "metric": "P3",
+        "master_seed": MASTER_SEED,
+        "sample_e_budget": dict(SAMPLE_E_BUDGET_S23),
+        "artifact_tag": ARTIFACT_TAG or None,
         "poly_p1_fillin": poly_cells,
         "random_null": rand_cells,
         "outcome": outcome,
         "note": (
             "Stage 2 random-subspace null + sampled e-space P1 fill-in. "
-            "Does not rewrite stage0/stage1/RESULTS.md. Full O-* decided in Stage 3."
+            "Does not rewrite stage0/stage1/RESULTS.md or prior stage2/. "
+            "Full O-* decided in Stage 3."
+            + (f" {REPLICATION_NOTE}" if REPLICATION_NOTE else "")
         ),
         "amazon_bedrock": "NOT SELECTED",
     }
-    write_json(EXP_ROOT / "stage2" / "random-subspace-summary.json", summary)
+    write_json(s2_dir / "random-subspace-summary.json", summary)
     write_json(
-        EXP_ROOT / "stage2" / "p1-fillin-summary.json",
-        {"poly_p1_fillin": poly_cells, "amazon_bedrock": "NOT SELECTED"},
+        s2_dir / "p1-fillin-summary.json",
+        {
+            "poly_p1_fillin": poly_cells,
+            "master_seed": MASTER_SEED,
+            "sample_e_budget": dict(SAMPLE_E_BUDGET_S23),
+            "artifact_tag": ARTIFACT_TAG or None,
+            "amazon_bedrock": "NOT SELECTED",
+        },
     )
 
     raw = {
@@ -504,6 +555,10 @@ def stage2(run_dir: Path) -> dict[str, Any]:
         "task_id": TASK_ID,
         "stage": 2,
         "outcome": outcome,
+        "master_seed": MASTER_SEED,
+        "sample_e_budget": dict(SAMPLE_E_BUDGET_S23),
+        "artifact_tag": ARTIFACT_TAG or None,
+        "artifact_dir": str(s2_dir.relative_to(EXP_ROOT)),
         "poly_p1_fillin": poly_cells,
         "random_null": rand_cells,
         "claims": {"break": False, "exponent_move": False, "deployed_attack": False},
@@ -611,18 +666,20 @@ def _pick_targets(F: Field, n: int, seed: int) -> list[int]:
 
 def stage3(run_dir: Path) -> dict[str, Any]:
     t0 = time.time()
-    stage2_path = EXP_ROOT / "stage2" / "random-subspace-summary.json"
+    s2_dir = _stage_dir("stage2")
+    stage2_path = s2_dir / "random-subspace-summary.json"
     if not stage2_path.is_file():
         raw = {
             "experiment_id": EXPERIMENT_ID,
             "stage": 3,
             "outcome": "O-IMPEDIMENT",
-            "impediment": "stage2/random-subspace-summary.json missing",
+            "impediment": f"{s2_dir.relative_to(EXP_ROOT)}/random-subspace-summary.json missing",
             "claims": {"break": False, "exponent_move": False, "deployed_attack": False},
             "wall_clock_seconds": time.time() - t0,
             "peak_rss_bytes": peak_rss_bytes(),
             "amazon_bedrock": "NOT SELECTED",
             "task_id": TASK_ID,
+            "artifact_tag": ARTIFACT_TAG or None,
         }
         write_json(run_dir / "raw-result.json", raw)
         write_yaml_manifest(
@@ -747,10 +804,13 @@ def stage3(run_dir: Path) -> dict[str, Any]:
     else:
         outcome = "O-NEGATIVE"
 
+    s3_dir = _stage_dir("stage3")
     p4_summary = {
         "experiment_id": EXPERIMENT_ID,
         "metric": "P4",
         "task_id": TASK_ID,
+        "master_seed": MASTER_SEED,
+        "artifact_tag": ARTIFACT_TAG or None,
         "koblitz": {
             "dim_V": 8,
             "g_sigma": bin(G_SIGMA),
@@ -770,22 +830,34 @@ def stage3(run_dir: Path) -> dict[str, Any]:
         "outcome": outcome,
         "amazon_bedrock": "NOT SELECTED",
     }
-    write_json(EXP_ROOT / "stage3" / "frobenius-arm-summary.json", p4_summary)
+    write_json(s3_dir / "frobenius-arm-summary.json", p4_summary)
     write_json(
-        EXP_ROOT / "stage3" / "p4-comparison.json",
+        s3_dir / "p4-comparison.json",
         {
             "koblitz_mean": kob_mean,
             "ordinary_mean": ord_mean,
             "p4_null_holds": p4_null_holds,
+            "master_seed": MASTER_SEED,
+            "artifact_tag": ARTIFACT_TAG or None,
             "amazon_bedrock": "NOT SELECTED",
         },
     )
 
+    results_name = _results_path().name
+    scope_line = (
+        f"Stages 2–3 replication under artifact_tag={ARTIFACT_TAG!r} / {TASK_ID}. "
+        if ARTIFACT_TAG
+        else "Stages 2–3 under trial-plan-v2 / TASK-20261002-d8df85. "
+    )
     results = (
-        f"# RESULTS — {EXPERIMENT_ID} Stages 2–3\n\n"
+        f"# RESULTS — {EXPERIMENT_ID} Stages 2–3"
+        + (f" ({ARTIFACT_TAG})" if ARTIFACT_TAG else "")
+        + "\n\n"
         f"**Outcome:** `{outcome}`\n\n"
         f"Hypothesis: {HYPOTHESIS_ID}. Approved: {APPROVED_BY}. Task: {TASK_ID}.\n\n"
-        "Stages 0–1 RESULTS.md left immutable (O-STAGES-0-1-COMPLETE).\n\n"
+        f"master_seed={MASTER_SEED}; sample_e_budget={dict(SAMPLE_E_BUDGET_S23)}.\n\n"
+        "Stages 0–1 RESULTS.md and prior stage2/stage3/RESULTS-stages2-3.md "
+        "left immutable.\n\n"
         "## P1 fill-in (sampled e-space, Stage 2)\n\n"
     )
     for cell in poly:
@@ -808,11 +880,11 @@ def stage3(run_dir: Path) -> dict[str, Any]:
         f"- Ordinary null mean={ord_mean}\n"
         f"- p4_null_holds={p4_null_holds}\n\n"
         "## Scope\n\n"
-        "Stages 2–3 under trial-plan-v2 / TASK-20261002-d8df85. "
+        f"{scope_line}"
         "No Magma/Sage/AUXIN/Bedrock. No ECDLP break. No exponent claim.\n"
         "Amazon Bedrock: NOT SELECTED.\n"
     )
-    write_text(EXP_ROOT / "RESULTS-stages2-3.md", results)
+    write_text(_results_path(), results)
 
     raw = {
         "experiment_id": EXPERIMENT_ID,
@@ -821,6 +893,11 @@ def stage3(run_dir: Path) -> dict[str, Any]:
         "task_id": TASK_ID,
         "stage": 3,
         "outcome": outcome,
+        "master_seed": MASTER_SEED,
+        "sample_e_budget": dict(SAMPLE_E_BUDGET_S23),
+        "artifact_tag": ARTIFACT_TAG or None,
+        "artifact_dir": str(s3_dir.relative_to(EXP_ROOT)),
+        "results_path": results_name,
         "p1_band_hits": band_hits,
         "p3_oks": p3_oks,
         "p4_null_holds": p4_null_holds,

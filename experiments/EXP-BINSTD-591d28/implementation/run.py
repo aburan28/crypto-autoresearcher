@@ -658,6 +658,28 @@ def main() -> int:
     ap.add_argument("--stage", type=int, required=True, choices=[0, 1, 2, 3])
     ap.add_argument("--trial-plan", required=True)
     ap.add_argument("--run-dir", required=True)
+    ap.add_argument(
+        "--master-seed",
+        type=int,
+        default=None,
+        help="Independent master seed for Stages 2-3 replication (additive).",
+    )
+    ap.add_argument(
+        "--e-budget-mult",
+        type=int,
+        default=1,
+        help="Multiply SAMPLE_E_BUDGET_S23 denser sampling for Stages 2-3 replication.",
+    )
+    ap.add_argument(
+        "--artifact-tag",
+        default="",
+        help="Write stage2-<tag>/ stage3-<tag>/ RESULTS-stages2-3-<tag>.md (no overwrite).",
+    )
+    ap.add_argument(
+        "--task-id",
+        default=None,
+        help="Override TASK_ID stamped into Stage 2-3 artifacts.",
+    )
     args = ap.parse_args()
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -674,8 +696,19 @@ def main() -> int:
         stage1(run_dir)
     else:
         # Stages 2-3: additive drivers; do not rewrite stage0/stage1/RESULTS.md
-        from stages23 import stage2, stage3
+        from stages23 import configure_replication, stage2, stage3
 
+        if args.master_seed is not None or args.e_budget_mult != 1 or args.artifact_tag or args.task_id:
+            configure_replication(
+                master_seed=args.master_seed,
+                e_budget_mult=args.e_budget_mult,
+                artifact_tag=args.artifact_tag,
+                task_id=args.task_id,
+                note=(
+                    f"Replication: master_seed={args.master_seed} "
+                    f"e_budget_mult={args.e_budget_mult} artifact_tag={args.artifact_tag!r}."
+                ),
+            )
         if args.stage == 2:
             stage2(run_dir)
         else:
