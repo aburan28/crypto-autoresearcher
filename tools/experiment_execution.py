@@ -108,10 +108,13 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
     if not isinstance(document, dict):
         raise ExecutionError("specification is not a mapping")
     spec = document.get("experiment", document)
+    # Expand after Stages 0-1 review leaves status=running while further
+    # execution_authorized stages remain runnable (DEC expand / standing auth).
     if (not isinstance(spec, dict) or spec.get("id") != plan["experiment_id"]
-            or spec.get("status") != "approved" or spec.get("frozen") is not True
+            or spec.get("status") not in ("approved", "running")
+            or spec.get("frozen") is not True
             or not spec.get("approved_by") or spec.get("execution_authorized") is False):
-        raise ExecutionError("specification is not approved, frozen and execution-authorized")
+        raise ExecutionError("specification is not approved/running, frozen and execution-authorized")
     safe_path(root, plan["queue"])
     sources = plan.get("source_sha256")
     if not isinstance(sources, dict) or not sources:
