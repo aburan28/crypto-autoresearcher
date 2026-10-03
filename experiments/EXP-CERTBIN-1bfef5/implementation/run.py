@@ -9,8 +9,10 @@ Stage 1: C-PIN (e94b27 instruments), C-SELF (Stage-0 hash replay), archived
          arm-(a) random-basis re-descent via basis_swap.py (IMP-ARM-A-BASIS-SWAP
          cleared under AMD-20261003-9ef431 / DEC-20261003-954f1b).
 Stage 2: Arms (b)–(d) structured V rates + Prop F orbit check under
-         AMD-20261003-9e0869 / DEC-20261003-a6c85a, citing Stage-1
-         O-ARM-A-PASS 288/288 (EV-CERTBIN-f218ae).
+         AMD-20261003-894083 / DEC-20261003-ed98c2 (S62/oracle localization
+         re-admit after EV-CERTBIN-383c07), citing Stage-1 O-ARM-A-PASS
+         288/288 (EV-CERTBIN-f218ae). Prior Stage-2 RUN-CERTBIN-9dcb6d
+         under AMD-20261003-9e0869 remains immutable.
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No break / exponent.
 """
@@ -31,11 +33,12 @@ HYPOTHESIS_ID = "H-CERTBIN-4d3853"
 APPROVED_BY = "DEC-20261002-711879"
 ADMIT_BY = "DEC-20261003-f1d0f6"
 READMIT_BY = "DEC-20261003-954f1b"
-STAGE2_ADMIT_BY = "DEC-20261003-a6c85a"
+STAGE2_ADMIT_BY = "DEC-20261003-ed98c2"
 AMENDMENT_ID = "AMD-20261003-9ef431"
-STAGE2_AMENDMENT_ID = "AMD-20261003-9e0869"
+STAGE2_AMENDMENT_ID = "AMD-20261003-894083"
+PRIOR_STAGE2_AMENDMENT_ID = "AMD-20261003-9e0869"
 TASK_ID = "TASK-20261003-1782c9"
-STAGE2_TASK_ID = "TASK-20261003-656718"
+STAGE2_TASK_ID = "TASK-20261003-aba7b1"
 SEED = 2026092691
 # Stage-1 outcomes include O-ARM-A-PASS (identity gate). Stage 2 assigns
 # O-E-SET / O-E-POLY / O-MIXED from structured W_4 rates.
@@ -717,13 +720,16 @@ def stage2(run_dir: Path) -> Dict[str, Any]:
         f"- admit_by: {ADMIT_BY}",
         f"- stage2_admit_by: {STAGE2_ADMIT_BY}",
         f"- amendment_id: {STAGE2_AMENDMENT_ID}",
+        f"- prior_stage2_amendment_id: {PRIOR_STAGE2_AMENDMENT_ID}",
         f"- task_id: {STAGE2_TASK_ID}",
         f"- stage1_precondition: O-ARM-A-PASS 288/288 (EV-CERTBIN-f218ae / DEC-20261003-b8f938)",
+        f"- prior_stage2_void: EV-CERTBIN-383c07 / DEC-20261003-c7e6d1 / RUN-CERTBIN-9dcb6d (immutable)",
         f"- structured_w4_rates: {json.dumps(payload.get('structured_w4_rates'), sort_keys=True)}",
         f"- reason: {payload.get('reason')}",
         "- claims: break=false, exponent_move=false",
         "- amazon_bedrock: NOT SELECTED",
-        "- note: Stage-2 arms (b)–(d); prior Stage-0/1 RUNs immutable.",
+        "- note: Stage-2 arms (b)–(d) under S62/oracle localization AMD; prior Stage-0/1/first-Stage-2 RUNs immutable.",
+        "- note: Archive-S62 non-transfer under new V is observational; O-ARTIFACT only on current-V soundness failure.",
         "",
     ]
     write_text(EXP_ROOT / "RESULTS.md", "\n".join(results_lines), overwrite=True)

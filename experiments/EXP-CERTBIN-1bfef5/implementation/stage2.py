@@ -9,9 +9,19 @@ Arms:
   (c) V_S  — F_2 + ker g(σ) for both irreducible octic factors of Phi_17
   (d) V_R  — one random 9-dimensional V (shape-matched null)
 
-Per set: oracle-A unsat/sat controls on U62/S62; M_4 and W_4 on all 144
-archived targets; CP95 W_4/M_4 rates on U62; on each V_S, Frobenius-orbit
-certificate verification (engine-side eval_cert on all 17 conjugates).
+Per set: oracle-A sat/unsat under the *current* V; M_4 and W_4 on all 144
+archived targets; CP95 W_4/M_4 rates on archived U62; on each V_S,
+Frobenius-orbit certificate verification (engine-side eval_cert on all 17
+conjugates).
+
+Control policy (AMD-20261003-894083, after EV-CERTBIN-383c07 localization):
+  - Archive U62/S62/C20 labels are relative to the polynomial-V oracle of
+    RUN-CERTBIN-c417e0 / oracles_rc1.oracle_A. They do NOT transfer as
+    sat/unsat obligations under a new V.
+  - Instrument void (O-ARTIFACT) only on soundness failure: oracle-A-sat
+    under the current V AND (M_4 or W_4) one. Archive-S62 becoming unsat
+    / W_4-one under a new V is a transfer observation, not an artifact.
+  - Prop F orbit failure on a stable V remains O-ARTIFACT.
 
 No Magma/Sage/AUXIN/Bedrock. No break / exponent / ECC2K-130.
 """
@@ -471,17 +481,20 @@ def run_stage2(progress_every: int = 8) -> Dict[str, Any]:
         s62_refuted = 0
         orbit_records: List[Dict[str, Any]] = []
 
+        archive_s62_unsat = 0
+        archive_s62_sat = 0
+        soundness_violations = 0
         for i, tgt in enumerate(targets):
-            # Oracle A: S62 must stay satisfiable on every V-set.
-            # Archived U62 is unsat for polynomial V only; sat under a new V
-            # is a legitimate rate contribution (not an artifact).
+            # Oracle A under the *current* V. Archive S62/U62 labels are
+            # poly-V-relative (e94b27 oracles_rc1.oracle_A) and do not bind
+            # sat/unsat under a new V (AMD-20261003-894083 / EV-CERTBIN-383c07).
             roots = oracle_A_general(F, CURVE_B, tgt["x_R"], V_basis)
             sat_flag = len(roots) > 0
-            if tgt["set"] == "S62" and not sat_flag:
-                artifact = True
-                artifact_reason = (
-                    f"oracle-A found no roots on S62 target {tgt['key']} under {sid}"
-                )
+            if tgt["set"] == "S62":
+                if sat_flag:
+                    archive_s62_sat += 1
+                else:
+                    archive_s62_unsat += 1
 
             E = descended_E_general(F, CURVE_B, tgt["x_R"], V_basis, field_inv)
             eqs = eqs_of(E)
@@ -489,19 +502,17 @@ def run_stage2(progress_every: int = 8) -> Dict[str, Any]:
             rec_w, _ = cl.w_closure(eqs, want_cert=False)
             m_one = bool(rec_m["one"])
             w_one = bool(rec_w["one"])
+            # Soundness only: current-V oracle-A-sat must not be refuted.
             if sat_flag and (m_one or w_one):
+                soundness_violations += 1
                 artifact = True
                 artifact_reason = (
-                    f"closure refuted oracle-A-satisfiable target {tgt['key']} "
-                    f"under {sid} (M_4={m_one}, W_4={w_one})"
+                    f"closure refuted oracle-A-satisfiable (current-V) target "
+                    f"{tgt['key']} under {sid} (M_4={m_one}, W_4={w_one})"
                 )
+            # Observational transfer count (not an artifact under AMD-894083).
             if tgt["set"] == "S62" and (m_one or w_one):
                 s62_refuted += 1
-                artifact = True
-                artifact_reason = (
-                    f"S62 refuted under {sid} target {tgt['key']} "
-                    f"(M_4={m_one}, W_4={w_one})"
-                )
 
             if tgt["set"] == "U62":
                 u62_n += 1
@@ -583,6 +594,17 @@ def run_stage2(progress_every: int = 8) -> Dict[str, Any]:
                 "M4_rate_cp95": m4_ci,
             },
             "S62_refuted_count": s62_refuted,
+            "S62_refuted_count_note": (
+                "Observational: archive-S62 rows with M_4 or W_4 one under "
+                "this V. Not an O-ARTIFACT trigger under AMD-20261003-894083 "
+                "(archive labels are poly-V-relative)."
+            ),
+            "archive_S62_transfer": {
+                "sat_under_current_V": archive_s62_sat,
+                "unsat_under_current_V": archive_s62_unsat,
+                "n_archive_S62": archive_s62_sat + archive_s62_unsat,
+            },
+            "soundness_violations": soundness_violations,
             "orbit_cert_verifications": orbit_records,
             "n_rows": len(rows),
             # Compact: keep full rows out of primary return; caller may persist.
@@ -642,6 +664,22 @@ def run_stage2(progress_every: int = 8) -> Dict[str, Any]:
         "n_targets": len(targets),
         "per_set": summary_sets,
         "per_set_rows": full_rows,
+        "control_policy": {
+            "amendment_id": "AMD-20261003-894083",
+            "prior_void_evidence": "EV-CERTBIN-383c07",
+            "soundness_void": "oracle_A_sat(current V) and (M_4 or W_4) one",
+            "archive_S62_transfer_is_artifact": False,
+            "archive_label_scope": (
+                "U62/S62/C20 labels relative to polynomial-V oracle_A "
+                "of RUN-CERTBIN-c417e0; non-transfer under new V is "
+                "observed, not O-ARTIFACT"
+            ),
+            "rate_scope": (
+                "CP95 W_4/M_4 on archived U62 under current V; when W_4 "
+                "matches current-V unsat (sound+complete), the rate equals "
+                "the fraction of archive-U62 remaining unsat under that V"
+            ),
+        },
         "precondition": {
             "stage1_outcome": "O-ARM-A-PASS",
             "arm_a_agreement": "288/288",
