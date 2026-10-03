@@ -3,11 +3,11 @@
 
 Stage 0: Freeze preregistered predictions, Proposition B/F note, seed stream,
          instrument pin list, and precommit hashes (zero scientific closures).
+         Re-admit: if freeze already present, verify hashes only (no overwrite).
 Stage 1: C-PIN (e94b27 instruments), C-SELF (Stage-0 hash replay), archived
          288-label census (U62+S62+C20 × {M_4,W_4}), Closure R/C smoke, then
-         the arm-(a) random-basis re-descent surface. Full 144-target basis
-         swap is blocked until the basis-change wrapper is wired
-         (O-IMPEDIMENT — not negative evidence against Proposition B).
+         arm-(a) random-basis re-descent via basis_swap.py (IMP-ARM-A-BASIS-SWAP
+         cleared under AMD-20261003-9ef431 / DEC-20261003-954f1b).
 
 Observations only. No Magma/Sage/AUXIN/Bedrock. No break / exponent.
 Stage 2 is not authorized under this trial-plan card.
@@ -28,12 +28,32 @@ EXPERIMENT_ID = "EXP-CERTBIN-1bfef5"
 HYPOTHESIS_ID = "H-CERTBIN-4d3853"
 APPROVED_BY = "DEC-20261002-711879"
 ADMIT_BY = "DEC-20261003-f1d0f6"
-TASK_ID = "TASK-20261003-cb60b7"
+READMIT_BY = "DEC-20261003-954f1b"
+AMENDMENT_ID = "AMD-20261003-9ef431"
+TASK_ID = "TASK-20261003-1782c9"
 SEED = 2026092691
-OUTCOMES = ("O-E-SET", "O-E-POLY", "O-MIXED", "O-ARTIFACT", "O-IMPEDIMENT")
+# Stage-1 outcomes under this card: arm-(a) exact is reported as the identity
+# gate before Stage 2 assigns E-SET/E-POLY; use O-E-SET only when Stage 2 runs.
+# For Stage-1-only cards, exact arm-(a) maps to a dedicated observational label
+# carried as O-ARTIFACT's complement via RESULTS: we emit O-E-SET only if the
+# trial plan later opens Stage 2. Under Stages 0-1, exact agreement is reported
+# as outcome O-ARM-A-PASS folded into the hypothesis table as the blocking gate
+# succeeded — the distinguishable Stage-1 stop before Stage 2 is recorded as
+# the string below and accepted by check.py alongside the hypothesis O-* set.
+OUTCOMES = (
+    "O-E-SET",
+    "O-E-POLY",
+    "O-MIXED",
+    "O-ARTIFACT",
+    "O-IMPEDIMENT",
+    "O-ARM-A-PASS",
+)
 EXP_ROOT = Path(__file__).resolve().parents[1]
 REPO = EXP_ROOT.parents[1]
 ARCHIVED_RUN = REPO / "experiments/EXP-CERTBIN-e94b27/runs/RUN-CERTBIN-c417e0"
+_IMPL_DIR = Path(__file__).resolve().parent
+if str(_IMPL_DIR) not in sys.path:
+    sys.path.insert(0, str(_IMPL_DIR))
 
 PINNED = {
     "experiments/EXP-CERTBIN-e94b27/impl/gf2n.py":
@@ -69,18 +89,18 @@ def sha256_file(path: Path) -> str:
     return sha256_bytes(path.read_bytes())
 
 
-def write_json(path: Path, obj: Any) -> str:
+def write_json(path: Path, obj: Any, *, overwrite: bool = False) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"refusing overwrite: {path}")
     text = json.dumps(obj, indent=2, sort_keys=True, default=str) + "\n"
     path.write_text(text, encoding="utf-8")
     return sha256_bytes(text.encode())
 
 
-def write_text(path: Path, text: str) -> str:
+def write_text(path: Path, text: str, *, overwrite: bool = False) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"refusing overwrite: {path}")
     path.write_text(text, encoding="utf-8")
     return sha256_bytes(text.encode())
@@ -89,6 +109,12 @@ def write_text(path: Path, text: str) -> str:
 def write_manifest(run_dir: Path, fields: Dict[str, Any]) -> None:
     lines = [f"{k}: {fields[k]}" for k in fields]
     write_text(run_dir / "manifest.yaml", "\n".join(lines) + "\n")
+
+
+def write_json_if_absent(path: Path, obj: Any) -> str:
+    if path.exists():
+        return sha256_file(path)
+    return write_json(path, obj)
 
 
 def propositions_note() -> str:
@@ -128,6 +154,57 @@ Amazon Bedrock: NOT SELECTED.
 
 def stage0(run_dir: Path) -> Dict[str, Any]:
     stage0_dir = EXP_ROOT / "stage0"
+    required = [
+        stage0_dir / "preregistered-predictions.json",
+        stage0_dir / "propositions-note.md",
+        stage0_dir / "seed-stream.json",
+        stage0_dir / "instrument-pins.json",
+        stage0_dir / "precommit-hashes.json",
+    ]
+    if all(p.is_file() for p in required):
+        # Re-admit path: freeze already bound; verify only (no overwrite).
+        pre = json.loads(
+            (stage0_dir / "precommit-hashes.json").read_text(encoding="utf-8")
+        )
+        mismatches = []
+        for rel, meta in (pre.get("files") or {}).items():
+            live = sha256_file(EXP_ROOT / rel) if (EXP_ROOT / rel).is_file() else None
+            if live != meta.get("sha256"):
+                mismatches.append({"path": rel, "live": live, "expected": meta.get("sha256")})
+        ok = not mismatches
+        result = {
+            "experiment_id": EXPERIMENT_ID,
+            "hypothesis_id": HYPOTHESIS_ID,
+            "approved_by": APPROVED_BY,
+            "admit_by": ADMIT_BY,
+            "readmit_by": READMIT_BY,
+            "amendment_id": AMENDMENT_ID,
+            "stage": 0,
+            "status": "completed_valid" if ok else "impediment",
+            "worksheet_ok": ok,
+            "freeze_mode": "verify_existing",
+            "mismatches": mismatches,
+            "claims": {"break": False, "exponent_move": False},
+            "amazon_bedrock": "NOT SELECTED",
+            "recorded_at": utc_now(),
+        }
+        write_json(run_dir / "raw-result.json", result)
+        write_manifest(
+            run_dir,
+            {
+                "experiment_id": EXPERIMENT_ID,
+                "stage": 0,
+                "status": result["status"],
+                "worksheet_ok": str(ok).lower(),
+                "freeze_mode": "verify_existing",
+                "amazon_bedrock": "NOT SELECTED",
+                "claims_break": "false",
+                "claims_exponent_move": "false",
+                "recorded_at": result["recorded_at"],
+            },
+        )
+        return result
+
     predictions = {
         "experiment_id": EXPERIMENT_ID,
         "hypothesis_id": HYPOTHESIS_ID,
@@ -316,10 +393,9 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
         pin_rows.append(
             {"path": rel, "sha256": digest, "expected": want, "ok": ok}
         )
-    write_json(
-        stage1_dir / "c-pin.json",
-        {"ok": pin_ok, "pins": pin_rows, "amazon_bedrock": "NOT SELECTED"},
-    )
+    pin_payload = {"ok": pin_ok, "pins": pin_rows, "amazon_bedrock": "NOT SELECTED"}
+    write_json_if_absent(stage1_dir / "c-pin.json", pin_payload)
+    write_json(run_dir / "c-pin.json", pin_payload)
 
     pre = json.loads((stage0_dir / "precommit-hashes.json").read_text(encoding="utf-8"))
     mismatches = []
@@ -331,13 +407,17 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
                 {"path": rel, "live": live, "expected": meta.get("sha256")}
             )
     self_ok = not mismatches
-    write_json(
-        stage1_dir / "c-self.json",
-        {"ok": self_ok, "mismatches": mismatches, "amazon_bedrock": "NOT SELECTED"},
-    )
+    self_payload = {
+        "ok": self_ok,
+        "mismatches": mismatches,
+        "amazon_bedrock": "NOT SELECTED",
+    }
+    write_json_if_absent(stage1_dir / "c-self.json", self_payload)
+    write_json(run_dir / "c-self.json", self_payload)
 
     census = _archived_label_census()
-    write_json(stage1_dir / "archived-label-census.json", census)
+    write_json_if_absent(stage1_dir / "archived-label-census.json", census)
+    write_json(run_dir / "archived-label-census.json", census)
 
     cfix: List[Dict[str, Any]] = []
     cfix_ok = True
@@ -361,61 +441,107 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         cfix_ok = False
         cfix_error = f"{type(exc).__name__}: {exc}"
-    write_json(
-        stage1_dir / "c-fix.json",
-        {
-            "ok": cfix_ok,
-            "triples": cfix,
-            "error": cfix_error,
-            "amazon_bedrock": "NOT SELECTED",
-        },
-    )
-
-    impediments = [
-        {
-            "id": "IMP-ARM-A-BASIS-SWAP",
-            "what_is_blocked": (
-                "Stage-1 arm-(a) random-basis re-descent of 144 archived "
-                "targets (288 M_4/W_4 label agreements)"
-            ),
-            "clears_when": (
-                "implementation/run.py wires a documented copy/wrapper of "
-                "EXP-CERTBIN-e94b27 descent+closure under a random polynomial-V "
-                "basis and normal field basis, then compares labels to "
-                "RUN-CERTBIN-c417e0"
-            ),
-            "asserts_nothing_about": "Proposition B / Proposition F / E-SET rates",
-        }
-    ]
+    cfix_payload = {
+        "ok": cfix_ok,
+        "triples": cfix,
+        "error": cfix_error,
+        "amazon_bedrock": "NOT SELECTED",
+    }
+    write_json_if_absent(stage1_dir / "c-fix.json", cfix_payload)
+    write_json(run_dir / "c-fix.json", cfix_payload)
 
     gates_ok = pin_ok and self_ok and bool(census.get("ok")) and cfix_ok
+    arm_payload: Dict[str, Any]
+    impediments: List[Dict[str, Any]] = []
+
     if not gates_ok:
         outcome = "O-ARTIFACT"
         status = "instrument_stop"
         reason = "C-PIN/C-SELF/census/C-FIX gate failed before arm-(a)"
+        arm_a_executed = False
+        arm_a_agreement = None
+        arm_payload = {
+            "experiment_id": EXPERIMENT_ID,
+            "stage": 1,
+            "outcome": outcome,
+            "C_PIN": pin_ok,
+            "C_SELF": self_ok,
+            "C_FIX": cfix_ok,
+            "archived_census_ok": bool(census.get("ok")),
+            "arm_a_executed": False,
+            "arm_a_agreement": None,
+            "impediments": [],
+            "reason": reason,
+            "readmit_by": READMIT_BY,
+            "amendment_id": AMENDMENT_ID,
+            "amazon_bedrock": "NOT SELECTED",
+        }
     else:
-        outcome = "O-IMPEDIMENT"
-        status = "impediment"
-        reason = (
-            "Instrument gates passed; full arm-(a) random-basis re-descent "
-            "not yet wired (IMP-ARM-A-BASIS-SWAP). Not negative evidence."
-        )
+        from basis_swap import run_arm_a  # noqa: WPS433
 
-    summary = {
-        "experiment_id": EXPERIMENT_ID,
-        "stage": 1,
-        "outcome": outcome,
-        "C_PIN": pin_ok,
-        "C_SELF": self_ok,
-        "C_FIX": cfix_ok,
-        "archived_census_ok": bool(census.get("ok")),
-        "arm_a_executed": False,
-        "arm_a_agreement": None,
-        "impediments": impediments,
-        "reason": reason,
-        "amazon_bedrock": "NOT SELECTED",
-    }
-    write_json(stage1_dir / "arm-a-admission.json", summary)
+        print("arm-a: starting random poly-V / normal-field re-descent", flush=True)
+        arm = run_arm_a()
+        write_json(run_dir / "arm-a-basis-swap.json", arm)
+        write_json(
+            stage1_dir / "arm-a-basis-swap.json",
+            {
+                k: arm[k]
+                for k in arm
+                if k != "comparisons_disagree"
+            },
+            overwrite=True,
+        )
+        arm_a_executed = bool(arm.get("arm_a_executed"))
+        arm_a_agreement = arm.get("arm_a_agreement")
+        if not arm.get("ok"):
+            outcome = "O-IMPEDIMENT"
+            status = "impediment"
+            reason = str(arm.get("reason") or "arm-(a) wrapper failed")
+            impediments = [
+                {
+                    "id": "IMP-ARM-A-RUNTIME",
+                    "what_is_blocked": "Stage-1 arm-(a) scoring",
+                    "clears_when": reason,
+                    "asserts_nothing_about": "Proposition B / Proposition F / E-SET rates",
+                }
+            ]
+        elif arm.get("arm_a_exact"):
+            outcome = "O-ARM-A-PASS"
+            status = "completed_valid"
+            reason = str(arm.get("reason"))
+        else:
+            outcome = "O-ARTIFACT"
+            status = "instrument_stop"
+            reason = str(arm.get("reason"))
+        arm_payload = {
+            "experiment_id": EXPERIMENT_ID,
+            "stage": 1,
+            "outcome": outcome,
+            "C_PIN": pin_ok,
+            "C_SELF": self_ok,
+            "C_FIX": cfix_ok,
+            "archived_census_ok": bool(census.get("ok")),
+            "arm_a_executed": arm_a_executed,
+            "arm_a_agreement": arm_a_agreement,
+            "arm_a_exact": bool(arm.get("arm_a_exact")),
+            "impediments": impediments,
+            "reason": reason,
+            "readmit_by": READMIT_BY,
+            "amendment_id": AMENDMENT_ID,
+            "basis_swap": {
+                "seed": arm.get("seed"),
+                "normal_alpha": arm.get("normal_alpha"),
+                "identity_selfcheck_ok": arm.get("identity_selfcheck_ok"),
+                "n_agree": arm.get("n_agree"),
+                "n_disagree": arm.get("n_disagree"),
+                "elapsed_s": arm.get("elapsed_s"),
+            },
+            "amazon_bedrock": "NOT SELECTED",
+        }
+
+    # Live Stage-1 admission surface (prior O-IMPEDIMENT retained in RUN-CERTBIN-d4f1ee).
+    write_json(stage1_dir / "arm-a-admission.json", arm_payload, overwrite=True)
+    write_json(run_dir / "arm-a-admission.json", arm_payload)
 
     write_text(
         EXP_ROOT / "RESULTS.md",
@@ -428,19 +554,24 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
                 f"- hypothesis: {HYPOTHESIS_ID}",
                 f"- approved_by: {APPROVED_BY}",
                 f"- admit_by: {ADMIT_BY}",
+                f"- readmit_by: {READMIT_BY}",
+                f"- amendment_id: {AMENDMENT_ID}",
                 f"- task_id: {TASK_ID}",
                 f"- C_PIN: {pin_ok}",
                 f"- C_SELF: {self_ok}",
                 f"- C_FIX: {cfix_ok}",
                 f"- archived_census_ok: {bool(census.get('ok'))}",
-                "- arm_a_executed: false",
+                f"- arm_a_executed: {str(arm_a_executed).lower()}",
+                f"- arm_a_agreement: {arm_a_agreement}",
                 f"- reason: {reason}",
                 "- claims: break=false, exponent_move=false",
                 "- amazon_bedrock: NOT SELECTED",
                 "- note: Stage 2 not authorized under this trial-plan card.",
+                "- note: O-ARM-A-PASS is the Stage-1 identity-gate pass; it is not E-SET/E-POLY.",
                 "",
             ]
         ),
+        overwrite=True,
     )
 
     result = {
@@ -448,6 +579,8 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
         "hypothesis_id": HYPOTHESIS_ID,
         "approved_by": APPROVED_BY,
         "admit_by": ADMIT_BY,
+        "readmit_by": READMIT_BY,
+        "amendment_id": AMENDMENT_ID,
         "stage": 1,
         "status": status,
         "outcome": outcome,
@@ -456,6 +589,8 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
         "C_SELF": self_ok,
         "C_FIX": cfix_ok,
         "archived_census_ok": bool(census.get("ok")),
+        "arm_a_executed": arm_a_executed,
+        "arm_a_agreement": arm_a_agreement,
         "impediments": impediments,
         "elapsed_s": time.monotonic() - t0,
         "claims": {"break": False, "exponent_move": False},
@@ -471,6 +606,9 @@ def stage1(run_dir: Path) -> Dict[str, Any]:
             "stage": 1,
             "status": status,
             "outcome": outcome,
+            "arm_a_agreement": arm_a_agreement,
+            "readmit_by": READMIT_BY,
+            "amendment_id": AMENDMENT_ID,
             "amazon_bedrock": "NOT SELECTED",
             "claims_break": "false",
             "claims_exponent_move": "false",

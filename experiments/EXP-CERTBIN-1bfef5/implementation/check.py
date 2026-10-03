@@ -86,6 +86,25 @@ def main() -> int:
             ):
                 if not (EXP_ROOT / rel).is_file():
                     errs.append(f"missing {rel}")
+            # After AMD-20261003-9ef431, executed arm-(a) must leave a basis-swap receipt.
+            admission = json.loads(
+                (EXP_ROOT / "stage1/arm-a-admission.json").read_text(encoding="utf-8")
+            )
+            if admission.get("arm_a_executed") is True:
+                if not (run_dir / "arm-a-basis-swap.json").is_file() and not (
+                    EXP_ROOT / "stage1/arm-a-basis-swap.json"
+                ).is_file():
+                    errs.append("arm_a_executed true but arm-a-basis-swap.json missing")
+                if raw.get("arm_a_agreement") in (None, ""):
+                    errs.append("arm_a_executed true but arm_a_agreement unset in raw-result")
+            if claims.get("break") or claims.get("exponent_move"):
+                errs.append("forbidden break/exponent after arm-(a)")
+            if outcome == "O-ARM-A-PASS" and raw.get("arm_a_agreement") != "288/288":
+                errs.append("O-ARM-A-PASS requires arm_a_agreement 288/288")
+            if outcome == "O-E-SET":
+                errs.append(
+                    "O-E-SET forbidden under Stages 0-1 card (Stage 2 not authorized)"
+                )
     else:
         errs.append(f"unknown stage {stage!r}")
 
