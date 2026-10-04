@@ -252,29 +252,85 @@ def rank_profile(M: np.ndarray, C: int, *, want_cert: bool = True,
     )
 
 
+# Bound the advanced-indexing gather; the accumulator and reduction workspace
+# each hold only the checked prefix. Small combinations avoid batching overhead.
+_CERT_BATCH_BYTES = 1 << 20
+_CERT_BATCH_ROWS = 256
+_CERT_BATCH_MIN_ROWS = 8
+
+
+def _certificate_prefix(M: np.ndarray, rows: tuple[int, ...], words: int) -> np.ndarray:
+    """XOR a validated combination through the word containing its pivot.
+
+    Later words cannot affect the leading-column assertion. Duplicate source
+    rows deliberately remain in the reduction: their contributions cancel.
+    """
+    acc = np.zeros(words, dtype=np.uint64)
+    if len(rows) == 0:
+        return acc
+    lib = kernels._native.load()
+    if lib is not None and len(rows) >= _CERT_BATCH_MIN_ROWS:
+        idx = np.ascontiguousarray(rows, dtype=np.int32)
+        lib.gf2_xor_rows_prefix(
+            kernels._ptr(M), M.shape[1], kernels._ptr(idx), len(rows), words, kernels._ptr(acc)
+        )
+        return acc
+    if len(rows) < _CERT_BATCH_MIN_ROWS or acc.nbytes > _CERT_BATCH_BYTES:
+        for r in rows:
+            acc ^= M[r, :words]
+        return acc
+    batch_rows = min(_CERT_BATCH_ROWS, max(1, _CERT_BATCH_BYTES // acc.nbytes))
+    reduced = np.empty_like(acc)
+    for start in range(0, len(rows), batch_rows):
+        indices = np.asarray(rows[start:start + batch_rows], dtype=np.intp)
+        block = M[indices, :words]
+        np.bitwise_xor.reduce(block, axis=0, out=reduced)
+        acc ^= reduced
+    return acc
+
+
 def verify_certificate(M: np.ndarray, C: int, cert: RankCertificate) -> bool:
     """Recompute each claimed pivot row from ``cert.comb`` and check that its
     leading 1 sits at ``cert.pivcols[k]`` and that earlier pivots are already
-    eliminated from it. Refuses empty ``comb`` (dense-path placeholder)."""
+    eliminated from it. Refuses empty ``comb`` (dense-path placeholder).
+
+    Reconstructs only the prefix needed for that assertion, using bounded
+    batched XOR for longer combinations. This verifies the supplied independent
+    rows; it does not prove that they span every row of ``M``.
+    """
     if not cert.comb:
         return False
     if len(cert.comb) != len(cert.pivcols):
         return False
-    W = M.shape[1]
     seen = set()
-    for k, (c, rows) in enumerate(zip(cert.pivcols, cert.comb)):
-        if not rows or c in seen or c >= C:
+    for c, rows in zip(cert.pivcols, cert.comb):
+        if not rows or c in seen or c < 0 or c >= C:
             return False
-        acc = np.zeros(W, dtype=np.uint64)
-        for r in rows:
-            if r < 0 or r >= M.shape[0]:
-                return False
-            acc ^= M[r]
+        words = (c >> 6) + 1
+        if len(rows) < _CERT_BATCH_MIN_ROWS or words * 8 > _CERT_BATCH_BYTES:
+            # Preserve the low-overhead scalar path for short combinations.
+            # For a few rows, constructing prefix views costs more than the
+            # avoided XORs on typical small matrices. Keep the original loop.
+            acc = np.zeros(M.shape[1], dtype=np.uint64)
+            for r in rows:
+                if r < 0 or r >= M.shape[0]:
+                    return False
+                acc ^= M[r]
+        else:
+            for r in rows:
+                # Advanced indexing casts to intp; never truncate floats or
+                # reinterpret booleans as row numbers during that conversion.
+                if type(r) is not int and (
+                    not isinstance(r, (int, np.integer)) or isinstance(r, bool)
+                ):
+                    return False
+                if r < 0 or r >= M.shape[0]:
+                    return False
+            acc = _certificate_prefix(M, rows, words)
         # Leading bit must be c; bits left of c must be 0.
-        for w in range(c >> 6):
-            if acc[w]:
-                return False
-        word = int(acc[c >> 6])
+        if words > 1 and np.any(acc[:words - 1]):
+            return False
+        word = int(acc[words - 1])
         low = c & 63
         if (word & ((1 << low) - 1)) != 0:
             return False
@@ -292,9 +348,9 @@ def macaulay_rank(eqs, nv: int, D: int, neq: int, *, want_cert: bool = True,
     ``dims_by_deg``, ``pivcols``, ``instrument: gf2.rank_only``, and optional
     ``certificate``. Does not produce an op-log certificate.
     """
-    from .closure import Closure
+    from .closure import cached_closure
 
-    cl = Closure(nv, D, neq)
+    cl = cached_closure(nv, D, neq)
     M = cl.build_M(eqs)
     res = rank_profile(M, cl.C, want_cert=want_cert, algorithm=algorithm)
     leads = np.array(res.pivcols, dtype=np.int64)
