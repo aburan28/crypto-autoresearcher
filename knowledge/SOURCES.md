@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 27 |
-| — of those with the artifact committed | 26 |
-| Per-URL retrieval attempts | 42 |
-| — succeeded | 28 |
-| — failed or blocked | 14 |
-| Source artifacts under `inputs/` | 52 |
-| — hash recomputed and matching | 48 |
+| Frozen source packages (`SRC-*`) | 28 |
+| — of those with the artifact committed | 27 |
+| Per-URL retrieval attempts | 46 |
+| — succeeded | 29 |
+| — failed or blocked | 17 |
+| Source artifacts under `inputs/` | 54 |
+| — hash recomputed and matching | 50 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8094 |
-| — with a resolvable external identifier | 2480 |
+| Literature entries (`KN-LIT-*`) | 8096 |
+| — with a resolvable external identifier | 2482 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 830, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 832, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7521, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7523, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -49,6 +49,7 @@ decides whether a later session can re-read what was read here.
 | SRC-EULER-PETIT-2019-QSP | New Results on Quasi-Subfield Polynomials |  | 2020 | `inputs/EULER-PETIT-2019-QSP` | yes | frozen_path |  |  |
 | SRC-FIPS186-4-BINARY-CURVES | FIPS PUB 186-4, Digital Signature Standard -- Appendix D.1.3, Curves over Binary Fields (the B- and K- curves at degrees 163, 233, 283, 409, 571) | National Institute of Standards and Technology | 2013 | `inputs/FIPS186-4-BINARY-CURVES` | yes | frozen_path |  |  |
 | SRC-GORLA-MASSIERER-2014-1403 | Point compression for the trace zero subgroup over a small degree extension field |  | 2014 | `inputs/GORLA-MASSIERER-2014-1403` | yes | frozen_path |  |  |
+| SRC-HHAN-2024-2402.11269 | A New Approach to Generic Lower Bounds: Classical/Quantum MDL, Quantum Factoring, and More |  |  | `inputs/HHAN-2024-2402.11269` | yes | declared | https://arxiv.org/pdf/2402.11269v1 | eb5df4bea59017d7 |
 | SRC-HUANG-2020-JMC-QSP | Quasi-subfield Polynomials and the Elliptic Curve Discrete Logarithm Problem |  | 2020 | `inputs/HUANG-2020-JMC-QSP` | yes | frozen_path |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
 | SRC-ICPERF-TRIMOSKA-WDSAT-2024 | WDSat -- a SAT solver dedicated to instances derived from a Weil descent | Monika Trimoska (with Sorina Ionica and Gilles Dequen, per the README) |  | `inputs/TRIMOSKA-WDSAT-2024` | yes | package_contents |  |  |
@@ -71,6 +72,7 @@ decides whether a later session can re-read what was read here.
 Declared reproducibility limitations:
 
 - **SRC-BAILEY-2009-541-ECC2K130** — The progress figures rest on 16 bytes per report (paper Appendix C) and on reading the graph's last point by eye; tallies.py re-derives every number and brackets the eye reading. No per-seed data was ever published, so nothing beyond the aggregates can be checked.
+- **SRC-HHAN-2024-2402.11269** — Preprint (arXiv v1), not a version of record. Section, theorem, page and line numbers cited against this freeze are v1's and the derived text's.
 - **SRC-NAGAO-2013-548** — ONLY THE LAST OF THREE REVISIONS IS FROZEN, and for this package that is the load-bearing limitation rather than a formality. The paper is cited in a PRIORITY dispute -- 2015/984 credits it with the disjoint factor base and says Galbraith-Gebregiyorgis 2014/806 "recently re-discovered" it -- and a priority question is a question about what a specific version contained on a specific date. ePrint serves one PDF per identifier, so the two earlier versions are not obtainable from these bytes, and nothing in this package establishes when Section 7 first appeared.
 - **SRC-NAGAO-2013-549** — Only the LAST of the paper's revisions is frozen. ePrint serves one PDF per identifier, so the earlier version recorded in the landing-page history is not obtainable from these bytes and is not vendored here. Any question of the form "which version did a later paper read" is therefore not answerable from this package alone.
 - **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
@@ -99,6 +101,10 @@ not the same as never having looked.
 | arxiv-pdf-v2 | https://arxiv.org/pdf/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` |
 | arxiv-abs | https://arxiv.org/abs/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126-abs.html` |
 | arxiv-pdf | https://arxiv.org/pdf/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` |
+| hhan-2024-abs | https://arxiv.org/abs/2402.11269 | retrieved_not_vendored | 200 | 2026-10-03T21:07:02Z |  |
+| hhan-2024-html | https://arxiv.org/html/2402.11269 | retrieved_not_vendored | 200 | 2026-10-03T21:07:44Z |  |
+| hhan-2024-pdf-unversioned | https://arxiv.org/pdf/2402.11269 | retrieved_identical_to_vendored | 200 | 2026-10-03T21:14:35Z |  |
+| hhan-2024-pdf-v1 | https://arxiv.org/pdf/2402.11269v1 | retrieved | 200 | 2026-10-03T21:07:35Z | `inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf` |
 | arxiv-search | https://export.arxiv.org/api/query?search_query=all:%22quasi-subfield%22&max_results=20 | retrieved_not_vendored | 200 | 2026-09-16T19:44:00Z |  |
 | bham-landing | https://research.birmingham.ac.uk/en/publications/quasi-subfield-polynomials-and-the-elliptic-curve-discrete-logari/ | retrieved | 200 | 2026-09-16T19:51:49Z | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` |
 | bham-pure-pdf | https://pure-oai.bham.ac.uk/ws/files/97895891/Huang_et_al_Quasi_subfield_polynomials_Journal_of_Mathematical_Cryptology_2020.pdf | retrieved | 200 | 2026-09-16T19:51:48Z | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` |
@@ -173,6 +179,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/FIPS186-4-BINARY-CURVES/fips186-4_text.md` | 236200 | match | 8355c8072618bdbb |  |
 | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` | 334485 | match | a2304df39b4c59ab |  |
 | `inputs/GORLA-MASSIERER-2014-1403/paper_fulltext.md` | 74241 | match | 9aed23dacb161831 |  |
+| `inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf` | 421224 | match | eb5df4bea59017d7 |  |
+| `inputs/HHAN-2024-2402.11269/paper_fulltext.md` | 104358 | match | 89e82286adac6e9e |  |
 | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` | 53651 | match | b33cb5336d996c78 |  |
 | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` | 531843 | match | e1ba608354a67c1b |  |
 | `inputs/HUANG-2020-JMC-QSP/paper_fulltext.md` | 48073 | match | 558a8704783957d6 |  |
@@ -217,7 +225,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2480 of 8094 `KN-LIT-*` entries carry an
+2482 of 8096 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -340,6 +348,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-0acb8c | Probabilistic analysis on Macaulay matrices over finite fields and complexity of constructing Gröbner bases | 2020 | `eprint:2019/903` | web |
 | KN-LIT-0b3daf | CheetahKEM（NGCC 公钥第一轮候选 · 密钥封装 9） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-0c48c5 | BW-KEM（NGCC 公钥第一轮候选 · 密钥封装 8） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
+| KN-LIT-0cb87e | Elliptic curve cryptography: the serpentine course of a paradigm shift (Koblitz, Koblitz, Menezes) -- conductor-gap speculation, Sec. 11.2-11.3 | 2011 | `eprint:2008/390` | read |
 | KN-LIT-0d9d28 | On Index Calculus Algorithms for Subfield Curves | 2021 | `eprint:2020/1315` | web |
 | KN-LIT-0e36d4 | A Las Vegas algorithm to solve the elliptic curve discrete logarithm problem | 2018 | `eprint:2018/134` | web |
 | KN-LIT-0f43ad | Finding the permutation between equivalent linear codes: The support splitting algorithm | 2000 | `doi:10.1109/18.850662` | web |
@@ -2626,6 +2635,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c82c45 | Index Calculus in the Trace Zero Variety | 2014 | `eprint:2014/318` | web |
 | KN-LIT-c8e485 | On the Correct Use of the Negation Map in the Pollard rho Method | 2011 | `eprint:2011/003` | read |
 | KN-LIT-c9a235 | A New Method for Geometric Interpretation of Elliptic Curve Discrete Logarithm Problem | 2019 | `eprint:2019/1059` | web |
+| KN-LIT-ca35e0 | Climbing and descending tall isogeny volcanos (Galbraith) -- ECDLP transfer across the conductor gap; Sec. 10 'The Koblitz, Koblitz, Menezes speculation' | 2024 | `eprint:2024/924` | read |
 | KN-LIT-ca757d | BAG-Loong（NGCC 公钥第一轮候选 · 密钥封装 3） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-caaa79 | MORNING-ATLAS（NGCC 公钥第一轮候选 · 数字签名 15） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-caabe2 | Two decoding algorithms for linear codes | 1989 | `url:www.mathnet.ru/eng/ppi635` | false |
@@ -8348,6 +8358,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
 | `doi:10.1515/jmc-2019-0029` | KN-LIT-4558, KN-LIT-d8e1b9 |
 | `eprint:2004/153` | KN-LIT-164, KN-LIT-92caf4 |
+| `eprint:2008/390` | KN-LIT-0cb87e, KN-LIT-235 |
 | `eprint:2009/466` | KN-LIT-270, KN-LIT-469ff0 |
 | `eprint:2009/541` | KN-LIT-096, KN-LIT-661e97 |
 | `eprint:2010/157` | KN-LIT-022, KN-LIT-673219 |
@@ -8365,6 +8376,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2022/1573` | KN-LIT-1037, KN-LIT-f34f74 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
+| `eprint:2024/924` | KN-LIT-1210, KN-LIT-ca35e0 |
 | `eprint:2025/1661` | KN-LIT-d82a53, KN-LIT-e37d4c |
 | `eprint:2025/248` | KN-LIT-1424, KN-LIT-d0370b |
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |
