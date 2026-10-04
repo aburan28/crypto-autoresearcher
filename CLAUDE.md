@@ -34,29 +34,42 @@ Code specifically.
 
 ## Harness layout
 
-- **Subagents** (`.claude/agents/`): five roles — `coordinator`,
-  `idea-generator`, `executor`, `validator`, `red-team` — plus three
-  **policy-tier variants** of them: `executor-mechanical`,
+- **Subagents** (`.claude/agents/`): six roles — `coordinator`,
+  `idea-generator`, `executor`, `validator`, `red-team`, `consolidator` —
+  plus three **policy-tier variants** of them: `executor-mechanical`,
   `validator-breakthrough`, `red-team-breakthrough`. These are the operational
   versions of the role contracts in `agents/*.md`. Research work is done BY
   these subagents; the top-level session orchestrates and talks to the user.
   Which one runs a queued task is decided by its (`role`, `inference.policy`)
-  pair — see `/launch-research-harness` step 6 and the effort table under
+  pair — see the canonical harness lifecycle and the effort table under
   "Model policy note".
-- **Skills** (`.claude/skills/`), one per lifecycle stage:
+- **Public execution entry point**: `/run` executes existing experiments and
+  reports their outputs. It adds no preflight, ledger/schema/protocol-validation
+  phase, preparation workflow, PR, or review cycle. Use the existing launcher;
+  its built-in ownership, resource, and output checks still apply. This routing
+  supersedes older lifecycle directions for plain run requests.
+- **Public coordination entry point**: `/coordinate` ranks work, opens
+  batches, approves complete protocols, dispatches non-execution tasks,
+  archives, and publishes. It never launches scientific trials. Canonical
+  source: `.claude/skills/coordinate/SKILL.md` (Codex/OpenCode adapter:
+  `.agents/skills/coordinate/`). Use for `/coordinate`, launch coordinator,
+  portfolio, or resume a `GOAL-*` without running it. Named-goal execution
+  remains `/run GOAL-...`.
+- **Stage references** (`.claude/skills/`), used by the shared lifecycle:
+  - `/coordinate` — Coordinator front door (rank, approve, dispatch, archive, PR)
   - `/propose-ideas` — ideation for a research question
-  - `/design-experiment` — hypothesis + frozen approved protocol
-  - `/run-experiment` — bounded execution, immutable run records
+  - `/design-experiment` — hypothesis + frozen protocol; approval is a separate Coordinator decision
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
   - `/deep-research` — cross-portfolio synthesis of ledger + knowledge state
     into a ranked, justified shortlist of next experiments; read-only, no
     ledger writes
   - `/curate-knowledge` — maintain the knowledge corpus
-  - `/coordinate-research-goal` — launch and continuously coordinate a committed
-    research goal across dispatch batches
   - `/agent-bus` — send and read messages between sessions running in separate
     chats, worktrees, containers, or runtimes
+  - `/consolidate-lanes` — periodic cross-lane pass: read bus traffic ACROSS
+    lanes that cannot see each other and carry pointers between them; read-only
+    as to research state, writes no ledger record
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -235,6 +248,20 @@ collisions were the first instance of it and are already fixed the same way.
   (`CORR-20260802-a1f151`). Enforce it in repository settings: **Settings →
   General → Pull Requests → allow merge commits only**, with squash and rebase
   merging disabled.
+- **Auto-merge a PR once its CI passes.** User instruction, 2026-09-23. A
+  session that opened or drives a PR merges it into `main` without asking for
+  further approval once all of these hold on the current head: every CI check
+  has concluded `success` (or `skipped`) and none is pending; there is no merge
+  conflict; and no red-circle or other blocking review thread is left open.
+  Where the repository runs the Claude Approvals check, it must also pass. Mark
+  a draft ready for review first. Prefer GitHub auto-merge
+  (`enable_pr_auto_merge`) so the merge fires when checks go green; otherwise
+  merge directly at the check-in that finds it green. **Use the merge-commit
+  method only, never squash or rebase** (rule above). Never merge a red,
+  pending, or conflicted head, and never skip or re-run a check to make it
+  green. A merge is a git operation, not a research-state transition:
+  Coordinator authority over approvals and statuses and the snapshot-archive
+  verification are unchanged.
 - **Archive receipts bind to CONTENT first.** `research_dispatch.py` verifies
   `path_sha256` and treats commit reachability as advisory: when a commit cannot
   be reached it verifies the declared hashes against the tree and reports the
@@ -293,6 +320,15 @@ collisions were the first instance of it and are already fixed the same way.
   120), merges rather than rebases, requires no new validation errors, and
   reports branches past `--fork-threshold` as needing a human decision rather
   than a sync.
+- **Research state can travel through a cairn lab instead of git.**
+  `tools/lab_sync.py sync` reconciles `ledger/`, `coordination/`,
+  `experiments/` and `knowledge/` with other machines as signed ops that merge
+  like a CRDT, and the `cairn-lab` MCP server gives agents the same state. Bus
+  messages and lane claims arrive on the next pull, with no merge in between.
+  A concurrent edit is kept as a visible `PATH.lab-conflict-<id>`, never
+  merged textually. It relaxes nothing above: authority, schemas and
+  validation are unchanged, and git stays the record archive receipts bind.
+  Setup, scope and what is write-once: `docs/cairn-lab.md`.
 
 ## Model policy note
 
@@ -308,7 +344,7 @@ frontmatter.
 A policy's **reasoning effort** is the one part that does bind per subagent.
 Claude Code frontmatter accepts `effort: low|medium|high|xhigh|max`, so each
 agent in `.claude/agents/` carries the effort its own policy requests and one
-session can dispatch all five roles at their own depths:
+session can dispatch every role at its own depth:
 
 | subagent | policy | `effort` |
 | --- | --- | --- |
@@ -317,6 +353,7 @@ session can dispatch all five roles at their own depths:
 | `executor` | `executor-implementation` | `medium` |
 | `validator` | `review-adversarial` | `xhigh` |
 | `red-team` | `review-adversarial` | `xhigh` |
+| `consolidator` | `consolidation-routing` | `high` |
 | `executor-mechanical` | `executor-mechanical` | `low` |
 | `validator-breakthrough` | `review-breakthrough` | `max` |
 | `red-team-breakthrough` | `review-breakthrough` | `max` |
@@ -362,10 +399,11 @@ them disagree.
 ## Typical loop
 
 ```text
+/coordinate            # rank, approve, dispatch, archive; does not run trials
 /research-status
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...
-  → /run-experiment EXP-...
+  → /run EXP-... (execution only; later stages are separate tasks)
   → (Coordinator snapshot commit + independent validation/red team)
   → /review-evidence EXP-...
   → (knowledge-promotion gate: proven results → /curate-knowledge KN-FIND;

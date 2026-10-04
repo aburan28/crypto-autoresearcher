@@ -1,0 +1,204 @@
+# =============================================================================
+# TASK-20260926-c95c60 -- Coordinator CLOSING LEDGER ARCHIVE of the evidence
+# review and decision for REVIEW-CERTBIN-20260926-d7249d. Runs after the
+# reviewers of the round have returned and the Coordinator has composed the
+# evidence review (EV-CERTBIN-091c56, DEC-20260926-901ea1). It commits the
+# remaining review reports, the evidence record and the evidence decision; only
+# then does any official transition they record take effect.
+#
+# Bound now as archived_by for TASK-20260926-42be88, TASK-20260926-fee7a9 and
+# TASK-20260926-f50294, so that each report has exactly one archival owner
+# before it exists (AGENTS.md "Dispatch preconditions").
+#
+# ID PROVENANCE: this ID and the reserved EV-CERTBIN-091c56 and
+# DEC-20260926-901ea1 were pre-minted by the dispatching session; re-checked by
+# TASK-20260926-5d1557 SC-1.
+# =============================================================================
+handoff:
+  id: TASK-20260926-c95c60
+  from: coordinator
+  to: coordinator
+  archive_kind: ledger
+  kind: ledger_archive
+  recorded_at: '2026-09-26'
+  opened_by_decision: DEC-20260926-f6a749
+  source_task_ids:
+    - TASK-20260926-42be88
+    - TASK-20260926-fee7a9
+    - TASK-20260926-f50294
+  review_plan_id: REVIEW-CERTBIN-20260926-d7249d
+  experiment_id: EXP-CERTBIN-060020
+  hypothesis_id: H-CERTBIN-e3ac93
+  run_id: RUN-CERTBIN-a3fc60
+  depends_on:
+    - TASK-20260926-42be88
+    - TASK-20260926-fee7a9
+    - TASK-20260926-f50294
+    - TASK-20260926-e8779d
+  state: written_not_executed
+
+  objective: >-
+    After the Coordinator has composed REVIEW-CERTBIN-20260926-d7249d in
+    /review-evidence, commit exactly: the three reviewer directories of this
+    card's source tasks; the evidence record EV-CERTBIN-091c56; the evidence
+    decision DEC-20260926-901ea1; experiments/EXP-CERTBIN-060020/analysis.md if
+    the composition writes one; H-CERTBIN-e3ac93.yaml if and only if that
+    decision records a status transition; experiments/EXP-CERTBIN-060020/specification.yaml
+    is NEVER staged (a completed / invalid marking of the experiment, if the
+    decision makes one, is recorded in the decision, not by editing the frozen
+    contract); and this receipt. Bind the TASK-20260926-f0736e and
+    TASK-20260926-401771 directories (archived by TASK-20260926-e8779d) by hash
+    without re-staging. Push, and refresh the PR. Only after this receipt
+    verifies does any transition in DEC-20260926-901ea1 become official.
+
+  uncertainty_reduced: Whether the official research state rests on committed, hash-bound review reports.
+
+  inputs:
+    - coordination/review/certbin-20260926-d7249d/reviews/
+    - ledger/evidence/EV-CERTBIN-091c56.yaml (written by the Coordinator in /review-evidence)
+    - ledger/decisions/DEC-20260926-901ea1.yaml (written by the Coordinator in /review-evidence)
+    - experiments/EXP-CERTBIN-060020/analysis.md (if written by the composition)
+    - coordination/review/certbin-20260926-d7249d/blind-phase-hygiene.yaml
+    - origin/main
+
+  constraints:
+    - id: LC-1
+      text: >-
+        PRECONDITION CHECKS. Before staging, run and record verbatim:
+        - `python3 tools/check_review_independence.py --plan
+          coordination/review/certbin-20260926-d7249d/review-plan.yaml --reports
+          coordination/review/certbin-20260926-d7249d/reviews` (must PASS: every
+          joint J1-J14 owned, attested and carrying a verdict; blindness lifted
+          only for TASK-20260926-f50294; the re-deriver's sources_read disjoint
+          from blind_from);
+        - `python3 tools/check_review_independence.py --blind-history
+          fe1080a84f640b3503c6cf5da140ff0c29686e89..HEAD --protected-from
+          coordination/review/certbin-20260926-d7249d/blind-phase-hygiene.yaml
+          --max-commits 5000`;
+        - the manual check that TASK-20260926-401771's sources_read does not
+          intersect the plan's author_independent_verification.must_not_read
+          (prefix rule), and that `grep -rn crypto_autoresearcher` over the
+          code/ directories of TASK-20260926-401771 and TASK-20260926-f0736e is
+          empty.
+        An independence FAIL is recorded in DEC-20260926-901ea1's
+        procedure_deviations, never suppressed, and blocks any status
+        transition that rests on the failed property.
+    - id: LC-2
+      text: >-
+        TIER TRIPWIRES (review plan tier_ruling). T1: if DEC-20260926-901ea1
+        records `reject_scoped` or closes a lane with an obstruction block,
+        STOP: that needs a review-breakthrough round at max first; this
+        archive then commits the reports and the evidence record only, and the
+        decision is re-scoped by a superseding decision. T2: if it moves
+        H-CERTBIN-e3ac93 to `supported`, check that it argues in writing why
+        the replicate-first rule does not apply (citing J1, J6/J7 and J13);
+        without that argument, STOP and return it to the Coordinator.
+    - id: LC-3
+      text: >-
+        KNOWLEDGE PROMOTION. DEC-20260926-901ea1 fills knowledge_promotion. If
+        it promotes a KN-FIND, KN-OPEN or KN-TECH, the entry path is NOT in
+        this card's declared set: a separate ledger archive card, minted from
+        the reserved TASK-20260926-dcc7a5 (then -9f2a0d, -e9c3f6), is written by
+        that decision and committed after this one (knowledge/INDEX.md is
+        rebuilt as a check only; it is gitignored). This card is never widened
+        in place.
+    - id: LC-4
+      text: >-
+        MERGE origin/main, NEVER REBASE, and record the base and the outcome.
+        RUN ALONE. STAGE ONLY THE DECLARED PATHS, excluding __pycache__. Run
+        tools/validate_ledger.py on the head with no new error line (record
+        the base's count and the head's).
+    - id: LC-5
+      text: >-
+        EVIDENCE-RECORD DUTIES the composing Coordinator must meet before this
+        archive may run; the archive checks each and records it:
+        - EV-CERTBIN-091c56 states claim tier toy, the full scope (n = 19,
+          f = t^19 + t^5 + t^2 + t + 1, m = 2, l = 10, polynomial V, one curve
+          A = 46693, B = 306147 with h = 2, subgroup x(2E) targets and the
+          F-RANDX19 strata, the closures, the arms, the pinned engine) and
+          every transfer assumption, including the n = 17 comparison's curve,
+          cofactor and target-class confounds and its 304 imported Stage-1
+          flags;
+        - it states the authorship disclosure (engine by the dispatching
+          session; impl/ and verifier/ by the executor) and whether J1 held;
+        - it states, per the plan's composition rule, which counts are
+          author-independently certified (J1; J7's per-key certification
+          status), which non-refutations are witnessed (J1 VC-6; ann-v1),
+          derived (D-3 / T5 on J11's profiles) or engine-reported only;
+        - it states the reading of N19-DR-3 given J10, of N19-DR-4 and N19-DR-5
+          given J11 and J13, and the J9 account of the contrast pattern with
+          D-2's status;
+        - the N19-DR-9 flag is decided in DEC-20260926-901ea1 with J12's
+          premise table cited;
+        - it states proof_status / proof_refs for any adverse reading and
+          carries a complete obstruction block with its resource_check if it
+          weakens or contradicts anything;
+        - it states the replication_note answer of the plan's tier_ruling
+          (T2);
+        - it states the specification slips ruled on in DEC-20260926-f6a749
+          (R-3 sizes sentence; R-8 ell_route redundancy).
+    - id: LC-6
+      text: Launch nothing. maximum_runs is 0.
+
+  deliverables:
+    - one commit naming TASK-20260926-c95c60, REVIEW-CERTBIN-20260926-d7249d, EV-CERTBIN-091c56 and DEC-20260926-901ea1
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-c95c60/ledger-receipt.json
+    - the branch pushed, and the PR refreshed naming the records
+
+  record_ids:
+    - EV-CERTBIN-091c56
+    - DEC-20260926-901ea1
+    - TASK-20260926-c95c60
+
+  artifact_paths:
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-42be88/
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-fee7a9/
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f50294/
+    - ledger/evidence/EV-CERTBIN-091c56.yaml
+    - ledger/decisions/DEC-20260926-901ea1.yaml
+    - experiments/EXP-CERTBIN-060020/analysis.md (only if the composition writes it)
+    - ledger/hypotheses/H-CERTBIN-e3ac93.yaml (only if DEC-20260926-901ea1 records a transition)
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-c95c60/ledger-receipt.json
+  artifact_paths_note: >-
+    The re-deriver and verifier directories were archived by
+    TASK-20260926-e8779d; their sha256 are re-verified and recorded here, not
+    re-staged. The reserved EV and DEC IDs are capacity: if the composition
+    yields no evidence record (for example, an admissibility break that returns
+    the run to the executor), an unused ID is never occupied and the receipt
+    says so.
+  write_scope:
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-c95c60/
+  write_scope_note: >-
+    The reviewers wrote their directories, and the Coordinator writes the EV,
+    DEC and analysis in /review-evidence. This task STAGES them and writes only
+    its receipt.
+
+  archived_by: TASK-20260926-c95c60
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_reason: Runtime inheritance (DEC-20260923-4d7a19 R-1 forward rule). Not a tier downgrade.
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - LC-1's three check outputs are recorded verbatim, and the --plan/--reports check PASSES or its FAIL is recorded in DEC-20260926-901ea1
+    - LC-2 was applied, and the receipt states whether T1 or T2 fired
+    - LC-5's duties are each checked and recorded
+    - the archive commit changes exactly the declared paths, and path_sha256 matches the committed tree
+    - the TASK-20260926-f0736e and TASK-20260926-401771 directory hashes match the TASK-20260926-e8779d receipt
+    - the receipt records the origin/main base commit and the merge outcome
+    - tools/validate_ledger.py on the head reports no new error line
+    - the branch is pushed, and the PR names the records
+    - no scientific trial was launched
+
+  return_format: The receipt, the archive commit sha, the LC-1 outputs, whether T1 or T2 fired, and the PR URL.
+
+  review_plan: null

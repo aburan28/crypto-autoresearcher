@@ -1,0 +1,882 @@
+{
+  "experiment": {
+    "id": "EXP-ECDLP-abf981",
+    "hypothesis_id": "H-ECDLP-9cf3e6",
+    "derived_from_idea": "IDEA-20260905-4dff7b",
+    "question_id": "RQ-ECDLP-002",
+    "goal_id": "GOAL-ECDLP-001",
+    "batch_id": "BATCH-855d5d",
+    "version": 1,
+    "title": "Exact rational Edwards/Hessian comparisons with fixed point sets, complete finite relations and separate membership conventions",
+    "status": "review_required",
+    "approved_by": null,
+    "execution_authorized": false,
+    "design_task_id": "TASK-20260907-0cf62c",
+    "objective": "Measure whether a native model changes a complete finite relation presentation when the same mathematical point set is held fixed, and distinguish that from coordinate-window density selection. Resolve the earlier membership and proxy conventions by definition before any observation.",
+    "inputs": {
+      "grammar": {
+        "encoding": "UTF-8 JSON (also valid YAML 1.2 for the specification); integers are canonical residues 0..p-1; no floating field arithmetic.",
+        "point_W": "{\"kind\":\"O\"} or {\"kind\":\"affine\",\"X\":integer,\"Y\":integer}; O sorts first, then affine (X,Y) lexicographically.",
+        "point_H": "{\"kind\":\"O\",\"projective\":[1,p-1,0]} or {\"kind\":\"affine\",\"h\":integer,\"k\":integer}; only this declared infinity chart is admitted after the availability gate.",
+        "point_Ed": "{\"e\":integer,\"t\":integer}; all rational points must lie in this affine chart after the availability gate.",
+        "projective_line": "integers 0..p-1 followed by token \"infinity\".",
+        "polynomial": "ordered variable names plus nonzero [coefficient,exponent_vector] terms over F_p, lexicographically ordered exponent vectors; mathematical formulas below are the authoritative input, not a parser for arbitrary expressions.",
+        "entrypoint_arguments": [
+          "--spec experiments/EXP-ECDLP-abf981/specification.yaml",
+          "--cell p11 with --run-dir experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa",
+          "--cell p23 with --run-dir experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253"
+        ],
+        "rejected_inputs": [
+          "different p, curve, constants, arity, windows, order or point-set rule",
+          "network-dependent arithmetic, hidden scalar targets, unapproved extra cells or an existing output path"
+        ],
+        "manifest": "Use the current harness immutable run-manifest schema; each record must contain its exact reserved run_id, cell, experiment_id, actual terminal validity/operational status, specification/source/lock hashes, actual command, Git commit/dirty state, environment/dependencies, requested/resolved inference/model provenance, timestamps, CPU/RSS and stdout/stderr/raw/certificate paths. A reservation is never a run receipt."
+      },
+      "constants": [
+        {
+          "cell": "p11",
+          "p": 11,
+          "r": 9,
+          "s": 10,
+          "c": 5,
+          "A": 6,
+          "B": 10,
+          "a": 3,
+          "d_twisted": 7,
+          "d_edwards": 6,
+          "expected_group_order": 12
+        },
+        {
+          "cell": "p23",
+          "p": 23,
+          "r": 4,
+          "s": 18,
+          "c": 5,
+          "A": 16,
+          "B": 9,
+          "a": 2,
+          "d_twisted": 22,
+          "d_edwards": 11,
+          "expected_group_order": 24
+        }
+      ],
+      "parameter_selection": "The two rows above are frozen directly, not selected by performance or searched by the Executor. expected_group_order is a preregistered gate prediction, not an observation.",
+      "curves": {
+        "W": "Y^2=X^3-432 over F_p, with O the point at infinity; a_W=0, b_W=-432 mod p.",
+        "H": "h^3+k^3+1=0, d_H=0; projectively H^3+K^3+Z^3=0, O_H=[1:-1:0].",
+        "M": "B V^2=U^3+A U^2+U with X=r+s U, Y=s V.",
+        "twisted_Ed": "a z^2+t^2=1+d_twisted z^2 t^2.",
+        "Ed": "e^2+t^2=1+d_edwards e^2 t^2 with e=c z; O_Ed=(0,1), T_Ed=(0,-1)."
+      },
+      "maps": {
+        "H_to_W": {
+          "finite": "X=-12/(h+k); Y=3 X (k-h).",
+          "identity": "O_H -> O_W.",
+          "denominator_zero": "A finite point h+k=0 would make h^3+k^3+1=1, so it must be rejected by the on-curve gate; record the explicit impossible-system check."
+        },
+        "W_to_H": {
+          "finite": "h=(-36-Y)/(6X); k=(-36+Y)/(6X).",
+          "identity": "O_W -> O_H.",
+          "denominator_zero": "X=0 requires Y^2=-432. The future gate enumerates this equation for each fixed p; any rational solution invalidates the claimed one-chart availability and stops scoring. Never silently discard it."
+        },
+        "Ed_to_W": {
+          "ordinary": "For e != 0, U=(1+t)/(1-t), V=c U/e, X=r+s U, Y=s V.",
+          "identity": "(0,1) -> O_W.",
+          "two_torsion": "(0,-1) -> T_W=(r,0).",
+          "denominator_zero": "Exhaustively verify e=0 consists exactly of (0,+1) and (0,-1); t=1 with e!=0 must have no on-curve solution. Reject any other denominator-zero input."
+        },
+        "W_to_Ed": {
+          "ordinary": "For P != O,T: e=c (X-r)/Y; t=(X-r-s)/(X-r+s).",
+          "identity": "O_W -> (0,1).",
+          "two_torsion": "(r,0) -> (0,-1).",
+          "denominator_zero": "Exhaustively list all Y=0 and X-r+s=0 cases; only T may occur among Y=0. A further rational exception is a failed availability gate, never an omitted point."
+        },
+        "H_Ed": "Compose the above explicit maps through W and retain the intermediate W identity/type. Charge both legs.",
+        "negation": {
+          "W": "O->O, (X,Y)->(X,-Y)",
+          "H": "O->O, (h,k)->(k,h)",
+          "Ed": "(e,t)->(-e,t)"
+        },
+        "scope": "These are full rational-point maps for exactly the two frozen fields once their exhaustive gate passes. They do not claim a one-chart geometric isomorphism over the algebraic closure, an arbitrary-p availability criterion or extension-free availability on every elliptic curve."
+      },
+      "point_sets": {
+        "coordinate_only": {
+          "name": "S_p",
+          "definition": "Enumerate W(F_p) exactly. Include O and T=(r,0), then the first six affine points in lexicographic (X,Y) order excluding T.",
+          "cardinality": 8,
+          "gate": "Require at least six distinct eligible affine points and no duplicates. Every arm transports this entire ordered canonical list, including O and T.",
+          "membership": "On any affine chart A, define delta_a(z)=1-(z-a)^(p-1) and I_A(u,v)=sum over distinct (a,b) in the transported affine list of delta_a(u)*delta_b(v). Require I_A(u,v)-1=0. Infinity membership is a separate exact Boolean A_O. Edwards includes its images of O and T in the affine list. The count B=8 refers to mathematical points, never coordinate values."
+        },
+        "model_adapted": {
+          "coordinates": [
+            "f_WX(P)=X(P), f_WX(O)=infinity",
+            "f_Edt(P)=t_Ed(P), including t_Ed(O)=1",
+            "f_Hh(P)=h_H(P), f_Hh(O)=infinity",
+            "f_Hs(P)=h+k=-12/X on finite H; f_Hs(O)=0 by its rational-function extension"
+          ],
+          "fixed_window": {
+            "W": [
+              0,
+              1
+            ],
+            "size": 2,
+            "definition": "A_f={P in W(F_p): f(P) in {0,1}}. Its exact cardinality is B_f=sum_{t in {0,1}} n_f(t), where n_f(t)=#{P in W(F_p): f(P)=t}. Serialize B_f and every point; do not replace it by 2*n, an expectation, or 8.",
+            "comparison": "Each A_f is itself transported through ALL THREE models and compared only against the W presentation on that same A_f. Differences between A_f for distinct f are model-adapted effects, not coordinate-only effects.",
+            "empty_policy": "An empty A_f remains an empty recorded arm; no replacement window and no positive simplification from an empty arm."
+          },
+          "membership": "Use the same exact affine I_A-1 formula plus the infinity Boolean on the derived A_f; also serialize the direct coordinate-window predicate and its construction/evaluation cost. No oracle-supplied point list is free.",
+          "cardinality_matching": "Primary coordinate-only comparison has B=8. A_f have their exact B_f; across f, comparisons are density tables only unless both point lists are identical. Equal cardinality alone is insufficient."
+        }
+      },
+      "relation": {
+        "arity": 3,
+        "mathematical_target": "For each R in the full ordered W(F_p), enumerate ordered (P,Q) with P,Q in the selected set A and P+Q+R=O. Let N=-R be the fixed output of P+Q.",
+        "symmetry": "No quotient by P/Q exchange or simultaneous negation. Preserve multiplicities and both signs as different points.",
+        "baseline_group_law": "O is identity; (X,Y)+(X,-Y)=O, including the Y=0 doubling case. For distinct X use lambda=(Y2-Y1)/(X2-X1); for equal points with Y!=0 use lambda=3X1^2/(2Y1). Then Xsum=lambda^2-X1-X2, Ysum=lambda*(X1-Xsum)-Y1."
+      }
+    },
+    "controls": [
+      {
+        "id": "C0_W_identity",
+        "object": "The W arm and its identical reserialization with variable names mapped back to canonical names.",
+        "expected": "Identical point set, ordered relation list, polynomial descriptors and integer metrics; mismatch is an instrument error."
+      },
+      {
+        "id": "C1_exact_transport",
+        "object": "Every point of W(F_p), every pair in W(F_p)^2, and the explicit H/W/Ed forward/inverse maps.",
+        "expected": "All on-curve, roundtrip, identity, negation and addition checks pass; no missing or duplicate points. Run before scoring."
+      },
+      {
+        "id": "C2_mismatched_points",
+        "object": "S_bad=(S_p minus {O}) union {the first canonical W point outside S_p}; transport S_bad into each alternative model but label its baseline as S_p.",
+        "expected": "The exact canonical point-set comparator must reject the coordinate-only label despite equal size 8. Persist S_p symmetric_difference S_bad of size 2; equality of a coarse count cannot override rejection."
+      },
+      {
+        "id": "C3_map_exceptions",
+        "object": "O_W and T=(r,0), all denominator-zero candidates, and all ordered pairs touching O or T. Mutated decoder omits O and treats Ed (0,-1) as an ordinary division.",
+        "expected": "Correct maps cover O/T. Mutants must yield explicit missing-point/undefined-map failures; the scientific scorer must not accept their partial result."
+      },
+      {
+        "id": "C4_wrong_map",
+        "object": "Take H point (0,-1). Replace X=-12/(h+k) by X+1 while leaving Y unchanged and the prescribed inverse unchanged.",
+        "expected": "At least one on-curve or roundtrip identity fails. The bad arm is rejected before structural scoring."
+      },
+      {
+        "id": "C5_wrong_negation",
+        "object": "On H use (h,k) instead of (k,h) as alleged negation; scan all points.",
+        "expected": "At least one non-2-torsion point fails P+wrong_neg(P)=O; otherwise gate inconclusive, not a pass."
+      },
+      {
+        "id": "C6_rational_density",
+        "object": "For every f enumerate n_f(t) on all p+1 projective values; enumerate every unordered size-2 window. Also construct W_full(f,n)={t:n_f(t)=n}, with n=2 for WX, Edt, Hs and n=3 for Hh.",
+        "expected": "Sum_t n_f(t)=#E and sum_{|W|=2} B_f(W) = p*#E exactly. Full-fiber selection satisfies B=n*|W_full| by definition; empty full-fiber windows are reported as empty, never assigned a density. The nonempty WX full-fiber window must reject the false universal per-window equation B=|W|."
+      },
+      {
+        "id": "C7_PGL2_count_transport",
+        "object": "On P^1 apply mu(t)=(t+1)/(t+2), infinity->1, -2->infinity, to each coordinate; transport each window by mu. Apply to the first k summand-coordinate slots for k=0,1,2.",
+        "expected": "Exact lifted point lists and canonical relation counts remain unchanged for each k. Coordinate-function expressions and membership costs may change and are charged; no flat support prediction is imposed."
+      },
+      {
+        "id": "C8_generic_relation_baselines",
+        "object": "Exhaustive ordered A-pair addition and direct target lookup in W; full-group random-free identity relabeling through the canonical point indices.",
+        "expected": "Same canonical relation list after decoding labels. Rho/BSGS/generic lower-bound context is a separate analytical attack-scope row, not a measured DLP comparison."
+      }
+    ],
+    "independent_variables": [
+      "p in {11,23}",
+      "native relation presentation W|Ed|H",
+      "point-set arm S_p or each of the four fixed-window A_f",
+      "target R ranges over the entire finite group",
+      "unrestricted size-2 windows versus W_full for the separate counting audit",
+      "deterministic PGL2 coordinate relabeling slots k=0,1,2"
+    ],
+    "polynomial_protocol": {
+      "purpose": "Complete finite F_p relation systems, not Zariski-closed geometric summation polynomials. Native solution variables are rational points; decoding is an explicit total finite algorithm with separately charged map certificates. No hidden sign-selection or coordinate-lifting existential remains.",
+      "common": "For every retained variable z include z^p-z=0. For every unknown affine point include its curve equation and I_A-1=0. Raw slots are counted even when a slot specializes to the zero polynomial; zero slots and normalized nonzero polynomials are reported separately. Infinity types are disjoint finite branches and incur branch metadata bytes.",
+      "normalization": "Expand formulas exactly mod p; combine equal exponent vectors and discard zero coefficients. Keep variable declaration and raw equation slots. Do not divide by factors, squarefree, Groebner-reduce, drop duplicate equations, reduce exponents by field equations, choose another chart, or optimize based on measured support. Scalar normalization divides a nonzero polynomial by its leading nonzero coefficient using the declared lex exponent order. Serialize both raw slots and the normalized nonzero term lists.",
+      "W_branches": [
+        {
+          "name": "finite_generic",
+          "guard": "P,Q,N finite and X1 != X2",
+          "variables": [
+            "X1",
+            "Y1",
+            "X2",
+            "Y2",
+            "lambda",
+            "z"
+          ],
+          "extra_equations": [
+            "lambda*(X2-X1)-(Y2-Y1)=0",
+            "lambda^2-X1-X2-XN=0",
+            "lambda*(X1-XN)-Y1-YN=0",
+            "z*(X2-X1)-1=0"
+          ],
+          "common_slots": "2 curve + 2 membership + 6 field",
+          "raw_variable_count": 6,
+          "raw_equation_count": 14
+        },
+        {
+          "name": "finite_tangent",
+          "guard": "P=Q finite, Y1 != 0, N finite",
+          "variables": [
+            "X1",
+            "Y1",
+            "X2",
+            "Y2",
+            "lambda",
+            "z"
+          ],
+          "extra_equations": [
+            "X2-X1=0",
+            "Y2-Y1=0",
+            "2*Y1*lambda-3*X1^2=0",
+            "lambda^2-X1-X2-XN=0",
+            "lambda*(X1-XN)-Y1-YN=0",
+            "2*Y1*z-1=0"
+          ],
+          "common_slots": "2 curve + 2 membership + 6 field",
+          "raw_variable_count": 6,
+          "raw_equation_count": 16
+        },
+        {
+          "name": "finite_inverse",
+          "guard": "P,Q finite; N=O",
+          "variables": [
+            "X1",
+            "Y1",
+            "X2",
+            "Y2"
+          ],
+          "extra_equations": [
+            "X2-X1=0",
+            "Y2+Y1=0"
+          ],
+          "common_slots": "2 curve + 2 membership + 4 field",
+          "raw_variable_count": 4,
+          "raw_equation_count": 10
+        },
+        {
+          "name": "left_identity",
+          "guard": "P=O in A, Q=N finite",
+          "variables": [
+            "X2",
+            "Y2"
+          ],
+          "extra_equations": [
+            "X2-XN=0",
+            "Y2-YN=0"
+          ],
+          "common_slots": "1 curve + 1 membership + 2 field",
+          "raw_variable_count": 2,
+          "raw_equation_count": 6
+        },
+        {
+          "name": "right_identity",
+          "guard": "Q=O in A, P=N finite",
+          "variables": [
+            "X1",
+            "Y1"
+          ],
+          "extra_equations": [
+            "X1-XN=0",
+            "Y1-YN=0"
+          ],
+          "common_slots": "1 curve + 1 membership + 2 field",
+          "raw_variable_count": 2,
+          "raw_equation_count": 6
+        },
+        {
+          "name": "both_identity",
+          "guard": "P=Q=N=O and O in A",
+          "variables": [],
+          "extra_equations": [],
+          "common_slots": "The Boolean guard and one canonical empty assignment are stored as branch metadata.",
+          "raw_variable_count": 0,
+          "raw_equation_count": 0
+        }
+      ],
+      "Ed_branches": [
+        {
+          "name": "complete_affine",
+          "guard": "All P,Q,N have their Ed affine coordinates; includes the images of O and T.",
+          "variables": [
+            "e1",
+            "t1",
+            "e2",
+            "t2",
+            "zplus",
+            "zminus"
+          ],
+          "definitions": [
+            "Dplus=1+d_edwards*e1*e2*t1*t2",
+            "Dminus=1-d_edwards*e1*e2*t1*t2"
+          ],
+          "extra_equations": [
+            "eN*Dplus-e1*t2-t1*e2=0",
+            "tN*Dminus-t1*t2+e1*e2=0",
+            "zplus*Dplus-1=0",
+            "zminus*Dminus-1=0"
+          ],
+          "common_slots": "2 degree-4 Ed curve + 2 membership + 6 field",
+          "raw_variable_count": 6,
+          "raw_equation_count": 14,
+          "denominator_gate": "Exhaustively verify Dplus*Dminus != 0 on all Ed(F_p)^2. Any exception invalidates the declared complete-affine arm and stops its scoring; it is retained in an exception certificate."
+        }
+      ],
+      "H_branches": [
+        {
+          "name": "finite_native",
+          "guard": "P,Q,N finite and D=h2*k2-h1*k1 != 0",
+          "variables": [
+            "h1",
+            "k1",
+            "h2",
+            "k2",
+            "z"
+          ],
+          "extra_equations": [
+            "hN*D-k1^2*h2+k2^2*h1=0",
+            "kN*D-h1^2*k2+h2^2*k1=0",
+            "z*D-1=0"
+          ],
+          "common_slots": "2 H curve + 2 membership + 5 field",
+          "raw_variable_count": 5,
+          "raw_equation_count": 12
+        },
+        {
+          "name": "finite_Dzero_Wgeneric",
+          "guard": "P,Q,N finite, D=0, recovered X1 != X2",
+          "variables": [
+            "h1",
+            "k1",
+            "h2",
+            "k2",
+            "X1",
+            "Y1",
+            "X2",
+            "Y2",
+            "zmap1",
+            "zmap2",
+            "lambda",
+            "z"
+          ],
+          "extra_equations": [
+            "D=0",
+            "X1*(h1+k1)+12=0",
+            "Y1-3*X1*(k1-h1)=0",
+            "X2*(h2+k2)+12=0",
+            "Y2-3*X2*(k2-h2)=0",
+            "zmap1*(h1+k1)-1=0",
+            "zmap2*(h2+k2)-1=0",
+            "Y1^2-X1^3+432=0",
+            "Y2^2-X2^3+432=0",
+            "lambda*(X2-X1)-(Y2-Y1)=0",
+            "lambda^2-X1-X2-XN=0",
+            "lambda*(X1-XN)-Y1-YN=0",
+            "z*(X2-X1)-1=0"
+          ],
+          "common_slots": "2 H curve + 2 H membership + 12 field; W target N is the constant exact decoded H target.",
+          "raw_variable_count": 12,
+          "raw_equation_count": 29
+        },
+        {
+          "name": "finite_Dzero_Wtangent",
+          "guard": "P,Q,N finite, D=0 and recovered P=Q with Y1 !=0",
+          "variables": [
+            "h1",
+            "k1",
+            "h2",
+            "k2",
+            "X1",
+            "Y1",
+            "X2",
+            "Y2",
+            "zmap1",
+            "zmap2",
+            "lambda",
+            "z"
+          ],
+          "extra_equations": "Use all D=0/map/map-inverse/W-curve equations from finite_Dzero_Wgeneric, replace its four W generic-addition equations by the six extra equations of W finite_tangent.",
+          "common_slots": "2 H curve + 2 H membership + 12 field",
+          "raw_variable_count": 12,
+          "raw_equation_count": 31
+        },
+        {
+          "name": "finite_Dzero_Winverse",
+          "guard": "P,Q finite and N=O; D=0",
+          "variables": [
+            "h1",
+            "k1",
+            "h2",
+            "k2",
+            "X1",
+            "Y1",
+            "X2",
+            "Y2",
+            "zmap1",
+            "zmap2"
+          ],
+          "extra_equations": "Use all D=0/map/map-inverse/W-curve equations from finite_Dzero_Wgeneric, replace its four W generic-addition equations by X2-X1=0 and Y2+Y1=0.",
+          "common_slots": "2 H curve + 2 H membership + 10 field",
+          "raw_variable_count": 10,
+          "raw_equation_count": 25
+        },
+        {
+          "name": "left_identity",
+          "guard": "P=O_H in A, Q=N finite",
+          "variables": [
+            "h2",
+            "k2"
+          ],
+          "extra_equations": [
+            "h2-hN=0",
+            "k2-kN=0"
+          ],
+          "common_slots": "1 H curve + 1 membership + 2 field",
+          "raw_variable_count": 2,
+          "raw_equation_count": 6
+        },
+        {
+          "name": "right_identity",
+          "guard": "Q=O_H in A, P=N finite",
+          "variables": [
+            "h1",
+            "k1"
+          ],
+          "extra_equations": [
+            "h1-hN=0",
+            "k1-kN=0"
+          ],
+          "common_slots": "1 H curve + 1 membership + 2 field",
+          "raw_variable_count": 2,
+          "raw_equation_count": 6
+        },
+        {
+          "name": "both_identity",
+          "guard": "P=Q=N=O_H and O_H in A",
+          "variables": [],
+          "extra_equations": [],
+          "common_slots": "Boolean branch metadata and the unique empty assignment.",
+          "raw_variable_count": 0,
+          "raw_equation_count": 0
+        }
+      ],
+      "branch_activation": "Instantiate all branches consistent with the fixed type of N and the Boolean O-in-A guard. Do not delete a branch because future solution enumeration happens to find it empty. Other guards are imposed by their listed polynomial equalities/inverse constraints; every canonical pair is assigned to exactly one branch. A finite H pair with D!=0 cannot sum to O; failure of this check invalidates the branch coverage.",
+      "membership_cost_boundary": "I_A construction, constant tables and both map directions are explicit preprocessing/decoding algorithms, not free oracle inputs. Their equations/algorithm descriptions and costs are serialized separately; the structural score concerns native relation systems including their membership polynomials and any fallback graphs, not an assertion about the degree of a single merged algebraic map graph.",
+      "degree_reporting": "For each normalized nonzero polynomial give total degree, each-variable degree and complete support. Field and membership equations stay in full totals; also report named category subtotals. first_fall_degree and geometric_summation_degree are status outside_frozen_diagnostic, not 0 and not inferred from this data."
+    },
+    "membership_convention_audit": {
+      "definitions": {
+        "w": "Number of coordinate values in W, including infinity when specified.",
+        "B": "Number of rational mathematical points in f^{-1}(W); B=sum n_f(t).",
+        "n": "Geometric coordinate-degree label: 2 for WX, Edt, Hs; 3 for Hh. These are not rational fiber cardinalities and not measured summation degrees.",
+        "unrestricted_window": "All unordered size-2 subsets of P^1(F_p); #windows=p*(p+1)/2. No adaptive rejection of empty/small fibers.",
+        "full_fiber_window": "W_full(f,n) contains exactly the values having n rational preimages, counting branch values honestly. Membership must test the explicitly enumerated list and construction cost is charged."
+      },
+      "exact_identity_to_check": "Mean B over all size-2 windows equals 2*#E/(p+1), since each value occurs in exactly p such windows. No independence or asymptotic distribution theorem is needed for this finite double-count.",
+      "competing_proxy_resolution": "Define Phi(d_rel,w)=d_rel*w^2 only as the historical arity-3 degree-density proxy. If one conditionally inserts d_rel=(2,9) and assumes full rational fibers so w=(B/2,B/3), Phi_3/Phi_2=2. If one instead conditionally inserts equal w (or approximates w=B using unrestricted-window mean density about 1), the ratio is 9/2. Relative to the unrestricted n=2 proxy 2*B^2, the full-fiber n=2 proxy B^2/2 differs by factor 4=2^(m-1). Thus these are different inputs, not contradictory measurements of one object.",
+      "not_bezout": "Two coordinate unknowns with two membership equations and an additional relation equation form an overdetermined system. Multiplying a per-variable relation degree by w^2 is not automatically the classical or multihomogeneous Bezout number of that system. No BKK, Bezout theorem, exact geometric degree 9 or universal optimality claim is established here. Exact rational solution counts come only from the complete finite system and recovery certificates.",
+      "histories_preserved": "Do not edit, relabel as executed, alias, or close EXP-MODEL-5c4f24, EXP-MODEL-1554cd or IDEA-20260905-d0fee4. Report proxy assumptions row by row; if W_full is empty, the full-fiber proxy row is inapplicable for that cell."
+    },
+    "metrics": {
+      "primary": [
+        "All model, roundtrip, complete relation, uniqueness and control gates pass with exact integer zero error.",
+        "Complete coordinate-only vector per (p,M): maximum branch variable count; sum raw equation slots over every target and active branch; maximum normalized total degree; total nonzero monomials with equation multiplicity over every target/branch. Compare every component to W on the identical S_p.",
+        "Exact missing/spurious/duplicate recovered ordered-pair counts and sorted canonical relation certificate hashes for every target.",
+        "Exact w, B, rational fiber histogram, all size-2 window counts, W_full membership and its cardinality."
+      ],
+      "secondary": [
+        "Equation-count categories, nonzero/zero equations, maximum and histogram of per-variable degrees, coefficient support lists, branch counts, serialized bytes.",
+        "Preprocessing, field/group arithmetic, model maps, exception fallback, membership construction/evaluation, exhaustive relation retrieval and certificate/recovery operation counts.",
+        "Measured wall time, process CPU seconds and peak_rss_bytes per phase and total; no timing significance or speedup claim from a single cell.",
+        "Model-adapted native-vs-W vectors on the same A_f; density differences across f; conditional historical proxy table with applicability flags.",
+        "First-fall degree, Groebner solving degree, geometric elimination degree, rank accumulation, descent and DLP solving are not measured; store explicit outside_frozen_diagnostic status.",
+        "Raw branch/equation-count reductions implied by the frozen format are design arithmetic, not newly discovered empirical effects. Treat evidence about membership support, exact validity and full phase costs separately."
+      ]
+    },
+    "preregistered_prediction": {
+      "quantity": "Complete finite relation equivalence and scoped presentation comparison",
+      "formula": "Every correctness/control error count=0. The finite structural hypothesis is true only if some alternative arm has at least one of its four frozen integer metrics below its matched W value by >=1. Record all tradeoffs and the separate Pareto predicate all four <= and at least one <.",
+      "source": "Prospective Coordinator operational hypothesis H-ECDLP-9cf3e6, grounded in the user proposal; not a source theorem or observed signal."
+    },
+    "scale_relevance": {
+      "tier": "toy",
+      "justification": "Exactly p=11 and p=23, special j=0 cofactor-bearing curves with expected full group orders 12 and 24. No generic-j, prime-order, asymptotic or cryptographic-parameter transfer. Scale is stated, not used to fabricate an evidence ceiling.",
+      "correspondence": "Explicit rational-point maps within the same field; no large-parameter access correspondence."
+    },
+    "heuristic_under_test": null,
+    "heuristic_assumptions": [],
+    "tail_checks": [
+      "Retain all exceptional candidates, all failed mutants and every extreme window cardinality including zero.",
+      "Report every fiber and window; no positive-only filtering or full-fiber selection masquerading as an unconditioned sample.",
+      "Report actual group order and source map availability before reading presentation metrics."
+    ],
+    "replication": {
+      "seeds": [],
+      "seed_note": "All data are exhaustive; random seeds are not used. Fixed PGL2 map and lexicographic order remove routine choices.",
+      "independent_instances": 2,
+      "scope": "Two fields on the same special curve family, not independent curve-family evidence.",
+      "independent_verifier": "A later independent Validator reconstructs both finite point groups and all ordered relations using a separately written direct W checker; it does not merely rerun the producer."
+    },
+    "execution_plan": {
+      "stage_0": "Validate source/spec hashes and fixed constants, exhaustive on-curve point sets, rational map/exception coverage, group laws and all known-false controls. No structural scoring before success. Check p is prime, 3*r^2=s^2, r^3=432, A=3*r/s, B=1/s, a=3*r+2*s=c^2, d_twisted=3*r-2*s and d_edwards=d_twisted/a, all mod p. Verify curve nonsingularity, d_edwards !=0,1 and nonsquare, exact group-order prediction, unique H infinity, and complete affine Edwards coverage by mutually inverse maps.",
+      "stage_1": "For each p enumerate exactly S_p^2 (64 ordered pairs) and all targets R in E(F_p), then every selected A_f^2 and all targets. Serialize complete branch polynomial descriptors and recover every solution.",
+      "stage_2": "Enumerate four coordinate histograms, every size-2 projective window, and every W_full; run the prescribed PGL2 count transports. No change of window after reading density.",
+      "stage_3": "Emit metrics, costs, artifacts and honest terminal state for each fixed cell. A complete run can contain a false structural prediction; Executor reports observations only.",
+      "planned_runs": 2,
+      "run_cells": [
+        "p11",
+        "p23"
+      ],
+      "sample_counts": "Exactly p^2 affine W candidate tests plus O per field; p^2 H affine candidates plus all p+1 normalized projective infinity candidates [1:k:0] (k in F_p) and [0:1:0], verifying only O_H survives; p^2 Ed affine candidates. Map/group controls cover every enumerated full-group point and pair. Four coordinate histograms of p+1 entries, four times p*(p+1)/2 size-2 windows per field. Coordinate-only relation truth table has 64*#E cells per model; each of four A_f has B_f^2*#E cells per model. No extra independently sampled runs.",
+      "implementation_gate": {
+        "task_id": "TASK-20260907-a08b20",
+        "scientific_runs": 0,
+        "deliverables": [
+          "experiments/EXP-ECDLP-abf981/source/run_model_comparison.py",
+          "experiments/EXP-ECDLP-abf981/source/implementation.md",
+          "experiments/EXP-ECDLP-abf981/source/planned-execution.json"
+        ],
+        "snapshot_task": "TASK-20260907-bfc9b4",
+        "scope": "Implement parser/arithmetic/polynomial serializer and immutable artifact emission from the frozen spec. Mechanical validation may check syntax and input/output schemas using synthetic non-curve fixtures only. Do not enumerate the p11/p23 scientific inputs or execute any experiment cell."
+      },
+      "lock_gate": "After the implementation snapshot is published, parent control plane resolves actual environment/source hashes and freezes the exact two-command plan through the repository runner. A LOCKED plan and separate scientific run authorization must both exist before TASK-20260907-81d0f8 starts. The design supplies a planned command, never a lock.",
+      "run_bindings": [
+        {
+          "cell": "p11",
+          "run_id": "RUN-ECDLP-56d8aa",
+          "run_directory": "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa",
+          "state": "reserved_unexecuted"
+        },
+        {
+          "cell": "p23",
+          "run_id": "RUN-ECDLP-591253",
+          "run_directory": "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253",
+          "state": "reserved_unexecuted"
+        }
+      ]
+    },
+    "budget": {
+      "enforcement": "advisory",
+      "wall_clock_seconds_per_run": null,
+      "total_cpu_hours": null,
+      "maximum_memory_gb": 8,
+      "maximum_runs": 2,
+      "maximum_workers": 1,
+      "run_count_semantics": "Two immutable scientific parameter-cell records are the frozen sample plan, not a campaign spending cap. Retries need an additive task/attempt record preserving prior output.",
+      "process_watchdog": {
+        "seconds": 1800,
+        "purpose": "Protection against a nonterminating polynomial serializer or traversal on tiny finite inputs; checkpoint progress and return resource_exhaustion if triggered. This does not exhaust the research campaign or refute the hypothesis."
+      }
+    },
+    "stage_estimates": [
+      {
+        "stage": "0 availability/control gate",
+        "wall_clock_seconds": null,
+        "cpu_hours": null,
+        "memory_gb": 8,
+        "workers": 1
+      },
+      {
+        "stage": "1 full finite systems and relations",
+        "wall_clock_seconds": null,
+        "cpu_hours": null,
+        "memory_gb": 8,
+        "workers": 1
+      },
+      {
+        "stage": "2 membership/PGL2 audit",
+        "wall_clock_seconds": null,
+        "cpu_hours": null,
+        "memory_gb": 8,
+        "workers": 1
+      },
+      {
+        "stage": "3 artifact/cost emission",
+        "wall_clock_seconds": null,
+        "cpu_hours": null,
+        "memory_gb": 8,
+        "workers": 1
+      }
+    ],
+    "cost_model": {
+      "charged_stages": [
+        "parameter verification and exhaustive point construction",
+        "point-set/window/fiber selection and retained tables",
+        "all forward/inverse map calls and exceptional branching",
+        "membership polynomial construction and evaluation",
+        "complete branch polynomial expansion, serialization and evaluation",
+        "relation enumeration, candidate rejection, recovery, sort/dedup verification and certificates",
+        "independent validation reported separately, never assumed free"
+      ],
+      "operation_units": [
+        "field additions/subtractions",
+        "field multiplications/squares",
+        "field inversions",
+        "field comparisons and table lookups",
+        "group additions with their field-operation breakdown",
+        "Python integer bit lengths and serialized bytes"
+      ],
+      "evaluation_rule": "Deterministic term-by-term evaluation using ascending variable order; charge powers by repeated multiplication from exponent 0, multiply monomial factors in variable order and sum terms in serialized order. Cache nothing across polynomials for the operation-counter row. Report host timing separately from this modeled operation convention.",
+      "enumeration_baseline": "W ordered-pair enumeration makes exactly B^2 pair-addition attempts and builds per-target lists. It is the matched relation baseline. Point discovery costs p^2 candidate checks; no precomputed scalar log table is used.",
+      "memory": "Measure process peak RSS and serialized byte counts for points, membership terms, branch systems, tables and certificates. Temporary expansion memory remains charged; no numerical memory estimate is substituted for a measurement.",
+      "field_transfer": "0 extension-field operations by protocol; encountering a need for an extension is an availability failure requiring an amendment, not free preprocessing.",
+      "attack_baselines": [
+        {
+          "name": "rho",
+          "status": "analytical context only",
+          "time": "sqrt-order in subgroup n, subject to the cited internal baseline assumptions",
+          "memory": "constant group-element storage before any parallel distinguished-point infrastructure",
+          "comparison": "No scalar-recovery attack is run, so no measured rho-relative ratio is available."
+        },
+        {
+          "name": "BSGS",
+          "status": "analytical context only",
+          "time": "sqrt-order group operations",
+          "memory": "sqrt-order stored group elements",
+          "comparison": "No DLP claimed. Storage and lookup costs would be included in a future matched attack protocol."
+        },
+        {
+          "name": "generic lower-bound context",
+          "status": "scope guard only",
+          "comparison": "A coordinate-presentation metric does not establish a faster generic DLP algorithm; no new lower bound is asserted or imported."
+        }
+      ],
+      "outside_scope": [
+        "relation-matrix rank and linear algebra",
+        "descent",
+        "scalar recovery",
+        "cryptographic-parameter concrete costs",
+        "first-fall/Groebner performance",
+        "generic geometric elimination and BKK computation"
+      ],
+      "optimistic_assumptions": [
+        "The modeled term-evaluation counter omits interpreter overhead; measured phase CPU/RSS include it and are reported in different columns.",
+        "No end-to-end attack estimate is inferred by treating relation correctness or a sparse polynomial as a successful scalar solve."
+      ]
+    },
+    "stopping_rules": [
+      "Do not start before a separate committed Coordinator approval, published exact contract/chain, valid claim, resolved allowed backend and verified locked execution plan.",
+      "Availability/control/certificate failure stops scoring for the affected cell and preserves the exact failing object; no parameter or map replacement.",
+      "Complete exactly the two prescribed parameter cells and stop; no exploratory scaling or optimization against observations.",
+      "On memory/watchdog/dependency failure checkpoint, preserve outputs and report the operational status. No new user budget approval is requested."
+    ],
+    "invalidation_rules": [
+      "A non-bijective map, omitted exceptional point, wrong group law, incorrect branch coverage, non-unique auxiliary assignment, mismatch with independent W relations, or control acceptance of a deliberately wrong object invalidates affected comparisons.",
+      "An unregistered point set, field, branch, simplification, omitted term, sample count or seed makes the comparison nonconfirmatory.",
+      "Timeout, crash, dependency failure, inability to serialize, or unavailable inference is operational failure and asserts nothing about the hypothesis.",
+      "A valid result with no smaller structural metric is a scoped negative observation, not failed implementation or universal closure."
+    ],
+    "success_criterion": "Both cells have complete auditable artifacts and all correctness controls pass; a finite positive structural observation requires at least one specified strict integer-metric decrease on S_p, with other costs/tradeoffs disclosed. Independent Validator and Red Team review are still required before any scientific interpretation or expansion.",
+    "falsification_criterion": "If all gates pass and neither alternative native arm on either field improves any of the four frozen coordinate-only integer metrics, the finite H test is negative for these exact encodings. A control/equivalence failure makes the relevant comparison invalid or inconclusive and cannot falsify the broader idea.",
+    "decision_branches": {
+      "positive": "After independent validity and cost/scope review, Coordinator may rank a new protocol on larger public instances or a different complete membership encoding. It does not declare an attack or exponent improvement.",
+      "negative": "Retain exact finite presentation/cost table and any measured obstruction; keep the original existential proposal open beyond this sample and rerank other justified variants. No lane closure.",
+      "inconclusive": "Preserve failing inputs/partial artifacts; assign a precise additive map, serializer or certificate repair only if ranked. Do not replace the frozen run or hide failure."
+    },
+    "required_artifacts": [
+      "experiments/EXP-ECDLP-abf981/source/run_model_comparison.py",
+      "experiments/EXP-ECDLP-abf981/source/implementation.md",
+      "experiments/EXP-ECDLP-abf981/source/planned-execution.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/manifest.yaml",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/stdout.txt",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/stderr.txt",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/raw-results.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/map-certificates.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/relation-certificates.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/polynomial-systems.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/control-results.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/costs.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-56d8aa/execution-report.md",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/manifest.yaml",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/stdout.txt",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/stderr.txt",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/raw-results.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/map-certificates.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/relation-certificates.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/polynomial-systems.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/control-results.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/costs.json",
+      "experiments/EXP-ECDLP-abf981/runs/RUN-ECDLP-591253/execution-report.md"
+    ],
+    "assigned_to": "executor",
+    "review_required": true,
+    "proof_search_map": {
+      "bottleneck": "A compact native addition presentation can hide point-set replacement, poles, conditional fallback, or membership cost. Freeze a complete finite relation system and reconstruct every canonical W relation before structural scoring.",
+      "baseline_embedding": {
+        "parameter_slice": "For p in {11,23}, W: Y^2=X^3-432, the fixed S_p and P+Q+R=O for every R in W(F_p). W affine generic/tangent/inverse/identity branches are the baseline; coordinate-only arms transport precisely S_p.",
+        "reproduction_check": "Future Executor independently enumerates W(F_p) and all ordered S_p pairs and verifies every native arm against the same canonical relation set. Identity-coordinate relabeling reproduces exact W polynomial descriptors and metrics. No reproduction has run."
+      },
+      "observation_collision": {
+        "observable": "Complete native point pairs plus canonical recovered W pair; separate lossy coordinate-value pair (f(P),f(Q)).",
+        "distinct_preimage_search": "Enumerate all S_p^2 and all full-group fibers. Retain collisions between different canonical pairs with the same f-value pair. Never equate coordinate-value counts with rational-point relation counts; require canonical recovered tuple IDs."
+      },
+      "constructive_transforms": [
+        {
+          "transform": "representation_reduction",
+          "proposed_object": "The finite arity-3 relation on a shared rational point set in W, complete Edwards, and Hessian-with-exact-W-fallback presentations.",
+          "predicted_gain": "At least one strict decrease in a frozen complete-presentation metric is possible; neither a decrease nor an algorithmic cost gain is assumed."
+        },
+        {
+          "transform": "observable_fiber",
+          "proposed_object": "Exact f-fiber histogram on all P^1(F_p) values, unrestricted windows and full-fiber-selected windows.",
+          "predicted_gain": "Distinguishes a coordinate change from rational-density selection and exposes the assumptions behind the historical degree proxies."
+        }
+      ],
+      "quantifier_order": "Finite test statement: there exists p in {11,23} and native arm M in {Edwards,Hessian} for which the declared coordinate-only score strictly improves on W; for every R in W(F_p) and every ordered P,Q in the predeclared S_p, recovery is bijective and P+Q+R=O agrees. S_p and all windows are fixed by the protocol before metrics. Failure of this finite statement does not refute existence on another field, curve, point set, encoding or arity.",
+      "method_ceiling": {
+        "strongest_certifiable_claim": "Exact finite rational relation correspondence and presentation-size comparison for two special j=0 toy curves; exhaustive finite relation retrieval costs for the specified enumeration instrument only.",
+        "nearby_object_control": "Replace S_p by an equally sized set differing in exactly O and one outside point; reject coordinate-only comparability even if coarse relation counts coincide. Use the nonempty full X-fiber-selected window to reject the false per-window claim B=w."
+      },
+      "proof_obligations": [
+        {
+          "claim": "Explicit parameter substitutions and inverse maps preserve each curve and the identity, including O and T.",
+          "responsibility": "interface"
+        },
+        {
+          "claim": "Branch equations have exactly the claimed canonical pairs, with unique auxiliary values and no denominator-zero loss.",
+          "responsibility": "correctness"
+        },
+        {
+          "claim": "A strict score decrease is evaluated against every required target with identical S_p, under fixed normalization, including branch and membership overhead.",
+          "responsibility": "strictness"
+        },
+        {
+          "claim": "All equations, field constraints, point-membership polynomials, fallback graphs, and exceptional cases are serialized and counted.",
+          "responsibility": "size"
+        },
+        {
+          "claim": "Enumeration, construction, transport, exceptions, validation and recovery costs are reported separately and summed; no polynomial-size proxy is an end-to-end attack cost.",
+          "responsibility": "runtime"
+        },
+        {
+          "claim": "Peak RSS and serialized polynomial/point/branch bytes are measured with all retained objects.",
+          "responsibility": "memory"
+        },
+        {
+          "claim": "Geometric summation degree and finite evaluation relation counts are not interchangeable; no universal complexity claim or closure.",
+          "responsibility": "scope"
+        }
+      ],
+      "formalization": {
+        "status": "deferred_with_exact_definition_prerequisite",
+        "smallest_obligation": "For either fixed p, a native relation certificate accepted by the serialized finite-branch verifier decodes to P+Q+R=O in the canonical W group.",
+        "missing_definition": "The run has not yet produced the canonical finite point encoding, branch-polynomial artifact and finite certificate-verifier definition to state the exact Lean proposition. No toolchain or theorem target was silently invented.",
+        "revisit_trigger": "After an archived Executor return fixes those artifacts, Coordinator allocates a formal Executor task and freezes the concrete theorem, module, toolchain and dependency manifest, with the deleted-exception negative control; no present formal task is claimed."
+      },
+      "not_applicable_reason": null
+    },
+    "citations": [
+      {
+        "ref": "ledger/proposals/IDEA-20260905-4dff7b.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Original proposal; fixes two comparison arms and preserves its unverified existential scope."
+      },
+      {
+        "ref": "experiments/EXP-MODEL-5c4f24/specification.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Unapproved earlier draft supplies Hessian-coordinate and exception controls and the historical conditional factor-2 proxy; not evidence."
+      },
+      {
+        "ref": "experiments/EXP-MODEL-1554cd/specification.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Unapproved earlier draft supplies same-curve, wrong-map and coordinate-relabeling controls; its degree and membership assertions are not adopted."
+      },
+      {
+        "ref": "ledger/proposals/IDEA-20260905-d0fee4.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Source of the alternative window convention and historical 9/2 proxy; proposed universal closure is not adopted."
+      },
+      {
+        "ref": "ledger/decisions/DEC-20260905-b3d10c.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Pointer to the membership-convention defect and competing predictions, read directly; no scientific conclusion imported."
+      },
+      {
+        "ref": "https://www.hyperelliptic.org/EFD/oldefd/hessian.html",
+        "provenance": "retrieved",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Read definition, W map, negation and affine addition formulas. Specializing d=0 and inverting the displayed map defines this protocol. No EFD verification script was run."
+      },
+      {
+        "ref": "https://www.hyperelliptic.org/tanja/teaching/crypto21/ecc-6.pdf",
+        "provenance": "retrieved",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Read pages 9-11 (zero-indexed) for Montgomery/twisted-Edwards maps, parameter identities and exceptions. The selected constants below are design inputs awaiting exact gate checks."
+      },
+      {
+        "ref": "https://www.hyperelliptic.org/EFD/g1p/auto-twisted.html",
+        "provenance": "retrieved",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Read twisted-Edwards defining equation, addition and negation formulas."
+      },
+      {
+        "ref": "knowledge/techniques/KN-TECH-001.md",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Internal baseline pointer for generic rho; use sqrt-order group-operation and constant-storage comparison only, no current-frontier claim."
+      },
+      {
+        "ref": "knowledge/techniques/KN-TECH-031.md",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-0cf62c",
+        "claim": "Internal BSGS method pointer; separately report sqrt-order operations and storage; no universal memory-cost exponent is imported."
+      }
+    ],
+    "source_commit": "f42e1dc23b1f8f85d7b7d4a4a811490fbe767936",
+    "design_source_bindings": [
+      {
+        "path": "ledger/proposals/IDEA-20260905-4dff7b.yaml",
+        "expected": "a4ac64b24e4165c2696afb31d663a61ae7dc0db2ef97008a2af5adc2d12a6b3c",
+        "actual": "a4ac64b24e4165c2696afb31d663a61ae7dc0db2ef97008a2af5adc2d12a6b3c",
+        "match": true
+      },
+      {
+        "path": "ledger/proposals/IDEA-20260905-d0fee4.yaml",
+        "expected": "d1d5990b28e0063e8279162a85fcebaf5c6df6f8c5fcc22c0073c472b045a8cf",
+        "actual": "d1d5990b28e0063e8279162a85fcebaf5c6df6f8c5fcc22c0073c472b045a8cf",
+        "match": true
+      },
+      {
+        "path": "ledger/decisions/DEC-20260905-b3d10c.yaml",
+        "expected": "9d0beb2d03039f93d96baedd5531fc0fc687af4be333324e1ee378eaa55694c2",
+        "actual": "9d0beb2d03039f93d96baedd5531fc0fc687af4be333324e1ee378eaa55694c2",
+        "match": true
+      },
+      {
+        "path": "experiments/EXP-MODEL-5c4f24/specification.yaml",
+        "expected": "3a192087002d40b07edee7bf4313e21c87a7db06eadb607ddb141b45b2f2fcf6",
+        "actual": "3a192087002d40b07edee7bf4313e21c87a7db06eadb607ddb141b45b2f2fcf6",
+        "match": true
+      },
+      {
+        "path": "experiments/EXP-MODEL-1554cd/specification.yaml",
+        "expected": "6b4bebdb74c0b452afc33f2aba44179960ce059707bc0961f0ca7d4e5d08c94a",
+        "actual": "6b4bebdb74c0b452afc33f2aba44179960ce059707bc0961f0ca7d4e5d08c94a",
+        "match": true
+      }
+    ],
+    "inference": {
+      "agent_path": "/root/ultra_models_designer",
+      "session_id": "01a07e67-20ec-77f1-8775-5ae2a2a800d1",
+      "role": "coordinator",
+      "requested_policy": "coordinator-orchestration-code",
+      "reasoning_effort": "ultra",
+      "resolved_model_id": "gpt-6-astra",
+      "provider": "openai",
+      "model_verified": false,
+      "fallback_used": false,
+      "degraded_requirements": [],
+      "provenance": "Parent observed native session_meta and first turn_context; no adapter probe; this task did not read session files outside its scope.",
+      "session_meta_sha256": "125e5e4cfddd21b747cd9df0f3fb481e3e5f023960a7cd3948a36cd6c8c5b5d2",
+      "turn_context_sha256": "9dae6b3a147ddac44d72316490cf3624c0f8d06a295ebad7fe6610c105168c7a"
+    },
+    "approval_gate": "Review-required design only. Parent Coordinator reads exact final bytes, resolves any detected defects, records a separate approval under standing user authorization, then publishes the complete execution/review chain. This file cannot itself dispatch an experiment."
+  }
+}

@@ -1,0 +1,412 @@
+validation_report:
+  id: VAL-20260904-da6453
+  task_id: TASK-20260904-a17443
+  experiment_id: EXP-MONO-e102a3
+  hypothesis_id: H-MONO-403c01
+  run_ids:
+    - RUN-MONO-e102a3-1
+
+  scope_statement: >-
+    This report addresses ONLY the two joints assigned to the Validator by
+    TASK-20260904-a17443's review_plan: J1-SECOND-OBJECT-VERIFICATION and
+    J2-R3-EXACT-COMPARISON. J3 (the correct error model for judging V_R's
+    own deviation from the naive S_3 asymptote) and J4 (overall reading of
+    H-MONO-403c01 given J3) are the Red Team's joints and are NOT assessed
+    here. No verdict is offered on whether this second object constitutes
+    "real progress toward S_3" or on H-MONO-403c01's status -- that
+    synthesis is the Coordinator's, after both reports are filed.
+    blind_rederivation.required is false for this task (unlike
+    EXP-MONO-bb6fa1's own review round), and the dispatching task message
+    itself named the target numbers to confirm, so this is an ordinary
+    (non-blind) independent verification, not a blind rederivation.
+
+  # ============================================================ J1
+  j1_second_object_verification:
+    method: >-
+      Entirely fresh code, written by the Validator, reusing NONE of
+      run_galois_cubic_census_v2.py's or run_galois_cubic_census.py's
+      functions (no shared pt_add/pt_mul/curve_order/j_invariant/
+      classify_cubic/find_VR_points/specialize_at_T0 calls). Curve
+      arithmetic (point add/double/scalar-mul, modular inverse via
+      Fermat's little theorem rather than pow(x,-1,p)), point counting
+      (Legendre-symbol sum), the j-invariant formula, and the true-order
+      confirmation (factor the claimed order, reduce at each prime
+      factor) are all independently implemented. The cubic-type
+      classifier is a DIFFERENT method from the Executor's
+      discriminant-formula classifier: pure ROOT-COUNTING over F_101 (0
+      roots -> irreducible; 3 roots -> split; 2 roots -> forced [1,2]
+      multiplicity -> degenerate; 1 root -> synthetic-divide out the
+      root and check whether the quotient vanishes at that same root
+      (triple root -> degenerate) or has a nonsquare discriminant
+      (genuine one_plus_two), with an internal assertion that a nonzero
+      SQUARE quotient discriminant can never occur when only 1 root was
+      found (would force >=2 roots) -- this assertion fired zero times
+      across all 10200 V_R' points, itself a nontrivial cross-check that
+      the classifier logic is internally consistent). The only artifact
+      reused is the frozen, already-symbolically-verified
+      s4_symmetric_coeffs.json table (read-only, sha256-checked below);
+      the specialization-at-T0 and (e1,e2,e3) enumeration were
+      independently re-coded (a flat term accumulation, not the
+      Executor's nested-bucket structure, though both are the same
+      "direct enumerate e3 over all p values, never solve for it"
+      discipline the frozen contract requires).
+      Both scripts written to
+      /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/validator_j1.py
+      (scratchpad only, not a repository artifact).
+    curve_check:
+      independently_computed: {A: 1, B: 2, p: 101, order_via_Legendre_sum: 100, trace: 2, j_invariant: 4}
+      archived: {A: 1, B: 2, p: 101, order_E: 100, trace: 2, j_invariant: 4}
+      matches: true
+      ordinary_confirmed: >-
+        trace=2, 2 mod 101 != 0, so E' is ordinary (standard criterion for
+        p>3: supersingular iff trace ≡ 0 mod p). Independently confirmed,
+        not merely re-asserted.
+    point_R_check:
+      on_curve_independently_checked: true
+      claimed_true_order: 50
+      order_confirmation_method: >-
+        Factor 50 = 2^1 * 5^2. Confirmed 50*R' = O (identity), then for
+        each prime factor q in {2,5}, confirmed (50/q)*R' != O. This is
+        the standard "reduce at every prime factor" order-confirmation
+        algorithm; 50 was never assumed.
+      result: >-
+        50*R'=O; 25*R' != O; 10*R' != O -- TRUE order of R' is exactly
+        50, independently confirmed. Order 50 > 2, so R' is not in E'[2].
+      matches_archived: true
+    supplementary_non_cherry_picking_check:
+      note: >-
+        Not explicitly required by J1's checklist, but cheap and directly
+        useful: re-ran the SAME declared ascending (A,B) scan rule from
+        scratch (independent code) and confirmed the first two admissible
+        hits are exactly (A=1,B=1,j=34,order=105,trace=-3) then
+        (A=1,B=2,j=4,order=100,trace=2) -- i.e. E' genuinely is "the next
+        admissible curve after the first", not a hand-picked curve.
+        Also independently confirmed generator G'=(6,27) has true order
+        100 (factor 100=2^2*5^2, reduce at each prime) and that
+        2*G'=(53,82)=R' exactly, confirming R' was derived by the
+        declared rule (R'=kG', k=2).
+      first_hit_reproduced: {A: 1, B: 1, j: 34, order: 105, trace: -3}
+      second_hit_reproduced: {A: 1, B: 2, j: 4, order: 100, trace: 2}
+      generator_true_order_confirmed_100: true
+      two_times_G_equals_R_confirmed: true
+      matches_archived: true
+    stage0_census_independent_recomputation:
+      n_VR_total: {independent: 10200, archived: 10200, matches: true}
+      n_degenerate: {independent: 195, archived: 195, matches: true}
+      n_nondegenerate: {independent: 10005, archived: 10005, matches: true}
+      type_counts:
+        split: {independent: 1523, archived: 1523, matches: true}
+        one_plus_two: {independent: 5046, archived: 5046, matches: true}
+        irreducible: {independent: 3436, archived: 3436, matches: true}
+        degenerate: {independent: 195, archived: 195, matches: true}
+      R1_disc_square_rate_exact: {independent: "57/115", archived: "57/115", matches: true}
+      R2_one_plus_two_density_exact: {independent: "58/115", archived: "58/115", matches: true}
+      R3_split_density_exact: {independent: "1523/10005", archived: "1523/10005", matches: true}
+      irreducible_density_exact: {independent: "3436/10005", archived: "3436/10005", matches: true}
+      note: >-
+        Every reported quantity matches the archived raw-result.json /
+        execution_report.yaml EXACTLY (integer counts and reduced
+        fractions.Fraction values), obtained via a fully independent
+        enumeration and a fully independent (root-counting, not
+        discriminant-formula) classifier. This is exact agreement
+        between two mathematically DIFFERENT classification methods, not
+        just a re-run of the same code -- the discriminant-square rate
+        R1 was derived without ever invoking a discriminant formula at
+        all (split and irreducible are the disc-square strata purely by
+        Frobenius-parity of the cycle type; one_plus_two is the disc-
+        nonsquare stratum), so this is genuine independent corroboration
+        of the Executor's disc-formula-based classifier, not a repeat
+        measurement with the same instrument.
+    proves_too_much_control:
+      statement: >-
+        Per the review_plan's own proves_too_much block, R1+R2=1 is a
+        pure combinatorial identity (split+one_plus_two+irreducible
+        exhausts the non-degenerate population, and R1=split+irreducible,
+        R2=one_plus_two, so R1+R2 = (split+irreducible+one_plus_two) /
+        nondegenerate = 1 identically) that must hold on ANY curve/R,
+        independent of the true Galois group. This is a sanity check on
+        the classifier's continued correctness on a new object, not
+        evidence about G_R'.
+      independently_recomputed: "57/115 + 58/115 = 115/115 = 1"
+      result: PASSED. Confirmed exactly via fractions.Fraction, as required.
+      per_failure_signature: >-
+        Per the review_plan's failure_signature, had this NOT held
+        exactly, it would indicate a bug in the classifier or in this
+        Validator's own method -- it did hold, on the first try, with no
+        adjustment.
+    full_reexecution_reproducibility_check:
+      note: >-
+        Not one of the two named joints, but directly useful evidence of
+        non-fabrication: re-executed the ACTUAL frozen script
+        (run_galois_cubic_census_v2.py) from the exact recorded command
+        in command.txt (output redirected to a scratchpad path, no
+        repository file touched or overwritten), and diffed the result
+        against the archived raw-result.json field-by-field.
+      result: >-
+        IDENTICAL in every field except wall_seconds/cpu_seconds/
+        peak_rss_bytes (expected hardware-timing variance: 6.3s vs 6.3s
+        wall, 21659648 vs 21463040 bytes RSS). Every curve-selection,
+        generator, R8, Stage-1, and Stage-0 field -- including all exact
+        Fraction strings -- reproduced bit-for-bit. stderr.log was empty
+        in both runs. This confirms raw-result.json is the actual,
+        reproducible output of the frozen script, not a hand-edited or
+        fabricated artifact.
+      verdict: HOLDS.
+
+  # ============================================================ J2
+  j2_r3_exact_comparison:
+    method: "Python fractions.Fraction exact rational arithmetic; cross-multiplication as the task specifies."
+    cross_multiplication:
+      "1523_times_101": 153823
+      "17_times_10005": 170085
+      equal: false
+    exact_fraction_check:
+      observed_R3: "1523/10005"
+      target: "17/101"
+      equal: false
+    exact_difference_reduced_fraction: "-16262/1010505"
+    difference_verification: >-
+      1523*101 - 17*10005 = 153823 - 170085 = -16262 (numerator);
+      lcm(10005,101) = 1010505 since gcd(10005,101)=1 (101 is prime and
+      does not divide 10005 = 3*5*23*29). Factored the reduced fraction
+      independently: numerator 16262 = 2*47*173; denominator 1010505 =
+      3*5*23*29*101. No common prime factor, so -16262/1010505 is
+      already in lowest terms (also confirmed automatically by Python's
+      Fraction, which always stores in reduced form).
+    verdict: >-
+      CONFIRMED. R3=1523/10005 does NOT equal 17/101 exactly on this
+      second object, by exact-fraction cross-multiplication (not
+      floating point). This matches the archived
+      `r3_equals_17_over_101_exact.matches_exactly: false` and the
+      Coordinator's own prior spot-check in the review_plan.
+
+  # ============================================================ standard artifact/manifest checks (background duty)
+  artifact_checks:
+    - artifact: experiments/EXP-MONO-e102a3/specification.yaml
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-e102a3/implementation/run_galois_cubic_census_v2.py
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/command.txt
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/raw-result.json
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/stdout.log
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/stderr.log
+      present: true
+      sha256_matches_manifest: true
+      note: "empty file (0 bytes); consistent with a clean, non-erroring run"
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/manifest.yaml
+      present: true
+    - artifact: experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/environment.json
+      present: true
+    - artifact: experiments/EXP-MONO-e102a3/execution_report.yaml
+      present: true
+    - artifact: experiments/EXP-MONO-815525/implementation/derive_s4.py
+      present: true
+      sha256_matches_manifest_reused_frozen_artifacts: true
+      note: "identical hash to EXP-MONO-bb6fa1's own reused copy -- confirms no drift in the reused, frozen construction"
+    - artifact: experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json
+      present: true
+      sha256_matches_manifest_reused_frozen_artifacts: true
+    - artifact: experiments/EXP-MONO-815525/implementation/s3_monomials.json
+      present: true
+      sha256_matches_manifest_reused_frozen_artifacts: true
+
+  metric_recomputations:
+    - metric: "curve E' (A,B,p,order,trace,j,ordinary)"
+      reported: {A: 1, B: 2, p: 101, order: 100, trace: 2, j: 4, ordinary: true}
+      recomputed: {A: 1, B: 2, p: 101, order: 100, trace: 2, j: 4, ordinary: true}
+      matches: true
+    - metric: "R' on-curve and true order"
+      reported: {R: [53, 82], true_order: 50}
+      recomputed: {R: [53, 82], true_order: 50, on_curve: true}
+      matches: true
+    - metric: "Stage 0 |V_R'|, R1, R2, R3, irreducible density (exact fractions)"
+      reported: {n_VR_total: 10200, R1: "57/115", R2: "58/115", R3: "1523/10005", irreducible: "3436/10005"}
+      recomputed: {n_VR_total: 10200, R1: "57/115", R2: "58/115", R3: "1523/10005", irreducible: "3436/10005"}
+      matches: true
+      method_independence: "different classifier (root-counting vs discriminant formula), different enumeration code"
+    - metric: "R1+R2 identity"
+      reported: "not explicitly reported by the Executor as a check, but implied by the raw counts"
+      recomputed: "57/115 + 58/115 = 1 exactly"
+      matches: true
+    - metric: "R3 vs 17/101 (exact)"
+      reported: {matches_exactly: false}
+      recomputed: {matches_exactly: false, cross_multiply: "153823 != 170085", difference: "-16262/1010505"}
+      matches: true
+
+  control_checks:
+    - control: "proves_too_much: R1+R2=1 (pure combinatorial identity, curve/R-independent)"
+      result: PASSED
+      note: "Confirmed exactly per the review_plan's own proves_too_much block; see j1 section above."
+    - control: "Stage 1 nearby-object controls (synthetic A_3 object, unconstrained object) against exact closed-form finite-p triples"
+      result: "READ, not independently re-derived by this Validator"
+      note: >-
+        Out of this task's explicit reduced scope (the dispatching task
+        message names only curve/point verification and the Stage-0
+        census as J1's checklist; the review_plan's own framing states
+        the enumeration method, S_4 construction, and Stage-1 tolerance
+        model are already independently verified and unchanged from
+        EXP-MONO-bb6fa1's own review round). Reported both_pass=true in
+        execution_report.yaml / raw-result.json, matching the same exact
+        closed-form values ("33/101","0","68/101") and
+        ("33/202","1/2","34/101") already independently re-derived
+        (by classical bijective counting AND independent brute force)
+        in EXP-MONO-bb6fa1's own Validator report
+        (experiments/EXP-MONO-bb6fa1/reviews/validator/validation-report.yaml,
+        section j1_blind_closed_form_rederivation), whose closed forms
+        do not depend on the curve or R at all. This Validator read but
+        did not re-execute Stage 1 for this run.
+    - control: "Stage R8 (m=3 baseline reproduction)"
+      result: "READ, not independently re-derived by this Validator"
+      note: "Out of scope for the same reason as above; reported PASS (30/30 samples)."
+
+  revision_and_dirty_tree: >-
+    This Validator's own task environment explicitly instructed: "do not
+    run any git commands, do not commit, do not push." That instruction
+    was followed exactly -- no git status/log/show/diff was run at any
+    point in this review. Consequently commit reachability and
+    working-tree dirty-state were NOT independently checked here.
+    Content-hash verification (sha256) was performed instead against
+    every declared artifact (see artifact_checks above) and matched
+    exactly, per this program's own "archive receipts bind to content
+    first" doctrine. A full re-execution of the frozen script from the
+    exact recorded command also reproduced raw-result.json bit-for-bit
+    (see full_reexecution_reproducibility_check above), which is
+    stronger evidence of non-fabrication than a commit-sha check alone
+    would provide.
+    FLAG FOR THE COORDINATOR: manifest.yaml's `code.commit` field already
+    contains a full 40-hex-character value
+    (d8c149d20ad4ed6dc138e0ea1cacd6d40004b3f1), while the adjacent
+    `code.commit_note` field states in the same file that the commit was
+    "NOT RECORDED BY THE EXECUTOR ... To be filled in by the Coordinator
+    at archive time via a read-only ref read of the branch tip
+    immediately before the archive commit." These two statements are in
+    tension: either the Coordinator has already filled this field in (in
+    which case the note is stale and should be updated to say so), or
+    the field holds a value that was never verified against an actual
+    branch tip (in which case it should not read as a real, checked
+    commit sha). This Validator was directed not to run git and so could
+    not resolve which is true; it is reported here as a disclosed,
+    unresolved inconsistency for the Coordinator to reconcile before
+    treating this run's `code.commit` field as verified.
+
+  seed_and_determinism: >-
+    seed 20260904009 matches specification.yaml replication.seeds[0].
+    Confirmed fully deterministic by direct re-execution (see above): no
+    random.Random is instantiated, and every field except wall/cpu/RSS
+    timing reproduced bit-for-bit on independent re-run.
+
+  environment_record: >-
+    Python 3.13.1 CPython, macOS-26.6-arm64, no dependencies, no CAS,
+    network disabled -- matches specification's environment_preconditions
+    ("NO CAS REQUIRED... Pure Python otherwise"). This Validator's own
+    re-execution ran under the identical Python 3.13.1 interpreter.
+
+  resource_and_budget_check: >-
+    Reported wall=6.3s, cpu=6.3s, peak_rss=21,659,648 bytes,
+    disk=16,384 bytes, 1 worker -- all comfortably within
+    specification.yaml's budget (max_wall/cpu 900s, max_peak_rss
+    134,217,728 bytes, max_total_disk 10,485,760 bytes, max_workers 1).
+    This Validator's own independent scripts and re-execution together
+    ran in well under 1 second of additional compute, far inside this
+    review task's own budget (wall_clock_seconds: 2400, memory_gb: 4).
+
+  independence_and_blindness_disclosure:
+    read_sibling_reports: false
+    sibling_directory_checked_for_existence_only: true
+    sibling_directory_contents_read: false
+    note: >-
+      `experiments/EXP-MONO-e102a3/reviews/` did not exist at all at the
+      time this Validator listed it (only this report's own `validator/`
+      subdirectory has since been created, by this report). No
+      `red-team/` subdirectory or report was present, and none was read,
+      at any point during this review.
+    blindness_lifted_for: null
+    blindness_lifted_for_note: "per the plan, blindness.lifted_for is null; not applicable to this task"
+
+  overall_verdict_on_j1_j2: >-
+    Both joints HOLD. E'=y^2=x^3+x+2/F_101 is independently confirmed
+    ordinary with order 100, trace 2, j=4; R'=(53,82) is independently
+    confirmed on-curve with TRUE order exactly 50 (factored and reduced
+    at each prime factor, not assumed); the second curve/R genuinely is
+    "the next admissible pair after the first" under the declared scan
+    (independently re-derived from scratch); and Stage 0's exhaustive
+    census independently reproduces |V_R'|=10200,
+    R1=57/115, R2=58/115, R3=1523/10005, irreducible=3436/10005 EXACTLY,
+    via a genuinely different enumeration implementation and a
+    genuinely different (root-counting, not discriminant-formula)
+    classification method -- this is cross-method corroboration, not a
+    re-run of the same instrument. R1+R2=1 exactly, as the review_plan's
+    own proves_too_much control requires (a curve/R-independent
+    combinatorial identity, not evidence about G_R'). R3=1523/10005 does
+    NOT equal 17/101 exactly, confirmed by exact-fraction
+    cross-multiplication (153823 != 170085), with exact difference
+    -16262/1010505 in lowest terms. Full re-execution of the frozen
+    script from its recorded command reproduces raw-result.json
+    bit-for-bit (modulo timing/RSS), directly evidencing the receipt is
+    not fabricated.
+    This verdict says NOTHING about whether the observed R3 deviation
+    (0.0144 from 1/6) is "expected" or "concerning" under G_R'=S_3, what
+    the theoretically correct error model is, or whether two objects at
+    the same prime constitute meaningful progress toward confirming
+    G_R=S_3 -- those are J3 and J4, assigned to the Red Team, and
+    H-MONO-403c01's status remains a Coordinator decision pending both
+    reports.
+
+  verdict: passed
+  limitations:
+    - "Scope limited to J1 and J2 per the review_plan; no verdict is offered on J3 (correct error model for V_R's own deviation) or J4 (overall reading of H-MONO-403c01)."
+    - "Git commit reachability and working-tree dirty-state were NOT independently checked, per this task's own explicit environment instruction not to run any git commands. Content-hash verification (sha256, all matched) and a full bit-for-bit re-execution of the frozen script were performed instead. A specific inconsistency between manifest.yaml's `code.commit` value and its own `code.commit_note` is flagged above for Coordinator reconciliation."
+    - "Stage 1 (nearby-object controls) and Stage R8 (m=3 baseline) were read and their reported PASS/exact-match results are noted, but were not independently re-derived by this Validator, per this task's own explicitly reduced scope (both are unchanged, already-verified pipeline elements per the review_plan's own framing)."
+    - "This is a toy-scale (p=101, two curves/R now, one prime) receipt; no claim of any kind about cryptographic-scale ECDLP, relation-rate exponents, or index-calculus cost follows from this report, per the frozen specification's own claim_ceiling."
+    - "A 'passed' verdict here means J1's and J2's own artifacts, curve/point re-verification, and Stage-0 census recomputation are admissible and internally consistent, and match the archived numbers exactly under independent code and an independent classification method. It does not authorize interpreting the R3 deviation in either direction, does not decide H-MONO-403c01's status, and does not by itself close or amend the specification -- those remain Coordinator acts, pending the Red Team's J3/J4."
+
+  artifact_paths:
+    - experiments/EXP-MONO-e102a3/specification.yaml
+    - experiments/EXP-MONO-e102a3/implementation/run_galois_cubic_census_v2.py
+    - experiments/EXP-MONO-e102a3/implementation.md
+    - experiments/EXP-MONO-e102a3/execution_report.yaml
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/raw-result.json
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/manifest.yaml
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/command.txt
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/environment.json
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/stdout.log
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/stderr.log
+    - experiments/EXP-MONO-815525/implementation/derive_s4.py
+    - experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json
+    - experiments/EXP-MONO-815525/implementation/s3_monomials.json
+    - experiments/EXP-MONO-bb6fa1/reviews/validator/validation-report.yaml
+    - ledger/hypotheses/H-MONO-403c01.yaml
+    - ledger/handoffs/TASK-20260904-a17443.yaml
+
+review_attestation:
+  task_id: TASK-20260904-a17443
+  joints_owned:
+    - J1-SECOND-OBJECT-VERIFICATION
+    - J2-R3-EXACT-COMPARISON
+  sources_read:
+    - agents/validator.md
+    - AGENTS.md (via prior session context / CLAUDE.md binding; re-confirmed against templates/research-records.md for schema)
+    - ledger/handoffs/TASK-20260904-a17443.yaml
+    - experiments/EXP-MONO-e102a3/specification.yaml
+    - ledger/hypotheses/H-MONO-403c01.yaml
+    - experiments/EXP-MONO-e102a3/execution_report.yaml
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/raw-result.json
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/manifest.yaml
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/command.txt
+    - experiments/EXP-MONO-e102a3/runs/RUN-MONO-e102a3-1/environment.json
+    - experiments/EXP-MONO-e102a3/implementation/run_galois_cubic_census_v2.py
+    - experiments/EXP-MONO-815525/implementation/derive_s4.py
+    - experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json (structure only, read programmatically)
+    - experiments/EXP-MONO-bb6fa1/reviews/validator/validation-report.yaml (precedent/schema reference for this experiment family)
+    - templates/research-records.md (review_attestation schema only)
+  read_sibling_reports: false
+  blind_from_respected: "not applicable (blind_rederivation.required: false for this task)"
+  verdict: holds

@@ -1,0 +1,76 @@
+# J13 O4 (N-PERT19) -- READING TABLE, written and hashed BEFORE any draw and
+# BEFORE the pinned engine runs on any N-PERT19 system (RT-4; plan
+# proves_too_much.nearby_object_control.reading_table_before_running).
+# Red team TASK-20260926-fee7a9, session-1. Not a proves-too-much object:
+# no failure signature; every outcome is informative.
+o4_reading_table:
+  construction_as_fixed_by_the_plan: >-
+    Base systems S3-U400:0..19. One numpy.random.Generator(PCG64(2026092670901)).
+    P-BIL: slots i = 0..19, attempts a = 0..63: k = int(g.integers(0, 19));
+    c = int(g.integers(0, 100)); flip E[k, col(c // 10, 10 + c % 10)]; s by
+    exhaustive 2^20 evaluation; keep the first attempt with s = 0; record every
+    rejected attempt. Then P-QUAD on the SAME generator, same slots and cap:
+    k = int(g.integers(0, 19)); c = int(g.integers(0, 90)); flip E[k, the c-th
+    non-bilinear quadratic column in E_layout order]. A slot unfilled after 64
+    attempts is EXHAUSTED(cap), recorded, never redrawn.
+  interpretations_fixed_before_drawing:
+    - Each attempt flips ONE coefficient of the BASE system S3-U400:i (a fresh copy per attempt); flips do not accumulate across attempts.
+    - The slot loop stops at the first kept attempt; the generator is consumed only by attempts actually made (so the P-QUAD stream position depends on how many P-BIL attempts were rejected). This is what "continuing the SAME generator" means under a keep-first rule.
+    - '"The c-th column, in E_layout order, among the 90 pairs (i, j) with i < j < 10 or 10 <= i < j": the 90 non-bilinear pairs listed in lexicographic (i, j) order, which is E_layout order: (0,1)..(0,9), (1,2)..(8,9), then (10,11)..(18,19); c is 0-based.'
+    - '"ell survives" for a kept system iff c_k = Tr(t^k / x_R^2) = 0 for the flipped row k (then c is still in the left kernel of the quadratic columns and ell = sum c_k f_k is unchanged). Recorded per system, with the kernel dimension.'
+    - 's is computed by MY OWN exhaustive evaluation (code/rtlib19-independent numpy bit-sliced evaluator, self-tested against archived s before use). M_4 and W_4 by the PINNED engine unchanged; rc_b (R''_3, R''_4 by the pinned engine on MY substitution) where the kernel is 1-dimensional. My own literal W_4 is ALSO run on every kept system as a cross-check.'
+  quantities:
+    n_F: kept systems of family F (<= 20; EXHAUSTED slots excluded)
+    w_F: kept systems of family F with 1 in W_4 (pinned engine)
+    m_F: kept systems of family F with 1 in M_4
+    w_F_ell / n_F_ell: the same restricted to kept systems where ell survives; w_F_noell / n_F_noell where it does not
+    AT_PRIMARY_RATE(F): the exact Clopper-Pearson 95% interval of w_F / n_F overlaps S3-U400's [0.99082, 1] (at n_F = 20 this is w_F >= 19)
+    LOW(F): w_F <= floor(0.1 n_F)
+  readings (declared before any data):
+    R1_both_at_primary_rate: >-
+      AT_PRIMARY_RATE in P-BIL and in P-QUAD, with ell-surviving and
+      ell-broken systems both refuted: the W_4 refutation is ROBUST to a
+      one-coefficient change of the tensor, inside or outside S_3's bilinear
+      support. The load-bearing structure is coarser than S_3's exact tensor
+      phi_{x_R}(Q) and coarser than the cokernel functional ell. Consequence
+      for J9 / J11: "S_3's own tensor is what refutes" is NOT supported at
+      the resolution of one coefficient; the reading must be stated as "a
+      neighbourhood of the tensor" (18 of 19 rows keep the convolution
+      structure after a flip), and the nearby object that separates S_3 must
+      be farther away.
+    R2_refuted_only_where_ell_survives: >-
+      Within a family (or pooled), w_ell / n_ell at the primary rate AND
+      w_noell <= floor(0.1 n_noell), with n_ell >= 3 and n_noell >= 3: the
+      cokernel functional ell (equivalently: the 19 quadratic parts spanning
+      only an 18-dimensional space) is load-bearing for the W_4 refutation,
+      even though the ell ROUTE (1 in R'_4) never succeeds.
+    R3_bil_yes_quad_no: >-
+      AT_PRIMARY_RATE(P-BIL) and LOW(P-QUAD): perturbing inside the bilinear
+      support is harmless and adding a non-bilinear quadratic term destroys
+      the refutation: the bilinear SUPPORT (the x_1 x_2 bipartite shape of
+      the quadratic part) is load-bearing, not the exact coefficients.
+    R3b_quad_yes_bil_no: >-
+      AT_PRIMARY_RATE(P-QUAD) and LOW(P-BIL): the exact bilinear coefficients
+      (the convolution tensor itself) are load-bearing and terms outside the
+      bilinear support are tolerated. Strongest support for "S_3's own tensor
+      refutes" among the four readings.
+    R4_neither: >-
+      LOW(P-BIL) and LOW(P-QUAD): any one-coefficient change destroys the
+      refutation; the EXACT tensor is load-bearing (the refutation is a
+      property of phi_{x_R}(Q) itself, not of its neighbourhood). Combined
+      with N-CONV19 (exact tensor, random lower part: refuted 200/200) this
+      would locate the W_4 refutation at the exact quadratic tensor.
+    R5_mixed: >-
+      Any other combination (a family neither AT_PRIMARY_RATE nor LOW, or
+      ell-split inconclusive): the refutation depends on WHICH coefficient is
+      flipped. Reported with the per-system table (k, column, c_k, kernel
+      dimension, M_4 / W_4 records, R''_4 profile) to locate the load-bearing
+      coefficients; no single reading above is claimed.
+  what_no_outcome_licenses:
+    - Anything about S_3's hardness, about n other than 19, about other curves, about F4 or m = 3, or any cost.
+    - A change to any N19-DR verdict (O4 is a verification object authorized by DEC-20260926-f6a749 R-10, not an arm).
+    - Reading M_4 behaviour on O4 as evidence about the primary arm's M_4 floor beyond the 20 base systems.
+  also_reported_whatever_the_outcome:
+    - Per family the M_4 refutation count (a flip could create M_4 refutations; the base systems have none).
+    - Per system whether my own literal W_4 agrees with the engine (any disagreement is an engine or own-code finding, reported as such, never as evidence about H-CERTBIN-e3ac93).
+    - The number of rejected (s >= 1) attempts per slot and any EXHAUSTED(cap) slot.

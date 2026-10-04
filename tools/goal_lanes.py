@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import hashlib
 import json
 import os
 import re
@@ -307,6 +308,7 @@ def claim_task(
     include_refs: bool = True,
     now: _dt.datetime | None = None,
     force: bool = False,
+    lost_completion_reason: str | None = None,
 ) -> Path:
     if not TASK_ID.match(task_id):
         raise LaneError(f"{task_id!r} is not a TASK-YYYYMMDD-<6hex> identifier")
@@ -331,11 +333,45 @@ def claim_task(
             f"expires {current['expires_at']}, seen via {current['sources'].get('claim')}); "
             "wait for expiry, ask for a release on the bus, or --force with a recorded reason"
         )
+    superseded_completion = None
     if current and current["status"] == "released" and current["release"].get("outcome") == "completed":
-        raise LaneError(
-            f"{task_id} was released as completed by {current['owner']} (epoch {current['epoch']}); "
-            "a completed task is not re-claimable -- the Coordinator archives it"
-        )
+        # The rule is right: a completed task is archived, not re-run. It has one
+        # blind spot, found the hard way (CORR-20260921-942a62) -- a completion
+        # whose OUTPUT NO LONGER EXISTS. The release was accurate when written and
+        # is immutable, but "the Coordinator archives it" is then impossible,
+        # because there is nothing to archive, and the task is stuck terminal
+        # forever while its objective is unmet.
+        #
+        # So the exception is narrow and SELF-VERIFYING: it checks that the
+        # declared artifacts really are absent before allowing the re-claim, which
+        # is what stops the flag from being a way to redo work that exists.
+        if not lost_completion_reason:
+            raise LaneError(
+                f"{task_id} was released as completed by {current['owner']} "
+                f"(epoch {current['epoch']}); a completed task is not re-claimable -- "
+                "the Coordinator archives it.\n\n"
+                "If the completion's OUTPUT WAS LOST and there is nothing to "
+                "archive, re-claim with supersedes_lost_completion=<reason>; the "
+                "absence is verified before the claim is written."
+            )
+        declared = list(tasks[task_id].get("artifact_paths", []))
+        present = [rel for rel in declared if (root / rel).exists()]
+        if present:
+            raise LaneError(
+                f"refusing to supersede {task_id}'s completion: "
+                f"{len(present)} of its {len(declared)} declared artifact(s) DO exist:\n  "
+                + "\n  ".join(present)
+                + "\n\nThis flag is for a completion whose output was destroyed. "
+                "Work that exists is archived, not re-run."
+            )
+        superseded_completion = {
+            "epoch": current["epoch"],
+            "owner": current["owner"],
+            "released_at": current["release"].get("released_at"),
+            "bound_artifact_count": len(current["release"].get("artifact_sha256") or {}),
+            "declared_artifacts_now_absent": declared,
+            "reason": lost_completion_reason,
+        }
     epoch = (history[-1]["epoch"] + 1) if history else 1
     payload = {
         "schema": CLAIM_SCHEMA,
@@ -353,6 +389,7 @@ def claim_task(
             if current else None
         ),
         "forced": bool(force and current and current["status"] == "live"),
+        "supersedes_lost_completion": superseded_completion,
     }
     path = root / claims_prefix(root, queue_path) / f"{task_id}.{epoch}.claim.json"
     write_once(path, payload)
@@ -567,12 +604,33 @@ def cmd_claim(args: argparse.Namespace) -> int:
         root, queue, args.task, owner=args.as_addr, ttl_minutes=args.ttl_minutes,
         session=args.session, branch=args.branch, worktree=args.worktree,
         include_refs=not args.local_only, force=args.force,
+        lost_completion_reason=args.supersedes_lost_completion,
     )
     print(f"claimed {args.task} -> {path.relative_to(root)}")
     if args.publish:
         sha = publish(root, [path], f"claim({args.task}): {args.as_addr} holds write_scope", push=not args.no_push)
         print(f"published {sha}{'' if args.no_push else ' and pushed'}")
     return 0
+
+
+def declared_artifact_hashes(root: Path, queue_path: Path, task_id: str) -> tuple[dict[str, str], list[str]]:
+    """Hash every declared artifact of `task_id` that exists. Return (hashes, missing)."""
+    try:
+        queue = json.loads(queue_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}, []
+    task = next((t for t in queue.get("tasks", []) if t.get("id") == task_id), None)
+    if task is None:
+        return {}, []
+    hashes: dict[str, str] = {}
+    missing: list[str] = []
+    for rel in task.get("artifact_paths", []):
+        path = root / rel
+        if path.is_file():
+            hashes[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        else:
+            missing.append(rel)
+    return hashes, missing
 
 
 def cmd_release(args: argparse.Namespace) -> int:
@@ -582,10 +640,38 @@ def cmd_release(args: argparse.Namespace) -> int:
     for item in args.artifact or []:
         rel, _, digest = item.partition("=")
         hashes[rel] = digest
+
+    # A release recording `completed` is a claim that the work was DONE, so it
+    # binds what was produced. Before CORR-20260921-942a62 it could bind nothing:
+    # TASK-20260916-64a93b was released `completed` with an empty artifact_sha256
+    # and its artifacts were already only in one machine's working tree. Had the
+    # release carried hashes, the loss would have shown up as a MISMATCH the next
+    # time anyone looked, instead of as an absence nobody was looking for.
+    #
+    # So a completed release now hashes the task's declared artifacts itself, and
+    # refuses when one is missing. Explicit --artifact entries still win, for the
+    # case where the producer's own receipt is authoritative.
+    if args.outcome == "completed":
+        derived, missing = declared_artifact_hashes(root, queue, args.task)
+        if missing and not args.allow_missing_artifacts:
+            raise LaneError(
+                f"refusing to release {args.task} as completed: "
+                f"{len(missing)} declared artifact(s) do not exist:\n  "
+                + "\n  ".join(missing)
+                + "\n\nA completed release asserts the work was done. Either the "
+                "producer did not file these, or they were never landed -- see "
+                "tools/producer_landing.py. If the task genuinely completed without "
+                "them, pass --allow-missing-artifacts and say why in --note."
+            )
+        for rel, digest in derived.items():
+            hashes.setdefault(rel, digest)
+
     path = release_task(
         root, queue, args.task, owner=args.as_addr, outcome=args.outcome, note=args.note,
         artifact_sha256=hashes, include_refs=not args.local_only,
     )
+    if hashes:
+        print(f"  bound {len(hashes)} artifact hash(es)")
     print(f"released {args.task} as {args.outcome} -> {path.relative_to(root)}")
     if args.publish:
         sha = publish(root, [path], f"release({args.task}): {args.outcome} by {args.as_addr}", push=not args.no_push)
@@ -672,6 +758,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ttl-minutes", type=int, required=True, help="claim expiry; size to the task's budget")
     p.add_argument("--session"); p.add_argument("--branch"); p.add_argument("--worktree")
     p.add_argument("--force", action="store_true", help="supersede a LIVE claim (recorded as forced)")
+    p.add_argument("--supersedes-lost-completion", metavar="REASON", default=None,
+                   help="re-claim a task released as completed whose OUTPUT NO LONGER "
+                        "EXISTS. The absence of every declared artifact is verified "
+                        "before the claim is written, so this cannot re-run work that "
+                        "exists. The reason is recorded in the claim.")
     _common(p, needs_owner=True); p.set_defaults(func=cmd_claim)
 
     p = sub.add_parser("release", help="end your own claim with an outcome")
@@ -679,6 +770,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--outcome", choices=RELEASE_OUTCOMES, required=True)
     p.add_argument("--note")
     p.add_argument("--artifact", action="append", help="path=sha256, repeatable")
+    p.add_argument("--allow-missing-artifacts", action="store_true",
+                   help="release completed even though declared artifacts are absent; "
+                        "say why in --note")
     _common(p, needs_owner=True); p.set_defaults(func=cmd_release)
 
     p = sub.add_parser("claims", help="show every task's current claim status")

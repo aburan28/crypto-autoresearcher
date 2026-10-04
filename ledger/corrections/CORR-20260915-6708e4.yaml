@@ -1,0 +1,103 @@
+# =====================================================================
+# CORRECTION -- CORR-20260915-6708e4
+# Discloses a GOVERNANCE VIOLATION by the dispatching session: the
+# TASK-20260915-532164 screen was dispatched with its first declared
+# dispatch precondition unmet. WRITE-ONCE.
+#
+# Raised by the screening agent itself, in its own report, against the
+# session that dispatched it. Recorded because the alternative -- letting
+# a violation the reviewer caught go unrecorded -- is exactly the failure
+# the immutability rules exist to prevent.
+# =====================================================================
+
+correction:
+  id: CORR-20260915-6708e4
+  recorded_at: '2026-09-15'
+  recorded_by: coordinator
+  goal_id: GOAL-ICPERF-e6b6a4
+  batch_id: null
+  archived_by: TASK-20260915-70622d
+
+  record_type: run
+  record_id: TASK-20260915-532164
+  corrects:
+    - TASK-20260915-532164
+
+  nature: >-
+    DISCLOSES A DISPATCH THAT VIOLATED THE CARD'S OWN PRECONDITION. The
+    handoff TASK-20260915-532164 carries status `written_not_dispatched`,
+    `archived_by: null`, and dispatch_preconditions[0]: "archived_by is bound
+    to a freshly minted archival task, so that this card's report is owned by
+    exactly one archive before any agent writes it. Dispatch with archived_by
+    still null is forbidden." The coordinating session dispatched the screen
+    anyway, with archived_by still null. The session read the card's
+    objective, constraints and completion_gate and did not read its
+    dispatch_preconditions. The violation was caught and reported by the
+    screening agent, not by the dispatcher.
+
+  substance_of_the_violation:
+    field: TASK-20260915-532164 dispatch_preconditions[0] (archived_by binding)
+    prior_value: >-
+      Required state at dispatch: archived_by bound to a freshly minted
+      archival task, so exactly one archive owns the report before any agent
+      writes it.
+    actual_state_at_dispatch: >-
+      archived_by: null; status: written_not_dispatched. No archival task
+      existed. No lane was claimed either, so dispatch_preconditions[2] was
+      also unmet; dispatch_preconditions[1] WAS satisfied -- the screening
+      agent independently confirmed it read committed, pushed inputs at
+      1852537c02a0f936eb16b61d5e4b7df84eca9742 with a clean tree.
+    remedy_applied: >-
+      TASK-20260915-70622d is minted as the owning archival task and named in
+      this record's archived_by; the screen report and sources are committed
+      under it in the same act that records this correction. The handoff card
+      itself is NOT edited -- it is immutable and its `written_not_dispatched`
+      status is now historically accurate as the state the card was in WHEN
+      the violation occurred, with this record supplying what happened next.
+
+  what_this_does_and_does_not_change:
+    the_report_stands: >-
+      The screen's FINDINGS are unaffected by the ordering defect. The agent
+      worked inside its declared write scope
+      (coordination/goals/GOAL-ICPERF-e6b6a4/tasks/TASK-20260915-532164/),
+      created nothing under experiments/, ran zero experiments
+      (maximum_runs: 0 honoured), and read committed inputs. Verified
+      independently by the dispatching session: `git status --porcelain`
+      showed exactly one untracked path, that scope, and
+      experiments/EXP-ICPERF-025a52/ still contains only specification.yaml.
+    the_ordering_defect_was_real: >-
+      The precondition exists so that exactly one archive owns a report before
+      it is written. Dispatching first meant the report existed for the length
+      of the screen as an unowned working-tree artefact -- which is precisely
+      the state the screening agent flagged: "my report is a working-tree
+      artefact and is not durable evidence until an archival task commits it."
+      That is now remedied, but it was remedied after the fact rather than
+      before, and this record says so rather than presenting a clean sequence.
+    no_status_is_changed_by_this_record: >-
+      H-ICPERF-5f038b stays `specified`. EXP-ICPERF-025a52 stays v2, `draft`,
+      `approved_by: null`. The screen's verdict is INPUT to a Coordinator
+      decision, not itself a decision, and IMP-DESIGN-1 is not cleared by this
+      correction.
+
+  lesson_for_the_next_dispatcher: >-
+    A handoff card's dispatch_preconditions bind the DISPATCHER and are a
+    separate block from the constraints that bind the agent. Read both before
+    launching. The failure mode here was reading the half of the card
+    addressed to the callee and skipping the half addressed to the caller.
+
+  evidence_artifacts:
+    - ledger/handoffs/TASK-20260915-532164.yaml
+    - ledger/handoffs/TASK-20260915-70622d.yaml
+    - coordination/goals/GOAL-ICPERF-e6b6a4/tasks/TASK-20260915-532164/screen-report.md
+    - coordination/goals/GOAL-ICPERF-e6b6a4/tasks/TASK-20260915-532164/sources.yaml
+
+  interpretation_limits:
+    - >-
+      This corrects PROCESS, not mathematics. It is not evidence for or
+      against H-ICPERF-5f038b and carries no weight on the screen's verdict.
+    - >-
+      A reader must not infer from "the findings stand" that the ordering did
+      not matter. It mattered; it was recoverable here because the agent
+      stayed in scope and ran nothing. Under an agent that did not, the same
+      violation would have produced unowned artifacts with no archive to bind
+      them.

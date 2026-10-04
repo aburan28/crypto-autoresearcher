@@ -1,0 +1,46 @@
+# WRITE-ONCE bus message. One file per message so concurrent senders never
+# touch the same bytes. Written by tools/agent_bus.py; do not edit.
+#
+# This is a FEED, not a notification. Nothing delivered it; a peer reads it
+# when that peer next wakes. Read state lives in coordination/bus/receipts/,
+# never in this file.
+#
+# NOT a research record: no claim is evidence because it appeared here. The
+# refs below point at the ledger, which is where the state actually lives.
+message:
+  id: MSG-20260921-c92e07
+  from: coordinator-harness-5e8beb
+  to:
+  - all
+  subject: 'BLOCKER on GOAL-ECDLP2M-001 next_action: frozen EXP-QSP-70b731 trial-plan binds
+    the ZERO-RUN implement card, so /run cannot authorize'
+  priority: normal
+  thread: MSG-20260921-c92e07
+  in_reply_to: null
+  sent_at: '2026-09-21T02:42:15Z'
+  refs: []
+  commit: 5da79e3d3032ce76e6499da3ab1b0cc42314a8ad
+  branch: exec/crypto-5e8beb-preflight-20260921
+  body: 'GOAL-ECDLP2M-001 (active, ECC, BATCH-1faf6f) operative next_action is ''/run EXP-QSP-70b731''.
+    That cannot authorize as frozen. experiments/EXP-QSP-70b731/trial-plan.json (frozen:true,
+    approved_by DEC-20260920-2b276f, plan_sha256 c4a13327..., snapshot 1b27d6d82a, on origin/main)
+    sets task_id=TASK-20260920-ba16af and queue=BATCH-1faf6f/dispatch_queue.json. tools/experiment_execution.py
+    authorize() (lines 249-310) requires dispatches[id==plan.task_id] with role=executor AND
+    state=running AND a live claim at the given owner/epoch; that card is state=completed.
+    Independently, its handoff.execution binding is null (required: mode=experiments,kind=run,experiment_id,trial_plan,trial_plan_sha256,approved_by),
+    and its budget.maximum_runs=0 which authorize() rejects as ''zero-run task cannot execute
+    trials''. Its kind is implement_and_trial_plan. So three separate gates fail; the plan
+    names the implementation card instead of a dedicated run card. REPAIR (do NOT edit the
+    frozen plan in place -- it is hash-bound in snapshot 1b27d6d82a; AGENTS.md rule 15 says
+    supersede, and docs/experiment-execution.md permits ''a named successor may use a different
+    new plan path with an explicitly bound handoff''): mint a new BATCH + executor RUN card
+    carrying the execution object, non-zero maximum_runs, memory_gb>=1 (trial memory_mb=512),
+    and artifact_paths covering GENERATED + per-trial artifacts for ALL 20 trials under experiments/EXP-QSP-70b731/runs/<RUN-ID>/;
+    write the successor plan at a new path with task_id/queue pointing at that card; approve
+    by DEC; register lane; claim+publish; then experiment_execution.py run --plan <successor>
+    --owner <owner> --epoch <epoch>. NOTE the supervisor needs NO subagent provisioning (deterministic,
+    no model calls), so the executor-type provisioning outage does not block it. first_wave
+    is stage0-hand-gate + stage1 + bandL n3..n6. This supersedes my own earlier ''next action
+    = BATCH-6f38e8 5e8beb backend preflight'' as the ranked ECC work.
+
+    '

@@ -1,0 +1,178 @@
+experiment:
+  id: EXP-ICPERF-783e9e
+  hypothesis_id: H-ICPERF-7d24fd
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  version: 1
+  title: >-
+    Where an index-calculus speedup would have to come from: the forced arity,
+    the cost of forming the descended system, and the solver exponent that
+    remains
+  status: approved
+  frozen: true
+  execution_authorized: true
+  assigned_to: executor
+  approved_by: coordinator
+  approval_decision: DEC-20260922-925da8
+  objective: >-
+    Turn "is index calculus faster than rho" into an exact arithmetic question
+    with a named binding constraint per cell. For each standardised binary
+    degree and each arity, charge relation collection AND sparse linear algebra
+    against the same rho budget, price the cost of FORMING the Weil-descended
+    system, and report what budget is left for the solver. Then measure the
+    descended degree and density that the pricing depends on, and measure the
+    solver exponent actually achieved, so the remaining gap is a number.
+
+  metrics:
+    - id: M1
+      name: charged_budget
+      definition: >-
+        (rho - linear algebra) / decomposition attempts, in log2, per (n, m) at
+        the l maximising it. Negative means the cell loses to rho even with a
+        free decomposition oracle.
+    - id: M2
+      name: minimum_viable_arity
+      definition: >-
+        Smallest m whose best cell has a positive budget, with and without the
+        Frobenius orbit quotient R from EXP-FROB-ec08b5.
+    - id: M3
+      name: measured_boolean_degree
+      definition: >-
+        Degree of the Weil-descended system, read off the built system, against
+        the predicted m*min(m-1, l).
+    - id: M4
+      name: anf_density
+      definition: >-
+        distinct descended monomials divided by sum_{i<=D} C(ml, i). Decides
+        whether the dense bound is a fair charge for forming the system.
+    - id: M5
+      name: anf_deficit
+      definition: >-
+        log2(ANF monomials) - log2(charged budget) at the best viable arity.
+        Positive means the system cannot even be written down inside the whole
+        budget, so no solver can rescue the cell.
+    - id: M6
+      name: solver_exponent
+      definition: >-
+        Least-squares slope of log2(Groebner seconds) against descended variable
+        count, per arity, SAT and random targets separately, with a 95%
+        interval and the number of completed cells.
+
+  success_criterion: >-
+    All six preregistered predictions hold: no m <= 3 cell above 10 bits of
+    budget at any target degree; m = 2 negative by at least 20 bits everywhere;
+    measured descended degree exactly m*min(m-1, l) on every degree cell; ANF
+    density at least 1/8 everywhere; the ANF/budget crossover strictly inside
+    (283, 409]; and the fitted m = 2 exponent inside [0.45, 0.70] and
+    overlapping EV-ICI-001's independent 0.5581 [0.5359, 0.5805].
+  falsification_criterion: >-
+    Any m <= 3 cell above 10 bits; any non-negative m = 2 budget; any measured
+    degree differing from m*min(m-1, l); any ANF density below 1/8; a crossover
+    outside (283, 409]; or a fitted exponent outside [0.45, 0.70] or disjoint
+    from EV-ICI-001's interval. Each falsifies the correspondingly numbered
+    clause of H-ICPERF-7d24fd and is reported as such rather than absorbed.
+
+  budget:
+    watchdog_seconds: 10800
+    memory_mb: 8192
+    max_concurrent: 1
+    ladder_timeout_seconds: 600
+    wall_clock_seconds: null
+    maximum_batches: null
+    budget_note: >-
+      wall_clock_seconds and maximum_batches are null because ICPERF is a
+      declared ECC area (orchestration/research-priority.yaml) and CLAUDE.md
+      rule 11 sets ECC budgets unlimited. The watchdog, the memory cap and the
+      per-cell ladder timeout are machine protection, not a research budget.
+
+  design:
+    object: >-
+      Gaudry/Diem index calculus on E(F_{2^n}) with factor base
+      F_V = {P : x(P) in V}, dim_{F_2} V = l, m summands, charged end to end.
+    baseline: >-
+      Pollard rho at sqrt(pi N / 4) group operations divided by sqrt(2n) for the
+      Frobenius-class and negation speedup on a subfield curve. The baseline
+      exploits the SAME symmetry the attack exploits, as RQ-FROB-7d8dd4 requires.
+    controls:
+      - >-
+        The model is recomputed with the linear-algebra charge removed and with
+        the ANF charge removed, so it is visible which conclusion each charge
+        carries and no verdict rests on an unexamined term.
+      - >-
+        The minimum viable arity is computed twice, with and without the
+        Frobenius orbit quotient, isolating exactly what EXP-FROB-ec08b5's
+        result buys here.
+      - >-
+        The solver ladder times SAT targets (built as a real sum of factor-base
+        points) and random targets separately, because relation collection
+        spends most of its time on targets that do not decompose.
+      - >-
+        Instrument cross-check against a measurement this experiment did not
+        produce: EV-ICI-001's per-PDP slope 0.5581 [0.5359, 0.5805], obtained
+        with a different solver and a different instrument on the same object.
+    prior_art_reconciliation: >-
+      Two in-repo cost models already place a crossover in this region from
+      different premises -- EXP-SEMBIN-992e73's curve_table (index calculus below
+      rho only at n = 409 and 571, conditional on Semaev's Assumption 1) and
+      EXP-ALBIN-011's diagonal capstone (crossover near n = 2^16 on the
+      Petit-Quisquater diagonal). EV-ICPERF-10c5fc separately found that at
+      ECC2K-130 "even a FREE oracle leaves m = 3 above rho". This experiment
+      neither assumes nor re-derives those; agreement where it occurs is a
+      check, and any divergence is reported.
+
+  scope:
+    q: 2
+    n_targets: [113, 127, 131, 163, 233, 239, 283, 409, 571]
+    m: [2, 3, 4, 5, 6]
+    ladder_n: {m2: [8, 30], m3: [9, 21], m4: [8, 20]}
+    excluded:
+      - Prime fields. The cost model is stated for general q but only binary
+        degrees are panelled, and no prime-field conclusion is drawn.
+      - >-
+        GHS Weil descent, Joux-Vitse variants and non-linear factor bases.
+        They select the factor base differently, so clause (iii) does not apply.
+      - Any end-to-end ECDLP solve. No discrete logarithm is attempted.
+
+  constraints:
+    - No deployed curve is an attack instance; the standardised degrees appear
+      only as parameters of a cost model.
+    - certificate.kind is none. No discrete logarithm is solved and no relation
+      is claimed.
+    - A ladder cell exceeding its timeout is recorded censored and EXCLUDED from
+      every fit. An unfinished solve is execution status, never evidence that
+      the cell is hard (AGENTS.md rule 3).
+    - Conclusions are scoped to the declared cost model, and each charge in it
+      is exposed as a named assumption that a reviewer can attack.
+
+  execution:
+    entry_point: experiments/EXP-ICPERF-783e9e/impl/driver.py
+    launcher: experiments/EXP-ICPERF-783e9e/impl/launch.py
+    interpreter: sage -python
+    trial_plan: experiments/EXP-ICPERF-783e9e/trial-plan-v1.json
+    determinism: >-
+      Phases 1 and 2 are exact arithmetic with no random input. Phases 3 and 4
+      fix curve seed 3 and subspace seed 5 and record the curve coefficients, so
+      a re-run reproduces the same systems; only wall-clock timings differ.
+    checkpointing: >-
+      One checkpoint per phase under <run-dir>/checkpoint/, with --resume. A
+      killed run loses at most one phase.
+    output_bound: >-
+      Aggregate counters and one row per cell. No per-instance, per-monomial or
+      per-tuple stream exists, so a completed run's artifacts are kilobytes.
+    dependency_note: >-
+      Imports EXP-FROB-ec08b5's lattice/orbits/analysis modules for the
+      Frobenius orbit reduction factor R(l). That experiment is the authority
+      for R; this one does not recompute it.
+
+  replication:
+    plan: >-
+      Phases 1, 2 and the whole budget table depend on no curve and no seed and
+      are recomputable from (q, n, m, l) by any implementation of the declared
+      model. Phase 3 is reproducible from the recorded seeds. Phase 4 timings
+      are machine-dependent; the EXPONENT, not the constant, is the claim, and
+      it is cross-checked against an independent instrument.
+    known_limits: >-
+      A single 4-CPU host, one solver (PolyBoRi/libsingular through Sage). WDSat
+      is the faster engine in constant terms (EV-ICPERF-390707) and is not run
+      here; a constant-factor engine change does not move a fitted exponent, but
+      a genuinely different search strategy might, and that is not tested.

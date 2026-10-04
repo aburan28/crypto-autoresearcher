@@ -1,0 +1,433 @@
+rederivation_report:
+  task_id: TASK-20260929-0bcd38
+  role: blind re-deriver (joint J3 of review_plan_RUN-SDEG-3de103.yaml)
+  experiment_id: EXP-SDEG-85eefd
+  protocol_version: 4 (specification.yaml + AMD-20260926-3479cf + AMD-20260928-7ce387 + AMD-20260928-d3ed9e)
+  quantity: >-
+    W_query(B1) for each of the 384 L=8 queries: charged F_p operation count of
+    the A1 per-triple field-form subresultant (Euclidean) PRS of (F_T, b)
+    with early abort at the first verified hit, including the S5
+    specialization that forms b(u) (v3 OQ-1).
+  recorded_at: '2026-09-29'
+  committed: false
+
+  inference:
+    runtime: Cursor (validator custom subagent)
+    requested_policy: review-adversarial
+    resolved_model_id: inherited from parent session (not exposed to this agent)
+    reasoning_effort: xhigh requested; unverifiable on this runtime
+    fallback_used: true
+    fallback_reason: >-
+      The Cursor runtime runs the subagent on the inherited session model. It
+      cannot confirm that the review-adversarial policy was served at xhigh.
+    degraded_requirements: [reasoning_effort xhigh unverifiable, model not probe-verified]
+
+  artifacts:
+    code:
+      - path: derive_semaev.sage.py
+        sha256: ff912da9415c81f9104c08fdf3960955d5958458a38de97f8a032267dec3e354
+        role: >-
+          Uncharged symbolic derivation of S4 = Res_z(S3(x1,x2,z), S3(x3,x4,z))
+          and S5 = Res_y(S3(x1,x2,y), S4(x3,x4,x5,y)) over GF(p) for each L=8
+          curve. Dumps dense coefficient arrays to scratch.
+      - path: meter.py
+        sha256: d1977c76fc6fcd0a28ebfdcd5863e1a14e0f1bdc5b13e11eeb2a593e050d0570
+        role: >-
+          Instrumented meter (plain Python/NumPy, no Sage), plus the
+          identity checks, the per-triple point-arithmetic truth, the
+          exhaustive 5-multiset oracle and witness verification.
+    results:
+      path: rederivation_results.json
+      sha256: 27e2da2c5fdfb3121ecd442a4e63909457c2186e5ad46549bae0cf559d95c1fc
+      rows: 384
+    scratch_not_retained_in_task_dir:
+      note: >-
+        Deterministic Sage outputs, regenerable with the command below. They
+        are kept in TMPDIR scratch rather than the task directory because of
+        their size (~1.1 MB).
+      semaev_L8_s1.json: 51fc0521f9ae4741b930e9fe4f4457ee466ae57010dca12a3121ca061a16ae38
+      semaev_L8_s2.json: 58f8afabaff39a1830682044004d9648f1e22cb2674afdc6e82d48dabd90a2fe
+      semaev_L8_s3.json: 883e8cd88d70e933b196a30f6c3bc42806f89faf8b41d6a970b7d1f06a3b0d59
+    commands: |
+      export TMPDIR=/Volumes/SSD990/.tmp-agent; mkdir -p $TMPDIR/s5
+      T=coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260929-0bcd38
+      sage -python $T/derive_semaev.sage.py experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json $TMPDIR/s5
+      python3 $T/meter.py experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json $T/inputs_L8_targets.json $TMPDIR/s5 $T/rederivation_results.json
+    environment: macOS (darwin 25.6.0), Python 3.12.8, NumPy 2.4.4; Sage (python 3.14.3 build) for derivation only
+    input_hashes:
+      ic_leads_fixtures_v2.json: 543f49ca5304f4e61085305ca2ea01ccc0085298db26368d7362f96b1b6a5a45  # equals AMD-20260926-3479cf values_sha256
+      inputs_L8_targets.json: 15217601f8c641de855108932207fabc6ef2f5cbbe9327f259e4a54703384559
+
+  method:
+    semaev: >-
+      Derived S4 and S5 from the S3 formula in AMD-20260926-3479cf C-3 by
+      iterated resultants over GF(p) with each curve's (a, b). For every L=8
+      curve S5 has degree 8 in each variable, total degree 32, and 54,777 of
+      the 9^5 = 59,049 possible monomials. S4 has 439 monomials. Point-arithmetic identity
+      checks (1000 draws per curve, deterministic seed label): S5 vanishes on
+      all effective relation 5-tuples (1000/1000, 999/999, 999/999; one draw on
+      seeds 2 and 3 was skipped as degenerate), S4 vanishes on all relation
+      4-tuples, S5 is nonzero on 1000/998/998 random 5-tuples (two random zeros
+      at rate about 8/p are expected), and S5 is invariant under random
+      permutations on every effective draw.
+    forward_table: >-
+      T = {x(Pa + Pb), x(Pa - Pb) : a <= b in V} as a set, with P the lift of
+      each x in V. The point at infinity (Pa - Pa) is carried as an explicit
+      element (v3 OQ-6). F_T = prod over finite T of (u - v), which is monic
+      and squarefree with degree |T_finite|: 64 on interval_x/random_x, 16 on
+      progression and on |V|=4 subgroup_x, 4 on |V|=2 subgroup_x.
+    backward_polynomial: >-
+      b(u) = S5(u, x_i, x_j, x_k, x(R)), obtained by Horner specialization of
+      the dense S5 array: first x(R) (per query), then x_i, x_j and x_k in the
+      nested lexicographic loop, leaving 9 coefficients in u.
+    triple_enumeration: >-
+      Multiset triples i <= j <= k over ascending V (repetition allowed, C-3),
+      in lexicographic order: C(|V|+2, 3) = 120 for |V|=8, 20 for |V|=4 and 4
+      for |V|=2.
+    prs: >-
+      Field-form Euclidean remainder sequence r0 = F_T, r1 = b (v4 D-1). Each
+      division inverts lc(divisor) once. Stop at the first zero remainder,
+      where the gcd is the previous term and a hit needs deg >= 1, or at a
+      nonzero constant remainder (coprime). No composed resultant is formed.
+    decision: >-
+      A triple hits iff deg gcd(F_T, b) >= 1, or deg b < 8 (the
+      infinity element of T: the u^8 coefficient vanishes exactly when R is a
+      3-term sum over the triple), or b is identically 0 (never observed). The
+      witness is verified uncharged by an explicit signed 5-term
+      decomposition found by point arithmetic. The query stops at the first
+      verified hit (v3 OQ-4, v4 OQ-17). Non-members pay full enumeration.
+    cross_checks:
+      oracle: >-
+        An independent exhaustive enumeration of 5-multisets of signed
+        factor-base points (C(2|V|+4, 5) sums) agrees with the B1 decision on
+        384/384 queries, including the 5 R = O queries.
+      per_triple: >-
+        For every query and every triple, the set of B1-hitting triples
+        equals the set of point-arithmetic-hitting triples.
+      witnesses: every B1 hit had a verified witness.
+      planted_vs_member: all 192 planted targets are members; 21 of the 192 random targets are members.
+
+  conventions:
+    unit_weights: >-
+      One unit per F_p multiplication (squarings and multiplications by
+      constants included). An inversion costs 1 plus its counted
+      extended-gcd division steps (C-4). Additions are not charged. B1
+      does no hash probes. Witness verification is not charged (v3 ruling).
+    chosen_primary:
+      W_fixed_xR: >-
+        Dense Horner specialization of S5 at x(R): 9^4 fibers x 8 mults =
+        52,488 per query, whatever the value of x(R). This reading was
+        chosen to match the per-query fixed term that v3 OQ-1 states (about
+        52,488), so agreement on W_fixed is NOT independent evidence.
+      per_triple_specialization: >-
+        Dense Horner with nested-loop reuse in lexicographic order: 9^3*8 =
+        5,832 when i changes, 9^2*8 = 648 when (i,j) changes, and 9*8 = 72 per
+        triple. For a full |V|=8 enumeration that is 8*5832 + 36*648 + 120*72 =
+        78,624. Under early abort only the loop levels actually entered are
+        charged.
+      prs_division: >-
+        For dividend degree n and divisor degree d: one inversion, then
+        (n-d+1)*(1+d) mults (1 for the quotient coefficient and d for the
+        update; the cancelled leading term is not computed). This is charged
+        whether or not the quotient coefficient is zero.
+      W_query: W_fixed_xR + per-triple specialization + PRS charges, up to and including the first verified hitting triple.
+      W_triple: W_query - W_fixed_xR (v3 OQ-1).
+      table: >-
+        Construction of T and F_T is NOT included in primary W_query. It is
+        reported per cell as W_table_unamortized (lifts at 3 mults + 2*bitlen((p-1)/2)
+        for the square root; each pair 1 inversion + 4 mults; 1 probe per
+        candidate; product expansion of F_T), and per query as
+        plus_amortized_table = W_query + W_table/32 (per-deck amortization).
+      R_equals_O: >-
+        Five planted progression queries have R = O (s2: planted-02, 03, 11;
+        s3: planted-09, 14). b(u) = S5(..., x(R)) is undefined for them, so
+        primary W_query, W_fixed_xR and W_triple are null and those rows are
+        excluded from the medians. They are members by the oracle.
+        Alternative (W_query_R_infinity_S4_alternative): backward polynomial
+        S4(u, x_i, x_j, x_k) of degree 4, no fixed term, dense Horner at degree
+        4. Each hits at the first triple, with W = 726 (s2) and 735 (s3).
+    ambiguities_and_alternatives:
+      - item: specialization reuse across triples
+        reading_chosen: nested-loop reuse (dense)
+        alternative: >-
+          Naive re-specialization per triple, 9^3*8 + 9^2*8 + 9*8 = 6,552 per
+          triple (spec_naive_per_triple). This increases non-member W on
+          |V|=8 from about 210.9k to about 918.5k and makes specialization,
+          not the PRS, the dominant per-triple cost (6,552 against about 665).
+        consequence: >-
+          This is the reading most likely to cause a disagreement with the
+          producer. Under reuse, per-triple work is dominated by the PRS at
+          about 10.4*|T|. Under naive re-specialization it is dominated by a
+          |T|-independent constant.
+      - item: dense versus value-dependent sparse Horner
+        alternative: >-
+          Per fiber, Horner from its top nonzero coefficient
+          (spec_sparse_value_dependent). The fixed term becomes 50,180 at every
+          query, because the support is structural, and non-member W is about 208.6k.
+      - item: PRS division form
+        alternative: >-
+          Make the divisor monic first (d mults) and then d mults per quotient
+          step (prs_monic_divisor). Non-member W is about 206.7k.
+      - item: inversion weight
+        alternative: inversion = 1 unit with extended-gcd steps uncounted (inversion_unit_cost). Non-member W is about 202.0k.
+      - item: additions
+        alternative: additions charged at 1 each (with_additions), about 403.5k for non-members.
+      - item: table amortization
+        alternative: plus_amortized_table adds W_table/32, which is at most 92 per query and negligible.
+      - item: infinity element and degree-drop test
+        note: >-
+          Detected as deg b < 8 at no charge, so the PRS is still run on that
+          triple. 1,062 triples (including 80 in the R = O S4 alternative)
+          were hit through the infinity element. Every one agreed with point
+          arithmetic.
+      - item: early abort inside a triple
+        note: >-
+          Read as the natural termination of the Euclidean sequence (a zero
+          or constant remainder). No further truncation (e.g. stopping at deg
+          remainder <= some bound) was applied.
+      - item: fraction-free Bareiss/Collins
+        note: Not metered; v4 D-1 excludes it.
+
+  results_per_cell:
+    note: >-
+      Primary convention. Medians are over the rows with R != O. Ratios use
+      |T_finite| = deg F_T and |V|^3. prs_per_triple is the PRS charge divided
+      by the triples processed.
+    cells:
+    - cell: L8-s1-interval_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2717
+      n_members: 19
+      n_nonmembers: 13
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 72050, nonmembers: 210927, all: 122189.0}
+      median_W_triple: {members: 19562, nonmembers: 158439}
+      nonmember_ratios: {W_over_T: 3295.734, W_over_V3: 411.967, W_triple_over_T: 2475.609, W_triple_over_V3: 309.451, prs_per_triple: 665.125, prs_per_triple_over_T: 10.393}
+      member_ratios: {W_over_T: 1125.781, W_over_V3: 140.723}
+      alt_median_nonmembers: {naive_spec: 918543, sparse_spec: 208619, monic_divisor: 206727, inversion_unit: 202032, with_additions: 403479, plus_amortized_table: 211011.906}
+      alt_median_members: {naive_spec: 167954, sparse_spec: 69742, monic_divisor: 71490, inversion_unit: 70872, with_additions: 141658, plus_amortized_table: 72134.906, full_enumeration: 210838}
+    - cell: L8-s1-progression
+      V_size: 8
+      T_finite: 16
+      triples: 120
+      W_table_unamortized: 973
+      n_members: 16
+      n_nonmembers: 16
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 59224.0, nonmembers: 159076.0, all: 109565.5}
+      median_W_triple: {members: 6736.0, nonmembers: 106588.0}
+      nonmember_ratios: {W_over_T: 9942.25, W_over_V3: 310.695, W_triple_over_T: 6661.75, W_triple_over_V3: 208.18, prs_per_triple: 233.033, prs_per_triple_over_T: 14.565}
+      member_ratios: {W_over_T: 3701.5, W_over_V3: 115.672}
+      alt_median_nonmembers: {naive_spec: 866692.0, sparse_spec: 156768.0, monic_divisor: 160636.0, inversion_unit: 150192.0, with_additions: 305548.0, plus_amortized_table: 159106.406}
+      alt_median_members: {naive_spec: 59224.0, sparse_spec: 56916.0, monic_divisor: 59237.0, inversion_unit: 59178.0, with_additions: 118380.0, plus_amortized_table: 59254.406, full_enumeration: 150934.5}
+    - cell: L8-s1-random_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2905
+      n_members: 21
+      n_nonmembers: 11
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 66238, nonmembers: 210981, all: 70618.0}
+      median_W_triple: {members: 13750, nonmembers: 158493}
+      nonmember_ratios: {W_over_T: 3296.578, W_over_V3: 412.072, W_triple_over_T: 2476.453, W_triple_over_V3: 309.557, prs_per_triple: 665.575, prs_per_triple_over_T: 10.4}
+      member_ratios: {W_over_T: 1034.969, W_over_V3: 129.371}
+      alt_median_nonmembers: {naive_spec: 918597, sparse_spec: 208667, monic_divisor: 206781, inversion_unit: 202032, with_additions: 403533, plus_amortized_table: 211071.781}
+      alt_median_members: {naive_spec: 117430, sparse_spec: 63930, monic_divisor: 65923, inversion_unit: 65583, with_additions: 131110, plus_amortized_table: 66328.781, full_enumeration: 210844}
+    - cell: L8-s1-subgroup_x
+      V_size: 4
+      T_finite: 16
+      triples: 20
+      W_table_unamortized: 420
+      n_members: 16
+      n_nonmembers: 16
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 59282.0, nonmembers: 88392.0, all: 80318.0}
+      median_W_triple: {members: 6794.0, nonmembers: 35904.0}
+      nonmember_ratios: {W_over_T: 5524.5, W_over_V3: 1381.125, W_triple_over_T: 2244.0, W_triple_over_V3: 561.0, prs_per_triple: 232.8, prs_per_triple_over_T: 14.55}
+      member_ratios: {W_over_T: 3705.125, W_over_V3: 926.281}
+      alt_median_nonmembers: {naive_spec: 188184.0, sparse_spec: 86084.0, monic_divisor: 88652.0, inversion_unit: 86916.0, with_additions: 174688.0, plus_amortized_table: 88405.125}
+      alt_median_members: {naive_spec: 59282.0, sparse_spec: 56974.0, monic_divisor: 59295.0, inversion_unit: 59199.0, with_additions: 118450.0, plus_amortized_table: 59295.125, full_enumeration: 88234.0}
+    - cell: L8-s2-interval_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2733
+      n_members: 19
+      n_nonmembers: 13
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 67728, nonmembers: 210921, all: 101249.5}
+      median_W_triple: {members: 15240, nonmembers: 158433}
+      nonmember_ratios: {W_over_T: 3295.641, W_over_V3: 411.955, W_triple_over_T: 2475.516, W_triple_over_V3: 309.439, prs_per_triple: 665.075, prs_per_triple_over_T: 10.392}
+      member_ratios: {W_over_T: 1058.25, W_over_V3: 132.281}
+      alt_median_nonmembers: {naive_spec: 918537, sparse_spec: 208613, monic_divisor: 206721, inversion_unit: 202032, with_additions: 403473, plus_amortized_table: 211006.406}
+      alt_median_members: {naive_spec: 131880, sparse_spec: 65420, monic_divisor: 67343, inversion_unit: 66909, with_additions: 133768, plus_amortized_table: 67813.406, full_enumeration: 210823}
+    - cell: L8-s2-progression
+      V_size: 8
+      T_finite: 16
+      triples: 120
+      W_table_unamortized: 948
+      n_members: 13
+      n_nonmembers: 16
+      n_R_infinity_excluded: 3
+      median_W_query: {members: 59222, nonmembers: 159069.5, all: 158994}
+      median_W_triple: {members: 6734, nonmembers: 106581.5}
+      nonmember_ratios: {W_over_T: 9941.844, W_over_V3: 310.683, W_triple_over_T: 6661.344, W_triple_over_V3: 208.167, prs_per_triple: 232.979, prs_per_triple_over_T: 14.561}
+      member_ratios: {W_over_T: 3701.375, W_over_V3: 115.668}
+      alt_median_nonmembers: {naive_spec: 866685.5, sparse_spec: 156761.5, monic_divisor: 160629.5, inversion_unit: 150192.0, with_additions: 305541.5, plus_amortized_table: 159099.125}
+      alt_median_members: {naive_spec: 59222, sparse_spec: 56914, monic_divisor: 59235, inversion_unit: 59178, with_additions: 118378, plus_amortized_table: 59251.625, full_enumeration: 151164}
+    - cell: L8-s2-random_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2902
+      n_members: 20
+      n_nonmembers: 12
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 72386.5, nonmembers: 210932.0, all: 104916.5}
+      median_W_triple: {members: 19898.5, nonmembers: 158444.0}
+      nonmember_ratios: {W_over_T: 3295.812, W_over_V3: 411.977, W_triple_over_T: 2475.688, W_triple_over_V3: 309.461, prs_per_triple: 665.167, prs_per_triple_over_T: 10.393}
+      member_ratios: {W_over_T: 1131.039, W_over_V3: 141.38}
+      alt_median_nonmembers: {naive_spec: 918548.0, sparse_spec: 208624.0, monic_divisor: 206732.0, inversion_unit: 202032.0, with_additions: 403484.0, plus_amortized_table: 211022.688}
+      alt_median_members: {naive_spec: 171530.5, sparse_spec: 70078.5, monic_divisor: 71809.0, inversion_unit: 71203.5, with_additions: 142286.5, plus_amortized_table: 72477.188, full_enumeration: 210877.5}
+    - cell: L8-s2-subgroup_x
+      V_size: 2
+      T_finite: 4
+      triples: 4
+      W_table_unamortized: 112
+      n_members: 16
+      n_nonmembers: 16
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 59112.0, nonmembers: 66727.5, all: 63392.0}
+      median_W_triple: {members: 6624.0, nonmembers: 14239.5}
+      nonmember_ratios: {W_over_T: 16681.875, W_over_V3: 8340.938, W_triple_over_T: 3559.875, W_triple_over_V3: 1779.938, prs_per_triple: 85.875, prs_per_triple_over_T: 21.469}
+      member_ratios: {W_over_T: 14778.0, W_over_V3: 7389.0}
+      alt_median_nonmembers: {naive_spec: 79039.5, sparse_spec: 64419.5, monic_divisor: 66659.5, inversion_unit: 66576.0, with_additions: 133239.5, plus_amortized_table: 66731.0}
+      alt_median_members: {naive_spec: 59112.0, sparse_spec: 56804.0, monic_divisor: 59111.0, inversion_unit: 59083.0, with_additions: 118182.0, plus_amortized_table: 59115.5, full_enumeration: 66683.0}
+    - cell: L8-s3-interval_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2745
+      n_members: 17
+      n_nonmembers: 15
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 62653, nonmembers: 210853, all: 136263.5}
+      median_W_triple: {members: 10165, nonmembers: 158365}
+      nonmember_ratios: {W_over_T: 3294.578, W_over_V3: 411.822, W_triple_over_T: 2474.453, W_triple_over_V3: 309.307, prs_per_triple: 664.508, prs_per_triple_over_T: 10.383}
+      member_ratios: {W_over_T: 978.953, W_over_V3: 122.369}
+      alt_median_nonmembers: {naive_spec: 918469, sparse_spec: 208545, monic_divisor: 206653, inversion_unit: 202032, with_additions: 403405, plus_amortized_table: 210938.781}
+      alt_median_members: {naive_spec: 88573, sparse_spec: 60345, monic_divisor: 62478, inversion_unit: 62283, with_additions: 124541, plus_amortized_table: 62738.781, full_enumeration: 210608}
+    - cell: L8-s3-progression
+      V_size: 8
+      T_finite: 16
+      triples: 120
+      W_table_unamortized: 977
+      n_members: 14
+      n_nonmembers: 16
+      n_R_infinity_excluded: 2
+      median_W_query: {members: 59229.5, nonmembers: 159055.5, all: 158924.5}
+      median_W_triple: {members: 6741.5, nonmembers: 106567.5}
+      nonmember_ratios: {W_over_T: 9940.969, W_over_V3: 310.655, W_triple_over_T: 6660.469, W_triple_over_V3: 208.14, prs_per_triple: 232.863, prs_per_triple_over_T: 14.554}
+      member_ratios: {W_over_T: 3701.844, W_over_V3: 115.683}
+      alt_median_nonmembers: {naive_spec: 866671.5, sparse_spec: 156747.5, monic_divisor: 160615.5, inversion_unit: 150192.0, with_additions: 305527.5, plus_amortized_table: 159086.031}
+      alt_median_members: {naive_spec: 59229.5, sparse_spec: 56921.5, monic_divisor: 59243.0, inversion_unit: 59182.5, with_additions: 118388.5, plus_amortized_table: 59260.031, full_enumeration: 152935.0}
+    - cell: L8-s3-random_x
+      V_size: 8
+      T_finite: 64
+      triples: 120
+      W_table_unamortized: 2938
+      n_members: 20
+      n_nonmembers: 12
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 63028.5, nonmembers: 210855.0, all: 73864.5}
+      median_W_triple: {members: 10540.5, nonmembers: 158367.0}
+      nonmember_ratios: {W_over_T: 3294.609, W_over_V3: 411.826, W_triple_over_T: 2474.484, W_triple_over_V3: 309.311, prs_per_triple: 664.525, prs_per_triple_over_T: 10.383}
+      member_ratios: {W_over_T: 984.82, W_over_V3: 123.103}
+      alt_median_nonmembers: {naive_spec: 918471.0, sparse_spec: 208547.0, monic_divisor: 206655.0, inversion_unit: 202032.0, with_additions: 403407.0, plus_amortized_table: 210946.812}
+      alt_median_members: {naive_spec: 92188.5, sparse_spec: 60720.5, monic_divisor: 62836.0, inversion_unit: 62614.5, with_additions: 125208.5, plus_amortized_table: 63120.312, full_enumeration: 210740.5}
+    - cell: L8-s3-subgroup_x
+      V_size: 4
+      T_finite: 16
+      triples: 20
+      W_table_unamortized: 429
+      n_members: 17
+      n_nonmembers: 15
+      n_R_infinity_excluded: 0
+      median_W_query: {members: 59268, nonmembers: 88400, all: 72593.0}
+      median_W_triple: {members: 6780, nonmembers: 35912}
+      nonmember_ratios: {W_over_T: 5525.0, W_over_V3: 1381.25, W_triple_over_T: 2244.5, W_triple_over_V3: 561.125, prs_per_triple: 233.2, prs_per_triple_over_T: 14.575}
+      member_ratios: {W_over_T: 3704.25, W_over_V3: 926.062}
+      alt_median_nonmembers: {naive_spec: 188192, sparse_spec: 86091, monic_divisor: 88660, inversion_unit: 86916, with_additions: 174696, plus_amortized_table: 88413.406}
+      alt_median_members: {naive_spec: 59268, sparse_spec: 56960, monic_divisor: 59281, inversion_unit: 59199, with_additions: 118436, plus_amortized_table: 59281.406, full_enumeration: 88263}
+
+  observations:
+    - >-
+      Non-member W on |V|=8 decks with |T|=64 is nearly constant (about
+      210.85k-210.98k): 52,488 fixed + 78,624 specialization + about 79.8k PRS,
+      which is about 665 per triple, about 10.4*|T|, consistent with the "about
+      9|T|" of v4 D-1 plus the inversion and tail-division overhead.
+    - >-
+      Member W is dominated by the fixed term. The median member W_triple
+      (10k-20k on |V|=8, |T|=64) reflects how early the first hit comes in
+      lexicographic order, so the member medians depend on the enumeration
+      order, not only on the algebra.
+    - >-
+      gcd degree at the first hit is 1 on 152 member queries and 2-4 on 61.
+      The degree drop deg b < 8 occurred on 982 triples in the S5 path, always
+      matching a genuine 3-term decomposition.
+    - >-
+      These are L=8 only. No slope is computed or implied here.
+
+  exposures_and_blindness_attestation:
+    forbidden_paths_accessed: none
+    forbidden_path_detail: >-
+      No file under experiments/EXP-SDEG-85eefd/implementation/,
+      experiments/EXP-SDEG-85eefd/runs/, BATCH-656ba1/archives/, or any
+      BATCH-656ba1/tasks/ directory other than TASK-20260929-0bcd38 was
+      read, listed or grepped. No git log/diff, and no validation report, was
+      opened.
+    disclosed_producer_quantities_seen_in_permitted_sources:
+      - >-
+        AMD-20260928-7ce387 OQ-1 states the per-query fixed specialization is
+        about 52,488 mults. My W_fixed convention (dense 9^4*8) was chosen
+        consistent with it, so W_fixed agreement is not independent.
+      - >-
+        AMD-20260928-d3ed9e discloses informal validator slopes (B1 total
+        about 0.797, W_fixed_xR = 52,488 at every size, B0 about 0.594,
+        beta_elim about 0.598/0.198) and says per-triple work is "about 9|T|".
+        The review plan repeats these and adds that W_triple beta is about 1.0
+        and subgroup_x all-median is 0.358. None are L=8 per-query values, and
+        no L=8 per-query value of the producer was seen.
+    incidental_exposure: >-
+      The session's memory plugin automatically showed an observation title
+      when I opened specification.yaml: "Independent pre-run audit
+      VAL-20260928-a2bc32 returns FAIL on EXP-SDEG-85eefd protocol v3 with
+      procedural findings F-1 and F-2". I did not open that audit or fetch
+      the observation. Its findings are the ones AMD-20260928-d3ed9e already
+      rules on (D-1/F-1 pseudo-remainder form).
+    files_read:
+      - inputs/idea_generation_20260718_batch2.md lines 88-212, read from the main checkout /Volumes/SSD990/crypto-autoresearcher because the worktree has no inputs/ directory
+      - experiments/EXP-SDEG-85eefd/specification.yaml
+      - experiments/EXP-SDEG-85eefd/amendments/AMD-20260926-3479cf.yaml
+      - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-7ce387.yaml
+      - experiments/EXP-SDEG-85eefd/amendments/AMD-20260928-d3ed9e.yaml
+      - experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json
+      - experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.py
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/TASK-20260929-0bcd38/inputs_L8_targets.json
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/review_plan_RUN-SDEG-3de103.yaml
+      - ledger/hypotheses/H-SDEG-489b76.yaml
+      - AGENTS.md and CLAUDE.md (provided as session rules)
+    directory_listings: >-
+      experiments/EXP-SDEG-85eefd/amendments/ and my own task directory only,
+      plus a check for inputs/ in the worktree and main checkout.
+
+  limitations:
+    - Primary W depends on the specialization-reuse reading. The naive alternative is about 4.4x larger on |V|=8 non-members; see ambiguities.
+    - Table cost convention (point arithmetic) is my own. It is excluded from primary W and is negligible when amortized.
+    - R = O rows are metered only under an alternative (S4) convention.
+    - derive_semaev.sage.py matches the repository .gitignore pattern *.sage.py (line 11). The archiving Coordinator must add it with git add -f, or it will be missing from the snapshot.
+    - The fixture generator was not re-run. The JSON hash was compared with the amendment's frozen hash instead.
+    - This report asserts nothing about beta, outcome A/B or the hypothesis. It supplies per-query L=8 counts for comparison only.

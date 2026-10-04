@@ -1,0 +1,241 @@
+# =============================================================================
+# CONVENTIONS for the blind re-derivation of A7 (joint F2, Q1-Q4) --
+# TASK-20260929-fd1a9f (validator-breakthrough), TW-FLOOR round.
+# Written BEFORE any A7 ratio is computed by code (VF-2, MC-7). Sources read
+# for it: specification.yaml v1 (analysis.A7_floor, tripwires, harvest_block,
+# cells, implementation_contract), AMD-20260929-1de84f (C-3, C-4, C-5),
+# AMD-20260929-430f44 (M-5, M-6, M-9), the plan text on the card, and the
+# STRUCTURE of the permitted row files (checks/out/structure*.json|txt: key
+# sets, statuses, counters; no ratio). No blind_from path has been opened.
+# Disclosure: while first inspecting the row layout (one R10 known_log row
+# pair printed at 20 bits, curve 0) I evaluated the frozen ratio of that one
+# on-mode known_log row by mental arithmetic (about 0.22). Nothing below was
+# chosen with reference to it; known_log is the premise-violating arm.
+# =============================================================================
+conventions:
+  frozen_text: >-
+    A7_floor: "Per census and on instance, S_3 / ((1/2)*sqrt(r*N)), r =
+    relations for census and relations + harvested rows fed before the stop
+    for on. Any value < 0.9 fires TW-FLOOR." Tail list: spec tail_checks
+    "Every instance with floor ratio < 1.0 listed (A7)".
+
+  CV-1_instance_universe:
+    reading: >-
+      An A7 instance is every solver row (method ic_m3|ic_m4|ic_m5) with mode
+      census or on in the canonical row sets: R10 RUN-PFDR-1b78f7-census-m3
+      root rows.jsonl.gz; R11 RUN-PFDR-1b78f7-census-m4 merged/rows.jsonl.gz
+      (M-5/M-6: merged/ is the canonical location); R12 census-m5 root; R14 j0
+      root; R16 stage-r root. Rho rows (R13, and the 35 j0 rho rows of R14,
+      method rho) carry no S_3 and no relations and are NOT A7 instances.
+      Instance key: (panel, bits, curve, m, arm, mode), m = int(method[4:]).
+    reporting_sets: >-
+      S15 = R10, R11, R12, R14 (the runs R15 reads through the M-6 view); S16 =
+      R16 (Stage R, curves 5..9, analysed by --stage-r). Both are computed.
+      The firing set compared with the producer's R15 list is S15's; S16 is
+      reported and compared separately. TW-FLOOR's union is also given.
+    why: >-
+      The frozen text says "per census and on instance" with no run
+      restriction, and R16 instances are census and on instances of this
+      experiment; R15 itself only reads R10-R14, so the split keeps both
+      readings visible.
+
+  CV-2_exclusions_C4:
+    reading_primary: >-
+      Excluded from A7 (listed, never counted): instances with status
+      failed_infrastructure or invalid (none exist in the canonical sets:
+      checks/out/structure.json, all completed_valid), and unmatched_size
+      instances. unmatched_size: a structured-arm instance A in {subgroup,
+      small_x} whose fb_size differs from s_sub, or A = dickson whose fb_size
+      differs from s_dick, where s_sub (s_dick) is the common fb_size of the
+      job's random_sub_r* (random_dick_r*) rows; both modes of that arm. The
+      structure scan finds exactly one: (main, 14, 4, 5, subgroup), fb_size 1
+      vs 4, census and on (checks/out/structure2.json).
+    reading_alternative_CV-2b: >-
+      C-4 says "curve j is dropped for A AND R(A) in that A1 cell" and then
+      "The same instance is excluded ... from A7". Primary reads "the same
+      instance" as the structured instance only. CV-2b also excludes R(A)'s
+      instances on that curve (random_sub_r0..2 at (14, 4, 5), both modes).
+      Reported as a delta to the firing set.
+    censoring: >-
+      SS censoring at A_fix is an A1 drop rule; C-4 does not list it for A7.
+      Censored instances are A7 instances.
+
+  CV-3_known_log_attempt_cap:
+    reading_primary: >-
+      A known_log instance that stopped at its attempt cap without k
+      (harvest.terminated_by attempt_cap; status completed_valid; ok by IC-7)
+      IS an A7 instance: the frozen text has no solved-only qualifier, and
+      AMD-1de84f C-3 leaves the known_log cap "unchanged (ok)". Its S_3 is the
+      S_3 spent to the cap and r its logged relations. It is evaluated when
+      r > 0 (CV-4). From the structure scan all 35 census known_log instances
+      are capped and all 35 on known_log instances ended k_found.
+    reading_alternative_CV-3b: >-
+      Exclude every instance whose harvest.terminated_by is not k_found.
+      Reported as a delta.
+
+  CV-4_r_zero: >-
+    r = 0 makes the floor 0 and the ratio undefined (+inf). Such an instance
+    is NOT EVALUABLE (listed with reason r_zero) and never fires. The same
+    rule applies under every alternative r.
+
+  CV-5_S: >-
+    S_3 = the row's s3_solves (table build included; README "How cost is
+    counted"). Alternative S_search = the row's search_s3 (= s3_solves -
+    table_s3_solves; checked equal on every row before use).
+
+  CV-6_N: >-
+    N = the row's N field (the certified group order), as an exact integer.
+    log2N is not used for the ratio.
+
+  CV-7_r_census_mode: >-
+    census: r = the row's relations (decomposition relations logged by the
+    solver; harvest census feeds no row, IC-6).
+
+  CV-8_r_on_mode: >-
+    on: r = relations + harvest.on.rows_fed.TT + harvest.on.rows_fed.TB +
+    harvest.on.rows_fed.SS, the engine's own counters of harvested rows fed to
+    the solver (harvest_block key on.rows_fed). Open point, disclosed: whether
+    the row that fixes k is inside rows_fed (or relations) is whatever the
+    counter records; the structure scan shows relations = decomp increments
+    + 1 exactly when k_determined_by = decomp, so the fixing decomposition
+    row is inside relations, and the fixing SS row is presumably inside
+    rows_fed.SS. At most one row; it cannot move a ratio by more than a
+    factor sqrt(r/(r-1)). Formal rows (known_log TT/TB, j0 automorphism rows)
+    are counted when fed: the frozen text draws no distinction. Dependent
+    rows (reducing to zero in the solver) are counted when fed.
+
+  CV-9_threshold_and_arithmetic: >-
+    Fires iff ratio < 0.9; tail iff ratio < 1.0 (strict). Decided in exact
+    integer arithmetic: with c = 2 (frozen floor (1/2)sqrt(rN)), ratio < t
+    iff 4*S^2*den^2 < num^2*r*N for t = num/den (t = 9/10 and 1/1); with c = 1
+    (floor sqrt(rN)), ratio < t iff S^2*den^2 < num^2*r*N. Reported ratio =
+    S / (0.5*math.sqrt(r*N)) (c = 2) or S / math.sqrt(r*N) (c = 1) in IEEE
+    double, r*N formed as a Python integer first.
+
+  CV-10_arm_class: >-
+    known_log; j0_coset; j0_random (j0_random_r0..2); structured (subgroup,
+    dickson, small_x); random (random_sub_r0..2, random_dick_r0..2). Tables
+    are per (panel, m, mode, arm class) and per arm.
+
+  # ---------------------------------------------------------------------------
+  named_alternatives:
+    ALT-rank:
+      definition: >-
+        r_rank = the solver's rank at the stop. on: sum of
+        harvest.on.solver_rank_increments over decomp, TT, TB and SS; census:
+        the row's rank. The structure scan found the sum equal to the row's
+        rank on all 1340 on rows, so r_rank = row rank in both modes; the
+        check is repeated in the computation and any disagreement listed.
+      sub_variant_ALT-rank1: >-
+        r_rank1 = rank + 1. The census rows show relations - rank = 1 on every
+        solved census instance and on-mode relations - decomp increments = 1
+        exactly when k_determined_by = decomp: rank does not count the
+        relation that fixes k. rank + 1 counts it (it is independent of the
+        base-log rows by its nonzero k part). For census, r_rank1 = r_frozen.
+        Declared before computing; reported beside ALT-rank.
+    ALT-rel:
+      definition: r_rel = relations (decomposition relations only) in both modes; for census identical to frozen.
+    ALT-distinct:
+      definition: >-
+        on: r_distinct = relations + the number of DISTINCT NORMALISED
+        relations among the harvested rows FED before the stop. census:
+        r_distinct = relations (no harvested row is fed; decomposition rows
+        are not retained, so their own distinctness cannot be checked: rank+1
+        <= distinct <= relations, and here rank+1 = relations, so it is exact
+        for census).
+      fed_rows: >-
+        All TT rows and all TB rows of the instance (rows_fed.TT and .TB equal
+        rows_emitted on every on row: checks/out/structure2.json), plus the
+        FIRST rows_fed.SS SS rows of the instance in file order. File order is
+        read as emission order (IC-5 RETENTION writes rows as emitted; IC-6
+        feeds SS rows after each attempt in emission order and stops at the
+        fixing row). Consistency checks run on every instance: retained TT/TB
+        counts equal rows_fed; retained SS count equals at_stop.rows_emitted
+        at bits <= 24; attempt fields of SS rows are non-decreasing in file
+        order; every unfed SS row belongs to the instance's last SS attempt.
+        A failed check is listed and the instance's r_distinct is BLOCKED.
+      normalisation_raw: >-
+        A row sum_i c_i L_i + kcoef*k = rhs (mod N) is the vector over Z_N
+        with entries c_i mod N at base indices (ascending), then kcoef mod N,
+        then rhs mod N. Zero entries are dropped. The vector is scaled by the
+        inverse mod N (N prime) of its first nonzero entry in that order, which
+        removes sign and every scalar multiple. Rows normalising to the zero
+        vector are dropped (not relations). Distinct = distinct normalised
+        vectors. Identity of a harvested row with a decomposition relation
+        is not checkable (decomposition rows are not retained) and is ignored.
+      normalisation_formal: >-
+        Formal reduction before normalising. Generic main-panel arms: formal
+        basis empty (IC-5), identical to raw. known_log: base index i is
+        0-based with log(F_i) = i + 1 (IC-1, 1-based logs; CHECKED first on
+        every retained known_log TT/TB row, which must reduce to 0 mod N --
+        if the check fails known_log formal is BLOCKED); a row reduces to the
+        one-variable relation kcoef*k = rhs - sum_i c_i (i+1) (mod N); rows
+        with kcoef = 0 reduce to 0 and are dropped; the rest are scaled to
+        k = value (and the value is compared with the C-5 rule k, as a
+        byproduct check of the rows). j0 arms: rows with formal flag true lie
+        in the formal span and are dropped; non-formal rows are normalised raw,
+        WITHOUT reduction modulo the automorphism span (the base points are
+        not in the permitted inputs before the seal). Disclosed: that can only
+        overcount distinct relations, so the j0 r_distinct_formal ratio is a
+        lower bound on the fully reduced one.
+      retention_and_blocking: >-
+        IC-5 retention keeps all rows at bits <= 24 and, above 24 bits, rows of
+        a class until the census elimination saturates. An on instance above
+        24 bits whose retained count of some class is below rows_fed of that
+        class is BLOCKED for r_distinct (listed with the class and the gap).
+      sources: >-
+        Retained harvest rows, streamed: R10 census-m3/harvest-rows.jsonl.gz;
+        R11 census-m4/harvest-rows.jsonl.gz (attempt-1 root, for keys whose
+        canonical row came from attempt-1) and census-m4/attempt-2/jobs/*/harvest-rows.jsonl.gz
+        (resume set; the invocation-check directory is never read as a source);
+        R12 census-m5/attempt-1/jobs/*/; R14 j0/attempt-1/jobs/*/; R16
+        stage-r/attempt-1/jobs/*/. The canonical source of each key is the
+        attempt its canonical row came from (M-5 (1), (8)).
+    ALT-census:
+      definition: >-
+        r_census = the census-mode twin's relations (same panel, bits, curve,
+        m, arm), with the instance's own S_3 and N. For a census instance it is
+        its own r (identical to frozen). Twin excluded or missing -> not
+        evaluable.
+    ALT-S_search:
+      definition: S = search_s3 in place of s3_solves, r frozen, c = 2.
+    ALT-c1:
+      definition: floor = sqrt(r*N) (one encoding per S_3 unit), S and r frozen.
+    declared_grid: >-
+      Secondary, declared now: every combination r in {frozen, rank, rank1,
+      rel, distinct_raw, distinct_formal, census} x S in {s3_solves,
+      search_s3} x c in {2, 1}, as firing counts per (panel, m, mode, arm
+      class). The six named singles are primary.
+
+  # ---------------------------------------------------------------------------
+  MC-3_order_invariance: >-
+    (i) The computation is a per-row function except r_census (twin lookup by
+    key) and r_distinct (per-key streaming). Recomputed on the canonical rows
+    reversed and under random.Random(s).shuffle for s = 1..5; the firing sets
+    under every convention must be identical. (ii) Recomputed from the
+    ATTEMPT files with M-5's rule (for each key, the row of the latest attempt
+    that ran it; R11: attempt-1 = root rows.jsonl.gz restricted to the 990
+    cell keys -- the 66 non-cell known_log m = 4 rows of M-9 and the 594
+    job-crash placeholders are superseded by attempt-2 -- then
+    attempt-2/jobs/*; R12, R14, R16: attempt-1/jobs/*). Every per-instance
+    value and every firing set must be equal to the canonical computation.
+
+  Q4_F7a_design_evaluated_comparator: >-
+    On the m = 4 small_x on-mode instances of R11 (55 = 11 rungs x 5 curves):
+    floor_frozen = 0.5*sqrt(r_frozen*N) and floor_rank = 0.5*sqrt(r_rank*N)
+    (and floor_rank1). Exponent by stats.fit_exponent (loaded by FILE PATH,
+    not through the package; frozen defaults reps 2000, level 0.95, seed 0;
+    x = log2N, groups = bits) over 12..32. Also the per-instance model
+    exponent (1 + beta)/2 with beta = ln(fb_size)/ln(N), averaged per rung,
+    and its mean over 12..32 and 20..32; the fit_exponent slope of the model
+    cost sqrt(fb_size*N) (r proportional to |F|); the observed s3_solves
+    exponent (fit_exponent, same rows) for comparison with the composed
+    0.6076; and the asymptotic (m+1)/(2m) = 0.625. Same quantities for every
+    other m = 4 arm, on mode, as secondary.
+
+  after_the_seal_comparison: >-
+    The producer's A7 block (RUN-PFDR-1b78f7-analysis/analysis.json and the
+    Stage R analysis.json if it has one) is read only after the sealed file
+    is written and hashed. Comparison instance by instance: firing and tail
+    sets exactly; ratios exact, else |rel diff| <= 1e-12 recorded as
+    formula-order rounding, else a difference localised to a convention.

@@ -1,0 +1,380 @@
+red_team_report:
+  id: RT-20260908-b2abee
+  task_id: TASK-20260908-b2abee
+  role: red-team
+  review_plan_id: sdeg_counter_v2_3_custody_alias_closure
+  joint: custody_alias_and_replay_closure_v2_3
+  claim_under_review: >-
+    The prospective v2.3 custody definitions reject the two v2.2 alias
+    constructions while retaining the direct timeout, launch-owner, and sealed
+    slot protections. This review is confined to source definitions; it is not
+    implementation, execution, cost, correctness, or cryptanalytic evidence.
+  review_scope:
+    source_level_only: true
+    implementation_executed: false
+    fixtures_generated: false
+    scientific_runs: 0
+    scientific_claims_made: false
+    status_or_authority_changed: false
+    direct_controls_reviewed:
+      - direct_cross_root_timeout_replay
+      - different_launch_rank_owner_label_reuse
+      - sealed_EC_slot_omission
+    alias_controls_reviewed:
+      - two_trace_encodings_for_one_physical_cpu_io_counter
+      - overlapping_common_clock_intervals_split_by_reporting_scope
+  source_integrity:
+    source_snapshot_commit: 4917987f51ff3df4251de6304e8351fa1df7834c
+    source_packet_worktree_matches_snapshot: true
+    comparison_method: >-
+      A read-only path-scoped Git comparison against source_snapshot_commit
+      returned no changed path for the six declared packet sources.
+    review_inputs:
+      - path: ledger/handoffs/TASK-20260908-b2abee.yaml
+        sha256: 5fdc899f6edbbd4715f9bfe93dbe944dbc7fc0cb0d0d59ecdcf0573daf3ef3cf
+      - path: coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_3-review-plan.yaml
+        sha256: 1c05b0fddb8df55e5723af7bf47b04aa0cc9d8824022717975f2d7818700f0b0
+    source_packet:
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+        sha256: 955d260b9264f98b0439b9a28fa844644fa2f372c8ddb8d75b2803ea581db66a
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        sha256: e3c5cc9f212c70fc87156f243c13919e68dbd96955b47092cc59ae5eff391eb8
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        sha256: 256b92d1df1b74058f553f42024f34654c066da6ee8709024cae8fb80a0a1933
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        sha256: 8028fb8f49825f71414a7e2a58519264182f5582cb7856228777cc7e984ebcb5
+      - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+        sha256: ac0b4b83fe32bd949d710a203bf1dd4248557f64dcdd381edcec65cd236e37b0
+      - path: ledger/corrections/CORR-20260908-f973b3.yaml
+        sha256: 0da52595439c84ecf4a7dea4a275bfb391f24f8fe4a27cdccfae43dbb7fab262
+    source_scope_note: >-
+      The correction names TASK-20260908-87c933 as a basis, but this review
+      did not open that report or any other review report. Its path was read
+      only as text in the declared correction record.
+  review_attestation:
+    task_id: TASK-20260908-b2abee
+    joints_owned:
+      - custody_alias_and_replay_closure_v2_3
+    independent_session: true
+    read_sibling_reports: false
+    verdict: breaks
+    inference:
+      requested_policy: review-adversarial
+      reasoning_effort: xhigh
+      resolved_model_id: null
+      fallback_used: false
+      degraded_allowed: false
+      degraded_requirements: []
+      amazon_bedrock: not_used
+    conclusion_sources_read:
+      - ledger/handoffs/TASK-20260908-b2abee.yaml
+      - coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_3-review-plan.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+      - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+      - ledger/corrections/CORR-20260908-f973b3.yaml
+    governing_sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+    non_packet_context_read_not_used_for_verdict:
+      - /Users/adamburan/.codex/memories/MEMORY.md
+    unread_sources:
+      - coordination/design/BATCH-c2a2b6/hardening-v2/reviews/TASK-20260908-87c933/review.yaml
+      - any other review report
+    procedure_deviations: []
+  attacks:
+    - id: direct_cross_root_timeout_replay
+      construction: >-
+        Let root A and root B have distinct sealed attempt_id or root_ordinal.
+        Place a TIMEOUT_CENSORED final receipt at B, but copy A's Coordinator
+        authority payload, including A's causal event and final-identity
+        commitment, into B's receipt.
+      source_reasoning: >-
+        V2.2 requires experiment_id, campaign_id, attempt_id, root_ordinal,
+        terminal_code, causal_event_sha256, final_identity_commitment_sha256,
+        authorized_before_registry_ordinal, Coordinator record ID, and
+        Coordinator record hash to exactly match the final receipt and its
+        registry position; the authority must precede the terminal event.
+        The copied A payload cannot exactly match B's distinct receipt and
+        position, so the v2.2 cross_root_authority_replay rejection applies.
+        V2.3 is additive from v2.2 and lists direct_cross_root_timeout_replay
+        as a retained future admission control; it neither weakens nor removes
+        the v2.2 equality conditions.
+      outcome: rejected
+      exact_rejecting_rules:
+        - v2_2.timeout_authority_target.acceptance
+        - v2_2.timeout_authority_target.reject.cross_root_authority_replay
+        - v2_3.future_admission_controls.direct_cross_root_timeout_replay
+      limitation: >-
+        This is a definition-level conclusion about a receipt that differs at
+        its root binding. It does not establish that a future implementation
+        will parse, compare, or preserve these fields correctly.
+
+    - id: different_launch_rank_owner_label_reuse
+      construction: >-
+        Reuse rank_owner_id and process_incarnation_id from launch L1 in an
+        accepted-row update made by a different launch L2, without a
+        Coordinator-authorized handover receipt binding L1's outgoing state,
+        L2's process incarnation, and the next row.
+      source_reasoning: >-
+        V2.2 requires the owner and incarnation labels to reference one
+        immutable registry launch hash plus cgroup or process identity digest.
+        A different launch requires a Coordinator-authorized handover hash
+        before its first update. The inherited v2.1 rank seal and coverage rule
+        also reject owner swaps without a handover. A copied label either has
+        the wrong launch or identity binding, or acknowledges L2 and lacks the
+        mandatory handover; neither path is admissible. V2.3 retains this
+        direct control without amendment.
+      outcome: rejected
+      exact_rejecting_rules:
+        - v2_2.rank_owner_and_slot_inventory.process_binding
+        - v2_2.rank_owner_and_slot_inventory.reject.process_label_reuse
+        - v2_1.rank_state_custody.seal
+        - v2_1.rank_state_custody.coverage_rule
+        - v2_3.future_admission_controls.different_launch_rank_owner_label_reuse
+      limitation: >-
+        The conclusion is restricted to a source record that omits a valid
+        handover. It does not validate any future registry or handover code.
+
+    - id: sealed_EC_slot_omission
+      construction: >-
+        Omit one accepted EC root/component/phase receipt from a final rank
+        inventory and supply neither a receipt status nor a preceding terminal
+        causal-event hash justifying that omission.
+      source_reasoning: >-
+        V2.2 requires exactly one receipt status for every sealed
+        root/component/phase slot. An omitted EC slot must cite a preceding
+        terminal causal-event hash, and the final rank inventory is rebuilt
+        from the complete slot inventory while independently checking every
+        relation status. The proposed omission therefore reaches both the
+        missing_component_slot and unjustified_omission rejections. V2.3
+        retains sealed_EC_slot_omission as a direct control.
+      outcome: rejected
+      exact_rejecting_rules:
+        - v2_2.rank_owner_and_slot_inventory.coverage
+        - v2_2.rank_owner_and_slot_inventory.reject.missing_component_slot
+        - v2_2.rank_owner_and_slot_inventory.reject.unjustified_omission
+        - v2_3.future_admission_controls.sealed_EC_slot_omission
+      limitation: >-
+        This checks the prospective inventory rule only. It does not establish
+        that an executor will create a complete sealed inventory.
+
+    - id: v2_2_cpu_io_proves_too_much_control
+      object: >-
+        The v2.2 CPU/IO rule, which treats two unbound counter_source_id labels
+        as separate local partitions.
+      construction: >-
+        For one physical launch L, cgroup identity G, actual CPU counter N and
+        clock D, issue source labels A and B. Give each label a distinct
+        immutable trace digest for differently serialized copies of the same
+        ordered samples and the same monotonic range [100,200]. Each label has
+        one locally complete, disjoint interval partition, so a higher-level
+        total can count the physical delta twice.
+      v2_2_result: admitted
+      v2_2_reasoning: >-
+        V2.2 requires each coordinate to name a label, monotonic endpoints,
+        clock domain, launch hash, and immutable trace digest, and imposes the
+        partition only "for one source." It gives neither counter_source_id a
+        physical resolver nor an equality rule across source labels or trace
+        encodings. Thus A and B are separate local sources in v2.2 even though
+        their physical observation is the same.
+      v2_3_same_tuple_result: rejected
+      v2_3_same_tuple_reasoning: >-
+        When A and B resolve to the same sealed tuple
+        (L,G,N,D), v2.3 declares them aliases. Its trace rule also says a
+        re-encoding of samples for that tuple is a representation rather than
+        a new counter source. Its aggregate rule collects intervals from every
+        representation into one complete disjoint partition, so the duplicated
+        range is independently fatal as cross-trace overlap even aside from the
+        source-ID alias.
+      failure_signature_result: >-
+        Satisfied for the plan's stated construction: it remains admitted by
+        v2.2 and is rejected by v2.3. Therefore the v2.3 same-tuple rejection
+        does not prove too much against the known-false v2.2 object.
+      exact_rejecting_rules:
+        - v2_3.cpu_io_interval_accounting.canonical_physical_counter_binding
+        - v2_3.cpu_io_interval_accounting.trace_binding
+        - v2_3.cpu_io_interval_accounting.aggregate_rule
+        - v2_3.cpu_io_interval_accounting.reject.counter_source_alias
+        - v2_3.cpu_io_interval_accounting.reject.trace_representation_as_new_source
+        - v2_3.cpu_io_interval_accounting.reject.cross_trace_counter_overlap
+
+    - id: counter_namespace_alias_bypass
+      construction: >-
+        Use the same physical cgroup G, launch L, actual CPU counter, clock D,
+        samples, and range [100,200], but seal source A with
+        counter_namespace "cpu.stat.usage_usec" and source B with
+        counter_namespace "cgroup-v2/cpu.stat:usage_usec". Treat these as two
+        differently serialized names for the same physical counter. Give A and
+        B separate source IDs and trace representations. Each trace binds its
+        own listed tuple and has a complete, disjoint singleton partition.
+      source_level_acceptance_path: >-
+        The two sealed tuples differ textually at counter_namespace. Each source
+        ID resolves to exactly one tuple, no two source IDs resolve to equal
+        tuples, and no single tuple has overlapping or unaccounted intervals.
+        V2.3 aggregates only per tuple. It supplies no canonical
+        counter_namespace grammar, resource-locator derivation, equivalence
+        relation, or independently checkable binding from that field to the
+        actual cgroup counter. The trace rule binds samples to the already
+        selected tuple, so it cannot merge this unequal-tuple construction.
+        Every stated v2.3 predicate is therefore satisfied while the actual
+        physical counter is represented twice.
+      outcome: accepted_by_stated_source_rules
+      missing_separator: >-
+        A sealed canonical physical-counter locator is missing. The current
+        equality test is equality of four recorded strings or digests, not a
+        defined normalization of the counter namespace that identifies the
+        observed kernel or cgroup counter.
+      consequence: >-
+        A source-only conclusion that v2.3 canonically binds every physical
+        CPU/IO counter is unsupported. This is a custody-definition defect;
+        it is neither a measured double count nor evidence about the SDEG
+        algorithm, experiment outcome, or ECDLP.
+      cheapest_required_correction: >-
+        Add an immutable canonical resource-locator schema for CPU and IO
+        counters. It must define the namespace grammar and normal form, bind
+        the locator to the sealed cgroup/process identity and counter file or
+        device-field identity, require every trace sample identity to carry the
+        same normal form, and compare locator equality before any per-source
+        partition or aggregate. Add this spelling-alias mutation as a future
+        non-scientific admission control.
+
+    - id: v2_2_wall_proves_too_much_control
+      object: >-
+        The v2.2 wall rule, which permits two unbound reporting_scope_id local
+        unions to be added at a higher layer.
+      construction: >-
+        For one intended stage target and common monotonic clock D, place the
+        same active interval [0,10) under scope S_A and scope S_B. Each scope's
+        local union is 10. Add those local totals at the higher layer to report
+        20 despite one elapsed interval.
+      v2_2_result: admitted
+      v2_2_reasoning: >-
+        V2.2 binds an interval to a reporting_scope_id but never resolves that
+        label to a stage or campaign target. It requires one union within each
+        scope and forbids adding per-process diagnostics, but does not require
+        the two scope labels to be the same or demand a cross-scope temporal
+        disjointness proof before the higher-level sum.
+      v2_3_same_target_result: rejected
+      v2_3_same_target_reasoning: >-
+        When S_A and S_B resolve to the same tuple
+        (experiment_id,campaign_id,stage,target_id,D), v2.3 declares them
+        aliases. If the reports are instead kept separate, their totals may not
+        be added: v2.3 permits addition only for distinct target tuples with an
+        explicit, independently checked temporal-disjointness proof over the
+        complete common-clock inventories. The identical [0,10) intervals
+        cannot supply that proof; a campaign total is its own union.
+      failure_signature_result: >-
+        Satisfied for the plan's stated construction: v2.2 admits the split
+        and v2.3 rejects the same-target alias or the overlapping sum. The
+        source argument does not reject the known-false v2.2 object directly.
+      exact_rejecting_rules:
+        - v2_3.wall_interval_accounting.canonical_reporting_scope_binding
+        - v2_3.wall_interval_accounting.complete_inventory_and_union
+        - v2_3.wall_interval_accounting.sum_precondition
+        - v2_3.wall_interval_accounting.reject.reporting_scope_alias
+        - v2_3.wall_interval_accounting.reject.cross_scope_overlap_summed
+        - v2_3.wall_interval_accounting.reject.missing_temporal_disjointness_proof
+
+    - id: reporting_target_identifier_alias_residual
+      construction: >-
+        Publish two individually sealed stage reports for the same intended
+        relation-collection stage and common clock D, using target_id
+        "relation_collection" in one tuple and
+        "stages/relation_collection" in the other. Keep their overlapping
+        intervals out of a cross-scope sum.
+      source_level_acceptance_path: >-
+        V2.3 defines scope aliases only by equality of the recorded target
+        tuple. It provides no grammar or binding from target_id to the sealed
+        schedule node, component, phase, or stage identifier in the appendix.
+        The two textual target IDs therefore create unequal tuples, each with
+        one scope and a complete local inventory. The overlap-sum rule prevents
+        using them to manufacture an accepted total of 20 for [0,10), but it
+        does not reject the duplicated semantic stage identity when reported
+        separately.
+      outcome: accepted_identity_split_without_accepted_overlap_sum
+      implication: >-
+        The v2.3 direct wall-inflation control holds, but the stronger claim of
+        a canonical stage or campaign reporting-scope identity is incomplete at
+        source level. A future amendment should bind target_kind and target_id
+        to a unique sealed schedule or campaign-target registry and require the
+        reporting-scope resolver to use that registry.
+  proof_architecture_challenges:
+    - attack: observation_fiber
+      finding: >-
+        Holding the actual cgroup counter and its sample values fixed while
+        varying only an unnormalized counter_namespace yields two recorded
+        tuples. The v2.3 invariant separates the records by text but lacks the
+        physical resource locator that would put both preimages in one class.
+    - attack: quantifier_order
+      finding: >-
+        V2.3 proves a property for each tuple selected in a sealed record. The
+        required custody claim quantifies over each physical counter before any
+        spelling or namespace representation is selected. Without a defined
+        resolver, choosing the namespace representation after identifying the
+        physical counter changes the equivalence class the rule checks.
+    - attack: method_ceiling
+      finding: >-
+        Per-tuple partitioning can prevent overlap only inside a pre-existing
+        tuple. It cannot detect duplicate accounting across unequal tuples that
+        name the same physical counter. The definition therefore cannot reach
+        the stated physical-identity closure without an additional canonical
+        locator rule.
+    - attack: nearby_object
+      finding: >-
+        The same source-level weakness applies to a scope target identifier
+        whose textual variants name the same schedule stage. The wall
+        disjointness rule contains direct summed overlap, but it does not make
+        target identity canonical when reports are kept separate.
+  objections:
+    - id: RT-OBJ-COUNTER-NAMESPACE-NORMALIZATION
+      severity: blocking_for_v2_3_custody_closure
+      statement: >-
+        V2.3 lacks a source-defined canonical physical CPU/IO counter locator.
+        Its tuple equality is insufficient when counter_namespace has multiple
+        names for one physical counter, so it admits a duplicate physical CPU
+        or IO accounting construction.
+  required_controls:
+    - >-
+      A prospective source-level and later implementation-admission mutation
+      that uses two permitted spellings or encodings for one cgroup CPU counter
+      and verifies their normalization to one locator before interval handling.
+    - >-
+      A corresponding IO device-and-field spelling alias mutation, since the
+      same counter_namespace field controls CPU and IO identities.
+    - >-
+      A reporting target-ID spelling alias mutation bound to an explicit sealed
+      schedule or campaign-target registry; it must reject two separate reports
+      for one target even when no cross-scope sum is attempted.
+  counterexample_or_mutation: counter_namespace_alias_bypass
+  baseline_comparison: null
+  heuristic_challenges: []
+  cost_model_challenges:
+    - >-
+      The defect can duplicate a future CPU or IO total, so any future resource
+      comparison must remain unauthorised until a corrected physical-counter
+      identity definition and its implementation-admission control exist.
+  reduction_and_scope_challenges:
+    - >-
+      This report establishes only a gap in prospective custody definitions;
+      no reduction, ECDLP scope, or scientific result is implicated.
+  narrowest_supported_statement: >-
+    V2.3 source definitions reject all three retained direct v2.2 mutations and
+    reject both plan-listed v2.2 alias constructions when their source IDs or
+    reporting scopes resolve to exactly equal v2.3 tuples. They do not yet
+    establish canonical physical CPU/IO identity, because the source packet
+    does not define a canonical counter_namespace resolver. V2.3 therefore
+    cannot close the assigned custody-alias joint or support implementation
+    authority without an additive correction and a fresh independent review.
+  verdict: breaks
+  next_concrete_action: >-
+    The Coordinator should keep implementation and execution authority off,
+    create an additive prospective correction that defines canonical physical
+    CPU/IO locators and canonical schedule-target resolution, then commission a
+    fresh blinded source-bound review of the exact spelling-alias mutations and
+    the existing direct controls. No historical artifact should be rewritten.
+  artifact_paths:
+    - coordination/design/BATCH-c2a2b6/hardening-v2/reviews/TASK-20260908-b2abee/review.yaml

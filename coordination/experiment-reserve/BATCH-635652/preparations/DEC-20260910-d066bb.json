@@ -1,0 +1,200 @@
+{
+  "record_type": "native_exception_correction_preparation",
+  "decision_id": "DEC-20260910-d066bb",
+  "task_id": "TASK-20260910-f299db",
+  "recorded_at": "2026-09-10T07:33:58.880965+00:00",
+  "source_snapshot": "efe06c32858aff43a22698b260e872916e394846",
+  "independent_review_snapshot": "f7890ec2ef09c7e1e6d86d8712b946f6ff4040f4",
+  "reviewed_findings": [
+    "V-01",
+    "V-02",
+    "V-03"
+  ],
+  "static_extension": "The current source also has adjacent open-transfer/read/write/close paths that can discard ownership or mask an earlier error. Their inclusion is based on source inspection; the new fixed controls must establish behavior.",
+  "mandatory_new_control_constructions": [
+    {
+      "name": "child_fstat_failure",
+      "construction": "Inject successful child open then fstat OSError.",
+      "expected_predicate": "The exact new descriptor receives a close attempt; original fstat failure remains primary."
+    },
+    {
+      "name": "child_fstat_and_close_failure",
+      "construction": "Inject fstat failure and failure of its descriptor close.",
+      "expected_predicate": "Both errors and unknown descriptor disposition survive; no fabricated closed state."
+    },
+    {
+      "name": "child_create_rollback",
+      "construction": "Drive create_child through a failed post-open observation.",
+      "expected_predicate": "Reopened descriptor and created-name rollback are independently accounted."
+    },
+    {
+      "name": "child_create_rollback_failure",
+      "construction": "Combine post-open error, close failure and failed rmdir rollback.",
+      "expected_predicate": "All three observations survive without removing an unverified replacement."
+    },
+    {
+      "name": "relative_open_old_close_failure",
+      "construction": "Open a next component, then fail closing the previous descriptor before ownership transfer.",
+      "expected_predicate": "The new descriptor is tracked and cleaned; the uncertain old integer is not blindly retried."
+    },
+    {
+      "name": "relative_mount_verification_failure",
+      "construction": "Fail mount verification after the mount descriptor opens.",
+      "expected_predicate": "Mount descriptor receives exactly one accounted cleanup attempt."
+    },
+    {
+      "name": "relative_mount_verify_and_close_failure",
+      "construction": "Combine mount verification and close errors.",
+      "expected_predicate": "Primary verification error and secondary close uncertainty survive."
+    },
+    {
+      "name": "relative_intermediate_fstat_failure",
+      "construction": "Fail an intermediate component fstat after a successful open.",
+      "expected_predicate": "Every live owned descriptor is accounted; already closed descriptors are not retried."
+    },
+    {
+      "name": "relative_final_fstat_failure",
+      "construction": "Fail final fstat after mount close.",
+      "expected_predicate": "Final descriptor is cleaned and the already closed mount descriptor is not closed again."
+    },
+    {
+      "name": "relative_final_mount_close_failure",
+      "construction": "Fail the mount close at the successful traversal boundary.",
+      "expected_predicate": "No successful handle return is fabricated; other owned descriptors receive safe cleanup."
+    },
+    {
+      "name": "root_postopen_identity_refusal",
+      "construction": "Make exact root validation refuse after a handle has been returned internally.",
+      "expected_predicate": "The returned handle is disposed or explicitly uncertain; refusal survives."
+    },
+    {
+      "name": "read_and_close_failure",
+      "construction": "Inject read OSError plus close OSError.",
+      "expected_predicate": "Read remains primary and close is retained separately."
+    },
+    {
+      "name": "decode_and_close_failure",
+      "construction": "Return non-ASCII bytes then fail close.",
+      "expected_predicate": "Decode failure remains primary; raw-data and descriptor facts are retained."
+    },
+    {
+      "name": "write_and_close_failure",
+      "construction": "Inject a failed/partial write then close failure.",
+      "expected_predicate": "Original write failure and close uncertainty survive independently."
+    },
+    {
+      "name": "successful_io_close_failure",
+      "construction": "Complete read or write but fail final close; name each parameterized case.",
+      "expected_predicate": "No successful complete-disposition claim; close failure is visible."
+    },
+    {
+      "name": "remove_identity_and_close_failure",
+      "construction": "Refuse a reopened identity and fail closing that reopened handle.",
+      "expected_predicate": "Identity refusal remains primary and replacement is never removed."
+    },
+    {
+      "name": "remove_population_and_close_failure",
+      "construction": "Observe population then fail close.",
+      "expected_predicate": "Population refusal and descriptor uncertainty both reach the final outcome."
+    },
+    {
+      "name": "remove_population_read_and_close_failure",
+      "construction": "Fail population/member inspection and close.",
+      "expected_predicate": "Inspection is not treated as empty; primary and cleanup errors survive."
+    },
+    {
+      "name": "remove_name_stat_and_close_failure",
+      "construction": "Fail final name stat and close.",
+      "expected_predicate": "No rmdir occurs; both errors remain visible."
+    },
+    {
+      "name": "remove_rmdir_and_close_failure",
+      "construction": "Fail rmdir and close.",
+      "expected_predicate": "Removal failure and close uncertainty are distinct."
+    },
+    {
+      "name": "remove_success_close_failure",
+      "construction": "Succeed in exact owned removal, then fail reopened-handle close.",
+      "expected_predicate": "Known removal and unknown descriptor disposition are retained separately; cleanup is not complete."
+    },
+    {
+      "name": "close_uncertain_no_retry",
+      "construction": "Inject a close exception, then revisit cleanup for the same handle.",
+      "expected_predicate": "Unknown disposition is not treated as open authority for blindly closing a reused integer."
+    },
+    {
+      "name": "cleanup_serializes_nested_errors",
+      "construction": "Drive a native adapter failure through actual GroupOomSupervisor cleanup serialization.",
+      "expected_predicate": "Primary/secondary structured facts survive beyond Python exception context."
+    },
+    {
+      "name": "host_kill_launch_failure",
+      "construction": "Inject launch_failure during exact verified-container kill through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_kill_generic_unknown_transport",
+      "construction": "Inject generic_unknown_transport during exact verified-container kill through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_kill_communication_failure",
+      "construction": "Inject communication_failure during exact verified-container kill through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_kill_transport_cleanup_failure",
+      "construction": "Inject transport_cleanup_failure during exact verified-container kill through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_rm_launch_failure",
+      "construction": "Inject launch_failure during exact verified-container rm through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_rm_generic_unknown_transport",
+      "construction": "Inject generic_unknown_transport during exact verified-container rm through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_rm_communication_failure",
+      "construction": "Inject communication_failure during exact verified-container rm through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_rm_transport_cleanup_failure",
+      "construction": "Inject transport_cleanup_failure during exact verified-container rm through actual run_case.",
+      "expected_predicate": "Return failed HostOutcome with attempted command/raw observations, original failure, separate cleanup facts and final timestamps; do not invent launch/terminal state."
+    },
+    {
+      "name": "host_original_plus_kill_plus_remove_failure",
+      "construction": "Combine an existing main-path failure with both kill and rm exceptions.",
+      "expected_predicate": "Every failure and command attempt survives; only exact verified identity is ever targeted."
+    },
+    {
+      "name": "host_final_logs_plus_remove_failure",
+      "construction": "Fail final log acquisition and removal transport.",
+      "expected_predicate": "Both cleanup failures survive along with the original outcome and final times."
+    },
+    {
+      "name": "host_clean_main_remove_failure",
+      "construction": "Complete the main/inner path, then fail exact removal transport.",
+      "expected_predicate": "Final status is failed and removal remains unconfirmed, with a returned complete custody carrier."
+    },
+    {
+      "name": "host_unverified_identity_no_cleanup_mutation",
+      "construction": "Supply missing/mismatched nonce or task/full ID in the inspected identity.",
+      "expected_predicate": "No kill/rm/copy/start of the unverified container; prior refusal remains visible."
+    },
+    {
+      "name": "current_identity_and_wire_integration",
+      "construction": "Use the new current TASK_ID, actual v2 container serializer and actual host parser.",
+      "expected_predicate": "Current labels/name/nonce remain exact, and valid/invalid producer-consumer behavior preserves all120 intended predecessor controls."
+    }
+  ],
+  "source_status": "preparation only; no corrected source or checks executed",
+  "scientific_runs": 0,
+  "live_operational_runs": 0,
+  "scope": "Native source/custody repair only; preserve the full original operational contract and historical artifacts."
+}

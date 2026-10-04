@@ -1,0 +1,210 @@
+{
+  "hypothesis": {
+    "id": "H-CSIDH-5d2fe5",
+    "question_id": "RQ-CSIDH-64343f",
+    "proposal_id": "IDEA-20260906-c9f6e0",
+    "title": "Coherent zero-masked inversion and complete p11 CSIDH action cost audit",
+    "statement": "Test exact coherent masked-tree inversion including cleanup, and the source >=10% Toffoli reduction on a fully specified p=11 CSIDH action oracle at unchanged error and depth cap; no primitive-only substitute for the whole-action predicate.",
+    "mechanism": "For k=1 use exactly the reference INV0 gate list. For k=2,4 use the complete balanced binary tree with leaves in input order. Compute coherent f_i=[z_i=0]; copy u_i=z_i if f_i=0 else1 into clean leaves P_i using bit-controlled XOR/MUX. Compute internal P_v=MUL(P_left,P_right). Compute only R_root=INV0(P_root); descend preorder with R_left=MUL(R_parent,P_right), R_right=MUL(R_parent,P_left). Copy each R_i to Y_i only when f_i=0. To clean without a second inversion, construct S leaves from Y_i if f_i=0 else1, and bottom-up products S_v. Since S_v equals P_v^-1, XOR S_v into every R_v (including leaves) to clear R. Reverse the S product tree and leaf preparation; reverse P product tree and leaf preparation; recompute ZERO(z_i) into flags to clear them. Inputs and legal output Y remain. The asserted inverse-tree identity is checked before any performance inference. For k>=2 there is one clean INV0 and exactly6(k-1) clean MUL calls outside the primitive internals, plus masks/copies/flags and their cleanup. No omitted inversion or cleanup. For each valid A,e and every candidate lane i, let s=-1 if e code2 and+1 otherwise (including padded e0); A_s=s*A mod11. Compute h_i=x_i^3+A_s*x_i^2+x_i and rational_i=RESIDUE(h_i). Starting X=x_i,Z=1, apply two projective xDBL steps: T=(X+Z)^2,U=(X-Z)^2,E=T-U,Xnew=T*U,Znew=E*(U+((A_s+2)/4)*E), where1/4=3 mod11; all updates use old X,Z registers. This computes [4] of a rational point, with projective exceptional outputs retained. All r lane Z_Q denominators are computed from input A,e,x only and share no normalized output ancestor: freeze that ancestor certificate. Baseline uses r separate INV0(Z_Q); candidate replaces exactly that block by masked_tree. Both compute q_i=X_Qi*inv0(Z_Qi). valid_i=rational_i AND Z_Qi!=0 AND q_i!=0. Select lex-first valid lane by fixed prefix-found bits/MUX; if none set q=0 and found0. Unselected lanes are still computed and cleaned.",
+    "assumptions": [
+      "Initially zero output/workspace; preserved field inputs in declared canonical domain",
+      "Fixed phase-free NOT/CNOT/Toffoli library and common caps; no measurement or hidden classical branch",
+      "Literal p11 action DAG and independent quotient correctness, not a security-cost reconstruction"
+    ],
+    "proof_search_map": {
+      "bottleneck": "Whether one-inversion coherent batching survives output, flag and workspace cleanup at useful whole-action depth/width.",
+      "baseline_embedding": {
+        "parameter_slice": "k1 exactly INV0; r1 identical complete action; e0 padded identity.",
+        "reproduction_check": "Exhaustive gate truth-table and clean-input circuit checks plus independent finite quotient verification."
+      },
+      "observation_collision": {
+        "observable": "Product-tree values with coherent zero flags and full retained inputs.",
+        "distinct_preimage_search": "Equal masked product and different zero positions; outputs must stay distinct and all ancillas clean."
+      },
+      "constructive_transforms": [
+        {
+          "transform": "representation_reduction",
+          "proposed_object": "Masked product tree plus output-derived inverse tree for one-inversion cleanup",
+          "predicted_gain": "One clean INV0 plus6(k-1) clean MUL calls and explicit masks/flags versus k INV0 calls before outer action reversal."
+        }
+      ],
+      "quantifier_order": "For every valid denominator tuple and every valid p11 action input, require output equivalence/clean workspace. Existential count gain is only over frozen r2/r4 cells at fixed common caps, after complete all-input validation; no existential secret-amplitude-dependent schedule.",
+      "method_ceiling": {
+        "strongest_certifiable_claim": "Exact finite gate-list equivalence and complete toy action resource comparison in one frozen library.",
+        "nearby_object_control": "Dependent denominators and irreversible flag erasure must be rejected; omitting masks/cleanup must fail."
+      },
+      "proof_obligations": [
+        {
+          "responsibility": "correctness",
+          "claim": "Every inverse-tree R_v equals product of masked output inverses in its subtree, allowing cleanup without second inversion."
+        },
+        {
+          "responsibility": "interface",
+          "claim": "Candidate Z_Q nodes have no normalized-output ancestors; final coefficient normalization is excluded."
+        },
+        {
+          "responsibility": "correctness",
+          "claim": "Projective doubling and finite quotient agree with independent affine group/coset/Velu verification including e signs."
+        },
+        {
+          "responsibility": "runtime",
+          "claim": "Expand every primitive, copying, flag and outer reversal gate and schedule at fixed caps."
+        },
+        {
+          "responsibility": "scope",
+          "claim": "No disputed-model or deployed-parameter transfer from the p11 action."
+        }
+      ],
+      "formalization": {
+        "status": "dependency_impediment",
+        "candidate_theorem": "CryptoResearch.CSIDH.masked_tree_clean_output",
+        "statement": "For a finite field and complete binary tree, inputs z, masked nonzero leaves u and inverse subtree values R, prove S_v=R_v when S leaves are masked inv0 outputs; therefore the specified reversible XOR cleanup returns every ancillary register to0 while preserving z and inv0 outputs. Connect theorem to hashed gate list semantics separately.",
+        "workspace": "formal",
+        "missing_dependencies": [
+          "formal/lean-toolchain absent in current worktree",
+          "formal/lake-manifest.json absent; lakefile.toml references mutable mathlib master"
+        ],
+        "known_false_control": "Dropping zero masking makes the z=0 leaf identity false; dependent input update is outside theorem assumptions.",
+        "revisit_trigger": "Once toolchain and transitive dependency manifest are committed, allocate additive formal task freezing theorem module/name, statement, input hash, control and independent semantic review.",
+        "execution_in_this_intake": "none",
+        "required_future_checks": [
+          "Build requested module and transitive axiom audit excludes sorryAx/custom axioms",
+          "Independent semantic reviewer checks correspondence with complete research statement"
+        ]
+      },
+      "not_applicable_reason": null
+    },
+    "rerandomization": null,
+    "asymptotic_claim": null,
+    "heuristic_assumptions": [],
+    "structural_ingredients": [
+      {
+        "description": "Source mechanism and thresholds; proposed, no results adopted.",
+        "citation": "IDEA-20260906-c9f6e0",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-ac5744",
+        "role": "source/protocol basis, not experimental evidence"
+      },
+      {
+        "description": "Related reversible pebbling/interface proposal; no arithmetic inverter transformation.",
+        "citation": "IDEA-20260905-31d01b",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-ac5744",
+        "role": "source/protocol basis, not experimental evidence"
+      },
+      {
+        "description": "Source of projective doubling and 3-isogeny formulas and independent-candidate baseline. Classical batching is already discussed; no security estimate endorsed.",
+        "citation": "BLMP2019",
+        "provenance": "retrieved",
+        "verified_by": "TASK-20260907-ac5744",
+        "role": "source/protocol basis, not experimental evidence"
+      }
+    ],
+    "predictions": [
+      {
+        "metric": "Coherent batching on an actual finite action DAG",
+        "direction": "lower",
+        "minimum_effect": "At least one r in{2,4} has T_candidate<=0.9*T_reference with depth_candidate<=D_ref,Q_candidate<=8192, and exact equal output/failure law. All six arithmetic cells and three action cells must be valid. r1 reproduces reference."
+      }
+    ],
+    "test_boundary": {
+      "instances": [
+        "F7 andF11 six arithmetic cells",
+        "p11,l3 three complete action cells"
+      ],
+      "parameters": {
+        "arithmetic_primes": [
+          7,
+          11
+        ],
+        "batch_sizes": [
+          1,
+          2,
+          4
+        ],
+        "arithmetic_cell_count": 6,
+        "action_prime": 11,
+        "action_degree": 3,
+        "action_candidate_counts": [
+          1,
+          2,
+          4
+        ],
+        "action_cell_count": 3,
+        "all_cells": 9,
+        "source_dag_identity": "BLMP2019 primary PDF permanent identifier 9b88023d7d9ef3f55b11b6f009131c9f, sections3.3,5.3 and6.1; exact finite adaptation below, not a downloaded mutable implementation.",
+        "action_domain": "Enumerate all A in F11 with A^2!=4 and #E_A(F11)=12, E_A:y^2=x^3+A*x^2+x. For each A, e code0,1,2 means e=0,+1,-1. For r=1,2,4 enumerate all ordered x seed tuples in F11^r uniformly, with replacement. Preserve A,e,x and all input registers. No scalar or cost-based selection of curves/seeds.",
+        "invalid_domain": "All n-bit arithmetic registers use canonical little-endian representatives0..p-1. Primitive maps send invalid operands to zero. Full action on A outside certified domain, e code3, or noncanonical x returns output coefficient0 and invalid/failure bit1 after padded computation; valid e=0 returns A and failure0. Invalid inputs still define a fixed reversible gate permutation; scientific success law is only on the valid domain."
+      },
+      "implementation": "Future Executor gate-list/exact finite simulator and independent checker per frozen specification; no implementation or run in this intake.",
+      "budget": {
+        "enforcement": "advisory",
+        "wall_clock_seconds_per_run": null,
+        "total_cpu_hours": null,
+        "maximum_memory_gb": 4,
+        "maximum_runs": 1,
+        "maximum_workers": 1
+      }
+    },
+    "falsification_conditions": [
+      "If all cells are valid and neither r2 nor r4 meets the complete count/depth/width predicate, reject only this fixed finite-library/action threshold. If correctness or gate-model controls fail, result is invalid/inconclusive rather than mathematical rejection."
+    ],
+    "interpretation_limits": [
+      "Toy p11 action audit cannot settle deployed CSIDH parameters or hidden-shift costs.",
+      "No reconstruction or comparison of disputed quantum security models before three primary analyses are filed; this protocol makes no such comparison.",
+      "Truth-table reversible primitive library is deliberately exact and may be dominated by arithmetic circuits; a negative count result is library-specific.",
+      "Logical gate/depth/width counts exclude physical fault-tolerance estimates; no quantum hardware is used."
+    ],
+    "status": "proposed",
+    "proposed_by": "coordinator",
+    "recorded_at": "2026-09-07",
+    "task_id": "TASK-20260907-ac5744",
+    "batch_id": "BATCH-932483",
+    "inference": {
+      "requested_policy": "coordinator-orchestration-code",
+      "runtime": "native_codex",
+      "resolved_model_id": null,
+      "model_verified": false,
+      "reasoning_effort": null,
+      "fallback_used": false,
+      "degraded_requirements": [],
+      "session_identity": "/root/design_csidh_grumpy",
+      "provenance_note": "Native Coordinator design session; exact serving model not independently resolved or probed."
+    },
+    "novelty_status": "unverified",
+    "citations": [
+      {
+        "ref": "IDEA-20260906-c9f6e0",
+        "path": "ledger/proposals/IDEA-20260906-c9f6e0.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-ac5744",
+        "claim": "Source mechanism and thresholds; proposed, no results adopted."
+      },
+      {
+        "ref": "IDEA-20260905-31d01b",
+        "path": "ledger/proposals/IDEA-20260905-31d01b.yaml",
+        "provenance": "internal",
+        "verified_by": "TASK-20260907-ac5744",
+        "claim": "Related reversible pebbling/interface proposal; no arithmetic inverter transformation."
+      },
+      {
+        "ref": "BLMP2019",
+        "url": "https://www.iacr.org/archive/eurocrypt2019/114760273/114760273.pdf",
+        "provenance": "retrieved",
+        "verified_by": "TASK-20260907-ac5744",
+        "read_scope": "Introduction, sections 3.1-3.4, 5.3-5.4 and 6.1; retrieved original PDF in this session.",
+        "claim": "Source of projective doubling and 3-isogeny formulas and independent-candidate baseline. Classical batching is already discussed; no security estimate endorsed."
+      }
+    ],
+    "dominated_by": {
+      "status": "unresolved",
+      "reason": "No complete parameter-matched time-memory-data frontier or measured attack gain; this is a finite designed test."
+    },
+    "sota_delta": {
+      "established_time_exponent_gain": 0,
+      "established_memory_exponent_gain": 0,
+      "established_data_query_gain": 0,
+      "measurement_status": "unmeasured"
+    }
+  }
+}

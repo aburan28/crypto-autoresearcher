@@ -1,0 +1,13 @@
+# Complete fourth mathematical definition corrections
+
+TASK-20260908-689717 implements the choices in DEC-20260908-9bf5c1 for EXP-ECDLP-184fc4, EXP-ECDLP-1e6502 and EXP-ECDLP-2c3d20. All three remain unapproved, execution unauthorized and evidence ineligible pending archive TASK-20260908-4ea7b6 and a fresh complete independent definition review. EXP-ECDLP-709063 retains its separate approval and was not modified.
+
+The fixed SHA comparison rank retains its legacy p_joint name, exact formula, all64references and every candidate threshold. It is a descriptive finite comparison. Assignment symmetry alone does not calibrate arbitrary fixed transforms; the additional joint-law and sampler premises needed for a future probability claim are explicitly unadopted here. Empty families, missing required entries and nonfinite values make the rank unavailable. The archived66-state counterexample is reproduced one state per counted case. This does not test SHA quality or any ECDLP hypothesis.
+
+The 1e6502 sibling binding contains only the exact generic spectrum, finite-null summary/tie and zero-dispersion fields. Local102/136member,36cell and precision-specific reference definitions remain local. The combined eligible(member,precision,cell)maximum and each reference maximum are explicit. The 2c3d20 primary sigma_center slope and all its matched nulls use natural log(p) over the same seven rungs. Existing descriptive itinerary slopes retain log(N). All fields outside the declared interpretation, binding, abscissa and provenance changes compare equal to the archived predecessor.
+
+The single final suite passed128/128fixed cases, with no failed cases, reruns or scientific execution. External time was0.33s wall and0.29s aggregate CPU; maximum observed RSS was25,231,360bytes. The host rejected the requested4GiB RLIMIT_AS limit. That is failed enforcement, disclosed in the receipt; observed compliance does not establish a hard runtime guard. The checker and all three contract hashes in the receipt match the final bytes.
+
+Publication deviation: the original claim commit6991a08f was created before a rejected push. Three YAML drafts were written before that rejection was handled; no checks or scientific work ran. The retained claim was then published on the stable work branch and included in PR1031 before the sole128-case suite. Work and PR publication now use separate branches/worktrees. No prior evidence or claim was rewritten.
+
+Next action: archive the exact six outputs, freeze an independent full-source review of all three complete contracts, then adjudicate only the reviewed definition scope. Implementation, shared inputs, Linux runtime guards and measurement admission remain separate subsequent work.

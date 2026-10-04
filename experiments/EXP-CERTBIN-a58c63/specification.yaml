@@ -1,0 +1,831 @@
+# =============================================================================
+# EXP-CERTBIN-a58c63 -- STAGE 2 of IDEA-20260923-5d0b8e: the regime contrast at
+# matched l. m = 2, n in {17, 19}, both regimes on identical target bytes.
+# Regime B is the system over F_{2^n}, undescended, at D = 66. That is
+# 2^l + 2 at the REQUESTED l = 6, and 2^{l+1} + 2 at the ADDED l = 5 cells.
+#
+# DESIGN CHANGE BEFORE ANY DATA (KN-TECH-080 method-ceiling audit;
+# H-CERTBIN-b20d4e Lemma B-S): at l = 6, D = 66, the regime-B row space
+# contains 1 for an unsatisfiable target only if the reduced interpolant of
+# 1/S_3 on V x V has total degree <= 62. That is generically false (its degree
+# is 126), so the requested cell's elimination decides no attempt, and
+# "stable trace" there cannot bear on P-GPU. The requested l = 6 cells are
+# kept EXACTLY as asked. The l = 5 cells are added: there the same D = 66 and
+# the same 2278 columns make the elimination a complete solver (Lemma B-S (c)).
+#
+# DEC-20260923-f25b97 NA-2 / DEC-20260924-8e2f47. Lessons carried: RC-2 (in
+# its regime-B form), RC-3, OBJ-3, OBJ-4, OBJ-6, OBJ-9, F-J2-1..4, F-J3-1, R-1.
+#
+# ID PROVENANCE (disclosed): EXP-CERTBIN-a58c63 and RUN-CERTBIN-0b8f3a minted
+# WITHOUT A SHELL (random tokens, grep checked only). TASK-20260924-d3a90c runs
+# allocate_id.py --check first.
+#
+# CLAIM TIER: toy. Constant factor at most; sota_delta zero; oracle A per
+# attempt and parallel rho dominate.
+# =============================================================================
+experiment:
+  id: EXP-CERTBIN-a58c63
+  version: 1
+  hypothesis_id: H-CERTBIN-b20d4e
+  secondary_hypothesis_ids: [H-CERTBIN-7c3a18]
+  secondary_hypothesis_note: The regime-A arm tests H-CERTBIN-7c3a18 (KR1, TS1R, P-C3) at l in {5, 6}.
+  question_id: RQ-CERTBIN-836ce2
+  question_ids: [RQ-CERTBIN-836ce2, RQ-ICPERF-94c86e]
+  proposal_id: IDEA-20260923-5d0b8e
+  proposal_stage: 2
+  source_decision: DEC-20260923-f25b97 (NA-2)
+  run_id: RUN-CERTBIN-0b8f3a
+  goal_ids: []
+  goal_ids_note: No goal head is edited. No batch queue exists for this lane.
+  title: >-
+    Regime contrast at matched l: does the per-attempt Macaulay trace replay
+    across relation attempts over F_{2^n} (regime B, D = 66) where it does not
+    after Weil descent (regime A, D in {3, 4}), on identical targets, at
+    (n, l) in {17, 19} x {6, 5}? Does the regime-B computation decide the
+    attempt, and where do satisfiable attempts diverge?
+  status: approved
+  frozen: true
+  execution_authorized: true
+  execution_authorized_note: In fact only after TASK-20260924-d3a90c verifies; until then TASK-20260924-6ab0d8 may not launch.
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-09-24'
+  approval_decision: DEC-20260924-8e2f47
+  approval_basis: >-
+    Standing user authorization (AGENTS.md, 2026-09-06) and the user's
+    explicit approval of Stage 2 on 2026-09-24. The readiness finding and the
+    pre-data design change are DEC-20260924-8e2f47's. Approval asserts nothing
+    about any hypothesis.
+
+  design_refinements_before_data:
+    - >-
+      (1) The l = 5 cells (n = 17 and 19), added after the Lemma B-S audit.
+      They keep D = 66 and the column count 2278 of the requested cell, and
+      make the regime-B elimination a complete solver. The requested l = 6
+      cells are unchanged.
+    - >-
+      (2) Exact per-instance instrument predictions from Lemma B-S: delta(x_R)
+      for every regime-B unsat instance (C-DELTA) and the predicted rank_66
+      (C-RANKB).
+    - >-
+      (3) Classification of every first divergence (ZERO-PIVOT, ROW-ORDER,
+      COLUMN), from the identical-state property of Lemma 2B. This needs no
+      extra replay for the retention metric.
+    - >-
+      (4) Regime-B same-support nulls F-NULLB and F-AFFB beside the regime-A
+      nulls.
+    - >-
+      (5) An outcome-blind timing pilot chooses between two pre-registered
+      count schedules; it reads no frozen stream and records timings only.
+    - >-
+      (6) The n = 17 cells reuse the Stage-1 curve so that Stage 2 links to
+      RUN-CERTBIN-3b7e05; n = 19 draws a curve from a frozen seed.
+    - >-
+      (7) Regime-A lessons: hull accounting (OBJ-3), TS1R (RC-2), K_rank and
+      f_div as co-primary (OBJ-6), C-FORMS and C-SURV instead of C-UNIF
+      (F-J2-2), real failure conditions for C-REV and C-NULLS (F-J2-3), three
+      independent C-PROPS failure modes including PS0' (F-J2-1, F-J2-4), M3
+      precedence (F-J3-1), exact tails (RC-3).
+
+  objective: >-
+    At each of four cells (n, l) in {(17, 6), (19, 6), (17, 5), (19, 5)}:
+    measure T_strict retention of unsatisfiable targets against learned
+    references in both regimes on the same x_R, with f_div and divergence type;
+    test HEUR-CERTBIN-TS2B's break-count prediction and its decay in n; check
+    Lemma B-S per instance; decide whether regime B at that cell decides the
+    attempt; test E3 localisation at the deciding cells; and record sizes and
+    saving ratios. Output: the regime-B P-GPU verdict per cell (DB-7).
+
+  claim_tier_and_scope:
+    claim_tier: toy
+    statement: >-
+      Trace-stability and competence measurement of the declared fixed-shape
+      Macaulay eliminations (regime A over F_2 after descent; regime B over
+      F_{2^n}) for the m = 2 direct S_3 system with polynomial-basis V, at
+      the four cells above, on one curve per n.
+    sota_delta: zero on every ECDLP cost axis
+    dominated_by: >-
+      Per attempt: oracle A (2^l quadratic root-findings: 32 at l = 5, 64 at
+      l = 6) decides satisfiability and returns the solutions; it dominates a
+      2028 x 2278 or 3276 x 2278 elimination over F_{2^n} by orders of
+      magnitude (OBJ-9). For the DLP: parallel Pollard rho with the negation
+      map (about 2^8 to 2^9 group operations at these n). Joux-Vitse F4'
+      (KN-LIT-673219) is the only source-verified trace-reuse constant
+      (2.43x-3.40x over F_{p^5}); FES GPU (KN-LIT-287) and WDSat are not
+      compared.
+    certificate_kind: unsatisfiability_certificate (instrument only; PS0')
+    affected_vs_safe: No deployed or standardized curve is touched or affected.
+
+  # ---------------------------------------------------------------------------
+  # OBJECT (frozen; the executor implements exactly these)
+  # ---------------------------------------------------------------------------
+  object:
+    fields:
+      n17: F_2[t]/(t^17 + t^3 + 1) (the Stage-1 field).
+      n19: >-
+        F_2[t]/(f_19) with f_19 = t^19 + t^a + t^b + t^c + 1, 19 > a > b > c > 0,
+        the irreducible pentanomial with the lexicographically smallest
+        (a, b, c). The executor finds it by exhaustive irreducibility tests
+        (gcd(t^{2^i} - t, f) = 1 for i = 1..9 and t^{2^19} = t mod f) and
+        records it. The choice is by rule, not from memory.
+      encoding: element <-> n-bit integer, bit j = coefficient of t^j.
+    curves:
+      n17: >-
+        The Stage-1 curve and points: A = 97044, B = 126251, #E = 4 * 32603,
+        and P, Q, k_Q read from
+        experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/curve.json
+        (sha256-checked against the TASK-20260923-c2e57b receipt).
+      n19: >-
+        Drawn from S_curve19 = 2026092420001 by the Stage-1 curve rule (B != 0,
+        exact count, accept the first with #E = h*q, h in {2, 4}, q prime);
+        P, Q from S_pts19 = 2026092420002 by the Stage-1 point rule.
+    factor_base: V = span_F2{1, t, ..., t^{l-1}}, l in {5, 6}.
+    targets: >-
+      Curve targets R = [a]P + [b]Q, a, b uniform in [0, q-1], R != O, sampled
+      WITHOUT replacement in x_R and excluding reference x_R. Degenerate
+      stratum: x_R in V (includes 0); excluded from arm statistics. The SAME
+      x_R list feeds both regimes at a cell.
+    satisfiability: >-
+      s = #{(x_1, x_2) in V^2 : S_3(x_1, x_2, x_R) = 0}, identical in both
+      regimes. Oracle A: O(2^l) root-finding (Stage-1 C-ORACLE rule). Oracle
+      C: direct evaluation of S_3 on all of V x V. Regime-A oracle B:
+      exhaustive evaluation of the descended system over 2^{2l} assignments.
+      All three must agree (C-ORACLE).
+    regime_A:
+      system: >-
+        Stage-1 descent generalized: x_1 = sum_{j<l} v_j t^j,
+        x_2 = sum_{j<l} v_{l+j} t^j; n quadratic Boolean equations in 2l
+        variables; multilinearized; E(r) = E^0 + sum_j r_j E^j (C-AFF).
+      macaulay: >-
+        Stage-1 conventions (row index = mu_index * n + k; columns descending
+        degrevlex, constant LAST; zero rows retained), D in {3, 4}.
+      fixture_dimensions:
+        l6_n17: {D3: 221 x 299, D4: 1343 x 794}
+        l6_n19: {D3: 247 x 299, D4: 1501 x 794}
+        l5_n17: {D3: 187 x 176, D4: 952 x 386}
+        l5_n19: {D3: 209 x 176, D4: 1064 x 386}
+      elimination_and_traces: Exactly EXP-CERTBIN-4e92d7 object.elimination, zero_reduction_set, traces, constant_in_row_space and fixed_schedule_replay.
+      hull: >-
+        As H-CERTBIN-7c3a18: H = affine hull of the family's non-degenerate
+        targets' r-vectors, W its direction, tau_j = Tr(t^j) recorded,
+        K_rank over F_2^n and K_rank_hull = rank(a_k restricted to W),
+        Sigma_H computed exactly.
+    regime_B:
+      ring: F_{2^n}[x_1, x_2]
+      generators: >-
+        g_0 = x_1^2 x_2^2 + x_R^2 x_1^2 + x_R^2 x_2^2 + x_R x_1 x_2 + B
+        (S_3 with x_3 = x_R, expanded in characteristic 2);
+        g_1 = L_V(x_1), g_2 = L_V(x_2), L_V(X) = prod_{v in V} (X - v),
+        computed as the linearized polynomial sum_{i=0}^{l} lambda_i X^{2^i};
+        lambda_0 != 0 is checked.
+      D: 66
+      rows: >-
+        Block 0: mu*g_0 for every monomial mu = x_1^a x_2^b with a + b <= 62.
+        Block 1: nu*g_1 for every monomial nu with deg nu <= 66 - 2^l.
+        Block 2: nu*g_2, same nu. Within a block, monomials are ordered by
+        degree ascending, then by the exponent of x_1 DESCENDING. Row index =
+        position in block 0, then block 1, then block 2.
+      columns: >-
+        Every monomial x_1^a x_2^b with a + b <= 66, in DESCENDING degrevlex
+        with x_1 > x_2: higher degree first; within a degree, x_1^d,
+        x_1^{d-1} x_2, ..., x_2^d; the constant LAST.
+      fixture_dimensions:
+        l6: 2028 x 2278 (2016 + 6 + 6 rows)
+        l5: 3276 x 2278 (2016 + 630 + 630 rows)
+      elimination: >-
+        Column-major over the declared column order. At column c, among rows
+        not yet used as pivot rows, the one with the smallest ORIGINAL index
+        and a nonzero entry becomes the pivot p; record step (p, c) and, for
+        every other unused row i with a nonzero entry at c, row_i <- row_i +
+        (M[i, c] / M[p, c]) * row_p, recording that row set X. Rows never move
+        and pivot rows are not rescaled. Entries are exact F_{2^n} elements.
+      traces: T_rank, T_set (pivot-column set, Z_D by a separate row pass), T_strict, T_ops, canonical JSON hashed with sha256, as in Stage 1.
+      one_in_R: '"1 in R_66" iff the constant column is a pivot column.'
+      delta: >-
+        For an unsatisfiable instance: F(v_1, v_2) = 1 / S_3(v_1, v_2, x_R) on
+        V x V (V enumerated in increasing integer order); Phi = the 2^l x 2^l
+        matrix over F_{2^n} mapping values on V to the coefficients of the
+        reduced univariate interpolant (exponents < 2^l); Coef = Phi F Phi^T;
+        delta = max{a + b : Coef[a, b] != 0}. Also record
+        top = Coef[2^l - 1, 2^l - 1] and sum_{V x V} F / lambda_0^2.
+      divergence_classification: >-
+        For a target t and reference ref, let k be the first step at which
+        T_strict(t) and T_strict(ref) differ (Stage-1 f_div definition). Since
+        the states before step k coincide (Lemma 2B), classify: ZERO-PIVOT if
+        the target's entry at (p_k^ref, c_k^ref) is 0 and some unused row is
+        nonzero at c_k^ref; COLUMN if no unused row of the target is nonzero at
+        c_k^ref; ROW-ORDER if the entry at (p_k^ref, c_k^ref) is nonzero but a
+        smaller-index unused row is nonzero at c_k^ref; PREFIX if one trace is
+        a proper prefix of the other. For each target also record the
+        target's first non-pivot column (its first COLUMN event on its own
+        elimination).
+      fixed_schedule_replay_B: >-
+        For each of the 3 unsat references: replay the reference's
+        (p_k, c_k, X_k) with multipliers computed from the target's current
+        entries (fixed control flow, target arithmetic) on (i) every target
+        whose own first divergence from that reference is ROW-ORDER, and
+        (ii) the 50 lowest-idx matched targets (C-REPLAYB). Record the first
+        k with a zero pivot entry, and whether every unused row outside X_k is
+        zero at c_k (schedule validity).
+      K_B: >-
+        Per unsat reference: evaluate the fixed-schedule replay at 3 probe
+        points x drawn from stream 2026092420098 (per cell, in draw order,
+        skipping probes that break the schedule, at most 10 draws). K_B = the
+        number of steps whose pivot entry is not identical across the
+        reference and the 3 probes. Recorded with the probe values' hashes.
+    null_families_B:
+      F-NULLB: >-
+        Same support, generic coefficients: g_0 replaced by
+        c_1 x_1^2 x_2^2 + c_2 x_1^2 + c_3 x_2^2 + c_4 x_1 x_2 + c_5, with c_i iid
+        uniform in F_{2^n} minus {0}, redrawn per instance; g_1, g_2
+        unchanged. Own references (3 unsat, 2 sat) and targets from its streams.
+        Satisfiability by oracle C.
+      F-AFFB: >-
+        Same support, one family indexed by x_R: five multipliers alpha_1..5
+        iid uniform nonzero, drawn ONCE per cell; g_0 replaced by
+        alpha_1 x_1^2 x_2^2 + alpha_2 x_R^2 x_1^2 + alpha_3 x_R^2 x_2^2 +
+        alpha_4 x_R x_1 x_2 + alpha_5, evaluated at the F-S3 targets' x_R
+        (paired bytes, the first N_AFFB of them) and at the F-S3 references'
+        x_R. Satisfiability by oracle C.
+    null_families_A: >-
+      F-AFF (one draw per cell; Stage-1 construction on the cell's supports,
+      paired with the F-S3 r-bytes) and F-NULLF2 (Stage-1 construction; own
+      references and targets).
+
+  seeds:
+    generator: numpy.random.Generator(numpy.random.PCG64(seed)), one per stream
+    formula: >-
+      seed(cell c, stream s) = 2026092420000 + 100*c + s, with c = 1 (17, 6),
+      2 (19, 6), 3 (17, 5), 4 (19, 5), and s = 01 ref, 02 test, 03 sat
+      (rejection sampling), 04 plant, 05 randx, 06 nullAff draw (regime A),
+      07 nullF2_ref, 08 nullF2_test, 09 nullB_ref, 10 nullB_test, 11 affB
+      draw.
+    fixed:
+      S_curve19: 2026092420001
+      S_pts19: 2026092420002
+      S_probe: 2026092420098
+      S_selftest: 2026092420099
+    seed_rule: >-
+      Frozen here. Streams are consumed in order; none is re-seeded, skipped
+      or reordered after any output. Every rejection is counted.
+
+  counts:
+    schedule_rule: >-
+      TIMING PILOT (outcome-blind). Before any frozen stream is drawn, the
+      executor builds and eliminates 10 regime-B instances per cell with x_R
+      drawn from S_selftest, records only their wall times (no trace, rank or
+      flag is written or inspected beyond the self-test pass/fail), and
+      computes T_proj = sum over cells of (mean seconds per regime-B
+      elimination) x (the cell's regime-B elimination count under C_std).
+      If T_proj <= 345,600 single-worker seconds, C_std applies to every cell;
+      otherwise C_low applies to every cell. Recorded in the manifest before
+      phase 1.
+    C_std:
+      references: 3 unsat + 2 sat per family (reference_rule), plus the modal per regime
+      F-S3: 1000
+      F-SAT: 200
+      F-PLANT: 200
+      F-RANDX: 500
+      F-AFF: 1000 (paired with F-S3)
+      F-NULLF2: 500
+      F-NULLB: 300
+      F-AFFB: 300 (the first 300 F-S3 targets' x_R)
+      C-REV: the 100 lowest-idx F-S3 targets, both regimes
+      C-DET: the references and the 100 lowest-idx F-S3 targets, both regimes
+    C_low: every C_std count above halved (F-S3 500, F-SAT 100, F-PLANT 100, F-RANDX 250, F-AFF 500, F-NULLF2 250, F-NULLB 150, F-AFFB 150, C-REV 50, C-DET 50)
+    reference_rule: >-
+      Per cell and family: scan the reference stream in order, classify each
+      non-degenerate, non-duplicate instance by the oracles, take the first 3
+      unsatisfiable and the first 2 satisfiable. Stop at 5 or after 300,000
+      draws with a recorded shortfall (satisfiable references are rare at
+      these l). References are fixed before any test target is drawn.
+    sat_arm_rule: >-
+      F-SAT: scan S_sat in order and keep the first N_SAT non-degenerate,
+      distinct satisfiable subgroup targets (x_R not a reference and not an
+      F-S3 target). Record the number of draws (the rejection count is an
+      estimate of 1 - P_sat).
+    modal_rule: Stage-1 modal_reference_rule, per regime, cell and D, on F-S3 targets 1..100; modal scores use targets 101.. only.
+    sample_size_justification: >-
+      P_sat is small (expected ordered solutions 2^{2l} / 2^n: about 0.03 at
+      (17, 6) and 0.002 at (19, 5)), so the natural F-S3 arm is about 97-99%
+      unsat. Under TS2B the break fraction is about K_B / 2^n <= 2278 / 2^n:
+      <= 1.7% at n = 17 and <= 0.43% at n = 19, i.e. about 17 and 4 expected
+      breaks per reference among about 980 unsat targets (C_std). Both exceed
+      1, the heuristic-validation floor; at n = 19 the count is marginal and
+      that is disclosed. Retention near 0.98 against the 0.9 threshold is
+      separated by more than 15 binomial standard errors. E3 at 5% resolution
+      needs about 100 satisfiable targets per reference; F-SAT + F-PLANT give
+      400 (C_std) or 200 (C_low).
+
+  # ---------------------------------------------------------------------------
+  # CONTROLS -- every control states its FAIL condition
+  # ---------------------------------------------------------------------------
+  controls:
+    - id: C-FIX
+      what: Every fixture dimension above (regime A per (n, l, D); regime B 2028 x 2278 and 3276 x 2278).
+      fails_if: any mismatch. STOP (INV-1).
+    - id: C-SELF
+      what: >-
+        With S_selftest: moduli irreducible (n = 17; the rule-selected n = 19
+        pentanomial); field axioms on 10^4 triples per field; point counting
+        against a naive count on 3 small curves; S_3 against point addition on
+        10^3 pairs per n; L_V has exactly the roots V and lambda_0 != 0; the
+        regime-B rows against naive polynomial multiplication on 50 random
+        rows per l; the regime-A descent against direct evaluation; the
+        F_{2^n} elimination's op log against a literal transcription of the
+        rule on 20 random small matrices; Phi against direct Lagrange
+        interpolation on 5 random functions per l; half-trace root finding.
+      fails_if: any item fails. STOP (INV-1).
+    - id: C-PROV
+      what: >-
+        The regime-A arm is copied from experiments/EXP-CERTBIN-4e92d7/impl/
+        (reviewed) and generalized to (n, l) with every change listed in
+        impl/impl-provenance.json. Regression: at the Stage-1 cell (n = 17,
+        l = 9) on the 5 archived references and 20 lowest-idx archived F-S3
+        targets, the copied code reproduces the archived rank, "1 in R_D",
+        trace hashes and replay first-zero indices at D = 3 and 4.
+      fails_if: any mismatch. The regime-A arm is void (INV-2).
+    - id: C-ORACLE
+      what: Oracle A, oracle C (and regime-A oracle B) agree on s for every curve-algebra instance; null families use oracle C (regime B) or oracle B (regime A).
+      fails_if: any disagreement. Arm-dependent metrics void, every family of the cell (INV-3).
+    - id: C-WIT
+      what: Every solution (x_1, x_2) re-verified by direct evaluation of S_3 in F_{2^n}; every F-PLANT target has s >= 1; every F-SAT target has s >= 1.
+      fails_if: any failure. INV-3.
+    - id: C-DELTA
+      what: >-
+        Lemma B-S (b) per instance. For every regime-B unsat instance of every
+        curve-algebra family: "1 in R_66" == (delta + 4 <= 66). Also
+        top == sum_{V x V} F / lambda_0^2 on every instance (an exact
+        identity).
+      fails_if: >-
+        any mismatch. Either Lemma B-S or the implementation is wrong. The
+        regime-B metrics of the cell are INVALID pending the review round's
+        adjudication (INV-4); never evidence about C2-C4.
+    - id: C-RANKB
+      what: >-
+        Lemma B-S (c), (d) per instance. At l = 5: rank_66 == 2278 for unsat and
+        == 2278 - s for sat instances. At l = 6: rank_66 == 2028 for unsat
+        instances (sat recorded; predicted 2028).
+      fails_if: any mismatch where a value is predicted. INV-4.
+    - id: C-BREAK
+      what: >-
+        Every regime-B ZERO-PIVOT first divergence against an unsat reference
+        is re-verified by an INDEPENDENT determinant routine (a separate
+        module, own pivoting) on the target's ORIGINAL M_66: the minor on rows
+        p_0..p_k and columns c_0..c_k is 0 and the minor on p_0..p_{k-1},
+        c_0..c_{k-1} is not. Also, for 20 matched targets per cell, the minor
+        on all L reference pivots is nonzero.
+      fails_if: any disagreement. The regime-B break metrics (DB-3, DB-4) are void for the cell (INV-5).
+    - id: C-REPLAYB
+      what: >-
+        On the 50 matched targets per unsat reference, the regime-B fixed
+        schedule replay survives every step and is schedule-valid (a matched
+        T_strict with matching state implies it).
+      fails_if: any failure. INV-5.
+    - id: C-AFF
+      what: Regime A, Stage-1 C-AFF per cell (affine identity on every affine-route instance; direct replay equals the affine formula on 20 targets per family and every reference).
+      fails_if: any mismatch. INV-6.
+    - id: C-FORMS
+      what: Regime A (replaces C-UNIF, F-J2-2). The exact forms predict every target's first replay-zero index for every reference.
+      fails_if: any mismatch. INV-6.
+    - id: C-SURV
+      what: Regime A. The count of targets surviving the whole fixed replay equals the count lying in the exact coset (and on the hull).
+      fails_if: any mismatch. INV-6.
+    - id: C-HZERO
+      what: Regime A. Every hull-dependent pivot has hazard exactly 0 (Lemma 3).
+      fails_if: any nonzero. INV-6.
+    - id: C-TR
+      what: On each curve, by enumeration over F_{2^n} - x in x(2E) iff Tr(x) = Tr(A).
+      fails_if: any violation. Recorded as data; the measured hull is used anyway; no invalidation.
+    - id: C-PASS
+      what: Both regimes. Column-pass pivot set equals the row-pass leading-column set, and |Z_D| = R_D - rank_D, on every instance.
+      fails_if: any failure. The run is void (INV-7).
+    - id: C-DET
+      what: Both regimes. The references and the C-DET targets re-eliminated in a SEPARATE process; T_ops hashes compared.
+      fails_if: any mismatch. The run is void (INV-7).
+    - id: C-REV
+      what: >-
+        Both regimes, on the C-REV targets with row order reversed. Row space
+        is invariant, so rank_D, the pivot-column set and "1 in R_D" must be
+        identical per instance. T_strict retention under reversal is DATA.
+      fails_if: any per-instance difference in those three. INV-7.
+    - id: C-PROPS
+      what: >-
+        Three INDEPENDENT failure modes per regime (F-J2-4):
+        PS0 - every row vanishes at every solution (regime A: Boolean
+        solutions; regime B: the points (x_1, x_2) in V^2);
+        PS1 - no satisfiable instance has 1 in R_D;
+        PS0' (F-J2-1) - for the 20 lowest-idx unsat F-S3 targets with 1 in R_D
+        per cell and regime (regime A at D = 4, else D = 3; regime B only
+        where 1 in R_66 occurs, i.e. the l = 5 cells), an explicit certificate
+        (row indices and, in regime B, F_{2^n} coefficients) whose combination
+        is exactly 1, verified by verifier/verify_cert.py, which imports
+        nothing from impl/ and rebuilds the rows with its own arithmetic.
+        PS2 and PS3 are recorded as implied checks.
+      fails_if: any PS0, PS1 or PS0' failure. The instrument is falsified; the run is void (INV-8).
+    - id: C-NULLS
+      what: >-
+        Nulls of both regimes run the identical code path (module sha256
+        recorded per family). F-NULLB coefficients are nonzero and their
+        pooled distribution passes an exact chi-square-free check (the count
+        of coefficients in each of 16 equal bins of the integer encoding lies
+        in its exact 99.9% binomial band); F-AFFB multipliers are nonzero and
+        recorded; the regime-A null support checks of EXP-CERTBIN-3f06d1
+        C-NULLS apply.
+      fails_if: a code-path hash differs, or a support, nonzero or band check fails. Null comparisons (DB-8, M3) void.
+    - id: C-PILOT
+      what: The timing pilot drew only from S_selftest and wrote only timings; its decision is recorded before phase 1.
+      fails_if: >-
+        any pilot output other than timings and self-test pass/fail is
+        written, or a frozen stream is drawn before the decision. The count
+        schedule is then C_std regardless, and the deviation is reported
+        (not a void).
+
+  independent_variables:
+    - cell (n, l) in {(17, 6), (19, 6), (17, 5), (19, 5)}
+    - regime (A at D in {3, 4}; B at D = 66)
+    - family (F-S3, F-SAT, F-PLANT, F-RANDX; regime-A nulls F-AFF, F-NULLF2; regime-B nulls F-NULLB, F-AFFB)
+    - granularity (T_rank, T_set, T_strict, T_ops)
+    - reference (3 unsat, 2 sat, modal)
+    - arm (unsat, sat; degenerate separately)
+
+  metrics:
+    primary:
+      - id: MB1
+        name: regime_B_strict_retention_unsat
+        definition: >-
+          Per cell, T_strict retention of the unsat arm (F-S3) against each
+          unsat reference and the modal, with Clopper-Pearson 95% in exact
+          arithmetic. retention_family = max; also the min.
+      - id: MB2
+        name: regime_B_divergence
+        definition: >-
+          (OBJ-6, co-primary.) f_div per target and reference; median f_div
+          per arm; counts of ZERO-PIVOT, ROW-ORDER, COLUMN and PREFIX first
+          divergences per arm and reference.
+      - id: MB3
+        name: regime_B_breaks
+        definition: >-
+          (RC-2 in regime B: the unit is the DISTINCT BREAKING TARGET, not a
+          (reference, pivot) pair.) Per unsat reference: K_B, the number X of
+          unsat-arm targets whose first divergence is ZERO-PIVOT, the list of
+          those x_R, and the exact two-sided 99.9% Poisson interval of mean
+          N_unsat * K_B / 2^n. Pooled across references, a target breaking
+          several references counts once. Also on F-RANDX (uniform x) for the
+          x(2E)-independence reading.
+      - id: MB4
+        name: regime_B_competence
+        definition: >-
+          Per cell and arm: the fraction with 1 in R_66; the rank_66
+          distribution; the delta distribution on the unsat arm; C-DELTA and
+          C-RANKB counts.
+      - id: MB5
+        name: E3_localisation
+        definition: >-
+          At the l = 5 cells, per unsat reference: the fraction of satisfiable
+          targets (F-SAT and F-PLANT pooled, each also reported) whose first
+          divergence is a COLUMN divergence at the target's own first
+          non-pivot column. At the l = 6 cells: "not evaluable" unless some
+          unsat reference has 1 in R_66.
+      - id: MA1
+        name: regime_A_strict_retention_and_hull_rank
+        definition: >-
+          (OBJ-6.) Per cell at D = 4 (D = 3 secondary) on the same F-S3
+          targets: T_strict unsat retention (CP95, exact), median f_div per
+          arm, K_rank, K_rank_hull, dim W, dim Sigma_H.
+      - id: MA2
+        name: regime_A_TS1R
+        definition: HEUR-CERTBIN-TS1R's evaluation set E, m, o and P[Bin(m, 0.001) >= o] (exact), per cell and family, as in EXP-CERTBIN-3f06d1 M2R.
+      - id: M3
+        name: null_ratios
+        definition: >-
+          Regime A: retention_family(F-S3) / retention_family(F-AFF). Regime B:
+          retention_family(F-S3) / retention_family(F-AFFB), and the same with
+          F-NULLB. PRECEDENCE (F-J3-1), FIRST MATCHING RULE APPLIES:
+          (1) numerator count 0 AND denominator count 0: "not estimable";
+          (2) numerator 0, denominator > 0: ratio 0;
+          (3) numerator >= 1, denominator 0: lower bound numerator / CP95 upper
+              bound of the denominator;
+          (4) otherwise point estimate with a bootstrap 95% interval (10^4
+              resamples, seed S_selftest).
+      - id: M5
+        name: instrument_checks
+        definition: Pass/fail per control with violating instances.
+    secondary:
+      - Regime-B and regime-A retention at T_set, T_rank and T_ops; sat-arm retention against sat references; the modal reference's class size and arm composition; H(T) per regime.
+      - Regime-B fixed-schedule replay outcomes on ROW-ORDER divergers (survival, schedule validity).
+      - The x(2E) split of F-RANDX break rates and retention (regime B) and "1 in R_D" rates (regime A).
+      - '"1 in R_D" rates per regime, arm and D; D* in regime A.'
+      - >-
+        Saving ratios. Regime A: Stage-1 definitions. Regime B, unit one
+        F_{2^n} multiply-add: ops_masked_full = R * C * (C + 1) / 2 (every row
+        updated at every column over the remaining width); ops_strict =
+        sum_k |X_k| * (C - index(c_k)); ops_set = rank * (C + 1) * rank / 2
+        is NOT defined in regime B and is not reported; saving_strict =
+        ops_masked_full / ops_strict.
+      - Sizes. Regime B dense bytes = R * C * ceil(n / 8); pruned rows R - |Z|; nnz; compared with 32 B and 233,472 B.
+      - P_sat estimates from F-S3 and from F-SAT's rejection counts; rational-lift flag rate.
+      - Wall time and peak RSS per cell, regime and phase.
+    primary_unit: >-
+      Regime A: GF(2) full-row XORs. Regime B: F_{2^n} multiply-adds.
+      Retention and counts are unitless.
+
+  preregistered_prediction:
+    quantity: >-
+      PB-1..PB-7 of H-CERTBIN-b20d4e; PC-1..PC-4 of H-CERTBIN-7c3a18 at the
+      regime-A arm.
+    formula: >-
+      Regime B: retention_family >= 0.9 (about 1 - K_B / 2^n); zero-pivot
+      break count inside the exact 99.9% Poisson interval of
+      N_unsat * K_B / 2^n for >= 2 of 3 unsat references; break rate decays
+      from n = 17 to n = 19; E3 fraction >= 0.95 at l = 5; 1 in R_66 on no
+      unsat instance at l = 6 and on every unsat instance at l = 5;
+      rank_66 = 2278 - s at l = 5 and 2028 (unsat) at l = 6. Regime A:
+      retention_family < 0.5; K_rank_hull = dim W; TS1R consistent.
+    source: >-
+      H-CERTBIN-b20d4e (Lemma B-S and Lemma 2B derived there; TS2B, TS2G),
+      H-CERTBIN-7c3a18, and IDEA-20260923-5d0b8e's thresholds (0.9 for
+      regime B; E3's 5%). Written before any run.
+  heuristic_under_test: HEUR-CERTBIN-TS2B
+  heuristics_also_read: [HEUR-CERTBIN-TS2G, HEUR-CERTBIN-KR1, HEUR-CERTBIN-TS1R]
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n in {17, 19}, l in {5, 6}. The n-scaling reading (DB-4) uses two n
+      only. Nothing transfers to l = 9 in regime B (not measured; D = 130 at
+      l = 6 is also not measured) or to any Certicom size.
+    correspondence: null
+  tail_checks:
+    - >-
+      EXACT ARITHMETIC (RC-3). Every binomial and Poisson interval and tail,
+      and the exact conditional-binomial interval for the ratio of two Poisson
+      rates (DB-4), is computed in exact integer / rational arithmetic or
+      log-space at >= 50 significant digits, reported as log10. No
+      floating-point survival function below 1e-12.
+    - >-
+      Break-set extremes: the number of references whose break count lies
+      outside its 99.9% interval, against Binomial(3, 0.001), exact.
+    - >-
+      delta extremes: the smallest delta on each unsat arm against TS2G (the
+      fraction with delta < 2^{l+1} - 2).
+
+  replication:
+    seeds: see seeds (formula and fixed)
+    independent_instances: 'about 16,000 regime-B and 20,000 regime-A eliminations under C_std (half under C_low)'
+    plan: >-
+      Within-run: two n per l, two l per n, 3 unsat + 2 sat references per
+      family, two regime-B nulls and two regime-A nulls, uniform-x targets,
+      C-REV and C-DET. One curve per n is a declared limitation.
+
+  # ---------------------------------------------------------------------------
+  # DECISION RULES (fixed now; applied mechanically)
+  # ---------------------------------------------------------------------------
+  decision_rules:
+    - {id: DB-1, rule: 'Regime-B stability per cell (T_strict, unsat arm): "STABLE" iff retention_family >= 0.9; "UNSTABLE" iff < 0.5; otherwise "PARTIAL". TS2B is FALSIFIED at a cell whose retention_family < 0.9.'}
+    - {id: DB-2, rule: 'Competence per cell: "DECIDES" iff >= 95% of the unsat arm has 1 in R_66 AND every satisfiable target (F-SAT, F-PLANT) has rank_66 < 2278; "DOES NOT DECIDE AT THIS D" iff <= 5% of the unsat arm has 1 in R_66; otherwise "PARTIAL".'}
+    - {id: DB-3, rule: 'TS2B quantitative per cell: "CONSISTENT" iff the zero-pivot break count lies inside its exact 99.9% Poisson interval for >= 2 of the 3 unsat references; "FALSIFIED" otherwise. The row-order divergence rate is reported beside it; "REFERENCE NON-GENERIC" for a reference whose ROW-ORDER first divergences exceed 1% of the unsat arm.'}
+    - {id: DB-4, rule: 'n-scaling at fixed l (pooled distinct zero-pivot breaking targets, unsat arm): exact conditional-binomial 95% interval for rate(19) / rate(17). "DECAYS" iff the upper bound < 1; "NON-DECAYING (artifact tell)" iff the lower bound >= 1; otherwise "UNRESOLVED". Also "CONSISTENT WITH (K_B(19)/K_B(17))/4" iff that value lies in the interval.'}
+    - {id: DB-5, rule: 'E3 at the l = 5 cells: "E3 HOLDS" iff the E3 fraction >= 0.95 for every unsat reference; "E3 FALSIFIED" iff < 0.95 for any unsat reference. At l = 6: "NOT EVALUABLE" unless some unsat reference has 1 in R_66.'}
+    - {id: DB-6, rule: 'Contrast per cell on identical targets: "CONTRAST CONFIRMED" iff regime-A retention_family (D = 4, T_strict) < 0.5 AND regime-B retention_family >= 0.9; "BOTH UNSTABLE" iff both < 0.5; "BOTH STABLE" iff both >= 0.9; otherwise "PARTIAL".'}
+    - {id: DB-7, rule: 'P-GPU regime-B reading per cell: "P-GPU (STRICT REPLAY) SURVIVES IN REGIME B AT THIS CELL" iff DB-2 = DECIDES and DB-1 = STABLE and DB-5 = E3 HOLDS. Otherwise "P-GPU NOT SUPPORTED AT THIS CELL", naming every failing conjunct. A survival verdict is still dominated per attempt by oracle A and carries sota_delta zero.'}
+    - {id: DB-8, rule: 'Regime-B nulls per cell: "GENERIC STABILITY" iff F-S3, F-NULLB and F-AFFB are all STABLE; "S_3-SPECIFIC INSTABILITY" iff F-S3 < 0.9 and both nulls >= 0.9; "S_3-SPECIFIC STABILITY" iff F-S3 >= 0.9 and both nulls < 0.9; otherwise "MIXED". M3 follows its precedence rule.'}
+    - {id: DB-9, rule: 'Sizing and saving per cell and regime: "one system per SM" SURVIVES iff the pruned D-matrix dense bytes <= 233,472 for the maximizing reference; "thousands per warp" FAILS iff > 32 B. saving_strict < 1.5 closes strict replay as not worth a port at that cell.'}
+    - {id: DB-10, rule: 'Regime-A arm per cell (H-CERTBIN-7c3a18): KR1 by EXP-CERTBIN-3f06d1 RR-2; TS1R by RR-4; P-C3 "HOLDS" iff unsat retention_family < 0.5 at D = 4.'}
+    - {id: DB-11, rule: 'x(2E) independence of regime-B roots per cell: "INDEPENDENT" iff the exact 95% intervals of the F-S3 and F-RANDX pooled zero-pivot break rates overlap; "DEPENDENT" otherwise.'}
+    - {id: DB-12, rule: 'Primary verdicts: DB-1, DB-2, DB-5, DB-6 and DB-7 at (17, 6) and (17, 5); DB-3 at every cell; DB-4 per l. Every n = 19 verdict other than DB-3/DB-4, and every T_set, T_rank, T_ops, D = 3, null or cross-family reading, is secondary.'}
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    watchdog_seconds: 259200
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: 2
+    maximum_workers: 2
+    budget_note: >-
+      CERTBIN is ECC; research time is unbudgeted. The 72 h run watchdog
+      (checkpoint and --resume), the 4 GB cap and at most 2 workers are
+      machine protection on a 4-core, 15 GB machine shared with up to two
+      other CERTBIN executors (DEC-20260924-8e2f47 concurrency). A second
+      worker is allowed only after the per-target outputs of the 20
+      lowest-idx F-S3 targets of cell (17, 6), both regimes, are shown
+      byte-identical between serial and sharded execution (recorded in the
+      manifest). maximum_runs = 2: one run plus one INFRASTRUCTURE re-run.
+    dominant_cost: >-
+      Regime-B eliminations over F_{2^n} (2028 or 3276 rows x 2278 columns),
+      about 2,700 per cell under C_std, plus C-BREAK determinants. The
+      per-instance cost is unknown before the pilot (estimated 10-60 s in
+      numpy); the pilot rule bounds the projected total.
+
+  stopping_rules:
+    - {id: SR-1, rule: 'Counts are fixed by the schedule rule. No early stopping, extension or trimming on results.'}
+    - {id: SR-2, rule: 'C-SELF, C-FIX or C-PROV failure stops the run (C-PROV stops the regime-A arm only) before any frozen stream is drawn. The failed attempt is retained.'}
+    - {id: SR-3, rule: 'An arm with fewer than 100 non-degenerate targets is flagged UNDERPOWERED; a reference shortfall is recorded; nothing is resampled.'}
+    - {id: SR-4, rule: 'Watchdog expiry, crash or OOM: checkpoint (per cell, regime, family and D) and resume. Never a result.'}
+    - {id: SR-5, rule: 'No regime-B degree other than 66, and no D = 130 cell, is computed in this contract.'}
+
+  invalidation_rules:
+    - {id: INV-1, rule: 'C-FIX or C-SELF failure: void (stop).'}
+    - {id: INV-2, rule: 'C-PROV failure: the regime-A arm is void; the regime-B arm proceeds.'}
+    - {id: INV-3, rule: 'C-ORACLE or C-WIT failure: arm-dependent metrics void for every family of the cell.'}
+    - {id: INV-4, rule: 'C-DELTA or C-RANKB failure: the regime-B metrics of the cell are INVALID pending adjudication by the review round (lemma or implementation); never evidence.'}
+    - {id: INV-5, rule: 'C-BREAK or C-REPLAYB failure: DB-3, DB-4 and DB-11 void for the cell.'}
+    - {id: INV-6, rule: 'C-AFF, C-FORMS, C-SURV or C-HZERO failure: MA1 hull quantities and MA2 void for the affected family.'}
+    - {id: INV-7, rule: 'C-PASS, C-DET or C-REV failure, or a nesting violation: void.'}
+    - {id: INV-8, rule: 'C-PROPS failure: the instrument is falsified; void; not evidence about any hypothesis.'}
+    - {id: INV-9, rule: 'A void run is an implementation failure (AGENTS.md core rule 5).'}
+
+  success_criterion: >-
+    Every control passes (C-TR and C-PILOT may fail as recorded data); every
+    cell reports every primary metric in both regimes, or names each missing
+    cell and why; DB-1..DB-12 each return a verdict or "not evaluable" with
+    its reason. "P-GPU survives in regime B" and "does not" are both
+    decision-changing successes.
+  falsification_criterion: >-
+    - TS2B (H-CERTBIN-b20d4e C2) is falsified at a cell per DB-1 or DB-3.
+    - E3 (C3) is falsified at an l = 5 cell per DB-5.
+    - The contrast (C4) is not confirmed at a cell per DB-6.
+    - TS2G is falsified per its condition (delta table).
+    - H-CERTBIN-7c3a18 per DB-10.
+    NOT falsification: a void or INVALID-pending-adjudication run, a watchdog
+    expiry, an underpowered arm, a "not evaluable" E3 at l = 6.
+
+  coordinator_prior: >-
+    Written before any run; no Stage-2 output has been seen by anyone.
+    (a) Lemma B-S holds on every instance (C-DELTA, C-RANKB pass): about 95%.
+        A mismatch is likelier an implementation defect than a lemma defect.
+    (b) At l = 6, D = 66: 1 in R_66 on no unsat instance and rank 2028
+        everywhere; DB-2 "DOES NOT DECIDE" (about 97%).
+    (c) Regime B is STABLE at every cell (about 80%). The likeliest failure is
+        a NON-GENERIC reference (a coincidental zero at its own x_R) causing
+        mass ROW-ORDER divergence against that reference only.
+    (d) TS2B's count is CONSISTENT at n = 17 (about 60%): minors may carry
+        more than one root on average through structure, or fewer.
+    (e) E3 HOLDS at the l = 5 cells (about 70%).
+    (f) The contrast is CONFIRMED at every cell (about 75%). The likeliest
+        failure is regime A at l = 5, where KR1 may fall short (about 35%)
+        and retention could be non-zero.
+    (g) So DB-7: "P-GPU SURVIVES IN REGIME B" at (17, 5) is about 50%, and "NOT
+        SUPPORTED: DOES NOT DECIDE" at l = 6 about 97%.
+    Most likely to be overturned: (d) and (f) at l = 5.
+
+  proof_search_map_audit:
+    performed_by: coordinator (DEC-20260924-8e2f47), before approval
+    baseline_fixture: >-
+      C-FIX dimensions for both regimes at every cell; C-PROV reproduces the
+      reviewed Stage-1 instrument on archived Stage-1 instances; C-DELTA and
+      C-RANKB turn Lemma B-S into per-instance fixtures.
+    observation_collision: >-
+      FOUND, before any data: at l = 6, D = 66, satisfiable and unsatisfiable
+      targets are predicted to share T_rank (2028) and 1 is in no row space,
+      so a trace match there does not separate a relation from a non-relation
+      (Proposition S does not bite). This is why the requested cell is
+      competence-gated (DB-2, DB-7) and the l = 5 cells were added.
+    quantifier_order: >-
+      Lemma B-S and Lemma 2B are FORALL-targets statements. Empirical claims
+      are FOR each cell (curve, V, references fixed from frozen seeds before
+      any test target).
+    method_ceiling: >-
+      FOUND: the idea's regime-B degree 2^l + 2 is not a solving degree at
+      l = 6 (generic refutation degree 2^{l+1} + 2 = 130), and the idea's H2
+      bound sum_k d_k / 2^n is vacuous at every tested cell by degree
+      counting. Remedies adopted: l = 5 cells at the solving degree; TS2B in
+      place of H2 as the predictive heuristic; H2's threshold (0.9) kept.
+      Nearby-object controls: F-NULLB, F-AFFB (regime B); F-AFF, F-NULLF2
+      (regime A); F-RANDX.
+    verdict: >-
+      Audit found a ceiling in the proposal as written; it is repaired in the
+      design before any data rather than returned, because the repair keeps
+      every requested element and adds only controls and cells. Approved.
+
+  attention_contract:
+    decisive_evidence: DB-7 at (17, 5) and (17, 6), with DB-1, DB-2, DB-5 and DB-6 as its conjuncts.
+    positive_next_decision: >-
+      P-GPU SURVIVES at (17, 5): a regime-B trace-replay cost contract at the
+      solving degree (pruned sizes, saving ratio, a masked-replay op count)
+      becomes admissible, still ranked within CERTBIN and below
+      exponent-targeting ECC work, and still dominated by oracle A at m = 2.
+    negative_next_decision: >-
+      NOT SUPPORTED at (17, 5) (unstable, or E3 falsified): P-GPU has no
+      remaining route among the stages of IDEA-20260923-5d0b8e; the lane moves
+      to closure through the NA-6 path (replication and a review-breakthrough
+      round first), with this cell's obstruction measured.
+    inconclusive_decision: >-
+      INVALID-pending-adjudication (C-DELTA / C-RANKB) or UNDERPOWERED:
+      adjudicate or re-run (run 2) before any reading.
+    local_ambiguity_rule: Anything not covered is recorded "not evaluable" with its reason; no threshold is added after data.
+    peripheral_exclusions: [GPU execution, F4 pair-list traces, D = 130, l = 9 regime B, m = 3, random V, Koblitz form]
+    rerank_trigger: Completion triggers the CERTBIN rerank (DEC-20260924-8e2f47 NA-6).
+
+  execution:
+    entry_point: experiments/EXP-CERTBIN-a58c63/impl/driver.py
+    selftest: experiments/EXP-CERTBIN-a58c63/impl/selftest.py
+    verifier: experiments/EXP-CERTBIN-a58c63/verifier/verify_cert.py
+    interpreter: python3 with numpy 2.4.6; record versions in environment.json
+    trial_plan: experiments/EXP-CERTBIN-a58c63/trial-plan-v1.json
+    trial_plan_rule: >-
+      Written from this specification alone before any frozen stream is
+      drawn, after the pilot decision: cells, seeds, the chosen count
+      schedule, phases and output paths; no drawn value. sha256 in the
+      manifest.
+    command: >-
+      python3 experiments/EXP-CERTBIN-a58c63/impl/selftest.py --out
+      experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a/selftest.json &&
+      python3 experiments/EXP-CERTBIN-a58c63/impl/driver.py --spec
+      experiments/EXP-CERTBIN-a58c63/specification.yaml --phase pilot --run-id
+      RUN-CERTBIN-0b8f3a --out experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a &&
+      python3 experiments/EXP-CERTBIN-a58c63/impl/driver.py --spec
+      experiments/EXP-CERTBIN-a58c63/specification.yaml --plan
+      experiments/EXP-CERTBIN-a58c63/trial-plan-v1.json --stage1-run
+      experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id
+      RUN-CERTBIN-0b8f3a --out experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a
+      [--resume]
+    determinism_command: >-
+      python3 experiments/EXP-CERTBIN-a58c63/impl/driver.py --spec
+      experiments/EXP-CERTBIN-a58c63/specification.yaml --plan
+      experiments/EXP-CERTBIN-a58c63/trial-plan-v1.json --stage1-run
+      experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id
+      RUN-CERTBIN-0b8f3a --out experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a
+      --phase determinism
+    verify_command: >-
+      python3 experiments/EXP-CERTBIN-a58c63/verifier/verify_cert.py --certs
+      experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a/ps0prime-certificates.jsonl.gz
+      --cells experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a/cells.json
+      --out experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a/ps0prime-verification.json
+    phases:
+      - 0 selftest, fixtures, C-PROV; the timing pilot (C-PILOT) and the schedule decision; trial plan
+      - 1 per cell - curve, points, references and targets of every family, oracles, witnesses, C-TR
+      - 2 per cell - regime A (F-S3, F-SAT, F-PLANT, F-RANDX, F-AFF, F-NULLF2) at D = 3, 4, with forms and hull
+      - 3 per cell - regime B (F-S3, F-SAT, F-PLANT, F-RANDX, F-NULLB, F-AFFB) at D = 66, delta, K_B, divergence classification
+      - 4 per cell - regime-B fixed-schedule replays (ROW-ORDER divergers and 50 matched), C-BREAK determinants
+      - 5 per cell - C-REV (both regimes)
+      - 6 C-DET (separate process, --phase determinism)
+      - 7 PS0' certificates, then the verifier as a separate process (verify_command)
+      - 8 aggregation, decision rules, run report (--resume)
+    output_bound: >-
+      Per-target gzipped JSONL with trace hashes only; full op logs only for
+      the 3 unsat F-S3 references per cell and regime (regime-B X_k stored
+      delta-encoded and gzipped); total package under 150 MiB. If the bound
+      would be exceeded, the regime-B op logs keep (p_k, c_k) and the hashes
+      of X_k, and the manifest says so.
+    dispatch_note: No batch queue exists; the executor launches the commands above under TASK-20260924-6ab0d8 after TASK-20260924-d3a90c verifies.
+
+  constraints:
+    - No deployed curve is an attack instance; no discrete logarithm is attempted; no GPU is used.
+    - A timeout, crash or restart is execution status, never evidence.
+    - EXP-CERTBIN-4e92d7 is read only; its impl/ is copied, never edited or imported.
+    - The n = 19 modulus and curve are chosen by the stated rules only.
+
+  artifact_paths:
+    - experiments/EXP-CERTBIN-a58c63/specification.yaml
+    - experiments/EXP-CERTBIN-a58c63/trial-plan-v1.json
+    - experiments/EXP-CERTBIN-a58c63/impl/
+    - experiments/EXP-CERTBIN-a58c63/verifier/
+    - experiments/EXP-CERTBIN-a58c63/runs/RUN-CERTBIN-0b8f3a/
+
+  required_artifacts:
+    - trial-plan-v1.json; impl/impl-provenance.json; selftest.json; pilot.json (timings and the schedule decision only); cprov.json
+    - 'cells.json (per cell - modulus, curve, order #E, h, q, P, Q, rejections, V, L_V coefficients, tau, P_sat draws)'
+    - column-order and row-order files per (regime, l, D); references.json per cell
+    - reference op logs per (cell, regime, D) for the 3 unsat F-S3 references
+    - targets-<cell>-<regime>-<family>.jsonl.gz (stratum, s, rank, "1 in R_D", delta (regime B unsat), four trace hashes, per-reference match flags, f_div, divergence step, type, column and degree, first non-pivot column, hull membership (regime A), x2E class)
+    - regimeB-breaks-<cell>.json (per reference - K_B, probes, breaking x_R, C-BREAK results, replay outcomes)
+    - pivot-hazards-<cell>.json (regime A, per reference, D and pivot - a_k, hull-rank-increasing flag, S_k, zeros, h_k, exact band)
+    - ps0prime-certificates.jsonl.gz and ps0prime-verification.json
+    - cell-summary.json (MB1-MB5, MA1, MA2, M3 and secondary metrics); instrument-checks.json; decision-rules.json; sizing.json
+    - manifest.yaml, raw-result.json, command.txt, environment.json, stdout.log, stderr.log
+    - run-report.md (each DB verdict with cell, regime, granularity and D; which predictions held; which prior parts (a)-(g) were overturned; the claim tier and scope statement verbatim)
+
+  claim_tier_and_review:
+    review_required: true
+    default: >-
+      review-adversarial, with a mandatory red-team joint on Lemma B-S and
+      Lemma 2B (proves-too-much: run the lemma's prediction on F-NULLB, where
+      it must hold equally since it does not use S_3's form, and on a
+      deliberately non-separable L, where (b) must fail). A validator performs
+      a blind re-derivation, from this specification only (no impl/, no run
+      output), of delta, "1 in R_66", rank_66 and regime-B T_strict against
+      one unsat reference on a 50-target F-S3 subsample of cells (17, 5) and
+      (17, 6); a comparator task compares. The review_plan is written after
+      TASK-20260924-b9e36f verifies.
+    escalation: >-
+      If DB-7 returns "P-GPU NOT SUPPORTED" at (17, 5) and the evidence
+      decision would close the P-GPU lane, review-breakthrough at max comes
+      first (AGENTS.md rule 12; DEC-20260923-f25b97 NA-6).
+
+  dependencies: []
+  dependencies_note: >-
+    None hard. It may run concurrently with EXP-CERTBIN-e94b27 and
+    EXP-CERTBIN-3f06d1 under the concurrency limits of DEC-20260924-8e2f47. It
+    reads only committed Stage-1 artifacts.
+
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_reason: >-
+      DEC-20260923-4d7a19 R-1 forward rule: same-session Claude Code subagents
+      inherit the session model; per-role model selection is process-level.
+      Not a tier downgrade.
+    degraded_allowed: false
+    independent_session_required: false

@@ -1,0 +1,135 @@
+# AMD-20260926-ced670 -- PRE-DATA protocol amendment of EXP-ICEX-aaccfc,
+# specification version 1 -> protocol version 2. Additive: specification.yaml
+# is NOT edited. Approved by DEC-20260926-6fe1a0 under the standing user
+# authorization of 2026-09-06. Execution stays NOT admitted.
+protocol_amendment:
+  amendment_id: AMD-20260926-ced670
+  experiment_id: EXP-ICEX-aaccfc
+  hypothesis_id: H-ICEX-d8e858
+  source_idea_ids: [IDEA-20260909-fe3e07]
+  version_from: 1
+  version_to: 2
+  authored_by: coordinator
+  authored_at: '2026-09-26'
+  approved_by: coordinator
+  approval_decision: DEC-20260926-6fe1a0
+  batch_id: BATCH-739b32
+  id_provenance: >-
+    Tokens drawn with secrets.token_hex(3), checked absent from origin/main
+    ledger/ and experiments/; confirm with tools/allocate_id.py --check.
+
+  pre_data_status: >-
+    No implementation, trial plan, run or output exists. Fixture derivation
+    (point counting) is the only computation performed.
+
+  precedence: >-
+    Protocol version 2 = specification.yaml (v1, DEC-20260910-56fad5) plus this
+    file; this file governs where they differ.
+
+  reason: >-
+    Version 1 named three stages (batched Semaev sieve, pair-output exponent
+    alpha2, low-term collector into sparse LA and descent) without fixing the
+    membership backend, alpha2's definition, the cost unit or the trial plan.
+    The P1385 low-term collector contract cited by the idea is not in the
+    repository, so the collector is frozen here as the plain uniform
+    collector and P1385 scheduling is deferred to a v3 amendment if that
+    source is acquired.
+
+  changes:
+    - id: C-1
+      field: inputs.curve_rule
+      new: >-
+        Six frozen fixtures, bits {16, 20} x seeds {21, 22, 23}: the
+        "EXP-ICEX-aaccfc" entries of
+        experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json
+        (sha256 543f49ca5304f4e61085305ca2ea01ccc0085298db26368d7362f96b1b6a5a45;
+        generator sha256
+        bde44afb3e14c34d97bf50c154456565d12f0b5a1d33d63b473f0f4124b1f3b2).
+        Regenerate and byte-compare before any run.
+    - id: C-2
+      field: inputs.factor_base_rule
+      new: >-
+        Primary pipeline m = 5, F = {P : x(P) < B}, B = ceil(p^{1/5}); L = number
+        of liftable x-classes below B (recorded). Stage-cost-only
+        measurements at m = 6 and m = 8 use B_m = ceil(p^{1/m}).
+    - id: C-3
+      field: cost unit (all stages and the baseline)
+      new: >-
+        One F_p multiplication = 1 unit; inversion = 10 units (declared, not
+        measured); affine point addition = 13 units; hash probe = 1 unit;
+        sparse LA over Z/q: one modular multiplication = 1 unit (q < 2^21).
+        Peak RSS is reported beside every cost.
+    - id: C-4
+      field: stage definitions
+      new:
+        stage_1_membership_sieve: >-
+          Relation attempt j: R_j = a_j*G + b_j*Q (a_j, b_j from SHA256
+          'EXP-ICEX-aaccfc/v2|attempt|<bits>|<seed>|<j>'; Q = k*G with k from
+          '.../target|...'). Decide m = 5 membership of R_j exactly with the
+          non-Groebner MITM backend B0 frozen in AMD-20260926-3479cf (C-4):
+          forward 2-sum hash table built once per fixture, backward 3-sum by
+          point arithmetic. Batched means one shared forward table per
+          fixture; its build is charged once. Every witness is verified by
+          point arithmetic.
+        stage_2_alpha2: >-
+          alpha2 := slope of log(charged work of the 2-sum sub-query "is
+          S = e1*P1 + e2*P2 with P1, P2 in F") vs log L, over 256 held-out
+          points S per fixture (drawn '.../heldout|...'), using the
+          output-sensitive scan (P1 over F, test x(S - P1) < B). Pre-registered
+          note: this trivial scan already attains alpha2 = 1 < 3/2, so the
+          alpha2 gate as imported does not discriminate; alpha2 is reported
+          but the verdict rests on complete cost (C-5).
+        stage_3_collector_la_descent: >-
+          Collect relations until the relation matrix over Z/q has rank
+          |F| - 1 (plus 10 excess rows); structured Gaussian elimination then
+          Lanczos over Z/q; solve for factor-base logs up to the one-dimensional
+          kernel fixed by the relation containing Q. Descent: 16 fresh targets
+          per fixture (k_t from '.../descent|...'), each by randomizing
+          Q_t + r*G until m = 5 membership succeeds; recovered k_t verified by
+          k_t*G = Q_t.
+    - id: C-5
+      field: metrics.primary / verdict
+      new: >-
+        ratio := complete charged cost (stage 1 + stage 3 + 16 descents, in
+        units) / (13 * 0.886 * sqrt(q)) per fixture, reported per fixture,
+        and exponent := slope of log(complete cost) vs log q over the 6
+        fixtures with a 95% bootstrap CI (2000 resamples). With only two
+        sizes the exponent is disclosed as weak. Verdict: sub-rho signal iff
+        exponent upper CI < 0.5 AND ratio < 1 on every 20-bit fixture; scoped
+        negative naming the dominant stage (the stage with the largest share
+        of charged cost at 20 bits) iff exponent lower CI >= 0.5; otherwise
+        inconclusive.
+    - id: C-6
+      field: controls (made concrete)
+      new:
+        matched_null: >-
+          Random-x factor base of equal size (x-classes drawn without
+          replacement by '.../randfb|...'): relation yield and cost must be
+          reported beside the interval factor base.
+        known_false: >-
+          Scrambled relations (coefficients permuted across rows) must fail
+          log verification; a pipeline that "solves" them is defective.
+        baseline: >-
+          Pollard rho with negation map, r = 32 adding walk, 64 targets per
+          fixture, measured in the same units.
+        accounting_audit: >-
+          Independent checker replays 10% of attempts, all LA steps' operation
+          counts and every descent; rejects receipts that omit failed
+          attempts, table builds or memory.
+    - id: C-7
+      field: budget / execution_admission
+      new: >-
+        maximum_memory_gb 8, maximum_workers 1, maximum_runs 1 unchanged.
+        currently_admitted stays false. Machine-protection admission
+        precondition (user instruction 2026-09-26): at claim time 15-minute
+        load <= 14, system volume >= 5 GiB free, repository volume >= 20 GiB
+        free; readings recorded in the manifest.
+
+  overlap_disclosure: >-
+    Stage 1 reuses EXP-SDEG-85eefd's B0 backend definition by reference; the
+    two experiments share no fixtures or seeds. EXP-ICEX-fa2b37 (Groebner
+    membership) is disjoint by backend.
+
+  affected_runs: []
+  confirmatory_status: Confirmatory; frozen before any data.
+  claim_ceiling_unchanged: Toy fixtures (q < 2^21); no cryptographic-size transfer.

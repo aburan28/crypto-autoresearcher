@@ -1,0 +1,267 @@
+hypothesis:
+  id: H-ICPERF-7d24fd
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  added: '2026-09-22'
+  title: >-
+    Where an index-calculus speedup would have to come from: the arity is forced
+    to m >= 4, and below n about 300 the descended system is too large to write
+    down inside the whole rho budget
+  statement: >-
+    For Gaudry/Diem index calculus on E(F_{2^n}) with the subspace factor base
+    F_V = {P : x(P) in V}, dim_{F_2} V = l, and m summands, charge relation
+    collection and sparse linear algebra against the SAME Pollard rho budget.
+    Then (i) the linear algebra alone forces l below about n/4 + log_2(R)/2,
+    where R is the mean Frobenius orbit size on V; (ii) with decompositions
+    needing to exist, no m <= 3 cell has more than 10 bits of per-decomposition
+    budget at any standardised binary degree, and m = 2 is NEGATIVE everywhere
+    by at least 20 bits -- it loses to rho even if every decomposition were
+    free; (iii) the Weil-descended Boolean system has degree exactly
+    m * min(m-1, l) and its ANF is DENSE, so forming it costs about
+    sum_{i <= m(m-1)} C(ml, i); and (iv) that formation cost alone exceeds the
+    entire per-decomposition budget for n <= 283 and falls below it at n = 409
+    and n = 571. Below the crossover the obstruction is therefore the SIZE of
+    the system, not the difficulty of solving it, and no solver can remove it.
+  mechanism: >-
+    Sparse linear algebra on a D x D relation matrix with about m nonzeros per
+    row costs about m*D^2, and D = 2^l / R. Requiring that to stay under rho,
+    about 2^{n/2}/sqrt(2n), caps l near n/4 + log_2(R)/2 -- the one place the
+    Frobenius orbit quotient of EXP-FROB-ec08b5 does real work, since R = n
+    raises the cap by log_2(n)/2 and divides the linear algebra by n^2. A
+    decomposition exists with probability about 2^{ml-n}/m!, so l capped near
+    n/4 forces m >= 4 to keep ml >= n; at m <= 3 the probability collapses and
+    the attempt count alone overruns rho. That is clause (ii), and it is why
+    m = 3 survives at all only where a faithful stable subspace exists (n = 113,
+    127, 233), and then by single-digit bits.
+    Clause (iii) is a consequence of Frobenius being F_2-linear: z -> z^(2^k) is
+    linear, so a K-monomial x^e contributes Boolean degree equal to the HAMMING
+    WEIGHT of e, not e. S_{m+1} has degree 2^(m-1) per variable, whose largest
+    Hamming weight is m-1, and each x_i is a linear form in only l Boolean
+    variables, giving m * min(m-1, l). The descended ANF is then dense to that
+    degree, so its monomial count is the binomial sum, and forming the system
+    for one target costs at least one operation per monomial.
+    Clause (iv) is the arithmetic of two different growth rates meeting: the ANF
+    size grows POLYNOMIALLY in n (like n^{m(m-1)}) while the rho budget grows
+    EXPONENTIALLY (like 2^{n/2}), so the polynomial must eventually pass under
+    the exponential. The crossover is what this hypothesis locates, and it lands
+    between n = 283 and n = 409.
+  assumptions:
+    - >-
+      The factor base is the Gaudry/Diem family cut by an F_2-subspace of the
+      x-line. Joux-Vitse variants, non-linear factor bases and GHS descent
+      select differently and are NOT covered.
+    - >-
+      Sparse linear algebra costs about m*D^2 field operations (Wiedemann or
+      Lanczos: O(D) matrix-vector products at O(D*m) each). A method with a
+      genuinely lower exponent would relax clause (i) and is the single
+      assumption most worth attacking.
+    - >-
+      Forming the descended system costs at least one operation per ANF
+      monomial. This binds every implemented approach -- Groebner, WDSat,
+      CNF-SAT, crossbred, msolve all materialise the system -- but it does NOT
+      bind a hypothetical method that never materialises it. Clause (iv) is
+      scoped accordingly and that gap is named, not hidden.
+    - >-
+      Decompositions behave like uniform random m-multisets of the factor base,
+      the standard heuristic of Gaudry, Diem and Joux-Vitse.
+    - >-
+      Group operations and F_2 operations are compared directly and polylog
+      factors are dropped on BOTH sides, so the comparison is fair to within
+      them but not to within constants.
+  proof_search_map:
+    bottleneck: >-
+      Point decomposition, but decomposed one level further than usual: into
+      FORMING the descended system and then SOLVING it. The claim is that below
+      the crossover the first already exhausts the budget, which is a different
+      bottleneck from the one the field has been optimising.
+    baseline_embedding:
+      parameter_slice: >-
+        The unconstrained Gaudry/Diem choice l = ceil(n/m) with no charge for
+        linear algebra and no charge for forming the system.
+      reproduction_check: >-
+        The cost model must reproduce rho's own exponent as a fixed point and
+        must return a negative budget where EV-ICPERF-10c5fc already found one
+        (ECC2K-130 at m = 3, "even a FREE oracle leaves m = 3 above rho").
+    observation_collision:
+      observable: >-
+        The per-decomposition budget, and the ANF monomial count, both as
+        functions of (n, m, l) alone.
+      distinct_preimage_search: >-
+        Two independent in-repo cost models (EXP-SEMBIN-992e73 curve_table and
+        EXP-ALBIN-011 diagonal capstone) place a crossover in the same region
+        from different premises; a collision there is a check, and a divergence
+        would be a finding.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          the descended system's ANF monomial count as the charged unit of one
+          decomposition attempt, in place of an unpriced call to a solver
+        predicted_gain: >-
+          Converts an open-ended "is the solver good enough" question into an
+          exact arithmetic comparison that is settled before any solver runs
+    quantifier_order: >-
+      For all n in the target set, for all m >= 2, for all attainable l: the
+      charged budget and the ANF size are determined. The EXISTENTIAL is only
+      over l at fixed (n, m), and the crossover claim is a statement about the
+      best l at the best m, not about every cell.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        An exact arithmetic verdict under a declared cost model, plus measured
+        degree and density on toy cells. NOT a proof that ECDLP resists index
+        calculus, and NOT a statement about any unimplemented solving method.
+      nearby_object_control: >-
+        The same model applied with the linear-algebra charge removed, and with
+        the ANF charge removed, showing which conclusions each charge carries.
+    proof_obligations:
+      - claim: the linear-algebra cap on l
+        responsibility: baseline
+      - claim: the descended Boolean degree is m*min(m-1, l)
+        responsibility: correctness
+      - claim: the descended ANF is dense to that degree
+        responsibility: correctness
+      - claim: the crossover location
+        responsibility: size
+  rerandomization: null
+  asymptotic_claim:
+    problem: ECDLP on E(F_{2^n}) for the standardised binary degrees
+    prior_best: >-
+      Pollard rho at 2^{n/2}/sqrt(2n); Semaev 2015 claims 2^{1.6986 sqrt(n ln n)}
+      conditional on its Assumption 1 (KN-LIT-fa346d)
+    time_exponent: null
+    memory_exponent: null
+    hidden_cofactor: >-
+      The cost of FORMING the descended system, which the standard accounting
+      folds into an unpriced solver call and which this hypothesis prices.
+    claim_kind: constant_factor
+  heuristic_assumptions:
+    - id: HEUR-ICPERF-DECOMP
+      formal_statement: >-
+        For E/F_{2^n} and an F_2-subspace V of dimension l, the number of
+        m-multisets of F_V summing to a uniformly random target is distributed
+        as if the sums were uniform on the group, so the probability that a
+        target decomposes is min(1, 2^{ml-n}/m!).
+      random_model_justification: >-
+        The standard heuristic of the Gaudry/Diem literature; the map from
+        m-multisets to sums is not known to be biased for a subspace factor base.
+      supporting_results:
+        - >-
+          KN-FIND-007 in this repository: sum_r c_D(r) = C(B+m-1, m) exactly, so
+          factor-base geometry cannot change MEAN yield, only redistribute it.
+      validation_experiment_ids:
+        - EXP-SEMBIN-354a75
+      falsification_condition: >-
+        A measured decomposition rate differing from 2^{ml-n}/m! by more than a
+        constant factor on a subspace factor base.
+  structural_ingredients:
+    - description: >-
+        Frobenius on F_{2^n} is F_2-linear, so Weil descent of a K-monomial x^e
+        costs Boolean degree equal to the Hamming weight of e.
+      citation: standard; used throughout the Weil-descent literature
+      provenance: internal
+      verified_by: >-
+        Measured, not assumed: the driver reads the descended degree back off
+        the built system on every degree cell, and the l < m-1 cap in the law
+        was discovered BY that measurement rather than derived first.
+      role: degree bound on the descended system
+    - description: >-
+        Sparse linear algebra by Wiedemann/Lanczos: O(D) matrix-vector products.
+      citation: Wiedemann 1986; Coppersmith block variant
+      provenance: recalled
+      verified_by: >-
+        Not load-bearing beyond its exponent; the model exposes the exponent as
+        an explicit assumption so a better method can be substituted.
+      role: the charge that caps the factor-base dimension
+  reduction_chain:
+    core_problem: >-
+      Which (binary degree, arity) cells can beat Pollard rho at all, and what
+      the binding obstruction is in each
+    corollaries:
+      - problem: >-
+          Whether solver engineering at m = 3 can ever produce a crossover
+        reduction_ref: >-
+          direct specialisation of clause (ii); agrees with EV-ICPERF-10c5fc's
+          ECC2K-130-specific finding and generalises it to nine degrees
+        asymptotics_preserved: true
+  predictions:
+    - metric: >-
+        Q1 -- per-decomposition budget at m <= 3 across the nine standardised
+        binary degrees
+      direction: lower
+      minimum_effect: >-
+        No m <= 3 cell exceeds 10 bits of budget at any degree. A cell above
+        that falsifies clause (ii).
+    - metric: Q2 -- per-decomposition budget at m = 2
+      direction: lower
+      minimum_effect: >-
+        NEGATIVE by at least 20 bits at every degree, i.e. dead against a free
+        oracle. Any non-negative value falsifies it.
+    - metric: Q3 -- measured Boolean degree of the descended system
+      direction: different
+      minimum_effect: >-
+        EXACTLY m*min(m-1, l) on every degree cell, including the l < m-1 cell
+        where the cap bites.
+    - metric: Q4 -- ANF density against the dense bound sum_{i<=D} C(ml, i)
+      direction: higher
+      minimum_effect: >-
+        At least 1/8 on every cell, so the dense bound is tight to three bits
+        and is a fair charge for forming the system.
+    - metric: >-
+        Q5 -- sign of (ANF size minus whole per-decomposition budget) at the
+        best viable arity, per degree
+      direction: different
+      minimum_effect: >-
+        POSITIVE for n <= 283 and NEGATIVE at n = 409 and n = 571. A crossover
+        anywhere else falsifies clause (iv) as located.
+    - metric: >-
+        Q6 -- fitted exponent of Groebner solve time in descended variables at
+        m = 2
+      direction: different
+      minimum_effect: >-
+        95% interval inside [0.45, 0.70] AND overlapping EV-ICI-001's
+        independently measured per-PDP slope 0.5581 [0.5359, 0.5805]. Failure to
+        overlap is an instrument disagreement to be reported, not absorbed.
+  test_boundary:
+    instances:
+      - nine standardised binary extension degrees, n in {113,...,571}
+      - 14 degree cells, m in {2,3,4}, including one with l < m-1
+      - three solver ladders, m in {2,3,4}, l = ceil(n/m), n up to 30
+    parameters:
+      q: [2]
+      m: [2, 3, 4, 5, 6]
+      ladder_timeout_seconds: 600
+    implementation: experiments/EXP-ICPERF-783e9e/impl/
+    budget:
+      watchdog_seconds: 10800
+      memory_mb: 8192
+      checkpointed: true
+  falsification_conditions:
+    - An m <= 3 cell with more than 10 bits of budget at any target degree.
+    - A non-negative m = 2 budget at any target degree.
+    - A measured descended degree differing from m*min(m-1, l).
+    - An ANF density below 1/8 on any degree cell.
+    - The ANF/budget crossover falling outside (283, 409].
+    - A fitted m = 2 solver exponent outside [0.45, 0.70] or disjoint from
+      EV-ICI-001's interval.
+  interpretation_limits:
+    - >-
+      This is a COST-MODEL result with measured inputs, not an end-to-end
+      attack. It says which cells cannot win and why; it does not say any cell
+      does win.
+    - >-
+      Clause (iv) binds methods that materialise the descended system. A method
+      that never materialises it is outside the claim, and that is precisely
+      where a genuine algorithmic breakthrough would have to live.
+    - >-
+      The solver-exponent ladder reaches at most 30 descended variables and is
+      extrapolated to 116-582 in the discussion. That extrapolation is stated,
+      not assumed away, and no conclusion here rests on it: clauses (i)-(iv) are
+      independent of the fitted exponent.
+    - >-
+      The linear-algebra charge m*D^2 is a model assumption. A sparse solver
+      with a materially lower exponent would relax clause (i) and could revive
+      m = 3; that is the single most valuable attack on this hypothesis.
+    - >-
+      Scoped to binary fields and the subspace factor base. Nothing is asserted
+      about prime fields, GHS descent, or trace-zero varieties.
+  status: proposed
+  proposed_by: coordinator

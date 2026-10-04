@@ -34,7 +34,9 @@ The worker runs:
 
 ```bash
 lake build
+lake build +CryptoResearch.YourModule
 lake env lean AxiomAudit.lean
+# The worker also generates and runs an audit of the exact requested theorem.
 ```
 
 and rejects proof sources containing `sorry`, `admit`, custom `axiom`
@@ -51,9 +53,45 @@ autoresearch formal formalize --task-file formal/targets/ncp-affine-normal-form.
 `targets/` holds the frozen task specs; `CryptoResearch.lean` is a generated
 root module (`tools/rebuild_formal_root.py`) and is not committed.
 
+## What CI checks
+
+`lean-verification.yml` runs two jobs, and the difference matters:
+
+- **`kernel-controls`** builds `formal/smoke`, the pinned dependency-free
+  control project, and runs the harness's Python tests. It is fast and it
+  proves the plumbing works. **It does not build any theorem in `formal/`.**
+- **`formal-workspace`** is the proof gate: it fetches the Mathlib cache and
+  runs `tools/verify_formal_targets.py`, which puts every *discharged* target
+  through `autoresearch formal verify` -- the same build, axiom audit and
+  per-theorem target audit the worker runs.
+
+Run the gate yourself with the workspace up:
+
+```bash
+python3 tools/verify_formal_targets.py --artifact-dir /tmp/receipts
+```
+
+A target whose `theorem_file` does not exist yet is reported as undischarged
+and does not fail the gate; staging a spec before proving it is the normal
+order of work. A run that verifies *nothing* does fail, because a gate that
+machine-checks no proof and reports success is the hole this job was added to
+close. An infrastructure failure exits 3 and is reported separately: CI is red
+either way, but a toolchain that fell over is never negative evidence about a
+claim (AGENTS.md rule 3).
+
+Green here still means machine-verified and nothing more -- independent
+semantic-fidelity review is a separate gate, and it is the one that decides
+whether the Lean statement is the claim anyone cared about.
+
 ## CVP reference pattern
 
 The initial design is inspired by Mira-acc/cvp: keep the executable formal
 proof, a human-readable argument, a pinned toolchain/dependency graph, and a
 separate axiom audit. We reuse that verification discipline rather than
 copying CVP-specific lattice definitions into the autoresearcher.
+
+For existing proofs, use `autoresearch formal verify --task-file <spec>
+--artifact-out <new-receipt>` without MathCode. See
+[the direct Lean workflow](../docs/formal-research-lane.md#running-lean-directly).
+The pinned dependency-free `smoke/` project and `tests/test_lean_live.py` qualify
+the verifier using real positive and negative controls before research use.

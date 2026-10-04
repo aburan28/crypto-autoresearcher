@@ -1,0 +1,498 @@
+# =====================================================================
+# SOURCES for the domination screen of IDEA-20260915-5c407a /
+# H-ICPERF-5f038b / EXP-ICPERF-025a52 (v2).
+#
+# TASK-20260915-532164, red-team, independent session, zero runs.
+#
+# PROVENANCE VOCABULARY (AGENTS.md "Knowledge retrieval policy",
+# templates/research-records.md "Citation provenance"):
+#   retrieved = this agent fetched and READ the source text itself
+#   kb        = resolved through the kb index to a corpus record; the
+#               CORPUS RECORD was read, not necessarily the paper
+#   internal  = an in-repo record this agent read
+#   recalled  = memory only; a pointer, never support
+#
+# A `recalled` entry may NOT establish that anything is known or
+# dominated. Every non-`recalled` entry names verified_by.
+# =====================================================================
+
+screen:
+  task_id: TASK-20260915-532164
+  performed_by: red-team
+  performed_at: '2026-09-15'
+  snapshot_reviewed:
+    branch: claude/index-calculus-graph-dag-3linyk
+    head_commit: 1852537c02a0f936eb16b61d5e4b7df84eca9742
+    head_subject: 'amend: EXP-ICPERF-025a52 v1->v2 + CORR-20260915-3965c1 disclosing the in-place edit'
+    inputs_clean_at_head: true
+    inputs_pushed: true
+    note: >-
+      `git status --porcelain` is empty for IDEA-20260915-5c407a,
+      H-ICPERF-5f038b, EXP-ICPERF-025a52 and CORR-20260915-3965c1 at this
+      commit, and `git branch -r --contains HEAD` lists
+      origin/claude/index-calculus-graph-dag-3linyk. The screen therefore read a
+      committed, pushed snapshot and not a working tree, as agents/red-team.md
+      responsibility 6 requires. TASK-20260915-60dc73's snapshot commit is
+      7c3d47ed7.
+  retrieval_infrastructure:
+    kb_index: available
+    kb_config: 'kb/.env -> CRYPTO_KB_QDRANT_URL=./.kb-index (file-backed embedded)'
+    kb_queries_run: 6
+    kb_query_latency_seconds: ~95 per query
+    note: >-
+      IMP-DESIGN-2 is cleared for this screen: the index answered. Six queries
+      were run sequentially (single-writer store). Absence of a hit is recorded
+      as absence of a hit and is NEVER reported as novelty.
+
+sources:
+
+  # -------------------------------------------------------------------
+  # Q2 -- ARE THE PUBLISHED DESCENT ANALYSES ON THE TREE OR THE DAG?
+  # -------------------------------------------------------------------
+
+  - id: SRC-SCREEN-BGJT
+    short: Barbulescu, Gaudry, Joux, Thome -- quasi-polynomial DLP
+    citation: >-
+      R. Barbulescu, P. Gaudry, A. Joux, E. Thome, "A quasi-polynomial
+      algorithm for discrete logarithm in finite fields of small
+      characteristic", arXiv:1306.4244 (= eprint 2013/400; EUROCRYPT 2014).
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Full text read via the ar5iv LaTeX-to-HTML rendering at
+      https://ar5iv.labs.arxiv.org/html/1306.4244 on 2026-09-15. This is the
+      arXiv preprint rendering, NOT the published EUROCRYPT 2014 version; the
+      two are not certified identical here.
+    also_in_corpus: KN-LIT-2078
+    also_in_corpus_provenance: kb
+    also_in_corpus_note: >-
+      The corpus holds an abstract-level literature note only
+      (knowledge/literature/KN-LIT-2078.md). The descent-tree passages below are
+      NOT in the corpus note and rest on the retrieved full text.
+    quotes:
+      - id: BGJT-Q1
+        where: complexity analysis of the descent, immediately before Theorem 3
+        text: >-
+          "Each internal node of the descent tree corresponds to one application
+          of the algorithm of Proposition 2, therefore each internal node has a
+          cost which is bounded by a polynomial in q and k. The total cost of the
+          descent is therefore bounded by the number of nodes in the descent tree
+          times a polynomial in q and k. The depth of the descent tree is in
+          O(log k). The number of nodes of the tree is then less than or equal to
+          its arity raised to the power of its depth, which is (q^2 k)^{O(log k)}."
+        bears_on: >-
+          Q2, first half. The canonical quasi-polynomial analysis is charged on
+          the TREE, as arity^depth, not on the DAG. The idea's premise is CORRECT
+          for this family; the "already on the DAG" collapse the task card hoped
+          for does NOT hold here.
+      - id: BGJT-Q2
+        where: "section 6.2, 'Practical improvements'"
+        text: >-
+          "Because of the arity of the descent tree, the breadth eventually
+          exceeds the number of polynomials below some degree bound. It makes no
+          sense, therefore, to use the descent procedure beyond this point, as the
+          recovery of discrete logarithms of all these polynomials is better
+          achieved as a pre-computation. Note that this corresponds to the
+          computations of the L(1/4+epsilon) algorithm which starts by
+          pre-computing the logarithms of polynomials up to degree 2. In our case,
+          we could in principle go up to degree O(log q) without changing the
+          complexity."
+        bears_on: >-
+          Q2, second half, and this is the load-bearing quote of the screen.
+          "the breadth eventually exceeds the number of polynomials below some
+          degree bound" IS mechanism M1 of IDEA-20260915-5c407a and IS the
+          pigeonhole crossover j* of H-ICPERF-5f038b, published in 2013. The
+          prescribed remedy is to stop descending there and precompute the whole
+          pool; and the remedy is stated to be COMPLEXITY-NEUTRAL ("without
+          changing the complexity"). Regime R3's exponent content is therefore
+          foreclosed for this family by a published argument, even though the
+          headline bound is written on the tree.
+      - id: BGJT-Q3
+        where: concluding section
+        text: >-
+          "One of the key factors which hinders the practical efficiency of this
+          algorithm is the O(q^2 D) arity of the descent tree, compared to the
+          O(q) arity achieved by techniques based on Groebner bases [15] at the
+          expense of a L(1/4+epsilon) complexity."
+        bears_on: >-
+          The arity, not the sharing, is the published practical bottleneck.
+
+  - id: SRC-SCREEN-GUILLEVIC
+    short: Guillevic -- individual discrete logarithms in GF(p^n) with NFS-DL
+    citation: >-
+      A. Guillevic, "Computing Individual Discrete Logarithms Faster in GF(p^n)
+      with the NFS-DL Algorithm", arXiv:1505.07553 (ASIACRYPT 2015).
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Full text read via https://ar5iv.labs.arxiv.org/html/1505.07553 on
+      2026-09-15 (arXiv rendering, not the published proceedings version).
+    also_in_corpus: KN-LIT-3055
+    also_in_corpus_provenance: kb
+    quotes:
+      - id: GUI-Q1
+        where: section 1.3 (complexity summary)
+        text: >-
+          "The NFS algorithm for DL in prime and large characteristic fields has
+          a dominating complexity of L_Q[1/3,(64/9)^{1/3} ~= 1.923]. For the
+          individual DL in a prime field F_p, the norm of the target preimage in
+          the number field is bounded by p. This bound gives the running time of
+          this fourth step (much smaller than relation collection and linear
+          algebra)."
+      - id: GUI-Q2
+        where: section 1.2 (history of the individual-logarithm step)
+        text: >-
+          "In 2013, Barbulescu [4, sec.4, sec.7.3] gave a tight analysis of the
+          individual DL computation for prime fields, decomposed in three steps:
+          booting (also called smoothing), descent, and final combination of
+          logarithms. The booting step has an asymptotic complexity of
+          L_p[1/3,1.23] and the descent step of L_p[1/3,1.21]. The final
+          computation has a negligible cost."
+      - id: GUI-Q3
+        where: section 1.2
+        text: >-
+          "In 2006, Commeine and Semaev [11] analyzed the Joux-Lercier method.
+          They obtained an asymptotic complexity of L_p[1/3,3^{1/3} ~= 1.44] for
+          computing individual logarithms, independent of the relation collection
+          and linear algebra phases."
+    bears_on: >-
+      Q2. For NFS-DL the SPECIFIC special-q descent step costs L_p[1/3,1.21],
+      strictly below the booting step (1.23) that dominates its own phase, which
+      is itself far below the L_Q[1/3,1.923] that dominates the algorithm. Any
+      reduction in descent node count -- constant, or growing with depth --
+      cannot move the NFS-DL exponent, because two other stages bound it from
+      above. This forecloses R3's exponent content for the special-q family for a
+      reason INDEPENDENT of whether the analysis is written on the tree.
+
+  - id: SRC-SCREEN-COMMEINE-SEMAEV
+    short: Commeine & Semaev -- DLP with the number field sieve
+    citation: >-
+      A. Commeine, I. Semaev, "An Algorithm to Solve the Discrete Logarithm
+      Problem with the Number Field Sieve" (PKC 2006).
+    provenance: kb
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Resolved through the kb index to the corpus record
+      knowledge/literature/KN-LIT-2459.md, which this agent read. The PAPER was
+      NOT read. The corpus note itself carries `confidence: reported` and a
+      "Not verified here" block stating its claims were relayed from the
+      abstract during a 2026-07-24 bulk seeding pass.
+    corpus_record: KN-LIT-2459
+    quotes:
+      - id: CS-Q1
+        where: KN-LIT-2459 "Key claims (as reported)"
+        text: >-
+          "The global running time is again Lp[1/3, 1.9018...], but in contrast
+          with Matyukhins method, this algorithm enables us to calculate
+          individual logarithms in a separate stage in time Lp[1/3, 3^{1/3}],
+          once a Lp[1/3, 1.9018...] time costing pre-computation stage has been
+          executed."
+    bears_on: >-
+      Q2, and it is the exact reference IDEA-20260915-5c407a cites as `recalled`
+      for "the conventional tree-charged cost model this idea questions". The
+      screen converts that pointer to `kb`: the record exists in this program's
+      corpus and its reported claim is that the individual-logarithm stage costs
+      L_p[1/3, 1.44] against an L_p[1/3, 1.9018] precomputation -- i.e. the phase
+      the idea wants to make cheaper is already asymptotically subdominant. The
+      same number is independently confirmed by SRC-SCREEN-GUILLEVIC (GUI-Q3),
+      which this agent DID read, so the conclusion does not rest on the
+      unverified corpus note alone.
+
+  - id: SRC-SCREEN-KLEINJUNG-WESOLOWSKI
+    short: Kleinjung & Wesolowski -- provable quasi-polynomial DLP
+    citation: >-
+      T. Kleinjung, B. Wesolowski, "Discrete logarithms in quasi-polynomial time
+      in finite fields of fixed characteristic", arXiv:1906.10668 (J. AMS 35
+      (2022)).
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      ABSTRACT PAGE ONLY (https://arxiv.org/abs/1906.10668), fetched and read on
+      2026-09-15. The body was NOT read and the internal descent accounting was
+      NOT verified.
+    quotes:
+      - id: KW-Q1
+        where: abstract
+        text: >-
+          "We prove that the discrete logarithm problem can be solved in
+          quasi-polynomial expected time in the multiplicative group of finite
+          fields of fixed characteristic. More generally, we prove that it can be
+          solved in the field of cardinality p^n in expected time
+          (pn)^{2 log_2(n) + O(1)}."
+    bears_on: >-
+      Q2, WEAKLY and as a pointer only. The exponent 2 log_2(n) + O(1) has the
+      shape (per-step factor)^(number of halving levels), which is consistent
+      with tree-style accounting, but this screen did NOT read the proof and does
+      NOT assert that the bound is charged on a tree. Anyone relying on this must
+      read the body. Recorded here so the next reader does not have to rediscover
+      the candidate.
+
+  # -------------------------------------------------------------------
+  # Q1 / Q3 -- IMPLEMENTATION AND RECORD-COMPUTATION EVIDENCE
+  # -------------------------------------------------------------------
+
+  - id: SRC-SCREEN-F2-30750
+    short: Granger, Kleinjung, Lenstra, Wesolowski, Zumbragel -- 30750-bit binary DL record
+    citation: >-
+      "Computation of a 30750-Bit Binary Field Discrete Logarithm",
+      arXiv:2008.02717 (Math. Comp.).
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Full text read via https://ar5iv.labs.arxiv.org/html/2008.02717 on
+      2026-09-15 (arXiv rendering).
+    quotes:
+      - id: F2-Q1
+        where: section 10.1 "Descent Analysis"
+        text: >-
+          "In order to optimise the overall computational cost we employ a
+          bottom-up approach in our analysis. This means that for every degree
+          d = 2, 3, 4, ... we determine the expected cost of computing a
+          logarithm of an element represented by a polynomial of degree d. This
+          cost is the sum of finding a (good) representation as a product of
+          lower degree polynomials (the 'direct cost'), plus the expected total
+          cost of the factors appearing in the product, based on the earlier cost
+          estimations for degrees < d (the 'subsequent cost')."
+      - id: F2-Q2
+        where: Table 2 ("Rounded cost estimations used in the descent phase")
+        text: >-
+          Degrees 2, 3, 4, 5, 6, 7 and 8 are each assigned cost 0; degree 9 is the
+          first nonzero entry (0.3). The cost unit is normalised to one degree-16
+          elimination.
+      - id: F2-Q3
+        where: 'Table 3 ("Initial split and classical descent: schedule and running times")'
+        text: >-
+          The expensive classical descent processed "#polys" = 1 at each of
+          degrees 1024, 672, 466, 130, 106, 64, 45, 40, 38 and 35, i.e. a single
+          polynomial per degree, before the counts rise (3, 3, 3, 2, 4, 3, 2, 4,
+          8, 5, 9, 12, 12, 19, 43, 39, 116, 209, 592 at degrees 34 down to 13).
+      - id: F2-Q4
+        where: section 2 / introduction
+        text: >-
+          "A highly optimised classical descent using the above elimination costs
+          as input in order to apply a dynamic programming approach."
+    bears_on: >-
+      Q1 and Q2, in the concrete-cost register. In the largest published binary
+      field DL computation: (a) the EXPENSIVE part of the descent is essentially
+      a PATH -- one polynomial per degree down to degree 35 -- so there is no
+      sharing to be had where the cost is; (b) the levels where the pigeonhole
+      crossover would bite (degrees <= 8) are charged cost ZERO because their
+      logarithms are obtained by precomputation and non-classical elimination;
+      (c) the per-level counts actually reported (max 592, at degree 13, over
+      F_{2^30}) are astronomically below the level pool (monic irreducibles of
+      degree 13 over F_{2^30} number ~ 2^{390}/13), so rho_j ~ 1 by many orders
+      of magnitude throughout the costed region. The paper reports "#polys"
+      eliminated per degree and charges cost per eliminated polynomial; it does
+      not state whether duplicates were removed, and this screen does not assert
+      that it does.
+
+  - id: SRC-SCREEN-GKZ-128
+    short: Granger, Kleinjung, Zumbragel -- breaking '128-bit secure' supersingular binary curves
+    citation: >-
+      R. Granger, T. Kleinjung, J. Zumbragel, "Breaking '128-bit Secure'
+      Supersingular Binary Curves (or how to solve discrete logarithms in
+      F_{2^{4.1223}} and F_{2^{12.367}})", arXiv:1402.3668 (CRYPTO 2014).
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Full text read via https://ar5iv.labs.arxiv.org/html/1402.3668 on
+      2026-09-15 (arXiv rendering).
+    also_in_corpus: KN-LIT-2804
+    also_in_corpus_provenance: kb
+    quotes:
+      - id: GKZ-Q1
+        where: section 2 (overview)
+        text: >-
+          "Afterwards, in the individual logarithm phase, one applies procedures
+          to recursively rewrite each element as a product of elements of smaller
+          degree, in this way building up a descent tree, which has the target
+          element as its root and factor base elements as its leaves."
+      - id: GKZ-Q2
+        where: section 5 (computational results)
+        text: >-
+          "This automatically provided the logarithms of all degree 2 elements
+          over F_{2^12}." and, where the pool was too large to precompute, "we
+          were able to eliminate degree 2 elements over F_{2^24} on the fly".
+    bears_on: >-
+      Q1/Q2. The literature word is indeed "tree" (GKZ-Q1), confirming the idea's
+      framing claim. GKZ-Q2 shows the operative practice: where the level pool is
+      small enough for pigeonhole to bite, ALL its logarithms are precomputed;
+      where the pool is too large to precompute, elements are eliminated on the
+      fly and sharing does not bite. That is the BGJT-Q2 prescription in action.
+
+  - id: SRC-SCREEN-CADO-DESCENT
+    short: CADO-NFS descent implementation
+    citation: >-
+      CADO-NFS, files `scripts/descent.py` and `sieve/las-descent-trees.hpp`,
+      master branch.
+    provenance: retrieved
+    verified_by: red-team (TASK-20260915-532164)
+    read_as: >-
+      Source read on 2026-09-15 from the GitHub mirror
+      https://raw.githubusercontent.com/sethtroisi/cado-nfs/master/... . THE
+      CANONICAL REPOSITORY (gitlab.inria.fr/cado-nfs/cado-nfs) COULD NOT BE
+      REACHED from this session (404 on raw paths; api.github.com returned 403),
+      so the exact upstream revision is NOT pinned. A reader who needs the
+      canonical revision must re-fetch. This is a real provenance limitation and
+      is not smoothed over.
+    quotes:
+      - id: CADO-Q1
+        where: scripts/descent.py, todo-list construction for the initial split
+        text: |
+          for q in fnum + fden:
+              if q in large_q:
+                  continue
+              if self.logDB.has(q,-1,0):
+                  continue
+      - id: CADO-Q2
+        where: scripts/descent.py, todo-list construction from descent relations
+        text: |
+          ideal = ideals_above_p(p, 1, a, b, side, general)
+          if ideal.get_log() != None:
+              continue
+          else:
+              r = a_over_b_mod_p(a, b, p)
+              f.write("1 %d %d\n" % (p, r))
+      - id: CADO-Q3
+        where: scripts/descent.py, class LogBase
+        text: |
+          class LogBase(object):
+              def __init__(self, general):
+                  self.known={}
+              ...
+              def has(self,p,r,side):
+                  return (p,r,side) in self.known
+              def get_log(self, p,r,side): ...
+              def add_log(self,p,r,side,log):
+                  self.known[(p,r,side)] = log
+      - id: CADO-Q4
+        where: sieve/las-descent-trees.hpp
+        text: |
+          /* This is an ugly temporary hack */
+          typedef std::set<relation_ab> visited_t;
+          visited_t visited;
+          ...
+          bool must_avoid(relation const& rel) const {
+              relation_ab ab = rel;
+              bool answer = visited.find(ab) != visited.end();
+              return answer;
+          }
+    bears_on: >-
+      Q3. CADO-NFS maintains a global table `known` keyed on the canonical ideal
+      (p, r, side), consults it before putting an ideal on the descent todo list
+      (CADO-Q1, CADO-Q2), and writes newly deduced logarithms back into it
+      (`add_log`). That is exactly the memo table IDEA-20260915-5c407a proposes,
+      in a serious, widely used implementation. TWO HONEST QUALIFICATIONS: (i)
+      the `visited` set of CADO-Q4 is a duplicate-RELATION guard, not node
+      memoisation, and is self-described as "an ugly temporary hack"; (ii) the
+      todo-file writer in CADO-Q1/CADO-Q2 carries no within-file de-duplication
+      that this agent could see, so the same (p, r) reached from two relations in
+      one level may be written twice. No quantification of the saving was found
+      anywhere.
+
+  # -------------------------------------------------------------------
+  # INTERNAL RECORDS (read in-repo at the reviewed snapshot)
+  # -------------------------------------------------------------------
+
+  - id: SRC-SCREEN-GOAL-ICPERF
+    short: GOAL-ICPERF-e6b6a4 -- descent column status
+    citation: ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml
+    provenance: internal
+    verified_by: red-team (TASK-20260915-532164)
+    quotes:
+      - id: ICPERF-Q1
+        text: >-
+          "(3) RELATION SEARCH, LINEAR ALGEBRA, DESCENT, AND THE RHO COLUMN. Each
+          is its own batch with its own frozen contract; none is claimed here.
+          The end-to-end boundary at a cell exists only when every column of that
+          row is measured."
+    bears_on: >-
+      The idea's `sota_delta` ("every internal model charging descent by tree
+      size over-charges the attacker"). The descent column of this goal's
+      boundary table is explicitly UNMEASURED and UNCLAIMED, so there is no
+      committed internal tree-charged descent cost model for regime R3 to
+      correct.
+
+  - id: SRC-SCREEN-IDEA-20260727-002
+    short: this program's actual descent charging model
+    citation: ledger/proposals/IDEA-20260727-002.yaml
+    provenance: internal
+    verified_by: red-team (TASK-20260915-532164)
+    quotes:
+      - id: YIELD-Q1
+        text: >-
+          "When the descent is charged by yield - T_desc_charged = T_attempt /
+          P_dec(N), with P_dec the measured probability that a random target
+          decomposes over the fixed factor base - ..."
+    bears_on: >-
+      The only descent cost model this screen found in the ledger charges descent
+      by YIELD (attempts divided by success probability), not by tree node count.
+      This is the correct total-expected-cost form. It has no B^d term for
+      memoisation to attack.
+
+  - id: SRC-SCREEN-DTREE
+    short: prior internal multi-level descent-tree work for ECDLP
+    citation: >-
+      IDEA-20260726-005 ("Multi-level descent tree for prime-field ECDLP index
+      calculus with explicit depth-cost tradeoff"), H-DTREE-001, EXP-DTREE-001,
+      EV-DTREE-2e8f6a, EV-DTREE-b47c19, KN-OPEN-5b3a08.
+    provenance: internal
+    verified_by: red-team (TASK-20260915-532164)
+    bears_on: >-
+      Internal near-neighbour NOT cited by IDEA-20260915-5c407a or
+      H-ICPERF-5f038b. This program has already designed, run and reviewed a
+      depth-2 descent tree for prime-field ECDLP index calculus (verdict on
+      EV-DTREE-2e8f6a: strength `inconclusive`, claim_tier `toy`), and
+      KN-OPEN-5b3a08 records an open harness defect in `harness/semaev.py`
+      surfaced by exactly that measurement. Arm 2 of IDEA-20260915-5c407a is the
+      same object and must cite this lane.
+
+  - id: SRC-SCREEN-FFS-809
+    short: FFS record in GF(2^809)
+    citation: >-
+      "Discrete logarithm in GF(2^809) with FFS" -- Barbulescu, Bouvier, Detrey,
+      Gaudry, Jeljeli, Thome, Videau, Zimmermann.
+    provenance: kb
+    verified_by: red-team (TASK-20260915-532164)
+    corpus_record: KN-LIT-3440
+    read_as: >-
+      Corpus note read; the PAPER was NOT read. The note is abstract-level and
+      carries a "Not verified here" block.
+    bears_on: >-
+      Q1/Q3 for the FFS family specifically. This is the obvious place a
+      per-level descent node count with or without de-duplication would be
+      reported, and the screen did NOT read it. Named as uncovered scope.
+
+  # -------------------------------------------------------------------
+  # DERIVED (this agent's own arithmetic; not a citation, not a run)
+  # -------------------------------------------------------------------
+
+  - id: SRC-SCREEN-RT-CEILING
+    short: red-team method-ceiling arithmetic on the frozen grid
+    provenance: internal
+    verified_by: red-team (TASK-20260915-532164)
+    kind: derived-estimate
+    bears_on: >-
+      Objection OBJ-5 of the screen report. Back-of-envelope only: Dickman rho
+      computed by numerical integration, polynomial L-smoothness approximated by
+      rho(deg w / L), deg w approximated by n-1, branching approximated by
+      B_j ~ (n-1)/L_j. NOT a Stage A computation, NOT an experiment run, and no
+      artifact was created under experiments/EXP-ICPERF-025a52/. It bounds an
+      order of magnitude; it does not replace Stage A and must not be cited as a
+      measurement.
+
+not_found:
+  - question: Q1
+    searched_for: >-
+      A published measurement of the distinct-node to tree-node ratio (or any
+      equivalent sharing / de-duplication ratio) in an index-calculus descent,
+      reported as a function of depth.
+    where_searched: >-
+      kb index (6 queries, listed in the report); web search on descent-tree node
+      counts, distinct vs repeated nodes, and record computations; full text of
+      SRC-SCREEN-BGJT, SRC-SCREEN-GUILLEVIC, SRC-SCREEN-F2-30750,
+      SRC-SCREEN-GKZ-128 and arXiv:1805.00093 (GKZ "powers of two descent").
+    result: not found
+    status_of_this_absence: >-
+      ABSENCE OF A SEARCH RESULT, NOT EVIDENCE OF NOVELTY (AGENTS.md retrieval
+      policy). The uncovered scope is named in the report.

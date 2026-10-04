@@ -1,0 +1,166 @@
+name: liboqs integration
+
+# Integrates SQIsign into vanilla liboqs via copy_from_upstream, then builds
+# and tests it as liboqs' own CI would.
+#
+# Jobs: functional (build + liboqs SQIsign test suite; x64 ref+broadwell,
+# arm64 ref) and strict (compile-only with -DOQS_STRICT_WARNINGS=ON).
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        type: string
+  schedule:
+    # Daily at 03:00 UTC
+    - cron: '0 3 * * *'
+
+concurrency:
+  group: liboqs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # liboqs revision the core patch is baselined against.
+  LIBOQS_REF: 0.16.0
+  LIBOQS_URL: https://github.com/open-quantum-safe/liboqs.git
+
+jobs:
+  functional:
+    name: ${{ matrix.platform }} / build + test
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, arm64]
+
+    steps:
+      - name: Checkout SQIsign (the revision under test)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Integrate SQIsign into liboqs
+        uses: ./.github/actions/integrate-sqisign
+        with:
+          liboqs-ref: ${{ env.LIBOQS_REF }}
+          liboqs-url: ${{ env.LIBOQS_URL }}
+
+      - name: Configure (SQIsign only, Unix Makefiles)
+        # Impl selection (ref vs broadwell vs arm64crypto) is gated by each META's
+        # supported_platforms, so we do not pick per-platform here — liboqs does it.
+        #
+        # OQS_USE_OPENSSL=OFF: liboqs defaults to OpenSSL's RAND_bytes as the system
+        # RNG, which pulls in a libcrypto runtime dependency whose DRBG can stall on
+        # some CI VMs/containers (the RNG is called heavily by SQIsign keygen). With
+        # it off, the RNG uses getentropy() — no OpenSSL link; SQIsign needs only
+        # liboqs' own SHA3/AES.
+        run: >
+          cmake -S liboqs-ci -B liboqs-ci/build -G "Unix Makefiles"
+          -DCMAKE_BUILD_TYPE=Release
+          -DOQS_USE_OPENSSL=OFF
+          -DOQS_MINIMAL_BUILD="SIG_sqisign_p324_3;SIG_sqisign_p500_27;SIG_sqisign_p664_17"
+
+      - name: Build
+        run: cmake --build liboqs-ci/build -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+
+      - name: Test (liboqs SQIsign suite)
+        # Runs liboqs' pytest suite filtered to SQIsign: functional test_sig,
+        # KAT (single + --all), mem, alg_info, datasheet, cmdline. OQS_BUILD_DIR
+        # points the helpers at the build tree.
+        #
+        # We exclude the two valgrind-driven suites (test_leaks, test_constant_time):
+        # they run the full SQIsign sign/verify under valgrind (10-50x slower; p664_17
+        # can exceed 40min) and liboqs itself keeps them in extended.yml/linux.yml,
+        # not the basic gate. test_constant_time has its own dedicated job below.
+        # Also ignore copy_from_upstream's repos/ tree (its test_*.py break
+        # pytest collection).
+        working-directory: liboqs-ci
+        timeout-minutes: 30
+        run: >
+          OQS_BUILD_DIR=build python3 -m pytest -k SQIsign
+          --ignore=scripts/copy_from_upstream/repos
+          --ignore=tests/test_leaks.py
+          --ignore=tests/test_constant_time.py
+          --verbose --no-header
+
+  strict:
+    name: x64 / strict warnings (compile, non-gating)
+    runs-on: [self-hosted, x64]
+    # SQIsign does not yet pass liboqs' full -DOQS_STRICT_WARNINGS set, so this
+    # job is non-gating (continue-on-error) to surface warnings without blocking.
+    continue-on-error: true
+    steps:
+      - name: Checkout SQIsign (the revision under test)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Integrate SQIsign into liboqs
+        uses: ./.github/actions/integrate-sqisign
+        with:
+          liboqs-ref: ${{ env.LIBOQS_REF }}
+          liboqs-url: ${{ env.LIBOQS_URL }}
+
+      - name: Configure with OQS_STRICT_WARNINGS=ON
+        run: >
+          cmake -S liboqs-ci -B liboqs-ci/build -G "Unix Makefiles"
+          -DCMAKE_BUILD_TYPE=Release
+          -DOQS_USE_OPENSSL=OFF
+          -DOQS_STRICT_WARNINGS=ON
+          -DOQS_MINIMAL_BUILD="SIG_sqisign_p324_3;SIG_sqisign_p500_27;SIG_sqisign_p664_17"
+
+      - name: Build (compile-only strict gate)
+        run: cmake --build liboqs-ci/build -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+
+  constant-time:
+    name: x64 / constant-time (valgrind, non-gating)
+    runs-on: [self-hosted, x64]
+    # SQIsign's own poison/declassify annotations are active here: the
+    # integration/liboqs/ct_testing.h shim keys them off liboqs'
+    # OQS_ENABLE_TEST_CONSTANT_TIME instead of SQIsign's ENABLE_CT_TESTING.
+    #
+    # SQIsign is still only partially constant-time (parts of signing use
+    # variable-time big-integer arithmetic) and is not yet listed in liboqs' CT passes/issues,
+    # so this job is expected to report findings — it is non-gating (continue-on-
+    # error) to surface them without blocking. Findings should later be triaged
+    # into liboqs' tests/constant_time/sig/{passes,issues}/ suppression files.
+    continue-on-error: true
+    steps:
+      - name: Checkout SQIsign (the revision under test)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Integrate SQIsign into liboqs
+        uses: ./.github/actions/integrate-sqisign
+        with:
+          liboqs-ref: ${{ env.LIBOQS_REF }}
+          liboqs-url: ${{ env.LIBOQS_URL }}
+
+      - name: Configure (Debug + CT instrumentation)
+        # test_constant_time requires OQS_ENABLE_TEST_CONSTANT_TIME (poison/declassify
+        # instrumentation in test_sig) and a Debug build for meaningful valgrind output.
+        run: >
+          cmake -S liboqs-ci -B liboqs-ci/build -G "Unix Makefiles"
+          -DCMAKE_BUILD_TYPE=Debug
+          -DOQS_ENABLE_TEST_CONSTANT_TIME=ON
+          -DOQS_USE_OPENSSL=OFF
+          -DOQS_MINIMAL_BUILD="SIG_sqisign_p324_3;SIG_sqisign_p500_27;SIG_sqisign_p664_17"
+
+      - name: Build
+        run: cmake --build liboqs-ci/build -j "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+
+      - name: Constant-time test (valgrind)
+        # Runs test_sig under valgrind with secret key material poisoned; any
+        # secret-dependent branch/memory access is reported. Slow (valgrind), so a
+        # generous timeout. Non-gating via the job-level continue-on-error above.
+        working-directory: liboqs-ci
+        timeout-minutes: 60
+        run: >
+          OQS_BUILD_DIR=build python3 -m pytest tests/test_constant_time.py -k SQIsign
+          --verbose --no-header

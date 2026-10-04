@@ -1,6 +1,6 @@
 # Formal Research Lane: Lean-backed machine verification
 
-**Status:** Producer + verifier wired; advisory frontier integration
+**Status:** Producer and verifier wired; pinned Lean smoke controls; advisory frontier integration
 
 The producer half — turning a claim into candidate Lean with the MathCode
 engine — is documented in `docs/mathcode-integration.md`. This file covers the
@@ -167,3 +167,55 @@ Production execution should run the *verifier* in a network-disabled, resource-b
 ## Scope
 
 The stacked formal-lane PR establishes the Lean worker and contracts. This integration phase connects formal outcomes to Research Loop v2's existing advisory routing and verification contracts, and attaches a producer so a task can start from a claim rather than from hand-written Lean, while leaving durable frontier mutation and official state transitions solely to the canonical Coordinator.
+
+## Running Lean directly
+
+Existing proof sources no longer require a MathCode installation:
+
+```sh
+python3 -m orchestration.formal.cli --repo-root "$PWD" verify \
+  --task-file formal/targets/ncp-affine-normal-form.yaml \
+  --artifact-out <task-write-scope>/verification.json
+```
+
+This requires the task's sources, an exact Lean release and Git-commit-pinned
+dependencies (or none). The running Lean version must match the toolchain file,
+and input hashes must remain unchanged throughout verification. It does not generate
+missing proofs. The command refuses to overwrite a receipt. It emits the frozen
+task, build and audit output, source/task/toolchain/manifest hashes, and pending
+semantic-review status. A missing executable or process timeout returns an
+infrastructure receipt and exit code 3, asserting nothing about the claim.
+The normal dispatcher and archive gates still apply to research execution.
+
+The worker builds the project and explicitly requests the target module, then
+runs the project audit and a harness-generated audit of the exact qualified
+theorem. The latter refuses absent declarations, definitions passed off as
+theorems, and nonstandard transitive axioms even if the project audit is empty.
+Comment text, strings and downloaded dependency caches are excluded from the
+lexical scan; the theorem's transitive axiom check covers imported dependencies.
+
+For an engineering check without Mathlib or inference calls:
+
+```sh
+# Put the pinned Lean 4.22.0 toolchain's bin directory on PATH first.
+python3 -m pytest tests/test_lean_live.py -q
+```
+
+`formal/smoke/` is a dependency-free pinned project copied into a temporary
+workspace by these tests. Controls check elementary natural-number equalities,
+an impossible statement, a nonexistent theorem, a definition, and a theorem
+that hides a dependency on `sorryAx`. They qualify the verifier, not a research
+finding. The `lean-verification` workflow runs them with an actual Lean binary;
+a missing toolchain fails CI rather than silently skipping the controls.
+
+For scientific adoption, select one pivotal lemma from an approved proof-search
+map, keep its human statement and assumptions alongside the Lean proposition,
+archive the machine receipt, and commission an independent semantic reviewer.
+The PMA finding KN-FIND-c2e9a7 remains a derivation until its particular argument
+and scope receive their own formalization and review; this tooling change does
+not promote it.
+
+Primary verification reference (retrieved 2026-09-07):
+[Lean's proof-validation guide](https://lean-lang.org/doc/reference/latest/ValidatingProofs/)
+explains module builds and checking transitive axiom dependencies. Allowed
+standard axioms are `propext`, `Classical.choice`, and `Quot.sound`.

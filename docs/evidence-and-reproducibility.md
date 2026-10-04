@@ -149,6 +149,36 @@ commit and parent, exact changed paths, record IDs, and SHA-256 values. The
 dispatcher verifies those facts from Git; a working-tree-only artifact remains
 incomplete evidence.
 
+## Historical manifests with unrecovered execution provenance
+
+An archived run that omitted its executing revision cannot be made reproducible
+by inserting a later archive commit, copying another run's provenance, or
+guessing that its working tree was clean. Preserve the original record and
+observations. `DEC-20260907-44b7d9` defines an administrative accounting path for
+this loss; it does not make the run valid evidence.
+
+The explicit `provenance_quarantine` kind in
+`tools/run_supersession_registry.yaml` binds both the original and replacement
+hashes and names a Coordinator administrative decision covering the run. Its
+replacement must declare `completed_invalid`, `result.valid: false`,
+`certificate.kind: none`, null `code.commit` and `code.dirty`, and a
+`provenance_gap` with the exact missing fields, a reason, a hash-bound inventory
+of searched sources, and `evidence_eligible: false`. Contradictory validity
+assertions are rejected. Required companion files remain required; ordinary
+records and valid runs retain their provenance requirements.
+
+Such a record may be cited only as neutral/inconclusive, unverified/inconclusive
+evidence, with no proof references and an explicit `unresolved_run_provenance`
+disclosure keyed by run ID. Passing ledger validation means the invalid package
+is accounted for. It does not recover historical facts, establish an obstruction,
+or approve scientific reliance. Authentic provenance recovery or a separately
+approved reproduction remains necessary before directional evidence is possible.
+
+For malformed historical YAML, a registry may additionally locate one literal
+root `run_id` with `superseded_id_line`. The source hash is verified first;
+the unique header must agree with the run directory. This fallback applies only
+to the malformed original. Every replacement must parse and validate normally.
+
 ## Baseline discipline
 
 Every claimed improvement must compare against a clearly defined baseline under matched conditions. For ECDLP experiments, report generic Pollard-rho context where relevant, but do not treat incomparable operation types as directly equivalent without a cost model.

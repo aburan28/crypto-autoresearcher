@@ -1,0 +1,423 @@
+red_team_report:
+  id: RT-20260904-7f3a1c-redteam
+  task_id: TASK-20260904-bb2f29
+  experiment_id: EXP-MONO-cb905d
+  hypothesis_id: H-MONO-1d50ac
+  question_id: RQ-MONO-001
+  joints_owned: [J3-PROCESS-VIOLATION-ADEQUACY, J4-HEADLINE-INTERPRETATION]
+
+  claim_under_review: >-
+    (J3) That CORR-20260831-ba2118's disposition -- refusing to adopt the
+    out-of-band "Cursor Agent" in-place edit to a frozen specification.yaml,
+    and instead re-filing the same fix as a Coordinator-authored
+    protocol_amendment (amendments/v1.yaml) whose correctness rests on this
+    Coordinator's own single-session `independent_content_verification` --
+    is an adequate process AND an adequate scrutiny gate before spending
+    compute on RUN-MONO-cb905d-2. (J4) That RUN-MONO-cb905d-2's headline
+    P1=2.398/P2=2.063/P3(Fisher p=0.330) is correctly read as "no
+    significant per-curve difference, consistent with sampling noise around
+    a common effect," per the Coordinator's own recorded prior.
+
+  verdict_j3: holds_on_process_and_on_the_math_but_a_genuine_scrutiny-sequencing_gap_is_unaddressed
+  verdict_j4: breaks_the_no-significant-difference_reading_but_only_to_a_borderline_result_not_a_confirmed_effect
+
+  verdict_summary: >-
+    J3: I independently re-derived the 2p+1-slot construction's correctness
+    from first principles (a direct slot-counting argument, done before
+    reading past the amendment's own derivation) AND ran a from-scratch
+    Monte-Carlo simulation of the abstract combinatorial model (4,000,000
+    trials) reproducing: v1's actual defect at ratio 1.9925 (predicted
+    exactly 2.0), v2's corrected construction at ratio 1.0097 with O reached
+    at the predicted rate, and a targeted "Object 1" mutation (drop the O
+    slot, keep 2-torsion correctly split) that stays uniform over the 579
+    affine points while leaving O completely unreached -- confirming the
+    amendment's math is correct AND that checking the 2-torsion/generic
+    ratio ALONE would miss Object-1-style defects (a live methodological
+    trap the amendment's own text and the Executor's own three-category
+    chi-square check both happen to avoid by reporting O separately). I
+    found NO mathematical flaw. The unresolved issue is procedural, not
+    mathematical: the amendment's `independent_content_verification` was
+    the ONLY check performed before TASK-20260831-52f3df authorized real
+    compute (RUN-MONO-cb905d-2) and before execution_report.yaml's addendum
+    was written treating the corrected numbers as more credible than
+    RUN-1's in an explicit "before/after" narrative -- all of that happened
+    BEFORE this review round, i.e. before either of this program's actually
+    independent review mechanisms (Validator, Red Team) touched the fix.
+    Re-filing via amendment closes the INTEGRITY gap (no silent mutation of
+    a frozen file, immutable RUN-1 preserved, correct attribution) but does
+    NOT close the SCRUTINY gap (a second mind checking the proof before,
+    not after, acting on it) -- and the entity performing the single check
+    is the same Coordinator whose own earlier approval let v1's bug through
+    in the first place. At this toy compute scale (RUN-2 took 4.25s) there
+    was no cost pressure that would justify skipping a pre-compute check.
+
+    J4: I recomputed the raw counts and found the reported Fisher-exact
+    test (p=0.330, cited in raw-result.json and execution_report.yaml as
+    "the frozen preregistered comparison statistic" for P3) tests a
+    DIFFERENT, narrower null hypothesis than the one P3 is defined to test.
+    It compares only the two curves' group-uniform-arm collision counts,
+    silently treating the REUSED transversal-arm counts (613 ord, 679/681
+    cm, out of 20000 each) as fixed, zero-variance constants -- but those
+    counts are themselves a finite, noisy sample (this is the exact same
+    p=617 transversal comparison that gave EXP-MONO-64aaa4 its own
+    borderline p=0.066). I re-ran the comparison as a standard
+    homogeneity-of-odds-ratios / interaction test (using ALL FOUR
+    independently-measured counts, the textbook test for "does the
+    curve-ratio behave the same across the two sampling-convention strata")
+    and, cross-checked by three independent methods (a Poisson delta-method
+    on the pairs-per-tuple basis, the same delta-method on the
+    tuples-with-collision basis, and the standard 8-reciprocal
+    log-odds-ratio-homogeneity Wald test), obtained p in [0.022, 0.038]
+    across all three -- nominally SIGNIFICANT at alpha=0.05, the opposite
+    conclusion from the reported p=0.330. This directly rebuts the
+    Coordinator's own stated prior ("most likely genuine sampling noise...
+    has NOT independently recomputed the raw counts," which is exactly what
+    I did). I hold this as a genuine finding, not a confirmed effect: (a)
+    the significance is itself borderline (p~0.02-0.04, not p<0.01), (b)
+    this cell has now been probed by at least three methodologically
+    distinct statistics across three experiments touching the SAME
+    underlying curves, and even a mild multiplicity correction would erase
+    it, and (c) my own power calculation shows the properly-constructed
+    test is moderately, not overwhelmingly, powered at the magnitudes in
+    play. The honest reading is: the record's basis for calling this "not
+    significant" is unsound, and the corrected test lands the cell back in
+    the SAME borderline territory EXP-MONO-64aaa4's own transversal-only
+    test already occupied (p=0.066) -- a pattern across independent tests
+    that is itself worth flagging, not a settled result in either
+    direction.
+
+  objections:
+    - id: OBJ-J4-1
+      severity: critical
+      title: >-
+        The reported "P3 headline" Fisher-exact test does not test P1 vs P2;
+        it tests a narrower quantity, and the correct test flips the
+        significance call
+      target: >-
+        experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json
+        part_a.P3_headline_comparison.group_uniform_fisher_exact_ord_vs_cm;
+        execution_report.yaml part_a_corrected_rerun_2026_09_04.corrected_measurements
+      finding: >-
+        P3 is defined by specification.yaml as "direct comparison of P1 and
+        P2" where P1=group_uniform_ord/transversal_ord and
+        P2=group_uniform_cm/transversal_cm. The executed test instead
+        compares group_uniform_ord vs group_uniform_cm ALONE (table
+        {1049,18951,1005,18995}), which is only a valid test of "does P1=P2"
+        under the additional, unstated, and here FALSE assumption that
+        transversal_ord=transversal_cm (they are 613/20000 vs 679-681/20000,
+        an ~10-11% difference in their own right, itself the subject of
+        EXP-MONO-64aaa4's own borderline p=0.066 test). I built the correct
+        test -- a standard homogeneity-of-two-odds-ratios (interaction)
+        Wald test using all four independently-measured 2x2 tables (the
+        reused transversal table and the new group-uniform table) -- and it
+        reproduces the reported ratio-of-ratios almost exactly (ROR=1.1628
+        vs reported P3=1.1623, confirming I am testing the right quantity)
+        while giving p=0.0376 (SE=0.0725, Z=2.080), NOT p=0.330. A Poisson
+        delta-method cross-check on log(ratio-of-ratios) using the
+        pairs-per-tuple basis gives p=0.0217 (Z=2.296); the same method on
+        the tuples-with-collision basis gives p=0.0372 (Z=2.083). All three
+        independent methods agree with each other and disagree with the
+        artifact's own reported p=0.330.
+      evidence: >-
+        Python verification (delta-method and standard odds-ratio-homogeneity
+        formula, both cross-checked against scipy.stats.norm and
+        scipy.stats.fisher_exact for the reported statistic) is reproducible
+        from the four raw counts already committed in raw-result.json and
+        the p617_same_prime_cell_reused block of RUN-MONO-cb905d-1's own
+        raw-result.json; no new data was drawn.
+      consequence: >-
+        The natural reading the Coordinator's own prior offers ("no
+        significant per-curve difference, consistent with sampling noise")
+        rests on a mismatched statistic. The properly-constructed test of
+        the actual P3 quantity is borderline-significant, not
+        non-significant. This does not certify a real endomorphism-ring
+        effect (see verdict_summary caveats), but it does mean the record's
+        own artifact cannot currently be cited as evidence FOR the
+        (N,tau)-only / sampling_artifact_uniform_across_endomorphism_ring
+        reading either.
+      minor_related_defect: >-
+        P1/P2 are computed from "rate_pairs_per_tuple" (613/20000 ord,
+        681/20000 cm) while the reported Fisher table uses
+        "rate_any_collision"/"tuples_with_collision" (613/20000 ord,
+        679/20000 cm) -- a second, smaller basis inconsistency between the
+        headline ratio and its own significance test, on top of the
+        primary one above.
+
+    - id: OBJ-J4-2
+      severity: medium
+      title: >-
+        OBJ-6's 1.84-2.08x reference band was measured on a disjoint panel
+        of curves/primes, not at this (N=580, tau=4) cell, and no (N,tau)
+        dependence has been derived for the group-uniform/transversal ratio
+      target: >-
+        specification.yaml preregistered_prediction P1/P2;
+        experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml OBJ-6
+      finding: >-
+        OBJ-6's band comes from five curves (RO3, CM2, RO2, CM1, "J1728")
+        measured at primes 103/191/421/569 (per that report's own OBJ-9),
+        none of them p=617. I recomputed each curve's own ratio from OBJ-6's
+        own quoted D-values (e.g. RO3 0.08170/0.03920=2.084, CM2
+        0.34967/0.18977=1.843, "J1728" 0.03033/0.01650=1.838) and confirmed
+        they reproduce the 1.84-2.08x band, but none of these curves' own
+        (N,tau) values were disclosed in what I read, and neither
+        H-MONO-45183a Part B nor this contract nor the amendment derives how
+        the group-uniform/transversal ratio should depend on (N,tau) the way
+        Part B derived 6(tau-1)/N for the transversal rate alone. Unlike
+        Part B's closed form, this band is an empirical range from a
+        DIFFERENT parameter regime, cited here as if it were a fixed
+        constant every (N,tau) cell should reproduce.
+      consequence: >-
+        "P1=2.398 remains outside the band even after the sampler fix" is
+        being read (in the Coordinator's own review_plan framing) as a
+        residual puzzle needing an artifact explanation. It may instead be
+        exactly what a correct, currently-undecided (N,tau)-dependence would
+        predict for N=580, tau=4 specifically. Neither direction has been
+        ruled out. Treating the band as the applicable null for this cell,
+        without checking whether OBJ-6's own curves bracket N=580/tau=4 or
+        whether the ratio is even expected to be (N,tau)-invariant, is an
+        unstated transfer assumption.
+      required_control: >-
+        Before citing "P1 outside OBJ-6's band" as either an anomaly or as
+        reassuring noise, derive (or at minimum numerically fit, using the
+        cheap Part-B-style cross-prime cells already in this lane's own
+        archived transcripts) how the group-uniform/transversal ratio
+        depends on N and tau, and check where (580,4) falls on that curve
+        before drawing any conclusion from band membership.
+
+    - id: OBJ-J4-3
+      severity: medium
+      title: >-
+        Researcher-degrees-of-freedom concern is real but should be stated
+        precisely, not generically
+      target: EXP-MONO-64aaa4, RUN-MONO-cb905d-1, RUN-MONO-cb905d-2
+      finding: >-
+        Of the three prior headline statistics on data touching the p=617
+        cell, only EXP-MONO-64aaa4's own p=0.066 (a direct, well-posed
+        transversal-only ord-vs-cm Fisher test) is methodologically sound
+        for the question it asks. RUN-MONO-cb905d-1's P3 (p=0.4879, biased
+        sampler) and RUN-MONO-cb905d-2's P3 (p=0.330, corrected sampler)
+        BOTH share OBJ-J4-1's test-mismatch defect, so they are not three
+        independent, correctly-posed tests of three independent hypotheses
+        -- they are one well-posed test (0.066) plus two mismeasured
+        attempts at a second, different test, now supplemented by my own
+        fourth, correctly-posed attempt at that second test (p in
+        [0.022,0.038]). Counting "three headline statistics, none
+        significant, so it's noise" is doubly wrong: two of the three never
+        validly tested what they claimed to, and the corrected version of
+        that same test is not, in fact, non-significant.
+      consequence: >-
+        A fair overall read is: this specific (N=580,tau=4) cell has now
+        produced a BORDERLINE result under every methodologically sound test
+        applied to it (0.066 for the transversal-only comparison; 0.022-0.038
+        for the properly-reconstructed group-uniform-ratio comparison). That
+        pattern -- borderline-but-not-clearly-significant, repeatedly, on
+        related but distinct statistics -- is itself informative and should
+        be named as such, rather than folded into either "confirmed
+        artifact-free" or "confirmed effect."
+
+  required_controls:
+    - id: RC-J4-1
+      status: I_RAN_IT
+      name: Reconstruct P3 as a homogeneity-of-odds-ratios / interaction test using all four raw counts
+      method: >-
+        Standard log(OR) contrast with SE=sqrt(sum of 8 reciprocal cell
+        counts across the transversal and group-uniform 2x2 tables);
+        cross-checked with two independent Poisson delta-method
+        constructions on different count bases.
+      result: >-
+        p in [0.022, 0.038] across three independent methods, vs the
+        artifact's reported p=0.330. Reproduced the reported ratio-of-ratios
+        to 4 significant figures (1.1628 vs 1.1623), confirming the
+        reconstruction targets the same quantity the record calls P3.
+    - id: RC-J4-2
+      status: I_RAN_IT
+      name: Power calculation at the observed and named effect sizes, from raw counts
+      method: >-
+        Using the reconstructed test's own SE (0.0655-0.0725 depending on
+        basis), computed power at true ratio-of-ratios effects of 10%, 15%,
+        the observed 16.2-16.3%, and 20%, at alpha=0.05 two-sided.
+      result: >-
+        ~26-31% power at a true 10% effect; ~55-63% at the actually observed
+        ~16% effect; ~71-80% at 20%. The limiting factor is NOT the
+        group-uniform arm's sample size (counts ~1000-1500, ample) but the
+        REUSED transversal arm's smaller counts (~600-700), which contribute
+        roughly 60-70% of the total variance in every reconstruction I ran.
+        This is a more precise diagnosis than "collision counts are only in
+        the tens-to-low-hundreds" (false for the group-uniform arm; broadly
+        right only for the transversal arm) and than "underpowered" as a
+        blanket verdict (true at the low end of the named 10-20% band, false
+        at the high end and at the observed magnitude).
+    - id: RC-J3-1
+      status: I_RAN_IT
+      name: >-
+        From-scratch combinatorial Monte Carlo of v1's construction, v2's
+        construction, and a targeted "no-O-slot" mutation
+      method: >-
+        Modeled the p=617 curve abstractly by x-type only (288 QR, 3 zero,
+        326 NQR x's, matching the disclosed N=580 decomposition), 4,000,000
+        trials each, independent of any repository code.
+      result: >-
+        v1's actual defect reproduces at ratio 1.9925 (predicted 2.0); v2's
+        corrected construction reproduces uniform 1.0097 with O reached at
+        the predicted 1/(2p+1) rate; a targeted mutation that drops only the
+        O slot (keeping 2-torsion correctly split) reproduces uniform 1.0084
+        over the 579 affine points while O is never drawn at all -- showing
+        this specific mutation would evade a check that only compares
+        2-torsion to generic frequencies, and must be caught by checking O's
+        own frequency separately (which both the amendment's prose and the
+        Executor's own three-category chi-square check already do).
+
+  counterexample_or_mutation:
+    the_cheapest_discriminating_control: >-
+      For J4: recompute P3's significance using all four counts via the
+      standard odds-ratio-homogeneity test rather than the group-uniform-only
+      Fisher test -- cost is a few lines of arithmetic on data already
+      archived, and it changes the reported conclusion. For J3: the cheapest
+      control the process omitted was simply sequencing -- dispatch the
+      existing Validator+Red Team review of the amendment's math BEFORE
+      authorizing TASK-20260831-52f3df's compute, not after. Both controls
+      were available at zero or near-zero marginal cost before either
+      artifact was finalized.
+    the_mutation_that_does_discriminate: >-
+      The "no-O-slot" mutation (RC-J3-1) is the sharpest test of whether a
+      verification method is checking the right invariant: it isolates
+      exactly one of v1's two disclosed defects and would pass a
+      2-torsion-vs-generic-only check while failing an O-frequency check.
+      Both this amendment's analytic proof and the Executor's own empirical
+      spot-check happen to report O as its own category, so both would
+      correctly flag it -- but this was not exercised as an explicit control
+      anywhere in the reviewed artifacts, only reconstructed here.
+
+  heuristic_challenges:
+    - heuristic: HEUR-COIN-1 (via H-MONO-1d50ac H1, reused unmodified by this contract)
+      challenge: >-
+        Not independently re-litigated here (out of scope for J3/J4), but
+        note that its own falsification condition was already corrected once
+        this lane (H1's h1_correction_2026_08_31) to point at exactly the
+        transversal-vs-group-uniform axis this contract measures. My finding
+        under OBJ-J4-1 means the axis's OWN comparison statistic, not just
+        the heuristic's falsification wording, needs the same level of
+        scrutiny that caught the wording problem.
+
+  cost_model_challenges: []
+
+  reduction_and_scope_challenges: []
+
+  proof_architecture_challenges:
+    - attack: quantifier_order_and_boundary
+      target: amendments/v1.yaml changes[0]
+      finding: >-
+        The corrected construction's correctness proof (accepting-slot
+        counting) does not depend on tau or on the count of 2-torsion x's --
+        it is a per-x branch rule, so the SAME proof holds whether a curve
+        has 1 affine 2-torsion point or 3. I verified this generalizes
+        correctly (the "for all x with f(x)=0" branch logic is identical
+        regardless of how many such x exist), so the fix is not overfit to
+        this one (N=580,tau=4) cell even though it is only ever exercised on
+        that cell in this contract. This is a positive finding, stated for
+        completeness since the review_plan's attack asked me to look for
+        exactly this kind of overfitting.
+    - attack: method_ceiling
+      target: J3's independent_content_verification
+      finding: >-
+        The strongest claim this Coordinator's own single-session
+        re-derivation can support is "verified correct by one careful,
+        independently-reasoned pass, corroborated by the Executor's
+        empirical spot-check from a separate session." It cannot, by
+        construction, rule out an error common to whatever this Coordinator
+        and I both might structurally overlook (the standing
+        model-correlation confound this lane already discloses elsewhere:
+        the same original approval process let v1's bug through). This
+        ceiling is exactly why the program routes protocol-affecting fixes
+        through Validator+Red Team dispatch at all -- the ceiling was not
+        reached before compute was spent.
+
+  narrowest_supported_statement: >-
+    J3: The process disposition in CORR-20260831-ba2118 is the correct
+    response given the facts as disclosed (do not adopt an out-of-band edit
+    to a frozen contract; re-file as an amendment; preserve RUN-1 immutably
+    and downgrade only its Part-A evidentiary status). The 2p+1-slot
+    construction is mathematically correct; I independently re-derived and
+    simulated it and found no flaw, including against a mutation designed to
+    evade a narrower check. What is NOT supported is the stronger claim that
+    this process, as executed, provided adequate scrutiny BEFORE compute was
+    spent and BEFORE an interpretive "corrected vs superseded" narrative was
+    drafted -- that scrutiny is only happening now, in this review round,
+    after the fact. J4: RUN-MONO-cb905d-2's reported P3 (Fisher p=0.330) does
+    not support the claim "no significant per-curve difference"; it supports
+    only "no significant difference in the narrower group-uniform-rate-only
+    comparison the Executor happened to compute." A properly reconstructed
+    test of the actual pre-registered P3 quantity gives p in [0.022,0.038],
+    borderline-significant, matching (not resolving) the same borderline
+    territory EXP-MONO-64aaa4's own transversal-only test already occupied
+    (p=0.066). Neither this record nor my own recomputation supports a
+    confirmed sampling_artifact_endomorphism_ring_linked finding: the effect
+    size is modest, the test is only moderately powered even when correctly
+    constructed, and the cell has now been probed multiple times without a
+    pre-registered, correctly-specified confirmatory statistic. No claim
+    about H-MONO-1d50ac's status is made or implied; that remains the
+    Coordinator's call.
+
+  next_concrete_action: >-
+    (1) For J4: before any further interpretation of this cell, re-derive
+    and pre-register the CORRECT test statistic (homogeneity of odds ratios
+    across the transversal and group-uniform strata, per RC-J4-1/OBJ-J4-1)
+    as the official P3 comparison, superseding the group-uniform-only Fisher
+    test in both RUN-MONO-cb905d-1 and RUN-MONO-cb905d-2's own reporting (as
+    a correction, not an edit, per AGENTS.md rule 4), and consider a single
+    confirmatory re-draw at larger n targeting the transversal arm
+    specifically (it dominates the combined variance) before treating this
+    cell as resolved in either direction. (2) For J3: adopt a standing rule
+    that a Coordinator-authored protocol_amendment repairing a math/sampler
+    defect gets a fast, cheap pre-compute check (even an informal one, like
+    the Executor's own empirical spot-check style, run by a DIFFERENT
+    session before, not after, the rerun is authorized) whenever the
+    marginal compute cost of waiting is negligible, as it was here (RUN-2
+    cost 4.25 seconds) -- distinct from, and in addition to, the
+    already-correct rule against editing frozen files in place.
+
+  review_attestation:
+    joints_owned: [J3-PROCESS-VIOLATION-ADEQUACY, J4-HEADLINE-INTERPRETATION]
+    verdict:
+      J3: holds_on_process_and_on_the_math_but_a_genuine_scrutiny-sequencing_gap_is_unaddressed
+      J4: breaks_the_no-significant-difference_reading_but_only_to_a_borderline_result_not_a_confirmed_effect
+    read_sibling_reports: false
+    blindness_compliance: >-
+      Checked experiments/EXP-MONO-cb905d/reviews/ before starting: it was
+      empty (no validator/ or red-team/ subdirectory existed). Partway
+      through this session a validator/ subdirectory appeared (concurrent
+      dispatch), but I did not open, list the contents of, or read any file
+      inside it at any point; my own directory-existence check ran before it
+      appeared and I did not re-check afterward. All conclusions above were
+      formed solely from the artifacts named in the assignment and my own
+      independent computation.
+    paths_actually_read:
+      - ledger/handoffs/TASK-20260904-bb2f29.yaml
+      - agents/red-team.md
+      - experiments/EXP-MONO-cb905d/specification.yaml
+      - experiments/EXP-MONO-cb905d/amendments/v1.yaml
+      - ledger/corrections/CORR-20260831-ba2118.yaml
+      - experiments/EXP-MONO-cb905d/execution_report.yaml
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json
+      - ledger/hypotheses/H-MONO-1d50ac.yaml
+      - ledger/handoffs/TASK-20260831-52f3df.yaml
+      - ledger/decisions/DEC-20260831-7b44fe.yaml
+      - ledger/evidence/EV-MONO-6c49bd.yaml
+      - experiments/EXP-MONO-12ce1c/reviews/red-team/red-team-report.yaml (partial, first ~400 lines, through OBJ-9/required_controls; sufficient to recover OBJ-6's per-curve D-values and OBJ-9's prime list)
+    independent_computation: >-
+      All statistical recomputation (delta-method tests, the standard
+      odds-ratio-homogeneity test, power calculations, and the 4,000,000-trial
+      combinatorial Monte Carlo of the sampler constructions) was performed
+      from scratch in this session using only the raw counts already
+      committed in the artifacts above; none of it was copied from or
+      cross-checked against a sibling report.
+    model_disclosure: >-
+      This review ran as claude-sonnet-5 (per this session's own inference
+      binding), matching the Coordinator and Executor sessions this lane has
+      repeatedly disclosed a model-correlation confound for. Noted per that
+      lane's own established disclosure discipline; not independently
+      resolvable by this report alone.
+
+  artifact_paths:
+    - experiments/EXP-MONO-cb905d/reviews/red-team/red-team-report.yaml

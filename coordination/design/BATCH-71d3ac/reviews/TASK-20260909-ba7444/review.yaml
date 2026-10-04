@@ -1,0 +1,69 @@
+review_attestation:
+  task_id: TASK-20260909-ba7444
+  role: red-team
+  independent_session: true
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  resolved_model_id: unavailable_to_red_team
+  joints_owned: [windowed_tree_closed_wire_format_v4]
+  paths_read:
+    - AGENTS.md
+    - agents/red-team.md
+    - coordination/design/BATCH-71d3ac/windowed-tree-v4-review-plan-TASK-20260909-ba7444.yaml
+    - ledger/handoffs/TASK-20260909-ba7444.yaml
+    - coordination/design/BATCH-71d3ac/tasks/TASK-20260909-5e04f0/specification-v4-wire-format.yaml
+    - ledger/decisions/DEC-20260909-d83af6.yaml
+  source_snapshot: 97e4abd0c3ac3bd8e215c98f3995b838a1e1a599
+  source_snapshot_match: true
+  read_sibling_reports: false
+  verdict: breaks
+
+red_team_report:
+  id: RT-20260909-ba7444
+  task_id: TASK-20260909-ba7444
+  claim_under_review: BATCH-local closed, replayable v4 wire format for the abstract depth-three windowed tree.
+  joint: windowed_tree_closed_wire_format_v4
+  verdict: breaks
+  objections:
+    - id: RT-WT4-01
+      finding: The edge array has no finite normative content.
+      evidence: specification-v4-wire-format.yaml line 15 says only "the declared depth-three binary edges"; v4 contains no declared list of parent_id/child_id pairs, and it replaces the prior interfaces rather than incorporating one.
+      mutation: Preserve all top-level keys and replace an intended direct edge with parent_id r and child_id r01. The v4 packet supplies no canonical pair list or parent/child predicate by which a checker can distinguish that non-direct edge from an accepted entry.
+      impact: The wrong_edge known-false control is not replayably testable from the pinned v4 packet.
+    - id: RT-WT4-02
+      finding: The promised typed records have keys but no closed value grammars or cross-record constraints.
+      evidence: Lines 10-12 enumerate only node, edge, and leaf keys. They do not enumerate node roles, leaf classifications, decimal grammar, ID types, array-element schemas, or equality of each leaf threshold_id/threshold_value_decimal with the sole outer threshold.
+      mutation: Keep the listed node and leaf IDs but assign node r001 role arbitrary_role and leaf r000 threshold_id THRESHOLD-ALT, threshold_value_decimal '25', and classification arbitrary_classification while retaining the outer threshold object from line 9.
+      impact: The alternate-threshold and wrong-typed-node/leaf controls are not rejected by a defined v4 grammar; line 17 asserts refusal without defining the values or bindings a refuser must validate.
+    - id: RT-WT4-03
+      finding: The annotation and schema-version fields leave an unrestricted interpretation channel.
+      evidence: annotations is an allowed top-level exact key at line 6 but has no declared type or required empty value. schema_version is listed at lines 6-7 but v4 does not state that the wire value must equal windowed-tree-mock-v4 or that an older version value is refused.
+      mutation: Retain the six listed top-level keys, set schema_version to windowed-tree-mock-v3, and set annotations to an arbitrary JSON object carrying a measured-looking claim. This introduces neither an extra key nor a nested annotation as written in line 17.
+      impact: The annotation and old-field controls do not close top-level annotation content or old-version substitution.
+    - id: RT-WT4-04
+      finding: Exact canonical arrays are described but no canonical wire instance or complete record ordering is supplied.
+      evidence: Lines 13-16 name node and leaf identifier sequences but do not define the actual typed record arrays, lexicographic comparison over records, duplicate-detection rule, or a unique JSON representation for the records.
+      mutation: Provide two node records with node_id r0 and omit the prescribed r0 role interpretation, or provide the same listed IDs in differently ordered typed records. The text gives no canonical record comparator or conflict rule to make either mutation decidably invalid.
+      impact: Duplicate and missing/extra control cases cannot be replayed as byte-level tests despite the stated canonical-bytes purpose.
+  required_controls:
+    - Replace prose references with a single normative JSON-schema-like grammar that fixes every top-level and nested value type, allowed enum, and additional-property rule.
+    - Include the complete ordered 14-pair depth-three edge array in the replacement packet, plus an explicit edge membership predicate; do not refer to a superseded declaration.
+    - Bind each leaf threshold_id and threshold_value_decimal to the exact outer threshold object, constrain leaf_weight_decimal to a canonical decimal grammar, and enumerate allowed classifications and node roles.
+    - Specify annotations as an exact empty canonical array or remove the field, and bind schema_version exactly to windowed-tree-mock-v4 with an explicit old-version refusal.
+    - Provide one complete canonical JSON control fixture and mutation fixtures for every listed known-false control, with exact expected INVALID_INTERFACE output.
+  counterexample_or_mutation: A six-key JSON envelope can retain the specified top-level key set while carrying an old schema_version, arbitrary top-level annotations, an undefined edge relation, and leaf threshold fields that disagree with the outer threshold. The current packet has no closed grammar that makes that envelope decidably invalid.
+  baseline_comparison: null
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges:
+    - The proposed invariant is a wire-format invariant. Holding the ID lists fixed while varying role, classification, edge interpretation, annotation, and threshold bindings leaves the asserted closed-interface conclusion unchanged, showing that the listed keys are not a sufficient separator.
+  proves_too_much_control:
+    object: recalled small-root pointer
+    observed_failure_signature: unavailable_unverified
+    verdict: holds
+    evidence: The pinned v4 packet cites no retrieved small-root source, proof, bound, or solver result. The review did not retrieve a source or infer any such result.
+  narrowest_supported_statement: The packet is syntactically valid YAML that names intended node and leaf identifiers and a proposed threshold. It does not yet define a closed, byte-replayable v4 tree wire format.
+  next_concrete_action: Create an additive source-only v5 repair with an actual finite typed envelope, full edge list, closed nested schemas and enums, cross-record threshold equality, and canonical positive and mutation fixtures; then obtain a fresh independent review.
+  artifact_paths:
+    - coordination/design/BATCH-71d3ac/reviews/TASK-20260909-ba7444/review.yaml

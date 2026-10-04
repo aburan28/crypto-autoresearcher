@@ -1,0 +1,118 @@
+coordinator_decision:
+  id: DEC-20260908-1b3c7d
+  recorded_at: '2026-09-08'
+  context: >-
+    Independent implementation review of EXP-CRYPTO-5e8beb's zero-run finite-lumpability-
+    diagnostic implementation (TASK-20260907-6bd7c0, snapshot TASK-20260907-c0a81d, commit
+    cd60e82c8bc68ef5766a366e0316fbb5c18353b4). Independent validator TASK-20260908-0eabfe
+    (review-adversarial, xhigh, fresh session) reviewed correctness, specification coverage,
+    and production/reference independence. This decision is administrative and
+    implementation-scoped: it authorizes no scientific run, and EXP-CRYPTO-5e8beb's own
+    launch_gate / genuine launch lock requirement is entirely undischarged by anything here.
+  decision: revise
+  decision_note: >-
+    "revise" because the independent review found the core arithmetic implementation
+    substantively correct (272-partition coverage, all six kernels, the delta vs
+    per_operation_max distinction, exact rational arithmetic, and production/reference
+    independence all confirmed genuine on direct code reading) but with two concrete,
+    disclosed gaps against the frozen contract, requiring a follow-up executor task before
+    this implementation can be considered complete.
+  target_ids:
+    - EXP-CRYPTO-5e8beb
+    - TASK-20260907-6bd7c0
+    - TASK-20260907-c0a81d
+    - TASK-20260908-0eabfe
+  rationale:
+    - >-
+      INDEPENDENT REVIEWER VERDICT: REVISE. The working tree was confirmed byte-identical to
+      the snapshot commit (empty git diff, all 10 path_sha256 entries in
+      coordination/design/BATCH-51d1bb/archives/TASK-20260907-c0a81d/snapshot.json
+      independently recomputed and matched).
+    - >-
+      SPECIFICATION COVERAGE CONFIRMED CORRECT: exactly 272 partitions (134 C_11 + 134 C_17 +
+      4 C_15) in the correct ordering; the SHA256 rejection-shuffle implemented line-for-line
+      per spec in both fixtures.py and independently in reference.py; all six kernels (R1-R4,
+      P, U) with exact literal laws, correctly reduced and ordered; the subtlest quantity in
+      the spec -- delta (joint pair maximum) versus sum_l nu(l)*delta_l (per-operation
+      maximum) -- correctly distinguished pair-by-pair before maximizing.
+    - >-
+      PRODUCTION/REFERENCE INDEPENDENCE CONFIRMED GENUINE (the most important check): AST
+      import extraction confirmed reference.py imports only hashlib/itertools/fractions/
+      typing, zero imports from fixtures.py/kernels.py/transcripts.py/certificates.py, and
+      uses itertools.product latent-path enumeration, structurally distinct from the
+      producer's dynamic-programming approach.
+    - >-
+      EXACT RATIONAL ARITHMETIC CONFIRMED THROUGHOUT: a grep for floating-point literals and
+      float() calls across all 7 .py files returned zero matches.
+    - >-
+      ASSUMPTION-TRAP CORRECTLY CLASSIFIED bound_inapplicable unconditionally in both
+      transcripts.py and reference.py, with full_transcript_tv and final_marginal_tv kept as
+      structurally separate fields in both.
+    - >-
+      NO INVENTED PROVENANCE (implementation-manifest.yaml does not claim a future commit as
+      already happened) and NO EXECUTION ON IMPORT (AST walk of every module's top-level
+      statements shows only docstrings, safe literal construction, and driver.py's standard
+      __main__ guard); all 7 .py files pass python3 -m py_compile.
+    - >-
+      THE FIRST GENUINE, BOUNDED GAP (disclosed by the executor, not hidden): panel-advantage
+      scoring is entirely unimplemented in certificates.py -- no function assembles the 32
+      panels, the >=1/8 mean-gap / >=24-of-32 strict-win qualifiers, or the 16 paired-
+      qualifier conjecture_positive/conjecture_negative decision logic. This means
+      TASK-20260907-6bd7c0's own completion_gate item "Both finite advantage-positive and
+      advantage-negative branches are implemented with unmodified thresholds and full score
+      reporting" is not met -- neither branch exists yet, not just one.
+    - >-
+      THE SECOND GENUINE, BOUNDED GAP: driver.py's check_launch_admission is weaker than its
+      own docstring claims. It genuinely refuses on missing files (a real, traced refusal
+      path), but the "approved spec" check only compares a caller-supplied hash without
+      parsing the spec for status==approved/approved_by; the "implementation manifest" and
+      "review receipt" checks are existence-only, never comparing declared source hashes or a
+      review verdict; and the "launch lock" check is bare file-existence, which is exactly
+      what the module's own docstring explicitly says is not sufficient. No run is enabled by
+      this today (main() has no post-admission execution path and always returns exit code
+      3), but the interface as documented is materially stronger than what it actually
+      verifies.
+  evidence_refs:
+    - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/implementation-review.yaml
+    - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/runtime-session-receipt.json
+    - coordination/design/BATCH-51d1bb/archives/TASK-20260907-c0a81d/snapshot.json
+    - ledger/handoffs/TASK-20260907-6bd7c0.yaml
+  limitations:
+    - >-
+      This decision does not authorize, approve, or perform any scientific run of
+      EXP-CRYPTO-5e8beb. The specification's own launch_gate (a separate scientific handoff
+      with its own allocated run identity and genuine launch lock) remains entirely
+      undischarged, independent of this implementation-review outcome.
+    - No hypothesis or claim-tier status is touched by this decision.
+  next_actions:
+    - >-
+      OPEN A FOLLOW-UP EXECUTOR TASK (new TASK-<tok> via tools/allocate_id.py, within a new
+      batch or an extension of BATCH-51d1bb) that: (a) implements the panel-advantage scoring
+      logic in certificates.py per the specification's panel_advantage block, covering BOTH
+      the finite_panel_advantage_with_valid_controls and complete_valid_panel_no_paired_
+      advantage decision_outcomes with unmodified thresholds; (b) either strengthens
+      driver.check_launch_admission to match its own docstring (hash comparison against
+      declared source hashes, parsing the review receipt for an accepted verdict, a genuine
+      launch-lock check beyond bare file presence) or narrows the docstring's claims to match
+      what the code actually verifies. Zero scientific execution in this follow-up task, same
+      maximum_runs=0 constraint as TASK-20260907-6bd7c0. Must be independently reviewed again
+      before the implementation is considered complete.
+    - >-
+      Do not proceed to any scientific launch handoff for EXP-CRYPTO-5e8beb until (a) both
+      gaps are closed and re-reviewed, and (b) the specification's own launch_gate
+      requirements (approved code/spec binding, independent review, genuine launch lock) are
+      separately and explicitly discharged.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Implementation-review administrative decision only; no scientific finding to promote.
+  decided_by: coordinator
+  decided_at: '2026-09-08'
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    resolved_model_id: claude-sonnet-5
+    resolved_model_id_note: Genuine self-report from this session's own runtime system context.
+    fallback_used: false
+    degraded_allowed: false
+    amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.

@@ -13,7 +13,7 @@ tags: [semaev, summation-polynomial, index-calculus, prime-field, ecdlp, complex
 confidence: reported
 citation_verified: web
 added: 2026-07-19
-superseded_by: null
+superseded_by: KN-LIT-fa346d
 ---
 
 ## Contribution

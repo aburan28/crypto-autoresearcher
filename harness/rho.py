@@ -5,12 +5,20 @@ in expected ~sqrt(n) group operations. On success it returns k together with a
 count of group operations, so experiments can report cost without conflating it
 with the solver's wall time. Correctness of k is certified downstream by
 recomputing k*P (docs/claims-and-verification.md).
+
+`solve` here uses Floyd cycle detection: constant memory, one walk, and the
+trajectory is discarded. The distinguished-point variant that real campaigns
+run -- many independent short walks, only DPs stored, collision found in the DP
+table -- lives in `walk.py` and is re-exported as `rho.solve_dp`; it keeps the
+walks, so they can be measured and drawn (`walkviz.py`). Kangaroo, the same
+walk restricted to an interval, is in `kangaroo.py`.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from .toycurve import ECDLPInstance, EllipticCurve, Point, _seed_int
+from .walk import solve_dp  # noqa: F401  (re-exported; see module docstring)
 
 
 @dataclass(frozen=True)

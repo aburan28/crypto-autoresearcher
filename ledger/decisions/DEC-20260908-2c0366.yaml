@@ -1,0 +1,98 @@
+coordinator_decision:
+  id: DEC-20260908-2c0366
+  recorded_at: '2026-09-08'
+  context: >-
+    The executor dispatched under TASK-20260908-788e3b to run EXP-RELN-715aa1
+    Stage 0 read the frozen contract and the three named EXP-FB3-001
+    cross-check inputs in full and refused to execute
+    (specification_error): the contract's poisson_vs_exhaustive_cross_check
+    control requires computing the existence-channel oracle ratio "directly
+    from each cell's own raw c_D vector (no Poisson assumption)", but the
+    committed RUN-FB3-001-{N14,N16,N18}/raw-result.json cell records carry
+    only five aggregate statistics per cell (mean, coverage, variance,
+    concentration, max_count), never a per-target decomposition-count
+    vector. The Coordinator independently re-verified this by enumerating
+    every key in RUN-FB3-001-N14/raw-result.json's cell, exploratory, and
+    shared_null_records blocks and confirming no histogram/vector field
+    exists, and by checking that concentration and variance are
+    algebraically consistent with a raw second-factorial-moment
+    interpretation (Var = E[c(c-1)] + mean - mean^2), which is itself
+    evidence the underlying per-target data was never retained in the
+    committed artifact. The executor's refusal was correct: the oracle-ratio
+    formula is a nonlinear functional of the full pmf, not recoverable from
+    two moments and a coverage figure, and improvising an approximation
+    under the frozen cross-check's name would have been exactly the
+    "formula substitution" the contract's own stopping_rules forbid.
+  decision: amend
+  target_ids:
+    - EXP-RELN-715aa1
+  rationale:
+    - >-
+      Approves protocol amendment v1
+      (experiments/EXP-RELN-715aa1/amendments/v1.yaml), which replaces the
+      poisson_vs_exhaustive_cross_check control's construction, for this
+      experiment only, with a moment-based agreement check (mean vs. mu,
+      coverage vs. 1 - exp(-mu), variance vs. mu / index of dispersion, and
+      a narrowed single-point tail check against max_count) -- the exact
+      set of statistics the committed EXP-FB3-001 artifacts actually
+      contain, computed with no new data generation and no compute beyond
+      arithmetic.
+    - >-
+      This amendment is made BEFORE any Stage-0 run has produced a single
+      number: the executor refused before writing any output. It is
+      therefore a legitimate pre-run scope correction under the frozen-
+      protocol amendment path, not a post-hoc adjustment of a result the
+      Coordinator disliked -- no run under EXP-RELN-715aa1 has executed
+      under either the v0 or the amended construction.
+    - >-
+      The amendment is explicitly disclosed as strictly weaker evidence than
+      the originally specified full-distribution cross-check (two
+      distributions can share moments while differing in shape), per the
+      amendment's own degraded_scope_disclosure. Any future claim drawing on
+      this cross-check must carry that qualifier, mirroring the pattern
+      already established for EXP-RELN-141a86's INV-7 degraded-minimality
+      flag (amendment v1, DEC-20260907-057ffe).
+    - >-
+      A full-distribution cross-check remains possible only via a NEW
+      read-only re-derivation of per-target c_D vectors from EXP-FB3-001's
+      own committed curve/base inputs -- explicitly NOT authorized by this
+      decision, since it is new compute rather than a read of
+      already-committed data, and would need its own future scope/budget
+      decision if judged worth pursuing. This decision does not foreclose
+      that path; it defers it.
+    - >-
+      Under the standing user authorization in AGENTS.md for
+      Coordinator-ranked protocol maintenance, no per-amendment user
+      approval is required; the amendment itself records the substantive
+      reasoning for independent review per AGENTS.md rule 9 (no deliberate
+      steering-away from a plausible lead -- this narrows one control's
+      construction, it does not abandon Stage 0 or the hypothesis).
+  evidence_refs:
+    - experiments/EXP-FB3-001/runs/RUN-FB3-001-N14/raw-result.json
+    - experiments/EXP-RELN-715aa1/specification.yaml
+    - experiments/EXP-RELN-715aa1/amendments/v1.yaml
+    - ledger/handoffs/TASK-20260908-788e3b.yaml
+  limitations:
+    - >-
+      This decision does not itself produce or classify any Stage-0
+      evidence; it only repairs the frozen protocol so a compliant run can
+      proceed. The moment-based cross-check's own pass/fail outcome remains
+      to be measured by a re-dispatched executor.
+    - >-
+      Does not authorize any new c_D-vector regeneration, any instrumented
+      solver, or any policy-training work.
+  next_actions:
+    - >-
+      Re-dispatch the executor against TASK-20260908-788e3b (unchanged) to
+      run EXP-RELN-715aa1 Stage 0 under the v1-amended contract.
+    - >-
+      On return, run the contract's later_review_requirements before any
+      claim-changing use, with the amendment's degraded_scope_disclosure
+      qualifier carried verbatim into any summary.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This is a protocol-repair decision; no evidence has been produced
+      yet.
+  decided_by: coordinator
+  decided_at: '2026-09-08'

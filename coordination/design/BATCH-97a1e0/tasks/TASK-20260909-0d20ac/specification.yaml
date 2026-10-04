@@ -1,0 +1,141 @@
+id: EXP-ECDLP-2e2332
+schema_version: experiment-draft-v1
+title: Oracle-L public-transcript simulability screen
+status: draft
+area: ECDLP
+hypothesis_id: H-ECDLP-759690
+source_idea: IDEA-20260807-0f49b6
+approved_by: null
+implementation_authorized: false
+scientific_execution_authorized: false
+maximum_scientific_runs: 0
+purpose: >-
+  A prospective zero-run, mock-only screen for whether a declared oracle
+  response can be constructed from a closed public group transcript. This is a
+  design boundary, not an ECDLP experiment or implementation authorization.
+oracle_l:
+  syntax_version: Oracle-L-v1-draft
+  public_parameters:
+    required_fields: [transcript_id, label_universe, operation_alphabet, query_budget]
+    constraints:
+      transcript_id: canonical ASCII identifier for one finite mock transcript
+      label_universe: finite ordered list of opaque public labels
+      operation_alphabet: closed subset of [add, neg, equal]
+      query_budget: nonnegative integer fixed before mock construction
+  transcript:
+    row_schema:
+      required_fields: [step, operation, input_labels, output_label]
+      constraints:
+        step: unique nonnegative integer; rows sorted by step
+        operation: member of operation_alphabet
+        input_labels: opaque labels in label_universe with fixed operation arity
+        output_label: opaque label in label_universe, or null only for equal
+    permitted_observation: >-
+      The simulator receives only these rows, public parameters, and its own
+      state. It receives no coordinate, point encoding, serialized bytes,
+      scalar, field element, secret relation, lattice vector, or group element.
+  query:
+    required_fields: [query_id, opcode, input_labels]
+    constraints:
+      query_id: unique integer in [0, query_budget)
+      opcode: one member of [equal, known_operation]
+      input_labels: valid opaque labels with arity fixed by opcode
+  response:
+    required_fields: [query_id, result_kind, result]
+    allowed_result_kinds: [boolean, public_label, refusal]
+    constraints:
+      boolean: equality of opaque labels only
+      public_label: unique output of a transcript-listed known_operation only
+      refusal: required for absent, duplicate, malformed, or undeclared rows
+    prohibited_content: [x_coordinate, y_coordinate, point_encoding, serialization, scalar, lattice_vector, secret_relation, representation_dependent_auxiliary_data]
+group_action_boundary:
+  generic_transcript_component: >-
+    Equality, negation labels, and public declared group-operation outputs over
+    opaque labels. This describes only the mock syntax and assumes nothing
+    about any actual group.
+  representation_dependent_component: >-
+    A value that can change when opaque labels are re-encoded while the public
+    transcript stays fixed, including coordinates, serialized bytes, field
+    elements, fixed-basis data, scalars, vectors, or external-oracle output.
+  rule: >-
+    Any representation-dependent response is OUTSIDE_GENERIC_TRANSCRIPT and
+    cannot receive a generic advantage label. This is not a claim that such
+    data is unavailable from any real implementation.
+simulator:
+  name: transcript-table-simulator-v1-draft
+  state: canonical row dictionary plus public label list only
+  algorithm:
+    - Validate query schema and fixed query budget.
+    - For equal, compare two opaque labels.
+    - For known_operation, return the unique matching canonical row output.
+    - Refuse on absent, duplicate, malformed, or undeclared input.
+  cost_model:
+    unit: one bounded dictionary lookup and bounded comparison of fixed-format labels
+    O1_SIMULABLE: >-
+      Every permitted query uses a constant number of stated units, with no
+      transcript-length scan, representation arithmetic, or external input.
+    NONCONSTANT_SIMULABLE: >-
+      The response is constructible from the permitted transcript but requires
+      a transcript-size-dependent scan, sort, search, or other nonconstant cost.
+    NOT_SIMULABLE_UNDER_DECLARED_MODEL: >-
+      The response cannot be constructed from the closed permitted transcript
+      and state. This is no evidence of an attack, separation, or leakage.
+    INVALID_INTERFACE: >-
+      The response schema, cost model, or permitted-input boundary is open,
+      ambiguous, or representation dependent.
+controls:
+  mode: prospective finite mock-only; no fixtures or outputs exist
+  cases:
+    - id: CTRL-GENERIC-TRANSCRIPT
+      construction: finite opaque-label add, neg, and equal rows with unique known-operation outputs
+      expected: O1_SIMULABLE
+      rationale: table-simulator positive control
+    - id: CTRL-NONGENERIC-X-COORDINATE
+      construction: syntactically valid response declaration containing x_coordinate or derived coordinate material
+      expected: OUTSIDE_GENERIC_TRANSCRIPT
+      rationale: coordinate null control
+    - id: CTRL-TRIVIAL-FIXED-BASIS
+      construction: response revealing a known scalar relation in a fixed public basis without transcript derivation
+      expected: OUTSIDE_GENERIC_TRANSCRIPT
+      rationale: trivial fixed-basis null control
+    - id: CTRL-NONCONSTANT-SCAN
+      construction: transcript-only response requiring a variable-length unsorted transcript scan
+      expected: NONCONSTANT_SIMULABLE
+      rationale: distinguishes constructibility from O(1) overhead
+    - id: CTRL-UNDECLARED-RESPONSE
+      construction: response requiring a field absent from the closed transcript schema
+      expected: NOT_SIMULABLE_UNDER_DECLARED_MODEL
+      rationale: closed-input refusal control
+    - id: CTRL-HISTORICAL-SCREEN-REGRESSION
+      construction: future source-bound historical fixture only after retained bytes and exact locator
+      expected: unverified
+      rationale: no historical/GGM source was read in this task
+falsifiers:
+  - A generic O1 verdict for a response with representation-dependent material invalidates the classifier or schema.
+  - Failure of the declared table simulator on CTRL-GENERIC-TRANSCRIPT invalidates its O(1) prediction.
+  - A run record interpreting any screen verdict as ECDLP, lattice, Coppersmith, index-calculus, leakage, or security evidence is invalid.
+custody_and_admission:
+  before_implementation:
+    - source-bound Coordinator decision
+    - immutable mock fixture and SHA-256 inventory
+    - canonical serializer and simulator source hashes
+    - environment, refusal, and execution receipt schemas
+    - independent implementation review
+  before_execution:
+    - explicit Coordinator permission limited to frozen finite mock controls
+    - frozen fixture hashes and lock
+    - independent review of implementation and controls
+  prohibited_artifacts: [real_curve_parameters, target_points, public_keys, DLP_solutions, private_keys, lattice_reduction_output, Coppersmith_output, index_calculus_output]
+costs:
+  current: no execution cost asserted; no implementation or fixture exists
+  future_accounting: setup, per-query cost, transcript-size dependence, memory, and serialization must be separate
+  prohibited_extrapolation: no mock result may be extrapolated to a theorem, ECDLP exponent, real curve, protocol, or non-generic attack
+review_prerequisites:
+  - retained and hash-bound source for any historical or generic-group comparison
+  - independent review of grammar, inputs, cost verdicts, and controls
+  - pre-registered review plan before a claim-changing review
+no_leakage_scope: >-
+  This draft does not model, measure, assert, or rule out leakage. It makes no
+  Coppersmith, index-calculus, lattice-reduction, generic-group theorem, ECDLP
+  attack, security, or closure claim. It only classifies a declared finite mock
+  interface under its declared public-transcript cost model.

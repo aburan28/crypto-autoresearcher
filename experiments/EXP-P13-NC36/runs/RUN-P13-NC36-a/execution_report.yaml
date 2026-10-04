@@ -1,0 +1,206 @@
+execution_report:
+  experiment_id: EXP-P13-NC36
+  implementation_commit: c40c7ac3c68c85288d9e1bf5821b2a6bf0508d35
+  dirty_tree_at_run: true
+
+  protocol_deviations:
+    - id: DEV-1
+      what: >-
+        FG-1's step_2_pilot_sample calls for 500 random isogeny chains of
+        full length N_opt(p3) (=495). This run instead ran a bounded,
+        real, timed STEP-COST SURVEY: independent, genuine attempts at
+        single isogeny steps of every required prime degree
+        (2,3,5,7,11,13,17,19,23,29), starting fresh from j0=1728 each
+        time, within a 200-second wall-clock allotment, and extrapolated
+        the measured per-step cost to the 500-chain x N_opt-step
+        requirement.
+      why: >-
+        A literal attempt at even ONE complete 495-step chain, at the
+        measured per-step cost, is already estimated at ~7100 seconds
+        (see raw-result.json fg1_step_cost_survey), i.e. above the
+        entire 5400-second experiment budget on its own. Attempting the
+        literal 500-chain protocol would have consumed the full budget
+        without even completing a single chain, producing LESS
+        information than the bounded survey actually run (which measured
+        real per-prime cost for all 10 required primes with genuine,
+        independently-verified isogeny arithmetic).
+      is_this_a_substitution: >-
+        NO. Every timed step is a REAL Velu/Kohel isogeny computation of
+        the stated prime degree on the actual curve (or, for the 7 of 10
+        primes that do not divide p3^2-1, a real measurement of the
+        dominant equal-degree-factorization cost that a complete step
+        would require). No classical-integer-smoothness substitute or any
+        other different mathematical object was used anywhere in this
+        run. See implementation.md and the module docstring of
+        nc36_heuristic1.py for the full reasoning and the mathematical
+        argument (proved and empirically checked) for why 7 of the 10
+        required primes are intractable at this prime/field size.
+    - id: DEV-2
+      what: >-
+        C-SAMPLER-NULL is specified on chains of length N_opt(p3) (~495).
+        This run used chains of length 12 (documented in raw-result.json
+        c_sampler_null.deviation_from_spec), drawing only from the
+        tractable primes {2,3,7} (the only primes for which a complete
+        real step could be computed within budget at this prime), and
+        ran 25 such chains within a 60-second allotment.
+      why: >-
+        Same budget constraint as DEV-1: a full 495-step chain, even
+        restricted to the cheapest tractable primes, costs on the order
+        of tens of seconds per chain (mean tractable-step cost roughly
+        0.003-0.19s per step depending on which of {2,3,7} is drawn,
+        times 495 steps), and 500 such chains would not fit comfortably
+        alongside the step-cost survey within the remaining budget. 25
+        chains of length 12 is still >>1 and exercises the SAME real
+        generator and the SAME smoothness-check logic the full-length
+        version would use.
+      is_this_a_substitution: >-
+        NO -- same real generator, same checker; only the chain COUNT and
+        LENGTH are reduced, and this is stated explicitly rather than
+        silently reported as if it satisfied the literal spec text.
+    - id: DEV-3
+      what: >-
+        A latent bug was found and fixed during adaptation of
+        experiments/EXP-SSIQ-58b642/implementation/build_isogeny_graph.py's
+        poly_divexact for this experiment's use (dividing by a NON-monic
+        divisor, 2*c(x), which the upstream function's single call site
+        never does). See nc36_heuristic1.py module docstring
+        "BUG FOUND AND FIXED" for the exact mechanism and the
+        cross-check (fp2_arithmetic_self_check in raw-result.json,
+        pass=true) that caught it and confirms the fix.
+      why: >-
+        Recorded here per AGENTS.md rule 5/9 discipline (record, never
+        discard, unexpected findings) even though it does not affect this
+        experiment's EXP-P13-NC36 conclusion (FG-1: INFEASIBLE holds
+        either way, since it only strengthens confidence that the
+        division-polynomial arithmetic used for the tractable-prime
+        measurements is correct). This finding is NOT a claim about
+        EXP-SSIQ-58b642's own results, which never call poly_divexact
+        with a non-monic divisor and are therefore unaffected; it is
+        reported here as an observation about a shared utility function's
+        narrower-than-advertised correctness domain, for whoever reuses
+        it next.
+
+  runs:
+    completed:
+      - RUN-P13-NC36-a
+    invalid: []
+    failed: []
+
+  observations:
+    - id: OBS-FG1-VERDICT
+      statement: >-
+        FG-1 verdict: INFEASIBLE. B_opt(p3) = 29.857 (log2B=4.9), N_opt(p3)
+        = 495 (log2X=8.95), computed via
+        experiments/EXP-WESOVOW-001/cost_model.py's dickman_log2_grid/
+        optimize_B (reused unmodified, log2(p3)=39.99999999972 used as
+        input). Of the 10 primes <= ceil(B_opt)=30, only {2,3,7} divide
+        p3^2-1 and admit a cheap real construction (milliseconds to
+        ~0.2s per step, measured); the remaining {5,11,13,17,19,23,29}
+        require full equal-degree polynomial factorization over F_{p3^2},
+        whose dominant step (a modular exponentiation x^(q^d) mod
+        psi_ell, q=p3^2, d=(ell-1)/2) was MEASURED (not modelled) at
+        0.014s (ell=5) rising to ~95s (ell=29) for a SINGLE such
+        computation -- and this is a lower bound on the real per-step
+        cost, since it excludes the subsequent random equal-degree split,
+        grouping, and Velu formula that a complete step still needs.
+        Drawing uniformly over the 10 required primes, the measured mean
+        cost per single step is ~14.4 seconds; a chain of N_opt=495 steps
+        is therefore estimated at ~7100 seconds (already over the entire
+        5400s experiment budget for ONE chain), and 500 such chains at
+        ~3.57e6 seconds, against FG-1's own 3000-second sub-threshold for
+        reaching 100 smooth chains.
+      claim_tier: toy
+      transfer_scope: >-
+        This finding is scoped ENTIRELY to p3=1099511627563 (~2^40),
+        j0=1728, and the pure-Python Vélu/Kohel + division-polynomial
+        implementation used here. It says nothing about whether a
+        different (e.g. modular-polynomial-database-based, or compiled/
+        optimized-field-arithmetic) implementation could reach the
+        pilot's sample size within a similar or larger budget, and
+        nothing about Heuristic 1's truth or falsity at any scale
+        (per AGENTS.md rule 5 and the contract's own
+        agents_md_rule_5_binding note).
+    - id: OBS-CSAMPLER-NULL
+      statement: >-
+        C-SAMPLER-NULL (at the reduced chain length documented in DEV-2):
+        0 of 25 real 12-step chains, drawn from the tractable primes
+        {2,3,7} at each step, were 2-smooth (i.e., had every one of the
+        12 steps land on degree exactly 2). This is consistent with the
+        checker correctly distinguishing non-2-smooth chains: with 3
+        primes available uniformly at each of 12 draws, the a-priori
+        probability of an all-degree-2 chain is (1/3)^12 approx 5.6e-7,
+        so 0/25 is the expected outcome under a correctly functioning
+        checker, and is NOT itself evidence about Heuristic 1 (it
+        verifies instrument correctness, per the contract's own framing
+        of C-SAMPLER-NULL as a null-object control).
+      claim_tier: toy
+    - id: OBS-NC3-NC6
+      statement: >-
+        NC-3 and NC-6 were NOT reached. Per the contract's
+        completion_gate ("If FG-1 INFEASIBLE: pilot statistics recorded;
+        experiment stops there"), no P0_predicted, no smooth-fraction
+        measurement, and no tail-distribution measurement were computed
+        past the FG-1 gate. This is the contractually correct stopping
+        point, not an omission.
+
+  anomalies:
+    - id: ANOM-1
+      description: >-
+        The poly_divexact bug (DEV-3) is an anomaly discovered during
+        implementation, not anticipated by the spec or by either source
+        file it touches. Recorded per AGENTS.md rule 9 (record every
+        unexpected finding) even though it does not change this
+        experiment's own verdict.
+    - id: ANOM-2
+      description: >-
+        A prior, REJECTED draft attempt at this same EXP-P13-NC36 task
+        (never committed to git, discarded per the task's own
+        instructions) had substituted a classical-integer-smoothness test
+        for the required isogeny-chain sampler and reported fabricated-
+        looking FG-1/NC-3/NC-6 verdicts against that substitute. That
+        draft's files were deleted at the start of this run (per the
+        task's explicit instruction that they were untracked and
+        non-authoritative) and none of its numbers, code, or conclusions
+        were used, read as a prior, or referenced by any check in this
+        run's implementation. This run's implementation
+        (nc36_heuristic1.py) and its results were produced independently.
+
+  artifact_paths:
+    - experiments/EXP-P13-NC36/implementation/nc36_heuristic1.py
+    - experiments/EXP-P13-NC36/implementation.md
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/manifest.yaml
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/raw-result.json
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/execution_report.yaml
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/command.txt
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/environment.json
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/stdout.log
+    - experiments/EXP-P13-NC36/runs/RUN-P13-NC36-a/stderr.log
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_note: >-
+      Complete per the contract's own FG-1 INFEASIBLE branch
+      ("The task reports this immediately, records the pilot statistics,
+      and STOPS. No further measurement is performed."). All
+      completion_gate items are discharged: manifest exists/parses with a
+      terminal status; FG-1 verdict (INFEASIBLE) is recorded from a
+      genuine, timed attempt; C-SAMPLER-NULL verdict is recorded; NC-3/
+      NC-6 were correctly NOT attempted past an INFEASIBLE FG-1.
+    data_quality: good
+    data_quality_note: >-
+      Every number in raw-result.json came from code that actually
+      executed in this run (no fabricated or estimated-as-measured
+      values); the Fp2 division-polynomial arithmetic underlying every
+      measurement is independently cross-checked against an unrelated
+      pre-existing F_p-only implementation
+      (fp2_arithmetic_self_check.pass=true), and every intermediate
+      curve produced is checked non-singular.
+    requires_rerun: false
+    requires_rerun_note: >-
+      A rerun of THIS sampler at THIS prime would not change the
+      conclusion (the per-step cost is a property of the field size and
+      polynomial degree, not of RNG luck); a genuinely different result
+      would require either a faster field-arithmetic implementation
+      (e.g. compiled, not pure Python) or a smaller measurement prime --
+      either is a specification amendment decision for the Coordinator,
+      not something this Executor task can decide.

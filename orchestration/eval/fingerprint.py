@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parents[2]
 # is what keeps "we tuned it and it improved" checkable rather than folkloric.
 TRACKED = [
     "AGENTS.md",
+    "docs/agent-runtime-core.md",
     "agents/coordinator.md",
     "agents/executor.md",
     "agents/idea-generator.md",

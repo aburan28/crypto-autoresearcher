@@ -1,0 +1,178 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-5cad48
+  version_from: 1
+  version_to: 1
+  amendment_id: v1_stage1_protocol
+  recorded_at: '2026-09-07'
+  recorded_by_task: TASK-20260907-afc28d
+  archived_by: TASK-20260907-0674a5
+  reason: >-
+    DEC-20260907-3c6b6c held the Stage 0 fixture gate and ranked a
+    Stage 1 protocol amendment: exact W on the two smallest
+    RT-EXP-1 primes plus jackknife versus exact; still toy,
+    N at most 65539. This amendment writes that protocol. It
+    does not authorize Stage 1 execution.
+  predecessor_path: experiments/EXP-ECDLP-5cad48/specification.yaml
+  predecessor_sha256: dc4f689211085c0ec734d60c93ae1bf939ab7812a97eff487348553c9fdc6486
+  scientific_parameters_changed: true
+  preregistered_prediction_changed: true
+  affected_runs: []
+  confirmatory_status: preserved
+  approved_by: coordinator
+  approval_decision: DEC-20260907-9a4641
+  standing_authorization: >-
+    AGENTS.md user instruction of 2026-09-06. This amendment
+    freezes the Stage 1 protocol text. Coordinator completeness
+    for execution authorization is a later decision and is not
+    performed here.
+  execution_authorized_stages_remain: [0]
+  stage1_authorized_by_this_amendment: false
+  stage2_authorized_by_this_amendment: false
+  exp_a98ea9_stage5_authorized: false
+  SMALL_W_or_LARGE_W: false
+  certificate:
+    kind: none
+  claim_tier: observational
+  scale_relevance:
+    tier: toy
+    N_max: 65539
+    correspondence: null
+
+  two_smallest_primes:
+    source: analysis/o2-sum-compatible-filters/rt_exp_1.py targets
+    provenance: internal
+    values: [523, 1033]
+    curve_selection: >-
+      First prime-order Weierstrass curve returned by
+      rt_exp_1.curves_near(target, want=3) at each target.
+      Remaining curves on those targets are not Stage 1 cells.
+    cells:
+      - id: S1-P523
+        p: 523
+        a: 2
+        b: 6
+        N: 523
+        curve: y^2 = x^3 + 2x + 6 over F_523
+        M_grid: [5, 8, 12]
+        M_grid_rule: max(3, round(N^e)) for e in {1/4, 1/3, 2/5}
+      - id: S1-P1033
+        p: 1033
+        a: 0
+        b: 5
+        N: 1087
+        curve: y^2 = x^3 + 5 over F_1033
+        M_grid: [6, 10, 16]
+        M_grid_rule: max(3, round(N^e)) for e in {1/4, 1/3, 2/5}
+
+  filters_stage1:
+    - floor(Mx/p)
+    - x mod M
+    - sha256(str(int(x))) % M
+    - matched-marginal shuffle of floor(Mx/p) labels, seed 20260803
+    - P2 dlog-interval (arange(N)*M)//N
+  quadratic_character: Stage 2 object, not in this amendment
+  planted_theta: Stage 2 object, not in this amendment
+  eight_prime_ladder: Stage 2 object, not in this amendment
+  H3_200_draw_n_1e7: Stage 2 object, not in this amendment
+
+  exact_W:
+    method: >-
+      Same whole-group FFT convolution as Stage 0
+      (rt_exp_1.bucket_gain plus the Stage 0 W formula at d*).
+      W = Sum_c q_c * (pi_c(d*)/delta(d*) - 1)^2
+      with q_c = |h^{-1}(c)| / N and d* = argmax_d delta(d).
+    enumeration: exact over all N^2 pairs
+    sampling_forbidden: true
+    dlog_table: fourier_obstruction.dlog_table
+    generator_search: first affine point of full order
+
+  jackknife:
+    purpose: estimator-adequacy anchor against exact W, not a decay fit
+    n_pairs: 1000000
+    n_groups: 20
+    method: delete-group
+    pair_sampling: independent uniform with replacement from E(F_p)
+    seed_base: 20260803
+    formula: >-
+      Draw n pairs. Split into G equal groups. T is plug-in W on
+      all n pairs at the same d* rule as exact W. T_g is plug-in W
+      with group g removed. W_jack = G*T - (G-1)*mean_g T_g.
+      bias = W_jack - W_exact.
+    bias_is_observation: true
+    H3_threshold_not_applied: >-
+      IDEA-20260904-f7d47d H3 (absolute bias below one quarter of
+      the smallest resolvable effect at n=1e7, 200 draws) is not
+      a Stage 1 pass/fail. Stage 1 records bias only.
+
+  metrics:
+    primary:
+      - W_exact per (cell, M, arm)
+      - W_jack per (cell, M, arm)
+      - bias W_jack - W_exact
+      - G and M*delta on the exact arm (same definitions as Stage 0)
+    secondary:
+      - min_c q_c
+      - 1 + sqrt(W_exact / min_c q_c)
+      - wall-clock seconds and peak RSS
+
+  controls:
+    - SHA-256 truncated to M
+    - matched-marginal shuffle of floor(Mx/p)
+    - P2 as known-large G; near-zero W is expected
+    - exact whole-group W as the jackknife anchor
+
+  stopping_rules:
+    - Stage 1 is not authorized by this amendment. An executor
+      must refuse until execution_authorized_stages contains 1.
+    - If authorized later: run every listed cell, M, and arm.
+    - Fixture miss on a Stage 1 cell is infrastructure, not
+      mathematics, and is not SMALL-W or LARGE-W.
+    - Certificate kind none. No attack.
+
+  invalidation_rules:
+    - Any Stage 1 execution while 1 is not in
+      execution_authorized_stages
+    - Sampling instead of whole-group enumeration for W_exact
+    - Changing the frozen (p, a, b, N) cells or the SHA encoding
+    - Reading Stage 1 W or bias as SMALL-W or LARGE-W
+    - Reading P2 near-zero W as instrument failure
+    - Fitting exponent a from these two primes
+    - Authorizing Stage 5 of EXP-ECDLP-a98ea9
+    - Changing H-ECDLP-07c7c6
+
+  success_criterion: >-
+    When later authorized: every cell records W_exact, W_jack,
+    and bias for every (M, arm), certificate.kind is none, and
+    no W value is classified SMALL-W or LARGE-W. Success is
+    the exactness-anchor package, not a decay claim.
+
+  falsification_criterion: >-
+    Stage 1 cannot support or weaken H-ECDLP-2ade73 SMALL-W or
+    LARGE-W and cannot move H-ECDLP-07c7c6. A large recorded
+    bias is an estimator observation, not a mathematical
+    refutation of H1.
+
+  required_artifacts:
+    - raw-result.json with per-cell W_exact, W_jack, bias, G, M*delta
+    - run manifest with command, git state, environment, seeds,
+      certificate kind none
+    - stdout, stderr, environment.json, command.txt
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_workers: 1
+
+  does_not:
+    - Authorize Stage 1 or Stage 2 execution.
+    - Authorize Stage 5 of EXP-ECDLP-a98ea9.
+    - Change H-ECDLP-07c7c6 or H-ECDLP-2ade73 status.
+    - Classify any W as SMALL-W or LARGE-W.
+    - Fit a or a p-exponent.
+    - Run the eight-prime ladder, quadratic-character arm,
+      planted theta arm, or H3's 200-draw n=1e7 check.
+    - Dispatch CAND-D2-A, approve EXP-ECDLP-3930b1, or rerun
+      EXP-ECDLP-56ee42.
+    - Claim an attack, speedup, novelty, support, or breakthrough.

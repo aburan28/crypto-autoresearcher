@@ -1,0 +1,202 @@
+review:
+  idea_id: IDEA-20260922-793fd8
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-843cf5
+  ranking_context:
+    rank: 35
+    disposition: hold
+    hold_id: HOLD-U
+  claim_restated: >-
+    A concurrent portfolio of index calculus (restarted on Luby's schedule)
+    and matched Pollard rho, stopped at the first certificate, can beat pure
+    rho in expectation only through a restart-portfolio effect: IC's
+    completion-cost distribution must be heavy-tailed (CV > 1 or Hill index
+    alpha < 2) AND IC's median full-pipeline cost must be within about two
+    orders of magnitude of rho's median. The record pre-registers that the
+    second condition fails at every toy cell, so V(beta*) <= 0 everywhere,
+    and offers the tail-shape measurement (never taken in this corpus) as
+    the deliverable.
+  core_argument_check:
+    - step: 'V(0) = 0 and V(beta) < 0 as CV -> 0 with mu_IC > mu_rho (record''s Stage 0)'
+      verdict: holds
+      note: >-
+        Re-derived and sharpened. With IC deterministic at mu_IC = rho *
+        mu_rho and rho's completion time exponential, a budget share beta to
+        IC gives V(beta) = mu_rho - (mu_rho/(1-beta)) (1 - exp(-rho (1-beta)/
+        (beta))); V(beta) <= 0 for ALL beta in (0,1) whenever rho >= 1,
+        because it reduces to (1-beta)/beta >= -ln(beta), i.e. t - 1 >= ln t
+        at t = 1/beta. Checked numerically on a beta grid at rho in {1, 1.5,
+        2, 10, 100}: max V = -0.005. So the "two orders of magnitude" in
+        condition (ii) is loose: in the concentrated limit the condition is
+        floor ratio < 1, at which point one simply runs IC.
+    - step: 'A heavy-tailed PER-ATTEMPT solver cost makes the IC PIPELINE completion time heavy-tailed enough for a lucky early finish'
+      verdict: defective
+      note: >-
+        The pipeline needs about |V| relations, each after about 1/p
+        attempts, so its completion time is a sum of of order |V|/p
+        i.i.d. attempt costs (2^11 relations x 2^{6}+ attempts even at toy
+        cells; 2^27 x 2^{27} on ECC2K-130 at m = 4). A sum of that many
+        i.i.d. draws with finite mean concentrates at its mean (LLN; with
+        alpha in (1, 2) the fluctuations scale as N^{1/alpha} against a mean
+        scaling as N, so the relative spread still vanishes). A heavy UPPER
+        tail on single attempts is what per-attempt restarts/caps remove --
+        and the pipeline is already a restart algorithm at the attempt level
+        (every attempt draws a fresh target). The lower tail of the total,
+        which is what a min-race against rho would need, does not inherit
+        heaviness from single attempts. Condition (i) as stated is therefore
+        not sufficient; only alpha_tail <= 1 (infinite mean per attempt)
+        would prevent concentration, and that would be a finding about the
+        solver, not about hybrids.
+    - step: 'The floor condition (ii) can be decided by measurement only'
+      verdict: defective
+      note: >-
+        On ECC2K-130 it is decided by arithmetic: the product law gives a
+        FREE-oracle floor of 2^68.58 at m = 3 (2^89.25 at m = 2), which is
+        2^7.77 = 218 times rho's 2^60.81 -- and a floor is a deterministic
+        lower bound on the total, so no tail draw reaches below it. At m = 4
+        the floor 2^56.40 is below rho only if the oracle costs at most about
+        2^4.4 per attempt, which is the product-law question itself; the
+        portfolio adds nothing to it. (BRIEF section 2 table; my naive
+        balance reproduces it within 0.3-2.1 bits.)
+    - step: 'Luby universal schedule and Gomes-Selman-Crato heavy tails (recalled)'
+      verdict: unchecked
+      note: Both recalled, not opened, and honestly marked so by the record. The single-algorithm restart theorem is not in dispute; its extension to a two-racer min is the record's own and is what the two steps above bound.
+    - step: 'The measurement is runnable on this repository''s instruments'
+      verdict: defective
+      note: >-
+        The engine roster (WDSat, CryptoMiniSat, CaDiCaL, Macaulay2) is not
+        installed. The only decomposition instrument here is the
+        pure-Python bounded-degree closure (EXP-CERTBIN-e94b27), whose cost
+        per attempt is a fixed linear-algebra pass: essentially
+        deterministic by construction, so a tail measurement on it returns
+        CV about 0 as a controlled null that says nothing about CDCL search.
+  verdict: defective
+  defects:
+    - what: Condition (i) is about single-attempt cost; the min-race needs the lower tail of a SUM of very many attempts, which concentrates. The mechanism as stated cannot produce V > 0 unless per-attempt cost has infinite mean.
+      where: claim (A), (C); heuristic H-BINSTD-COMP-1; proof_search_map.bottleneck
+      fix: 'Restate (i) as alpha_tail <= 1 on per-attempt cost, or drop the portfolio framing and keep only the tail-shape measurement as an ICPERF boundary-table column.'
+    - what: Condition (ii)'s "two orders of magnitude" is not derived; the concentrated-limit derivation gives floor ratio < 1.
+      where: claim (C); predictions[2]; falsification_conditions[1]
+      fix: Replace by the derived bound and note that on ECC2K-130 the product law decides it at m <= 3 with a free oracle.
+    - what: The per-attempt restart is the algorithm's own attempt loop; Luby restarts of "Racer IC" reduce to a per-attempt cap, which IDEA-20260805-45bf55 already treats as censoring.
+      where: assumptions[2]; mechanism "OPERATION SET Sigma"
+      fix: Say so, and cite 45bf55 as the prior on per-attempt caps rather than as a distinguished neighbour.
+    - what: No named engine is available; the pure-Python closure is not a backtracking search.
+      where: minimal_test Stage 1; estimated_cost
+      fix: Declare the missing engines; state that a closure-instrument tail measurement is a controlled null only.
+    - what: No arity and no product-law pricing.
+      where: target_complexity; dominated_by
+      fix: One line per the ecc2k130_bearing below.
+  ecc2k130_bearing: >-
+    Closed by arithmetic at m <= 3 and vacuous at m >= 4. The portfolio can
+    only help if IC's total completion time can fall below rho's on a lucky
+    draw; IC's total is bounded below by the product-law floor
+    (relations x targets x oracle = m*2^131, independent of dim V), which
+    with a FREE oracle is 2^68.58 at m = 3, 2^7.77 above rho's 2^60.81 --
+    no draw goes below a floor. At m = 4 the floor 2^56.40 leaves 2^4.4
+    per attempt for the oracle, at m = 5 2^12.4, at m = 8 2^25.2; whether
+    any oracle meets that is the arity question the brief already poses,
+    and racing rho beside it changes the expectation by at most the
+    concentrated-IC bound V(beta) <= 0. Memory is strictly worse (both
+    footprints). Bearing on 2^60.8: none.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-U is right to hold on the record's own pre-registered null, and its
+    two release conditions should be tightened: (a) "any cell's floor ratio
+    below 100" should read "below 1", by the deterministic-IC/exponential-rho
+    derivation above; on ECC2K-130 the product law already puts the m <= 3
+    ratio at >= 218 with a free oracle, so that condition cannot be met
+    there; (b) "ICPERF records attempt-cost distributions" is worth having
+    as bycatch, but the statistic that would matter to a portfolio is a
+    per-attempt tail index alpha <= 1 (infinite mean), not CV > 1. With
+    both tightened, the hold is effectively permanent for the portfolio
+    claim, and the tail-shape measurement should be re-homed as a schema
+    column of RQ-ICPERF-94c86e's boundary table whenever a SAT engine is
+    installed. Not worth taking now: the only local instrument is a
+    bounded-degree closure whose cost is deterministic by construction.
+  concrete_experiment:
+    cell:
+      curve: >-
+        CERTBIN RC-1: F_2[t]/(t^17 + t^3 + 1), A = 97044, B = 126251,
+        x(2E) subgroup targets (DEC-20260926-cb4487 SUPPORT).
+      m: 2
+      l: 9
+      factor_base: 'RC-1 polynomial-basis V = {deg < 9}, |V| = 512.'
+      targets: 'the 400 archived unsat targets of KN-FIND-5a8d3e plus 100 planted sat targets.'
+      seeds: 'no random draw beyond the archived target sets; the closure is deterministic.'
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/closure.py
+      - experiments/EXP-CERTBIN-e94b27/impl/driver.py
+      - experiments/EXP-CERTBIN-e94b27/impl/stats_exact.py
+      - 'new: about 60 lines -- per-instance operation-count logger, CV, max/median, Hill estimator with bootstrap.'
+      - 'missing: WDSat, CryptoMiniSat, CaDiCaL, Macaulay2 -- the backtracking engines the record''s claim is actually about.'
+    procedure:
+      - Run the W_4 closure per target and log the int32 operation count and wall time per instance, sat and unsat separately (RQ-ICPERF-94c86e's discipline).
+      - Compute CV, max/median, and the Hill estimator alpha_tail with a 10^4-sample bootstrap CI, per set.
+      - 'Control: the same statistics on a random-V null (a second random 9-dimensional subspace) and on a relabelled Z/NZ "instance" stream of matched matrix shape (random dense systems of the same size) to bound the instrument''s intrinsic spread.'
+      - 'Zero compute: tabulate V(beta) from the closed form at rho in {1, 2, 10, 100} and beta on a grid, and commit it as the Stage 0 artifact.'
+    metrics:
+      - name: cv_per_attempt
+        unit: dimensionless
+        definition: standard deviation over mean of the per-instance operation count, sat and unsat separately.
+      - name: alpha_tail
+        unit: dimensionless
+        definition: Hill tail index of the per-instance operation count with bootstrap 95 percent CI.
+      - name: max_over_median
+        unit: dimensionless
+        definition: robust heavy-tail signature.
+      - name: v_beta_table
+        unit: fraction of pure-rho expected cost
+        definition: the closed-form V(beta) at the tabulated (rho, beta) pairs (zero compute).
+    controls:
+      - 'Null object: random V of matched dimension, same closure, to show the spread is instrument-intrinsic.'
+      - 'Relabelled generic-group / random-system control: dense random GF(2) systems of the same shape; the closure cost distribution must match the pdp one if no pdp-specific tail exists.'
+      - 'Ordinary-curve control: RC-1 is ordinary; a Koblitz-shaped arm (y^2 + xy = x^3 + x^2 + 1 at n = 17) may be added and must show the same distribution.'
+      - Infra exclusions (watchdog expiries) logged and reported, never folded into the sample.
+    outcomes:
+      positive: >-
+        alpha_tail <= 1 with a CI excluding 1 on the closure instrument:
+        would contradict the deterministic-cost expectation and indicate a
+        data-dependent blow-up in W_4 -- an instrument finding for CERTBIN,
+        not evidence for the portfolio.
+      negative: >-
+        cv_per_attempt near 0 and alpha_tail large (or undefined): the
+        closure's cost is deterministic as expected; a controlled null with
+        no bearing on CDCL engines; the portfolio claim stays held.
+      artifact: >-
+        A visible tail produced only by watchdog expiries or memory
+        pressure: infrastructure, not distribution (AGENTS.md rule 3); the
+        cell is reported as indeterminate.
+    falsification_threshold: >-
+      For the portfolio mechanism at this cell: per-attempt alpha_tail <= 1
+      with the bootstrap CI excluding 1 on a backtracking engine. On the
+      closure instrument the pre-registered expectation is CV < 0.1, and
+      any CV > 1 is an instrument finding to be diagnosed first.
+    estimated_cost:
+      implementation: low
+      compute: 'estimate: minutes of pure Python (500 closures at RC-1 scale; KN-FIND-5a8d3e already ran 400).'
+    zero_run_prerequisites:
+      - Commit the V(beta) closed-form table and the t - 1 >= ln t proof of V <= 0 for deterministic IC at rho >= 1.
+      - State the product-law floor ratio per m for ECC2K-130.
+  successor_seam: >-
+    None as a proposal. The one reusable item is a schema request, not a
+    record: when a SAT engine is installed, RQ-ICPERF-94c86e's boundary
+    table should carry per-attempt distribution columns (CV, max/median,
+    Hill alpha with CI, watchdog-exclusion rate) as bycatch of every cell,
+    because a measured alpha <= 1 anywhere would matter to attempt-cap
+    design (IDEA-20260805-45bf55) even though it cannot rescue a rho
+    portfolio.
+  records_read:
+    - IDEA-20260922-793fd8
+    - KN-FIND-aa2efc
+    - KN-LIT-661e97
+    - experiments/EXP-CERTBIN-e94b27/impl/README.md
+    - analysis/binstd-idea-review-20260926/BRIEF.md
+    - analysis/binstd-idea-review-20260926/ranking-context-DEC-20260924-99ce20.yaml
+  not_read:
+    - IDEA-20260922-2e2a58
+    - IDEA-20260805-45bf55
+    - IDEA-20260815-47638d
+    - IDEA-20260906-fc429b
+    - IDEA-20260915-3476de
+    - RQ-ICPERF-94c86e

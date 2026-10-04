@@ -63,7 +63,8 @@ class MembershipTests(unittest.TestCase):
             self.assertTrue(EP.is_ecc(gid), f"{gid} should be ECC")
         # Areas that are NOT ECC, including elliptic-adjacent ones.
         for gid in ("GOAL-AES-002", "GOAL-SYMF-c00fa1", "GOAL-MLKEM-005",
-                    "GOAL-CLGRP-001", "GOAL-QALG-001", "GOAL-MD5-001"):
+                    "GOAL-CLGRP-001", "GOAL-QALG-001", "GOAL-MD5-001",
+                    "GOAL-NGCC-6c8a52"):
             self.assertFalse(EP.is_ecc(gid), f"{gid} should NOT be ECC")
 
     def test_classification_spans_record_kinds(self):
@@ -210,12 +211,21 @@ class ProposalDirectoryTests(unittest.TestCase):
                 f"no proposal path collected from ledger/{sub}/",
             )
 
-    def test_the_goal_referenced_auxin_idea_is_rankable(self):
-        # The exact record GOAL-AUXIN-a93442's next_action names. It lives in
-        # ledger/ideas/, so this fails the moment that directory stops being
-        # read -- which is the regression worth catching, not the id itself.
-        ids = {i["id"] for i in EP.open_ecc_ideas()}
-        self.assertIn("IDEA-20260831-df4197", ids)
+    def test_the_goal_referenced_auxin_idea_is_still_collected(self):
+        # GOAL-AUXIN-a93442 originally named IDEA-20260831-df4197. That
+        # record lives in ledger/ideas/. It is now designed
+        # (H-AUXIN-66e6fd / EXP-AUXIN-7e2e3d), so it correctly drops
+        # out of open_ecc_ideas(). The regression worth catching is
+        # that ledger/ideas/ is still read, not that this id stays open.
+        marker = "ledger/ideas/IDEA-20260831-df4197.yaml"
+        paths = [p.replace("\\", "/") for p in EP._proposal_paths()]
+        self.assertTrue(
+            any(p.endswith(marker) for p in paths),
+            f"{marker} was not collected from ledger/ideas/",
+        )
+        self.assertTrue(
+            (ROOT / "ledger" / "ideas" / "IDEA-20260831-df4197.yaml").is_file(),
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,405 @@
+validation_report:
+  id: VAL-20260904-b7f3a1
+  task_id: TASK-20260904-2f417d
+  experiment_id: EXP-MONO-bb6fa1
+  hypothesis_id: H-MONO-572e7e
+  correction_under_review: CORR-20260904-8cc20f
+  run_ids:
+    - RUN-MONO-bb6fa1-1
+
+  scope_statement: >-
+    This report addresses ONLY the two joints assigned to the Validator by
+    TASK-20260904-2f417d's review_plan: J1-CLOSED-FORM-REDERIVATION and
+    J2-ENUMERATION-METHOD-AUDIT, plus the blind_rederivation requirement and
+    the proves-too-much control. J3 (V_R's own interpretation) and J4
+    (correction completeness / pattern audit) are the Red Team's joints and
+    are NOT assessed here. No claim is made about outcome (I), (II), or
+    "neither" for Stage 0's R1/R2/R3 -- that interpretation remains gated
+    exactly as the frozen specification and CORR-20260904-8cc20f's own
+    `next_action` describe, and is outside this report's authority.
+
+  procedure_order_disclosure: >-
+    Read in this order, matching blind_rederivation's requirement: (1)
+    agents/validator.md, AGENTS.md, ledger/handoffs/TASK-20260904-2f417d.yaml;
+    (2) experiments/EXP-MONO-bb6fa1/specification.yaml,
+    ledger/hypotheses/H-MONO-572e7e.yaml,
+    ledger/proposals/IDEA-20260904-a1b81b.yaml (full text, including
+    mechanism STEP 1-4 and the confounders section); (3) J1 performed BLIND
+    at this point -- own closed-form derivation plus an independent
+    brute-force numeric enumeration, written from scratch, with NO prior
+    read of execution_report.yaml, raw-result.json, or
+    CORR-20260904-8cc20f.yaml; (4) only after J1's own numbers were fixed:
+    read experiments/EXP-MONO-bb6fa1/implementation/run_galois_cubic_census.py
+    in full for J2; (5) only then: raw-result.json, execution_report.yaml,
+    manifest.yaml, command.txt, environment.json, stderr.log, and
+    CORR-20260904-8cc20f.yaml, for comparison and standard artifact checks.
+
+  # ============================================================ J1
+  j1_blind_closed_form_rederivation:
+    blind_rederivation:
+      required: true
+      blind_from_respected: true
+      blind_from:
+        - experiments/EXP-MONO-bb6fa1/execution_report.yaml
+        - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/raw-result.json
+        - ledger/corrections/CORR-20260904-8cc20f.yaml
+      note: >-
+        None of the three blind_from paths were opened before Part A/B
+        below were complete and their numeric outputs recorded.
+
+    part_a_hand_derivation:
+      method: >-
+        Classical bijective/Mobius counting, independent of any producer
+        artifact. Monic cubic g(X)=X^3-e1 X^2+e2 X-e3 over F_p classified
+        by Frobenius cycle type on its roots: split (3 distinct F_p roots)
+        <-> C(p,3) (bijection: unordered root triple -> monic cubic);
+        one_plus_two (1 F_p root + irreducible quadratic factor) <-> p times
+        the count of monic irreducible quadratics = p * (p^2-p)/2 =
+        p^2(p-1)/2; totally irreducible <-> Mobius formula for monic
+        irreducible cubics, N_3=(1/3)(p^3-p); degenerate (repeated root)
+        <-> bijection (a,b) in F_p^2 -> (X-a)^2(X-b), giving exactly p^2.
+        Discriminant-square sub-population derived from the classical fact
+        that disc(g) is a square in F_p iff Frobenius acts as an even
+        permutation on the roots: identity (split) and 3-cycle
+        (irreducible) are even, transposition (one_plus_two) is odd -- so
+        "disc nonzero square" = split + irreducible exactly, and disc=0 is
+        neither (excluded as "nonzero").
+      closed_forms_p_general:
+        split_count: "C(p,3) = p(p-1)(p-2)/6"
+        one_plus_two_count: "p^2(p-1)/2"
+        irreducible_count: "(p^3-p)/3"
+        degenerate_count: "p^2"
+      closed_forms_densities_fraction_of_nondegenerate_total:
+        unconstrained_population: ["(p-2)/(6p)", "1/2", "(p+1)/(3p)"]
+        disc_nonzero_square_subpopulation_own_total: ["(p-2)/(3p)", "0", "2(p+1)/(3p)"]
+      evaluated_at_p_101:
+        split_count: 166650
+        one_plus_two_count: 510050
+        irreducible_count: 343400
+        degenerate_count: 10201
+        sum: 1030301
+        sum_equals_p_cubed: true
+        nondegenerate_total_p2_times_p_minus_1: 1020100
+        unconstrained_density_triple_exact_fractions: ["33/202", "1/2", "34/101"]
+        unconstrained_density_triple_decimal: [0.16336633663366337, 0.5, 0.33663366336633666]
+        disc_square_subpop_density_triple_exact_fractions: ["33/101", "0", "68/101"]
+        disc_square_subpop_density_triple_decimal: [0.32673267326732675, 0.0, 0.6732673267326733]
+
+    part_b_independent_brute_force_verification:
+      method: >-
+        Own numpy-vectorized script (not reusing any producer code),
+        enumerating ALL 101^3 = 1,030,301 triples (e1,e2,e3) directly.
+        Discriminant computed via the standard cubic discriminant formula
+        18bcd-4b^3d+b^2c^2-4c^3-27d^2 with b=-e1,c=e2,d=-e3. Root-count
+        computed by a DIFFERENT method than factoring: for each x in F_p,
+        the set of triples with g(x)=0 is exactly {(e1,e2,e3): e3 =
+        x^3-e1x^2+e2x mod p}, giving a distinct-root count per triple
+        without ever calling a root-finder per triple. Classification
+        cross-tabulated against disc-zero/nonzero and disc
+        square/nonsquare.
+      script_path: >-
+        /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/j1_blind.py
+        (scratchpad only, not a repository artifact)
+      results:
+        split_bf: 166650
+        one_plus_two_bf: 510050
+        irreducible_bf: 343400
+        degenerate_bf: 10201
+        degenerate_triple_root_bf: 101
+        degenerate_double_plus_single_bf: 10100
+        matches_part_a_closed_forms: true
+        odd_disc_stratum_rootcounts_observed: [1]
+        even_disc_nonzero_stratum_rootcounts_observed: [0, 3]
+        structural_note: >-
+          Confirms by direct enumeration (not just formula) that
+          disc-nonsquare separable cubics always have exactly 1 rational
+          root (never 0 or 3), and disc-square-nonzero separable cubics
+          have either 0 (irreducible) or 3 (split) -- the r=2 case never
+          occurs outside disc=0, and disc=0 splits cleanly into r=1
+          (triple root, count p) and r=2 (double+single distinct, count
+          p(p-1)), summing to p^2.
+
+    proves_too_much_control:
+      statement: >-
+        My own re-derived method, applied to the degenerate (repeated-root)
+        stratum as a third population this record does not test, must give
+        exactly p^2 = 10201 at p=101.
+      part_a_result: 10201
+      part_b_result: 10201
+      matches_p_squared: true
+      outcome: PASSED. Both my symbolic and brute-force methods independently agree and equal p^2 exactly; my own method is sound before comparison to the archived numbers.
+
+    comparison_to_archived_numbers:
+      compared_after_blind_derivation_was_complete: true
+      raw_result_json_path: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/raw-result.json
+      unconstrained_object_reported_counts: {split: 166650, one_plus_two: 510050, irreducible: 343400, degenerate: 10201}
+      unconstrained_object_reported_triple: [0.16336633663366337, 0.5, 0.33663366336633666]
+      synthetic_A3_object_reported_counts: {split: 166650, one_plus_two: 0, irreducible: 343400, degenerate: 0}
+      synthetic_A3_object_reported_triple: [0.32673267326732675, 0.0, 0.6732673267326733]
+      match_to_my_blind_derivation: >-
+        EXACT to every reported digit, both as integer counts (Part B) and
+        as floating-point densities (Part A's exact fractions, expanded to
+        the same float64 repeating-decimal representation as the archived
+        values). Not "approximately" -- bit-for-bit identical. This is
+        also an exact match to CORR-20260904-8cc20f's own quoted
+        "expected_triple_exact_finite_p_formula" values and to the
+        Coordinator's stated re-derivation in the review_plan's
+        coordinator_prior.
+      literal_3se_gate_arithmetic_independently_recomputed: >-
+        Recomputed both literal-gate failures from scratch as a byproduct:
+        unconstrained object, n_nondeg=1,020,100, se=sqrt(0.25/n)=~4.95e-4,
+        3se=~1.49e-3; observed split density deviates from the
+        idealized 1/6 by 0.0033, i.e. >2x the 3-se band -- the literal gate
+        genuinely and correctly fails arithmetically, it is not a reporting
+        or arithmetic error by the Executor. Same conclusion for the A3
+        object (deviation 0.0066 against a 3se band of ~2.1e-3). This
+        confirms the archived run's own `control_failure_instrument_result`
+        disposition was the CORRECT disposition under the specification AS
+        LITERALLY WRITTEN, exactly as CORR-20260904-8cc20f's own
+        `disposition` field states.
+      verdict_on_j1: >-
+        HOLDS. The exact finite-p closed forms CORR-20260904-8cc20f cites
+        are classically correct (independently re-derived from Galois-group
+        parity of Frobenius, not merely re-checked against anyone's
+        arithmetic), and they match the Executor's own measured values to
+        the last digit. The correction's central technical claim -- that
+        both controls in fact pass EXACTLY against the correct exact-finite-p
+        standard, and that the literal-gate failure was a specification
+        tolerance defect rather than a real instrument or arithmetic
+        failure -- is independently CONFIRMED, not merely re-asserted.
+
+  # ============================================================ J2
+  j2_enumeration_method_audit:
+    sources_read:
+      - experiments/EXP-MONO-bb6fa1/implementation/run_galois_cubic_census.py (full file, 686 lines)
+    symmetric_coordinate_enumeration_check:
+      stage_0_find_VR_points: >-
+        `find_VR_points` (lines 198-243) enumerates via nested loops
+        `for e1 in range(p): ... for e2 in range(p): ... for e3 in range(p)`,
+        evaluating F(e1,e2,e3)=Q_e(T0) (the already-symmetric-descended
+        polynomial reused read-only from EXP-MONO-815525) via Horner's
+        method in e3. NEVER chooses an ordered pair (x1,x2) and solves for
+        a third coordinate or for e3. CONFIRMED: direct symmetric-coordinate
+        enumeration, per the frozen specification's explicit requirement
+        and IDEA-20260904-a1b81b's own confounders-section warning against
+        "the single most likely implementation error."
+      stage_1_controls: >-
+        `stage1_controls` (lines 300-323) uses an explicit triple-nested
+        `for e1 in range(p): for e2 in range(p): for e3 in range(p)` over
+        ALL of F_p^3, for both the synthetic A_3 object (filtered post-hoc
+        by disc-is-square, not constructed by solving for a coordinate) and
+        the unconstrained object. CONFIRMED: same direct-enumeration
+        discipline, no ordered-variety trap.
+      verdict: HOLDS -- enumeration method is free of the confounder named as the single most likely implementation error.
+    degenerate_stratum_computation_check:
+      method_in_code: >-
+        `classify_cubic` (lines 131-168) computes disc(g) via the standard
+        cubic discriminant formula and classifies disc==0 as "degenerate" --
+        matching the classical fact (independently re-derived in J1) that a
+        repeated root is equivalent to a vanishing discriminant.
+      defensive_anomaly_branch: >-
+        A separate `anomaly_disc_q_zero` branch exists for the case where
+        disc(g)!=0 but the residual quadratic (after removing a found root)
+        has zero discriminant. I independently proved this case is
+        mathematically IMPOSSIBLE via the discriminant multiplicativity
+        identity disc(g)=disc(quadratic)*Res(linear,quadratic)^2 for
+        g=(X-r)*quadratic: if disc(g)!=0 then both factors on the right must
+        be nonzero, so disc(quadratic)!=0 whenever disc(g)!=0. The branch is
+        therefore a safe, never-triggered defensive guard, not a silent
+        misclassification path. Confirmed it reports exactly 0 occurrences
+        in all three enumerations (unconstrained, synthetic A3, and Stage 0's
+        V_R census) in raw-result.json, consistent with this proof.
+      verdict: HOLDS -- degenerate stratum computed via the correct classical criterion, with a provably-inert defensive branch, not a covered-up bug.
+    curve_and_point_independent_reverification:
+      method: >-
+        Fresh, independently-written script (own elliptic-curve point
+        addition/doubling, own scalar-multiplication-by-factored-order
+        routine, own Legendre-symbol point count and j-invariant formula) --
+        explicitly NOT reusing curve_order/point_order/pt_mul/j_invariant
+        from run_galois_cubic_census.py. Disclosed here per the task's "if
+        you must reuse them, say so" instruction: NONE of the Executor's
+        curve/point functions were reused; all arithmetic was
+        reimplemented from scratch.
+      script_paths:
+        - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/j2_curve_check.py
+        - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/j2_scan_check.py
+      independent_results:
+        curve: "y^2 = x^3 + x + 1 over F_101"
+        E_order_pt_count_via_Legendre_sum: 105
+        trace: -3
+        trace_mod_p: 98
+        ordinary_confirmed: true
+        j_invariant: 34
+        j_special_set: [0, 11]
+        j_in_special_set: false
+        ascending_scan_reproduced_independently: true
+        ascending_scan_first_admissible_A_B_j_n_t_examined: [1, 1, 34, 105, -3, 103]
+        matches_archived_curve_selection_block: true
+        generator_G: [6, 18]
+        generator_true_order_independently_computed: 105
+        generator_true_order_equals_n: true
+        R_reported: [8, 4]
+        R_on_curve_independently_checked: true
+        R_true_order_independently_computed: 105
+        R_is_identity: false
+        R_in_E2_check: >-
+          #E(F_101)=105 is odd, so by Lagrange's theorem E(F_101) has NO
+          nontrivial 2-torsion at all -- every nonzero rational point is
+          automatically of odd order and cannot lie in E[2], independent
+          of the specific order-105 computation. This structural argument
+          and the direct order computation agree.
+        two_times_G_equals_R_independently_verified: true
+      verdict: HOLDS -- curve is ordinary, j is not special, R has true order 105 and is provably not in E[2] (both by direct computation and by the odd-group-order structural argument), and the curve/generator/R selection reproduces the archived run's reported values bit-for-bit under an independently-written implementation of the same declared selection rule.
+
+  # ============================================================ standard artifact/manifest checks (background duty, not one of the two named joints but part of ordinary Validator responsibilities)
+  artifact_checks:
+    - artifact: experiments/EXP-MONO-bb6fa1/specification.yaml
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-bb6fa1/implementation/run_galois_cubic_census.py
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/command.txt
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/raw-result.json
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/stdout.log
+      present: true
+      sha256_matches_manifest: true
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/stderr.log
+      present: true
+      sha256_matches_manifest: true
+      note: "empty file (0 bytes); consistent with a clean, non-erroring run"
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/manifest.yaml
+      present: true
+    - artifact: experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/environment.json
+      present: true
+    - artifact: experiments/EXP-MONO-bb6fa1/execution_report.yaml
+      present: true
+    - artifact: ledger/corrections/CORR-20260904-8cc20f.yaml
+      present: true
+  revision_and_dirty_tree: >-
+    manifest.yaml records code.commit=e6f32b13645e77b42e8aad23a32a9962b27c1097
+    with dirty:unknown and an explicit note that the Executor was instructed
+    not to run git commands in this shared, concurrently-worked repository,
+    deferring commit-sha confirmation to the Coordinator's archive-time
+    read-only ref check, and binding validity to CONTENT via sha256 in the
+    interim (AGENTS.md's "Archive receipts bind to CONTENT first" policy).
+    This Validator was likewise instructed by its own task environment not
+    to run git commands, so commit reachability/dirty-tree state was NOT
+    independently checked here; all declared artifact_sha256 values WERE
+    independently recomputed against the actual files (shasum -a 256) and
+    matched exactly (see artifact_checks above). This is a disclosed
+    limitation, not a silent gap.
+  seed_and_determinism: >-
+    seed 20260904008 matches specification.yaml replication.seeds[0].
+    Enumeration is fully deterministic (no random.Random used); manifest.yaml
+    confirms this and states no LLM call is in the compute loop. Consistent
+    with a reproducible receipt.
+  environment_record: >-
+    Python 3.13.1 CPython, macOS-26.6-arm64, no dependencies, no CAS,
+    network disabled -- matches specification's
+    environment_preconditions ("NO CAS REQUIRED... Pure Python otherwise").
+  resource_and_budget_check: >-
+    wall=6.4s, cpu=6.4s, peak_rss=21,086,208 bytes, disk=24,576 bytes, 1
+    worker -- all comfortably within specification.yaml's budget
+    (max_wall/cpu 900s, max_peak_rss 134,217,728 bytes,
+    max_total_disk 10,485,760 bytes, max_workers 1). within_all_budgets
+    reported true; independently spot-checked against the specification's
+    own numeric limits and confirmed consistent.
+  r8_baseline_note: >-
+    Stage R8 (m=3 baseline reproduction) is NOT one of this Validator's two
+    assigned joints. Reported PASS (30/30 samples matched
+    disc_{x2}S_3(x1,x2,T0)=16 f(x1)f(T0)) is recorded here for completeness
+    but was not independently re-derived by this report.
+
+  independence_and_blindness_disclosure:
+    read_sibling_reports: false
+    sibling_directory_checked_for_existence_only: true
+    sibling_directory_contents_read: false
+    note: >-
+      `experiments/EXP-MONO-bb6fa1/reviews/` was listed (directory names
+      only, via `ls`) purely to confirm no prior report existed there before
+      this report was written; its contents (if any existed) were never
+      opened. At the time of listing, only this report's own `validator/`
+      subdirectory existed (empty). No red-team directory or report was
+      present, and none was read.
+    blindness_lifted_for: null
+    blindness_lifted_for_note: "per the plan, blindness.lifted_for is null; not applicable to this task"
+
+  overall_verdict_on_correction_claim: >-
+    CORR-20260904-8cc20f's central claim -- that both Stage-1 nearby-object
+    controls in fact PASS exactly against the correct, independently
+    re-derivable exact finite-p closed-form standard, and that the recorded
+    literal-gate failure (S1) reflects a specification tolerance defect
+    (an asymptotic-sampling-error band misapplied to an exhaustive,
+    deterministic population census) rather than a real instrument,
+    arithmetic, curve/point-selection, or enumeration-method failure --
+    HOLDS, on the two joints this report owns (J1, J2). My own from-scratch
+    closed-form derivation and independent brute-force numeric enumeration
+    match the archived Executor and Coordinator numbers to the last digit,
+    not merely approximately; my own independent curve/point re-verification
+    (fresh code, not reusing the Executor's functions) confirms the curve is
+    ordinary, j is not special, and R has true order 105 and is provably not
+    in E[2]; and the enumeration method is confirmed free of the
+    solve-for-a-coordinate trap the idea record's own confounders section
+    names as the single most likely implementation error. The correction's
+    `scope_of_error` statement ("does NOT affect Stage 0's own census
+    numbers, R8's own pass, the curve/R selection, or the enumeration
+    method") is consistent with everything this report independently found.
+    This verdict says NOTHING about whether Stage 0's own R1/R2/R3
+    (|V_R|-specific quantities, not general finite-field combinatorics) can
+    be responsibly interpreted toward outcome (I), (II), or "neither" --
+    that is J3, assigned to the Red Team, and remains open pending its
+    report and the Coordinator's synthesis.
+
+  verdict: passed
+  limitations:
+    - "Scope limited to J1 and J2 per the review_plan; no verdict is offered on J3 (V_R's own interpretation) or J4 (correction completeness/pattern audit)."
+    - "Git commit reachability and working-tree dirty-state were not independently checked, per this task's own environment instruction not to run git commands; content-hash verification (sha256) was performed instead and matched exactly for every declared artifact."
+    - "Stage R8 (m=3 baseline) was read and its reported PASS is noted, but was not independently re-derived, since it is outside both assigned joints."
+    - "This is a toy-scale (p=101, one curve, one R) receipt; no claim of any kind about cryptographic-scale ECDLP, relation-rate exponents, or index-calculus cost follows from this report, per the frozen specification's own claim_ceiling."
+    - "A 'passed' verdict here means the artifacts, closed-form recomputation, and curve/point/enumeration audit are admissible and internally consistent; it does not authorize interpreting Stage 0's R1/R2/R3 in either direction, does not decide H-MONO-572e7e's status, and does not by itself close or amend the specification -- those remain Coordinator acts."
+
+  artifact_paths:
+    - experiments/EXP-MONO-bb6fa1/specification.yaml
+    - experiments/EXP-MONO-bb6fa1/implementation/run_galois_cubic_census.py
+    - experiments/EXP-MONO-bb6fa1/implementation.md
+    - experiments/EXP-MONO-bb6fa1/execution_report.yaml
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/raw-result.json
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/manifest.yaml
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/command.txt
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/environment.json
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/stdout.log
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/stderr.log
+    - ledger/corrections/CORR-20260904-8cc20f.yaml
+    - ledger/hypotheses/H-MONO-572e7e.yaml
+    - ledger/proposals/IDEA-20260904-a1b81b.yaml
+    - ledger/handoffs/TASK-20260904-2f417d.yaml
+
+review_attestation:
+  task_id: TASK-20260904-2f417d
+  joints_owned:
+    - J1-CLOSED-FORM-REDERIVATION
+    - J2-ENUMERATION-METHOD-AUDIT
+  sources_read:
+    - agents/validator.md
+    - AGENTS.md
+    - ledger/handoffs/TASK-20260904-2f417d.yaml
+    - experiments/EXP-MONO-bb6fa1/specification.yaml
+    - ledger/hypotheses/H-MONO-572e7e.yaml
+    - ledger/proposals/IDEA-20260904-a1b81b.yaml
+    - experiments/EXP-MONO-bb6fa1/implementation/run_galois_cubic_census.py
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/raw-result.json
+    - experiments/EXP-MONO-bb6fa1/execution_report.yaml
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/manifest.yaml
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/command.txt
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/environment.json
+    - experiments/EXP-MONO-bb6fa1/runs/RUN-MONO-bb6fa1-1/stderr.log
+    - ledger/corrections/CORR-20260904-8cc20f.yaml
+    - templates/research-records.md (review_attestation schema only)
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict: holds

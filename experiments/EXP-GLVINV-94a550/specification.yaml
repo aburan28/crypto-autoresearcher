@@ -1,0 +1,246 @@
+experiment:
+  id: EXP-GLVINV-94a550
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    Algebraic-formulation experiment. The candidate invariant coordinates are
+    not assumed to help; the experiment first proves exact solution
+    correspondence at exhaustive toy scale and only then measures solver cost.
+  question_id: RQ-EQIC-8cb959
+  related_question_ids:
+    - RQ-EQJ-001
+    - RQ-DREG-001
+    - RQ-ICPERF-94c86e
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    GLV-invariant PDP formulation: exact quotient of the diagonal C3 action and
+    measured degree-of-regularity versus the raw orbit-lifted Semaev system
+
+  objective: >-
+    Determine whether quotienting the simultaneous order-3 GLV action can reduce
+    point-decomposition solver cost after all extra degree, syzygy, chart, and
+    reconstruction overhead is charged. The experiment treats u_i=x_i/t and
+    v=t^3 as one candidate rational chart, not as a presumed final formulation.
+    Any quotient system must be derived exactly and shown bijective to GLV orbits
+    of raw solutions before timing is admissible.
+
+  mathematical_setup:
+    raw_system: >-
+      Use the same GLV-closed factor base and orbit-lifted target formulation as
+      EXP-GLVF-8dee36: variables x_1,...,x_m,t with t^3=r^3 and the appropriate
+      Semaev plus factor-base membership equations.
+    group_action: >-
+      C3 acts diagonally by x_i -> beta*x_i and t -> beta*t.
+    invariant_field_candidate: >-
+      On the chart t!=0, use u_i=x_i/t and v=t^3. These are invariant under the
+      diagonal action. The implementation must derive the transformed equations,
+      clear denominators with an explicit saturation condition, and account for
+      all exceptional charts.
+    polynomial_quotient_candidate: >-
+      Independently derive generators for the relevant polynomial invariant ring
+      or an elimination-equivalent quotient ideal. Do not assume that x_i^3 alone
+      preserves addition information. Record all introduced generators and
+      syzygies.
+    reconstruction: >-
+      A quotient solution plus one target orientation must reconstruct exactly one
+      C3 orbit of raw solutions. Every reconstructed point tuple is independently
+      verified on the curve and against the submitted target.
+
+  arms:
+    - id: ARM_RAW
+      description: >-
+        Raw orbit-lifted Semaev system from EXP-GLVF-8dee36, solved with the same
+        backend and term-order policy.
+    - id: ARM_RATIONAL_QUOT
+      description: >-
+        Saturated quotient system on the t!=0 chart using invariant rational
+        coordinates or an exactly equivalent denominator-free formulation.
+    - id: ARM_POLY_QUOT
+      description: >-
+        Polynomial invariant-ring/elimination formulation if the derivation
+        produces one within the frozen implementation budget.
+    - id: CTRL_RANDOM_C3
+      description: >-
+        Synthetic polynomial system with the same variable count, degree profile,
+        and diagonal C3 action but no elliptic-curve semantics, used to separate
+        generic invariant-theory effects from EC-specific effects.
+
+  inputs:
+    procedure: >-
+      Stage 0 derives the quotient maps, saturation conditions, exceptional-chart
+      policy, and inverse reconstruction before any timing. Stage 1 exhaustively
+      enumerates raw solutions on the smallest fields and partitions them into
+      C3 orbits. Stage 2 solves each quotient formulation and verifies a one-to-one
+      match with those raw orbits, including multiplicities where the backend
+      exposes them. Stage 3 measures algebraic size before solving: variables,
+      equations, total degrees, monomial counts, syzygy counts, and predicted
+      Macaulay sizes. Stage 4 runs matched solver backends and records
+      degree-by-degree work. Stage 5 reconstructs and independently verifies every
+      returned relation.
+    parameter_grid:
+      bit_sizes: [8, 10, 12, 14, 16]
+      arities: [2, 3, 4]
+      seeds: [20260918, 20260919, 20260920]
+      factor_base_rule: complete GLV x-orbits only
+      target_policy: >-
+        Prefer t!=0 targets for the primary rational-chart arm; separately count
+        and test exceptional t=0 targets under the frozen chart policy.
+
+  controls:
+    - >-
+      Exhaustive orbit-bijection gate: quotient solutions must match raw solution
+      orbits exactly before any performance number is interpreted.
+    - >-
+      Saturation gate: clearing denominators may not introduce t=0 or other
+      spurious components. Verify by elimination or exhaustive truth at the
+      smallest sizes.
+    - >-
+      Reconstruction gate: every quotient solution must map back to verified
+      factor-base points summing to the original target.
+    - >-
+      ARM_RAW uses the same backend, coefficient field, target set, factor base,
+      timeout, and seeds.
+    - >-
+      CTRL_RANDOM_C3 is generated before treatment timings and follows the same
+      invariant-derivation pipeline.
+    - >-
+      Report equation degree and Macaulay growth explicitly. A reduction in
+      variable count accompanied by degree explosion is charged, not hidden.
+
+  metrics:
+    primary:
+      - raw_variable_count
+      - quotient_variable_count
+      - raw_equation_count
+      - quotient_equation_count
+      - max_total_degree
+      - monomial_count
+      - syzygy_generator_count
+      - solving_degree
+      - degree_of_regularity_proxy_used_by_backend
+      - peak_macaulay_rows
+      - peak_macaulay_columns
+      - peak_macaulay_nnz
+      - groebner_seconds
+      - peak_rss_bytes
+      - verified_relations
+      - seconds_per_verified_relation
+      - orbit_bijection_exact
+    secondary:
+      - quotient_derivation_seconds
+      - denominator_clearing_overhead
+      - exceptional_chart_count
+      - spurious_component_count
+      - reconstruction_seconds
+      - basis_size
+      - field_operation_count_if_available
+      - charged_ratio_ARM_RATIONAL_QUOT_over_ARM_RAW
+      - charged_ratio_ARM_POLY_QUOT_over_ARM_RAW
+      - scaling_slope_of_log_macaulay_size
+
+  benchmark_contract:
+    incumbent: ARM_RAW
+    solver_reference: RQ-ICPERF-94c86e
+    structural_predecessor: EXP-GLVF-8dee36
+    decision_metric: >-
+      Charged Groebner/F4 seconds and peak memory per verified relation, with
+      quotient derivation and reconstruction included in a separate amortized and
+      non-amortized accounting.
+    success_threshold: >-
+      A quotient formulation must preserve the exact raw orbit solution set and
+      improve paired median solver wall time or peak memory by at least 20% at
+      two consecutive bit sizes without a compensating deterioration in verified
+      relation yield. A lower variable count alone is not success.
+    scaling_question: >-
+      The high-value outcome is whether quotienting changes solving degree or the
+      growth slope of peak Macaulay size. A constant factor is useful engineering;
+      an apparent slope change requires additional sizes and independent review.
+
+  preregistered_predictions:
+    - >-
+      The rational quotient removes one global C3 degree of freedom but may raise
+      polynomial degrees after denominator clearing; either effect can dominate.
+    - >-
+      x_i^3 alone is not expected to preserve enough addition information and is
+      not an admissible standalone quotient unless exact orbit-bijection checks
+      prove otherwise.
+    - >-
+      If solving degree is unchanged and quotient degrees grow, the formulation
+      will likely lose despite fewer variables.
+
+  scale_relevance:
+    tier: toy
+    correspondence: >-
+      The invariant action is exact for secp256k1's GLV automorphism, but the
+      quotient solver is tested only where exhaustive truth and Groebner
+      measurements are feasible. No cryptographic-scale transfer is assumed.
+
+  stopping_rules:
+    - >-
+      Do not run performance stages until the exhaustive orbit-bijection and
+      saturation gates pass.
+    - >-
+      If ARM_RATIONAL_QUOT fails exactness, retain the failure and do not repair
+      it after seeing performance data; a corrected derivation is a new version.
+    - >-
+      ARM_POLY_QUOT is optional only if its derivation exceeds the frozen
+      implementation scope; omission must be recorded, never silently replaced.
+    - >-
+      Keep partial degree-by-degree metrics on timeout or memory exhaustion.
+
+  invalidation_rules:
+    - Any spurious or missing quotient solution invalidates performance interpretation.
+    - Any missing exceptional-chart accounting invalidates the rational quotient arm.
+    - Any returned relation failing independent curve verification invalidates the run.
+    - Any comparison using different solver settings or factor bases is invalid.
+    - Any claimed gain based only on variable count, monomial count, or symbolic degree is invalid.
+    - Timeout, crash, or memory exhaustion is failed infrastructure, never negative evidence.
+
+  success_criterion: >-
+    Establish exact quotient/raw orbit correspondence and produce matched
+    algebraic-size, solving-degree, time, memory, and verified-relation metrics.
+    Scientific success is a decisive measurement of whether invariant coordinates
+    help or hurt; no positive speedup is required.
+
+  falsification_criterion:
+    - >-
+      Quotient equations have higher degree or syzygy complexity that cancels the
+      variable reduction, with no charged solver improvement.
+    - >-
+      Solving degree and Macaulay growth match ARM_RAW after quotient overhead.
+    - >-
+      The same improvement appears on CTRL_RANDOM_C3, indicating a generic
+      invariant-ring effect rather than EC-specific structure.
+    - >-
+      Exact orbit bijection cannot be maintained without reintroducing the raw
+      variables, eliminating the intended compression.
+
+  required_artifacts:
+    - specification.yaml
+    - manifest.yaml
+    - command.txt
+    - environment.json
+    - raw-result.json
+    - quotient-derivation.md
+    - quotient-generators.json
+    - saturation-certificate.json
+    - exhaustive-orbit-truth.json
+    - solution-bijection.json
+    - macaulay-degree-metrics.jsonl
+    - verification-report.json
+
+  source_refs:
+    - RQ-EQIC-8cb959
+    - RQ-EQJ-001
+    - EXP-GLVF-8dee36
+    - EXP-JINV-dd60d3
+    - RQ-ICPERF-94c86e
+    - coordination/intake/cm-factor-base-20260905/source-context.md
+    - research/ideas/glv_index_calculus_experiment_matrix.md
+
+  assigned_to: executor
+  approved_by: null

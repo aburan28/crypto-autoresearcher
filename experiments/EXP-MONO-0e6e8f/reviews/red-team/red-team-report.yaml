@@ -1,0 +1,1019 @@
+red_team_report:
+  id: RT-20260904-5fcc1a-redteam
+  task_id: TASK-20260904-5fcc1a
+  role: red-team
+  joints_owned: [J3-CHI-SQUARE-ANOMALY-INVESTIGATION, J4-ADVERSARIAL-RECONSTRUCTION-AND-SCOPE-CHECK]
+  experiment_id: EXP-MONO-0e6e8f
+  hypothesis_id: H-MONO-ebd400
+  idea_id: IDEA-20260904-ad63fe
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  reviewed_at: '2026-09-04'
+
+  reviewed_snapshot_commit: null
+  snapshot_integrity: >-
+    NOT INDEPENDENTLY VERIFIED, AND THE REASON IS RECORDED RATHER THAN GLOSSED.
+    The dispatching session instructed this reviewer to run NO git commands
+    (shared working directory, many concurrent sessions) and to read files by
+    absolute path. I therefore could not recompute any path_sha256 against an
+    archive receipt and did not locate a snapshot receipt for this task.
+    Everything below reviews the FILE CONTENTS at the listed paths as read on
+    2026-09-04, not a hash-verified snapshot. Per AGENTS.md rule 7 the
+    Coordinator must treat this as a disclosed provenance gap in the REVIEW.
+    It does not weaken the findings: every load-bearing quantity below was
+    recomputed from scratch in this session with code that imports nothing from
+    experiments/, and the two central results (J3's exact class-count law, J4's
+    subgroup theorem) are proofs, not measurements.
+
+  verdicts:
+    J3-CHI-SQUARE-ANOMALY-INVESTIGATION: holds_with_finding
+    J4-ADVERSARIAL-RECONSTRUCTION-AND-SCOPE-CHECK: holds_with_finding
+
+  headline: >-
+    J3: THE CHI-SQUARE IS NOT AN ANOMALY AND IT IS NOT AN O(1/sqrt(p)) WEIL
+    CORRECTION. I derived the exact finite-p five-class count law from scratch
+    and it reproduces the record's exhaustive censuses essentially integer for
+    integer: against my exact null, C2's chi-square falls from 1765.88 to 0.23
+    on 1,030,300 base points and C4's from 12.13 to 0.73. Every term is
+    provably O(1/p) with a closed-form constant in (p, t, Z); a prime ladder
+    over 8 primes x 12 curves fits exponent -0.98 for the class deviations and
+    -1.95 for chi-square/n. The record's own diagnosis ("apparently benign,
+    shrinks 3-7x") reaches the right conclusion by an argument that does not
+    support it: 3-7x is not the signature of anything, because a 1/sqrt(p) law
+    predicts 3.16 for EVERY curve pair while the observed ratios span 2.27 to
+    10.22 -- and at p=1009 the measurement sits AT its Monte-Carlo noise floor
+    (sd 6.3e-4 on class 1^4 against a predicted deviation of 6.5e-4). The real
+    finding is upstream: the exact law was ALREADY WRITTEN DOWN as (C4) in the
+    parent idea IDEA-20260904-ad63fe, and the specification froze the
+    ASYMPTOTIC density as the M3 null anyway, while also pooling in the two
+    O(1/p) strata that (C4) excludes and that the same idea record named in
+    advance as the confounder "STRATUM POOLING". M3 was therefore guaranteed to
+    "fail" at p=101 with n~10^6 regardless of whether the hypothesis is true.
+    That is a contract defect, not a result.
+    J4: NO EVASION FOUND, AND THE M1 LOGIC IS STRONGER THAN THE RECORD CLAIMS.
+    I brute-forced the entire subgroup lattice of S_4: 30 subgroups, 11
+    conjugacy classes, exactly 5 transitive classes -- the record's list is
+    complete and its realised-cycle-type table is correct for all five. But
+    exactly ONE of all 30 subgroups meets all five conjugacy classes, so the
+    transitivity premise is not needed at all. I did find three things the
+    record does not contain: (i) two explicit null objects that reproduce the
+    entire census -- one of them with no elliptic curve, no group law and no
+    cover at all -- which bounds what the census can conclude; (ii) the
+    arithmetic-vs-geometric gap the parent idea declares open is actually
+    CLOSED by this data via a parity argument nobody made; and (iii) the
+    matched-(t,Z) integer test the specification deferred, which I ran: it
+    HOLDS on the admissible stratum and FAILS on the pooled counts the record
+    reports, separating two curves over F_101 with identical (t,Z) by their
+    rational 4-torsion.
+
+  claim_under_review: >-
+    (a) the four M1 subgroup falsifications (A_4, D_4, C_4, V_4) and the
+    claim_boundary that they leave only S_4; (b) whether the M3 chi-square
+    excess concentrated in {1^4, 2+2}, and its shrinkage with p, is an ordinary
+    finite-field correction or something else. J1/J2 (the classifier audit and
+    the exclusion-count derivation) are the Validator's joints and are not
+    reviewed here except where my own recomputation happens to corroborate them.
+
+  # ===================================================================
+  # J3 -- CHI-SQUARE ANOMALY INVESTIGATION
+  # ===================================================================
+  J3_chi_square_anomaly:
+    verdict: holds_with_finding
+
+    what_i_did_not_assume: >-
+      I did not use the Executor's classifier, EXP-MONO-815525's stored 540-term
+      S_4 monomial table, derivation_checks.json, or any recorded Q_e
+      coefficient vector. Every number below comes from code written in this
+      session that implements only: Legendre symbols, binomial coefficients,
+      the elliptic-curve group law over F_{p^2} / F_{p^4} / F_{p^6}, and
+      polynomial factorisation over F_p.
+
+    step_1_mechanism_identified:
+      statement: >-
+        The five-class label factors through the quotient S_4 -> S_4/V_4 = S_3,
+        and the S_3 part is the factorisation type of g. Because (e1,e2,e3) is
+        drawn UNIFORMLY from F_p^3, g = X^3 - e1 X^2 + e2 X - e3 is a UNIFORMLY
+        RANDOM MONIC CUBIC over F_p. The V_4 part -- and only the V_4 part -- is
+        where the curve enters, through the three quadratic characters
+        chi(f(t_i)) at g's roots.
+      derivation: >-
+        Write P_i = (t_i, y_i) with y_i^2 = f(t_i). The four fibre points are
+        the sign classes x(P_1 +- P_2 +- P_3) modulo global negation, indexed by
+        V = {+-1}^3 / {+-1}. Frobenius sends P_i -> eps_i P_i with
+        eps_i = chi(f(t_i)), hence acts on V by TRANSLATION by eps. Translation
+        by eps is the identity on V iff eps = (+,+,+) or (-,-,-), i.e. iff all
+        three characters agree; otherwise it is a fixed-point-free double
+        transposition. Therefore, for g split with three distinct roots:
+        class 1^4 iff chi(f(t_1)) = chi(f(t_2)) = chi(f(t_3)), else class 2+2.
+        This is an independent re-derivation of IDEA-20260904-ad63fe (C3)(a);
+        I derived it before reading that record and it agrees.
+      corroboration_in_the_record: >-
+        The record's own OBS-1 joint table is exactly this quotient: g
+        irreducible -> 3+1 (343,400/343,400 on C1); g = (lin)(irred quad) ->
+        2+1+1 or 4; g split -> 1^4 or 2+2. The Executor recorded the pattern and
+        drew no conclusion from it. It is the whole explanation.
+
+    step_2_the_finite_p_correction_for_a_random_cubic:
+      question_asked: >-
+        (a) what fraction of RANDOM cubics over F_p actually split, and is there
+        a known provable finite-p correction?
+      answer: >-
+        Yes, and it is EXACT and O(1/p), with no Weil-type O(1/sqrt(p)) term at
+        all. Because g is a uniform monic cubic, the counts are combinatorial
+        identities, not analytic estimates:
+          split into 3 DISTINCT roots : p(p-1)(p-2)/6  = (1/6)(1 - 3/p + 2/p^2)
+          (linear)(irred quadratic)   : p^2(p-1)/2     = (1/2)(1 - 1/p)
+          irreducible                 : (p^3 - p)/3    = (1/3)(1 - 1/p^2)
+          repeated root (non-sqfree)  : p^2            = 1/p
+        so the distinct-split density is DEFICIENT by exactly 1/(2p) and the
+        (lin)(quad) density by exactly 1/(2p), the whole 1/p of the deficit
+        being the non-squarefree stratum. The record's own OBS-2(i) confirms the
+        irreducible count on C1: 343,400 = (101^3 - 101)/3, exact.
+      why_this_matters: >-
+        The Coordinator's prior, the task card, and the Executor's diagnosis all
+        reach for "an ordinary O(1/sqrt(p))-scale finite-field correction". The
+        object being sampled is a uniformly random cubic, for which no
+        square-root error term arises. Asking for a 1/sqrt(p) story here is the
+        random-model-transfer error in reverse: the correction is smaller and
+        sharper than the folklore bound, and it is computable exactly.
+
+    step_3_the_exact_law_for_the_1_4_vs_2_2_split:
+      question_asked: >-
+        (b) is the 1^4-vs-2+2 sub-classification where curve-specific,
+        non-uniform bias enters?
+      answer: >-
+        YES -- that is precisely and only where the curve enters -- but it
+        enters as an EXACT, CLOSED-FORM, O(1/p) term whose constant is the
+        Hasse trace, not as an uncontrolled bias.
+      theorem_i_derived: |
+        Let E : y^2 = f(x) = x^3 + Ax + B over F_p (p > 3), t = p + 1 - #E(F_p),
+        Z = #{x in F_p : f(x) = 0}, N = p - Z.  Draw g uniformly among monic
+        cubics that split into three DISTINCT roots, none of them a root of f
+        (equivalently: a uniform 3-subset of F_p \ Z(f), which is exactly what
+        the record's Res(g,f) != 0 exclusion produces).  Then
+
+            P(class = 1^4) = 1/4 + 3 (t^2 - N) / (4 N (N-1))          [EXACT]
+            P(class = 2+2) = 3/4 - 3 (t^2 - N) / (4 N (N-1))          [EXACT]
+
+        PROOF SKETCH.  With chi_i = chi(f(t_i)) in {+-1} (never 0, by the
+        exclusion), the indicator of "all three equal" is
+            (1/4)(1 + chi_1 chi_2 + chi_1 chi_3 + chi_2 chi_3),
+        which involves ONLY PAIRWISE products.  Summing over ordered pairs of
+        distinct non-roots,
+            sum_{t1 != t2} chi(f(t1)) chi(f(t2))
+              = ( sum_t chi(f(t)) )^2 - #{t : f(t) != 0}
+              = t^2 - N ,
+        because sum_t chi(f(t)) = #E(F_p) - p - 1 = -t exactly.  Dividing by the
+        N(N-1) ordered pairs and multiplying by 3 gives the result.
+        THERE IS NO ERROR TERM.  The Hasse-Weil bound enters only through t
+        itself; the third-order character correlation never appears.
+      rigorous_bound: >-
+        By Hasse |t| <= 2 sqrt(p), so 0 <= t^2 <= 4p and
+        |P(1^4 | split) - 1/4| <= (3/4) max(4p, N) / (N(N-1)) < 3/(p-3) for
+        p >= 11. The deviation is therefore bounded by 3/p up to lower order,
+        is POSITIVE whenever t^2 > N and NEGATIVE whenever t^2 < N, and its
+        normalised constant 3(t^2/p - 1)/4 is Sato-Tate distributed over curves
+        with mean 0. This is the bound the task card asked me to derive.
+      relation_to_the_parent_record: >-
+        This is IDEA-20260904-ad63fe (C4), whose #1^4 = C(S,3) + C(p-Z-S,3) with
+        S = (p-t-Z)/2 is algebraically identical to my formula (S = n_+ and
+        p-Z-S = n_-). I derived mine independently and then found (C4). The
+        exact finite-p law was therefore already in the ledger BEFORE the
+        specification was frozen with the asymptotic density as its null.
+
+    step_4_complete_reproduction_of_the_observed_counts:
+      what_i_reproduced: >-
+        A three-term model -- (C4)'s admissible-stratum law + the
+        non-squarefree-g stratum + a 2-torsion fibre-degeneracy term -- computed
+        entirely from (p, A, B) with no reference to the run, reproduces the
+        record's exhaustive censuses as follows.
+      non_squarefree_g_rule_i_derived: >-
+        For g = (X-a)^2(X-b) with a != b the fibre is {b, b, x(2P_a + P_b),
+        x(2P_a - P_b)}, giving class 1^4 iff chi(f(a)) = chi(f(b)) and class
+        2+1+1 otherwise; for g = (X-a)^3 the fibre is {x(3P_a), x(P_a) x 3},
+        always class 1^4. This stratum has density exactly 1/p and is entirely
+        absent from (C4), which excludes it as inadmissible.
+      C1_p101_A2_B3:
+        model:    {"1^4": 44659, "2+2": 119618, "2+1+1": 261523, "4": 250800, "3+1": 343400}
+        observed: {"1^4": 47218, "2+2": 119618, "2+1+1": 258964, "4": 250800, "3+1": 343400}
+        residual: 2559 instances out of 1,020,000 (0.25%), all of them the
+          record's own "1+2 | 1^4" joint cell (2,459) plus 100 double-root
+          degeneracies; classes 2+2, 4 and 3+1 reproduce EXACTLY.
+      C2_p101_A1_B35:
+        model:    {"1^4": 50161, "2+2": 121770, "2+1+1": 253380, "4": 261590, "3+1": 343399}
+        observed: {"1^4": 50262, "2+2": 121770, "2+1+1": 253380, "4": 261590, "3+1": 343298}
+        residual: 101 instances out of 1,030,300 (0.0098%), exactly the record's
+          own "3 | 1^4" joint cell; the other four classes reproduce EXACTLY.
+      C3_and_C4_p1009_Monte_Carlo_z_scores:
+        C3: {"1^4": "+0.07", "2+2": "+0.00", "2+1+1": "+0.41", "4": "+1.24", "3+1": "-1.55"}
+        C4: {"1^4": "+0.26", "2+2": "-0.77", "2+1+1": "+0.35", "4": "+0.24", "3+1": "-0.12"}
+      chi_square_against_the_exact_null:
+        C1: "1175.81 -> 171.67   (residual = the one identified 2,459-instance stratum)"
+        C2: "1765.88 ->   0.23   on an EXHAUSTIVE census of 1,030,300 base points"
+        C3: "   4.38 ->   2.90"
+        C4: "  12.13 ->   0.73   (C4 was the only per-curve statistic above the 0.05 critical value; it is entirely the finite-p correction)"
+      independent_brute_force_verification: >-
+        For both p=101 curves I recomputed the ENTIRE distinct-split block by
+        genuine elliptic-curve arithmetic over F_{p^2}: build P_i = (t_i,
+        sqrt(f(t_i))), form all four signed sums, take their x-coordinates,
+        multiply out prod(T - x) (whose coefficients I assert and check lie in
+        F_p), and factor over F_p. Results, from 161,700 and 166,650 triples:
+          C1: {1^4: 39641, 2+2: 119618, 2+1+1: 2441}   [char rule: 39641/122059, 2441 degenerate]
+          C2: {1^4: 44880, 2+2: 121770, 2+1+1:    0}   [char rule: 44880/121770, ZERO degenerate]
+        These add to the record's own joint cells EXACTLY: C1 "1+1+1|1^4" 44,759
+        = 39,641 + 5,118 and "1+1+1|2+1+1" 7,323 = 2,441 + 4,882; C2
+        "1+1+1|1^4" 50,161 = 44,880 + 5,281 and "1+1+1|2+1+1" 4,920 = 4,920.
+        C2 has ZERO degeneracies because #E(C2) = 121 is odd, so C2 has no
+        2-torsion over F_p or F_{p^2} -- which is exactly the mechanism.
+      degeneracy_mechanism_named: >-
+        The residual leakage occurs iff some P_i +- P_j is a nonzero 2-torsion
+        point, i.e. iff x(P_i +- P_j) is a root of f. It therefore requires
+        rational (or, in the g-irreducible stratum, F_{p^3}-rational) 2-torsion,
+        has density O(1/p), and vanishes identically on curves of odd order.
+        This is why the C1/C3/C4 leaks exist and the C2 leak in the split block
+        is exactly zero.
+
+    step_5_the_p_scaling_answer:
+      question_asked: >-
+        (d) is "3-7x smaller at p=1009" consistent with O(1/sqrt(p)) (which
+        predicts 3.15x), some other power, or no clean power law?
+      answer: >-
+        It is consistent with O(1/p) and it is NOT evidence for O(1/sqrt(p)).
+        The ratio is not a measurement of a scaling law at all.
+      three_reasons:
+        - >-
+          A 1/sqrt(p) law predicts the SAME ratio 3.16 for every curve pair. The
+          observed ratios span 2.27 to 10.22 across the four (class, pair)
+          combinations. No single power law fits, because the constant is
+          curve-dependent: it is 3(t^2/p - 1)/4 plus the stratum terms.
+        - >-
+          My exact model reproduces the observed ratios pair by pair, which no
+          power law can do: class 2+2, C1/C3 observed 7.93 vs model 7.89;
+          C2/C3 observed 6.99 vs model 6.95; class 1^4, C2/C3 observed 10.22 vs
+          model 10.79, C2/C4 observed 5.18 vs model 5.80.
+        - >-
+          At p=1009 the deviations are AT the Monte-Carlo noise floor. With
+          n ~ 10^5 the standard errors are 6.3e-4 (class 1^4) and 1.05e-3
+          (class 2+2), against predicted deviations of 6.5e-4 and 9.8e-4. The
+          p=101 numbers are exhaustive and exact; the p=1009 numbers are noisy
+          estimates of the same size as their own error bars. Dividing an exact
+          number by a noisy number of comparable magnitude to its own error and
+          reading the quotient as a rate is not a measurement.
+      direct_ladder_measurement: >-
+        Instead of two primes I ran eight, with 12 uniformly drawn ordinary
+        curves each (j not in {0,1728}), p in {101, 211, 401, 809, 1009, 2003,
+        4001, 8009}, computing the exact model density per curve. Fitted power
+        laws (log-log least squares on the mean absolute deviation):
+          |dev class 1^4| : alpha = -0.9808      (1/p => -1.0 ; 1/sqrt(p) => -0.5)
+          |dev class 2+2| : alpha = -0.9804
+          chi-square / n  : alpha = -1.9472      (1/p^2 => -2.0)
+        and the products dev x p are flat across three decades of p: class 1^4
+        gives 0.324, 0.301, 0.294, 0.318, 0.373, 0.245, 0.323, 0.375 and class
+        2+2 gives 0.789, 0.778, 0.728, 0.849, 1.099, 0.875, 0.809, 0.812.
+        THE PARAMETER THAT IS SUPPOSED TO DESTROY THE SIGNAL IS p, AND IT DOES,
+        AT EXACTLY THE PREDICTED RATE.
+
+    step_6_null_object_control:
+      why: >-
+        docs/inventor-protocol.md section 3 requires the identical measurement
+        against a null object before belief, and the specification contains no
+        controls field at all (see objection O-6).
+      the_control: >-
+        Replace the curve's character map t -> chi(f(t)) by an i.i.d. random
+        +-1 function on the same support -- no curve, no group law, no
+        Semaev polynomial -- and recompute the same 1^4-vs-2+2 quantity.
+      result: |
+        p= 101  curve   mean|dev| = 6.55e-3      random sign fn = 6.76e-3
+        p=1009  curve   mean|dev| = 6.45e-4      random sign fn = 6.76e-4
+        p=8009  curve   mean|dev| = 7.78e-5      random sign fn = 8.71e-5
+        (400 curves / 400 random functions per prime.)
+      reading: >-
+        A CONTROLLED NULL. The {1^4, 2+2} deviation is statistically
+        indistinguishable from what a random sign function of the same support
+        size produces, because both are governed by the same quantity -- the
+        squared imbalance (sum of signs)^2, which for a curve IS t^2 and for a
+        random function has the same expectation p. The M3 excess therefore
+        carries NO curve-specific information beyond the trace and must not be
+        read as a structural signal about the cover.
+
+    j3_conclusion: >-
+      The excess in exactly {1^4, 2+2} and nowhere else is EXPECTED, for a
+      reason the record has all the data to state and does not state: those two
+      classes are the fibre of the quotient map S_4 -> S_3 over the identity,
+      i.e. the V_4-block, and it is the only block in which the curve's
+      quadratic characters can move mass. Classes 2+1+1 and 4 sit in the
+      transposition block where the deviations cancel to first order (their
+      exact deviations are +/- (p-Z)(t^2-2p)/... and are equal and opposite,
+      which is why they match to 1.4e-3 in the record), and class 3+1's count
+      ((p^3 - Z_3) - (p - Z))/3 does not depend on t at all. The magnitude,
+      sign, per-curve constant and p-scaling of the excess are all predicted in
+      closed form and all confirmed. NOTHING IS OFF -- but the chi-square was
+      never capable of telling anyone that, and was guaranteed to be large.
+
+  # ===================================================================
+  # J4 -- ADVERSARIAL RECONSTRUCTION AND SCOPE CHECK
+  # ===================================================================
+  J4_adversarial_reconstruction_and_scope:
+    verdict: holds_with_finding
+
+    subgroup_lattice_completeness_check:
+      method: >-
+        Brute-force enumeration of every subgroup of S_4 by taking the closure
+        of every subset of size <= 3 of the 24 elements, then grouping into
+        conjugacy classes and computing each subgroup's realised cycle types and
+        orbits. No literature, no recall.
+      result: |
+          30 subgroups, 11 conjugacy classes.
+          order  #conj  transitive  realised cycle types                  meets all 5
+              1      1       False  1^4                                        False
+              2      3       False  1^4,2+2                                    False
+              2      6       False  1^4,2+1+1                                  False
+              3      4       False  1^4,3+1                                    False
+              4      1        True  1^4,2+2                    (V_4, normal)   False
+              4      3       False  1^4,2+1+1,2+2       (non-normal Klein)     False
+              4      3        True  1^4,2+2,4                  (C_4)           False
+              6      4       False  1^4,2+1+1,3+1              (S_3)           False
+              8      3        True  1^4,2+1+1,2+2,4            (D_4)           False
+             12      1        True  1^4,2+2,3+1                (A_4)           False
+             24      1        True  1^4,2+1+1,2+2,3+1,4        (S_4)            True
+      confirmations:
+        - >-
+          The transitive subgroups of S_4 up to conjugacy are exactly
+          C_4, V_4, D_4, A_4, S_4 -- FIVE, as the record states. Complete; no
+          transitive subgroup was missed, and there is no second conjugacy class
+          of order-4 or order-8 TRANSITIVE subgroups beyond the ones named
+          (C_4 has 3 conjugates and V_4 has 1; D_4 has 3; all order-8 subgroups
+          are conjugate).
+        - >-
+          The record's classes_predicted_impossible table is CORRECT for all
+          four: A_4 misses {2+1+1, 4}; D_4 misses {3+1}; C_4 misses {2+1+1,
+          3+1}; V_4 misses {2+1+1, 4, 3+1}.
+        - >-
+          PROVES-TOO-MUCH CONTROL PASSES. Applied to S_4 itself my method
+          returns zero impossible classes, so it does not spuriously manufacture
+          impossibilities.
+      correction_to_the_task_brief: >-
+        The task brief asserts that the Klein four-group generated by two
+        disjoint transpositions "is actually the SAME group as the normal V_4 in
+        this case" and asks me to double check. IT IS NOT. Explicitly:
+        <(12),(34)> = {e, (12), (34), (12)(34)} whereas
+        V_4 = {e, (12)(34), (13)(24), (14)(23)}. They share only e and (12)(34).
+        The first is non-normal, INTRANSITIVE (orbits {1,2} and {3,4}), and
+        realises {1^4, 2+1+1, 2+2}; the second is normal and transitive and
+        realises {1^4, 2+2}. The distinction does not damage the record: the
+        non-normal copy is intransitive so it was correctly outside the record's
+        stated scope, AND it is falsified anyway by classes 4 and 3+1.
+      the_stronger_statement_the_record_should_use: >-
+        EXACTLY ONE of the 30 subgroups of S_4 meets all five conjugacy classes,
+        namely S_4. Equivalently and more cheaply: any subgroup containing a
+        4-cycle and a 3-cycle has order divisible by 12 and contains an odd
+        permutation, hence is S_4. The M1 argument therefore does NOT depend on
+        the transitivity classification at all -- observing classes 4 and 3+1
+        alone forces S_4, and observing all five forces it a fortiori over ALL
+        subgroups, transitive or not. This closes the only structural hole in
+        the record's claim_boundary (that it enumerated only the transitive
+        subgroups without establishing transitivity first).
+      transitivity_is_anyway_established_by_the_data: >-
+        562,534 base points specialise Q_e to an irreducible quartic over F_p.
+        A factorisation over F_p(e1,e2,e3) specialises to a factorisation, so a
+        single irreducible specialisation of degree 4 proves Q_e is irreducible
+        over the function field, hence the monodromy is transitive. The record
+        has this and does not say it.
+
+    adversarial_reconstruction_attempts:
+      instruction: >-
+        Construct any object that is NOT full-S_4 monodromy yet populates
+        {2+1+1, 4, 3+1} at the observed rates. Six attempts, honestly reported.
+      E1_reducible_intransitive_cover:
+        construction: "Q_e = (cubic)(linear) or (quadratic)(quadratic) generically over F_p(e)."
+        outcome: REFUTED BY THE DATA
+        why: >-
+          Such a cover has intransitive monodromy inside S_3 x S_1 or
+          S_2 wr S_2; the first cannot realise 2+2 or 4, the second cannot
+          realise 3+1. Both are observed in the hundreds of thousands. This is
+          also exactly the null object that felled EXP-MONO-815525
+          (NULL(T) = (T - e1) g(T), monodromy the order-6 point stabiliser S_3),
+          and the UNCONDITIONED design kills it: on the g-irreducible locus that
+          null was INDISTINGUISHABLE from the real cover, and the two loci that
+          separate them -- g = (lin)(irred quad) and g split -- are precisely the
+          2/3 of the base the predecessor threw away. THIS IS THE STRUCTURAL
+          DIFFERENCE THE TASK ASKS FOR.
+      E2_proper_subgroup_evasion:
+        outcome: IMPOSSIBLE
+        why: >-
+          Cycle type is a conjugacy invariant, and exactly one of the 30
+          subgroups of S_4 meets all five classes. There is no subgroup, normal
+          or not, transitive or not, that can be dressed up to pass. An
+          existence check against a conjugacy invariant admits no evasion of
+          this kind, which is why M1 is categorically stronger than M3.
+      E3_arithmetic_versus_geometric_monodromy:
+        outcome: THE ONLY STRUCTURALLY AVAILABLE GAP -- AND THE DATA CLOSES IT
+        the_gap: >-
+          A Frobenius census at F_p-points bounds the ARITHMETIC monodromy
+          G_arith = Gal(Q_e / F_p(e)) from below. The GEOMETRIC monodromy
+          G_geom = Gal(Q_e / k'F_p(e)) (k' the field of constants) satisfies
+          G_geom normal in G_arith with G_arith/G_geom = Gal(k'/F_p) CYCLIC.
+          The parent idea explicitly declares this gap open and out of scope,
+          and the record inherits that.
+        why_the_data_closes_it_here: >-
+          Normal subgroups of S_4 are 1, V_4, A_4, S_4, with quotients S_4, S_3,
+          C_2, 1. Only C_2 and 1 are cyclic, so G_geom is A_4 or S_4. If
+          G_geom = A_4 then k' = F_{p^2} and Frobenius at EVERY F_p-rational
+          base point restricts to the generator of Gal(F_{p^2}/F_p), hence lies
+          in the odd coset S_4 \ A_4, hence only classes 2+1+1 and 4 could ever
+          be observed. Classes 1^4 (106,003), 2+2 (265,941) and 3+1 (753,112)
+          are all even and all abundantly observed. Therefore G_geom = S_4.
+        status: >-
+          A FINDING, NOT EVIDENCE. It is a resource reading the record missed
+          (agents/red-team.md responsibility 8). It changes no status, and it is
+          scoped exactly like everything else here: the four tested (p, A, B).
+          RQ-MONO-001's own title asks about GEOMETRIC monodromy, so this is
+          directly decision-relevant.
+      E4_two_cover_switching_object:
+        construction: >-
+          Let X_1 -> B have A_4 monodromy and X_2 -> B have D_4 monodromy, and
+          define the "observed" quartic at e to be X_1's fibre when chi(e_1)=+1
+          and X_2's otherwise. All five classes are populated; no single
+          monodromy group exists; every M1 check "falsifies" every named
+          subgroup.
+        outcome: BLOCKED, BUT BY A PREMISE RATHER THAN BY THE MEASUREMENT
+        why: >-
+          Stage 0 establishes that Q_e is literally one polynomial family with
+          fixed coefficient polynomials in (e1,e2,e3), so no switching is
+          possible. I record it because the M1 argument's soundness rests
+          entirely on that premise, and the premise comes from Stage 0, not from
+          Stage 2. A decision citing M1 must cite Stage 0 with it.
+      E5_uniform_random_quartic_null:
+        construction: "At each base point, replace Q_e by a uniformly random monic quartic over F_p. No curve, no cover, no Semaev polynomial."
+        measured: >-
+          p=101, n=4000: {1^4: 180, 2+2: 479, 2+1+1: 1054, 4: 987, 3+1: 1300},
+          chi-square 5.87 on df=4.
+          p=1009, n=4000: {1^4: 148, 2+2: 558, 2+1+1: 977, 4: 1000, 3+1: 1317},
+          chi-square 9.55.
+        outcome: PASSES EVERY M1 CHECK
+        reading: >-
+          Not a counterexample to "G = S_4" (a random quartic's Galois group IS
+          S_4), but it bounds what the census can conclude: the census cannot
+          distinguish the m=4 Semaev cover from a uniformly random quartic. It
+          certifies GENERICITY and nothing curve-specific. Any downstream claim
+          that the census detected something about elliptic curves is void.
+      E6_the_recipe_driven_by_a_random_function:
+        construction: >-
+          Keep the (C3) recipe but delete the elliptic curve: draw g uniformly,
+          and supply the "quadratic residue" bits from an i.i.d. random +-1
+          function r on F_p (and a fair coin in the (lin)(quad) stratum). There
+          is no curve, no group law, no Q_e, no cover, and therefore no
+          monodromy group at all.
+        measured: >-
+          p=101, n=60000: freq {1^4: 0.04893, 2+2: 0.11997, 2+1+1: 0.25100,
+          4: 0.24775, 3+1: 0.33235} -- compare the record's pooled p=101 curves
+          {0.0465-0.0488, 0.1173-0.1182, ...}. p=1009, n=60000: freq
+          {1^4: 0.04052, 2+2: 0.12598, 2+1+1: 0.25147, 4: 0.24927, 3+1: 0.33277}.
+        outcome: PASSES EVERY M1 CHECK AND REPRODUCES M3 INCLUDING ITS FINITE-p BIAS
+        reading: >-
+          THIS IS THE NULL-OBJECT CONTROL THE SPECIFICATION OMITS. It shows the
+          census's entire information content is "the recipe (C3) holds
+          instance by instance" -- and (C3) is a DERIVATION in the parent idea,
+          not a measurement. The census is therefore best described as a
+          large-scale verification that the implementation agrees with an
+          already-derived formula. That is worth having (it could have failed,
+          and it did not) but it is a different and smaller claim than
+          "measured the monodromy group".
+      E7_singular_cubic:
+        construction: "Replace E by a nodal cubic (multiplicative reduction), whose smooth locus is F_p^* or the norm-one subgroup of F_{p^2}^*."
+        outcome: NOT RUN -- named as a further cheap null.
+        why_it_would_pass: >-
+          chi(f(t)) is still defined, sum_t chi(f(t)) = +-1, and the same recipe
+          applies with t replaced by +-1, so all five classes appear at the same
+          densities. The census does not distinguish an elliptic curve from a
+          singular cubic. Cost: minutes.
+      overall: >-
+        I could NOT construct any object that is a genuine single algebraic
+        family with monodromy smaller than S_4 and still populates all five
+        classes -- E2 shows this is impossible in principle. The M1 test's logic
+        IS airtight, for a reason stronger than the record gives: each observed
+        class is a witness against a CONJUGACY INVARIANT, and no subgroup of
+        S_4 whatsoever meets all five conjugacy classes. What I could construct
+        are objects that pass the test while being nothing like the intended
+        object (E5, E6, E7), which bounds the conclusion rather than breaking it.
+
+    new_result_the_matched_tZ_control_the_spec_deferred:
+      status: >-
+        REVIEW-SIDE PROBE ONLY. No run record, no seed contract, not
+        evidence-eligible, MUST be re-run under an approved specification before
+        it is cited. I report it because naming the cheapest discriminating
+        control is my job and because it produced a real, reproducible signal.
+      what_it_is: >-
+        IDEA-20260904-ad63fe (C4) claims the five-class counts are "polynomial
+        functions of (p, t, Z) AND OF NOTHING ELSE", so two non-isomorphic
+        curves over the same p with the same (t, Z) must have BITWISE IDENTICAL
+        counts. specification.yaml explicitly defers this test as
+        "separate, larger, not-yet-approved work". I ran it.
+      satisfiability: >-
+        At p=101 there are 47 (t,Z) buckets containing two or more distinct
+        j-invariants (157 at p=1009 from a partial scan). The control is amply
+        satisfiable at the primes already used, at negligible cost.
+      result_on_the_admissible_stratum: HOLDS EXACTLY, as (C4) says it must.
+      result_on_the_counts_this_experiment_actually_reports: FAILS
+      the_witness: |
+        p = 101, both curves with t = -10, Z = 3, #E = 112, #E[2](F_p) = 4:
+          (A,B) = (2,12), j = 24 : {1^4: 38180, 2+2: 107184, 2+1+1: 6732}
+          (A,B) = (4, 1), j = 41 : {1^4: 38092, 2+2: 107008, 2+1+1: 6996}
+        (exhaustive over all 152,096 distinct-split base points on each curve,
+        computed by my independent F_{p^2} fibre reconstruction, not by the
+        Executor's classifier).  The admissible-stratum prediction is IDENTICAL
+        for both -- 1^4: 38048, 2+2: 114048 -- so (C4) is vindicated on its own
+        domain.  The counts differ by 88 / 176 / 264 in the degenerate stratum.
+      the_separating_invariant: >-
+        #E(F_p)[4] = 16 for j=24 versus 8 for j=41. Same p, same t, same Z, same
+        group order, same rational 2-torsion; DIFFERENT rational 4-torsion. The
+        degenerate stratum is a 4-torsion detector, because the fibre collisions
+        that create it are exactly the conditions P_i +- P_j in E[2] \ {O}.
+      three_consequences:
+        - >-
+          The pooled five-class observable this experiment reports is NOT
+          determined by (p, t, Z). Any decision that cites this run as
+          confirming (C4)'s "(t,Z) and nothing else" would be wrong. Strata must
+          be separated before (C4) is tested.
+        - >-
+          It explains the last piece of the M3 residual: the leakage constant is
+          a 4-torsion invariant, not a (t,Z) invariant, which is why C1's
+          residual is 2,559 and C2's is 101.
+        - >-
+          SPAWNED LEAD, filed as a candidate for ranking and NOT as evidence:
+          the ramified/degenerate stratum of the m=4 symmetric-base cover is an
+          exact, deterministic, curve-distinguishing observable of density
+          O(1/p) that sees E(F_p)[4]. RQ-MONO-001's exceptional-locus half asks
+          for exactly an observable of this kind. It changes no status.
+
+    scope_check:
+      claim_boundary_is_sound_as_written: >-
+        The execution report's scope_and_limits and
+        what_this_run_does_not_claim are unusually disciplined and I found no
+        overclaim in them. The Executor explicitly declines to declare S_4
+        supported. The risk is entirely in the FORTHCOMING decision.
+      the_narrowest_statement_the_run_supports: >-
+        For each of the four tested triples (p, A, B) in {(101,2,3), (101,1,35),
+        (1009,5,7), (1009,2,30)}, the ARITHMETIC monodromy group of the m=4
+        symmetric-base Semaev quartic Q_e over F_p(e1,e2,e3) is the full S_4,
+        because Frobenius elements of all five cycle types occur at unramified
+        F_p-points and no subgroup of S_4 meets all five conjugacy classes.
+        With the parity argument of E3 added, the GEOMETRIC monodromy is also
+        S_4 for those four triples.
+      things_that_must_not_be_quoted:
+        - "'the m=4 Semaev cover has full S_4 monodromy' without 'arithmetic (or, with E3, geometric), at these four (p,A,B), toy scale'."
+        - "anything about m != 4. The parent idea is explicit: at m >= 5 the group is V semidirect S_{m-1} inside Sym(2^{m-2}), a PROPER subgroup, so 'full symmetric' is specific to m=4."
+        - "anything about F_{q^n}, characteristic 2 or 3, other primes, or cryptographic scale."
+        - "closure of KN-OPEN-009. Its relation-rate half is untouched, and its exceptional-locus half is now LESS settled than before, by my matched-(t,Z) result."
+      question_scope_mismatch: >-
+        RQ-MONO-001's title reads "Is the GEOMETRIC monodromy of the m=3 Semaev
+        summation cover ...". This experiment is m=4 and (as recorded)
+        arithmetic. The question record has evidently been reused for m=4
+        without amendment. That is a bookkeeping defect the Coordinator should
+        fix before filing evidence against RQ-MONO-001, or the ledger will carry
+        an m=4 result under an m=3 question.
+      how_much_information_the_run_actually_bought: >-
+        Every class count is an exact function of (p, t, Z) plus an
+        O(1/p)-density leakage table computable in O(p) time. The four "curves"
+        are four (p,t,Z) triples, not four independent replications of a random
+        process, and 2,249,894 base points and 283 CPU-seconds bought
+        approximately six integers per curve. This does not weaken M1 -- an
+        existence check needs one witness -- but the objective's phrasing
+        ("hundreds of thousands of observed instances", "the margins are
+        enormous") invites a statistical reading of a deterministic count. The
+        margin is not a statistical margin.
+
+  # ===================================================================
+  objections:
+    - id: O-1
+      severity: high
+      target: specification.yaml preregistered_prediction / M3
+      objection: >-
+        The frozen M3 null is the ASYMPTOTIC S_4 density (1/24, 1/8, 1/4, 1/4,
+        1/3). The parent proposal IDEA-20260904-ad63fe (C4) already states the
+        EXACT finite-p counts, which differ from the asymptotic ones by O(1/p).
+        On an EXHAUSTIVE census with n ~ 10^6 at p = 101 that guarantees a
+        chi-square of order 10^3 whether or not the hypothesis is true. The
+        specification therefore froze a null its own parent record says is
+        false, and M3 could not have come out any other way.
+      status: this is the entire cause of the "anomaly"; it is a contract defect, not a result
+    - id: O-2
+      severity: high
+      target: specification.yaml stage_1 / execution_report M3
+      objection: >-
+        STRATUM POOLING, which IDEA-20260904-ad63fe names verbatim in its own
+        confounders list as "the mechanism by which the prior lane's M3 metric
+        acquired 24-sigma deviations". The pre-registered M3 pools (i) 30,676
+        ramified fibres, which carry no well-defined Frobenius conjugacy class
+        at all, and (ii) the non-squarefree-g stratum of density exactly 1/p
+        (20,402 instances at p=101), which supplies 5,118 of C1's 7,577
+        excess 1^4 instances. The named confounder was carried into the
+        contract unmitigated.
+    - id: O-3
+      severity: medium
+      target: execution_report M3c / task card objective / coordinator_prior
+      objection: >-
+        "The deviations are 3 to 7 times smaller at p=1009" is offered by the
+        task card and the Coordinator's prior as grounds for believing the
+        deviation benign. It is not evidence. It compares two exact exhaustive
+        values against two Monte-Carlo estimates whose standard errors (6.3e-4
+        and 1.05e-3) equal or exceed the quantities being estimated, and a
+        1/sqrt(p) law predicts one ratio (3.16) where four ratios spanning
+        2.27-10.22 are observed. The Executor is correct to assert no rate; the
+        review chain then used the non-rate as reassurance anyway.
+    - id: O-4
+      severity: medium
+      target: execution_report stage_2_M1 / claim_boundary
+      objection: >-
+        M1 enumerates only TRANSITIVE subgroups without establishing
+        transitivity. As written, the argument has a gap: an intransitive
+        subgroup (e.g. the point stabiliser S_3, or the non-normal Klein group)
+        is not on the list. The gap is harmless -- I verified all 30 subgroups
+        fail, and transitivity follows from the 562,534 irreducible-quartic
+        specialisations -- but the record should carry one of those two
+        arguments rather than leaving the enumeration unjustified.
+    - id: O-5
+      severity: medium
+      target: execution_report stage_2_M1 witness counts
+      objection: >-
+        M1's witness counts are quoted on the POOLED set, which includes
+        ramified fibres where the Frobenius class is undefined. The correct
+        counts are the unramified ones: 1^4 90,388; 2+2 265,843; 2+1+1 547,341;
+        4 562,534; 3+1 753,112. All four falsifications survive with room to
+        spare, and the record's robustness_of_M1_to_the_ramification_question
+        paragraph says as much -- but the headline numbers in the checks table
+        are the pooled ones and will be the ones quoted.
+    - id: O-6
+      severity: medium
+      target: execution_report contract_gate.gate_result
+      objection: >-
+        The gate states "PASS. Inputs, CONTROLS, metrics (M1-M4), the frozen
+        pre-registered prediction, budget, stopping rules, invalidation rules
+        and the required artifact list are all present in the contract. No
+        specification_error." The frozen specification.yaml contains NO controls
+        field; the string "control" occurs exactly once in the whole file, in
+        the approval rationale describing the PREDECESSOR experiment's failure.
+        AGENTS.md core rule 3 requires every experiment to define controls
+        before execution. The gate attestation is false as written. The prior
+        round's red team named three controls (null object, matched-(t,Z),
+        certified 4-cycle witness); the specification deferred two of them
+        explicitly and dropped the null object silently.
+    - id: O-7
+      severity: low
+      target: RQ-MONO-001 / evidence routing
+      objection: >-
+        The question record is titled for m=3 and for GEOMETRIC monodromy. This
+        is an m=4, arithmetic-monodromy result. Filing evidence against
+        RQ-MONO-001 unamended puts an m=4 result under an m=3 question.
+    - id: O-8
+      severity: low
+      target: stage_0 random-stream discipline
+      objection: >-
+        Stage-0 check (0e) consumes from the same seeded stream in a
+        data-dependent way (loop until 10 irreducible g found, up to 20,000
+        tries), so the Stage-1 sampling offset for C3/C4 depends on Stage-0
+        outcomes. Reproducible as recorded, but brittle: any Stage-0 change
+        silently reshuffles Stage 1. Use a separate stream per stage.
+
+  required_controls:
+    - id: RC-1
+      name: recompute M3 against the EXACT finite-p null, on the unramified subset only
+      why: >-
+        This is the whole of J3. It converts a 2447.84 "anomaly" into a
+        confirmation and costs no new run -- the counts are already in
+        raw-result.json and the null is a closed-form function of (p,t,Z).
+      predicted_outcome: "C2 1765.88 -> 0.23 ; C4 12.13 -> 0.73 ; C3 4.38 -> 2.90 ; C1 1175.81 -> 171.67 (residual = the identified 2,459-instance 4-torsion leakage stratum)"
+      cost: minutes, no run record needed
+    - id: RC-2
+      name: the null-object control the specification omits
+      why: docs/inventor-protocol.md section 3; and it is the control that felled the predecessor experiment
+      what: >-
+        Run the identical five-class census on (i) a uniformly random monic
+        quartic per base point and (ii) the (C3) recipe driven by an i.i.d.
+        random +-1 function. Both reproduce the census (measured above). Record
+        that the census certifies genericity and nothing curve-specific.
+    - id: RC-3
+      name: the sign-reversal prediction -- the cheapest DISCRIMINATING control in this lane
+      why: >-
+        My exact law says the split-block deviation is
+        3(t^2 - N)/(4N(N-1)), which is NEGATIVE when t^2 < N and POSITIVE when
+        t^2 > N. No generic "finite-field correction" story predicts a sign
+        reversal keyed to the trace. C1 (t=6, t^2=36 < N=100) already exhibits
+        the negative branch inside the split block; C2 (t=-19, t^2=361 > 101)
+        the positive branch.
+      what: >-
+        Exhaustive census at p=101 on ~6 curves spanning t^2/p in [0,4],
+        comparing the observed split-block 1^4 fraction against
+        1/4 + 3(t^2-N)/(4N(N-1)). Zero-tolerance, integer-for-integer. Seconds
+        of compute. If the sign does not track t^2 - N, my explanation is wrong
+        and something else is going on.
+    - id: RC-4
+      name: the matched-(t,Z) integer test, with strata SEPARATED
+      why: >-
+        It is the parent idea's own exceptional-locus test, it is amply
+        satisfiable (47 buckets at p=101), and I have already shown it FAILS on
+        the pooled counts and HOLDS on the admissible stratum. Running it
+        properly is the only thing left that could still change the reading.
+      what: "exhaustive census on the (t,Z)=(-10,3) pair (A,B)=(2,12) and (4,1) at p=101, reporting admissible and non-admissible strata separately."
+    - id: RC-5
+      name: record the geometric-monodromy parity argument, or restate the claim as arithmetic
+      why: RQ-MONO-001 asks about geometric monodromy; the record answers about arithmetic; E3 above closes the gap for the tested cases in three lines.
+    - id: RC-6
+      name: one certified 4-cycle witness
+      why: >-
+        The prior round's red team asked for it (RC-3 there) and it was not
+        carried into this contract. docs/claims-and-verification.md: the class-4
+        claim is the one that a degree-cap bug would most plausibly fake, and a
+        single instance with its Q_e, its irreducibility proof over F_p, and its
+        four roots exhibited in F_{p^4} discharges it permanently.
+
+  counterexample_or_mutation: >-
+    THE SINGLE CHEAPEST MUTATION THAT DISTINGUISHES ARTIFACT FROM SIGNAL:
+    hold p and the code fixed and vary the curve so that t^2 crosses N = p - Z.
+    My law predicts the split-block 1^4 excess changes SIGN at t^2 = N, with
+    magnitude 3|t^2 - N|/(4N(N-1)). An implementation artifact in the
+    classifier, a sampling bias in (e1,e2,e3), or a 1^4-vs-2+2 labelling
+    asymmetry -- the three alternatives the task card asks me to rule out --
+    are all independent of t and cannot produce a trace-keyed sign flip. I have
+    already run the p=101 half of this: C1 (t^2=36 < N=100) gives a split-block
+    1^4 fraction of 39641/161700 = 0.24515 < 1/4, and C2 (t^2=361 > N=101)
+    gives 44880/166650 = 0.26931 > 1/4, both matching the formula to the last
+    digit. THE SIGN FLIPS, KEYED TO THE TRACE, EXACTLY AS PREDICTED. That is
+    the discriminating evidence the chi-square could never provide, and it
+    rules out all three alternative explanations at once.
+
+  baseline_comparison: >-
+    NO COST CLAIM IS MADE AND NONE IS SUPPORTED, and the record says so
+    correctly (certificate: kind none; target_complexity: "Not applicable; no
+    ECDLP complexity claim"). I checked the execution report and specification
+    for any time/memory/data claim and found none, so there is no dominated_by
+    field to audit and no unchecked null was fabricated. For the record, so that
+    no reader supplies the missing comparison themselves:
+      Pollard rho     : O(sqrt(N)) group operations, O(1) memory -- UNTOUCHED.
+      BSGS            : O(sqrt(N)) time and O(sqrt(N)) memory -- UNTOUCHED.
+      Closest specialised baseline: Gaudry/Diem index calculus via Semaev
+        summation polynomials, which is subexponential only over F_{q^n} with
+        n > 1 and gives NO gain over rho on prime fields. This experiment is
+        entirely on prime fields at m = 4, the regime with no known gain.
+    DIRECTION OF THE RESULT, STATED PLAINLY: full S_4 monodromy is the GENERIC,
+    EXPECTED case and is what the standard index-calculus heuristic already
+    assumes. Confirming it REMOVES an exceptional-locus hope; it does not create
+    an attack and does not weaken any curve. A decision must not present "full
+    S_4 confirmed" as progress toward an ECDLP attack.
+
+  heuristic_challenges:
+    - id: HC-1
+      target: "H-MONO-ebd400 heuristic_assumptions H1: 'None load-bearing for the per-subgroup falsification branches'"
+      assessment: CORRECT, and stronger than stated
+      detail: >-
+        H1 is right that M1 needs no distributional assumption -- but it
+        under-sells the reason. M1 needs no Chebotarev density theorem, no
+        Lang-Weil, and no genericity: each observed Frobenius element IS an
+        element of G_arith, and cycle type is a conjugacy invariant, so five
+        observed types force G_arith = S_4 by finite group theory alone. The
+        only assumptions that remain load-bearing are (i) the fibre is
+        correctly computed (Stage 0 + J1's audit) and (ii) the observations are
+        at unramified points (verified: all five classes have abundant
+        unramified witnesses).
+    - id: HC-2
+      target: "the implicit heuristic that the asymptotic Chebotarev density is the right null at p=101"
+      assessment: FALSE, AND KNOWN FALSE BEFORE THE RUN
+      detail: >-
+        Chebotarev/Lang-Weil for a 3-dimensional base over F_p gives the class
+        densities with an error term; here the error term is not merely bounded
+        but COMPUTABLE IN CLOSED FORM, and at p=101 it is 1.2e-2 in total
+        variation -- 20x the Monte-Carlo resolution of the p=1009 arms. The
+        heuristic "finite p is close enough to the asymptotic density" is the
+        single unnumbered assumption in this contract and it is the one that
+        broke.
+    - id: HC-3
+      target: "IDEA-20260904-ad63fe (C4): counts are functions of (p, t, Z) 'AND OF NOTHING ELSE'"
+      assessment: TRUE ON ITS STATED DOMAIN, FALSE ON THE OBSERVABLE THIS RUN REPORTS
+      detail: >-
+        See the matched-(t,Z) witness above. (C4) is stated for ADMISSIBLE base
+        points and is exactly right there. The experiment reports pooled counts,
+        which additionally see E(F_p)[4]. The heuristic must be re-stated with
+        its admissibility hypothesis attached before it is used as an
+        exceptional-locus screen.
+
+  cost_model_challenges:
+    - id: CC-1
+      detail: >-
+        No cost model is claimed, so there is nothing to recompute. The one
+        cost-shaped observation worth recording: the entire measurement is an
+        O(p) computation from (p, t, Z) plus an O(p) leakage table, so the
+        283 CPU-seconds and 2,249,894 base points are ~10^4 times more work than
+        the information content requires. That is fine for a verification run
+        and should be labelled as one; it is not fine if a later contract budgets
+        for the same census at larger p believing the sample size is what buys
+        the confidence.
+    - id: CC-2
+      detail: >-
+        Budget compliance is clean and verifiable from the record (283.4 s of
+        1200; 26.4 MB RSS of 256 MB; 832 KB of 20 MB; 1 worker; network
+        disabled; 1 run of maximum 1). Three executions are disclosed, none
+        discarded, with a field-by-field diff of the third against the archived
+        result. I have no objection here.
+
+  reduction_and_scope_challenges:
+    - id: RS-1
+      detail: >-
+        The chain IDEA (C2 derivation) -> (C3 per-instance recipe) -> (C4 exact
+        counts) -> this experiment is a chain of DERIVATIONS terminated by a
+        verification, not four independent measurements. The census confirms
+        (C3)/(C4); (C3)/(C4) imply M1 by inspection (every class count is
+        positive); (C2) implies the group. A decision must not present the
+        census as independent confirmation of (C2).
+    - id: RS-2
+      detail: >-
+        The record correctly declines to close KN-OPEN-009. I add: its
+        exceptional-locus half is now MORE open, not less, because I found a
+        (t,Z)-invisible curve dependence in the observable (RC-4).
+    - id: RS-3
+      detail: >-
+        No affected/safe scheme list appears anywhere and none should. The
+        result is scheme-neutral.
+
+  proof_architecture_challenges:
+    - id: PA-1
+      name: observation-fiber attack
+      run: >-
+        Held the observable (the five-class label) fixed and varied the
+        underlying object. Found preimages on both sides of the conclusion:
+        E5 (uniform random quartic) and E6 (recipe on a random function) sit
+        outside the intended object class yet produce identical observations.
+      missing_separator: >-
+        Nothing in the five-class label distinguishes the Semaev cover from a
+        generic quartic. The separator that WOULD do it is the per-instance
+        recipe (C3) -- checking that the class is the one (C3) predicts from g
+        and the Legendre symbols, instance by instance, which fails immediately
+        for a random quartic. The experiment records the joint table that makes
+        this checkable (OBS-1) but does not compute the per-instance agreement
+        rate. That is a one-line addition with real discriminating power.
+    - id: PA-2
+      name: quantifier-order attack
+      run: >-
+        The idea record is explicit and correct about quantifier order (its
+        method_ceiling section distinguishes "FOR ALL E there exists a
+        containing group" -- trivial -- from "FOR ALL E the realised element
+        count is 24" -- measured). The experiment respects it. No witness is
+        chosen after seeing an instance: the five classes and their predicted
+        densities are frozen in the specification, the seed is fixed, and two
+        curves are exhaustive.
+      verdict: passes
+    - id: PA-3
+      name: boundary and strictness attack
+      run: >-
+        The old method (EXP-MONO-815525's g-irreducible conditioning) IS
+        genuinely embedded as a boundary: it is the g-irreducible column of this
+        census's joint table, and on that column the intransitive S_3 null and
+        the real cover agree instance for instance (343,400 vs 343,400 on C1).
+        The new design is STRICTLY better, not merely different: the two columns
+        the old design discarded are exactly the ones that separate.
+      verdict: passes -- this is the strongest structural feature of the design
+    - id: PA-4
+      name: method-ceiling attack
+      run: >-
+        The largest claim this instrument can support is the arithmetic
+        monodromy of one cover at fixed (p,A,B), plus (with E3) the geometric
+        one. It cannot reach any relation-rate, cost or exponent claim, cannot
+        reach m != 4, and cannot reach unbounded p. The record's own
+        claim_ceiling matches this. No headline exceeds the ceiling.
+      verdict: passes
+    - id: PA-5
+      name: nearby-object attack
+      run: >-
+        Nearest object with the conclusion FALSE: the ordered base
+        k(x1,x2,x3), where the monodromy is provably V_4 and classes 4, 3+1,
+        2+1+1 are impossible by the degree cap (EV-MONO-efbd1c). The symmetric
+        base does distinguish itself: classes 4 and 3+1 are observed with
+        density 1/4 and 1/3. Second nearest: a nodal cubic (E7), which does NOT
+        distinguish itself -- that one is not run and should be.
+    - id: PA-6
+      name: compositional-invariant attack
+      run: >-
+        Deleted each component of the record's argument in turn.
+        Delete Stage 0 -> E4 (cover switching) becomes available and M1 fails.
+        Delete the unconditioned sampling -> the predecessor's degeneracy
+        returns and the test loses all power.
+        Delete the Res(g,f) != 0 exclusion -> chi(f(t_i)) = 0 becomes possible
+        and the character rule (and hence the exact law) breaks.
+        Delete the projective root-at-infinity convention -> 20,509 instances
+        (0.9%) get partition-of-3 labels; M1 survives, M3 shifts.
+        Every component is load-bearing for something, and Stage 0 is
+        load-bearing for M1 specifically. The strong invariant does imply the
+        target.
+
+  narrowest_supported_statement: >-
+    For each of the four tested triples (p, A, B) = (101,2,3), (101,1,35),
+    (1009,5,7), (1009,2,30), Frobenius elements of all five S_4 cycle types
+    occur at unramified F_p-rational points of the m=4 symmetric-base Semaev
+    cover. Since exactly one of the 30 subgroups of S_4 meets all five
+    conjugacy classes, the ARITHMETIC monodromy of Q_e over F_p(e1,e2,e3) is
+    the full S_4 for those four triples; adding the parity argument (E3) the
+    GEOMETRIC monodromy is also S_4 for those four triples. The M3 chi-square
+    of 2447.84 is NOT evidence against this and is NOT an unexplained anomaly:
+    it is the sum of two O(1/p) effects with closed-form curve-dependent
+    constants -- the exact finite-p class-count law of IDEA-20260904-ad63fe
+    (C4), and the pooling of the inadmissible strata that same record named in
+    advance as a confounder -- and against the exact finite-p null the
+    statistic falls to 0.23 on C2's exhaustive 1,030,300-point census and 0.73
+    on C4. Nothing here supports any claim about m != 4, other primes, other
+    curves, F_{q^n}, relation rates, solver cost, any exponent, or KN-OPEN-009,
+    and full S_4 is in any case the case index calculus already assumes, so
+    this result removes an exceptional-locus hope rather than creating an
+    attack.
+
+  next_concrete_action: >-
+    ONE ACTION: do NOT compose a decision that carries the M3 chi-square forward
+    as an open or "apparently benign" anomaly, and do not carry the "shrinks
+    3-7x" ratio forward as its justification. Instead record M3 as FULLY
+    EXPLAINED -- recompute it against the exact finite-p null
+    (IDEA-20260904-ad63fe (C4) restricted to the admissible, unramified
+    stratum), which is a closed-form function of (p, t, Z), costs minutes, needs
+    no new run, and is predicted to give 0.23 on C2 and 0.73 on C4 -- and file
+    the matched-(t,Z) result of RC-4 as a NEW OPEN ITEM against RQ-MONO-001's
+    exceptional-locus half, since (C4)'s "(t,Z) and nothing else" is falsified
+    on the pooled observable by an E(F_p)[4] dependence and that is the first
+    curve-distinguishing signal this lane has produced.
+
+  spawned_ids: []
+  spawned_leads:
+    - >-
+      The ramified/degenerate stratum of the m=4 symmetric-base cover is an
+      exact, deterministic, O(1/p)-density observable that separates curves with
+      identical (t, Z) by their rational 4-torsion #E(F_p)[4]. Candidate for
+      ranking as an exceptional-locus instrument under RQ-MONO-001. NOT
+      evidence; changes no status; needs its own hypothesis and contract.
+
+  review_attestation:
+    joints_owned: [J3-CHI-SQUARE-ANOMALY-INVESTIGATION, J4-ADVERSARIAL-RECONSTRUCTION-AND-SCOPE-CHECK]
+    read_sibling_reports: false
+    sibling_directory_disclosure: >-
+      experiments/EXP-MONO-0e6e8f/reviews/ DID NOT EXIST when I began; I
+      confirmed this by listing experiments/EXP-MONO-0e6e8f/ before writing
+      anything, and I created only reviews/red-team/. I did not read, and could
+      not have read, the Validator's report for this round. I DID read the
+      PRIOR round's red-team report at
+      experiments/EXP-MONO-815525/reviews/red-team/red-team-report.yaml, which
+      my task brief explicitly offered as precedent; it is a different
+      experiment and a completed round. I did NOT read
+      experiments/EXP-MONO-815525/reviews/validator/ at all.
+    blindness_lifted_for: null
+    independent_recomputation: >-
+      All J3 and J4 numbers were produced by code written in this session that
+      imports nothing from experiments/ and never loads the S_4 monomial table,
+      derivation_checks.json, or any recorded Q_e coefficient vector.
+    verdict_summary: >-
+      J3 holds_with_finding: the anomaly is fully explained and the explanation
+      is a theorem, but the M3 contract was defective and the record's own
+      p-scaling justification does not support its (correct) conclusion.
+      J4 holds_with_finding: no evasion exists, the subgroup classification is
+      complete and the M1 logic is airtight and in fact stronger than claimed;
+      but two null objects reproduce the census, the geometric-monodromy gap is
+      closable and unclosed, and the deferred matched-(t,Z) control fails on the
+      pooled observable.
+    authority_compliance:
+      maximum_runs_in_task_card: 0
+      runs_created: 0
+      ledger_records_touched: 0
+      status_changes_made: 0
+      git_commands_run: 0
+      files_written: ["experiments/EXP-MONO-0e6e8f/reviews/red-team/red-team-report.yaml"]
+
+  artifact_paths:
+    reviewed:
+      - ledger/handoffs/TASK-20260904-5fcc1a.yaml
+      - experiments/EXP-MONO-0e6e8f/specification.yaml
+      - experiments/EXP-MONO-0e6e8f/execution_report.yaml
+      - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py
+      - experiments/EXP-MONO-0e6e8f/runs/RUN-MONO-0e6e8f-1/raw-result.json
+      - experiments/EXP-MONO-815525/reviews/red-team/red-team-report.yaml
+      - experiments/EXP-MONO-815525/implementation/run_census.py
+      - ledger/hypotheses/H-MONO-ebd400.yaml
+      - ledger/proposals/IDEA-20260904-ad63fe.yaml
+      - ledger/questions/RQ-MONO-001.yaml
+      - agents/red-team.md
+      - AGENTS.md
+    written_by_this_review:
+      - experiments/EXP-MONO-0e6e8f/reviews/red-team/red-team-report.yaml
+    review_side_scripts_not_committed: >-
+      All verification code was written and run in this session's scratch
+      directory and is NOT a research artifact: j3_core.py (exact
+      admissible-stratum counts and their O(1/p) normalisation), j3_full.py
+      (complete finite-p model: (C4) + non-squarefree-g stratum + 2-torsion
+      leakage, versus the record's counts), j3_brute.py (exhaustive
+      distinct-split fibre reconstruction by F_{p^2} elliptic-curve arithmetic
+      and from-scratch F_p factorisation), j3_ladder.py (8-prime x 12-curve
+      scaling fit and the random-sign-function null-object control), j3_final.py
+      (per-class deviation tables, ratio test, corrected chi-squares),
+      j4_subgroups.py (brute-force enumeration of all 30 subgroups of S_4 with
+      orbits and cycle types), j4_null.py (NULL A uniform-random-quartic census
+      and NULL B random-function-recipe census), j4_fibre_tower.py (independent
+      fibre reconstruction over the (lin)(irred quad) and irreducible strata via
+      L = F_p[X]/(m), M = L[w]/(w^2-c) with Tonelli-Shanks over L),
+      j4_matched.py and j4_matched2.py (satisfiability and outcome of the
+      matched-(t,Z) control, plus 2-power torsion structure). Every number in
+      this report is reproducible from the formulas and descriptions given.
+      No run record was created, no ledger record touched, nothing committed,
+      and maximum_runs = 0 was respected.

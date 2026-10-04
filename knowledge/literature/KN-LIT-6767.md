@@ -17,7 +17,7 @@ tags: [dlp, endomorphism, factoring, finite-field, index-calculus, pollard-rho, 
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-93696f
 ---
 
 ## Contribution

@@ -16,7 +16,7 @@ tags: [complexity-theory, dlp, elliptic-curve, index-calculus, pollard-rho, prov
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-fbe4e0
 ---
 
 ## Contribution

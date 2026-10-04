@@ -1,0 +1,98 @@
+review_attestation:
+  task_id: TASK-20260909-04e7a6
+  review_id: RT-20260909-04e7a6
+  role: red-team
+  joints_owned: [tier_ladder_finite_graph_v3]
+  independent_session: true
+  requested_policy: review-adversarial
+  resolved_model_id: unavailable_to_red_team
+  model_verified: false
+  reviewed_paths:
+    - coordination/design/BATCH-5a2c49/tier-ladder-v3-review-plan-TASK-20260909-04e7a6.yaml
+    - ledger/handoffs/TASK-20260909-04e7a6.yaml
+    - coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification-v3-finite-graph-envelope.yaml
+    - ledger/decisions/DEC-20260909-1a2b9e.yaml
+  read_sibling_reports: false
+  source_snapshot:
+    commit: e73892810ab5099f801fe39c36658ab5afe8def1
+    checked_path: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification-v3-finite-graph-envelope.yaml
+    sha256: c3c752464cc23061c87f5e3c60569107ab93778f9376ce0e8f12e3af369db359
+    snapshot_matches_worktree: true
+  verdict: breaks
+
+red_team_report:
+  id: RT-20260909-04e7a6
+  task_id: TASK-20260909-04e7a6
+  claim_under_review: BATCH-local V3 finite synthetic tier-ladder graph fixture only; no live reachability, retirement, priority, or execution claim.
+  joint: tier_ladder_finite_graph_v3
+  verdict: breaks
+  objections:
+    - id: RT-01-graph-identity-is-not-verifiable
+      finding: graph_id is prose stating that a SHA-256 of canonical JSON should exist, rather than a fixed digest, declared canonicalization algorithm, or typed graph-input envelope. The assertion that node and edge arrays must be byte-equivalent has no separately committed bytes or validator binding against which an input object can be compared.
+      cheapest_mutation: Change the N1-to-N2 edge or add an N0-to-N2 edge while retaining any syntactically shaped graph_id string. V3 gives no declared digest preimage, comparison procedure, or graph-id value that makes the altered graph rejectable.
+      effect: Graph mismatch and extra-edge controls cannot establish that a reported classification came from the reviewed graph.
+    - id: RT-02-route-classification-is-not-total
+      finding: The fixture contains the mixed path N0(BOUNDED) to N1(ABSENT) to N2(UNCONSTRAINED), but it defines neither path admissibility through ABSENT nodes nor rules mapping a path to one classification. Listing precedence alone does not determine whether this path is ABSENT_ROUTE or UNCONSTRAINED_ROUTE, and no relation binds reachable_terminals to the graph.
+      cheapest_mutation: Emit two root-key-identical outputs for the same graph, one with classification ABSENT_ROUTE and one with UNCONSTRAINED_ROUTE. Each label appears in the permitted precedence alphabet, while V3 supplies no calculation that rejects either label.
+      effect: The route-mix control cannot prove total classification or an unconstrained-route conclusion.
+    - id: RT-03-null-controls-have-no-replayable-input-or-oracle
+      finding: shuffled_graph supplies only the phrase graph_id must differ; it gives neither a shuffled typed graph, a canonical ordering rule, nor an expected classification relation. unconstrained_inputs similarly supplies a partial desired output but no closed input, result schema, or graph-to-output oracle.
+      cheapest_mutation: Reorder the same edge records, choose a different serialization ordering, and set a different graph_id; alternatively use a semantically different graph with a different graph_id. V3 has no invariant distinguishing these cases or binding either to the declared null result.
+      effect: The shuffle and unconstrained controls are descriptive rather than falsifiable replay controls.
+    - id: RT-04-effect-free-output-is-only-flat
+      finding: output_exact_keys constrains key names but not value types or nested schemas. effects_exact is empty, yet reachable_terminals, retired_terminals, classification, schema_version, and graph_id may carry arbitrary nested objects. forbidden_recursive is a token list, not a recursive grammar or rejection rule.
+      cheapest_mutation: >-
+        Use an exact-root-key output with effects: [], but encode a retirement
+        or priority object inside reachable_terminals or schema_version and a
+        live-looking identifier inside retired_terminals. The proposed keys
+        remain unchanged and no stated typed rule rejects the nested data.
+      effect: >-
+        The proves-too-much control fails: a synthetic unreachable terminal
+        output cannot be shown structurally incapable of carrying a
+        live-branch retirement or priority action.
+    - id: RT-05-retired-terminals-is-unconstrained
+      finding: The general output schema includes retired_terminals without a rule requiring an empty typed array, a finite terminal-only alphabet, or no-state-change semantics. Only the unconstrained null happens to specify an empty array.
+      cheapest_mutation: For a non-null classification emit retired_terminals containing an arbitrary identifier while leaving effects empty.
+      effect: V3 does not support the coordinator decision's no-retirement boundary outside one illustrative null.
+  required_controls:
+    - >-
+      Freeze one typed finite graph input with literal node, edge, terminal,
+      and range records; define canonical JSON serialization, a literal
+      SHA-256 digest, and a verifier that rejects all missing, duplicate,
+      reordered-if-order-significant, altered, and extra records.
+    - >-
+      Define a total route evaluator: path domain, whether ABSENT blocks
+      traversal, how BOUNDED and UNCONSTRAINED compose, exact precedence
+      application, and the required reachable-terminal set for every result
+      class.
+    - Commit concrete shuffled, added-edge, and unconstrained graph input fixtures with expected typed outputs; ensure graph identity and classification assertions are checked by one declared comparator.
+    - Replace output_exact_keys and forbidden_recursive with a recursively closed typed output schema. Require effects and retired_terminals to be empty typed arrays for every permitted result, restrict terminal identifiers to the frozen finite fixture, and reject nested objects or scalar strings capable of representing live locators, retirements, priorities, claims, archives, or execution.
+  counterexample_or_mutation: >-
+    An exact-root-key output can set effects to [] while placing a nested
+    retirement instruction in reachable_terminals or a live-looking identifier
+    in retired_terminals. Separately, the one reviewed path contains both
+    ABSENT and UNCONSTRAINED range kinds, but V3 does not define which
+    classification it must receive.
+  baseline_comparison: No Pollard-rho, BSGS, specialized ECDLP, or cost claim is present in the assigned source-only synthetic fixture.
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges:
+    - The decision's limitation is a Coordinator statement, not an enforceable property of the V3 graph/output interface. It cannot by itself prove that a synthetic output cannot be repurposed as a live retirement or priority action.
+  proof_architecture_challenges:
+    - observation_fiber: >-
+        Multiple incompatible route classifications and nested effect-bearing
+        outputs fit the same named root-key interface; the missing separator is
+        a typed graph-to-output evaluator plus recursive output grammar.
+    - quantifier_order: >-
+        V3 leaves the resolver free to choose a route interpretation after
+        seeing a mixed ABSENT/UNCONSTRAINED path because no route-composition
+        relation is frozen first.
+    - proves_too_much: >-
+        The designated synthetic-unreachable-terminal control does not fail at
+        the claimed boundary. Its output can retain effects: [] while carrying
+        retirement or priority data inside unconstrained values, so it is not
+        structurally prevented from describing a live action.
+  narrowest_supported_statement: The source snapshot is a BATCH-local prose sketch of a three-node synthetic graph and an intended effect-free output shape. It provides no replayable finite-graph classification proof and supports no live reachability, retirement, priority, approval, canonical-record, execution, or ECDLP conclusion.
+  next_concrete_action: Add a finite typed content-addressed graph fixture and recursive no-effect output schema, then obtain a fresh independent review of graph mismatch, extra edge, mixed-route, shuffle, unconstrained, and nested-effect mutations.
+  artifact_paths:
+    - coordination/design/BATCH-5a2c49/reviews/TASK-20260909-04e7a6/review.yaml

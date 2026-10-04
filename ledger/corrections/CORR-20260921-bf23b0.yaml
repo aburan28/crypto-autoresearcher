@@ -1,0 +1,173 @@
+correction:
+  id: CORR-20260921-bf23b0
+  recorded_at: '2026-09-21'
+  recorded_by: coordinator
+  goal_id: GOAL-ECDLP-001
+  experiment_id: EXP-ECDLP-e36df2
+  record_type: >-
+    decision, handoff, hypothesis, protocol_amendment (four distinct record
+    types in one correction; the base template's record_type enum
+    candidate|claim|run does not cover any of them, extended here as this
+    repo's own CORR-20260917-8b80cc precedent extends the base template
+    where the affected records warrant it).
+  produced_by: >-
+    claude-code-session 2026-09-21, branch claude/point-addition-bias-t2dow9,
+    the same session that dispatched, executed, and archived
+    TASK-20260921-9b17e4.
+  archived_by: null
+  archived_by_note: >-
+    Bound by this same session's own next commit (this correction is
+    committed alongside the revert it documents, not left unbound).
+
+  corrects:
+    - commit c13a21cf1bded5d61fff6ff7471ed09f45f4a55e ("fix(TASK-20260921-9b17e4):
+        budget the new curve as one curve-level job, not four 1115s runs"),
+        authored by Cursor Agent <cursoragent@cursor.com> at
+        2026-09-21T20:23:37Z, pushed to the shared branch
+        claude/point-addition-bias-t2dow9. Reverted in full by commit
+        536a7cd42 (this same commit sequence), which restores all four
+        touched files to be byte-identical with origin/main's already-merged
+        content (verified via `git diff origin/main -- <the four paths>`
+        returning empty).
+    - experiments/EXP-ECDLP-e36df2/amendments/v1_to_v2_new_curve_extension.yaml
+        (fields budget.total_cpu_hours and its `why` prose; c13a21cf1 changed
+        6->12, reverted to the merged 6->10)
+    - ledger/decisions/DEC-20260921-e21d6a.yaml (rationale block C's prose;
+        c13a21cf1 changed 6->12/1115s-average wording, reverted to the merged
+        6->10/1115s-average wording)
+    - ledger/handoffs/TASK-20260921-9b17e4.yaml (budget.wall_clock_seconds;
+        c13a21cf1 changed 4460->10800, reverted to the merged 4460)
+    - ledger/hypotheses/H-ECDLP-c48f2a.yaml (test_boundary.budget.total_cpu_hours;
+        c13a21cf1 changed 1.5->3, reverted to the merged 1.5)
+
+  nature: >-
+    A CORRECT TECHNICAL FINDING FILED THROUGH THE WRONG MECHANISM ON ALREADY-
+    OFFICIAL RECORDS. c13a21cf1's underlying diagnosis is right and is
+    preserved below: PA-ECDLP-e36df2-v1-to-v2's original total_cpu_hours
+    derivation (31226.33s / 28 runs =~ 1115s/run average, times 4 new runs
+    =~ 4460s) is the wrong model. experiments/EXP-ECDLP-e36df2/driver's v1
+    orchestration (instance_runner.run_curve) walks ONE shared m-ladder for
+    all 4 primes of a curve and attributes the same
+    cpu_seconds_curve_shared/wall_seconds_curve_shared figure to each of that
+    curve's 4 run manifests (independently confirmed by this session during
+    TASK-20260921-9b17e4's own archival: RUN-ECDLP-e36df2-029 through -032
+    all record cpu_seconds=575.68-575.96s and identical
+    wall_seconds_curve_shared=575.8183977603912, matching a SINGLE curve-level
+    job's cost repeated across 4 manifests, not 4 independent ~1115s jobs).
+    So the 28 existing runs are 7 curve-level jobs, not 28, and the per-job
+    cost is dominated by that curve's largest prime rather than averaging out
+    across primes.
+
+    BUT: DEC-20260921-e21d6a, ledger/handoffs/TASK-20260921-9b17e4.yaml, and
+    ledger/hypotheses/H-ECDLP-c48f2a.yaml were already merged into main via
+    PR #1344 (merge commit cde1231330088ff8995dfed95ceeee88ac7899bd,
+    2026-09-21T20:12:58Z) BEFORE c13a21cf1 was authored
+    (2026-09-21T20:23:37Z). Editing an official, merged coordinator_decision,
+    handoff, or hypothesis record in place -- however correct the new content
+    -- is exactly what AGENTS.md rule 2 (ledger records immutable;
+    corrections supersede, never overwrite) and this repository's own
+    CORR-20260917-8b80cc precedent (which goes to considerable lengths to
+    supersede rather than touch a single already-committed byte, even for
+    trivial fixes) forbid. The amendment file
+    (v1_to_v2_new_curve_extension.yaml) is closer to a living document by
+    its own version_from/version_to nature, but it too was already cited
+    verbatim, at its original values, by DEC-20260921-e21d6a's own committed
+    rationale text -- editing it silently after that citation was made
+    creates exactly the drift-between-a-decision-and-what-it-cites problem
+    the immutability rule exists to prevent.
+
+  operational_impact: NONE.
+  operational_impact_detail: >-
+    TASK-20260921-9b17e4 already executed and was already independently
+    verified and archived by this session (commit 36d8a0ac4, published in
+    PR #1347) before c13a21cf1 was pushed. The actual execution's own
+    orchestrate_manifest_summary_new_curve_c6.json records
+    total_wall_seconds=577.3035249710083 -- safely under BOTH the original
+    (4460s) and the corrected (10800s) estimate. No run was blocked,
+    truncated, or re-scoped by the flawed original derivation; this
+    correction is purely a refinement of the WRITTEN JUSTIFICATION for a
+    number that turned out not to bind in practice, and changes no
+    scientific parameter, run record, or verdict.
+
+  corrected_derivation_preserved_for_the_record: >-
+    Measured cpu_seconds_curve_shared for the six EXP-ECDLP-e36df2 v1 main
+    curves (curve_idx 0-4 plus the engineered positive control, idx 5):
+    6783s, 319s, 3320s, 7781s, 6110s, 6243s; the mu0_target=40 sensitivity
+    redo of curve_idx=1 (the smallest-prime curve) cost 655s. Sum = 31211s,
+    matching orchestrate_manifest_summary.json's recorded 31226.33s to
+    within logging/summary overhead. Any FUTURE new-curve extension to this
+    experiment family should budget one curve-level job at the observed
+    per-curve maximum (7781s, at p=14821, the largest prime among the six)
+    scaled toward the top of the frozen prime range ([2**10,2**14)), plus
+    curve/prime-search and pooled-summary overhead -- c13a21cf1's own
+    estimate of ~8600s for the scaled compute plus ~10800s (3 hours)
+    all-in is a reasonable, itemized figure and is recommended for citation
+    if this experiment is amended again, rather than a per-run average.
+
+  disposition: >-
+    DEC-20260921-e21d6a, ledger/handoffs/TASK-20260921-9b17e4.yaml,
+    ledger/hypotheses/H-ECDLP-c48f2a.yaml, and
+    experiments/EXP-ECDLP-e36df2/amendments/v1_to_v2_new_curve_extension.yaml
+    are RESTORED to and REMAIN their originally-merged content (total_cpu_hours
+    6->10, wall_clock_seconds_handoff 4460, H-ECDLP-c48f2a's own
+    total_cpu_hours 1.5) as the official record. This correction stands
+    alongside them, not inside them, per the corrected_derivation_preserved_for_the_record
+    section above, for any future amendment of this experiment to cite.
+
+  what_this_correction_does_not_assert:
+    - >-
+      NOT that TASK-20260921-9b17e4's execution, its independently-verified
+      results, or its archive (commit 36d8a0ac4 / PR #1347) are affected in
+      any way. They are not touched by this correction or by the commit it
+      reverts.
+    - >-
+      NOT a criticism of the underlying budget-methodology diagnosis, which
+      is correct and is preserved above for future citation.
+    - >-
+      NOT an accusation that the other session's action was in bad faith --
+      only that its mechanism (direct edit of already-merged records) is
+      incompatible with this repository's immutability rule, independent of
+      how correct its content was.
+    - >-
+      NOT a reopening of H-ECDLP-09125b, DEC-20260912-2a626b, or
+      EV-ECDLP-5b61eb, none of which this correction or the commit it
+      reverts touches.
+
+  next_actions:
+    - >-
+      If EXP-ECDLP-e36df2 is amended again to add further new curves, cite
+      this record's corrected_derivation_preserved_for_the_record rather
+      than the original per-run-average figure when estimating
+      total_cpu_hours.
+    - >-
+      No further action needed on TASK-20260921-9b17e4 itself; it is
+      complete, verified, and archived independent of this correction.
+
+  citations:
+    - claim: >-
+        RUN-ECDLP-e36df2-029 through -032 each record cpu_seconds in
+        575.68-575.96s and an identical wall_seconds_curve_shared of
+        575.8183977603912, and orchestrate_manifest_summary_new_curve_c6.json
+        records total_wall_seconds=577.3035249710083 for all 4 runs
+        combined -- consistent with one shared curve-level job, not four
+        independent ~1115s jobs.
+      source: >-
+        experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-029/manifest.yaml
+        through -032/manifest.yaml;
+        experiments/EXP-ECDLP-e36df2/orchestrate_manifest_summary_new_curve_c6.json
+      provenance: internal
+      verified_by: claude-code-session 2026-09-21, this session's own TASK-20260921-9b17e4 archival (commit 36d8a0ac4).
+    - claim: >-
+        DEC-20260921-e21d6a, TASK-20260921-9b17e4.yaml, and H-ECDLP-c48f2a.yaml
+        were merged into main at cde1231330088ff8995dfed95ceeee88ac7899bd
+        (2026-09-21T20:12:58Z), before c13a21cf1bded5d61fff6ff7471ed09f45f4a55e
+        was authored (2026-09-21T20:23:37Z).
+      source: coordination/events/main/cde123133008.yaml; `git log` timestamps for both commits.
+      provenance: internal
+      verified_by: claude-code-session 2026-09-21, this session.
+    - claim: >-
+        Reverting c13a21cf1 restores all four touched files to be
+        byte-identical with origin/main's content.
+      source: '`git diff origin/main -- <the four paths>` after commit 536a7cd42, returning empty.'
+      provenance: internal
+      verified_by: claude-code-session 2026-09-21, this session.

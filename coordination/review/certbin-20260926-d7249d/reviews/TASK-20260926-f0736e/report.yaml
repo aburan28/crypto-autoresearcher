@@ -1,0 +1,348 @@
+# =============================================================================
+# TASK-20260926-f0736e -- blind re-derivation, joint J6 of
+# REVIEW-CERTBIN-20260926-d7249d (EXP-CERTBIN-060020). Written AFTER seal.txt
+# (sealed_utc 2026-09-26T03:58:38.183886Z) and after attestation.yaml.
+# Every computed value lives in rederivation.json; this report restates none
+# of them and compares with nothing this task did not compute (BR-8).
+# =============================================================================
+report:
+  task_id: TASK-20260926-f0736e
+  review_plan_id: REVIEW-CERTBIN-20260926-d7249d
+  experiment_id: EXP-CERTBIN-060020
+  joints_owned: [J6]
+  recorded_at_utc: '2026-09-26'
+  worktree_head_at_run: a832d63ac7e566bcf7e78f8523742e5af4dd7c8a
+  blind_inputs:
+    path: coordination/review/certbin-20260926-d7249d/blind/blind-inputs.json
+    sha256: 5f965b4c2e7c14dcccebbf0e0fad07c987317351209e4e0b4473ed278eb379dc
+    systems: 90 (60 curve-kind, 30 explicit-kind)
+
+  # ---------------------------------------------------------------------------
+  method:
+    source_of_definitions: >-
+      EXP-CERTBIN-060020 object (field, curve, factor base, S_3, descended
+      system, E_layout, parts, ell_and_rc_b, certificate_format),
+      EXP-CERTBIN-e94b27 object (macaulay_M_D, mutant_closure_W_D) at nv = 20,
+      neq = 19, EXP-CERTBIN-4e92d7 object.macaulay_matrix (row convention),
+      KN-TECH-b18366 (S_3), this card (BR-1..BR-12, Q1..Q7). No other source.
+    code: >-
+      code/ -- field.py (F_{2^19}, trace, half-trace, curve arithmetic),
+      algebra.py (monomial orders, generic S_3 descent, Macaulay matrices,
+      semi-echelon basis over the C kernel, literal W_D, exhaustive s,
+      quadratic route to s, rc_b, ell_route), gf2kern.c (own bit-packed GF(2)
+      kernels), certs.py (wdag-v1 and ann-v1 construction), checkers.py
+      (self-contained numpy checkers with their own field arithmetic,
+      closed-form descent, monomial arithmetic, coordinate order and
+      elimination; shares no code with the other modules), selftest.py
+      (BR-2), driver.py (pass driver, checkpoints, seal), ambiguities.json
+      (read into rederivation.json), post_seal_verify.py (ADDED AFTER THE
+      SEAL; reads, never writes, the sealed files). No file imports
+      crypto_autoresearcher; the only third-party import is numpy.
+    construction_of_systems: >-
+      Curve kind: S_3(x_1, x_2, x_R) expanded by generic multilinear
+      polynomial arithmetic over F_{2^19} (x_1 = sum v_j t^j, x_2 = sum
+      v_{10+j} t^j, j < 10), equation k = coefficient of t^k. Cross-checked on
+      every system against two hand closed forms (algebra.py and the
+      checker's own). Explicit kind: the monomial lists of blind-inputs.json,
+      parsed twice (driver and checker) and compared.
+    elimination_method: >-
+      Own C kernel: incremental bit-packed semi-echelon basis. Each row has a
+      distinct leading column (its first set coordinate); a vector is reduced
+      by XOR-ing the row of its lowest set pivot coordinate until no pivot
+      coordinate is set, and a nonzero remainder is appended. Column order
+      (-degree, bitmask ascending) is degree-graded, so dims_by_deg = number
+      of rows with leading degree <= d, and "1 in X" iff the constant column
+      (last) is a pivot. Cross-checked against an independent numpy
+      Gauss-Jordan on random matrices (self-test). The checkers use their own
+      numpy elimination and exact float32 BLAS parity products.
+    W_4: >-
+      Literal rule of EXP-CERTBIN-e94b27 mutant_closure_W_D at D = 4, j =
+      0..19: W^(0) = rowspace(M_4); at every iteration the FULL basis of
+      W^(i) cap B_{<=3} (all echelon rows of leading degree <= 3 at the start
+      of the iteration) is multiplied by every v_j (multilinear reduction)
+      and inserted; stop at the first i with dim W^(i+1) = dim W^(i); every
+      dim W^(i) recorded (BR-4).
+    s_routes: >-
+      Route 1: packed truth tables of all 2^20 assignments, every equation
+      evaluated exhaustively. Route 2 (curve kind; does not use the descended
+      equations): for each x_1 in V, S_3 as a quadratic in x_2 over F_{2^19},
+      roots by half-trace / square root / linear solve (exact case analysis,
+      AMB-4), each root re-checked by direct S_3 evaluation, roots < 1024
+      counted. Degenerate flag: x_R < 1024.
+    rc_b: >-
+      Steps (1)-(5) with the BR-5 blind reading of (1); left kernel of the
+      19 x 190 quadratic block by own row reduction with identity tags
+      (asserted to annihilate the block); for curve kind c_k compared with
+      Tr(t^k / x_R^2); substitution v_{j*} := ell + v_{j*} with ascending
+      relabelling; R'_3 and R'_4 as Macaulay closures in 19 variables.
+      ell_route computed DIRECTLY from rowspace(M_4) + ell * B_{<=3} in 20
+      variables (one extra elimination), not from R'_4. Q7 (optional):
+      literal W'_4 on the substituted system wherever the substitution
+      applied.
+    certificates: >-
+      wdag-v1: collapse-per-variable construction (AMB-16) from tagged
+      rebuilt levels whose dimensions are asserted equal to the literal
+      iteration's. ann-v1: L = the RREF-derived basis of the annihilator of
+      the final W_4 (size codim W_4), in the frozen coordinate order. Every
+      certificate is checked by checkers.py against a system rebuilt by the
+      checker itself, rules (a)-(e) / (A1)-(A3) verbatim; (A2) uses a basis K
+      of S cap B_{<=3} from the checker's own elimination.
+
+  # ---------------------------------------------------------------------------
+  commands:
+    orientation_and_reading:
+      - ls of coordination/review/certbin-20260926-d7249d/blind/ and of this task directory; git rev-parse HEAD; git status --short (empty at 03:2x UTC); echo of PYTHONDONTWRITEBYTECODE (unset in the launch environment)
+      - wc -l and grep of top-level / second-level keys of experiments/EXP-CERTBIN-e94b27/specification.yaml and experiments/EXP-CERTBIN-4e92d7/specification.yaml (to locate their object blocks)
+      - sha256sum of blind-inputs.json and a python structure inspection (top-level keys, instance kinds, key sets, the first explicit system's first two equations printed)
+      - grep -n review_attestation templates/research-records.md
+      - python3 / numpy / nproc / free / gcc version and numpy BLAS configuration checks
+    development_on_self_generated_data_only: >-
+      Inline python3 runs importing code/ modules on systems drawn from this
+      task's own seeds (PCG64 of 15758190 = 0xF0736E and 15758190 + {1, 2, 3,
+      13, 14, 100, 200, 201}): smoke tests of field, descent, closures, rc_b,
+      ell_route on synthetic x(2E) targets and synthetic control-like
+      systems; searches for small systems with fixpoint index >= 2 and first
+      refutation at iteration >= 2; certificate construction and checking;
+      three dry runs and one --resume test of driver.py on a 10-system
+      synthetic input file (scratchpad f0736e-private/, --expect-count 10).
+      No blind input was used in development. No specification seed was
+      drawn from.
+    blind_pass:
+      count: 1 of at most 2 (no infrastructure failure; no re-run)
+      command: >-
+        cd <repo root>; PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=2
+        F0736E_BUILD_DIR=<session scratchpad>/f0736e-private/build python3
+        coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/code/driver.py
+        --inputs coordination/review/certbin-20260926-d7249d/blind/blind-inputs.json
+        --out coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e
+        >> .../logs/run-1.log 2>&1
+      started_utc: '2026-09-26T03:54:44Z'
+      self_tests_finished_utc: '2026-09-26T03:55:30Z (before the blind inputs were loaded)'
+      sealed_utc: '2026-09-26T03:58:38.183886Z'
+      exit_status: 0
+      wall_seconds: 228.2
+      peak_rss_mb: 430.4 (memory cap 3 GB)
+      c_kernel_build: gcc 13.3.0 -O3 -march=native -fPIC -shared of code/gf2kern.c into the scratchpad (not archived); shared-object sha256 8e61c5a37d9f96242a23cd17b4eb3fb726050c79e2e1d2de53190e42829fa792 (recorded in rederivation.json)
+      log: logs/run-1.log
+    after_the_seal:
+      - "python3 code/post_seal_verify.py --dir <task dir> --inputs <blind-inputs.json> --json-out <task dir>/post-seal-verification.json (log: logs/post-seal-verify.log)"
+      - "removal of the 90 per-system certificate checkpoints checkpoints/*.cert.json.gz after verifying that each line's sha256 equals rederivation.json certificate_line_sha256 (manifest: logs/removed-certificate-checkpoints.json); the per-system JSON checkpoints, the progress log and the self-test checkpoint remain"
+      - "grep for crypto_autoresearcher and the import lines of code/*.py; find for __pycache__ / *.pyc (none)"
+      - "git status --porcelain --untracked-files=no (no tracked change anywhere); git status restricted by pathspec to paths outside coordination/review/ (nothing); an earlier UNRESTRICTED git status --porcelain --untracked-files=all | head -20 listed other agents' untracked file names (disclosed in attestation.yaml)"
+      - "BR-12 self-check (python yaml parse of attestation.yaml against the card's must_not_read list)"
+    scratchpad_hygiene: >-
+      ls -la of the shared session scratchpad root and build/ (disclosed in
+      attestation.yaml); this task's scratch files were then moved to
+      scratchpad/f0736e-private/ and its kernel rebuilt there.
+
+  # ---------------------------------------------------------------------------
+  self_tests:
+    seed: 15758190 (+ item number); no specification seed
+    ran: inside the blind pass, before blind-inputs.json was opened by the program; full record in rederivation.json self_tests
+    all_passed: true
+    results:
+      - test: "irreducibility of t^19+t^5+t^2+t+1"
+        BR-2: required
+        passed: true
+        detail: "t^(2^19) = t mod f and gcd(t^(2^i) - t, f) = 1 for i = 1..9"
+      - test: "S_3(x(P1), x(P2), x(P1 +- P2)) = 0"
+        BR-2: required
+        passed: true
+        detail: "200 random point pairs, 400 evaluations, all points on the curve; negative control (random third x) 0 hits; associativity on 30 triples; [#E]P = O on 10 points with #E from an exact count"
+      - test: "descended equations vs direct F_{2^19} evaluation of S_3"
+        BR-2: required
+        passed: true
+        detail: "120 random x_R x 5 random v = 600 evaluations; generic expansion equal to both closed forms on all 120"
+      - test: "M_4 rows vs naive polynomial multiply; fixture dimensions"
+        BR-2: required
+        passed: true
+        detail: "60 M_3 rows, 60 M_4 rows and 20 R'_4 rows checked; M_3 399 x 1351, M_4 4009 x 6196, R'_3 380 x 1160, R'_4 3629 x 5036 from this task's own construction"
+      - test: "literal W_D vs brute-force fixpoint (6 variables, D = 3)"
+        BR-2: required
+        passed: true
+        detail: "15 random systems (seed 15758196) compared on every dim W^(i), fixpoint index, 1-membership and dims_by_deg; 3 reach fixpoint index 2; brute force holds each W^(i) as the set of all its elements (AMB-14); systems listed in rederivation.json"
+      - test: "literal W_D vs independent integer elimination (6 variables, D = 3)"
+        BR-2: extra
+        passed: true
+        detail: "80 random systems including refuted ones"
+      - test: "C kernel rank vs numpy elimination"
+        BR-2: extra
+        passed: true
+        detail: "30 random matrices"
+      - test: "two routes to s and the quadratic root finder"
+        BR-2: extra
+        passed: true
+        detail: "15 curve systems incl. x_R = 0, 5, 1023 by 4 routes; 6 planted-solution random systems; 40 random quadratics vs full-field brute force"
+      - test: "substitution vs direct evaluation"
+        BR-2: extra
+        passed: true
+        detail: "300 cases"
+      - test: "wdag-v1 checker"
+        BR-2: required
+        passed: true
+        detail: "valid witness accepted; 6 corrupted rejected (row removed, k changed, identical prods pair on a degree-4 child, |mu| = 3 cancelling pair, child id not smaller, re-keyed system)"
+      - test: "ann-v1 checker"
+        BR-2: required
+        passed: true
+        detail: "valid certificate accepted; 4 corrupted rejected (e1 functional nonzero on a named M_4 row, e2 annihilator of M_4 alone where W_4 != M_4, e3 constant coordinate cleared, e4 re-keyed system)"
+      - test: "multi-level wdag construction (7 variables, D = 3)"
+        BR-2: extra
+        passed: true
+        detail: "first refutation at iterations 0, 1 and 2 (3 systems at 2); all accepted; one corruption each rejected"
+
+  # ---------------------------------------------------------------------------
+  ambiguities:
+    recorded_in: rederivation.json ambiguities (identical to code/ambiguities.json, fixed before the blind pass)
+    count: 16
+    unresolvable: none
+    unreadable_clauses: none
+    summary:
+      - AMB-1 column order (-degree, bitmask ascending) instead of descending degrevlex; order-independent quantities (BR-1)
+      - AMB-2 dims list runs to the confirming W^(i*+1); fixpoint_index = i*; one_first_iteration 0 = in rowspace(M_4)
+      - AMB-3 iteration continues to the dimension fixpoint after 1 appears
+      - AMB-4 exact case analysis of the quadratic in x_2 (x_1 = 0 and x_1 = x_R included)
+      - AMB-5 hex strings without 0x prefix
+      - AMB-6 mu as ascending index list; node ids 0..N-1 in order
+      - AMB-7 rc_b step (1) per BR-5; kernel dim 0 = not applicable
+      - AMB-8 step-3 cases leave R'_3 / R'_4 / sigma / T5 null; ell_route still computed
+      - AMB-9 ell_route for every system with an ell (both kinds)
+      - AMB-10 c_k trace check null for explicit kind and x_R = 0
+      - AMB-11 ell * B_{<=3} = span of ell * m over the 1351 monomials of degree <= 3
+      - AMB-12 Q7 wherever the substitution applied, curve kind flagged as required
+      - AMB-13 BR-7 vs BR-10 ordering resolved with checkpoints/ as the skeleton
+      - AMB-14 brute force = enumeration of all elements; extra integer-elimination check
+      - AMB-15 dims_by_deg in 19 variables for R'_4 / W'_4
+      - AMB-16 wdag-v1 collapse-per-variable construction
+
+  # ---------------------------------------------------------------------------
+  missing_systems: none (90 of 90 computed; rederivation.json coverage.missing_systems is empty)
+  refuted_unwitnessed: none
+  not_refuted_uncertified: none
+  s_route_disagreements: none
+
+  completion_gate:
+    - item: seal.txt sha256 values equal those of rederivation.json, wdag.jsonl.gz and ann.jsonl.gz, and its time precedes report.yaml's creation
+      status: met (re-verified by post_seal_verify.py; sealed 03:58:38Z, attestation.yaml 04:02Z, this file after it)
+    - item: Q1-Q6 present for every one of the 90 systems, or each gap named
+      status: met (post-seal required-field scan found no gap)
+    - item: the two routes to s agree on every curve-kind system, or each disagreement listed
+      status: met (no disagreement)
+    - item: every system with 1 in W_4 has an accepted wdag-v1, every system with 1 not in W_4 an accepted ann-v1, or listed
+      status: met (checked in the pass and re-checked from the sealed files in a fresh process; wdag labels = refuted set, ann labels = not-refuted set, each once; every ann-v1 has exactly 6196 - final_dim functionals)
+    - item: BR-2 self-tests and the BR-12 self-check recorded
+      status: met (self_tests in rederivation.json and above; BR-12 below)
+    - item: the ambiguities list exists
+      status: met (16 entries)
+    - item: attestation.yaml lists every path read, read_sibling_reports false, blind_from_respected truthful, verdict carries J6
+      status: met
+    - item: no must_not_read path in sources_read; no file under code/ imports crypto_autoresearcher
+      status: met (BR-12 check; the grep finds the string only in comments and the environment flag)
+    - item: no file outside the write scope modified; no git write
+      status: met (no tracked change; no untracked file outside coordination/review/; nothing written under coordination/review/ except this task directory; no git write operation was run)
+
+  br12_self_check:
+    parses_as_yaml: true
+    top_level_review_attestation: true
+    task_id: TASK-20260926-f0736e
+    joints_owned: [J6]
+    verdict_mapping: "{J6: holds}"
+    read_sibling_reports: false
+    blind_from_respected_explicit: true
+    sources_read_repo_relative_and_existing: true
+    must_not_read_violations: []
+    note: >-
+      The own output directory lies under coordination/review/certbin-20260926-d7249d/reviews/,
+      which must_not_read lists with the exception "every subdirectory except your own";
+      the check applies that exception. tools/check_review_independence.py was NOT run (BR-12).
+
+  # ---------------------------------------------------------------------------
+  J6:
+    verdict: holds
+    basis: >-
+      DERIVABILITY. Every required quantity (Q1-Q6, and optional Q7 wherever
+      it applies) was computed for all 90 systems from the text of the frozen
+      specifications and the blind inputs alone, by an implementation written
+      in this session that never saw any producer code, note, run or report.
+      Every BR-2 self-test passed (and six extra ones), both routes to s were
+      computed and agree on every curve-kind system, every refutation is
+      witnessed by a wdag-v1 and every non-refutation certified by an ann-v1
+      that this task's own independent checker accepts (in the pass and again
+      from the sealed files). Sixteen interpretive choices are recorded; none
+      is unresolvable and no load-bearing clause was found unreadable or
+      self-contradictory. The fixture dimensions stated in the specification
+      were reproduced by construction.
+    not_asserted: >-
+      Nothing about agreement with the run (decided by TASK-20260926-f50294),
+      about the experiment's decision rules, the hypothesis, or any curve.
+
+  # ---------------------------------------------------------------------------
+  observations_for_the_dispatcher:
+    - Dispatch precondition "dedicated git worktree ... so that no sibling's working files are listable" did not hold in effect - untracked files of other agents (review round certbin-20260926-089841) were listable in this worktree, and the session scratchpad is shared with concurrently running agents (attestation.yaml exposures_disclosed).
+    - PYTHONDONTWRITEBYTECODE was not set in the launch environment; this task set it for every command that imported its own modules, and no __pycache__ exists in its directory.
+    - Review-plan PD-R3 preference (different model family from the executor) was not met - served by claude-opus-5-5.
+
+  limitations:
+    - The re-derivation shares one author (this session) across construction and checking; checkers.py is code-independent of the constructor but not author-independent of it.
+    - The multi-level wdag construction path was exercised by self-tests only at D = 3 in 7 variables.
+    - Timings and peak RSS are single-run measurements on a shared 4-core machine.
+
+  # ---------------------------------------------------------------------------
+  # Role-contract output (agents/validator.md). This task is a blind
+  # re-derivation, not a validation of any producer receipt; the block is
+  # scoped accordingly and adds no verdict on the run.
+  validation_report:
+    id: null
+    id_note: no VAL identifier was minted; the record is identified by TASK-20260926-f0736e
+    task_id: TASK-20260926-f0736e
+    run_ids: []
+    artifact_checks:
+      - "seal.txt binds rederivation.json, wdag.jsonl.gz, ann.jsonl.gz (sha256 re-verified after the seal)"
+      - "code/ sha256 at run time recorded in rederivation.json environment.code_sha256; unchanged since, except post_seal_verify.py added after the seal"
+    metric_recomputations: ["see rederivation.json systems (Q1-Q7) -- computed here, not recomputed from any producer artifact"]
+    control_checks: ["see self_tests above; certificate-checker negative controls in rederivation.json self_tests"]
+    heuristic_validation_checks: ["not applicable -- no heuristic is tested by this task"]
+    cost_model_checks: ["not applicable -- no cost claim"]
+    proof_architecture_checks: ["not applicable"]
+    verdict: passed
+    verdict_scope: >-
+      Applies ONLY to the completeness and internal consistency of this
+      task's own re-derivation package (artifacts present, sealed, self-tests
+      passed, certificates accepted by the own checker). It is not a verdict
+      on RUN, experiment, hypothesis or claim; the review verdict of this
+      task is J6 above.
+    limitations: ["see limitations above"]
+    artifact_paths:
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/rederivation.json
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/wdag.jsonl.gz
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/ann.jsonl.gz
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/seal.txt
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/code/
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/report.yaml
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/attestation.yaml
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/post-seal-verification.json
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/checkpoints/
+      - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/logs/
+
+  artifacts:
+    sealed:
+      rederivation.json: 83de48b841ccde2d70f0402764e8955857bdaf629a1248d2c3a243b89fe9c1a9
+      wdag.jsonl.gz: bb1cd2f6fd6a34fb9135e4b83311d91af8fd8c44d2b07066dff18bbad0069f54
+      ann.jsonl.gz: 9e65e9303d5b95abc7fc60f19d4ac9ede29044ea084fa25161f4d5e4cb0010c7
+    post_seal:
+      post-seal-verification.json: c24f0ff8e2a6a8773eedd0afcda63fc0d169d002eeeab67d88927fd2f0f922f7
+      logs/run-1.log: 0c984ca3e921fa1686464d6af220c6d76ad54a3f0ef299848a59d55c33a7e2c3
+      logs/post-seal-verify.log: 9aa8c15a565332d785b2bdc8c599b5e2a29b6c17b1f8076b0bb0113323cd3faa
+      logs/removed-certificate-checkpoints.json: 8aa216db5be0e425613b266e21c4ae81491d116341bb95ba60731b61e7e12af4
+    code_sha256:
+      algebra.py: a929ef88e232117908d9b00bd8635d79def553c3484d2a0dc51f9678077c7fcf
+      ambiguities.json: 2f5ad2ab140585b60806ba6b40e7f63245c564f9fd91af9ea2b5f87aba81cac1
+      certs.py: 7f2681151b0becd7b9d699d0dd050a70d07a8a511ca82eb61c0d65f6e20dcc26
+      checkers.py: 130ac19079e27d0e2dc4ddc65c8ef3df04743a56bb87baaea3fc150000f52dcc
+      driver.py: 4f6f641cc9eca9694b14a8425c763de09373f8fdb2b3175d2b98234e5cd37cf6
+      field.py: 450a75e279cba0648bf0e2a9fe99491047d7251b1c2eb5a5f019a5b59dd8dddb
+      gf2kern.c: 05d9583664cc7a3560a6a39b11a32963edc01afa3231f48516c112824b38b44f
+      selftest.py: 5a74b98cf7aeeef549f9762404e410e3d982d728d0b6d3fafd987b04ae312421
+      post_seal_verify.py: 33e315dccce322262bbc7f241e6c8423d9add174c31b468ef8947b6aad3e89d4 (added after the seal)
+  archived_by: TASK-20260926-e8779d
+  git_writes: none
+  ledger_writes: none

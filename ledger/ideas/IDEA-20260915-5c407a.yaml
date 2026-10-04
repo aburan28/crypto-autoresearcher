@@ -1,0 +1,396 @@
+# =====================================================================
+# IDEA RECORD -- IDEA-20260915-5c407a
+# RQ-ICPERF-94c86e / GOAL-ICPERF-e6b6a4
+#
+# Sibling of IDEA-20260915-9191ed (relation layer) and
+# IDEA-20260915-69941f (solver layer). This is the DESCENT layer and the
+# only one of the three carrying a possible exponent-relevant claim.
+# WRITE-ONCE. Changes no status, asserts no evidence, runs nothing.
+# =====================================================================
+
+idea:
+  id: IDEA-20260915-5c407a
+  question_id: RQ-ICPERF-94c86e
+  question_ids:
+  - RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  goal_ids:
+  - GOAL-ICPERF-e6b6a4
+  goal_id_note: >-
+    Named because RQ-ICPERF-94c86e declares "descent / individual logarithm
+    as a separate phase" in its method scope and its decision target asks for
+    that phase's measured cost. Naming a goal is not dispatch and authorizes
+    nothing; only a Coordinator decision does.
+  added: '2026-09-15'
+  recorded_at: '2026-09-15'
+  status: proposed
+  proposed_by: idea-generator
+
+  title: >-
+    Descent is a DAG, not a tree: measure the distinct-node to tree-node
+    ratio in recursive index-calculus descent and price memoisation --
+    the one layer of the graph reframing where an exponent could move
+
+  class: mechanism
+
+  claim: >-
+    THE CLAIM, IN ONE SENTENCE. Every recursive descent in index calculus --
+    special-q descent in NFS/FFS, the Joux and Granger-Kleinjung-Zumbraegel
+    quasi-polynomial descents, and Diem's recursive decomposition over
+    F_{q^n} -- is universally described in the literature as a DESCENT TREE,
+    but the object is actually a DIRECTED ACYCLIC GRAPH: the same
+    intermediate element (prime, ideal, or factor-base-adjacent point)
+    recurs across many sibling branches, and a tree-shaped implementation
+    re-solves it once per occurrence while a DAG-shaped one solves it once.
+    The cost of descent is therefore NOT the node count of the tree but the
+    count of DISTINCT nodes, and the achievable saving is exactly the ratio
+    rho_share = (tree nodes) / (distinct nodes). THIS RATIO IS DIRECTLY
+    MEASURABLE ON INSTANCES SMALL ENOUGH TO SOLVE COMPLETELY, and its growth
+    in the parameter is the whole question: if rho_share is bounded by a
+    constant, memoisation is an engineering constant-factor and this idea is
+    a footnote in the boundary table; if rho_share GROWS with the descent
+    depth -- which is the behaviour one expects when the branching factor
+    exceeds the growth rate of the level-wise candidate pool, since by
+    pigeonhole collisions must then be forced -- the descent phase's
+    exponent is smaller than the tree analysis states, and every cost model
+    in this program that charges descent by tree size is OVERCHARGING THE
+    ATTACKER. The proposal is to instrument descent to emit its full DAG,
+    measure rho_share as a function of depth and parameter, and determine
+    which regime holds. The honest prior is that for ECDLP over F_{q^n} at
+    executable scale the descent depth is 1-2 and rho_share ~ 1 (nothing to
+    share), so the FIRST and cheapest arm is over FINITE-FIELD descent where
+    depth is genuinely large -- and the ECDLP transfer is then a separate,
+    explicitly conditional question, not an assumption. This record asserts
+    no speedup, claims no exponent, and is a candidate for the ranking, not
+    evidence.
+
+  mechanism: >-
+    [M0 -- THE OBJECT, STATED PRECISELY.] A descent step takes a target
+    element t not in the factor base and produces a relation expressing t in
+    terms of elements t_1, ..., t_k that are STRICTLY SMALLER under a
+    declared measure (degree, norm size, subspace codimension). Recurse on
+    each t_i. Terminate at factor-base elements with known logarithms.
+    Define the descent DAG D: nodes = distinct elements encountered, edges =
+    from t to each t_i of its chosen relation, leaves = factor base. D is
+    acyclic because the size measure strictly decreases along every edge --
+    which is the SAME property that makes descent terminate, so acyclicity
+    is free and needs no separate argument.
+
+    [M1 -- WHY THE LITERATURE SAYS TREE AND THE OBJECT IS A DAG.] The cost
+    analyses count nodes level by level: a branching factor B and depth d
+    give B^d leaves and the analysis charges B^d relation-finding calls.
+    That count is correct ONLY IF all B^d nodes are distinct. They need not
+    be: the level-j node set is drawn from a pool of elements of bounded
+    size (degree <= D_j polynomials, ideals of norm <= N_j, points in a
+    codimension-c subspace), and once B^j EXCEEDS that pool size,
+    REPETITION IS FORCED BY PIGEONHOLE. The tree is then a massive
+    over-count of the DAG. No new mathematics is required to see this; what
+    is missing is the MEASUREMENT of where the crossover sits.
+
+    [M2 -- THE QUANTITY.] Define, per level j: T_j = number of node
+    OCCURRENCES at level j in the tree unrolling, U_j = number of DISTINCT
+    elements among them, and rho_j = T_j / U_j. Total descent cost under
+    memoisation is sum_j U_j relation-finding calls against sum_j T_j
+    without. Three regimes, and the experiment distinguishes them:
+      (R1) rho_j -> 1: the pool is far larger than the node count at every
+           level. Memoisation buys nothing. Descent tree analysis is tight.
+      (R2) rho_j -> constant c > 1: memoisation is a constant-factor
+           engineering win. Belongs in the boundary table, not in a
+           complexity claim.
+      (R3) rho_j grows with j: sum U_j is asymptotically smaller than
+           sum T_j and the descent phase's exponent as usually stated is
+           an over-estimate. This is the only outcome with exponent
+           content, and it is the one the pigeonhole argument of M1 makes
+           plausible once B^j approaches the level pool size.
+    The experiment MEASURES rho_j. It does not assume a regime.
+
+    [M3 -- THE IMPLEMENTATION IS A CACHE, WHICH IS WHY THIS IS CHEAP.] DAG
+    descent is tree descent plus a memo table keyed on the canonical form of
+    the element, plus the discipline that the logarithm of a shared node is
+    computed once and reused. This is common-subexpression elimination,
+    textbook, with the ONE subtlety that matters: the memo key must be the
+    element's CANONICAL representative, and getting canonicalisation wrong
+    silently either misses sharing (too-fine key: measures R1 spuriously)
+    or merges distinct elements (too-coarse key: produces WRONG LOGARITHMS).
+    The instrument therefore must be validated by the known-answer control
+    below before any rho_j number is believed.
+
+    [M4 -- THE ECDLP TRANSFER, STATED AS A SEPARATE CONDITIONAL.] For ECDLP
+    over prime fields there is no descent at all, so this idea is EMPTY
+    there and the record says so rather than gesturing. For E/F_{q^n}, Diem's
+    recursion descends through the tower and the DAG exists, but at the
+    executable cells of GOAL-ICPERF-e6b6a4 (n <= 41 binary, F_{p^3} prime
+    extension) the recursion depth is 1-2 and M1's pigeonhole condition is
+    nowhere near met. The honest structure is therefore: ARM 1 measures
+    rho_j where the phenomenon can actually appear (finite-field descent at
+    depth >= 4, which this program can run cheaply in F_{2^n} with FFS-style
+    descent); ARM 2 measures it on the ECDLP cells and is EXPECTED TO
+    RETURN rho ~ 1, recorded as a scoped negative that prices the transfer
+    rather than assuming it. Anyone reading arm 1's numbers as an ECDLP
+    result is misreading the record, and the interpretation limits say so.
+
+    [M5 -- RELATION TO THE TARGET RESULT PROFILE.] docs/target-result-profile.md
+    takes Wesolowski's p^{1/3+o(1)} as exemplar. That result is structurally
+    an exponent moved by exploiting SHARING IN A RECURSION rather than by a
+    new hard-problem insight, which is exactly the shape of R3. This is a
+    reason to RANK the idea, not a reason to believe it: the analogy is a
+    taste argument and carries no evidential weight whatsoever.
+
+  tracked_object: >-
+    The descent DAG D of a completed individual-logarithm computation: its
+    per-level occurrence counts T_j, distinct-node counts U_j, the sharing
+    ratio rho_j = T_j / U_j, the in-degree distribution of shared nodes, and
+    the level at which B^j first exceeds the level-j candidate pool size.
+
+  lossy_projection_test: >-
+    Passing to D discards the arithmetic that produced each relation and
+    keeps only which elements were reached from which. The loss is
+    ACCEPTABLE HERE in a way it is not for the sibling record 9191ed,
+    because the quantity of interest (does the same element recur?) is a
+    property of the node SET, not of the arithmetic. But the loss is real in
+    one direction: two elements that are equal as group elements but reached
+    through different representations will be counted as distinct unless
+    canonicalisation catches them, so D as instrumented is a LOWER BOUND on
+    the true sharing. Every rho_j reported is therefore a lower bound, and
+    the record must state it as one -- a measured rho_j = 1 does not prove
+    no sharing exists, only that the instrument found none.
+
+  null_object_control: >-
+    A random branching process with the SAME branching factor B, the same
+    depth, and the same per-level pool sizes, sampling children uniformly
+    from the level pool. This is the "sharing you would get from pigeonhole
+    alone, with no structure". If the measured rho_j matches the random
+    branching process, the sharing is a pure counting artifact and carries
+    no information about the descent's mathematics -- still USEFUL (it is a
+    real saving) but not a finding. If measured rho_j EXCEEDS the random
+    process, the descent concentrates on a smaller effective pool than its
+    nominal size, and THAT is the finding worth chasing.
+
+  numbered_predictions:
+  - id: P1
+    statement: >-
+      INSTRUMENT CORRECTNESS. A memoised (DAG) descent and a naive (tree)
+      descent return IDENTICAL logarithms on every known-answer instance in
+      the declared set, and the memo table's canonicalisation merges no two
+      genuinely distinct elements (verified by an independent equality check
+      on every merge). Without P1 no rho_j number means anything.
+    falsified_by: >-
+      Any disagreement on a known-answer instance, or any merge of distinct
+      elements. Either kills the instrument until fixed; neither is evidence
+      about descent.
+  - id: P2
+    statement: >-
+      SHARING EXISTS AND IS MEASURABLE. In finite-field descent at depth
+      >= 4 over F_{2^n} in the declared range, rho_j > 1.5 at the deepest
+      measured level, i.e. the descent tree over-counts distinct work by at
+      least 50% there.
+    falsified_by: >-
+      rho_j <= 1.1 at every level -- regime R1, descent tree analysis is
+      tight at these sizes, and the idea reduces to a footnote.
+  - id: P3
+    statement: >-
+      REGIME DISCRIMINATION. rho_j is INCREASING in j across the measured
+      levels, and the level at which rho_j first exceeds 2 coincides (within
+      one level) with the level at which the cumulative node count first
+      exceeds the level candidate-pool size -- i.e. the pigeonhole mechanism
+      of M1 is the one producing the sharing, rather than some accident of
+      the relation-finder.
+    falsified_by: >-
+      rho_j flat in j (regime R2 -- constant-factor only, no exponent
+      content), or rho_j rising at a level unrelated to the pool-size
+      crossover (mechanism not established; the number stands but the
+      explanation does not, and no extrapolation is licensed).
+  - id: P4
+    statement: >-
+      ECDLP SCOPE, EXPECTED NEGATIVE. On the executable ECDLP cells of
+      GOAL-ICPERF-e6b6a4, rho_j is within 10% of 1 at every level, because
+      the recursion depth is 1-2 and the pigeonhole condition is not met.
+      This is recorded as a SCOPED NEGATIVE that prices the transfer.
+    falsified_by: >-
+      rho_j > 1.3 on an ECDLP cell -- which would be the genuinely
+      surprising outcome of the whole record and would promote arm 2 from a
+      control to the main result.
+
+  heuristic_assumptions:
+  - id: HEUR-1
+    formal_statement: >-
+      For a descent whose level-j nodes are drawn from a candidate pool of
+      size M_j, and whose branching factor is B, the number of DISTINCT
+      level-j nodes behaves like the occupancy count of B^j balls thrown
+      uniformly into M_j boxes, i.e. U_j ~ M_j (1 - exp(-B^j / M_j)).
+    random_model_justification: >-
+      The relation-finder selects among admissible decompositions by a
+      criterion (smoothness, degree) that is not known to correlate with
+      which sibling branch requested it, so sibling branches are modelled as
+      independent draws from the level pool. This is the standard occupancy
+      heuristic and it is TESTED, not assumed: P3 is its falsification test
+      and the null_object_control above is literally this model instantiated.
+    falsification_condition: >-
+      Measured U_j departing from the occupancy prediction by more than the
+      seed-to-seed spread, in EITHER direction. Below prediction means the
+      descent concentrates (the interesting case, more sharing than chance);
+      above means it anti-concentrates.
+    validation_plan: P3 and the null-object control.
+
+  test_boundary:
+    instances: >-
+      ARM 1 (primary): individual logarithms in F_{2^n} for n in a declared
+      range chosen so descent depth >= 4 while total time stays inside the
+      budget; FFS-style descent with an in-repo implementation. ARM 2
+      (control/scope): the executable ECDLP cells of GOAL-ICPERF-e6b6a4,
+      binary n <= 41 and F_{p^3}, using the existing Semaev/Diem
+      decomposition path. Every instance is known-answer or carries a
+      re-verified certificate. Toy scale; AGENTS rule 4 scoping applies to
+      every number.
+    parameters:
+      memo_key: >-
+        declared canonical form per element type, with an independent
+        equality check on every merge (P1). The key definition is FROZEN in
+        the contract before any run, because a key chosen after seeing rho_j
+        is not a measurement.
+      levels_instrumented: all, from target to factor base.
+      primary_unit: >-
+        relation-finding calls (hardware independent), reported as T_j and
+        U_j separately per level, never pooled. Wall time and peak memory
+        secondary.
+      seeds: "at least 20 independent targets per cell, so rho_j carries a spread"
+    implementation: >-
+      New module under experiments/. The tree and DAG descents share ONE
+      relation-finder, differing only in the memo table, so the comparison
+      cannot be confounded by two implementations of the same step.
+    budget:
+      wall_clock_seconds_per_arm: 7200
+      maximum_memory_gb: 8
+      network: none
+    controls:
+    - The random branching process null object above (the deciding control).
+    - >-
+      Known-answer control: every logarithm returned is checked against the
+      known value, tree and DAG paths independently (P1). A memoised descent
+      that returns a wrong logarithm has a canonicalisation bug, and the
+      failure mode is silent, so this control is mandatory and not optional.
+    - >-
+      Proves-too-much guard: run the memoised descent with the memo table
+      DISABLED and confirm rho_j is measured as exactly 1 by the instrument.
+      An instrument that reports sharing with its cache off is measuring
+      itself.
+
+  falsification_conditions:
+  - F1: P2 fails -- no measurable sharing anywhere, including deep
+      finite-field descent. The tree analysis is tight at every reachable
+      size and the direction closes at the tested scale.
+  - F2: P3 shows regime R2 (rho flat). Memoisation is a constant-factor
+      engineering item; it goes into the boundary table's descent column and
+      NO complexity claim is made or pursued.
+  - F3: P1 fails and cannot be repaired within budget -- canonicalisation is
+      not reliably decidable for the element type at hand. The measurement
+      is then not available by this route, which is an infrastructure
+      outcome and NEVER negative evidence about descent (AGENTS rule 3).
+
+  dominated_by: >-
+    HONEST POSITION, AND THE PART A REVIEWER SHOULD ATTACK FIRST. Sharing in
+    descent is NOT an unknown idea: serious FFS and quasi-polynomial-descent
+    implementations cache intermediate logarithms as a matter of course, and
+    any competent implementer would. The claim here is narrower and must
+    stay narrow: that the COST ANALYSES in the literature are stated on the
+    tree, that this program's own cost models charge descent by tree size,
+    and that the ratio rho_j has not (to this record's knowledge, unverified)
+    been MEASURED AND REPORTED as a function of depth for the descents this
+    program cares about. If a novelty screen finds rho_j measured and
+    published, this record is dominated and should be closed with the
+    published numbers ingested via /curate-knowledge. If it finds the
+    ANALYSES already done on the DAG rather than the tree, then regime R3
+    has no exponent content even if rho_j grows, and the record collapses to
+    F2 by argument rather than by experiment -- a reviewer who can establish
+    that saves the whole budget and should.
+
+  sota_delta: >-
+    Against SOTA: NO claimed delta. Nothing here makes any curve or field
+    closer to broken, and arm 2 is PREDICTED NEGATIVE for ECDLP. Against
+    this program's cost models: if regime R3 holds, every internal model
+    charging descent by tree size over-charges the attacker by a factor that
+    grows with depth, which makes this program's own "index calculus loses
+    by X" statements too generous to the defender in the descent column.
+    Correcting a cost model in the attacker's favour is a real result of the
+    kind RQ-ICPERF-94c86e exists to produce, and is the honest ceiling of
+    this idea.
+
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has been run. Every citation below is RECALLED. The
+    load-bearing open question for the screen is narrow and should be asked
+    exactly this way: has the distinct-node vs tree-node ratio in descent
+    been measured and reported as a function of depth, and are the published
+    descent complexity analyses stated on the tree or on the DAG? The answer
+    to the second half determines whether R3 has any exponent content at all.
+
+  citations:
+  - description: >-
+      Quasi-polynomial descent in small-characteristic finite fields; the
+      descent recursion whose depth makes arm 1 possible.
+    citation: >-
+      A. Joux, "A new index calculus algorithm with complexity L(1/4+o(1))",
+      SAC 2013; R. Granger, T. Kleinjung, J. Zumbraegel, "On the discrete
+      logarithm problem in finite fields of fixed characteristic", Trans.
+      AMS 370 (2018) (RECALLED -- pointers for the reviewer, not support).
+    provenance: recalled
+    role: the recursion whose DAG structure is measured
+  - description: >-
+      Special-q descent in NFS/FFS, the individual-logarithm phase whose
+      cost is conventionally charged on the descent tree.
+    citation: >-
+      A. Commeine and I. Semaev, "An algorithm to solve the discrete
+      logarithm problem with the number field sieve", PKC 2006 (RECALLED).
+    provenance: recalled
+    role: the conventional tree-charged cost model this idea questions
+  - description: >-
+      Recursive decomposition over E/F_{q^n}; the ECDLP descent of arm 2.
+    citation: >-
+      C. Diem, "On the discrete logarithm problem in elliptic curves",
+      Compositio Math. 147 (2011) (RECALLED -- pointer only).
+    provenance: recalled
+    role: the ECDLP instance of the same structure
+  - description: >-
+      The exemplar the target-result profile names: an exponent moved by
+      exploiting structure in a recursion, stated on numbered heuristics.
+      Cited as TASTE, carrying zero evidential weight for this record.
+    citation: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (internal, frozen)
+    provenance: internal
+    verified_by: >-
+      not read for this record; cited as the program's declared exemplar per
+      docs/target-result-profile.md, not as mathematical support
+    role: ranking rationale only, never support
+
+  interpretation_limits:
+  - >-
+    ARM 1 IS NOT AN ECDLP RESULT. It measures finite-field descent because
+    that is where depth exists. Any transfer to ECDLP is conditional on arm
+    2, which this record PREDICTS WILL BE NEGATIVE at executable scale.
+    A reader taking arm 1's rho_j as an elliptic-curve number is misreading
+    the record.
+  - >-
+    Every rho_j is a LOWER BOUND on true sharing, because canonicalisation
+    can only under-merge safely (over-merging is a correctness bug caught by
+    P1). A measured rho_j = 1 therefore does not prove no sharing exists.
+  - >-
+    Regime R3 at toy depth does not establish R3 asymptotically. The
+    pigeonhole mechanism of M1 gives a REASON to expect persistence, but a
+    reason is not a proof and no extrapolation to cryptographic sizes is
+    licensed by this experiment. Any such extrapolation is arithmetic on
+    numbered assumptions and must be labelled as such.
+  - >-
+    A memoised descent trades time for MEMORY, and the memo table is exactly
+    the kind of cost this program has repeatedly found decides comparisons
+    against rho. Any cost statement from this line must be memory-charged,
+    or it is not a cost statement.
+
+  estimated_cost:
+    wall_clock_hours: 6
+    note: >-
+      Advisory only, per CLAUDE.md research budget policy. Dominated by arm
+      1, which needs a working FFS-style descent this repo does not yet
+      have; if that implementation is judged too large, a reduced arm 1 over
+      a SMALLER field with depth 3 still discriminates R1 from R2/R3 and
+      should be preferred to dropping the arm.
+
+  recommended_priority: high

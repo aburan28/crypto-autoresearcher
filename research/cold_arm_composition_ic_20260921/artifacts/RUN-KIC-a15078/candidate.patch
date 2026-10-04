@@ -1,0 +1,566 @@
+diff --git a/examples/koblitz_rank_fixture.rs b/examples/koblitz_rank_fixture.rs
+index eac4097e28..f189c5c522 100644
+--- a/examples/koblitz_rank_fixture.rs
++++ b/examples/koblitz_rank_fixture.rs
+@@ -317,6 +317,7 @@ struct CompactPairTable {
+ impl CompactPairTable {
+     fn with_capacity(expected: usize, x_only: bool, x_domain: usize) -> Self {
+         let capacity = expected.max(2).next_power_of_two();
++        let capacity = if x_only { capacity * 2 } else { capacity };
+         let x_filter_exact = x_only && x_domain <= (1usize << 29);
+         let filter_bits = if !x_only {
+             0
+@@ -692,6 +693,22 @@ unsafe fn arm_pmull_product(left: u64, right: u64) -> u128 {
+     std::arch::aarch64::vmull_p64(left, right)
+ }
+ 
++#[inline]
++fn arm_n53_fused_enabled(curve: &KoblitzCurve) -> bool {
++    curve.n == 53 && arm_pmull_enabled() && n53_fast_reduction_enabled()
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_pmull_reduce_n53(left: u64, right: u64) -> u64 {
++    const MASK: u64 = (1u64 << 53) - 1;
++    let product = unsafe { arm_pmull_product(left, right) };
++    let high = (product >> 53) as u64;
++    let first = (product as u64 & MASK) ^ high ^ (high << 1) ^ (high << 2) ^ (high << 6);
++    let overflow = first >> 53;
++    (first & MASK) ^ overflow ^ (overflow << 1) ^ (overflow << 2) ^ (overflow << 6)
++}
++
+ fn square_raw_dispatched(curve: &KoblitzCurve, value: u64) -> u64 {
+     #[cfg(target_arch = "aarch64")]
+     if arm_pmull_enabled() {
+@@ -730,6 +747,10 @@ fn square_raw_dispatched(curve: &KoblitzCurve, value: u64) -> u64 {
+ 
+ #[inline(always)]
+ fn square_raw(curve: &KoblitzCurve, value: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_pmull_reduce_n53(value, value) };
++    }
+     #[cfg(target_arch = "x86_64")]
+     if curve.n == 53 && combined_n53_fast_path_enabled() {
+         // SAFETY: the combined cached predicate includes the runtime PCLMUL
+@@ -881,6 +902,7 @@ fn field_reduction_backend(curve: &KoblitzCurve) -> &'static str {
+ }
+ 
+ fn field_product_pipeline(curve: &KoblitzCurve) -> &'static str {
++    if arm_n53_fused_enabled(curve) { return "aarch64_pmull_n53_fused_reduce"; }
+     if curve.n == 53 && pclmul_enabled() && n53_fast_reduction_enabled() && fused_pcl_n53_enabled()
+     {
+         "x86_64_pclmul_n53_fused_reduce"
+@@ -890,6 +912,7 @@ fn field_product_pipeline(curve: &KoblitzCurve) -> &'static str {
+ }
+ 
+ fn field_product_dispatch(curve: &KoblitzCurve) -> &'static str {
++    if arm_n53_fused_enabled(curve) { return "aarch64_fused_n53_batch_entry"; }
+     if curve.n == 53 && combined_n53_fast_path_enabled() {
+         "inline_combined_n53_predicate"
+     } else {
+@@ -934,6 +957,10 @@ fn mul_raw_dispatched(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
+ 
+ #[inline(always)]
+ fn mul_raw(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_pmull_reduce_n53(left, right) };
++    }
+     #[cfg(target_arch = "x86_64")]
+     if curve.n == 53 && combined_n53_fast_path_enabled() {
+         // SAFETY: the combined cached predicate includes the runtime PCLMUL
+@@ -945,6 +972,10 @@ fn mul_raw(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
+ 
+ fn inverse_raw(curve: &KoblitzCurve, value: u64) -> u64 {
+     assert_ne!(value, 0);
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_inverse_n53_itoh(value) };
++    }
+     let exponent = (1u64 << curve.n) - 2;
+     let mut result = 1u64;
+     let mut base = value;
+@@ -957,6 +988,28 @@ fn inverse_raw(curve: &KoblitzCurve, value: u64) -> u64 {
+     result
+ }
+ 
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_frobenius_n53(mut value: u64, squarings: u32) -> u64 {
++    for _ in 0..squarings { value = unsafe { arm_pmull_reduce_n53(value, value) }; }
++    value
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_inverse_n53_itoh(value: u64) -> u64 {
++    debug_assert_ne!(value, 0);
++    let b1 = value;
++    let b2 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b1, 1), b1) };
++    let b4 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b2, 2), b2) };
++    let b8 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b4, 4), b4) };
++    let b16 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b8, 8), b8) };
++    let b32 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b16, 16), b16) };
++    let b48 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b32, 16), b16) };
++    let b52 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b48, 4), b4) };
++    unsafe { arm_pmull_reduce_n53(b52, b52) }
++}
++
+ type RawPoint = Option<(u64, u64)>;
+ 
+ fn to_raw_point(point: &BinaryPoint) -> RawPoint {
+@@ -1958,6 +2011,89 @@ unsafe fn batch_compact_n53_target_minus_signed_points_x_filtered(
+     attempted
+ }
+ 
++/// ARM version of the compact dual-sign kernel. The feature check occurs in
++/// pair_pair_cursor_chunk, so every field operation here uses the fused PMULL
++/// primitive without another runtime dispatch.
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn batch_compact_n53_arm_target_minus_signed_points_x_filtered(
++    curve: &KoblitzCurve,
++    target: RawPoint,
++    points: &[(u64, u64)],
++    table: &CompactPairTable,
++    output: &mut Vec<(usize, bool, (u64, u64))>,
++    scratch: &mut RawBatchScratch,
++) -> usize {
++    debug_assert_eq!(curve.n, 53);
++    assert!(table.x_only);
++    output.clear();
++    let Some((target_x, target_y)) = target else {
++        let mut attempted = 0usize;
++        for (index, &(key_x, y)) in points.iter().enumerate() {
++            if key_x == 0 {
++                attempted += 1;
++                if table.might_contain_x(0) { output.push((index, false, (0, 0))); }
++                continue;
++            }
++            let x = key_x - 1;
++            attempted += 1;
++            if table.might_contain_x(key_x) { output.push((index, false, (key_x, y ^ x))); }
++            attempted += 1;
++            if table.might_contain_x(key_x) { output.push((index, true, (key_x, y))); }
++        }
++        return attempted;
++    };
++    scratch.denominators.resize(points.len(), 0);
++    scratch.prefixes_and_inverses.resize(points.len(), 0);
++    let mut product = 1u64;
++    for (index, &(key_x, _)) in points.iter().enumerate() {
++        let denominator = if key_x == 0 { 0 } else { target_x ^ (key_x - 1) };
++        scratch.denominators[index] = denominator;
++        if denominator != 0 {
++            scratch.prefixes_and_inverses[index] = product;
++            product = unsafe { arm_pmull_reduce_n53(product, denominator) };
++        }
++    }
++    let mut inverse_product = unsafe { arm_inverse_n53_itoh(product) };
++    for index in (0..points.len()).rev() {
++        let denominator = scratch.denominators[index];
++        if denominator == 0 { continue; }
++        let inverse = unsafe { arm_pmull_reduce_n53(inverse_product, scratch.prefixes_and_inverses[index]) };
++        inverse_product = unsafe { arm_pmull_reduce_n53(inverse_product, denominator) };
++        scratch.prefixes_and_inverses[index] = inverse;
++    }
++    let mut attempted = 0usize;
++    for (index, &(key_x, y)) in points.iter().enumerate() {
++        if key_x == 0 {
++            let key = raw_compact_key(target);
++            attempted += 1;
++            if table.might_contain_x(key.0) { output.push((index, false, key)); }
++            continue;
++        }
++        let x = key_x - 1;
++        if scratch.denominators[index] == 0 {
++            let point = Some((x, y));
++            for (negative, left) in [(false, point), (true, raw_neg_point(point))] {
++                let key = raw_compact_key(raw_add_point(curve, target, raw_neg_point(left)));
++                attempted += 1;
++                if table.might_contain_x(key.0) { output.push((index, negative, key)); }
++            }
++            continue;
++        }
++        let inverse = scratch.prefixes_and_inverses[index];
++        for (negative, numerator) in [(false, target_y ^ y ^ x), (true, target_y ^ y)] {
++            let lambda = unsafe { arm_pmull_reduce_n53(numerator, inverse) };
++            let x3 = unsafe { arm_pmull_reduce_n53(lambda, lambda) } ^ lambda ^ target_x ^ x ^ curve.a as u64;
++            let rest_x = x3 + 1;
++            attempted += 1;
++            if !table.might_contain_x(rest_x) { continue; }
++            let y3 = unsafe { arm_pmull_reduce_n53(lambda, target_x ^ x3) } ^ x3 ^ target_y;
++            output.push((index, negative, (rest_x, y3)));
++        }
++    }
++    attempted
++}
++
+ fn batch_raw_add_keys(curve: &KoblitzCurve, pairs: &[(RawPoint, RawPoint)]) -> Vec<(u64, u64)> {
+     let mut denominators = vec![0u64; pairs.len()];
+     let mut prefixes = vec![0u64; pairs.len()];
+@@ -2291,6 +2427,7 @@ struct PairPairChunkResult {
+     exact_table_misses: usize,
+     batch_inversions: usize,
+     shared_denominator_inputs: usize,
++    arm_n53_batch_used: bool,
+ }
+ 
+ /// Evaluate one fixed cursor interval of the signed-expanded pair table.
+@@ -2366,7 +2503,23 @@ fn pair_pair_cursor_chunk(
+         && specialized_n53_batch
+         && curve.n == 53
+         && combined_n53_fast_path_enabled();
+-    let attempted = if use_specialized_n53_batch {
++    let use_arm_n53_batch = dual_sign
++        && compact_scratch
++        && specialized_n53_batch
++        && arm_n53_fused_enabled(curve);
++    let attempted = if use_arm_n53_batch {
++        #[cfg(target_arch = "aarch64")]
++        {
++            unsafe {
++                batch_compact_n53_arm_target_minus_signed_points_x_filtered(
++                    curve, target, &scratch.compact_points, quotient_pairs,
++                    &mut scratch.dual_rests, &mut scratch.batch,
++                )
++            }
++        }
++        #[cfg(not(target_arch = "aarch64"))]
++        { unreachable!("ARM predicate cannot hold off aarch64") }
++    } else if use_specialized_n53_batch {
+         #[cfg(target_arch = "x86_64")]
+         {
+             // SAFETY: the combined predicate includes the runtime PCLMUL
+@@ -2421,6 +2574,7 @@ fn pair_pair_cursor_chunk(
+     };
+     let mut result = PairPairChunkResult {
+         additions: attempted,
++        arm_n53_batch_used: use_arm_n53_batch,
+         x_filter_rejections: attempted - filtered_hits,
+         batch_inversions: usize::from(target.is_some()),
+         shared_denominator_inputs: if dual_sign {
+@@ -3549,6 +3703,7 @@ fn main() {
+         let mut query_batch_inversions = 0usize;
+         let mut query_parallel_waves = 0usize;
+         let mut query_parallel_chunks = 0usize;
++        let mut arm_n53_batch_chunks = 0usize;
+         let mut query_shared_sign_denominator_inputs = 0usize;
+         let mut rank_targeted_trials = 0usize;
+         let mut rank_targeted_nonincrements = 0usize;
+@@ -3722,6 +3877,7 @@ fn main() {
+                         query_parallel_waves += 1;
+                         query_parallel_chunks += pair_parallel_results.len();
+                         for result in pair_parallel_results.drain(..) {
++                            arm_n53_batch_chunks += usize::from(result.arm_n53_batch_used);
+                             query_additions += result.additions;
+                             decomposition_queries += result.additions;
+                             query_x_filter_rejections += result.x_filter_rejections;
+@@ -4308,8 +4464,11 @@ fn main() {
+                 "query_shared_sign_denominator_inputs":query_shared_sign_denominator_inputs,
+                 "query_dual_sign_denominator_sharing":query_mode.pair_pair_parallel() && dual_sign_pair_scan,
+                 "query_compact_pair_scratch":query_mode.pair_pair_parallel() && dual_sign_pair_scan && compact_pair_scratch,
+-                "query_specialized_n53_pair_batch":query_mode.pair_pair_parallel() && dual_sign_pair_scan && compact_pair_scratch && specialized_n53_pair_batch && n==53 && combined_n53_fast_path_enabled(),
+-                "query_itoh_n53_inverse":query_mode.pair_pair_parallel() && specialized_n53_pair_batch && n==53 && combined_n53_fast_path_enabled() && itoh_n53_inverse_enabled(),
++                "query_specialized_n53_pair_batch":arm_n53_batch_chunks>0 || (query_mode.pair_pair_parallel() && dual_sign_pair_scan && compact_pair_scratch && specialized_n53_pair_batch && n==53 && combined_n53_fast_path_enabled()),
++                "query_arm_n53_batch_chunks":arm_n53_batch_chunks,
++                "query_arm_n53_batch_used":arm_n53_batch_chunks>0,
++                "query_itoh_n53_inverse":arm_n53_batch_chunks>0 || (query_mode.pair_pair_parallel() && specialized_n53_pair_batch && n==53 && combined_n53_fast_path_enabled() && itoh_n53_inverse_enabled()),
++                "field_inversion_backend":if arm_n53_fused_enabled(&curve) {"aarch64_itoh_n53"} else if n==53 && combined_n53_fast_path_enabled() && itoh_n53_inverse_enabled() {"x86_itoh_n53_batch"} else {"binary_exponentiation"},
+                 "query_prefiltered_exact_lookup":query_mode.pair_pair_width().is_some() && prefiltered_exact_lookup_enabled(),
+                 "query_raw_point_scratch_bytes":std::mem::size_of::<RawPoint>(),
+                 "query_compact_point_scratch_bytes":std::mem::size_of::<(u64,u64)>(),
+@@ -4963,6 +5122,132 @@ mod packed_tests {
+     }
+ }
+ 
++#[cfg(all(test, target_arch = "aarch64"))]
++mod p4_field_controls {
++    use super::*;
++    use crypto_lib::hash::sha256::sha256;
++
++    fn oracle_product(left: u64, right: u64) -> u128 {
++        let mut product = 0u128;
++        for bit in 0..53 { if (right >> bit) & 1 != 0 { product ^= (left as u128) << bit; } }
++        product
++    }
++    fn oracle_reduce(mut product: u128) -> u64 {
++        let polynomial = (1u128 << 53) | (1u128 << 6) | (1u128 << 2) | (1u128 << 1) | 1;
++        for degree in (53..=104).rev() {
++            if product & (1u128 << degree) != 0 { product ^= polynomial << (degree - 53); }
++        }
++        product as u64
++    }
++    fn oracle_mul(left: u64, right: u64) -> u64 { oracle_reduce(oracle_product(left, right)) }
++    fn oracle_inverse(value: u64) -> u64 {
++        assert_ne!(value, 0);
++        let mut result = 1u64; let mut base = value;
++        const EXPONENT: u64 = (1u64 << 53) - 2;
++        for bit in 0..53 {
++            if EXPONENT >> bit & 1 != 0 { result = oracle_mul(result, base); }
++            base = oracle_mul(base, base);
++        }
++        result
++    }
++    fn corpus() -> Vec<u64> {
++        use num_bigint::BigUint;
++        let modulus = BigUint::from((1u64 << 53) - 1);
++        (0..256).map(|index| {
++            let label = format!("CSIC53-ARMCOMPOSE-v1-field-{index:03}");
++            let value = BigUint::from_bytes_le(&sha256(label.as_bytes()));
++            1 + (value % &modulus).to_u64().unwrap()
++        }).collect()
++    }
++    #[test]
++    fn exact_basis_products_squares_edges_and_inverse_corpus() {
++        let curve = KoblitzCurve::new(0, 53).unwrap();
++        assert!(arm_n53_fused_enabled(&curve));
++        for i in 0..53 {
++            let left = 1u64 << i;
++            assert_eq!(square_raw(&curve, left), oracle_mul(left, left));
++            for j in 0..53 {
++                let right = 1u64 << j;
++                assert_eq!(mul_raw(&curve, left, right), oracle_mul(left, right));
++            }
++        }
++        let even = (0..53).step_by(2).fold(0u64, |v, i| v | (1u64 << i));
++        let odd = (1..53).step_by(2).fold(0u64, |v, i| v | (1u64 << i));
++        let edges = [0, 1, (1u64 << 53) - 1, even, odd];
++        for left in edges { for right in edges {
++            assert_eq!(mul_raw(&curve, left, right), oracle_mul(left, right));
++            assert_eq!(square_raw(&curve, left), oracle_mul(left, left));
++        }}
++        for value in corpus() {
++            let inverse = inverse_raw(&curve, value);
++            assert_eq!(inverse, oracle_inverse(value));
++            assert_eq!(oracle_mul(value, inverse), 1);
++        }
++    }
++    #[test]
++    fn itoh_chain_exponent_is_exactly_inverse_exponent() {
++        let mut exponent = 1u128; let mut length = 1u32;
++        for previous in [1, 2, 4, 8, 16] {
++            exponent = (exponent << previous) + exponent;
++            length *= 2;
++        }
++        assert_eq!(length, 32);
++        exponent = (exponent << 16) + ((1u128 << 16) - 1);
++        exponent = (exponent << 4) + ((1u128 << 4) - 1);
++        assert_eq!(exponent, (1u128 << 52) - 1);
++        assert_eq!(exponent << 1, (1u128 << 53) - 2);
++    }
++
++    #[test]
++    fn thirty_compact_dual_sign_batch_shapes_match_generic() {
++        let curve = KoblitzCurve::new(0, 53).unwrap();
++        assert!(arm_n53_fused_enabled(&curve));
++        let generator = to_raw_point(curve.generator());
++        let mut cycle: Vec<RawPoint> = (0..=64u64)
++            .map(|scalar| raw_scalar_point(&curve, generator, scalar))
++            .collect();
++        cycle.push(Some((0, 1)));
++        let mut table = CompactPairTable::with_capacity(66, true, (1usize << 53) + 1);
++        let mut insertions = 0usize;
++        for &point in &cycle {
++            let key = raw_compact_key(point);
++            table.insert(key, QuotientPairWitness::from_point_indices([0, 0], key.1));
++            insertions += 1;
++            assert!(table.might_contain_x(key.0));
++            assert!(table.get(key).is_some());
++        }
++        assert_eq!(insertions, 66);
++        assert_eq!(table.len(), 66, "the bounded table has 66 distinct active x keys");
++        for target_scalar in [0u64, 1, 2, 7, 31] {
++            let target = raw_scalar_point(&curve, generator, target_scalar);
++            for width in [0usize, 1, 8, 63, 257, 4096] {
++                let points: Vec<_> = cycle.iter().cycle().take(width)
++                    .map(|&point| raw_compact_key(point)).collect();
++                let mut generic = Vec::new();
++                let mut arm = Vec::new();
++                let mut generic_scratch = RawBatchScratch::default();
++                let mut arm_scratch = RawBatchScratch::default();
++                let generic_attempted = batch_compact_target_minus_signed_points_x_filtered(
++                    &curve, target, &points, &table, &mut generic, &mut generic_scratch,
++                );
++                let arm_attempted = unsafe {
++                    batch_compact_n53_arm_target_minus_signed_points_x_filtered(
++                        &curve, target, &points, &table, &mut arm, &mut arm_scratch,
++                    )
++                };
++                assert_eq!(generic_attempted, arm_attempted, "target={target_scalar}, width={width}");
++                assert_eq!(generic, arm, "target={target_scalar}, width={width}");
++                for &(index, negative, key) in &arm {
++                    let left = cycle[index % cycle.len()];
++                    let signed = if negative { raw_neg_point(left) } else { left };
++                    let expected = raw_compact_key(raw_add_point(&curve, target, raw_neg_point(signed)));
++                    assert_eq!(key, expected, "target={target_scalar}, width={width}, index={index}");
++                }
++            }
++        }
++    }
++}
++
+ #[cfg(test)]
+ mod target_certificate_tests {
+     use super::*;
+
+diff --git a/examples/koblitz_rho_fixture.rs b/examples/koblitz_rho_fixture.rs
+index 5054da8a14..27b8a3d04f 100644
+--- a/examples/koblitz_rho_fixture.rs
++++ b/examples/koblitz_rho_fixture.rs
+@@ -191,7 +191,49 @@ unsafe fn arm_pmull_product(left: u64, right: u64) -> u128 {
+     std::arch::aarch64::vmull_p64(left, right)
+ }
+ 
++#[inline]
++fn arm_n53_fused_enabled(curve: &KoblitzCurve) -> bool {
++    curve.n == 53 && arm_pmull_enabled()
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_pmull_reduce_n53(left: u64, right: u64) -> u64 {
++    const MASK: u64 = (1u64 << 53) - 1;
++    let product = unsafe { arm_pmull_product(left, right) };
++    let high = (product >> 53) as u64;
++    let first = (product as u64 & MASK) ^ high ^ (high << 1) ^ (high << 2) ^ (high << 6);
++    let overflow = first >> 53;
++    (first & MASK) ^ overflow ^ (overflow << 1) ^ (overflow << 2) ^ (overflow << 6)
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_frobenius_n53(mut value: u64, squarings: u32) -> u64 {
++    for _ in 0..squarings { value = unsafe { arm_pmull_reduce_n53(value, value) }; }
++    value
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_inverse_n53_itoh(value: u64) -> u64 {
++    debug_assert_ne!(value, 0);
++    let b1 = value;
++    let b2 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b1, 1), b1) };
++    let b4 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b2, 2), b2) };
++    let b8 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b4, 4), b4) };
++    let b16 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b8, 8), b8) };
++    let b32 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b16, 16), b16) };
++    let b48 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b32, 16), b16) };
++    let b52 = unsafe { arm_pmull_reduce_n53(arm_frobenius_n53(b48, 4), b4) };
++    unsafe { arm_pmull_reduce_n53(b52, b52) }
++}
++
+ fn raw_square(curve: &KoblitzCurve, value: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_pmull_reduce_n53(value, value) };
++    }
+     #[cfg(target_arch = "aarch64")]
+     if arm_pmull_enabled() {
+         // SAFETY: the runtime guard proves the required PMULL feature.
+@@ -217,6 +259,10 @@ fn raw_square(curve: &KoblitzCurve, value: u64) -> u64 {
+ }
+ 
+ fn raw_mul_field(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_pmull_reduce_n53(left, right) };
++    }
+     #[cfg(target_arch = "aarch64")]
+     if arm_pmull_enabled() {
+         // SAFETY: the runtime guard proves the required PMULL feature.
+@@ -244,6 +290,10 @@ fn raw_mul_field(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
+ 
+ fn raw_inverse(curve: &KoblitzCurve, value: u64) -> u64 {
+     assert_ne!(value, 0);
++    #[cfg(target_arch = "aarch64")]
++    if arm_n53_fused_enabled(curve) {
++        return unsafe { arm_inverse_n53_itoh(value) };
++    }
+     let exponent = (1u64 << curve.n) - 2;
+     let mut result = 1u64;
+     let mut base = value;
+@@ -928,8 +978,10 @@ fn solve_fixture_packed(
+         "lambda":lambda,
+         "quotient_mode":mode.name(),
+         "arithmetic_backend":"packed_u64_polynomial_basis",
+-        "field_multiplication_backend":if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_sparse_carryless"},
+-        "field_squaring_backend":if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_bit_interleave"},
++        "field_multiplication_backend":if arm_n53_fused_enabled(&curve) {"aarch64_pmull_n53_fused_reduce"} else if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_sparse_carryless"},
++        "field_squaring_backend":if arm_n53_fused_enabled(&curve) {"aarch64_pmull_n53_fused_reduce"} else if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_bit_interleave"},
++        "field_inversion_backend":if arm_n53_fused_enabled(&curve) {"aarch64_itoh_n53"} else {"binary_exponentiation"},
++        "arm_n53_fused_used":arm_n53_fused_enabled(&curve),
+         "automorphism_size":match mode {
+             Quotient::Ordinary => 1,
+             Quotient::Negation => 2,
+@@ -1031,6 +1083,68 @@ fn main() {
+     }
+ }
+ 
++#[cfg(all(test, target_arch = "aarch64"))]
++mod p4_field_controls {
++    use super::*;
++    use crypto_lib::hash::sha256::sha256;
++    use num_traits::ToPrimitive;
++    fn product(left: u64, right: u64) -> u128 {
++        let mut p = 0u128;
++        for bit in 0..53 { if right >> bit & 1 != 0 { p ^= (left as u128) << bit; } }
++        p
++    }
++    fn reduce(mut p: u128) -> u64 {
++        let polynomial = (1u128 << 53) | (1u128 << 6) | (1u128 << 2) | (1u128 << 1) | 1;
++        for degree in (53..=104).rev() {
++            if p & (1u128 << degree) != 0 { p ^= polynomial << (degree - 53); }
++        }
++        p as u64
++    }
++    fn mul(a: u64, b: u64) -> u64 { reduce(product(a,b)) }
++    fn inverse(value: u64) -> u64 {
++        let mut result=1u64; let mut base=value;
++        for bit in 0..53 {
++            if (((1u64<<53)-2)>>bit)&1 != 0 {result=mul(result,base);}
++            base=mul(base,base);
++        }
++        result
++    }
++    #[test]
++    fn basis_edges_sha256_inverse_oracle() {
++        assert!(arm_pmull_enabled());
++        let curve=KoblitzCurve::new(0,53).unwrap();
++        assert!(arm_n53_fused_enabled(&curve));
++        for i in 0..53 {
++            let a=1u64<<i;
++            assert_eq!(raw_square(&curve,a),mul(a,a));
++            for j in 0..53 { let b=1u64<<j; assert_eq!(raw_mul_field(&curve,a,b),mul(a,b)); }
++        }
++        let even=(0..53).step_by(2).fold(0u64,|v,i|v|(1u64<<i));
++        let odd=(1..53).step_by(2).fold(0u64,|v,i|v|(1u64<<i));
++        for a in [0,1,(1u64<<53)-1,even,odd] {
++            for b in [0,1,(1u64<<53)-1,even,odd] {assert_eq!(raw_mul_field(&curve,a,b),mul(a,b));}
++            assert_eq!(raw_square(&curve,a),mul(a,a));
++        }
++        let modulus=BigUint::from((1u64<<53)-1);
++        for index in 0..256 {
++            let label=format!("CSIC53-ARMCOMPOSE-v1-field-{index:03}");
++            let value=1+(BigUint::from_bytes_le(&sha256(label.as_bytes()))%&modulus).to_u64().unwrap();
++            let candidate=raw_inverse(&curve,value);
++            assert_eq!(candidate,inverse(value));
++            assert_eq!(mul(value,candidate),1);
++        }
++    }
++    #[test]
++    fn itoh_exponent_chain() {
++        let mut e=1u128;
++        for k in [1,2,4,8,16] {e=(e<<k)+e;}
++        e=(e<<16)+((1u128<<16)-1);
++        e=(e<<4)+((1u128<<4)-1);
++        assert_eq!(e,(1u128<<52)-1);
++        assert_eq!(e<<1,(1u128<<53)-2);
++    }
++}
++
+ #[cfg(test)]
+ mod packed_tests {
+     use super::*;

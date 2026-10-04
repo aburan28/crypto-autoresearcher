@@ -1,0 +1,48 @@
+experiment:
+  id: EXP-PRECOMP-008
+  status: proposed
+  title: Cache transport and Redis overhead accounting
+  objective: >-
+    Measure whether local/remote cache transport, serialization, and
+    deserialization erase solver-side precomputation gains. This experiment
+    validates storage engineering; it does not by itself support a mathematical
+    speedup claim.
+  cache_key: >-
+    H(p,a,b,factor_base_rule,m,monomial_order,solver_version,solver_options,artifact_kind)
+  artifact_classes:
+    - polynomial_system
+    - symbolic_preprocessing
+    - Macaulay_layout
+    - F4_trace
+    - pivot_schedule
+    - SAT_static_state
+    - SAT_validated_learned_state
+    - Groebner_prefix
+  backends:
+    - in_process_memory
+    - local_filesystem
+    - redis_or_elasticache_when_configured
+  metrics:
+    primary: end_to_end_warm_seconds
+    required:
+      - lookup_seconds
+      - deserialize_seconds
+      - specialize_seconds
+      - solve_seconds
+      - validate_seconds
+      - payload_bytes
+      - compressed_bytes
+      - cache_hit_rate
+      - cache_miss_rate
+      - backend_errors
+  controls:
+    - byte-identical artifact payload for backend comparisons
+    - cold no-cache baseline
+    - local-memory baseline separates math benefit from transport cost
+  success_criterion: >-
+    Remote-cache overhead consumes <=20% of the solver-side warm-time savings
+    for at least two artifact classes that achieved >=3x local-memory speedup.
+  falsification_hook: >-
+    Remote transport/serialization erases >=80% of local-memory savings for all
+    tested artifact classes; in that case retain local/disk caching only.
+  depends_on: [EXP-PRECOMP-002, EXP-PRECOMP-004, EXP-PRECOMP-005, EXP-PRECOMP-007]

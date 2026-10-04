@@ -19,10 +19,9 @@ claim to be: a reader comparing it against a working tree needs to know
 which commit they are looking at, and a static page that implied freshness
 would mislead on exactly the point that matters.
 
-Source text is deliberately NOT bundled. 116 MB of YAML would triple the
-site for bytes that are one click away on GitHub, permalinked to the built
-commit and syntax-highlighted there. The local server still inlines it,
-because it costs nothing to read a file that is already on disk.
+Source text is bundled in separate, per-record JSON files. The Source tab
+loads one on demand, so reading a finding does not download its YAML or the
+rest of the corpus. These files are included in the Pages size gate.
 """
 
 from __future__ import annotations
@@ -39,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import payloads
+from . import ops, payloads
 from .index import ResearchIndex
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -97,7 +96,7 @@ def write_json(path: Path, payload: Any) -> int:
 
 
 def build(repo: Path, out: Path, clean: bool = True,
-          verbose: bool = True) -> dict[str, Any]:
+          verbose: bool = True, progress_snapshot: Path | None = None) -> dict[str, Any]:
     started = time.time()
 
     def say(message: str) -> None:
@@ -146,10 +145,14 @@ def build(repo: Path, out: Path, clean: bool = True,
     total += write_json(data / "meta.json", meta)
     total += write_json(data / "index.json", payloads.index_rows(index))
     total += write_json(data / "overview.json", payloads.overview_payload(index))
+    total += write_json(data / "progress.json", payloads.progress_payload(index, progress_snapshot))
+    total += write_json(data / "comparisons.json", payloads.comparisons_payload(index))
     total += write_json(data / "goals.json", payloads.goals_payload(index))
     total += write_json(data / "experiments.json", payloads.experiments_payload(index))
     total += write_json(data / "findings.json", payloads.findings_payload(index))
     total += write_json(data / "integrity.json", index.integrity)
+    say("  ops snapshot")
+    total += write_json(data / "ops.json", ops.collect_payload())
 
     say("  goals")
     for goal in index.goals:
@@ -160,6 +163,8 @@ def build(repo: Path, out: Path, clean: bool = True,
     for n, record_id in enumerate(index.records, 1):
         payload = payloads.record_payload(index, record_id, include_raw=False)
         total += write_json(data / "records" / f"{record_id}.json", payload)
+        total += write_json(data / "sources" / f"{record_id}.json",
+                            payloads.source_payload(index, record_id))
         if verbose and n % 2000 == 0:
             say(f"    {n}/{len(index.records)}")
 
@@ -196,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--out", type=Path, default=Path("site"),
                         help="output directory (default: ./site, gitignored)")
+    parser.add_argument("--progress-snapshot", type=Path, help="sanitized progress snapshot JSON")
     parser.add_argument("--keep", action="store_true",
                         help="do not clear the output directory first")
     parser.add_argument("--quiet", action="store_true")
@@ -206,7 +212,8 @@ def main(argv: list[str] | None = None) -> int:
     if not (repo / "ledger").is_dir():
         parser.error(f"no ledger/ under {repo}: not a crypto-autoresearcher checkout")
 
-    report = build(repo, args.out.resolve(), clean=not args.keep, verbose=not args.quiet)
+    report = build(repo, args.out.resolve(), clean=not args.keep, verbose=not args.quiet,
+                   progress_snapshot=args.progress_snapshot)
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + "\n")
     return 0

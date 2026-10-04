@@ -1,0 +1,30 @@
+# RUN-CERTBIN-6d92b5 (EXP-CERTBIN-3f06d1, TASK-20260924-9f15a2) -- exact commands as run, in order.
+# Working directory: /home/user/crypto-autoresearcher (repository root).
+# git HEAD at the first driver invocation: see manifest.yaml run.code.commit (recorded by the driver).
+# Environment for every command below:
+export PYTHONDONTWRITEBYTECODE=1
+export AUTORESEARCH_SESSION_MODEL=claude-opus-5-5
+
+# (pre-run, before C-PROV) impl provenance, regenerated from the final tree
+python3 experiments/EXP-CERTBIN-3f06d1/impl/make_provenance.py
+
+# 0a. C-PROV on the Stage-1 cell (no random draw; before the trial plan and before any frozen stream)
+python3 experiments/EXP-CERTBIN-3f06d1/impl/cprov.py --stage1-run experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/cprov.json >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log
+
+# 0b. trial plan (after C-PROV; from the specification alone; no drawn value)
+python3 experiments/EXP-CERTBIN-3f06d1/impl/make_trial_plan.py --spec experiments/EXP-CERTBIN-3f06d1/specification.yaml --run-id RUN-CERTBIN-6d92b5 --out experiments/EXP-CERTBIN-3f06d1/trial-plan-v1.json
+
+# 1. the frozen command (selftest, then driver phases 1-6); watchdog 86400 s
+timeout 86400 sh -c 'python3 experiments/EXP-CERTBIN-3f06d1/impl/selftest.py --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/selftest.json && python3 experiments/EXP-CERTBIN-3f06d1/impl/driver.py --spec experiments/EXP-CERTBIN-3f06d1/specification.yaml --plan experiments/EXP-CERTBIN-3f06d1/trial-plan-v1.json --stage1-run experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id RUN-CERTBIN-6d92b5 --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5' >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log
+
+# 2. the determinism command (phase 7, separate process; C-DET)
+timeout 86400 python3 experiments/EXP-CERTBIN-3f06d1/impl/driver.py --spec experiments/EXP-CERTBIN-3f06d1/specification.yaml --plan experiments/EXP-CERTBIN-3f06d1/trial-plan-v1.json --stage1-run experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id RUN-CERTBIN-6d92b5 --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5 --phase determinism >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log
+
+# 3. resume -> phase 8 (PS0' certificate extraction, cells.json)
+timeout 86400 python3 experiments/EXP-CERTBIN-3f06d1/impl/driver.py --spec experiments/EXP-CERTBIN-3f06d1/specification.yaml --plan experiments/EXP-CERTBIN-3f06d1/trial-plan-v1.json --stage1-run experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id RUN-CERTBIN-6d92b5 --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5 --resume >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log
+
+# 4. the verify command (separate process; imports nothing from impl/)
+python3 experiments/EXP-CERTBIN-3f06d1/verifier/verify_cert.py --certs experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/ps0prime-certificates.jsonl.gz --cells experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/cells.json --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/ps0prime-verification.json >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log
+
+# 5. resume -> phase 9 (aggregation, decision rules, run report)
+timeout 86400 python3 experiments/EXP-CERTBIN-3f06d1/impl/driver.py --spec experiments/EXP-CERTBIN-3f06d1/specification.yaml --plan experiments/EXP-CERTBIN-3f06d1/trial-plan-v1.json --stage1-run experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --run-id RUN-CERTBIN-6d92b5 --out experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5 --resume >> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stdout.log 2>> experiments/EXP-CERTBIN-3f06d1/runs/RUN-CERTBIN-6d92b5/stderr.log

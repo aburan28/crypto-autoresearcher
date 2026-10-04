@@ -1,0 +1,201 @@
+schema_version: '1.0'
+record_type: draft_zero_run_experiment_specification
+id: EXP-ECDLP-a1a142
+status: draft
+title: Public embedding-degree transfer-gate calibration ladder
+source_hypothesis: H-ECDLP-d9b1f3
+source_idea: IDEA-20260805-cc4c2c
+owner_handoff: TASK-20260909-76de1d
+approval:
+  approved_by: null
+  implementation_authorized: false
+  scientific_execution_authorized: false
+  maximum_scientific_runs: 0
+  allowed_activity: source-level design only
+  prohibited_activity:
+    - implementation
+    - fixture generation
+    - corpus traversal
+    - live-curve selection
+    - network retrieval
+    - benchmark execution
+    - timing or memory measurement
+    - RUN identifier allocation
+    - canonical ledger record creation
+    - scientific interpretation
+purpose: >-
+  Specify a future, separately approved, public-input gate instrument. The
+  instrument may later verify an embedding-degree predicate and label accounting
+  inputs, but this draft neither implements it nor evaluates any curve.
+public_input_contract:
+  canonical_encoding: canonical JSON, UTF-8, lexicographically sorted keys, no duplicate keys
+  rung_required_fields:
+    - rung_id
+    - scale_class
+    - curve_model_label
+    - field_modulus_p_decimal
+    - subgroup_order_r_decimal
+    - asserted_embedding_degree_k
+    - k_search_cap_decimal
+    - public_parameter_record_sha256
+    - cost_inputs
+    - source_provenance
+  numerical_constraints:
+    field_modulus_p_decimal: integer greater than 1, decimal canonical form
+    subgroup_order_r_decimal: integer greater than 1, decimal canonical form
+    asserted_embedding_degree_k: integer greater than 0
+    k_search_cap_decimal: integer greater than 0 and at least asserted_embedding_degree_k
+  source_provenance:
+    allowed_values:
+      - synthetic_control
+      - pinned_primary_source
+    rule: >-
+      A rung may use pinned_primary_source only after its exact source artifact,
+      retrieval receipt, proposition locator, and provenance retrieved are
+      separately bound. This draft contains no such rung.
+embedding_degree_gate:
+  definition: >-
+    Given public integers p, r, and cap K, enumerate j=1,...,K and return the
+    least j for which p^j mod r equals 1. Admit only if a result exists, equals
+    asserted_embedding_degree_k, and every public-input constraint holds.
+  verifier_output:
+    admitted: admitted_rung_with_verified_k
+    refused:
+      - invalid_public_integer
+      - no_k_within_cap
+      - asserted_k_mismatch
+      - noncanonical_encoding
+      - missing_or_extra_field
+      - unbound_primary_source
+  boundary: >-
+    Verification establishes only a finite modular-arithmetic classification
+    for the stated public parameters. It does not establish transfer
+    applicability, attack cost, curve-family membership, or security impact.
+ladder:
+  scale_classes:
+    toy:
+      definition: >-
+        Synthetic public integers included solely to test parsing, least-k
+        verification, and refusal behavior. They are not cryptographic
+        parameters and may not be compared to cryptographic security levels.
+    cryptographic:
+      definition: >-
+        A future source-bound public record with a retrieved primary-source
+        proposition and a separately approved custody contract. No such rung
+        exists in this draft.
+  rung_categories:
+    anomalous:
+      status: unavailable_pending_primary_source
+      admission_rule: >-
+        No category membership may be inferred from a label. A future rung
+        requires an exact source-bound definition and independent verification
+        contract before this category can be used.
+    supersingular:
+      status: unavailable_pending_primary_source
+      admission_rule: same_as_anomalous
+    generic:
+      status: unavailable_pending_primary_source
+      admission_rule: same_as_anomalous
+    intermediate:
+      status: available_only_as_explicit_synthetic_k_values
+      admission_rule: >-
+        Synthetic rungs may be grouped by verified k only. Such grouping does
+        not assert a curve-family classification or applicability of a named
+        transfer method.
+  ordering:
+    key: [scale_class, verified_embedding_degree_k, rung_id]
+    prohibition: >-
+      No ordering may treat a lower k as an attack ranking, a lower work
+      factor, or evidence of weaker deployed security.
+cost_accounting:
+  labels:
+    forced:
+      required_fields: [model_name, parameter_vector, deterministic_formula, formula_version]
+      meaning: >-
+        A declared symbolic calculation forced by the specified model. It is
+        neither an observed runtime nor a validated transfer cost.
+    measured:
+      required_fields: [metric_name, unit, environment_manifest_sha256, sample_set_sha256, receipt_sha256]
+      meaning: >-
+        An observed value from a later authorized run. This zero-run draft may
+        not contain or create such a label.
+    unavailable:
+      required_fields: [reason_code, missing_inputs]
+      meaning: >-
+        Cost comparison is not available. It must propagate as unavailable and
+        cannot satisfy a ranking or gate.
+  required_dimensions: [time, memory, data_or_queries]
+  aggregation_rule: >-
+    Each dimension retains its own label and value. No scalar score, dominance
+    claim, or transfer conclusion may be produced when any required dimension
+    is unavailable or labels are mixed without a separately reviewed model.
+  forced_vs_measured_rule: >-
+    A forced field and a measured field are distinct typed values. A verifier
+    must refuse any serialization that aliases them or substitutes one for the
+    other.
+controls:
+  - id: CTRL-VALID-TOY-LEAST-K
+    type: positive_parser_control
+    construction: >-
+      Synthetic canonical public integers for which direct enumeration has one
+      least k within the declared cap, with all costs unavailable.
+    expected: admitted_rung_with_verified_k and no transfer/cost conclusion.
+  - id: CTRL-ASSERTED-K-MISMATCH
+    type: negative_gate_control
+    construction: >-
+      Same synthetic public integer fields as CTRL-VALID-TOY-LEAST-K but an
+      asserted k that is not the directly enumerated least k.
+    expected: refused asserted_k_mismatch.
+  - id: CTRL-MISSING-COST
+    type: negative_accounting_control
+    construction: >-
+      A syntactically valid rung that omits a required cost dimension or marks
+      an unavailable value as measured.
+    expected: refusal; no default favorable comparison.
+  - id: CTRL-KNOWN-FALSE-PROVES-TOO-MUCH
+    type: proves_too_much_control
+    construction: >-
+      A deliberately false assertion that a synthetic rung has a specified k
+      although direct enumeration on the same pinned p and r yields a different
+      least k. The record also labels itself generic without any source proof.
+    expected: >-
+      Refusal with asserted_k_mismatch; the unverified family label must not
+      affect the arithmetic result or be promoted into an applicability claim.
+  - id: CTRL-SCALE-MIXING
+    type: scope_control
+    construction: >-
+      A synthetic toy rung and a future cryptographic rung-shaped placeholder
+      presented with a request for one cost ranking.
+    expected: refusal because scale classes and required source bindings differ.
+falsifiers:
+  - id: F-GATE-01
+    condition: A later source-bound verifier admits CTRL-KNOWN-FALSE-PROVES-TOO-MUCH.
+  - id: F-GATE-02
+    condition: A later verifier emits a transfer claim from any unavailable cost dimension.
+  - id: F-GATE-03
+    condition: A later verifier accepts an unbound curve-family label as proof of category membership.
+  - id: F-GATE-04
+    condition: A later verifier permits a toy rung to populate a cryptographic cost comparison.
+source_and_custody_requirements:
+  before_primary_source_rung: >-
+    Store the immutable source artifact, retrieval receipt, SHA-256, exact
+    proposition locator, citation provenance retrieved, and a source-to-field
+    binding record. A recalled citation can never satisfy this requirement.
+  before_implementation: >-
+    Freeze parser, arithmetic verifier, cost-label validator, fixture inventory,
+    source commit, environment manifest, control bytes, output schemas, and an
+    independent implementation-review plan.
+  before_any_execution: >-
+    A separate Coordinator decision must bind the reviewed implementation,
+    controls, source inputs, execution envelope, stopping rule, receipt path,
+    and independent result-review plan. This specification grants none of
+    those authorities.
+limitations:
+  - >-
+    No primary literature was retrieved by this design task. All named method
+    and curve-family terms are unverified recalled pointers.
+  - >-
+    The finite embedding-degree predicate alone does not prove a reduction,
+    attack, applicability condition, complexity estimate, or security result.
+  - >-
+    The design records no prevalence, distribution, or real-parameter sample.

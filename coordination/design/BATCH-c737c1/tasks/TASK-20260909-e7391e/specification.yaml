@@ -1,0 +1,172 @@
+id: EXP-ECDLP-6ee91b
+status: draft
+area: ECDLP
+title: Zero-run enumerated transport-chain cost accounting screen
+hypothesis: H-ECDLP-b4ec52
+proposal: IDEA-20260815-440ebb
+task: TASK-20260909-e7391e
+execution_class: zero_run_design
+authorities:
+  implementation_authorized: false
+  scientific_execution_authorized: false
+  maximum_runs: 0
+  approved_by: null
+purpose: >-
+  Specify a future finite-accounting protocol for an explicitly enumerated
+  transport implementation catalogue. This document is a design artifact only;
+  it contains no implementation inventory, no curve, no transport execution,
+  and no empirical or asymptotic measurement.
+input_contract:
+  catalogue:
+    required_fields:
+      - catalogue_id
+      - source_snapshot_sha256
+      - implementations
+      - unit_schema
+      - catalogue_custody_manifest_sha256
+    implementation_record:
+      required_fields:
+        - implementation_id
+        - implementation_family
+        - input_degree_class
+        - cost_vector
+        - cost_unit
+        - source_locator
+        - artifact_sha256
+      forbidden_fields:
+        - curve_selection
+        - private_key
+        - live_endpoint
+        - measured_runtime
+        - universal_lower_bound
+        - ecdlp_claim
+    closed_world_rule: >-
+      Only identifiers in the hash-bound implementations array may be used in a
+      numerical chain. Any other identifier, alias, implicit default, or
+      dynamically selected implementation causes UNESTIMABLE.
+  chain:
+    required_fields:
+      - chain_id
+      - catalogue_id
+      - ordered_component_ids
+      - declared_chain_overhead
+      - composition_rule_id
+      - chain_custody_manifest_sha256
+    composition_rule:
+      required_fields:
+        - composition_rule_id
+        - permitted_component_families
+        - permitted_degree_transitions
+        - overhead_unit
+        - overhead_value
+        - source_locator
+        - artifact_sha256
+    validity_rules:
+      - Each ordered_component_id occurs exactly once in the serialized sequence.
+      - Each component is present in the named catalogue and has the catalogue unit.
+      - The ordered sequence satisfies one declared composition_rule.
+      - Declared overhead has the catalogue unit and is represented separately.
+      - A missing, duplicate, reordered, unlisted, alias, or unit-mismatched component refuses numerical accounting.
+cost_accounting:
+  unit_schema:
+    required: [unit_id, dimension, scale, rounding_rule]
+    rule: >-
+      Components and overhead may be summed only when every record carries the
+      same hash-bound unit_id. Cross-unit conversion requires a separately
+      enumerated conversion record; otherwise the chain is UNESTIMABLE.
+  vector_schema:
+    required_dimensions: [work, memory, data, queries]
+    nonnegative: true
+    unknown_value: null
+  formula: >-
+    chain_cost_vector = sum(component.cost_vector in serialized order) +
+    declared_chain_overhead.cost_vector. A null dimension, omitted component,
+    unenumerated implementation, unbound composition rule, or unknown unit
+    yields UNESTIMABLE for the entire chain.
+  ceilings:
+    purpose: >-
+      Future acceptance ceilings are pre-registered comparison limits, not
+      lower bounds and not security estimates.
+    required_fields: [ceiling_id, unit_id, work, memory, data, queries, rationale_locator]
+    refusal: >-
+      A missing ceiling, unknown dimension, or nonmatching unit cannot be
+      interpreted as pass, fail, or a cost conclusion.
+controls:
+  - id: CONTROL-SMALL-DEGREE
+    construction: >-
+      Use only a synthetic catalogue member declared with the smallest allowed
+      degree class and one declared composition rule.
+    detects: omitted overhead or a forbidden degree transition.
+    expected: >-
+      Numerical accounting only when every synthetic component and overhead is
+      present; otherwise UNESTIMABLE.
+  - id: CONTROL-COMPOSED-CHAIN
+    construction: >-
+      Use a synthetic two-or-more-component ordered chain with separately
+      declared overhead.
+    detects: missing, duplicated, or reordered component accounting.
+    expected: >-
+      The checked vector equals the explicit component sum plus declared
+      overhead, and any serialization mutation refuses.
+  - id: CONTROL-RANDOM-WALK
+    construction: >-
+      Use a deterministic seed to select a synthetic sequence from the finite
+      catalogue; retain the seed, candidate sequence, and selector algorithm.
+    detects: undeclared dynamic selection or a cost transfer outside catalogue scope.
+    expected: >-
+      The output is numerical only for a fully enumerated selected sequence;
+      an unlisted selected identifier is UNESTIMABLE.
+  - id: CONTROL-UNENUMERATED
+    construction: Insert an identifier absent from the catalogue.
+    detects: silent treatment of unknown algorithms as known implementations.
+    expected: UNESTIMABLE
+outputs:
+  allowed_statuses: [ACCOUNTED_SYNTHETIC, UNESTIMABLE, INVALID_INTERFACE]
+  allowed_fields:
+    - status
+    - catalogue_id
+    - catalogue_custody_manifest_sha256
+    - chain_id
+    - chain_custody_manifest_sha256
+    - cost_unit
+    - cost_vector
+    - component_ids
+    - composition_rule_id
+    - control_id
+    - refusal_reason
+  forbidden_fields:
+    - selected_curve
+    - transport_execution
+    - isogeny_result
+    - observed_timing
+    - universal_lower_bound
+    - deployment_security
+    - ecdlp_attack
+    - ecdlp_security
+    - priority_change
+    - branch_retirement
+interpretation_policy:
+  - ACCOUNTED_SYNTHETIC is bookkeeping over a finite declared synthetic catalogue only.
+  - UNESTIMABLE is an evidence/custody limitation and says nothing about a mathematical hypothesis.
+  - No output may be extrapolated to unenumerated algorithms, real curves, or deployed systems.
+custody_requirements:
+  - Hash-bound source snapshot for every catalogue and composition record.
+  - Immutable source, catalogue, chain, unit, and receipt manifests.
+  - Exact implementation and composition artifact hashes.
+  - Canonical serialization of ordered component identifiers and cost vectors.
+  - Separate partial/refusal receipt when validation stops before accounting.
+source_and_review_gates:
+  source_gate: >-
+    No cited isogeny, transport, or lower-bound proposition is usable until a
+    retained primary source, byte hash, retrieval receipt, and exact locator
+    are recorded and independently reviewed.
+  implementation_gate: >-
+    A future executor requires a source-bound catalogue, immutable synthetic
+    fixtures, an implementation plan, and independent implementation review.
+  execution_gate: >-
+    A later Coordinator decision and fresh independent review are required
+    before any implementation or measurement. This draft grants neither.
+  review_gate: >-
+    An independent source-only review must validate catalogue closure,
+    composition accounting, unit compatibility, controls, custody, and the
+    unenumerated-algorithm limitation before any canonical proposal decision.

@@ -1,0 +1,383 @@
+# Blind re-derivation report, joint J6 of REVIEW-FROB-20260923-458763.
+# Every value below was computed from the definitions and parameters in
+# coordination/review/frob-20260923-458763/blind-inputs.yaml and nothing else.
+# The scripts, commands, library versions, and full raw output behind every
+# value are embedded in computations.json, which sits beside this file.
+rederivation_report:
+  task_id: TASK-20260923-21ae7f
+  review_plan_id: REVIEW-FROB-20260923-458763
+  goal_id: GOAL-FROB-6333a9
+  batch_id: BATCH-458763
+  joint: J6
+  role: validator (blind re-derivation; per agents/validator.md this is not a validation)
+  lane_address: reviewer-frob-blind-21ae7f
+  produced_on: '2026-09-23'
+  base_commit_stated_by_dispatcher: fce3f2f12650715b78dffb4416e7733db16b06b1
+  base_commit_note: >-
+    The launch prompt states this commit. This task did not verify it because it
+    ran no git command of any kind (BL-2).
+  runs_launched: 0
+  runs_note: >-
+    Zero experiment runs (BL-6). The only computation was one standalone
+    pure-Python script, executed in the session scratch directory outside the
+    repository. It used no harness, no launcher, and no experiment contract.
+  leak_check_BL4: >-
+    No computed value of any Q1, Q2 or Q3 quantity appeared in any of the five
+    whitelisted files, so there was no leak to report. The runtime also
+    injected CLAUDE.md into this session's context (disclosed under
+    review_attestation), and it contains no such value either.
+  rederivation_outcome: every requested Q1, Q2 and Q3 cell computed; none left uncomputed
+  environment:
+    language: Python 3.11.15 (CPython, GCC 13.3.0), Linux-6.18.44-fc-v37-x86_64-with-glibc2.39
+    own_code: >-
+      blind_j6.py, written for this task from the definitions (embedded in
+      computations.json). It implements F_q arithmetic for q in {2,3,4,8},
+      polynomial arithmetic over F_q, and F_2[x] arithmetic on Python integers.
+      It also implements the Rabin/Ben-Or irreducibility test, distinct-degree
+      factorisation, Cantor-Zassenhaus equal-degree splitting, the Berlekamp
+      Q-matrix factor count, Gaussian elimination over F_q, RREF enumeration of
+      all subspaces, and elliptic-curve point enumeration over F_{2^n}.
+    libraries:
+      - name: sympy
+        version: 1.14.0
+        used_for: independent cross-check only (factor_list of x^n-1 modulo prime q, n_order, isprime, totient, divisors)
+      - name: mpmath
+        version: 1.3.0
+        used_for: Q2 log2 margins at mp.dps = 50 (about 166 bits); Q3 decimal ratio at mp.dps = 40
+      - name: decimal (Python stdlib, libmpdec)
+        version: '1.70'
+        used_for: independent cross-check of the Q2 margins at prec = 60
+      - name: fractions (Python stdlib)
+        version: stdlib of Python 3.11.15
+        used_for: exact Q3 ratios
+    seeds: base 20260923 (each Q1 instance uses base+i; the Q3 models use base+n and base+100+n; the controls use base)
+    resources: {wall_clock_seconds: 30.46, cpu_user_seconds: 30.34, peak_rss_kib: 58176}
+    internal_checks: {run: 203, failed: 0}
+
+  # ---------------------------------------------------------------------------
+  Q1:
+    method: >-
+      Make F_{q^n} an F_q[x]-module by letting x act as sigma. The
+      sigma-stable F_q-subspaces are then exactly its submodules. On every
+      instance I checked computationally, in an explicit field model, that
+      sigma^n = id on a basis and that a cyclic vector exists (the Krylov
+      sequence v, sigma v, ..., sigma^{n-1} v has rank n). The module is
+      therefore cyclic with annihilator (x^n - 1), i.e. isomorphic to
+      F_q[x]/(x^n - 1). Because F_q[x] is a PID, the submodules of
+      F_q[x]/(m) correspond one-to-one to the monic divisors h of m, via
+      V_h = ker h(sigma), with dim V_h = deg h. The minimal polynomial of
+      sigma on V_h is h, so sigma|V_h = id iff h divides (x - 1), which leaves
+      only V_1 = {0} and V_{x-1} = F_q unfaithful. Here gcd(n, q) = 1, so
+      x^n - 1 is squarefree, count = 2^r for r distinct irreducible factors,
+      the dimensions are the subset sums of the factor degrees, and d_min is
+      the least degree of an irreducible factor other than x - 1.
+    factorisation_evidence_per_instance:
+      - own distinct-degree factorisation plus Cantor-Zassenhaus splitting; the product of the factors is checked to equal x^n - 1 exactly
+      - every factor certified irreducible by Rabin's test; factors pairwise distinct; gcd(f, f') = 1
+      - own Berlekamp Q-matrix count, n - rank(Q - I), equals the number of factors
+      - order formula: number of factors = sum over d | n of phi(d)/ord_d(q), with ord computed by own code and by sympy n_order
+      - for q in {2, 3}, sympy factor_list(x^n - 1, modulus=q) returns the identical factor set
+      - in the concrete field model, dim ker g(sigma) = deg g for every irreducible factor g, and dim ker (g*(x-1))(sigma) = deg g + 1 for every g other than x - 1, so ker g(sigma) meets the fixed space F_q trivially and sigma is not the identity on it; dim ker(sigma - 1) = 1
+    results:
+      - {q: 2, n: 41,  count: 8,      dimensions: [0, 1, 20, 21, 40, 41], d_min: 20,
+         factor_degrees: '1 + 2x20', ord_n_q: 20, field_model: 'F_2[t]/(t^41 + t^3 + 1)'}
+      - {q: 2, n: 43,  count: 16,     dimensions: [0, 1, 14, 15, 28, 29, 42, 43], d_min: 14,
+         factor_degrees: '1 + 3x14', ord_n_q: 14, field_model: 'F_2[t]/(t^43 + t^6 + t^4 + t^3 + 1)'}
+      - {q: 2, n: 113, count: 32,     dimensions: [0, 1, 28, 29, 56, 57, 84, 85, 112, 113], d_min: 28,
+         factor_degrees: '1 + 4x28', ord_n_q: 28, field_model: 'F_2[t]/(t^113 + t^9 + 1)'}
+      - {q: 2, n: 127, count: 524288, dimensions: [0, 1, 7, 8, 14, 15, 21, 22, 28, 29, 35, 36, 42, 43, 49, 50, 56, 57, 63, 64, 70, 71, 77, 78, 84, 85, 91, 92, 98, 99, 105, 106, 112, 113, 119, 120, 126, 127], d_min: 7,
+         factor_degrees: '1 + 18x7', ord_n_q: 7, field_model: 'F_2[t]/(t^127 + t + 1)'}
+      - {q: 2, n: 131, count: 4,      dimensions: [0, 1, 130, 131], d_min: 130,
+         factor_degrees: '1 + 1x130', ord_n_q: 130, field_model: 'F_2[t]/(t^131 + t^8 + t^3 + t^2 + 1)'}
+      - {q: 2, n: 163, count: 4,      dimensions: [0, 1, 162, 163], d_min: 162,
+         factor_degrees: '1 + 1x162', ord_n_q: 162, field_model: 'F_2[t]/(t^163 + t^7 + t^6 + t^3 + 1)'}
+      - {q: 3, n: 41,  count: 64,     dimensions: [0, 1, 8, 9, 16, 17, 24, 25, 32, 33, 40, 41], d_min: 8,
+         factor_degrees: '1 + 5x8', ord_n_q: 8, field_model: 'F_3[t]/(t^41 + 2t + 1), F_3 = Z/3Z'}
+      - {q: 4, n: 41,  count: 32,     dimensions: [0, 1, 10, 11, 20, 21, 30, 31, 40, 41], d_min: 10,
+         factor_degrees: '1 + 4x10', ord_n_q: 10, field_model: 'F_4[t]/(t^41 + t^3 + 1), F_4 = F_2[a]/(a^2 + a + 1)'}
+      - {q: 8, n: 41,  count: 8,      dimensions: [0, 1, 20, 21, 40, 41], d_min: 20,
+         factor_degrees: '1 + 2x20', ord_n_q: 20, field_model: 'F_8[t]/(t^41 + t + a), F_8 = F_2[a]/(a^3 + a + 1)'}
+    faithful_dimensions_note: >-
+      On every instance the faithful dimensions are all listed dimensions
+      except 0 and 1. The full lists are in computations.json under
+      raw_outputs, in the Q1[*].faithful_dimensions field.
+    controls:
+      positive_brute_force: >-
+        On 15 small instances of the same shape I enumerated every
+        F_q-subspace of F_{q^n} by RREF and tested each one for sigma-stability
+        and faithfulness directly. The instances were (q,n) = (2,2) (2,3) (2,4)
+        (2,5) (2,6) (2,7) (3,2) (3,3) (3,4) (3,5) (4,2) (4,3) (4,4) (8,2) (8,3).
+        Four of them, (2,4) (2,6) (3,3) and (4,2), have gcd(n,p) > 1 and a
+        repeated-root x^n - 1. Several, e.g. (3,2) and (4,3), have linear
+        factors other than x - 1, which gives faithful dimension 1. The prediction
+        was the divisor lattice of x^n - 1, obtained by enumerating every monic
+        polynomial and testing divisibility, with no factoring code. It matched
+        brute force on all 15 in count, dimension set, faithful dimension set,
+        and d_min. Where gcd(n,p) = 1 the factoring code matched as well. The
+        subspace totals equal the Gaussian-binomial sums, e.g. 29212 for (2,7).
+      negative_identity_operator: >-
+        I replaced sigma by the identity on F_2^4, F_3^3 and F_4^2. Brute
+        force gives 67, 28 and 7 stable subspaces, while the divisor lattice of
+        the minimal polynomial x - 1 gives 2. The prediction fails, as it
+        should for a non-cyclic operator, so the brute-force enumerator is not
+        trivially agreeing with the prediction.
+      null_object_random_matrices: >-
+        I tested 16 seeded random invertible matrices over F_2 (n = 4, 5) and
+        F_3 (n = 3). All 16 were cyclic, and brute force equalled the divisor
+        count of the minimal polynomial for each. I also tested 10
+        rejection-sampled non-cyclic, non-scalar matrices over F_2 (n = 4, 5)
+        and F_3 (n = 3). Brute force exceeded the divisor count for every one
+        (e.g. 27 vs 3, 14 vs 5). The divisor-lattice count is therefore exact
+        exactly when the operator is cyclic, which is the property checked on
+        each real instance.
+
+  # ---------------------------------------------------------------------------
+  Q2:
+    method: >-
+      l* = ceil(n/m), computed in exact integer arithmetic. l' is the least
+      faithful dimension >= l*, taken from the Q1 faithful-dimension set for
+      q = 2. penalty = l' - l*. margin = log2(n) - penalty*log2(2), computed in
+      mpmath 1.3.0 at mp.dps = 50 and reported to 25 significant digits.
+      Python decimal at prec = 60 agrees to within 3e-51 in every cell;
+      float64 values are in computations.json. l' exists in every cell because
+      F_{2^n} itself (dimension n) is faithful and l* <= n.
+    precision: l*, l' and penalty exact; margin_bits to 25 significant digits (mpmath, 50 decimal digits working precision)
+    cells:
+      - {n: 113, m: 2, l_star: 57, l_prime: 57,  penalty: 0,   margin_bits: '6.820178962415187708318545',  verdict: win}
+      - {n: 113, m: 3, l_star: 38, l_prime: 56,  penalty: 18,  margin_bits: '-11.17982103758481229168145', verdict: loss}
+      - {n: 113, m: 4, l_star: 29, l_prime: 29,  penalty: 0,   margin_bits: '6.820178962415187708318545',  verdict: win}
+      - {n: 113, m: 5, l_star: 23, l_prime: 28,  penalty: 5,   margin_bits: '1.820178962415187708318545',  verdict: win}
+      - {n: 127, m: 2, l_star: 64, l_prime: 64,  penalty: 0,   margin_bits: '6.988684686772165853280004',  verdict: win}
+      - {n: 127, m: 3, l_star: 43, l_prime: 43,  penalty: 0,   margin_bits: '6.988684686772165853280004',  verdict: win}
+      - {n: 127, m: 4, l_star: 32, l_prime: 35,  penalty: 3,   margin_bits: '3.988684686772165853280004',  verdict: win}
+      - {n: 127, m: 5, l_star: 26, l_prime: 28,  penalty: 2,   margin_bits: '4.988684686772165853280004',  verdict: win}
+      - {n: 131, m: 2, l_star: 66, l_prime: 130, penalty: 64,  margin_bits: '-56.96657699846254972098241', verdict: loss}
+      - {n: 131, m: 3, l_star: 44, l_prime: 130, penalty: 86,  margin_bits: '-78.96657699846254972098241', verdict: loss}
+      - {n: 131, m: 4, l_star: 33, l_prime: 130, penalty: 97,  margin_bits: '-89.96657699846254972098241', verdict: loss}
+      - {n: 131, m: 5, l_star: 27, l_prime: 130, penalty: 103, margin_bits: '-95.96657699846254972098241', verdict: loss}
+      - {n: 163, m: 2, l_star: 82, l_prime: 162, penalty: 80,  margin_bits: '-72.65127184576892244743622', verdict: loss}
+      - {n: 163, m: 3, l_star: 55, l_prime: 162, penalty: 107, margin_bits: '-99.65127184576892244743622', verdict: loss}
+      - {n: 163, m: 4, l_star: 41, l_prime: 162, penalty: 121, margin_bits: '-113.6512718457689224474362', verdict: loss}
+      - {n: 163, m: 5, l_star: 33, l_prime: 162, penalty: 129, margin_bits: '-121.6512718457689224474362', verdict: loss}
+
+  # ---------------------------------------------------------------------------
+  Q3:
+    curve: 'E: y^2 + x*y = x^3 + 1, a-invariants [1, 0, 0, 0, 1], used in exactly this model over F_{2^n}'
+    method: >-
+      Method A (primary): for each n I used two field models, the first sparse
+      irreducible polynomial found and its reciprocal, each certified by Rabin's
+      test. In each model I enumerated every pair (x, y) in F_{2^n}^2 and kept
+      those with y^2 + xy = x^3 + 1, using log/antilog tables for the product
+      xy. Every point kept was re-verified with direct field multiplication.
+      The table multiplication was checked against direct multiplication on
+      20000 random pairs, and for n <= 11 a table-free double loop gave the
+      same count. I kept the points with Tr(x) = 0, Tr computed as
+      sum_{i<n} x^{2^i}. I then applied pi(x,y) = (x^2, y^2), checked that F_V
+      maps into itself, and decomposed F_V into pi-cycles explicitly.
+      Method B: a per-x count using the substitution y = xz, which gives
+      z^2 + z = x + x^{-2}, solvable with 2 roots iff Tr(x + x^{-2}) = 0; x = 0
+      gives only (0,1).
+      Method C: #E(F_2) = 4 by enumeration, so t = -1 and
+      #E(F_{2^n}) = 2^n + 1 - s_n with s_0 = 2, s_1 = -1, s_k = -s_{k-1} - 2 s_{k-2}.
+      Method D, a closed form derived here: from Method B,
+      |F_V| = 1 + (2^n - 3 + K)/2, where K = sum_{x != 0} (-1)^{Tr(x + 1/x)},
+      and #E = 2^n + 1 + K, so K = -s_n. K was also computed directly.
+      Every method agrees in both models. For odd prime n, the only pi-fixed
+      point in F_V is (0,1), so the orbits are 1 + (|F_V| - 1)/n.
+    results:
+      - n: 7
+        F_V_size: 57
+        f: 1
+        orbits: 9
+        orbit_length_histogram: {1: 1, 7: 8}
+        ratio: '6.333333333333333333333333'
+        ratio_exact: 19/3
+        group_order: 116
+        field_models: ['F_2[t]/(t^7 + t + 1)', 'F_2[t]/(t^7 + t^6 + 1)']
+        crosschecks: {affine_points: 115, kloosterman_sum_K: -13, s_n: 13, closed_form_F_V_size: 57, F_2_rational_points_in_F_V: ['(0,1)']}
+      - n: 11
+        F_V_size: 1057
+        f: 1
+        orbits: 97
+        orbit_length_histogram: {1: 1, 11: 96}
+        ratio: '10.89690721649484536082474'
+        ratio_exact: 1057/97
+        group_order: 2116
+        field_models: ['F_2[t]/(t^11 + t^2 + 1)', 'F_2[t]/(t^11 + t^9 + 1)']
+        crosschecks: {affine_points: 2115, kloosterman_sum_K: 67, s_n: -67, closed_form_F_V_size: 1057, F_2_rational_points_in_F_V: ['(0,1)']}
+      - n: 13
+        F_V_size: 4005
+        f: 1
+        orbits: 309
+        orbit_length_histogram: {1: 1, 13: 308}
+        ratio: '12.96116504854368932038835'
+        ratio_exact: 1335/103
+        group_order: 8012
+        field_models: ['F_2[t]/(t^13 + t^4 + t^3 + t + 1)', 'F_2[t]/(t^13 + t^12 + t^10 + t^9 + 1)']
+        crosschecks: {affine_points: 8011, kloosterman_sum_K: -181, s_n: 181, closed_form_F_V_size: 4005, F_2_rational_points_in_F_V: ['(0,1)']}
+    model_independence_control: >-
+      Two different field models per n give identical values for every Q3
+      quantity. This is consistent with blind-inputs' statement that the
+      quantities do not depend on the model; it does not prove it.
+
+  # ---------------------------------------------------------------------------
+  citations:
+    - ref: Normal basis theorem for finite fields (e.g. Lidl & Niederreiter, Finite Fields, ch. 2)
+      provenance: recalled
+      claim: F_{q^n} has a normal basis over F_q, i.e. sigma has a cyclic vector
+      verified_by: null
+      load_bearing: >-
+        No. The cyclic vector was exhibited computationally on every Q1
+        instance (Krylov rank n).
+    - ref: Submodules of F[x]/(m) over a PID correspond to monic divisors of m (standard linear algebra; e.g. Hoffman & Kunze, Linear Algebra, cyclic decompositions)
+      provenance: recalled
+      claim: stable subspaces of a cyclic operator <-> monic divisors of its minimal polynomial, dim = degree
+      verified_by: null
+      load_bearing: >-
+        Load-bearing for the real-size counts, but the Q1 method section
+        derives it in two lines, so the result rests on that derivation rather
+        than on this citation. It was also confirmed by exhaustive brute force
+        on 15 small instances, with non-cyclic negative controls.
+    - ref: Factorisation of cyclotomic polynomials over F_q into phi(d)/ord_d(q) factors of degree ord_d(q) (Lidl & Niederreiter, Theorem 2.47 -- theorem number recalled, hedged)
+      provenance: recalled
+      claim: degree pattern of the irreducible factors of x^n - 1
+      verified_by: null
+      load_bearing: No. Explicit factorisations with product and irreducibility certificates were computed.
+    - ref: Rabin 1980 (SIAM J. Comput. 9, irreducibility test); Ben-Or 1981; Cantor & Zassenhaus 1981 (Math. Comp. 36); Berlekamp 1967/1970
+      provenance: recalled
+      claim: correctness of the algorithms implemented
+      verified_by: null
+      load_bearing: No. sympy factor_list cross-checks every q in {2,3} instance, and each factorisation is certified by exact multiplication.
+    - ref: Characteristic polynomial of Frobenius, #E(F_{q^k}) = q^k + 1 - (alpha^k + beta^k) (Silverman, The Arithmetic of Elliptic Curves, ch. V -- recalled)
+      provenance: recalled
+      claim: Method C cross-check for group_order
+      verified_by: null
+      load_bearing: No. Exhaustive enumeration (Method A) is primary.
+    - ref: Kloosterman sums over F_{2^m} and the curve y^2 + xy = x^3 + a (Lachaud & Wolfmann 1990; Katz & Livne 1989 -- recalled pointers)
+      provenance: recalled
+      claim: context for the Method D identity
+      verified_by: null
+      load_bearing: No. The identity is derived in the Q3 method above and also checked numerically.
+
+  limitations:
+    - >-
+      Scope: exactly the (q, n), (n, m) and n values listed in blind-inputs.yaml.
+      Nothing is claimed about other parameters.
+    - >-
+      The Q1 counts at n >= 41 are not exhaustive enumerations, which would be
+      infeasible. They combine a divisor-lattice derivation with computational
+      checks of its hypotheses on the actual field models. The derivation was
+      itself confirmed by exhaustive enumeration only at small sizes (up to
+      29212 subspaces).
+    - >-
+      Q2 margins follow the formula as stated. How log2(n) should be read as a
+      gain, and what win/loss means for any claim, is outside this task and
+      was not assessed.
+    - >-
+      All citations are recalled; no source was retrieved. None is load-bearing
+      in the sense above.
+    - >-
+      This task did not compare its values with any other result, by
+      construction. Agreement or disagreement is for the Coordinator's
+      composition step.
+    - >-
+      The heuristic-validation, cost-model, and inventor-protocol ladder checks
+      of the validator contract do not apply. This task has no producer
+      receipt, no sampling experiment, no cost table, and no speedup claim in
+      scope, so those checks were not performed. Q2's "margin" is a
+      defined quantity reported as asked, not a cost model.
+
+  validator_contract_mapping:
+    note: >-
+      agents/validator.md says a blind re-derivation task is not a validation,
+      so this file issues no passed/failed/incomplete/invalid validation
+      verdict. The task's own status against its completion gate is
+      completed.
+    run_ids: []
+    artifact_checks: not applicable (no producer artifact in scope; blind)
+    metric_recomputations: see Q1, Q2, Q3 above (independent derivation, not recomputation from producer artifacts)
+    control_checks: see Q1.controls, Q3.model_independence_control, and the 203 internal checks in computations.json
+    heuristic_validation_checks: not applicable
+    cost_model_checks: not applicable
+    proof_architecture_checks: not applicable
+    completion_gate:
+      every_cell_reported: true
+      field_models_libraries_versions_named: true
+      review_attestation_complete: true
+      zero_runs_nothing_outside_write_scope: true
+
+  verdict_explanation: >-
+    The J6 verdict in the attestation below is inconclusive because this task
+    is forbidden to compare with the producer's values. It does not mean any
+    cell is uncertain: every cell was computed, and all 203 internal checks
+    and controls passed. J6 holds or breaks when the Coordinator compares
+    these values with the producer's.
+
+  review_attestation:
+    task_id: TASK-20260923-21ae7f
+    joints_owned: [J6]
+    sources_read:
+      - ledger/handoffs/TASK-20260923-21ae7f.yaml
+      - coordination/review/frob-20260923-458763/blind-inputs.yaml
+      - AGENTS.md
+      - agents/validator.md
+      - templates/research-records.md
+      # Disclosed, not opened by any tool call: the Claude Code runtime injected
+      # the repository's CLAUDE.md into this session's context at launch. It
+      # is not on the whitelist. It is a harness binding file, not a producer
+      # artifact, and it contains no Q1-Q3 value.
+      - CLAUDE.md
+    sources_read_disclosures:
+      - >-
+        CLAUDE.md (repository root) was runtime-injected into the context and
+        not opened by this task. /home/user/cairn/CLAUDE.md, outside this
+        repository, was injected the same way. Neither contains any Q1-Q3
+        value or any producer material.
+      - >-
+        No other repository path was opened, listed, or searched. The only
+        other repository file-system operations were mkdir -p on this task's
+        write-scope directory and existence tests (test -e) on the two
+        artifact paths before writing. After writing, this task ran one
+        ls -la of its own write-scope directory, which showed only these two
+        artifacts. It also read back its own two artifacts to hash them and
+        to check this report against the raw results.
+      - >-
+        Session scratch files outside the repository, all written by this
+        task: blind_j6.py, check_report.py, build_computations.py, and their
+        outputs.
+      - >-
+        No git command of any kind was run, and no pull-request text was read.
+      - >-
+        The launch prompt named only this card, blind-inputs.yaml, the base
+        commit, and the lane address. It stated nothing about any experiment,
+        its results, or any extension degree's properties.
+    read_sibling_reports: false
+    blind_from_respected: true
+    # blind_from itself was not visible to this task (it lives in the review
+    # plan, which BL-1 puts out of scope). "true" rests on the fact that nothing
+    # outside the five whitelisted paths was opened, apart from the
+    # runtime-injected CLAUDE.md disclosed above.
+    verdict: inconclusive
+    inference:
+      requested_policy: review-adversarial
+      requested_reasoning_effort: null   # card value; null = policy default (xhigh)
+      runtime: claude_code (subagent)
+      resolved_model_id: claude-opus-5-5
+      model_resolution: >-
+        Inherited from the dispatching session by the runtime, not resolved
+        through orchestration/adapter
+      model_verified: false   # no adapter doctor --probe was run by this task
+      effective_reasoning_effort: not observable from inside the session
+      fallback_used: true
+      fallback_reason: >-
+        The session model served this task through runtime inheritance, not
+        through a policy-resolved binding. The card sets fallback_allowed: true
+        (backend substitution only).
+      degraded_requirements: >-
+        None known. The xhigh reasoning-effort requirement of
+        review-adversarial could not be verified from inside the session.
+      independent_session: >-
+        A fresh subagent context started by the dispatching session. It read
+        no EXP-FROB-ec08b5 output and no FROB ledger record beyond this card.
+        Whether a subagent context meets the card's independent-session
+        precondition is for the dispatcher to certify.

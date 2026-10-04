@@ -16,7 +16,10 @@ hand-typed claim on the command line is a different claim nobody approved.
 from __future__ import annotations
 
 import argparse
+import hashlib
+from dataclasses import asdict
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -78,7 +81,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     lake = shutil.which("lake")
     print(f"\nlake         {lake or 'NOT FOUND on PATH — verification cannot run'}")
 
-    ready = binary is not None and lake is not None and (workspace / "lean-toolchain").is_file()
+    verification_ready = lake is not None and all(
+        (workspace / name).is_file()
+        for name in ("lean-toolchain", "lake-manifest.json", "AxiomAudit.lean"))
+    verification_ready = verification_ready and any(
+        (workspace / name).is_file() for name in ("lakefile.toml", "lakefile.lean"))
+    print(f"verification {'ready' if verification_ready else 'not ready'} (does not require MathCode)")
+    ready = binary is not None and verification_ready
     print(f"\n{'ready' if ready else 'not ready'}: "
           f"{'formalize and verify can both run' if ready else 'see the missing items above'}")
     return 0 if ready else 1
@@ -194,6 +203,85 @@ def cmd_formalize(args: argparse.Namespace) -> int:
     return 0 if record.machine_verified else 1
 
 
+def _check_verification_pins(workspace: Path) -> None:
+    for name in ("lean-toolchain", "lake-manifest.json"):
+        if not (workspace / name).is_file():
+            raise ValueError(f"missing pinned workspace file: {name}; run formal/setup.sh")
+    toolchain = (workspace / "lean-toolchain").read_text().strip()
+    if not re.fullmatch(r"leanprover/lean4:v[0-9]+\.[0-9]+\.[0-9]+(?:-rc[0-9]+)?", toolchain):
+        raise ValueError("verification requires an exact Lean release, not a moving toolchain alias")
+    manifest = json.loads((workspace / "lake-manifest.json").read_text())
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("packages"), list):
+        raise ValueError("invalid Lake dependency manifest")
+    for package in manifest["packages"]:
+        if (not isinstance(package, dict) or package.get("type") != "git"
+                or not re.fullmatch(r"[0-9a-fA-F]{40}", str(package.get("rev", "")))):
+            raise ValueError("verification requires every dependency pinned to an exact Git commit")
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    """Verify an existing proof without requiring a proof-generation service."""
+    from .targets import load_spec, task_from_spec
+    from .workspace import rebuild_root
+    repo = Path(args.repo_root).resolve()
+    task = task_from_spec(load_spec(args.task_file))
+    workspace = (repo / task.workspace).resolve()
+    if repo not in workspace.parents and workspace != repo:
+        raise ValueError("formal workspace escapes repository root")
+    output = Path(args.artifact_out)
+    if output.exists():
+        raise ValueError("artifact already exists; choose a new immutable output path")
+    _check_verification_pins(workspace)
+    def digest(path):
+        return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+    inputs = {
+        "task_spec_sha256": Path(args.task_file),
+        "theorem_sha256": workspace / task.theorem_file,
+        "lean_toolchain_sha256": workspace / "lean-toolchain",
+        "lake_manifest_sha256": workspace / "lake-manifest.json",
+    }
+    hashes = {name: digest(path) for name, path in inputs.items()}
+    rebuild_root(workspace)
+    result, failure, lean_version = None, None, None
+    try:
+        version = subprocess.run(["lake", "env", "lean", "--version"], cwd=workspace,
+                                 capture_output=True, text=True, timeout=30, check=False)
+        lean_version = version.stdout.strip()
+        expected = (workspace / "lean-toolchain").read_text().strip().split(":v")[-1]
+        observed = re.search(r"version ([^, ]+)", lean_version)
+        if version.returncode or observed is None or observed.group(1) != expected:
+            raise RuntimeError("running Lean version does not match the frozen toolchain")
+        result = LeanWorker(repo, timeout_seconds=args.build_timeout).verify(task)
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        failure = f"{type(exc).__name__}: {exc}"
+    if any(digest(path) != hashes[name] for name, path in inputs.items()):
+        result, failure = None, "verification inputs changed while the checks ran; repeat from frozen inputs"
+    receipt = {
+        "schema": "crypto.autoresearch.formal_verification.v1",
+        "task": asdict(task),
+        "verification": result.as_dict() if result else None,
+        "build_log": result.build_log if result else "",
+        "audit_log": result.audit_log if result else "",
+        "infrastructure_failure": failure,
+        "semantic_review": {"required": True, "status": "pending"},
+        "provenance": {
+            "source_commit": _repo_commit(repo),
+            "lean_version": lean_version,
+            **hashes,
+        },
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as handle:
+        json.dump(receipt, handle, indent=2)
+        handle.write("\n")
+    print(f"Verification receipt: {output}")
+    if failure:
+        print("Infrastructure failure; no mathematical conclusion.", file=sys.stderr)
+        return 3
+    print(f"{result.status.value}; independent semantic review still required.")
+    return 0 if result.machine_verified else 1
+
+
 def _summarize(record) -> None:  # noqa: ANN001 - FormalRunRecord, imported lazily
     attempt = record.attempt
     lines = [f"\ntask       {record.task.task_id}",
@@ -224,6 +312,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor = sub.add_parser("doctor", help="is the engine and toolchain installed")
     p_doctor.add_argument("--workspace", default="formal")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_verify = sub.add_parser("verify", help="verify existing Lean sources without MathCode")
+    p_verify.add_argument("--task-file", required=True, help="frozen formal task spec")
+    p_verify.add_argument("--artifact-out", required=True, help="new immutable receipt path")
+    p_verify.add_argument("--build-timeout", type=int, default=900)
+    p_verify.set_defaults(func=cmd_verify)
 
     p_run = sub.add_parser("formalize", help="run one formalize-then-verify task")
     p_run.add_argument("--task-file",

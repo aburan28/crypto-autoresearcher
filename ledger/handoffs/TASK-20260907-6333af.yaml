@@ -1,0 +1,166 @@
+handoff:
+  id: TASK-20260907-6333af
+  recorded_at: '2026-09-07'
+  from: coordinator
+  to: executor
+  role: executor
+  question_id: RQ-RELN-61638a
+  hypothesis_id: H-RELN-427bfd
+  experiment_id: EXP-RELN-141a86
+  review_required: true
+  phase: stage0c_targeted_minimality_attempt
+  objective: >-
+    Under the same, unchanged, already-approved contract (status approved,
+    per DEC-20260907-93a502), attempt STRUCTURAL RECOVERY of the three
+    still-open Stage-0c controls (INV-1 conservation mean, canonical
+    complexity 9; INV-7 p_fail, complexity 9; INV-8 d_reg, complexity 10)
+    by TARGETED MINIMALITY rather than blind full-level enumeration,
+    per DEC-20260907-2a3727: (a) exhaustively enumerate every expression
+    in the target's leaf pack at complexity STRICTLY BELOW the target's
+    canonical complexity and confirm none numerically matches the target
+    on its control-table rows (proves minimality); (b) directly construct
+    the KNOWN closed-form expression in the grammar and confirm it
+    evaluates with zero residual and has EXACTLY the canonical node count
+    under the frozen node-counting rule (confirms existence at that
+    level). Together, (a)+(b) prove the known form is the UNIQUE
+    minimal-complexity match -- a stronger, methodologically DISTINCT
+    claim from blind discovery, and must be reported and labeled as such,
+    never conflated with "found by blind search."
+  uncertainty_reduced: >-
+    Whether a search strictly smaller than the one that failed twice
+    (level <= target-1 instead of level == target) completes within one
+    session for INV-1, INV-7 p_fail, and INV-8, clearing the Stage-0c gate
+    for at least these three and unblocking Stage 1 for the first time
+    under this contract. INV-7 p_exist (complexity 11, requiring level
+    <=10 on the same pack that failed at level 9 twice) is NOT expected to
+    clear by this method in one session and may legitimately remain open.
+  inputs:
+    - experiments/EXP-RELN-141a86/specification.yaml (frozen contract; unchanged; the ONLY protocol)
+    - ledger/decisions/DEC-20260907-2a3727.yaml (the design decision this handoff implements)
+    - >-
+      experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/ (immutable;
+      re-verify candidate-list-hash.txt = f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+      before anything else, exactly as both prior dispatches did)
+    - >-
+      experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0bcde/ and
+      .../RUN-RELN-141a86-stage0c-repair/ (immutable; recovery-controls.json
+      and target-enumeration-raw-results.json name the exact targets,
+      their canonical complexities, and the prior failure data -- read
+      before redesigning)
+    - >-
+      experiments/EXP-RELN-141a86/source/grammar_engine.py and
+      grammar_engine_lean.py (the validated, hash-deduplicated, streaming
+      enumerator from the second attempt -- reuse and extend, do not
+      revert either engine's fixes)
+    - ledger/hypotheses/H-RELN-427bfd.yaml
+  constraints:
+    - >-
+      FROZEN CONTRACT UNCHANGED. Grammar, leaf sets, node-counting rule,
+      complexity cap 12, and the candidate list are unchanged; this is a
+      SEARCH METHOD change only, explicitly authorized by the contract's
+      own secondary-recovery-method allowance (referenced in
+      TASK-20260907-f41930) and DEC-20260907-2a3727.
+    - >-
+      IMPLEMENT PER-LEVEL CHECKPOINTING FIRST, before attempting any
+      target: after each complexity level's enumeration completes, write
+      that level's results (or at minimum: complete, count of forms,
+      whether any numeric match to any pending target was found) to disk
+      immediately, so that a wall-clock kill at level k preserves levels
+      1..k-1 durably. This is the one infrastructure gap both prior runs
+      disclosed; fix it before repeating any search.
+    - >-
+      For each target: run the checkpointed enumeration up to complexity
+      target_complexity - 1 ONLY (not to the target complexity itself --
+      that is the blind-search method already tried and already failed
+      twice; do not repeat it). Under the SAME monitored-subprocess
+      discipline as the second attempt (continuous /proc memory sampling,
+      a real hard wall-clock/memory cap you set and justify -- 6000s per
+      target is a reasonable starting point, but you may extend it if the
+      checkpointed, smaller search is progressing well within memory
+      headroom, since you now have real data that memory was not the
+      binding constraint for three of four targets).
+    - >-
+      Separately and cheaply: construct the known closed-form expression
+      directly (from candidate-list.yaml) in the grammar's own
+      representation, evaluate it against the target's control table
+      (zero residual required), and confirm its node count under
+      node_counting_rule.py's own function equals the canonical complexity
+      exactly.
+    - >-
+      REPORT (a) and (b) SEPARATELY and EXPLICITLY per target, and the
+      combined verdict AS "recovered by targeted minimality" -- never
+      merge this into the recovery-controls.json PASS/FAIL language used
+      for blind-search recovery without the distinguishing label.
+    - >-
+      Attempt INV-7 p_exist's minimality (level <=10) only if the other
+      three targets complete with substantial time remaining; it is
+      expected, and fully acceptable, to report it as still open /
+      resource_exhaustion / not attempted.
+    - >-
+      RUN RECORD immutable under
+      experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-minimality/
+      with a real manifest.yaml (top-level key `run:`), command.txt,
+      environment.json, stdout.log, stderr.log, raw-result.json, plus the
+      checkpoint files and the (a)/(b) verdict tables. Do NOT touch
+      RUN-RELN-141a86-stage0a, -stage0bcde, or -stage0c-repair (all
+      immutable).
+    - >-
+      IF ALL THREE (INV-1, INV-7 p_fail, INV-8) clear: the Stage-0c gate
+      is affirmatively passed for those three (INV-A4 and INV-A6 already
+      passed; only INV-7 p_exist remains open). Report clearly whether
+      this constitutes a complete Stage-0c pass under the contract's own
+      wording ("any recovery control is not recovered... Stage 1 does not
+      run") -- p_exist not being recovered by EITHER method may still
+      block Stage 1 under a strict reading; do not unilaterally decide to
+      proceed to Stage 1 if p_exist remains unrecovered. Report the
+      situation and stop for a Coordinator decision on whether a partial
+      four-of-five pass (with p_exist's exact status) is sufficient to
+      proceed, per the contract's own text -- this is a judgment call the
+      contract does not fully resolve and should not be made
+      unilaterally by the executor.
+    - A TIMEOUT, OOM, or crash is failed_infrastructure, never a result.
+    - ZERO INTERPRETATION beyond the contract's own decidable classification.
+  write_scope:
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-minimality/
+    - experiments/EXP-RELN-141a86/source/
+  artifact_paths:
+    - experiments/EXP-RELN-141a86/runs/
+    - experiments/EXP-RELN-141a86/source/
+  archived_by_note: >-
+    The snapshot archive of this run package is a SEPARATE later
+    Coordinator task, dispatched after this handoff returns.
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 21600
+    memory_gb: 16
+    maximum_runs: 5
+  contract_budget_envelope:
+    wall_clock_seconds_per_run: 21600
+    total_cpu_hours: 40
+    maximum_memory_gb: 16
+    maximum_runs: 8
+    maximum_workers: 4
+  completion_gate:
+    - >-
+      Per-level checkpointing implemented and demonstrated (at minimum: a
+      completed lower-level result surviving a simulated or real kill).
+    - >-
+      The (a) minimality-search and (b) direct-construction results for
+      INV-1, INV-7 p_fail, and INV-8, each explicitly labeled as
+      targeted-minimality, not blind search.
+    - >-
+      INV-7 p_exist's status (attempted-and-cleared, attempted-and-
+      resource-exhausted, or not-attempted), honestly reported either way.
+  review_reservation: >-
+    Results of this task are CLAIM-RELEVANT (review_required: true) if any
+    control is reported recovered. Per the contract's
+    later_review_requirements: independent validator and red-team review
+    are owed before any recovered control backs a claim or authorizes
+    Stage 1 to proceed -- and per this handoff's own constraint above, the
+    executor does not unilaterally decide to start Stage 1 even if the
+    gate looks clear; that is a Coordinator decision.

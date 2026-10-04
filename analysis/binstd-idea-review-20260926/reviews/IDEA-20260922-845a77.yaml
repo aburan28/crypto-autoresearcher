@@ -1,0 +1,219 @@
+review:
+  idea_id: IDEA-20260922-845a77
+  reviewed_at: '2026-09-26'
+  reviewer_lane: TASK-20260926-843cf5
+  ranking_context:
+    rank: 29
+    disposition: hold
+    hold_id: HOLD-P
+  claim_restated: >-
+    Replace the algebraic solve of the point-decomposition step (Semaev
+    S_{m+1} via Groebner / resultant / SAT) by a textbook two-list
+    meet-in-the-middle over genuine curve-point sums: enumerate all
+    ceil(m/2)-fold sums of factor-base points into a hash table keyed by
+    x-coordinate, then probe with R minus each floor(m/2)-fold sum; a hit is
+    a candidate relation verified by curve arithmetic. Per-attempt cost
+    O(|V|^{ceil(m/2)}) additions and memory, no polynomial system. Priced at
+    ECC2K-130's certified-small QSP cell (|V| <= 2401, n' = 33, m = 4):
+    about 2*2401^2 = 2^23.46 additions and 2^21.5 stored points, versus an
+    algebraic floor of 2^21.5 or 2^31.0 (two unadjudicated M(E) formulas),
+    and the record predicts, correctly, that this changes nothing there
+    because the attempts column (>= 2^110 at d = 3) dominates either solver.
+    It asks to be kept as a solver-choice instrument for shapes whose |V| is
+    not yet certified small.
+  core_argument_check:
+    - step: '2 * 2401^2 = 11,529,602 = 2^23.46'
+      verdict: holds
+      note: >-
+        Re-computed: 11,529,602, log2 = 23.4588. The claim section's earlier
+        "~2^22.5" is inconsistent with the record's own proof_search_map
+        correction; the record should carry one number. Note also that with
+        the record's own unordered-with-repetition convention the table is
+        C(2402, 2) = 2,883,601 = 2^21.46 entries and the probe side the same,
+        so "exactly 2*2401^2" overstates by about 4x; harmless as an upper
+        bound, wrong as an "exact" figure.
+    - step: 'MITM per attempt vs the algebraic floor 2^21.5 / 2^31.0 at the QSP cell'
+      verdict: unchecked
+      note: >-
+        Both M(E) candidates are quoted from IDEA-20260916-b84e2d, not
+        re-derived; the record correctly reports both and adjudicates
+        neither. One correction: the first-half table is target-independent,
+        so its 2^21.5 additions amortise across all attempts; the true
+        per-attempt cost is the probe half, 2^21.46 additions and lookups,
+        not 2^23.46.
+    - step: 'Attempts column: |F|^m/(m! * 2^131) with |F| <= 2401, m = 4 gives attempts >= 2^90.6 per relation (>= 2^110 at d = 3), so the row is void under either solver'
+      verdict: holds
+      note: >-
+        Re-computed: 4*log2(2401) - log2(24) - 131 = -90.67, so 2^90.7
+        attempts per relation at d = 7; IDEA-20260916-3f7a1c's >= 110 at
+        d = 3 (smaller |F|) not re-derived but consistent. Total >= 2^{90.7 +
+        21.5} per relation before the relation count; void, as the record says.
+    - step: 'Completeness and soundness of the two-list construction (every solution is exactly one collision; every collision is verified)'
+      verdict: holds
+      note: >-
+        Standard; the x-coordinate key collapses +-P, so each probe must test
+        both signs (R - S and R + S, or store both), which the record
+        acknowledges under "negation-aware conventions". Fine.
+    - step: 'Pareto position against IDEA-20260904-96c4f3''s rows at m = 4, dim V = l'
+      verdict: holds
+      note: >-
+        Re-derived: (m-1)-fold loop: time 2^{3l}/6, poly memory; 96c4f3 (D)
+        table of (m-1)-sums: time 2^l per target, memory 2^{3l}; this MITM:
+        time 2^{2l} per target (after a one-time 2^{2l} table), memory
+        2^{2l}. It is a genuine intermediate row, dominated by neither on
+        both axes. HOLD-P's text attributes faa8d2's domination factor
+        2^l (m-1)!/m2! to "MITM"; that factor is for faa8d2's solver-per-entry
+        construction, not for this hash-join, which is time-cheaper than the
+        loop by 2^l/6 at m = 4. See the faa8d2 review.
+    - step: 'MITM per-attempt cost is polynomial in |V| at fixed m and therefore could win at a large-|V| shape'
+      verdict: defective
+      note: >-
+        True but empty on ECC2K-130: under the product law the balanced
+        factor base is |V| of order 2^{(131 + log2 m!)/(m+1)} (2^27 at m = 4,
+        2^16 at m = 8), so |V|^{floor(m/2)} is 2^54 at m = 4 and 2^65 at
+        m = 8 per attempt, against per-attempt budgets of about 2^4.4 and
+        2^25.2 (BRIEF section 2 table; my naive balance reproduces it within
+        0.3-2.1 bits). "Polynomial in |V|" is exponential in n because |V|
+        is. The forward-looking clause should say so.
+    - step: 'novelty: no filed record proposes the two-list MITM for the pdp'
+      verdict: unchecked
+      note: >-
+        Not re-checked against the corpus this session; externally it is the
+        Horowitz-Sahni construction applied to a generic group, which is
+        exactly why it cannot use curve structure (see controls).
+  verdict: dominated
+  defects:
+    - what: Two different per-attempt figures for the same quantity (2^22.5 in claim, 2^23.46 in proof_search_map) and an "exact" count that ignores the record's own unordered convention.
+      where: claim; proof_search_map.baseline_embedding.reproduction_check; predictions[0]
+      fix: 'State one figure: table C(2402,2) = 2^21.46 entries, probe 2^21.46 per attempt after the table; upper bound 2^23.46 if ordered.'
+    - what: The table half is target-independent and amortises; charging it per attempt misprices the per-attempt cost by 2x.
+      where: claim; target_complexity.time_exponent
+      fix: Split one-time table cost from per-attempt probe cost, as 96c4f3 (D) does.
+    - what: No arity m and no per-attempt budget stated for the forward-looking shapes; the "polynomial in |V|" clause hides that |V| is exponential in n at every balanced cell.
+      where: claim "THE FORWARD-LOOKING, GENUINELY OPEN CONTENT"; target_complexity.time_exponent
+      fix: Add the product-law row per m and show |V|^{floor(m/2)} against the per-attempt budget; at ECC2K-130 it fails at every m, and the record should say the forward content is toy-tooling only.
+    - what: dominated_by is "n/a (no attack claimed)" at the QSP cell and "UNCHECKED" elsewhere; the Pareto row against 96c4f3's loop and table variant is derivable and is not filled.
+      where: dominated_by; sota_delta
+      fix: Fill the three-row time/memory comparison at fixed (m, l) explicitly.
+    - what: The record proposes an "existing algebraic F2 solver" as the agreement partner at m up to 4; none is installed here beyond the pure-Python S_3 closure.
+      where: minimal_test Stage 1-2; estimated_cost
+      fix: Name experiments/EXP-CERTBIN-e94b27/impl/ (m = 2 only today) and declare the missing engine for m >= 3.
+  ecc2k130_bearing: >-
+    None against 2^60.8, and the record already says so at the QSP cell
+    (>= 2^133 total either solver; re-derived as >= 2^{90.7 + 21.5} per
+    relation at d = 7). The generalisation fares no better: the product law
+    fixes relations x targets x oracle = m*2^131 independently of dim V, so
+    a per-attempt oracle must cost about 2^4.4 group operations at m = 4,
+    2^12.4 at m = 5, 2^25.2 at m = 8 to tie rho, while MITM's probe half
+    costs |V|^{floor(m/2)} = 2^54 (m = 4, |V| = 2^27) or 2^65 (m = 8,
+    |V| = 2^16) at the balanced factor base. MITM is a generic-group
+    algorithm (it runs identically on a relabelled Z/NZ), so it inherits
+    generic-group cost and cannot be the arity lever the brief asks for.
+    Bearing: closed at every m on this curve; the construction survives only
+    as toy ground truth.
+  agreement_with_hold: agrees
+  agreement_note: >-
+    HOLD-P's verdict (attempts dominate; nothing to revisit until a cell
+    with small attempts and large per-attempt cost exists) is right and is
+    now strengthened: by the product law no such cell exists on ECC2K-130
+    at any arity, because the per-attempt budget that ties rho is 2^4.4 to
+    2^25 group operations while MITM's probe is |V|^{floor(m/2)} with |V|
+    exponential in n. One correction to the hold's text: the factor
+    2^l (m-1)!/m2! it cites from faa8d2 dominates faa8d2's solver-per-entry
+    construction, not this hash-join MITM, which is an undominated
+    intermediate time/memory row against 96c4f3's loop and table variant.
+    That does not release the hold; it just means the hold's stated reason
+    should be the product law, not faa8d2's bound. What would release the
+    hold: a measured decomposition oracle at m >= 4 whose per-attempt cost
+    is BELOW |V|^{floor(m/2)} -- i.e. something other than this record. Not
+    worth taking now.
+  concrete_experiment:
+    cell:
+      curve: >-
+        CERTBIN n = 19 cell: F_2[t]/(t^19 + t^5 + t^2 + t + 1),
+        A = 46693, B = 306147, h = 2 (DEC-20260926-901ea1 SUPPORT); targets
+        in the prime-order subgroup.
+      m: 3
+      l: 6
+      factor_base: 'random 6-dimensional polynomial-basis subspace V (3*5 = 15 <= 19); |V| = 64.'
+      targets: 400 random targets, 40 of them planted as sums of three V-points.
+      seeds: 'committed list of 3 seeds for V and target draws; enumeration exhaustive.'
+    instrument:
+      - experiments/EXP-CERTBIN-e94b27/impl/gf2n.py
+      - experiments/EXP-CERTBIN-e94b27/impl/curve.py
+      - 'new: about 150 lines -- two-list MITM (k1 = 2 table of C(65,2) = 2080 sums keyed by x, k2 = 1 probe of 64 per target), full 3-fold enumeration as ground truth, certificate check.'
+      - 'missing: any algebraic solver at m = 3 (S_4 descent) for the cost-crossover comparison the record actually wants; the pure-Python closure is exercised at m = 2 only, so the algebraic arm at m = 3 is a prerequisite build, not an instrument.'
+    procedure:
+      - Build V and the table of all unordered 2-sums of V-points (both signs stored), 2080 entries; record additions and peak entries.
+      - For each target, probe R - P for all 64 P in V against the table; verify every hit by curve arithmetic; record the relation set.
+      - Run the full 3-fold enumeration (C(66,3) = 45,760 triples) per target as solver-free ground truth; compare relation multisets.
+      - Repeat the identical MITM on the relabelled generic group Z/NZ (N the subgroup order) with V a random 64-element subset: identical operation counts are the tell that no curve structure is used.
+      - 'If an S_4 closure arm becomes available: run it on the same 400 targets and report the ops ratio MITM/algebraic with relation-set agreement as the gate.'
+    metrics:
+      - name: relation_set_agreement
+        unit: fraction of targets
+        definition: fraction of targets whose MITM relation multiset equals the enumeration multiset (must be 1.0).
+      - name: mitm_ops
+        unit: curve additions (count) and table entries (count)
+        definition: one-time table additions, per-target probe additions, peak table size.
+      - name: generic_group_ops_ratio
+        unit: dimensionless
+        definition: MITM operation count on Z/NZ divided by on E at identical |V| and targets; predicted exactly 1.
+      - name: crossover_ratio
+        unit: dimensionless
+        definition: MITM per-target operations divided by algebraic per-target operations at the same cell (only if an m = 3 algebraic arm exists).
+    controls:
+      - 'Null object: random 64-element subset of x(E) (not a subspace) -- MITM cost must be identical, showing subspace structure is unused.'
+      - 'Relabelled Z/NZ generic-group control (the group-structure claim here is "no structure is used"; the control must give ratio 1).'
+      - 'Ordinary-curve control: the CERTBIN cell is already ordinary; a Koblitz-shaped arm (y^2 + xy = x^3 + 1, #E = 4 * 130873 at n = 19) can be added and must show identical MITM counts.'
+      - Solver-free ground truth by exhaustive enumeration on every target.
+    outcomes:
+      positive: >-
+        relation_set_agreement = 1 and generic_group_ops_ratio = 1: the
+        construction is a correct, exact, certificate-producing oracle at
+        toy scale, usable as ground truth for m = 3, 4 CERTBIN cells; it
+        says nothing about any crossover unless the algebraic arm exists.
+      negative: >-
+        crossover_ratio > 1 at every tested (m, l) with the algebraic arm
+        present: the algebraic route is cheaper per attempt even at toy
+        scale; the record's forward clause is closed at these cells.
+      artifact: >-
+        relation_set_agreement < 1 (sign handling or hash collisions on x
+        without the y check) or generic_group_ops_ratio != 1 (an
+        implementation using curve-specific shortcuts): instrument defect;
+        no cost figure may be read.
+    falsification_threshold: >-
+      Record's own: any relation-set disagreement localises an error. For
+      the forward claim: MITM/algebraic per-target ratio >= 1 at every
+      toy cell where both run falsifies "MITM is the cheaper solver" at toy
+      scale; on ECC2K-130 the product-law arithmetic above already closes it.
+    estimated_cost:
+      implementation: low
+      compute: 'estimate: seconds to minutes of pure Python at |V| = 64, m = 3; the ground-truth enumeration (4.6e4 triples x 400 targets) dominates.'
+    zero_run_prerequisites:
+      - Fill the three-row time/memory table against 96c4f3 (C)-(D) at fixed (m, l).
+      - State the product-law per-attempt budget for each m the forward clause names.
+  successor_seam: >-
+    A tooling seam, not an attack: the two-list MITM is an exact,
+    solver-free, certificate-producing decomposition oracle whose cost at
+    toy scale (|V|^{ceil(m/2)} additions) is far below exhaustive m-fold
+    enumeration, so it is the natural ground-truth control for the m = 3
+    and m = 4 CERTBIN cells the G2 lane wants (mutant-closure refutation
+    rates, sat/unsat asymmetry), replacing enumeration where enumeration
+    stops fitting. A short RQ-CERTBIN-836ce2 instrument note ("MITM oracle
+    as ground truth for S_4/S_5 descents at n = 17/19") would carry it; no
+    new proposal ID is warranted because it changes no research state.
+  records_read:
+    - IDEA-20260922-845a77
+    - IDEA-20260922-faa8d2
+    - KN-FIND-aa2efc
+    - IDEA-20260904-96c4f3 (sections D-F only)
+    - IDEA-20260916-3f7a1c (grep of the 2401 and attempts-column lines only)
+    - experiments/EXP-CERTBIN-e94b27/impl/README.md
+    - analysis/binstd-idea-review-20260926/BRIEF.md
+    - analysis/binstd-idea-review-20260926/ranking-context-DEC-20260924-99ce20.yaml
+  not_read:
+    - IDEA-20260916-b84e2d
+    - IDEA-20260916-a17f43
+    - IDEA-20260916-5c9d6e
+    - IDEA-20260806-9d47e2

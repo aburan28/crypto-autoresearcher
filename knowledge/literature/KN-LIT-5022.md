@@ -17,7 +17,7 @@ tags: [cryptanalysis, dlp, pollard-rho, protocol, provable-security, symmetric]
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-7e25f1
 ---
 
 ## Contribution

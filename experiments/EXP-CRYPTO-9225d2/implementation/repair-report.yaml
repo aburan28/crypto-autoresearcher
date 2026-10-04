@@ -1,0 +1,90 @@
+repair_report:
+  experiment_id: EXP-CRYPTO-9225d2
+  task_id: TASK-20260912-f821b2
+  opening_decision: DEC-20260912-34c82d
+  prior_review_decision: DEC-20260908-ffb734
+  scientific_execution_authorized: false
+  maximum_runs_this_task: 0
+
+  no_scientific_run_attestation: >-
+    No fixture, curve, scalar/primitive input, measurement table, rho walk,
+    proof certificate, cgroup probe against a real path, or scientific test
+    result was generated, executed, or self-tested by this task. No function
+    in arithmetic.py, rho.py, or driver.py was imported and called on a
+    scientific input. The only command run against the three edited .py files
+    was `python3 -m py_compile` (plus an ast.parse read of source text).
+    driver.main(), fixture constructors, and rho run_worker/run_coordinator
+    were not invoked. __pycache__ created by py_compile was removed.
+
+  finding_by_finding:
+    - id: a
+      source: DEC-20260908-ffb734 / review C6
+      change: >-
+        arithmetic.py point_add generic branch now computes
+        Y3 = M(j, B-X3) - M(V1, C-B) via BX3=B.sub(X3) and CB=C.sub(B).
+        The previous line reused C-B for both products.
+      function: point_add
+      closed: true
+    - id: b
+      source: DEC-20260908-ffb734 / review C11
+      change: >-
+        rho.py EndpointTable.insert_if_absent now compares occupant.x/y to
+        the candidate slot at each occupied probe index, returns
+        (False, occupant) on a true endpoint match, and continues probing
+        only on a mismatch. The unreachable post-loop occupancy check is gone.
+      function: EndpointTable.insert_if_absent
+      closed: true
+    - id: c
+      source: DEC-20260908-ffb734 / review C9
+      change: >-
+        arithmetic.py now exports scalar_multiply_planted. point_add,
+        point_double, and normalize accept an optional planted_sink and
+        route every top-level M through _top_level_mul -> planted_mul.
+        S and I are unchanged. The planted scalar callable is the same
+        256-bit MSB-first loop as scalar_multiply. Final normalize() is
+        still a caller composition (same C8 gap as the reference callable);
+        that gap was not one of the four required findings.
+      function: scalar_multiply_planted
+      closed: true
+    - id: d
+      source: DEC-20260908-ffb734 / review C12
+      change: >-
+        driver.check_cgroup_admission now takes job_kind ('arithmetic' or
+        'rho'), requires pids.max == 3 exactly, and requires cpu.max to
+        equal 100000 100000 (arithmetic) or 300000 100000 (rho). Missing
+        or unmatched cpu.max is a refusal. The function still returns
+        admitted=False when no real cgroup path exists.
+      function: check_cgroup_admission
+      closed: true
+
+  not_changed:
+    - Frozen specification bytes.
+    - scientific_execution_authorized remains false.
+    - Original preparation-report.yaml and implementation-manifest.yaml
+      (TASK-20260907-ecd3a2) were not rewritten.
+    - independent_checker.py / count_predictor.py shared-authorship gap
+      remains; this task did not claim independence.
+    - No 40-job trial plan, host binding, fixture, or launch lock.
+
+  static_work_actually_performed:
+    - Read DEC-20260908-ffb734, the C6/C9/C11/C12 review findings, and the
+      three source files.
+    - Edited arithmetic.py, rho.py, and driver.py as mapped above.
+    - Wrote this report and repair-manifest.yaml.
+    - Ran python3 -m py_compile on the three .py files; all three passed.
+    - Removed __pycache__.
+
+  executor_assessment:
+    protocol_complete: false
+    protocol_complete_note: >-
+      The four named source defects are closed in source. The full 40-job
+      scientific protocol remains unauthorized and unrun.
+    data_quality: not_applicable
+    requires_rerun: false
+
+  model_self_report:
+    requested_policy: executor-implementation
+    independent_session_required: false
+    actual_model_identifier_self_reported: cursor-grok-4.6
+    fallback_used: false
+    bedrock_status: NOT_SELECTED, NOT_CONFIGURED, NOT_PROBED, NOT_CONTACTED, NOT_USED

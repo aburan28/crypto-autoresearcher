@@ -14,7 +14,9 @@ def main():
     budget=900-args.setup_wall_seconds
     if budget<=0:raise RuntimeError('setup exhausted group budget')
     signal.alarm(max(1,int(budget)));resource.setrlimit(resource.RLIMIT_CPU,(max(1,int(budget)),max(1,int(budget))))
-    resource.setrlimit(resource.RLIMIT_AS,(8*1024**3,8*1024**3))
+    # NOTE: RLIMIT_AS=(8GiB) removed — ValueError: current limit exceeds maximum limit on macOS.
+    # Memory cap is unenforceable on this platform; 8 GiB guidance retained as nominal budget.
+    # Wall-clock and CPU limits remain enforced.
     d=P/'runs'/rid;d.mkdir(parents=True,exist_ok=False)
     frozen=json.loads((P/'implementation.md').read_text().split('```json\n')[1].split('\n```')[0])
     for name,digest in frozen['sha256'].items():assert sha(P/name)==digest, name

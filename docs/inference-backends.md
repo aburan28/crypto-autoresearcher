@@ -54,6 +54,8 @@ or a regional deployment). Nothing else.
 | `fireworks-anthropic` | Anthropic Messages | `https://api.fireworks.ai/inference` (`FIREWORKS_ANTHROPIC_BASE_URL`) | `FIREWORKS_API_KEY` |
 | `openai` | OpenAI Chat | `https://api.openai.com/v1` (`OPENAI_BASE_URL`) | `OPENAI_API_KEY` |
 | `openrouter` | OpenAI Chat | `https://openrouter.ai/api/v1` (`OPENROUTER_BASE_URL`) | `OPENROUTER_API_KEY` |
+| `abliteration` | OpenAI Chat | `https://api.abliteration.ai/v1` (`ABLIT_BASE_URL`) | `ABLIT_API_KEY` |
+| `abliteration-anthropic` | Anthropic Messages | `https://api.abliteration.ai` (`ABLIT_ANTHROPIC_BASE_URL`) | `ABLIT_API_KEY` |
 | `local` | OpenAI Chat | `http://localhost:8000/v1` (`LOCAL_LLM_BASE_URL`) | `LOCAL_LLM_API_KEY` (optional) |
 
 `zai` and `zai-anthropic` are the same GLM models behind two protocols and share
@@ -71,9 +73,15 @@ than `x-api-key`, declared as a per-backend `auth:` override in
 `ANTHROPIC_API_KEY` sitting in your environment cannot be sent to a
 non-Anthropic endpoint by accident.
 
-`fireworks`, `fireworks-anthropic`, `openai`, `openrouter`, and `local` ship
-**unbound** — a key alone is not enough,
-because `model: null` is set for every policy until you fill in identifiers.
+`openrouter` ships **unbound** — a key alone is not enough, because
+`model: null` is set for every policy until you fill in identifiers.
+`abliteration` and `abliteration-anthropic` bind the vendor's published ids
+(`abliterated-model` for the executor policies, `abliterated-model-large-v2`
+for coordinator, research, consolidation, and review). Those ids are
+operator-supplied until `doctor --probe` lists them. They are not in
+`backend_fallback_order`: set `AUTORESEARCH_BACKEND=abliteration` (or
+`abliteration-anthropic` for an Anthropic-protocol CLI). The vendor's
+quickstart calls the key `ABLIT_KEY`; this program uses `ABLIT_API_KEY`.
 
 Set them up:
 
@@ -369,6 +377,30 @@ eval "$(python3 -m orchestration.adapter env \
 export AUTORESEARCH_BACKEND=zai
 ```
 
+## Running the program on Abliteration
+
+`abliterated-model-large-v2` and `abliterated-model` are configured on
+`abliteration` (OpenAI wire) and `abliteration-anthropic` (Anthropic wire,
+same models). Selection is explicit: neither backend is in
+`backend_fallback_order`.
+
+```sh
+# An Anthropic-protocol agent CLI:
+eval "$(python3 -m orchestration.adapter env \
+          --runtime claude_code --backend abliteration-anthropic --role coordinator)"
+
+# An OpenAI-protocol agent CLI, or this repository's own runtime:
+export AUTORESEARCH_BACKEND=abliteration
+```
+
+Put the console key in `ABLIT_API_KEY`. Large-v2's `xhigh` and `max` are one
+mode, so a review recorded at `xhigh` on this backend ran the same depth as
+`max`. Probe before citing a manifest:
+
+```sh
+python3 -m orchestration.adapter doctor --backend abliteration --probe
+```
+
 `env` refuses a runtime/backend pair whose wire protocols disagree, exports the
 resolved model rather than a guess, and also exports `AUTORESEARCH_POLICY` and
 `AUTORESEARCH_BACKEND` so runs launched in that shell record what they ran on.
@@ -451,6 +483,12 @@ pulls LangGraph in. No vendor provider package is needed either — the chat
 model in `orchestration/adapter/langchain_model.py` wraps our own transport, so
 every backend in `providers.yaml` works through `langchain-core` alone and
 every request keeps going through one recorded HTTP path.
+
+Tasks now derive a compact context and default retrieval scope when one is
+not declared. File tools cap responses and report partial coverage. Optional
+`--sparse-worktree` execution keeps a small set of working files while retaining
+full Git history. See [Task context and sparse workspaces](task-context-workspaces.md)
+for defaults, dependency retrieval, and the standalone native-runtime helper.
 
 **Scope is enforced, not requested.** Under a CLI runtime, "write only inside
 your `write_scope`" is an instruction an agent is asked to follow. Here the

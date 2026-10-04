@@ -119,6 +119,76 @@ def test_optional_capability_is_not_reported_as_an_over_grant(roles):
         roles, "coordinator", "claude_code")
 
 
+def test_consolidator_cannot_write_files_directly(roles):
+    """The one role that reports on work it did not do gets no file writers.
+
+    Its only intended write path is `agent_bus.py consolidate` through
+    run_commands, which refuses a message with no --source, no --ref, or a ref
+    naming no record. Granting Write or Edit would restore the ergonomic path
+    to writing a ledger record, a knowledge entry, or an evidence artifact --
+    which is what its whole contract exists to prevent.
+
+    This is NOT a claim that the grant is airtight: run_commands is a shell.
+    It pins that the easy path stays closed.
+    """
+    caps = set(roles["roles"]["consolidator"]["capabilities"])
+    assert "write_files" not in caps
+    assert "edit_files" not in caps
+    tools = checker.expected_tools(roles, "consolidator", "claude_code")
+    assert "Write" not in tools and "Edit" not in tools
+    assert "Bash" in tools, "the bus is driven through run_commands"
+
+
+def test_consolidator_must_run_independently_of_the_lanes_it_reads(roles, policies):
+    """Independence here is about SELECTION BIAS, not review integrity.
+
+    A consolidator that also works one of the lanes it reads will carry its own
+    lane's pointers outward and call it a cross-cutting pass -- and the bias is
+    invisible in the output, because every carried item is individually true.
+    `_check_policy` refuses the role unless its policy demands an independent
+    session, so this cannot be relaxed by editing one file.
+    """
+    spec = roles["roles"]["consolidator"]
+    assert spec["authority"]["independent_of_producer"] is True
+    policy = policies["policies"][spec["default_policy"]]
+    assert policy["independent_session_required"] is True
+    assert policy["may_change_official_state"] is False
+
+
+def test_consolidator_has_no_authority_over_research_state(roles):
+    authority = roles["roles"]["consolidator"]["authority"]
+    assert authority["may_change_official_state"] is False
+    assert authority["may_approve_experiments"] is False
+    assert authority["may_execute_experiments"] is False
+
+
+def test_consolidator_is_not_a_handoff_target(roles):
+    """A consolidation pass is not research work, so no TASK-* addresses it.
+
+    `research_dispatch.ROLES` is the set of roles a handoff envelope may be
+    addressed to -- work carrying a write scope, a budget and a completion
+    gate. The pass has none of those and produces no ledger artifact. Listing
+    it there would advertise a dispatch route that should not exist.
+    """
+    sys.path.insert(0, str(REPO / "tools"))
+    import research_dispatch  # noqa: PLC0415
+    assert "consolidator" in roles["roles"]
+    assert "consolidator" not in research_dispatch.ROLES
+
+
+def test_consolidator_is_not_bound_to_a_runtime_that_cannot_write_the_bus(roles):
+    """codex_cli would host this role read-only, which cannot write a message.
+
+    Without write_files the generator emits `sandbox_mode = "read-only"`, under
+    which `agent_bus.py consolidate` cannot create its own message file -- so
+    the role could not do its only job there. The absent binding is a recorded
+    decision, not an oversight, and this pins it as one.
+    """
+    bindings = roles["roles"]["consolidator"]["runtime_bindings"]
+    assert "codex_cli" not in bindings
+    assert set(bindings) == {"claude_code", "opencode"}
+
+
 def test_missing_contract_file_is_caught(roles):
     doc = copy.deepcopy(roles)
     doc["roles"]["coordinator"]["contract"] = "agents/does-not-exist.md"

@@ -1,0 +1,89 @@
+# =============================================================================
+# CORR-20260923-043add -- EXP-GFPN-726eb2: the "independently verified" ECPP
+# claims in RUN-GFPN-b71f2f and RUN-GFPN-3bbef2 rest on
+# gfpn_arith.verify_ecpp, which is not a sound ECPP checker. No certified
+# number changes. The verification basis moves to a sound independent checker.
+# Written by the Coordinator under TASK-20260923-e52c88 from the J1 side
+# finding of TASK-20260923-2d8db0. The archived run packages are NOT edited.
+# =============================================================================
+correction:
+  id: CORR-20260923-043add
+  recorded_at: '2026-09-23'
+  record_type: run
+  record_id: RUN-GFPN-b71f2f
+  experiment_id: EXP-GFPN-726eb2
+  goal_id: GOAL-GFPN-380702
+  task_id: TASK-20260923-e52c88
+  decision_id: DEC-20260923-a118fa
+
+  field: >-
+    The verification basis asserted by these fields, in RUN-GFPN-b71f2f and
+    RUN-GFPN-3bbef2:
+    - "independent_verify_ecpp: true" in raw-result.json and in
+      certificates/order-certificate.json and certificates/factorization-*.json;
+    - the order argument "n prime (ECPP, independently verified)" in
+      raw-result.json and audit-table.yaml;
+    - the certificate "method" string "PARI ECPP re-verified by
+      gfpn_arith.verify_ecpp";
+    - check_run.py's "N ECPP certificates re-verified independently", as quoted
+      in coordination/goals/GOAL-GFPN-380702/archives/TASK-20260921-b59aad/snapshot-receipt.json
+      dispatcher_checks ("13 ECPP certificates re-verified by it").
+
+  prior_value: >-
+    ECPP certificates "independently verified" by
+    experiments/EXP-GFPN-726eb2/implementation/gfpn_arith.py verify_ecpp
+    (sha256 d4586286...).
+
+  corrected_value: >-
+    gfpn_arith.verify_ecpp is NOT a sound ECPP proof checker.
+    - Line 266 (`if mP is not None and math.gcd(mP[2], N) == 1: return False`)
+      accepts [q]([s]P) as the point at infinity whenever gcd(Z, N) != 1,
+      including a proper factor of N.
+    - Line 254's size test, q > (floor(N^(1/4)) + 1)^2, is weaker than the
+      theorem's.
+    "independent_verify_ecpp: true" therefore certifies nothing on its own.
+    Every committed ECPP certificate of both runs does re-verify under two
+    checkers. The first is TASK-20260923-2d8db0's own chain checker
+    (scratch/vlib.py ecpp_check: affine arithmetic mod N, where any
+    non-invertible denominator rejects; size condition
+    q >= (floor(N^(1/4)) + 2)^2; Pratt-proved terminals). The second is PARI's
+    primecertisvalid. The verification basis of every ECPP-proved prime in
+    both runs is those two checkers, not gfpn_arith.verify_ecpp.
+
+  reason: >-
+    - The validator's breaking artifact
+      (coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-2d8db0/scratch/inv4/result.json)
+      is a one-row certificate for the COMPOSITE
+      N = 15455254030202269045126455471953 = 5058901727581901 *
+      3055061130351253, which the committed verify_ecpp accepts ("N=104-bit
+      ok, q=53-bit"). The validator's checker rejects it (non-invertible
+      denominator 5058901727581901). PARI primecertisvalid returns 0.
+    - Dispatcher verification (2026-09-23): the committed verify_ecpp returns
+      True on that forged certificate, and PARI proves both factors prime.
+    - The Coordinator read gfpn_arith.py lines 235-275 and confirms that the
+      logic at line 266 is as quoted.
+
+  effect_on_dependent_records: >-
+    - No certified number of EcGFp5 or EcMasFp5 changes (J1 holds).
+    - The dispatcher's archive-time statement "executor package checker OK ...
+      13 ECPP certificates re-verified by it" (receipt TASK-20260921-b59aad) is
+      historically accurate as a report of what check_run.py printed. It is
+      read through this correction and is not edited.
+    - Any reuse of gfpn_arith.verify_ecpp, including by another experiment, is
+      unsound until fixed. The fix is listed in the instrument-repair next
+      action of DEC-20260923-a118fa.
+
+  evidence_artifacts:
+    - experiments/EXP-GFPN-726eb2/implementation/gfpn_arith.py
+    - experiments/EXP-GFPN-726eb2/implementation/check_run.py
+    - experiments/EXP-GFPN-726eb2/runs/RUN-GFPN-b71f2f/raw-result.json
+    - experiments/EXP-GFPN-726eb2/runs/RUN-GFPN-3bbef2/raw-result.json
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260921-b59aad/snapshot-receipt.json
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-2d8db0/review-report.yaml
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-2d8db0/scratch/inv4/result.json
+    - coordination/goals/GOAL-GFPN-380702/reviews/TASK-20260923-2d8db0/scratch/vlib.py
+
+  scope_note: >-
+    A correction of a verification-basis claim. The runs stay completed_valid.
+    No status or number changes, and nothing is promoted. The archived
+    packages and receipt are not edited.

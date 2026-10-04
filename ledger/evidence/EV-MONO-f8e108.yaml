@@ -1,0 +1,141 @@
+evidence:
+  id: EV-MONO-f8e108
+  hypothesis_id: H-MONO-10ca08
+  experiment_ids: [EXP-MONO-7c653b]
+  run_ids: [RUN-MONO-7c653b-1, RUN-MONO-7c653b-2]
+  type: empirical
+  direction: supports
+  strength: strong
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: derivation
+  proof_refs:
+    - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/raw-result.json
+    - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-2/raw-result.json
+    - ledger/handoffs/TASK-20260905-bc7d3f.yaml
+    - experiments/EXP-MONO-7c653b/reviews/red-team/red-team-report.yaml
+
+  observations:
+    - >-
+      MEASURED, BOTH RUNS: Stage 1 hard-gate fixture (m=4, p=211,
+      a=37/b=57, j=0) reproduced exactly, 193/193 complete splitting,
+      root sets matching {x(+-P1+-P2+-P3)}, in both runs.
+    - >-
+      MEASURED, BOTH RUNS, ALL 4 (m,p) CELLS: the quadratic-twist route
+      (E_delta group additions, F_p only) reproduced the direct
+      polynomial-root route's x-set EXACTLY -- exact_match_rate = 1.000
+      -- at every j=m-1 tested cell (m in {4,5}, p in {211,1009}), zero
+      mismatches across 1400 tuples per run (500+500+200+200).
+      Operation count reconciled exactly: m-1 EllipticCurve.add calls
+      plus one final F_p multiplication per attempt, at every cell,
+      reported beside (never folded into) H-MONO-40aca5's own
+      D_trial(E)=m-1 count for the j=0 branch.
+    - >-
+      MEASURED, BOTH RUNS: the deliberately wrong-rescaling-constant
+      mutant control (Stage 4a) reproduced x(Q) at rate 0.0/50 in both
+      runs -- the control retains full discriminating power. The
+      independently-drawn 50-tuple comparison sample showed zero overlap
+      with Stage 3's own m=4/p=211 sample in both runs.
+    - >-
+      INDEPENDENTLY RE-DERIVED, VALIDATOR (blind, from scratch, without
+      reading the implementation's own twist code): the discriminant/
+      coefficient identity delta^3*f(X/delta) = X^3+A*delta^2*X+B*delta^3
+      confirmed as a formal polynomial identity (symbolic, not numeric),
+      and independently re-verified at 5 concrete tuples across 3
+      curves -- including a curve (p=131, a=2, b=5) never used anywhere
+      in the actual run -- with the twist-route and direct-route x-sets
+      matching exactly in every case, using the Validator's own
+      independently-written code, never the Executor's.
+    - >-
+      INDEPENDENTLY RE-DERIVED, VALIDATOR (proves-too-much control):
+      exhaustively checked, for ALL 111 on-curve x-coordinates at
+      p=211 (not sampled), that f(x)/delta is a non-residue with ZERO
+      exceptions when delta is fixed as a non-residue -- forced by
+      multiplicativity of the quadratic character (residue/non-residue =
+      non-residue, always). This means the twist-route construction
+      CANNOT EVEN BE EXECUTED at j=0 (no F_p-rational y_i' exists) for
+      any on-curve x and any fixed non-residue delta, at any p -- the
+      exact-match test's discriminating power is structural, not an
+      artifact of what happened to be sampled.
+    - >-
+      INDEPENDENTLY RE-DERIVED, VALIDATOR (bonus, unassigned): explained
+      a secondary discrepancy (factor_degree_multiset reporting 1989
+      roots against 500 tuples x 4 expected = 2000 at the m4/p211 cell)
+      as a benign, theory-consistent degree-drop phenomenon (~2% of
+      tuples have a vanishing leading coefficient in the specialized S4,
+      correctly producing a point at infinity on the twist route for
+      exactly the missing sign class, with the remaining roots still
+      matching exactly) -- confirmed by direct inspection of 5 such
+      cases, not merely asserted.
+    - >-
+      INDEPENDENTLY RE-DERIVED, RED TEAM (blind, joint 2): reconstructed
+      RUN-1's own trial 0 from scratch (fresh Weierstrass addition,
+      brute-force sqrt, no imports from the implementation), matching
+      the reported direct-route and mutant-route x-sets exactly. Then
+      proved ALGEBRAICALLY, across the FULL batch of all 100 mutant
+      trials in both runs (not merely spot-checked), that every trial's
+      mutant x-set equals its direct-route x-set scaled elementwise by
+      the fixed constant delta*delta'^{-1} mod p -- which is only
+      possible if the pre-rescaling signed-sum point R is IDENTICAL
+      between the correct and mutant routes in every trial, proving the
+      mutant construction never touches the sum itself, only the final
+      rescaling, exactly as the contract specifies and exactly as its
+      two explicitly-excluded alternative "mutants" would not have shown.
+    - >-
+      INDEPENDENTLY RE-DERIVED, RED TEAM (blind, joint 3): traced and
+      explained the raw-data discrepancy between Stage 3's own
+      n_completed=500 and independent_sample_check's own distinct-tuple
+      count of 499 at RUN-1's m4/p211 cell: a benign birthday coincidence
+      in the SHA-256-derived draw stream (trial 218 redrew the identical
+      3-value tuple already drawn at trial 206; p=211's twisted factor
+      base has only 100 non-residues, giving a substantial collision
+      probability over 500 draws under a Python-set-based diagnostic
+      counter). Both trials were fully and separately executed by Stage
+      3 itself; no trial was dropped or duplicated; exact_match_rate is
+      unaffected. Checked all 8 (seed,cell) combinations in both runs;
+      this collision is unique to this one cell/seed. Additionally
+      caught and required correction of a factual error in
+      execution_report.yaml's own prose summary (stated 500, should
+      have read 499, matching raw-result.json) -- corrected before this
+      record's own archival.
+
+  inference: >-
+    HEUR-PARITY-3 (H-MONO-10ca08's mechanism STEP 5: the quadratic-twist
+    representation reduction lets the j=m-1 branch be computed via
+    ordinary F_p group arithmetic at the same asymptotic cost as the
+    already-established j=0 branch) is CONFIRMED, not merely measured
+    once: the Executor's own clean exact-match result is corroborated by
+    two independent reviewers using entirely different methods (the
+    Validator via a from-scratch symbolic/multi-curve re-derivation and
+    an exhaustive proves-too-much proof; the Red Team via an exact
+    algebraic proof spanning the full mutant-trial batch and a precise
+    explanation of every raw-data anomaly found). No reviewer identified
+    a defect in the core claim; the two minor discrepancies found (the
+    1989-vs-2000 root count, the 499-vs-500 tuple count) were both
+    traced to their exact, benign, theory-consistent mechanisms rather
+    than left as unexplained noise. This completes H-MONO-40aca5's own
+    j=0 cost identity into a genuine two-branch law with a UNIFIED
+    mechanism (group arithmetic, not root-finding, on either branch).
+
+  boundaries:
+    - >-
+      Toy scale for the MEASUREMENT (p in {211,1009}, m in {4,5}, two
+      fixed curves). The underlying isomorphism argument (any morphism
+      of Weierstrass curves over a field extension commutes with the
+      group law) is standard, curve-generic elliptic-curve theory,
+      independently re-confirmed by the Validator at a THIRD curve
+      never used in the actual run -- so the mechanism itself is not
+      scale-limited, though this record's own measurement is.
+    - >-
+      Does not touch intermediate-j (H-MONO-45183a Part A / HEUR-PARITY-2),
+      which is not sampled by this contract at all and remains addressed
+      elsewhere (EXP-MONO-12ce1c).
+    - >-
+      No ECDLP, relation-rate, exponent, or cost-savings claim: D_trial(E)
+      stays O(m) on both branches; the attempt count is unchanged and
+      remains strictly worse than Pollard rho at every finite m (per
+      H-MONO-10ca08's own interpretation_limits).
+
+  unresolved_confounds: []
+
+  reviewed_by: coordinator

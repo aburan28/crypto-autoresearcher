@@ -1,0 +1,395 @@
+validation_report:
+  id: VAL-20260906-bc1cfc
+  task_id: TASK-20260906-bc1cfc
+  goal_id: GOAL-ECDLP-bbc21f
+  batch_id: BATCH-f3a30a
+  experiment_id: EXP-ECDLP-612fb1
+  role: validator
+  joints_owned:
+  - J1
+  - J2
+  joints_not_owned_not_addressed:
+  - J3
+  - J4
+  snapshot_verified:
+    snapshot_commit: 22e80f13361a6eb307864c52f51740db419e9e54
+    snapshot_task: TASK-20260906-1e5ea4
+    snapshot_receipt: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/archives/TASK-20260906-1e5ea4/snapshot-receipt.json
+    note: Confirmed via `git log --oneline -- experiments/EXP-ECDLP-612fb1/source_v2/` that source_v2/,
+      the 16 v2 run directories and execution_report.yaml are committed at 22e80f133, not working-tree-only.
+      All artifacts this report cites are read from this committed snapshot. The receipt's `inventory_verification`
+      records every path in the executor's own artifact_inventory.json was hash-checked before staging.
+    base_commit_checked: 246f386e838be9568212335aeda6e8b03922890f (per snapshot-receipt.json)
+  run_ids:
+  - RUN-ECDLP-612fb1-v2-ascan-s1
+  - RUN-ECDLP-612fb1-v2-ascan-s2
+  - RUN-ECDLP-612fb1-v2-ascan-s3
+  - RUN-ECDLP-612fb1-v2-ascan-s4
+  - RUN-ECDLP-612fb1-v2-ascan-s5
+  - RUN-ECDLP-612fb1-v2-1v2-s1
+  - RUN-ECDLP-612fb1-v2-1v2-s2
+  - RUN-ECDLP-612fb1-v2-1v2-s3
+  - RUN-ECDLP-612fb1-v2-1v2-s4
+  - RUN-ECDLP-612fb1-v2-1v2-s5
+  - RUN-ECDLP-612fb1-v2-2v2-s1
+  - RUN-ECDLP-612fb1-v2-2v2-s2
+  - RUN-ECDLP-612fb1-v2-2v2-s3
+  - RUN-ECDLP-612fb1-v2-2v2-s4
+  - RUN-ECDLP-612fb1-v2-2v2-s5
+  - RUN-ECDLP-612fb1-v2-analysis-001
+  artifact_checks:
+  - check: manifest completeness (spot-checked RUN-ECDLP-612fb1-v2-ascan-s1, RUN-ECDLP-612fb1-v2-1v2-s1..s5,
+      RUN-ECDLP-612fb1-v2-2v2-s1..s5)
+    result: PASS
+    detail: Each manifest.yaml carries commit (4a3b93d786e08de221ef52a456869224c298d5e1), dirty=false
+      with dirty_tracked_files=[] (only untracked new source/run files, expected pre-snapshot), branch,
+      exact command, per-file source_sha256, seeds (walk_key_seed), timing (wall_seconds within the 3600s
+      limit), resources (peak_rss within the 8GB limit), and result.valid=true with certificate.kind=none
+      (correct for this toy/generic pure-measurement instrument -- nothing is claimed solved).
+  - check: run inventory vs execution_report.yaml's declared run list
+    result: PASS
+    detail: 16 completed_valid runs declared, 16 found under experiments/EXP-ECDLP-612fb1/runs/*v2*, no
+      invalid/failed entries, matches artifact_inventory.json.
+  metric_recomputations:
+  - joint: J1
+    description: Independent re-enumeration of exact basins at N=2^24, a=1/4, r=2, recomputing the G3
+      ceiling-feasibility comparison (exact top-T_sel basin share vs STATIC(T)_r exact coverage) at T_sel
+      in {0.65T, 0.75T}, using MY OWN code (splitmix64 + functional-graph basin resolution + fresh-uniform-restart
+      pool generation), NOT the executor's instrument.py, written and run BEFORE opening source_v2/.
+    my_code: j1_g3_reenumeration.py (reuses j2_blind_derivation.py's basin/pool primitives, also independent)
+    my_output: j1_output.json, j1_stderr.log
+    my_seeds:
+    - 777001
+    - 888002
+    my_result:
+      N=2^24,a=1/4,r=2,seed=777001:
+        T_sel=0.65T_margin: 0.0142
+        T_sel=0.75T_margin: 0.0391
+        static_coverage: 0.2924
+      N=2^24,a=1/4,r=2,seed=888002:
+        T_sel=0.65T_margin: 0.0106
+        T_sel=0.75T_margin: 0.0371
+        static_coverage: 0.3112
+    run_recorded_result:
+      2^24,0.65T:
+        margins_per_seed_5:
+        - 0.0301
+        - 0.0338
+        - 0.0049
+        - 0.0247
+        - 0.0166
+        verdict: PASS 5/5
+      2^24,0.75T:
+        margins_per_seed_5:
+        - 0.0559
+        - 0.0593
+        - 0.0305
+        - 0.0491
+        - 0.0403
+        verdict: PASS 5/5
+    comparison: 'My 2 independent seeds give margins of the SAME SIGN (positive = G3 PASS) and the SAME
+      ORDER OF MAGNITUDE as the run''s own 5-seed margins at both T_sel points (mine: 0.0106-0.0142 at
+      0.65T, 0.0371-0.0391 at 0.75T; run''s: 0.0049-0.0338 at 0.65T, 0.0305-0.0593 at 0.75T -- mine fall
+      within the run''s own observed range at both cells). No disagreement found: G3 PASS at both binding
+      (N=2^24) cells is independently confirmed.'
+    verdict: CONFIRMS_RUN
+  - joint: J2
+    description: BLIND re-derivation of rho_ORACLE(a, r) at a in {1/4, 1/2}, N=2^20, r in {2, 4, 8}, from
+      specification.v2.yaml's own basin-partition definitions alone, SEALED (hashed + timestamped, see
+      blind_rederivation block below) before opening any blind_from path.
+    my_code: j2_blind_derivation.py
+    my_output: j2_output.json, j2_stderr.log
+    my_seeds:
+    - 1001
+    - 2002
+    - 3003
+    - 4004
+    - 5005
+    my_sealed_result:
+      a=1/4,r=2:
+        mean_5seeds: 0.5777
+        range:
+        - 0.5155
+        - 0.6434
+      a=1/2,r=2:
+        mean_5seeds: 0.6681
+        range:
+        - 0.6162
+        - 0.6927
+      a=1/4,r=4:
+        mean_5seeds: 0.679
+        range:
+        - 0.6082
+        - 0.7098
+      a=1/2,r=4:
+        mean_5seeds: 0.7833
+        range:
+        - 0.7339
+        - 0.8567
+      a=1/4,r=8:
+        mean_5seeds: 0.8529
+        range:
+        - 0.8164
+        - 0.8761
+      a=1/2,r=8:
+        mean_5seeds: 0.9112
+        range:
+        - 0.8829
+        - 0.9344
+      ordering_a_quarter_lt_a_half:
+        r=2: true
+        r=4: true
+        r=8: true
+    run_recorded_result:
+      a=1/4,r=2:
+        mean_5seeds: 0.5744
+        range:
+        - 0.5103
+        - 0.6789
+      a=1/2,r=2:
+        mean_5seeds: 0.6897
+        range:
+        - 0.6264
+        - 0.7555
+      a=1/4,r=4:
+        mean_5seeds: 0.7033
+        range:
+        - 0.6225
+        - 0.8007
+      a=1/2,r=4:
+        mean_5seeds: 0.8014
+        range:
+        - 0.6867
+        - 0.8548
+      a=1/4,r=8:
+        mean_5seeds: 0.8372
+        range:
+        - 0.7923
+        - 0.8806
+      a=1/2,r=8:
+        mean_5seeds: 0.911
+        range:
+        - 0.8697
+        - 0.9387
+      ordering_a_quarter_lt_a_half:
+        r=2: true (every seed)
+        r=4: true (every seed)
+        r=8: true (every seed)
+    ci_check: 'Approximate 95% CI on my sealed a=1/4,r=2 mean (5-seed sample, t-based, 4 df): [0.508,
+      0.647]. The run''s own a=1/4,r=2 mean (0.5744) falls INSIDE this interval. Symmetric check on the
+      run''s 5-seed sample gives a comparably wide CI that contains my mean (0.5777). No pairwise cell
+      (a,r) shows disagreement beyond the combined seed-to-seed noise both derivations independently exhibit
+      (each 5-seed sample spans roughly 0.13-0.16 in range at every cell).'
+    ordering_check: rho_ORACLE(a=1/4) < rho_ORACLE(a=1/2) holds in BOTH my sealed derivation and the run's
+      own Stage 0 result, at every r in {2,4,8}, and at EVERY individual seed pair in the run's own per-seed
+      data (checked directly from summary.json, not just the mean). This directly replicates the ordering
+      finding from BATCH-289698 (~0.55 at a=1/4 vs ~0.67 at a=1/2, 2^24) at a different N (2^20) via two
+      independent implementations.
+    known_methodological_difference_disclosed: My basin resolution does NOT apply the contract's 8W-step
+      walk cap when determining basin membership (I trace any finite path to its DP or to a DP-less cycle,
+      with no length cap); the executor's exact_basins() (instrument.py) DOES apply the cap, excluding
+      longer-than-8W tails from `capped_mass` (contributing to neither a DP's basin nor `cycle_mass`).
+      At W=64 (N=2^20,a=1/4) this affects an expected ~(1-1/W)^(8W) ~ e^-8 ~ 0.03% of points, far smaller
+      than the seed-to-seed spread (~13-16 percentage points) that dominates both derivations' variance,
+      so it does not explain or call into question the observed agreement, but it means my derivation
+      is not a bit-identical replication of the contract's own exact-basin definition. Disclosed per the
+      blind-rederivation contract's instruction to report exactly what was and was not matched.
+    verdict: CONFIRMS_RUN
+  control_checks:
+  - check: G3 UNTESTABLE branch reachability and correctness (binding, N=2^24)
+    method: 'Synthetic negative-injection test against the REAL, UNMODIFIED experiments/EXP-ECDLP-612fb1/source_v2/analysis.py:
+      copied the 5 real STAGE 1v2 run directories to a scratch location, flipped `g3_pass_this_seed` to
+      false for the "0.65T" cell on 2 of 5 seeds (forcing n_pass=3<4, a genuine G3 FAIL by the contract''s
+      own >=4-of-5 rule), left "0.75T" and all other data untouched, then ran the unmodified analysis.py
+      against this synthetic runs-dir.'
+    script: j1_untestable_branch_test.sh
+    output_log: j1_untestable_branch_test_output.log
+    result: G3(0.65T) correctly reported FAIL (3/5); S1_v2(0.65T) and F1_v2(0.65T) both correctly became
+      "UNTESTABLE (G3 FAIL at this cell -- premise ceiling-infeasible, NOT a negative result)" / "UNTESTABLE
+      (G3 or non-vacuity guard fails)". The UNAFFECTED "0.75T" cell in the SAME synthetic run kept its
+      real G3 PASS (5/5) and its real MET / "does not fire" verdicts, proving the gating is applied per-(a,r,T_sel)
+      cell, not globally, and that the UNTESTABLE branch is live, reachable, executable code -- not a
+      theoretical dead branch and not a silent fallthrough to a default PASS.
+    verdict: PASS
+  - check: G3 informational (N=2^30) reading -- is it actually non-binding as the executor's own report
+      claims?
+    method: 'Same synthetic-injection technique applied to the 5 STAGE 2v2 (N=2^30) run directories: flipped
+      `g3_pass_this_seed_informational` to false for "0.65T" on 3 of 5 seeds (n_pass=2<4), ran the real
+      analysis.py.'
+    script: j1_informational_gate_test.sh
+    output_log: j1_informational_gate_test_output.log
+    result: 'G3(0.65T) at N=2^30 correctly reported "FAIL (informational)" with binding=false as labelled,
+      BUT S1_v2(0.65T) and F1_v2(0.65T) STILL became UNTESTABLE there -- identically to the binding N=2^24
+      case. The `binding` flag is cosmetic in the current code (analysis.py:350-355, 400): `g3_pass =
+      g3v["G3_verdict"]. startswith("PASS")` is computed the same way and consumed the same way regardless
+      of nb.'
+    finding: 'This CONTRADICTS a specific claim in the executor''s own execution_report.yaml (protocol_deviations,
+      "ITEM A JUDGMENT CALL"): "This reading remains explicitly INFORMATIONAL and non-binding at N=2^30,
+      exactly as the contract requires; it is never used to gate S1/F1." Directly tested: it IS used to
+      gate S1/F1 at N=2^30, identically to N=2^24. This did NOT affect any verdict actually reported in
+      this batch, because all four tested cells (including both N=2^30 cells) passed G3 5/5 in the real
+      run -- so no reported S1_v2/F1_v2 line in execution_report.yaml or ci_tables.json is wrong. The
+      behavior is also on the SAFE side of the joint''s own breaking-artifact definition: it fails toward
+      UNTESTABLE, never toward a silently-defaulted PASS. But it is a genuine inaccuracy in the executor''s
+      own disclosure, and it surfaces a real ambiguity in specification.v2.yaml''s own text (`inputs.
+      g3_gate_procedure` / the "G3 CEILING-FEASIBILITY GATE" control both state a blanket "G3 FAIL ->
+      S1/F1 UNTESTABLE" with no N-conditioned exemption, so the CODE''s behavior is arguably contract-compliant
+      and it is the EXECUTOR''S DISCLOSURE TEXT that overstates the "non-binding" character of the informational
+      reading) that a future amendment should resolve explicitly one way or the other.'
+    verdict: FINDING (not a breaking artifact per the joint's own definition; a disclosure-accuracy and
+      contract-clarity issue)
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  joint_verdicts:
+    J1:
+      verdict: HOLDS_WITH_FINDINGS
+      reasoning: '(1) Independent re-enumeration at N=2^24, a=1/4, r=2 (the only binding cell this batch
+        tests), 2 own seeds, both T_sel grid points: margins match the run''s own reported margins in
+        sign and magnitude. No disagreement found -- the G3 PASS verdict at both binding cells is independently
+        confirmed. (2) A synthetic negative-injection test against the real, unmodified analysis.py proves
+        the G3 FAIL -> UNTESTABLE branch is genuinely reachable, correctly wired per (a,r,T_sel) cell,
+        and never silently falls through to a default PASS -- directly answering the joint''s central
+        worry. (3) A second synthetic test surfaces a genuine but non-breaking finding: the N=2^30 "informational,
+        non-binding" G3 reading is, in the actual code, exactly as gating as the N=2^24 binding reading,
+        contradicting the executor''s own disclosure text (though not any actually reported verdict in
+        this batch, and the actual behavior is conservative -- fails toward UNTESTABLE, not toward a false
+        PASS). No breaking artifact per the joint''s own definition (a disagreeing exact re-enumeration,
+        or a G3 FAIL cell reporting S1/F1 instead of UNTESTABLE) was found.'
+      breaking_artifact_found: false
+    J2:
+      verdict: HOLDS
+      reasoning: A from-scratch blind re-derivation of rho_ORACLE(a,r), sealed (hashed + timestamped)
+        BEFORE opening any blind_from path, agrees with the run's own Stage 0 result well within the seed-to-seed
+        noise both derivations exhibit, and independently reproduces the ordering claim rho_ORACLE(a=1/4,r)
+        < rho_ORACLE(a=1/2,r) at every r in {2,4,8} -- confirming rather than merely replicating the prior
+        BATCH-289698 finding via a genuinely independent implementation. One methodological difference
+        (walk-cap handling in basin membership) is disclosed; its expected effect size (~0.03% of points)
+        is far below the observed agreement's tolerance and does not weaken the verdict. No breaking artifact
+        (a disagreement beyond CI, or a reversed ordering) was found.
+      breaking_artifact_found: false
+  review_attestation:
+    joints_owned:
+    - 'G3 ceiling-feasibility gate correctness: at every (a, r, T_sel) cell, G3 must read the SAME exact
+      top-T_sel share / STATIC(T) coverage comparison an independent re-enumeration would give, and must
+      correctly emit UNTESTABLE (never a negative S1/F1 verdict) on failure.'
+    - 'Blind re-derivation of the Stage 0 a-scan''s headline ordering claim: rho_ORACLE(a=1/4, r) vs rho_ORACLE(a=1/2,
+      r) at N=2^20, for the r values the contract tests.'
+    verdict_per_joint:
+      J1: HOLDS_WITH_FINDINGS
+      J2: HOLDS
+    independent_session: true
+    read_sibling_reports: false
+    incidental_exposure_disclosure: '`git status --short` (run to check worktree cleanliness before writing
+      this report) incidentally listed the FILENAMES of files under the Red Team''s task directory (coordination/goals/GOAL-ECDLP-bbc21f/batches/
+      BATCH-f3a30a/tasks/TASK-20260906-a6b415/), including the existence of a file named red_team_report.yaml,
+      because both tasks share one working tree. I did NOT open, read, or otherwise access the CONTENT
+      of any file under that directory at any point, per the hard mutual- blindness constraint. Disclosed
+      per AGENTS.md''s instruction to say so rather than quietly proceed when a sibling''s report is encountered;
+      I judge this incidental filename-only exposure to convey no information about their findings or
+      verdict (J3/J4 are not visible from filenames alone), so it does not compromise independence, but
+      I record it for the Coordinator''s own judgement.'
+    blind_rederivation:
+      quantity: rho_ORACLE(a, r) at a in {1/4, 1/2}, N=2^20, r in {2,4,8}
+      blind_from_declared:
+      - experiments/EXP-ECDLP-612fb1/source_v2/
+      - experiments/EXP-ECDLP-612fb1/runs/
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-5e78c7/
+      blind_from_respected: true
+      seal_evidence: j2_seal_manifest.yaml (sealed_at_utc 2026-09-06T23:22:26Z; sha256 of j2_blind_derivation.py,
+        j2_output.json, j2_stderr.log recorded there)
+      order_of_operations: 1) Read agents/validator.md, AGENTS.md, ledger/handoffs/ TASK-20260906-bc1cfc.yaml,
+        this task's task_card.yaml (none in blind_from). 2) Read experiments/EXP-ECDLP-612fb1/specification.v2.yaml
+        and experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml in full (explicitly listed in the handoff's
+        `inputs`, NOT in blind_from -- these define the quantity being derived and are the derivation's
+        required starting point). 3) Wrote j2_blind_derivation.py from those two files' definitions alone.
+        4) Smoke-tested the implementation at small N (2^14) and timed a full-N (2^20) single cell in
+        /tmp/.../scratchpad (a throwaway copy, not part of the sealed deliverable) to check correctness
+        and feasibility before committing to the real run -- no project file beyond the two named above
+        was read during this step. 5) Ran the real j2_blind_derivation.py at N=2^20 over all (a,r,seed)
+        cells, producing j2_output.json. 6) SEALED (sha256 + UTC timestamp, j2_seal_manifest.yaml) at
+        2026-09-06T23:22:26Z. 7) Only THEN opened coordination/goals/GOAL-ECDLP-bbc21f/batches/ BATCH-f3a30a/tasks/TASK-20260906-5e78c7/execution_report.yaml
+        and the RUN-ECDLP-612fb1-v2-ascan-s*/summary.json files under experiments/ EXP-ECDLP-612fb1/runs/
+        (both in blind_from) to compare.
+    sources_read_in_order:
+    - agents/validator.md
+    - AGENTS.md
+    - ledger/handoffs/TASK-20260906-bc1cfc.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/task_card.yaml
+    - experiments/EXP-ECDLP-612fb1/specification.v2.yaml
+    - experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml
+    - '[wrote+ran j2_blind_derivation.py; SEALED j2_seal_manifest.yaml at 2026-09-06T23:22:26Z -- blind_from
+      opened only after this point]'
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-5e78c7/execution_report.yaml
+    - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-s1..s5/{command.txt,summary.json}
+    - '[wrote+ran j1_g3_reenumeration.py using only j2''s already-independent primitives, N=2^24, a=1/4,
+      r=2 -- source_v2/ NOT opened before this point]'
+    - experiments/EXP-ECDLP-612fb1/source_v2/analysis.py
+    - experiments/EXP-ECDLP-612fb1/source_v2/run_generic.py
+    - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py (generate_pools, exact_basins, Basins class
+      only)
+    - '[built and ran the two synthetic negative-injection tests against the real analysis.py: j1_untestable_branch_test.sh,
+      j1_informational_gate_test.sh]'
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/archives/TASK-20260906-1e5ea4/snapshot-receipt.json
+    - git log/show/status on the current worktree (metadata only, for the snapshot_verified block and
+      the incidental_exposure_disclosure above)
+    paths_never_read:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-a6b415/ (any content)
+    task_id: TASK-20260906-bc1cfc
+    verdict: holds
+    blind_from_respected: true
+    sources_read:
+    - agents/validator.md
+    - AGENTS.md
+    - ledger/handoffs/TASK-20260906-bc1cfc.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/task_card.yaml
+    - experiments/EXP-ECDLP-612fb1/specification.v2.yaml
+    - experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml
+    coordinator_compatibility_note: task_id, top-level verdict, top-level blind_from_respected, and sources_read
+      (the pre-seal subset of this task's own sources_read_in_order, used to satisfy tools/check_review_independence.py's
+      mechanical schema) were added by the Coordinator verbatim from this report's own joints_owned (J1,
+      J2 expanded to the review_plan's exact joint text), verdict_per_joint (J1 HOLDS_WITH_FINDINGS, J2
+      HOLDS -> no breaking artifact on either joint -> holds), and blind_rederivation.blind_from_respected
+      (already true, hoisted to top level). No content was changed or added beyond this schema mapping;
+      verdict_per_joint and every original field remain byte-identical below.
+  limitations:
+  - J1's independent re-enumeration used 2 seeds (own choice, distinct from the run's 5), not a full 5-seed
+    replication -- sufficient to confirm sign/magnitude agreement per the attack plan's "at least 2 of
+    the tested cells" instruction, but not a full independent reproduction of the run's own 5-seed >=4-of-5
+    G3 aggregation rule at every seed.
+  - No independent exact re-enumeration was attempted at N=2^30 (neither the contract nor this review
+    scopes exact basins there; the informational finding above was tested via synthetic injection into
+    the real pipeline rather than an independent from-scratch implementation, since no exact ground truth
+    exists at that N within this task's effort budget).
+  - This report does not address J3 (per-admission pool cap accounting) or J4 (permanent-fixture / permutation-null
+    proves-too-much controls) by design; those are TASK-20260906-a6b415's joints and are load- bearing
+    on the amendment's own claim in ways this report cannot speak to.
+  - The disclosed cap-handling difference in J2 (see known_methodological_difference_disclosed) means
+    my blind derivation, while agreeing with the run within noise, is not a bit-for-bit replication of
+    the contract's exact-basin definition; I judge the expected effect size too small to matter here but
+    note it for the record.
+  - A "passed"-shaped set of joint verdicts here is admissibility of this report's two joints as evidence,
+    not a whole-claim verdict on EXP-ECDLP-612fb1 v2, which the Coordinator composes from this report,
+    the Red Team's J3/J4 report, and the frozen v2 success/falsification criteria. Per AGENTS.md, this
+    does not authorize any hypothesis-status change, promotion, or ECDLP claim.
+  verdict: passed
+  verdict_note: '"passed" here means: this report''s two owned joints (J1, J2) are each independently
+    checked and the review_plan''s stated attack was actually carried out (independent re-enumeration,
+    sealed blind re-derivation, synthetic negative-injection testing of the actual production code) with
+    an honest attestation of what was read and when. J1 resolves HOLDS_WITH_FINDINGS (no breaking artifact,
+    one genuine disclosure- accuracy finding); J2 resolves HOLDS. Neither joint''s outcome, alone or together,
+    supports an ECDLP claim, a speedup claim, or a hypothesis- status promotion; that composition is the
+    Coordinator''s, using this report together with TASK-20260906-a6b415''s.'
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/validation_report.yaml
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j2_blind_derivation.py
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j2_output.json
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j2_stderr.log
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j2_seal_manifest.yaml
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_g3_reenumeration.py
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_output.json
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_stderr.log
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_untestable_branch_test.sh
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_untestable_branch_test_output.log
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_informational_gate_test.sh
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/j1_informational_gate_test_output.log

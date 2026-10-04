@@ -1,0 +1,77 @@
+name: Static analysis (clang-tidy)
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the caller ref)'
+        required: false
+        default: ''
+        type: string
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        default: ''
+        type: string
+
+# Queue runs of the same workflow against the same target rather than cancelling: with no push trigger there is no
+# flood to supersede, and cancelling would let the nightly run kill a manual one. `github.workflow` is the *caller's*
+# name when this workflow is called, which is what keeps the nightly and a direct dispatch in separate groups.
+concurrency:
+  group: ${{ github.workflow }}-clang-tidy-${{ github.ref }}-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  clang-tidy:
+    name: ${{ matrix.config }} (${{ matrix.platform }})
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            config: ref
+          - platform: x64
+            config: broadwell
+          - platform: arm64
+            config: arm64
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. The
+          # `inputs` context, not `github.event.inputs`: the latter is empty when this workflow is called rather than
+          # dispatched. A SHA here must be the full 40 characters.
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Report the clang-tidy version in use
+        # Recorded explicitly because it is not pinned. When a finding appears or disappears without a code change, this
+        # line is the first thing to check.
+        run: |
+          clang-tidy --version
+          . /etc/os-release && echo "runner: $PRETTY_NAME ($(uname -m))"
+
+      - name: Run clang-tidy
+        # --github additionally emits workflow-command annotations, so findings appear inline on the commit as well
+        # as in this log.
+        run: scripts/clang-tidy.sh --config=${{ matrix.config }} --github
+
+      - name: Upload raw findings
+        # Always upload: an empty findings file is the evidence that the run was clean, configure.log is what you
+        # need when a configure fails on a runner you cannot log into, and stderr.log carries the diagnostics
+        # clang-tidy writes about the invocation itself rather than about the code.
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: clang-tidy-${{ matrix.platform }}-${{ matrix.config }}
+          path: |
+            build-clang-tidy-${{ matrix.config }}/findings.txt
+            build-clang-tidy-${{ matrix.config }}/configure.log
+            build-clang-tidy-${{ matrix.config }}/stderr.log
+          if-no-files-found: warn
+          retention-days: 14

@@ -129,9 +129,22 @@ record, or knowledge item cannot silently remain only in a working tree.
 Claim-relevant producers require both a snapshot archive before independent
 review and a ledger archive after every required review.
 
+A producer that ended `failed`, `invalid`, or `cancelled` still declares the
+artifact paths it was dispatched to write, and the archive that claims it must
+normally cover every one of them; that is what keeps partial output from being
+quietly dropped. When a producer wrote nothing at all, that rule leaves the
+batch's archive impossible to complete, because its required set names paths
+that do not exist. `archive.void_source_artifacts` is the explicit, per-source
+opt-out: a list of source task IDs whose declared artifacts are void for
+coverage. It is never inferred, it may name only sources in a terminal
+non-completed state, and the Git verifier proves each voided path is absent
+from the tree it verifies (the archive's own commit, or `HEAD` for
+`content_first` and the content-only fallbacks), so the exemption cannot hide
+bytes that were in fact written.
+
 ## Persistent goals
 
-`/coordinate-research-goal` binds a queue to a committed
+Explicit Coordinator campaign preparation binds a queue to a committed
 `ledger/goals/GOAL-<AREA>-<tok>.yaml` record. New goal IDs use the random
 six-hex token returned by `tools/allocate_id.py --next goal --area AREA` and
 confirmed with `--check`; an existing three-digit legacy ID remains valid and

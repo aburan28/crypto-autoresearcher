@@ -1,0 +1,223 @@
+handoff:
+  id: TASK-20260905-bc7d3f
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-05'
+  hypothesis_id: H-MONO-10ca08
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  experiment_id: EXP-MONO-7c653b
+
+  objective: >-
+    Independently verify EXP-MONO-7c653b's own completed measurements
+    (RUN-MONO-7c653b-1/-2, both `completed_valid`) before the Coordinator
+    composes any evidence or decision record. This experiment tested a
+    hand-derived claim (HEUR-PARITY-3: a quadratic-twist representation
+    reduction lets the j=m-1 Semaev-summation branch be computed via
+    ordinary F_p group arithmetic) and reported a clean, fully confirming
+    result: exact-match rate 1.000 at every tested cell in both runs, and
+    the proves-too-much mutant control correctly failed (0/50 agreement).
+    A clean confirming result still needs independent scrutiny before
+    being treated as established -- a control that "worked" and a
+    construction that "matched" can both be artifacts of the same
+    underlying implementation bug, which neither would catch on its own.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. I read
+      `experiments/EXP-MONO-7c653b/specification.yaml`,
+      `ledger/hypotheses/H-MONO-10ca08.yaml`, `execution_report.yaml`,
+      and both runs' `raw-result.json` directly (not only the Executor's
+      own prose summary). The reported numbers are internally consistent
+      and match the Executor's own summary exactly where I spot-checked
+      them (Stage 1: 193/193 both runs; Stage 3: exact_match_rate=1.0 at
+      all 4 cells in RUN-1; Stage 4a: mutant_agreement_rate=0.0,
+      independent_sample_check confirms zero tuple overlap). My own
+      confidence the CORE claim (twist arithmetic reproduces the direct
+      root) is genuinely correct, not an artifact, is MODERATE-HIGH: the
+      underlying isomorphism argument is standard elliptic-curve theory
+      (an isomorphism of Weierstrass curves commutes with the group law),
+      and the mutant control's own clean failure (0/50, not e.g. 3/50 or
+      47/50) is exactly the sharp signature a genuinely discriminating
+      test should produce. Two things keep my confidence from being HIGH:
+
+      (1) `independent_sample_check` in RUN-1's own `raw-result.json`
+      reports `stage3_m4_p211_tuple_count: 499`, not 500 -- but the
+      m4_p211 cell in `stage3.cells` itself reports `n_completed: 500`.
+      This 500-vs-499 discrepancy is NOT disclosed or explained anywhere
+      in `implementation.md` or `execution_report.yaml`. It could be a
+      benign artifact (e.g. the independent-sample-overlap checker
+      deduplicating identical tuples before counting, while Stage 3
+      itself correctly ran 500 trials including one repeat), or it could
+      indicate a genuine tuple-tracking defect that might affect other
+      reported counts I have not cross-checked as carefully.
+
+      (2) I have not independently verified the isomorphism argument
+      itself (the algebra in H-MONO-10ca08's own `mechanism` STEP 5) by
+      hand or by fresh symbolic computation -- I am relying on the idea's
+      own hand derivation plus the implementation's own clean numerical
+      confirmation, which could both share the same undetected sign or
+      convention error if the implementation was written by closely
+      following that same hand derivation rather than independently
+      re-deriving it.
+
+    claim_under_review: >-
+      (a) Does the twist-arithmetic construction (E_delta group additions
+      reproducing the direct polynomial root) actually work for a reason
+      independently verifiable outside the implementation's own code, or
+      could the exact-match success be a shared artifact of the
+      implementation and the hand derivation making the same error? (b)
+      Is the wrong-rescaling-constant mutant control's own clean failure
+      (0/50) a genuine, correctly-implemented negative result, or could a
+      bug in the mutant's own construction (rather than the rescaling
+      mutation itself) be what causes the mismatch? (c) What explains the
+      499-vs-500 discrepancy in RUN-1's `independent_sample_check`, and
+      does it affect the validity of any reported rate?
+
+    joints:
+      - joint: >-
+          The twist-arithmetic isomorphism (E': (y')^2=f(x)/delta maps to
+          E_delta via (x,y')->(delta*x, delta^2*y'), covering E'->E over
+          F_p(sqrt(delta)) via y=sqrt(delta)*y') genuinely commutes with
+          the signed-sum group law, verified independently of both the
+          idea's own hand derivation and the Executor's implementation.
+        assigned_to: TASK-20260905-bc7d3f-validator
+        attack_plan: >-
+          From scratch (fresh sympy/hand computation, not reading
+          `experiments/EXP-MONO-7c653b/implementation/run_experiment.py`'s
+          own twist-construction code first), pick one concrete j=m-1
+          tuple from `experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/raw-result.json`
+          (any tuple at p=211, m=4 will do -- the tuple data should be
+          recoverable from the seed_derivation_rule or logged directly;
+          if not logged, regenerate one candidate tuple yourself using the
+          contract's own documented seed-derivation formula). Compute,
+          independently: (i) the direct polynomial root(s) of the
+          specialized S_4 in the free variable, by your own
+          factorization; (ii) the twist-route x(Q) by literally following
+          the algebra in H-MONO-10ca08's own `mechanism` STEP 5 with your
+          own fresh code (do not import or call the implementation's own
+          twist-construction function). Confirm they match. Then verify
+          the isomorphism claim ALGEBRAICALLY, independent of any specific
+          numeric example: expand delta^3*f(X/delta) by hand/sympy and
+          confirm it equals X^3 + A*delta^2*X + B*delta^3 exactly (the
+          specification's own claimed identity), and confirm this holds
+          for at least one OTHER (A,B,delta) triple not used anywhere in
+          the actual run (a fresh nearby-object check).
+        breaking_artifact: >-
+          A concrete tuple or (A,B,delta) triple where your own
+          independent computation disagrees with the implementation's
+          reported match, or an algebraic step in the isomorphism claim
+          that does not hold as stated.
+      - joint: >-
+          The wrong-rescaling-constant mutant control's own 0/50 failure
+          rate is a genuine consequence of the rescaling mutation
+          specifically, not an artifact of a different bug in how the
+          mutant is constructed.
+        assigned_to: TASK-20260905-bc7d3f-red-team
+        attack_plan: >-
+          Read `experiments/EXP-MONO-7c653b/implementation/run_experiment.py`'s
+          own Stage 4a code directly. Independently reconstruct, by hand
+          or fresh code, ONE mutant trial from RUN-1's own data (m=4,
+          p=211, j=3, delta=57, delta_prime=102 per the raw-result.json):
+          build R using the CORRECT delta throughout (matching Stage 3's
+          own construction), then rescale by delta_prime instead of delta,
+          and confirm independently that the resulting x-value does NOT
+          match the direct-route root for that specific tuple. Then check
+          the two explicitly-excluded "would-be mutants" the contract
+          names (a y_i' sign flip; rebuilding both twist and rescaling
+          with the same delta') are NOT what the implementation actually
+          does -- confirm by reading the code that only the FINAL rescaling
+          step uses delta_prime, and the sum R itself is built with the
+          correct delta throughout, exactly as specified.
+        breaking_artifact: >-
+          Evidence that the implementation's mutant construction secretly
+          also perturbs something other than the final rescaling (e.g.
+          also using delta_prime inside the sum itself, which would make
+          the "control" test something other than what it claims), or a
+          hand-reconstructed mutant trial that DOES match the direct
+          route, contradicting the reported 0/50.
+      - joint: >-
+          The 499-vs-500 discrepancy in RUN-1's own
+          `independent_sample_check.stage3_m4_p211_tuple_count` (versus
+          `stage3.cells.m4_p211.n_completed=500`) is explained and benign,
+          not a sign of a tuple-tracking defect that could affect other
+          reported counts.
+        assigned_to: TASK-20260905-bc7d3f-red-team
+        attack_plan: >-
+          Read the implementation's own tuple-generation and
+          independent-sample-check code directly to find exactly where
+          the count of 499 versus 500 originates (e.g. deduplication of
+          an identical tuple, an off-by-one in a loop boundary, or a
+          genuine dropped trial). Report the exact mechanism found. If it
+          is deduplication of a genuinely repeated draw (which the
+          contract's own seed-derivation rule does not explicitly forbid
+          across trials), confirm this does not silently reduce Stage 3's
+          own effective sample size below its floor in a way not
+          disclosed, and confirm no other run or cell shows an analogous,
+          undisclosed discrepancy (check RUN-2 and all four cells in both
+          runs for the same class of count mismatch).
+        breaking_artifact: >-
+          A demonstration that the discrepancy reflects a dropped or
+          duplicated TRIAL (not merely a duplicate tuple correctly
+          re-evaluated), meaning Stage 3's reported exact_match_rate for
+          that cell rests on fewer genuine trials than declared.
+
+    blindness:
+      mutual: true
+      lifted_for: []
+      rationale: Standard blind parallel round for a first pass at a completed experiment's own raw results.
+
+    proves_too_much:
+      objects:
+        - >-
+          The SAME twist-arithmetic construction applied at j=0 (all
+          coordinates on-curve, delta trivially unnecessary) -- if the
+          implementation's own twist code, misapplied at j=0, ALSO
+          "matches" the direct route for a reason unrelated to the actual
+          j=m-1 isomorphism argument (e.g. because the construction is
+          secretly insensitive to whether the input coordinates are
+          on-curve or off-curve), that would suggest the exact-match test
+          has no real discriminating power specific to the j=m-1 claim.
+      failure_signature: >-
+        If a fresh, independent application of the SAME twist-route
+        formula to on-curve (j=0) coordinates also reproduces the direct
+        root (which it should NOT, generically, since the twist
+        construction is specifically motivated by off-curve coordinates
+        having no F_p-rational y-coordinate to begin with), report exactly
+        why, and whether this undermines confidence that Stage 3's own
+        j=m-1 success reflects the specific isomorphism claimed rather
+        than a construction that would "succeed" regardless of input.
+      assigned_to: TASK-20260905-bc7d3f-validator
+
+    blind_rederivation:
+      required: false
+      quantity: null
+      parameters: null
+      blind_from: []
+      assigned_to: null
+
+    procedure_deviations: []
+
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+
+  budget:
+    wall_clock_seconds: 2400
+    memory_gb: 4
+    maximum_runs: null
+
+  completion_gate:
+    - Both reviewers report HOLD/BREAK per assigned joint, with worked evidence.
+    - The proves-too-much control is reported HOLD/BREAK with its own worked evidence.
+
+  return_format: >-
+    Each reviewer returns its verdict per joint (HOLD/BREAK) with the
+    worked evidence (a concrete hand-verified example, code line
+    references, or an identified defect location) directly in its
+    response, for the Coordinator to compose into a CORR (if any joint
+    breaks) or an evidence/decision record (if all hold) for
+    EXP-MONO-7c653b.

@@ -212,18 +212,35 @@ def collect_retrievals() -> list[dict]:
                 "goal_id": doc.get("goal_id"),
             })
         for artifact in doc.get("local_artifacts") or []:
+            # Accept both object form ({path, role, bytes, sha256}) and the
+            # path-only string form used by some packages (e.g. JMV-0411378).
+            if isinstance(artifact, str):
+                role = None
+                art_bytes = None
+                art_sha256 = None
+                art_path = artifact
+            elif isinstance(artifact, dict):
+                role = artifact.get("role")
+                art_bytes = artifact.get("bytes")
+                art_sha256 = artifact.get("sha256")
+                art_path = artifact.get("path")
+            else:
+                raise TypeError(
+                    f"{_rel(path)}: local_artifacts entry must be a string path "
+                    f"or object, got {type(artifact).__name__}"
+                )
             rows.append({
                 "package": package,
                 "provenance_path": _rel(path),
                 "source_id": "local-artifact",
                 "url": None,
-                "purpose": artifact.get("role"),
+                "purpose": role,
                 "retrieved_at": doc.get("generated_at"),
                 "http_status": None,
                 "status": "local_artifact",
-                "bytes": artifact.get("bytes"),
-                "sha256": artifact.get("sha256"),
-                "vendored_path": artifact.get("path"),
+                "bytes": art_bytes,
+                "sha256": art_sha256,
+                "vendored_path": art_path,
                 "reason": None,
                 "revision_id": None,
                 "task_id": doc.get("task_id"),
@@ -268,6 +285,12 @@ def collect_retrievals() -> list[dict]:
 SIDECAR_SUFFIXES = (".sha256", ".FAIL")
 
 
+def _is_digest_manifest(path: str) -> bool:
+    """True for a `.sha256` file listing more than one digest: a manifest."""
+    lines = [line for line in _read(path).splitlines() if line.strip()]
+    return len(lines) > 1
+
+
 def collect_frozen_artifacts() -> list[dict]:
     """Every source artifact under `inputs/`, hashed where a sidecar allows it.
 
@@ -281,6 +304,12 @@ def collect_frozen_artifacts() -> list[dict]:
     targets: set[str] = set()
     for sidecar_glob in ("*.sha256", "*.FAIL"):
         for sidecar in glob.glob(os.path.join(REPO, "inputs", "**", sidecar_glob), recursive=True):
+            if sidecar.endswith(".sha256") and _is_digest_manifest(sidecar):
+                # A `sha256sum` listing of several files (vendored upstream as
+                # e.g. `ref_kat/KAT_DIGESTS.sha256`) is a manifest, not the
+                # sidecar of a file named by its stem; treating it as one
+                # reports that nonexistent file as missing.
+                continue
             targets.add(sidecar[: sidecar.rindex(".")])
     for path in glob.glob(os.path.join(REPO, "inputs", "**", "sources", "*"), recursive=True):
         if os.path.isfile(path) and not path.endswith(SIDECAR_SUFFIXES):

@@ -13,12 +13,13 @@ correct itself; one that gets an opaque failure usually cannot.
 from __future__ import annotations
 
 import json
+import fnmatch
 import os
 import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Sequence
+from typing import Any, Iterator, Sequence
 
 from langchain_core.tools import StructuredTool
 
@@ -61,11 +62,18 @@ class TaskScope:
     repo_root: Path
     task_id: str
     read_scope: tuple[str, ...] = ()        # empty = the whole repository
+    discovery_scope: tuple[str, ...] = ()  # starting roots for a default search
     write_scope: tuple[str, ...] = ()       # empty = nothing is writable
     allowed_commands: tuple[str, ...] = ()
     command_timeout_seconds: int = 300
-    max_read_bytes: int = 200_000
+    max_read_bytes: int = 20_000
     max_output_bytes: int = 20_000
+    max_read_lines: int = 400
+    max_list_results: int = 200
+    max_search_results: int = 100
+    max_search_files: int = 2_000
+    max_search_file_bytes: int = 1_000_000
+    max_search_bytes: int = 8_000_000
 
     # -- path admission ----------------------------------------------------
     def resolve(self, raw: str, *, write: bool) -> Path:
@@ -110,9 +118,93 @@ def _within(relative: Path, scope: str) -> bool:
 
 
 def _truncate(text: str, limit: int) -> str:
-    if len(text) <= limit:
+    encoded = text.encode("utf-8")
+    if len(encoded) <= limit:
         return text
-    return text[:limit] + f"\n[... truncated, {len(text) - limit} more characters]"
+    marker = "\n[... truncated; request a narrower excerpt]"
+    remaining = max(0, limit - len(marker.encode("utf-8")))
+    if not remaining:
+        return marker.encode()[:limit].decode()
+    return encoded[:remaining].decode("utf-8", errors="ignore") + marker
+
+
+_SKIP_DIRECTORIES = {".git", ".worktrees", "worktrees", ".venv", "venv",
+                     "node_modules", "__pycache__", ".pytest_cache", ".tmp"}
+
+
+def _matches_glob(parts: tuple[str, ...], pattern: tuple[str, ...]) -> bool:
+    if not pattern:
+        return not parts
+    if pattern[0] == "**":
+        return (_matches_glob(parts, pattern[1:])
+                or bool(parts) and _matches_glob(parts[1:], pattern))
+    return (bool(parts) and fnmatch.fnmatchcase(parts[0], pattern[0])
+            and _matches_glob(parts[1:], pattern[1:]))
+
+
+def _iter_files(scope: TaskScope, pattern: str) -> Iterator[Path]:
+    """Walk only the intersection of readable roots and the glob's prefix.
+
+    Never sort a recursive repository-wide glob before applying the scope or
+    result limit. Explicitly named cache directories remain inspectable.
+    """
+    if not isinstance(pattern, str) or not pattern:
+        raise ToolDenied("pattern must be a nonempty repository-relative glob")
+    parsed = PurePosixPath(pattern)
+    if parsed.is_absolute() or ".." in parsed.parts or ".git" in parsed.parts:
+        raise ToolDenied("pattern must stay inside the repository and outside .git")
+    prefix_parts = []
+    for part in parsed.parts:
+        if any(c in part for c in "*?["):
+            break
+        prefix_parts.append(part)
+    prefix = Path(*prefix_parts)
+    roots = []
+    search_roots = (scope.discovery_scope if pattern == "**/*" and scope.discovery_scope
+                    else scope.read_scope)
+    for name in search_roots or (".",):
+        readable = Path(name)
+        if prefix.is_relative_to(readable):
+            candidate = prefix
+        elif readable.is_relative_to(prefix):
+            candidate = readable
+        else:
+            continue
+        if not any(candidate.is_relative_to(p) for p in roots):
+            roots = [p for p in roots if not p.is_relative_to(candidate)] + [candidate]
+    seen = set()
+    for relative in sorted(roots):
+        root = scope.resolve(relative.as_posix(), write=False)
+        if root.is_file():
+            candidates = iter([root])
+        else:
+            def walk(start: Path) -> Iterator[Path]:
+                for directory, dirs, files in os.walk(start, followlinks=False):
+                    dirs[:] = sorted(d for d in dirs if d not in _SKIP_DIRECTORIES
+                                     and not (Path(directory) / d).is_symlink())
+                    for name in sorted(files):
+                        yield Path(directory) / name
+            candidates = walk(root)
+        for path in candidates:
+            try:
+                resolved = scope.resolve(path.relative_to(scope.repo_root.resolve()).as_posix(), write=False)
+            except (ToolDenied, ValueError):
+                continue
+            if resolved in seen or not resolved.is_file():
+                continue
+            seen.add(resolved)
+            if _matches_glob(path.relative_to(scope.repo_root.resolve()).parts, parsed.parts):
+                yield path
+
+
+def _retrieval_result(scope: TaskScope, journal: ToolJournal, tool: str,
+                      text: str, details: dict[str, Any], *, limit: int | None = None) -> str:
+    limit = scope.max_output_bytes if limit is None else limit
+    truncated = len(text.encode("utf-8")) > limit
+    result = _truncate(text, limit)
+    journal.record(tool, {**details, "bytes_returned": len(result.encode("utf-8")),
+                          "output_truncated": truncated})
+    return result
 
 
 def _as_int(value: Any, default: int, *, minimum: int = 1) -> int:
@@ -159,9 +251,10 @@ def _as_command_list(value: Any) -> list[str] | None:
 # tool implementations
 # --------------------------------------------------------------------------
 def _read_file(scope: TaskScope, journal: ToolJournal, path: str,
-               start_line: int = 1, max_lines: int = 400) -> str:
+               start_line: int = 1, max_lines: int = 400, start_column: int = 1) -> str:
     start_line = _as_int(start_line, 1)
-    max_lines = _as_int(max_lines, 400)
+    start_column = _as_int(start_column, 1)
+    max_lines = min(_as_int(max_lines, 400), scope.max_read_lines)
     try:
         target = scope.resolve(path, write=False)
     except ToolDenied as exc:
@@ -170,70 +263,114 @@ def _read_file(scope: TaskScope, journal: ToolJournal, path: str,
     if not target.is_file():
         journal.record("read_file", {"path": path}, denied="not a file")
         return f"ERROR: {path} is not a file"
-    text = target.read_text(encoding="utf-8", errors="replace")
-    lines = text.splitlines()
     start = max(1, start_line)
-    selected = lines[start - 1:start - 1 + max(1, max_lines)]
-    journal.record("read_file", {"path": scope.relative(target),
-                                 "lines": len(selected)})
-    numbered = "\n".join(f"{start + i}\t{line}" for i, line in enumerate(selected))
-    suffix = ("" if start - 1 + len(selected) >= len(lines)
-              else f"\n[... {len(lines) - (start - 1) - len(selected)} more lines]")
-    return _truncate(numbered + suffix, scope.max_read_bytes)
+    selected = []
+    size = 0
+    continuation = None
+    # Reserve space for a continuation cursor so truncation cannot hide how
+    # to obtain the omitted text. Tiny configured caps still use _truncate.
+    content_limit = max(1, scope.max_read_bytes - 180)
+    # Stream lines rather than loading an entire run log into memory.
+    with target.open(encoding="utf-8", errors="replace") as handle:
+        for number, line in enumerate(handle, 1):
+            if number < start:
+                continue
+            column = start_column if number == start else 1
+            if len(selected) >= max_lines:
+                continuation = (number, column)
+                break
+            line = line.rstrip("\n")[column - 1:]
+            prefix = f"{number}\t"
+            remaining = content_limit - size - len(prefix.encode("utf-8")) - 1
+            if len(line.encode("utf-8")) > remaining:
+                if selected:
+                    continuation = (number, column)
+                else:
+                    excerpt = line.encode("utf-8")[:max(0, remaining)].decode("utf-8", errors="ignore")
+                    selected.append(prefix + excerpt)
+                    continuation = (number, column + len(excerpt))
+                break
+            selected.append(prefix + line)
+            size += len(selected[-1].encode("utf-8")) + 1
+    suffix = (f"\n[... more content; continue with start_line={continuation[0]}, "
+              f"start_column={continuation[1]}]" if continuation else "")
+    return _retrieval_result(scope, journal, "read_file", "\n".join(selected) + suffix,
+        {"path": scope.relative(target), "lines": len(selected), "start_line": start,
+         "start_column": start_column, "continuation": continuation,
+         "partial": continuation is not None}, limit=scope.max_read_bytes)
 
 
 def _list_files(scope: TaskScope, journal: ToolJournal,
                 pattern: str = "**/*", limit: int = 200) -> str:
-    limit = _as_int(limit, 200)
-    root = scope.repo_root.resolve()
+    limit = min(_as_int(limit, 200), scope.max_list_results)
     found = []
-    for path in sorted(root.glob(pattern)):
-        if not path.is_file():
-            continue
-        try:
-            relative = path.resolve().relative_to(root)
-        except ValueError:
-            continue
-        if scope.read_scope and not any(_within(relative, s) for s in scope.read_scope):
-            continue
-        found.append(str(relative))
-        if len(found) >= limit:
-            break
-    journal.record("list_files", {"pattern": pattern, "matches": len(found)})
-    return "\n".join(found) or f"no readable files match {pattern!r}"
+    try:
+        for path in _iter_files(scope, pattern):
+            found.append(path.relative_to(scope.repo_root.resolve()).as_posix())
+            if len(found) >= limit:
+                break
+    except ToolDenied as exc:
+        journal.record("list_files", {"pattern": pattern}, denied=str(exc))
+        return f"DENIED: {exc}"
+    partial = len(found) >= limit
+    result = "\n".join(found) or f"no readable files match {pattern!r}"
+    if partial:
+        result += "\n[... result limit reached; narrow the pattern for additional files]"
+    return _retrieval_result(scope, journal, "list_files", result,
+        {"pattern": pattern, "matches": len(found), "partial": partial})
 
 
 def _search_files(scope: TaskScope, journal: ToolJournal, regex: str,
                   pattern: str = "**/*", limit: int = 100) -> str:
-    limit = _as_int(limit, 100)
+    limit = min(_as_int(limit, 100), scope.max_search_results)
     if not isinstance(regex, str):
         return "ERROR: regex must be a string pattern"
     try:
         compiled = re.compile(regex)
     except re.error as exc:
         return f"ERROR: invalid regular expression: {exc}"
-    root = scope.repo_root.resolve()
     hits: list[str] = []
-    for path in sorted(root.glob(pattern)):
-        if not path.is_file() or len(hits) >= limit:
-            continue
-        try:
-            relative = path.resolve().relative_to(root)
-        except ValueError:
-            continue
-        if scope.read_scope and not any(_within(relative, s) for s in scope.read_scope):
-            continue
-        try:
-            content = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        for number, line in enumerate(content.splitlines(), start=1):
-            if compiled.search(line):
-                hits.append(f"{relative}:{number}: {line.strip()[:200]}")
-                if len(hits) >= limit:
-                    break
-    journal.record("search_files", {"regex": regex, "matches": len(hits)})
-    return "\n".join(hits) or f"no matches for {regex!r}"
+    scanned = bytes_read = skipped = 0
+    partial = False
+    try:
+        for path in _iter_files(scope, pattern):
+            if len(hits) >= limit or scanned >= scope.max_search_files or bytes_read >= scope.max_search_bytes:
+                partial = True
+                break
+            scanned += 1
+            try:
+                cap = min(scope.max_search_file_bytes, scope.max_search_bytes - bytes_read)
+                with path.open("rb") as handle:
+                    raw = handle.read(cap + 1)
+                bytes_read += len(raw)
+                if len(raw) > cap:
+                    partial = True
+                    raw = raw[:cap]
+                content = raw.decode("utf-8")
+                if "\x00" in content:
+                    skipped += 1
+                    continue
+            except (UnicodeDecodeError, OSError):
+                skipped += 1
+                continue
+            relative = path.relative_to(scope.repo_root.resolve())
+            for number, line in enumerate(content.splitlines(), start=1):
+                if compiled.search(line):
+                    hits.append(f"{relative}:{number}: {line.strip()[:200]}")
+                    if len(hits) >= limit:
+                        partial = True
+                        break
+    except ToolDenied as exc:
+        journal.record("search_files", {"regex": regex, "pattern": pattern}, denied=str(exc))
+        return f"DENIED: {exc}"
+    partial = partial or bool(skipped)
+    result = "\n".join(hits) or f"no matches in searched content for {regex!r}"
+    if partial:
+        result += "\n[... partial search: a result/scan limit or unreadable file was encountered; narrow the pattern or read a specific file]"
+    return _retrieval_result(scope, journal, "search_files", result,
+        {"regex": regex, "pattern": pattern, "matches": len(hits),
+         "files_scanned": scanned, "bytes_read": bytes_read, "files_skipped": skipped,
+         "partial": partial})
 
 
 def _write_file(scope: TaskScope, journal: ToolJournal, path: str,
@@ -338,15 +475,18 @@ def build_tools(scope: TaskScope, journal: ToolJournal,
     """Instantiate exactly the tools a role's capabilities allow, no more."""
     factories = {
         "read_file": lambda: StructuredTool.from_function(
-            func=lambda path, start_line=1, max_lines=400: _read_file(
-                scope, journal, path, start_line, max_lines),
+            func=lambda path, start_line=1, max_lines=400, start_column=1: _read_file(
+                scope, journal, path, start_line, max_lines, start_column),
             name="read_file",
-            description="Read a repository-relative text file, with line numbers."),
+            description="Read a bounded repository-relative text excerpt with line numbers. "
+                        "Use the returned line/column cursor for the next page."),
         "list_files": lambda: StructuredTool.from_function(
             func=lambda pattern="**/*", limit=200: _list_files(
                 scope, journal, pattern, limit),
             name="list_files",
-            description="List readable repository files matching a glob pattern."),
+            description="List a bounded set of readable files matching a glob. "
+                        "Default search starts in task context paths; specify a "
+                        "repository-relative pattern for another declared readable path."),
         "search_files": lambda: StructuredTool.from_function(
             func=lambda regex, pattern="**/*", limit=100: _search_files(
                 scope, journal, regex, pattern, limit),

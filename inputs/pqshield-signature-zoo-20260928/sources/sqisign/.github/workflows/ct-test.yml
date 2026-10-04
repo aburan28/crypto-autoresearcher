@@ -1,0 +1,83 @@
+name: Constant-time tests (ctgrind)
+
+# One job per file: this is called by daily.yml (nightly) and daily_trigger.yml (manual), and can also be dispatched
+# on its own from the Actions tab.
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the caller ref)'
+        required: false
+        default: ''
+        type: string
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Constant-time testing (ctgrind): secrets are poisoned at the RNG and tracked by valgrind's definedness
+  # machinery; any secret-dependent branch or memory index is reported. The quaternion module is knowingly non-CT
+  # and is exempted via the checked-in suppression files (report filters only - taint still propagates through it,
+  # so all other modules remain covered). RelWithDebInfo: asserts on secret-derived values are themselves
+  # secret-dependent branches, so NDEBUG must be set; -g keeps the symbol names the suppression patterns match
+  # against.
+  ct-test:
+    strategy:
+      matrix:
+        include:
+          - platform: x64
+            sqisign_build_type: ref
+          - platform: x64
+            sqisign_build_type: broadwell
+          - platform: arm64
+            sqisign_build_type: arm64
+
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. The
+        # `inputs` context, not `github.event.inputs`: the latter is empty when this workflow is called rather than
+        # dispatched. A SHA here must be the full 40 characters.
+        ref: ${{ inputs.commit_sha }}
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DENABLE_CT_TESTING=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSQISIGN_TEST_REPS=1 -DSQISIGN_BUILD_TYPE=${{ matrix.sqisign_build_type }} -G Ninja
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build
+
+    - name: Run constant-time tests (ctgrind)
+      # The parameter-set names must match SVARIANT_S in the root CMakeLists.txt
+      run: |
+        for variant in p324_3 p500_27 p664_17; do
+            test -x ./build/test/sqisign_test_ct_${variant} || {
+                echo "::error::./build/test/sqisign_test_ct_${variant} not built -- does the variant list here still match SVARIANT_S in CMakeLists.txt?"
+                exit 1
+            }
+            valgrind --error-exitcode=1 --max-stackframe=4116160 --num-callers=25 -s \
+                --suppressions=test/ct-quaternion.supp \
+                ./build/test/sqisign_test_ct_${variant}
+        done
+
+    # Separate test for CT lattice reduction
+    - name: Run constant-time tests (ctgrind) - CT lattice reduction
+      run: |
+        for variant in p324_3 p500_27 p664_17; do
+            bin=./build/src/quaternion/ref/${variant}/test/sqisign_test_ct_lattice_${variant}
+            test -x "${bin}" || {
+                echo "::error::${bin} not built -- does the variant list here still match SVARIANT_S in CMakeLists.txt?"
+                exit 1
+            }
+            valgrind --error-exitcode=1 --max-stackframe=4116160 --num-callers=25 -s \
+                --suppressions=test/ct-lattice-known.supp \
+                "${bin}"
+        done

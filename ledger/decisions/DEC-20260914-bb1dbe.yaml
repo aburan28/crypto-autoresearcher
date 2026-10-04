@@ -1,0 +1,426 @@
+coordinator_decision:
+  id: DEC-20260914-bb1dbe
+  context: >-
+    TASK-20260914-861bb9 (dispatched by DEC-20260914-37e0d9) tried to provision a
+    Linux Sage 10.9 runtime on the pinned base OCI digest
+    sagemath/sagemath@sha256:2401ffa8e9fc85c7ea17d3649bde5958b4dbf0858b3e504098c4102720151711
+    and cut a successor to the expired Modal-era linux-runtime-lock.json. It could
+    not: this executing session's sandbox categorically refuses to start a Docker
+    daemon (blocked by the harness itself as a containment-escape action, not a
+    timeout), so no OCI image can be pulled here at all. Per its own handoff
+    instruction it STOPPED, authored no lock, and returned
+    runtime-provision-report-20260914-861bb9.json with outcome
+    provisioning_refused_pinned_image_unreachable. That report also shows every
+    OTHER frozen guard measured and passing on this session's own alternate
+    runtime: SageMath 10.9 installed from conda-forge via micromamba directly on
+    the host (PR #1186), not derived from any OCI image. The report's own
+    next_step asks a Coordinator to decide whether to accept that provenance as
+    compliant for stage0 launch admission. This record answers that question.
+  decision: amend
+  target_ids:
+    - EXP-FROB-d8aa37
+    - RUN-FROB-2404fa
+    - TASK-20260909-ece919
+    - TASK-20260914-861bb9
+    - TASK-20260914-c85f6a
+    - BATCH-2f8435
+    - RQ-FROB-7d8dd4
+    - H-FROB-73df22
+
+  the_decision_stated_plainly: >-
+    ACCEPTED IN PART. The alternate (conda-forge-installed, non-OCI-image)
+    Sage 10.9 runtime's PROVENANCE/IDENTITY divergence from TASK-20260914-861bb9's
+    PINNED IMAGE IDENTITY constraint is accepted as compliant for EXP-FROB-d8aa37
+    stage0 launch admission, by explicit reasoned amendment scoped to this launch
+    only. A successor runtime lock and successor run-binding are authored below,
+    using only values already measured and committed. HOWEVER, that successor
+    lock's own scientific_launch_authorized field is set false, because this
+    coordinator's own cross-check of the raw probe logs against
+    runtime-provision-report-20260914-861bb9.json found the runtime is NOT yet
+    fully admitted on two grounds independent of image identity: (1) no aggregate
+    memory protection is established for this runtime class, and (2) the
+    Sage-bundled Python interpreter's own resolved path/sha256 is reported but not
+    independently corroborated in any raw log available to this coordinator. A
+    narrow zero-run follow-up task, TASK-20260914-c85f6a, is dispatched to close
+    both. This is therefore NOT a rubber stamp of either extreme on offer: it is
+    neither "wait indefinitely for the pinned digest" nor "the runtime is fully
+    admitted, launch it."
+
+  rationale:
+    - >-
+      WHY THE IMAGE-IDENTITY DIVERGENCE IS ACCEPTED. This coordinator read
+      experiments/EXP-FROB-d8aa37/specification-stage0-v2.yaml's runtime_requirements
+      block directly: it requires required_os Linux, sage_version 10.9,
+      maximum_workers 1, memory_mb 8192, and two required_guards texts (process
+      groups + 8192MiB RLIMIT_AS; single worker, preserved aggregate-memory
+      protections). It does NOT name Docker, Modal, or any OCI image; image_digest,
+      sage_executable_sha256 and python_executable_sha256 are declared null there,
+      slots to be filled once *some* runtime exists. The specific pinned digest was
+      an admission-layer choice recorded when the original linux-runtime-lock.json
+      was first cut, later elevated to a hard PINNED IMAGE IDENTITY gate by
+      TASK-20260914-861bb9's own handoff text -- itself written by a Coordinator
+      decision (DEC-20260914-37e0d9), which is exactly the authority level able to
+      relax it. Accepting the alternate provenance therefore amends an
+      admission-layer implementation choice, not the frozen scientific protocol.
+      specification-stage0-v2.yaml is not edited by this decision.
+    - >-
+      EVERY GUARD THE FROZEN SPECIFICATION ACTUALLY NAMES IS MEASURED AND
+      PASSING. required_os Linux (confirmed, probe.stdout.log's os field);
+      sage_version exactly "10.9" (confirmed, guard-probe.stdout.log); a real
+      POSIX process group (confirmed, pgid 926 == pid of the setsid() child);
+      per-process RLIMIT_AS exactly [8589934592, 8589934592] (confirmed,
+      guard-probe.stdout.log, via the exact 'sage -python' argv_prefix the frozen
+      trial plan uses); in-process libsingular with no external Singular/pexpect
+      (a property of the frozen driver.py/checker.py sources themselves, unaffected
+      by which compliant Sage 10.9 build runs them); and all four frozen source
+      hashes plus the specification hash and the trial-plan hash match the frozen
+      values exactly (confirmed, source-check.stdout.log). This is a strong,
+      independently-legible basis for the amendment, not an assertion of
+      convenience.
+    - >-
+      THE BLOCKER IS STRUCTURAL, NOT TRANSIENT. runtime-provision-report-20260914-861bb9.json's
+      own provisioning_attempt shows the Docker client is reachable but the daemon
+      socket is absent, and the attempt to start one in-session was "REFUSED BY THE
+      HOST HARNESS ITSELF... Reason: [Containment Escape]" -- a categorical policy
+      denial, not a flaky network call or an exhausted retry budget. AGENTS.md core
+      rule 5 / CLAUDE.md rule 3 classify infrastructure failures as never negative
+      mathematical evidence, but they equally do not require the Coordinator to
+      treat a structural, policy-level block as if it might clear on retry. Holding
+      admission open indefinitely for "a runtime class where the pinned digest can
+      be pulled" with no evidence such a class is reachable from this program's
+      current execution surface is not a scoped wait, it is an unscoped one -- the
+      failure mode CLAUDE.md's "Research budgets: progress first" and AGENTS.md
+      "Goals are never paused" both warn against in their inverse form (make-work
+      versus abandoned-impediment).
+    - >-
+      WHY THIS IS NOT A FULL LAUNCH ADMISSION DESPITE ACCEPTING THE PROVENANCE.
+      This coordinator independently re-read the three raw stdout logs
+      (probe.stdout.log, guard-probe.stdout.log, source-check.stdout.log) rather
+      than trusting runtime-provision-report-20260914-861bb9.json's prose summary
+      alone, per its own instruction that it "cannot re-run any probe... beyond
+      reading the files above." Two findings resulted that the report's own
+      self-assessment did not flag as clearly: (a) aggregate_memory_guard has no
+      analogue here to the superseded lock's "provider configuration accepted on
+      actual Sandbox.create" -- there, even though cgroup files were unreadable, a
+      declarative provider-level ceiling was at least asserted; here, nothing
+      analogous is measured, reported, or known to exist, so aggregate RSS
+      protection is not established at all for this runtime class, which
+      CLAUDE.md's "Memory/concurrency limits... remain machine protection" and this
+      program's repeated "not a research budget, not waived" language treats as
+      binding regardless of the progress-first policy; (b) the report's
+      "python_path_realpath": "/opt/conda-sage/envs/sage/bin/python3.14" and its
+      sha256 322ba666... appear in NONE of the three raw logs this coordinator
+      read -- probe.stdout.log's python_path fields describe the session's
+      supervisor python (/usr/local/bin/python3, sha256 f56a5885..., a different
+      value entirely), and guard-probe.stdout.log's captured child_stdout carries
+      no python-path field at all. dependencies.json.runtime_lock_requirements
+      item 2 ("Actual Sage/Python resolved executable paths, SHA256 and versions")
+      is on this evidence only partially discharged, not fully discharged as the
+      report characterized it. Neither finding impugns the runtime or the
+      provenance amendment; both are probe-coverage gaps, closeable by a further
+      bounded zero-run task, which this decision dispatches as TASK-20260914-c85f6a
+      rather than either waving the gaps through or leaving them unaddressed.
+    - >-
+      DIRECTION CHECK, unchanged from DEC-20260914-37e0d9. Stage0 is not itself
+      exponent-moving; it is the correctness gate for H-FROB-73df22's two arms
+      (arm B is the exponent-targeting arm, arm A the falsification arm). No
+      scientific claim of any kind is advanced by admission machinery. FROB is an
+      ECC area per orchestration/research-priority.yaml / tools/ecc_priority.py,
+      so this work remains ranked ahead of non-ECC candidates at this selection
+      point, and the standing user authorization (AGENTS.md, 2026-09-06) supplies
+      permission for the dispatched work without further per-task confirmation --
+      it supplies neither a runtime nor a waiver of the still-unmet guards, exactly
+      as DEC-20260914-37e0d9 stated for its own dispatch.
+    - >-
+      A SUCCESSOR ARTIFACT IS AUTHORED RATHER THAN AN EDIT, for the same reason
+      DEC-20260914-37e0d9 gave: the superseded lock and the superseded binding are
+      immutable admission artifacts whose declared sha256 values are pinned
+      elsewhere; editing either would silently invalidate that pin. Both new files
+      are additive, both preserve their predecessors unedited, and both are the
+      subject of this Coordinator's authorship, not an executor's, because the
+      question being resolved (whether to accept a different runtime provenance)
+      is exactly the kind of decision AGENTS.md reserves to the Coordinator alone.
+
+  evidence_refs:
+    - ledger/decisions/DEC-20260914-37e0d9.yaml
+    - ledger/decisions/DEC-20260909-bf5b48.yaml
+    - ledger/handoffs/TASK-20260914-861bb9.yaml
+    - ledger/handoffs/TASK-20260909-ece919.yaml
+    - coordination/frobenius/BATCH-2f8435/admission/runtime-provision-report-20260914-861bb9.json
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-861bb9/probe.stdout.log
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-861bb9/guard-probe.stdout.log
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-861bb9/source-check.stdout.log
+    - coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock.json
+    - coordination/frobenius/BATCH-2f8435/admission/run-binding.json
+    - experiments/EXP-FROB-d8aa37/specification-stage0-v2.yaml
+    - experiments/EXP-FROB-d8aa37/stage0/dependencies.json
+    - coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json
+    - coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-861bb9.json
+    - ledger/handoffs/TASK-20260914-c85f6a.yaml
+
+  verification:
+    attribution_note: >-
+      HONEST ATTRIBUTION, per AGENTS.md core rule 9 and per this record's own
+      instructions. This Coordinator subagent holds no shell. It did not recompute
+      any sha256, did not run any tool, and did not probe any runtime. Every item
+      below is marked read_by_coordinator (this agent opened the file and read the
+      stated field/value) or reported_by_session (the report or an earlier
+      Coordinator decision states it; this agent recorded it as a report, not its
+      own measurement).
+    read_by_coordinator:
+      - >-
+        experiments/EXP-FROB-d8aa37/specification-stage0-v2.yaml lines 173-186:
+        runtime_requirements names required_os Linux, sage_version 10.9,
+        maximum_workers 1, memory_mb 8192, two required_guards texts, and
+        image_digest/sage_executable_sha256/python_executable_sha256 all null.
+        No Docker/Modal/OCI-image field appears anywhere in this block.
+      - >-
+        runtime-provision-report-20260914-861bb9.json in full: outcome
+        provisioning_refused_pinned_image_unreachable; lock_authored false;
+        binding_authored false; the docker version / dockerd-start steps and their
+        exact stated results; the alternate_runtime_actually_available_here block
+        naming conda-forge/micromamba provenance and PR #1186;
+        measured_on_this_alternate_runtime's full field set including
+        python_path_realpath /opt/conda-sage/envs/sage/bin/python3.14 and
+        python_path_sha256 322ba666...; the runtime_lock_requirements_discharge
+        block's own self-assessment (item 1 false, item 2 true, item 3 true, item 4
+        partial); files_written with six sha256 values; next_step_owner
+        coordinator.
+      - >-
+        probes-20260914-861bb9/probe.stdout.log verbatim: os
+        Linux-6.18.44-fc-v24-x86_64-with-glibc2.39; python_path
+        /usr/local/bin/python3, realpath /usr/bin/python3.11, sha256
+        f56a588548dd013906ae1dcd1b6faa417f4e204da634ff354840d9643e78ff9e; sage_path
+        /opt/conda-sage/bin/sage, sha256
+        ef0f25ec88eaf50b6454635d45bc67fcd2aed8ae1be44722ed6823339b62c7a6 (matching
+        the report's sage_shim_sha256 exactly); git_path/git_version; yaml
+        6.0.1; cgroup_readback both FileNotFoundError. NO field in this log names
+        python3.14 or /opt/conda-sage/envs/sage.
+      - >-
+        probes-20260914-861bb9/guard-probe.stdout.log verbatim: argv_prefix "sage
+        -python"; child_stdout {"scientific_runs": 0, "sage_version": "10.9",
+        "pid": 926, "pgid": 926, "rlimit_as": [8589934592, 8589934592]}; exit_code
+        0; no python-path field present at all.
+      - >-
+        probes-20260914-861bb9/source-check.stdout.log verbatim: repo
+        "/home/user/crypto-autoresearcher"; all four source_sha256 values true
+        against frozen; specification_sha256
+        209ee3e2803bb07f9e191b577ecb9452888bc2d5e8e589820f92bd162c56d9ed true;
+        plan_sha256 c67c6cd5d96065cdcd0d63e19a98f9d815a99f2ffff00e2ae11cd98314bcb8e1
+        true; head f75319d7ecf54f73d947e70c1652287ebd3ee964; tracked_diff lists
+        exactly the six new untracked probe log files and nothing else;
+        adapter_status required 1, output_validated 0, remaining 1,
+        measurement_complete false.
+      - >-
+        experiments/EXP-FROB-d8aa37/stage0/dependencies.json in full: the four
+        runtime_lock_requirements verbatim, required_runtime block (matches
+        specification's block), forbidden_execution_interfaces list.
+      - >-
+        coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock.json
+        (superseded) and run-binding.json (superseded) in full, for comparison and
+        for the values this decision's successor artifacts must not silently
+        drop or invent (custody, process_policy, prior_probe_events shapes).
+      - >-
+        ledger/handoffs/TASK-20260909-ece919.yaml in full: its original constraints
+        already anticipated exactly this situation ("Do not launch on macOS with
+        weakened guards, bypass adapter or restart other work"; nothing in it
+        requires a specific container provider), and its execution_binding_pending
+        block confirms trial_plan_sha256 was to be filled only after admission,
+        unchanged by this decision.
+      - >-
+        ledger/handoffs/TASK-20260914-861bb9.yaml in full: its PINNED IMAGE
+        IDENTITY constraint text verbatim ("If that digest cannot be pulled, STOP
+        and report - a different digest is a different runtime and needs a
+        Coordinator decision before it may be locked"), which is the explicit
+        grant of authority this decision exercises.
+    reported_by_session:
+      - >-
+        This is a Claude Code session running under the Claude Agent SDK, per its
+        own environment disclosure; the specific sandbox policy that refuses to
+        start a Docker daemon (classified as containment escape) is stated by the
+        session/report, not independently confirmed by this coordinator, which has
+        no means to attempt the same operation itself.
+      - >-
+        That PR #1186 (adding the conda-forge Sage 10.9 install to the workspace)
+        was merged to main prior to TASK-20260914-861bb9 executing is stated by
+        runtime-provision-report-20260914-861bb9.json; this coordinator did not
+        independently inspect PR #1186's diff or merge record.
+      - >-
+        The six files_written sha256 values in runtime-provision-report-20260914-861bb9.json
+        are reported by that file; this coordinator did not recompute them, and
+        notes it could not corroborate the python3.14 path/hash specifically
+        against any raw log it could read (see rationale above) -- a finding, not
+        a blind acceptance of the report's self-assessment.
+
+  successor_lock_authored:
+    path: coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json
+    scientific_launch_authorized: false
+    authored_by: coordinator, using only values already measured and committed in runtime-provision-report-20260914-861bb9.json and the three raw stdout logs this coordinator read; no field re-derived, estimated, or invented
+    pinned_image_fields: >-
+      base_oci_image, image_id, sandbox_id, volume_id and image_recipe are all
+      explicitly null with a stated reason in the successor lock, rather than
+      omitted or copied forward from the superseded lock. This is the honest
+      discrepancy disclosure the task instructions required.
+    open_items_blocking_launch_authorization:
+      - "Aggregate memory protection is not established for this runtime class (no cgroup readback, no known provider-level ceiling)."
+      - "The Sage-bundled Python interpreter's own resolved path/sha256 is reported but not corroborated in any raw log this coordinator could read."
+
+  successor_run_binding_authored:
+    path: coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-861bb9.json
+    runtime_lock_sha256: null
+    runtime_lock_sha256_status: >-
+      PENDING. This coordinator has no shell and cannot compute the sha256 of the
+      successor lock file it just wrote. The dispatching session must compute it
+      and fill this field before this binding is treated as complete/archived --
+      recorded as an open item rather than filled with a placeholder, exactly as
+      DEC-20260914-37e0d9 left TASK-20260914-861bb9.archived_by UNALLOCATED for
+      the analogous reason (no allocator access), per CORR-20260802-a1f151's
+      lesson that a shipped, unfilled placeholder is the defect to avoid.
+    does_not_authorize_launch: true
+
+  impediment_update:
+    prior_record: "IMP-1 of DEC-20260914-37e0d9 (no goal head owns this lane; recorded there per its own lane_homing block)"
+    condition_narrowed: >-
+      The image-identity/provenance sub-question of IMP-1's original condition
+      ("no scientific runtime exists... scientific_launch_authorized false with
+      ... four outstanding runtime_lock_requirements") is now resolved by the
+      amendment above: a compliant-on-provenance runtime exists and is measured.
+      IMP-1 does NOT clear, because two narrower, independent sub-conditions
+      remain: aggregate memory protection unestablished; Sage-bundled Python
+      identity uncorroborated. This decision does not edit DEC-20260914-37e0d9
+      (immutable); it records the narrowed condition here for whichever goal head
+      eventually adopts this lane, per that decision's own lane_homing block
+      (recommended_home GOAL-ECDLP2M-001, not created or attached by this record
+      either).
+    clears_when: >-
+      TASK-20260914-c85f6a's follow-up report shows both open items closed (or
+      honestly shows one or both cannot be closed, at which point a further
+      Coordinator decision assesses whether the per-process RLIMIT_AS guard alone
+      is an acceptable substitute, an explicit risk-acceptance question this
+      decision does NOT resolve), AND a further successor lock sets
+      scientific_launch_authorized true, AND a fresh claim is published, AND a
+      separate Coordinator launch-admission decision is taken.
+    recheck: >-
+      Re-read runtime-provision-followup-report-20260914-c85f6a.json and its two
+      raw log pairs once TASK-20260914-c85f6a returns.
+    asserts_nothing_about: >-
+      The science. Whether Frobenius structure moves the index-calculus exponent
+      on subfield curves is untouched by any part of this record, in either
+      direction (AGENTS.md core rule 5, CLAUDE.md rule 3).
+
+  what_this_decision_does_not_do:
+    - >-
+      DOES NOT make the separate launch-admission decision for TASK-20260909-ece919.
+      Per the question's own framing and per DEC-20260914-37e0d9's NA-4, admission
+      and launch-approval are kept distinct on purpose. This decision cannot even
+      reach that question yet: its own successor lock sets
+      scientific_launch_authorized false, so there is nothing ready to
+      launch-admit. TASK-20260909-ece919 stays `queued`, unclaimed, and untouched.
+    - >-
+      DOES NOT edit specification-stage0-v2.yaml, dependencies.json, the trial
+      plan, the superseded lock, or the superseded binding. All are immutable and
+      unedited.
+    - >-
+      DOES NOT move H-FROB-73df22 (stays `proposed`), any experiment status
+      (EXP-FROB-d8aa37 stays `approved`, execution_authorized true, zero runs), or
+      any goal status. Creates no GOAL-* record.
+    - >-
+      DOES NOT authorize scientific_launch_authorized true anywhere, now or by
+      implication for a later task -- TASK-20260914-c85f6a's own completion gate
+      G6 restates this explicitly.
+
+  review_disposition:
+    review_required: false
+    review_plan: null
+    rationale: >-
+      Neither this decision's own admission act nor TASK-20260914-c85f6a opens a
+      claim-changing review round: zero scientific runs exist, no quantity in
+      H-FROB-73df22's predictions is measured, and no hypothesis/experiment/goal
+      status moves. The successor artifacts' correctness is mechanically checkable
+      against the frozen hashes and against the raw logs, as this record's own
+      verification block demonstrates by example. Independent review of the
+      SCIENCE remains untouched: TASK-20260909-ece919 keeps review_required true
+      and is unaffected.
+
+  limitations:
+    - >-
+      Scope: admission/provisioning only, for the single stage0 trial of
+      EXP-FROB-d8aa37 at q=8, n=3 over F_(2^9). No scientific claim of any kind is
+      made or advanced; zero runs exist. This record says nothing about any other
+      cell of the ladder, any other curve, arm A, arm B, or Pollard rho.
+    - >-
+      The runtime_provenance_amendment is scoped to this launch only. It is not a
+      general license to substitute host-installed dependencies for pinned
+      container images elsewhere in this program; any other experiment facing the
+      same question needs its own Coordinator decision on its own merits.
+    - >-
+      This coordinator ran no command, computed no hash, and probed no runtime; it
+      read the cited files and the three raw stdout logs directly and reasoned
+      from them. Where it could not corroborate a reported value (the
+      Sage-bundled-Python path/hash) it says so explicitly rather than treating an
+      uncorroborated report as fact.
+    - >-
+      No refutation artifact is required or claimed; this decision makes no
+      adverse transition on any claim. Nothing is weakened, rejected, or
+      scoped-out.
+    - >-
+      Two fields in the successor run-binding (runtime_lock_sha256) are left
+      explicitly PENDING because this coordinator cannot compute a sha256 without
+      a shell. These are open items for the dispatching session, not omissions.
+
+  next_actions:
+    - >-
+      NA-1 (dispatching session): compute the sha256 of
+      coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json
+      as written and fill run-binding-successor-20260914-861bb9.json's
+      runtime_lock_sha256 field before archiving either file.
+    - >-
+      NA-2 (dispatching session): mint TASK-20260914-c85f6a's archival task
+      identifier with `python3 tools/allocate_id.py --next task --date 20260914`,
+      confirm with `--check`, and fill ledger/handoffs/TASK-20260914-c85f6a.yaml's
+      archived_by field (currently null) before that handoff is dispatchable.
+    - >-
+      NA-3 (dispatching session): merge origin/main into the working branch first
+      (merge, never rebase), then one isolated snapshot/ledger commit staging
+      exactly: ledger/decisions/DEC-20260914-bb1dbe.yaml,
+      ledger/handoffs/TASK-20260914-c85f6a.yaml,
+      coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json,
+      coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-861bb9.json.
+      Push and open or refresh a PR against main naming all four records. None is
+      durable until the post-commit verifier accepts the commit.
+    - >-
+      NA-4 (executor, once dispatched with a fresh claim): execute
+      TASK-20260914-c85f6a to close the two open items identified above.
+    - >-
+      NA-5 (coordinator, single preserved next action for this lane, superseding
+      DEC-20260914-37e0d9's NA-4 in specificity but not in kind): once
+      TASK-20260914-c85f6a's report and raw logs are committed, take a further
+      Coordinator decision that either (a) authors a second successor lock with
+      scientific_launch_authorized true if both open items closed favorably, or
+      (b) explicitly assesses whether per-process RLIMIT_AS plus single-worker
+      execution is an acceptable substitute for aggregate memory protection if the
+      memory item cannot be closed, or (c) records the items as a persisting,
+      narrower IMP-1 if neither can be resolved. Only after (a) may a SEPARATE
+      Coordinator launch-admission decision release TASK-20260909-ece919 to an
+      executor with a fresh claim.
+    - >-
+      NA-6 (coordinator): DEC-20260914-37e0d9's NA-5 (propose the
+      RQ-FROB-7d8dd4 -> GOAL-ECDLP2M-001 attachment) remains outstanding and
+      unaffected by this record.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT AN EVIDENCE-REVIEW DECISION AND NO DURABLE SCIENTIFIC CLAIM RESULTS.
+      There is no EV-* record in scope, zero scientific runs exist for
+      EXP-FROB-d8aa37, and the subject matter is runtime admission machinery. The
+      one transferable operational lesson -- that a declarative provider-level
+      memory ceiling is not the same guarantee as an OS-level per-process
+      RLIMIT_AS, and that a runtime-identity report's prose summary can cite a
+      value no retained raw log actually corroborates -- is captured where it can
+      act (this record's own open items and TASK-20260914-c85f6a's completion
+      gate), not as a KN-FIND, per AGENTS.md core rule 5's prohibition on
+      promoting an infrastructure/process finding as a mathematical one.
+
+  decided_by: coordinator
+  decided_at: '2026-09-14'

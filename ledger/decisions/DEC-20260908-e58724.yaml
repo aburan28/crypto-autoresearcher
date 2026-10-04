@@ -1,0 +1,128 @@
+coordinator_decision:
+  id: DEC-20260908-e58724
+  decision: approve
+  decided_by: coordinator
+  decided_at: '2026-09-09T05:45:11.422575+00:00'
+  target_ids:
+  - EXP-ECDLP-651b94
+  - TASK-20260908-5c0cc3
+  - TASK-20260908-69f5db
+  context: Correct the two independently reproduced S5 source defects while preserving the complete spectral
+    architecture.
+  rationale:
+  - Independent review TASK-20260908-1367aa repeated two source failures in two54case suites:108executions,104passes,4source
+    failures,zero checker errors/timeouts/science.
+  - The complete valid source-to-plan lifecycle fails because the plan is demanded before it exists. JSONL
+    can parse an oversized newline-terminated record. Both have concrete bounded fixes and known-false controls.
+  - No other source architecture or scientific definition change is justified. Standing authorization permits
+    this focused source successor,followed by fresh independent review.
+  accepted_findings:
+  - id: S5V-01
+    verdict: NEEDS_CORRECTION
+    title: Review admission requires the later precommitted plan to exist in the earlier source snapshot
+    frozen_obligation: The lifecycle and current handoff require a source snapshot followed by a separately
+      precommitted review plan, claim, completed release, archive and authority. The review plan is itself
+      a declared reviewer input and must be bound at its actual plan commit.
+    source_evidence:
+    - driver.py:2213-2215 requires source_reads to cover every review_handoff input.
+    - driver.py:2216-2220 then resolves every such path only at reviewed_source_snapshot, even though review_plan_commit
+      and review_plan_sha256 were independently verified at driver.py:2188-2192.
+    - 'The actual TASK-20260908-1367aa handoff binds 100 inputs: 99 exist byte-identically at source snapshot
+      6bf2c6b2, while review-plan-TASK-20260908-1367aa.yaml is absent there and first exists at authority/plan
+      commit 9faba46c.'
+    worked_attack: 'A fresh temporary Git history used a canonical queue and full standard handoff, source
+      bindings, plan, holds attestation, claim, exact completed release, exact archive, authority and executing
+      descendant, with an unrelated commit between plan and claim. The plan was a declared review input and
+      source_read bound to its plan-commit bytes. The real verify_review_admission rejected it with LaunchRefused:
+      archive commit does not contain coordination/review-plan.yaml. An otherwise identical reduced-input history
+      omitting the plan from handoff.inputs was accepted; inline-only and path-only representations also passed.
+      The final counterexample took 1.435285 seconds.'
+    impact: 'A truthful archive of this current S5 review cannot satisfy S5 admission after it completes: omitting
+      the plan misstates what the reviewer was required to read, while declaring it makes the verifier demand
+      a blob from before the plan existed. The gate fails closed, but genuine launch admission for the actual
+      governed review shape is unreachable.'
+    necessary_fix: Resolve each declared read at its governing commit. At minimum, validate review_plan_path
+      and its digest at review_plan_commit while retaining source-snapshot resolution for the 99 producer and
+      historical inputs. Preserve exact handoff-binding equality and the strict source-to-plan ancestry; do
+      not invent the plan in the source snapshot or omit it from the reviewer input inventory.
+  - id: S5V-02
+    verdict: NEEDS_CORRECTION
+    title: iter_jsonl bypasses maximum_record_bytes when the oversized record includes a newline
+    frozen_obligation: The S5 streaming boundary retains only one explicitly bounded current JSONL record while
+      reading no more than 64 KiB per filesystem chunk. maximum_record_bytes is the lifetime bound on that
+      current record.
+    source_evidence:
+    - streaming.py:183 appends a new chunk to pending.
+    - streaming.py:184-187 raises only when pending is oversized and contains no newline.
+    - streaming.py:188-195 converts and parses the bytes before the newline without comparing that line length
+      to maximum_record_bytes; streaming.py:196-197 likewise parses a final unterminated pending record without
+      an EOF length check.
+    worked_attack: A fixed JSONL file contained one 2061-byte newline-terminated JSON object. Calling the actual
+      iter_jsonl(path, maximum_record_bytes=1024) returned and materialized the record instead of raising StreamingEncodingError.
+      The final case took 0.000318 seconds. With the default 64 MiB bound, the same control admits a first-over-bound
+      record when its newline appears in the chunk that crosses the limit, exceeding the promised bound by
+      up to one read chunk.
+    impact: Chunked filesystem reads still hold, but the declared current-record lifetime bound does not. A
+      malformed or unexpectedly large spool record can allocate and parse beyond maximum_record_bytes before
+      the guard fires, so the complete bounded-streaming claim is false at this source snapshot.
+    necessary_fix: Before converting pending bytes, reject every located newline whose offset exceeds maximum_record_bytes.
+      If no newline exists, reject pending once it exceeds the bound. At EOF, reject an unterminated pending
+      record over the same limit before bytes conversion or json.loads. Retain chunked reads and record ordering.
+  approved_correction_boundaries:
+  - Copy all eight S5 files from6bf2c6b26359c10cb816239b6a9a4729a32f0507 into the new task path. Preserve all
+    frozen scientific fixtures,seeds,RNG consumption,estimators,thresholds,counts,controls,operation conventions
+    and passing V/S2/S3/S4/S5 behavior. Only the two accepted source defects and necessary metadata/tests may
+    change.
+  - 'S5V-01: resolve exactly the declared current review_plan_path at the independently verified review_plan_commit
+    and review_plan_sha256. Its declared input binding,attested read digest and plan-commit bytes must all
+    agree. Resolve every other declared source/historical input at reviewed_source_snapshot as before. Preserve
+    strict source->plan->claim->release->archive->authority ancestry and complete canonical validation. Do
+    not omit the plan from input/read inventories,backdate it into the source snapshot,or add a generic arbitrary
+    later-commit fallback.'
+  - 'S5V-02: iter_jsonl must check each located newline offset against maximum_record_bytes before bytes conversion
+    or json.loads; keep the no-newline oversize check and add an explicit EOF pending-length check before conversion/parsing.
+    Preserve chunked reads,record ordering,blank-line semantics and typed errors. Exact-bound records with
+    and without newline must remain valid; over-bound records must refuse whether the newline is in the first
+    chunk,a boundary-crossing chunk,or absent.'
+  - 'Add fixed controls using the actual production helpers: full canonical lifecycle with the later plan as
+    a declared bound reviewer input and an unrelated intervening commit; wrong plan commit/hash and wrong source
+    digest still refuse. Exercise multiple records per chunk,exact-bound/one-byte-over records,newline and
+    EOF paths without allowing an earlier valid record to hide a later over-bound record. Retain the existing
+    whole producer suite.'
+  - Use complete outer and nested process custody. Redirect logs before execution,preserve full exec_command
+    responses and all yielded session IDs,poll to terminal,and embed exact command/UTC/exits/stdout/stderr/case
+    accounting and actualCPU/wall/RSS. Set implementation_commit:null before snapshot and record checkout base
+    separately. Final report must describe the actual final suite and bind its receipt without a hash cycle.
+    No stale pending-suite report.
+  - At most640TOTAL fixed cases including every parameter,failure and rerun. Keep each complete suite at most160cases
+    and reserve a full final suite.10s/case1800aggregate executed-check wall/CPU,one worker8GiB. Use -B/PYTHONDONTWRITEBYTECODE;
+    no undeclared bytecode. No scientific generator,census,null/control/timing panel,rho run,Docker/liveguard,key/signature/nonce/lock/RUN
+    or prospective pipeline even with mocked admission. Fixed lower-level synthetic/Git/artifact tests only.
+  source_bindings:
+  - path: coordination/experiment-reserve/BATCH-1bb183/reviews/TASK-20260908-1367aa/review.yaml
+    sha256: 6f9c2029e677a98f9d84ae517e83011729e3b6a171945fd440724d0d7ea9f6a7
+    snapshot_commit: e3362f52cbd1b50831bffd39fb23c0295617e9a1
+  - path: coordination/experiment-reserve/BATCH-1bb183/reviews/TASK-20260908-1367aa/checks.py
+    sha256: 2192f081856d1d66a0b3c51062c1154bf201dc1278cf6e1c77e31cbb552f0d5f
+    snapshot_commit: e3362f52cbd1b50831bffd39fb23c0295617e9a1
+  - path: coordination/experiment-reserve/BATCH-1bb183/reviews/TASK-20260908-1367aa/check-receipt.json
+    sha256: 51c0fbb0bf5a5b817c73a527cd5007791ff82e43ee72c4fc9f93eb88285b91e1
+    snapshot_commit: e3362f52cbd1b50831bffd39fb23c0295617e9a1
+  - path: coordination/experiment-reserve/BATCH-1bb183/archives/TASK-20260908-93bf59/snapshot.json
+    sha256: 1e84136ca547a70229af3b337876b3b0a355151d5c7330950f9db1b389c87c9d
+    snapshot_commit: e3362f52cbd1b50831bffd39fb23c0295617e9a1
+  evidence_refs: []
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Source conformance defects only; no scientific evidence.
+  inference_choice:
+    role: executor
+    policy: research-deep
+    native_model_requested: gpt-5.6-sol
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    model_verified: false
+  next_actions:
+  - Complete TASK-20260908-5c0cc3 and snapshot under TASK-20260908-69f5db.
+  - Fresh independent full source review before any launch admission.

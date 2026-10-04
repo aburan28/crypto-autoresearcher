@@ -364,6 +364,29 @@ is lowest, and `tools/obstruction_registry.py` re-poses the question to every
 open obstruction at each rerank. Neither is a claim: `examined: true` with
 `reading` recording that no resource was found is a complete, honest answer.
 
+## Prior art on ideas
+
+Every idea records what it was compared against **before** it was written.
+The block is optional on existing records and **required from IDEA-20261001-*
+on** (`tools/validate_ledger.py`, `PRIOR_ART_CUTOVER`); from that date
+`novelty_status` must be one of `known | adaptation | speculative | unverified`.
+
+```yaml
+prior_art:
+  frontier_map: knowledge/frontiers/ecdlp        # or: not_applicable (+ not_applicable_reason)
+  rows_checked: [KR-IC-b0fcda, KR-IC-73db3f]      # KR-* rows the idea was positioned against
+  nearest:                                         # >= 1 entry, or none_found_after: [queries]
+    - ref: KR-IC-b0fcda                            # a KR-* row or a KN-* entry
+      provenance: retrieved                        # recalled | retrieved | kb | internal
+      relation: special_case                       # same | special_case | generalizes | adjacent | orthogonal
+      delta: "what this idea adds, quantitatively, or 'none'"
+  searched: {corpus_grep: [...], web: [...], blocked: []}   # optional, free-form
+```
+
+`novelty_status: known` requires a `nearest` entry with relation `same` or
+`special_case` whose provenance is not `recalled`. See
+`knowledge/frontiers/ecdlp/README.md` for the map itself.
+
 ## Citation provenance
 
 Any record field naming an external work — `structural_ingredients[].citation`,
@@ -475,6 +498,9 @@ run:
   depends_on_runs: []
   artifacts: []
   failure_reason: null
+  # `expired` is forbidden. A watchdog or advisory estimate may checkpoint a
+  # run, but cannot retire an unfinished experiment; use failed/cancelled with
+  # an explicit receipt and preserve the unfinished scope.
 ```
 
 ## Correction
@@ -540,7 +566,7 @@ handoff:
     # already committed. See docs/inference-backends.md.
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | executor-implementation | executor-mechanical |
-            review-adversarial | review-breakthrough
+            review-adversarial | review-breakthrough | consolidation-routing
             # review-breakthrough only for a claimed break, a closure result,
             # or a contradiction between validated evidence records. It cannot
             # be degraded and refuses a backend that cannot reach `max`.

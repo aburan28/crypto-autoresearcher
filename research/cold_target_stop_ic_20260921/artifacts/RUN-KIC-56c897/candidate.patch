@@ -1,0 +1,577 @@
+diff --git a/examples/koblitz_rank_fixture.rs b/examples/koblitz_rank_fixture.rs
+index 2be4fc8914..eac4097e28 100644
+--- a/examples/koblitz_rank_fixture.rs
++++ b/examples/koblitz_rank_fixture.rs
+@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+ use std::time::Instant;
+ 
+ const TASK_ID: &str = "TASK-KIC-SAT-RHO-CROSSOVER-20260909";
++const RECEIPT_TASK_ID: &str = "TASK-20260921-bd19a7";
+ 
+ #[derive(Clone)]
+ struct Base {
+@@ -1124,6 +1125,157 @@ struct ReverseEchelon {
+     rank: usize,
+ }
+ 
++#[derive(Clone)]
++struct AffinePivot {
++    coefficients: Vec<u64>,
++    rhs: u64,
++    weights: Vec<u64>,
++}
++
++#[derive(Clone)]
++struct TargetCertificate {
++    weights: Vec<u64>,
++    returned_d: u64,
++    pivot_column: usize,
++    prefix_rows: usize,
++    rank_a_b: usize,
++}
++
++enum AffineInsertOutcome {
++    Dependent,
++    Pivot(usize),
++    Inconsistent,
++    TargetIdentified(TargetCertificate),
++}
++
++struct AffineCertificateEchelon {
++    pivots: Vec<Option<AffinePivot>>,
++    rank_a_b: usize,
++    original_rows: usize,
++    target_column: usize,
++}
++
++#[derive(Clone)]
++struct CertificateRecomputation {
++    w_a: Vec<u64>,
++    w_b: u64,
++    w_rhs: u64,
++    valid: bool,
++}
++
++fn mod_mul(left: u64, right: u64, modulus: u64) -> u64 {
++    ((left as u128 * right as u128) % modulus as u128) as u64
++}
++
++fn mod_sub(left: u64, right: u64, modulus: u64) -> u64 {
++    if left >= right { left - right } else { modulus - (right - left) }
++}
++
++impl AffineCertificateEchelon {
++    fn new(variables: usize, target_column: usize) -> Self {
++        assert_eq!(target_column + 1, variables, "target certificate requires the final variable column");
++        Self {
++            pivots: vec![None; variables],
++            rank_a_b: 0,
++            original_rows: 0,
++            target_column,
++        }
++    }
++
++    fn insert(&mut self, mut coefficients: Vec<u64>, mut rhs: u64, modulus: u64) -> AffineInsertOutcome {
++        assert_eq!(coefficients.len(), self.pivots.len());
++        for pivot in self.pivots.iter_mut().flatten() {
++            pivot.weights.push(0);
++        }
++        let row_index = self.original_rows;
++        self.original_rows += 1;
++        let mut weights = vec![0u64; self.original_rows];
++        weights[row_index] = 1;
++        for column in 0..coefficients.len() {
++            if coefficients[column] == 0 {
++                continue;
++            }
++            if let Some(pivot) = &self.pivots[column] {
++                let factor = coefficients[column];
++                for index in column..coefficients.len() {
++                    coefficients[index] = mod_sub(
++                        coefficients[index],
++                        mod_mul(factor, pivot.coefficients[index], modulus),
++                        modulus,
++                    );
++                }
++                rhs = mod_sub(rhs, mod_mul(factor, pivot.rhs, modulus), modulus);
++                for index in 0..weights.len() {
++                    weights[index] = mod_sub(
++                        weights[index],
++                        mod_mul(factor, pivot.weights[index], modulus),
++                        modulus,
++                    );
++                }
++                continue;
++            }
++            let inverse = modpow(coefficients[column], modulus - 2, modulus);
++            for value in &mut coefficients[column..] {
++                *value = mod_mul(*value, inverse, modulus);
++            }
++            rhs = mod_mul(rhs, inverse, modulus);
++            for value in &mut weights {
++                *value = mod_mul(*value, inverse, modulus);
++            }
++            let pivot = AffinePivot {
++                coefficients,
++                rhs,
++                weights,
++            };
++            self.rank_a_b += 1;
++            let outcome = if column == self.target_column {
++                AffineInsertOutcome::TargetIdentified(TargetCertificate {
++                    weights: pivot.weights.clone(),
++                    returned_d: pivot.rhs,
++                    pivot_column: column,
++                    prefix_rows: self.original_rows,
++                    rank_a_b: self.rank_a_b,
++                })
++            } else {
++                AffineInsertOutcome::Pivot(column)
++            };
++            self.pivots[column] = Some(pivot);
++            return outcome;
++        }
++        if rhs == 0 {
++            AffineInsertOutcome::Dependent
++        } else {
++            AffineInsertOutcome::Inconsistent
++        }
++    }
++}
++
++fn recompute_target_certificate(
++    rows: &[Vec<u64>],
++    right_hand_sides: &[u64],
++    weights: &[u64],
++    target_column: usize,
++    returned_d: u64,
++    modulus: u64,
++) -> CertificateRecomputation {
++    assert_eq!(rows.len(), right_hand_sides.len());
++    assert_eq!(rows.len(), weights.len());
++    let mut combined = vec![0u64; rows[0].len()];
++    let mut w_rhs = 0u64;
++    for ((row, &rhs), &weight) in rows.iter().zip(right_hand_sides).zip(weights) {
++        for (value, &coefficient) in combined.iter_mut().zip(row) {
++            *value = ((*value as u128 + mod_mul(weight, coefficient, modulus) as u128)
++                % modulus as u128) as u64;
++        }
++        w_rhs = ((w_rhs as u128 + mod_mul(weight, rhs, modulus) as u128)
++            % modulus as u128) as u64;
++    }
++    let w_b = combined[target_column];
++    let w_a = combined[..target_column].to_vec();
++    let valid = w_a.iter().all(|&value| value == 0) && w_b == 1 && w_rhs == returned_d;
++    CertificateRecomputation { w_a, w_b, w_rhs, valid }
++}
++
+ fn modpow(mut base: u64, mut exponent: u64, modulus: u64) -> u64 {
+     let mut result = 1u64;
+     while exponent != 0 {
+@@ -3214,7 +3366,7 @@ fn main() {
+         "{}",
+         json!({
+             "schema_version":"1.0",
+-            "task_id":TASK_ID,
++            "task_id":RECEIPT_TASK_ID,
+             "kind":"point_defined_factor_base",
+             "evidence_class":"measured_factor_base_construction",
+             "n":n,
+@@ -3370,6 +3522,9 @@ fn main() {
+             };
+         let fixture_setup_ms = fixture_setup_started.elapsed().as_secs_f64() * 1000.0;
+         let mut echelon = Echelon::new(columns + 1);
++        let mut rank_a_echelon = Echelon::new(columns);
++        let mut augmented_echelon = Echelon::new(columns + 2);
++        let mut certificate_echelon = AffineCertificateEchelon::new(columns + 1, columns);
+         let mut reverse_echelon = ReverseEchelon::new(columns + 1);
+         let mut rows = Vec::new();
+         let mut right_hand_sides = Vec::new();
+@@ -3380,6 +3535,11 @@ fn main() {
+         let mut accepted = 0usize;
+         let mut trials = 0usize;
+         let mut rank_full_at = None;
++        let mut target_certificate: Option<TargetCertificate> = None;
++        let mut target_inconsistency_at = None;
++        let mut target_pivot_at = None;
++        let mut certificate_tracker_pivots = 0usize;
++        let mut certificate_tracker_dependents = 0usize;
+         let mut decomposition_queries = 0usize;
+         let mut query_additions = 0usize;
+         let mut query_canonicalization_maps = 0usize;
+@@ -3787,6 +3947,42 @@ fn main() {
+             let incremented = echelon.insert(row.clone(), modulus);
+             let rank_after = echelon.rank;
+             assert_eq!(rank_after, rank_before + usize::from(incremented));
++            let rank_a_before = rank_a_echelon.rank;
++            let rank_a_incremented = rank_a_echelon.insert(row[..columns].to_vec(), modulus);
++            let rank_a_after = rank_a_echelon.rank;
++            assert_eq!(rank_a_after, rank_a_before + usize::from(rank_a_incremented));
++            let mut augmented_row = row.clone();
++            augmented_row.push(coefficient_a);
++            let rank_a_b_a_before = augmented_echelon.rank;
++            let rank_a_b_a_incremented = augmented_echelon.insert(augmented_row, modulus);
++            let rank_a_b_a_after = augmented_echelon.rank;
++            assert_eq!(
++                rank_a_b_a_after,
++                rank_a_b_a_before + usize::from(rank_a_b_a_incremented)
++            );
++            let certificate_outcome =
++                certificate_echelon.insert(row.clone(), coefficient_a, modulus);
++            let (certificate_outcome_name, stop_after_receipt) = match certificate_outcome {
++                AffineInsertOutcome::Dependent => {
++                    certificate_tracker_dependents += 1;
++                    ("DEPENDENT", false)
++                }
++                AffineInsertOutcome::Pivot(column) => {
++                    certificate_tracker_pivots += 1;
++                    assert!(column < columns);
++                    ("FACTOR_PIVOT", false)
++                }
++                AffineInsertOutcome::Inconsistent => {
++                    target_inconsistency_at = Some(accepted + 1);
++                    ("INCONSISTENT", true)
++                }
++                AffineInsertOutcome::TargetIdentified(certificate) => {
++                    certificate_tracker_pivots += 1;
++                    target_pivot_at = Some(accepted + 1);
++                    target_certificate = Some(certificate);
++                    ("TARGET_PIVOT", true)
++                }
++            };
+             rank_targeted_nonincrements += usize::from(targeted_column.is_some() && !incremented);
+             rows.push(row.clone());
+             right_hand_sides.push(coefficient_a);
+@@ -3854,7 +4050,7 @@ fn main() {
+                     "{}",
+                     json!({
+                         "schema_version":"1.0",
+-                        "task_id":TASK_ID,
++                        "task_id":RECEIPT_TASK_ID,
+                         "kind":"relation_rank_receipt",
+                         "evidence_class":"measured_exact_support_relation",
+                         "n":n,
+@@ -3878,6 +4074,16 @@ fn main() {
+                         "rank_before":rank_before,
+                         "rank_after":rank_after,
+                         "rank_incremented":incremented,
++                        "rank_A_before":rank_a_before,
++                        "rank_A_after":rank_a_after,
++                        "rank_A_incremented":rank_a_incremented,
++                        "rank_A_b_before":rank_before,
++                        "rank_A_b_after":rank_after,
++                        "rank_A_b_incremented":incremented,
++                        "rank_A_b_a_before":rank_a_b_a_before,
++                        "rank_A_b_a_after":rank_a_b_a_after,
++                        "rank_A_b_a_incremented":rank_a_b_a_incremented,
++                        "certificate_tracker_outcome":certificate_outcome_name,
+                         "duplicate_row":exact_duplicate,
+                         "scalar_multiple_row":scalar_multiple,
+                         "dense_crosscheck_rank":rank_after,
+@@ -3889,6 +4095,9 @@ fn main() {
+                 );
+             }
+             receipt_construction_ns += receipt_started.elapsed().as_nanos();
++            if stop_after_receipt {
++                break;
++            }
+         }
+         if incremental_rank_crosscheck {
+             let terminal_dense_rank = dense_rank(&rows, columns + 1, modulus);
+@@ -3897,7 +4106,7 @@ fn main() {
+             terminal_dense_rank_crosschecks += 1;
+         }
+         let linear_solve_started = Instant::now();
+-        let solution = (echelon.rank == columns + 1).then(|| {
++        let solution = (target_certificate.is_none() && echelon.rank == columns + 1).then(|| {
+             solve_full_column_rank_system(&rows, &right_hand_sides, columns + 1, modulus).unwrap()
+         });
+         let linear_solve_ms = linear_solve_started.elapsed().as_secs_f64() * 1000.0;
+@@ -3925,6 +4134,44 @@ fn main() {
+             }
+         }
+         let solution_validation_ms = solution_validation_started.elapsed().as_secs_f64() * 1000.0;
++        let certificate_validation_started = Instant::now();
++        let certificate_recomputation = target_certificate.as_ref().map(|certificate| {
++            assert_eq!(certificate.pivot_column, columns);
++            assert_eq!(certificate.prefix_rows, rows.len());
++            assert_eq!(certificate.rank_a_b, echelon.rank);
++            let recomputation = recompute_target_certificate(
++                &rows,
++                &right_hand_sides,
++                &certificate.weights,
++                columns,
++                certificate.returned_d,
++                modulus,
++            );
++            assert!(recomputation.valid, "target certificate must recompute exactly");
++            if let Some(expected) = known_scalar {
++                assert_eq!(certificate.returned_d, expected);
++            }
++            assert_eq!(
++                curve.mul(curve.generator(), &BigUint::from(certificate.returned_d)),
++                q,
++                "certificate-derived scalar must reconstruct the public target"
++            );
++            recomputation
++        });
++        let certificate_validation_ms =
++            certificate_validation_started.elapsed().as_secs_f64() * 1000.0;
++        let recovered_scalar = target_certificate
++            .as_ref()
++            .map(|certificate| certificate.returned_d)
++            .or_else(|| solution.as_ref().map(|values| values[columns]));
++        let certificate_digest = target_certificate.as_ref().map(|certificate| {
++            blake3::hash(&serde_json::to_vec(&certificate.weights).unwrap())
++                .to_hex()
++                .to_string()
++        });
++        let certificate_nonzero_weights = target_certificate.as_ref().map(|certificate| {
++            certificate.weights.iter().filter(|&&weight| weight != 0).count()
++        });
+         let collection_ms = collection_started.elapsed().as_secs_f64() * 1000.0;
+         let reference_validation_started = Instant::now();
+         for (indices, coefficient_a, coefficient_b) in &reference_validation_records {
+@@ -3942,7 +4189,11 @@ fn main() {
+         let reference_validation_ms = reference_validation_started.elapsed().as_secs_f64() * 1000.0;
+         let q_key = point_key(&q);
+         let generator_key = point_key(curve.generator());
+-        let status = if rank_full_at
++        let status = if target_inconsistency_at.is_some() {
++            "INCONSISTENT_SYSTEM"
++        } else if target_certificate.is_some() {
++            "TARGET_IDENTIFIED"
++        } else if rank_full_at
+             .map(|full_at| accepted >= full_at + required_rank_surplus)
+             .unwrap_or(false)
+         {
+@@ -3967,7 +4218,7 @@ fn main() {
+             "{}",
+             json!({
+                 "schema_version":"1.0",
+-                "task_id":TASK_ID,
++                "task_id":RECEIPT_TASK_ID,
+                 "kind":"relation_rank_summary",
+                 "evidence_class":"measured_exact_support_relation",
+                 "fixture_index":fixture_index,
+@@ -3981,10 +4232,12 @@ fn main() {
+                 "published_q":to_raw_point(&q).map(|(x,y)| [x,y]),
+                 "generator_point_key":[generator_key.0.to_string(),generator_key.1.to_string()],
+                 "published_q_point_key":[q_key.0.to_string(),q_key.1.to_string()],
+-                "recovered_fixture_scalar":solution.as_ref().map(|values| values[columns]),
++                "recovered_fixture_scalar":recovered_scalar,
+                 "factor_base_log_solution":solution.as_ref().map(|values| &values[..columns]),
+                 "factor_base_logs_known_by_construction":false,
+                 "linear_solution_verified":solution.is_some(),
++                "target_certificate_verified":certificate_recomputation.as_ref().is_some_and(|value| value.valid),
++                "final_target_group_verified":recovered_scalar.is_some(),
+                 "n":n,
+                 "a":a,
+                 "eta":{"numerator":eta_numerator,"denominator":eta_denominator},
+@@ -3996,6 +4249,20 @@ fn main() {
+                 "target_trials":trials,
+                 "admitted_relations":accepted,
+                 "terminal_rank":echelon.rank,
++                "rank_A":rank_a_echelon.rank,
++                "rank_A_b":echelon.rank,
++                "rank_A_b_a":augmented_echelon.rank,
++                "target_pivot_at_relation":target_pivot_at,
++                "target_inconsistency_at_relation":target_inconsistency_at,
++                "certificate_tracker_pivots":certificate_tracker_pivots,
++                "certificate_tracker_dependents":certificate_tracker_dependents,
++                "certificate_prefix_rows":target_certificate.as_ref().map(|value| value.prefix_rows),
++                "certificate_weights":target_certificate.as_ref().map(|value| &value.weights),
++                "certificate_nonzero_weights":certificate_nonzero_weights,
++                "certificate_digest":certificate_digest,
++                "certificate_wA":certificate_recomputation.as_ref().map(|value| &value.w_a),
++                "certificate_wb":certificate_recomputation.as_ref().map(|value| value.w_b),
++                "certificate_wa":certificate_recomputation.as_ref().map(|value| value.w_rhs),
+                 "duplicate_rows":duplicate_rows,
+                 "scalar_multiple_rows":scalar_multiple_rows,
+                 "full_rank_at_relation":rank_full_at,
+@@ -4013,6 +4280,7 @@ fn main() {
+                 "collection_ms":collection_ms,
+                 "linear_solve_ms":linear_solve_ms,
+                 "solution_validation_ms":solution_validation_ms,
++                "certificate_validation_ms":certificate_validation_ms,
+                 "setup_ms":setup_ms,
+                 "curve_setup_ms":curve_setup_ms,
+                 "fixture_setup_ms":fixture_setup_ms,
+@@ -4695,6 +4963,177 @@ mod packed_tests {
+     }
+ }
+ 
++#[cfg(test)]
++mod target_certificate_tests {
++    use super::*;
++
++    fn named_ranks(rows: &[Vec<u64>], variables: usize, modulus: u64) -> (usize, usize, usize) {
++        let target_column = variables - 1;
++        let mut rank_a = Echelon::new(target_column);
++        let mut rank_a_b = Echelon::new(variables);
++        let mut rank_a_b_a = Echelon::new(variables + 1);
++        for row in rows {
++            rank_a.insert(row[..target_column].to_vec(), modulus);
++            rank_a_b.insert(row[..variables].to_vec(), modulus);
++            rank_a_b_a.insert(row.clone(), modulus);
++        }
++        (rank_a.rank, rank_a_b.rank, rank_a_b_a.rank)
++    }
++
++    fn insert_rows(rows: &[Vec<u64>], modulus: u64) -> (AffineCertificateEchelon, Option<TargetCertificate>, bool) {
++        let variables = rows[0].len() - 1;
++        let mut tracker = AffineCertificateEchelon::new(variables, variables - 1);
++        let mut certificate = None;
++        let mut inconsistent = false;
++        for row in rows {
++            match tracker.insert(row[..variables].to_vec(), row[variables], modulus) {
++                AffineInsertOutcome::TargetIdentified(value) => {
++                    certificate = Some(value);
++                    break;
++                }
++                AffineInsertOutcome::Inconsistent => {
++                    inconsistent = true;
++                    break;
++                }
++                AffineInsertOutcome::Dependent | AffineInsertOutcome::Pivot(_) => {}
++            }
++        }
++        (tracker, certificate, inconsistent)
++    }
++
++    fn early_rows(modulus: u64) -> Vec<Vec<u64>> {
++        vec![
++            vec![1, 1, 0, 1, 12 % modulus],
++            vec![1, 1, 0, 2, 19 % modulus],
++        ]
++    }
++
++    #[test]
++    fn early_target_certificate_and_negative_checker_controls() {
++        for modulus in [17u64, 21_044_858_204_113] {
++            let rows = early_rows(modulus);
++            assert_eq!(named_ranks(&rows, 4, modulus), (1, 2, 2));
++            let (_tracker, certificate, inconsistent) = insert_rows(&rows, modulus);
++            assert!(!inconsistent);
++            let certificate = certificate.unwrap();
++            assert_eq!(certificate.returned_d, 7);
++            assert_eq!(certificate.prefix_rows, 2);
++            assert_eq!(certificate.weights, vec![modulus - 1, 1]);
++            let coefficients: Vec<_> = rows.iter().map(|row| row[..4].to_vec()).collect();
++            let rhs: Vec<_> = rows.iter().map(|row| row[4]).collect();
++            assert!(recompute_target_certificate(
++                &coefficients, &rhs, &certificate.weights, 3, 7, modulus
++            ).valid);
++            let mut mutated = certificate.weights.clone();
++            mutated[0] = (mutated[0] + 1) % modulus;
++            assert!(!recompute_target_certificate(
++                &coefficients, &rhs, &mutated, 3, 7, modulus
++            ).valid);
++            let doubled: Vec<_> = certificate.weights.iter().map(|&value| mod_mul(value, 2, modulus)).collect();
++            let wrong_wb = recompute_target_certificate(&coefficients, &rhs, &doubled, 3, 7, modulus);
++            assert_eq!(wrong_wb.w_b, 2);
++            assert!(!wrong_wb.valid);
++            assert!(!recompute_target_certificate(
++                &coefficients, &rhs, &certificate.weights, 3, 8, modulus
++            ).valid);
++        }
++    }
++
++    #[test]
++    fn zero_b_never_identifies_and_target_unit_does() {
++        for modulus in [17u64, 21_044_858_204_113] {
++            let zero_b = vec![
++                vec![1, 1, 0, 0, 5],
++                vec![0, 1, 1, 0, 8],
++                vec![1, 0, 0, 0, 2],
++            ];
++            let (_, certificate, inconsistent) = insert_rows(&zero_b, modulus);
++            assert!(!inconsistent);
++            assert!(certificate.is_none());
++            let unit = vec![vec![0, 0, 0, 1, 7]];
++            let (_, certificate, inconsistent) = insert_rows(&unit, modulus);
++            assert!(!inconsistent);
++            assert_eq!(certificate.unwrap().returned_d, 7);
++        }
++    }
++
++    #[test]
++    fn duplicate_rescale_preserves_target_and_inconsistent_rhs_is_explicit() {
++        for modulus in [17u64, 21_044_858_204_113] {
++            let first = early_rows(modulus)[0].clone();
++            let second = early_rows(modulus)[1].clone();
++            let scaled: Vec<_> = first.iter().map(|&value| mod_mul(value, 3, modulus)).collect();
++            let rows = vec![first.clone(), first.clone(), scaled, second];
++            let (_, certificate, inconsistent) = insert_rows(&rows, modulus);
++            assert!(!inconsistent);
++            assert_eq!(certificate.unwrap().returned_d, 7);
++            let mut bad = first.clone();
++            bad[4] = (bad[4] + 1) % modulus;
++            let (_, certificate, inconsistent) = insert_rows(&[first, bad], modulus);
++            assert!(inconsistent);
++            assert!(certificate.is_none());
++        }
++    }
++
++    #[test]
++    fn k75_certificate_identifies_at_row_74_with_expected_weights() {
++        for modulus in [17u64, 21_044_858_204_113] {
++            let factor_values: Vec<_> = (0..75).map(|column| (column as u64 + 2) % modulus).collect();
++            let mut rows = Vec::new();
++            for column in 0..72 {
++                let mut row = vec![0u64; 77];
++                row[column] = 1;
++                row[76] = factor_values[column];
++                rows.push(row);
++            }
++            let mut row73 = vec![0u64; 77];
++            let mut rhs73 = 7u64;
++            for column in 0..72 {
++                row73[column] = (column as u64 + 1) % modulus;
++                rhs73 = ((rhs73 as u128
++                    + mod_mul(row73[column], factor_values[column], modulus) as u128)
++                    % modulus as u128) as u64;
++            }
++            row73[74] = 1;
++            rhs73 = (rhs73 + factor_values[74]) % modulus;
++            row73[75] = 1;
++            row73[76] = rhs73;
++            rows.push(row73);
++            let mut row74 = vec![0u64; 77];
++            let mut rhs74 = 14u64 % modulus;
++            for column in 0..72 {
++                row74[column] = (2 * (column as u64 + 1)) % modulus;
++                rhs74 = ((rhs74 as u128
++                    + mod_mul(row74[column], factor_values[column], modulus) as u128)
++                    % modulus as u128) as u64;
++            }
++            row74[74] = 1;
++            rhs74 = (rhs74 + factor_values[74]) % modulus;
++            row74[75] = 2;
++            row74[76] = rhs74;
++            rows.push(row74);
++            let (tracker, certificate, inconsistent) = insert_rows(&rows, modulus);
++            assert!(!inconsistent);
++            let certificate = certificate.unwrap();
++            assert_eq!(certificate.prefix_rows, 74);
++            assert_eq!(certificate.rank_a_b, 74);
++            assert_eq!(tracker.rank_a_b, 74);
++            assert_eq!(named_ranks(&rows, 76, modulus), (73, 74, 74));
++            assert_eq!(certificate.returned_d, 7);
++            let expected: Vec<_> = (0..72)
++                .map(|column| (modulus - ((column as u64 + 1) % modulus)) % modulus)
++                .chain([modulus - 1, 1])
++                .collect();
++            assert_eq!(certificate.weights, expected);
++            let coefficients: Vec<_> = rows.iter().map(|row| row[..76].to_vec()).collect();
++            let rhs: Vec<_> = rows.iter().map(|row| row[76]).collect();
++            assert!(recompute_target_certificate(
++                &coefficients, &rhs, &certificate.weights, 75, 7, modulus
++            ).valid);
++        }
++    }
++}
++
+ #[cfg(all(test, target_arch = "aarch64"))]
+ mod cold_arm_port_tests {
+     use super::*;

@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -233,6 +234,194 @@ class Registration(BusTestCase):
 
     def test_peers_and_inbox_work_on_an_empty_store(self) -> None:
         self.assertEqual(0, run(self.root, "peers"))
+        self.assertEqual(0, run(self.root, "inbox", "--as", "coordinator"))
+
+
+class Consolidation(BusTestCase):
+    """The consolidation pass: a cross-address read and a pointer-only write.
+
+    The property under test throughout is that a consolidator -- the one writer
+    that reports on work it did not do -- cannot produce a message that LOOKS
+    like a pointer and is not one. Everything else here is bookkeeping.
+    """
+
+    def _ids(self):
+        d = self.root / "messages"
+        return {n[:-5] for n in os.listdir(d)} if d.exists() else set()
+
+    def _write(self, *argv):
+        """Run a writing command and return the id it actually created.
+
+        NOT `load_messages()[-1]`. That list is sorted by (sent_at, id), and
+        every message a test writes lands in the same second -- so the random
+        id decides the order and the last element is not the newest. The store
+        is a set of files; a set difference is the only honest way to ask which
+        one is new.
+        """
+        before = self._ids()
+        run(self.root, *argv)
+        created = self._ids() - before
+        self.assertEqual(1, len(created), f"expected one new message, got {created}")
+        return created.pop()
+
+    def _send(self, sender, to, subject, *refs):
+        argv = ["send", "--from", sender, "--to", to, "--subject", subject,
+                "--body", "x", "--no-sync-hint"]
+        for ref in refs:
+            argv += ["--ref", ref]
+        return self._write(*argv)
+
+    def test_digest_reads_across_addresses_that_inbox_cannot(self) -> None:
+        # The whole point: neither message is addressed to the consolidator,
+        # so no inbox anywhere shows both, and a per-recipient view can never
+        # notice that two lanes are circling one record.
+        self._send("executor-2", "coordinator", "queued a re-run")
+        self._send("executor-3", "validator", "measuring the same thing")
+        self.assertEqual([], ab.inbox_for(str(self.root), "consolidator"))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run(self.root, "digest", "--since", "36h")
+        out = buf.getvalue()
+        self.assertIn("executor-2", out)
+        self.assertIn("executor-3", out)
+
+    def test_digest_writes_nothing(self) -> None:
+        mid = self._send("executor-2", "coordinator", "s")
+        before = sorted(os.listdir(self.root / "messages"))
+        receipts = self.root / "receipts"
+        before_r = sorted(os.listdir(receipts)) if receipts.exists() else []
+        with contextlib.redirect_stdout(io.StringIO()):
+            run(self.root, "digest", "--since", "36h")
+        self.assertEqual(before, sorted(os.listdir(self.root / "messages")))
+        self.assertEqual(
+            before_r, sorted(os.listdir(receipts)) if receipts.exists() else [],
+            "digest acked something; reading a peer's traffic is not "
+            "participating in it")
+        self.assertFalse(ab.acked_by(str(self.root), mid, "consolidator"))
+
+    def test_consolidation_without_a_source_is_refused(self) -> None:
+        with self.assertRaises(SystemExit) as cm:
+            run(self.root, "consolidate", "--from", "consolidator",
+                "--to", "executor-2", "--subject", "s",
+                "--source", "MSG-20260908-aaaaaa",
+                "--ref", "EXP-RT1476-001", "--body", "b")
+        self.assertIn("do not exist in this bus", str(cm.exception))
+
+    def test_consolidation_without_a_ref_is_refused(self) -> None:
+        src = self._send("executor-2", "coordinator", "s")
+        with self.assertRaises(SystemExit) as cm:
+            run(self.root, "consolidate", "--from", "consolidator",
+                "--to", "executor-2", "--subject", "s",
+                "--source", src, "--body", "b")
+        self.assertIn("at least one --ref", str(cm.exception))
+
+    def test_a_ref_that_names_nothing_is_refused(self) -> None:
+        # A typo'd ref is worse than no ref: it reads as a pointer and leads
+        # nowhere, and no reader can tell the difference from the message.
+        src = self._send("executor-2", "coordinator", "s")
+        with self.assertRaises(SystemExit) as cm:
+            run(self.root, "consolidate", "--from", "consolidator",
+                "--to", "executor-2", "--subject", "s", "--source", src,
+                "--ref", "EXP-NOSUCH-ffffff", "--body", "b",
+                "--no-sync-hint")
+        self.assertIn("name no record", str(cm.exception))
+
+    def test_an_unresolvable_ref_can_be_recorded_deliberately(self) -> None:
+        src = self._send("executor-2", "coordinator", "s")
+        cid = self._write("consolidate", "--from", "consolidator",
+                          "--to", "executor-2", "--subject", "s",
+                          "--source", src, "--ref", "EXP-NOSUCH-ffffff",
+                          "--body", "b", "--allow-unresolved-refs",
+                          "--no-sync-hint")
+        rec = ab._load(str(self.root / "messages" / (cid + ".yaml")))["message"]
+        self.assertEqual(["EXP-NOSUCH-ffffff"], rec["ref_check"]["unresolved"])
+        self.assertEqual([], rec["ref_check"]["resolved"],
+                         "an unresolved ref was folded into the resolved set")
+
+    def test_an_uncheckable_ref_is_never_reported_as_resolved(self) -> None:
+        # KN-* is outside allocate_id.py's prefix map, so its existence cannot
+        # be settled by path scan. Recording it as resolved would assert a
+        # check that never ran.
+        resolved, unresolved, unchecked = ab.verify_refs(["KN-TECH-080"])
+        self.assertEqual({}, resolved)
+        self.assertEqual([], unresolved)
+        self.assertEqual(["KN-TECH-080"], unchecked)
+
+    def test_consolidation_records_its_provenance(self) -> None:
+        a = self._send("executor-2", "coordinator", "a", "EXP-RT1476-001")
+        b = self._send("executor-3", "validator", "b", "EXP-RT1476-001")
+        cid = self._write("consolidate", "--from", "consolidator",
+                          "--to", "executor-2",
+                          "--subject", "both lanes, one record",
+                          "--source", a, "--source", b,
+                          "--ref", "EXP-RT1476-001",
+                          "--body", "follow the refs", "--no-sync-hint")
+        rec = ab._load(str(self.root / "messages" / (cid + ".yaml")))["message"]
+        self.assertEqual("consolidation", rec["kind"])
+        self.assertEqual([a, b], rec["sources"])
+
+    def test_consolidating_does_not_touch_the_source_messages(self) -> None:
+        # Same property as acking: "has been consolidated" is DERIVED from the
+        # consolidation records. If it were written back into the source, two
+        # consolidators reading one broadcast would race on the same bytes --
+        # the conflict shape this whole store exists to avoid.
+        src = self._send("executor-2", "coordinator", "s", "EXP-RT1476-001")
+        path = self.root / "messages" / (src + ".yaml")
+        before = path.read_bytes()
+        run(self.root, "consolidate", "--from", "consolidator",
+            "--to", "executor-3", "--subject", "s", "--source", src,
+            "--ref", "EXP-RT1476-001", "--body", "b", "--no-sync-hint")
+        self.assertEqual(before, path.read_bytes())
+        self.assertEqual([src], list(ab.consolidated_sources(str(self.root))))
+
+    def test_unconsolidated_hides_what_was_already_carried(self) -> None:
+        a = self._send("executor-2", "coordinator", "carried", "EXP-RT1476-001")
+        b = self._send("executor-3", "coordinator", "not carried")
+        run(self.root, "consolidate", "--from", "consolidator",
+            "--to", "executor-3", "--subject", "s", "--source", a,
+            "--ref", "EXP-RT1476-001", "--body", "b", "--no-sync-hint")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run(self.root, "digest", "--since", "36h", "--unconsolidated")
+        out = buf.getvalue()
+        self.assertNotIn(a, out, "already-carried traffic was offered again")
+        self.assertIn(b, out)
+
+    def test_a_consolidation_is_not_offered_as_its_own_input(self) -> None:
+        src = self._send("executor-2", "coordinator", "s", "EXP-RT1476-001")
+        cid = self._write("consolidate", "--from", "consolidator",
+                          "--to", "executor-3", "--subject", "s",
+                          "--source", src, "--ref", "EXP-RT1476-001",
+                          "--body", "b", "--no-sync-hint")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run(self.root, "digest", "--since", "36h", "--unconsolidated")
+        self.assertNotIn(cid, buf.getvalue(),
+                         "consolidations feeding themselves is a loop")
+
+    def test_a_message_with_an_unreadable_timestamp_is_kept(self) -> None:
+        # Dropping it would hide traffic from the one view whose job is to see
+        # all of it, and nothing else in the harness would notice.
+        self.assertTrue(ab.in_window({"sent_at": "not-a-date"}, 0.0, None))
+        self.assertTrue(ab.in_window({}, 0.0, None))
+
+    def test_window_parsing(self) -> None:
+        now = time.time()
+        self.assertAlmostEqual(now - 3600, ab.parse_window("1h"), delta=5)
+        self.assertAlmostEqual(now - 172800, ab.parse_window("2d"), delta=5)
+        self.assertIsNone(ab.parse_window(None))
+        self.assertAlmostEqual(
+            1757304000.0, ab.parse_window("2025-09-08T04:00:00Z"), delta=1)
+        with self.assertRaises(SystemExit):
+            ab.parse_window("last tuesday")
+
+    def test_ordinary_messages_keep_working_without_a_kind(self) -> None:
+        # Every message written before this change has no `kind` key.
+        src = self._send("executor-2", "coordinator", "s")
+        rec = ab._load(str(self.root / "messages" / (src + ".yaml")))["message"]
+        self.assertNotIn("kind", rec)
+        self.assertEqual({}, ab.consolidated_sources(str(self.root)))
+        self.assertEqual(0, run(self.root, "digest", "--since", "36h"))
         self.assertEqual(0, run(self.root, "inbox", "--as", "coordinator"))
 
 

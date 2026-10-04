@@ -1,0 +1,124 @@
+# RUN-RELN-141a86-stage0c-minimality: exact commands, in the order executed.
+# Working directory for all commands below unless stated otherwise:
+# experiments/EXP-RELN-141a86/source/
+
+# 1) Hash re-verification of the frozen Stage-0a archive (before anything else):
+cd experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/
+cat candidate-list.yaml grammar.yaml environment.lock.json | sha256sum
+# -> f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2 (matches candidate-list-hash.txt and the handoff's stated hash)
+
+# 2) New source files written (additive only; grammar_engine.py and
+#    grammar_engine_lean.py are UNCHANGED, both prior bugfixes left as-is):
+#    experiments/EXP-RELN-141a86/source/grammar_engine_checkpoint.py
+#    experiments/EXP-RELN-141a86/source/target_enumerate_worker_checkpoint.py
+#    experiments/EXP-RELN-141a86/source/run_stage0c_minimality_monitor.py
+#    experiments/EXP-RELN-141a86/source/direct_construction_check.py
+
+# 3) Self-test of the checkpointed enumerator against the UNCHANGED
+#    grammar_engine_lean.enumerate_lean, confirming IDENTICAL enumeration
+#    counts (STEP 1 correctness requirement, before trusting it on real targets):
+cd experiments/EXP-RELN-141a86/source
+python3 grammar_engine_checkpoint.py
+# -> "checkpointed vs plain enumerate_lean on degree_table maxc=6: MATCH"
+#    (by_complexity_counts identical: {1:4,2:8,3:84,4:389,5:3017,6:18090})
+
+# 4) REAL SIGKILL SURVIVAL TEST (STEP 1's own required demonstration):
+#    launched a real background worker process on a nontrivial 6-leaf-pack
+#    case (fb3_unsigned_m3_and_enum_unsigned_m3, max_complexity=8), let it run
+#    for ~6 seconds (reaching level 5 of its enumeration), then sent SIGKILL
+#    (kill -9) to the live process from the parent shell, confirmed the
+#    process was dead (`ps -p <pid>` after the kill), then read the
+#    checkpoint file back in a FRESH read (no reliance on in-memory state)
+#    and confirmed: (a) it contains 5 complete level records with correct
+#    cumulative form counts and timestamps, (b) the --out result file (which
+#    only a clean, non-killed exit would have written) does NOT exist, and
+#    (c) no leftover .tmp-<pid> file remains (the atomic rename either fully
+#    completed or never started; no half-written file is observable):
+mkdir -p /tmp/ckpt_killtest
+python3 target_enumerate_worker_checkpoint.py \
+  --pack fb3_unsigned_m3_and_enum_unsigned_m3 --max-complexity 8 \
+  --target-expr "div(binomial(sub(add(B,m),CONST[1]),m),N)" \
+  --target-id KILLTEST --out /tmp/ckpt_killtest/out.json \
+  --checkpoint /tmp/ckpt_killtest/checkpoint.json \
+  > /tmp/ckpt_killtest/stdout.log 2>/tmp/ckpt_killtest/stderr.log &
+WORKER_PID=$!
+sleep 6
+kill -9 $WORKER_PID
+# result: checkpoint.json contained levels [1,2,3,4,5], stopped_reason
+# 'in_progress'; out.json absent; no leftover .tmp-* file. PASS.
+rm -rf /tmp/ckpt_killtest
+
+# 5) STEP 2 -- targeted minimality search, first three targets (INV-1,
+#    INV-7 p_fail, INV-8), sequential, one subprocess per target, each
+#    monitored externally (2s /proc RSS polling, 6000.0s external hard
+#    wall-clock cap, 13.0 GB external hard memory cap; worker's own internal
+#    soft caps 11.0 GB / 5700.0s, checked only between completed levels).
+#    max_complexity for each target is its own canonical_complexity - 1
+#    (8, 8, 9 respectively -- NEVER the target's own canonical complexity,
+#    which is the blind-search method already tried and failed twice):
+cd experiments/EXP-RELN-141a86/source
+python3 run_stage0c_minimality_monitor.py
+# Output (this run directory): minimality-search-raw-results.json,
+# worker-result-{INV-1_mean,INV-7_p_fail,INV-8_d_reg}.json,
+# checkpoint-{INV-1_mean,INV-7_p_fail,INV-8_d_reg}.json,
+# memory-timeseries-{INV-1_mean,INV-7_p_fail,INV-8_d_reg}.json.
+# All three completed cleanly (stopped_reason='completed') within the
+# 6000s cap: INV-1 in 1898.4s (level 8: 3,686,074 forms, peak 2.02 GB, no
+# match); INV-7 p_fail in 1782.4s (level 8: 3,314,145 forms, peak 1.86 GB,
+# no match); INV-8 in 1796.4s (level 9: 7,728,816 forms, peak 4.44 GB, no
+# match).
+
+# 6) DISCLOSED DEVIATION: an initial, MISTAKEN attempt to launch a
+#    p_exist-only run via `python3 run_stage0c_minimality_monitor.py
+#    --attempt-p-exist-only` (a nonexistent flag: the driver's actual CLI
+#    only recognizes `--attempt-p-exist`, and its logic re-runs ALL FOUR
+#    targets, including the three already-completed ones, whenever that flag
+#    is truthy) was noticed within seconds and killed via `pkill -9 -f
+#    run_stage0c_minimality_monitor.py; pkill -9 -f
+#    target_enumerate_worker_checkpoint.py`. This left checkpoint-INV-1_mean.json
+#    overwritten with an incomplete in-progress state (levels 1-5) TWICE (a
+#    second stray worker process for INV-1_mean survived the first pkill,
+#    confirmed by `ps aux` and killed with a targeted `kill -9 <pid>`); both
+#    times it was regenerated verbatim from worker-result-INV-1_mean.json
+#    (the untouched, immutable final result of the ORIGINAL uninterrupted
+#    run from step 5, timestamped 2026-09-07T15:57:44 UTC). No other file
+#    from step 5 was affected. See implementation.md for the full timeline.
+
+# 7) STEP 2, INV-7 p_exist (attempted per the handoff's own instruction,
+#    since substantial time remained: ~94 minutes elapsed for the first
+#    three targets against a budget with no hard total-session ceiling other
+#    than the per-target 6000s cap). Invoked the SAME run_one_target()
+#    driver function directly (not the buggy CLI flag) for p_exist ONLY,
+#    max_complexity=10 (canonical_complexity 11, minus 1):
+cd experiments/EXP-RELN-141a86/source
+python3 - <<'PYEOF'
+import sys, json, os
+sys.path.insert(0, ".")
+import run_stage0c_minimality_monitor as mon
+spec = [t for t in mon.TARGETS if t["target_id"] == "INV-7_p_exist"][0]
+r = mon.run_one_target(spec["target_id"], spec["pack"], spec["minimality_max_complexity"], spec["target_expr"])
+r["canonical_complexity"] = spec["canonical_complexity"]
+json.dump(r, open(os.path.join(mon.RUN_DIR, "pexist-search-raw-result.json"), "w"), indent=2)
+PYEOF
+# Result: killed by the external monitor's 6000.0s hard wall-clock cap
+# (returncode -15, monitor_killed=true) after completing levels 1-8
+# exhaustively (3,314,145 forms at level 8, matching p_fail's own level-8
+# count exactly, as expected since both share the same 6-leaf pack and leaf
+# set) with NO match found at any of those levels; level 9 (of the required
+# <=10) was in progress and incomplete when killed. Preserved via
+# checkpoint-INV-7_p_exist.json (levels 1-8 intact). resource_exhaustion,
+# never a result -- exactly as anticipated by DEC-20260907-2a3727.
+
+# 8) STEP 2(b) -- direct construction and control-table verification of the
+#    KNOWN closed form for all four targets (reusing recovery_check.py's
+#    parse_expr / verify_expression_on_table UNCHANGED, and
+#    RUN-RELN-141a86-stage0bcde's control-tables/ UNCHANGED, read-only):
+cd experiments/EXP-RELN-141a86/source
+python3 direct_construction_check.py
+# -> direct-construction-results.json: all four node counts match their
+#    declared canonical complexity exactly (9, 9, 10, 11); all four are
+#    zero-residual (INV-7 p_exist at IEEE-754 float-epsilon 1.1e-16, exactly
+#    as characterized identically in the prior two runs).
+
+# 9) Assembly of recovery-controls.json, raw-result.json, manifest.yaml and
+#    this command.txt (this file) -- no further computation.

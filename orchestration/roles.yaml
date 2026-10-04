@@ -206,6 +206,40 @@ roles:
       codex_cli: .codex/agents/red-team.toml
       opencode: .opencode/agent/red-team.md
 
+  # The one role that reports on work it did not do.
+  #
+  # Every other role here produces or judges research state. The Consolidator
+  # produces neither: it reads agent-bus traffic across lanes that cannot see
+  # each other and carries POINTERS between them, so two sessions circling one
+  # experiment find out before the second one spends its budget.
+  #
+  # Note what is absent from `capabilities`: write_files and edit_files. This
+  # role's only intended write path is `tools/agent_bus.py consolidate` through
+  # run_commands, which refuses a message with no --source, no --ref, or a ref
+  # naming no record. Withholding the file-writing tools removes the ERGONOMIC
+  # path to writing a ledger record, a knowledge entry, or an experiment
+  # artifact -- it does not remove the physical one, because `run_commands` is
+  # a shell and a shell can write anything. The contract in
+  # agents/consolidator.md forbids the rest, and this line makes the forbidden
+  # thing awkward rather than merely disallowed. Stated plainly because the
+  # alternative is a reader believing the grant is airtight.
+  consolidator:
+    contract: agents/consolidator.md
+    default_policy: consolidation-routing
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      # Not "independent reviewer" in the Validator sense. Independent of the
+      # LANES IT READS: a consolidator that also works one of them carries its
+      # own pointers outward and calls it a cross-cutting pass.
+      independent_of_producer: true
+    capabilities: [read_files, search_files, run_commands]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/consolidator.md
+      opencode: .opencode/agent/consolidator.md
+
   # ------------------------------------------------------------------
   # Policy-tier variants.
   #

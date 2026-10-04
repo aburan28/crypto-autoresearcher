@@ -1,0 +1,226 @@
+# =============================================================================
+# CORR-20260924-e78b7a -- SUPERSEDES A CONSUMER PRESUMPTION, NOT ANY FILE: the
+# readers of the callgrind child's record in the EXP-GFPN-05ff43 repair
+# lineage.
+#   (1) The DRAFT AMD-EXP-GFPN-05ff43-20260924-launchcover states, as premise
+#       LP-2 (iv), that "no frozen, r1 or r2 function other than
+#       r2_reg1.compare reads instructions_callgrind or any of its keys"
+#       (lines 618-623), and in CG-4 that in cells "the callgrind fields are
+#       recorded and no check reads them" (lines 355-358). Both are false.
+#       The frozen and preserved run wrappers collect
+#       child.rlimit_as_child_getrlimit from the WHOLE raw result by key name,
+#       which picks up the callgrind child's read-back, and the frozen checker
+#       v2_check_run.main fails a package if any collected read-back differs
+#       from the requested cap. r1_reg1.compare also compares the record.
+#   (2) DEC-20260924-afdc3b's seed_sensitivity_ruling says "In cells the
+#       callgrind fields are recorded and no check reads them (census.md line
+#       311; v2_scoring reads no instructions_callgrind key, by search)"
+#       (lines 327-330). Same presumption.
+#   (3) The census says the callgrind site "enters neither classify_solve ...
+#       nor any frozen v2 or v2-a1 check or gate" (census.md line 311). Its
+#       record's read-back field does enter the frozen v2 checker's cap check,
+#       through the wrapper's manifest. Reading note only: the census's CN-1
+#       classification of the site (CLASSIFIED) is unaffected.
+# Found by the premise check TASK-20260924-159c1b (premise-check.md lines
+# 513-532, 1242-1288) and confirmed by the Coordinator reading the frozen and
+# preserved code under TASK-20260924-410b46.
+# WRITE-ONCE. Written by the Coordinator under TASK-20260924-410b46 (ruled in
+# DEC-20260924-a7453e), archived by TASK-20260924-a28f0e. No existing file is
+# edited.
+# =============================================================================
+correction:
+  id: CORR-20260924-e78b7a
+  recorded_at: '2026-09-24'
+  recorded_by: coordinator
+  goal_id: GOAL-GFPN-380702
+  batch_id: BATCH-e409ca
+  task_id: TASK-20260924-410b46
+  decision_id: DEC-20260924-a7453e
+  archived_by: TASK-20260924-a28f0e
+
+  record_type: amendment
+  record_id: AMD-EXP-GFPN-05ff43-20260924-launchcover
+  record_path: experiments/EXP-GFPN-05ff43/amendments/v2_addendum_launchcover.yaml
+  record_sha256: c27ffe5c15d13d1c1137bdba11944ac53f0e91c79d8f460a5d2b18066ca5f447
+  record_note: >-
+    The primary record is the launchcover draft, whose premise LP-2 (iv) and
+    CG-4 sentence state the presumption. Items 2 and 3 concern other records,
+    each named with its path and bound hash below.
+  field: >-
+    the set of readers of the callgrind child's record res["instructions_callgrind"]
+    (item 1), and two statements that depend on it (items 2 and 3)
+
+  items:
+    - item: 1
+      what: the readers of instructions_callgrind and its keys, and whether any check reads them in cells
+      records:
+        - id: AMD-EXP-GFPN-05ff43-20260924-launchcover
+          path: experiments/EXP-GFPN-05ff43/amendments/v2_addendum_launchcover.yaml
+          sha256: c27ffe5c15d13d1c1137bdba11944ac53f0e91c79d8f460a5d2b18066ca5f447
+          locations:
+            - lines: 618-623
+              context: >-
+                LP-2 (iv), "no frozen, r1 or r2 function other than
+                r2_reg1.compare reads instructions_callgrind or any of its
+                keys"
+            - lines: 355-358
+              context: >-
+                CG-4, "In cells (target 0, m <= 4) the callgrind fields are
+                recorded and no check reads them."
+            - lines: 234-235
+              context: >-
+                L-3, "Its record holds non-cost fields that REG-1 (b)
+                compares" (true, and incomplete in the same way)
+      prior_value: >-
+        r2_reg1.compare is the only frozen, r1 or r2 function that reads the
+        callgrind record, and in cells no check reads it.
+      corrected_value: >-
+        Six further readers exist (premise-check.md lines 524-531; receipt
+        TASK-20260924-0957c2 lines 86-93):
+        - v2_run_wrapper.main (v2_run_wrapper.py line 202, via collect at
+          lines 71-80), a1_run_wrapper.main (line 324), r1_run_wrapper.launch
+          (line 408) and r2_run_wrapper.launch (line 474) each call
+          collect(raw, "rlimit_as_child_getrlimit") over the whole raw result.
+          collect recurses into every mapping, so it gathers
+          instructions_callgrind.child.rlimit_as_child_getrlimit (written at
+          v2_solver.py line 519) together with the primary children's
+          read-backs. The deduplicated set is recorded as manifest
+          resources.child_rlimit_as_read_back_by_getrlimit (v2_run_wrapper.py
+          line 222; a1 349; r1 443; r2 517).
+        - v2_check_run.main (lines 62-70) fails the package ("child RLIMIT_AS
+          read-back ... != requested ...") if any entry of that list differs
+          from resources.child_rlimit_as_requested_bytes. a1_check_run.main
+          runs it unchanged (line 133), and r2_check_run runs a1_check_run.main
+          (line 70) or v2_check_run (imported at line 47) unchanged; r1_check_run
+          likewise (line 37).
+        - r1_reg1.compare (r1_reg1.py lines 168-174) compares every target
+          entry whole, minus the r1 exclusions, as r2_reg1.compare does.
+        So in every package whose raw result carries a callgrind record
+        (fixture, and cells with m = 4 at target 0; census.md lines 281-287),
+        a check DOES read one callgrind field: the child's cap read-back. The
+        other callgrind fields are, as far as the premise check's search
+        reached, read only by REG-1 (b) and the r1 comparator.
+        By the Coordinator's own search under TASK-20260924-410b46 (not a
+        premise-check result), three development harnesses also read the
+        derived manifest list, report-only: r2_dv12.py line 261, r1_toy.py
+        line 386 and a1_toy.py line 380.
+      evidence: >-
+        premise-check.md lines 513-532 (key set, compared subset,
+        discrepancies), 1242-1288 (generic consumers and manual readings);
+        the Coordinator's reading of v2_run_wrapper.py lines 71-80 and
+        195-226, v2_check_run.py lines 38-109, r1_reg1.py lines 150-184,
+        r2_check_run.py lines 55-70, r2_dv12.py lines 253-261, and the call
+        sites by search.
+      why_it_matters: >-
+        The draft's disposition for the callgrind site pre-declared a reading
+        only for a REG-1 difference (CG-4). A callgrind child whose cap
+        read-back differed from the requested cap would instead fail the
+        frozen checker, in any package with a callgrind child, G1 and m = 4
+        cells included, with no pre-declared reading. In RUN-GFPN-ac4487 all
+        36 callgrind read-backs equal the cap, {10737418240, 10737418240}
+        (premise-check.md lines 1298-1333), and the child is launched with the
+        same cap as the primary child (v2_driver.py line 209, ctx.cap). So the
+        exposure is narrow. It is still a checker path that the draft said
+        did not exist, and the draft's LP-2 reading makes that a bar.
+    - item: 2
+      what: the cells sentence in DEC-20260924-afdc3b's seed_sensitivity_ruling
+      records:
+        - id: DEC-20260924-afdc3b
+          path: ledger/decisions/DEC-20260924-afdc3b.yaml
+          sha256: 66c5da2964351c65a8ce7c094e624b30fcde976dbba0dd6807f5c756d4c19ccf
+          locations:
+            - lines: 327-330
+              context: >-
+                "In cells the callgrind fields are recorded and no check reads
+                them (census.md line 311; v2_scoring reads no
+                instructions_callgrind key, by search). There a seed effect
+                would alter only an auxiliary recorded field, never D, an
+                outcome or a gate."
+      prior_value: In cells no check reads any callgrind field.
+      corrected_value: >-
+        In cells, as in fixture, the frozen checker reads the callgrind
+        child's cap read-back through the manifest (item 1). The ruling's
+        conclusion about SEED effects is unaffected: the cap read-back is
+        read from the child's own getrlimit and is not a function of msolve's
+        clock seed. A read-back different from the cap would fail the
+        package, never alter D or an outcome silently.
+      evidence: As item 1. The decision's hash is the TASK-20260924-b2b59a path_sha256 value, as premise-check.md line 280 quotes it.
+    - item: 3
+      what: the census's statement that the callgrind site enters no frozen v2 or v2-a1 check or gate
+      records:
+        - id: TASK-20260924-1039eb (census)
+          path: experiments/EXP-GFPN-05ff43/dev-evidence/launch-census/census.md
+          sha256: 671a5763edbec9b32e4e37bc5e3f4310a6661a9aa26f671130bc6e083e463db0
+          locations:
+            - line: 311
+              context: >-
+                "It enters neither classify_solve, the target's outcome,
+                reason, D or solutions (all set before line 207), nor any
+                frozen v2 or v2-a1 check or gate."
+      prior_value: The callgrind site's record enters no frozen v2 or v2-a1 check or gate.
+      corrected_value: >-
+        Reading note. Its OUTPUT enters none of them, which is what the
+        sentence establishes. Its RECORD's cap read-back enters the frozen v2
+        checker's cap check via the wrappers' manifest (item 1). The census's
+        CN-1 values and the CLASSIFIED ruling on the site (DEC-20260924-afdc3b
+        R-CG) are unaffected; the finding only adds a second gating reader.
+      evidence: As item 1.
+
+  nothing_else_changes: >-
+    No file changes. The launchcover draft stays c27ffe5c...f447 (status
+    draft, approved_by null). DEC-20260924-afdc3b and census.md are unchanged.
+    No approved rule text changes: SE-2, SE-3, SF-1..SF-8, SC-1..SC-11, K = 5,
+    the SF-2 (c) cap, the d-parsed branch, REG-1, the exclusion list X1..X17,
+    the frozen wrappers and the frozen checker stand as approved. The remedy
+    is the successor DRAFT AMD-EXP-GFPN-05ff43-20260924-consumercover, decided
+    later by a separate act on archived bytes.
+
+  cause: >-
+    The third instance of one class (after CORR-20260924-5b83a1 and
+    CORR-20260924-432f43): a Coordinator statement about which code touches a
+    solver child, made by reading the named sites and searching for the
+    record's own key names. That search cannot see a generic consumer that
+    gathers values by a nested key name (collect), nor a consumer of a
+    DERIVED value (the manifest list the collector builds, read by the
+    checker). The launchcover draft pre-declared the check that found it
+    (LP-2 (iv)), and the premise check's manual reading of generic walkers
+    found it. No data, run or measurement is implicated.
+
+  what_it_is_not:
+    - NOT A CHANGE TO ANY FILE OR APPROVED RULE.
+    - NOT A CHANGE TO ANY PRE-DECLARED READING OR ITS OUTCOME. DEC-20260924-a7453e applies LP-2 as written.
+    - NOT EVIDENCE about D, the quotient, H-GFPN-9a29be or HEUR-GFPN-DFLAT.
+    - NOT A FINDING THAT the wrappers' collection, the checker's cap check, REG-1 or the exclusion list is wrong. The cap check is correct machine-protection logic, and the callgrind child is launched under the same cap. The defect is the draft's inventory of readers.
+
+  evidence_artifacts:
+    - experiments/EXP-GFPN-05ff43/dev-evidence/launchcover-premise/premise-check.md
+    - experiments/EXP-GFPN-05ff43/dev-evidence/launchcover-premise/premise-check.json
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260924-0957c2/snapshot-receipt.json
+    - experiments/EXP-GFPN-05ff43/amendments/v2_addendum_launchcover.yaml
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_check_run.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_solver.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-a1/a1_run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-a1/a1_check_run.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r1/r1_run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r1/r1_reg1.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r2/r2_run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r2/r2_check_run.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r2/r2_dv12.py
+
+  interpretation_limits:
+    - >-
+      Line numbers refer to the frozen and preserved files as they stand in
+      the tree, which the premise check verified against their receipts
+      (premise-check.md lines 43-89; 245 of 245 equal). This act computed no
+      hash. The archive TASK-20260924-a28f0e re-verifies the bound values
+      before committing.
+    - >-
+      Which of the four wrapper instances and three checker entry points an
+      r3 package reaches is not established here. The successor draft's
+      consumer census establishes it; the successor's dispositions do not
+      depend on it.
+    - >-
+      The three development-harness readers were found by this act's own
+      search for the derived key name, not by the premise check. They are
+      report-only on their face (r2_dv12.py lines 257-266).

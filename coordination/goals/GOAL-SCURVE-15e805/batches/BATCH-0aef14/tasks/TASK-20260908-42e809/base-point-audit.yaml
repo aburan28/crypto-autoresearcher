@@ -1,0 +1,334 @@
+base_point_audit:
+  task_id: TASK-20260908-42e809
+  lane: L3 (audit-plan.yaml, TASK-20260824-233cd4)
+  criterion: base
+  claim_status: >-
+    MEASUREMENT ONLY. No curve attack was run, no experiment record was
+    created, and no statement is made or implied about whether
+    Ed448-Goldilocks (or curve448, or the birational large-d Edwards model)
+    is safe, unsafe, vulnerable, or free of vulnerabilities. This is a
+    base-point certificate per L3's own certificate_or_bound schema, checked
+    against L3's own falsifier and outcome_interpretations only. No
+    SafeCurves True/False comparison cell is emitted anywhere below
+    (global precondition P2 stays open).
+  values_used: >-
+    Every numeric value below is taken exclusively from
+    raw-transcription.yaml (this task), which cites an exact line number in a
+    sha256-hashed raw fetch of RFC 7748 or RFC 8032. No value from
+    parameter-capsule.yaml section 5 (USE_PROHIBITED) was used anywhere in
+    this certificate.
+  environment: >-
+    Pure Python 3 (arbitrary-precision int), no external libraries. Modular
+    inverse via pow(x, p-2, p) (Fermat, valid since p is prime). Square roots
+    via pow(a, (p+1)//4, p), valid because p == 3 (mod 4) for both p=2^448-2^224-1
+    and p25519=2^255-19 (both explicitly stated as congruent to 3 mod 4 in
+    RFC 7748, or well known for p25519).
+  arithmetic_wall_clock_seconds_measured: 2.39
+  budget_stated_in_lane: 'production_seconds: 300, verification_seconds: 10 (order-of-magnitude estimate, per audit-plan.yaml)'
+  budget_compliance: 'Measured 2.39s is well within the 300s order-of-magnitude budget; no stopping-rule invocation was needed.'
+  random_seed: 20260908
+  scalar_multiplication_methods:
+    montgomery_model: >-
+      X-only Montgomery ladder, taken from RFC 7748 section 5's own
+      pseudocode (x_2,z_2,x_3,z_3,cswap loop with a24=(A-2)/4), with one
+      declared deviation: instead of performing the RFC's final step
+      "Return x_2 * (z_2^(p-2))" (which collapses the point at infinity O and
+      the finite affine point (0,0) to the same output value 0, because
+      0^(p-2) mod p = 0), this implementation reports the raw projective pair
+      (x_2, z_2) and defines "scalar*P == O" as "z_2 mod p == 0". This
+      removes the ambiguity between O and (0,0) that the RFC's own division
+      step introduces, and is necessary for a correct l*B=O test (used for
+      curve448/M1 and the Curve25519 parameter-matched negative control).
+    edwards_model: >-
+      Standard complete twisted-Edwards unified addition law for a=1 curves
+      (x^2+y^2=1+d*x^2*y^2): x3=(x1*y2+y1*x2)/(1+d*x1*x2*y1*y2),
+      y3=(y1*y2-x1*x2)/(1-d*x1*x2*y1*y2), identity=(0,1), used inside a
+      standard binary (double-and-add) scalar multiplication written for
+      this task. Used for M2 (large-d Edwards) and M3 (edwards448).
+
+  candidates:
+    - id: M1_curve448_montgomery
+      model_pinning: 'M1 (curve448, Montgomery v^2=u^3+A*u^2+u), per audit-plan.yaml model_pinning.objects.M1'
+      source: SRC-RFC7748 (see raw-transcription.yaml)
+      coordinates: {u: 5, v: '355293926785568175264127502063783334808976399387714271831880898435169088786967410002932673765864550910142774147268105838985595290606362'}
+      A: 156326
+      declared_l: '181709681073901722637330951972001133588410340171829515070372549795146003961539585716195755291692375963310293709091662304773755859649779'
+      declared_h: 4
+      on_curve_check:
+        lhs_v2_mod_p: 3908280
+        rhs_u3_plus_Au2_plus_u_mod_p: 3908280
+        result: PASS (equal)
+      non_identity: PASS (finite affine point, not the point at infinity)
+      l_times_B_equals_O:
+        result: PASS
+        detail: 'ladder output (x2, z2) = (351688...738085, 0); z2 == 0 => O'
+      hasse_interval_uniqueness:
+        h_times_l: '726838724295606890549323807888004534353641360687318060281490199180584015846158342864783021166769503853241174836366649219095023438599116'
+        interval: '[726838724295606890549323807888004534353641360687318060281490199180558408273396471406807049668502506668741610172998556216091290797867010, 726838724295606890549323807888004534353641360687318060281490199180666248060065073965985717728850585191436158750688718506015705238863870]'
+        h_times_l_in_interval: true
+        count_of_multiples_of_l_in_interval: 1
+        result: PASS (unique)
+      falsifier_triggered: false
+
+    - id: M2_large_d_edwards_birational
+      model_pinning: 'M2 (large-d Edwards, x^2+y^2=1+d*x^2*y^2, a=1, birationally equivalent to M1), per audit-plan.yaml model_pinning.objects.M2'
+      source: SRC-RFC7748 (see raw-transcription.yaml)
+      coordinates: {x: '345397493039729516374008604150537410266655260075183290216406970281645695073672344430481787759340633221708391583424041788924124567700732', y: '363419362147803445274661903944002267176820680343659030140745099590306164083365386343198191849338272965044442230921818680526749009182718'}
+      d: '611975850744529176160423220965553317543219696871016626328968936415087860042636474891785599283666020414768678979989378147065462815545017'
+      declared_l: same as M1 (RFC7748 states identical hex order for M2 as for M1; see raw-transcription.yaml)
+      declared_h: 4
+      on_curve_check:
+        lhs_x2_plus_y2_mod_p: '191763439104396085503629283988751603136947766343638191608086674721643482540289104578004621757708338912486452207912644383745047287215135'
+        rhs_1_plus_dx2y2_mod_p: same value
+        result: PASS (equal)
+      non_identity: PASS (not (0,1))
+      l_times_B_equals_O:
+        result: FAIL
+        detail: >-
+          l * (x,y) = (0, p-1), i.e. the order-2 point (0,-1), NOT the
+          identity (0,1). This is the falsifier condition stated in L3
+          ("l*B != O").
+      diagnostic_follow_up_measured_not_a_transcription_defect: >-
+        Independent checks (all computed in this session, not assumed): (1)
+        d is a quadratic non-residue mod p (checked directly), ruling out the
+        obvious "curve degenerate because d is a square" explanation for a
+        broken addition law. (2) The given (x,y) and its algebraic negation
+        (-x mod p, y) were both confirmed on-curve and confirmed to be true
+        negatives of each other via independent doubling (2*(x,y) and
+        2*(-x,y) produced coordinates that are themselves negatives of one
+        another). (3) Applying RFC 7748's own stated birational map
+        (u,v)=((y-1)/(y+1), sqrt(156324)*u/x) to the given (x,y) recovers
+        u=5 exactly, i.e. the given Edwards point does correspond (up to sign,
+        which does not affect order) to the same underlying curve448
+        Montgomery point (5, V(P)) that M1 already certified as order l. (4)
+        2*l*(x,y) was computed directly and equals the Edwards identity
+        (0,1), confirming the point's TRUE order is exactly 2*l, not l.
+      root_cause_identified_as_measurement_not_capsule_corruption: >-
+        RFC 7748's stated forward birational map, as u -> infinity (the
+        Montgomery point at infinity / group identity), sends y = (1+u)/(1-u)
+        -> -1, i.e. this specific map sends the MONTGOMERY IDENTITY to the
+        EDWARDS POINT (0,-1) -- the order-2 point -- rather than to the
+        Edwards curve's own chosen identity (0,1). This is a known property
+        of this particular (non-normalized) birational correspondence: it is
+        an isomorphism of the underlying curves as varieties, but the
+        specific affine coordinate chart given identifies the group identity
+        with a 2-torsion translate, so scalar multiples computed with (0,1)
+        as the Edwards zero differ from the corresponding Montgomery scalar
+        multiples by that translation. This explains, with an independently
+        verified mechanism, why M1's l*B=O holds while M2's naively-computed
+        l*B=O does not, without invoking or needing to invoke retrieval
+        corruption (capsule conflict C1) as the explanation.
+      hasse_interval_uniqueness:
+        h_times_l: same as M1 row (identical p, h, l)
+        result: PASS (unique) -- this check does not depend on the base point and is unaffected by the finding above.
+      falsifier_triggered: true
+      outcome_interpretation_applied: >-
+        None of L3's three named outcome_interpretations (all_candidates_agree
+        / candidates_differ_but_all_verify / some_candidate_fails ->
+        Explanation A/B/C) cleanly fits this row: Explanation C anticipates
+        "transcription defect... or documentary inconsistency", but the
+        diagnostic work above affirmatively rules out transcription defect
+        (the digits check out against RFC7748's own birational-map identity,
+        computed independently) and there is no documentary inconsistency
+        between RFC7748 and itself. This is reported as a FOURTH, measured
+        outcome outside the plan's anticipated taxonomy: a group-law
+        identity-point mismatch intrinsic to this specific (non-normalized)
+        birational chart, not a transcription or documentary defect. This
+        observation is preserved as-is per AGENTS.md's requirement to record
+        unexpected observations, including ones outside a plan's anticipated
+        categories, rather than force-fitting or discarding it.
+
+    - id: M3_edwards448_goldilocks
+      model_pinning: 'M3 (edwards448/Ed448-Goldilocks, x^2+y^2=1-39081*x^2*y^2, a=1, 4-isogenous to M1), per audit-plan.yaml model_pinning.objects.M3 -- "THIS is the object the intake equation names."'
+      source: SRC-RFC7748 and SRC-RFC8032, cross-checked identical (see raw-transcription.yaml)
+      coordinates: {x: '224580040295924300187604334099896036246789641632564134246125461686950415467406032909029192869357953282578032075146446173674602635247710', y: '298819210078481492676017930443930673437544040154080242095928241372331506189835876003536878655418784733982303233503462500531545062832660'}
+      d: -39081
+      declared_l: same value as M1/M2 (RFC7748 hex-derived and RFC8032 decimal-derived agree, see raw-transcription.yaml)
+      declared_h: 4
+      on_curve_check:
+        lhs_x2_plus_y2_mod_p: '105207552858123099670747391075163447697312241060239926134748681291849176701934153542804116094755125560763936544626300285831899902593782'
+        rhs_1_plus_dx2y2_mod_p: same value
+        result: PASS (equal)
+      non_identity: PASS (not (0,1))
+      l_times_B_equals_O:
+        result: PASS
+        detail: 'l * (x,y) = (0, 1), the identity.'
+      hasse_interval_uniqueness:
+        h_times_l: same as M1 row (identical p, h, l)
+        count_of_multiples_of_l_in_interval: 1
+        result: PASS (unique)
+      falsifier_triggered: false
+      outcome_interpretation_applied: >-
+        This is the row corresponding to the intake object ("the name
+        Ed448-Goldilocks denotes edwards448"). It verifies cleanly on every
+        L3 check.
+
+  base_point_candidate_count: 3 (M1, M2, M3); a 4th (ePrint 2015/625
+    pre-rotation Goldilocks point) is UNRETRIEVED, see raw-transcription.yaml.
+    L3's quantitative_prediction of "at least 2" candidates is met (3 found).
+
+  controls:
+    positive_control:
+      requirement: >-
+        "A point of order 4 must FAIL the 'generates the prime-order
+        subgroup' test, and a point of order 2*l must FAIL the stated-order
+        test. Both must be flagged." (audit-plan.yaml L3.controls.positive)
+      montgomery_M1_curve:
+        order4_point:
+          construction: >-
+            u=1 doubles (via the RFC7748 x-only ladder, k=2) to (0,0), the
+            known order-2 affine point, hence has order 4. v recovered via
+            v^2 = 1 + A + 1 = A+2 = 156328 mod p; a square root exists
+            (confirmed a QR) since p == 3 mod 4.
+          coordinates: {u: 1, v: '528950257000142451010969798134146496096806208096258258133290419984524923934728256972792120570883515182233459997657945594599653183173011'}
+          doubles_to_(0,0)_confirmed: true
+          l_times_Q_equals_O: false
+          expected: false
+          control_behaved_as_required: true
+        order_2l_point:
+          construction: 'B + (0,0) via affine Montgomery point addition; (0,0) has order 2, gcd(2,l)=1 (l odd prime), so order(B+(0,0)) = 2*l.'
+          l_times_P_equals_O: false
+          expected: false
+          control_behaved_as_required: true
+      edwards_M3_curve:
+        order4_point:
+          construction: '(1,0) is on the curve (1+0=1+0) and is a classical order-4 point of an a=1 twisted Edwards curve.'
+          coordinates: {x: 1, y: 0}
+          l_times_Q_equals_O: false
+          expected: false
+          control_behaved_as_required: true
+        order_2l_point:
+          construction: 'G + (0,p-1) via complete Edwards addition; (0,p-1) has order 2, gcd(2,l)=1, so order(G+(0,p-1)) = 2*l.'
+          l_times_P_equals_O: false
+          expected: false
+          control_behaved_as_required: true
+      overall_result: PASS -- all four order-4 / order-2l constructions correctly FAIL the l*B=O test, as required before any L3 result is believed (global precondition P4).
+
+    parameter_matched_negative_control:
+      requirement: >-
+        "The Curve25519 base point u=9 with its published prime order, same
+        code path, same certificate format. Must pass every step. Matching
+        assumptions: Montgomery model, small cofactor, comparable size
+        band." (audit-plan.yaml L3.controls.parameter_matched_negative)
+      matching_assumptions_stated: >-
+        Montgomery model (same as M1); small cofactor (8 for curve25519 vs. 4
+        for curve448 -- both small relative to l); comparable size band
+        (255-bit field vs. 448-bit field, both cryptographic-scale prime
+        fields congruent to 3 mod 4). Not claimed identical, only comparable,
+        per the plan's own wording.
+      source: SRC-RFC7748, section 4.1 (curve25519), lines 187-201
+      coordinates: {u: 9, v: '14781619447589544791020593568409986887264606134616475288964881837755586237401'}
+      p25519_symbolic: '2^255 - 19'
+      A: 486662
+      declared_l: '2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed = 7237005577332262213973186563042994240857116359379907606001950938285454250989'
+      declared_h: 8
+      on_curve_check: {result: PASS, lhs: 39420360, rhs: 39420360}
+      non_identity: PASS
+      l_times_B_equals_O: {result: PASS, detail: 'ladder z2 == 0'}
+      hasse_interval_uniqueness: {result: PASS, count_of_multiples_of_l_in_interval: 1}
+      overall_result: PASS -- every step passed, run through the identical Montgomery-model code path used for M1.
+
+    same_shape_null_control:
+      requirement: >-
+        "A point sampled on the QUADRATIC TWIST... must fail the on-curve
+        check. Additionally: 1000 random (x,y) pairs..., expected number
+        passing ~0... DECAY CHECK: pass rate as a function of randomised
+        coordinate bits must fall to zero immediately." (audit-plan.yaml
+        L3.controls.same_shape_null)
+      M1_montgomery:
+        quadratic_twist_point:
+          construction: >-
+            u=6 chosen because u^3+A*u^2+u mod p is a quadratic non-residue
+            (checked directly), i.e. u=6 has no valid v on curve448 itself --
+            it is genuinely a point on the quadratic twist. Presented with an
+            arbitrary v=1 against curve448's own on-curve test.
+          on_curve_check_result: FAIL (as required)
+          expected: false
+          control_behaved_as_required: true
+        random_pairs:
+          n: 1000
+          pass_count: 0
+          expected_approx: 2.75e-132
+          control_behaved_as_required: true
+        decay_check_pass_rate_by_low_bits_randomized:
+          '0': 1.0
+          '1': 0.47
+          '2': 0.2
+          '4': 0.07
+          '8': 0.005
+          '16': 0.0
+          '32': 0.0
+          '64': 0.0
+          '128': 0.0
+          '224': 0.0
+          '448': 0.0
+        decay_requirement_met: >-
+          true -- pass rate falls from 1.0 at 0 bits randomized to 0.0 by 16
+          bits randomized, with no non-zero floor at higher bit counts
+          (checked up to full 448-bit randomization). This rules out the
+          "artifact tell" the plan warns about (a non-decaying floor would
+          mean the on-curve check is not evaluating the equation).
+      M3_edwards:
+        quadratic_twist_point:
+          construction: >-
+            x=2 chosen because (1-x^2)/(1-d*x^2) mod p (the y^2 value implied
+            by the curve equation at that x) is a quadratic non-residue, i.e.
+            no valid y exists on edwards448 for x=2 -- point genuinely lies
+            off-curve / on the twist side. Presented with arbitrary y=1
+            against edwards448's own on-curve test.
+          on_curve_check_result: FAIL (as required)
+          expected: false
+          control_behaved_as_required: true
+        random_pairs:
+          n: 1000
+          pass_count: 0
+          expected_approx: 2.75e-132
+          control_behaved_as_required: true
+        decay_check_pass_rate_by_low_bits_randomized:
+          '0': 1.0
+          '1': 0.535
+          '2': 0.245
+          '4': 0.06
+          '8': 0.0
+          '16': 0.0
+          '32': 0.0
+          '64': 0.0
+          '128': 0.0
+          '224': 0.0
+          '448': 0.0
+        decay_requirement_met: true
+      overall_result: PASS on both models -- quadratic-twist points correctly fail, random pairs correctly pass at ~0 rate, and pass rate correctly decays to (and stays at) 0.
+
+  controls_ran_before_findings_believed: >-
+    True. Per global precondition P4, all three controls above were executed
+    in the same session as, and are reported alongside (not after) the
+    per-candidate certificates, and this file states their PASS outcomes
+    explicitly so that the M1 and M3 PASS results, and the M2 FAIL result,
+    are read as findings only in light of a demonstrated-working instrument.
+
+  falsifier_summary:
+    L3_falsifier_text: >-
+      "Any sourced candidate failing the on-curve check (transcription alarm)
+      or l*B != O; or more than one multiple of l in the Hasse interval...;
+      or a twist point passing the on-curve null." (audit-plan.yaml)
+    triggered: true
+    which_candidate: M2_large_d_edwards_birational
+    which_condition: 'l*B != O (l*B = the order-2 point (0,p-1), not the identity)'
+    all_other_falsifier_conditions_across_all_rows: not triggered (on-curve checks all PASS, Hasse uniqueness all PASS, twist-null and random-null all correctly fail/pass as required)
+
+  honest_limitation: >-
+    Per L3's own honest_limitation: this audit certifies each base point
+    RELATIVE TO the declared l transcribed from the RFCs; it does NOT prove l
+    is prime (that is lane D1, not executed in this task) or that #E = h*l in
+    general beyond the stated Hasse-uniqueness argument (which itself
+    presupposes l is prime and l > 4*sqrt(p) -- both structural facts about
+    the transcribed l were not independently re-verified for primality in
+    this task). L3 and D1 are jointly load-bearing; L3 alone, as executed
+    here, does not establish #E. Additionally, the M2 finding above is a
+    genuine measured base-point-order fact about ONE SPECIFIC (non-normalized)
+    literal reading of RFC 7748's stated coordinates under the standard a=1
+    unified Edwards addition law with identity (0,1) -- it says nothing about
+    M1's or M3's own certificates (both independently verified clean), and it
+    is not evidence about curve448's or edwards448's suitability, safety, or
+    the correctness of any deployed implementation (which would use a
+    correctly normalized group law, not this task's naive reading).

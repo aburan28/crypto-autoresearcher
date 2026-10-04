@@ -1,0 +1,202 @@
+task_id: TASK-20260908-8c30c7
+scope:
+  joint: paired_measurement_and_statistics_v2
+  reviewed_properties:
+    - canonical pair_id and profile_audit_id construction
+    - exact T_primary/W_primary pairing and profile isolation
+    - exact rational tau comparison
+    - profile completeness, missingness, and retained-edge semantics
+    - undefined-bootstrap disposition
+    - fixed load-target inventory
+    - drift eligibility
+  source_only: true
+  zero_execution: true
+source_snapshot_commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+review_plan_commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+sources_read:
+  - path: ledger/handoffs/TASK-20260908-8c30c7.yaml
+    commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+    git_blob_sha1: 27020b816c353e6004078f898a30c0fe90e99811
+    sha256: 4c9a685a17468190e19fa333f6174585aef5edb7f5ef839b5498a4dfecef4c5d
+  - path: coordination/design/BATCH-c2a2b6/hardening-v2/review-plan.yaml
+    commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+    git_blob_sha1: 70f15e1214dfe11fca6a965354adea12764b8a46
+    sha256: 2195566d0d06dff445a548329a5127d46cad202fd2a5ccaef1f008898d7054df
+  - path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: a938bf834af944b9f472c49e8486fcced46abde9
+    sha256: 955d260b9264f98b0439b9a28fa844644fa2f372c8ddb8d75b2803ea581db66a
+    review_plan_sha256_match: true
+  - path: experiments/EXP-ECDLP-ac7e8b/specification.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: fc1fac56778cd74816343c54a3a194947f538752
+    sha256: 87c47b87963ec3baad66b0c2bed87d194712be73535f5038764c12c60a3eb656
+    amendment_predecessor_sha256_match: true
+  - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: 977db527806b0cdc54bec3807906a5361d252ba2
+    sha256: ac0b4b83fe32bd949d710a203bf1dd4248557f64dcdd381edcec65cd236e37b0
+    review_plan_sha256_match: true
+  - path: ledger/decisions/DEC-20260908-ec4a02.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: d8ccf61ff39cc1f1edb653dac5492d2df262838e
+    sha256: bacd05e7bb6a0f36da0647b4b2cddeb9ccc867016a3c1bca655ef50408bd21d5
+worked_attacks:
+  - id: duplicate_or_cross_hash_join
+    attack: >-
+      Attempt to join a counting primary row to a timing row or profile from a
+      different fixture, work input, algorithm, source, component, load, or
+      stage, or admit duplicate primary/profile rows.
+    result: holds
+    basis: >-
+      pair_id is the SHA256 JCS object over experiment/version, cell, instance,
+      load, component, relation-collection-plus-verification stage set, and all
+      four relevant content hashes. profile_audit_id is bound to that pair_id,
+      timing/profile phase, the profile stage set, and profile input hash. The
+      cardinality rule requires exactly one counting primary row, one unprofiled
+      timing primary row, and one timing profile audit, and rejects duplicate,
+      absent, cross-hash, mode-mismatched, and phase-mismatched joins.
+  - id: profile_enters_primary_estimator
+    attack: >-
+      Try to use a profile clock or its count-disabled vector as T_primary or
+      W_primary, or substitute producer-only/verifier-only counters for W_primary.
+    result: holds
+    basis: >-
+      T_primary is exactly the union of the unprofiled timing primary producer
+      relation-collection and independent-verifier intervals. W_primary is the
+      exact labeled producer_Fp plus verifier_Fp weighted integer sum over that
+      same pair and stage set. The profile rule explicitly contributes no
+      estimator clock or W, and producer-only/verifier-only vectors are retained
+      diagnostics that cannot replace the sum.
+  - id: equality_at_tau_or_binary64_decision
+    attack: >-
+      Treat an estimate equal to tau as disagreement, or use a binary64,
+      formatted decimal, epsilon, or unresolved numerical comparison to decide
+      agreement.
+    result: holds
+    basis: >-
+      tau is the exact rational 1/20. Comparisons use outward rational log
+      intervals, classify the closed interval [-tau,+tau] as agreement, require
+      strict excess beyond one common boundary for disagreement, and refine
+      collectively through 512 bits before reporting an unresolved case as
+      inconclusive.
+  - id: missing_profile_or_survivor_panel
+    attack: >-
+      Omit a missing, invalid, censored, nonpositive, or incomplete size and
+      fit a survivor panel; alternatively exclude a size when its exact median
+      profile fraction is exactly 1/2.
+    result: holds
+    basis: >-
+      Complete eligibility requires 20 valid positive paired T_primary/W_primary
+      observations and 20 valid profile fractions. Every listed loss makes the
+      family/arm/load slope panel unavailable. Only an otherwise complete size
+      whose exact profile-fraction median is strictly greater than 1/2 may be
+      profile-excluded; equality remains eligible. The retained-edge rule allows
+      only those exclusions, records every gap-spanning edge with endpoints and
+      intervening exclusions, and prohibits an incomplete cell from creating an
+      edge.
+  - id: one_undefined_bootstrap_survives
+    attack: >-
+      Use finite bootstrap survivors to choose the 50th and 1950th endpoints
+      after a single undefined point, endpoint slope, or resample.
+    result: holds
+    basis: >-
+      Every requested edge statistic retains exactly 2000 status rows with
+      index-vector references, undefined_count, and reason counts. Any undefined
+      item makes both interval endpoints null and the delta category
+      inconclusive; finite survivors are neither renumbered, imputed, trimmed,
+      nor used for endpoint ranks.
+  - id: omitted_load_target_class
+    attack: >-
+      Re-derive the per-job target inventory and try to omit a calibrator
+      program/multiplier pair, planted-positive component, main arm, rho, or
+      BSGS from the all-load comparison.
+    result: holds
+    basis: >-
+      The predecessor schedule fixes 30 components per job as 25 calibrator
+      program/multiplier pairs, one planted-positive EC decomposition, two main
+      EC/curve-free decompositions, rho, and BSGS. The v2 inventory names the
+      two main components, the full calibrator-pair class, the planted-positive
+      component, rho, and BSGS; it therefore covers 25+1+2+1+1=30 components.
+      Its load rule requires the same 20 valid fixture indices at loads 0, 1, 2,
+      and 4 for every declared series, retains counting-root vectors for count
+      invariance, and turns missing data into unavailable/inconclusive rather
+      than a selectively evaluated target failure.
+  - id: drift_from_profile_or_incomplete_subset
+    attack: >-
+      Form a drift sequence from only profile-eligible or otherwise convenient
+      cells, or extend drift to a non-main component/load.
+    result: holds
+    basis: >-
+      Drift is limited to the load-0 main-relation T_primary/W_primary ratio in
+      exactly S3/EC, S3/curve_free, S4/EC, and S4/curve_free. All intended family
+      sizes must be complete regardless of profile exclusion; ratios must be
+      positive, the full sequence weakly monotone, and exact max/min strictly
+      greater than 2. The required report retains increasing, decreasing,
+      flat/both, nonmonotone, and inconclusive outcomes without selecting a
+      subset.
+findings:
+  - id: F-PAIR-PROFILE-IDENTITY
+    status: holds
+    detail: >-
+      The amendment's canonical identity fields and its exact cardinality rule
+      close the duplicate/cross-hash and cross-mode join routes identified in
+      DEC-20260908-ec4a02 for this statistics joint.
+  - id: F-PRIMARY-PAIRING
+    status: holds
+    detail: >-
+      The prospective definition ties the timing primary union and the labeled
+      counting primary sum to one pair_id and one named stage set while excluding
+      warmup, profile, and other workflow intervals from both estimators.
+  - id: F-RATIONAL-THRESHOLD
+    status: holds
+    detail: >-
+      The 1/20 boundary, inclusive equality rule, outward interval procedure,
+      and 512-bit inconclusive fallback prevent a binary64 or rounded-display
+      classification.
+  - id: F-PANEL-AND-BOOTSTRAP-MISSINGNESS
+    status: holds
+    detail: >-
+      The source distinguishes complete profile exclusions from incompleteness,
+      preserves retained-edge provenance, and prevents undefined bootstrap
+      survivors from yielding a finite primary interval.
+  - id: F-LOAD-AND-DRIFT-ELIGIBILITY
+    status: holds
+    detail: >-
+      The v2 inventory covers the frozen 30-component job schedule and the
+      drift rule binds its four intended panels to complete load-0 main-relation
+      data without profile-based or missing-size selection.
+verdict: holds
+required_corrections: []
+limitations:
+  - >-
+    This is a source-level review of the named statistics joint at the pinned
+    commits. It did not run an implementation, an admission fixture, a bootstrap,
+    or a scientific experiment.
+  - >-
+    The certificate-contract and lifecycle/cost joints are assigned to separate
+    reviewers and were not read or assessed here; no sibling or older review
+    output was read.
+  - >-
+    A holds verdict establishes only that this prospective source definition is
+    complete for the assigned attacks. It does not verify a future implementation
+    or the integrity, controls, metrics, or interpretation of future receipts.
+scientific_runs: []
+nonapproval_and_nonclaim: >-
+  This report neither approves implementation nor execution and makes no
+  scientific, cryptanalytic, hypothesis-status, experiment-status, or goal-state
+  claim.
+procedure_deviations: []
+review_attestation:
+  task_id: TASK-20260908-8c30c7
+  independent_session: true
+  joints_owned: [paired_measurement_and_statistics_v2]
+  sources_read:
+    - ledger/handoffs/TASK-20260908-8c30c7.yaml
+    - coordination/design/BATCH-c2a2b6/hardening-v2/review-plan.yaml
+    - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+    - experiments/EXP-ECDLP-ac7e8b/specification.yaml
+    - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    - ledger/decisions/DEC-20260908-ec4a02.yaml
+  read_sibling_reports: false
+  verdict: holds

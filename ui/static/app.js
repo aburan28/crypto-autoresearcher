@@ -184,7 +184,7 @@ const state = {
   meta: null,
   records: [],                 // decoded index rows, in file order
   byId: new Map(),
-  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null,
+  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null, ops: null,
   searchShards: new Map(),     // kind -> Map(id -> excerpt)
   ready: false,
   fatal: null,
@@ -314,6 +314,112 @@ function clip(text, n) {
   const s = String(text ?? '');
   return s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}…`;
 }
+
+function fmtCount(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  return Math.round(n).toLocaleString();
+}
+function fmtIops(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k/s`;
+  return `${Math.round(n).toLocaleString()}/s`;
+}
+function fmtBytes(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  const units = [['TiB', 1024 ** 4], ['GiB', 1024 ** 3], ['MiB', 1024 ** 2], ['KiB', 1024]];
+  for (const [unit, size] of units) {
+    if (abs >= size) return `${(n / size).toFixed(abs >= size * 10 ? 1 : 2)} ${unit}`;
+  }
+  return `${Math.round(n)} B`;
+}
+function fmtBytesPerSec(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  return `${fmtBytes(n)}/s`;
+}
+
+function latestPointNote(ops) {
+  if (!ops?.latest_point) return 'no samples';
+  const age = relative(ops.latest_point);
+  if (ops.last_hour?.basis === 'latest_sample') {
+    return `latest point ${age} · hour ending at that sample`;
+  }
+  return `latest point ${age}`;
+}
+
+function opsWindow(title, rates, extra, note, empty) {
+  const value = (n, unit) => h('div', { class: 'ops-line' },
+    h('strong', {}, empty ? '—' : n), h('span', {}, unit));
+  return h('div', { class: `ops-window${empty ? ' empty' : ''}` },
+    h('div', { class: 'kicker' }, title),
+    empty
+      ? h('p', { class: 'ops-empty' }, 'No samples in this window.')
+      : h('div', { class: 'ops-rates' },
+          value(fmtIops(rates.write_iops), 'writes'),
+          value(fmtIops(rates.read_iops), 'reads'),
+          value(fmtBytesPerSec(rates.write_bytes_per_sec), 'write throughput'),
+          value(fmtBytesPerSec(rates.read_bytes_per_sec), 'read throughput'),
+          extra),
+    h('div', { class: 'ops-note faint' }, note));
+}
+
+function opsPanel(ops) {
+  if (!ops || !ops.available) {
+    if (ops && ops.reason && !/no AWS credentials/i.test(ops.reason)) {
+      return h('div', { class: 'banner warn' },
+        'Database metrics unavailable · ', ops.reason);
+    }
+    return null;
+  }
+  const hour = ops.last_hour || {};
+  const day = ops.last_24h || {};
+  const storage = ops.storage || {};
+  const usedPct = storage.allocated_bytes && storage.used_bytes != null
+    ? Math.min(100, (storage.used_bytes / storage.allocated_bytes) * 100) : null;
+  const db = ops.database || {};
+  const dayExtra = h('div', { class: 'ops-line ops-total' },
+    h('strong', {}, fmtCount(day.write_ops)), h('span', {}, 'write ops'),
+    h('strong', {}, fmtCount(day.read_ops)), h('span', {}, 'read ops'));
+  return h('section', { class: 'ops-board', 'aria-label': 'Database load' },
+    h('div', { class: 'ops-head' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Distinguished-point database'),
+        h('h2', {}, db.id || 'rho-dp'),
+        h('p', { class: 'faint' },
+          [db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
+      ops.stale ? tag('stale', 'warn', latestPointNote(ops)) : tag('live', 'ok', latestPointNote(ops))),
+    h('div', { class: 'ops-windows' },
+      opsWindow(hour.basis === 'latest_sample' ? 'Hour at latest sample' : 'Last hour',
+        hour, null, latestPointNote(ops), hour.empty),
+      opsWindow('Last 24 hours', day, dayExtra, `${(day.samples || 0).toLocaleString()} samples`,
+        day.samples === 0)),
+    h('div', { class: 'ops-storage' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Storage'),
+        h('div', { class: 'ops-storage-values' },
+          h('strong', {}, fmtBytes(storage.used_bytes)), ' used · ',
+          fmtBytes(storage.free_bytes), ' free · ',
+          fmtBytes(storage.allocated_bytes), ' allocated')),
+      usedPct === null ? null : h('div', { class: 'ops-bar', title: `${usedPct.toFixed(1)}% used` },
+        h('i', { style: `width:${usedPct.toFixed(1)}%` }))),
+    ops.object_store ? h('p', { class: 'ops-store faint' },
+      'Object store ', h('span', { class: 'mono' }, ops.object_store.bucket), ' · ',
+      fmtBytes(ops.object_store.bytes),
+      ops.object_store.objects != null ? ` · ${fmtCount(ops.object_store.objects)} objects` : '',
+      ops.object_store.as_of ? ` · as of ${relative(ops.object_store.as_of)}` : '') : null,
+    h('p', { class: 'ops-meta faint' },
+      cpuLine(ops.cpu_percent, ops.connections)));
+}
+
+function cpuLine(cpu, connections) {
+  const parts = [];
+  if (cpu != null) parts.push(`CPU ${cpu.toFixed(1)}%`);
+  if (connections != null) parts.push(`${connections.toFixed(0)} connection${connections === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
 const sum = (map) => Object.values(map || {}).reduce((a, b) => a + (b || 0), 0);
 const split = (v) => (v || '').split(',').filter(Boolean);
 
@@ -321,11 +427,12 @@ const split = (v) => (v || '').split(',').filter(Boolean);
 // Chrome
 // ---------------------------------------------------------------------------
 const NAV = [
-  { route: '#/', label: 'Overview' },
+  { route: '#/', label: 'Home' },
   { route: '#/findings', label: 'Findings', count: (s) => s.meta?.findings },
-  { route: '#/goals', label: 'Goals', count: (s) => s.meta?.goals },
+  { route: '#/goals', label: 'Research', count: (s) => s.meta?.goals },
   { route: '#/experiments', label: 'Experiments', count: (s) => s.meta?.experiments },
   { route: '#/records', label: 'Records', count: (s) => s.records.length || null },
+  { route: '#/compare', label: 'Compare' },
   { route: '#/integrity', label: 'Integrity', count: (s) => s.overview
       ? Object.entries(s.overview.integrity_totals)
           .filter(([k]) => !k.endsWith('_state'))
@@ -342,7 +449,7 @@ function renderNav() {
       (item.route === '#/goals' && here.startsWith('#/goal/')) ||
       (item.route === '#/records' && here.startsWith('#/record/'));
     const n = item.count ? item.count(state) : null;
-    nav.append(h('a', { class: 'nav-item', href: item.route, 'aria-current': active },
+    nav.append(h('a', { class: 'nav-item', href: item.route, 'aria-current': active ? 'page' : null },
       h('span', {}, item.label),
       n === null || n === undefined ? null : h('span', { class: 'n' }, n.toLocaleString())));
   }
@@ -375,13 +482,13 @@ function snapshotBanner() {
   const when = m.built_at ? m.built_at.replace('T', ' ').replace('+00:00', ' UTC') : 'unknown';
   return h('div', { class: 'banner info', style: 'margin-bottom:14px' },
     h('div', {},
-      h('b', {}, 'Snapshot, not live. '),
+      h('b', {}, 'Research snapshot · '),
       'Built ', h('span', { class: 'mono' }, when), ' from ',
       m.repo_url && m.commit
         ? h('a', { class: 'mono', href: `${m.repo_url}/commit/${m.commit}`,
                    target: '_blank', rel: 'noreferrer' }, short)
         : h('span', { class: 'mono' }, short || 'an unknown commit'),
-      '. Records committed after that are not here; every source link points at that commit.'));
+      '. Updates appear after the next site build.'));
 }
 
 // ---------------------------------------------------------------------------
@@ -916,122 +1023,308 @@ function pipelineStrip(stages) {
       onclick: (e) => e.stopPropagation() }, s.note) : null)));
 }
 
-async function viewOverview() {
-  setCrumb('overview');
-  const root = fill(view(), loading('building the index…'));
+function homeSection(title, description, href, label, body) {
+  return h('section', { class: 'home-section' },
+    h('div', { class: 'home-section-head' },
+      h('div', {}, h('h2', {}, title), h('p', {}, description)),
+      h('a', { class: 'text-link', href }, label, ' ↗')),
+    body);
+}
+
+function activityDate(date) {
+  if (!date?.at) return h('span', { class: 'faint' }, 'Update date unavailable');
+  return h('span', {}, date.basis === 'committed' ? 'Committed ' : 'Recorded ',
+    h('time', { datetime: asDate(date.at).toISOString() },
+      asDate(date.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })));
+}
+
+function currentWorkCard(g) {
+  return h('article', { class: 'work-card' },
+    h('div', { class: 'row work-labels' },
+      tag(g.ecc ? 'Elliptic-curve research' : (g.area || 'Cryptography'), 'acc'),
+      tag(g.impediment_count || g.flags?.length ? 'Needs attention' : 'Active goal',
+        g.impediment_count || g.flags?.length ? 'warn' : 'ok')),
+    h('h3', {}, h('a', { href: `#/goal/${g.id}` }, clip(g.title || g.id, 130))),
+    h('p', { class: 'work-objective' }, clip(g.objective_preview || 'Open this goal to explore its research question and linked work.', 240)),
+    h('div', { class: 'work-next' }, h('span', { class: 'eyebrow' }, 'Next step'),
+      h('p', {}, linkify(clip(g.next_action_preview || 'No next step recorded yet.', 220)))),
+    h('div', { class: 'work-foot' }, activityDate(g.activity),
+      h('a', { href: `#/goal/${g.id}`, 'aria-label': `Explore ${g.title || g.id}` }, 'Explore →')));
+}
+
+function recentWorkFeed(rows) {
+  let category = 'highlights', shown = 6;
+  const list = h('div', { class: 'activity-list', 'aria-live': 'polite' });
+  const more = h('button', { class: 'btn activity-more', onclick: () => { shown += 6; draw(); } }, 'Show more updates');
+  const tabs = h('div', { class: 'activity-filters', role: 'group', 'aria-label': 'Filter recent work' });
+  const labels = [['highlights', 'Highlights'], ['all', 'All work'], ['findings', 'Findings'], ['experiments', 'Experiments'],
+    ['ideas', 'Ideas'], ['decisions', 'Decisions'], ['evidence', 'Evidence'], ['corrections', 'Corrections']];
+  const singular = { findings: 'Finding', experiments: 'Experiment', ideas: 'Idea',
+    decisions: 'Decision', evidence: 'Evidence', corrections: 'Correction' };
+  const draw = () => {
+    // Highlights take the two newest entries per type so decisions cannot
+    // crowd out experiments and ideas. All work retains the complete feed.
+    const seen = new Map();
+    const selected = rows.filter(r => {
+      if (category !== 'highlights') return category === 'all' || r.category === category;
+      const n = seen.get(r.category) || 0;
+      seen.set(r.category, n + 1);
+      return n < 2;
+    });
+    for (const b of tabs.children) b.setAttribute('aria-pressed', b.dataset.category === category);
+    fill(list, selected.length ? selected.slice(0, shown).map(r =>
+      h('article', { class: 'activity-item' },
+        h('div', { class: 'activity-kind' }, tag(singular[r.category] || r.category), activityDate(r.date)),
+        h('div', { class: 'activity-copy' },
+          h('h3', {}, h('a', { href: `#/record/${r.id}` }, clip(r.title ? r.title.replace(/_/g, ' ') : `${singular[r.category] || 'Research'} record`, 190))),
+          h('div', { class: 'row activity-meta' },
+            r.status ? tag(clip(r.status, 70), statusTone(r.status), r.status) : tag('Status unstated'),
+            r.claim_tier ? tag(r.claim_tier, 'warn', 'Recorded claim scope') : null,
+            h('span', { class: 'mono faint' }, r.id))),
+        h('a', { class: 'activity-arrow', href: `#/record/${r.id}`, 'aria-label': `Read ${r.title || r.id}` }, '↗')))
+      : h('div', { class: 'empty' }, 'No dated updates in this category in the latest snapshot.'));
+    more.hidden = selected.length <= shown;
+  };
+  for (const [key, label] of labels) tabs.append(h('button', {
+    class: 'activity-filter', 'data-category': key, 'aria-pressed': key === category,
+    onclick: () => { category = key; shown = 6; draw(); },
+  }, label));
+  draw();
+  return h('div', { class: 'activity-panel' }, tabs, list, more);
+}
+
+// Research telemetry is an explicitly supplied aggregate snapshot, never worker logs.
+function progressPanel(p) {
+  const body = h('div', { class: 'panel-body stack', style: 'gap:12px' });
+  const section = panel('Research progress', 'Observed activity and evidence coverage', body,
+    { id: 'research-progress' });
+  if (!p?.available) {
+    body.append(h('p', { class: 'muted' }, 'Research telemetry unavailable. No observed progress snapshot has been supplied.'));
+    return section;
+  }
+  const m = p.metrics || {};
+  const stamps = [p.generated_at, p.source_updated_at].map(x => Date.parse(x));
+  const stale = p.stale || stamps.some(t => !Number.isFinite(t) || Date.now() - t > 3600000);
+  const n = key => m[key] === null || m[key] === undefined ? '—' : m[key].toLocaleString();
+  body.append(
+    h('div', { class: 'row faint' }, tag(stale ? 'Stale snapshot' : 'Observed snapshot', stale ? 'warn' : 'info'),
+      '24 hours ending ', timeEl(p.generated_at, { label: 'report generated' }),
+      ' · last event ', timeEl(p.source_updated_at, { label: 'latest observed event' })),
+    h('div', { class: 'stat-row' },
+      statCard(n('actions_last_24h'), 'finished actions'),
+      statCard(n('design_actions_last_24h'), 'design actions'),
+      statCard(n('run_actions_last_24h'), 'run actions'),
+      statCard(n('runner_output_validated_trial_delta_24h'), 'validated-output change',
+        { title: 'Signed change under the same frozen trial plan; not discoveries.' }),
+      statCard(m.next_action_latency_seconds_median_24h == null ? '—' : fmtDuration(m.next_action_latency_seconds_median_24h), 'median handoff delay'),
+      statCard(m.measured_cost_usd_last_24h == null ? '—' : `$${m.measured_cost_usd_last_24h.toFixed(4)}`, 'measured model cost')),
+    h('div', { class: 'row faint' }, `Trial coverage: ${m.runner_coverage_24h ?? 'unknown'}`, ' · ',
+      `Cost coverage: ${m.cost_coverage_last_24h ?? 'unknown'}`),
+    h('p', { class: 'muted' }, 'Action counts describe activity. Verified discoveries and independent relations are not yet measured in this panel.'),
+    h('a', { class: 'text-link', href: '#/compare' }, 'Compare archived run receipts →'));
+  return section;
+}
+
+function comparisonReasons(a, b) {
+  if (!a || !b) return ['Choose two archived receipts.'];
+  const reasons = [];
+  if (a.id === b.id) reasons.push('Choose two different receipts.');
+  if (!a.manifest_sha256 || a.manifest_sha256 !== b.manifest_sha256) reasons.push('Frozen manifests differ or are missing.');
+  if (!a.scope || a.scope !== b.scope) reasons.push('Measurement scopes differ or are missing.');
+  if (!a.timing_boundary || a.timing_boundary !== b.timing_boundary ||
+      !Array.isArray(a.excluded_costs) || !Array.isArray(b.excluded_costs) ||
+      JSON.stringify(a.excluded_costs) !== JSON.stringify(b.excluded_costs)) reasons.push('Accounting boundaries differ or are missing.');
+  if (!a.environment || !b.environment || JSON.stringify(a.environment) !== JSON.stringify(b.environment)) reasons.push('Host or harness provenance is missing or differs.');
+  if (!a.complete || !b.complete) reasons.push('At least one receipt is incomplete.');
+  if (a.verification !== 'recorded_verified' || b.verification !== 'recorded_verified') reasons.push('Verification is missing or an outcome is unknown.');
+  if (a.metrics?.total_wall_seconds == null || b.metrics?.total_wall_seconds == null) reasons.push('Charged time is missing.');
+  if (a.fixture || b.fixture) reasons.push('Synthetic fixture — not performance evidence.');
+  return reasons;
+}
+
+function comparisonTable(a, b) {
+  const metric = (r, key, fmt = String) => r.metrics?.[key] == null ? '—' : fmt(r.metrics[key]);
+  const sources = r => h('div', { class: 'stack', style: 'gap:8px' },
+    Object.entries(r.sources || {}).map(([kind, source]) => h('div', {},
+      pathLink(source.path, `${kind} source`),
+      h('div', { class: 'mono receipt-hash' }, source.sha256))));
+  const count = r => Object.entries(r.outcomes || {}).map(([key, value]) => `${value} ${key}`).join(' · ') || 'unknown';
+  const attempts = r => r.attempt_status == null ? 'Not supplied' :
+    Object.entries(r.attempt_status).map(([key, value]) => `${value} ${key}`).join(' · ');
+  const rows = [
+    ['Backend / mode', r => `${r.backend?.id || 'unknown'} / ${r.backend?.mode || 'unknown'}`],
+    ['Scope', r => r.scope || 'unknown'],
+    ['Recorded environment', r => r.environment ? `${r.environment.python} · ${r.environment.platform}` : 'Not supplied'],
+    ['Harness source digest', r => h('span', { class: 'mono receipt-hash' }, r.environment?.harness_sha256 || 'Not supplied')],
+    ['Receipt completeness', r => r.complete ? 'All input results recorded' : 'Incomplete'],
+    ['Verification in receipt', r => r.verification === 'recorded_verified' ? 'Verified outputs recorded' : 'Incomplete or unknown'],
+    ['Final outcomes', count],
+    ['Worker attempts (includes fallback)', attempts],
+    ['Charged wall time', r => metric(r, 'total_wall_seconds', fmtDuration)],
+    ['CPU time (parent + reaped children)', r => metric(r, 'parent_and_reaped_children_cpu_seconds', fmtDuration)],
+    ['Peak single-worker RSS', r => metric(r, 'peak_worker_process_rss_bytes', fmtBytes)],
+    ['Recorded independent rank', r => r.relation_verification_complete ? metric(r, 'verified_relation_rank') : 'Unknown — verification incomplete or absent'],
+    ['Fallback attempts', r => metric(r, 'fallback_attempts')],
+    ['Timing boundary', r => r.timing_boundary || 'unknown'],
+    ['Excluded costs', r => r.excluded_costs == null ? 'unknown' : (r.excluded_costs.join('; ') || 'None recorded')],
+    ['Frozen manifest SHA-256', r => h('span', { class: 'mono receipt-hash' }, r.manifest_sha256)],
+    ['Pinned sources', sources],
+  ];
+  return h('div', { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': 'Run comparison, scroll horizontally for both runs' }, h('table', { class: 'comparison-table' },
+    thead(['Recorded quantity', a.label, b.label]),
+    h('tbody', {}, rows.map(([label, render]) => h('tr', {},
+      h('th', { scope: 'row' }, label), h('td', {}, render(a)), h('td', {}, render(b)))))));
+}
+
+function benchmarkPanel(data = {}) {
+  const section = h('section', { class: 'stack' }, h('h2', {}, 'Curve benchmark archive'));
+  section.append(h('p', { class: 'muted' },
+    'Archived toy-curve measurements. Verification is reported by the source, not rerun here. This is an evidence table, with no cross-curve ranking or inferred speedup.'));
+  if (data.error) { section.append(h('div', {class:'banner warn', role:'alert'}, data.error)); return section; }
+  const rows = data.rows || [];
+  section.append(h('p', {class:'faint'}, data.coverage || 'No snapshot supplied.'));
+  if (!rows.length) return section;
+  section.append(h('p', {class:'mono receipt-hash'}, `Source: ${data.source_repository} @ ${data.source_commit}`));
+  const choose = h('select', {class:'field', 'aria-label':'Filter benchmark curve'},
+    h('option', {value:''}, 'All recorded curves'),
+    Object.entries(data.identities || {}).map(([uid, value]) => h('option', {value:uid}, value.curve_id)));
+  const host = h('div', {class:'stack', 'aria-live':'polite'});
+  const number = value => value == null ? '—' : String(value);
+  const draw = () => {
+    const selected = rows.filter(row => !choose.value || row.curve_uid === choose.value);
+    fill(host, h('p', {class:'muted'}, `${selected.length} recorded runs`),
+      ...selected.map(r => {
+        const identity = data.identities[r.curve_uid];
+        const details = h('details', {}, h('summary', {}, 'Identity, accounting and sources'),
+          h('dl', {class:'benchmark-details'},
+            h('dt', {}, 'Global curve ID'), h('dd', {class:'mono receipt-hash'}, r.curve_uid),
+            h('dt', {}, 'Candidate / workload'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_id} / ${r.workload_id}`),
+            h('dt', {}, 'Full candidate / workload digests'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_sha256} / ${r.workload_sha256}`),
+            h('dt', {}, 'Field and curve record'), h('dd', {}, h('pre', {class:'raw'}, JSON.stringify({field:identity.field, curve:identity.curve}, null, 2))),
+            h('dt', {}, 'Factor base points / enumerated-set digest'), h('dd', {class:'mono receipt-hash'}, `${number(r.factor_base_points)} / ${r.factor_base_sha256 || 'unknown'}`),
+            h('dt', {}, 'Receipt factor-base artifact digest (separate namespace)'), h('dd', {class:'mono receipt-hash'}, r.receipt_factor_base_sha256 || 'unknown'),
+            h('dt', {}, 'Isogeny route'), h('dd', {}, r.isogeny || 'unknown'),
+            h('dt', {}, 'Scope'), h('dd', {}, r.scope),
+            h('dt', {}, 'Online interval'), h('dd', {}, r.online_boundary || 'Not recorded'),
+            h('dt', {}, 'Total recorded operations / unit'), h('dd', {}, `${number(r.total_operations)} / ${r.operation_unit || 'unknown'}`),
+            h('dt', {}, 'Calibration / resource envelope'), h('dd', {class:'mono receipt-hash'}, `${r.calibration_id || 'unknown'} / ${r.resource_envelope_id || 'unknown'}`)),
+          ...r.sources.map(path => {const source = data.sources[path]; return h('p', {},
+            h('a', {href:source.url, target:'_blank', rel:'noopener noreferrer'}, path),
+            h('span', {class:'mono receipt-hash'}, ` SHA-256: ${source.sha256}`));}));
+        return h('article', {class:'card stack'},
+          h('h3', {class:'mono receipt-hash'}, r.curve_id),
+          h('p', {class:'mono receipt-hash'}, r.run_id),
+          h('p', {}, `${r.method} · ${r.suite || 'unknown suite'} · ${r.status} · ${r.verification === 'recorded_verified' ? 'source reports verified' : 'verification unknown'} · targets ${number(r.targets_verified)}/${number(r.target_count)}`),
+          h('div', {class:'row'},
+            statCard(r.ic_online_ns == null ? '—' : `${(r.ic_online_ns / 1e6).toFixed(3)} ms`, 'IC online (recorded)'),
+            statCard(r.rho_online_ns == null ? '—' : `${(r.rho_online_ns / 1e6).toFixed(3)} ms`, 'Paired rho online (recorded)')),
+          details);
+      }));
+  };
+  choose.addEventListener('change', draw);
+  section.append(h('label', {}, 'Curve ', choose), host);
+  draw();
+  return section;
+}
+
+async function viewCompare(params = new URLSearchParams()) {
+  setCrumb('Compare run receipts');
+  const root = fill(view(), loading('Reading archived receipts…'));
   if (!state.ready) return;
-  state.overview ??= await getJSON('overview.json');
+  let data;
+  try { data = await getJSON('comparisons.json', { cached: state.meta?.mode === 'static' }); }
+  catch {
+    fill(root, h('div', { class: 'banner warn', role: 'alert' },
+      'Run receipts could not be loaded. ', h('button', { class: 'btn', onclick: () => viewCompare(params) }, 'Retry')));
+    return;
+  }
+  const receipts = data.receipts || [];
+  const host = h('div', { class: 'stack', 'aria-live': 'polite' });
+  const choice = (label, key) => h('label', { class: 'comparison-choice' }, h('span', {}, label),
+    h('select', { class: 'field', 'aria-label': label, 'data-side': key },
+      h('option', { value: '' }, 'Choose a receipt…'), receipts.map(r =>
+        h('option', { value: r.id, selected: params.get(key) === r.id }, `${r.label}${r.fixture ? ' (fixture)' : ''}`))));
+  const controls = h('div', { class: 'comparison-choices' }, choice('First run', 'a'), choice('Second run', 'b'));
+  const draw = () => {
+    const keys = [...controls.querySelectorAll('select')].map(el => el.value);
+    const [a, b] = keys.map(key => receipts.find(r => r.id === key));
+    replaceRoute('#/compare', { a: keys[0], b: keys[1] });
+    const reasons = comparisonReasons(a, b);
+    fill(host, h('div', { class: `banner ${reasons.length ? 'warn' : 'info'}` },
+      reasons.length ? reasons.join(' ') : 'Matched frozen inputs and accounting; recorded verification is present.'),
+      a && b ? comparisonTable(a, b) : null);
+  };
+  controls.addEventListener('change', draw);
+  fill(root, h('div', { class: 'stack' }, snapshotBanner(),
+    h('div', {}, h('h1', {}, 'Compare run receipts'),
+      h('p', { class: 'muted' }, 'Read archived measurements side by side. Source hashes are checked; scientific verification is reported from the receipt, not rerun by this dashboard. No automatic winner or full-algorithm speedup is inferred.')),
+    ...(data.errors || []).map(e => h('div', { class: 'banner warn' }, `${e.id}: ${e.reason}`)),
+    receipts.length ? controls : h('div', { class: 'empty' }, 'No archived comparison receipts are registered in this snapshot.'),
+    receipts.length ? h('p', { class: 'faint', style: 'font-size:12px' }, 'On narrow screens, scroll the table horizontally to see both runs.') : null,
+    host, benchmarkPanel(data.benchmarks)));
+  if (receipts.length) draw();
+}
+
+async function viewOverview() {
+  setCrumb('Research overview');
+  const root = fill(view(), loading('Reading the latest research…'));
+  if (!state.ready) return;
+  if (!state.overview) state.overview = await getJSON('overview.json');
+  if (state.ops === null) {
+    try { state.ops = await getJSON('ops.json'); }
+    catch { state.ops = { available: false, reason: 'ops.json was not in this snapshot' }; }
+  }
+  let progress;
+  try { progress = await getJSON('progress.json', { cached: state.meta?.mode === 'static' }); }
+  catch { progress = { available: false }; }
   const o = state.overview;
-  const m = state.meta;
-  const count = (key) => (o.counts.find((c) => c.key === key) || {}).count || 0;
-  const evidenceTotal = sum(o.evidence_polarity);
-  const directional = evidenceTotal - (o.evidence_polarity?.neutral || 0);
-
-  const intro = h('section', { class: 'panel' },
-    h('div', { class: 'panel-body stack', style: 'gap:12px' },
-      h('div', {},
-        kicker('state of the program'),
-        h('h2', { style: 'font-size:18px;line-height:1.35;margin-top:3px' },
-          'What the program has established, what it is working on, and what is still open')),
-      h('p', { class: 'lede' },
-        'An autonomous, reproducible cryptanalysis research program centred on the elliptic-curve ',
-        'discrete logarithm problem, with ECC campaigns selected first. This page is read straight off ',
-        'the committed ledger, experiment records and knowledge corpus; it writes nothing and holds no ',
-        'authority — only a Coordinator decision changes research state, and every claim below links to ',
-        'the record that makes it. Start with ', h('a', { href: '#/findings' }, 'findings'),
-        ' for results, ', h('a', { href: '#/goals' }, 'goals'), ' for the campaigns, or ',
-        h('a', { href: '#/records' }, 'records'), ' to browse everything.'),
-      h('div', {}, kicker('the loop, as counts — read left to right'), pipelineStrip(o.pipeline))));
-
-  const f = o.findings || { total: 0, current: 0, latest: [], by_proof_status: {} };
-  const proofNote = Object.entries(f.by_proof_status || {}).map(([k, n]) => `${k} ${n}`).join(' · ');
-  const established = panel('Established so far',
-    h('span', { class: 'faint' },
-      `${f.current} current finding${f.current === 1 ? '' : 's'}`,
-      f.added_last_30_days !== undefined
-        ? ` · ${f.added_last_7_days} added in the last 7 days, ${f.added_last_30_days} in 30` : '',
-      proofNote ? ` · ${proofNote}` : '', ' · ', h('a', { href: '#/findings' }, 'all findings →')),
-    f.latest.length
-      ? h('div', { class: 'panel-body grid',
-          style: 'grid-template-columns:repeat(auto-fill,minmax(330px,1fr))' },
-          f.latest.map(findingCard))
-      : h('div', { class: 'empty' }, 'no finding has been promoted yet'));
-
-  const dirs = o.directions || { total: 0, top: [] };
-  const byArea = panel('By research area',
-    h('span', { class: 'faint' },
-      `the ${dirs.top.length} areas with most established, of ${dirs.total} with records · `,
-      h('a', { href: '#/findings?tab=areas' }, 'all areas →')),
-    dirs.top.length ? h('div', { class: 'scroll-x' }, directionsTable(dirs.top, { compact: true })) : null);
-
-  const verdicts = panel('Hypothesis verdicts',
-    `${sum(o.hypothesis_verdicts)} of ${count('H').toLocaleString()} hypotheses reached one`,
-    h('div', { class: 'panel-body' }, distribution(o.hypothesis_verdicts,
-      { href: (v) => `#/findings?tab=verdicts&verdict=${v}` })));
-  const polarity = panel('Evidence, by what it points at',
-    `${directional} of ${evidenceTotal} evidence records take a direction`,
-    h('div', { class: 'panel-body' }, distribution(o.evidence_polarity,
-      { href: (p) => `#/findings?tab=evidence&polarity=${p}`, tone: (p) => POLARITY_TONE[p] || '' })));
-  const decisions = panel('Decisions, by verdict', 'the Coordinator’s recorded rulings',
-    h('div', { class: 'panel-body' }, distribution(o.decision_verdicts, {
-      href: (d) => d.startsWith('other') || d === '(unstated)'
-        ? '#/records?kind=DEC' : `#/records?kind=DEC&status=${encodeURIComponent(d)}`,
-      tone: decisionTone })));
-
-  const cardGrid = (goals) => h('div', { class: 'panel-body grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(300px,1fr))' }, goals.map(goalCard));
-  const eccIds = new Set(o.ecc_first.map((g) => g.id));
-  const attention = o.attention.filter((g) => !eccIds.has(g.id));
-
-  const recentDecisions = resolve(o.recent_decisions || []);
-  const openLatest = o.open_problems?.latest || [];
-  const it = o.integrity_totals;
-
-  fill(root, h('div', { class: 'stack' },
-    snapshotBanner(),
-    intro,
-    established,
-    byArea,
-    h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr))' },
-      verdicts, polarity, decisions),
-    panel('Where the work is: ECC first',
-      h('span', { class: 'faint' }, `${o.goals.ecc_active} active ECC goals of ${o.goals.active} active · `,
-        h('a', { href: '#/goals' }, 'all goals →')),
-      o.ecc_first.length ? cardGrid(o.ecc_first.slice(0, 9))
-        : h('div', { class: 'empty' }, 'no active ECC goals')),
-    attention.length ? panel('Wants attention', 'flagged, or carrying a recorded impediment — and not shown above',
-      h('div', { class: 'scroll-x' }, h('table', {},
-        thead(['goal', 'status', 'title', 'why']),
-        h('tbody', {}, attention.map((g) => h('tr', {},
-          td(idLink(g.id)), td(statusTag(g.status)),
-          h('td', { style: 'max-width:560px' }, h('div', { class: 'clamp2' }, g.title)),
-          td(h('div', { class: 'row' },
-            g.flags?.length ? tag(g.flags.join(' · '), 'bad') : null,
-            g.impediment_count ? tag(`${g.impediment_count} impediment${g.impediment_count === 1 ? '' : 's'}`, 'warn') : null)))))))) : null,
-    h('div', { class: 'grid', style: 'grid-template-columns:minmax(0,2fr) minmax(280px,1fr)' },
-      panel('Recent decisions', h('a', { href: '#/records?kind=DEC', class: 'faint' }, 'all decisions →'),
-        h('div', { class: 'scroll-x' }, h('table', {},
-          thead(['id', 'verdict', 'context', 'date']),
-          h('tbody', {}, recentDecisions.map((d) => h('tr', {},
-            td(idLink(d.id)), td(decisionTag(d.status) || h('span', { class: 'faint' }, '—')),
-            h('td', { style: 'max-width:720px' },
-              h('div', { class: 'clamp2' }, d.title || h('span', { class: 'faint' }, '(no context)'))),
-            h('td', { class: 'mono faint', style: 'white-space:nowrap' }, fmtDate(d.date)))))))),
-      panel('Still open', h('a', { href: '#/findings?tab=open', class: 'faint' },
-        `${o.open_problems?.open ?? 0} open problems →`),
-        openLatest.length ? h('div', { class: 'panel-body stack', style: 'gap:10px' },
-          openLatest.map((p) => h('div', {},
-            h('a', { href: `#/record/${p.id}`, style: 'font-weight:600;line-height:1.4' }, p.title),
-            h('div', { class: 'faint mono', style: 'font-size:11px' }, `${p.id} · ${fmtDate(p.added)}`))))
-          : h('div', { class: 'empty' }, 'no open problems recorded'))),
-    h('div', { class: 'row faint', style: 'font-size:12px;justify-content:flex-end' },
-      'integrity: ',
-      h('span', { class: it.unparseable ? 'tag bad' : 'tag ok' },
-        it.unparseable_state === 'complete' ? `${it.unparseable} unparseable` : 'deep scan running'),
-      tag(`${it.dangling_refs} dangling refs`, it.dangling_refs ? 'warn' : 'ok'),
-      tag(`${it.duplicate_ids} duplicate ids`, it.duplicate_ids ? 'warn' : 'ok'),
-      tag(`${it.goal_flags} goal flags`, it.goal_flags ? 'bad' : 'ok'),
-      h('a', { href: '#/integrity' }, 'details →'))));
+  const findings = o.findings || { current: 0, latest: [] };
+  const work = o.current_work || o.ecc_first || [];
+  const metric = (n, label, href) => h('a', { class: 'home-metric', href },
+    h('strong', {}, (n || 0).toLocaleString()), h('span', {}, label), h('span', { 'aria-hidden': 'true' }, '↗'));
+  fill(root, h('div', { class: 'home' },
+    h('section', { class: 'home-hero' },
+      h('div', { class: 'hero-copy' },
+        h('div', { class: 'eyebrow' }, h('span', { class: 'research-dot' }), 'Autonomous cryptography research'),
+        h('h1', {}, 'Research in the open.'),
+        h('p', { class: 'hero-lede' }, 'Exploring the mathematics behind cryptographic security. ',
+          'Follow the questions, the experiments, and what we learn along the way.'),
+        h('div', { class: 'row hero-actions' },
+          h('a', { class: 'button-primary', href: '#/goals' }, 'Explore current research', ' ↗'),
+          h('a', { class: 'text-link', href: '#/findings' }, 'Read the findings →'))),
+      h('div', { class: 'hero-aside' },
+        h('span', { class: 'eyebrow' }, 'Our focus'),
+        h('h2', {}, 'How hard are the problems that keep cryptography secure?'),
+        h('p', {}, 'Elliptic curves come first: we investigate the discrete logarithm problem and related cryptographic questions through reproducible experiments.'))),
+    h('div', { class: 'home-snapshot' }, snapshotBanner()),
+    h('div', { class: 'home-metrics' },
+      metric(o.goals.active, 'active research goals', '#/goals?status=active'),
+      metric(findings.current, 'current findings', '#/findings'),
+      metric(o.experiments.total, 'experiments recorded', '#/experiments')),
+    progressPanel(progress),
+    opsPanel(state.ops),
+    homeSection('What we’re working on',
+      'Recently updated active goals, with elliptic-curve research first. An active goal may be waiting on a next step.',
+      '#/goals', 'All research',
+      work.length ? h('div', { class: 'work-grid' }, work.slice(0, 3).map(currentWorkCard))
+        : h('div', { class: 'empty' }, 'No active research goals in this snapshot.')),
+    homeSection('Recent work', 'Highlights show the two latest updates per type. Choose All work for the full recent feed.',
+      '#/records', 'Browse all records', recentWorkFeed(o.recent_work || [])),
+    homeSection('Recent findings', 'Recorded findings carry their own scope and proof status. Exploratory results remain labelled.',
+      '#/findings', 'All findings',
+      findings.latest.length ? h('div', { class: 'home-findings' }, findings.latest.slice(0, 3).map(findingCard))
+        : h('div', { class: 'empty' }, 'No findings have been recorded yet.')),
+    h('details', { class: 'home-details' },
+      h('summary', {}, 'Explore the research process'),
+      h('p', { class: 'muted' }, 'Ideas become hypotheses and experiments. Evidence and review inform decisions; a completed run alone does not establish a result.'),
+      pipelineStrip(o.pipeline),
+      h('div', { class: 'row' },
+        h('a', { href: '#/findings?tab=open' }, 'Open questions →'),
+        h('a', { href: '#/findings?tab=areas' }, 'Research areas →'),
+        h('a', { href: '#/integrity' }, 'Data integrity →'))),
+    h('footer', { class: 'home-footer' },
+      h('span', {}, 'Built from the research ledger. Every record links back to its source.'),
+      state.meta?.repo_url ? h('a', { href: state.meta.repo_url, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null)));
 }
 
 // ---------------------------------------------------------------------------
@@ -1794,29 +2087,44 @@ async function viewRecords(params) {
 // ---------------------------------------------------------------------------
 // Record detail
 // ---------------------------------------------------------------------------
-async function viewRecord(id) {
+async function viewRecord(id, params = new URLSearchParams()) {
   setCrumb(id);
   const root = fill(view(), loading());
   let body;
   try {
     body = await getJSON(`records/${encodeURIComponent(id)}.json`);
-  } catch {
-    fill(root, h('div', { class: 'banner bad' },
-      h('div', {}, h('b', {}, `${id} is not in the index. `),
-        'It may be a run, a coordination task, or a dangling reference.')));
+  } catch (err) {
+    fill(root, h('div', { class: 'empty stack', role: 'alert' },
+      h('h2', {}, err.status === 404 ? 'Record unavailable' : 'Could not load this record'),
+      h('p', {}, err.status === 404
+        ? `${id} is not included in this snapshot. It may be a run, coordination task, or unresolved reference.`
+        : 'The request failed. Try again to reload the record.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: () => viewRecord(id, params) }, 'Try again'),
+        h('a', { class: 'btn', href: '#/records?q=' + encodeURIComponent(id) }, 'Search records'))));
     return;
   }
   const s = body.summary;
   const src = sourceUrl(s.path);
   const isEntry = s.kind === 'KN';
   const front = isEntry && body.body && typeof body.body === 'object' ? body.body : null;
+  const corrections = Array.isArray(body.corrections) ? body.corrections : [];
 
   const panes = {};
-  const paneHost = h('div', { class: 'panel-body' });
-  const tabs = h('div', { class: 'tabs' });
-  function show(key) {
+  const paneHost = h('div', { class: 'panel-body record-pane', role: 'tabpanel', id: 'record-pane', tabindex: '0' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Record views' });
+  function show(key, updateUrl = true) {
     fill(paneHost, panes[key] ??= buildPane(key, body, src));
-    for (const t of tabs.children) t.setAttribute('aria-selected', t.dataset.key === key);
+    paneHost.setAttribute('aria-labelledby', `record-tab-${key}`);
+    for (const t of tabs.children) {
+      const active = t.dataset.key === key;
+      t.setAttribute('aria-selected', String(active));
+      t.tabIndex = active ? 0 : -1;
+    }
+    if (updateUrl) {
+      const query = new URLSearchParams({ tab: key });
+      history.replaceState(null, '', `#/record/${encodeURIComponent(id)}?${query}`);
+    }
   }
   const tabList = isEntry
     ? [['entry', 'entry'], ['structured', 'front matter']]
@@ -1824,7 +2132,17 @@ async function viewRecord(id) {
   tabList.push(['source', 'source'],
     ['links', `links (${body.links.out.length}↗ ${body.links.in.length}↙)`]);
   for (const [key, label] of tabList) {
-    tabs.append(h('button', { class: 'tab', 'data-key': key, onclick: () => show(key) }, label));
+    tabs.append(h('button', { class: 'tab', role: 'tab', id: `record-tab-${key}`,
+      'aria-controls': 'record-pane', 'data-key': key, onclick: () => show(key),
+      onkeydown: (event) => {
+        const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        const items = [...tabs.children], at = items.indexOf(event.currentTarget);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : (at + (event.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length;
+        show(items[next].dataset.key); items[next].focus();
+      } }, label));
   }
 
   const linkList = (title, ids) => h('section', { class: 'panel' },
@@ -1861,6 +2179,18 @@ async function viewRecord(id) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
+    corrections.length ? h('section', {
+      class: 'banner warn record-corrections', 'aria-label': 'Corrections to this record',
+    }, h('div', { class: 'stack' },
+      h('h2', {}, `Corrections to this record (${corrections.length})`),
+      h('p', {}, 'Read these corrections alongside the original record preserved below.'),
+      corrections.map(correction => h('article', { class: 'stack', style: 'gap:6px' },
+        h('div', { class: 'row' }, idLink(correction.id),
+          correction.date ? timeEl(correction.date, { dateOnly: true, style: 'date' }) : null),
+        h('p', {}, correction.summary || correction.field || 'See the linked correction.'),
+        correction.corrected_value ? h('details', {}, h('summary', {}, 'Read corrected scope and value'),
+          h('p', {}, correction.corrected_value),
+          correction.reason ? h('p', {}, correction.reason) : null) : null)))) : null,
     !body.verified && body.parse_error && !isEntry
       ? h('div', { class: 'banner bad' },
           h('div', {}, h('b', {}, 'this record does not parse. '), body.parse_error,
@@ -1875,7 +2205,9 @@ async function viewRecord(id) {
             headerTags,
             s.date ? timeEl(s.date, { label: 'declared by the record', dateOnly: true, style: 'date' }) : null),
           parseBadge),
-        s.title ? h('h2', { style: 'font-size:16px;line-height:1.4' }, s.title) : null,
+        s.title ? h('h1', { class: 'record-title' }, s.title) : null,
+        front?.proof_status && PROOF_NOTE[front.proof_status]
+          ? h('p', { class: 'proof-basis' }, h('b', {}, 'Proof basis: '), PROOF_NOTE[front.proof_status], '.') : null,
         isEntry && Array.isArray(front?.tags) && front.tags.length
           ? h('div', { class: 'row', style: 'gap:4px' }, front.tags.slice(0, 12).map((t) => tag(String(t)))) : null,
         h('div', { class: 'row faint mono', style: 'font-size:11px' },
@@ -1892,26 +2224,71 @@ async function viewRecord(id) {
       h('section', { class: 'panel' }, tabs, paneHost),
       h('aside', { class: 'stack' },
         linkList('Cited by', body.links.in), linkList('Cites', body.links.out)))));
-  show(tabList[0][0]);
+  const requested = params.get('tab');
+  show(tabList.some(([key]) => key === requested) ? requested : tabList[0][0], false);
+}
+
+/** Long findings remain readable without losing their original wording. */
+function entryReader(markdown) {
+  const article = renderMarkdown(markdown);
+  const headings = [...article.querySelectorAll('h2,h3,h4')];
+  if (headings.length < 3) return article;
+  const outline = h('details', { class: 'entry-outline' }, h('summary', {}, 'On this page'));
+  const items = h('nav', { 'aria-label': 'Entry sections' });
+  headings.forEach((heading, i) => {
+    heading.id = `entry-section-${i}`;
+    heading.tabIndex = -1;
+    items.append(h('button', { class: 'outline-link', onclick: () => {
+      heading.scrollIntoView({ block: 'start' }); heading.focus({ preventScroll: true });
+    } }, heading.textContent));
+  });
+  outline.append(items);
+  return h('div', { class: 'entry-reader' }, outline, article);
+}
+
+function sourceReader(body, src) {
+  const host = h('div', { class: 'source-reader', 'aria-live': 'polite' }, loading());
+  async function load() {
+    fill(host, loading());
+    try {
+      const source = typeof body.raw === 'string' ? { raw: body.raw, path: body.summary.path }
+        : await getJSON(`sources/${encodeURIComponent(body.summary.id)}.json`, { cached: false });
+      if (typeof source.raw !== 'string') throw new Error('Source text missing');
+      const note = h('span', { class: 'faint', role: 'status' });
+      const copy = h('button', { class: 'btn', onclick: async () => {
+        try { await navigator.clipboard.writeText(source.raw); note.textContent = 'Source copied'; }
+        catch { note.textContent = 'Copy unavailable. Select the text below or download the file.'; }
+      } }, 'Copy source');
+      const download = h('button', { class: 'btn', onclick: () => {
+        const url = URL.createObjectURL(new Blob([source.raw], { type: 'text/plain;charset=utf-8' }));
+        const link = h('a', { href: url, download: body.summary.path.split('/').pop() });
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } }, 'Download source');
+      fill(host, h('div', { class: 'source-toolbar row' }, copy, download,
+        src ? h('a', { href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null, note),
+        h('pre', { class: 'raw', tabindex: '0', 'aria-label': 'Record source text' }, source.raw));
+    } catch {
+      fill(host, h('div', { class: 'empty stack', role: 'alert' },
+        h('p', {}, 'Source could not be loaded. Retry, or read the same record on GitHub.'),
+        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: load }, 'Retry source'),
+          src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null)));
+    }
+  }
+  load();
+  return host;
 }
 
 function buildPane(key, body, src) {
   if (key === 'entry') {
-    if (typeof body.markdown === 'string' && body.markdown.trim()) return renderMarkdown(body.markdown);
+    if (typeof body.markdown === 'string' && body.markdown.trim()) return entryReader(body.markdown);
     return h('div', { class: 'empty stack', style: 'gap:10px' },
       h('div', {}, 'This entry has no body text.'),
       src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
         `open ${body.summary.path} on GitHub ↗`) : null);
   }
   if (key === 'source') {
-    // The live server inlines the file; the published snapshot links it on
-    // GitHub at the built commit rather than shipping 116 MB of YAML.
-    if (typeof body.raw === 'string') return h('pre', { class: 'raw' }, body.raw);
-    return h('div', { class: 'empty stack', style: 'gap:10px' },
-      h('div', {}, 'Source text is not bundled into the published snapshot.'),
-      src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
-        `open ${body.summary.path} on GitHub ↗`)
-        : h('div', { class: 'faint' }, 'and no repository URL was recorded at build time'));
+    return sourceReader(body, src);
   }
   if (key === 'links') {
     return h('div', { class: 'stack' },
@@ -2084,7 +2461,7 @@ async function viewExperiments(params) {
             : h('span', { class: 'faint', title: 'this contract declares no date of its own' }, '—')),
           td(timeEl(e.committed, { label: 'first committed', style: 'date' })),
           td(timeEl(e.last_run, { label: 'latest run activity' })),
-          td(e.total_seconds
+          td(e.total_seconds != null
             ? h('span', { class: 'mono', title: `${e.runs_measured} of ${e.run_count} runs report a duration` },
                 fmtDuration(e.total_seconds))
             : h('span', { class: 'faint' }, '—')),
@@ -2105,7 +2482,7 @@ async function viewExperiments(params) {
         statCard(`${timing.runs_with_declared_start ?? 0}`, 'declare a start time',
           { title: 'run manifests carrying started_at' }),
         statCard(`${timing.runs_with_duration ?? 0}`, 'report a duration'),
-        statCard(timing.total_measured_seconds ? fmtDuration(timing.total_measured_seconds) : '—',
+        statCard(timing.total_measured_seconds != null ? fmtDuration(timing.total_measured_seconds) : '—',
           'total measured', { title: 'summed across only the runs that report one' }),
         statCard(`${timing.experiments_dated ?? 0}`, 'contracts self-dated',
           { title: `of ${timing.experiments ?? 0}; the rest are dated by their commit` })),
@@ -2121,6 +2498,7 @@ async function viewExperiments(params) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
+    h('a', { class: 'text-link', href: '#/compare' }, 'Compare archived run receipts →'),
     timingPanel,
     // Twenty-four statuses, of which the first four are 97% of the runs. Full
     // height pushed the table -- the point of the page -- below the fold, so
@@ -2234,11 +2612,12 @@ async function route() {
       return;
     }
     if (path.startsWith('/goal/')) return await viewGoal(decodeURIComponent(path.slice(6)));
-    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)));
+    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)), params);
     if (path === '/findings') return await viewFindings(params);
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);
     if (path === '/experiments') return await viewExperiments(params);
+    if (path === '/compare') return await viewCompare(params);
     if (path === '/integrity') return await viewIntegrity();
     return await viewOverview();
   } catch (err) {
@@ -2307,7 +2686,7 @@ function initChrome() {
 
   $('#refresh').addEventListener('click', async () => {
     state.ready = false;
-    state.overview = state.goals = state.experiments = state.findings = null;
+    state.overview = state.goals = state.experiments = state.findings = state.ops = null;
     state.experimentsPayload = null;
     state.searchShards.clear();
     cache.clear();

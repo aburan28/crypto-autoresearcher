@@ -1,0 +1,127 @@
+# =============================================================================
+# TASK-20260924-60b4ea -- Coordinator RE-DERIVATION AND VERIFICATION SNAPSHOT
+# ARCHIVE for REVIEW-CERTBIN-20260924-3d7e1a. Commits the sealed outputs of the
+# blind re-deriver (TASK-20260924-1f6a3c) and of the author-independent
+# certificate verifier (TASK-20260924-7e2d94) ALONE, before the comparator
+# TASK-20260924-b2c7f1 may read them. Interprets nothing, compares nothing and
+# runs no trial.
+#
+# ID PROVENANCE (disclosed): minted without a shell; checked by
+# TASK-20260924-a4f217 SC-1.
+# =============================================================================
+handoff:
+  id: TASK-20260924-60b4ea
+  from: coordinator
+  to: coordinator
+  archive_kind: snapshot
+  kind: snapshot_archive
+  recorded_at: '2026-09-24'
+  opened_by_decision: DEC-20260924-5b1c8e
+  source_task_ids:
+    - TASK-20260924-1f6a3c
+    - TASK-20260924-7e2d94
+  review_plan_id: REVIEW-CERTBIN-20260924-3d7e1a
+  experiment_id: EXP-CERTBIN-e94b27
+  depends_on:
+    - TASK-20260924-1f6a3c
+    - TASK-20260924-7e2d94
+    - TASK-20260924-a4f217
+  state: written_not_executed
+
+  objective: >-
+    After BOTH source tasks have returned, commit exactly their two
+    directories and write a receipt with per-path sha256, the parent, the
+    origin/main base commit and the merge outcome. The comparator then reads
+    both as archived bytes. Push, and refresh PR #1408.
+
+  uncertainty_reduced: Whether the re-derivation and the verification the comparator reads are the ones their authors sealed.
+
+  inputs:
+    - ledger/handoffs/TASK-20260924-1f6a3c.yaml
+    - ledger/handoffs/TASK-20260924-7e2d94.yaml
+    - coordination/review/certbin-20260924-3d7e1a/review-plan.yaml (blind_rederivation.blind_from; author_independent_verification.must_not_read)
+    - coordination/review/certbin-20260924-3d7e1a/reviews/TASK-20260924-1f6a3c/
+    - coordination/review/certbin-20260924-3d7e1a/reviews/TASK-20260924-7e2d94/
+    - origin/main
+
+  constraints:
+    - id: SC-1
+      text: >-
+        Check mechanically before staging, and list every defect in the
+        receipt:
+        - 1f6a3c: seal.txt's sha256 values equal those of rederivation.json
+          and wcerts.jsonl.gz; attestation.yaml exists with task_id
+          TASK-20260924-1f6a3c and joints_owned [J5]; with
+          tools/check_review_independence.py's prefix rule, its sources_read
+          does not intersect the plan's blind_from; blind_from_respected is
+          true;
+        - 7e2d94: seal.txt's sha256 equals verification.json's;
+          attestation.yaml exists with task_id TASK-20260924-7e2d94 and
+          joints_owned [J1]; its sources_read, by the same prefix rule, does
+          not intersect the plan's author_independent_verification.must_not_read;
+        - git status shows no file written by either task outside its own
+          directory.
+        An output with defects is still ARCHIVED as produced; nothing is
+        repaired in place. A seal mismatch, a blind_from intersection, a
+        must_not_read intersection or blind_from_respected not true BLOCKS
+        TASK-20260924-b2c7f1 until the Coordinator decides.
+    - id: SC-2
+      text: >-
+        RUN ALONE. No other archive commit may be in progress; reviewer tasks
+        still running in the worktree are not staged. MERGE origin/main, NEVER
+        REBASE, and record the base and the outcome.
+    - id: SC-3
+      text: >-
+        STAGE ONLY the two source directories and this task's receipt
+        directory. Exclude __pycache__.
+    - id: SC-4
+      text: >-
+        OUTCOME HYGIENE. The commit message, the PR text and any bus message
+        carry no computed value and no verdict of either task. After the
+        commit, re-run the --blind-history check of TASK-20260924-a4f217 SC-5
+        on the new HEAD and record the output.
+    - id: SC-5
+      text: Launch nothing. maximum_runs is 0.
+
+  deliverables:
+    - one commit naming TASK-20260924-60b4ea, TASK-20260924-1f6a3c, TASK-20260924-7e2d94 and REVIEW-CERTBIN-20260924-3d7e1a
+    - coordination/review/certbin-20260924-3d7e1a/archives/TASK-20260924-60b4ea/snapshot-receipt.json
+
+  record_ids:
+    - TASK-20260924-1f6a3c
+    - TASK-20260924-7e2d94
+    - TASK-20260924-60b4ea
+
+  artifact_paths:
+    - coordination/review/certbin-20260924-3d7e1a/reviews/TASK-20260924-1f6a3c/
+    - coordination/review/certbin-20260924-3d7e1a/reviews/TASK-20260924-7e2d94/
+    - coordination/review/certbin-20260924-3d7e1a/archives/TASK-20260924-60b4ea/snapshot-receipt.json
+  write_scope:
+    - coordination/review/certbin-20260924-3d7e1a/archives/TASK-20260924-60b4ea/
+  write_scope_note: This task writes only its receipt. The reviewers' files are STAGED here, not written.
+
+  archived_by: TASK-20260924-60b4ea
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_reason: Runtime inheritance (DEC-20260923-4d7a19 R-1 forward rule). Not a tier downgrade.
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - the archive commit changes exactly the declared paths, and path_sha256 covers every file under both directories and matches the committed tree
+    - the receipt lists every SC-1 defect, or states that none was found, and says whether TASK-20260924-b2c7f1 is blocked
+    - the receipt records the origin/main base commit, the merge outcome and the blind-history output
+    - "the branch is pushed, and PR #1408 names the records without any computed value"
+    - no scientific trial was launched
+
+  return_format: The receipt, the archive commit sha, the SC-1 defect list, whether the comparator is blocked, and the PR URL. No computed value.
+
+  review_plan: null

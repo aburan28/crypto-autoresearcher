@@ -1,0 +1,297 @@
+red_team_report:
+  id: RT-20260908-87c933
+  id_provenance: >-
+    Report-local label derived from the unique, checked handoff suffix. This is
+    not a new ledger identifier or a research-state record.
+  task_id: TASK-20260908-87c933
+  role: red-team
+  claim_under_review: >-
+    The prospective v2.2 custody definitions reject the four specified
+    source-level replay and double-count constructions. This review covers only
+    custody_replay_and_interval_reconciliation_v2_2; it does not assess an
+    implementation, execution, correctness, cost, or cryptanalytic claim.
+  joint: custody_replay_and_interval_reconciliation_v2_2
+  verdict: breaks
+  scientific_runs: 0
+  source_integrity:
+    review_plan_id: sdeg_counter_v2_2_custody_replay
+    source_snapshot_commit: 97fbf5a2b7b5770b4690522e5ab8d0b3d6557580
+    v2_2_sha256_expected: 256b92d1df1b74058f553f42024f34654c066da6ee8709024cae8fb80a0a1933
+    v2_2_sha256_observed: 256b92d1df1b74058f553f42024f34654c066da6ee8709024cae8fb80a0a1933
+    source_packet_diff_from_snapshot: none
+    method: >-
+      Read-only comparison of exactly the four source-packet paths against the
+      plan-pinned commit, plus SHA-256 comparison of the v2.2 amendment.
+  attack_results:
+    - attack: root_B_timeout_receipt_reusing_root_A_authority
+      status: holds
+      construction: >-
+        Let root A have an authentic Coordinator timeout authority, DA, whose
+        target payload names A's campaign_id, attempt_id, root_ordinal,
+        terminal_code, causal_event_sha256, final identity and pre-terminal
+        registry position. Form an otherwise valid TIMEOUT_CENSORED final for
+        root B, but cite DA and its hash.
+      v2_1_proves_too_much_control: >-
+        This construction is accepted by the v2.1 discretionary-timeout rule:
+        a v2.1 final needs a Coordinator disposition or amendment that authorizes
+        the terminal, but has no required equality between that authority and
+        B's attempt, root ordinal, final identity, or registry position. This
+        is the declared known-false v2.1 behavior, so the reasoning does not
+        prove that v2.1 already bound terminal authority to its target.
+      v2_2_rejection: >-
+        v2.2 timeout_authority_target.required_payload lists campaign_id,
+        attempt_id, root_ordinal, terminal_code, causal_event_sha256,
+        final_identity_commitment_sha256, and
+        authorized_before_registry_ordinal. Its acceptance clause requires
+        every payload value to exactly match B's final receipt and registry
+        position, with a Coordinator-authored hash-valid record whose authority
+        precedes the terminal event. DA's A-specific values fail those
+        equalities. This is the explicit cross_root_authority_replay rejection.
+      field_level_reason: >-
+        The target binding is substantive because both the root/attempt identity
+        and terminal-specific values are required payload, rather than an
+        unscoped authority-record hash alone.
+
+    - attack: rank_owner_label_reused_from_a_different_launch
+      status: holds
+      construction: >-
+        Begin with a sealed rank owner and process incarnation bound to immutable
+        launch LA. Attempt the first rank update from distinct launch LB while
+        retaining the LA owner labels and supplying no Coordinator handover.
+      v2_2_rejection: >-
+        v2.2 process_binding requires rank_owner_id and
+        process_incarnation_id to reference one immutable registry launch hash
+        and cgroup/process identity digest. A distinct LB is therefore a
+        different launch and requires a Coordinator-authorized handover hash
+        before LB's first update. The construction supplies none and is the
+        stated process_label_reuse mutation. The predecessor's sealed owner,
+        process incarnation, ordered rows, and handover binding reinforce this
+        conclusion.
+      field_level_reason: >-
+        Reusing a display label is insufficient: the prospective rule binds the
+        label pair to LA plus its cgroup/process identity digest, and makes the
+        first update by LB conditional on the handover hash.
+      limitation: >-
+        This is a source-definition hold. Future admission still must establish
+        that the rank-update receipt carries and validator checks the same
+        immutable launch and cgroup/process digest, rather than merely copying
+        their textual labels.
+
+    - attack: sealed_EC_slot_omitted_after_an_accepted_relation
+      status: holds
+      construction: >-
+        For a sealed root/component/phase EC slot that has an accepted
+        RELATION_VALID receipt, either remove that slot's receipt status from the
+        final inventory, or replace it with omitted without a preceding terminal
+        causal-event hash, and try to finalize a rank state without the accepted
+        row.
+      v2_2_rejection: >-
+        v2.2 coverage requires exactly one receipt status for every sealed
+        root/component/phase slot. Removing the status is a missing_component_slot.
+        An omitted EC slot requires a preceding terminal causal-event hash.
+        Finally, the rank inventory is rebuilt from the complete slot inventory
+        and independently checks every relation status before a rank-state
+        transition, so a supplied RELATION_VALID receipt cannot be silently
+        reclassified or excluded. These are the stated unjustified_omission and
+        relation_status_reclassification rejections.
+      field_level_reason: >-
+        The rule covers the whole sealed slot inventory, while the predecessor
+        already required each RELATION_VALID EC receipt to be reconstructed into
+        the accepted-row inventory. A legitimate terminal may explain an
+        unexecuted later slot, but cannot turn an already accepted relation into
+        an omitted row.
+
+    - attack: cumulative_CPU_IO_range_placed_under_two_provenance_records
+      status: breaks
+      construction: >-
+        Let one physical process from immutable launch L expose one monotonic
+        CPU counter C in clock domain D with readings 100 and 160, and similarly
+        one IO counter I with readings 1000 and 1400. Retain two immutable trace
+        encodings for each counter: the first contains the endpoint samples and
+        the second contains those same endpoint samples plus an intermediate
+        sample. Their trace digests therefore differ while both establish the
+        same CPU range [100,160] and IO range [1000,1400]. Record the first
+        ranges as object O1 with counter_source_id CS1, and the second as object
+        O2 with counter_source_id CS2. Give both records launch hash L and the
+        genuine common clock domain, but use CS1 and CS2 as two distinct labels
+        for the same physical counter.
+      v2_1_proves_too_much_control: >-
+        v2.1 accepts this source-level construction. O1 and O2 have distinct
+        object IDs and distinct raw-trace provenance digests, so the v2.1 rule
+        that rejects duplicate provenance does not equate them. Each vector also
+        reconciles individually to L's declared cgroup/process observation.
+        v2.1 has no disjoint partition over the physical counter's ranges. This
+        is the declared known-false shared-cost control, not a claim that v2.1
+        prevents the double count.
+      v2_2_acceptance_path: >-
+        Each v2.2 record names all five listed fields: counter_source_id,
+        monotonic start/end, clock domain, launch hash, and immutable trace
+        digest. For CS1 there is one accepted interval and for CS2 there is one
+        accepted interval, so each per-source interval set is a disjoint ordered
+        partition and each vector is its canonical endpoint difference. The
+        aggregate-once rule then aggregates once for CS1 and once for CS2, which
+        counts C's 60 units and I's 400 units twice. No stated rule equates CS1
+        and CS2 from their shared L, actual cgroup/process identity, counter
+        namespace, or overlapping endpoint range.
+      missing_rule: >-
+        counter_source_id is required but is not defined as a canonical,
+        immutable binding to the physical launch, cgroup/process identity, and
+        counter namespace. The partition is only quantified "for one source";
+        nothing prevents two source IDs from denoting the same raw monotonic
+        counter. A distinct trace digest also does not repair that missing
+        physical-source equality.
+      required_correction: >-
+        Seal a canonical counter-source binding such as
+        (launch_sha256, cgroup_or_process_identity_digest, counter_namespace,
+        clock_domain), require every coordinate's counter_source_id to resolve
+        exactly to it, and validate disjoint interval partitioning across all
+        traces resolving to that binding. The raw trace should bind its source
+        binding and sample identities so a differently serialized superset of
+        samples cannot create a second source.
+
+    - attack: overlapping_wall_intervals_from_two_processes_summed_via_scope_split
+      status: breaks
+      construction: >-
+        Let two genuine process launches LP and LQ run the same declared stage
+        of one campaign on the same common monotonic clock D, with active
+        intervals [100,200] and [150,250]. Assign the first interval
+        reporting_scope_id SP and the second SQ. Give every listed v2.2 field
+        its genuine value. Report each one-interval scope union as 100 ns, then
+        add the two scope results as the stage/campaign total of 200 ns, despite
+        the common-clock union over the actual stage/campaign activity being
+        [100,250] of 150 ns.
+      v2_1_proves_too_much_control: >-
+        v2.1 unions wall intervals by provenance. These are distinct process
+        provenances, so the rule lacks the review plan's known-missing,
+        reporting-scope-level common-clock union and accepts the two provenance
+        unions as separately reportable quantities. Thus the attack remains
+        accepted by v2.1 as required by the control.
+      v2_2_acceptance_path: >-
+        Within SP and within SQ there is only one interval, so each scope is a
+        valid one-union report. The fields common_monotonic_clock_domain,
+        start_ns, end_ns, launch hash, and reporting_scope_id are all present
+        and correct. v2.2 does not require the two records for the same declared
+        stage/campaign to resolve to one canonical reporting_scope_id, does not
+        bind reporting_scope_id to a stage/campaign target, and does not prohibit
+        a higher-level total from adding distinct scope reports. Consequently the
+        construction evades the per-process-unions sentence by calling the two
+        groups scopes rather than process diagnostics.
+      missing_rule: >-
+        The source specifies the union operator once a scope is selected, but
+        not a canonical scope-to-target binding or a complete interval inventory
+        for each reported stage/campaign. The reject label
+        cross_process_overlap_summed supplies no equality or partition rule that
+        closes a cross-scope alias.
+      required_correction: >-
+        Seal exactly one reporting-scope binding for each reported stage and for
+        the campaign, including its target identity and common clock domain.
+        Require every interval contributing to that target to cite that binding,
+        compute the total only as the union of its complete interval inventory,
+        and permit a sum of scopes only after a declared, independently checked
+        temporal-disjointness proof.
+  objections:
+    - id: RT-CUSTODY-COUNTER-SOURCE-ALIAS
+      severity: break
+      statement: >-
+        v2.2 has no canonical physical-counter binding for counter_source_id,
+        so the same monotonic CPU or IO range can be counted once under each of
+        two source labels while satisfying each label's local partition rule.
+    - id: RT-CUSTODY-REPORTING-SCOPE-SPLIT
+      severity: break
+      statement: >-
+        v2.2 has no canonical reporting-scope binding for a stage/campaign, so
+        overlapping common-clock intervals can be separated into two scopes and
+        their two valid local unions summed at a higher reporting layer.
+  required_controls:
+    - >-
+      After an additive correction, run a non-scientific admission mutation in
+      which one immutable launch and cgroup/process counter is represented by
+      two differently serialized trace digests and two counter_source_id labels;
+      the validator must reject before aggregation.
+    - >-
+      After an additive correction, run a non-scientific admission mutation in
+      which two overlapping common-clock process intervals for one declared
+      stage/campaign carry two reporting_scope_id values; the validator must
+      reject the split or compute one 150 ns union, never a 200 ns sum.
+    - >-
+      Retain the declared direct controls for cross-root timeout replay,
+      process-label reuse, and sealed EC-slot omission. This review performed
+      only their prospective source-level reasoning and did not execute them.
+  counterexample_or_mutation: >-
+    The counter-source alias and reporting-scope split constructions above are
+    concrete prospective records accepted by the text as written. They do not
+    require forged hashes, a changed source snapshot, an implementation defect,
+    or a scientific run.
+  baseline_comparison: >-
+    Not applicable. The reviewed claim is a prospective custody-definition
+    claim, not an ECDLP method, runtime, memory, or asymptotic-cost claim.
+  heuristic_challenges: []
+  cost_model_challenges:
+    - >-
+      The CPU/IO and wall constructions can inflate reported resource totals;
+      no mathematical or cryptanalytic inference follows from that observation.
+  reduction_and_scope_challenges:
+    - >-
+      The source text supports target-bound timeout authority, launch-bound
+      owner labels, and local source/scope reconciliation. It does not support
+      the broader conclusion that all physical counter and campaign-wall aliases
+      are eliminated.
+  proof_architecture_challenges: []
+  narrowest_supported_statement: >-
+    On the pinned prospective source text, v2.2 rejects the direct cross-root
+    timeout replay, different-launch rank-owner label reuse without a handover,
+    and an uncaused/missing accepted EC slot. It also rejects overlap when both
+    records have already been bound to the same canonical counter source or the
+    same canonical reporting scope. It does not yet close the counter-source
+    alias or reporting-scope split families, so it cannot support the planned
+    all-four closure conclusion.
+  limitations:
+    - >-
+      This is source-level reasoning over the pinned packet only. No code,
+      fixtures, validator, runtime, receipt, counter trace, admission control,
+      implementation, or experiment was executed or inspected.
+    - >-
+      The report cannot establish whether a later implementation would add the
+      absent canonical bindings; a later implementation cannot be credited with
+      them unless an additive source correction and fresh review state them.
+    - >-
+      No hypothesis, experiment, goal, approval, evidence level, or scientific
+      status is changed or inferred here.
+  next_concrete_action: >-
+    Coordinator: record an additive v2.3 custody correction that binds physical
+    counter sources and stage/campaign reporting scopes as specified above, then
+    commission a fresh source-bound independent review that reruns the direct
+    and alias-family attacks before any implementation authority is considered.
+  artifact_paths:
+    - coordination/design/BATCH-c2a2b6/hardening-v2/reviews/TASK-20260908-87c933/review.yaml
+  procedure_deviations: []
+  review_attestation:
+    task_id: TASK-20260908-87c933
+    role: red-team
+    joint: custody_replay_and_interval_reconciliation_v2_2
+    joints_owned: [custody_replay_and_interval_reconciliation_v2_2]
+    sources_read:
+      - /Volumes/SSD990/f308/crypto-autoresearcher/AGENTS.md
+      - /Volumes/SSD990/f308/crypto-autoresearcher/agents/red-team.md
+      - /Volumes/SSD990/f308/crypto-autoresearcher/.agents/skills/crypto-autoresearcher-harness/SKILL.md
+      - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+      - ledger/handoffs/TASK-20260908-87c933.yaml
+      - coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_2-review-plan.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+      - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    source_packet_read:
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+      - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    read_sibling_reports: false
+    independent_session: true
+    inference:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      fallback_used: false
+      degraded_used: false
+      bedrock_used: false
+    verdict: breaks

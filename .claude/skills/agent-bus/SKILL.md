@@ -67,6 +67,36 @@ python3 tools/agent_bus.py peers                                        # who is
 Ack what you handled. An inbox where unread no longer means unhandled is worth
 nothing to the next session in that role.
 
+## Consolidate across lanes
+
+`inbox --as X` shows what is waiting for X. When several sessions work one goal
+in separate lanes, nobody is looking *across* them — two Executors can measure
+the same thing all day, each correctly addressing its own Coordinator, and no
+inbox shows both. Continuous cross-talk is not the fix; it collapses the
+diversity the lanes were for. Let lanes diverge, then run one pass that reads
+across them and carries pointers.
+
+```sh
+python3 tools/agent_bus.py digest --since 36h --unconsolidated   # read-only
+python3 tools/agent_bus.py consolidate --from consolidator --to executor-2 \
+    --subject "executor-3 already measures the variant you queued" \
+    --source <MSG-id> --source <MSG-id> --ref EXP-... --body "..."
+```
+
+`digest` groups by **sender**, so a lane collision shows up as two senders
+carrying the same `--ref`. It writes and acks nothing. `--unconsolidated` hides
+what a consolidation already drew on.
+
+`consolidate` requires `--source` (provenance) and at least one `--ref`, and
+refuses a ref that names no record — a typo'd ref reads as a pointer and leads
+nowhere. Refs it cannot check by path scan (`KN-*`, `SRC-*`) are recorded as
+unchecked, never as resolved.
+
+Do not consolidate lanes you are working in — that is one lane arguing its case,
+not a cross-cutting pass. And a consolidation confers no authority: you are
+reporting on work you did not do, so point at records and let the reader go read
+them.
+
 ## Wake on mail
 
 ```text

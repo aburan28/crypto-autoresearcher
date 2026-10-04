@@ -15,7 +15,7 @@ tags: [abelian-variety, complexity-theory, dlp, ecdlp, elliptic-curve, extension
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-b4a89c
 ---
 
 ## Contribution

@@ -1,0 +1,34 @@
+zero_run_custody_contract:
+  version: scoped-negative-implementation-custody-v3
+  supersedes: custody-contract-v2.yaml
+  fixture_manifest:
+    path: control-fixtures/fixture-manifest.json
+    immutable_identity: SHA-256 of canonical UTF-8 JSON {manifest_version,source_commit,fixtures}
+    fixtures: sorted array of {normalized_relative_path,sha256,expected_disposition,fixture_schema_version}
+    path_normalization: relative POSIX path, NFC, no dot component, no symlink, no duplicate normalized path
+    admission: manifest SHA-256 must equal the authorization-bound fixture_manifest_sha256; unlisted, altered, missing, duplicate, or symlink fixture refuses
+  canonical_statement_identity:
+    fields: [source_commit,record_path,record_blob_id,statement_path,statement_boundary_version]
+    encoding: RFC 8785 canonical JSON SHA-256
+    corpus_index_requirement: every row includes statement_identity and exactly these fields
+    cross_binding: comparison/linkage/exclusion rows must name the same statement_identity and are refused on one-to-many or mismatch
+  signed_authorization:
+    envelope_fields: [envelope_version,experiment_id,source_commit,contract_sha256,plan_sha256,implementation_review_sha256,coordinator_decision_sha256,fixture_manifest_sha256,nonce,signer_key_id,signature]
+    canonicalization: RFC 8785 canonical JSON excluding signature; signature verifies that byte string with a pinned Ed25519 public key identified by signer_key_id
+    trust_root: authorization-trust-root.json is source-bound by SHA-256 in the Coordinator decision and maps key ID to one public key and expiry
+    semantic_checks: [all_hashes_exact, decision_explicitly_allows_static_mock_only, review_verdict_holds, nonce_is_256_bit_hex, signer_unexpired, signature_valid, provider_not_bedrock]
+    nonce_registry:
+      path: authorization-nonces.jsonl
+      identity: SHA-256 of canonical envelope excluding signature
+      atomicity: create-once file lock plus append-only signed registry head; duplicate identity or nonce refuses
+  protected_input_boundary:
+    policy: >-
+      Before every semantic authorization check passes, resolver has access only
+      to authorization envelope, trust root, nonce registry, contract/plan/review/decision digests, and an empty read-only directory. Corpus and fixture
+      directories are mounted only after allow_static_mock_only.
+    refusal_trace: >-
+      Canonical JSON object with authorization_envelope_sha256, checks_run,
+      failed_check, protected_mounts as an empty array, open_paths as an empty
+      array, and recorded_at.
+    enforcement: any protected mount or open path in a refusal trace is invalid; missing trace is refusal failure
+  does_not: [authorize_corpus_traversal, authorize_execution, authorize_scientific_result]

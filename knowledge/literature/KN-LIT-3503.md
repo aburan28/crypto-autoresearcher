@@ -17,7 +17,7 @@ tags: [binary-field, dlp, ecdlp, elliptic-curve, finite-field, hyperelliptic, im
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-c75942
 ---
 
 ## Contribution

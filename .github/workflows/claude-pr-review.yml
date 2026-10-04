@@ -24,6 +24,11 @@ jobs:
     # forces a review on a draft on demand.
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    env:
+      # Keep this advisory job green when the optional direct-review service is
+      # not configured. The step below makes the omission explicit in the log;
+      # it does not treat the absence of a review as an approval.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     permissions:
       contents: read
       pull-requests: write
@@ -33,10 +38,17 @@ jobs:
         with:
           fetch-depth: 0 # full history so "did this record already exist?" resolves
 
+      - name: Report unavailable review service
+        if: ${{ env.ANTHROPIC_API_KEY == '' }}
+        run: |
+          echo "Claude PR review skipped: ANTHROPIC_API_KEY is not configured."
+          echo "This advisory job cannot approve, block, edit, or change research state."
+
       - name: Review pull request
+        if: ${{ env.ANTHROPIC_API_KEY != '' }}
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ env.ANTHROPIC_API_KEY }}
           track_progress: true
           prompt: |
             REPO: ${{ github.repository }}

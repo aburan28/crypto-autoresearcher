@@ -1,0 +1,342 @@
+implementation_review:
+  id: VAL-20260908-71edf4
+  task_id: TASK-20260908-71edf4
+  reviewer_role: validator
+  objective: >-
+    Independent implementation review of the zero-run EXP-AUXIN-684adf
+    implementation (executor task TASK-20260907-58fcbe) against the frozen
+    specification.yaml, source/protocol bindings, and the required
+    production/reference independence. This review performs no scientific
+    execution and authorizes none.
+
+  snapshot_binding:
+    read_commit: cd60e82c8bc68ef5766a366e0316fbb5c18353b4
+    read_commit_parent: dee9aad7d53452d4191dc8022e7714febb283e92
+    parent_relationship_verified: "cd60e82c8's sole parent is dee9aad7d (git log --oneline cd60e82c8^1 -> dee9aad7d), both confirmed ancestors of current HEAD 94e4a6a0d on branch claude/run-experiments-uq9jiv (git merge-base --is-ancestor, exit 0 for both)"
+    snapshot_archive_file: coordination/design/BATCH-484d96/archives/TASK-20260907-0a85bf/snapshot.json
+    snapshot_schema: coordinator-snapshot-precommit-v1
+    note: >-
+      Read exclusively via `git show <commit>:<path>`, not the working tree,
+      per constraint. All 8 files copied byte-for-byte from the commit into
+      an isolated scratch directory before any static analysis.
+
+  artifact_checks:
+    - check: path_sha256 recomputation against snapshot.json
+      method: "sha256(git show cd60e82c8...:<path>) compared to snapshot.json's path_sha256 map, for all 8 declared implementation artifacts"
+      result: MATCH for all 8 files
+      detail:
+        - {path: experiments/EXP-AUXIN-684adf/implementation/crt.py, sha256: 3ce55868e3b97d730b0aa4d816c65ddc3ab21e0481debb8db1998814b4b71456, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/reference.py, sha256: 17dc557f564aa9d2b0f5c5e501ea349bc81323eecf462dd4a606514014cec670, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/fixtures.py, sha256: 6e6cbdb76a1bb64b14b10071f4c5dcca4dd52624ae7d961f59e2a6d0bcd5f580, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/cost_model.py, sha256: 0f4fcbfdcc413dd634a83316a33c56cb29b791b902eaf3364dc95f77ebecde6a, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/driver.py, sha256: ff3879ff96a6c85a969985832816b418ef0a55aba72f13f38ac5bb29805370e7, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/README.md, sha256: 3b1fe194fd70c50d2dc155598212926a2cb0018fceef8ce6f019e5c0739face3, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/implementation-manifest.yaml, sha256: 071ae6a0f6fe1441959efa1b273f3022e86ee1feae3a3ff38e43e64b00cbb7e6, match: true}
+        - {path: experiments/EXP-AUXIN-684adf/implementation/implementation-report.yaml, sha256: 860dc3ec7239131048b12e9499a97784da6896125925b8cf933837df12f33432, match: true}
+    - check: implementation-manifest.yaml input_source_bindings hash recomputation
+      method: "sha256(git show cd60e82c8...:<path>) for all 10 declared input sources, compared to manifest's recorded sha256"
+      result: MATCH for all 10 (specification.yaml, hypothesis, decision, this task's own card, both IDEA proposals, RQ, KN-LIT-6501, its addendum, source-packet.json)
+    - check: no invented commit binding
+      result: >-
+        PASS. implementation-manifest.yaml commit_binding.executing_commit is
+        null with an explicit deferral note; git_head_at_write_time
+        (5089f088c443852d2a4708c737471b973854be08) is verified as a real,
+        pre-existing commit in this repo's history and an ancestor of the
+        read commit's parent (git cat-file -t returns "commit"; git
+        merge-base --is-ancestor 5089f088c dee9aad7d succeeds). No future or
+        fabricated commit hash is asserted anywhere in the manifest or
+        report.
+    - check: py_compile (static analysis only, no logic executed)
+      command: "python3 -m py_compile crt.py reference.py fixtures.py cost_model.py driver.py"
+      python_version: "3.11.15"
+      result: "all five files compiled without error (matches implementation-report.yaml's static_checks_performed.syntax_check claim)"
+    - check: plain import check (explicitly authorized static analysis)
+      command: "python3 -c \"import crt, reference, fixtures, cost_model, driver\""
+      result: "all five modules imported with no exception and no output beyond my own diagnostic print()s; crt's public namespace contains no `reference`/`fixtures`/`driver` names, reference's public namespace contains no `crt` names -- independently reproduces implementation-report.yaml's import_check claim"
+    - check: AST top-level node scan (no self-test / no execution on import)
+      method: "ast.parse each file; enumerated ast.Module.body node types"
+      result: "top-level nodes are only ClassDef, FunctionDef, Import, ImportFrom, Assign, AnnAssign, and Expr-docstrings across all 5 files, plus one `if __name__ == \"__main__\":` block in driver.py (lines 238-249) that only runs on direct invocation, never on import. No top-level Call node exists in any file."
+
+  specification_coverage:
+    - requirement: arithmetic_definitions.fold (generalized CRT fold)
+      source: crt.py::fold_congruences (lines 108-163)
+      finding: "Matches the frozen fold algorithm term-for-term: (A,M) init, g=gcd(M,m), inconsistency test (a-A) mod g != 0, h=m/g, u=0 short-circuit for h==1 else modular-inverse formula, M_new=M*h, A_new=(A+M*u) mod M_new. Uses math.gcd and a hand-rolled extended-Euclid modular_inverse (lines 79-105); no floating point. status=MATCH."
+    - requirement: arithmetic_definitions.residue (canonical residue, a=0 for m=1)
+      source: "crt.py::canonical_residue (65-76); independently reproduced in reference.py::_independent_canonical_residue (37-48)"
+      finding: "Both implementations correctly return 0 for m=1 and a % m otherwise. status=MATCH. See production_reference_independence.observation below for a note on the two functions being textually identical."
+    - requirement: arithmetic_definitions.candidate_set (E = {k0+M*t})
+      source: crt.py::enumerate_candidates (166-181)
+      finding: "Ascending order, requires n % M == 0 with an explicit ValueError rather than silent truncation. status=MATCH."
+    - requirement: arithmetic_definitions.primes/primality/primitive_element
+      source: fixtures.py::PRIMES (44-55), is_prime_trial_division (58-75), verify_factorization (78-86), find_primitive_element (89-102)
+      finding: "PRIMES tuple has r=101 (n=100=2^2*5^2) and r=241 (n=240=2^4*3*5) exactly as specified. Trial division to isqrt(r); primitive-element search is least zeta in [2,r) with pow(zeta,n,r)==1 and pow(zeta,n/q,r)!=1 for every distinct prime q -- matches spec wording exactly (spec's incidental phrasing 'pow(zeta,n/q,r) differs from 1' is applied per-q via all(...) in the same order). status=MATCH."
+    - requirement: arithmetic_definitions.toy_original_verification
+      source: reference.py::verify_original_target (139-155)
+      finding: "Evaluates pow(zeta,e,r) for every candidate including after a match, records match_count and first_match_index. Explicitly labeled a disclosed scalar-equality surrogate, not a group operation, matching the spec's own framing. status=MATCH."
+    - requirement: arithmetic_definitions.independent_reference
+      source: reference.py::full_domain_matches (51-75), compare_candidate_sets (96-128)
+      finding: "Brute-force scan e=0..n-1 against every canonical (a,m) congruence; empty-system case returns all n exponents per empty_system spec. compare_candidate_sets does sorted-set equality with first-counterexample and full symmetric-difference reporting. status=MATCH."
+    - requirement: input_supply.token_binding
+      source: fixtures.py::TokenRecord (144-158), make_token_record (161-164), token_multiplicity_report (167-179)
+      finding: "source_kind default 'synthetic_placeholder'; multiplicity/distinct-d reporting present and does not silently collapse duplicates. status=MATCH."
+    - requirement: input_supply.acquisition_cost_policy
+      source: cost_model.py::AcquisitionAccounting (120-139)
+      finding: "All actual-acquisition fields default to None with reason='not_executed'; token/dense-supply comparator fields present separately. status=MATCH."
+    - requirement: positive_panels P00-P11 (literal m lists / expected_M)
+      source: fixtures.py::POSITIVE_PANELS (186-209)
+      finding: "All 12 panels transcribed with identical m-lists (or m_by_r for P08/P09) and expected_M to specification.yaml verbatim, including P10/P11 modulus-one handling. status=MATCH (spot-checked every panel by direct comparison against specification.yaml's positive_panels block)."
+    - requirement: inconsistency_panels I01-I04
+      source: fixtures.py::INCONSISTENCY_PANELS (222-227), inconsistency_residues (230-240)
+      finding: "All 4 panels' m-lists and residue rule strings match the spec verbatim. status=MATCH."
+    - requirement: wrong_target_panels
+      source: fixtures.py::WRONG_TARGET_SOURCE_POSITIVE_IDS (247-249), wrong_target_residue (129-136), wrong_target_from_positive (252-267)
+      finding: "10 source positive IDs match spec exactly (P01-P09 excluding P10, plus P11); transformation is (k+1) mod m preserving truth x; expected_match_count=0 encoded. status=MATCH."
+    - requirement: "malformed_fixtures V01-V12 and gate_order"
+      source: "fixtures.py::MALFORMED_CASES (279-292), MALFORMED_BASE_RULE (274-277), GATE_ORDER (296-307), GATE_STAGE_TO_CASE (311-322), run_input_gate (332-347)"
+      finding: >-
+        PARTIAL. The 12 mutation/expected-error-code pairs and the 10-stage
+        GATE_ORDER sequence are transcribed verbatim and I independently
+        verified every V01-V12 -> gate-stage attribution in GATE_STAGE_TO_CASE
+        against specification.yaml's malformed_fixtures.cases by hand
+        (V01->supported_r_and_primality, V02->primitive_element,
+        V03->complete_factorization, V04/V05->d_range_and_divisibility,
+        V06->m_range_and_divisibility, V07->m_times_d_equals_n,
+        V08/V09->canonical_residue, V10->supply_presence,
+        V11->supply_label_binding, V12->nonzero_mode_boundary); all 12 are
+        consistent with "expected error is the first failing check" given
+        each case mutates exactly one field from an otherwise-valid base
+        record. However, `run_input_gate` (fixtures.py:332-347) is a stub
+        that unconditionally raises NotImplementedError for any input -- it
+        contains no actual per-stage classification logic (no code path
+        tests r's primality, factorization completeness, primitive-element
+        validity, d/m ranges, m*d=n, canonical residue, or supply presence
+        against a concrete record). Only the *data* describing what the
+        gates are and which case each stage owns exists; no callable gate
+        exists that a caller could invoke to classify an arbitrary record
+        and obtain one of the ten declared error codes. This is short of
+        the executor's own handoff requirement
+        (TASK-20260907-58fcbe implementation_requirements.fixtures_py:
+        "...and input gates") and its completion_gate ("...malformed gates
+        ... are explicit"). See finding F1 below.
+    - requirement: zero_boundary
+      source: "fixtures.py::ZERO_BOUNDARY_CASES_PER_PRIME (354), ZERO_BOUNDARY_DESCRIPTION (355-359)"
+      finding: "1 case per prime, description matches spec's identity-branch wording exactly. status=MATCH (data only; no identity-branch function is implemented, but none is required by fixtures_py's stated scope beyond describing the boundary)."
+    - requirement: ordering_and_counts (prime/family order, 3 order variants, traversal, exact counts)
+      source: "fixtures.py::PRIME_ORDER, FAMILY_ORDER (366-367), ORDER_VARIANTS (369-373), apply_order_variant (376-389), TRAVERSAL_ORDER (392), CASE_COUNT_FORMULAS/CASE_COUNTS (398-414), CASES_BY_PRIME/SCALAR_CONSTRAINT_CASES/REFERENCE_EXPONENT_VISITS/PREDICTED_CANDIDATE_EQUALITY_EVALUATIONS (416-424), PRODUCT_RULE_MUTANT_EXPECTED_TOTAL (428)"
+      finding: >-
+        MATCH. I independently recomputed every declared total by hand from
+        the literal panel/family cardinalities and n=100+240=340 (pure
+        arithmetic on literal counts, no module code executed): positive
+        340*12*3=12240, inconsistent 340*4*3=4080, wrong_target 340*10*3=10200,
+        malformed 2*12=24, zero 2*1=2, total=26546, and the faulty-product-rule
+        mutant total 340*5*3=5100 -- all agree exactly with both
+        specification.yaml's `ordering_and_counts.formulas` and fixtures.py's
+        transcribed constants. `apply_order_variant` correctly implements
+        forward/reverse/rotate_left_one including the empty-list edge case.
+    - requirement: "controls.independent_enumeration, one_and_empty_baselines, matched_null, inconsistent_known_false, consistent_wrong_target, order_invariance, deliberately_faulty_product_rule, input_and_zero_boundary"
+      source: "reference.py::compare_candidate_sets, is_consistent, order_invariance_check, faulty_product_modulus/check_product_rule_mutant (158-240,243-260); fixtures.py panel literals and PRODUCT_RULE_MUTANT_EXPECTED_PANELS (216)"
+      finding: >-
+        MATCH for the panel/data side and for check_product_rule_mutant's
+        detection logic, which I traced by hand against all 12 positive
+        panels: PRODUCT_RULE_MUTANT_EXPECTED_PANELS=(P02,P03,P04,P07,P11)
+        correctly names the five panels whose supplied m_i are not all
+        pairwise coprime (P02: 10,10,10 repeated; P03: 5,10,20 nested;
+        P04: 4,10 noncoprime; P07: 4,5,20,20 redundant; P11: 1,4,10 with
+        4,10 noncoprime), matching the spec's declared 5100=(340*5*3) cell
+        count; the other seven panels (P00,P01,P05,P06,P08,P09,P10) have
+        pairwise-coprime m_i so M_bad=product(m_i) correctly equals
+        lcm(m_i)=M there. check_product_rule_mutant's three-way branch
+        (non-positive m_bad / m_bad does not divide n / claimed count
+        disagrees with reference cardinality) is a faithful, sound
+        implementation of "detected" per the spec's wording.
+    - requirement: cost_and_frontier.exact_proxy (isqrtceil, W, S)
+      source: cost_model.py::isqrtceil (30-39), ResidualProxy/residual_proxy (42-78)
+      finding: "isqrtceil uses math.isqrt exactly per the spec's stated formula (isqrt(z) if isqrt(z)^2==z else isqrt(z)+1); residual_proxy correctly special-cases the empty list (W=S=isqrtceil(n)) and otherwise sums per-stage isqrtceil(m_i) plus isqrtceil(L) for W and takes the max for S, preserving multiplicities (no dedup). status=MATCH."
+    - requirement: cost_and_frontier.symbolic_total, comparator_rows F0-F8, dominated_by, sota_delta, comparison_rule
+      source: "cost_model.py::SymbolicCostTerms (81-117), COMPARATOR_ROWS (158-226), DOMINATED_BY/SOTA_DELTA (228-229), modeled_benefit_label (255-263)"
+      finding: "All 9 named cost terms and all 9 comparator rows (F0-F8) are transcribed verbatim from specification.yaml's cost_and_frontier section, left symbolic/unevaluated as required (no numeric total assigned to the O(...) terms), and DOMINATED_BY/SOTA_DELTA match the spec's 'n/a (no result claimed)' / 'no attack ... established improvement 0' text exactly. status=MATCH."
+    - requirement: required_artifacts / artifact_layout (18 named files)
+      source: "driver.py::REQUIRED_ARTIFACTS (51-70), EXACT_ARTIFACT_COUNT (71)"
+      finding: "All 18 filenames match specification.yaml's required_artifacts list in the same order; EXACT_ARTIFACT_COUNT=18 matches artifact_layout.exact_filename_count. status=MATCH."
+    - requirement: prospective_group_interface
+      source: "README.md 'The prospective_group_interface boundary' section; no .py file"
+      finding: "Correctly NOT implemented as code. grep across all 5 .py files for group/point/EC-related identifiers (class .*Point, scalar_mult, EllipticCurve, first_stage, baby_step, giant_step, residual_search) returns zero matches. README.md documents the interface as prose only, matching the executor handoff's hard constraint. status=MATCH."
+
+  production_reference_independence:
+    checks:
+    - check: reference.py does not import crt.py
+      method: "grep -n 'import crt|from crt' across all 5 files"
+      result: "zero import statements found; the only textual occurrences of the string 'crt' referencing the module are inside reference.py's own docstring (lines 11-13) stating what must NOT be imported"
+    - check: reference.py does not call any crt.py helper
+      method: "grep -n 'fold_congruences|canonical_residue|modular_inverse|enumerate_candidates' reference.py"
+      result: "the only hits are the docstring's own list of forbidden names (lines 12-13) and reference.py's independently-named `_independent_canonical_residue` (line 37) and its call site (line 64); no call to any crt.py-defined name exists"
+    - check: crt.py's public interface receives only (n, congruences)
+      method: "read all 4 function signatures in crt.py"
+      result: "fold_congruences(n, congruences), enumerate_candidates(n, k0, M), fold_and_enumerate(n, congruences), and the private canonical_residue(a,m)/modular_inverse(a,m) helpers -- none accept k, x, zeta, r, a reference/oracle result, or a truth value. status=MATCH."
+    - check: fixtures.py keeps truth on a separate channel from what would reach crt.py
+      result: "fixtures.py does not import crt.py at all (confirmed by the same grep above), so no code path currently exists that could pass k/x into a crt.py call; fixture_truth(zeta,r,k) (114-116) is a standalone function whose return value is never threaded into any (a,m) congruence construction in this file. status=MATCH, and trivially so at this zero-run stage since no case-assembly pipeline exists yet (see finding F1)."
+    - observation: "crt.py::canonical_residue (65-76) and reference.py::_independent_canonical_residue (37-48) are textually identical three-line function bodies (same structure, same ValueError message string). This is disclosed intentionally in reference.py's own docstring (lines 40-43: 'Deliberately re-derived from the same specification sentence rather than imported...'). Assessed as NOT a violation of independence: the underlying rule (0<=a<m, a=0 for m=1) is a single unambiguous one-line reduction with only one natural correct implementation, unlike the CRT fold itself (which reference.py implements via a completely different algorithm -- full-domain brute-force scan vs. incremental gcd/inverse folding -- so a bug in the fold's nontrivial arithmetic would not be mirrored in the reference's brute-force scan). Noted for completeness per the review instruction to report every specific finding, not withheld as a defect."
+    verdict_this_section: PASS -- the substantive combinatorial logic (CRT fold vs. brute-force scan) is genuinely independent by construction; no shared helper, import, or call-through exists anywhere in the snapshot.
+
+  guarded_launch_interface:
+    file: experiments/EXP-AUXIN-684adf/implementation/driver.py
+    method: "Traced by reading (never invoking) preflight_guard (109-163) and run_calibration (173-223); GuardContext field defaults (74-100)."
+    findings:
+      - "GuardContext defaults are fail-closed by construction: approved_spec_sha256/actual_spec_sha256 default None (86); executing_source_hashes/reviewed_source_hashes default None (85-87); independent_review_receipt_id defaults None (88); launch_lock_genuine defaults False -- 'never default true' per its own comment (94); requested_run_count defaults 0 (96), which alone fails the '<=0' check (160-161)."
+      - "preflight_guard checks, in order: worker count <= MAX_WORKERS_ALLOWED=1 (116-120); memory <= MAX_MEMORY_BYTES_ALLOWED=4GiB (121-125); approved spec hash present AND equal to actual spec hash (127-130); executing/reviewed source hashes both present AND equal to each other (132-141); independent_review_receipt_id present (143-144) AND independent_review_verdict in {'approved','passed'} (145-148); launch_lock_genuine is True (150-151) AND launch_lock_id/bound_run_id/bound_task_id all present (152-153); requested_run_count within authorized_run_count and > 0 (155-161). All failing reasons are collected (not just the first), so a refusal is fully diagnosable."
+      - "run_calibration (173-223) calls preflight_guard and raises ScientificExecutionRefused listing every unmet reason if not ok (202-211); the pipeline body below the guard is unreachable and itself raises a second NotImplementedError (219-223) even if a guard could somehow be satisfied by this task -- i.e. this file's execution path is refusal only, in two independent layers."
+      - "No execution on import: confirmed via the AST top-level scan above -- driver.py's only conditional top-level construct is `if __name__ == '__main__':` (238-249), which Python does not execute on `import driver` (independently reproduced: `python3 -c \"import driver\"` produced no output). The __main__ block itself only calls run_calibration with an intentionally empty GuardContext and prints the expected refusal -- it does not construct a genuine passing context."
+      - "The one-worker/4-GiB budget is enforced inside the guard itself (116-125), not merely documented in prose, matching the review requirement to confirm this is a real refusal condition rather than a claimed one."
+    verdict_this_section: PASS -- the guard's refusal conditions are genuine, traced directly in code, fail-closed on every field, and cannot be satisfied by anything this implementation-only task could have produced.
+
+  provenance_and_no_fabrication:
+    checks:
+    - check: implementation-manifest.yaml does not claim a future commit as already having happened
+      finding: "commit_binding.executing_commit is explicitly null with a note explaining the manifest cannot hash itself into a not-yet-created commit; the Coordinator's later snapshot supplies that binding. git_head_at_write_time (5089f088c...) is disclosed as the worktree HEAD at write time, not a claimed executing commit, and independently verified to be a real, ancestor commit (see artifact_checks above), not fabricated."
+    - check: implementation-report.yaml honestly states zero execution
+      finding: "scientific_runs: 0, fixtures_executed: 0, group_operations_measured: 0, cases_completed: 0 (lines 99-102) all present and consistent with static_checks_explicitly_not_performed's explicit list of what was NOT run (no fold, no enumeration, no primality/primitive-element search, no isqrt proxy call, no brute-force scan, no driver.run_calibration call, no __main__ execution, no unit test/doctest/REPL)."
+    - check: dirty-tree disclosure
+      finding: "manifest discloses dirty_tree_at_write_time: true with a specific, scoped explanation (unrelated untracked files under a different concurrent task's goal directory) and an explicit statement those files were not read/modified/touched. This disclosure is a point-in-time worktree fact that cannot be independently re-verified from git history alone (dirty state is not recorded by commits); it is internally consistent with the shared-worktree concurrency model this program documents and is not contradicted by anything checkable."
+    - check: review/launch status not claimed
+      finding: "implementation-report.yaml's review_status (105-114) and launch_status (116-125) both explicitly state 'pending'/'absent'/null and disclaim any implied review or launch having occurred; this matches the handoff's own subsequent_review_boundary constraint."
+    verdict_this_section: PASS -- no invented provenance found anywhere in the manifest or report.
+
+  constraint_compliance:
+    - check: prospective_group_interface not implemented as code
+      result: PASS (see specification_coverage entry above; zero matches for group/EC/first-stage/BSGS identifiers across all 5 .py files)
+    - check: no Bedrock reference anywhere
+      method: "grep -ni bedrock across all 5 .py files, README.md, implementation-manifest.yaml, implementation-report.yaml"
+      result: "zero hits in code or README; the only occurrences are the required explicit disclosure blocks in implementation-manifest.yaml (bedrock: selected/configured/probed/contacted/used, all 'NOT ...') and implementation-report.yaml (bedrock_status, same five fields, all 'NOT ...'). PASS."
+    - check: standard-library only, no network/subprocess/external crypto dependency
+      method: "grep -n '^import|^from' across all 5 files; grep -ni 'requests|urllib|socket|subprocess|http'"
+      result: "only __future__, math, dataclasses, typing imported anywhere; zero hits for requests/urllib/socket/subprocess/http. PASS."
+    - check: fixtures.py/crt.py/reference.py/cost_model.py functions never invoked by this review
+      result: "Confirmed. This review invoked python3 -m py_compile (byte-compilation only) and a plain `import crt, reference, fixtures, cost_model, driver` (module-level execution only, which per the AST scan performs no arithmetic or fixture evaluation as a side effect). No function inside any of these five modules was ever called with an argument by this review. driver.py's preflight_guard/run_calibration were read and traced, never invoked."
+
+  findings:
+    - id: F1
+      severity: revise_required
+      title: "fixtures.py::run_input_gate is an unconditional stub, not an implemented validation gate"
+      location: "experiments/EXP-AUXIN-684adf/implementation/fixtures.py, lines 332-347"
+      detail: >-
+        The function's entire body is `raise NotImplementedError(...)` with
+        no conditional logic implementing any of the ten GATE_ORDER stages.
+        The handoff that produced this implementation
+        (ledger/handoffs/TASK-20260907-58fcbe.yaml,
+        implementation_requirements.fixtures_py) explicitly lists "...and
+        input gates" as a required component, and its own completion_gate
+        states "primitive and malformed gates ... are explicit." What
+        exists is a faithful *description* of the gates (GATE_ORDER stage
+        names, GATE_STAGE_TO_CASE per-mutation attribution) but not a
+        callable classifier a caller could invoke on a candidate record to
+        obtain one of the ten INPUT_* error codes. This is inconsistent
+        with the treatment of comparably nontrivial logic elsewhere in the
+        same deliverable set: crt.py::fold_congruences and
+        reference.py::full_domain_matches are both fully implemented,
+        callable, and traceable by hand directly from the same
+        specification prose, without requiring any fixture data to define
+        or verify their control flow. The implementation-report.yaml's own
+        deviation_note (lines 59-74) discloses this honestly as a
+        deliberate choice rather than concealing it, and offers a rationale
+        (deferring "silent judgment calls about exact error-classification
+        order interactions" to a later reviewed handoff with real data);
+        I do not find that rationale fully persuasive given the CRT fold
+        precedent, but I record it as the executor's stated reasoning
+        rather than silence.
+      materiality: >-
+        Bounded to one function in one file. It does not compromise
+        production/reference independence, the guard's refusal logic,
+        provenance honesty, or any stdlib/Bedrock/group-interface
+        constraint -- all of which pass cleanly. It does mean
+        `controls.input_and_zero_boundary` (which requires "all 24
+        malformed inputs reject with the declared code") cannot yet be
+        exercised even in principle, since no code path implements the
+        rejection logic the control depends on.
+      recommendation: >-
+        Before a scientific launch handoff extends this implementation,
+        require an actual (pure, unexecuted-until-authorized) implementation
+        of the ten-stage gate classifier, analogous in rigor to
+        crt.py::fold_congruences, and a matching independent-review pass
+        over that new code.
+    - id: F2
+      severity: informational
+      title: "canonical residue reduction is textually identical between crt.py and reference.py"
+      location: "crt.py lines 65-76; reference.py lines 37-48"
+      detail: "See production_reference_independence.observation above. Not treated as a defect given the triviality and single-correct-form nature of the rule, and given it is honestly disclosed as intentional in reference.py's own docstring. Recorded for transparency, not as grounds for REVISE."
+
+  limitations:
+    - "This review is static-analysis-only per its own authorization (py_compile, source reading, AST inspection, plain imports); it cannot and does not certify runtime correctness of any function against real fixture data, since no fixture data may be generated or evaluated under this task's budget (maximum_runs: 0). Hand-traced arithmetic checks (case-count formulas, product-rule mutant panel classification, gate-stage-to-case attribution) were performed by the reviewer independently using pure integer arithmetic and manual code tracing, not by executing the implementation's own functions."
+    - "Dirty-tree disclosure at executor write-time (git_head_at_write_time, dirty_tree_at_write_time) is accepted as reported; it is a point-in-time worktree fact not reconstructible from git history and could not be independently re-verified beyond confirming the disclosed HEAD commit genuinely exists and is an ancestor of the snapshot's parent."
+    - "This review certifies implementation correctness and independence only, per its own task card; it does not authorize, approve, or perform any scientific launch, and makes no claim about H-AUXIN-7c52b2."
+
+  verdict: REVISE
+  verdict_rationale: >-
+    Every high-stakes property this review was asked to adversarially verify
+    -- production/reference independence (no import, no call, no shared
+    combinatorial logic), the guarded driver's genuine fail-closed refusal
+    logic, absence of invented provenance or future commit claims, honest
+    zero-execution reporting, exclusion of the prospective group interface
+    from code, absence of any Bedrock reference, and standard-library-only
+    dependencies -- passes cleanly under direct reading, hand-tracing, and
+    the authorized static checks (py_compile, AST inspection, plain
+    imports), all independently reproduced in this review rather than
+    trusted from implementation-report.yaml's own claims. Every literal
+    panel, count, formula, and artifact name I checked against
+    specification.yaml matches exactly. The single genuine, specific,
+    bounded gap is finding F1: fixtures.py::run_input_gate is a stub,
+    not an implementation, of a component the executor's own handoff
+    explicitly required ("input gates") and its own completion_gate
+    explicitly promised ("malformed gates ... are explicit"). This is a
+    real incompleteness against the frozen contract, not a fabrication or
+    a violation of any independence/safety/honesty constraint, so REVISE
+    (add the missing gate implementation and re-review that addition)
+    is the accurate verdict rather than PASSED (which would soften a
+    genuine, disclosed gap) or FAILED (which would misrepresent an
+    otherwise rigorous, honest, and independently-verified implementation
+    as broken).
+
+  bedrock_status:
+    selected: "NOT SELECTED"
+    configured: "NOT CONFIGURED"
+    probed: "NOT PROBED"
+    contacted: "NOT CONTACTED"
+    used: "NOT USED"
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    independent_session_required: true
+    resolved_model_self_report: "claude-sonnet-5 (model id: claude-sonnet-5); self-reported by the answering session, not independently re-verified by a separate process"
+    fallback_used: false
+    degraded_used: false
+
+  review_attestation:
+    joints_owned:
+      - specification_coverage (all named sections)
+      - production_reference_independence
+      - guarded_launch_interface
+      - provenance_and_no_fabrication
+      - constraint_compliance
+    sources_read:
+      - ledger/handoffs/TASK-20260908-71edf4.yaml
+      - experiments/EXP-AUXIN-684adf/specification.yaml (at commit cd60e82c8)
+      - ledger/handoffs/TASK-20260907-58fcbe.yaml (at commit cd60e82c8, and current worktree for cross-check)
+      - experiments/EXP-AUXIN-684adf/implementation/crt.py (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/reference.py (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/fixtures.py (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/cost_model.py (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/driver.py (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/README.md (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/implementation-manifest.yaml (at commit cd60e82c8)
+      - experiments/EXP-AUXIN-684adf/implementation/implementation-report.yaml (at commit cd60e82c8)
+      - coordination/design/BATCH-484d96/archives/TASK-20260907-0a85bf/snapshot.json (at commit cd60e82c8)
+      - ledger/decisions/DEC-20260907-6e1311.yaml (at commit cd60e82c8, for approval-chain provenance context only)
+      - agents/validator.md
+      - AGENTS.md (referenced for role contract; not re-quoted here)
+    read_sibling_reports: false
+    plan: null
+    verdict: REVISE
+
+  artifact_paths:
+    - coordination/design/BATCH-484d96/reviews/TASK-20260908-71edf4/implementation-review.yaml
+    - coordination/design/BATCH-484d96/reviews/TASK-20260908-71edf4/runtime-session-receipt.json

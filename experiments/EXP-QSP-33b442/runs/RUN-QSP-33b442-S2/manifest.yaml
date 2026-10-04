@@ -1,0 +1,133 @@
+run:
+  id: RUN-QSP-33b442-S2
+  experiment_id: EXP-QSP-33b442
+  hypothesis_id: H-QSP-5540d7
+  task_id: TASK-20260917-892420
+  stage: stage_2
+  status: aborted_implementation_error
+  status_note: >-
+    THIS RUN IS INVALID AND IS RETAINED, NOT DELETED. It is superseded by
+    RUN-QSP-33b442-S2B, which is a NEW run id with a corrected implementation;
+    this directory is never overwritten or re-keyed (AGENTS.md core rule 4).
+    No number from this run is reported anywhere, and the 54 per-cell JSON
+    files it managed to write before the abort are retained as the checkpoint
+    the stopping rule requires, NOT as results.
+  specification_version: 1
+  amendments_in_force:
+    - AMD-20260917-001
+  failure_classification: implementation_error
+  failure_classification_note: >-
+    agents/executor.md failure semantics: implementation_error -- the code did
+    not implement the intended experiment efficiently enough to run it. This is
+    NOT infrastructure (F6) and it is NOT evidence of any kind about (A) or (B).
+    No mathematical claim, positive or negative, follows from it.
+  defect:
+    what: >-
+      stage2.py computed the recorded column `deg_D` by CONSTRUCTING the
+      difference polynomial D(Y) = Lambda_{q+1}(Y) + Y^{2^{n'-r}} for EVERY
+      candidate in the sweep, before deciding whether I3 would be run on it.
+    why_it_is_fatal_at_these_cells: >-
+      deg D = d^{q+1} when d^{q+1} > 2^{n'-r}, and q = floor(n/n') reaches 15
+      in this stage's own cell list. Constructing that polynomial as a
+      bit-packed integer needs d^{q+1} bits: at (n, n') = (23, 3), q = 7,
+      d = 8 that is 16777216 bits; at (29, 3), q = 9 it is 1073741824 bits;
+      at (31, 2), q = 15 it is 281474976710656 bits, i.e. about 35 terabytes
+      for ONE candidate. The construction is also quadratic-ish in that length,
+      so the sweep stalled on the (23, 3) cell.
+    fix_in_RUN_QSP_33b442_S2B: >-
+      deg D is now taken from the identity deg D = max(d^{q+1}, 2^{n'-r})
+      WITHOUT constructing D whenever the two terms differ (a difference of two
+      polynomials of unequal degree cannot cancel, so D is also certainly
+      nonzero); D is constructed only when d^{q+1} = 2^{n'-r}, where the common
+      value is at most 2^{n'} <= 2^15 and the construction is cheap, and that
+      is also the only case in which D can vanish. The degenerate test is
+      therefore still symbolic and still exact, and no candidate's deg D is
+      estimated. qspcore.deg_D_and_degenerate.
+    what_was_NOT_changed: >-
+      No cell, candidate set, instrument, seed, threshold, metric or
+      pre-registered value. The correction is to how a recorded column is
+      computed, not to what is measured.
+  code:
+    command: python3 experiments/EXP-QSP-33b442/implementation/stage2.py RUN-QSP-33b442-S2
+    commit: aafb23ac5124373083fc89aebf08b0c8ab6f4d86
+    branch: claude/ecc2k-130-quasi-subfield-poly-nhcj1f
+    dirty: true
+    dirty_tree_note: >-
+      The working tree carries this task's own write scope uncommitted; the
+      Executor does not commit.
+    implementation_paths:
+      - experiments/EXP-QSP-33b442/implementation/qspcore.py
+      - experiments/EXP-QSP-33b442/implementation/runlib.py
+      - experiments/EXP-QSP-33b442/implementation/gf2rc.c
+      - experiments/EXP-QSP-33b442/implementation/stage2.py
+    implementation_state_note: >-
+      stage2.py and qspcore.py in the archived tree are the CORRECTED versions
+      used by RUN-QSP-33b442-S2B. The defect above describes the state of
+      stage2.py at the time THIS invocation ran and is the reason it was
+      superseded; the defective source is not separately archived, and the
+      corrected source is what reproduces S2B.
+  inference:
+    requested_policy: executor-implementation
+    reasoning_effort: medium
+    backend: anthropic (Claude Code runtime, claude_code binding)
+    adapter_resolved_binding: anthropic:claude-sonnet-5
+    resolved_model_id: claude-opus-5
+    probe_verified: false
+    fallback_used: false
+    degraded_requirements: []
+    model_in_the_measurement_loop: false
+  environment:
+    recorded_in: environment.json
+  inputs:
+    recorded_in: 'command.txt and the inputs block of RUN-QSP-33b442-S2B/manifest.yaml (identical cell definitions, candidate set and seeds)'
+  timing:
+    started_at: '2026-09-17 (see environment.json creation in the archived tree)'
+    wall_seconds_before_abort: 1481
+    wall_seconds_note: >-
+      Read from `ps -o etimes=` on the live process immediately before it was
+      terminated; it is the elapsed time of the aborted invocation, not a
+      measurement of anything mathematical.
+    terminated_by: 'Executor (SIGTERM via pkill) after diagnosing the defect above'
+    budget_wall_clock_seconds: 7200
+    budget_exceeded: false
+  resources:
+    peak_rss_bytes: null
+    peak_rss_bytes_note: >-
+      not captured: the process was terminated externally, so runlib.Run.finish
+      never ran and no getrusage snapshot was taken. Recorded as missing rather
+      than estimated.
+    workers: 1
+  result:
+    valid: false
+    validity_status: aborted_implementation_error
+    validity_reason: >-
+      Terminated by the Executor after 54 of 95 cells, on diagnosing that the
+      recorded deg_D column was being computed by an unconditional construction
+      that is infeasible at this stage's own cells. No metric is reported from
+      this run.
+    certificate:
+      kind: none
+      verified: null
+      verifier: 'n/a: no count from this run is reported'
+    raw_result: 'absent: the run did not reach its result-writing step. Recorded as missing, never reconstructed.'
+  protocol_deviations:
+    - 'Stage 2 was launched concurrently with Stage 3 (two single-threaded processes). See RUN-QSP-33b442-S2B for the same note.'
+  anomalies:
+    - branch: 'none (not a falsification branch)'
+      detail: >-
+        An aborted implementation is not F1-F6 evidence. Under AGENTS.md rule 3
+        and the specification's invalidation_rules, it invalidates this stage
+        invocation's completeness and nothing else.
+  artifacts:
+    command: command.txt
+    environment: environment.json
+    stdout: stdout.log
+    stderr: 'absent: stdout and stderr were merged into stdout.log by the launching shell'
+    raw_result: 'absent (see result.raw_result)'
+    partial_cells: 'cells/ -- 54 per-cell JSON files written before the abort, retained as the stopping-rule checkpoint and NOT as results'
+    run_directory: experiments/EXP-QSP-33b442/runs/RUN-QSP-33b442-S2
+  superseded_by: RUN-QSP-33b442-S2B
+  provenance_declaration: >-
+    Nothing from analysis/qsp-ecc2k130/explore/ was read by this run, and no
+    number from this run is reported in the execution report or the Stage 5
+    report.

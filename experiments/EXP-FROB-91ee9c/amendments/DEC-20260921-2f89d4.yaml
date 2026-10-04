@@ -1,0 +1,142 @@
+protocol_amendment:
+  id: DEC-20260921-2f89d4
+  experiment_id: EXP-FROB-91ee9c
+  version_from: 2
+  version_to: 3
+  recorded_at: '2026-09-21'
+  predecessor_path: experiments/EXP-FROB-91ee9c/specification.yaml
+  predecessor_sha256: 9d66c4f7914250a09a5083a3e97c85af9f26ba04755b906105c200d41c75daa4
+
+  reason: >-
+    NA-1 of ledger/corrections/CORR-20260921-9dc350.yaml (the independent
+    validator + red-team audit of DEC-20260921-d5e997's J3/J4 findings,
+    TASK-20260921-aac8e7): both reviewers, independently, identified a
+    construction defect in control C2_non_stable_matched_dimension as
+    IMPLEMENTED in RUN-FROB-91ee9c-51bc02 (and, unaffected in outcome but
+    identically defective in mechanism, in RUN-FROB-91ee9c-7119f2's curve
+    index 0). specification.yaml's own design text (line 313, "Take the
+    lexicographically first such subspace") is singular per DIMENSION, not
+    per SLOT. `implementation.py`'s `non_stable_subspace_of_dim(d, M, F, n)`
+    is a pure deterministic function of `(d, M, F, n)`: for a fixed cell it
+    always returns the SAME subspace for a given dimension. The construction
+    loop (`dims_present = sorted(set(d for r in obj_partitions ... for d in
+    r["slot_dims"]))`, then `c2_by_dim[str(d)]` cached ONCE per distinct
+    dimension) therefore assigns the IDENTICAL cached point-set to every slot
+    of that dimension within a partition. On the only non-trivial partition
+    either tested cell reaches -- `[2,2]` on both FROB-SPLIT-q11n5 and
+    FROB-EQDEG-q19n5 -- this sums one non-stable subspace with ITSELF
+    (`Q1+Q2=Q2+Q1`), a swap-symmetry collision unrelated to Frobenius
+    structure, cardinality, or scale. Confirmed independently via
+    code-reading of `implementation.py` lines 222-238/429-470 AND via raw
+    `U_neg` arithmetic in `metrics.json` (SPLIT C2 `[2,2]` U_neg = 3.0 =
+    |B_W|/2 for ONE 6-element set, not (6+6)/2=6.0 for two distinct sets;
+    EQDEG C2 `[2,2]` U_neg = 12.0 = |B_W|/2 for ONE 24-element set, not
+    (24+24)/2=24.0). CORR-20260921-9dc350's next_action NA-1 names fixing
+    this "if control C2 is reused in any future experiment on a partition
+    with two or more slots of equal dimension" -- this amendment is that
+    fix, and the recheck it authorizes is exactly such a reuse.
+
+  changes:
+    - >-
+      controls.C2_non_stable_matched_dimension.design is extended (not
+      redefined -- every existing sentence is preserved verbatim) with: "When
+      an object partition's slot_dims contains dimension d with multiplicity
+      k > 1, draw k DISTINCT, mutually independent subspaces of dimension d,
+      each individually certified non-pi-stable exactly as above, rather than
+      one subspace reused for every slot of that dimension. Maintain ONE
+      canonical, deterministic pool per (cell, curve, dimension d), grown
+      lazily to the maximum multiplicity of d needed by any tested partition
+      in that cell/curve's battery: the pool's first entry is the
+      lexicographically first non-pi-stable subspace of dimension d (as
+      already specified); each subsequent entry is the lexicographically
+      NEXT such subspace, over the same combinations(range(n), d) index-tuple
+      order, that is not already in the pool. A partition needing k slots of
+      dimension d is assigned the pool's first k entries, in pool order. This
+      keeps the construction fully deterministic and reproducible (a
+      canonical search, not a random draw) while ensuring no two slots of the
+      same dimension in the same partition share a subspace." This resolves
+      the construction defect described above without changing what C2
+      isolates (Frobenius stability from mere dimension) or its
+      claim_limit.
+    - >-
+      budget.maximum_runs: the value already extended to 2 by
+      DEC-20260921-e81e25 is further extended by exactly one additional
+      bounded run, scoped ONLY to the work named below. maximum_runs becomes
+      3 for this contract as amended; no further run beyond this one is
+      authorized by this amendment. The additional run's own budget (memory
+      8 GiB, 1 worker, advisory time/CPU null) is otherwise identical to the
+      frozen budget.
+    - >-
+      execution scope, additive and narrower than the prior amendment: the
+      additional run RECOMPUTES the object arm (as an internal consistency
+      check against the values already recorded for curve index 1 in
+      RUN-FROB-91ee9c-51bc02's metrics.json -- I(FROB-SPLIT-q11n5)=2055/451,
+      I(FROB-EQDEG-q19n5)=6152/861 -- a mismatch invalidates the new run's
+      instrument per the frozen invalidation rules) and RECOMPUTES ONLY
+      control C2, using the corrected per-slot-distinct pool construction
+      above, against the SAME two (cell, curve) pairs and the SAME curve
+      parameters as RUN-FROB-91ee9c-51bc02: FROB-SPLIT-q11n5 (A=1, B=2,
+      N=10061) and FROB-EQDEG-q19n5 (A=1, B=1, N=117991). C3 and C4 are NOT
+      recomputed by this run: their constructions do not share C2's
+      per-dimension cache defect (C3 draws an independent random subset per
+      slot by construction; C4 operates inside a wholly separate null curve
+      and likewise draws per-slot), both were independently re-verified
+      correct by NA-1's own validator and red-team reports, and re-running
+      them would add cost without addressing anything in scope. The run
+      reports C2's new `[2,2]` result (U_neg, p_m, cost_ratio_neg, spread)
+      for each cell SIDE BY SIDE with RUN-FROB-91ee9c-51bc02's original
+      (now-superseded-in-reliability, not in bytes) C2 result for the same
+      partition, so the delta is directly readable without cross-referencing
+      a second file.
+
+  unchanged:
+    - Every cell, curve, candidate set, and every OTHER control DESIGN (C1, C3-C8), exactly as specified.
+    - Every seed, metric definition, threshold, success_criterion, falsification_criterion and decision_branches clause, verbatim.
+    - Every invalidation rule (IR-1..IR-9) and stopping rule (SR-1..SR-6).
+    - The maximum_memory_gb and maximum_workers machine-protection caps.
+    - >-
+      Everything in RUN-FROB-91ee9c-7119f2 and RUN-FROB-91ee9c-51bc02: neither
+      is re-run, re-scored, or edited. Their manifests, metrics, certificates
+      and reports remain exactly as committed (PR #1311, PR #1330), and both
+      remain the basis for every finding in EV-FROB-2fe225 and
+      EV-FROB-576872 that did not depend on C2's construction. The object
+      arm, C1, C3, C4, C5-C8 findings in both prior runs are UNAFFECTED by
+      this amendment and are not superseded by anything it authorizes.
+
+  affected_runs: []
+  # RUN-FROB-91ee9c-7119f2 and RUN-FROB-91ee9c-51bc02 are not re-scored by
+  # this amendment; both remain complete, valid (per their own recorded
+  # cell_status), immutable runs. Their C2 arm on the [2,2] partition is
+  # documented as construction-defective by ledger/corrections/
+  # CORR-20260921-9dc350.yaml (correction C2), not edited or invalidated
+  # wholesale -- the rest of each run stands. This amendment authorizes a
+  # NEW, separate, narrowly-scoped run only.
+  confirmatory_status: not_applicable
+  confirmatory_status_note: >-
+    This run does not re-confirm a prior finding; it computes, for the first
+    time under a corrected construction, a quantity (C2's genuinely
+    independent per-slot spread) that neither prior run computed correctly.
+
+  authority_decision: DEC-20260921-2f89d4
+  approved_by: coordinator
+  approval_basis: >-
+    AGENTS.md standing user authorization (2026-09-06, "all is approved.
+    ideas/experiments should be always approved"), the original approval
+    DEC-20260914-d04668 (EXP-FROB-91ee9c v1) and its amendment
+    DEC-20260921-e81e25 (v2), and the user's explicit instruction (this
+    session, 2026-09-21) to design and dispatch the C2 per-slot subspace fix
+    that CORR-20260921-9dc350's NA-1 named as a candidate next action. This
+    amendment authorizes no run and no scope beyond what is named above; it
+    asserts nothing about H-FROB-d93575 and re-scores no completed run.
+
+  binding: >-
+    The Executor under ledger/handoffs/TASK-20260921-819bc0.yaml executes
+    specification.yaml version 1 as modified by DEC-20260921-e81e25 and this
+    amendment. The new run is recorded at
+    experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/, a directory
+    disjoint from and never touching runs/TASK-20260914-7119f2/ or
+    runs/TASK-20260921-51bc02/. Its manifest.yaml records contract version 3
+    with this amendment's path. On completion, whether and how the corrected
+    C2 result bears on H-FROB-d93575's status is a SEPARATE
+    /review-evidence decision, not made by this amendment or by the
+    Executor; this amendment authorizes execution only.

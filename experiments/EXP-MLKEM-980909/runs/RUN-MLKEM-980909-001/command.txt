@@ -1,0 +1,42 @@
+# Pre-target controlled SIGTERM self-test (no BKZ), required control.
+# Output: experiments/EXP-MLKEM-980909/runs/RUN-MLKEM-980909-001/selftest_output/
+/tmp/claude-0/-home-user-crypto-autoresearcher/56f4436d-5b61-5b51-83c2-1b43c31a613e/scratchpad/mlkem-env/venv/bin/python \
+  coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/rt_ctrl_1_supervisor.py \
+  --worker coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/rt_ctrl_1_target.py \
+  --strategies coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/inputs/fplll_strategies_default.json \
+  --out experiments/EXP-MLKEM-980909/runs/RUN-MLKEM-980909-001/selftest_output \
+  --wall-clock 21600 --sample-seconds 2 --self-test-sigterm-after 8
+
+# Independent verification of the self-test receipt (must PASS before target launch).
+/tmp/claude-0/-home-user-crypto-autoresearcher/56f4436d-5b61-5b51-83c2-1b43c31a613e/scratchpad/mlkem-env/venv/bin/python \
+  coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/verify_telemetry_receipt.py \
+  --out experiments/EXP-MLKEM-980909/runs/RUN-MLKEM-980909-001/selftest_output \
+  --expect-cause controlled_sigterm
+# -> PASS: telemetry receipt, manifest, and hash chain verify
+
+# The one authorized target run (maximum_runs: 1), launched exactly once.
+# Started 2026-09-06T04:46:22Z; supervisor's own stdout/stderr captured to
+# stdout.log / stderr.log in this run directory (both empty: the supervisor
+# and worker emit no stdout/stderr under normal or hard-cap termination).
+/tmp/claude-0/-home-user-crypto-autoresearcher/56f4436d-5b61-5b51-83c2-1b43c31a613e/scratchpad/mlkem-env/venv/bin/python \
+  coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/rt_ctrl_1_supervisor.py \
+  --worker coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/rt_ctrl_1_target.py \
+  --strategies coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/inputs/fplll_strategies_default.json \
+  --out experiments/EXP-MLKEM-980909/runs/RUN-MLKEM-980909-001/output \
+  --wall-clock 21600 --sample-seconds 30
+
+# Independent verification of the target run's terminal receipt.
+/tmp/claude-0/-home-user-crypto-autoresearcher/56f4436d-5b61-5b51-83c2-1b43c31a613e/scratchpad/mlkem-env/venv/bin/python \
+  coordination/goals/GOAL-MLKEM-005/batches/BATCH-266fa2/tasks/TASK-20260831-66f15c/verify_telemetry_receipt.py \
+  --out experiments/EXP-MLKEM-980909/runs/RUN-MLKEM-980909-001/output \
+  --expect-cause hard_cap
+# -> PASS: telemetry receipt, manifest, and hash chain verify
+
+# Environment setup executed once, before the self-test, to provide the
+# pinned dependency versions (repository default interpreter, Python 3.11,
+# lacked fpylll):
+#   apt-get install -y libgmp-dev libmpfr-dev libfplll-dev python3.13-dev \
+#     python3.13-venv build-essential libtool m4 automake
+#   python3.13 -m venv /tmp/.../scratchpad/mlkem-env/venv
+#   venv/bin/pip install "numpy==2.4.0" "psutil==7.2.2" cysignals cython
+#   venv/bin/pip install "fpylll==0.6.4"

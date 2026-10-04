@@ -1,0 +1,452 @@
+schema: crypto.autoresearch.red_team_report.v1
+
+review_attestation:
+  task_id: TASK-20260913-1414af
+  role: red-team
+  independent_session: false
+  joints_owned:
+    - J6_known_false_and_invalid_controls
+    - J7_density_observable_collision_limit_honoured
+    - J8_stage_authorization_and_claim_ceiling
+  sources_read:
+    - AGENTS.md
+    - agents/red-team.md
+    - templates/research-records.md
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-e5c603/review_plan_s0_1bef8f.yaml
+    - experiments/EXP-ECDLP-1bef8f/specification.yaml
+    - ledger/hypotheses/H-ECDLP-b97b72.yaml
+    - ledger/decisions/DEC-20260913-0f8468.yaml
+    - ledger/goals/GOAL-ECDLP-001/goal.yaml
+    - ledger/handoffs/TASK-20260913-f3397c.yaml
+    - experiments/EXP-ECDLP-1bef8f/implementation/stage0_htbox.py
+    - experiments/EXP-ECDLP-1bef8f/implementation/implementation-note.md
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/manifest.yaml
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/command.txt
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/environment.json
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/stdout.log
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/stderr.log
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/raw-result.json
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/frozen-manifest.json
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/f3-verification-transcript.txt
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/homogenisation-transcript.txt
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/decomposition-counts.json
+    - experiments/EXP-ECDLP-1bef8f/runs/RUN-ECDLP-1bef8f-S0/known-false-report.yaml
+    - experiments/EXP-ECDLP-1bef8f/execution-report-s0.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-e5c603/tasks/TASK-20260913-f3397c/execution-receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/reviews/TASK-20260809-2d264c/red_team_report.yaml
+  read_sibling_reports: false
+  blind_from_respected: null
+  verdict: breaks
+  verdict_scope: >-
+    Aggregate verdict on J6-J8 only. J6 breaks; J7 and J8 hold for the actual
+    committed bytes, subject to the stated instrumentation and review-binding
+    limitations. This is not a verdict on J1-J5 or on the claim as a whole.
+
+red_team_report:
+  id: RT-20260913-1414af
+  task_id: TASK-20260913-1414af
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-e5c603
+  experiment_id: EXP-ECDLP-1bef8f
+  run_id: RUN-ECDLP-1bef8f-S0
+  role: red-team
+  recorded_at: '2026-09-13'
+  reviewed_snapshot_commit: c70baadb3bdde190b329a6ec1fa1a6cc0ec1468a
+  reviewed_snapshot_subject: >-
+    c70baadb3b run snapshot TASK-20260913-b49ef5: EXP-ECDLP-1bef8f Stage 0
+  snapshot_checks:
+    head_equals_reviewed_snapshot: true
+    working_tree_clean_before_review: true
+    execution_receipt_artifact_hashes_checked: 14
+    execution_receipt_artifact_hashes_all_match: true
+    producer_diff_touches_goal_yaml: false
+    producer_diff_touches_hypothesis_or_decision: false
+    run_directories_present:
+      - RUN-ECDLP-1bef8f-S0
+    maximum_runs_declared: 1
+    scientific_runs_observed: 1
+  claim_under_review: >-
+    Stage 0 fixture reproduction only under DEC-20260913-0f8468. The only
+    eligible reading is that the declared Stage 0 fixtures were emitted and
+    the controls were exercised. No gamma, lattice, certificate, scalar
+    recovery, coverage advantage, attack-cost result, ECDLP interpretation,
+    or later-stage authorization may be inferred.
+
+  joint_verdicts:
+    - joint: J6_known_false_and_invalid_controls
+      verdict: breaks
+      holds:
+        - >-
+          INV-1 was exercised directly: require_affine_x(None) raised
+          InvalidInputError with the declared no-affine-x message, while
+          height_of(0, 10007, 10) returned 1.
+        - >-
+          INV-2 was exercised on both sides of the boundary: H=116 was refused
+          because 3H^2=40368 exceeds 4p=40028, while H=115 was accepted.
+        - >-
+          INV-3 was exercised on (0,0) and the computed nontrivial singular
+          pair (6278,1); both were refused. The frozen pair (1,28) was accepted.
+        - >-
+          The committed artifacts themselves contain no run-derived gamma,
+          lattice output, non-none certificate, scalar, or ECDLP solve.
+      breaks:
+        - id: RT-J6-KF1-NONDISCRIMINATING
+          severity: blocking_for_J6
+          evidence: >-
+            stage0_htbox.py:989-1056 computes prod=n/c_H^m and immediately
+            multiplies it by c_H^m, so restored==n is a tautology. At line 1008
+            the formal exponent vector {"n": 1, "c_H": -m} is inserted as a
+            literal rather than derived. The routine never checks the premise
+            B^m=n needed to identify H^(2m) with n/c_H^m.
+          mutation: >-
+            Calling known_false_kf1(B=1,H=10,p=10007,n=7), where B^2 != n,
+            still returned rejected=true for every m=2..8, with every
+            restored_n equal to 7 and every reported n exponent equal to 1.
+          consequence: >-
+            The KF-1 gate can satisfy its expected answer without testing the
+            load-bearing density premise. Its nominal PASS is not evidence
+            that the pipeline discriminates KF-1.
+        - id: RT-J6-KF2-INCOMPLETE-GRID
+          severity: blocking_for_J6
+          evidence: >-
+            stage0_htbox.py:1059-1098 iterates only the entries supplied in the
+            expanded mapping, sets rejected from whether those present entries
+            are nonzero, and reports the fixed canonical omission [1,1].
+          mutation: >-
+            Removing bidegree (0,0) left eight entries; the routine still
+            returned rejected=true, candidate_omissions_tested=8, and named
+            [1,1] rather than the actually missing [0,0]. Removing [1,1]
+            raised KeyError instead of returning a control verdict.
+          consequence: >-
+            A support that genuinely has a missing bidegree can be reported as
+            refuting the missing-bidegree claim. This is a direct
+            proves-too-much failure.
+        - id: RT-J6-KF3-HARDCODED
+          severity: blocking_for_J6
+          evidence: >-
+            known_false_kf3 has signature (), accepts no claim payload, and
+            returns rejected=true unconditionally at stage0_htbox.py:1101-1141.
+            It does not inspect authorization, a shift set, lattice dimension,
+            determinant, recovered integers, relation verification, or the
+            positive control.
+          mutation: >-
+            No malformed gamma claim can be fed to this routine. Introspection
+            confirmed zero parameters and the same static rejection object.
+          consequence: >-
+            The declared failure signature requires computation rather than a
+            hard-coded expected value; KF-3 does not meet it.
+        - id: RT-J6-STATIC-TAIL-GATES
+          severity: moderate
+          evidence: >-
+            certificate_kind_none_pass and no_gamma_reported_pass are literal
+            True values at stage0_htbox.py:1419-1420. They are not derived by
+            scanning the result object or artifact set.
+          consequence: >-
+            The actual snapshot passes an independent content scan, but the
+            producer's own two tail gates would remain true after an accidental
+            leak elsewhere in the output path.
+      narrow_conclusion: >-
+        The invalid-input refusal half of J6 holds. The claim that all three
+        known-false controls were discriminating computations does not hold.
+        J6 therefore breaks without implying anything about the height box,
+        gamma, or ECDLP.
+
+    - joint: J7_density_observable_collision_limit_honoured
+      verdict: holds
+      checks:
+        - >-
+          Every committed Stage 0 producer artifact was scanned. No sentence
+          calls 2.8875 versus the 2.7628-3.1316 null range a height-box
+          advantage, random-like behavior, or evidence in either direction.
+        - >-
+          execution-report-s0.yaml:255 calls the comparison the already-known
+          observation collision and explicitly says it is not a finding, not
+          an advantage, and not evidence about the height box.
+        - >-
+          execution-report-s0.yaml:264-274 records the collision as a binding
+          limit and explicitly records decay_parameter_p_tested=false.
+        - >-
+          The independent vector check found sum(box counts)=19044=138^2 and
+          all 60 matched-null vectors also sum to 19044. Agreement of means is
+          therefore fixed by equal base size and is not reported as a finding.
+        - >-
+          The relabelled Z/nZ vector equals the elliptic indexed vector exactly,
+          and the report limits that control to the density half. It draws no
+          structural conclusion from the equality.
+      decay_parameter: p
+      expected_behavior: >-
+        The frozen protocol says a genuine separating effect must grow along
+        the p-ladder at fixed c_H, while a flat separation is an artifact. Stage
+        0 measures only p=10007 for this observable, so no trend in p can be
+        tested. The run says exactly that.
+      limitation: >-
+        The relabelled Z/nZ control is a deterministic isomorphic relabelling
+        of the same subset, hence its exact vector equality is tautological and
+        not an independent null. The matched negation-closed random x-set is the
+        actual distinct-object control. The run does not overstate the
+        relabelling, so this limitation does not break J7.
+
+    - joint: J8_stage_authorization_and_claim_ceiling
+      verdict: holds
+      checks:
+        - >-
+          raw-result.json and manifest.yaml report stage=0,
+          claim_ceiling=stage0_fixture_reproduction_only, gamma_reported=null,
+          stages 1-3 unauthorized, no lattice, no shift set, no reduction call,
+          no ECDLP solve, no scalar recovery, and certificate.kind=none.
+        - >-
+          AST inspection found only standard-library imports and no LLL, BKZ,
+          lattice, gamma, Groebner, discrete-log, or scalar-recovery call.
+          Contextual inspection of textual hits found only prohibitions and the
+          required KF-3 malformed-claim quotation.
+        - >-
+          There is one run directory and the execution report records one
+          executed run against maximum_runs=1.
+        - >-
+          The producer snapshot diff contains no edit to goal.yaml. At the
+          reviewed commit H-ECDLP-b97b72 is absent from active_hypothesis_ids
+          and current_batch_id remains BATCH-9a5be4.
+        - >-
+          No p-ladder, second density field size, planted instance,
+          shift-polynomial set, lattice dimension, determinant, rho/BSGS
+          charged total, rank computation, relation matrix, source-log
+          recovery, target descent, certificate, scalar, or ECDLP
+          interpretation appears in the run.
+        - >-
+          No fixture mismatch occurred. The report nevertheless states that a
+          mismatch would be a fixture defect and not mathematical evidence.
+      gamma_text_exception: >-
+        The string "gamma_2 >= 1" appears only as the pre-registered KF-3
+        malformed claim being refused. It is not a measured, bounded, or
+        estimated gamma. The pre-existing frozen specification also contains
+        unauthorized Stage 1 branch thresholds; those are protocol text, not
+        run output or authorization.
+      instrumentation_caveat: >-
+        J8 holds for these committed bytes because of the independent artifact
+        and source scan. The producer's hard-coded no_gamma and certificate
+        gates identified under J6 are not independently trustworthy guards for
+        a future mutation.
+
+  proves_too_much_outcomes:
+    - object: KF-1_product_of_bounds_falls_with_arity
+      outcome: breaks
+      nominal_result: rejected
+      reason: >-
+        The gate meets the expected label but survives the B=1,H=10,p=10007,n=7
+        mutation where the density premise is false. It rejects by a tautology
+        plus a literal exponent, so its refusal is non-discriminating.
+    - object: KF-2_support_with_missing_bidegree
+      outcome: breaks
+      nominal_result: rejected
+      reason: >-
+        Deleting (0,0) still produced rejected=true and reported the unrelated
+        fixed omission [1,1]; deleting [1,1] crashed. The unchanged argument
+        therefore goes through on an object for which its conclusion is false.
+    - object: KF-3_gamma_claim_without_required_witnesses
+      outcome: breaks
+      nominal_result: rejected
+      reason: >-
+        The routine has no input and returns rejected=true. The required
+        computation-not-constant failure signature is not met.
+    - object: density_observable_as_height_box_identifier
+      outcome: holds
+      nominal_result: refused
+      reason: >-
+        The same observed range occurs on the matched random base, and every
+        report layer explicitly refuses a height-box or coverage inference.
+    - object: relabelled_Z_mod_n_density_control
+      outcome: holds
+      nominal_result: refused
+      reason: >-
+        The count vector survives relabelling exactly, yet no Stage 0 artifact
+        calls that equality structural. The report correctly limits this to a
+        generic density identity and leaves the unauthorized search half alone.
+
+  objections:
+    - id: RT-OBJ-J6-CONTROLS
+      severity: blocking_for_owned_joint
+      joint: J6_known_false_and_invalid_controls
+      statement: >-
+        KF-1, KF-2, and KF-3 do not jointly constitute a discriminating
+        proves-too-much harness. Their nominal rejection labels cannot support
+        the Stage 0 subclaim that all three known-false controls were
+        computationally rejected.
+      cheapest_discriminating_control: >-
+        Add payload-driven mutation tests: reject an inconsistent KF-1 premise
+        as outside the identity instead of "proving" it; require the exact nine
+        bidegree keys and name any missing key for KF-2; and feed a malformed
+        gamma record into a validator that checks authorization, shift set,
+        dimension, determinant, recovered root, relation verification, and
+        positive-control fields for KF-3.
+    - id: RT-OBJ-REVIEW-ASSIGNMENT
+      severity: blocking_before_round_composition
+      joint: review_procedure
+      statement: >-
+        The reviewed commit contains no
+        review_plan_s0_1bef8f_assignment.yaml. The plan says pending slots are
+        bound by an additive assignment overlay, but no such committed overlay
+        binds pending_red_team to TASK-20260913-1414af.
+      scope: >-
+        Procedure only. The user-directed same-session review was executed and
+        is honestly marked independent_session=false, but the Coordinator
+        cannot present the round as satisfying its pre-recorded assignment
+        architecture until it archives the additive binding. This says nothing
+        about the science.
+
+  required_controls:
+    - id: CTRL-RT-KF1-PREMISE
+      status: required_before_J6_can_hold
+      description: >-
+        Derive the exponent identity from explicit symbolic premises and make
+        the checker refuse tuples for which B^m=n is absent. Do not install the
+        n exponent as a literal expected answer.
+    - id: CTRL-RT-KF2-FULL-GRID
+      status: required_before_J6_can_hold
+      description: >-
+        Compare set(expanded.keys()) with {(i,j):0<=i,j<=2}; on any difference,
+        return a failed control naming every missing or extra bidegree.
+    - id: CTRL-RT-KF3-PAYLOAD
+      status: required_before_J6_can_hold
+      description: >-
+        Validate an actual claim object. A Stage 0 gamma field or any missing
+        Stage 1 witness must produce a structured refusal; an empty-signature
+        function returning true is not a control.
+    - id: CTRL-RT-TAIL-SCAN
+      status: required_before_J6_can_hold
+      description: >-
+        Derive no_gamma_reported_pass and certificate_kind_none_pass from the
+        assembled result and retained artifacts, with a mutation that injects
+        a gamma or non-none certificate and forces the gate false.
+    - id: CTRL-RT-ASSIGNMENT
+      status: required_before_round_composition
+      description: >-
+        Additively archive the reviewer assignment overlay or equivalent
+        Coordinator-authored handoff allowed by the plan; do not rewrite the
+        frozen review plan or claim independent_session=true.
+
+  counterexample_or_mutation: >-
+    Cheapest demonstrated break: delete bidegree (0,0) from the mapping passed
+    to known_false_kf2. The function still returns rejected=true, says only
+    eight candidates were tested, and reports [1,1] as the supposed omission.
+    This one mutation proves the KF-2 gate can certify the expected answer on a
+    support where the missing-bidegree statement is actually true.
+
+  baseline_comparison:
+    stage0_result: not_applicable
+    pollard_rho: not_run_and_no_ratio_reported
+    bsgs: not_run_and_no_ratio_reported
+    closest_specialized_baseline: >-
+      Coppersmith/Jochemsz-May small-root computation is Stage 1 and was not
+      authorized or executed. No gamma, lattice dimension, determinant, or
+      root-recovery cost exists to compare.
+    established_advantage: 0
+    conclusion: >-
+      Stage 0 measures no attack path, so it cannot dominate Pollard rho, BSGS,
+      a preprocessing frontier, or a specialized small-root baseline on time,
+      memory, or data/query axes. The run makes no such claim.
+
+  heuristic_challenges:
+    - id: HC-RT-J7-ONE-P
+      challenge: >-
+        Stage 0 has one density field size, p=10007. It cannot validate HEUR-1,
+        HEUR-3, or any decay/growth law in p. The run explicitly records this
+        limitation, so no heuristic leakage was found.
+    - id: HC-RT-J7-MEAN
+      challenge: >-
+        Equal-size ordered-pair bases have total decomposition count B^2, hence
+        mean B^2/n. All 60 null vectors and the box vector satisfy this exactly.
+        Mean agreement must remain a conservation check, never a random-model
+        finding; the run honors that ceiling.
+
+  cost_model_challenges:
+    - id: CM-RT-STAGE0-NO-COST
+      challenge: >-
+        No relation-collection, rank, memory, source recovery, target descent,
+        scalar orientation, or comparison cost is measured. No end-to-end ECDLP
+        total can be read from this run. The artifact set does not attempt one.
+
+  reduction_and_scope_challenges:
+    - id: RS-RT-STAGE0-ONLY
+      challenge: >-
+        There is no ECDLP reduction or solve in Stage 0. The two toy fields,
+        fixture arithmetic, and density collision cannot be expanded into a
+        cryptographic-scale, coverage, lattice-feasibility, scalar-recovery, or
+        scheme-security statement.
+    - id: RS-RT-CERTIFICATE-NONE
+      challenge: >-
+        certificate.kind=none is consistent with no scalar and no relation
+        certificate. Any later certificate or ECDLP interpretation requires a
+        separately authorized and archived stage.
+
+  proof_architecture_challenges:
+    - id: PA-RT-OBSERVATION-FIBER
+      outcome: holds
+      statement: >-
+        Holding the density vector/statistics fixed while moving from the
+        labelled elliptic base to a relabelled cyclic group, and approximately
+        to a matched random base, destroys identification of the height box.
+        The run states this as a limit.
+    - id: PA-RT-PROVES-TOO-MUCH
+      outcome: breaks_on_J6
+      statement: >-
+        KF-2's argument survives a genuinely missing support entry, while KF-1
+        survives removal of its density premise and KF-3 has no input. These
+        are instrument failures, not mathematical evidence.
+    - id: PA-RT-METHOD-CEILING
+      outcome: holds_for_stage0
+      statement: >-
+        The method ceiling remains fixture reproduction only. No later-stage
+        method, obstruction, lead, or closure is asserted.
+
+  narrowest_supported_statement: >-
+    For J6-J8 only: the committed RUN-ECDLP-1bef8f-S0 bytes stay inside the
+    Stage 0 authorization, contain one run with certificate kind none and no
+    run-derived gamma/lattice/scalar/ECDLP result, and state the density
+    collision as a binding non-identification limit with no p-decay test. The
+    invalid-input refusals behave as declared. The stronger Stage 0 subclaim
+    that KF-1, KF-2, and KF-3 were rejected by a discriminating computational
+    harness is not supported, because all three known-false gates fail the
+    worked mutations above.
+
+  next_concrete_action: >-
+    Before composing this round, archive the additive reviewer assignment and
+    repair the three known-false validators plus the two static tail gates.
+    Execute the four cheapest mutations in CTRL-RT-KF1-PREMISE,
+    CTRL-RT-KF2-FULL-GRID, CTRL-RT-KF3-PAYLOAD, and CTRL-RT-TAIL-SCAN under a
+    new Coordinator-authorized correction record; do not rerun or overwrite
+    RUN-ECDLP-1bef8f-S0 and do not authorize Stage 1 on this report.
+
+  scope_limits:
+    - J1-J5 were not reviewed and receive no verdict here.
+    - >-
+      Same-session setup is explicitly non-independent. This report records
+      independent_session=false and cannot be counted as independent
+      corroboration.
+    - >-
+      No hypothesis status, experiment status, goal state, authorization, or
+      claim ceiling is changed by this report.
+    - >-
+      No conclusion above Stage 0 is made. The report says nothing about the
+      true gamma_m, lattice feasibility, coverage at larger p, or ECDLP cost.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: gpt-5.6-sol
+    resolved_model_id_source: runtime identity supplied to this task session
+    reasoning_effort: xhigh
+    independent_session: false
+    fallback_used: false
+    degraded_requirements: []
+    model_verified: false
+
+  authority_and_actions:
+    git_commit_made_by_red_team: false
+    git_push_made_by_red_team: false
+    producer_artifacts_edited: false
+    ledger_or_goal_edited: false
+    stage1_authorized: false
+    official_status_transition: false
+    handoff_created: false
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-e5c603/reviews/TASK-20260913-1414af/red_team_report.yaml

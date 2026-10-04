@@ -19,8 +19,11 @@ a suggester -- it writes no records and creates no files.
 
     python3 tools/allocate_id.py --check EXP-RT1476-001
     python3 tools/allocate_id.py --next hypothesis --area SUBRES   # random token
+    python3 tools/allocate_id.py --next run --area ECDLP           # random token
     python3 tools/allocate_id.py --next coordinator_decision --date 20260728
     python3 tools/allocate_id.py --next correction --date 20260728
+    python3 tools/allocate_id.py --next literature               # KN-LIT-<tok>
+    python3 tools/allocate_id.py --next known_result --area IC   # KR-IC-<tok>
     python3 tools/allocate_id.py --audit
 
 Ledger patterns and the shared suffix grammar are imported from
@@ -54,6 +57,7 @@ SEARCH_GLOBS = [
     os.path.join(REPO, "experiments", "*", "corrections", "*.yaml"),
     os.path.join(REPO, "experiments", "*", "corrections", "*.md"),
     os.path.join(REPO, "knowledge", "*", "*.md"),
+    os.path.join(REPO, "knowledge", "frontiers", "*", "*", "KR-*.yaml"),
     # Batch directories. Their identifier lives in the directory name; the
     # recursive collision index below sees the directory itself.
     os.path.join(REPO, "coordination", "goals", "*", "batches", "*", "*.json"),
@@ -72,6 +76,7 @@ PREFIX_TYPE = {
     "IDEA": "idea",
     "H": "hypothesis",
     "EXP": "experiment",
+    "RUN": "run",
     "EV": "evidence",
     "DEC": "coordinator_decision",
     "TASK": "handoff",
@@ -79,9 +84,35 @@ PREFIX_TYPE = {
     "CORR": "correction",
 }
 
+# Knowledge-corpus identifiers (knowledge/*/KN-*.md) and known-result rows
+# (knowledge/frontiers/*/*/KR-*.yaml). They share the one identifier space:
+# a KN-LIT minted in two worktrees collides exactly like a DEC does. Their
+# grammar is owned here, not by validate_ledger.ID_PATTERNS, which governs
+# ledger records only. Legacy 3- and 4-digit knowledge suffixes stay valid
+# forever (the files are immutable); new ones are random 6-hex tokens.
+KNOWLEDGE_PREFIX_TYPE = {
+    "KN-LIT": "literature",
+    "KN-TECH": "technique",
+    "KN-FIND": "internal_finding",
+    "KN-OPEN": "open_problem",
+    "KR": "known_result",
+}
+KNOWLEDGE_ID_PATTERNS = {
+    "literature": re.compile(r"^KN-LIT-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "technique": re.compile(r"^KN-TECH-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "internal_finding": re.compile(r"^KN-FIND-(?:\d{3,4}|[0-9a-f]{6})$"),
+    "open_problem": re.compile(r"^KN-OPEN-(?:\d{3,4}|[0-9a-f]{6})$"),
+    # KR-<AREA>-<tok>: area letters-only, token random 6-hex (no legacy form).
+    "known_result": re.compile(r"^KR-[A-Z]+-[0-9a-f]{6}$"),
+}
+# Knowledge types that are minted without an area or date segment.
+KNOWLEDGE_NO_MIDDLE = {"literature", "technique", "internal_finding",
+                       "open_problem"}
+
 # Record types whose identifier is PREFIX-SUFFIX with no date or area segment.
-NO_MIDDLE = {"batch"}
-SEQUENTIAL_FORBIDDEN = {"goal"}
+NO_MIDDLE = {"batch"} | KNOWLEDGE_NO_MIDDLE
+SEQUENTIAL_FORBIDDEN = {"goal", "run"}
+NEW_RUN_AREA = re.compile(r"^[A-Z]+$")
 
 
 # Corrections are coordination/control-plane records rather than one of the
@@ -90,6 +121,9 @@ SEQUENTIAL_FORBIDDEN = {"goal"}
 # canonical legacy-or-random suffix expression instead of copying it.
 SUPPLEMENTAL_ID_PATTERNS = {
     "correction": re.compile(rf"^CORR-\d{{8}}-{vl.SUFFIX}$"),
+    # Historical run names have a broader grammar than newly allocated IDs.
+    # Keep checks bound to the validator; constrain new allocation separately.
+    "run": vl.RUN_ID,
 }
 
 # SEARCH_GLOBS remains the curated set used by audit(): broadening that audit
@@ -111,8 +145,16 @@ PATH_SCAN_EXCLUDED_DIRS = {
 }
 PATH_SCAN_EXCLUDED_FILES = {".git", ".DS_Store"}
 PATH_ID_PREFIX = re.compile(
-    rf"^(?:{'|'.join(map(re.escape, PREFIX_TYPE))})-"
+    rf"^(?:{'|'.join(map(re.escape, [*PREFIX_TYPE, *KNOWLEDGE_PREFIX_TYPE]))})-"
 )
+
+
+def _knowledge_type(rec_id: str) -> str | None:
+    """The knowledge/known-result type an identifier claims, if any."""
+    for prefix, rec_type in KNOWLEDGE_PREFIX_TYPE.items():
+        if rec_id.startswith(prefix + "-"):
+            return rec_type
+    return None
 
 
 def _paths() -> list[str]:
@@ -184,6 +226,13 @@ def _record_identifier(path: str) -> str:
 
 def well_formed(rec_id: str) -> tuple[bool, str]:
     """Check an identifier against the build gate's own pattern."""
+    kn_type = _knowledge_type(rec_id)
+    if kn_type is not None:
+        pattern = KNOWLEDGE_ID_PATTERNS[kn_type]
+        if pattern.match(rec_id):
+            return True, f"matches {kn_type} pattern {pattern.pattern}"
+        return False, (f"does NOT match {kn_type} pattern {pattern.pattern} "
+                       "-- new knowledge ids take a random 6-hex token")
     prefix = rec_id.split("-", 1)[0]
     rec_type = PREFIX_TYPE.get(prefix)
     if rec_type is None:
@@ -255,7 +304,13 @@ def random_token(rng: random.Random | random.SystemRandom,
 
 def token_id(rec_type: str, middle: str, *, seed: int | None = None) -> int:
     """Mint a random-token identifier and verify it against the build gate."""
-    prefix = next((p for p, t in PREFIX_TYPE.items() if t == rec_type), None)
+    if rec_type == "run" and not NEW_RUN_AREA.fullmatch(middle or ""):
+        print("REFUSE: new run allocation requires a letters-only uppercase "
+              "area code (A-Z)", file=sys.stderr)
+        return 1
+    prefix = next((p for p, t in [*PREFIX_TYPE.items(),
+                                  *KNOWLEDGE_PREFIX_TYPE.items()]
+                   if t == rec_type), None)
     if prefix is None:
         print(f"REFUSE: no prefix is registered for {rec_type}", file=sys.stderr)
         return 1
@@ -289,6 +344,10 @@ def next_free(rec_type: str, middle: str) -> int:
     computes it from the same committed state and gets the same answer. Never
     use it to mint a record that will be merged; use token_id instead.
     """
+    if rec_type == "run":
+        print("REFUSE: sequential RUN allocation is prohibited; new runs "
+              "must use the default random 6-hex token", file=sys.stderr)
+        return 1
     prefix = next(p for p, t in PREFIX_TYPE.items() if t == rec_type)
     candidate = f"{prefix}-{middle}-001"
     ok, why = well_formed(candidate)
@@ -341,10 +400,6 @@ def audit() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
-    area_occurrences = sum(
-        argument == "--area" or argument.startswith("--area=")
-        for argument in raw_argv
-    )
     ap = argparse.ArgumentParser(
         prog="python3 tools/allocate_id.py",
         description="Check an identifier is well-formed AND free across the "
@@ -352,11 +407,14 @@ def main(argv: list[str] | None = None) -> int:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", metavar="ID",
                    help="check one identifier for form and freedom")
-    g.add_argument("--next", metavar="TYPE", choices=sorted(set(PREFIX_TYPE.values())),
+    g.add_argument("--next", metavar="TYPE",
+                   choices=sorted(set(PREFIX_TYPE.values())
+                                  | set(KNOWLEDGE_PREFIX_TYPE.values())),
                    help="suggest the next free id of this record type")
     g.add_argument("--audit", action="store_true",
                    help="report every malformed or doubly-occupied identifier")
-    ap.add_argument("--area", help="area code for --next (letters only)")
+    ap.add_argument("--area", action="append",
+                    help="area code for --next (letters only)")
     ap.add_argument("--date", help="YYYYMMDD for --next on dated record types")
     ap.add_argument("--sequential", action="store_true",
                     help="legacy 3-digit suffix as max+1. COLLIDES ACROSS "
@@ -365,11 +423,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=None,
                     help="seed the random allocator (tests and reproduction only)")
     args = ap.parse_args(raw_argv)
+    area_occurrences = len(args.area or [])
+    # Preserve the existing last-value behavior for other record types while
+    # counting every parsed occurrence, including argparse abbreviations.
+    args.area = args.area[-1] if args.area else None
 
     if args.check:
         return check(args.check)
     if args.audit:
         return audit()
+    if args.next == "run" and (area_occurrences != 1
+                               or not NEW_RUN_AREA.fullmatch(args.area or "")
+                               or args.date is not None):
+        ap.error("run allocation requires exactly one letters-only uppercase "
+                 "--area (A-Z) and does not accept --date")
     if args.next == "goal" and (area_occurrences != 1
                                 or not args.area or args.date):
         ap.error("goal allocation requires exactly one --area occurrence "
@@ -377,12 +444,22 @@ def main(argv: list[str] | None = None) -> int:
                  "--date")
     middle = args.area or args.date
     if not middle and args.next not in NO_MIDDLE:
-        ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV) or --date "
+        ap.error("--next requires --area (for GOAL/RQ/H/EXP/EV/RUN) or --date "
                  "(for IDEA/DEC/TASK/CORR); batch takes neither")
+    if args.next in KNOWLEDGE_PREFIX_TYPE.values() and args.sequential:
+        ap.error("knowledge and known-result ids are random tokens only; "
+                 "--sequential is refused")
+    if args.next == "known_result" and (area_occurrences != 1
+                                        or not re.fullmatch(r"[A-Z]+", args.area or "")
+                                        or args.date):
+        ap.error("known_result allocation requires exactly one letters-only "
+                 "uppercase --area (e.g. RHO, IC) and does not accept --date")
     if args.sequential:
         if args.next in SEQUENTIAL_FORBIDDEN:
-            print("REFUSE: sequential GOAL allocation is prohibited; new goals "
-                  "must use the default random 6-hex token", file=sys.stderr)
+            prefix = "RUN" if args.next == "run" else "GOAL"
+            print(f"REFUSE: sequential {prefix} allocation is prohibited; new "
+                  f"{args.next}s must use the default random 6-hex token",
+                  file=sys.stderr)
             return 1
         return next_free(args.next, middle)
     return token_id(args.next, middle, seed=args.seed)

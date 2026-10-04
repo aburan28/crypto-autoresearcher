@@ -342,6 +342,10 @@ class RunnerTests(unittest.TestCase):
             manifest = read_json(run_dir / "manifest.json")["run"]
             self.assertEqual(manifest["status"], "completed_valid")
             self.assertEqual(manifest["result"]["metrics"], {"answer": 42})
+            self.assertEqual(
+                manifest["result"]["certificate"],
+                {"kind": "none", "verified": None, "verifier": None},
+            )
             self.assertIn("raw-result.json", manifest["artifacts"])
             self.assertNotIn("protocol", manifest)
             self.assertFalse(any(run_dir.rglob("._*")))

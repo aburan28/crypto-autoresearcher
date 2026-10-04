@@ -1,0 +1,167 @@
+validation_report:
+  id: VAL-20260909-63ab7d
+  task_id: TASK-20260909-63ab7d
+  review_scope: >-
+    Source-only validation of the v3 immutable comparison-row binding. No
+    corpus record, comparison-row file, fixture, implementation, command
+    execution, or scientific run was inspected or created.
+  source_snapshot:
+    commit: bd30fc9d8b04c9e0fe80a77be4e2617f4cc0cf7c
+    packet_checks:
+      - path: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v3-comparison-binding.yaml
+        expected_sha256: 29cb78c1a293ea4c3d2844e038df2f74073cb17e350cc6c51f8903defdbebcf8
+        observed_sha256: 29cb78c1a293ea4c3d2844e038df2f74073cb17e350cc6c51f8903defdbebcf8
+        result: holds
+  joint:
+    id: comparison_row_referential_integrity_v3
+    verdict: breaks
+    conclusion: >-
+      The v3 predicate rejects the no-row, mismatched-row, duplicate-row, and
+      malformed-content controls at the definition level. Its declared valid
+      row control does not hold: comparison_row_sha256 is itself an exact
+      required field, while the packet defines it as the SHA-256 of the full
+      canonical row bytes. The packet defines neither a hash-preimage
+      projection that omits that field nor another non-self-referential
+      encoding. A row that contains its own required digest therefore requires
+      a SHA-256 fixed point to verify; the intended ordinary valid row cannot
+      be constructed or checked under this definition.
+  run_ids: []
+  artifact_checks:
+    - check: comparison_row_id_derivation
+      result: holds
+      evidence: >-
+        The row identity names the complete statement identity tuple and
+        canonical ordered cited-artifact identities. A row whose source commit,
+        record path/blob, statement path/boundary, cited identities, or
+        comparator version differs cannot satisfy the exact identity predicate.
+    - check: full_row_hash_verification_rule
+      result: breaks
+      evidence: >-
+        comparison_row_schema.exact_required_fields requires
+        comparison_row_sha256, and row_identity defines that same field as the
+        SHA-256 of full canonical row bytes. No rule removes the digest field
+        from those bytes, supplies a separate preimage object, or fixes a
+        replacement sentinel. Consequently the verification equation hashes a
+        serialization containing the digest it is meant to equal.
+  metric_recomputations: []
+  control_checks:
+    - control: no_row
+      mutation: >-
+        Assert favorable non-L3 linkage without any immutable comparison row
+        matching the selected statement identity.
+      expected: comparison_evidence_bound false and non-duplication gate failure
+      result: holds
+      exact_route: >-
+        derived_predicate.false_if includes no_matching_row. The replacement
+        gate requires comparison_evidence_bound true, so no producer Boolean
+        can establish mechanical distinction.
+    - control: mismatched_row
+      mutation: >-
+        Supply one row whose statement identity tuple differs in source commit,
+        record path/blob, statement path/boundary, cited artifact identities,
+        or comparator version.
+      expected: comparison_evidence_bound false and non-duplication gate failure
+      result: holds
+      exact_route: >-
+        The true predicate requires equality on every named identity component,
+        and false_if names statement_identity_mismatch,
+        artifact_identity_mismatch, and comparator_version_mismatch.
+    - control: duplicate_rows
+      mutation: >-
+        Supply two immutable rows that each match the selected statement
+        identity and otherwise satisfy the content requirements.
+      expected: comparison_evidence_bound false and non-duplication gate failure
+      result: holds
+      exact_route: >-
+        The true predicate requires exactly one matching row and false_if
+        expressly includes duplicate_matching_rows. Either duplicate leaves
+        the derived predicate false.
+    - control: malformed_row
+      mutation: >-
+        Supply a purported matching row with an altered byte digest, a missing
+        normalized vector field, or a field_relations sequence that lacks or
+        duplicates a relation in the fixed v2 order.
+      expected: comparison_evidence_bound false and non-duplication gate failure
+      result: holds
+      exact_route: >-
+        The full-row hash must verify, conclusion_vector and coverage_vector
+        must carry all ten v2 fields, and field_relations must carry exactly
+        one relation for each field. A malformed vector or relation is named
+        in false_if; a changed digest cannot pass verification.
+    - control: valid_matching_row
+      mutation: >-
+        Supply exactly one otherwise well-formed immutable row with the same
+        identity tuple, complete vectors and relations, and a verifying
+        comparison_row_sha256.
+      expected: comparison_evidence_bound true only
+      result: breaks
+      exact_route: >-
+        The required digest is part of the full row whose SHA-256 it must equal.
+        The packet gives no canonical preimage that excludes the digest field,
+        so the required verifying value is self-referential rather than a
+        deterministic checksum of independently fixed row content. The stated
+        positive control is therefore not a realizable or reproducibly
+        verifiable normal row under the frozen v3 wording.
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks:
+    - check: proves_too_much_non_l3_boolean_without_row
+      result: holds
+      evidence: >-
+        A non-L3 linkage with an asserted favorable Boolean but no matching row
+        takes the no_matching_row route, so comparison_evidence_bound and the
+        gate both fail. This source rule neither compares a live record nor
+        establishes non-duplication.
+  verdict: failed
+  limitations:
+    - >-
+      This was a source-definition review. It did not inspect a live corpus,
+      scope-comparisons.jsonl row, selected statement, artifact identity, or
+      comparator implementation.
+    - >-
+      No implementation, fixture, command execution, measurement, scientific
+      evidence, or conclusion was produced.
+    - >-
+      The report tests only the assigned referential-integrity joint and makes
+      no whole-claim verdict.
+  required_repair: >-
+    In a new additive draft repair, define a canonical, versioned hash-preimage
+    projection that excludes comparison_row_sha256 (or define an equivalent
+    explicit non-self-referential digest envelope), state the exact canonical
+    serialization for that projection, and bind comparison_row_id and the
+    digest verification to it. Re-run a fresh independent source review of the
+    valid-row control and the existing rejection controls afterward.
+  authority_effect: >-
+    The assigned v3 source-definition joint breaks. This report authorizes no
+    corpus work, canonical proposed record, implementation, execution,
+    measurement admission, hypothesis promotion, or scientific conclusion.
+  artifact_paths:
+    - coordination/design/BATCH-261772/reviews/TASK-20260909-63ab7d/review.yaml
+
+review_attestation:
+  task_id: TASK-20260909-63ab7d
+  role: validator
+  joints_owned:
+    - comparison_row_referential_integrity_v3
+  verdict: breaks
+  independent_session: true
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+  read_sibling_reports: false
+  no_sibling_report_was_read: true
+  blind_rederivation_required: false
+  blind_from_respected: true
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - ledger/handoffs/TASK-20260909-63ab7d.yaml
+    - coordination/design/BATCH-261772/scope-audit-v3-review-plan-TASK-20260909-63ab7d.yaml
+    - bd30fc9d8b04c9e0fe80a77be4e2617f4cc0cf7c:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v2-repair.yaml
+    - bd30fc9d8b04c9e0fe80a77be4e2617f4cc0cf7c:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v3-comparison-binding.yaml
+    - bd30fc9d8b04c9e0fe80a77be4e2617f4cc0cf7c:coordination/design/BATCH-261772/reviews/TASK-20260909-57daac/review.yaml
+    - bd30fc9d8b04c9e0fe80a77be4e2617f4cc0cf7c:ledger/decisions/DEC-20260909-1afc43.yaml
+  procedure_deviations: []
+  execution_or_scientific_claim_made: false

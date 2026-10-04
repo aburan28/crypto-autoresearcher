@@ -1,0 +1,166 @@
+coordinator_decision:
+  id: DEC-20260908-ffb734
+  recorded_at: '2026-09-08'
+  context: >-
+    Independent implementation review of EXP-CRYPTO-9225d2's zero-run
+    GOE-ruler-successor preparation (TASK-20260907-ecd3a2, snapshot
+    TASK-20260907-3928a8, commit cfe0739f72f4d173315a9ae348885646f62a2357).
+    Independent validator TASK-20260908-30ce59 (review-adversarial, xhigh,
+    fresh session) reviewed specification coverage, the disclosed
+    checker/predictor authorship gap, admission-guard completeness, and
+    formula correctness against the frozen specification, using static
+    analysis and symbolic/textual comparison only -- no producer function
+    was ever executed. This decision is administrative and implementation-
+    scoped: it authorizes no scientific run, and EXP-CRYPTO-9225d2's own
+    scientific_execution_authorized: false gate is entirely undischarged by
+    anything here.
+  decision: revise
+  decision_note: >-
+    "revise" because the independent review found the preparation's
+    structural scope, disclosure discipline, and most field-arithmetic
+    formulas genuinely correct on direct code reading, but confirmed two
+    real correctness defects that would have silently corrupted any future
+    scientific run, plus two disclosed-but-incomplete implementation gaps
+    the executor's own report did not name. Neither involves fabrication or
+    unauthorized execution -- the defects were confirmed by symbolic
+    comparison against the frozen specification text, not by running the
+    code -- so this is a code-correctness finding requiring a follow-up
+    executor task, not a FAILED verdict on the delivery's honesty.
+  target_ids:
+    - EXP-CRYPTO-9225d2
+    - TASK-20260907-ecd3a2
+    - TASK-20260907-3928a8
+    - TASK-20260908-30ce59
+  rationale:
+    - >-
+      INDEPENDENT REVIEWER VERDICT: REVISE. Snapshot binding independently
+      re-verified: commit cfe0739f72f4d173315a9ae348885646f62a2357 confirmed
+      an ancestor of HEAD with the declared parent, and all ten
+      path_sha256 entries in the Coordinator snapshot recomputed byte-for-
+      byte from `git show <commit>:<path>` and matched exactly.
+    - >-
+      STRUCTURAL SCOPE CONFIRMED EXACT: the 40-logical-job accounting
+      (10 arithmetic + 30 rho, asserted in-module), the three-process rho
+      schedule with round-refusal on missing/repeated/out-of-order rounds,
+      and the nine-row conditional-256-bit-resource model (cartesian
+      product of workers x DP bits, ordered m then d) all independently
+      traced against the frozen specification and confirmed exact.
+    - >-
+      THE DISCLOSED AUTHORSHIP GAP (the check this task treated as most
+      important) is independently confirmed accurate, prominent in three
+      separate files (independent_checker.py's docstring, implementation-
+      manifest.yaml, preparation-report.yaml, each explicitly stating
+      genuinely_independent_author: false), and never contradicted or
+      implied-away anywhere in the delivery. Structural separation is also
+      confirmed: independent_checker.py and count_predictor.py import
+      nothing from arithmetic.py and implement a genuinely different
+      algorithm (affine slope-form vs. Jacobian/EFD).
+    - >-
+      DEFECT 1 (arithmetic.py point_add, lines 302-311): the Y3 computation
+      reuses (C-B) for both multiplication terms; the frozen specification's
+      common_z_formula (lines 156-160) requires (B-X3) for the first term.
+      M/S operation counts are unaffected -- the defect would not be visible
+      in the GOE-ruler count metrics themselves -- but the output
+      Y-coordinate is mathematically wrong for every generic (non-doubling,
+      non-identity) point addition, affecting essentially every nonzero-bit
+      ADD step of scalar_multiply and 2 of 3 branches of every rho
+      transition. Confirmed by symbolic/textual formula comparison, never
+      by executing the code.
+    - >-
+      DEFECT 2 (rho.py EndpointTable.insert_if_absent, lines 181-209),
+      confirmed severe: the "already resident" return branch is unreachable
+      dead code, since the preceding while-loop only exits once it reaches
+      an empty slot. The table can therefore never report a repeated
+      endpoint -- exactly the mechanism the entire Pollard-rho distinguished-
+      point method depends on to recover a discrete logarithm. No walk was
+      executed under this zero-run task, so this defect has not produced any
+      false result yet, but it is reachable on the very first repeated
+      key_hash and must be fixed before any rho job is authorized.
+    - >-
+      TWO FURTHER PARTIAL-IMPLEMENTATION GAPS were independently found,
+      neither previously disclosed in the executor's own gap notes: (a) the
+      "planted" scalar routine exists only as a correct low-level primitive
+      (planted_mul, planted_expected_factor) with no complete scalar-
+      multiplication composition threading it into point_add/point_double,
+      unlike the 'reference' and 'null' routines which both exist as
+      complete callables; (b) driver.py's check_cgroup_admission reads
+      cpu.max but never validates it against either required value, and
+      accepts pids_max at or below 3 rather than requiring exactly 3.
+    - >-
+      NO INVENTED PROVENANCE, NO UNAUTHORIZED EXECUTION: implementation-
+      manifest.yaml claims no future commit or measured run; every guard
+      function that would realize a fixture, certificate, process, or run
+      was independently confirmed to unconditionally raise, with no call
+      site anywhere in the delivery outside each function's own
+      `if __name__ == "__main__"` guard. No experiments/EXP-CRYPTO-9225d2/
+      runs/ directory exists.
+  evidence_refs:
+    - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/runtime-session-receipt.json
+    - coordination/design/BATCH-bb548b/archives/TASK-20260907-3928a8/snapshot.json
+    - ledger/handoffs/TASK-20260907-ecd3a2.yaml
+  limitations:
+    - >-
+      This decision does not authorize, approve, or perform any scientific
+      run of EXP-CRYPTO-9225d2. The specification's own admission
+      requirements (physical-host binding, source hash verification,
+      genuinely independent checker/predictor review, a genuine launch lock)
+      remain entirely undischarged, independent of this implementation-
+      review outcome.
+    - >-
+      The two DEFECT-level findings (C6, C11) were confirmed by symbolic
+      comparison against the frozen specification text under this review's
+      no-execution constraint, not by running the code and observing a
+      wrong numeric output. A future execution-authorized task running the
+      current (unfixed) code would be expected to surface both defects
+      immediately via the spec's own required output-correctness and
+      independent-checker cross-checks; this review neither performed nor
+      could perform that confirming run.
+    - No hypothesis or claim-tier status is touched by this decision.
+  next_actions:
+    - >-
+      OPEN A FOLLOW-UP EXECUTOR TASK (new TASK-<tok> via tools/allocate_id.py,
+      within a new batch or an extension of BATCH-bb548b) that fixes, with
+      zero scientific execution (same maximum_runs=0 constraint as
+      TASK-20260907-ecd3a2): (a) arithmetic.py's point_add line 310 to use
+      `B.sub(X3, counters)` (B-X3) as the first product's second operand
+      rather than reusing C.sub(B, counters) for both products, matching
+      specification.arithmetic.addition.common_z_formula's literal
+      "Y3=M(j,B-X3)-M(V1,C-B)"; (b) rho.py's EndpointTable.insert_if_absent
+      to compare the occupant's stored endpoint (TableSlot.x/y) against the
+      candidate endpoint at each probed index, returning (False,
+      existing_slot) on a true match and continuing to probe only on an
+      actual mismatch; (c) either implement a complete
+      scalar_multiply_planted (or equivalent) composition threading
+      planted_mul into every M call site of a full 256-bit scalar
+      multiplication, or explicitly amend the artifact_contract/
+      preparation-report.yaml gap note naming this as an outstanding
+      completeness item; (d) extend check_cgroup_admission to validate
+      cpu.max against the two spec-required values (selected by an added
+      job-type/process-count parameter) and require pids_max == 3 exactly.
+      The follow-up task must be independently reviewed again before this
+      implementation is considered complete.
+    - >-
+      Do not proceed to any scientific launch handoff for EXP-CRYPTO-9225d2
+      until all four findings are closed and re-reviewed, and the
+      specification's own admission requirements (physical-host binding,
+      genuinely independent checker/predictor authorship, a genuine launch
+      lock) are separately and explicitly discharged.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Implementation-review administrative decision only; no scientific
+      finding to promote. The review method itself (catching two silent,
+      execution-corrupting defects through pure static/symbolic comparison
+      before any run) is process discipline working as intended, not a
+      research result about ECDLP or the GOE-ruler instrument.
+  decided_by: coordinator
+  decided_at: '2026-09-08'
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    resolved_model_id: claude-sonnet-5
+    resolved_model_id_note: Genuine self-report from this session's own runtime system context.
+    fallback_used: false
+    degraded_allowed: false
+    amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.

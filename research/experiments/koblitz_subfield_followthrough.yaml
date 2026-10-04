@@ -1,0 +1,108 @@
+suite: koblitz-subfield-followthrough
+status: proposed
+created_at: '2026-09-24'
+claim_boundary:
+  attack_claim: false
+  speedup_claim: false
+  beats_rho_claim: false
+  asymptotic_claim: false
+baseline_dependencies:
+  - research/experiments/orbit_aware_decomposition_experiments.yaml
+  - research/experiments/frobenius_next_wave_experiments.yaml
+  - research/experiments/index_calculus_pipeline_search.yaml
+north_star: seconds_per_newly_independent_verified_relation
+rho_baseline: best_applicable_automorphism_accelerated_pollard_rho
+threads:
+  orbit_direct:
+    idea: 1
+    depends_on: [EXP-FROB-GAUGE-001, EXP-FROB-ROTATE-001, EXP-IC-FROBJOINT-001]
+    next: implement_exact_representative_relative_shift_encoder
+  frobenius_solver:
+    idea: 2
+    depends_on: [EXP-FROB-GBORDER-002, EXP-FROB-CHARMAC-002]
+    next: implement_solver_order_and_macaulay_telemetry
+  orbit_factor_base_search:
+    idea: 3
+    depends_on: [EXP-IC-FBFORM-001, EXP-FROB-STABSTRATA-002]
+    next: search_stable_subspace_and_affine_seed_families
+  trace_zero_intersection:
+    idea: 4
+    experiment:
+      title: Trace-zero/Frobenius factor-base intersection
+      arms: [matched_random_orbit_base, frobenius_stable_subspace, trace_zero_intersection]
+      metrics: [decomposition_probability, solver_seconds, seconds_per_independent_relation, effective_factor_base_columns]
+      kill_if: [coverage_gain_reversed_by_solver_cost, rank_quality_regresses]
+  representation_search:
+    idea: 5
+    depends_on: [EXP-SDEG-BASISSURR-001, EXP-SDEG-ACTIVEBASIS-001]
+    next: extend_representation_adapters_and_holdout
+  hybrid_sat_grobner:
+    idea: 6
+    experiment:
+      title: Orbit decision SAT plus algebraic residual solve
+      arms: [pure_grobner, pure_sat_xor, sat_orbit_then_grobner_residual]
+      metrics: [total_seconds, solver_seconds, residual_variables, peak_memory_bytes, seconds_per_independent_relation]
+      promote_if: net_relation_cost_reduction_ge_20pct_on_two_largest_cells
+  large_orbit_relations:
+    idea: 7
+    experiment:
+      title: One/two-large-orbit partial relation graph
+      arms: [full_smooth_only, one_large_orbit, two_large_orbit]
+      metrics: [partial_relation_rate, graph_edges, recombination_yield, graph_bytes, total_relation_seconds, independent_relations]
+      invariant: every_recombined_relation_verified_on_original_curve
+  tau_pipeline:
+    idea: 8
+    experiment:
+      title: Tau-adic candidate generation bias
+      arms: [uniform_integer_scalars, matched_hamming_integer_scalars, sparse_tau_naf_scalars]
+      metrics: [candidate_generation_ns, decomposition_probability, calibrated_lift, seconds_per_independent_relation]
+      controls: [fresh_targets, matched_candidate_count, no_hidden_scalar_features]
+  endomorphism_group:
+    idea: 9
+    experiment:
+      title: Generic Gamma-orbit relation interface
+      fixtures: [frobenius_koblitz, glv_or_gls_when_available]
+      metrics: [orbit_size, effective_columns, relation_verification_rate, adapter_overhead]
+      goal: establish_common_correct_interface_not_speedup
+  partial_weil_descent:
+    idea: 10
+    experiment:
+      title: Intermediate-subfield descent sweep
+      arms: [no_descent, full_descent, every_available_intermediate_subfield]
+      metrics: [variables, equations, anf_monomials, solving_degree, solver_seconds, factor_base_size, decomposition_probability, seconds_per_independent_relation]
+      promote_if: interior_choice_beats_both_endpoint_controls_on_holdout
+  decomposition_likelihood:
+    idea: 11
+    experiment:
+      title: Calibrated decomposition-likelihood ranking
+      arms: [uniform_order, hand_heuristic, calibrated_logistic, tree_model_if_available]
+      metrics: [brier, log_loss, calibration_error, solver_calls_avoided, false_negatives, net_seconds_per_independent_relation]
+      split: curve_and_time_held_out
+      hard_rejection_gate: zero_false_negatives_on_frozen_validation
+  invariant_telemetry:
+    idea: 12
+    experiment:
+      title: Algebraic-system invariant predictor
+      features: [hilbert_series_prefix, macaulay_rank_profile, solving_degree, degree_of_regularity, monomial_support, syzygy_counts_when_available, orbit_stabilizers, solver_trajectory]
+      metrics: [held_out_rank_correlation_with_solver_seconds, incremental_predictive_value, feature_cost_fraction]
+      promote_if: predictive_gain_survives_curve_holdout_and_feature_cost_le_10pct
+
+required_common_metrics:
+  - raw_factor_base_points
+  - effective_factor_base_columns
+  - orbit_column_reduction
+  - decomposition_probability
+  - verified_relation_count
+  - independent_relation_count
+  - seconds_per_independent_relation
+  - relation_matrix_rank_deficit
+  - setup_seconds
+  - encoding_seconds
+  - solver_seconds
+  - verification_seconds
+  - peak_memory_bytes
+
+followthrough:
+  states: [idea, specified, implemented, tiny_verified, benchmarked, held_out, e2e, reviewed, promoted, retired]
+  stale_after_days: 7
+  rule: prefer_advancing_stale_specified_threads_over_generating_nearby_new_variants

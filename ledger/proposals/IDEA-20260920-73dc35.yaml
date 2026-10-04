@@ -1,0 +1,131 @@
+idea:
+  id: IDEA-20260920-73dc35
+  question_id: RQ-GFPN-c01af8
+  added: '2026-09-20'
+  status: proposed
+  approved_by: null
+  title: Oracle-assisted static Diffie-Hellman cost on E/F_{p^5} at p = 2^64 (Joux-Vitse SDHP)
+  class: cost-model
+  claim: >-
+    Neither design note discusses static Diffie-Hellman. Joux-Vitse's oracle-
+    assisted SDHP on E(F_{q^5}) needs ~|F| ~ p oracle queries (one per factor-base
+    point) and then ONE decomposition of the target into n-1 = 4 factor-base
+    points, with no relation collection and no linear algebra. At p = 2^64 that is
+    ~2^64 queries and ~p * 4! * (per-PDP cost on the 4-variable S_5 system) ~
+    2^68.6 * (2^15..2^24) ~ 2^84..2^93 work. Both dimensions are far below the
+    advertised 128 bits. The proposal fixes the constants by measurement at toy p
+    and reports the SDHP number per curve as a separate line from full ECDLP.
+  mechanism: >-
+    Query the static-DH oracle on every factor-base point P_i to obtain [x]P_i.
+    Write the target Q as a sum of 4 factor-base points using S_5 after Weil
+    restriction (4 equations, 4 unknowns, degree 8 per variable, ideal degree
+    <= 8^4 = 2^12, /24 after S_4 symmetrization, /16 more with the 2-torsion
+    on EcGFp5). Then [x]Q is the sum of the oracle answers. The decomposition
+    probability is ~1/(p * 4!), so ~p * 24 PDP attempts; everything else is
+    free. Cheon-type (AUXIN) attacks are the comparison ruler, not a component.
+  novelty_status: unverified
+  origin:
+    kind: user_supplied_idea
+    date: '2026-09-20'
+    scope: Companion to IDEA-20260920-a639a1; same curves, different problem.
+    overlap_review: >-
+      RQ-AUXIN-f8d8c0 owns auxiliary-input (Cheon) DLP at deployed parameters;
+      this is a different oracle model (static DH, Brown-Gallant / Joux-Vitse) and
+      is filed under the GFPN question. Three existing proposals mention SDHP
+      (IDEA-20260807-0fafe8, -20260817-1e0111, -20260906-74c257); none targets
+      F_{p^5} or these curves -- coordinator to confirm.
+  citations:
+    - ref: https://eprint.iacr.org/2010/157
+      provenance: recalled
+      claim: >-
+        Joux-Vitse: oracle-assisted SDHP on E(F_{p^5}) at 130 bits, faster than
+        birthday methods on the same curve; (n-1)-point decomposition; F4 variant.
+    - ref: https://eprint.iacr.org/2022/274.pdf
+      provenance: recalled
+      claim: The EcGFp5 design note's security section covers Gaudry and the Joux-Vitse full-DLP variant only.
+  citation_note: Recalled; freeze ePrint 2010/157 and read its SDHP section before quoting any query count.
+  assumptions:
+    - The oracle model is stated as an input (queries on chosen points, answers [x]P); no protocol is claimed to expose it.
+    - Factor base is the Gaudry one, |F| ~ p/2 up to negation; queries counted per representative.
+    - Per-PDP cost on the 4-variable system is measured, not estimated, at toy p; D-flatness along p is checked as in a639a1.
+    - Both curves are costed; EcMasFp5 has no 2-torsion arm.
+  proof_search_map:
+    bottleneck: The 4-point decomposition success rate and per-PDP cost at n = 5, which set the work term.
+    baseline_embedding:
+      parameter_slice: Joux-Vitse's own 130-bit example (p ~ 2^26) reproduced first.
+      reproduction_check: Match their per-decomposition timing order of magnitude and query count.
+    observation_collision:
+      observable: queries, PDP attempts to first success, F_p operations per PDP, total work at p = 2^64.
+      distinct_preimage_search: Random curves of both torsion types.
+    constructive_transforms:
+      - transform: oracle_substitution_for_linear_algebra
+        proposed_object: Factor-base logs obtained by queries instead of relations + LA
+        predicted_gain: Removes the p^{2-2/5} LA term entirely; work becomes p * 4! * PDP
+    quantifier_order: There exists a preregistered toy-p ladder on which the (n-1)-decomposition rate and cost are measured on fresh targets.
+    method_ceiling:
+      strongest_certifiable_claim: A (queries, work) pair at p = 2^64 per curve under HEUR-GFPN-DFLAT.
+      nearby_object_control: Cheon's attack at the same parameters as the ruler; random curves.
+    proof_obligations:
+      - claim: The decomposition lifts to 4 verified factor-base points summing to Q.
+        responsibility: correctness
+      - claim: Query count equals the factor-base representative count actually used.
+        responsibility: cost-model
+      - claim: The oracle model is declared, not smuggled into a protocol claim.
+        responsibility: scope
+  predictions:
+    - metric: oracle_queries_bits
+      direction: lower
+      minimum_effect: Between 62 and 65 bits for both curves.
+    - metric: work_bits_at_p_2_64
+      direction: lower
+      minimum_effect: Below 100 bits for both curves.
+  minimal_test:
+    design: >-
+      Reproduce Joux-Vitse at p ~ 2^26, n = 5 with a simulated oracle (known
+      scalar); then the a639a1 ladder with the 4-variable system; report
+      (queries, attempts, F_p ops) per cell and the p = 2^64 projection.
+    controls:
+      - Simulated oracle answers are verified against the known scalar.
+      - Random-curve arms.
+      - Degenerate symmetrization reproduces the raw 4-variable arm.
+    required_metrics:
+      - factor_base_representatives
+      - pdp_attempts_to_success
+      - fp_operations_per_pdp
+      - D_per_arm
+      - projected_queries_bits
+      - projected_work_bits
+  falsification_conditions:
+    - Measured 4-point decomposition rate is below 1/(p * 4!) by more than 4x, pushing work above 2^100.
+    - D on the 4-variable system depends on p' (extrapolation void).
+  confounders:
+    - Counting queries per point instead of per negation class.
+    - Toy factor-base saturation.
+  interpretation_limits:
+    - Proposal only; no run exists.
+    - A low SDHP cost is a statement about an oracle model, not about any deployed protocol.
+  heuristic_assumptions:
+    - HEUR-GFPN-DFLAT as in a639a1.
+  heuristic_note: The query term needs no heuristic; only the work term is measured.
+  target_complexity:
+    time_exponent: Work ~ p^{1+o(1)} in the oracle model; not a full-DLP exponent.
+    memory_exponent: ~p for the oracle answers.
+    best_known: No published SDHP number for these curves located.
+    hidden_overhead: Symmetrized S_5 construction; orbit lifting.
+    tradeoff_note: Trades 2^64 adaptive queries for ~2^85-2^93 work; the query term is the binding constraint in practice.
+  estimated_cost:
+    implementation: low
+    compute: low
+    qualification: Mostly a reproduction plus arithmetic; the a639a1 ladder supplies the constants.
+  dominated_by: unchecked
+  sota_delta:
+    time: Unmeasured.
+    memory: Unmeasured.
+    data_queries: ~2^64 oracle queries (to be confirmed).
+  frontier_check:
+    status: pending
+    note: Check whether any post-2022 note on EcGFp5 or Miden discusses static-key usage.
+  recommended_priority: high
+  priority_rationale: Cheapest reportable number in the lane; the design notes are silent on it.
+  first_deliverable: Joux-Vitse 130-bit SDHP reproduction with a simulated oracle and a per-curve (queries, work) table.
+  next_gate: Coordinator confirmation that no existing SDHP proposal covers F_{p^5}, then a contract.

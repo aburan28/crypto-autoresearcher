@@ -1,0 +1,235 @@
+experiment:
+  id: EXP-SEMBIN-c2c312
+  hypothesis_id: H-SEMBIN-112e2e
+  version: 1
+  title: >-
+    Instrument Semaev's d_F4 and GOAL-DREG-001's Macaulay-rank D on byte-identical
+    chained-S_3 Boolean instances, and state the map between them
+  status: approved
+  objective: >-
+    Settle whether the degree quantity GOAL-DREG-001 has been measuring on Semaev's
+    Boolean system since 2026-07 is the quantity Assumption 1 bounds. Until that map
+    exists, that campaign's reported work at Macaulay degrees 5 and 6 (EV-DREG-008)
+    can be read either as a counterexample to Assumption 1 or as measuring something
+    else entirely, and this program has no basis for choosing. Every other SEMBIN
+    measurement is downstream: a boundary result under EXP-SEMBIN-7e1371 cannot be
+    compared against the paper's own cells without it.
+    The experiment generates each chained-S_3 Boolean system ONCE, hashes it, and
+    hands the identical bytes to both instruments, so that any difference in reported
+    degree is a difference between the instruments and not between two regenerations
+    of "the same" system. It reports the full per-degree profile -- pair counts per F4
+    step, rank increment per Macaulay degree -- rather than only the two maxima,
+    because the maxima are the lossy projection whose fibres created the ambiguity.
+  inputs:
+    curve: >-
+      E/F_{2^n}: Y^2 + XY = X^3 + A X^2 + B, so
+      S_3(x_1,x_2,x_3) = (x_1x_2 + x_1x_3 + x_2x_3)^2 + x_1x_2x_3 + B; the form of
+      KN-LIT-fa346d Tables 1-2
+    system: >-
+      chained S_3 system of eq. (5) Weil-descended over F_2: n(t-1) equations in
+      n(t-2) + kt variables of algebraic degree 3
+    frozen_source: inputs/SEMAEV-2015-310/ (sha256 sidecars in that directory)
+    reproduction_cells:
+      - {n: 13, m: 4, t: 4, k: 4, paper_reported_d_F4: 4, paper_table: 1}
+      - {n: 17, m: 3, t: 3, k: 6, paper_reported_d_F4: 4, paper_table: 1}
+    separation_cells:
+      - {n: 15, m: 5, t: 3, k: 3}
+      - {n: 19, m: 3, t: 3, k: 7}
+      - {n: 21, m: 3, t: 3, k: 7}
+      - {n: 12, m: 6, t: 6, k: 2}
+    off_diagonal_cells:
+      - {n: 17, m: 3, t: 3, k: 7}
+      - {n: 17, m: 3, t: 3, k: 8}
+    subspace_variants: [low_degree_polynomial, random_k_dimensional]
+    curve_coefficient: [B_equals_1, B_random]
+    field_equation_convention: [explicit_generators, engine_implicit]
+    draws_per_cell: 20
+    seeds: [20260913001, 20260913002, 20260913003, 20260913004, 20260913005]
+  controls:
+    - kind: baseline
+      design: >-
+        The two reproduction cells, where the paper reports d_F4 = 4. BOTH instruments
+        must return 4. This is the control that gives any later disagreement meaning:
+        without it a disagreement is equally explicable as an engine difference, and
+        the paper's engine was MAGMA F4 on hardware nobody here has.
+    - kind: matched_null
+      design: >-
+        A random dense Boolean system of matched shape -- same variable count, same
+        equation count, same degree profile -- whose first fall degree is not 4 by
+        construction. Both statistics should rise on it, and rise together. If the
+        separation D - d_F4 is the SAME on the structured and the null system, the
+        separation is a property of the two conventions and carries no information
+        about the chained construction.
+    - kind: known_false
+      design: >-
+        A system with a planted linear dependency that forces a degree-2 solution,
+        where both instruments must return 2. An instrument that reports 4 on it is
+        reporting the Macaulay construction's shape rather than the system's degree.
+    - kind: invalid_input
+      design: >-
+        A system generated at t = 1 (no chain) and a system with k = 0 (empty
+        subspace). Both must be rejected by the generator rather than silently
+        producing a degenerate degree.
+    - kind: instrument_identity
+      design: >-
+        The same instance handed twice to the same instrument must return identical
+        per-degree profiles. Any variation means the instrument is nondeterministic
+        and the comparison is void until it is pinned.
+    - kind: byte_identity
+      design: >-
+        sha256 of the generated system recorded before each instrument runs, and both
+        instruments' recorded input hashes compared. A mismatch invalidates that cell.
+  independent_variables:
+    - instrument (Semaev-style F4 trace; Macaulay rank)
+    - n
+    - m
+    - t
+    - k
+    - subspace variant
+    - curve coefficient B
+    - field-equation convention
+    - random draw of the target point R
+  metrics:
+    primary:
+      - d_F4_semaev_definition
+      - D_macaulay_rank_statistic
+      - separation_D_minus_d_F4
+      - per_degree_pair_count_profile
+      - per_degree_rank_increment_profile
+    secondary:
+      - wall_clock_seconds_per_instrument
+      - peak_resident_gb_per_instrument
+      - macaulay_matrix_rows
+      - macaulay_matrix_columns
+      - f4_step_count
+      - f4_empty_step_degrees
+      - system_sha256
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: >-
+      The ordering and separation of the two degree statistics on identical instances.
+    formula: >-
+      d_F4 <= D on every instance, with D - d_F4 >= 1 on at least one instance in the
+      declared set, and D - d_F4 constant across the 20 draws within each cell and
+      across B = 1 versus random B (HEUR-001). Predicted mechanism of the separation:
+      the excluded tail, i.e. degrees at which the Macaulay block still gains rank are
+      degrees at which F4 reports "No pairs to reduce" and Semaev excludes them.
+    source: >-
+      Semaev's own definition of d_F4 and his exclusion of the degree-5/6/7 empty
+      steps, Section 4.4 and end of Section 4.5.1 of
+      inputs/SEMAEV-2015-310/paper_fulltext.md; direction of the inequality derived in
+      H-SEMBIN-112e2e mechanism from the fact that every degree at which F4 does real
+      reduction is a degree at which the Macaulay block must gain rank.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n <= 21 with one off-diagonal extension, chosen so both instruments complete
+      inside 8 GB. This is exactly the region the paper's own Tables 1-2 cover, which
+      is what makes the reproduction control available; it is 20-fold below the
+      n = 409, 571 the paper's conclusion needs. NO transfer to cryptographic n is
+      claimed or implied by this experiment, and the map is asserted only on the
+      finitely many instances measured.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report the LARGEST separation observed and the instance that produced it, not
+      only the mean separation. A map derived from an average would hide the cell where
+      the two statistics diverge most, which is the cell that matters for reading
+      GOAL-DREG-001's degree-5/6 data.
+    - >-
+      Report every instance where the two statistics AGREE but the per-degree profiles
+      differ. Numerical agreement for different reasons is the dangerous case: it makes
+      the map look like the identity on the reproduction cells and lets a definitional
+      gap survive the control.
+    - >-
+      Report the degrees at which F4 reported no pairs, per instance, against the
+      degrees at which the Macaulay block gained rank. The predicted mechanism says
+      these coincide; a mismatch means the separation has another cause.
+  replication:
+    seeds: [20260913001, 20260913002, 20260913003, 20260913004, 20260913005]
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: null
+    maximum_memory_gb: 8
+    maximum_runs: 480
+    maximum_workers: 1
+  stopping_rules:
+    - >-
+      Stop and report a procedure defect if either instrument fails to return 4 at
+      either reproduction cell. Under AGENTS.md rule 5 this is never evidence about
+      Assumption 1; it is a calibration failure that invalidates every later cell.
+    - >-
+      Stop a cell at its wall-clock or 8 GB cap and record it as unreached with its
+      measured matrix dimensions and peak memory. The dimensions are themselves the
+      useful datum. GOAL-DREG-001's n = 15 attempt already died at 11.73 GiB in the
+      prepare phase, so unreached cells are expected and are not failures.
+    - >-
+      Stop if the instrument-identity control shows nondeterminism, and pin the
+      instrument before continuing.
+    - >-
+      Do not add cells beyond the declared set to chase a separation. The cell set is
+      frozen by this contract; extending it is a successor experiment.
+  invalidation_rules:
+    - >-
+      Any cell where the two instruments' recorded input sha256 differ is invalid: they
+      did not receive the same system.
+    - >-
+      The whole run is invalid if the known-false planted-dependency control returns
+      anything other than 2 from either instrument.
+    - >-
+      The whole run is invalid if the matched-null separation equals the structured
+      separation, since the measurement would then be of the conventions and not of the
+      construction. This is reported as a null result about the instruments, not as a
+      finding about Semaev.
+    - >-
+      A cell is invalid if the generated system does not have n(t-1) equations in
+      n(t-2) + kt variables of degree 3, checked structurally before either instrument
+      runs.
+  success_criterion: >-
+    Both instruments return 4 at both reproduction cells; every measured instance
+    satisfies d_F4 <= D; the matched-null separation differs from the structured
+    separation; and a stated map from the reported statistic to Semaev's d_F4 is
+    written down, with its per-degree profiles, over the instances actually measured.
+    A map that says "the two are equal in this regime" satisfies the criterion just as
+    well as one that says they differ -- what is required is that the question stops
+    being open, together with the explicit statement of whether GOAL-DREG-001's
+    degree-5/6 measurements bear on Assumption 1.
+  falsification_criterion: >-
+    Any instance with d_F4 > D refutes the stated direction of the map. D - d_F4 = 0
+    on every measured instance including the off-diagonal cells refutes the hypothesis
+    in the direction that matters most: the two statistics would then be the same
+    quantity here, and GOAL-DREG-001's degree-5/6 measurements WOULD be in tension
+    with Assumption 1. D - d_F4 varying with the draw of R or with B refutes HEUR-001
+    and means no single map exists.
+  required_artifacts:
+    - the generated Boolean system per instance, with its sha256, retained verbatim
+    - per-instrument per-degree profile (pair counts per F4 step; rank increment per Macaulay degree)
+    - both reported degree statistics per instance
+    - the exact command, git commit and dirty-tree state
+    - engine name and version, and the field-equation convention used
+    - peak resident memory and wall clock per instrument per instance
+    - stdout and stderr, retained including for failed and unreached cells
+    - the four control outcomes (baseline, matched null, known false, invalid input)
+    - the instrument-identity and byte-identity check results
+    - a machine-readable results table keyed by (n, m, t, k, subspace, B, convention, seed)
+    - the stated map, with the instances it is claimed over named explicitly
+  assigned_to: executor
+  approved_by: DEC-20260913-ebd639
+  approval_basis: >-
+    Standing user authorization of 2026-09-06 (AGENTS.md "Standing user authorization
+    for ideas and experiments"). Approval asserts the protocol is complete, not that
+    H-SEMBIN-112e2e is true.
+  dependencies: []
+  blocks:
+    - EXP-SEMBIN-7e1371
+  interpretation_limits:
+    - >-
+      This experiment establishes COMMENSURABILITY, never validity. It cannot support
+      or refute Assumption 1, and a result here must never be reported as bearing on
+      whether Semaev's algorithm works.
+    - >-
+      Nothing here bears on Assumption 2 (d_F4 = o(sqrt(n/ln n))).
+    - >-
+      No claim about the security of any deployed curve, in either direction.

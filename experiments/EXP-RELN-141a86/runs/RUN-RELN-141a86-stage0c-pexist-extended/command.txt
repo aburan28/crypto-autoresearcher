@@ -1,0 +1,50 @@
+Launch command (detached, durable background process), run from
+/home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/source:
+
+cd /home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/source && \
+RUNDIR=/home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended && \
+setsid nohup python3 run_stage0c_pexist_extended_monitor.py \
+  > "$RUNDIR/stdout.log" 2> "$RUNDIR/stderr.log" < /dev/null &
+disown
+
+Launched at: 2026-09-07T18:57:26Z (UTC)
+Monitor PID: 10969 (own session leader, SID 10969, PGID 10969 -- confirmed
+             detached from the launching shell via `ps -o pid,ppid,pgid,sid`)
+Worker PID at launch: 10971 (child of 10969)
+
+The monitor script (run_stage0c_pexist_extended_monitor.py) itself invokes,
+as a subprocess, the actual enumeration worker:
+
+/usr/local/bin/python3 target_enumerate_worker_checkpoint.py \
+  --pack enum_xclass_signed_m2 \
+  --max-complexity 10 \
+  --target-expr "sub(CONST[1],div(binomial(sub(n,B),B),binomial(n,B)))" \
+  --target-id INV-7_p_exist \
+  --out /home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/worker-result-INV-7_p_exist.json \
+  --checkpoint /home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/checkpoint-INV-7_p_exist.json \
+  --mem-soft-cap-gb 10.0 \
+  --wall-clock-soft-cap-s 71400.0 \
+  --resume-from-checkpoint /home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-minimality/checkpoint-INV-7_p_exist.json
+
+max-complexity 10 = canonical_complexity(11) - 1: a single invocation covers
+BOTH level 9 and level 10 (levels are built sequentially 1..10; the run does
+not stop after level 9 unless a cap is hit first).
+
+External caps enforced by the monitor (run_stage0c_pexist_extended_monitor.py):
+  - MONITOR_HARD_WALL_CLOCK_S = 72000.0 (20h, per handoff TASK-20260907-8e0165)
+  - MONITOR_HARD_KILL_GB = 12.5 (reduced from the handoff's advisory 16 GB
+    because this host has only ~14 GiB actually available; see
+    execution-report.md)
+  - POLL_INTERVAL_S = 5.0 (RSS sampled from /proc/<pid>/status every 5s,
+    written to memory-timeseries-INV-7_p_exist.json incrementally every 30s
+    while running, and on exit)
+
+Internal worker soft caps (checked only between fully completed levels,
+per the validated design from RUN-RELN-141a86-stage0c-minimality):
+  - mem_soft_cap: 10.0 GB
+  - wall_clock_soft_cap: 71400.0 s
+
+Recomputation of this exact launch (from a fresh shell, same repo state):
+same command block above, run from the same source directory, with PYTHONPATH
+unset (the worker does `sys.path.insert(0, ".")` and is invoked with
+cwd=SOURCE_DIR by the monitor's subprocess.Popen call).

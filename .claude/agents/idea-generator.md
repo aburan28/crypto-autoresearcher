@@ -102,7 +102,11 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   `novelty_status` is `unverified`.
 - **Novelty discipline is mandatory.** Before labeling anything novel, grep
   the knowledge corpus (`knowledge/`) and the hypothesis ledger
-  (`ledger/hypotheses/`) for prior art and duplicates. Classify honestly:
+  (`ledger/hypotheses/`) for prior art and duplicates. For ECDLP, read the
+  known-results map in `knowledge/frontiers/ecdlp/` FIRST (or the rendering in
+  your handoff) and record a `prior_art` block on every idea — rows checked,
+  nearest prior work, relation, delta (`templates/research-records.md`,
+  "Prior art on ideas"; required from IDEA-20261001-* on). Classify honestly:
   `known | adaptation | speculative | unverified`. If you did not check
   literature (corpus + web), write `novelty_status: unverified`. Never claim
   novelty from memory alone.

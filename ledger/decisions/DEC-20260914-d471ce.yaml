@@ -1,0 +1,361 @@
+coordinator_decision:
+  id: DEC-20260914-d471ce
+  context: >-
+    Follow-up to DEC-20260914-bb1dbe's NA-5. That decision accepted an alternate,
+    non-pinned-image Sage 10.9 runtime's provenance for EXP-FROB-d8aa37 stage0,
+    but set its successor lock's scientific_launch_authorized to false because
+    this coordinator's own cross-check of raw probe logs found two items
+    genuinely open: (1) no aggregate memory protection established for this
+    runtime class, and (2) the Sage-bundled Python interpreter's own resolved
+    path/sha256 reported but not corroborated in any raw log then available. It
+    dispatched a zero-scientific-run follow-up, TASK-20260914-c85f6a, to close
+    both. That task has now executed, and its report and raw logs are committed.
+    This decision is the "further Coordinator decision" NA-5 named.
+
+  decision: amend
+  target_ids:
+    - EXP-FROB-d8aa37
+    - RUN-FROB-2404fa
+    - TASK-20260909-ece919
+    - TASK-20260914-c85f6a
+    - BATCH-2f8435
+    - RQ-FROB-7d8dd4
+    - H-FROB-73df22
+
+  the_decision_stated_plainly: >-
+    SATISFIED. This coordinator independently re-read runtime-provision-followup-report-20260914-c85f6a.json
+    and both raw log pairs it produced (memory-probe.{stdout,stderr}.log,
+    sage-python-probe.{stdout,stderr}.log) -- not only the follow-up task's own
+    self-assessment -- and finds both open items genuinely closed, each with a
+    specific measured value present in a retained raw log itself, not only in
+    prose. Per DEC-20260914-bb1dbe's own NA-5 option (a): a second successor
+    runtime lock is authored below with scientific_launch_authorized: true,
+    using only values already measured and committed in the follow-up report,
+    its two raw logs, and fields carried forward unedited from the first
+    successor lock. This decision authorizes the RUNTIME/ADMISSION layer only.
+    It does NOT itself release TASK-20260909-ece919 -- that is the separate
+    question DEC-20260914-04d16a below answers.
+
+  rationale:
+    - >-
+      OPEN ITEM 1 (aggregate memory), independently checked against the raw log.
+      memory-probe.stdout.log shows a step-by-step probe: the cgroup v1 ROOT
+      mount (/sys/fs/cgroup/memory/memory.limit_in_bytes) reports an effectively
+      unbounded 9223372036854771712 bytes and is explicitly NOT treated as the
+      governing value; this process's OWN cgroup subpath was instead resolved
+      from /proc/self/cgroup
+      (memory:/process_api/01a09fcb-f297-741c-8542-95aeaccca014/claude-code-bash)
+      and its memory.limit_in_bytes read as exactly 14327676928 bytes (~13.344
+      GiB). Critically, a CHILD PROCESS launched via the exact
+      ['sage','-python','<script>'] argv_prefix -- the same prefix the frozen
+      trial plan uses to launch driver.py/checker.py -- independently read its
+      own /proc/self/cgroup and reported the SAME subpath and the SAME
+      14327676928-byte limit (sage_python_child_cgroup_check block). This is not
+      an assertion; it is a real, OS-enforced, per-process-group ceiling
+      confirmed to actually govern a process launched the way the scientific
+      trial will be launched. Cgroup v2 was confirmed absent again
+      (FileNotFoundError on both /sys/fs/cgroup/memory.max and
+      /sys/fs/cgroup/cpu.max), consistent with the first probe's finding rather
+      than contradicting it. This genuinely discharges
+      dependencies.json.runtime_lock_requirements item 1's
+      aggregate-memory-protections component.
+    - >-
+      OPEN ITEM 2 (Sage-bundled Python identity), independently checked against
+      the raw log. sage-python-probe.stdout.log's child_stdout, from a process
+      launched via the exact 'sage -python' argv_prefix, reports
+      sys_executable "/opt/conda-sage/envs/sage/bin/python3",
+      sys_executable_realpath "/opt/conda-sage/envs/sage/bin/python3.14",
+      sys_executable_sha256
+      "322ba66687841187e40b7fdaa29335a74d4254583e92b4f6ec908895399d5003". These
+      values are byte-identical to what
+      runtime-provision-report-20260914-861bb9.json originally claimed and what
+      DEC-20260914-bb1dbe found uncorroborated by any raw log then retained.
+      They now appear in the raw log itself, captured by an actual command this
+      coordinator can point to directly rather than trust as prose. This
+      genuinely discharges the Sage-bundled-Python-identity component of
+      dependencies.json.runtime_lock_requirements item 2.
+    - >-
+      NO NEW GAP FOUND ON INDEPENDENT SCRUTINY. This coordinator checked, and
+      explicitly rejects as non-blocking: (a) whether the measured aggregate
+      ceiling (13.344 GiB) is somehow too permissive -- it is strictly ABOVE
+      the frozen per-process RLIMIT_AS (8 GiB), so with maximum_workers 1 a
+      single scientific worker cannot exceed the aggregate ceiling on its own;
+      the two guards are complementary layers, both now measured; (b) whether
+      the cgroup subpath's session-specific UUID limits generality -- it does,
+      and this is disclosed as a scope_caveat in the successor lock rather than
+      treated as a blocker, on the same reasoning DEC-20260914-bb1dbe applied to
+      the categorical Docker-daemon block: requiring proof across every future
+      container instantiation would be an unscoped, indefinite wait, not a
+      scoped one; (c) whether source/spec/plan hashes needed re-verification --
+      TASK-20260914-c85f6a's own write_scope and constraints forbade touching
+      any source file, so source-check was correctly not re-run, and the
+      adapter's own strict current-hash check at actual launch time remains the
+      operative gate regardless, unaffected by this lock.
+    - >-
+      WHY A SECOND SUCCESSOR ARTIFACT, NOT AN EDIT, for the same reason
+      DEC-20260914-bb1dbe gave for the first: the superseded and the first
+      successor lock are immutable admission artifacts whose declared sha256
+      values are pinned elsewhere (run-binding-successor-20260914-861bb9.json's
+      runtime_lock_sha256, filled by the dispatching session). Editing either
+      would silently invalidate that pin. The second successor is additive,
+      preserves both predecessors unedited, and carries forward every field
+      from the first successor lock that remains valid and unchanged
+      (runtime_provenance_amendment, probe, guard_probe, source_check,
+      process_policy, custody, image_identity_boundary), updating only what the
+      follow-up task's raw logs actually changed.
+    - >-
+      DIRECTION CHECK, unchanged from DEC-20260914-bb1dbe and DEC-20260914-37e0d9.
+      Stage0 is the correctness gate for H-FROB-73df22's two arms, not itself
+      exponent-moving. No scientific claim of any kind is advanced by this
+      admission decision. FROB is a declared ECC area
+      (orchestration/research-priority.yaml line 79), ranked ahead of non-ECC
+      candidates at every selection point, with unlimited batch/wall-clock
+      budget per AGENTS.md "ECC comes first".
+
+  evidence_refs:
+    - ledger/decisions/DEC-20260914-bb1dbe.yaml
+    - ledger/decisions/DEC-20260914-37e0d9.yaml
+    - ledger/decisions/DEC-20260909-bf5b48.yaml
+    - ledger/handoffs/TASK-20260914-c85f6a.yaml
+    - coordination/frobenius/BATCH-2f8435/admission/runtime-provision-followup-report-20260914-c85f6a.json
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/memory-probe.stdout.log
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/memory-probe.stderr.log
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/sage-python-probe.stdout.log
+    - coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/sage-python-probe.stderr.log
+    - coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json
+    - coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-861bb9.json
+    - coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-c85f6a.json
+    - coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-c85f6a.json
+    - experiments/EXP-FROB-d8aa37/specification-stage0-v2.yaml
+    - experiments/EXP-FROB-d8aa37/stage0/dependencies.json
+    - orchestration/research-priority.yaml
+
+  verification:
+    attribution_note: >-
+      HONEST ATTRIBUTION, per AGENTS.md core rule 9. This coordinator subagent
+      holds no shell. It did not recompute any sha256, run any tool, or probe
+      any runtime. Every item below is marked read_by_coordinator (this agent
+      opened the file and read the stated field/value) or reported_by_session
+      (the report states it; this agent recorded it as a report).
+    read_by_coordinator:
+      - >-
+        coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/memory-probe.stdout.log
+        verbatim, in full: all seven probe steps including
+        cgroup_v1_root_memory_limit_in_bytes (9223372036854771712),
+        proc_self_cgroup (subpath
+        /process_api/01a09fcb-f297-741c-8542-95aeaccca014/claude-code-bash),
+        cgroup_v1_own_memory_limit_in_bytes (14327676928),
+        cgroup_v1_own_memory_usage_in_bytes (328232960),
+        cgroup_v2_memory_max and cgroup_v2_cpu_max (both FileNotFoundError),
+        proc_meminfo_total (16461028 kB), and the
+        sage_python_child_cgroup_check block confirming the same subpath and
+        limit from a child launched via ['sage','-python',<script>], exit_code
+        0.
+      - >-
+        coordination/frobenius/BATCH-2f8435/admission/probes-20260914-c85f6a/sage-python-probe.stdout.log
+        verbatim, in full: argv_prefix "sage -python", exit_code 0, child_stdout
+        JSON with sys_executable "/opt/conda-sage/envs/sage/bin/python3",
+        sys_executable_realpath "/opt/conda-sage/envs/sage/bin/python3.14",
+        sys_executable_sha256
+        "322ba66687841187e40b7fdaa29335a74d4254583e92b4f6ec908895399d5003",
+        sys_version "3.14.7 | packaged by conda-forge | (main, Sep 2 2026,
+        21:08:32) [GCC 15.3.0]".
+      - >-
+        Both probes-20260914-c85f6a/*.stderr.log files are empty (this coordinator
+        read them directly and their contents were empty), consistent with
+        files_written's declared sha256
+        e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 for both
+        (the sha256 of the empty string) reported in the follow-up report.
+      - >-
+        runtime-provision-followup-report-20260914-c85f6a.json in full: outcome
+        both_open_items_closed; sets_scientific_launch_authorized false (this
+        task's own output correctly sets no such field, leaving it to this
+        Coordinator decision); the open_item_1_aggregate_memory and
+        open_item_2_sage_bundled_python blocks, and their exact byte-for-byte
+        match to the raw logs above; the files_written sha256 list;
+        constraints_observed block confirming zero scientific runs, no
+        existing file touched, TASK-20260909-ece919 untouched.
+      - >-
+        ledger/handoffs/TASK-20260914-c85f6a.yaml in full, including its exact
+        AGGREGATE MEMORY and SAGE-BUNDLED PYTHON constraint text (steps to try
+        in order) and its six-item completion_gate (G1-G6), against which this
+        coordinator checked the report and raw logs above and found G1-G6 all
+        met.
+      - >-
+        experiments/EXP-FROB-d8aa37/specification-stage0-v2.yaml lines 173-193:
+        runtime_requirements block, unchanged since DEC-20260914-bb1dbe read it,
+        confirming memory_mb 8192 and the two required_guards texts this
+        decision checks closure against.
+      - >-
+        experiments/EXP-FROB-d8aa37/stage0/dependencies.json in full:
+        runtime_lock_requirements items 1-4 verbatim, required_runtime block,
+        confirming which items this decision's closures discharge.
+      - >-
+        coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-861bb9.json
+        and run-binding-successor-20260914-861bb9.json in full, for the fields
+        carried forward unedited into the second successor lock/binding and for
+        the runtime_lock_sha256 (31c8ac12ec79c9d80a9814dc098170fa65b33ea2503229a169dfc526da0564b1)
+        this decision cites as the first successor lock's own committed hash.
+      - >-
+        orchestration/research-priority.yaml line 79: "- FROB      # Frobenius
+        exploitation in subfield-curve index calculus", confirming FROB's ECC-area
+        status this decision's direction-check rationale relies on.
+    reported_by_session:
+      - >-
+        That the scratchpad child scripts (memory_probe_child.py,
+        sage_python_child.py) that produced these raw logs were not themselves
+        retained under TASK-20260914-c85f6a's write_scope is stated by the
+        report's files_written list (which names only the four log files); this
+        coordinator did not independently inspect any such script's source, the
+        same limitation DEC-20260914-bb1dbe accepted for the prior probe scripts.
+      - >-
+        That TASK-20260914-c85f6a's session is the same class of runtime
+        (claude_code_remote, conda-forge Sage install) as TASK-20260914-861bb9's
+        is stated by both reports' executor_runtime_provenance blocks; this
+        coordinator has no independent means to confirm session identity beyond
+        reading those declarations.
+
+  successor_lock_authored:
+    path: coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-c85f6a.json
+    scientific_launch_authorized: true
+    authored_by: >-
+      coordinator, using only values already measured and committed in
+      runtime-provision-followup-report-20260914-c85f6a.json and its two raw
+      stdout logs, plus fields carried forward unedited and explicitly marked
+      as such from linux-runtime-lock-successor-20260914-861bb9.json; no field
+      re-derived, estimated, or invented.
+    what_changed_from_the_first_successor_lock: >-
+      aggregate_memory_guard flips from unestablished to closed (measured
+      14327676928-byte cgroup v1 ceiling, cross-checked via the exact
+      'sage -python' argv_prefix); python_bundled_with_sage flips from
+      not-independently-corroborated to corroborated (raw log byte-identical
+      match); scientific_launch_authorized flips from false to true;
+      runtime_lock_requirements_discharge items 1 and 2 flip from
+      false/partial to true. Everything else (runtime_provenance_amendment,
+      probe, guard_probe, source_check, process_policy, custody,
+      image_identity_boundary) is carried forward unedited.
+    scope_caveat_disclosed: >-
+      The measured aggregate-memory ceiling is specific to the container/session
+      instance measured under TASK-20260914-c85f6a; no cross-instantiation
+      guarantee is asserted (successor lock's aggregate_memory_guard.scope_caveat
+      and limitations block).
+
+  successor_run_binding_authored:
+    path: coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-c85f6a.json
+    runtime_lock_sha256: PENDING
+    runtime_lock_sha256_status: >-
+      PENDING. This coordinator has no shell and cannot compute the sha256 of
+      the second successor lock file it just wrote. The dispatching session
+      must compute it and fill this field before this binding is treated as
+      complete/archived -- an open item, not a placeholder, per
+      CORR-20260802-a1f151's lesson.
+    does_not_authorize_launch: true
+    does_not_authorize_launch_reason: >-
+      The runtime/admission layer is now authorized, but this binding still
+      does not release TASK-20260909-ece919: admission and launch-approval are
+      kept deliberately distinct. See DEC-20260914-04d16a below for the
+      separate launch-admission decision, and its next_actions for what
+      remains (a fresh published claim, among other launch_conditions).
+
+  impediment_update:
+    prior_record: >-
+      IMP-1 of DEC-20260914-37e0d9, narrowed by DEC-20260914-bb1dbe to two
+      sub-conditions (aggregate memory; Python identity).
+    condition_cleared: >-
+      Both narrowed sub-conditions are now closed on the evidence above. IMP-1
+      clears for the runtime/admission layer. DEC-20260914-bb1dbe's own
+      clears_when text required, in addition, "a further successor lock sets
+      scientific_launch_authorized true, AND a fresh claim is published, AND a
+      separate Coordinator launch-admission decision is taken" -- the first two
+      of those three remain outstanding after this record (this decision
+      supplies the successor lock; the fresh claim is dispatching-session work;
+      the separate launch-admission decision is DEC-20260914-04d16a below,
+      taken in the same engagement but as an independent record).
+    recheck: >-
+      Not applicable; this record closes the recheck DEC-20260914-bb1dbe asked
+      for. Any FUTURE impediment on this lane is a new condition, not a
+      reopening of this one.
+    asserts_nothing_about: >-
+      The science. Whether Frobenius structure moves the index-calculus
+      exponent on subfield curves is untouched by any part of this record, in
+      either direction (AGENTS.md core rule 5, CLAUDE.md rule 3).
+
+  what_this_decision_does_not_do:
+    - >-
+      DOES NOT release TASK-20260909-ece919 by itself. That is the separate
+      launch-admission decision, DEC-20260914-04d16a, recorded independently
+      below/alongside this one.
+    - >-
+      DOES NOT edit specification-stage0-v2.yaml, dependencies.json, the trial
+      plan, or either prior lock/binding. All remain immutable and unedited.
+    - >-
+      DOES NOT move H-FROB-73df22 (stays `proposed`), any experiment status
+      (EXP-FROB-d8aa37 stays `approved`, execution_authorized true, zero runs),
+      or any goal status. Creates no GOAL-* record.
+    - >-
+      DOES NOT assert the measured aggregate-memory ceiling generalizes beyond
+      the specific container/session instance measured; see scope_caveat above.
+
+  review_disposition:
+    review_required: false
+    review_plan: null
+    rationale: >-
+      Zero scientific runs exist, no quantity in H-FROB-73df22's predictions is
+      measured, and no hypothesis/experiment/goal status moves. The successor
+      artifacts' correctness is mechanically checkable against the frozen
+      hashes and against the raw logs, as this record's own verification block
+      demonstrates by example. Independent review of the SCIENCE remains
+      untouched: TASK-20260909-ece919 keeps review_required true.
+
+  limitations:
+    - >-
+      Scope: admission/provisioning only, for the single stage0 trial of
+      EXP-FROB-d8aa37 at q=8, n=3 over F_(2^9). No scientific claim of any kind
+      is made or advanced; zero runs exist.
+    - >-
+      This coordinator ran no command, computed no hash, and probed no runtime;
+      it read the cited files and raw logs directly and reasoned from them.
+    - >-
+      The aggregate-memory ceiling's generality across container instantiations
+      is not established or claimed; see the successor lock's scope_caveat.
+    - >-
+      One field in the successor run-binding (runtime_lock_sha256) is left
+      explicitly PENDING because this coordinator cannot compute a sha256
+      without a shell.
+    - >-
+      No refutation artifact is required or claimed; this decision makes no
+      adverse transition on any claim. Nothing is weakened, rejected, or
+      scoped-out.
+
+  next_actions:
+    - >-
+      NA-1 (dispatching session): compute the sha256 of
+      coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-c85f6a.json
+      as written and fill run-binding-successor-20260914-c85f6a.json's
+      runtime_lock_sha256 field before archiving either file.
+    - >-
+      NA-2 (dispatching session): merge origin/main into the working branch
+      first (merge, never rebase), then one isolated snapshot/ledger commit
+      staging exactly: ledger/decisions/DEC-20260914-d471ce.yaml,
+      coordination/frobenius/BATCH-2f8435/admission/linux-runtime-lock-successor-20260914-c85f6a.json,
+      coordination/frobenius/BATCH-2f8435/admission/run-binding-successor-20260914-c85f6a.json.
+      Push and open or refresh a PR against main naming all three records. None
+      is durable until the post-commit verifier accepts the commit.
+    - >-
+      NA-3 (coordinator/dispatching session together): see DEC-20260914-04d16a
+      for the separate launch-admission decision and its own next_actions,
+      which cover claim mechanics for TASK-20260909-ece919.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT AN EVIDENCE-REVIEW DECISION AND NO DURABLE SCIENTIFIC CLAIM RESULTS.
+      There is no EV-* record in scope, zero scientific runs exist for
+      EXP-FROB-d8aa37, and the subject matter is runtime admission machinery.
+      Per AGENTS.md core rule 5's prohibition on promoting an
+      infrastructure/process finding as a mathematical one, this is captured
+      only in this record's own fields (and TASK-20260914-c85f6a's completion
+      gate), not as a KN-FIND.
+
+  decided_by: coordinator
+  decided_at: '2026-09-14'

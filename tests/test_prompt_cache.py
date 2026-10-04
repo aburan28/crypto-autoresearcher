@@ -16,9 +16,9 @@ def test_cache_key_is_stable_across_mapping_order():
     right = adapter.Tool("x", "d", {"properties": {
         "a": {"type": "string"}, "b": {"type": "integer"}}, "type": "object"})
     assert adapter.prompt_cache_key(
-        namespace="executor:tree-1", model="m", system="stable", tools=[left]) == \
+        namespace="executor:prefix-v1", model="m", system="stable", tools=[left]) == \
         adapter.prompt_cache_key(
-            namespace="executor:tree-1", model="m", system="stable", tools=[right])
+            namespace="executor:prefix-v1", model="m", system="stable", tools=[right])
 
 
 def test_anthropic_cache_marks_stable_system_and_last_tool():
@@ -38,7 +38,7 @@ def test_anthropic_cache_marks_stable_system_and_last_tool():
 
 
 def test_openai_cache_key_excludes_volatile_messages():
-    policy = adapter.PromptCachePolicy(namespace="review:tree-abc")
+    policy = adapter.PromptCachePolicy(namespace="review:prefix-v1")
     common = dict(wire="openai_chat", model="gpt-test", system="ROLE",
                   tools=[_tool()], policy=policy)
     one = adapter.apply_prompt_cache(
@@ -69,12 +69,37 @@ def test_usage_normalization_preserves_provider_cache_counters():
         "prompt_tokens": 100, "completion_tokens": 10,
         "prompt_tokens_details": {"cached_tokens": 80}}})
     assert openai["cached_tokens"] == 80
+    assert "cache_write_tokens" not in openai
 
 
-def test_cache_efficiency_and_write_without_read():
+def test_usage_normalization_omits_absent_cache_counters():
+    anthropic = adapter.normalize_usage("anthropic_messages", {"usage": {
+        "input_tokens": 10, "output_tokens": 5}})
+    assert anthropic == {"input_tokens": 10, "output_tokens": 5}
+
+    openai = adapter.normalize_usage("openai_chat", {"usage": {
+        "prompt_tokens": 10, "completion_tokens": 5}})
+    assert openai == {"input_tokens": 10, "output_tokens": 5}
+
+
+def test_cache_efficiency_respects_anthropic_accounting():
     assert adapter.cache_efficiency({
-        "input_tokens": 100, "cache_read_input_tokens": 80,
+        "input_tokens": 20, "cache_read_input_tokens": 80,
         "cache_creation_input_tokens": 0}) == 0.8
+    assert adapter.cache_efficiency({
+        "input_tokens": 20, "cache_read_input_tokens": 80,
+        "cache_creation_input_tokens": 20}) == 2 / 3
+
+
+def test_cache_efficiency_respects_openai_accounting():
+    assert adapter.cache_efficiency({
+        "input_tokens": 100, "cached_tokens": 80}) == 0.8
+    assert adapter.cache_efficiency({
+        "input_tokens": 100, "cached_tokens": 80,
+        "cache_write_tokens": 20}) == 0.8
+
+
+def test_cache_write_without_read():
     assert adapter.cache_write_without_read({
         "input_tokens": 100, "cache_creation_input_tokens": 100})
     assert not adapter.cache_write_without_read({

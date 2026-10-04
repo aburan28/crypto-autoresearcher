@@ -1,0 +1,717 @@
+{
+  "schema": "crypto.autoresearch.review_computations.v1",
+  "task_id": "TASK-20260930-610ee2",
+  "review_plan_id": "REVIEW-BINSTD-20260930-2ee1e1",
+  "report": "coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2ee1e1/reviews/TASK-20260930-610ee2/red-team-report.yaml",
+  "status": "complete",
+  "nature": "REVIEW COMPUTATIONS only. Zero runs of EXP-BINSTD-178742. No RUN-* minted. No evidence record. No AUXIN/FROB/QSP values.",
+  "environment": {
+    "python": "3.x",
+    "sympy": "installed for this review session",
+    "scratch": "/tmp/rt610ee2 (outside repository)",
+    "amazon_bedrock": "NOT SELECTED, NOT CONFIGURED, NOT CONTACTED, NOT USED"
+  },
+  "computations": [
+    {
+      "id": "C0-HASH",
+      "purpose": "Hash the four producer files (+ gate worksheet) against TASK-20260930-0b6496 snapshot-receipt path_sha256 before any joint attack.",
+      "status": "done",
+      "result": {
+        "coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2ee1e1/archives/TASK-20260930-0b6496/gate-worksheet.yaml": {
+          "expected": "bc4ef09c4b787e87c77fa8055934adb2949708e6fc25efab509fe00bc12c8d27",
+          "got": "bc4ef09c4b787e87c77fa8055934adb2949708e6fc25efab509fe00bc12c8d27",
+          "result": "MATCH"
+        },
+        "coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2ee1e1/design/TASK-20260930-350fa7/proof-search-map-audit.yaml": {
+          "expected": "62cb397337d3798a3549bb07a26c5c32b7773b3d3924ee86978fefb9b9aae2fb",
+          "got": "62cb397337d3798a3549bb07a26c5c32b7773b3d3924ee86978fefb9b9aae2fb",
+          "result": "MATCH"
+        },
+        "coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-2ee1e1/design/TASK-20260930-350fa7/revision-worksheet.yaml": {
+          "expected": "e3ff4cfa48fd095d29b6214d59c7ce63446e784092a29c406a2ef55d9fe4f09a",
+          "got": "e3ff4cfa48fd095d29b6214d59c7ce63446e784092a29c406a2ef55d9fe4f09a",
+          "result": "MATCH"
+        },
+        "experiments/EXP-BINSTD-178742/specification.yaml": {
+          "expected": "f5d4c16861dbb42131cfe213246fac8668aaaf2786f9876ddbef7ae7c586cb7d",
+          "got": "f5d4c16861dbb42131cfe213246fac8668aaaf2786f9876ddbef7ae7c586cb7d",
+          "result": "MATCH"
+        },
+        "ledger/hypotheses/H-BINSTD-ce4f38.yaml": {
+          "expected": "941f5bfed4882a62a84a06f1ce4be84e286f2b1ef6f64f2721dcde957f9121c1",
+          "got": "941f5bfed4882a62a84a06f1ce4be84e286f2b1ef6f64f2721dcde957f9121c1",
+          "result": "MATCH"
+        }
+      },
+      "all_match": true
+    },
+    {
+      "id": "C-J-RD1-G4-V3",
+      "purpose": "J-RD1: rebuild unmutated G4 control and M1/M2/M3 at (17,0) under v3 projected CERT-BIND / sealed CERT-QUOT; contrast withdrawn R-lit (prior B1).",
+      "status": "done",
+      "scripts": {
+        "v3_ptmf.py": "# v3_ptmf.py -- TASK-20260930-610ee2 red-team-breakthrough review computation.\n# ZERO RUNS of EXP-BINSTD-178742. Toy-size instrument only.\n# Implements CERT-BIND / CERT-QUOT as written in EXP-BINSTD-178742 version 3\n# (RD-1 projected bind; RD-2 sealed-vector = ranked-vector) and re-runs:\n#   J-RD1: unmutated G4 control at (17,0), including targets outside G\n#   J-RD2 / PTM-F: M3 and planted F-i / F-ii vs sealed CERT-QUOT\n# Contrasts withdrawn R-lit / R-piG-label-only readings (prior B1/B2) to show\n# the repair changes the gate outcomes. Seeds reused from prior review for\n# reproducibility of cell geometry, not as citation of prior outcomes.\nimport json, time, random, sys\nfrom collections import Counter, defaultdict\nsys.path.insert(0, '/tmp/rt610ee2')\nfrom e4lib import *\nfrom e4j3 import (\n    Sub, draw, esum, relations, build, quot_row, cert_label, cert_bind,\n    fpolys, ar1, ranks, polyeval, rank_A, rank_B\n)\n\nT0 = time.time()\nSEED_PREFIX = 'RT-610ee2-V3|'\n\ndef v3_seal(sub, labels):\n    \"\"\"CERT-QUOT seal: coefficient vector from CERT-LABEL labels at AR-2 lambda.\"\"\"\n    return quot_row(sub, labels, sub.lam)\n\ndef v3_cert_quot(sub, labels, R, Q, ranked_vector):\n    \"\"\"\n    V3 CERT-QUOT:\n      (1) sealed v from labels at lambda; require ranked_vector == sealed entrywise\n      (2) v_O \u2261 f_O(lambda) (sealed is built that way)\n      (3) sum [v_O] Q_O = pi_G(R) on the curve, using the sealed (true) equation\n    Ranking a vector CERT-QUOT did not seal -> IR-15 before any rank readout.\n    Returns (ok, detail).\n    \"\"\"\n    sealed = v3_seal(sub, labels)\n    # entrywise equality on the union of keys\n    keys = set(sealed) | set(ranked_vector)\n    for o in keys:\n        if (sealed.get(o, 0) % sub.r) != (ranked_vector.get(o, 0) % sub.r):\n            return False, 'ranked_vector != CERT-QUOT-sealed vector (IR-15)'\n    # on-curve check on the sealed equation\n    S = None\n    for o, v in sealed.items():\n        if v % sub.r:\n            S = sub.c.E.add(S, sub.c.smul(v % sub.r, Q[o]))\n    if S != sub.c.piG(R):\n        return False, 'sealed equation fails on-curve sum[v_O]Q_O = pi_G(R) (IR-15)'\n    return True, 'pass'\n\ndef v3_cert_bind(sub, j, B, R, Q):\n    \"\"\"V3 CERT-BIND: projected identity on G / pi_G(R). Returns None or detail.\"\"\"\n    return cert_bind(sub, j, B, R, 'R-piG', Q)  # e4j3 R-piG branch IS the projected identity\n\ndef v3_p22b(sub, B, R, Q, ranked_override=None):\n    \"\"\"\n    P2-2b under v3: CERT-LABEL row0 -> CERT-QUOT seal+rank-eq -> CERT-BIND j=1..k-1.\n    ranked_override: if set, the vector presented to RANK (plant / M3); else sealed.\n    \"\"\"\n    L0, lab0 = B['rows'][0]\n    for P, lb in zip(L0, lab0):\n        if not cert_label(sub, P, lb, Q):\n            return ('IR-16', 'CERT-LABEL row 0')\n    sealed = v3_seal(sub, lab0)\n    ranked = ranked_override if ranked_override is not None else sealed\n    # M3-style: instrument builds ranked at B['z'] which may be laminv\n    if ranked_override is None and B.get('z') != sub.lam:\n        ranked = quot_row(sub, lab0, B['z'])\n    ok, detail = v3_cert_quot(sub, lab0, R, Q, ranked)\n    if not ok:\n        return ('IR-15', detail)\n    for j in range(1, sub.k):\n        d = v3_cert_bind(sub, j, B, R, Q)\n        if d:\n            return ('IR-17', 'CERT-BIND j=%d: %s' % (j, d))\n    return None\n\ndef withdrawn_p22b(sub, B, R, Q, mode):\n    \"\"\"Prior failure-mode readings for contrast only (not the v3 gate).\"\"\"\n    L0, lab0 = B['rows'][0]\n    for P, lb in zip(L0, lab0):\n        if not cert_label(sub, P, lb, Q):\n            return ('IR-16', 'CERT-LABEL row 0')\n    if mode == 'R-lit':\n        # literal CERT-QUOT from labels (always true equation); literal CERT-BIND\n        S = None\n        coeffs = quot_row(sub, lab0, sub.lam)\n        for o, v in coeffs.items():\n            if v % sub.r:\n                S = sub.c.E.add(S, sub.c.smul(v % sub.r, Q[o]))\n        if S != sub.c.piG(R):\n            return ('IR-15', 'CERT-QUOT')\n        for j in range(1, sub.k):\n            d = cert_bind(sub, j, B, R, 'R-lit', Q)\n            if d:\n                return ('IR-17', 'CERT-BIND j=%d: %s' % (j, d))\n        return None\n    if mode == 'R-piG-label-only':\n        # projected CERT-BIND; CERT-QUOT only on label-derived vector (ignores ranked)\n        S = None\n        coeffs = quot_row(sub, lab0, sub.lam)\n        for o, v in coeffs.items():\n            if v % sub.r:\n                S = sub.c.E.add(S, sub.c.smul(v % sub.r, Q[o]))\n        if S != sub.c.piG(R):\n            return ('IR-15', 'CERT-QUOT')\n        for j in range(1, sub.k):\n            d = cert_bind(sub, j, B, R, 'R-piG', Q)\n            if d:\n                return ('IR-17', 'CERT-BIND j=%d: %s' % (j, d))\n        return None\n    raise ValueError(mode)\n\ndef g4_v3(sub, rels, instr):\n    \"\"\"G4 under v3 certificates. Mutants M1/M2/M3 must be invalidated; control pass.\"\"\"\n    def one(build_instr, base):\n        nf = 0; first = None; adm = 0; outside = 0; outside_fail = 0\n        for (src, legs, R) in rels:\n            if ar1(sub, legs, R):\n                continue\n            adm += 1\n            if sub.c.piG(R) != R:\n                outside += 1\n            B = build(sub, base, legs)\n            if build_instr == 'M1':\n                B['rows'] = [B['rows'][0]] * sub.k\n            if build_instr == 'M2':\n                B['rows'] = [(L, [(o, (-e) % sub.k, eps) for (o, e, eps) in labs])\n                             for (L, labs) in B['rows']]\n            if build_instr == 'M3':\n                B['z'] = sub.c.laminv\n            f = v3_p22b(sub, B, R, sub.QO)\n            if f:\n                nf += 1\n                first = first or f\n                if sub.c.piG(R) != R:\n                    outside_fail += 1\n        return {'failures': nf, 'admitted': adm, 'first': first,\n                'targets_outside_G': outside, 'outside_G_failures': outside_fail}\n\n    ctrl = one('base', instr)\n    m1 = one('M1', instr)\n    m2 = one('M2', instr)\n    m3 = one('M3', instr)\n    passed = (ctrl['failures'] == 0 and m1['failures'] > 0 and m2['failures'] > 0 and m3['failures'] > 0)\n    return passed, {'CONTROL': ctrl, 'M1': m1, 'M2': m2, 'M3': m3}\n\ndef planted_rank(sub, qrow, orbs):\n    rows = [[(pow(sub.lam, j, sub.r) * qrow.get(o, 0)) % sub.r for o in orbs]\n            for j in range(sub.k)]\n    return rank_A(rows, sub.r), rank_B(rows, sub.r)\n\nout = {'task': 'TASK-20260930-610ee2', 'nature': 'review_computation_zero_runs',\n       'certificate_rule': 'v3 CERT-BIND projected; v3 CERT-QUOT sealed==ranked'}\n\n# ---- cells ----\ncells_info = {}\nsubs = {}\nfor (n, a) in [(17, 0), (17, 1), (23, 0)]:\n    s = Sub(n, a)\n    subs[(n, a)] = s\n    cells_info['(%d,%d)' % (n, a)] = {\n        'r': s.r, 'h': s.c.h, 'lambda': s.lam, 'lambda_inv': s.c.laminv,\n        'k': s.k, '|F_W|': len(s.FW), 'class_orbits': len(s.QO),\n        'FW_in_G': sum(1 for P in s.FW if s.c.piG(P) == P),\n    }\nout['cells'] = cells_info\nprint('CELLS', json.dumps(cells_info))\n\n# ---- J-RD1 / G4 at (17,0) ----\ns0 = subs[(17, 0)]\nrng = random.Random(subseed('G4-RS3-m2-17-0'))  # same geometry seed as prior for cell (17,0)\ng4rels = []\nfor _ in range(16):\n    L = draw(s0, rng, 2)\n    g4rels.append(('RS-3m2', L, esum(s0.c.E, L)))\nadmitted = [(src, L, R) for (src, L, R) in g4rels if not ar1(s0, L, R)]\noutside = sum(1 for (_, _, R) in admitted if s0.c.piG(R) != R)\nprint('G4 pool: drawn', len(g4rels), 'admitted', len(admitted), 'outside_G', outside)\n\npassed, g4info = g4_v3(s0, g4rels, 'CONTROL')\n# also contrast withdrawn readings on CONTROL only\ncontrast = {}\nfor mode in ('R-lit', 'R-piG-label-only'):\n    nf = 0; first = None; adm = 0\n    for (src, legs, R) in g4rels:\n        if ar1(s0, legs, R):\n            continue\n        adm += 1\n        B = build(s0, 'CONTROL', legs)\n        f = withdrawn_p22b(s0, B, R, s0.QO, mode)\n        if f:\n            nf += 1\n            first = first or f\n    contrast[mode] = {'CONTROL_failures': nf, 'admitted': adm, 'first': first,\n                      'CONTROL_passes_G4_alone': nf == 0}\n\nout['J_RD1_G4'] = {\n    'cell': '(17,0)',\n    'v3_gate_passed': passed,\n    'v3_detail': g4info,\n    'withdrawn_readings_CONTROL_only': contrast,\n    'attack_note': (\n        'Prior B1: R-lit rejects unmutated control (unprojected CERT-BIND). '\n        'V3 projected CERT-BIND must let CONTROL pass including outside-G targets; '\n        'M1 must still fail CERT-BIND; M3 must fail CERT-QUOT.'\n    ),\n}\nprint('J-RD1 G4 v3 PASS' if passed else 'J-RD1 G4 v3 FAIL', json.dumps(g4info))\nprint('J-RD1 contrast', json.dumps(contrast))\n\n# ---- J-RD2 / PTM-F ----\nptmf = {}\nfor cell in [(17, 1), (23, 0)]:\n    sb = subs[cell]\n    rels = [x for x in relations(sb, 'PTMF-%d-%d' % cell, nrs1=4, n3=4, n4=0)\n            if not ar1(sb, x[1], x[2])]\n    picked = ([x for x in rels if sb.c.piG(x[2]) == x[2]][:3]\n              + [x for x in rels if sb.c.piG(x[2]) != x[2]][:2])\n    cell_rows = []\n    for (src, L, R) in picked:\n        B = build(sb, 'CONTROL', L)\n        lab0 = B['rows'][0][1]\n        f = quot_row(sb, lab0, sb.lam)\n        fi = quot_row(sb, lab0, sb.c.laminv)\n        orbs = sorted(f)\n        o_i = orbs[0]\n        o_ii = next((o for o in orbs if fi[o] != f[o]), None)\n        plants = {\n            'unmutated_control': dict(f),\n            'F-i': dict(f),\n        }\n        plants['F-i'][o_i] = (f[o_i] + 1) % sb.r\n        if o_ii is not None:\n            plants['F-ii'] = dict(f)\n            plants['F-ii'][o_ii] = fi[o_ii]\n        row_out = {'src': src, 'target_in_G': sb.c.piG(R) == R, 'hit_orbits': len(orbs),\n                   'plants': {}}\n        for name, q in plants.items():\n            ra, rb = planted_rank(sb, q, orbs)\n            # v3: seal from labels; ranked = planted q\n            fail = v3_p22b(sb, B, R, sb.QO, ranked_override=q)\n            # withdrawn R-piG-label-only: CERT-QUOT ignores planted ranked vector\n            w = withdrawn_p22b(sb, B, R, sb.QO, 'R-piG-label-only')\n            if fail is None:\n                v3_verdict = 'ACCEPTED (proves-too-much if plant)'\n            else:\n                v3_verdict = 'INVALIDATED by %s: %s' % fail\n            if w is None:\n                withdrawn_verdict = 'ACCEPTED under label-only CERT-QUOT (prior B2 gap)'\n            else:\n                withdrawn_verdict = 'INVALIDATED by %s: %s' % w\n            S_ranked = None\n            for o, v in q.items():\n                if v % sb.r:\n                    S_ranked = sb.c.E.add(S_ranked, sb.c.smul(v % sb.r, sb.QO[o]))\n            row_out['plants'][name] = {\n                'rank_A': ra, 'rank_B': rb,\n                'v3_CERT_QUOT_vs_ranked': v3_verdict,\n                'withdrawn_R_piG_label_only': withdrawn_verdict,\n                'on_curve_identity_for_ranked_vector': S_ranked == sb.c.piG(R),\n            }\n        # M3 on same relation under v3\n        B3 = build(sb, 'M3', L)\n        m3fail = v3_p22b(sb, B3, R, sb.QO)\n        row_out['M3_v3'] = ('PASS' if m3fail is None else 'INVALIDATED by %s: %s' % m3fail)\n        cell_rows.append(row_out)\n    ptmf['(%d,%d)' % cell] = cell_rows\n    print('PTM-F', cell, 'n_rels', len(cell_rows))\n    for row in cell_rows:\n        print(' ', row['src'], 'inG', row['target_in_G'],\n              {k: v['v3_CERT_QUOT_vs_ranked'] for k, v in row['plants'].items()},\n              'M3', row['M3_v3'])\n\nout['J_RD2_PTM_F'] = ptmf\n\n# ---- signature summary ----\nsig = {\n    'PTM_F_failure_signature': (\n        'PTM-F MUST be INVALIDATED by repaired CERT-QUOT before any rank readout, '\n        'while unmutated control PASSES G4 under repaired CERT-BIND.'\n    ),\n    'G4_v3_CONTROL_pass': passed,\n    'G4_v3_CONTROL_outside_G_failures': g4info['CONTROL']['outside_G_failures'],\n    'G4_v3_M1_invalidated': g4info['M1']['failures'] == g4info['M1']['admitted'],\n    'G4_v3_M3_invalidated': g4info['M3']['failures'] == g4info['M3']['admitted'],\n}\nctrl_ok = True\nplants_invalidated = True\nm3_invalidated = True\nn_ctrl = n_fi = n_fii = n_m3 = 0\nfor cell_rows in ptmf.values():\n    for row in cell_rows:\n        n_ctrl += 1\n        if 'ACCEPTED' not in row['plants']['unmutated_control']['v3_CERT_QUOT_vs_ranked']:\n            ctrl_ok = False\n        if 'INVALIDATED' not in row['plants']['F-i']['v3_CERT_QUOT_vs_ranked']:\n            plants_invalidated = False\n        n_fi += 1\n        if 'F-ii' in row['plants']:\n            n_fii += 1\n            if 'INVALIDATED' not in row['plants']['F-ii']['v3_CERT_QUOT_vs_ranked']:\n                plants_invalidated = False\n        n_m3 += 1\n        if not row['M3_v3'].startswith('INVALIDATED'):\n            m3_invalidated = False\nsig.update({\n    'PTM_F_unmutated_control_accepted_all': ctrl_ok,\n    'PTM_F_plants_invalidated_all': plants_invalidated,\n    'M3_invalidated_all': m3_invalidated,\n    'counts': {'controls': n_ctrl, 'F-i': n_fi, 'F-ii': n_fii, 'M3': n_m3},\n    'signature_met': bool(passed and ctrl_ok and plants_invalidated and m3_invalidated\n                          and g4info['CONTROL']['outside_G_failures'] == 0),\n})\nout['signature'] = sig\nout['elapsed_s'] = round(time.time() - T0, 1)\nprint('SIGNATURE', json.dumps(sig))\nprint('elapsed_s', out['elapsed_s'])\nPath = __import__('pathlib').Path\nPath('/tmp/rt610ee2/v3_ptmf_out.json').write_text(json.dumps(out, indent=2, default=str))\nprint('wrote /tmp/rt610ee2/v3_ptmf_out.json')\n",
+        "e4lib.py": "# e4lib.py -- epoch-4 red-team REVIEW COMPUTATION library (TASK-20260925-2333ea).\n# Written from the text of EXP-BINSTD-178742 v2 (definitions, certificates,\n# procedure) only; the epoch-2 scripts were not consulted when writing it.\n# Toy sizes only. No solver of any kind. Python stdlib + sympy (factorint,\n# isprime, sqrt_mod, GF(2) polynomial factorisation, DomainMatrix rank).\nimport hashlib, random\nfrom functools import lru_cache\nimport sympy\nfrom sympy import factorint, isprime\nfrom sympy.ntheory import sqrt_mod\nfrom sympy.polys.matrices import DomainMatrix\nfrom sympy.polys.domains import GF as SGF\n\ndef subseed(label):\n    return int.from_bytes(hashlib.sha256(('RT-2333ea-E4|' + label).encode()).digest(), 'big')\n\n# ---------------- GF(2)[X] integer-bit polynomials ----------------\ndef pdeg(a): return a.bit_length() - 1\ndef pmul(a, b):\n    r = 0\n    while b:\n        if b & 1: r ^= a\n        a <<= 1; b >>= 1\n    return r\ndef pmod(a, m):\n    dm = pdeg(m)\n    while a and pdeg(a) >= dm:\n        a ^= m << (pdeg(a) - dm)\n    return a\ndef pgcd(a, b):\n    while b: a, b = b, pmod(a, b)\n    return a\ndef is_irred(f):\n    # Rabin-style: X^(2^n) = X mod f and gcd(X^(2^(n/p)) - X, f) = 1\n    n = pdeg(f)\n    def xpow2k(k):\n        t = 2\n        for _ in range(k): t = pmod(pmul(t, t), f)\n        return t\n    if xpow2k(n) != 2: return False\n    for p in factorint(n):\n        if pgcd(xpow2k(n // p) ^ 2, f) != 1: return False\n    return True\ndef field_poly(n):\n    # lowest weight, then least as an integer (spec field_representation recommendation)\n    for w in (3, 5, 7):\n        cands = []\n        from itertools import combinations\n        for mids in combinations(range(1, n), w - 2):\n            f = (1 << n) | 1\n            for i in mids: f |= 1 << i\n            cands.append(f)\n        for f in sorted(cands):\n            if is_irred(f): return f\n    raise ValueError(n)\n\n# ---------------- F_{2^n} ----------------\nclass F2n:\n    def __init__(self, n, poly=None):\n        self.n = n; self.poly = poly or field_poly(n); self.mask = (1 << n) - 1\n    def mul(self, a, b):\n        r = 0\n        while b:\n            if b & 1: r ^= a\n            b >>= 1; a <<= 1\n            if a >> self.n: a ^= self.poly\n        return r\n    def sqr(self, a): return self.mul(a, a)\n    def inv(self, a):\n        if a == 0: raise ZeroDivisionError\n        u, v, g1, g2 = a, self.poly, 1, 0\n        while u != 1:\n            j = pdeg(u) - pdeg(v)\n            if j < 0: u, v, g1, g2 = v, u, g2, g1; j = -j\n            u ^= v << j; g1 ^= g2 << j\n        return pmod(g1, self.poly)\n    def pw(self, a, e):\n        r = 1\n        while e:\n            if e & 1: r = self.mul(r, a)\n            a = self.mul(a, a); e >>= 1\n        return r\n    def frob(self, a, j):\n        for _ in range(j % self.n): a = self.sqr(a)\n        return a\n    def trace(self, a):\n        t, s = a, a\n        for _ in range(self.n - 1):\n            s = self.sqr(s); t ^= s\n        return t\n    def halftrace(self, a):\n        assert self.n % 2 == 1\n        t, s = a, a\n        for _ in range((self.n - 1) // 2):\n            s = self.sqr(self.sqr(s)); t ^= s\n        return t\n    def sqrt(self, a): return self.frob(a, self.n - 1)\n\n# ---------------- curve y^2 + xy = x^3 + a x^2 + b ----------------\nclass Curve:\n    def __init__(self, F, a, b):\n        self.F, self.a, self.b = F, a, b\n    def on(self, P):\n        if P is None: return True\n        F = self.F; x, y = P\n        return F.sqr(y) ^ F.mul(x, y) == F.mul(F.sqr(x), x) ^ F.mul(self.a, F.sqr(x)) ^ self.b\n    def neg(self, P):\n        return None if P is None else (P[0], P[0] ^ P[1])\n    def add(self, P, Q):\n        F = self.F\n        if P is None: return Q\n        if Q is None: return P\n        x1, y1 = P; x2, y2 = Q\n        if x1 == x2:\n            if y1 ^ y2 == x2: return None          # Q = -P\n            if x1 == 0: return None               # 2-torsion doubling\n            lam = x1 ^ F.mul(y1, F.inv(x1))\n            x3 = F.sqr(lam) ^ lam ^ self.a\n            y3 = F.sqr(x1) ^ F.mul(lam ^ 1, x3)\n            return (x3, y3)\n        lam = F.mul(y1 ^ y2, F.inv(x1 ^ x2))\n        x3 = F.sqr(lam) ^ lam ^ x1 ^ x2 ^ self.a\n        y3 = F.mul(lam, x1 ^ x3) ^ x3 ^ y1\n        return (x3, y3)\n    def mulk(self, k, P):\n        if k < 0: return self.mulk(-k, self.neg(P))\n        R = None\n        while k:\n            if k & 1: R = self.add(R, P)\n            P = self.add(P, P); k >>= 1\n        return R\n    def tau(self, P, j=1):\n        return None if P is None else (self.F.frob(P[0], j), self.F.frob(P[1], j))\n    def lift_x(self, x):\n        \"\"\"all points with this x (0, 1 or 2)\"\"\"\n        F = self.F\n        if x == 0: return [(0, F.sqrt(self.b))]\n        c = x ^ self.a ^ F.mul(self.b, F.inv(F.sqr(x)))\n        if F.trace(c) != 0: return []\n        z = F.halftrace(c)\n        return [(x, F.mul(x, z)), (x, F.mul(x, z ^ 1))]\n\ndef lucas_order(n, a):\n    t = 1 if a == 1 else -1\n    s0, s1 = 2, t\n    for _ in range(n - 1): s0, s1 = s1, t * s1 - 2 * s0\n    return 2 ** n + 1 - s1\n\n# ---------------- Koblitz cell ----------------\nclass Cell:\n    def __init__(self, n, a, seedlabel):\n        self.n, self.a = n, a\n        self.F = F2n(n); self.E = Curve(self.F, a, 1)\n        self.N = lucas_order(n, a)\n        fac = factorint(self.N); self.fac = fac\n        self.r = max(fac); self.h = self.N // self.r\n        self.k = n; self.t = 1 if a == 1 else -1\n        self.proj = self.h * pow(self.h, -1, self.r)       # pi_G scalar\n        rng = random.Random(subseed(seedlabel))\n        # generator P0 of G\n        while True:\n            x = rng.getrandbits(n)\n            pts = self.E.lift_x(x)\n            if not pts: continue\n            P0 = self.E.mulk(self.proj, pts[0])\n            if P0 is not None: break\n        self.P0 = P0\n        assert self.E.mulk(self.r, P0) is None\n        disc = (self.t * self.t - 8) % self.r\n        roots = set()\n        for s in sqrt_mod(disc, self.r, all_roots=True):\n            roots.add(((self.t + s) * pow(2, -1, self.r)) % self.r)\n        lam = [l for l in roots if self.E.mulk(l, P0) == self.E.tau(P0)]\n        assert len(lam) == 1\n        self.lam = lam[0]; self.laminv = pow(self.lam, -1, self.r)\n        self.ord_lam = min(d for d in sympy.divisors(self.r - 1) if pow(self.lam, d, self.r) == 1)\n    def piG(self, P): return _mul_cached(self.E, self.proj, P)\n    def smul(self, s, P): return _mul_cached(self.E, s, P)\n\n_cache = {}\ndef _mul_cached(E, s, P):\n    key = (id(E), s, P)\n    v = _cache.get(key)\n    if v is None and key not in _cache:\n        v = E.mulk(s, P); _cache[key] = v\n    return v\n\n# ---------------- F_2 linear algebra: kernel of g(tau) ----------------\ndef kernel_of_linearised(F, g):\n    \"\"\"W = {x : sum_i g_i x^(2^i) = 0}; returns list of all elements.\"\"\"\n    n = F.n\n    cols = []\n    for i in range(n):\n        x = 1 << i; acc = 0; s = x; gi = g; e = 0\n        while gi:\n            if gi & 1: acc ^= s\n            s = F.sqr(s); gi >>= 1\n        cols.append(acc)\n    # solve M v = 0 over F_2, M columns = cols (bit j of cols[i] = M[j][i])\n    rows = [sum(((cols[i] >> j) & 1) << i for i in range(n)) for j in range(n)]\n    # gaussian elimination on rows (each an n-bit int over variables)\n    piv = {}; red = []\n    for rw in rows:\n        for p, prw in piv.items():\n            if (rw >> p) & 1: rw ^= prw\n        if rw:\n            p = rw.bit_length() - 1\n            for q in list(piv):\n                if (piv[q] >> p) & 1: piv[q] ^= rw\n            piv[p] = rw\n    free = [i for i in range(n) if i not in piv]\n    basis = []\n    for f in free:\n        v = 1 << f\n        for p, prw in piv.items():\n            if (prw >> f) & 1: v |= 1 << p\n        basis.append(v)\n    elems = [0]\n    for b in basis: elems = elems + [e ^ b for e in elems]\n    return basis, elems\n\ndef phi_factors(n):\n    X = sympy.symbols('X')\n    phi = sum(X ** i for i in range(n))\n    fl = sympy.Poly(phi, X, modulus=2).factor_list()[1]\n    ints = []\n    for f, e in fl:\n        assert e == 1\n        cs = [int(c) % 2 for c in f.all_coeffs()]\n        v = 0\n        for c in cs: v = (v << 1) | c\n        ints.append(v)\n    return sorted(ints)\n\n# ---------------- F_r linear algebra ----------------\ndef rank_A(M, r):\n    \"\"\"hand-written Gaussian elimination mod r (RANK-A)\"\"\"\n    A = [[x % r for x in row] for row in M]\n    rk = 0; ncols = len(A[0]) if A else 0\n    for c in range(ncols):\n        p = next((i for i in range(rk, len(A)) if A[i][c]), None)\n        if p is None: continue\n        A[rk], A[p] = A[p], A[rk]\n        iv = pow(A[rk][c], -1, r)\n        A[rk] = [(x * iv) % r for x in A[rk]]\n        for i in range(len(A)):\n            if i != rk and A[i][c]:\n                f = A[i][c]; A[i] = [(x - f * y) % r for x, y in zip(A[i], A[rk])]\n        rk += 1\n    return rk\n\ndef rank_B(M, r):\n    \"\"\"library routine: sympy DomainMatrix over GF(r) (RANK-B)\"\"\"\n    if not M or not M[0]: return 0\n    D = DomainMatrix([[SGF(r)(x % r) for x in row] for row in M], (len(M), len(M[0])), SGF(r))\n    return D.rank()\n\ndef polyeval(coeffs, z, r):\n    \"\"\"coeffs: dict e -> c; value sum c z^e mod r\"\"\"\n    return sum(c * pow(z, e, r) for e, c in coeffs.items()) % r\n",
+        "e4j3.py": "# e4j3.py -- epoch-4 J3 REVIEW COMPUTATION (TASK-20260925-2333ea).\n# Instruments CONTROL, M1, M2, M2s-leg, M2s-rep, M3, M4 routed through v2's rules\n# in order (G4 -> P2-2 AR-1 -> P2-2b CERT-LABEL row 0, CERT-QUOT row 0,\n# CERT-BIND rows 1..k-1 -> [P2-5 assumed passed] -> P2-3 ranks vs EVAL ->\n# P2-6 candidate handling -> outcome), at (17,1) (fixture cell) and (23,0), with\n# G4 at its own named cell (17,0). Three certificate readings:\n#   R-lit        : text as written (CERT-BIND on the full target R; CERT-QUOT\n#                  evaluates f_O at lambda from the relation's labels)\n#   R-piG        : CERT-BIND with pi_G applied to legs and target\n#   R-piG-ranked : R-piG plus CERT-QUOT evaluated on the ranked quotient row\n# CERT-LABEL uses the contract's canonical Q_O; for M2s-rep the instrument's own\n# Q_O is reported as sub-reading '/ownQ'.\nimport sys, time, random, json, hashlib\nfrom collections import Counter, defaultdict\nfrom e4lib import *\n\nT0 = time.time()\nREADINGS = ['R-lit', 'R-piG', 'R-piG-ranked']\nINSTR = ['CONTROL', 'M1', 'M2', 'M2s-leg', 'M2s-rep', 'M3', 'M4']\n\nclass Sub:\n    \"\"\"a sub-cell: (n, a), first stable W = ker f1(tau)\"\"\"\n    def __init__(self, n, a):\n        self.c = c = Cell(n, a, 'P0-%d-%d' % (n, a))\n        self.k = c.k; self.r = c.r; self.lam = c.lam\n        self.f1 = phi_factors(n)[0]\n        basis, W = kernel_of_linearised(c.F, self.f1)\n        self.dimW = len(basis)\n        FW = []\n        for x in W:\n            for P in c.E.lift_x(x):\n                if c.piG(P) is not None: FW.append(P)\n        self.FW = FW; self.FWset = set(FW)\n        # class orbits: key x(Q); canonical Q_O least x then lesser y\n        xs = set(c.piG(P)[0] for P in FW)\n        self.orbit_of = {}; self.QO = []\n        seen = set()\n        for x in sorted(xs):\n            if x in seen: continue\n            orb = [c.F.frob(x, e) for e in range(self.k)]\n            xm = min(orb)\n            pts = c.E.lift_x(xm)\n            Q = min(pts, key=lambda p: p[1])\n            oid = len(self.QO); self.QO.append(Q)\n            for e in range(self.k):\n                T = c.E.tau(Q, e)\n                self.orbit_of[T[0]] = (oid, e)\n                seen.add(T[0])\n        self.nV = len(self.QO) * self.k\n        # point orbits\n        self.porbit = {}; npo = 0; seenp = set()\n        for P in sorted(FW):\n            if P in seenp: continue\n            orb = [c.E.tau(P, e) for e in range(self.k)]\n            PO = min(orb)\n            for e in range(self.k):\n                T = c.E.tau(PO, e); self.porbit[T] = (npo, e); seenp.add(T)\n            npo += 1\n        self.npo = npo\n        # ker-g: 0/1 lift of f1 evaluated at lambda^i\n        gh = [i for i in range(self.f1.bit_length()) if (self.f1 >> i) & 1]\n        self.ghat_vals = [sum(pow(self.lam, i * e, self.r) for e in gh) % self.r for i in range(self.k)]\n        self.deg_hg = sum(1 for v in self.ghat_vals if v == 0)\n    # ---- correct labeller: search tau^e(Q_O)\n    def label(self, P, flip=False):\n        c = self.c; Q = c.piG(P)\n        oid, e = self.orbit_of[Q[0]]\n        T = c.E.tau(self.QO[oid], e)\n        eps = 1 if T == Q else -1\n        assert T == Q or c.E.neg(T) == Q\n        if flip:  # M2: search tau^{-e}(Q_O): the e found is -e mod k\n            e = (-e) % self.k\n        return (oid, e, eps)\n\ndef draw(sub, rng, m):\n    return [sub.FW[rng.randrange(len(sub.FW))] for _ in range(m)]\n\ndef esum(E, pts):\n    R = None\n    for P in pts: R = E.add(R, P)\n    return R\n\ndef relations(sub, tag, nrs1=8, n3=16, n4=8):\n    c = sub.c; E = c.E; rels = []\n    rng = random.Random(subseed('rels-%s' % tag))\n    # RS-1: exhaustive m=2 decompositions of seeded targets in G minus O\n    for t in range(nrs1):\n        s = rng.randrange(1, c.r); R = c.smul(s, c.P0)\n        for P1 in sub.FW:\n            P2 = E.add(R, E.neg(P1))\n            if P2 in sub.FWset and P1 <= P2:\n                rels.append(('RS-1', [P1, P2], R))\n    # RS-3 planted m=2 and m=3\n    for m in (2, 3):\n        for _ in range(n3):\n            L = draw(sub, rng, m); rels.append(('RS-3m%d' % m, L, esum(E, L)))\n    # RS-4 constructed\n    for sgn in (-1, 1):\n        for _ in range(n4):\n            P = sub.FW[rng.randrange(len(sub.FW))]; d = rng.randrange(1, sub.k)\n            T = E.tau(P, d); T = E.neg(T) if sgn < 0 else T\n            rels.append(('RS-4%s' % ('-' if sgn < 0 else '+'), [P, T], E.add(P, T)))\n    return rels\n\n# ---------------- instrument builds ----------------\ndef build(sub, instr, legs):\n    \"\"\"returns dict: rows [(legs_j, labels_j)], Qown, zeval\"\"\"\n    c = sub.c; E = c.E; k = sub.k\n    Qown = list(sub.QO)\n    def lab(P):\n        if instr == 'M2': return sub.label(P, flip=True)\n        o, e, eps = sub.label(P)\n        if instr in ('M2s-leg', 'M2s-rep'): eps = -eps\n        return (o, e, eps)\n    if instr == 'M2s-rep': Qown = [E.neg(Q) for Q in sub.QO]\n    rows = []\n    for j in range(k):\n        if instr == 'M1': Lj = list(legs)\n        elif instr == 'M4' and j >= 1: Lj = [E.tau(P, j + 1) for P in legs]\n        else: Lj = [E.tau(P, j) for P in legs]\n        rows.append((Lj, [lab(P) for P in Lj]))\n    zeval = c.laminv if instr == 'M3' else c.lam\n    return {'rows': rows, 'Qown': Qown, 'z': zeval}\n\ndef fpolys(labels):\n    f = defaultdict(lambda: defaultdict(int))\n    for (o, e, eps) in labels: f[o][e] += eps\n    return {o: {e: v for e, v in d.items() if v} for o, d in f.items()}\n\ndef quot_row(sub, labels, z):\n    r = sub.r; f = fpolys(labels)\n    return {o: polyeval(d, z, r) for o, d in f.items()}\n\n# ---------------- certificates ----------------\ndef cert_label(sub, P, lab, Q):\n    c = sub.c; o, e, eps = lab\n    lhs = c.piG(P)\n    rhs = c.smul(pow(sub.lam, e, sub.r), Q[o])\n    if eps < 0: rhs = c.E.neg(rhs)\n    return lhs == rhs\n\ndef cert_quot(sub, labels, R, Q, qrow=None):\n    c = sub.c; r = sub.r\n    coeffs = qrow if qrow is not None else quot_row(sub, labels, sub.lam)\n    S = None\n    for o, v in coeffs.items():\n        if v % r: S = c.E.add(S, c.smul(v % r, Q[o]))\n    return S == c.piG(R)\n\ndef cert_bind(sub, j, B, R, reading, Q):\n    \"\"\"returns None if pass, else the failing sub-clause\"\"\"\n    c = sub.c; E = c.E\n    L0, lab0 = B['rows'][0]; Lj, labj = B['rows'][j]\n    if Lj != [E.tau(P, j) for P in L0]: return 'legs_j != tau^j(legs_0)'\n    lj = pow(sub.lam, j, sub.r)\n    if reading == 'R-lit':\n        if esum(E, Lj) != E.tau(R, j): return 'sum legs_j != tau^j(R)'\n        if E.tau(R, j) != c.smul(lj, R): return 'tau^j(R) != [lambda^j]R'\n    else:\n        S = esum(E, [c.piG(P) for P in Lj]); PR = c.piG(R)\n        if S != E.tau(PR, j): return 'sum piG(legs_j) != tau^j(piG R)'\n        if E.tau(PR, j) != c.smul(lj, PR): return 'tau^j(piG R) != [lambda^j]piG R'\n    for P, lb in zip(Lj, labj):\n        if not cert_label(sub, P, lb, Q): return 'CERT-LABEL on row j'\n    # curve-side row vs polynomial-shift cross-check\n    f0 = fpolys(lab0); fj = fpolys(labj); k = sub.k\n    shift = {o: {(e + j) % k: v for e, v in d.items()} for o, d in f0.items()}\n    if shift != fj: return 'curve-side row != shift cross-check'\n    return None\n\ndef p22b(sub, B, R, reading, Q):\n    \"\"\"P2-2b in order; returns (rule, detail) of first failure or None\"\"\"\n    L0, lab0 = B['rows'][0]\n    for P, lb in zip(L0, lab0):\n        if not cert_label(sub, P, lb, Q): return ('IR-16', 'CERT-LABEL row 0')\n    qrow = None\n    if reading == 'R-piG-ranked': qrow = quot_row(sub, lab0, B['z'])\n    if not cert_quot(sub, lab0, R, Q, qrow): return ('IR-15', 'CERT-QUOT row 0')\n    for j in range(1, sub.k):\n        d = cert_bind(sub, j, B, R, reading, Q)\n        if d: return ('IR-17', 'CERT-BIND j=%d: %s' % (j, d))\n    return None\n\ndef ar1(sub, legs, R):\n    c = sub.c\n    if any(P not in sub.FWset for P in legs): return 'IR-9 leg outside F_W'\n    if esum(c.E, legs) != R: return 'IR-8 sum of legs != R'\n    if c.piG(R) is None: return 'not admitted (piG(R)=O)'\n    return None\n\n# ---------------- ranks ----------------\ndef ranks(sub, B):\n    r = sub.r; k = sub.k\n    out = {}\n    # raw class\n    cols = sorted(set((o, e) for (_, labs) in B['rows'] for (o, e, _) in labs))\n    ci = {cc: i for i, cc in enumerate(cols)}\n    M = []\n    for (_, labs) in B['rows']:\n        v = [0] * len(cols)\n        for (o, e, eps) in labs: v[ci[(o, e)]] += eps\n        M.append(v)\n    f0 = fpolys(B['rows'][0][1])\n    ev_raw = sum(1 for i in range(k) if any(polyeval(d, pow(sub.lam, i, r), r) for d in f0.values()))\n    out['raw_class'] = (rank_A(M, r), M, ev_raw)\n    # raw point\n    pc = sorted(set(sub.porbit[P] for (L, _) in B['rows'] for P in L))\n    pi = {cc: i for i, cc in enumerate(pc)}\n    Mp = []\n    for (L, _) in B['rows']:\n        v = [0] * len(pc)\n        for P in L: v[pi[sub.porbit[P]]] += 1\n        Mp.append(v)\n    fp = defaultdict(lambda: defaultdict(int))\n    for P in B['rows'][0][0]:\n        o, e = sub.porbit[P]; fp[o][e] += 1\n    ev_pt = sum(1 for i in range(k) if any(polyeval(d, pow(sub.lam, i, r), r) for d in fp.values()))\n    out['raw_point'] = (rank_A(Mp, r), Mp, ev_pt)\n    # quotient: rows from each row's labels, evaluated at the instrument's z\n    orbs = sorted(set(o for (_, labs) in B['rows'] for (o, _, _) in labs))\n    Mq = []\n    for (_, labs) in B['rows']:\n        q = quot_row(sub, labs, B['z']); Mq.append([q.get(o, 0) for o in orbs])\n    ev_q = 1 if any(polyeval(d, sub.lam, r) for d in f0.values()) else 0\n    out['quotient'] = (rank_A(Mq, r), Mq, ev_q)\n    # ker-g: deg h_g = 0 at the designed cells -> rank 0 by definition\n    out['kerg'] = (0, [[0]], 0) if sub.deg_hg == 0 else None\n    return out\n\ndef route_relation(sub, B, R, reading, Q, g4_passed, rk=None):\n    \"\"\"after admission: P2-2b, then P2-3/P2-6; returns (first_rule, effect)\"\"\"\n    f = p22b(sub, B, R, reading, Q)\n    if f: return f[0], 'invalid (%s)' % f[1]\n    rk = rk or ranks(sub, B)\n    for basis in ('raw_class', 'raw_point', 'quotient', 'kerg'):\n        a, Mx, ev = rk[basis]\n        if a != ev:\n            b = rank_B(Mx, sub.r)   # RANK-B run where RANK-A and EVAL disagree (P2-3)\n            if b != a: return 'IR-14', 'invalid (RANK-A != RANK-B on %s)' % basis\n            # P2-6 candidate: certificates re-run on the exported rows\n            f2 = p22b(sub, B, R, reading, Q)\n            if f2: return f2[0], 'invalid at P2-6 (%s)' % f2[1]\n            if not g4_passed: return 'IR-18', 'invalid (G4 not passed)'\n            return ('O-REFUTE-Q' if basis == 'quotient' else 'O-REFUTE-L3'), 'candidate on %s: RANK-A=RANK-B=%d, EVAL=%d' % (basis, a, ev)\n    if rk['quotient'][0] != 1: return 'O-REFUTE-Q', 'quotient rank %d' % rk['quotient'][0]\n    return 'none', 'ranks = EVAL, quotient rank 1 (O-SUPPORT-consistent)'\n\ndef g4(sub17_0, rels_g4, instr, reading, ownQ=False):\n    \"\"\"G4 on the executor build 'instr' plus its M1 and M2 mutants\"\"\"\n    def fails(build_instr, base):\n        nf = 0; first = None; adm = 0\n        for (src, legs, R) in rels_g4:\n            if ar1(sub17_0, legs, R): continue\n            adm += 1\n            B = build(sub17_0, base, legs)\n            if build_instr == 'M1':\n                B['rows'] = [B['rows'][0]] * sub17_0.k\n            if build_instr == 'M2':\n                B['rows'] = [(L, [(o, (-e) % sub17_0.k, eps) for (o, e, eps) in labs]) for (L, labs) in B['rows']]\n            Q = B['Qown'] if ownQ else sub17_0.QO\n            f = p22b(sub17_0, B, R, reading, Q)\n            if f:\n                nf += 1; first = first or f\n        return nf, adm, first\n    base_f, adm, base_first = fails('base', instr)\n    m1_f, _, _ = fails('M1', instr)\n    m2_f, _, _ = fails('M2', instr)\n    passed = (base_f == 0 and m1_f > 0 and m2_f > 0)\n    return passed, {'admitted': adm, 'build_failures': base_f, 'build_first': base_first,\n                    'M1_invalidated_on': m1_f, 'M2_invalidated_on': m2_f}\n\nif __name__ == '__main__':\n    subs = {}\n    for (n, a) in [(17, 0), (17, 1), (23, 0)]:\n        s = Sub(n, a); subs[(n, a)] = s\n        print('cell', (n, a), 'r', s.r, 'h', s.c.h, 'lambda', s.lam, 'field', bin(s.c.F.poly), 'f1', bin(s.f1),\n              'dimW', s.dimW, '|F_W|', len(s.FW), '|V|', s.nV, '|V|/k', len(s.QO), 'point orbits', s.npo,\n              'deg h_g(f1)', s.deg_hg, 'FW points in G', sum(1 for P in s.FW if s.c.piG(P) == P))\n    s0 = subs[(17, 0)]\n    rng = random.Random(subseed('G4-RS3-m2-17-0'))\n    g4rels = []\n    for _ in range(16):\n        L = draw(s0, rng, 2); g4rels.append(('RS-3m2', L, esum(s0.c.E, L)))\n    print('G4 relations: 16 drawn;', sum(1 for (_, L, R) in g4rels if s0.c.piG(R) is not None), 'admitted;',\n          sum(1 for (_, L, R) in g4rels if R is not None and s0.c.piG(R) == R), 'targets in G')\n    G4 = {}\n    for rd in READINGS:\n        for ins in INSTR:\n            for own in ([False, True] if ins == 'M2s-rep' else [False]):\n                p, info = g4(s0, g4rels, ins, rd, own)\n                tag = ins + ('/ownQ' if own else '')\n                G4[(rd, tag)] = p\n                print('G4', rd, tag, 'PASS' if p else 'FAIL', json.dumps(info))\n    RKC = {}\n    for cell in [(17, 1), (23, 0)]:\n        s = subs[cell]; rels = relations(s, '%d-%d' % cell)\n        adm = [(src, L, R) for (src, L, R) in rels if not ar1(s, L, R)]\n        print('== cell', cell, 'relations generated', len(rels), 'admitted', len(adm),\n              'by source', dict(Counter(src for src, _, _ in adm)),\n              'targets in G', sum(1 for (_, _, R) in adm if s.c.piG(R) == R))\n        for rd in READINGS:\n            for ins in INSTR:\n                for own in ([False, True] if ins == 'M2s-rep' else [False]):\n                    tag = ins + ('/ownQ' if own else '')\n                    cnt = Counter(); eff = Counter(); bysrc = defaultdict(Counter)\n                    for idx, (src, L, R) in enumerate(adm):\n                        key = (cell, ins, idx)\n                        if key not in RKC:\n                            B = build(s, ins, L); RKC[key] = (B, ranks(s, B))\n                        B, rk = RKC[key]\n                        Q = B['Qown'] if own else s.QO\n                        rule, effect = route_relation(s, B, R, rd, Q, G4[(rd, tag)], rk)\n                        cnt[rule] += 1; bysrc[src][rule] += 1\n                        eff[effect.split(' (')[0] if rule.startswith('IR') else effect.split(':')[0]] += 1\n                    runlevel = ('INVALID: G4 failed (IR-18, SR-3b) before any rank' if not G4[(rd, tag)] else\n                                ('INVALID (IR fired)' if any(k.startswith('IR') for k in cnt) else\n                                 ('O-REFUTE' if any(k.startswith('O-REFUTE') for k in cnt) else 'O-SUPPORT-consistent at this cell')))\n                    print(' ', rd, tag, 'per-relation first rule', dict(cnt), '| by source', {k: dict(v) for k, v in bysrc.items()}, '| RUN:', runlevel)\n    print('elapsed_s', round(time.time() - T0, 1))\n"
+      },
+      "scripts_note": "e4lib.py/e4j3.py extracted byte-for-byte from prior TASK-20260925-2333ea computations.json (C-J3-E4) for toy cell geometry only; v3_ptmf.py is new and implements the version-3 certificate rules. Prior outcomes are not cited as evidence.",
+      "result_summary": {
+        "cell": "(17,0)",
+        "v3_gate_passed": true,
+        "v3_detail": {
+          "CONTROL": {
+            "failures": 0,
+            "admitted": 16,
+            "first": null,
+            "targets_outside_G": 16,
+            "outside_G_failures": 0
+          },
+          "M1": {
+            "failures": 16,
+            "admitted": 16,
+            "first": [
+              "IR-17",
+              "CERT-BIND j=1: legs_j != tau^j(legs_0)"
+            ],
+            "targets_outside_G": 16,
+            "outside_G_failures": 16
+          },
+          "M2": {
+            "failures": 16,
+            "admitted": 16,
+            "first": [
+              "IR-16",
+              "CERT-LABEL row 0"
+            ],
+            "targets_outside_G": 16,
+            "outside_G_failures": 16
+          },
+          "M3": {
+            "failures": 16,
+            "admitted": 16,
+            "first": [
+              "IR-15",
+              "ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            ],
+            "targets_outside_G": 16,
+            "outside_G_failures": 16
+          }
+        },
+        "withdrawn_readings_CONTROL_only": {
+          "R-lit": {
+            "CONTROL_failures": 16,
+            "admitted": 16,
+            "first": [
+              "IR-17",
+              "CERT-BIND j=1: tau^j(R) != [lambda^j]R"
+            ],
+            "CONTROL_passes_G4_alone": false
+          },
+          "R-piG-label-only": {
+            "CONTROL_failures": 0,
+            "admitted": 16,
+            "first": null,
+            "CONTROL_passes_G4_alone": true
+          }
+        },
+        "attack_note": "Prior B1: R-lit rejects unmutated control (unprojected CERT-BIND). V3 projected CERT-BIND must let CONTROL pass including outside-G targets; M1 must still fail CERT-BIND; M3 must fail CERT-QUOT."
+      }
+    },
+    {
+      "id": "C-J-RD2-PTMF-V3",
+      "purpose": "J-RD2 / PTM-F REQUIRED re-run: planted F-i/F-ii and M3 against repaired CERT-QUOT at (17,1) and (23,0); unmutated control paired; contrast withdrawn R-piG-label-only (prior B2).",
+      "status": "done",
+      "compact_table": [
+        {
+          "cell": "(17,1)",
+          "src": "RS-3m2",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(17,1)",
+          "src": "RS-3m2",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(17,1)",
+          "src": "RS-3m2",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(17,1)",
+          "src": "RS-3m3",
+          "target_in_G": false,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(17,1)",
+          "src": "RS-3m3",
+          "target_in_G": false,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(23,0)",
+          "src": "RS-1",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(23,0)",
+          "src": "RS-1",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(23,0)",
+          "src": "RS-1",
+          "target_in_G": true,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(23,0)",
+          "src": "RS-3m3",
+          "target_in_G": false,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        },
+        {
+          "cell": "(23,0)",
+          "src": "RS-3m3",
+          "target_in_G": false,
+          "control_v3": "ACCEPTED (proves-too-much if plant)",
+          "F-i_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-ii_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "F-i_on_curve": false,
+          "F-i_withdrawn_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+          "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+          "rank_A_control": 1,
+          "rank_A_Fi": 1
+        }
+      ],
+      "signature": {
+        "PTM_F_failure_signature": "PTM-F MUST be INVALIDATED by repaired CERT-QUOT before any rank readout, while unmutated control PASSES G4 under repaired CERT-BIND.",
+        "G4_v3_CONTROL_pass": true,
+        "G4_v3_CONTROL_outside_G_failures": 0,
+        "G4_v3_M1_invalidated": true,
+        "G4_v3_M3_invalidated": true,
+        "PTM_F_unmutated_control_accepted_all": true,
+        "PTM_F_plants_invalidated_all": true,
+        "M3_invalidated_all": true,
+        "counts": {
+          "controls": 10,
+          "F-i": 10,
+          "F-ii": 10,
+          "M3": 10
+        },
+        "signature_met": true
+      },
+      "full_output_path_in_scratch": "/tmp/rt610ee2/v3_ptmf_out.json",
+      "full_output_embedded": {
+        "task": "TASK-20260930-610ee2",
+        "nature": "review_computation_zero_runs",
+        "certificate_rule": "v3 CERT-BIND projected; v3 CERT-QUOT sealed==ranked",
+        "cells": {
+          "(17,0)": {
+            "r": 239,
+            "h": 548,
+            "lambda": 166,
+            "lambda_inv": 36,
+            "k": 17,
+            "|F_W|": 306,
+            "class_orbits": 5,
+            "FW_in_G": 34
+          },
+          "(17,1)": {
+            "r": 65587,
+            "h": 2,
+            "lambda": 17184,
+            "lambda_inv": 24202,
+            "k": 17,
+            "|F_W|": 204,
+            "class_orbits": 6,
+            "FW_in_G": 0
+          },
+          "(23,0)": {
+            "r": 2095853,
+            "h": 4,
+            "lambda": 93194,
+            "lambda_inv": 1001329,
+            "k": 23,
+            "|F_W|": 2024,
+            "class_orbits": 44,
+            "FW_in_G": 920
+          }
+        },
+        "J_RD1_G4": {
+          "cell": "(17,0)",
+          "v3_gate_passed": true,
+          "v3_detail": {
+            "CONTROL": {
+              "failures": 0,
+              "admitted": 16,
+              "first": null,
+              "targets_outside_G": 16,
+              "outside_G_failures": 0
+            },
+            "M1": {
+              "failures": 16,
+              "admitted": 16,
+              "first": [
+                "IR-17",
+                "CERT-BIND j=1: legs_j != tau^j(legs_0)"
+              ],
+              "targets_outside_G": 16,
+              "outside_G_failures": 16
+            },
+            "M2": {
+              "failures": 16,
+              "admitted": 16,
+              "first": [
+                "IR-16",
+                "CERT-LABEL row 0"
+              ],
+              "targets_outside_G": 16,
+              "outside_G_failures": 16
+            },
+            "M3": {
+              "failures": 16,
+              "admitted": 16,
+              "first": [
+                "IR-15",
+                "ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+              ],
+              "targets_outside_G": 16,
+              "outside_G_failures": 16
+            }
+          },
+          "withdrawn_readings_CONTROL_only": {
+            "R-lit": {
+              "CONTROL_failures": 16,
+              "admitted": 16,
+              "first": [
+                "IR-17",
+                "CERT-BIND j=1: tau^j(R) != [lambda^j]R"
+              ],
+              "CONTROL_passes_G4_alone": false
+            },
+            "R-piG-label-only": {
+              "CONTROL_failures": 0,
+              "admitted": 16,
+              "first": null,
+              "CONTROL_passes_G4_alone": true
+            }
+          },
+          "attack_note": "Prior B1: R-lit rejects unmutated control (unprojected CERT-BIND). V3 projected CERT-BIND must let CONTROL pass including outside-G targets; M1 must still fail CERT-BIND; M3 must fail CERT-QUOT."
+        },
+        "J_RD2_PTM_F": {
+          "(17,1)": [
+            {
+              "src": "RS-3m2",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m2",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m2",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m3",
+              "target_in_G": false,
+              "hit_orbits": 3,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m3",
+              "target_in_G": false,
+              "hit_orbits": 1,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            }
+          ],
+          "(23,0)": [
+            {
+              "src": "RS-1",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-1",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-1",
+              "target_in_G": true,
+              "hit_orbits": 2,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m3",
+              "target_in_G": false,
+              "hit_orbits": 3,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            },
+            {
+              "src": "RS-3m3",
+              "target_in_G": false,
+              "hit_orbits": 3,
+              "plants": {
+                "unmutated_control": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "ACCEPTED (proves-too-much if plant)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": true
+                },
+                "F-i": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                },
+                "F-ii": {
+                  "rank_A": 1,
+                  "rank_B": 1,
+                  "v3_CERT_QUOT_vs_ranked": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)",
+                  "withdrawn_R_piG_label_only": "ACCEPTED under label-only CERT-QUOT (prior B2 gap)",
+                  "on_curve_identity_for_ranked_vector": false
+                }
+              },
+              "M3_v3": "INVALIDATED by IR-15: ranked_vector != CERT-QUOT-sealed vector (IR-15)"
+            }
+          ]
+        },
+        "signature": {
+          "PTM_F_failure_signature": "PTM-F MUST be INVALIDATED by repaired CERT-QUOT before any rank readout, while unmutated control PASSES G4 under repaired CERT-BIND.",
+          "G4_v3_CONTROL_pass": true,
+          "G4_v3_CONTROL_outside_G_failures": 0,
+          "G4_v3_M1_invalidated": true,
+          "G4_v3_M3_invalidated": true,
+          "PTM_F_unmutated_control_accepted_all": true,
+          "PTM_F_plants_invalidated_all": true,
+          "M3_invalidated_all": true,
+          "counts": {
+            "controls": 10,
+            "F-i": 10,
+            "F-ii": 10,
+            "M3": 10
+          },
+          "signature_met": true
+        },
+        "elapsed_s": 1.9
+      }
+    },
+    {
+      "id": "C-J-RD3-TEXT",
+      "purpose": "J-RD3: locate every factor-k correction sentence; require named claimant/field, conditional scope, primary-sourced rows only; prove-too-much on a NOT COMPUTED row.",
+      "status": "done",
+      "method": "grep + reading_rule application; no numeric run",
+      "findings": {
+        "v1_predicted_gain_physical_text_present": true,
+        "v1_predicted_gain_in_force_under_version_3_reading_rule": false,
+        "supersedes_entry": "proof_search_map.constructive_transforms[0].predicted_gain",
+        "restatement_field": "version_3.constructive_transforms_0_predicted_gain",
+        "restatement_asserts_correction": false,
+        "restatement_names_claimant": false,
+        "NOT_COMPUTED_row_application": "restatement states a NOT COMPUTED row carries none; c2pnb* rows under IMP-X962 receive no correction",
+        "decision_it_changes_factor_k_phrase": "conditional on O-REFUTE-Q through certified candidates only; not an unnamed gain correction (CORR-20260925-649e25 / prior O-8 pass pattern)"
+      }
+    },
+    {
+      "id": "C-J-RD4-TEXT",
+      "purpose": "J-RD4: quote v3 objective vs decision_it_changes / interpretation_limits; check primary-sourced row scoping.",
+      "status": "done",
+      "method": "textual consistency check; no numeric run",
+      "findings": {
+        "objective_row_by_row": true,
+        "objective_primary_sourced_only": true,
+        "objective_NOT_COMPUTED_out_of_scope": true,
+        "cites_decision_it_changes_and_interpretation_limits": true,
+        "bottleneck_every_Frobenius_row": "names-basis meta-requirement with 'No bit movement'; not an objective unit claim across NOT COMPUTED rows"
+      }
+    }
+  ]
+}

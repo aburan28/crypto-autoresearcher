@@ -1,0 +1,420 @@
+validation_report:
+  id: VAL-20261001-bd25c1
+  task_id: TASK-20261001-bd25c1
+  role: validator
+  experiment_id: EXP-ICEX-aaccfc
+  run_id: RUN-ICEX-0ad4d8
+  run_ids: [RUN-ICEX-0ad4d8]
+  review_plan: coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/review_plan_RUN-ICEX-0ad4d8.yaml
+  joints_owned: [J1, proves_too_much]
+  protocol: >-
+    v4 = experiments/EXP-ICEX-aaccfc/specification.yaml + AMD-20260926-ced670 +
+    AMD-20260929-143d11 + AMD-20260929-5a84eb
+  worktree: /Volumes/SSD990/wt-amend-ic (branch coord/ic-leads-impl-20260928)
+  worktree_head_at_validation: b2875431e406006d3d0235516d54e0bd8b336eae
+  validated_at: '2026-10-01'
+
+  snapshot_verified:
+    receipt: coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20261001-9b0538/snapshot-receipt.json
+    receipt_binding_mode: content_at_commit
+    receipt_commit_sha_field: null
+    snapshot_commit: b19c73228da12bf5c4406a3a6fb60d587e3572ee
+    snapshot_commit_parent: 84f1f17f38f0f247ee7f5c99233d900baafacf11 (equals receipt parent_sha)
+    snapshot_commit_scope: 192 files = the 191 receipt paths + the receipt itself; no other path
+    path_sha256_result: 191/191 match in HEAD and in the working tree; 0 mismatched; 0 missing
+    implementation_receipt: coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-a7f89b/snapshot-receipt.json
+    implementation_receipt_sha256: 5f13f66183177972d2932de7c71c3db3218d46811c9bca6c5c7de0b9b8625d12 (equals DEC-20260929-47a574 snapshot_receipt_sha256)
+    implementation_paths_result: 185/185 match in HEAD, in the working tree, and at the run commit 3feb29161b7e9fe55c42eec010d5db8bef12c89b
+    run_commit: 3feb29161b7e9fe55c42eec010d5db8bef12c89b (ancestor of HEAD; committed 2026-10-01T08:04:16-07:00, before the launch at 15:43:50Z)
+
+  checks:
+    - id: J1-01
+      name: Run snapshot receipt hashes and snapshot commit scope
+      result: PASS
+      evidence: >-
+        A Python loop over receipt.path_sha256 compared sha256(`git show HEAD:<p>`) and
+        sha256(working-tree file) to each recorded hash. Output: "TASK-20261001-9b0538
+        files 191 file_count 191 ok 191 bad 0 missing 0 commit None parent 84f1f17f...".
+        `git log -1 --format='%H parent=%P' b19c73228d` gives parent=84f1f17f... `git show
+        --name-only b19c73228d | grep -v RUN-ICEX-0ad4d8` lists only the receipt;
+        `--stat` reports "192 files changed".
+    - id: J1-02
+      name: Admission decision, trial plan, amendment, decision and fixture hashes
+      result: PASS
+      evidence: >-
+        `git show HEAD:<p> | shasum -a 256` matches manifest.run.inputs.protocol.records
+        for all of them: specification 5714346f..., AMD-ced670 b74b3002..., AMD-143d11
+        36cad68c..., AMD-5a84eb 61926b8c..., DEC-a8d594 6c0bc4b2..., DEC-986b4c 1e83fc3c...,
+        B0 AMD-3479cf 38d552b9..., fixtures 543f49ca... (= AMD-ced670 C-1), generator
+        bde44afb... (= C-1), trial-plan-v2.json 58c36b6d... (= DEC-20260929-47a574
+        trial_plan_sha256). DEC-20260929-47a574 has decision admit_execution and
+        currently_admitted true. Its sha256 is 050c5a75... both at the run commit and
+        at HEAD, so it is unchanged since the run. No decision under ledger/decisions/
+        names it in superseded_by or supersedes.
+    - id: J1-03
+      name: Implementation pinned at the run commit, and FX-6 verification recorded
+      result: PASS
+      evidence: >-
+        For all 185 paths in the a7f89b receipt, sha256(`git show 3feb29161b:<p>`) matches
+        (0 mismatches). manifest.inputs.snapshot_verification records verified true,
+        checked 185, mismatches [], unpinned [], dirty false. code.implementation_dirty
+        is false and implementation_status_porcelain is []. The tree was dirty only
+        through untracked run directories (RUN-ICEX-0ad4d8, RUN-RELN-a695fe).
+    - id: J1-04
+      name: C-7 machine-protection reading at launch
+      result: PASS
+      evidence: >-
+        manifest admission_readings_C7, read 2026-10-01T15:43:49Z (started_at
+        15:43:50Z): load_15min 12.75 <= 14; system_volume_free_gib 12.80 >= 5;
+        repo_volume_free_gib 85.80 >= 20. The admission-time reading (load 38.02,
+        failing) was not used at launch, as DEC-20260929-47a574 launch_gate requires.
+    - id: J1-05
+      name: G-2, code.commit == HEAD at every cell launch
+      result: PASS
+      evidence: >-
+        cellrun.py lines 151-153 (pinned) refuse a frozen-namespace cell unless
+        `git rev-parse HEAD` equals manifest run.code.commit. That raises
+        AdmissionRefused, so the cell status is not ok. All 30 cells have status ok
+        and exit_code 0 (manifest.driver.cells and raw-result.json), so the guard
+        passed at each launch. Limitation: per-cell HEAD values are not logged; the
+        check is enforced fail-closed rather than recorded per cell (F-4).
+    - id: J1-06
+      name: 30/30 cells executed match the trial plan; statuses; memory
+      result: PASS
+      evidence: >-
+        The trial-plan-v2.json cells list (n_cells 30) equals
+        manifest.inputs.cells_planned exactly (Python equality: True). cells_attempted
+        is 30. raw status is completed_valid, audit_accepted true, stderr.log is empty
+        everywhere (sha256 e3b0c442...). Peak RSS is 77,807,616 bytes (b20-s23
+        stage_cost_m8), within the 8 GiB limit.
+    - id: J1-07
+      name: Fixtures equal the frozen fixture file and are well formed
+      result: PASS
+      evidence: >-
+        recompute_j1.py: each primary cell's fixture dict equals the EXP-ICEX-aaccfc
+        entry of ic_leads_fixtures_v2.json by (bits, seed). p and N are prime (trial
+        division), 4a^3+27b^2 != 0, G is on the curve, N*G = O, and N > sqrt(p), for
+        all 6 fixtures. manifest fixture_reproduction byte_identical is true and
+        reproduced_sha256 is 543f49ca....
+    - id: J1-08
+      name: C-2 factor-base rule B = ceil(p^(1/5))
+      result: PASS
+      evidence: >-
+        Smallest integer B with B^5 >= p equals the recorded B for every fixture
+        (10, 10, 9, 15, 15, 16), and every x in V satisfies x < B. L values are
+        3, 5, 6, 7, 11, 5.
+    - id: J1-09
+      name: C-3 unit formula on every charged cost record
+      result: PASS
+      evidence: >-
+        recompute_j1.py walked all 30 cell results. For every dict with the C-3
+        counters it checked units == 13*(pt_add+pt_dbl) + probes + mul + 10*inv +
+        la_mul + 10*la_inv. Output: cost_dicts_checked over all cells; n_mismatches 0
+        (stdout "c3": 0).
+    - id: J1-10
+      name: Charging of failed attempts, table build, LA steps and descents (independent rebuild)
+      result: PASS
+      evidence: >-
+        Per primary fixture, stage1 was rebuilt as sum_j (13*pt_ops[j] + probes_each)
+        + fb_construction + forward_table; stage3 as the sum over la_log and rank_log
+        of (la_mul + 10*la_inv); descents as the sum over all 16 targets and all their
+        attempts. Every rebuilt figure equals the reported one, and complete_units
+        matches on all 6. Failed attempts are charged:
+        b16-s21 4018/4032, b16-s22 1027/1043, b16-s23 278/295, b20-s21 1821/1839,
+        b20-s22 260/282, b20-s23 12024/12040. Here member_bits ones == n_relations,
+        and failed == n_attempts - n_relations, matching n_failed_attempts. Descent
+        attempts charged: 8133, 900, 252, 1502, 193, 7877. lanczos_tries is 1 everywhere.
+        Stage 2 and the controls are excluded from complete cost, as the C-5 trial
+        plan states.
+    - id: J1-11
+      name: Independent recomputation of complete-cost exponent, CI, ratio, dominant stage and verdict
+      result: PASS
+      evidence: >-
+        recompute_j1.py has its own pure-Python OLS and its own hand-written numpy-linear
+        percentile. (a) Exponent: 0.6215622855169668 vs metrics 0.6215622855169669
+        (|diff| 1.1e-16). (b) Exact ideal bootstrap over all 6^6 = 46,656 fixture-index
+        resamples (5 degenerate excluded): CI95 [0.10192, 2.41040]. (c) Frozen-seed
+        reproduction: PCG64 seeded with SHA256('EXP-ICEX-aaccfc/v2|bootstrap')>>192
+        (spec seed rule), 2000 resamples, my OLS: [0.10590334558263816,
+        2.3169185392723866] vs metrics [0.10590334558263816, 2.3169185392723084]
+        (|diff| 0, 7.8e-14). (d) Three independent-seed Monte Carlo bootstraps are in
+        recompute_j1_out.json. (e) Ratios match metrics with max relative diff 0.0.
+        (f) Pooled 20-bit units: stage1 98,481,275, descents 64,950,253, stage3 9,074,
+        identical to metrics; dominant is stage1 (60.25% of pooled 20-bit charged
+        cost). (g) C-5 verdict: upper 2.32 is not < 0.5 and lower 0.106 is not >= 0.5,
+        so inconclusive under both the exact and frozen-seed CIs, matching metrics.
+        metrics dominant_stage_20bit is null (C-5 names a stage only for
+        scoped_negative); the diagnostic value is stage1, which matches. (h) FX-8
+        leave-b16-s21-out (non-verdict): exponent 0.7735885719875908 and CI
+        [0.34430, 3.37203], both |diff| 0 vs metrics; degenerate redraws 1 vs 1.
+    - id: J1-12
+      name: Bootstrap resampling unit (fixture vs attempt), the plan's expected break point
+      result: PASS
+      evidence: >-
+        analysis.py resamples the 6 (log q, log complete_units) fixture points, the
+        OQ-8 reading accepted by AMD-20260929-143d11. My independent exact enumeration
+        under that reading reproduces the CI to Monte Carlo precision; the 2000-draw CI
+        differs from the exact one by 0.004 (lower) and 0.093 (upper), with no effect on
+        the verdict. Implementation and protocol agree. The statistical consequence of
+        the reading is reported under proves_too_much and F-1, not as a run defect.
+    - id: J1-13
+      name: Certificate re-verification by direct group arithmetic (random sample)
+      result: PASS
+      evidence: >-
+        My own affine Weierstrass arithmetic, independent of arith.py and verify.py.
+        The sample was drawn with random.Random('TASK-20261001-bd25c1|cert-sample')
+        from all relations in primary + null_randfb cells (pool listed in
+        recompute_j1_out.json) and all 96 primary descents. Relations: 30 sampled
+        (16 primary, 14 null_randfb, all 6 fixtures). 30/30 satisfy R == a*G + b*Q,
+        have R on the curve, have 5 terms in the factor base, and satisfy sum(+-P(x_i))
+        == R under a consistent y-orientation (Tonelli-Shanks lifts, all sign
+        patterns). For the 16 sampled primary relations, 16/16 satisfy the log
+        identity a + b*k == sum e_i*log(P_i) (mod N) with logs from stage3.
+        Descents: 24 sampled across all 6 fixtures, 24/24 with k_t*G == Q_t and
+        k_hat == k_t. Complete (not sampled) checks: on all 6 primary cells k*G == Q,
+        k_recovered == k, and every factor-base x-class has a recovered log mapping G
+        to a point with that x. n_verified is 16/16 descents per fixture, and stage-3
+        log_verification all_ok and agrees_dense_reference are true on all 6.
+    - id: J1-14
+      name: Held-out alpha2 (stage 2) inputs and C-4 note
+      result: PASS
+      evidence: >-
+        All 6 primary cells have n_heldout 256, per_point length 256 and
+        agreement_with_brute_force 256. mean_units == 28*L on every fixture, the
+        trivial output-sensitive scan. The recomputed OLS of log(mean_units) on log L
+        is 0.9999999999999998 vs metrics 0.9999999999999999. As AMD-ced670 C-4
+        pre-registered, alpha2 = 1 is not a verdict input, and the run treats it so.
+        The held-out membership rate is J3's quantity; I did not re-derive it.
+    - id: J1-15
+      name: Positive/negative controls present per the frozen contract
+      result: PASS
+      evidence: >-
+        known_false (C-6): in all 6 primary cells, the scrambled relations (rows_changed
+        14-21) fail log verification (lanczos fails 8 tries; log_verification_all_ok
+        false; control_passed true). matched_null: 6 null_randfb cells present and
+        reported beside the interval factor base. baseline: 6 rho cells with 64/64
+        solved and k_true_matches on every target. accounting_audit: audit.json
+        accepted true, 30/30 cells accepted with empty failures.
+    - id: J1-16
+      name: FX-A non-verdict figure kept out of metrics
+      result: PASS
+      evidence: >-
+        metrics.json per_fixture[*].fxa_nonverdict and ratio_rj_incremental_nonverdict
+        are null. The figures are only in fxa_nonverdict.json, each with the cross_check
+        "rj_ops_j <= pt_ops_j for every attempt: passed". I did not independently re-run
+        FX-A; it is outside J1's statistic.
+    - id: J1-17
+      name: pytest
+      result: NOT_RUN
+      evidence: Not required for this joint, and DEC-20260929-47a574 forbids config overrides. No pytest was invoked.
+
+  j1_verdict: holds
+  j1_verdict_detail: >-
+    Run integrity holds. Every hash binding verifies, C-7 passed at launch, G-2 is
+    enforced fail-closed and every cell passed it, 30/30 cells match the trial plan,
+    and charging is complete, including every failed attempt and every descent
+    attempt. The frozen statistic reproduces exactly from per-attempt logs: exponent
+    0.62156, frozen-seed CI [0.10590, 2.31692], exact bootstrap CI [0.10192, 2.41040],
+    verdict inconclusive, diagnostic dominant stage stage1 (60.3% of pooled 20-bit
+    cost). 30 relation and 24 descent certificates re-verify by direct group
+    arithmetic. No statistic or certificate disagrees with metrics.json or
+    audit.json.
+
+  independent_recomputation:
+    complete_units:
+      b16-s21: {q: 60821, complete_units: 22902952, stage1: 8319221, stage3: 809, descents: 14582922, ratio: 8062.83}
+      b16-s22: {q: 63703, complete_units: 10223417, stage1: 5618334, stage3: 1476, descents: 4603607, ratio: 3516.73}
+      b16-s23: {q: 47059, complete_units: 4346029, stage1: 2379371, stage3: 2029, descents: 1964629, ratio: 1739.38}
+      b20-s21: {q: 562333, complete_units: 38675399, stage1: 21561897, stage3: 2670, descents: 17110832, ratio: 4477.76}
+      b20-s22: {q: 619537, complete_units: 17249569, stage1: 10278743, stage3: 4906, descents: 6965920, ratio: 1902.69}
+      b20-s23: {q: 909289, complete_units: 107515634, stage1: 66640635, stage3: 1498, descents: 40873501, ratio: 9789.12}
+    exponent: 0.6215622855169668
+    exponent_metrics_json: 0.6215622855169669
+    ci95_frozen_seed_reproduction: [0.10590334558263816, 2.3169185392723866]
+    ci95_metrics_json: [0.10590334558263816, 2.3169185392723084]
+    ci95_exact_ideal_bootstrap_46656: [0.10192128449907066, 2.410403872023808]
+    fraction_of_exact_bootstrap_slopes_below_0.5: 0.3108
+    dominant_stage_20bit: stage1
+    dominant_share_20bit: 0.6025
+    dominant_stage_metrics_json: {dominant_stage_20bit: null, dominant_stage_20bit_diagnostic: stage1}
+    verdict: inconclusive
+    verdict_metrics_json: inconclusive
+    leave_out_b16_s21_nonverdict: {exponent: 0.7735885719875908, ci95_frozen_seed: [0.3442959142112903, 3.3720256019343178], ci95_exact: [0.30711780012676204, 3.3720256019343178]}
+    run_residual_sd_log_cost_df4: 0.7790
+
+  certificate_reverification:
+    sample_rule: "random.Random('TASK-20261001-bd25c1|cert-sample'); 30 of all primary+null_randfb relations, 24 of 96 primary descents"
+    relations_sampled: 30
+    relations_passed: 30
+    relation_log_identities_checked: 16
+    relation_log_identities_passed: 16
+    descents_sampled: 24
+    descents_passed: 24
+    exhaustive_checks: "k*G == Q and full factor-base log coverage on all 6 primary cells: 6/6"
+    verifier: own affine arithmetic in recompute_j1.py (no import of arith.py / verify.py)
+
+  proves_too_much:
+    verdict: breaks_at_run_noise
+    verdict_detail: >-
+      The frozen exponent/CI/verdict code is correct as a computation: it recovers
+      planted laws exactly without noise and behaves well at low noise. At the
+      scatter this run actually shows, it has almost no power. A planted 0.40 is
+      detected (CI upper < 0.5) in about 9% of replicates, and a planted 0.60 gets a
+      favourable exclusion in 1.5-4.4%. By the plan's failure signature, a negative
+      or inconclusive verdict from this pipeline at this noise level is
+      uninformative about 0.40 vs 0.60. It also manufactures favourable exclusions
+      on 0.60 at a low but nonzero rate. This is a property of the frozen design
+      (two sizes, six points, percentile bootstrap over fixtures). It is not an
+      implementation defect, and it does not change J1.
+    method: >-
+      proves_too_much.py imports the frozen analysis.py read-only (sys.dont_write_bytecode;
+      PYTHONDONTWRITEBYTECODE=1; `git status --short experiments/` was empty before and
+      after). It builds synthetic primary tables cost_f = C * q_f^beta * exp(eps_f) on the
+      six frozen fixtures' q and bit groups and passes them end-to-end through
+      analysis.analyse (frozen OLS, frozen-seed 2000-resample percentile bootstrap,
+      frozen C-5 rule). C puts the ratio below 1 at 20 bits, so the ratio clause never
+      masks the CI clause. Noise: lognormal at sigma 0.05/0.10/0.20/0.779 (0.779 is the
+      run's residual SD), 400 replicates each, seed
+      'TASK-20261001-bd25c1|proves-too-much'; plus all 720 permutations of the run's
+      own six log-residuals. Command: `TMPDIR=/Volumes/SSD990/.tmp-agent
+      PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 <task>/proves_too_much.py
+      <task>/proves_too_much_out.json` (exit 0, 121 s).
+    object_planted_exponent:
+      noiseless:
+        beta_0.40: {exponent: 0.40001, ci95: [0.39989, 0.40010], verdict: sub_rho_signal}
+        beta_0.50: {exponent: 0.50005, ci95: [0.49989, 0.50013], verdict: inconclusive}
+        beta_0.60: {exponent: 0.60006, ci95: [0.59991, 0.60015], verdict: scoped_negative}
+        beta_0.40_at_run_cost_level: {verdict: inconclusive, reason: "ratio clause (ratio >> 1), CI excludes 0.5"}
+      ci_upper_below_0.5_rate_on_beta_0.40: {sigma_0.05: 0.925, sigma_0.10: 0.755, sigma_0.20: 0.3375, sigma_0.779_run: 0.095, run_residual_permutations: 0.0889}
+      favourable_exclusion_rate_on_beta_0.60: {sigma_0.05: 0.0, sigma_0.10: 0.0, sigma_0.20: 0.0025, sigma_0.779_run: 0.015, run_residual_permutations: 0.0444}
+      false_favourable_rate_on_beta_0.50_nominal_0.025: {sigma_0.05: 0.0475, sigma_0.10: 0.0625, sigma_0.20: 0.06, sigma_0.779_run: 0.0475, run_residual_permutations: 0.0861}
+      false_negative_rate_on_beta_0.50_nominal_0.025: {sigma_0.05: 0.0625, sigma_0.10: 0.0525, sigma_0.20: 0.07, sigma_0.779_run: 0.0475, run_residual_permutations: 0.0875}
+      structural_cause: >-
+        Exact enumeration: 1,452 of 46,656 fixture resamples (3.11%) draw only from one
+        bit group, without being all one index. They estimate the slope over a log-q
+        range of 0.303 (16-bit) or 0.481 (20-bit) instead of the 2.487 gap between
+        groups. Their share exceeds each 2.5% percentile tail, so with any noise both
+        CI endpoints are set by within-group slopes. This explains the run's
+        [0.106, 2.317] width, and why one-sided error is about 5-9% rather than the
+        nominal 2.5%.
+    object_matched_rho:
+      walk_units: {exponent: 0.50990, ci95_frozen_bootstrap_code: [0.45294, 0.57540], ci95_exact: [0.43826, 0.57277], holds: true}
+      total_measured_units_incl_precompute: {exponent: 0.18764, ci95_frozen_bootstrap_code: [0.16872, 0.20485], ci95_exact: [0.16884, 0.20434]}
+      precompute_share_of_measured_rho_units: {b16-s21: 0.857, b16-s22: 0.845, b16-s23: 0.858, b20-s21: 0.660, b20-s22: 0.704, b20-s23: 0.647}
+      reading: >-
+        Matched rho's walk cost returns about 1/2, as it should, so object 2 holds on
+        the walk. On the full charged rho cost, the frozen exponent code returns 0.19
+        with a CI excluding 1/2 favourably. The cause is the per-target 32-point
+        jump-table precompute (65-86% of measured units), a fixed overhead that
+        flattens the 16-20-bit slope. The fit therefore reports a sub-1/2 exponent
+        for a method known to be Theta(sqrt q). This does not enter the C-5 verdict,
+        which divides by the frozen 13*0.886*sqrt(q), not measured rho. It does show
+        that the 16-20-bit exponent statistic can be confounded by fixed overheads.
+        This is a pointer for J2; I adjudicate no scope.
+
+  findings:
+    - id: F-1
+      severity: major (design; non-blocking for J1)
+      detail: >-
+        Proves-too-much. At the run's own residual scatter (SD 0.779 in log cost), the
+        frozen C-5 pipeline detects a planted exponent of 0.40 in about 9% of
+        replicates, and gives favourable exclusions on planted 0.60 (1.5-4.4%) and
+        planted 0.50 (4.75-8.6%, nominal 2.5%). The run's inconclusive verdict
+        therefore carries little information about the exponent, and a hypothetical
+        sub_rho_signal from this design would have been weak too. Cause: the
+        accepted OQ-8 fixture-level percentile bootstrap over six points at two
+        sizes, where 3.11% of resamples are single-bit-group slopes. Remedy, for a
+        future amendment only (never retroactive): more field sizes or a resampling
+        unit stratified by bit group.
+    - id: F-2
+      severity: minor (interpretive pointer, not a run defect)
+      detail: >-
+        The frozen exponent code applied to matched rho's full charged cost returns
+        0.188 [0.169, 0.205]. The fixed jump-table precompute dominates at 16-20 bits,
+        so the exponent statistic can manufacture a sub-1/2 slope from fixed overheads
+        at toy scale. On walk units, rho returns 0.510 [0.453, 0.575]. The C-5 verdict
+        does not use measured rho, so the run's result is unaffected.
+    - id: F-3
+      severity: info
+      detail: >-
+        The 2000-draw Monte Carlo CI [0.106, 2.317] differs from the exact ideal
+        bootstrap CI [0.102, 2.410] by Monte Carlo error. The verdict is the same
+        under both.
+    - id: F-4
+      severity: minor
+      detail: >-
+        G-2 (HEAD == code.commit at every cell launch) is enforced fail-closed in
+        cellrun.admission_guard, but HEAD per cell launch is not logged. Compliance
+        is inferred from 30/30 ok statuses plus the pinned guard code, not read from
+        a per-cell record. Recording HEAD per cell would make G-2 directly auditable.
+    - id: F-5
+      severity: info
+      detail: >-
+        The run snapshot receipt has commit_sha null (binding_mode content_at_commit).
+        I identified the snapshot commit b19c73228d by message and parent and verified
+        it by content. The run worktree also held the untracked RUN-RELN-a695fe
+        package (manifest status_porcelain). That does not affect HEAD, the
+        implementation hashes, or the deterministic unit counts, but wall-clock
+        seconds may reflect shared load.
+    - id: F-6
+      severity: info
+      detail: >-
+        The manifest inference block is null/unverified, as disclosed in advance in
+        DEC-20260929-47a574 procedure_deviations.
+  blocking_findings: none
+  must_fix_findings: none for J1. F-1 is a design limitation that the claim's interpretation must carry; it is not a repair of this run.
+
+  limitations:
+    - Certificates were sampled (30 relations of the primary+null pool, 24 of 96 descents); rho solutions were not re-verified by me beyond the recorded k_true_matches.
+    - FX-A figures, the stage-2 membership rate (J3) and the scope or interpretation of the verdict (J2) are outside this joint and were not adjudicated.
+    - The synthetic noise model (iid lognormal, or a permutation of the six observed residuals) is an assumption; the per-fixture variance structure of the real pipeline may differ.
+    - A passed J1 makes the receipt admissible evidence. It does not support any claim about H-ICEX-d8e858 beyond what the frozen C-5 rule returns.
+
+  verdict: passed
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/validation_report.yaml
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/recompute_j1.py
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/recompute_j1_out.json
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/recompute_j1_stdout.txt
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/proves_too_much.py
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/proves_too_much_out.json
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/proves_too_much_stdout.txt
+  commands:
+    - "cd /Volumes/SSD990/wt-amend-ic && TMPDIR=/Volumes/SSD990/.tmp-agent nice -n 10 python3 <task>/recompute_j1.py <task>/recompute_j1_out.json  (exit 0, ~1 s)"
+    - "cd /Volumes/SSD990/wt-amend-ic && TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 <task>/proves_too_much.py <task>/proves_too_much_out.json  (exit 0, 121 s)"
+    - "hash checks: inline python over receipt path_sha256 using `git show HEAD:<p>` / `git show 3feb29161b:<p>` and the working tree; `git show HEAD:<p> | shasum -a 256` for protocol records"
+  archived_by: TASK-20261001-befc87
+
+  attestation:
+    review_attestation:
+      task_id: TASK-20261001-bd25c1
+      joints_owned: [J1, proves_too_much]
+      verdicts: {J1: holds, proves_too_much: breaks_at_run_noise}
+      files_read:
+        - AGENTS.md / CLAUDE.md (as workspace rules)
+        - agents/validator.md
+        - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/dispatch_queue.json (this task's card only, extracted by id)
+        - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/review_plan_RUN-ICEX-0ad4d8.yaml
+        - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20261001-9b0538/snapshot-receipt.json
+        - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-a7f89b/snapshot-receipt.json (hashed and path list used)
+        - experiments/EXP-ICEX-aaccfc/specification.yaml
+        - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260926-ced670.yaml
+        - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-143d11.yaml
+        - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-5a84eb.yaml
+        - ledger/decisions/DEC-20260929-47a574.yaml
+        - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/ (manifest.yaml, metrics.json, raw-result.json, audit.json, fxa_nonverdict.json, stdout.log, command.txt, environment.json, cells/*/result.json, sample of cells/*/task.json, process.json, command.txt)
+        - experiments/EXP-ICEX-aaccfc/implementation/analysis.py (full), cellrun.py lines 110-199, driver.py header and grep hits, common.py grep hits, trial-plan-v2.json
+        - experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json
+        - "hash-only (sha256 via git show, not read for content): DEC-20260929-a8d594, DEC-20260929-986b4c, AMD-20260926-3479cf, ic_leads_fixtures_v2.py, all 185 implementation receipt paths"
+      not_read: [ledger/proposals/IDEA-20260909-fe3e07.yaml, ledger/hypotheses/H-ICEX-d8e858.yaml]
+      sibling_reports_read: none
+      sibling_dirs_avoided: [tasks/TASK-20261001-d367dd/, tasks/TASK-20261001-1894f8/]
+      independent_session: true
+      requested_policy: review-adversarial
+      resolved_model_id: unknown (Cursor runtime)
+      fallback_used: true
+      degraded_requirements: [xhigh reasoning effort not verifiable under the Cursor runtime (DEC-20261001-ba1026)]
+      scientific_runs_performed: 0
+      frozen_label_draws: 0
+      pytest_invoked: false
+      repository_writes: only under coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-bd25c1/; no commit, push, or ledger/queue/experiment edit

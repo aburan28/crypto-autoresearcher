@@ -1,0 +1,167 @@
+"""Independent, one-attempt stage-1 QA routing; no reviewed-code imports."""
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import time
+import sys
+
+R = Path('/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-a-recovery')
+A = R / 'coordination/pending-ideas/BATCH-e9d1c7/timing-correction/qa-admission'
+B = R / 'coordination/pending-ideas/BATCH-e9d1c7/timing-correction/qa/scratch'
+EXPECTED_HEAD = '7cf61fc90cfa9023e6ce2887a21456a51dd56cb6'
+SOURCE = 'eac27561d3d91708d6670ac994d0e32355dd0028'
+PUB = '172616085b4ae2118dc0c0d79883bc78ec9a59ea'
+IMAGE = 'sha256:48055ba59697f5c7993191abd6157d37361ea8e4547d2b9ac034d804a19a514c'
+CASES = ['child-success', 'profile-EXP-ECDLP-abf981', 'profile-EXP-ECDLP-2cb7f8']
+PINS = {'fixture-authority.json': '6863255a81bee0faf79ba9833f70be365f423dab42c4f53f09f9df3e7507a274',
+        'admitted-index.json': 'c1171d60d0ee51e43c30765c5deeb21f84d406d331ba6049326d977f3f8f19d3',
+        'linux-runtime-safe-custody.json': 'a6ae4d718fd1593c0de3bc1ac46dec447e64f8bdcde9cc7c2116dee0d80a922f'}
+
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+def stamp():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+def write(path, value):
+    with path.open('x') as f:
+        json.dump(value, f, indent=2, sort_keys=True, allow_nan=False)
+        f.write('\n')
+        f.flush()
+        os.fsync(f.fileno())
+
+def git(*args, root=R):
+    return subprocess.check_output(['git', '-C', str(root), *args])
+
+def capture(path):
+    st = path.lstat()
+    return {'path': str(path), 'sha256': sha(path.read_bytes()), 'device': st.st_dev,
+            'inode': st.st_ino, 'mode': st.st_mode, 'nlink': st.st_nlink, 'bytes': st.st_size}
+
+def verify_publication():
+    assert (R / '.git').is_dir() and not (R / '.git').is_symlink()
+    assert git('rev-parse', 'HEAD').decode().strip() == EXPECTED_HEAD
+    for commit in [SOURCE, PUB]:
+        subprocess.run(['git', '-C', str(R), 'merge-base', '--is-ancestor', commit, 'HEAD'], check=True)
+    for name, expected in PINS.items():
+        p = A / name
+        assert sha(p.read_bytes()) == expected
+        assert git('show', PUB + ':' + str(p.relative_to(R))) == p.read_bytes()
+    receipt = json.loads((A / 'publication-receipt.json').read_text())
+    assert set(git('diff-tree', '--no-commit-id', '--name-only', '-r', PUB).decode().splitlines()) == set(receipt['exact_changed_paths'])
+    for relative in receipt['exact_changed_paths']:
+        assert git('show', PUB + ':' + relative) == (R / relative).read_bytes(), relative
+    assert git('show', EXPECTED_HEAD + ':' + str((A / 'publication-receipt.json').relative_to(R))) == (A / 'publication-receipt.json').read_bytes()
+    for case_id, binding in receipt['capsules'].items():
+        path = R / binding['path']
+        assert sha(path.read_bytes()) == binding['sha256']
+        assert git('show', EXPECTED_HEAD + ':' + binding['path']) == path.read_bytes()
+    return receipt
+
+authority = json.loads((A / 'fixture-authority.json').read_text())
+index = json.loads((A / 'admitted-index.json').read_text())
+environment = json.loads((A / 'runtime-probes/environment.json').read_text())
+assert list(index) == CASES
+assert sys.argv[1] in CASES
+CASES = [sys.argv[1]]
+assert authority['source_snapshot'] == SOURCE and authority['container_image'] == IMAGE
+assert authority['admitted_index_sha256'] == PINS['admitted-index.json']
+assert authority['native_receipt']['record']['thread_id'] == '01a084d8-3395-77d0-8598-1c939c85fcb9'
+assert authority['native_receipt']['record']['turn_id'] == '01a084d8-3421-71b0-bcf0-8b3c479ccbc4'
+assert authority['native_receipt']['record']['configured_reasoning_effort'] == 'ultra'
+verify_publication()
+image = subprocess.check_output(['docker', 'image', 'inspect', IMAGE, '--format', '{{.Id}} {{.Os}} {{.Architecture}}']).decode().strip()
+assert image == IMAGE + ' linux arm64'
+originals = [R / authority[k]['path'] for k in ['claim', 'native_receipt']]
+before = [capture(p) for p in originals]
+for kind, p in zip(['claim', 'native_receipt'], originals):
+    assert sha(p.read_bytes()) == authority[kind]['sha256']
+
+docker_base = ['docker', 'run', '--rm', '--network', 'none', '--memory', '8g', '--pids-limit', '64',
+               '--user', '501:20', '--mount', f'type=bind,src={R},dst={R},readonly',
+               '--mount', f'type=bind,src={B},dst={B}']
+env_args = ['/usr/bin/env', '-i', *[k + '=' + v for k, v in environment.items()]]
+
+probe = r'''
+import hashlib,json,os,pathlib,stat,sys
+A=pathlib.Path(sys.argv[1]); au=json.loads((A/'fixture-authority.json').read_text()); seen={}
+def check(path, expected):
+ p=pathlib.Path(path); st=p.lstat()
+ assert p.is_absolute() and str(p.resolve())==str(p), str(p)
+ assert stat.S_ISREG(st.st_mode) and st.st_nlink==1, (str(p),st.st_nlink)
+ actual=hashlib.sha256(p.read_bytes()).hexdigest(); assert actual==expected, str(p)
+ seen[str(p)]=actual
+def walk(obj):
+ if isinstance(obj,dict):
+  if 'sha256' in obj:
+   for key in ['path','image','executable']:
+    if key in obj and str(obj[key]).startswith('/'):
+     check(obj[key],obj['sha256']); break
+  for v in obj.values(): walk(v)
+ elif isinstance(obj,list):
+  for v in obj: walk(v)
+assert os.getuid()==501
+walk(au['tools'])
+for case in au['cases']:
+ plan=json.loads((pathlib.Path(case['fixture_root'])/case['plan']['path']).read_text())['execution_plan']
+ walk(plan['dependency_closure'])
+ assert sys.version==plan['dependency_closure']['python']['version']
+ assert dict(os.environ)==plan['environment_policy']['outer'],dict(os.environ)
+custody=json.loads((A/'linux-runtime-safe-custody.json').read_text()); walk(custody['git_system_config'])
+print(json.dumps({'runtime_files_verified':len(seen),'path_sha256':seen,'python_version':sys.version,'uid':os.getuid(),'environment':dict(os.environ)},sort_keys=True))
+'''
+probe_cmd = docker_base + ['--workdir', str(R), IMAGE] + env_args + ['/usr/local/bin/python3.13', '-B', '-c', probe, str(A)]
+probe_result = subprocess.run(probe_cmd, capture_output=True, timeout=180)
+with (B / ('validator-runtime-precheck.' + sys.argv[1] + '.attempt-2.stdout.txt')).open('xb') as f: f.write(probe_result.stdout)
+with (B / ('validator-runtime-precheck.' + sys.argv[1] + '.attempt-2.stderr.txt')).open('xb') as f: f.write(probe_result.stderr)
+write(B / ('validator-stage1-precheck.' + sys.argv[1] + '.attempt-2.json'), {'recorded_at': stamp(), 'source': SOURCE, 'publication': PUB,
+       'head': EXPECTED_HEAD, 'image': image, 'originals_before': before, 'runtime_probe_argv': probe_cmd,
+       'runtime_probe_exit_code': probe_result.returncode, 'scope': 'independent binding checks; no reviewed-code imports'})
+assert probe_result.returncode == 0, probe_result.stderr.decode(errors='replace')
+print('runtime_precheck_passed', flush=True)
+
+fixture_pub=json.loads((A/'fixture-publication.json').read_text())
+results=[]
+for case_id in CASES:
+    verify_publication()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    claim = json.loads(originals[0].read_text())
+    assert now < datetime.datetime.fromisoformat(claim['expires_at'].replace('Z','+00:00'))
+    assert now.timestamp() < 1788935156.773 + 3600 - 120, 'insufficient watchdog time'
+    subprocess.run(['git','-C',str(R),'merge-base','--is-ancestor',PUB,'refs/remotes/origin/codex/finite-yaml-repair-planning-20260909'],check=True)
+    c=next(x for x in authority['cases'] if x['case_id']==case_id)
+    root=Path(c['fixture_root'])
+    assert root == B / 'fixtures' / case_id / 'repo'
+    assert git('rev-parse','HEAD',root=root).decode().strip()==c['fixture_commit']==fixture_pub['fixture_commits'][case_id]
+    assert git('rev-parse',fixture_pub['fixture_refs'][case_id]).decode().strip()==c['fixture_commit']
+    assert git('status','--porcelain','--untracked-files=all',root=root)==b''
+    for key in ['lock','plan']:
+        assert sha((root/c[key]['path']).read_bytes())==c[key]['sha256']
+    plan=json.loads((root/c['plan']['path']).read_text())['execution_plan']
+    for relative in ['harness/finite_yaml_locked_v3.py','harness/finite_yaml_process_v2.py','tests/test_finite_yaml_locked_v3.py','tests/fixtures/finite_yaml_locked_v3/cases.json','tests/fixtures/finite_yaml_locked_v3/worker.py']:
+        raw=(root/relative).read_bytes()
+        assert raw==git('show',SOURCE+':'+relative)==(R/relative).read_bytes(),relative
+    assert plan['environment_policy']['outer']==environment
+    output=B/'case-evidence'/f'{case_id}.attempt-2.json'
+    assert not output.exists()
+    cmd=docker_base+['--workdir',str(root),IMAGE]+env_args+['/usr/local/bin/python3.13','-B',str(root/'tests/test_finite_yaml_locked_v3.py'),'--source-root',str(root),'--admitted-index',str(A/'admitted-index.json'),'--single-case',case_id,'--evidence',str(output)]
+    start=stamp(); mono=time.monotonic()
+    print('starting '+case_id,flush=True)
+    cp=subprocess.run(cmd,capture_output=True,timeout=600)
+    for stream,raw in [('stdout',cp.stdout),('stderr',cp.stderr)]:
+        with (B/f'validator-{case_id}.attempt-2.{stream}.txt').open('xb') as f: f.write(raw)
+    result={'case_id':case_id,'attempt':2,'started_at':start,'finished_at':stamp(),'duration_seconds':time.monotonic()-mono,
+            'argv':cmd,'exit_code':cp.returncode,'fixture_commit':c['fixture_commit'],'source_snapshot':SOURCE,
+            'authority_sha256':PINS['fixture-authority.json'],'index_sha256':PINS['admitted-index.json'],
+            'originals_after':[capture(p) for p in originals],'evidence':capture(output) if output.exists() else None}
+    assert result['originals_after']==before
+    if output.exists():
+        body=json.loads(output.read_text()); result['case_result']=body['result']
+    write(B/f'validator-{case_id}.attempt-2.process.json',result)
+    results.append({k:v for k,v in result.items() if k!='case_result'})
+    print(json.dumps({'case_id':case_id,'exit_code':cp.returncode,'evidence_written':output.exists(),'outcome':result.get('case_result',{}).get('outcome'),'error':result.get('case_result',{}).get('error'),'stderr_tail':cp.stderr.decode(errors='replace')[-2500:]}),flush=True)
+write(B/('validator-stage1-attempts.'+sys.argv[1]+'.attempt-2.json'),{'attempts':results,'unadmitted_case_count':171,'scientific_runs':0,'final_reports_unwritten':True})

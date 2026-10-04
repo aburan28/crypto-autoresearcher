@@ -1,0 +1,728 @@
+idea:
+  id: IDEA-20260922-6028ed
+  question_id: RQ-BINSTD-b6f698
+  added: '2026-09-22'
+  status: proposed
+  approved_by: null
+  title: >-
+    THE REACHABILITY TABLE DOES NOT EXIST AS AN OBJECT, ONLY AS PROSE SPREAD
+    ACROSS DOZENS OF PROPOSAL FILES, AND NOTHING NOTICES WHEN A CELL'S
+    PROVENANCE ROTS. Give it one typed, schema-checked artifact plus a CI
+    validator that treats every cell's verdict as a claim WITH A DEPENDENCY
+    LIST, refuses a STRUCTURALLY EMPTY verdict with no certificate pointer,
+    refuses a COMPUTED verdict whose cited input record has been superseded
+    without the cell being touched, and turns every OPEN verdict's missing
+    quantity into a live, greppable pointer instead of a dead string in a
+    markdown file. Priced, tested with a synthetic-mutation battery, and
+    scoped honestly: this is infrastructure, not an attack.
+  class: tooling
+
+  claim: >-
+    (A) THE OBJECT DOES NOT EXIST. RQ-BINSTD-b6f698's decision_target names a
+    "maintained REACHABILITY TABLE, one row per named curve and one column per
+    index-calculus line, in which each cell is exactly one of: STRUCTURALLY
+    EMPTY with a certificate, DEFINED WITH A COMPUTED COST..., or OPEN with the
+    specific missing quantity named." As of this session that table exists only
+    as PROSE: analysis/binstd-curve-audit/README.md's two-paragraph summary,
+    IDEA-20260922-77bf31's per-cell descent-column verdicts embedded in a
+    multi-hundred-line claim field, IDEA-20260922-2e2a58's region-table Stage 3
+    output description (not yet run), and the audit scripts' own printed text.
+    There is no single file a person or a CI job can open and ask "which of the
+    ~30 rows x ~6 columns = ~180 cells are filled, with what, and is it still
+    true." That absence is not neutral: it means (i) filling a cell requires
+    re-reading several hundred-line proposal records to find the verdict
+    buried in their claim/predictions text, (ii) two sibling records in this
+    lane can (and do, in this batch) compute overlapping or complementary cells
+    without a shared place to reconcile them, and (iii) nothing detects when a
+    cell's justification has gone stale.
+    (B) STALENESS IS NOT HYPOTHETICAL, IT IS THE STRUCTURE OF THIS PROGRAM. Per
+    CLAUDE.md's own concurrency rules, "run records, ledger records, and
+    knowledge entries are immutable -- corrections supersede, never overwrite,"
+    and many concurrent worktrees write to this same ledger. A STRUCTURALLY
+    EMPTY verdict resting on analysis/binstd-curve-audit/subfield_scan.py's
+    output is silently wrong the moment that script (or its interpretation) is
+    corrected by a CORR-* record; a COMPUTED verdict resting on 77bf31's g/B
+    bound is silently wrong if 77bf31 is superseded by a record that revises
+    g or the bound; an OPEN verdict naming "the covering genus g_H" as the
+    missing quantity is silently STALE (should become COMPUTED) the moment some
+    future record computes g_H for the five c2pnb rows, and nothing currently
+    tells anyone that record exists. None of this is a hypothetical failure
+    mode -- it is exactly the failure mode CLAUDE.md's "Merges to main publish
+    a digest" and "Sessions talk to each other through a write-once feed"
+    sections exist to prevent for OTHER kinds of state, and the reachability
+    table currently has no equivalent.
+    (C) THE PROPOSAL. One canonical, schema-typed data file,
+    analysis/binstd-curve-audit/reachability_table.yaml, and one validator,
+    tools/validate_reachability_table.py, extending the check_* pattern
+    tools/validate_ledger.py already uses (check_cross_refs,
+    check_schema_supersessions, check_knowledge_entries). Each cell is a typed
+    record:
+      {curve_row, method_column, verdict: STRUCTURALLY_EMPTY | COMPUTED | OPEN,
+       certificate: {artifact_path, sha256, assertion} (required iff
+       STRUCTURALLY_EMPTY), inputs: [{record_id, kind}] (required iff
+       COMPUTED, non-empty), formula (required iff COMPUTED),
+       extrapolation_distance (required iff COMPUTED and curve_row is deployed),
+       missing_quantity (required iff OPEN, drawn from a small controlled
+       vocabulary), matched_rho_row, ratio (optional, required iff COMPUTED
+       and a ratio is claimed)}.
+    The validator enforces schema shape, then TWO live checks with no research
+    compute involved: (i) CERTIFICATE INTEGRITY -- re-hash the artifact at
+    certificate.artifact_path and compare to the pinned sha256; a mismatch
+    fails the cell by name, catching a silently-changed script or output
+    before anyone trusts a stale STRUCTURALLY EMPTY verdict again. (ii)
+    PROVENANCE FRESHNESS -- for every input record_id (a COMPUTED cell's inputs
+    or a STRUCTURALLY_EMPTY cell's certificate-producing logic's owning
+    record), confirm the record still exists in the ledger and carries no
+    superseded_by pointer; a superseded input fails the cell by name rather
+    than leaving it silently wrong, reusing the exact check_schema_supersessions
+    pattern already in tools/validate_ledger.py rather than inventing a new
+    mechanism. A third, non-blocking check (iii) OPEN-CELL LIVENESS -- grep
+    ledger/proposals and ledger/hypotheses for any record whose title or claim
+    field contains the cell's missing_quantity string, and flag the cell
+    "possibly closeable, see <record_id>" as an informational note, not a
+    failure -- turns a dead OPEN marker into a live forward-pointer with zero
+    manual bookkeeping.
+    (D) THE HONEST SCOPE. This is a schema-and-validator problem, not a
+    research result. It claims no attack, no exponent, no cost bound on any
+    curve. Its entire value is preventing exactly the kind of silent drift
+    CLAUDE.md's concurrency section already spends several paragraphs
+    preventing for other artifact classes, applied here because this specific
+    artifact -- a maintained table with ~180 cells and certificate-dependent
+    verdicts -- is exactly the shape of thing that rots quietly if it is prose.
+
+  mechanism: >-
+    SCOPE NOTE, STATED FIRST. This is class: tooling. The point-representation
+    / operation-set / trichotomy / lossy-projection machinery of
+    docs/object-frame-ideation.md is written for ECDLP ATTACK candidates that
+    track a point through group operations; this record tracks no point and
+    performs no group arithmetic, so that machinery does not natively apply.
+    Rather than force it or silently skip it, the record offers the closest
+    honest ANALOGUE below, clearly labelled as an analogue, so the record's
+    structure still answers "what is tracked, under what operations, and what
+    discard is licensed" in the spirit the brief asks for -- without
+    pretending this is an attack-object candidate.
+    TRACKED OBJECT (analogue to a "representation"): the reachability-table
+    CELL as a typed record (verdict + certificate/formula/inputs pointers),
+    not the full prose argument that produced it. OPERATION SET (analogue to
+    "Sigma," but over LEDGER STATE, not group elements): Sigma_ledger =
+    {supersede(record_id) -- file a CORR-* or new IDEA-*/RQ-*/KN-* that
+    supersedes a cited record; re-run_and_change(artifact) -- edit a
+    certificate-producing script or its output; append(new_record) -- file a
+    record that supplies a previously-OPEN cell's missing_quantity}. These are
+    exactly the mutations concurrent worktrees actually perform on this
+    repository's shared state, per CLAUDE.md's own concurrency section.
+    TRICHOTOMY (adapted): the typed cell is neither partial-action nor
+    branching in the point-representation sense; it is best described as
+    COORDINATE-DEPENDENT in the same loose sense IDEA-20260922-2e2a58's
+    resource-triple object is -- a property of how the LEDGER is organised,
+    not of any mathematical object -- and the record says so rather than
+    forcing an ill-fitting label.
+    LOSSY-PROJECTION TEST, ADAPTED TO Sigma_ledger. What the typed cell
+    DISCARDS: the full prose argument (77bf31's claim field alone is several
+    hundred lines; the typed cell keeps roughly eight short fields). LOSSY: a
+    typed cell obviously cannot reconstruct the discarded prose, and many
+    different prose arguments could in principle produce the identical typed
+    cell (not injective) -- both required properties of a genuine lossy
+    projection, not a change of coordinates. COMPATIBLE WITH Sigma_ledger, the
+    load-bearing claim: the cell's TRUTH VALUE (does it still correctly
+    describe the world) is UNCHANGED by any Sigma_ledger operation that does
+    not touch anything the cell's retained pointers name, and is FORCED STALE
+    -- caught by the validator, not silently wrong -- by any Sigma_ledger
+    operation that DOES touch a named pointer. This is exactly the
+    "compatible discard" criterion: the retained eight fields are precisely
+    the part of the discarded prose whose truth Sigma_ledger can change, so
+    discarding the rest loses no information Sigma_ledger could act on.
+    THE ONE OPEN NUMBER: NOT APPLICABLE IN THE ATTACK-COST SENSE. No point
+    representation is tracked, so there is no orbit-canonicalisation cost or
+    (L, b) meter to price. The record's only real "cost" is engineering effort,
+    priced honestly in estimated_cost below rather than forced into a field
+    that does not fit.
+    OFF-LIMITS COMPONENTS: not applicable; no attack family (F1-F7) is used as
+    a component or a lens, since no attack is proposed. No new factor base is
+    introduced, so KN-OPEN-020 is not engaged. No R1/R2/R3 representation is
+    used; this record touches no point arithmetic.
+
+  novelty_status: unverified
+
+  origin:
+    kind: generator_lane_F
+    date: '2026-09-22'
+    scope: >-
+      Lane F of the BINSTD ideation batch, seam 2: a tooling proposal making
+      the reachability table a checkable object CI can refuse to let rot,
+      rather than a markdown/prose file that drifts.
+    overlap_review: >-
+      Grepped ledger/, knowledge/, tools/, .github/ for "reachability table",
+      "reachability_table", "checkable object", "provenance chain", "CI check"
+      combined with this lane's content, and for any prior proposal in class
+      tooling touching this question. NO PRIOR RECORD IN THIS CORPUS PROPOSES
+      A SCHEMA-TYPED, CI-VALIDATED REACHABILITY-TABLE ARTIFACT FOR THIS OR ANY
+      OTHER RESEARCH QUESTION. NEAREST NEIGHBOURS AND WHAT THIS ADDS BEYOND
+      EACH. IDEA-20260922-77bf31 (this lane, filed earlier today) computes
+      per-cell descent-column verdicts (COMPUTED with a g/B bound for
+      decomposition columns, OPEN with g_H named for the cover column) but
+      EMITS THEM AS PROSE inside its own claim/minimal_test fields, with no
+      schema and no machine-checkable link to the certificate it cites -- this
+      record's Stage 1 explicitly seeds the new typed table FROM 77bf31's own
+      Stage 3 deliverable rather than re-deriving any verdict, and gives that
+      deliverable a home where staleness is caught rather than a place where
+      it is filed and forgotten. IDEA-20260922-2e2a58 (same lane, same day)
+      plans a Stage 3 "region table" output with the same per-cell shape
+      (charged operations, peak words, P*, binding axis) but again as a
+      prose-described deliverable inside its own record, not a standalone
+      artifact; this record's schema is designed to hold 2e2a58's cell shape
+      too (the COMPUTED verdict's formula/inputs fields are general enough for
+      either record's cost model), so building this tool once serves both
+      rather than each record inventing its own table format. IDEA-20260922-
+      b19793 (this lane, third record) emits an LA-column verdict per cell in
+      the same shape and is a third, independent producer this schema is
+      designed to accept without a fourth ad hoc format. analysis/binstd-
+      curve-audit/README.md is the closest EXISTING artifact to a
+      "reachability table" in this corpus -- it is prose with two summary
+      paragraphs and a five-row markdown table for the composite-degree
+      curves only, no schema, no per-cell certificate hash, no supersession
+      check, and covers roughly 5 of the ~180 cells this record's schema
+      targets; it is the natural SOURCE for this record's Stage 1 seed of the
+      GHS-column STRUCTURALLY_EMPTY cells, cited and reused rather than
+      duplicated. tools/validate_ledger.py already implements the exact
+      check_* / Ctx pattern (check_cross_refs, check_schema_supersessions,
+      check_knowledge_entries -- read this session) this record's validator
+      extends; NO EXISTING check in that file inspects a per-cell certificate
+      hash or a domain-specific controlled vocabulary of "missing quantities,"
+      so this is a genuinely new check, not a restatement of an existing one.
+      GENERIC PRECEDENT, DIFFERENT DOMAIN: this program's supersession-tracking
+      discipline (superseded_by pointers, CORR-* records, the write-once
+      merge-digest and agent-bus feeds documented in CLAUDE.md's concurrency
+      section) is the GENERAL mechanism this record's provenance-freshness
+      check reuses; this record is the first proposal to apply that mechanism
+      to a RESEARCH-QUESTION-SPECIFIC DERIVED TABLE rather than to the ledger's
+      own record graph.
+  citations:
+    - ref: RQ-BINSTD-b6f698
+      provenance: internal
+      claim: >-
+        Owning question; its decision_target names the reachability table with
+        exactly the three-way verdict taxonomy (STRUCTURALLY EMPTY /
+        COMPUTED / OPEN) this record's schema encodes directly.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: analysis/binstd-curve-audit/README.md
+      provenance: internal
+      claim: >-
+        The closest existing artifact to a reachability table in this corpus;
+        a five-row prose table for the composite-degree curves with no schema
+        or certificate hash. Source for this record's Stage 1 seed data.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: analysis/binstd-curve-audit/subfield_scan.py
+      provenance: internal
+      claim: >-
+        The certificate-producing script whose output backs the GHS-column
+        STRUCTURALLY_EMPTY verdicts for the prime-degree half of the
+        population; the file this record's certificate-integrity check would
+        hash and pin for those cells.
+      verified_by: idea-generator, listed via Glob 2026-09-22, not opened line by line
+    - ref: IDEA-20260922-77bf31
+      provenance: internal
+      claim: >-
+        Computes descent-column verdicts (COMPUTED with a g/B bound;
+        OPEN with the covering genus g_H named for the five c2pnb rows) as
+        prose in its own claim and minimal_test fields; nearest producer this
+        record's Stage 1 seeds from.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: IDEA-20260922-2e2a58
+      provenance: internal
+      claim: >-
+        Plans a Stage 3 region-table output with a matching per-cell shape
+        (charged operations, peak words, P*, binding axis) as a prose-
+        described deliverable inside its own record.
+      verified_by: idea-generator, read in full 2026-09-22 (Read tool)
+    - ref: IDEA-20260922-b19793
+      provenance: internal
+      claim: >-
+        A third, independent producer of LA-column verdicts in the same
+        per-cell shape, filed in this same lane and batch.
+      verified_by: idea-generator, authored this session (same lane)
+    - ref: tools/validate_ledger.py
+      provenance: internal
+      claim: >-
+        Implements a check_* / Ctx function pattern (check_cross_refs,
+        check_schema_supersessions, check_knowledge_entries, among others)
+        this record's validator extends rather than replaces.
+      verified_by: idea-generator, grepped function definitions 2026-09-22 (Grep tool)
+  citation_note: >-
+    Every citation to an in-repo file (README, subfield_scan.py existence,
+    validate_ledger.py's function list) was checked this session, either by
+    reading the file in full or by listing/grepping it directly, as recorded
+    per citation above. No external tooling literature was consulted; this is
+    an internal-infrastructure proposal and its novelty claim rests entirely
+    on a corpus grep, hence novelty_status: unverified rather than a stronger
+    tier.
+
+  assumptions:
+    - >-
+      A YAML schema check plus a certificate-hash check plus a supersession
+      check is SUFFICIENT to catch the staleness modes named in claim (B); it
+      does not claim to catch every possible drift (e.g. a cited record's
+      TEXT changing in a way that does not trigger a formal supersession is
+      out of scope, since this program's immutability rule means records are
+      not edited in place -- corrections supersede, never overwrite -- so this
+      gap is small by the program's own discipline, not unaddressed).
+    - >-
+      The controlled vocabulary for missing_quantity strings (e.g. "covering
+      genus g_H", "Krylov chain length constant", "e = ord_n(ell) for curve
+      X") is maintained BY HAND as OPEN cells are added, not inferred; this is
+      a real, disclosed maintenance cost, priced in estimated_cost.
+    - >-
+      This record does not itself compute any curve's cost, certificate, or
+      bound; it only types and checks verdicts that OTHER records (77bf31,
+      2e2a58, b19793, future ones) supply. Seeding the table with those
+      records' own emitted verdicts is a transcription task, not a research
+      claim, and any transcription error is a tooling bug, not a scientific
+      finding.
+    - >-
+      No group arithmetic, no curve parameter, no deployed-curve computation
+      is performed by this record at any point.
+
+  proof_search_map:
+    bottleneck: >-
+      The exact step whose removal changes the theorem is not a mathematical
+      bottleneck but an ENGINEERING one: whether a cell's typed pointers
+      (certificate hash, input record IDs) are SUFFICIENT to detect every
+      staleness event Sigma_ledger can produce. If they are not -- if some
+      Sigma_ledger mutation can silently invalidate a cell without touching
+      any of its recorded pointers -- the validator gives false confidence,
+      which would be worse than no tool at all. The synthetic-mutation battery
+      in the minimal test exists specifically to probe this.
+    baseline_embedding:
+      parameter_slice: >-
+        The INCUMBENT is "no schema, no validator, prose only, staleness never
+        caught automatically." That is exactly the current state of the
+        reachability table (claim A) and is reproduced by this record's own
+        design if the validator is never run -- i.e. the incumbent is the
+        degenerate case of this proposal with the CI check disabled, not a
+        strawman built to be beaten.
+      reproduction_check: >-
+        Zero compute: confirm that reading the SAME information the incumbent
+        prose already carries (77bf31's descent-column verdicts,
+        2e2a58's planned region-table cells) into the new schema produces no
+        information loss relevant to the verdict itself -- every field the
+        schema requires is already present, in prose form, in the source
+        records cited above. If any required schema field has NO prose
+        analogue in the source records, that is itself a finding (the source
+        records are less complete than they appear) and is reported, not
+        silently patched.
+    observation_collision:
+      observable: >-
+        "The reachability table says cell (curve, column) = X."
+      distinct_preimage_search: >-
+        COLLISION EXHIBITED. Currently, the SAME prose observable "cell X"
+        could be produced by: (i) a verdict that is still true and whose
+        certificate/inputs are unchanged; (ii) a verdict whose certificate
+        artifact has silently changed since it was written; (iii) a verdict
+        whose cited input record has been superseded by a revision that
+        changes the number; (iv) a verdict that is now STALE because a
+        follow-on record supplied the missing quantity an OPEN cell named,
+        and nobody updated the table. A reader of the current prose cannot
+        tell which of the four states holds. The identifying tuple this
+        record proposes every cell carry is (verdict, certificate_hash_status,
+        input_supersession_status, open_cell_liveness_flag) -- exactly what
+        the validator computes.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the printed verdict fixed and vary the hidden staleness state,
+          exhibiting the four preimages above.
+        predicted_gain: >-
+          Converts "the table says X" from an unverifiable prose claim into a
+          machine-checked one with a named failure mode for each of the four
+          states. NO RESEARCH RESULT IS PRODUCED.
+      - transform: specialization_pack
+        proposed_object: >-
+          The synthetic-mutation battery (six named cases in the minimal
+          test) as a specialisation of Sigma_ledger's three operations,
+          exercising each staleness mode individually rather than trusting
+          the validator's design by inspection alone.
+        predicted_gain: >-
+          Makes "the validator works" itself a falsifiable, tested claim
+          rather than an assertion about untested code.
+    quantifier_order: >-
+      CLAIMED. FOR EVERY cell whose certificate artifact is re-hashed and
+      matches its pinned value, AND whose every input record_id exists and
+      carries no superseded_by pointer, the validator emits no failure. FOR
+      EVERY cell where either check fails, the validator names the specific
+      cell and the specific failing pointer. NOT CLAIMED: that these two
+      checks are a COMPLETE staleness detector (see assumptions); not claimed:
+      any research result about any curve.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For the reachability_table.yaml schema and the six synthetic-mutation
+        test cases enumerated in the minimal test, the validator passes the
+        two valid cases and fails each of the four injected-failure cases,
+        naming the specific cell and pointer in every failure." It can NEVER
+        certify that no OTHER staleness mode exists beyond the ones tested, or
+        that any cell's underlying research content is correct -- only that
+        its recorded pointers are internally consistent with current ledger
+        state.
+      nearby_object_control: >-
+        THE UNRELATED-CHANGE CONTROL IS THE ONE THAT MATTERS MOST FOR A TOOL
+        LIKE THIS. Case 6 of the synthetic battery (below) adds an entirely
+        unrelated new ledger record and confirms the validator does NOT fire
+        -- a validator that fails on every ledger change, relevant or not, is
+        useless in a repository with this program's write volume, and this
+        control is what distinguishes "the validator tracks dependencies" from
+        "the validator is a tripwire on ledger size."
+    proof_obligations:
+      - claim: >-
+          The seeded reachability_table.yaml, transcribed from 77bf31's and
+          the audit's own emitted verdicts, validates cleanly against the
+          schema with zero modification to the source records' content.
+        responsibility: correctness
+      - claim: >-
+          The certificate-integrity check fires on a one-byte change to a
+          cited artifact and does not fire when the artifact is unchanged.
+        responsibility: correctness
+      - claim: >-
+          The provenance-freshness check fires when a cited input record is
+          superseded and does not fire for an unrelated ledger change.
+        responsibility: correctness
+      - claim: >-
+          The battery achieves 6/6 on the synthetic mutation cases before the
+          validator is proposed for CI integration.
+        responsibility: scope
+  predictions:
+    - metric: >-
+        synthetic-mutation battery pass count (six named cases: valid table;
+        changed certificate artifact; missing input record; superseded input
+        record; malformed OPEN missing_quantity string; unrelated ledger
+        change)
+      direction: higher
+      minimum_effect: >-
+        FORCED 6/6 to certify the tool as safe to propose for CI integration.
+        Any score below 6 blocks integration and names the specific failing
+        case as the design gap to fix next, per the falsification conditions.
+    - metric: >-
+        transcription fidelity -- fraction of 77bf31's and the audit's own
+        emitted per-cell verdicts that map onto the schema with no information
+        loss relevant to the verdict
+      direction: higher
+      minimum_effect: >-
+        100 percent for the specific verdicts those two source records commit
+        to (their Stage 0/3 deliverables); any verdict that does NOT fit the
+        schema cleanly is reported as a schema gap and the schema is revised,
+        not the source record's content.
+    - metric: >-
+        open-cell-liveness informational hit rate -- for a small set of
+        DELIBERATELY SEEDED OPEN cells whose missing_quantity is later
+        supplied by a planted matching record, fraction correctly flagged
+        "possibly closeable"
+      direction: higher
+      minimum_effect: >-
+        This is a non-blocking, informational feature; a miss is reported but
+        does not fail the battery, since a false negative here degrades
+        gracefully to the current all-prose status quo rather than causing
+        harm.
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute). Write the schema (embedded as a validation
+      function in tools/validate_reachability_table.py, following
+      tools/validate_ledger.py's existing check_* / Ctx pattern rather than
+      introducing a new validation framework).
+      STAGE 1 (zero research compute, transcription only). Seed
+      analysis/binstd-curve-audit/reachability_table.yaml with ONLY the
+      verdicts this session's sibling records and the existing audit actually
+      commit to: the GHS-column STRUCTURALLY_EMPTY cells for the 25 prime-
+      extension-degree rows (certificate = subfield_scan.py's output, per the
+      audit README); the descent-column verdicts IDEA-20260922-77bf31's
+      Stage 0 deliverable specifies (COMPUTED with the g/B bound for
+      decomposition columns on Koblitz/general-prime-degree rows, OPEN with
+      g_H named for the cover column on the five c2pnb rows). Every other
+      cell in the ~180-cell space is left EXPLICITLY UNFILLED (a fourth
+      schema-legal state, NOT_YET_ASSESSED, distinct from OPEN, so an empty
+      cell is never confused with a cell someone has actually determined is
+      structurally empty or genuinely open) -- no number or verdict this
+      session does not have is fabricated to fill a cell.
+      STAGE 2 (mechanical, no research judgment). Implement the validator's
+      three checks: schema shape; certificate-hash re-verification against
+      the pinned sha256; input-record existence and non-supersession, reusing
+      tools/validate_ledger.py's existing supersession-lookup machinery
+      rather than re-implementing it. Implement the non-blocking open-cell-
+      liveness grep as a fourth, informational-only pass.
+      STAGE 3 (the falsification battery, cheap and deterministic, on a
+      SCRATCH COPY of the seeded table and its cited artifacts, never on the
+      live files). Six named cases: (1) the valid seeded table -> expect PASS.
+      (2) flip one byte in a copy of the certificate artifact the
+      STRUCTURALLY_EMPTY GHS cells cite -> expect FAIL, naming the specific
+      affected cell(s). (3) a COMPUTED cell's inputs list cites a record_id
+      that does not exist in ledger/ -> expect FAIL, naming the cell and the
+      missing ID. (4) write a synthetic CORR-* record (in a scratch copy of
+      the ledger, never committed) that supersedes one of 77bf31's cited
+      inputs -> expect FAIL, naming the cell and the stale input. (5) an OPEN
+      cell's missing_quantity string is set to a value not in the controlled
+      vocabulary -> expect FAIL (schema violation), catching inconsistent
+      naming across cells before it accumulates. (6) add an entirely
+      unrelated new IDEA-* record to the scratch ledger copy, touching none of
+      the seeded table's cited artifacts or inputs -> expect PASS, unchanged,
+      the false-positive control.
+      STAGE 4 (zero compute, contingent on 6/6). Propose (not perform, per
+      this record's own class and this session's non-authority to approve
+      infrastructure changes) adding the validator as a check in
+      .github/workflows/main-health.yml or validate.yml, matching the
+      existing pattern for other ledger checks.
+      MEMORY/COST DISCIPLINE. The entire test is file I/O and string/hash
+      comparisons over at most a few hundred small YAML records; no group
+      arithmetic, no curve computation, sub-second runtime, negligible memory.
+    controls:
+      - >-
+        VALID-TABLE PASS (blocking, case 1): the unmutated seeded table must
+        validate cleanly, or the schema/seed mismatch is the first bug to fix
+        before anything else is trusted.
+      - >-
+        FALSE-POSITIVE CONTROL (blocking, case 6): an unrelated ledger change
+        must NOT trigger a failure; this is the control that distinguishes a
+        genuine dependency tracker from a tripwire.
+      - >-
+        SCRATCH-COPY DISCIPLINE (blocking, all mutation cases): every
+        injected failure is applied to a COPY, never to the live ledger or
+        live audit artifacts, so this record's own testing cannot corrupt the
+        state it is trying to protect.
+      - >-
+        TRANSCRIPTION-FIDELITY CHECK: the seeded table's cells are diffed
+        against the source records' own emitted verdict text by a human/
+        Coordinator review before Stage 3, since an automated transcription
+        step could itself introduce the exact kind of silent drift this
+        record exists to prevent.
+    required_metrics:
+      - battery_pass_count_out_of_6
+      - per_case_pass_fail_with_named_cell_and_pointer
+      - transcription_fidelity_fraction
+      - open_cell_liveness_hit_rate_on_planted_examples
+      - validator_runtime_and_peak_memory
+  falsification_conditions:
+    - >-
+      Battery score below 6/6 on first implementation. The specific failing
+      case names the exact design gap (a staleness mode the pointer schema
+      does not actually catch, or a false positive on an irrelevant change);
+      the validator is revised and re-run before any CI-integration proposal,
+      not shipped with a known gap.
+    - >-
+      The seeded table (Stage 1) fails its OWN validator on the unmutated
+      case. This would mean the schema does not even fit the content it is
+      meant to hold -- a design failure caught before any CI investment, and
+      the honest, useful outcome of catching it here rather than after
+      integration.
+    - >-
+      The transcription-fidelity check finds a required schema field with NO
+      prose analogue in 77bf31/the audit's own emitted verdicts. This means
+      the schema is asking for more than the source records currently commit
+      to, and is reported as a schema-design gap (loosen the schema, or note
+      the missing field as a request back to the source record) rather than
+      silently fabricated to make Stage 1 pass.
+    - >-
+      Everything holds at 6/6. Then the lane gains a single, canonical,
+      schema-checked reachability-table artifact seeded with exactly the
+      cells this session's sibling records actually commit to, a validator
+      ready to be proposed for CI integration by the Coordinator, and an
+      explicit NOT_YET_ASSESSED state distinguishing "nobody has looked" from
+      "confirmed structurally empty" or "confirmed open" for the ~175 cells
+      this session does not fill.
+
+  confounders:
+    - >-
+      A SCHEMA CAN ENFORCE SHAPE BUT NOT TRUTH. The validator confirms a
+      cell's pointers resolve and are unstale; it cannot confirm the CONTENT
+      of the certificate or the correctness of the cited formula. A cell that
+      passes validation and is still scientifically wrong is a real,
+      undetectable-by-this-tool failure mode, disclosed rather than implied
+      away.
+    - >-
+      THE CONTROLLED VOCABULARY FOR missing_quantity IS A MAINTENANCE
+      LIABILITY. If two records name logically the same missing quantity with
+      different strings ("covering genus g_H" versus "genus of the covering
+      curve at m/16"), the open-cell-liveness check will miss the match; this
+      is a real, disclosed limitation of a string-based check, not a claim of
+      semantic understanding.
+    - >-
+      SCRATCH-COPY TESTING DOES NOT EXERCISE REAL GIT CONCURRENCY. The battery
+      tests the validator's LOGIC against constructed inputs; it does not test
+      behaviour under a genuine concurrent-worktree race (two sessions editing
+      the table simultaneously), which is out of this record's scope and is
+      named as forward guidance, not solved here.
+    - >-
+      NOT_YET_ASSESSED CELLS ARE NOT PROGRESS. Filling the schema with ~5 of
+      ~180 cells is a small fraction of the table RQ-BINSTD-b6f698 envisions;
+      this record's value is the CHECKABILITY of what IS filled and the
+      explicit, honest marking of what is not, not the coverage itself.
+
+  interpretation_limits:
+    - >-
+      NO RESEARCH RESULT IS CLAIMED. No curve's cost, memory, or feasibility
+      is determined, bounded, or changed by this record. It is infrastructure.
+    - >-
+      The seeded table covers a small fraction of the full ~180-cell space;
+      quoting "the reachability table is now complete" from this record would
+      be a misreading. The explicit NOT_YET_ASSESSED marker exists precisely
+      to prevent that misreading.
+    - >-
+      This record does not itself decide whether the validator should be
+      wired into CI as a blocking check -- that is a Coordinator infrastructure
+      decision, outside this session's authority, and next_gate names it
+      explicitly rather than assuming it.
+    - >-
+      FORWARD GUIDANCE. Left open: extending the schema to accept
+      IDEA-20260922-2e2a58's and IDEA-20260922-b19793's cell formats once
+      those records' own Stage 3/4 deliverables exist (not done here, since
+      neither has run yet); a semantic (not string-exact) match for the
+      open-cell-liveness check, e.g. via the same kb/ retrieval MCP server
+      this repository already runs for the knowledge corpus, as a natural
+      successor rather than attempted here; and genuine concurrent-write
+      testing once a second session actually edits the table, which this
+      record's scratch-copy battery cannot substitute for.
+
+  heuristic_assumptions:
+    - id: H-BINSTD-TOOL-1
+      statement: >-
+        A cell's two live checks (certificate-hash match, input non-
+        supersession) are jointly SUFFICIENT to catch the staleness modes
+        named in claim (B) for the specific ledger-mutation operations
+        Sigma_ledger enumerates (supersede, re-run-and-change, append).
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: by construction, every claim (B) staleness
+        scenario (script output changes, cited record superseded, missing
+        quantity later supplied) maps onto exactly one of Sigma_ledger's three
+        operations, and each operation is checked by one of the validator's
+        mechanisms (hash re-verification for re-run-and-change; supersession
+        lookup for supersede; the informational liveness grep for append).
+        THE GAP: this is a design argument, not a proof that no FOURTH kind of
+        drift exists outside Sigma_ledger's three named operations (e.g. a
+        record's INTERPRETATION changing without any formal ledger mutation
+        at all, which no automated check can catch). The classical analogue
+        this imitates is a build system's dependency graph (e.g. Make's
+        timestamp/hash-based staleness detection): sufficient for the
+        mutations the graph models, silent on anything outside the graph.
+      validation_plan: >-
+        SAMPLE. The six-case synthetic battery in the minimal test, covering
+        one instance of each of Sigma_ledger's three operations (cases 2, 3+4,
+        5-adjacent) plus a valid case and a false-positive control.
+        COMPARISON. Expected pass/fail per case, stated in advance (Stage 3).
+        TAIL CHECK. None applicable at this sample size (six deterministic
+        cases, not a statistical distribution); this heuristic is validated
+        by exhaustive enumeration of the named operation set, not sampling.
+        TRANSFER. None claimed beyond the six enumerated cases and the three
+        named Sigma_ledger operations; a fourth kind of drift is explicitly
+        out of scope (interpretation_limits).
+  heuristic_note: >-
+    This record carries one heuristic assumption rather than several, because
+    it is an engineering claim, not a mathematical or statistical one: the
+    question is whether a finite, enumerable set of check mechanisms covers a
+    finite, enumerable set of named failure modes, which is answered by
+    exhaustive testing (the six-case battery) rather than by sampling or a
+    distributional model. The honestly disclosed gap is drift OUTSIDE the
+    three named Sigma_ledger operations, which no schema-and-hash validator
+    can address and which this record does not claim to address.
+
+  target_complexity:
+    time_exponent: >-
+      NOT APPLICABLE -- no attack. The validator itself runs in O(rows *
+      columns) = O(~180) cell checks, each O(1) hash comparison and O(log|ledger|)
+      record lookup; sub-second on the seeded table, and still well under a
+      second at the full ~180-cell target size.
+    memory_exponent: >-
+      NOT APPLICABLE -- no attack. O(rows * columns) cell records held in
+      memory at once, each a few hundred bytes; negligible at any plausible
+      table size for this population.
+    best_known: >-
+      NOT APPLICABLE -- there is no prior "linear algebra" or "rho" baseline
+      for a validator. The relevant baseline is the CURRENT STATE (prose only,
+      no automated staleness detection), reproduced as the parameter_slice of
+      proof_search_map.baseline_embedding above.
+    hidden_overhead: >-
+      DISCLOSED. (i) String-based missing_quantity matching misses semantic
+      equivalents (confounders). (ii) The battery tests six constructed cases,
+      not genuine concurrent-worktree races. (iii) Schema enforcement does not
+      verify scientific content, only pointer consistency.
+    tradeoff_note: >-
+      NOT APPLICABLE in the time-memory-parallelism sense; the only tradeoff
+      is maintenance burden (keeping the controlled vocabulary and schema
+      current) against the cost of silent drift the tool is built to catch,
+      and that tradeoff is qualitative, not priced in exponents.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+    qualification: >-
+      Schema plus validator plus seed file: roughly 300-500 lines total,
+      reusing tools/validate_ledger.py's existing check_* / Ctx / supersession-
+      lookup machinery rather than building parallel infrastructure. The
+      synthetic-mutation battery is roughly 100-150 additional lines of test
+      scaffolding operating on scratch copies. No group arithmetic, no
+      solver, no curve computation; runtime is sub-second, memory negligible.
+      This is the cheapest of the three records this session files.
+
+  asymptotic_claim:
+    problem: >-
+      NOT APPLICABLE. This record makes no claim about ECDLP, any curve, or
+      any algorithm's complexity. It proposes infrastructure for tracking
+      claims OTHER records make about those things.
+    prior_best: NOT APPLICABLE -- no attack, no algorithm compared.
+    time_exponent: NOT APPLICABLE.
+    memory_exponent: NOT APPLICABLE.
+    hidden_cofactor: NOT APPLICABLE.
+    claim_kind: infrastructure
+  dominated_by: >-
+    n/a (no result claimed). This record proposes no attack, no algorithm, and
+    no cost bound on any curve or group; there is no row of RQ-BINSTD-b6f698's
+    baseline clause to check it against, and forcing a dominated_by entry
+    against rho or any other algorithm would misrepresent a tooling proposal
+    as a research result. Per docs/inventor-protocol.md section 5, this is the
+    complete and honest answer for a class: tooling record.
+  sota_delta:
+    time: >-
+      NOT APPLICABLE -- no speed claim on any axis of any algorithm. The only
+      "before/after" this record changes is whether a table cell's staleness
+      is caught automatically (after) or never (before, the current state).
+    memory: NOT APPLICABLE.
+    data_queries: NOT APPLICABLE.
+  frontier_check:
+    status: pending
+    note: >-
+      Schema-typed dependency tracking with hash-based staleness detection is
+      standard practice in software engineering (build systems, data
+      pipelines, "data contracts" in the data-engineering literature); this
+      record's contribution, if any survives a broader search, is narrowly
+      its APPLICATION to a research-question-specific derived table inside
+      this program's ledger conventions, not the underlying idea of
+      hash-checked dependency tracking, which is well known outside this
+      corpus and was not searched externally this session. What was searched
+      in this corpus and not found: any prior proposal of a schema-typed,
+      CI-validated reachability-table (or equivalent per-cell derived-claim
+      table) artifact for any research question in this program.
+  recommended_priority: medium
+  priority_rationale: >-
+    Best case is explicitly not an exponent and carries no attack content at
+    all; a pure infrastructure record could reasonably be ranked low. It is
+    MEDIUM rather than low for two specific, stated reasons. First, it is the
+    cheapest of this session's three records (estimated_cost: low across the
+    board) and directly serves RQ-BINSTD-b6f698's own decision_target, which
+    NAMES a maintained table as the thing this whole question is meant to
+    produce -- without some version of this artifact, that decision_target has
+    no home to be assembled into, regardless of how many individual cells
+    other records compute. Second, it is a genuine PREREQUISITE for avoiding
+    a specific, already-observed failure mode in this exact batch: three
+    sibling records in this one lane (77bf31, 2e2a58, b19793) each independently
+    emit reachability-table cells as prose inside their own files this same
+    session, with no shared place to reconcile or cross-check them; the cost
+    of NOT building this now is that the reconciliation happens by manual
+    re-reading indefinitely. It is not HIGH because it produces no research
+    finding of its own and the Coordinator may reasonably judge the ~180-cell
+    coverage too sparse to justify CI integration yet.
+  first_deliverable: >-
+    The schema (Stage 0) plus the seeded reachability_table.yaml (Stage 1)
+    containing only the ~5 cells this session's sibling records and the
+    existing audit actually commit to, with every other cell explicitly
+    NOT_YET_ASSESSED. Zero research compute, no run, no status change.
+  next_gate: >-
+    Coordinator decision on (i) whether to wire the validator into
+    .github/workflows/validate.yml or main-health.yml as a blocking check
+    once it passes 6/6 on the synthetic battery, and (ii) whether the schema
+    should be extended to accept IDEA-20260922-2e2a58's and
+    IDEA-20260922-b19793's cell formats before or after those records'
+    Stage 3/4 deliverables actually exist.

@@ -1,0 +1,120 @@
+const cmFrontier=[
+ {ref:"KN-TECH-001",read_scope:"Coordinator-transmitted selected excerpt",time:"Source states expected sqrt(pi*r/2) group operations.",memory:"Source states O(1) storage.",data_queries:"Group-law access; the excerpt does not provide a separate complete query model.",comparison:"ECDLP solver baseline, not the output of this diagnostic."},
+ {ref:"KN-TECH-018",read_scope:"Coordinator-transmitted selected excerpt",time:"Source states an approximately sqrt(|Aut|) discount for applicable usable automorphism actions.",memory:"No separate complete memory model in the excerpt.",data_queries:"Representative and cycle-handling costs remain relevant; no new access model proposed.",comparison:"Applicable CM baseline adjustment must be retained in any later algorithm comparison."},
+ {ref:"KN-TECH-031",read_scope:"Coordinator-transmitted selected excerpt",time:"Conventional arithmetic row states approximately 2*sqrt(r) group operations.",memory:"Conventional arithmetic row states approximately sqrt(r) stored elements.",data_queries:"Group-law access; physical memory costs are a different model.",comparison:"The excerpt also relays a wiring-aware full-cost claim; this intake does not adopt that as universal arithmetic complexity."}
+];
+store("cmFrontier",cmFrontier);
+const ci=(ref,claim)=>({ref,provenance:"internal",claim,verified_by:"Root or Coordinator source transport at baseline 3ed245895; selected excerpts only, no cited-run verification."});
+const cr=(ref,claim)=>({ref,provenance:"retrieved",claim,verified_by:"TASK-20260905-1c36da native session; stated PDF sections actually retrieved."});
+const common=(id,title,klass,n)=>({
+ id,title,class:klass,question_id:"RQ-EQIC-8cb959",goal_id:"GOAL-ENDO-001",added:"2026-09-05",
+ status:"proposed",approved_by:null,novelty_status:"unverified",
+ heuristic_assumptions:[],
+ heuristic_assumptions_reason:"The proposal uses finite, explicitly specified countermodels and exact identities. It assumes no distribution of cryptographic instances, solver behavior, or asymptotic typical case. No cryptographic-scale validation route is claimed.",
+ frontier_comparison:cmFrontier,
+ dominated_by:"UNRESOLVED: KN-TECH-001, KN-TECH-018 and KN-TECH-031 were checked through selected excerpts across stated time, memory and access assumptions. The full frontier and current literature were not exhausted, and these diagnostics do not produce the same output as an ECDLP solver. No Pareto superiority is claimed.",
+ sota_delta:{proposed_diagnostic_fixture_count:n,demonstrated_time_exponent_improvement:0,demonstrated_memory_exponent_improvement:0,demonstrated_group_operation_savings:0,demonstrated_target_query_savings:0,status:"All diagnostic targets below are predictions for future unapproved tests; zero demonstrated algorithmic gain."},
+ interpretation_limits:[
+  "Proposal only: no implementation, fixture execution, experiment, validated theorem, or observed metric is supplied.",
+  "The existing H-STR-002 status and DEFER-BATCH009-001 replication obligation are outside this test boundary and remain unchanged. No historical phi_alpha measurement is declared an artifact or validated.",
+  "A failed diagnostic would identify the exact representation or evidence-contract defect tested, not refute a CM research direction.",
+  "No secret scalar, target public key, autonomous relation search, ECDLP solver, or cryptographic-scale transfer is part of the proposed test."
+ ],
+ estimated_cost:{implementation:"low",compute:"low"}
+});
+store("cmHelpers",{});
+let a=common("IDEA-20260905-c0001f","Typed scope certificates for CM actions and field transfers","control",12);
+Object.assign(a,{
+ claim:"A certificate that records the actual domain, base field, subgroup, kernel and action type can distinguish certified scalar-action statements from invalid or underdeclared transfers on a preregistered 12-card mathematical fixture set, without using relation rank or solver performance as evidence.",
+ mechanism:"Scalar restriction is an assertion about an invariant cyclic group. The same map name may otherwise refer to full geometric torsion, an action defined only over an extension, an action with kernel on the subgroup, or an affine torsion translation. A typed domain/codomain certificate exposes these changes before a representation's observations are interpreted.",
+ citations:[
+  ci("ledger/proposals/IDEA-20260727-001.yaml","Nearest existing control concerns orbit-quotient rank and linear-algebra comparisons."),
+  ci("ledger/proposals/IDEA-20260807-45a69f.yaml","Nearest proposal separates non-unit endomorphism evaluation from long orbits."),
+  cr("https://eprint.iacr.org/2021/721.pdf","Sections 3 and 3.2 supply explicitly scoped endomorphism and factor-base examples."),
+  cr("https://www.iacr.org/archive/eurocrypt2014/84410158/84410158.pdf","The introduction distinguishes equivariance under torsion translations.")
+ ],
+ discriminated_from:"IDEA-20260727-001 and IDEA-20260807-b42544 test rank and reduced unknowns; this proposal never forms a relation matrix. IDEA-20260807-45a69f considers orbit-length and table-cost questions; this proposal never estimates orbit costs. The new deliverable is a typed implication certificate with explicit unresolved premises, including distinction between origin-preserving and affine actions.",
+ assumptions:[
+  "Every fixture declares its field, characteristic, group object and map; no map is assumed rational or subgroup-preserving from the label CM.",
+  "A subgroup scalar statement requires cyclicity and invariance; a permutation statement additionally requires a nonzero scalar action.",
+  "Fixtures are abstract finite linear/group objects or hand-specified public mathematical statements, not sampled target curves."
+ ],
+ proof_search_map:{
+  bottleneck:"Hidden changes of mathematical object invalidate a transferred claim before any performance comparison begins.",
+  baseline_embedding:{parameter_slice:"One-dimensional F_ell vector space with a declared nonzero scalar action.",reproduction_check:"The scope certificate must retain exactly the elementary cyclic-group scalar conclusion and must not create a second eigenspace component."},
+  observation_collision:{observable:"The phrase an efficient CM endomorphism acts on the points.",distinct_preimage_search:"Compare an invariant line with a non-invariant line inside a two-dimensional space; the same informal label must yield different certified implications."},
+  constructive_transforms:[{transform:"stronger invariant",proposed_object:"A domain, codomain, field and kernel certificate attached to each representation claim.",predicted_gain:"Twelve auditable scope decisions and zero false certifications in the negative-control subset; no speedup."}],
+  quantifier_order:"For each fully specified fixture, certify only implications proved for every element of its declared domain. Existence of an eigenline somewhere does not imply that every chosen subgroup is that eigenline.",
+  method_ceiling:{strongest_certifiable_claim:"Correct scope classification for the finite fixture set and explicit elementary premises.",nearby_object_control:"A non-invariant line, a zero restriction, a nonzero translation, and an underdeclared extension-field action must not inherit the certified baseline conclusion."},
+  proof_obligations:[
+   {claim:"Every accepted scalar-action card includes the needed subgroup invariance premise.",responsibility:"Future diagnostic author; no assignment or approval here."},
+   {claim:"Negative labels have explicit elementary countermodels and unknown labels are not treated as refutations.",responsibility:"Future independently checking reader after a separately approved design."}
+  ],
+  not_applicable_reason:null
+ },
+ predictions:[
+  {metric:"negative_control_false_certifications",direction:"lower",minimum_effect:"0 of 4 deliberately invalid cards accepted."},
+  {metric:"positive_control_retention",direction:"higher",minimum_effect:"4 of 4 fully justified cards accepted."},
+  {metric:"underdeclared_scope_preservation",direction:"different",minimum_effect:"4 of 4 insufficiently specified cards remain unresolved, with at least one named missing premise each."}
+ ],
+ minimal_test:{
+  design:"Propose a paper-only set of 12 cards: four valid scalar restrictions, four explicit countermodels, and four underdeclared transfers. Freeze expected labels and elementary witnesses before evaluating the certificate template. Compare its decisions to the explicit mathematical statements, not historical run outcomes.",
+  controls:["One-dimensional nonzero scalar action as the positive baseline.","Same-shaped two-dimensional linear objects with a non-invariant chosen line.","Origin shift and subgroup kernel controls.","Underdeclared field or subgroup data; missing data must remain unknown."],
+  required_metrics:["Three-way decision confusion table.","Number of unsupported implications.","Number and identity of missing premises."],
+  execution_status:"Not designed into an approved experiment and not run.",
+  proposed_budget:"At most 12 cards and 45 minutes of bounded mathematical inspection in any later approved design; zero target queries."
+ },
+ falsification_conditions:["Any negative card is certified without rejecting its explicit countermodel.","A valid card is rejected merely because it is CM or uses an extension field.","An unknown premise is silently assumed true or converted to a negative scientific verdict."],
+ confounders:["Different uses of endomorphism, automorphism and translation.","Nonunique rational subgroups when the cofactor shares the subgroup prime.","Confusion between prime-to-characteristic geometric torsion and characteristic-primary torsion."],
+ required_artifacts:["Twelve complete fixture statements and frozen labels.","Per-card implication and premise certificate.","All disagreements and unresolved premises, including positive controls."],
+ target_complexity:{time_exponent:"No ECDLP time exponent proposed; a finite 12-card proof-contract inspection.",memory_exponent:"No ECDLP memory exponent proposed; at most 12 scope certificates.",best_known:"Retain the arithmetic square-root ECDLP baselines and the applicable CM automorphism discount in the transmitted frontier rows.",hidden_overhead:"Producing and independently checking elementary witnesses must be counted; this proposal bounds neither theorem-search time nor cryptographic solver cost.",tradeoff_note:"No time-memory-query tradeoff or parallel solver is proposed."},
+ recommended_priority:"high",
+ priority_rationale:"High within this defensive intake because a wrong domain invalidates downstream evidence; not a claim of an exponent-moving mechanism."
+});
+store("cmIdea1",a);
+let b=common("IDEA-20260905-6685a0","Witness-domain certificates for summation-polynomial zeros","representation",8);
+Object.assign(b,{
+ claim:"An explicit four-level witness contract can detect when a polynomial zero has been promoted from an existential geometric lift to a rational, subgroup, or prescribed-point relation without the necessary witness. The proposed eight-fixture audit must retain every declared valid implication and reject all three deliberately invalid converse implications.",
+ mechanism:"Eliminating point coordinates forgets witness choices and potentially the witness field. A geometric existence statement, rational existence, subgroup existence, and validity for already chosen lifts are different predicates. A certificate records the exact predicate established and the missing obligations for any stronger one.",
+ citations:[
+  cr("https://www.iacr.org/archive/eurocrypt2014/84410158/84410158.pdf","Definition 1 explicitly quantifies lifts over the algebraic closure."),
+  ci("knowledge/techniques/KN-TECH-002.md","The transmitted definition also specifies algebraic-closure witnesses."),
+  ci("ledger/proposals/IDEA-20260807-1ea327.yaml","Nearest proposal already discusses norm encodings, phase/lift recovery and orbit-weighted rows.")
+ ],
+ discriminated_from:"IDEA-20260807-1ea327 already proposes quotient coordinates and lift recovery. This proposal does not propose another encoding or recovery routine: it separates four witness domains and requires an independent implication certificate, including rational-field and subgroup membership. IDEA-20260807-e57607 compares solving-degree measurements; no solver or degree proxy is used here.",
+ assumptions:["The generalized summation polynomial and morphism are fixed and identified with their precise domain and treatment of poles.","Each positive fixture supplies the actual finite witness required by its stated predicate.","Hand-prepared countermodels use only public or abstract mathematical objects."],
+ proof_search_map:{
+  bottleneck:"A scalar equation can retain an existential image while losing field, subgroup and lift-choice information.",
+  baseline_embedding:{parameter_slice:"The ordinary x-coordinate map and the source's existential geometric definition.",reproduction_check:"The weakest predicate must exactly reproduce that definition; the certificate may strengthen it only with additional witnesses."},
+  observation_collision:{observable:"The same tuple of quotient coordinates and the same zero polynomial value.",distinct_preimage_search:"Prepare fixtures whose coordinate tuple admits different point lifts, or geometric lifts without the stronger declared rational/subgroup witness. Record which predicate changes although the observed zero does not."},
+  constructive_transforms:[{transform:"observable-fiber counterexample",proposed_object:"A four-predicate implication diagram with witness-domain annotations.",predicted_gain:"Three explicit converse-failure controls and zero unsupported witness promotions; no algorithmic gain."}],
+  quantifier_order:"For fixed coordinates, distinguish existence of lifts in E(Kbar), existence in E(K), existence in the declared subgroup C, and validity for specified lifts in C. A selected witness is not a universal statement over its coordinate fiber.",
+  method_ceiling:{strongest_certifiable_claim:"The exact witness predicate verified on each fixture; at most the elementary implication diagram established by its definitions.",nearby_object_control:"Two different lifts with identical x-coordinate data must not both inherit a relation merely because one existential lift satisfies it."},
+  proof_obligations:[
+   {claim:"All declared forward implications include the inclusions and membership assumptions they require.",responsibility:"Future mathematical author under a separate approved design."},
+   {claim:"Each invalid converse is accompanied by a complete countermodel, not a failed attempt to find a lift.",responsibility:"Future independent certificate checker; not assigned here."},
+   {claim:"Poles and points at infinity are classified explicitly rather than dropped.",responsibility:"Future certificate author."}
+  ],
+  not_applicable_reason:null
+ },
+ predictions:[
+  {metric:"unsupported_witness_promotions",direction:"lower",minimum_effect:"0 on all eight frozen fixtures."},
+  {metric:"invalid_converses_detected",direction:"higher",minimum_effect:"At least one explicit countermodel for each of the three adjacent converse implications."},
+  {metric:"valid_forward_implications_retained",direction:"higher",minimum_effect:"100 percent of the forward implications whose premises are supplied."}
+ ],
+ minimal_test:{
+  design:"Propose eight hand-specified finite fiber fixtures: two positive controls, at least one complete witness for each of three converse failures, and three exceptional or missing-data controls. Specify the four predicates and expected labels before checking them. If any planned converse fixture cannot be certified, return that fixture as incomplete rather than inventing a counterexample.",
+  controls:["Identical coordinate tuples with different prescribed lifts.","A geometric witness whose required stronger-domain witness is absent by an explicit argument.","Subgroup membership control.","Pole/infinity and missing-witness controls."],
+  required_metrics:["Four predicate labels per fixture.","Unsupported implication count.","Complete witness/countermodel count."],
+  execution_status:"Proposed only; no polynomial system or ECDLP was solved.",
+  proposed_budget:"At most eight fixtures and 60 minutes of later approved mathematical inspection; no relation search or target queries."
+ },
+ falsification_conditions:["The certificate upgrades a geometric zero without the stronger-domain witness.","A missing rational witness is treated as proof that no rational witness exists.","The audit cannot supply a complete countermodel for a claimed strict implication gap."],
+ confounders:["Affine versus projective conventions.","Sign choices and coordinate fibers.","An implicit change of field or subgroup.","A polynomial statement valid only away from an exceptional locus."],
+ required_artifacts:["Eight fixture definitions and frozen four-predicate labels.","Complete finite witnesses or countermodels.","Pole and exceptional-locus conventions.","Explicit unresolved cases."],
+ target_complexity:{time_exponent:"No ECDLP exponent proposed; bounded inspection of eight witness-domain fixtures.",memory_exponent:"No ECDLP memory exponent; store eight witness certificates.",best_known:"No improvement over the transmitted square-root and automorphism-adjusted ECDLP baselines is claimed.",hidden_overhead:"Field and subgroup certificates may dominate this small diagnostic; no efficient general lift procedure is asserted.",tradeoff_note:"No solver, descent procedure or target-query tradeoff is proposed."},
+ recommended_priority:"high",
+ priority_rationale:"High within intake because a polynomial zero with the wrong witness domain cannot support a later correctness claim."
+});
+store("cmIdea2",b);
+text("Two complete idea bodies drafted in tool memory; source files remain untouched.");

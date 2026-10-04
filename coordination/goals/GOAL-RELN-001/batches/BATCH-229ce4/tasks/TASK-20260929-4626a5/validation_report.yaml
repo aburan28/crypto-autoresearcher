@@ -1,0 +1,353 @@
+# Independent validation of the EXP-RELN-c5a377 implementation snapshot
+# (TASK-20260929-03d6bf) against protocol v3. Zero scientific runs; no
+# frozen-namespace label evaluated by this validator.
+validation_report:
+  id: VAL-TASK-20260929-4626a5   # tools/allocate_id.py has no VAL type; keyed by task
+  task_id: TASK-20260929-4626a5
+  role: validator
+  experiment_id: EXP-RELN-c5a377
+  batch_id: BATCH-229ce4
+  goal_id: GOAL-RELN-001
+  validated_snapshot:
+    snapshot_task: TASK-20260929-03d6bf
+    commit: b68075d8b29e0429b623c756440d0828fcceb436
+    parent: b5c9453e863ae19682b00e4b2843f6cf5b7be024
+    receipt: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-03d6bf/snapshot-receipt.json
+    worktree: /Volumes/SSD990/wt-amend-ic
+    branch: coord/ic-leads-impl-20260928
+    head_at_validation: bd7a47d71c
+    origin_main_checked: 9d2e4a551bfd4410a555490b65e05b7cdb3d5e70   # 29 commits ahead of HEAD; not merged (not validator scope)
+  protocol_in_force:
+    version: 3
+    files:
+      experiments/EXP-RELN-c5a377/specification.yaml: 45ee7969c9cc9e4c47e3b73080c0b36c886e9f95c1208b1e915681a26538df58
+      experiments/EXP-RELN-c5a377/amendments/AMD-20260926-a7d25d.yaml: b9bdc6f4293331d9af8694e2e0c5af0345b22664e579d3eec46fdbc6fa8c7281
+      experiments/EXP-RELN-c5a377/amendments/AMD-20260929-988139.yaml: dc39dd92802eceac30f42e17e31c2d28ad8d8b6d8b781cd138f78f8c2b27f765   # equals DEC-20260929-3d166b amendment_sha256_at_decision
+      experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json: 543f49ca5304f4e61085305ca2ea01ccc0085298db26368d7362f96b1b6a5a45
+      experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.py: bde44afb3e14c34d97bf50c154456565d12f0b5a1d33d63b473f0f4124b1f3b2
+  run_ids: []
+
+  verdict: PASS_WITH_FINDINGS
+  contract_verdict: passed   # agents/validator.md vocabulary: the implementation snapshot is admissible as an implementation; NOT admissible for a scientific run until every must_fix_before_run finding is closed
+  verdict_summary: >-
+    The snapshot is intact, the tests pass (82/82), charging is complete and
+    independently recounted, controls are implemented with identical
+    measurement, seed namespaces are disjoint, and admission fails closed.
+    No blocking defect. Two checks fail on items that must be closed before
+    any admission decision: the run manifest does not follow the repository
+    run schema and is written only at the end (check 8), and smoke run
+    DRYRUN-controls recorded the primary metric on frozen fixture b16-s11 at
+    exactly the frozen budgets, which contradicts the pre_data_status of
+    AMD-20260929-988139 (check 7). Two further pre-data analysis-rule gaps
+    need Coordinator rulings (ER-infeasible fail-open, small-|V| planted
+    known positive). Passing this validation supports no ECDLP claim and
+    authorizes no run.
+
+  checks:
+    - id: 1
+      name: snapshot_integrity
+      result: PASS
+      evidence:
+        - "45/45 receipt paths: sha256 of the worktree file AND of `git show b68075d8b2:<path>` equal the receipt value (0 mismatches)."
+        - "Snapshot commit b68075d8b2 changes exactly the 45 receipt paths plus the receipt itself; parent b5c9453e86 equals receipt parent_sha; reachable from HEAD (git merge-base --is-ancestor)."
+        - "trial-plan-v2.json sha256 = 7fb5e40dffa543feb25ea97fc62a8be16baf2db170df6025ec5f1cb7bbef29cf (as required)."
+        - "No working-tree modification under experiments/EXP-RELN-c5a377 (git status clean there; only pre-existing untracked experiments/EXP-ICEX-aaccfc/implementation/)."
+        - "Receipt commit_sha is null (binding_mode content_at_commit); commit identified by message prefix as instructed."
+    - id: 2
+      name: fixture_reproduction_and_tests
+      result: PASS
+      evidence:
+        - "python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q -rs -> '82 passed in 12.75s', 0 failed, 0 skipped (matches test-results.txt '82 passed')."
+        - "No skip means tests/test_fixtures.py::test_fixture_regeneration_byte_identical ran (Sage present at ~/.local/bin/sage and /usr/local/bin/sage): the frozen generator (sha256 bde44afb...) re-ran and byte-matched the frozen JSON (sha256 543f49ca...)."
+        - "test_params_b16_s11 known answer (B, B2, A1, A2) = (10, 83, 249, 751) passes; iroot_ceil exactness tested."
+        - "Protocol file hashes recomputed by validator (shasum -a 256) equal the trial plan protocol block and the amendment-declared values."
+    - id: 3
+      name: charging_completeness
+      result: PASS
+      evidence:
+        - "relgen.py:50-66 setup enumerates every x < B2 through the instrumented Fp (curve RHS, Euler criterion, Tonelli-Shanks) -> setup_ops; charged once per fixture, included in both A1 and A2 totals (celltask.py:62-63)."
+        - "relgen.py:72-104 every attempt charges both scalar multiplications, the addition and one group op per scan point P1 in S (both signs, trivial T = O included); failed attempts are scanned and charged in full; R_j = O charged construction only (OQ-7, accepted in v3)."
+        - "ecarith.py:126-157 every add/sub/double increments group_ops, including O cases; negation free; scalar_mul_charge matches Curve.mul exactly."
+        - "Validator recount (own formula, validator smoke namespace 'smoke|validator-TASK-20260929-4626a5', fixture b16-s12, a1=60, a2=400): declared totals 6675 / 44704 equal validator recount 6675 / 44704; audit replay_all=True over all 400 attempts: 0 mismatches, 0 certificate failures."
+        - "Audit rejects tampering: zeroing a failed attempt's charge -> accepted False; dropping a failed attempt -> accepted False."
+        - "No cross-trial caching: one fresh process per fixture (driver.py:203-208); A1 is the prefix of the single A2 generator run as C-3 requires; S reused only within a fixture and charged as setup."
+        - "Sparse LA charged separately as la_ops_charged (recovery.py:78-98); Q = kG uncharged instance construction; both per OQ-17, accepted in v3."
+      notes:
+        - "Setup contributes 0 group ops (observed setup group_ops = 0, setup W_field = 2565 on b16-s12); FB construction therefore appears only in W_field, not in charged_work_over_sqrt_q. Compliant with v3 (OQ-17) but see advisory F-8."
+    - id: 4
+      name: controls_identical_measurement_and_v3_rulings
+      result: PASS
+      evidence:
+        - "Rewire (32), ER G(|V|,|E|) (32), planted-dense known positive, scrambled known false, accounting audit and 64-target rho all run per fixture and budget (celltask.py:91-139, 161-163; trial plan cells list 32+32 labels)."
+        - "Identical measurement: rewire, ER and planted graphs go through the same lpgraph.metrics(g, L) with the fixture L as the treatment (celltask.py:97-100, 116)."
+        - "OQ-4 by construction: in validator cell b16-s12 every ER and rewire replicate has V and E equal to the treatment at both budgets (True/True). analysis.py:100-104 implements 'ER exceeds iff mean ER delta_proof over the cell's replicates > 1/4; enrichment requires no cell' exactly as ruled."
+        - "OQ-14: recovery.py:162-170 returns not_exercised when nothing beyond the anchor is determined; celltask.py:132-133 raises a defect only on passes_verification. Validator probe: 1-relation scrambled system -> not_exercised; b16-s13 (validator namespace, 1500 attempts, 72 relations): treatment 35 nontrivial determined, all verified; scrambled -> fails_verification (37 inconsistent rows, 35 verification failures); sign-corrupted true relations -> fails_verification."
+        - "Known positive: planted cycle rank equals ceil(|V|^1.5) and must give delta_proof > 1/4 (celltask.py:112-124)."
+      exceptions_recorded_as_findings: [F-3, F-4, F-6]
+    - id: 5
+      name: seed_label_discipline
+      result: PASS
+      evidence:
+        - "labels.py:28-29 frozen namespace 'EXP-RELN-c5a377/v2', smoke 'smoke|EXP-RELN-c5a377/v2'. Every label is '<ns>|<kind>|...', so frozen labels begin 'EXP-RELN-c5a377/v2|' and smoke labels begin 'smoke|': no string (hence no SHA256 input) can coincide."
+        - "Arms carry distinct kind tokens (target, attempt, rewire, er, planted, scramble, rho, rho_walk, audit) with fixed arity and bits|seed|budget context, so no cross-arm or cross-cell reuse; per-budget nulls use distinct contexts; a_j/b_j use '|a'/'|b' suffixes. Rho baseline targets use their own 'rho' labels, separate from the treatment target."
+        - "C-3 labels verbatim ('<ns>|target|<bits>|<seed>', '<ns>|attempt|<bits>|<seed>|<j>'); extra labels per OQ-9, accepted in v3."
+        - "No frozen draw evaluated before admission: make_trial_plan.py lists label strings only; tests use SMOKE_NS+'|test' (test_controls.py:13, test_charging.py:13) or synthetic cells (test_analysis.py); driver dry path forces SMOKE_NS (driver.py:178-180); analysis.py:154-156 refuses smoke cells (validator probe: exit 2)."
+      exceptions_recorded_as_findings: [F-9]
+    - id: 6
+      name: admission_fail_closed
+      result: PASS
+      commands_and_outputs:
+        - "CLI on real host: `python3 driver.py --run-id RUN-validator-probe --admission-decision DEC-20260929-74b866 --runs-dir $TMPDIR/...` -> exit 3, 'REFUSED: C-7 ... 15-min load 25.51 not <= 14.0, system volume free 1.62 GiB not >= 5.0, repository volume free 6.61 GiB not >= 20.0'. No run directory created."
+        - "With C-7 readings monkeypatched to pass (in-process, runs-dir in TMPDIR): DEC-20260929-74b866 -> exit 4 'does not exist'; DEC-20260929-3d166b -> exit 4 'currently_admitted is False'; no decision -> exit 4; no run id -> exit 4; run id 'DRYRUN-x' on the scientific path -> exit 4. The runs directory was never created."
+        - "--smoke-dry-run with runs-dir outside implementation/smoke/ -> exit 5."
+        - "Order C-7 -> run id -> decision -> plan hashes -> existing run dir matches implementation.md; check_plan verifies spec, v2 amendment, fixture JSON and generator hashes plus namespace."
+      exceptions_recorded_as_findings: [F-7, F-9]
+    - id: 7
+      name: no_scientific_metric_in_implementation_dir
+      result: FAIL
+      evidence:
+        - "No frozen-namespace label was evaluated: every smoke output has ns 'smoke|EXP-RELN-c5a377/v2'; smoke_summary.json omits delta_proof, delta_ratio and cycle_rank; the verdict rule was never called and refuses smoke cells."
+        - "However smoke/dry/DRYRUN-controls ran the frozen fixture b16-s11 at a1=249, a2=751, which are exactly its frozen budgets A1, A2 (fixtures.params). Its raw files (cells/b16-s11.json, raw-result.json: 44 'delta_proof' occurrences each) record the treatment primary metric (delta_proof and delta_ratio at A2), mean-ER delta_proof inputs, and the subcritical-rule inputs (giant fraction, cycle rank, components with cycle) at both budgets. Under the protocol's random model this is an exchangeable replicate of scientific cells b16-s11-A1/A2 with only the seed namespace changed. The validator confirmed presence only and deliberately does not reproduce any value here."
+        - "AMD-20260929-988139 pre_data_status states 'no delta or verdict was computed'. delta was computed and committed in snapshot b68075d8b2 (implementation.md:110-112 discloses it). The statement is inaccurate; the Coordinator's 'has seen no data bearing on delta_proof' cannot be verified by this validator."
+      finding: F-2
+    - id: 8
+      name: run_record_conformance
+      result: FAIL
+      evidence:
+        - "The canonical minimum run manifest (docs/evidence-and-reproducibility.md:70-121) is a top-level 'run:' mapping with id, experiment_id, status, code{commit, dirty, command}, inference, environment, inputs, timing, resources, result{metrics, valid, certificate}. The sibling run on this branch, experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-5484a4/manifest.yaml, follows it."
+        - "driver.py:183-191, 230-234 write a FLAT manifest (run_id, experiment_id, protocol_version, status, started_at, git, protocol, inference, certificate, cells ...): no 'run:' key, no code/environment/inputs/timing/result blocks (confirmed in smoke/dry/DRYRUN-controls/manifest.yaml)."
+        - "command.txt, environment.json and raw-result.json are written, but there is NO run-level stdout.log or stderr.log: the driver's own console output is not captured (only per-cell logs under cells/)."
+        - "manifest.yaml and raw-result.json are written only after the cell loop (driver.py:230-234). An exception, a signal, or the driver dying with its launching shell (the recorded RUN-SDEG-5484a4 failure mode) leaves no manifest, contrary to the spec's required artifact 'complete failures and exceptions'."
+        - "PASS parts: inference block sourced only from AUTORESEARCH_* (driver.py:111-125; unset -> null / 'unverified', as in the smoke environment.json); C-7 readings fail closed (hostinfo.py:44-73; tests test_c7_thresholds_and_fail_closed and test_readings_fail_closed_on_unreadable_sources pass; real refusal observed in check 6)."
+        - "environment.json records python, psutil and host but not yaml/scipy/networkx/sage versions (artifact policy: dependency versions)."
+      finding: F-1
+
+  proves_too_much:
+    description: Objects for which the protocol's answer is known, fed through the real analysis/recovery code in a validator smoke namespace.
+    results:
+      - case: "Treatment graph IS an Erdos-Renyi G(60,200) at all 9 fixtures x 2 budgets (delta_proof > 1/4), with its own ER/rewire nulls"
+        expected: no enrichment signal
+        observed: "inconclusive; er_null_exceeds_quarter_in_any_cell True; supercritical_rule False"
+        result: PASS
+      - case: "Planted-dense known positive as treatment vs its ER null of identical |V|,|E|"
+        expected: "no enrichment (edge count alone explains cycle rank; confirms the OQ-4 disclosure)"
+        observed: "inconclusive; ER exceeds True"
+        result: PASS
+      - case: "Perfect matching (100 disjoint edges, cycle rank 0) at every fixture/budget"
+        expected: certified subcritical, never supercritical
+        observed: "certified-subcritical; supercritical_rule False"
+        result: PASS
+      - case: "Scrambled (a_j,b_j) and sign-corrupted true relations (b16-s13, validator namespace)"
+        expected: fail LP log recovery verification
+        observed: "fails_verification in both; treatment verified 35/35"
+        result: PASS
+      - case: "Dense multigraph (|V|=6, |E|=40 > C(6,2)) so every ER replicate is infeasible"
+        expected: "the ER clause cannot be checked, so enrichment should not be certified"
+        observed: "supercritical-enriched; er_null_exceeds_quarter_in_any_cell False with 0 feasible ER replicates"
+        result: FAIL (fail-open; finding F-3)
+
+  findings:
+    - id: F-1
+      severity: must_fix_before_run
+      check: 8
+      title: Run manifest is not the repository run schema, lacks run-level stdout/stderr, and is written only at the end
+      detail: >-
+        driver.execute writes a flat manifest.yaml with no top-level run: block
+        (id, experiment_id, status, code, environment, inputs, timing, result)
+        and captures no run-level stdout.log/stderr.log. manifest.yaml and
+        raw-result.json are produced only after the loop, so a crash or kill
+        leaves no manifest. Dependency versions are incomplete.
+      remedy: >-
+        Emit the canonical run: manifest (the flat block may be kept as a
+        companion); write an initial manifest with status running before the
+        first cell and update it per cell; tee the driver console to
+        stdout.log/stderr.log in the run directory; catch exceptions and
+        signals and record failed_infrastructure; add yaml, scipy, networkx
+        and sage versions to environment.json.
+    - id: F-2
+      severity: must_fix_before_run
+      check: 7
+      title: Smoke recorded the primary metric on a frozen fixture at the frozen budgets; v3 pre_data_status is inaccurate
+      detail: >-
+        DRYRUN-controls (b16-s11, a1=249=A1, a2=751=A2) stores treatment
+        delta_proof/delta_ratio, ER delta inputs and subcritical-rule inputs in
+        committed raw files. This is an outcome-informative exchangeable
+        replicate of 2 of the 18 scientific cells. AMD-20260929-988139 says no
+        delta was computed. No frozen label was evaluated, so the pre-registered
+        draws are untouched.
+      remedy: >-
+        Coordinator issues an additive correction record (no rewrite) stating
+        that smoke delta readings exist at the frozen budgets on b16-s11, and
+        attests whether they were read before the v3 rulings. The admission
+        decision should cite it. Restrict future smoke runs to budgets different
+        from the frozen A1/A2 or strip treatment delta fields from smoke
+        outputs. The existing artifacts stay immutable.
+    - id: F-3
+      severity: must_fix_before_run
+      check: 4
+      title: ER-null clause fails open when ER is infeasible
+      detail: >-
+        analysis.py:100-104 excludes infeasible (None) ER replicates. If a
+        size x budget cell has no feasible ER replicate (|E| > C(|V|,2), which
+        is possible because the treatment graph is a multigraph, OQ-11/OQ-12),
+        er_mean is None and er_exc is False, so the ER clause counts as
+        satisfied without any control. The probe above produced
+        'supercritical-enriched' with 0 feasible ER replicates. v3 accepted
+        OQ-4/OQ-12 separately but did not rule on their combination.
+      remedy: >-
+        Pre-data Coordinator ruling (additive v4 amendment), e.g. a cell with
+        no feasible ER replicate makes the enrichment clause undetermined and
+        the verdict inconclusive. Then an analysis.py change and a test.
+    - id: F-4
+      severity: must_fix_before_run
+      check: 4
+      title: Planted known positive cannot reach its gate at small |V| yet is classified as a procedure defect that stops the run
+      detail: >-
+        With cycle rank ceil(|V|^1.5) the gate delta_proof > 1/4 needs |V| of
+        at least 5 (L=6: b16-s11, b16-s13, b20-s11), 5 (L=7), 7 (L=10), 8 (L=12)
+        or 10 (L=14, b24-s11), computed from trial-plan L values. Below that,
+        celltask.py:117-122 records FAIL, a procedure defect, and the driver
+        halts the whole run (exit 7). This is an inapplicable control, the
+        known-positive analogue of OQ-14, not a pipeline defect. The validator
+        did not evaluate frozen draws to see whether it occurs.
+      remedy: >-
+        Pre-data ruling: record not_exercised (neither pass nor defect) when
+        |V| is below the gate-reachable minimum for the fixture's L, or
+        redefine the planted size. Then code and test.
+    - id: F-5
+      severity: must_fix_before_run
+      check: 8
+      title: Protocol v3 is not bound in the plan or the manifest
+      detail: >-
+        driver.PROTOCOL_VERSION = 2 and make_trial_plan.protocol_hashes() cover
+        specification.yaml and AMD-20260926-a7d25d only. AMD-20260929-988139
+        (sha256 dc39dd92...) governs the analysis rulings but appears in
+        neither the trial plan nor the run manifest, so a run record would
+        claim protocol v2.
+      remedy: >-
+        Record the v3 amendment hash and DEC-20260929-3d166b in the manifest
+        (driver-side, so the frozen trial plan hash need not change), or issue
+        a v3-bound plan under a new hash cited by the admission decision.
+    - id: F-6
+      severity: advisory
+      check: 4
+      title: v3 OQ-14 'recovery fraction reported as undetermined' is not applied
+      detail: >-
+        Cells with known_false = not_exercised still report a numeric
+        recovery.lp_recovery_fraction, and analysis.table passes it through
+        with no undetermined label. The verdict is unaffected and the raw
+        known_false status allows post-hoc relabeling.
+      remedy: Apply the label in analysis/report output before any evidence record cites recovery fractions.
+    - id: F-7
+      severity: advisory
+      check: 6
+      title: Admission check accepts any conforming decision regardless of decision status, and does not pin implementation hashes
+      detail: >-
+        check_decision (driver.py:57-79) does not inspect a status or
+        superseded field (a synthetic decision marked superseded with
+        currently_admitted true was admitted). It accepts whatever DEC id is
+        passed on the command line. The driver records but does not verify
+        implementation hashes against the snapshot receipt, and does not refuse
+        a dirty tree (spec execution_admission requires hashes committed before
+        scientific runs).
+      remedy: >-
+        The admission decision (DEC-20260929-74b866) should pin the snapshot
+        commit and implementation hashes. Optionally the driver compares
+        implementation_hashes() with the receipt and refuses on mismatch.
+    - id: F-8
+      severity: advisory
+      check: 3
+      title: Cost-comparison asymmetries (disclosed, v3-compliant)
+      detail: >-
+        2-LP charged_work_over_sqrt_q excludes FB construction (setup group ops
+        are 0; its cost is only in W_field). The rho ratio excludes the
+        multiplier/start precomputation (reported separately as
+        ops.precompute). The LA cost is in a different unit. The rewire null is
+        reported but not used by the C-5 verdict (OQ-20).
+      remedy: Any cost comparison in an evidence record states these exclusions beside the ratios.
+    - id: F-9
+      severity: advisory
+      check: 5
+      title: celltask.py has no admission guard for the frozen namespace
+      detail: >-
+        `python3 celltask.py --ns EXP-RELN-c5a377/v2 ...` would evaluate frozen
+        draws without any admission check. Admission is enforced only in
+        driver.py.
+      remedy: Refuse a non-smoke --ns in celltask unless launched by the admitted driver (e.g. an env token plus a decision id).
+    - id: F-10
+      severity: advisory
+      check: 8
+      title: Minor provenance nits
+      detail: >-
+        When driver.main(argv) is called programmatically, command.txt records
+        sys.argv (smoke shows 'python3 smoke.py'), not the driver argv. The
+        memory watchdog silently disables if psutil is missing. analysis.py's
+        definitional_impediment text says 'a v3 amendment maps delta_proof',
+        but the actual v3 (AMD-20260929-988139) does not map it. The branch is
+        29 commits behind origin/main (Coordinator sync duty).
+
+  artifact_checks:
+    - {path: "45 receipt paths", check: sha256 worktree and commit vs receipt, result: pass}
+    - {path: experiments/EXP-RELN-c5a377/implementation/trial-plan-v2.json, check: sha256 7fb5e40d..., result: pass}
+    - {path: experiments/EXP-RELN-c5a377/implementation/smoke/dry/DRYRUN-controls/manifest.yaml, check: repository run schema, result: fail (F-1)}
+  metric_recomputations:
+    - {quantity: total charged group ops b16-s12 validator-namespace A1/A2, declared: "6675 / 44704", recomputed: "6675 / 44704", result: match}
+    - {quantity: audit full replay 400 attempts, recomputed: "0 mismatches, 0 certificate failures", result: match}
+    - {quantity: t quantiles in analysis.py, declared: "t_{0.975,2}=4.302653, t_{0.975,7}=2.364624", recomputed: "match standard tables", result: match}
+  control_checks:
+    - {control: rewire / ER / planted / scrambled / audit / rho, implemented: true, identical_measurement: true, exceptions: [F-3, F-4, F-6]}
+  heuristic_validation_checks:
+    - not_applicable: implementation audit; no sampling of HEUR-RELN-4d092c-1 performed or validated.
+  cost_model_checks:
+    - "Charging formula verified against the instrumented counter by the independent audit and by the validator recount; exclusions in F-8."
+  proof_architecture_checks:
+    - not_applicable: measurement experiment; no proof claim.
+  limitations:
+    - "Zero scientific runs by design; whether F-4 (small |V|) or F-3 (ER infeasible) actually occur on frozen data is unknown, and the validator deliberately did not evaluate frozen draws to find out."
+    - "The validator's own probes produced smoke-namespace graphs on b16-s12 (a2=400, below its frozen A2=655) and b16-s13 (1500 attempts); no treatment delta value was printed or retained, and the probe directory in TMPDIR was deleted."
+    - "The Coordinator's statement that it saw no delta data cannot be verified."
+    - "Reasoning effort xhigh is not verifiable under the Cursor runtime."
+  artifact_paths:
+    - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20260929-4626a5/validation_report.yaml
+
+  commands_run:
+    - "git status --short; git log --oneline -8; git log --format='%H %s' | grep 'snapshot(TASK-20260929-03d6bf)'"
+    - "python3 (hashlib) per-path sha256 of worktree files and `git show b68075d8b2:<path>` vs snapshot-receipt.json -> files 45 bad 0"
+    - "git show --name-only --format= b68075d8b2; git merge-base --is-ancestor b68075d8b2 HEAD"
+    - "shasum -a 256 specification.yaml amendments/*.yaml ic_leads_fixtures_v2.{json,py}"
+    - "TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q -rs -> 82 passed in 12.75s"
+    - "python3 driver.py --run-id RUN-validator-probe --admission-decision DEC-20260929-74b866 --runs-dir $TMPDIR/val-4626a5-probe/runs -> exit 3 (C-7)"
+    - "in-process driver.main with hostinfo.readings monkeypatched to passing values, runs-dir in TMPDIR -> exit 4/4/4/4/4 and 5 (smoke outside); check_decision on 74b866, 3d166b and a synthetic superseded decision"
+    - "celltask.run(16, 12, 'smoke|validator-TASK-20260929-4626a5', 60, 400, 4, 2) in TMPDIR; independent charge recount; audit(replay_all=True); tamper tests"
+    - "proves-too-much probes via nulls/lpgraph/analysis.verdict/recovery in namespace 'smoke|validator-TASK-20260929-4626a5' (ER-as-treatment, planted vs ER, matching, scrambled, sign-corrupted, ER-infeasible)"
+    - "python3 analysis.py <smoke-namespace raw> -> exit 2 (refused)"
+    - "trial-plan L values -> minimum |V| for the planted gate per fixture"
+    - "python3 (json) presence-only scan of smoke/dry/*/cells/*.json for delta fields (values not printed)"
+    - "git fetch -q origin main; git rev-list --count HEAD..origin/main -> 29"
+    - "rm -rf /Volumes/SSD990/.tmp-agent/val-4626a5-probe"
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - AGENTS.md
+      - CLAUDE.md
+      - agents/validator.md (report schema section)
+      - docs/evidence-and-reproducibility.md (run layout and minimum run manifest)
+      - templates/research-records.md (run index section)
+      - experiments/EXP-RELN-c5a377/specification.yaml
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260926-a7d25d.yaml
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260929-988139.yaml
+      - ledger/decisions/DEC-20260929-3d166b.yaml
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-03d6bf/snapshot-receipt.json
+      - experiments/EXP-RELN-c5a377/implementation/{implementation.md, implementation_report.yaml, driver.py, labels.py, hostinfo.py, celltask.py, relgen.py, ecarith.py, lpgraph.py, nulls.py, recovery.py, analysis.py, audit.py, rho.py, smoke.py, make_trial_plan.py, fixtures.py}
+      - experiments/EXP-RELN-c5a377/implementation/tests/{conftest.py, test_fixtures.py, test_driver.py} (others executed, not read in full)
+      - experiments/EXP-RELN-c5a377/implementation/smoke/dry/DRYRUN-controls/{manifest.yaml, command.txt, environment.json} and presence-only scan of cell JSON
+      - experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-5484a4/manifest.yaml and RUN-SDEG-3de103/manifest.yaml (schema comparison only)
+    read_sibling_reports: []
+    not_read: other agents' conversations or transcripts

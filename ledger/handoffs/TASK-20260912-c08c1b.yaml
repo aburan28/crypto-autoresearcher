@@ -1,0 +1,165 @@
+handoff:
+  id: TASK-20260912-c08c1b
+  from: coordinator
+  to: coordinator
+  objective: >-
+    Fix two residual documentation defects left on main's EXP-CRYPTO-9225d2
+    implementation after a concurrent-agent merge race outran this session's
+    own reconciliation of the same conflict.
+  uncertainty_reduced: >-
+    Whether the code that actually landed on main for the TASK-20260908-30ce59
+    REVISE fixes (C6/C8/C9/C11/C12) is arithmetically and behaviorally
+    correct, independent of which of two competing, independently-authored
+    resolutions happened to reach main first; and which small, disclosed
+    documentation gaps (not functional bugs) remained afterward.
+  inputs:
+    - ledger/handoffs/TASK-20260912-2100f6.yaml (this session's original
+      executor fix-routing handoff, already on main)
+    - ledger/handoffs/TASK-20260912-8178a2.yaml and its snapshot (this
+      session's original archive of that fix, already on main)
+    - ledger/handoffs/TASK-20260912-f821b2.yaml, TASK-20260912-688e64.yaml,
+      ledger/decisions/DEC-20260912-34c82d.yaml (the concurrent BATCH-53f590
+      session that fixed C6/C9/C11/C12 in the same three files independently)
+    - >-
+      PR #1126 (github.com/aburan28/crypto-autoresearcher/pull/1126) --
+      opened from this session's branch claude/point-addition-bias-t2dow9, then
+      independently pushed to further by a second agent session ("Cursor
+      Agent <cursoragent@cursor.com>", co-authored by the repository owner
+      aburan28@gmail.com -- the same user this session answers to -- running
+      a separate tool against the same branch), then merged into main by
+      cursor[bot] at 2026-09-12T11:08:03Z while both that second agent and
+      this session were still actively working the branch
+    - experiments/EXP-CRYPTO-9225d2/implementation/{arithmetic.py,driver.py,
+      rho.py} as they stand on origin/main at commit 44c4cef82e15
+  constraints:
+    - >-
+      PR #1126 is closed and merged; per this runtime's own merged-PR
+      recovery procedure, follow-up work restarts from a fresh base rather
+      than stacking on the merged branch. The recommended mechanism
+      (`git checkout -B claude/point-addition-bias-t2dow9 origin/main`) was
+      refused by this session's own tool-safety classifier as a destructive
+      git operation, and a second agent session may still be using that exact
+      branch name as live workspace (it pushed to it as recently as
+      2026-09-12T11:10:51Z, after the PR had already merged, apparently
+      without yet noticing the merge). Force-pushing over that branch was
+      judged not worth the risk for a fix this small, so this task instead
+      opened a new, non-colliding branch
+      (claude/point-addition-bias-t2dow9-followup) from origin/main and a
+      fresh PR, touching nothing on the original branch.
+    - >-
+      Do not re-open or re-litigate any of the five REVISE findings
+      (C6/C8/C9/C11/C12): all five are already closed in main's current
+      arithmetic.py/rho.py/driver.py via the concurrent session's fix
+      (verified below), and this task's own original fix already reached
+      main through the same PR. Only fix what is actually still wrong:
+      specifically, prose that misdescribes the shipped code's behavior, and
+      documentation this session wrote that a later, unrelated merge step
+      silently dropped without anyone deciding to drop it.
+    - >-
+      scientific_execution_authorized remains false per DEC-20260907-1ccb1a;
+      maximum_runs is 0 in the campaign's sense (no fixture_generator.py
+      curve, no cgroup admission, no GOE/timing/rho measurement produced or
+      claimed). This task DOES import and call arithmetic.py/rho.py functions
+      against ad hoc random inputs to verify correctness before publishing a
+      documentation change to load-bearing formulas -- see completion_gate.
+      This is engineering verification of already-merged code, not
+      scientific execution: no certified fixture, no cgroup, no claimed
+      measurement.
+  deliverables:
+    - coordination/design/BATCH-bb548b/archives/TASK-20260912-c08c1b/snapshot.json
+  artifact_paths:
+    - coordination/design/BATCH-bb548b/archives/TASK-20260912-c08c1b/snapshot.json
+  archived_by: TASK-20260912-c08c1b
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: null
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - >-
+      Background, for the record. This session's original fix
+      (TASK-20260912-2100f6, all five findings, archived as
+      TASK-20260912-8178a2) and a concurrent session's independent fix
+      (TASK-20260912-f821b2/TASK-20260912-688e64/DEC-20260912-34c82d,
+      BATCH-53f590, four of five findings -- C8 excluded) both branched from
+      the same pre-fix state and touched the same three files. This session
+      spent two rounds reconciling that conflict by hand (merging
+      origin/main, then merging the concurrent session's own further pushes
+      to this session's PR branch after a non-fast-forward push rejection),
+      resolving each hunk on technical merit -- full detail is in this
+      session's git history on claude/point-addition-bias-t2dow9 (commits
+      ac956b5ec, c1baa9c15, ab355d5fc, b1fa3e107) even though that reconciled
+      state itself never reached main. Before this task's own reconciliation
+      commits could be pushed, cursor[bot] auto-merged PR #1126 at
+      2026-09-12T11:08:03Z, capturing an intermediate commit
+      (7fa7c54ddb9d63a0fce54b7e31655a90a1c328cf) from the concurrent agent's
+      OWN independent resolution of the identical conflict -- not this
+      task's reconciliation, and not even that agent's own final commit
+      (they kept pushing for several more minutes, apparently unaware the
+      PR had already merged). The two-round reconciliation this session
+      performed is therefore moot as a merge decision: main picked its own
+      resolution unilaterally. What is NOT moot is checking whether that
+      resolution is actually correct, and whether anything this session
+      wrote of independent value survived it.
+    - >-
+      Diffed origin/main's current arithmetic.py/rho.py/driver.py against
+      this session's own final (unmerged) reconciled state to find every
+      remaining difference. Result: exactly three, all documentation-only,
+      zero functional difference. (1) driver.py's check_cgroup_admission
+      docstring claims "if both are supplied they must agree" about the
+      job_type/job_kind keyword alias the concurrent session added; the
+      actual code (`if job_type is not None: job_kind = job_type`) has no
+      agreement check and no raise -- job_type silently wins. Fixed the
+      docstring to say so. Also restored this session's own
+      refuse-rather-than-assume sentence about an unrecognized job_kind,
+      absent from main's version but consistent with, and not contradicting,
+      anything the concurrent session wrote. (2) rho.py's
+      EndpointTable.insert_if_absent docstring is missing this session's own
+      original C11 explanatory paragraph (present since this session's very
+      first fix commit, predating any merge); it was not on main because,
+      during this session's own second reconciliation round, an unrelated
+      auto-merge step dropped it without either side's commit messages
+      naming that as a deliberate removal -- restored verbatim. (3)
+      arithmetic.py had one stray extra blank line before a section comment,
+      left over from resolving a conflict marker somewhere upstream; removed
+      for consistency with the file's own two-blank-line convention
+      elsewhere. No other difference exists: main's arithmetic.py already
+      has point_add_planted/point_double_planted (the concurrent session's
+      own deliberate, disclosed choice to keep them, per its commit
+      messages) and the corrected C6 Y3/Z3 formula with planted_sink
+      threading; main's driver.py already has the job_kind design with the
+      job_type alias; this session's own C8 documentation on scalar_multiply
+      already survived on main unchanged.
+    - >-
+      Verified the actually-shipped code is correct, not merely internally
+      consistent, before publishing any change: imported main's
+      arithmetic.py and ran `scalar_multiply` + `normalize` against 150
+      random scalars on the real secp256k1 curve, comparing every result to
+      an independently-written, from-scratch pure-Python affine-coordinate
+      double-and-add reference (naive modular-inverse formulas, no code
+      shared with arithmetic.py) -- 0 mismatches, confirming the C6 fix that
+      reached main is arithmetically correct, not just textually
+      self-consistent. Ran `scalar_multiply_planted` against 30 further
+      random scalars and confirmed both value-agreement with
+      `scalar_multiply` and the exact count identity M_planted == 2 *
+      M_reference on every trial -- 0 failures, confirming C9's composition.
+      Directly exercised rho.py's `EndpointTable.insert_if_absent` with two
+      inserts sharing one key_hash and one (x, y) endpoint but different
+      other fields; the second insert correctly returned (False, the first
+      slot), confirming the C11 fix that reached main actually works, not
+      just that its dead-code bug is textually absent. `python3 -m
+      py_compile` clean on all three files both before and after this task's
+      edits; an AST walk confirms no duplicate class/function definitions in
+      any of the three files.
+    - >-
+      This task's branch-naming deviation (a new branch rather than reusing
+      claude/point-addition-bias-t2dow9) and the reason for it are recorded
+      above under constraints and reported to the user directly, since it
+      departs from this runtime's default recovery procedure for a merged
+      PR and is not itself a research decision.
+  review_plan: null

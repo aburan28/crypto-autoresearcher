@@ -18,7 +18,7 @@ tags: [binary-field, complexity-theory, dlp, ecdlp, elliptic-curve, factoring, f
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-d8e1b9
 ---
 
 ## Contribution

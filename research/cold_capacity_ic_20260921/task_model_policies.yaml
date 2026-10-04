@@ -1,0 +1,245 @@
+schema_version: '2.0'
+adapter:
+  module: orchestration.adapter
+  providers: orchestration/providers.yaml
+  bindings: orchestration/model-bindings.yaml
+  reasoning_effort_order:
+  - none
+  - low
+  - medium
+  - high
+  - xhigh
+  - max
+  - ultra
+policies:
+  coordinator-orchestration-code:
+    aliases:
+    - coordinator-ultra-code
+    - coordinator-archive
+    summary: 'Coordinator working over the repository: task decomposition, dispatch
+      plans, state transitions, and code-aware protocol design.'
+    purpose:
+    - orchestration
+    - task_decomposition
+    - state_transitions
+    - code_aware_planning
+    - contradiction_resolution
+    requires:
+      reasoning_effort: high
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 16000
+    reasoning_effort: high
+    may_change_official_state: true
+    independent_session_required: false
+    fallback_policy: coordinator-orchestration
+  coordinator-orchestration:
+    aliases:
+    - coordinator-sol-max
+    summary: 'Coordinator without a repository-wide code path: prioritization, synthesis,
+      and decision records.'
+    purpose:
+    - orchestration
+    - task_decomposition
+    - synthesis
+    requires:
+      reasoning_effort: high
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    reasoning_effort: high
+    may_change_official_state: true
+    independent_session_required: false
+    fallback_policy: null
+  research-deep:
+    aliases:
+    - research-sol-max
+    summary: Long-horizon mathematical and literature reasoning for ideation, mechanism
+      search, and experiment design.
+    purpose:
+    - literature_synthesis
+    - hypothesis_generation
+    - mechanism_search
+    - experiment_design
+    - mathematical_analysis
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 16000
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: null
+  review-adversarial:
+    aliases:
+    - review-xhigh
+    - validator-independent
+    - red-team-adversarial
+    summary: Independent adversarial review of claims, proofs, and proposed state
+      transitions. Must run in a session that did not originate the claim.
+    purpose:
+    - adversarial_review
+    - proof_review
+    - breakthrough_review
+    - closure_review
+    - contradiction_resolution
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 16000
+    reasoning_effort: xhigh
+    may_change_official_state: false
+    independent_session_required: true
+    fallback_policy: null
+  review-breakthrough:
+    aliases: []
+    summary: 'The one decision class where being wrong is unrecoverable: a claimed
+      break, a closure result, or a contradiction between two independently validated
+      evidence records.'
+    purpose:
+    - breakthrough_review
+    - closure_review
+    - contradiction_resolution
+    requires:
+      reasoning_effort: max
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 24000
+    reasoning_effort: max
+    may_change_official_state: false
+    independent_session_required: true
+    fallback_policy: null
+    degradable: false
+  consolidation-routing:
+    aliases: []
+    summary: Reading agent-bus traffic ACROSS lanes and carrying pointers between
+      them. Must run in a session that works none of the lanes it reads.
+    purpose:
+    - cross_lane_consolidation
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 180000
+      min_output_tokens: 4000
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: true
+    fallback_policy: null
+  executor-implementation:
+    aliases:
+    - executor-terra
+    summary: Implementation, debugging, bounded experiment execution, and artifact
+      collection. Records observations only.
+    purpose:
+    - implementation
+    - debugging
+    - experiment_execution
+    - artifact_collection
+    requires:
+      reasoning_effort: medium
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 120000
+      min_output_tokens: 24000
+    reasoning_effort: high
+    may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: null
+  executor-mechanical:
+    aliases: []
+    summary: 'Deterministic, fully specified work: re-run a frozen command, collect
+      artifacts, reformat a record, regenerate an index.'
+    purpose:
+    - artifact_collection
+    - reproduction_runs
+    - record_formatting
+    requires:
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      min_context_tokens: 60000
+      min_output_tokens: 16000
+    reasoning_effort: low
+    may_change_official_state: false
+    independent_session_required: false
+    fallback_policy: executor-implementation
+role_defaults:
+  coordinator: coordinator-orchestration-code
+  consolidator: consolidation-routing
+  idea_generator: research-deep
+  research: research-deep
+  executor: executor-implementation
+  reviewer: review-adversarial
+  validator: review-adversarial
+  red_team: review-adversarial
+routing_rules:
+- id: unrecoverable-result-review
+  when:
+    any:
+    - claimed_breakthrough: true
+    - proposed_state_transition: closed
+    - contradicts_prior_evidence: true
+  require:
+    policy: review-breakthrough
+    independent_session: true
+    reviewer_must_not_be_originating_agent: true
+    fallback_allowed: false
+- id: critical-result-review
+  when:
+    any:
+    - proposed_state_transition: supported
+    - proposed_state_transition: rejected
+  require:
+    policy: review-adversarial
+    independent_session: true
+    reviewer_must_not_be_originating_agent: true
+- id: coordinator-code-path
+  when:
+    any:
+    - task_contains_code_changes: true
+    - task_requires_repo_orchestration: true
+    - task_requires_experiment_pipeline_design: true
+  require:
+    policy: coordinator-orchestration-code
+- id: research-depth
+  when:
+    any:
+    - task_type: hypothesis_generation
+    - task_type: literature_synthesis
+    - task_type: mathematical_analysis
+    - task_type: experiment_design
+  require:
+    policy: research-deep
+- id: executor-runtime
+  when:
+    any:
+    - task_type: implementation
+    - task_type: debugging
+    - task_type: experiment_execution
+    - task_type: artifact_collection
+  require:
+    policy: executor-implementation
+runtime_resolution:
+  strict: true
+  rules:
+  - Never silently downgrade a requested policy.
+  - 'A backend with no binding for the requested policy, or a binding that cannot
+    meet a stated requirement, stops the task. The declared `fallback_policy` may
+    be used only when the handoff sets `fallback_allowed: true`, and the substitution
+    is recorded.'
+  - Record requested_policy, canonical_policy, backend, provider, resolved_model_id,
+    reasoning_effort, fallback_used, and adapter_version in every agent session and
+    run manifest.
+  - 'A policy with `independent_session_required: true` resolves only when the caller
+    asserts an independent session and names the originating agent.'
+  - Treat UI labels and API model identifiers as separate fields. A model identifier
+    is unverified configuration until `adapter doctor --probe` confirms the backend
+    actually serves it.

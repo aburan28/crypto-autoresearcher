@@ -1,0 +1,378 @@
+validation_report:
+  id: VAL-20260826-34d412
+  task_id: TASK-20260826-974735
+  role: validator
+  goal_id: GOAL-FAEST-001
+  batch_id: BATCH-0ed590
+  reviewed_producer_task: TASK-20260826-a90847
+  snapshot_task: TASK-20260826-07f458
+  snapshot_commit: 0a8af8e8f264fd18a5cead0095c399cc56157a0b
+  run_ids: []          # RSF-5 is an acquisition/pinning gate; experiment_runs = 0 (correct).
+
+  # ------------------------------------------------------------------
+  # HEADLINE VERDICT
+  # ------------------------------------------------------------------
+  verdict: REVISE                       # handoff vocabulary (PASS | REVISE | FAIL)
+  verdict_role_vocabulary: incomplete   # agents/validator.md vocabulary (passed|failed|incomplete|invalid)
+  verdict_scope: >-
+    The RSF-5 ACQUISITION and the PRIMARY parameter pinning are admissible and
+    independently corroborated on BOTH declared routes: 13 of 14 pinned-parameter
+    groups are fully supported by the exact cited source locations, with Route A
+    (spec PDF) and Route B (faest-ref @ 2a2c36d9) agreeing where both apply. ONE
+    group is flagged: the FAEST_128s DERIVED tree-split values transcribed as
+    (tau0=6, tau1=5, L=1408) are WRONG -- the exact macro the artifact cites
+    (instances.c:45-49) and the spec's own Table 5.1 both yield (tau0=11, tau1=0,
+    L=22528). This is a computed/guessed value carried under the artifact's
+    blanket "no computed value carried as verified" claim, so that claim is
+    over-stated. The defect does NOT touch any RSF-5 target and asserts nothing
+    about FAEST, but it must be corrected by a superseding record before the
+    ledger archive treats the pinning as fully clean and before any rank-4
+    contract is designed against a leaf-count (the batch forbids contracts built
+    on guessed parameters).
+
+  # ------------------------------------------------------------------
+  # ARTIFACT / BINDING CHECKS
+  # ------------------------------------------------------------------
+  artifact_checks:
+    - check: snapshot_is_committed_not_working_tree_only
+      result: pass
+      detail: >-
+        Commit 0a8af8e8f exists and is reachable; all three rank-1 artifacts and
+        the snapshot receipt are present in its tree. This is a Coordinator
+        content-first snapshot, not a working-tree-only receipt.
+    - check: path_sha256_match_snapshot_receipt
+      result: pass
+      detail: >-
+        parameters.yaml ee3fd5dd...d752c461, fetch-table.json 4564bd05...0c64d558f,
+        runtime-session-receipt.json 418bdb6b...c2b20f4f8316 -- all three recompute
+        exactly, in the working tree AND as the committed blobs at 0a8af8e8f.
+    - check: required_artifacts_present
+      result: pass
+      detail: parameters.yaml, fetch-table.json, runtime-session-receipt.json all present and bound.
+
+  # ------------------------------------------------------------------
+  # PER-PARAMETER SUPPORT (each checked against its exact cited location)
+  # Route B re-cloned independently at the recorded commit; Route A PDFs
+  # re-fetched independently and verified by sha256 identity.
+  # ------------------------------------------------------------------
+  independent_corroboration:
+    route_b_clone:
+      repo: https://github.com/faest-sign/faest-ref
+      head_read: 2a2c36d96f8e6d2b7acda341741892099e8c5cc1
+      head_matches_recorded: true
+      commit_date_matches: "2026-07-24 11:20:52 +0200"
+      project_version: "2.0.5"
+      version_2_0_5_bump_is_ancestor: true
+      meson_build_sha256: f27acb42f92bc98fb583608e4d16f02cd3493d4acf97057971b5c2a3bf880b31   # matches recorded exactly
+    route_a_pdfs:
+      spec_v2_0_sha256: 37ab53a919b1aca9ac90771519a0caa08592eb4cb2a0e3bc118b5e3014b52dad     # matches recorded exactly
+      eprint_2023_996_sha256: 23cbfc539ec88cde0ad6e9162da469a332264cd0e539b0a83fad245b99196d48 # matches recorded exactly
+      note_403_obstacle: >-
+        The 2026-07-31 probe's HTTP 403 on faest.info / eprint.iacr.org / faest-sign
+        is NOT reproduced; this session also received HTTP 200 and a clean git clone,
+        consistent with the fetch table.
+
+  parameter_support_findings:
+    - group: field_and_irreducible_polynomials
+      rsf5_target: field
+      status: supported_both_routes
+      cited: "route_a spec L1126-1133; route_b fields.c:13-27"
+      finding: >-
+        P8..P768 (7 moduli) match fields.c lines 13,17,19,21,23,25,27 bit-for-bit
+        (bfN_modulus macros). Spec confirms P8 agrees with AES. base=GF(2),
+        vole=F_{2^lambda}, leaf-hash=F_{2^{3*lambda}} confirmed by spec (3-lambda-bit
+        universal hash, lines 326-335) and code.
+    - group: consistency_check_equation
+      rsf5_target: consistency-check equation
+      status: supported_both_routes
+      cited: "route_a spec Sec.6/7 ZK.OWFVerify; route_b faest_aes.c.in:1758-1772, 1701-1708"
+      finding: >-
+        Route B verifier fold computes a0_tilde = q_tilde + a1_tilde*delta +
+        a2_tilde*delta_sq (chars-2 form of q - a1*Delta - a2*Delta^2), prover
+        emits (a0,a1,a2) via zk_hash_SSS_3_init/finalize. Spec ZK.OWFVerify takes
+        (chall2, chall3, a1_tilde, a2_tilde), Delta = ToField(chall3). Matches
+        artifact exactly.
+    - group: consistency_check_degree
+      rsf5_target: consistency-check degree
+      status: supported_both_routes
+      cited: "route_a spec degree-2 commitments / degree-3 AES reduced; route_b three-coeff hash"
+      finding: >-
+        Degree 2 in Delta (three coefficients; fold uses Delta and Delta^2).
+        Spec confirms degree-2 commitments with a specialized degree-3 AES S-box
+        constraint reduced to degree-2 (spec lines 132, 186-188). Matches artifact.
+    - group: parameter_sets_core_12
+      rsf5_target: "(kappa, tau) and main parameters"
+      status: supported_both_routes
+      cited: "route_a spec Table 3.2 L603-627; route_b meson.build param_* blocks"
+      finding: >-
+        All 12 sets' lambda(=kappa), tau, w_grind, T_open, B, nleafcom, ell, sig_size
+        match meson.build exactly; the FAEST-128s/128f/EM-128s rows also match spec
+        Table 3.2 exactly. Nst/Ske/R/Senc/Lke/Lenc match meson.build AND spec Table
+        3.3 (incl. EM Nst 4/6/8, Ske=0). FAEST_256s / EM_256s / EM_256f full rows
+        re-verified field-by-field against meson.build.
+    - group: parameter_sets_derived_128s
+      rsf5_target: "derived (k, tau0, tau1, L) -- NOT an RSF-5 target; illustrative"
+      status: FLAGGED_incorrect
+      cited: "route_b instances.c:45-49 CALC_* macros (also spec Table 5.1)"
+      finding: >-
+        Artifact transcribes FAEST_128s (k=12, tau0=6, tau1=5, L=1408). Evaluating
+        the cited CALC_* macros -- confirmed via BOTH a Python re-implementation and
+        the actual C preprocessor on the exact macro text -- gives k=12, tau1=0,
+        tau0=11, L=22528. The spec's Table 5.1 defines identically: tau1=(lambda-
+        wgrind) mod tau = 0, tau0=tau-tau1=11, k=floor((lambda-wgrind)/tau)+1=12,
+        L=tau1*2^k+tau0*2^(k-1)=22528 ("Number of leaves in the GGM tree"). k is
+        correct; tau0, tau1, and L are wrong. L=1408 = lambda*tau = ell+lambda,
+        i.e. a coincidental non-leaf quantity, indicating it was not computed from
+        the stated formula. This is a computed/guessed value presented as
+        derived-and-corroborated.
+    - group: bavc_mode
+      rsf5_target: bAVC mode
+      status: supported_both_routes
+      cited: "route_a spec L281,320-354,653,1360-1375; route_b bavc.h:36-45, bavc.c:22-42"
+      finding: >-
+        One-tree batch all-but-one VC, L = tau*N over a single GGM tree, T_open
+        opening threshold with Fiat-Shamir grinding (w_grind upper bits of Delta
+        zero). API and seed expansion (prg_2_lambda) confirmed in bavc.c; spec
+        Sec 2.1 / Table 5.1 agree.
+    - group: leaf_commit_aes_mode
+      rsf5_target: LeafCommit mode
+      status: supported_route_b
+      cited: "route_b bavc.c:45-67; com_size bavc.c:119,151,183; universal_hashing.c:501-545"
+      finding: >-
+        sd||buffer = prg_4_lambda(key,iv,tweak); com = leaf_hash_lambda(uhash,buffer);
+        com_size = lambda_bytes*3 (nleafcom=3). Confirmed. nleafcom=3 also in spec
+        Table 3.2 / Table 5.1.
+    - group: leaf_commit_em_mode
+      rsf5_target: LeafCommit mode
+      status: supported_route_b
+      cited: "route_b bavc.c:69-76, com_size bavc.c:271; dispatch bavc.c:79-96"
+      finding: >-
+        sd = key; com = prg_2_lambda(key,iv,tweak); com_size = lambda_bytes*2
+        (nleafcom=2), no universal-hash compression. faest_is_em dispatch confirmed.
+    - group: owf_em_construction
+      rsf5_target: faest_em_* OWF definition
+      status: supported_both_routes
+      cited: "route_a spec EM OWF E_lambda^EM=(k,x)->Rijndael-lambda_x(k)^k; route_b owf.c:243-273, 257-258"
+      finding: >-
+        Even-Mansour OWF(k) = P_x(k) XOR k with public x keying the block cipher
+        and secret k the plaintext. Route B owf_em_128 = owf_128(input,key) then
+        xor_u8_array(out,key,out,16) (args swapped + XOR-with-k, per the owf.c:257-258
+        comment); rijndael192/256 for EM-192/256. Spec states E_lambda^EM exactly.
+    - group: owf_em_widths_and_P
+      rsf5_target: faest_em_* widths / P instantiation
+      status: supported_both_routes
+      cited: "route_a spec Table 3.3 (Nst); route_b owf.c + faest_is_em (Ske==0)"
+      finding: >-
+        AES-128 (Nst=4)/Rijndael-192 (Nst=6)/Rijndael-256 (Nst=8); output 16/24/32
+        bytes; R 10/12/14. Matches spec Table 3.3 and code. EM marker Ske==0
+        confirmed.
+    - group: owf_aes_reference
+      rsf5_target: "AES OWF (reference)"
+      status: supported_both_routes
+      cited: "route_a spec E128/E192/E256; route_b owf.c:155-241"
+      finding: >-
+        AES128_k(x) single block; AES192/256_k(x)||_k(x^1) two blocks. Matches
+        spec definitions and owf.c.
+    - group: digest_lengths
+      rsf5_target: digest lengths
+      status: supported_both_routes
+      cited: "route_b faest_impl.c:179,200,215,218,224,234,245,267,276,26,210; route_a spec chall3, ell_hat"
+      finding: >-
+        mu=2*lambda (L179), root_key=lambda (L200), hcom=2*lambda (L215),
+        chall_1=5*lambda_bytes+8 => 5*lambda+64 (L218), u/v_tilde=lambda+16 (L224/234),
+        chall_2=3*lambda_bytes+8 => 3*lambda+64 (L245), chall_3=lambda (L267/276),
+        UNIVERSAL_HASH_B=2 bytes, iv=128, ell_hat=ell/8+3*lambda_bytes+B. Confirmed
+        exact. Spec: chall3 in {0,1}^lambda (L1885), ell_hat=ell+3*lambda+B (L422).
+
+  parameters_checked_count: 14
+  parameters_fully_supported: 13
+  parameters_flagged: 1
+
+  # ------------------------------------------------------------------
+  # METRIC RECOMPUTATIONS (deterministic)
+  # ------------------------------------------------------------------
+  metric_recomputations:
+    - name: CALC_macros_FAEST_128s
+      method: "Python re-implementation AND the actual C preprocessor on the exact instances.c:45-49 macro text"
+      inputs: "lambda=128, w_grind=7, tau=11"
+      recomputed: "k=12, tau1=0, tau0=11, L=22528"
+      artifact_claimed: "k=12, tau0=6, tau1=5, L=1408"
+      agreement: partial   # k agrees; tau0, tau1, L disagree
+      cross_source: "spec Table 5.1 formulas independently give the same 12/0/11/22528"
+    - name: irreducible_polynomial_bit_positions
+      method: "bit-position read of bfN_modulus macros vs artifact polynomial exponents"
+      recomputed: "P8,P128,P192,P256,P384,P576,P768 all match"
+      agreement: full
+    - name: parameter_set_core_fields_all_12
+      method: "field-by-field diff of parameters.yaml against meson.build param_* blocks and spec Table 3.2/3.3"
+      recomputed: "lambda, tau, w_grind, T_open, B, nleafcom, ell, sig_size (+ Nst/Ske/R/Senc/Lke/Lenc for checked rows) match"
+      agreement: full
+
+  # ------------------------------------------------------------------
+  # CONTROL / PLACEHOLDER CHECKS
+  # ------------------------------------------------------------------
+  control_checks:
+    - check: no_eprint_v1_construction_used_as_deployed_value
+      result: pass
+      detail: >-
+        eprint 2023/996 (v1-era) is explicitly labelled as corroborating the
+        CONSTRUCTION only; its posted parameters are stated NOT to match deployed
+        v2.0 and are not used to pin any value. Fetch table and parameters.yaml
+        both state this correctly.
+    - check: no_KN_LIT_7619_metadata_used_as_value_source
+      result: pass
+      detail: >-
+        Values are traced to an actual clone/read (Route B) and to the spec PDF
+        (Route A), not to KN-LIT-7619 repository metadata. The KN-LIT-7619 pin
+        (HEAD, version, layout) is used only to confirm the clone landed on the
+        expected commit -- which it did.
+    - check: no_placeholder_as_verified_survived
+      result: FAIL
+      detail: >-
+        ONE placeholder-class value survived as verified: FAEST_128s L=1408
+        (with tau0=6, tau1=5). It is a computed/guessed quantity (lambda*tau)
+        presented under the artifact's route_agreement claim that "no placeholder,
+        guess, interpolation, or computed value is carried as verified." That
+        blanket claim is false for this field. Scope is limited to explicitly
+        illustrative DERIVED fields for one set and no RSF-5 target; but it is a
+        real placeholder-as-verified and is the basis of the REVISE verdict.
+
+  # ------------------------------------------------------------------
+  # FETCH-TABLE HONESTY
+  # ------------------------------------------------------------------
+  fetch_table_checks:
+    - check: attempts_record_url_status_timestamp
+      result: pass
+      detail: >-
+        6 attempts, each with target URL, HTTP status (all 200) or git result
+        (clone exit 0), byte counts, and ISO-8601 UTC timestamps.
+    - check: outcome_consistent_with_attempts
+      result: pass
+      detail: >-
+        acquisition_blocker=false, RSF-5 RESOLVED, both routes attempted and
+        succeeded -- consistent with the recorded 200/clone results and with this
+        session's independent re-fetch (all 200, clean clone, identical sha256s).
+    - check: prior_403_handled_as_infrastructure_not_evidence
+      result: pass
+      detail: >-
+        The 2026-07-31 403 obstacle is recorded as not reproduced; no negative
+        claim about FAEST is drawn from either the old 403 or the new success.
+
+  # ------------------------------------------------------------------
+  # CLAIM CEILING
+  # ------------------------------------------------------------------
+  claim_ceiling_checks:
+    - check: asserts_nothing_about_faest_security_soundness_category
+      result: pass
+      detail: >-
+        parameters.yaml carries an explicit claim ceiling and no_assertion_about_faest:
+        true; it transcribes sources rather than evaluating them.
+    - check: experiment_runs_zero
+      result: pass
+      detail: "executor receipt experiment_runs=0, experiment_runs_authorized=0."
+    - check: no_status_tier_or_evidence_change
+      result: pass
+      detail: >-
+        hypothesis_status_change none, claim_tier_change none, evidence_promotion
+        none, committed_anything false, write_scope respected. Matches batch
+        claim_ceiling and excluded scope.
+
+  heuristic_validation_checks: []   # not a heuristic-validation experiment
+  cost_model_checks: []             # no cost table in scope
+  proof_architecture_checks: []     # not a proof-oriented task
+
+  # ------------------------------------------------------------------
+  # CITATION-PRECISION NOTES (content correct; pointer imprecise)
+  # These do NOT change any value and are not part of the verdict basis,
+  # but are recorded for the correction pass.
+  # ------------------------------------------------------------------
+  citation_precision_notes:
+    - "FAEST_256s route_b_lines cites meson.build:388-409, but param_256s is at 366-386; 388-409 is the param_256f block. The FAEST_256s VALUES are nonetheless correct (transcribed from the right block: tau=22, not 32)."
+    - "instances.h:17 cited for UNIVERSAL_HASH_B_BITS; actual line is 18."
+    - "instances.h:19-20 cited for IV_SIZE; actual line is 21 (AES_BLOCK_SIZE at 20)."
+    - "instances.h:70-72 cited for faest_is_em marker; the function is at line 73."
+    - "owf.c:213-241 cited for owf_256; the function begins at line 212."
+
+  limitations:
+    - >-
+      Session independence only. Model independence is UNAVAILABLE in this harness
+      and is NOT claimed. This is not a distinct-model quorum.
+    - >-
+      Route A line-number references in parameters.yaml were not verified
+      line-by-line, because plain-text line numbers depend on the pdftotext
+      version (this session used 26.04.0). Instead Route A was corroborated by (a)
+      exact PDF sha256 identity and (b) direct location and reading of the
+      substantive spec content (Tables 3.2, 3.3, 5.1; the EM/AES OWF definitions;
+      field definitions; chall3 length; ell_hat). All substantive Route A content
+      checked was consistent with the artifact.
+    - >-
+      Not every one of the ~20 numeric fields in every one of the 12 sets was
+      re-diffed; core fields for all 12 and full rows for 128s-class, 256s,
+      EM-256s and EM-256f were verified. No discrepancy was found in any field
+      checked except the FAEST_128s derived (tau0, tau1, L) group.
+
+  required_correction_before_ledger_archive:
+    - >-
+      Supersede parameters.yaml (immutable; do NOT overwrite) with a corrected
+      record fixing FAEST_128s derived values to k=12, tau1=0, tau0=11, L=22528
+      (or remove the illustrative derived block entirely), and narrow/withdraw
+      the route_agreement claim "no computed value carried as verified" so it no
+      longer covers a guessed L.
+    - >-
+      Optional but recommended in the same correction: fix the FAEST_256s
+      route_b_lines pointer to meson.build:366-386 and the four off-by-one line
+      citations listed under citation_precision_notes.
+    - >-
+      Because the batch excludes "any contract designed against placeholder or
+      guessed parameters", no rank-4 contract may consume a GGM leaf-count until
+      this correction lands.
+
+  what_this_report_does_not_do: >-
+    A REVISE here is a defect in the pinning deliverable, not a finding about
+    FAEST. It supports no ECDLP claim, demonstrates no speedup, and authorizes no
+    promotion or status change. The correctly-pinned RSF-5 targets are admissible
+    evidence for the design gate once the flagged correction lands.
+
+  review_attestation:
+    reviewer_role: validator
+    independent_session: true
+    session_independence_only: true
+    model_independence_claimed: false
+    joints_owned:
+      - "each pinned FAEST parameter is supported by its exact cited source location"
+      - "no placeholder survived as though verified"
+      - "fetch table honestly records attempts and the outcome is consistent"
+      - "the claim ceiling held (nothing asserted about FAEST; experiment_runs 0)"
+    attack_used: >-
+      Independent re-clone of faest-ref at the recorded commit and independent
+      re-fetch of both Route A PDFs (sha256 identity), then deterministic
+      recomputation of the cited CALC macros via the C preprocessor and direct
+      reading of the cited spec tables and source lines.
+    sources_read:
+      - ledger/handoffs/TASK-20260826-974735.yaml
+      - AGENTS.md
+      - agents/validator.md
+      - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/batch.yaml
+      - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/archives/TASK-20260826-07f458/snapshot-receipt.json
+      - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/tasks/TASK-20260826-a90847/parameters.yaml
+      - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/tasks/TASK-20260826-a90847/fetch-table.json
+      - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/tasks/TASK-20260826-a90847/runtime-session-receipt.json
+      - "external (independent re-fetch): faest-ref @ 2a2c36d96f8e6d2b7acda341741892099e8c5cc1 (fields.c, instances.c/.h, faest_aes.c.in, faest_impl.c, bavc.c/.h, owf.c, universal_hashing.h, meson.build)"
+      - "external (independent re-fetch): faest.info/faest-spec-v2.0.pdf and eprint.iacr.org/2023/996.pdf (sha256-verified)"
+    read_sibling_reports: false
+    sibling_report_encountered: false
+    verdict: REVISE
+
+  verdict_summary: >-
+    REVISE. 14 pinned-parameter groups checked; 13 fully supported and
+    independently corroborated on both routes; 1 flagged (FAEST_128s derived
+    tau0/tau1/L are wrong per the very macro cited and per spec Table 5.1, with
+    L=1408 a guessed value carried as verified). RSF-5 acquisition is honest and
+    resolved; the claim ceiling held. Blocking defect for a fully-clean ledger
+    archive: the FAEST_128s derived values and the "no computed value carried as
+    verified" claim must be corrected by a superseding record before rank-4
+    contract design consumes a leaf-count.
+
+  artifact_paths:
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/reviews/TASK-20260826-974735/validation-report.yaml
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-0ed590/reviews/TASK-20260826-974735/runtime-session-receipt.json

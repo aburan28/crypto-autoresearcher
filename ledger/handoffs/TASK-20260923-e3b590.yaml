@@ -1,0 +1,225 @@
+# =============================================================================
+# TASK-20260923-e3b590 -- Coordinator REVIEW-OPENING ARCHIVE for
+# REVIEW-CERTBIN-20260923-c51f07 (RUN-CERTBIN-3b7e05). It extracts the blind
+# re-deriver's instance inputs, commits the decision, the correction, the review
+# plan and the seven cards, and binds the 5016669 supersession by hash, before
+# any reviewer is dispatched. Interprets nothing and runs no trial.
+#
+# ID PROVENANCE (disclosed): minted without a shell; SC-1 below checks it.
+# =============================================================================
+handoff:
+  id: TASK-20260923-e3b590
+  from: coordinator
+  to: coordinator
+  archive_kind: snapshot
+  kind: snapshot_archive
+  recorded_at: '2026-09-23'
+  opened_by_decision: DEC-20260923-4d7a19
+  question_id: RQ-CERTBIN-836ce2
+  experiment_id: EXP-CERTBIN-4e92d7
+  hypothesis_id: H-CERTBIN-a73f1c
+  run_id: RUN-CERTBIN-3b7e05
+  review_plan_id: REVIEW-CERTBIN-20260923-c51f07
+  depends_on:
+    - TASK-20260923-c2e57b
+  state: written_not_executed
+
+  objective: >-
+    Make the review round's setup durable and hash-bound before any reviewer
+    reads anything. Produce the blind inputs by a mechanical, whitelisted
+    extraction that carries no outcome. Commit exactly the declared paths. Bind
+    commit 5016669's supersession files by hash. Prove by the blind-history
+    check that no commit message on the branch states a protected value. Push,
+    and refresh PR #1385.
+
+  uncertainty_reduced: >-
+    Whether the reviewers, and above all the blind re-deriver, read the bytes
+    the plan says they read, and nothing that states an outcome.
+
+  inputs:
+    - ledger/decisions/DEC-20260923-4d7a19.yaml
+    - coordination/review/certbin-20260923-c51f07/review-plan.yaml
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/curve.json (extraction source)
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/references.json (extraction source)
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/targets-F-S3.jsonl.gz (extraction source)
+    - >-
+      The protected literals, supplied OUT OF BAND in the Coordinator's return
+      message to the dispatching session. They are never written to any file,
+      commit message, PR text or bus message.
+    - origin/main
+
+  constraints:
+    - id: SC-1
+      text: >-
+        ID CHECK FIRST. Run `python3 tools/allocate_id.py --check` on
+        DEC-20260923-4d7a19, CORR-20260923-a86e3b, TASK-20260923-e3b590,
+        TASK-20260923-7a2cd4, TASK-20260923-b8f163, TASK-20260923-29e7af,
+        TASK-20260923-d04c5e, TASK-20260923-5f9b82, TASK-20260923-918a6d,
+        EV-CERTBIN-6c3e0a and DEC-20260923-f25b97. Check
+        REVIEW-CERTBIN-20260923-c51f07 by path (no coordination/review/*c51f07*
+        other than this round). On any collision, stop. Re-mint the ID and
+        rename every reference to it in the files below BEFORE the first
+        commit, and record the rename in the receipt. Nothing binding these IDs
+        is committed yet.
+    - id: SC-2
+      text: >-
+        MERGE origin/main INTO THE BRANCH, NEVER REBASE. Record the base commit
+        checked and the merge outcome. On a conflict inside a record, stop.
+        Never resolve it by editing a record.
+    - id: SC-3
+      text: >-
+        EXTRACTION, MECHANICAL AND WHITELISTED. Write
+        coordination/review/certbin-20260923-c51f07/blind/blind-inputs.json
+        with EXACTLY these keys and nothing else:
+        - schema: "certbin.blind_inputs.v1"
+        - review_id: "REVIEW-CERTBIN-20260923-c51f07"
+        - field: {n: 17, modulus: "t^17 + t^3 + 1", encoding: "17-bit integer, bit j = coefficient of t^j"}
+        - m: 2
+        - l: 9
+        - D: [4]
+        - curve: {A: int, B: int}, from curve.json
+        - references: five objects {label, x_R}. x_R is the x_R of each F-S3
+          reference in references.json. The five are SORTED BY x_R ASCENDING
+          and labelled REF-a..REF-e in that order. Arm, s, D*, the run's
+          U1/U2/U3/S1/S2 id, traces and modal status are NEVER written.
+        - targets: one hundred objects {position, x_R}. Take the F-S3 test
+          targets in draw order, which is the order of the run's own
+          per-target index field in targets-F-S3.jsonl.gz, one entry per
+          target (the file holds one record per target and D; de-duplicate).
+          Assert that the index order agrees with the file order. Keep the
+          targets at 1-based positions 10, 20, ..., 1000. Degenerate targets
+          are included as they fall, with no flag.
+        Write coordination/review/certbin-20260923-c51f07/blind-inputs-key.json,
+        which is NOT in blind/, with the mapping label -> run reference id and
+        position -> run target index, and nothing else.
+        Then verify mechanically:
+        - blind-inputs.json has exactly the keys above;
+        - there are 5 references and 100 targets;
+        - every x_R is an int in [0, 2^17);
+        - curve A and B equal manifest inputs.curve.
+        Record in the receipt the exact extraction command or script text, and
+        the sha256 of both files. The extraction script, if it is a file, stays
+        OUTSIDE the repository, or is committed inside this task's archive
+        directory. Either way it is declared.
+    - id: SC-4
+      text: >-
+        BLIND-PHASE HYGIENE. Write
+        coordination/review/certbin-20260923-c51f07/blind-phase-hygiene.yaml as
+        `blind_phase_hygiene: {protected_sha256: {<sha256 hex of literal>: <label>}}`.
+        There is one entry per protected literal supplied out of band. The
+        digest is the sha256 of the literal's UTF-8 bytes, exactly as
+        tools/check_review_independence.py tokenizes it. Each label is a
+        non-numeric description such as "F-S3 D4 unsat arm size". A label
+        never contains the value. After the archive commit, run
+        `python3 tools/check_review_independence.py --blind-history HEAD
+        --protected-from coordination/review/certbin-20260923-c51f07/blind-phase-hygiene.yaml`
+        and record the output in the receipt. If it FAILS, stop.
+        TASK-20260923-7a2cd4 may not then run on this branch's history.
+        Record a correction, and give the re-deriver a clean worktree whose
+        reachable history passes.
+    - id: SC-5
+      text: >-
+        RATIFIED PRIOR-COMMIT BINDINGS (DEC-20260923-4d7a19 R-5). Do not stage
+        or edit experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/manifest_v2.yaml
+        or tools/run_supersession_registry.yaml. Record in the receipt, under
+        `prior_commit_bindings`, their sha256 at HEAD and the commit that
+        introduced them (5016669). Assert that manifest_v2.yaml's sha256 equals
+        the registry's superseding_sha256 (b801901e2678d17f1bcf105c8977d0f92befeaa1d0554c9571f4e3516579162c).
+        Also assert that manifest.yaml is byte-identical to the c2e57b receipt
+        (1ed4bd676ec61eb3f82aa3d44e7c3f43c49d9bf53fb6bba62caec60477039bda).
+    - id: SC-6
+      text: >-
+        STAGE ONLY THE DECLARED PATHS. Never stage the top-level session's
+        exploratory scratch script or its outputs, /home/user/certbin-dev/, or
+        any reviewer directory. Run tools/validate_ledger.py on the head and
+        report no error line beyond the base's pre-existing set.
+    - id: SC-7
+      text: >-
+        OUTCOME HYGIENE. The commit message, the PR text and any bus message
+        carry NO measured value and NO decision-rule verdict word. They name
+        the records and say that the review round is opened and not yet
+        dispatched.
+    - id: SC-8
+      text: Launch nothing. maximum_runs is 0. The extraction is a data copy, not a trial.
+
+  deliverables:
+    - one commit naming TASK-20260923-e3b590, REVIEW-CERTBIN-20260923-c51f07 and every record id below
+    - coordination/review/certbin-20260923-c51f07/blind/blind-inputs.json
+    - coordination/review/certbin-20260923-c51f07/blind-inputs-key.json
+    - coordination/review/certbin-20260923-c51f07/blind-phase-hygiene.yaml
+    - coordination/review/certbin-20260923-c51f07/archives/TASK-20260923-e3b590/snapshot-receipt.json
+    - the branch pushed, and PR #1385 refreshed naming the records
+
+  record_ids:
+    - DEC-20260923-4d7a19
+    - CORR-20260923-a86e3b
+    - TASK-20260923-e3b590
+    - TASK-20260923-7a2cd4
+    - TASK-20260923-b8f163
+    - TASK-20260923-29e7af
+    - TASK-20260923-d04c5e
+    - TASK-20260923-5f9b82
+    - TASK-20260923-918a6d
+
+  artifact_paths:
+    - ledger/decisions/DEC-20260923-4d7a19.yaml
+    - ledger/corrections/CORR-20260923-a86e3b.yaml
+    - ledger/handoffs/TASK-20260923-e3b590.yaml
+    - ledger/handoffs/TASK-20260923-7a2cd4.yaml
+    - ledger/handoffs/TASK-20260923-b8f163.yaml
+    - ledger/handoffs/TASK-20260923-29e7af.yaml
+    - ledger/handoffs/TASK-20260923-d04c5e.yaml
+    - ledger/handoffs/TASK-20260923-5f9b82.yaml
+    - ledger/handoffs/TASK-20260923-918a6d.yaml
+    - coordination/review/certbin-20260923-c51f07/review-plan.yaml
+    - coordination/review/certbin-20260923-c51f07/blind/blind-inputs.json
+    - coordination/review/certbin-20260923-c51f07/blind-inputs-key.json
+    - coordination/review/certbin-20260923-c51f07/blind-phase-hygiene.yaml
+    - coordination/review/certbin-20260923-c51f07/archives/TASK-20260923-e3b590/snapshot-receipt.json
+  write_scope:
+    - coordination/review/certbin-20260923-c51f07/blind/
+    - coordination/review/certbin-20260923-c51f07/blind-inputs-key.json
+    - coordination/review/certbin-20260923-c51f07/blind-phase-hygiene.yaml
+    - coordination/review/certbin-20260923-c51f07/archives/TASK-20260923-e3b590/
+  write_scope_note: >-
+    The decision, the correction, the plan and the cards were written by the
+    Coordinator. This task STAGES them. It writes only the extraction outputs,
+    the hygiene file and its receipt.
+
+  archived_by: TASK-20260923-e3b590
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_note: >-
+      Runtime-native model under Claude Code (DEC-20260923-4d7a19 R-1 forward
+      rule). This is not a tier downgrade.
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - every ID passes allocate_id.py --check, or was re-minted before commit with the rename recorded
+    - blind-inputs.json passes the SC-3 whitelist and count checks, and blind-inputs-key.json exists outside blind/
+    - blind-phase-hygiene.yaml exists, and the post-commit --blind-history check PASSES on HEAD
+    - the receipt records prior_commit_bindings for manifest_v2.yaml and tools/run_supersession_registry.yaml, and both SC-5 assertions pass
+    - the archive commit changes exactly the declared paths, and the receipt's path_sha256 matches the committed tree
+    - the receipt records the origin/main base commit and the merge outcome
+    - tools/validate_ledger.py on the head reports no error line beyond the base's pre-existing set
+    - the branch is pushed, and PR #1385 names the records without any measured value or verdict
+    - no scientific trial was launched
+
+  return_format: >-
+    The receipt, the archive commit sha, the base commit checked, the merge
+    outcome, the blind-history output, the sha256 of blind-inputs.json, and the
+    PR URL. The return message carries no measured value.
+
+  review_plan: null
+  review_plan_note: >-
+    This card archives the plan. It does not open the round.
+    TASK-20260923-b8f163 opens it.
