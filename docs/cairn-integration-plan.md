@@ -291,17 +291,34 @@ reads as the plan and this reads as the ledger of it.
   pinning a run's command and exact integer metrics otherwise -- with a
   provenance sidecar binding the specification's hash and the run's commit.
   Minted, never posted: the `cairn post` line is printed for the Coordinator.
-  `artifact` emits a run's claim in the objective's shape; `record` prints the
-  `external_verification:` block; `check` holds an objective to cairn's shape
-  rules without a binary.
+  `artifact` emits a run's claim in the objective's shape, reading the
+  witness statements committed runs actually keep (the sidecar, a
+  `certificates` list, flat rows under one curve, per-instance blocks; one
+  claim is one witness, `--index` picks it); `record` prints the
+  `external_verification:` block naming the witness; `check` holds an
+  objective to cairn's shape rules without a binary, including the RFC 3339
+  rule a bare `approved_at` date broke on the first real post.
+- **The seam, closed once.** `tools/cairn_seam_demo.py` takes a committed
+  run (`EXP-DTREE-001` / `RUN-DTREE-010` by default) through every step on a
+  node of its own: objective rendered and posted, witness scored and
+  submitted over MCP, attested under bond by the node's validator loop,
+  settled, the receipt read back from `GET /knowledge/{claim}` and held to
+  invariant (b), the log audited. `docs/cairn-runbook.md` is the same walk as
+  a page, with the topology (a session's own `cairn run` through
+  `.mcp.json`; a machine's node as a service with the validator loop) and
+  the three places a real run differs from the demo.
 - **The receipt.** `templates/research-records.md` carries the block on
   Evidence, and `tools/validate_ledger.py` enforces invariant (b): a verdict
   that does not settle may be cited in neither `proof_refs` nor
   `certificate_refs`, may not back a direction, and a `certificate`
   proof_status with nothing but non-settling receipts is refused.
 - **The tool surface.** `.mcp.json` gains the `cairn` stanza through
-  `tools/cairn_mcp.sh` (absolute paths resolved at launch; a signing identity
-  is required, since an unsigned submitter authenticates nothing).
+  `tools/cairn_mcp.sh`, which by default launches the session's own complete
+  node (`cairn run`: MCP on stdio, P2P, HTTP, the reader; the session is its
+  supervisor, so what it submits reaches peers while it runs), or a standalone
+  offline `cairn mcp` under `CAIRN_MODE=offline`. Absolute paths are resolved
+  at launch and a signing identity is required, since an unsigned submitter
+  authenticates nothing.
   `orchestration/roles.yaml` gains `network_submit` (Executor: score and
   submit) and `network_read` (Validator, Red Team: look a claim and its
   standing up), both optional capabilities as `send_messages` is, and the
@@ -317,10 +334,11 @@ reads as the plan and this reads as the ledger of it.
 
 **Not built, stated plainly.**
 
-- No `EXP-*` has yet gone end to end -- objective posted, claim settled,
-  `EV-*` carrying the receipt. The tooling exists; the first run is a
-  Coordinator decision (funding) plus one Executor session with the `cairn`
-  stanza live.
+- No `EV-*` yet carries a receipt. The seam has closed end to end on a demo
+  node (above), so what remains is a decision, not code: the Coordinator
+  funds the objective on the program's own node with the program's funder
+  identity, records it in a `DEC-*`, and writes the block into the evidence
+  record that cites the run.
 - A `replay` objective for an existing run is rendered with
   `replay_wrapper_required: true`: this program's drivers write a run
   directory and print prose, and cairn's replay verifier needs one JSON

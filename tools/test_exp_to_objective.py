@@ -106,6 +106,27 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(provenance["run"]["commit"], "0" * 40)
         self.assertEqual(e2o.check(objective, self.repo.root), [])
 
+    def test_a_bare_approval_date_becomes_a_date_time_cairn_accepts(self) -> None:
+        # The first objective rendered from a committed experiment cleared
+        # `check` and was refused at `post`: approved_at is a bare date in
+        # nearly every specification, and cairn wants a full date-time.
+        spec = self.repo.root / "experiments/EXP-ECDLP-aaaaaa/specification.yaml"
+        doc = yaml.safe_load(spec.read_text())
+        del doc["experiment"]["frozen_at"]
+        doc["experiment"]["approved_at"] = "2026-07-27"
+        spec.write_text(yaml.safe_dump(doc))
+        objective, provenance = e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1", None, 0, None, None)
+        self.assertEqual(objective["created_at"], "2026-07-27T00:00:00+00:00")
+        self.assertEqual(provenance["created_at_source"], "specification.approved_at")
+        self.assertTrue(e2o.rfc3339_ok(objective["created_at"]))
+        self.assertFalse(e2o.rfc3339_ok("2026-07-27"))
+        self.assertEqual(e2o.normalise_ts("2026-07-27T10:00:00Z"), "2026-07-27T10:00:00+00:00")
+        self.assertEqual(e2o.normalise_ts("2026-07-27T12:30:00+02:00"), "2026-07-27T10:30:00+00:00")
+        with self.assertRaises(e2o.BridgeError):
+            e2o.normalise_ts("last tuesday")
+        problems = e2o.check({**objective, "created_at": "2026-07-27"}, self.repo.root)
+        self.assertTrue(any("RFC 3339" in p for p in problems), problems)
+
     def test_the_kind_is_inferred_from_the_run_and_a_pin_drift_is_refused(self) -> None:
         self.assertEqual(e2o.infer_kind({"certificate": {"kind": "none"}}, None), "replay")
         self.assertEqual(e2o.infer_kind({}, {"result": {"certificate": {"kind": "discrete_log"}}}), "certificate")
@@ -167,6 +188,47 @@ class ArtifactAndRecordTests(unittest.TestCase):
         self.assertEqual(statement["k"], 2)
         self.assertEqual(set(statement), {"curve", "P", "Q", "k"})
 
+    def test_witnesses_are_found_in_the_shapes_committed_runs_keep(self) -> None:
+        run_dir = self.repo.root / "experiments/EXP-ECDLP-aaaaaa/runs/RUN-ECDLP-aaaaaa-1"
+        (run_dir / "certificate.json").unlink()
+        curve = {"p": 223, "a": 0, "b": 171}
+        # EXP-DTREE-001's shape: a `certificates` list of {kind, statement, verified},
+        # and the same rows again under `raw`, which must not double-count.
+        rows = [
+            {"kind": "discrete_log", "verified": True,
+             "statement": {"curve": curve, "P": [105, 42], "Q": [81, 42], "k": 2}},
+            {"kind": "discrete_log", "verified": True,
+             "statement": {"curve": curve, "P": [105, 42], "Q": [105, 181], "k": 4}},
+        ]
+        write(run_dir / "raw-result.json", json.dumps({"certificates": rows, "raw": {"rows": rows},
+                                                        "metrics": {"k": 7, "P": 1, "Q": 2}}))
+        # EXP-ECDLP-612fb1's shape: flat {P, Q, k} rows under one top-level curve,
+        # plus a row that lacks a field and is therefore not a witness.
+        write(run_dir / "certificates.json", json.dumps({
+            "curve": {**curve, "N": 240, "field_bits": 8},
+            "certificates": [
+                {"kind": "discrete_log", "P": [105, 42], "Q": [81, 42], "k": 2, "verified": True},
+                {"kind": "discrete_log", "P": [105, 42], "Q": [12, 34], "k": 9, "verified": False},
+                {"kind": "discrete_log", "P": [105, 42], "k": 3},
+            ],
+        }))
+        kept = e2o.witnesses(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1")
+        self.assertEqual([w["statement"]["k"] for w in kept], [2, 4, 9])
+        self.assertEqual(kept[0]["source"], "raw-result.json.certificates[0]")
+        self.assertEqual(kept[2]["source"], "certificates.json.certificates[1]")
+        self.assertEqual(kept[2]["statement"]["curve"], curve)
+        self.assertIs(kept[2]["verified"], False)
+        self.assertEqual(e2o.artifact(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1", 1)["k"], 4)
+        with self.assertRaises(e2o.BridgeError) as caught:
+            e2o.artifact(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1", 3)
+        self.assertIn("out of range", str(caught.exception))
+        # The sidecar, when present, comes first.
+        write(run_dir / "certificate.json", json.dumps({
+            "kind": "discrete_log",
+            "statement": {"curve": curve, "P": [105, 42], "Q": [1, 1], "k": 5},
+        }))
+        self.assertEqual(e2o.artifact(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1")["k"], 5)
+
     def test_a_run_that_kept_no_statement_cannot_be_claimed(self) -> None:
         (self.repo.root / "experiments/EXP-ECDLP-aaaaaa/runs/RUN-ECDLP-aaaaaa-1/certificate.json").unlink()
         with self.assertRaises(e2o.BridgeError) as caught:
@@ -182,6 +244,13 @@ class ArtifactAndRecordTests(unittest.TestCase):
             e2o.artifact(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1"),
             {"results": {"all_controls_pass": True, "instances_solved": 20}},
         )
+
+    def test_a_record_block_names_the_witness_the_claim_carried(self) -> None:
+        block = e2o.record_block("EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1", "sha256:o", "sha256:c",
+                                 "accept", "http://127.0.0.1:8787", None, True, None, "cairn",
+                                 "2026-10-04T00:00:00+00:00", witness="raw-result.json.certificates[0]")
+        self.assertEqual(block["witness"], "raw-result.json.certificates[0]")
+        self.assertNotIn("backs_direction", block)
 
     def test_a_record_block_carries_the_receipt_and_marks_a_non_settling_verdict(self) -> None:
         block = e2o.record_block("EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1", "sha256:o", "sha256:c",

@@ -49,6 +49,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -200,17 +201,40 @@ def created_at_for(spec: dict[str, Any], run: dict[str, Any] | None, override: s
     return now.isoformat().replace("+00:00", "+00:00"), "now"
 
 
+RFC3339 = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$"
+)
+
+
+def rfc3339_ok(text: Any) -> bool:
+    """The form cairn's `time::parse_rfc3339` accepts: a full date-time with a
+    UTC offset. A bare date is not one, and a specification's `approved_at`
+    is usually a bare date, which is how the first rendered objective was
+    refused at `post` after clearing `check`."""
+    return isinstance(text, str) and RFC3339.match(text) is not None
+
+
 def normalise_ts(value: Any) -> str:
+    """An RFC 3339 date-time with offset from whatever a record wrote:
+    a datetime, a date, or either as a string. Naive means UTC; a date is
+    midnight UTC. Refuses what cairn would refuse instead of passing it on."""
     if isinstance(value, dt.datetime):
-        if value.tzinfo is None:
-            value = value.replace(tzinfo=dt.timezone.utc)
-        return value.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat()
-    if isinstance(value, dt.date):
-        return dt.datetime(value.year, value.month, value.day, tzinfo=dt.timezone.utc).isoformat()
-    text = str(value).strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-    return text
+        parsed = value
+    elif isinstance(value, dt.date):
+        parsed = dt.datetime(value.year, value.month, value.day)
+    else:
+        text = str(value).strip()
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = dt.date.fromisoformat(text) if len(text) == 10 else dt.datetime.fromisoformat(text)
+        except ValueError as error:
+            raise BridgeError(f"cannot read {value!r} as a date or date-time ({error}); pass --created-at")
+        if not isinstance(parsed, dt.datetime):
+            parsed = dt.datetime(parsed.year, parsed.month, parsed.day)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
 # -- render ----------------------------------------------------------------------
@@ -369,37 +393,116 @@ def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward
 
 # -- artifact --------------------------------------------------------------------
 
+# Where a driver keeps the witnesses it claimed. In order of preference: the
+# sidecar harness/certificate_sidecar.py writes, then the run's own result
+# files. The committed runs that claim discrete logs keep them in three
+# different shapes -- a `certificates` list of {kind, statement, verified}
+# entries (EXP-DTREE-001), a `certificates.json` of flat {P, Q, k} rows under
+# one top-level `curve` (EXP-ECDLP-612fb1), and per-instance `certificate_dl`
+# blocks (EXP-BINSTD-5d3ec0) -- so the finder reads the shape the checker
+# needs, not a layout. A row that lacks a required field is not a witness
+# and is skipped, never completed from elsewhere.
+WITNESS_FILES = ("certificate.json", "raw-result.json", "certificates.json")
+WITNESS_DEPTH = 6
 
-def artifact(repo: Path, exp_id: str, run_id: str) -> dict[str, Any]:
-    """The claim a run produced, in its objective's shape."""
+
+def required_fields(repo: Path, witness_kind: str) -> list[str]:
+    """What the pinned checker's artifact_schema requires: the shape a witness must have."""
+    base = json.loads((repo / CERTIFICATE_OBJECTIVES[witness_kind]).read_text(encoding="utf-8"))
+    return list((base.get("artifact_schema") or {}).get("required") or [])
+
+
+def _as_statement(entry: dict[str, Any], required: list[str], curve: Any) -> dict[str, Any] | None:
+    """One witness row as a checker artifact: its own `statement` when it carries
+    one, else its own fields, with a missing `curve` taken from the enclosing
+    file's top-level curve (p, a, b only) when there is one."""
+    statement = entry.get("statement")
+    if isinstance(statement, dict):
+        candidate = dict(statement)
+    else:
+        candidate = {name: entry[name] for name in required if name in entry}
+    if "curve" in required and "curve" not in candidate and isinstance(curve, dict):
+        if all(key in curve for key in ("p", "a", "b")):
+            candidate["curve"] = {key: curve[key] for key in ("p", "a", "b")}
+    if all(name in candidate for name in required):
+        return candidate
+    return None
+
+
+def _walk_witnesses(node: Any, witness_kind: str, required: list[str], curve: Any,
+                    where: str, depth: int, found: list[dict[str, Any]]) -> None:
+    if depth > WITNESS_DEPTH:
+        return
+    if isinstance(node, dict):
+        kind = node.get("kind")
+        if kind in (None, witness_kind):
+            statement = _as_statement(node, required, curve)
+            if statement is not None and (kind == witness_kind or "statement" in node):
+                found.append({"statement": statement, "source": where,
+                              "verified": node.get("verified")})
+                return
+        for key, value in node.items():
+            if key == "statement":
+                continue
+            _walk_witnesses(value, witness_kind, required, curve, f"{where}.{key}", depth + 1, found)
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            _walk_witnesses(value, witness_kind, required, curve, f"{where}[{index}]", depth + 1, found)
+
+
+def witnesses(repo: Path, exp_id: str, run_id: str) -> list[dict[str, Any]]:
+    """Every witness statement a run kept on disk, in file order, each as
+    {statement, source, verified}. Empty when the run kept only a verdict."""
     _, run = load_manifest(repo, exp_id, run_id)
+    witness_kind = certificate_kind({}, run)
+    if witness_kind not in CERTIFICATE_OBJECTIVES:
+        return []
+    required = required_fields(repo, witness_kind)
     run_dir = repo / "experiments" / exp_id / "runs" / run_id
+    found: list[dict[str, Any]] = []
+    for name in WITNESS_FILES:
+        path = run_dir / name
+        if not path.is_file():
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        curve = doc.get("curve") if isinstance(doc, dict) else None
+        _walk_witnesses(doc, witness_kind, required, curve, name, 0, found)
+    # A witness is its content. Drivers write the same statement in two
+    # places (a `certificates` list beside the raw rows it was built from, a
+    # certificates.json beside raw-result.json), and one statement kept twice
+    # is one witness, kept where it was first seen.
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for row in found:
+        key = json.dumps(row["statement"], sort_keys=True, separators=(",", ":"))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(row)
+    return unique
+
+
+def artifact(repo: Path, exp_id: str, run_id: str, index: int = 0) -> dict[str, Any]:
+    """The claim a run produced, in its objective's shape: witness `index` of
+    the ones it kept (one claim is one witness; a run with many is many
+    claims), or the exact metrics for a replay."""
+    _, run = load_manifest(repo, exp_id, run_id)
     witness = certificate_kind({}, run)
     if witness in CERTIFICATE_OBJECTIVES:
-        # The statement with the witness in it. harness/certificate_sidecar.py
-        # writes it as certificate.json beside the manifest, when the driver
-        # asked it to; a run that kept only the kind and a verified flag has
-        # nothing on disk to claim.
-        candidates = [run_dir / "certificate.json"]
-        for path in candidates:
-            if path.is_file():
-                doc = json.loads(path.read_text(encoding="utf-8"))
-                statement = doc.get("statement") if isinstance(doc, dict) else None
-                if isinstance(statement, dict):
-                    return statement
-        raw = run_dir / "raw-result.json"
-        if raw.is_file():
-            doc = json.loads(raw.read_text(encoding="utf-8"))
-            result = doc.get("result") if isinstance(doc, dict) else None
-            cert = (result or {}).get("certificate") if isinstance(result, dict) else None
-            if isinstance(cert, dict) and isinstance(cert.get("statement"), dict):
-                return cert["statement"]
-        raise BridgeError(
-            f"{run_id} claims a {witness} witness but no statement is on disk "
-            f"(no certificate.json beside the manifest, none in raw-result.json); a driver keeps "
-            f"it with harness/certificate_sidecar.py after write_run, and a run that did not "
-            f"cannot be claimed on the network without being re-run"
-        )
+        kept = witnesses(repo, exp_id, run_id)
+        if not kept:
+            raise BridgeError(
+                f"{run_id} claims a {witness} witness but no statement is on disk "
+                f"(no certificate.json beside the manifest, none in raw-result.json or "
+                f"certificates.json); a driver keeps it with harness/certificate_sidecar.py after "
+                f"write_run, and a run that did not cannot be claimed on the network without being re-run"
+            )
+        if not 0 <= index < len(kept):
+            raise BridgeError(f"{run_id} keeps {len(kept)} witness(es); --index {index} is out of range")
+        return kept[index]["statement"]
     metrics = (run.get("result") or {}).get("metrics") or {}
     fields, _ = replay_fields(metrics if isinstance(metrics, dict) else {})
     if not fields:
@@ -412,7 +515,7 @@ def artifact(repo: Path, exp_id: str, run_id: str) -> dict[str, Any]:
 
 def record_block(exp_id: str, run_id: str | None, objective_id: str, claim_id: str, verdict: str,
                  node: str, log_head: str | None, settled: bool, checker_sha256: str | None,
-                 network: str, recorded_at: str | None) -> dict[str, Any]:
+                 network: str, recorded_at: str | None, witness: str | None = None) -> dict[str, Any]:
     if verdict not in VERDICTS:
         raise BridgeError(f"verdict must be one of {', '.join(VERDICTS)}, not {verdict!r}")
     block: dict[str, Any] = {
@@ -430,6 +533,10 @@ def record_block(exp_id: str, run_id: str | None, objective_id: str, claim_id: s
         block["run_id"] = run_id
     if checker_sha256:
         block["checker_sha256"] = checker_sha256
+    if witness:
+        # Which of the run's witnesses the claim carried: a verdict on one
+        # witness of a run with many is a verdict on that one, not on the run.
+        block["witness"] = witness
     if verdict in ("unavailable", "invalid_spec"):
         # Invariant (b) of the integration plan, written into the block so a
         # reader does not have to know it: a verdict that does not settle
@@ -451,6 +558,10 @@ def check(objective: dict[str, Any], repo: Path | None) -> list[str]:
     for field in ("created_at", "funder", "goal", "statement", "reward", "verifier"):
         if field not in objective:
             problems.append(f"missing {field}")
+    if "created_at" in objective and not rfc3339_ok(objective["created_at"]):
+        problems.append(
+            f"created_at {objective['created_at']!r} is not an RFC 3339 date-time with a UTC offset"
+        )
     verifier = objective.get("verifier")
     if not isinstance(verifier, dict):
         return problems + ["verifier must be an object"]
@@ -519,6 +630,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("artifact", help="the claim artifact a run produced")
     p.add_argument("--exp", required=True)
     p.add_argument("--run", required=True)
+    p.add_argument("--index", type=int, default=0, help="which kept witness (default 0); one claim is one witness")
+    p.add_argument("--all", action="store_true", help="every kept witness, as a JSON list with sources")
     p.add_argument("--out")
 
     p = sub.add_parser("record", help="print an external_verification block")
@@ -531,6 +644,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--log-head", help="the node's log head (GET /chain) when it was read")
     p.add_argument("--settled", action="store_true")
     p.add_argument("--checker-sha256")
+    p.add_argument("--witness", help="which kept witness the claim carried, as `artifact` printed it")
     p.add_argument("--network", default=NETWORK)
     p.add_argument("--recorded-at")
     p.add_argument("--out", help="write the block as a standalone YAML file as well")
@@ -564,7 +678,16 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  cairn --log {args.log} --root {repo} post {out} --identity <coordinator-identity.json>")
             return 0
         if args.command == "artifact":
-            value = artifact(repo, args.exp, args.run)
+            if args.all:
+                value: Any = witnesses(repo, args.exp, args.run)
+            else:
+                value = artifact(repo, args.exp, args.run, args.index)
+                kept = witnesses(repo, args.exp, args.run)
+                if kept:
+                    chosen = kept[args.index]
+                    print(f"{args.run} keeps {len(kept)} witness(es) on disk; this is #{args.index} "
+                          f"from {chosen['source']} (verified by the harness: {chosen['verified']})",
+                          file=sys.stderr)
             if args.out:
                 _write_json(Path(args.out), value)
                 print(f"wrote {args.out}")
@@ -575,6 +698,7 @@ def main(argv: list[str] | None = None) -> int:
             block = record_block(
                 args.exp, args.run, args.objective, args.claim, args.verdict, args.node,
                 args.log_head, args.settled, args.checker_sha256, args.network, args.recorded_at,
+                args.witness,
             )
             text = yaml.safe_dump({"external_verification": [block]}, sort_keys=False)
             if args.out:
