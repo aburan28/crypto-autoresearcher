@@ -71,8 +71,15 @@ class DispatchError(ValueError):
 class RepositoryVerifier(Protocol):
     """Verifies the Git receipt for a completed archival task."""
 
-    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
-        """Raise DispatchError unless ``task`` has the required archive commit."""
+    def verify_archive(
+        self, task: dict[str, Any], expected_paths: Sequence[str],
+        void_paths: Sequence[str] = (),
+    ) -> None:
+        """Raise DispatchError unless ``task`` has the required archive commit.
+
+        ``void_paths`` are declared artifacts of voided failed sources; the
+        verifier must prove each is absent from the tree it checks.
+        """
 
 
 def canonical(value: Any) -> bytes:
@@ -241,6 +248,34 @@ def scope_overlaps(left: str, right: str) -> bool:
 
 def is_archive(task: dict[str, Any]) -> bool:
     return "archive" in task
+
+
+def _void_source_artifacts(task: dict[str, Any]) -> set[str]:
+    """Source tasks whose declared artifacts this archive explicitly voids.
+
+    A producer that ended `failed`, `invalid`, or `cancelled` still declares
+    the artifact paths it was dispatched to write, and an archive that claims
+    it must normally cover every one of them -- that is what keeps partial
+    output from being quietly dropped. When nothing was produced at all, that
+    rule makes the batch's ledger archive impossible to complete: the required
+    set contains paths that do not exist. `archive.void_source_artifacts` is
+    the explicit, per-source opt-out. It is never inferred, it may name only
+    terminal non-completed sources, and the repository verifier proves each
+    voided path is ABSENT from the tree it verifies, so the exemption cannot
+    hide bytes that were in fact written.
+    """
+
+    archive = task["archive"]
+    value = archive.get("void_source_artifacts")
+    if value is None:
+        return set()
+    location = f"archive task {task['id']}"
+    if (not isinstance(value, list)
+            or not all(isinstance(item, str) and item.strip() for item in value)):
+        raise DispatchError(f"{location} void_source_artifacts must be a list of task ids")
+    if len(value) != len(set(value)):
+        raise DispatchError(f"{location} void_source_artifacts contains duplicates")
+    return set(value)
 
 
 def _completed_failure_successor_exists(
@@ -902,9 +937,18 @@ def validate_queue(
     non_archives = [task for task in tasks if not is_archive(task)]
     assignments: dict[str, dict[str, Any]] = {}
     archive_expected_paths: dict[str, list[str]] = {}
+    archive_void_paths: dict[str, list[str]] = {}
     for archive_task in archives:
         archive = archive_task["archive"]
+        void_sources = _void_source_artifacts(archive_task)
+        unknown_void = sorted(void_sources - set(archive["source_task_ids"]))
+        if unknown_void:
+            raise DispatchError(
+                f"archive task {archive_task['id']} void_source_artifacts may name only "
+                f"archived source tasks, not {unknown_void}"
+            )
         source_paths: list[str] = []
+        void_paths: list[str] = []
         for source_id in archive["source_task_ids"]:
             source = by_id.get(source_id)
             if source is None:
@@ -923,13 +967,23 @@ def validate_queue(
                     f"{assignments[source_id]['id']} and {archive_task['id']}"
                 )
             assignments[source_id] = archive_task
-            source_paths.extend(source["artifact_paths"])
+            if source_id in void_sources:
+                if source["state"] not in TERMINAL_STATES - {"completed"}:
+                    raise DispatchError(
+                        f"archive task {archive_task['id']} void_source_artifacts names "
+                        f"{source_id}, whose state is {source['state']}; only a failed, "
+                        "invalid, or cancelled source may be voided"
+                    )
+                void_paths.extend(source["artifact_paths"])
+            else:
+                source_paths.extend(source["artifact_paths"])
         if not paths_within_scopes(source_paths, archive_task["read_scope"]):
             raise DispatchError(
                 f"archive task {archive_task['id']} read_scope must cover every source artifact path"
             )
         expected_paths = sorted(set(archive_task["artifact_paths"]) | set(source_paths))
         archive_expected_paths[archive_task["id"]] = expected_paths
+        archive_void_paths[archive_task["id"]] = sorted(set(void_paths) - set(expected_paths))
         hash_paths = set(archive["path_sha256"])
         expected_set = set(expected_paths)
         if not hash_paths.issubset(expected_set):
@@ -972,9 +1026,16 @@ def validate_queue(
             raise DispatchError(
                 f"completed archive task {archive_task['id']} requires a repository verifier"
             )
-        repository_verifier.verify_archive(
-            archive_task, archive_expected_paths[archive_task["id"]]
-        )
+        void_paths = archive_void_paths.get(archive_task["id"]) or []
+        if void_paths:
+            repository_verifier.verify_archive(
+                archive_task, archive_expected_paths[archive_task["id"]],
+                void_paths=void_paths,
+            )
+        else:
+            repository_verifier.verify_archive(
+                archive_task, archive_expected_paths[archive_task["id"]]
+            )
 
     for task in tasks:
         if task["state"] == "running":
@@ -1768,7 +1829,25 @@ class GitRepositoryVerifier:
             entry["verified_against"] = tree_ref
         self.content_only_archives.append(entry)
 
-    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
+    def _assert_void_paths_absent(
+        self, task_id: str, tree_ref: str, void_paths: Sequence[str]
+    ) -> None:
+        """A voided source artifact must not exist in the tree being verified."""
+
+        for path in void_paths:
+            probe = subprocess.run(
+                ["git", "-C", str(self.repo_root), "cat-file", "-e", f"{tree_ref}:{path}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            if probe.returncode == 0:
+                raise DispatchError(
+                    f"archive task {task_id} voids source artifact {path} but it is present "
+                    f"in {tree_ref}; a voided artifact must be absent from the verified tree"
+                )
+
+    def verify_archive(
+        self, task: dict[str, Any], expected_paths: Sequence[str],
+        void_paths: Sequence[str] = (),
+    ) -> None:
         archive = task["archive"]
         task_id = task["id"]
         declared_commit = archive["commit_sha"]
@@ -1783,6 +1862,7 @@ class GitRepositoryVerifier:
                     f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to resolve to a commit"
                 )
+            self._assert_void_paths_absent(task_id, "HEAD", void_paths)
             self._verify_content_only(
                 task_id, archive, f"commit {declared_commit} does not resolve")
             return
@@ -1802,6 +1882,7 @@ class GitRepositoryVerifier:
                     f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to be an ancestor of HEAD"
                 )
+            self._assert_void_paths_absent(task_id, "HEAD", void_paths)
             self._verify_content_only(
                 task_id, archive, f"commit {commit_sha[:12]} is not an ancestor of HEAD")
             return
@@ -1840,13 +1921,15 @@ class GitRepositoryVerifier:
             # move later -- an experiment contract advancing to `analyzed`, a
             # hypothesis to `weakened` -- does not retroactively break custody
             # of a package that correctly captured its earlier state.
+            tree_ref = commit_sha if binding_mode == "content_at_commit" else "HEAD"
+            self._assert_void_paths_absent(task_id, tree_ref, void_paths)
             self._verify_content_only(
                 task_id,
                 archive,
                 f"declared {binding_mode} binding mode",
                 expected_paths=expected_paths,
                 allow_generated_skip=False,
-                tree_ref=commit_sha if binding_mode == "content_at_commit" else "HEAD",
+                tree_ref=tree_ref,
             )
             message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
                 "utf-8", "replace"
@@ -1862,6 +1945,7 @@ class GitRepositoryVerifier:
                 )
             return
 
+        self._assert_void_paths_absent(task_id, commit_sha, void_paths)
         actual_paths = self._changed_paths(commit_sha, task_id)
         expected = set(expected_paths)
         actual = set(actual_paths)
@@ -1991,8 +2075,15 @@ def enforce_reconciliation_document_authority(queue: Any) -> None:
 class RepositoryVerifier(Protocol):
     """Verifies the Git receipt for a completed archival task."""
 
-    def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
-        """Raise DispatchError unless ``task`` has the required archive commit."""
+    def verify_archive(
+        self, task: dict[str, Any], expected_paths: Sequence[str],
+        void_paths: Sequence[str] = (),
+    ) -> None:
+        """Raise DispatchError unless ``task`` has the required archive commit.
+
+        ``void_paths`` are declared artifacts of voided failed sources; the
+        verifier must prove each is absent from the tree it checks.
+        """
 
 
 
