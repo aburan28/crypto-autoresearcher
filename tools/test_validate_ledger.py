@@ -111,3 +111,69 @@ class LedgerCoverageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExternalVerificationTests(unittest.TestCase):
+    """The receipt block a network verifier leaves on an evidence record, and
+    the invariant that a verdict which did not settle backs nothing."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(REPO / "tools"))
+        import validate_ledger  # noqa: WPS433
+        self.module = validate_ledger
+
+    class _Ctx:
+        def __init__(self) -> None:
+            self.errors: list[str] = []
+            self.legacy_paths: set[str] = set()
+            self.legacy_warnings: list[str] = []
+
+        def err(self, path: str, msg: str, *, force: bool = False) -> None:
+            self.errors.append(msg)
+
+    def _check(self, body: dict) -> list[str]:
+        ctx = self._Ctx()
+        self.module.check_external_verification("ledger/evidence/EV-X-000001.yaml", body, ctx)
+        return ctx.errors
+
+    def test_an_accepted_receipt_is_clean_and_an_absent_block_is_ignored(self) -> None:
+        self.assertEqual(self._check({"proof_refs": []}), [])
+        self.assertEqual(self._check({
+            "proof_status": "certificate",
+            "proof_refs": ["sha256:claim"],
+            "external_verification": [{
+                "network": "cairn", "objective_id": "sha256:o", "claim_id": "sha256:claim",
+                "verdict": "accept", "node": "http://node:8080", "log_head": "sha256:h",
+                "settled": True, "checker_sha256": "ab" * 32,
+            }],
+        }), [])
+
+    def test_a_non_settling_verdict_may_back_neither_a_proof_nor_a_direction(self) -> None:
+        errors = self._check({
+            "proof_status": "certificate",
+            "proof_refs": ["sha256:claim"],
+            "external_verification": [{
+                "network": "cairn", "objective_id": "sha256:o", "claim_id": "sha256:claim",
+                "verdict": "unavailable", "node": "http://node:8080", "backs_direction": True,
+            }],
+        })
+        self.assertTrue(any("only an accepted claim backs a proof" in e for e in errors), errors)
+        self.assertTrue(any("may not back a direction" in e for e in errors), errors)
+        self.assertTrue(any("backs nothing" in e for e in errors), errors)
+
+    def test_a_reject_cited_as_proof_is_refused_but_a_reject_on_its_own_is_a_fact(self) -> None:
+        reject = {"network": "cairn", "objective_id": "sha256:o", "claim_id": "sha256:c",
+                  "verdict": "reject", "node": "http://node:8080"}
+        self.assertEqual(self._check({"external_verification": [reject]}), [])
+        errors = self._check({"certificate_refs": ["sha256:c"], "external_verification": [reject]})
+        self.assertEqual(len(errors), 1, errors)
+
+    def test_shape_errors_are_named(self) -> None:
+        errors = self._check({"external_verification": {"not": "a list"}})
+        self.assertEqual(errors, ["external_verification must be a list of receipt blocks"])
+        errors = self._check({"external_verification": [
+            {"network": "cairn", "verdict": "maybe", "settled": "yes"}, "junk",
+        ]})
+        self.assertTrue(any("missing 'objective_id'" in e for e in errors), errors)
+        self.assertTrue(any("verdict must be one of" in e for e in errors), errors)
+        self.assertTrue(any("must be a mapping" in e for e in errors), errors)
