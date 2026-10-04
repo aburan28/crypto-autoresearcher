@@ -129,20 +129,24 @@ Check what is actually available before planning a closure:
 python3 -m orchestration.adapter matrix
 ```
 
-As of this writing that command reports one backend — `anthropic` — serving
-`review-adversarial` as written, `zai` and `zai-anthropic` serving it only
-`DEGR` (GLM's binding ceiling is `high`, the policy floor is `xhigh`), and
-`fireworks`, `openai`, `openrouter`, and `local` unbound (`model: null`).
+As of 2026-10-01 that command marks `review-adversarial` `OK` on `anthropic`
+(`claude-opus-5`), `openai` (`gpt-5.6-sol`), `zai` / `zai-anthropic`
+(`glm-5.2`), `fireworks` (`accounts/fireworks/models/glm-5p3`), and
+`abliteration` / `abliteration-anthropic` (`abliterated-model-large-v2`).
+`fireworks-anthropic`, `openrouter`, and `local` leave it unbound. The
+policy floor is `low` and the request stays `xhigh`; a binding whose ceiling
+is below `xhigh` still resolves and records the cap. `abliteration` and
+`abliteration-anthropic` are one model id, and on large-v2 the `xhigh` token
+is the same mode as `max`, so those two wires are not two review depths.
 
-**So a rule-13 quorum is not obtainable today** — which is why the requirement
-is suspended rather than merely unmet — and the runtime bindings are
-not what stands in the way. The maximum number of distinct resolved models for
-the review policy is one without a recorded downgrade, two with one. Reaching
-three requires work in `orchestration/model-bindings.yaml`, not here:
+**A rule-13 quorum is still not something this matrix grants.** The requirement
+stays suspended. An `OK` row with `operator-supplied` provenance is a binding,
+not an attestation, and two wires that resolve to one id count once. Reaching
+three attested models still requires work beyond adding a backend:
 
-1. Bind `review-adversarial` on at least two further backends and probe each
-   (`python3 -m orchestration.adapter models --backend <name>`), so
-   `provenance` can move off `operator-supplied`.
+1. Have the attesting runtime report each review model. A catalog probe
+   (`python3 -m orchestration.adapter models --backend <name>`) lists ids; it
+   does not move `provenance` off `operator-supplied`.
 2. Or raise a binding's `max_reasoning_effort` where the backend genuinely
    supports it, turning a `DEGR` into an `OK`.
 3. Or run a review under `degraded_allowed` — which needs a Coordinator
