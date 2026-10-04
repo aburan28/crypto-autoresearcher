@@ -886,10 +886,28 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
         and isinstance(pending_certificate, dict)
         and pending_certificate.get("kind") == "none"
     )
+    # A failed_infrastructure envelope may state, in its own outcome note,
+    # that the producer never wrote raw-result.json. Creating the file to
+    # satisfy this check would fabricate a result the receipt says was not
+    # produced. The absence is the observation. A bare failed_infrastructure
+    # status, without that sentence, still owes the artifact. Terminal
+    # statuses in general are unchanged.
+    raw_result_explicitly_unwritten = (
+        isinstance(body.get("status"), str)
+        and body.get("status") == "failed_infrastructure"
+        and isinstance(pending_body, dict)
+        and pending_body.get("raw_result") is None
+        and pending_body.get("outcome") is None
+        and isinstance(pending_certificate, dict)
+        and pending_certificate.get("kind") == "none"
+        and "did not write raw-result.json"
+        in str(pending_body.get("outcome_note") or "")
+    )
     # All other companion artifacts remain required even while a run is open.
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
-        if artifact == "raw-result.json" and raw_result_pending:
+        if artifact == "raw-result.json" and (
+                raw_result_pending or raw_result_explicitly_unwritten):
             continue
         if not os.path.exists(os.path.join(run_dir, artifact)):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
@@ -2621,6 +2639,15 @@ def main() -> int:
     check_run_supersessions(ctx, run_supersessions)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
+        check_run(path, ctx, run_supersessions)
+    # A run whose only nested envelope is manifest_v2.yaml is still a run.
+    # When manifest.yaml also exists, the flat file is the discovered record
+    # (and any supersession routes from it). Scanning v2 as well would
+    # register the same id twice.
+    for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
+                                              "*", "manifest_v2.yaml"))):
+        if os.path.isfile(os.path.join(os.path.dirname(path), "manifest.yaml")):
+            continue
         check_run(path, ctx, run_supersessions)
     check_legacy_id_remaps(ctx)
     # Knowledge must be indexed before goal closure quorum checks so that
