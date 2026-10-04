@@ -1,0 +1,130 @@
+# TASK-20261003-a19c53 execution receipt (Executor). Retrieval and extraction only;
+# maximum_runs 0, no scientific run. Nothing committed; no existing record edited.
+receipt:
+  task_id: TASK-20261003-a19c53
+  role: executor
+  executed_at: '2026-10-03'
+  repository: /home/user/crypto-autoresearcher
+  branch: claude/continue-task-v5f6a5
+  head_commit: d5575ffd52e18f488077e007aedf51c001f3f3f0
+  tree_state_before: clean (git status --porcelain empty apart from this task's outputs)
+  card_path: ledger/handoffs/TASK-20261003-a19c53.yaml
+  card_state_at_dispatch: written_not_dispatched (blocked_on TASK-20261003-6d2f84; card in PR #1771, not merged to main)
+  dispatch_deviation: >-
+    The user asked for this task to run now, before the archive task
+    TASK-20261003-6d2f84. So DP-1 (that task's receipt verified, card and
+    DEC-20261003-4e91b7 committed) had not been confirmed at dispatch. The card is
+    committed on this branch in PR #1771, which is not merged. DP-2 (a lane claim on
+    GOAL-SEMBIN-5078bc via tools/goal_lanes.py) was NOT made: claim --publish would
+    write outside this card's write scope, and the session was told not to commit.
+    The Coordinator should record both before archiving.
+  inference:
+    requested_policy: executor-implementation
+    session_note: >-
+      Independent Executor subagent session. It is not either reviewer session of
+      REVIEW-SEMBIN-20261002-c7e1d4. It read the two reviewer reports only to check
+      that the cited item IDs and the validator's HTML hash exist; it formed no
+      reading of them.
+    fallback_used: false
+  commands:
+    - cmd: mkdir -p inputs/HHAN-2024-2402.11269 coordination/tasks/TASK-20261003-a19c53
+      exit: 0
+    - cmd: curl -sS -L -D hdr_abs_2402.11269.txt -o body_abs_2402.11269 https://arxiv.org/abs/2402.11269  (scratchpad)
+      exit: 0
+      http_status: 200
+    - cmd: curl -sS -L -D hdr_pdf_2402.11269v1.txt -o body_pdf_2402.11269v1 https://arxiv.org/pdf/2402.11269v1  (scratchpad)
+      exit: 0
+      http_status: 200
+    - cmd: curl -sS -L -D hdr_html_2402.11269.txt -o body_html_2402.11269 https://arxiv.org/html/2402.11269  (scratchpad)
+      exit: 0
+      http_status: 200
+    - cmd: cp body_pdf_2402.11269v1 -> inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf; cp headers; sha256sum > .pdf.sha256
+      exit: 0
+    - cmd: python3 -c "import pypdf"
+      exit: 1
+      note: The system Python has no pypdf (ModuleNotFoundError). A scratch venv was used, as the card allows.
+    - cmd: python3 -m venv <scratch>/venv && <scratch>/venv/bin/pip install -q pypdf
+      exit: 0
+      note: pypdf 6.19.0
+    - cmd: <scratch>/venv/bin/python extract_text.py  (first run, without fonttools)
+      exit: 0
+      note: >-
+        33 pages; output sha256 12cbc0c24d525ac38e415280f3892a7d78b927c3c5687dcab9c347526e27dcb1.
+        pypdf warned that fontTools is required to fully parse the CFF Type1 font encodings. This output was superseded
+        (kept only in scratch as paper_fulltext.nofonttools.md, not frozen).
+    - cmd: <scratch>/venv/bin/pip install -q fonttools  (first attempt, chained with an extraction rerun)
+      exit: null
+      note: >-
+        INFRASTRUCTURE: the install hung with no output for several minutes. It was killed (kill PID 1595). The
+        chained extraction then reran without fonttools and produced the same 12cbc0c2... output. A wait-loop
+        helper command was also killed (exit 144). Not evidence about the source.
+    - cmd: timeout 90 <scratch>/venv/bin/pip install --timeout 20 fonttools
+      exit: 0
+      note: fonttools 4.66.1
+    - cmd: <scratch>/venv/bin/python extract_text.py  (with fonttools)
+      exit: 0
+      note: 33 pages; output sha256 89e82286adac6e9e5fab21ba2401fcf67bea35c3a2903ba7ba2b9d79386d60ab; diff vs no-fonttools output 324 lines
+    - cmd: <scratch>/venv/bin/python extract_text.py  (after the docstring-only edit pinning versions)
+      exit: 0
+      note: reproduced byte-identically (sha256sum -c paper_fulltext.md.sha256 OK)
+    - cmd: curl -sS -L -D hdr_pdf_unver.txt -o body_pdf_unver https://arxiv.org/pdf/2402.11269  (scratchpad); cmp with v1
+      exit: 0
+      http_status: 200
+      note: byte-identical to v1
+    - cmd: python3 <scratch>/make_quote_table.py
+      exit: 0
+      note: >-
+        Slices the verbatim_text of every row programmatically from paper_fulltext.md and round-trip-asserts each
+        slice after the YAML dump. Generator kept in the session scratchpad and not vendored. Its per-row line
+        ranges, section, page and extraction notes are recorded in the table itself.
+    - cmd: sha256sum -c *.sha256 (in inputs/HHAN-2024-2402.11269); yaml/json parse of all outputs; git status
+      exit: 0
+  fetch_log_summary:
+    - {url: 'https://arxiv.org/abs/2402.11269', status: 200, bytes: 42698, sha256: e0d1053572d9db8f64f9a48db192e138c690c1f2fe60570cd87fc0b6df8635dd, vendored: false}
+    - {url: 'https://arxiv.org/pdf/2402.11269v1', status: 200, bytes: 421224, sha256: eb5df4bea59017d7f9b395ecc3722a8d460ba6e1f5c15961042167e0b348638c, vendored: true}
+    - {url: 'https://arxiv.org/html/2402.11269', status: 200, bytes: 777482, sha256: c76d756662c5b2d62ff377d9f73778816f1ce4beb3afab060e5184d57a7c7be0, vendored: false}
+    - {url: 'https://arxiv.org/pdf/2402.11269', status: 200, bytes: 421224, sha256: eb5df4bea59017d7f9b395ecc3722a8d460ba6e1f5c15961042167e0b348638c, vendored: false, note: identical to v1}
+  results:
+    versions_listed: [v1]
+    versions_frozen:
+      - {version: v1, path: inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf, sha256: eb5df4bea59017d7f9b395ecc3722a8d460ba6e1f5c15961042167e0b348638c}
+    later_version: none listed on 2026-10-03, so no version-suffixed second PDF
+    html_renders_version: v1
+    html_hash_comparison: >-
+      MATCH. The fresh sha256 c76d756662c5b2d62ff377d9f73778816f1ce4beb3afab060e5184d57a7c7be0 equals the value in
+      VAL-20261003-17b1e4 in all 64 hex digits.
+    quote_table:
+      located: [Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, Q10, Q11]
+      not_found: []
+      garbled_equation_content: [Q2, Q3, Q6, Q7, Q8, Q9, Q11]
+      location_notes: >-
+        Q7: the literal "|C| <= (T+3)^2/2" does not occur; the cardinality bound appears as prose plus binomial
+        fragments ("...cardinality {C+2 / 2 / ) / + 1≤ (T + 3)2/2"). Q8: "m informative collisions" occurs in the first
+        line of the Theorem 3.4 proof, not in the statement; both are quoted. Q9: the extracted line carries an
+        intermediate "≤ log|C|". All three are recorded in the table without interpretation.
+  files_written:
+    - {path: inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf, sha256: eb5df4bea59017d7f9b395ecc3722a8d460ba6e1f5c15961042167e0b348638c}
+    - {path: inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf.sha256, sha256: 87369f6936560df11f670bf5c72e9dfdab9ae0543732546458ac8cbdc0385276}
+    - {path: inputs/HHAN-2024-2402.11269/extract_text.py, sha256: 2c4a626ca560c994e0ff1337a80a6a6f3d772e41c8c715d6e92ebb48ac43bb45}
+    - {path: inputs/HHAN-2024-2402.11269/paper_fulltext.md, sha256: 89e82286adac6e9e5fab21ba2401fcf67bea35c3a2903ba7ba2b9d79386d60ab}
+    - {path: inputs/HHAN-2024-2402.11269/paper_fulltext.md.sha256, sha256: 2d822bed095e06de64a89a697ee9c888c66ff3c76abdb93d759382fcaf528937}
+    - {path: inputs/HHAN-2024-2402.11269/provenance.json, sha256: f7a06cf92d42f58764021ea9e54530cf907a0c22d96f37dbdfbd4834fe0ea64e}
+    - {path: inputs/HHAN-2024-2402.11269/source_record.yaml, sha256: e0e8b136aef816a13f70262484f197f1a24d093b48a61ea1067a2f06fdeb1c5f}
+    - {path: inputs/HHAN-2024-2402.11269/headers-abs.txt, sha256: 43950811fe94a15e6944645c1418770725cdb369c346ae3aab68fe8f2076150d}
+    - {path: inputs/HHAN-2024-2402.11269/headers-html.txt, sha256: 28bb21a0995f1300a4ea7971fc7b0abe79f3671cf1202115f06fc9256fb81b2f}
+    - {path: inputs/HHAN-2024-2402.11269/headers-pdf-v1.txt, sha256: 95b65e6b89a2e1ae827a16abb2653fe8f33ae348a8ca5c22aacd105eba9a9aea}
+    - {path: inputs/HHAN-2024-2402.11269/headers-pdf-unversioned.txt, sha256: 1cb6c605f6ffff77b6af4817918140563c47407de84a35c074d77fafcf04abc5}
+    - {path: coordination/tasks/TASK-20261003-a19c53/quote_table.yaml, sha256: 81752f2c6326a624242adb2b53bee4fc20273d9620e3b656fac865d0d46fcca7}
+    - {path: coordination/tasks/TASK-20261003-a19c53/receipt.yaml, sha256: null, note: this file; it cannot contain its own hash}
+  completion_gate:
+    declared_files_present_with_matching_sidecars: true
+    source_record_complete_with_record_id: SRC-HHAN-2024-2402.11269
+    quote_table_exactly_Q1_to_Q11: true
+    html_hash_comparison_reported: MATCH
+    nothing_outside_write_scope: true (git status shows only paths under the two declared directories)
+    nothing_committed: true
+    no_record_edited: true
+  not_done_by_design:
+    - No KN-LIT entry. No constants computed. No judgment on either reviewer's reading (card NO INTERPRETATION).
+    - knowledge/SOURCES.md and knowledge/sources.json were not touched; they are regenerated at the Coordinator's archive.
+    - The HTML and abstract pages were not vendored. The card asks only for the HTML version and sha256.
