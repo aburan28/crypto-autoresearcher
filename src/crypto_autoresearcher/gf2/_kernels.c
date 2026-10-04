@@ -33,6 +33,107 @@ typedef int64_t i64;
 
 #define BIT(M, W, r, c) (((M)[(size_t)(r) * (W) + ((c) >> 6)] >> ((c) & 63)) & 1ULL)
 
+/* Default Gray-table scratch: 1 MiB/thread. Override with
+ * CRYPTO_AR_GF2_TAIL_TABLE_WORDS (words, not bytes). Larger can help when the
+ * trailing region is wide and L2 is big; smaller keeps more of the table in L1. */
+#ifndef TAIL_TABLE_WORDS_DEFAULT
+#define TAIL_TABLE_WORDS_DEFAULT (1 << 17)
+#endif
+
+static i64 tail_table_words(void)
+{
+    static i64 cached = -1;
+    if (cached < 0) {
+        const char *e = getenv("CRYPTO_AR_GF2_TAIL_TABLE_WORDS");
+        i64 v = e ? (i64)strtoll(e, NULL, 10) : (i64)TAIL_TABLE_WORDS_DEFAULT;
+        if (v < (1 << 12))
+            v = 1 << 12;
+        if (v > (1 << 22))
+            v = 1 << 22;
+        cached = v;
+    }
+    return cached;
+}
+
+/* Thread-local scratch for the blocked / super-blocked passes. Eliminations of
+ * similar size (CERTBIN RC-1 replay, map_threads) used to malloc ~10 buffers
+ * and a 1 MiB table pool on every call — an mmap and page-fault tax that
+ * dominated small matrices. Grow-only; never freed for the process lifetime. */
+typedef struct {
+    size_t rn, wn, ntp, sb;
+    i32 *lw, *act, *rows, *piv_a;
+    i64 *wcount;
+    u64 *val, *coef, *bm, *Bs, *cfs, *Tpool;
+    uint8_t *isp;
+} pass_scratch_t;
+
+static __thread pass_scratch_t g_sb_scratch;
+static __thread pass_scratch_t g_blocked_scratch;
+
+static void scratch_clear(pass_scratch_t *S)
+{
+    free(S->lw); free(S->wcount); free(S->act); free(S->val); free(S->coef);
+    free(S->isp); free(S->bm); free(S->Bs); free(S->rows); free(S->cfs);
+    free(S->piv_a); free(S->Tpool);
+    memset(S, 0, sizeof(*S));
+}
+
+static int scratch_ensure_sb(pass_scratch_t *S, size_t rn, size_t wn, size_t ntp, size_t sb)
+{
+    size_t twords = (size_t)tail_table_words();
+    if (S->rn >= rn && S->wn >= wn && S->ntp >= ntp && S->sb >= sb && S->Tpool)
+        return 0;
+    scratch_clear(S);
+    size_t NB = 64 * sb;
+    size_t bmw = (rn + 63) / 64;
+    S->lw = (i32 *)malloc(rn * sizeof(i32));
+    S->wcount = (i64 *)calloc(wn, sizeof(i64));
+    S->act = (i32 *)malloc(rn * sizeof(i32));
+    S->val = (u64 *)malloc(rn * sb * sizeof(u64));
+    S->coef = (u64 *)malloc(rn * sb * sizeof(u64));
+    S->isp = (uint8_t *)malloc(rn);
+    S->bm = (u64 *)malloc(NB * bmw * sizeof(u64));
+    S->Bs = (u64 *)malloc(NB * wn * sizeof(u64));
+    S->rows = (i32 *)malloc(rn * sizeof(i32));
+    S->cfs = (u64 *)malloc(rn * sb * sizeof(u64));
+    S->piv_a = (i32 *)malloc(NB * sizeof(i32));
+    S->Tpool = (u64 *)malloc(ntp * twords * sizeof(u64));
+    if (!S->lw || !S->wcount || !S->act || !S->val || !S->coef || !S->isp || !S->bm ||
+        !S->Bs || !S->rows || !S->cfs || !S->piv_a || !S->Tpool) {
+        scratch_clear(S);
+        return -1;
+    }
+    S->rn = rn; S->wn = wn; S->ntp = ntp; S->sb = sb;
+    return 0;
+}
+
+static int scratch_ensure_blocked(pass_scratch_t *S, size_t rn, size_t wn, size_t ntp)
+{
+    size_t twords = (size_t)tail_table_words();
+    if (S->rn >= rn && S->wn >= wn && S->ntp >= ntp && S->Tpool)
+        return 0;
+    scratch_clear(S);
+    size_t bmw = (rn + 63) / 64;
+    S->lw = (i32 *)malloc(rn * sizeof(i32));
+    S->wcount = (i64 *)calloc(wn, sizeof(i64));
+    S->act = (i32 *)malloc(rn * sizeof(i32));
+    S->val = (u64 *)malloc(rn * sizeof(u64));
+    S->coef = (u64 *)malloc(rn * sizeof(u64));
+    S->isp = (uint8_t *)malloc(rn);
+    S->bm = (u64 *)malloc(64 * bmw * sizeof(u64));
+    S->Bs = (u64 *)malloc(64 * wn * sizeof(u64));
+    S->rows = (i32 *)malloc(rn * sizeof(i32));
+    S->cfs = (u64 *)malloc(rn * sizeof(u64));
+    S->Tpool = (u64 *)malloc(ntp * twords * sizeof(u64));
+    if (!S->lw || !S->wcount || !S->act || !S->val || !S->coef || !S->isp || !S->bm ||
+        !S->Bs || !S->rows || !S->cfs || !S->Tpool) {
+        scratch_clear(S);
+        return -1;
+    }
+    S->rn = rn; S->wn = wn; S->ntp = ntp; S->sb = 1;
+    return 0;
+}
+
 static inline int lowest_bit_from(const u64 *row, int W, int wstart)
 {
     for (int w = wstart; w < W; w++) {
@@ -190,8 +291,6 @@ fail:
  * Chunks own disjoint columns, so threads take whole chunks: no two threads
  * write the same word, and each thread's tables are private.
  */
-#define TAIL_TABLE_WORDS (1 << 17)   /* 1 MiB of tables per thread */
-
 HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *rows,
                            const u64 *cfs, int cw, i64 nr, const u64 *Bs, i64 tail, int npiv,
                            int tables, u64 *T)
@@ -199,6 +298,8 @@ HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *row
     int ngroups = (npiv + 7) / 8;
     if (!tables) {
         for (i64 a = 0; a < nr; a++) {
+            if (a + 1 < nr)
+                __builtin_prefetch(M + (size_t)rows[a + 1] * W + w0 + x0, 1, 3);
             u64 *row = M + (size_t)rows[a] * W + w0 + x0;
             for (int q = 0; q < cw; q++) {
                 u64 cf = cfs[(size_t)a * cw + q];
@@ -229,6 +330,8 @@ HOT static void tail_chunk(u64 *M, i64 W, i64 w0, i64 x0, i64 ch, const i32 *row
     }
     const u64 *t[64];                       /* <= 64*SB_MAX/8 groups */
     for (i64 a = 0; a < nr; a++) {
+        if (a + 1 < nr)
+            __builtin_prefetch(M + (size_t)rows[a + 1] * W + w0 + x0, 1, 3);
         const u64 *cf = cfs + (size_t)a * cw;
         u64 *row = M + (size_t)rows[a] * W + w0 + x0;
         int nt = 0;
@@ -278,7 +381,8 @@ static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u6
     int ngroups = (npiv + 7) / 8;
     /* tables cost ~2^8 row XORs per group to build, then <= 1 per group per row */
     int tables = pops > (i64)ngroups * (256 + nr);
-    i64 ch = tables ? TAIL_TABLE_WORDS / (256 * ngroups) : tail;
+    i64 twords = tail_table_words();
+    i64 ch = tables ? twords / (256 * ngroups) : tail;
     if (ch < 8)
         ch = 8;
     if (ch > tail)
@@ -302,9 +406,9 @@ static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u6
     }
 #endif
     (void)nt;                                /* unused without OpenMP */
-    /* Tpool: nthreads private table areas of TAIL_TABLE_WORDS words each,
+    /* Tpool: nthreads private table areas of tail_table_words() each,
      * allocated once per pass (a fresh 1 MiB malloc per step is an mmap and a
-     * page-fault storm per step). ngroups * 256 * ch <= TAIL_TABLE_WORDS. */
+     * page-fault storm per step). ngroups * 256 * ch <= twords. */
 #ifdef _OPENMP
 #pragma omp parallel num_threads(nt) if (nt > 1)
 #endif
@@ -313,7 +417,7 @@ static int tail_update(u64 *M, i64 W, i64 w0, i64 tail, const i32 *act, const u6
 #ifdef _OPENMP
         tid = omp_get_thread_num();
 #endif
-        u64 *T = Tpool + (size_t)tid * TAIL_TABLE_WORDS;
+        u64 *T = Tpool + (size_t)tid * (size_t)twords;
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic, 1)
 #endif
@@ -356,24 +460,23 @@ oplog_t *gf2_column_pass_sb(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_
         SB = SB_MAX;
     oplog_t *L = (oplog_t *)calloc(1, sizeof(oplog_t));
     size_t rn = (size_t)(R > 0 ? R : 1), wn = (size_t)(W > 0 ? W : 1);
-    size_t bmw = (rn + 63) / 64;
-    int NB = 64 * SB;                                  /* columns per step */
-    i32 *lw = (i32 *)malloc(rn * sizeof(i32));         /* lead word, -1 = zero or pivot */
-    i64 *wcount = (i64 *)calloc(wn, sizeof(i64));
-    i32 *act = (i32 *)malloc(rn * sizeof(i32));
-    u64 *val = (u64 *)malloc(rn * SB * sizeof(u64));
-    u64 *coef = (u64 *)malloc(rn * SB * sizeof(u64));
-    uint8_t *isp = (uint8_t *)malloc(rn);
-    u64 *bm = (u64 *)malloc((size_t)NB * bmw * sizeof(u64));   /* per-column bitmaps over act */
-    u64 *Bs = (u64 *)malloc((size_t)NB * wn * sizeof(u64));
-    i32 *rows = (i32 *)malloc(rn * sizeof(i32));
-    u64 *cfs = (u64 *)malloc(rn * SB * sizeof(u64));
-    i32 *piv_a = (i32 *)malloc((size_t)NB * sizeof(i32));
     int ntp = nthreads < 1 ? 1 : nthreads;
-    u64 *Tpool = (u64 *)malloc((size_t)ntp * TAIL_TABLE_WORDS * sizeof(u64));
-    i64 kmax = R < C ? R : C;
-    if (!L || !lw || !wcount || !act || !val || !coef || !isp || !bm || !Bs || !rows || !cfs || !piv_a || !Tpool)
+    if (!L || scratch_ensure_sb(&g_sb_scratch, rn, wn, (size_t)ntp, (size_t)SB))
         goto fail;
+    i32 *lw = g_sb_scratch.lw;
+    i64 *wcount = g_sb_scratch.wcount;
+    i32 *act = g_sb_scratch.act;
+    u64 *val = g_sb_scratch.val;
+    u64 *coef = g_sb_scratch.coef;
+    uint8_t *isp = g_sb_scratch.isp;
+    u64 *bm = g_sb_scratch.bm;
+    u64 *Bs = g_sb_scratch.Bs;
+    i32 *rows = g_sb_scratch.rows;
+    u64 *cfs = g_sb_scratch.cfs;
+    i32 *piv_a = g_sb_scratch.piv_a;
+    u64 *Tpool = g_sb_scratch.Tpool;
+    memset(wcount, 0, wn * sizeof(i64));
+    i64 kmax = R < C ? R : C;
     L->ps = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
     L->cs = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
     L->xoff = (i64 *)malloc((size_t)(kmax + 2) * sizeof(i64));
@@ -446,7 +549,7 @@ oplog_t *gf2_column_pass_sb(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_
                     i32 x = (i32)(q * 64 + __builtin_ctzll(word));
                     word &= word - 1;
                     if (keep_ops && push_x(L, act[x]))
-                        goto fail;
+                        goto fail_log;
                     u64 *vx = val + (size_t)x * SB, *cx = coef + (size_t)x * SB;
                     int nb = -1;
                     for (int k = b0; k < sw; k++) {
@@ -481,7 +584,7 @@ oplog_t *gf2_column_pass_sb(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_
             }
             if (tail_update(M, W, w1, tail, act, coef, cw < SB ? cw : SB, na, Bs, npiv, ntp,
                             rows, cfs, Tpool))
-                goto fail;
+                goto fail_log;
         }
         for (int q = 0; q < sw; q++)
             wcount[w + q] = 0;
@@ -501,13 +604,14 @@ oplog_t *gf2_column_pass_sb(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i64 *ops_
                 wcount[lw[r]]++;
         }
     }
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs);
-    free(rows); free(cfs); free(piv_a); free(Tpool);
     *ops_strict = total;
     return L;
+fail_log:
+    if (L) {
+        free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
+    }
+    return NULL;
 fail:
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs);
-    free(rows); free(cfs); free(piv_a); free(Tpool);
     if (L) {
         free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
     }
@@ -519,28 +623,28 @@ oplog_t *gf2_column_pass_blocked_mt(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i
 {
     oplog_t *L = (oplog_t *)calloc(1, sizeof(oplog_t));
     size_t rn = (size_t)(R > 0 ? R : 1), wn = (size_t)(W > 0 ? W : 1);
-    size_t bmw = (rn + 63) / 64;
-    i32 *lw = (i32 *)malloc(rn * sizeof(i32));      /* lead word, -1 = zero or pivot */
-    i64 *wcount = (i64 *)calloc(wn, sizeof(i64));
-    i32 *act = (i32 *)malloc(rn * sizeof(i32));
-    u64 *val = (u64 *)malloc(rn * sizeof(u64));
-    u64 *coef = (u64 *)malloc(rn * sizeof(u64));
-    uint8_t *isp = (uint8_t *)malloc(rn);
-    u64 *bm = (u64 *)malloc(64 * bmw * sizeof(u64));  /* per-bit bitmaps over act */
-    u64 *Bs = (u64 *)malloc((size_t)64 * wn * sizeof(u64));
-    i32 *rows = (i32 *)malloc(rn * sizeof(i32));
-    u64 *cfs = (u64 *)malloc(rn * sizeof(u64));
     int ntp = nthreads < 1 ? 1 : nthreads;
-    u64 *Tpool = (u64 *)malloc((size_t)ntp * TAIL_TABLE_WORDS * sizeof(u64));
+    if (!L || scratch_ensure_blocked(&g_blocked_scratch, rn, wn, (size_t)ntp))
+        goto fail;
+    i32 *lw = g_blocked_scratch.lw;
+    i64 *wcount = g_blocked_scratch.wcount;
+    i32 *act = g_blocked_scratch.act;
+    u64 *val = g_blocked_scratch.val;
+    u64 *coef = g_blocked_scratch.coef;
+    uint8_t *isp = g_blocked_scratch.isp;
+    u64 *bm = g_blocked_scratch.bm;
+    u64 *Bs = g_blocked_scratch.Bs;
+    i32 *rows = g_blocked_scratch.rows;
+    u64 *cfs = g_blocked_scratch.cfs;
+    u64 *Tpool = g_blocked_scratch.Tpool;
+    memset(wcount, 0, wn * sizeof(i64));
     i64 kmax = R < C ? R : C;
     i32 piv_a[64];
-    if (!L || !lw || !wcount || !act || !val || !coef || !isp || !bm || !Bs || !rows || !cfs || !Tpool)
-        goto fail;
     L->ps = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
     L->cs = (i32 *)malloc((size_t)(kmax + 1) * sizeof(i32));
     L->xoff = (i64 *)malloc((size_t)(kmax + 2) * sizeof(i64));
     if (!L->ps || !L->cs || !L->xoff)
-        goto fail;
+        goto fail_log;
     for (i64 r = 0; r < R; r++) {
         int lc = lowest_bit_from(M + (size_t)r * W, (int)W, 0);
         lw[r] = (lc >= 0 && lc < C) ? (i32)(lc >> 6) : -1;
@@ -592,7 +696,7 @@ oplog_t *gf2_column_pass_blocked_mt(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i
                     i32 x = (i32)(q * 64 + __builtin_ctzll(word));
                     word &= word - 1;
                     if (keep_ops && push_x(L, act[x]))
-                        goto fail;
+                        goto fail_log;
                     val[x] ^= pv;
                     coef[x] ^= pc;
                     if (val[x]) {
@@ -615,7 +719,7 @@ oplog_t *gf2_column_pass_blocked_mt(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i
                 memcpy(Bs + (size_t)i * tail, M + (size_t)act[piv_a[i]] * W + w + 1,
                        (size_t)tail * sizeof(u64));
             if (tail_update(M, W, w + 1, tail, act, coef, 1, na, Bs, npiv, ntp, rows, cfs, Tpool))
-                goto fail;
+                goto fail_log;
         }
         wcount[w] = 0;
         for (i64 a = 0; a < na; a++) {
@@ -633,11 +737,14 @@ oplog_t *gf2_column_pass_blocked_mt(u64 *M, i64 R, i64 W, i64 C, int keep_ops, i
                 wcount[lw[r]]++;
         }
     }
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(rows); free(cfs); free(Tpool);
     *ops_strict = total;
     return L;
+fail_log:
+    if (L) {
+        free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
+    }
+    return NULL;
 fail:
-    free(lw); free(wcount); free(act); free(val); free(coef); free(isp); free(bm); free(Bs); free(rows); free(cfs); free(Tpool);
     if (L) {
         free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
     }
@@ -898,6 +1005,22 @@ void gf2_xor_bits(u64 *M, i64 W, const i64 *rows, const i64 *cols, i64 n)
 {
     for (i64 i = 0; i < n; i++)
         M[(size_t)rows[i] * W + (cols[i] >> 6)] ^= 1ULL << (cols[i] & 63);
+}
+
+/* XOR M[rows[i], 0:words) into out[0:words) for i < n. Used by the rank-only
+ * certificate verifier: only the prefix through the claimed pivot word is
+ * needed. out must be zeroed by the caller. */
+HOT void gf2_xor_rows_prefix(const u64 *M, i64 W, const i32 *rows, i64 n, i64 words, u64 *out)
+{
+    if (words <= 0 || n <= 0)
+        return;
+    for (i64 i = 0; i < n; i++) {
+        if (i + 1 < n)
+            __builtin_prefetch(M + (size_t)rows[i + 1] * W, 0, 3);
+        const u64 *row = M + (size_t)rows[i] * W;
+        for (i64 w = 0; w < words; w++)
+            out[w] ^= row[w];
+    }
 }
 
 /* ------------------------------------------------------------------------ */
