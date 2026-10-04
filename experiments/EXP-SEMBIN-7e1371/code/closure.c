@@ -671,6 +671,10 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
                 long *iter_rows, long *iter_rank, long *iter_newpiv, double *iter_wall,
                 long *out_rank, int *out_contains_one, long *out_max_rows_seen) {
     closure_free();
+    /* per-run counters: closure_cert reads both into this run's record, and a
+     * process measures several systems in turn */
+    resumed_ = 0;
+    ech_faults_ = 0;
     setup_columns(N, D);
     *out_ncols = ncols_;
     is_pivot_ = calloc(ncols_, 1);
