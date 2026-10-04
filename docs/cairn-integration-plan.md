@@ -265,6 +265,75 @@ model-distinctness. If it is ever adopted, it gets renamed to what it is —
 weaker and stated beats stronger and false — and it does not by itself restore
 `GOAL_CLOSURE_QUORUM_REQUIRED`.
 
+## 6a. Status, 2026-10-04
+
+What of the stages above is now code, and what is still a proposal. Kept
+here rather than silently edited into the stage text, so the plan still
+reads as the plan and this reads as the ledger of it.
+
+**Built.**
+
+- **Stage 0, both halves.** `tools/cairn_bridge.py` scores every supported
+  witness through cairn's sandboxed checker and refuses a run on a
+  disagreement. It now finds the single `cairn` binary (`CAIRN_BIN`, or
+  `cairn` on `PATH`; its `mcp` subcommand answers) as well as a legacy
+  `cairn-mcp`, which is why every committed cross-check still reads
+  `not_attempted`: the bridge was looking for an executable the current
+  release no longer ships. `harness/certificate_sidecar.py` writes
+  `certificate.json` beside the manifest when a driver asks it to after
+  `write_run`, so a committed run can be claimed on the network. A sidecar
+  rather than a line in `write_run` because `harness/runner.py` is pinned by
+  hash in the locked execution plans; runs that kept only the kind and the
+  verdict cannot be claimed without being re-run.
+- **Stage 1, the seam.** `tools/exp_to_objective.py render` turns a frozen
+  `EXP-*` into an objective file -- a `certificate` objective pinning the
+  Stage 0 checker for a witness-bearing experiment, a `replay` objective
+  pinning a run's command and exact integer metrics otherwise -- with a
+  provenance sidecar binding the specification's hash and the run's commit.
+  Minted, never posted: the `cairn post` line is printed for the Coordinator.
+  `artifact` emits a run's claim in the objective's shape; `record` prints the
+  `external_verification:` block; `check` holds an objective to cairn's shape
+  rules without a binary.
+- **The receipt.** `templates/research-records.md` carries the block on
+  Evidence, and `tools/validate_ledger.py` enforces invariant (b): a verdict
+  that does not settle may be cited in neither `proof_refs` nor
+  `certificate_refs`, may not back a direction, and a `certificate`
+  proof_status with nothing but non-settling receipts is refused.
+- **The tool surface.** `.mcp.json` gains the `cairn` stanza through
+  `tools/cairn_mcp.sh` (absolute paths resolved at launch; a signing identity
+  is required, since an unsigned submitter authenticates nothing).
+  `orchestration/roles.yaml` gains `network_submit` (Executor: score and
+  submit) and `network_read` (Validator, Red Team: look a claim and its
+  standing up), both optional capabilities as `send_messages` is, and the
+  Claude Code bindings carry the tools; `tools/check_runtime_bindings.py`
+  holds them to it.
+- **On the network side** (cairn `v1.16`): a node runs the validator loop
+  (`cairn run --attest-identity`, `cairn attest serve`) that re-verifies every
+  claim and stands behind what it finds under bond; `GET /knowledge/{claim}`
+  publishes a claim's standing beside who attested it; `examples/replay-
+  reproduction` is the first worked `replay` objective, the shape a run
+  record takes on the network; `cairn agent` puts a GPU host on the network
+  and runs executor jobs under gVisor or Kata.
+
+**Not built, stated plainly.**
+
+- No `EXP-*` has yet gone end to end -- objective posted, claim settled,
+  `EV-*` carrying the receipt. The tooling exists; the first run is a
+  Coordinator decision (funding) plus one Executor session with the `cairn`
+  stanza live.
+- A `replay` objective for an existing run is rendered with
+  `replay_wrapper_required: true`: this program's drivers write a run
+  directory and print prose, and cairn's replay verifier needs one JSON
+  object on stdout in a read-only tree. The wrapper (`--replay-wrapper`) is
+  the next piece of harness work.
+- Invariants (c) and (d) -- `seed_derivation` on the objective, one objective
+  per tier with the EV's `claim_tier` matching -- are not enforced;
+  `exp_to_objective.py` records the tier in the statement only.
+- Relations (`replicates`, `refutes`, ...) are not exposed to agents over
+  MCP on cairn's side, so the Validator's "author relations" half of Stage 1
+  is still CLI-only.
+- Stages 2 to 4 are as the sections above say.
+
 ## 7. Work items, by file
 
 **This repository**
