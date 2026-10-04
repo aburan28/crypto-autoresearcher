@@ -1,0 +1,707 @@
+# =============================================================================
+# EXP-VOLC-3fee23 -- Problem B (Galbraith 2024 Sec. 5) toy cost map:
+# direct descent (A1) vs blind guessing (A2) vs X_1(m)-biased guessing (A3),
+# Sage-free, certified, null-controlled. Frozen contract v1, approved by
+# DEC-20261003-d35016 under the AGENTS.md standing authorization (2026-09-06).
+# Any change after approval is a versioned protocol_amendment under
+# amendments/. Claim tier toy. No asymptotic claim. No ECDLP solve.
+# =============================================================================
+experiment:
+  id: EXP-VOLC-3fee23
+  hypothesis_id: H-VOLC-5f03b6
+  question_id: RQ-VOLC-f6253b
+  goal_id: GOAL-ENDO-001
+  derived_from_idea: IDEA-20261003-e3ce5b
+  batch_id: null
+  batch_id_note: >-
+    Deliberately null. Neither the experiment schema
+    (templates/research-records.md), tools/validate_ledger.py, nor the
+    /design-experiment skill requires a batch for a contract, and the
+    comparable approved contract EXP-DREG-6de989 carries none. GOAL-ENDO-001's
+    open-batch mechanism (tools/goal_lanes.py open-lane) is a dispatch-time
+    concern recorded in TASK-20261003-582b6c's dispatch_preconditions. The
+    reserved BATCH-001641 is not used and no batch file is created.
+  version: 1
+  title: >-
+    Problem B at toy scale: certified cost of the direct descending
+    N-isogeny as a function of the N-torsion field degree k = ord_N(t/2) and
+    of N, against blind and X_1(m)-biased guessing, on class-number-one CM
+    instances with p <= 2^40
+  status: approved
+  objective: >-
+    Measure, with instrumented counters and independently verified
+    certificates, (i) whether the direct construction of a descending
+    N-isogeny from a crater curve costs c1 k log2 p + c2 N F_{p^k}-
+    multiplications (k-sweep S1, N-sweep S2), (ii) whether blind guessing
+    reaches the N-floor after p^2/((p-1) #S2) draws independent of N and k
+    (S3, S3k), (iii) the speedup of X_1(m)-biased guessing (S4), and (iv) how
+    often the cheap direct case k << N occurs for unsteered instances
+    (K-census). Deliverable: a toy cost map. Not a new algorithm; not an
+    answer to KN-OPEN-f2f6dc (b).
+
+  definitions:
+    problem_B_some: >-
+      Galbraith's form: given E0 on the crater and a large prime N dividing
+      f, output an F_p curve E1 of trace t whose endomorphism-ring conductor is
+      divisible by N, with the Lemma-5 certificate.
+    problem_B_strict: >-
+      The brief's form: output E1 = phi(E0) for a descending N-isogeny phi from
+      E0, with phi evaluable on chosen points of E0(F_p).
+    a_and_k: >-
+      a = t * inverse(2) mod N; k = multiplicative order of a mod N
+      (equivalently the least j with E0[N] inside E0(F_{p^j})).
+    chi: chi(l) = Kronecker symbol (D0 / l).
+    S2_count: >-
+      The floor count is #S2 = (N - chi(N)) * sum over d | v of h(O_d), with
+      h(O_d) = d * prod over primes l | d of (1 - chi(l)/l) for D0 < -4.
+      H = sum over d | N v of h(O_d) is the class size.
+    M_mult: >-
+      Number of F_{p^k} multiplications plus squarings executed through the
+      counted arithmetic wrapper. Inversions are counted separately as
+      I_inv. Additions are not counted.
+    floor_certificate: >-
+      A point T in E1(F_{p^k}) with [N^e]T = O and [N^(e-1)]T != O, where
+      N^e exactly divides #E1(F_{p^k}) = p^k + 1 - V_k (V_0 = 2, V_1 = t,
+      V_{j+1} = t V_j - p V_{j-1}). By H-VOLC-5f03b6 Lemma 5 this exists iff
+      E1 is on the N-floor (one-sided: absence after the sampling budget is
+      reported as uncertified, never as crater).
+
+  design_corrections_to_brief:
+    - id: DC-1
+      brief_text: mean trials within factor 1.5 of p/(2H * floor_fraction)
+      correction: >-
+        The exact law with the twist trick is p^2/((p-1) #S2) = p/(H *
+        floor_fraction) (1 + O(1/p)). Each F_p-isomorphism class has (p-1)/2
+        short-Weierstrass representatives because [-1] is always an
+        automorphism, so a draw hits a fixed class with probability
+        (p-1)/(2p^2); the two twist floors give 2 #S2 target classes. The
+        brief's formula is low by exactly a factor 2 and would fail the 1.5x
+        test on correct data. The derived exact law is frozen as the
+        prediction.
+    - id: DC-2
+      brief_text: certify that pi does NOT act as a scalar on E1[N] via two random points of E1(F_{p^k})[N] with pi(Q) != aQ
+      correction: >-
+        On the floor E1(F_{p^k})[N] is exactly the pi-eigenline (Lemma 5), on
+        which pi acts as a, so that test can never succeed. Replaced by the
+        floor_certificate above (cyclic N-Sylow over F_{p^k}), with
+        j(E1) != j0 as an agreeing second labeller when v = 1.
+    - id: DC-3
+      brief_text: with v = 1 the class at N is {E0} union floor
+      correction: >-
+        For D0 = -7, 4p = t^2 + 7 f^2 forces t and f even (both odd gives p
+        even), so v is even and v_min = 2; the N-crater then holds 2 curves
+        (conductors 1 and 2). v = 1 is used only for D0 = 5 mod 8 (here -43).
+    - id: DC-4
+      brief_text: take the dual of the ascending isogeny to get an evaluable descending phi from E0
+      correction: >-
+        The dual's kernel psi(E1[N]) is defined only over F_{p^(kN)}. Its
+        evaluation is realised instead as the unique F_p-rational preimage of
+        [N]R under psi, which is unique when k = 2 (kernel points are not
+        F_p-rational); S3 therefore fixes k = 2. When v > 1 the ascent lands on
+        a crater curve of conductor d | v, which is E0 only with rate 1/v, so
+        A2 reports Problem B in Galbraith's form and a strict-form indicator.
+    - id: DC-5
+      brief_text: "A3 speedup within factor 2 of 1/Pr[m | #E]"
+      correction: >-
+        A3's family contains only curves with an m-torsion point, so against
+        the two-sided twist-trick A2 its speedup is (r_m(+) + r_m(-))/2, not
+        r_m. S4 therefore compares ONE-SIDED arms (A2s vs A3) with the derived
+        prediction (target-set mean of r_m, equal to r_m(E0) = phi(m) when
+        gcd(m, f) = 1), and reports the twist-trick comparison as MODELED.
+        The recalled Lenstra/Howe density is a comparison column only. The
+        brief's "m divides n and m coprime to f" cannot hold for m in {2, 4}
+        with h(D0) = 1 (strata.S4.m_2_4_feasibility_note), so the even m run
+        at D0 = -7 with 2 | f.
+    - id: DC-6
+      brief_text: random point x cofactor gives a point of order N
+      correction: >-
+        When the N-Sylow subgroup is Z/N^e1 x Z/N^e2 with e1 > e2, multiplying
+        random points down to order N always lands in one line. The basis
+        routine must be correct for non-homocyclic Sylow subgroups (reference
+        method in inputs.arms.A1) and is tested on a planted case.
+    - id: DC-7
+      brief_text: S3 slope vs N at fixed p
+      correction: >-
+        p varies within each bit band and f varies with t, so the
+        N-independence test is the partial slope of log draws on log N
+        controlling for the log of the exact prediction (T3c).
+
+  inputs:
+    discriminants:
+      primary: [-7, -43]
+      secondary_descriptive: [-3]
+      j0:
+        "-7": -3375
+        "-43": -884736000
+        "-3": 0
+      j0_other_h1_reference:
+        "-8": 8000
+        "-11": -32768
+        "-19": -884736
+        "-67": -147197952000
+        "-163": -262537412640768000
+      curve_from_j: >-
+        j != 0, 1728: y^2 = x^3 + A x + B with A = 3 j (1728 - j),
+        B = 2 j (1728 - j)^2 mod p; then the quadratic twist of trace t is
+        selected by random-point order checks ([p + 1 - t]P = O on 8 random
+        points and [p + 1 + t]P != O on at least one). j = 0 (D0 = -3): the
+        sextic twist y^2 = x^3 + b of trace t, selected the same way.
+    generator:
+      rule: >-
+        Draw (N, v, t) and set p = (t^2 + |D0| (N v)^2)/4; accept iff p is an
+        integer prime (sympy.isprime) in the stratum's band, N is prime,
+        gcd(N, v D0) = 1, t != 0, and the stratum's k and m constraints hold.
+        k is steered by drawing t = 2 zeta (mod N) with zeta uniform among the
+        elements of exact order k in F_N^*, then t uniform in that residue
+        class within the admissible range with the parity forced by D0.
+        Unsteered strata draw t uniformly from the admissible range.
+      p_band: >-
+        B-bit primes, p in [2^(B-1), 2^B).
+      N_band: >-
+        N prime in [2^(alpha B - 0.5), 2^(alpha B + 0.5)). If a cell yields
+        fewer instances than required after 10^6 attempts, widen by 0.25 bit
+        per side up to +-1.0 bit, deterministically, and record the final band.
+      alpha_050_rule: >-
+        alpha = 0.50 means v = v_min (1 for D0 = -43 and -3, 2 for D0 = -7);
+        N is then forced near f / v_min and the actual alpha = log N / log p
+        is recorded and used in every regression.
+      v_rule_A1_strata: >-
+        v any positive integer with gcd(v, N D0) = 1 and the D0 parity
+        constraint, drawn uniformly from the values that place p in band.
+      v_rule_A2_strata: >-
+        S3, S3k, S4, C3, C3b: every prime factor of v splits in K
+        (chi(l) = +1), gcd(v, N D0) = 1, parity constraint, and |t| <= sqrt(p),
+        so sum over d | v of h(O_d) = v exactly and f lies in
+        [sqrt(3p/|D0|), 2 sqrt(p/|D0|)]. C2 instead requires every prime
+        factor of f to be at most 50 (no large prime) with |t| <= sqrt(p).
+      seeds: >-
+        seed(stage, cell, i, j) = int.from_bytes(sha256(
+        "EXP-VOLC-3fee23|20261003|{stage}|{cell}|{i}|{j}").digest()[:8], "big"),
+        consumed by random.Random. i = instance index, j = search index
+        (0 for non-search draws). No other randomness source is permitted.
+      instance_verification: >-
+        Stage 0, independent of the generator code: p prime by two methods
+        (sympy.isprime and 20-round Miller-Rabin), 4p = t^2 + |D0| f^2,
+        j(E0) = j0, #E0(F_p) = p + 1 - t by BSGS on two random points, k
+        recomputed, N^2 divides #E0(F_{p^k}), and for S4 instances m divides
+        p + 1 - t and gcd(m, f) = 1. Any failure stops Stage 0 (instrument
+        defect), never drops the instance silently.
+    instance_table: >-
+      Produced by Stage 0 as runs/<RUN-ID>/instances.json (one row per
+      instance: stratum, cell, i, seed, D0, p, t, N, v, f, k, chi(N), H, #S2,
+      r_m where relevant, j0, curve coefficients, predicted means). Its
+      sha256 is recorded in the Stage-0 manifest and in every later manifest;
+      later stages read it and never regenerate.
+    strata:
+      CAL:
+        purpose: calibration of c1, c2 (frozen before S1)
+        D0: -7
+        p_bits: 32
+        N: [113, 241, 337, 1009]
+        k: [1, 4, 16]
+        instances_per_cell: 3
+        arm: A1
+      S1:
+        purpose: k-sweep
+        D0: -7
+        p_bits: 32
+        N: 241
+        k: [1, 2, 4, 8, 16, 24, 48, 80, 120, 240]
+        instances_per_cell: 10
+        arm: A1
+      S2:
+        purpose: N-sweep at small k
+        D0: -7
+        p_bits: 40
+        alpha: [0.25, 0.33, 0.40, 0.50]
+        k: [1, 2]
+        instances_per_cell: 10
+        arm: A1
+      C5_A1:
+        purpose: second discriminant for A1
+        D0: -43
+        p_bits: 40
+        alpha: [0.25, 0.50]
+        k: [1, 2]
+        instances_per_cell: 5
+        arm: A1
+      SEC_D3:
+        purpose: secondary descriptive stratum, enters no criterion
+        D0: -3
+        p_bits: 32
+        alpha: [0.25, 0.50]
+        k: [1, 2]
+        instances_per_cell: 5
+        arm: A1
+        caveat: >-
+          |Aut(E0)| = 6, six twists, unit index 3: the N - chi(N) descending
+          kernels reach (N - chi(N))/3 distinct floor j-invariants, each three
+          times; descending iff j(E1) != 0.
+      KC:
+        purpose: K-census for HEUR-5f03b6-K (arithmetic only, no curves)
+        D0: -7
+        p_bits: 32
+        alpha: [0.25, 0.50]
+        k: unsteered
+        instances_per_cell: 2000
+      S3:
+        purpose: blind-guessing scale law
+        D0: [-7, -43]
+        p_bits: [20, 24, 28, 32, 36]
+        alpha: [0.25, 0.50]
+        k: [2]
+        instances_per_cell: 5
+        searches_per_instance: 30
+        arm: A2
+      S3k:
+        purpose: k-independence of guessing with natural k
+        D0: -7
+        p_bits: [20, 24]
+        alpha: [0.25]
+        k: unsteered
+        instances_per_cell: 5
+        searches_per_instance: 30
+        arm: A2 (find and certify; ascent E-1 only)
+      S4:
+        purpose: X_1(m)-biased guessing
+        p_bits: [24, 28, 32]
+        alpha: [0.50]
+        k: [2]
+        m: [2, 3, 4, 5, 7]
+        D0_by_m:
+          "3": -43
+          "5": -43
+          "7": -43
+          "2": -7
+          "4": -7
+        constraint: >-
+          m divides p + 1 - t. For m in {3, 5, 7}: D0 = -43, v = 1, so
+          gcd(m, f) = 1 and every curve of the class has the same r_m. For
+          m in {2, 4}: D0 = -7, v = 2 (2 divides f, so r_m varies with the
+          2-volcano level) and, for m = 4, t = 0 mod 4.
+        m_2_4_feasibility_note: >-
+          For h(D0) = 1, D0 < -4 and 2 not dividing f, #E(F_p) is odd
+          (D0 = 5 mod 8: t and f odd) or 2 mod 4 (D0 = -8, f odd), so m = 4
+          with gcd(m, f) = 1 is impossible and m = 2 would need a third
+          discriminant. Both even m therefore run at D0 = -7 with 2 | f, and
+          their prediction uses the target-set average of r_m (T4).
+        instances_per_cell: 5
+        searches_per_instance_per_arm: 30
+        arms: [A2s, A3]
+      S4_null:
+        purpose: prime-order case, declared to get no one-sided A3 benefit
+        D0: -43
+        p_bits: 28
+        alpha: [0.50]
+        k: [2]
+        constraint: p + 1 - t prime
+        instances: 5
+        searches_per_instance_per_arm: 30
+        arms: >-
+          A2s on the trace-t side; A3 is not applicable there (recorded
+          not_applicable, not a negative); for each m in {3, 5, 7} with m
+          dividing p + 1 + t, A2s and A3 on the twist side (m in {2, 4} cannot
+          divide p + 1 + t at D0 = -43).
+      C2:
+        purpose: smooth-conductor control (no large prime)
+        D0: [-7, -43]
+        p_bits: [20, 24, 28]
+        instances_per_cell: 5
+        searches_per_instance: 30
+        target: first curve of trace +-t (class hit)
+      C3:
+        purpose: uniform sampler and filter check
+        instance: first S3 instance of cell (D0 = -7, 20 bits, alpha 0.25)
+        draws: 1000000
+      C3b:
+        purpose: family sampler check (HEUR-5f03b6-X1)
+        full_distribution: >-
+          p = 4093 (largest prime below 2^12): enumerate every
+          F_p-isomorphism class with j not in {0, 1728} and its r_m by direct
+          point enumeration; 10^6 family draws per m in {2, 3, 4, 5, 7}.
+        class_hit_instances: >-
+          one 20-bit D0 = -43, alpha 0.50, k = 2 instance per m in {3, 5, 7}
+          with m dividing p + 1 - t; 10^6 family draws each.
+    arms:
+      A0:
+        status: EXCLUDED
+        reason: >-
+          The modular polynomial Phi_N is not available Sage-free and is
+          infeasible to compute here for N from 23 to about 4e5. Declared
+          excluded, not silently dropped; no claim depends on it.
+      A1:
+        name: DIRECT
+        steps: >-
+          (1) k from t, N; build F_{p^k} with python-flint fq_default.
+          (2) n_k = #E0(F_{p^k}) = p^k + 1 - V_k (Lucas), e = v_N(n_k).
+          (3) Basis of E0[N] (reference method, correct for every Sylow shape
+          Z/N^e1 x Z/N^e2 with e1 >= e2 >= 1, e1 + e2 = e): project random
+          points to the N-Sylow part by [n_k/N^e]; take P1 of the largest
+          order seen in three projections, of order N^e1, and set e2 = e - e1;
+          for a further projection Q, compute x0 = discrete log of [N^e2]Q in
+          the cyclic group <[N^e2]P1> by Pohlig-Hellman with BSGS per digit
+          (x0 = 0 when e1 = e2); if that log does not exist, P1 was not of
+          maximal order, so replace P1 and retry. Set Q' = Q - [x0]P1,
+          B1 = [N^(e1-1)]P1, B2 = [N^(e2-1)]Q', and accept (B1, B2) when a
+          BSGS discrete-log check shows B2 is not in <B1> (else draw a new Q).
+          (4) Choose a line uniformly among the N + 1 lines
+          (s uniform in {0..N}: kernel generator B2 if s = N else B1 + [s]B2).
+          (5) Classic Velu: multiples [i]G for i = 1..(N-1)/2, Galois-invariant
+          sums giving E1: y^2 = x^3 + a' x + b' with a', b' in F_p, plus an
+          evaluation routine for R in
+          E0(F_p). (6) Descending iff j(E1) != j0 (D0 = -3: j(E1) != 0);
+          a horizontal kernel is rejected and step (4) resampled, counted.
+          (7) Emit the certificate (kernel generator in F_{p^k}, E1, images of
+          four challenge points derived from the seed).
+        arithmetic_rule: >-
+          Every F_{p^k} exponentiation (Euler test, square root by
+          Tonelli-Shanks or Cipolla, Frobenius-free) is square-and-multiply on
+          the counted product. Scalar multiplication uses Jacobian or
+          projective coordinates so I_inv is O(1) per scalar multiplication;
+          Velu sums use Montgomery batch inversion. No uninstrumented library
+          call other than add, sub, neg, mul, inv, equality on F_{p^k}.
+      A2:
+        name: BLIND GUESSING
+        steps: >-
+          Per draw: (a, b) uniform in F_p^2 (singular or j in {0, 1728} draws
+          count as draws and fail). Filter: random point P (x uniform until
+          on-curve; this inner loop does not count as draws); accept if
+          [p + 1 - t]P = O or [p + 1 + t]P = O. Confirm #E in {p + 1 - t,
+          p + 1 + t} by BSGS on the Hasse interval with two points; take the
+          quadratic twist if the trace is -t. Then the floor_certificate over
+          F_{p^k} (S3: k = 2), at most 16 random points; for v = 1 also
+          j != j0. The search stops at the first certified floor curve.
+          Records: draws to first class hit, draws to first floor curve,
+          filter passes, BSGS confirmations, false-positive filter passes.
+        evaluation: >-
+          E-1 (ascent, all A2 strata): kernel = <[N^(e-1)]T> from the
+          certificate point T; classic Velu over F_{p^k} gives E'. Check E' is
+          on the crater (v = 1: j(E') = j0; v > 1: E'(F_{p^k}) has two
+          independent points of order N). strict_hit = (j(E') = j0).
+          E-2 (only when strict_hit and k = 2): with iota an F_p-isomorphism
+          E0 -> E', evaluate phi = psi-hat o iota on challenge points R by
+          computing [N] iota(R) and its unique F_p-rational preimage under psi
+          (kernel polynomial of psi from the eigenline, Kohel/Velu rational
+          map, F_p polynomial root finding via python-flint). Find-cost and
+          evaluation-cost are reported separately.
+      A2s:
+        name: ONE-SIDED BLIND GUESSING (S4 comparison arm)
+        steps: >-
+          As A2, but the filter accepts only the target side (trace t, or
+          trace -t on the S4_null twist side); no twist is taken.
+      A3:
+        name: X_1(m)-BIASED GUESSING
+        families: >-
+          m = 2: y^2 = x^3 + A x^2 + B x, (A, B) uniform; m = 3:
+          y^2 + a1 x y + a3 y = x^3, (a1, a3) uniform with a3 != 0; m = 4, 5,
+          7: Tate normal form E(b, c): y^2 + (1 - c) x y - b y = x^3 - b x^2
+          with c = 0 (m = 4), b = c (m = 5), b = d^3 - d^2 and c = d^2 - d
+          (m = 7), parameter uniform in F_p. Each drawn curve is converted to
+          short Weierstrass and the point (0, 0) is checked to have exact
+          order m (instrument check; a failure is an instrument defect). Then
+          the A2s one-sided filter, BSGS confirmation, and floor certificate.
+    instrument: >-
+      New code under experiments/EXP-VOLC-3fee23/implementation/ (generator,
+      counted F_{p^k} wrapper over python-flint fq_default, A1, A2/A2s, A3,
+      analysis) plus a separate verifier module. python-flint >= 0.7 from the
+      repo extra `fast`. harness/isogeny_class.py may be imported read-only by
+      the VERIFIER for k = 1 F_p Velu cross-checks; it may not be edited.
+      Runs are wrapped per harness/runner.py conventions.
+
+  controls:
+    - id: C1
+      blocking: true
+      description: >-
+        Floor-start null. A1's routine is run from 10 floor curves produced by
+        S1 (one per k-cell, first instance) and 10 from S2 (first instance of
+        each (alpha, k) cell plus two more by index). It must find exactly one
+        F_{p^k}-rational N-subgroup (rank-1 E1(F_{p^k})[N], witnessed by the
+        floor certificate), output no descending kernel, and its single kernel
+        must ascend (codomain on the crater). Any descending output from a
+        floor curve invalidates the instrument.
+    - id: C1b
+      blocking: true
+      description: >-
+        N-free nearby object. For 10 C2 curves and, for each, the smallest
+        prime N' >= 2^10 not dividing f D0: (a) GATE: A1 and the C4 verifier
+        must both refuse the input as not a Problem-B instance, because the
+        precondition (N' divides f exactly once, read off t^2 - 4p) fails; a
+        descending label or a floor certificate issued for it invalidates the
+        instrument. (b) DIAGNOSTIC, not a gate: the cyclic-Sylow test of
+        Lemma 5 is run anyway over F_{p^k'} with k' = ord_{N'}(t/2) and its
+        outcome recorded. Outside the precondition Frobenius need not have a
+        repeated eigenvalue on E[N'], so a cyclic N'-Sylow does not indicate
+        a floor; any such case is recorded as a confirmed observation
+        collision showing the precondition is load-bearing.
+    - id: C2
+      blocking: false
+      description: >-
+        Smooth-conductor class (every prime of f at most 50): draws to the
+        first trace +-t curve must match p^2/((p-1) H) within [1/1.5, 1.5] per
+        cell, showing the sampler and metric are not N-driven. A failure here
+        makes T3 INDETERMINATE (sampler suspect), not FAIL.
+    - id: C3
+      blocking: true
+      description: >-
+        Uniform sampler and filter check: 10^6 draws at the C3 instance;
+        chi-square of j over 1024 equal bins of F_p (excluding j in {0, 1728})
+        with p-value >= 0.001; class-hit count vs 10^6 (p-1) H / p^2 with
+        |z| <= 4; filter false-positive rate reported.
+    - id: C3b
+      blocking: true
+      description: >-
+        Family sampler check per m (strata.C3b): every drawn curve has (0, 0)
+        of exact order m (instrument check). FULL DISTRIBUTION at p = 4093:
+        chi-square goodness of fit of the observed class frequencies against
+        r_m(E) / sum_E r_m(E), bins with expected count below 5 pooled,
+        PASS if p-value >= 0.001. CLASS HIT at 20 bits for m in {3, 5, 7}:
+        count vs 10^6 H r_m(E0)/(2p) (one side, the parameter space has about
+        p points) with |z| <= 4. A chi-square p-value below 1e-6 or |z| > 6
+        falsifies HEUR-5f03b6-X1 and is recorded; S4 is then scored
+        INDETERMINATE.
+    - id: C4
+      blocking: true
+      description: >-
+        Independent verifier. A separate module that imports no solver module
+        (enforced by an import-graph check stored with the run) re-verifies
+        every certificate: #E1(F_p) = p + 1 - t by its own BSGS; the floor
+        certificate by its own scalar multiplication and Lucas count; v = 1
+        j(E1) != j0; kernel generator G has [N]G = O, G != O; codomain
+        recomputed from G with the verifier's own Velu (or, for k = 1,
+        harness/isogeny_class.velu_odd) and equal to the claimed E1 up to
+        F_p-isomorphism; additivity phi(R1 + R2) = phi(R1) + phi(R2) and
+        codomain membership on verifier-chosen points; equality of the
+        solver's challenge-point images with the verifier's; for E-2,
+        psi(phi(R)) = [N] iota(R). Any failure makes the run invalid
+        (invalid_measurement), never a mathematical negative.
+    - id: C5
+      blocking: false
+      description: >-
+        Second discriminant: C5_A1 (A1, D0 = -43) and the D0 = -43 half of S3.
+        Reported separately and pooled; a disagreement between discriminants
+        is recorded as a finding.
+    - id: PLANT
+      blocking: true
+      description: >-
+        Planted basis case, one dedicated instance generated in Stage 0:
+        D0 = -7, p of 32 bits, N = 113 (chi(113) = +1, split), k = 1,
+        t = 2 + N t' with t' = +-sqrt(-7) v (mod N), so that N^3 divides
+        p + 1 - t and the N-Sylow subgroup of E0(F_p) is Z/N^2 x Z/N (Stage 0
+        verifies the shape). The basis routine must return two independent
+        points, and the kernel-line histogram over 200 draws must hit at least
+        N/2 + 1 = 57 distinct lines (uniform choice gives about 94; the naive
+        multiply-down routine gives 1). Also a positive planted signal: every
+        S1/S2 crater start must yield a verified descending isogeny.
+  independent_variables:
+    - k (S1, CAL)
+    - N via alpha (S2, C5_A1, S3)
+    - p bits (S3, S4, C2)
+    - D0 in {-7, -43} (and -3 descriptive)
+    - m in {2, 3, 4, 5, 7} (S4)
+    - arm in {A1, A2, A2s, A3}
+  metrics:
+    primary:
+      - M_mult per A1 instance (measured)
+      - draws to first certified floor curve per A2/A2s/A3 search (measured)
+      - draws to first class hit per search (measured)
+      - certificate verification outcome per certificate (measured)
+    secondary:
+      - I_inv per A1 instance (measured)
+      - horizontal-kernel resamples and basis retries per A1 instance (measured)
+      - E-1 and E-2 evaluation cost (M_mult where instrumented, wall time for library polynomial steps; measured)
+      - strict_hit rate per S3 cell vs predicted 1/v (measured vs derived)
+      - wall seconds and peak_rss_bytes per instance and per run (measured)
+      - filter false-positive rate (measured)
+      - k census histogram (measured)
+    modeled_columns_never_mixed_with_measured:
+      - F_p-ops (schoolbook) = (M_mult) * k^2
+      - F_p-ops (fast) = (M_mult) * k * log2(2k), optimistic
+      - strict-form guessing draws p^2/((p-1)(N - chi(N))), modeled only
+      - twist-trick A3 speedup (r_m(+) + r_m(-))/2, modeled only
+  heuristic_under_test:
+    - HEUR-5f03b6-K
+    - HEUR-5f03b6-X1
+  preregistered_prediction:
+    quantity: >-
+      T1 S1 k-slope; T1b S1 model match; T2 S2 N-slope; T3 S3 formula match;
+      T3b S3 p-slope; T3c S3 partial N-slope; T4 S4 speedup; T5 K-census.
+    formula: >-
+      CALIBRATION (frozen before S1): c1, c2 >= 0 minimise
+      sum_i ((M_i - c1 k_i log2 p_i - c2 N_i)/M_i)^2 over CAL; written to
+      calibration.json whose sha256 enters the S1 manifest before S1 starts.
+      T1: OLS slope of log M_mult on log k over S1 instances in k-cells where
+      c1 k log2 p >= 4 c2 N (at least 3 such cells, else T1 INDETERMINATE);
+      PASS if in [0.8, 1.2]. T1b: every S1 k-cell mean M_mult within
+      [0.5, 2] x (c1 k log2 p_mean + c2 N). T2: OLS slope of log M_mult on
+      log N over S2 with separate intercepts for k = 1, 2; PASS if in
+      [0.8, 1.2]. T3: per S3 cell, R = mean draws / mean of
+      p^2/((p-1) #S2) with #S2 = v (N - chi(N)); PASS if every R in
+      [1/1.5, 1.5]. T3b: per (alpha, D0) series, OLS slope of log
+      (instance mean draws) on log p; PASS if in [0.4, 0.6]. T3c: OLS
+      log D = b0 + b1 log P + b2 log N over S3 instances (D instance mean
+      draws, P exact prediction); PASS if b2 in [-0.1, 0.1]. T4: per S4 cell
+      (p bits, m), S = mean draws(A2s) / mean draws(A3) and S_pred = mean over
+      the cell's instances of rbar_m, where rbar_m = r_m(E0) = phi(m) for
+      m in {3, 5, 7} (cyclic m-part forced by gcd(m, f) = 1, constant on the
+      class), and for m in {2, 4} rbar_m = mean of r_m(E1) over that
+      instance's 30 A2s-found floor curves (A2s hits are uniform over the
+      target classes, so this is the target-set average of Lemma 7, estimated
+      by the independent arm before A3 is scored); PASS if S / S_pred in
+      [0.5, 2]. The recalled 1/Pr[m | #E] is reported beside it. The A3 draw
+      cap equals the A2s cap. T5: count of KC
+      instances with k <= floor(sqrt N) vs sum over instances of
+      sum over d | N-1, d <= floor(sqrt N) of phi(d)/(N-1), PASS if |z| <= 4;
+      mean of k/(N-1) vs mean over instances of
+      sum over d | N-1 of d phi(d)/(N-1)^2, PASS if within 0.03. C2: draws to
+      class hit vs p^2/((p-1) H).
+    source: >-
+      Derived in H-VOLC-5f03b6 (Lemmas 1-7, proof_status derivation) from the
+      setting of KN-LIT-ca35e0 / KN-OPEN-f2f6dc; not tuned to data. The
+      recalled Lenstra/Howe density is a comparison column, not a source.
+  statistics:
+    bootstrap: >-
+      95% percentile CIs, 10000 resamples, seed 20261004; resample instances
+      within cells (and searches within instances for S3, S3k, S4, C2).
+    decision_rule: >-
+      For each test: PASS if the point estimate is inside the support band;
+      FAIL if the point estimate is inside the falsification region AND the
+      95% CI is disjoint from the support band; otherwise INDETERMINATE.
+    falsification_regions: >-
+      T1: below 0.5 or above 1.5. T1b: any cell outside [0.25, 4]. T2: above
+      1.5 (below 0.5 is an ANOMALY requiring instrument audit, not a PASS).
+      T3: any cell outside [0.5, 2]. T3b: outside [0.3, 0.7]. T3c: absolute
+      value above 0.2. T4: any cell outside [0.25, 4]. T5: |z| > 6 or mean
+      off by more than 0.05.
+    censoring: >-
+      A search hitting the scientific draw cap (20 x its predicted mean) is
+      right-censored; its cell mean is the restricted mean (a lower bound). A
+      cell with any censored search is INDETERMINATE for T3 unless the lower
+      bound already exceeds 2 x prediction (then it counts toward FAIL, since a
+      draw cap is a measured bound, not a timeout). Wall-clock watchdog stops
+      are infrastructure censoring and are re-run with identical seeds.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      p up to 2^40 (A1, S2), up to 2^36 for guessing; N from about 23 to
+      about 4e5; k up to 240. Under the mechanical derivation of
+      docs/claims-and-verification.md, runs with p above 2^32 (S2, C5_A1, the
+      36-bit S3 cells) are medium-tier rows; the conclusion is nevertheless
+      capped at toy, a narrower claim than the tier allows, because the
+      instances are hand-structured class-number-one CM toys.
+      No transfer to cryptographic p is asserted. The cost laws are stated
+      with p, N, k explicit so a later record can argue an extrapolation
+      separately.
+    correspondence: null
+  tail_checks:
+    - Largest-k cell (k = 240) must still verify every certificate and satisfy T1b; its M_mult is the Galbraith-slice fixture.
+    - Per S3 cell, the maximum draws among 150 searches vs the geometric tail; P(max > x) = 1 - (1 - exp(-x/mu))^150; flag any cell where the observed maximum has tail probability below 1e-4.
+    - Draws distribution per S3 cell vs geometric by a Kolmogorov-Smirnov test on draws/mu (reported, p-values not a gate).
+    - KC lowest decile of k/(N-1) vs its predicted mass.
+    - Horizontal-kernel rejection rate in A1 vs (1 + chi(N))/(N + 1).
+    - Tonelli-Shanks 2-adic depth at k = 240 reported, to show the square-root cost stays inside the c1 term.
+  replication:
+    seeds:
+      - 20261003
+      - 20261004
+    seed_derivation: see inputs.generator.seeds
+    independent_instances: 480
+    independent_instances_breakdown: >-
+      CAL 36, PLANT 1, S1 100, S2 80, C5_A1 20, SEC_D3 20, S3 100, S3k 10,
+      S4 75, S4_null 5, C2 30, C3b 3 (C3 reuses an S3 instance; the C3b
+      p = 4093 enumeration is not an instance), plus 4000 KC arithmetic-only
+      instances not counted above. Searches: S3 3000, S3k 300, S4 4500,
+      S4_null at most 750 (150 trace-t A2s, 150 twist-side A2s, 150 A3 per
+      applicable m in {3, 5, 7}), C2 900.
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 86400
+    total_cpu_hours: 80
+    maximum_memory_gb: 8
+    maximum_runs: 16
+    maximum_workers: 1
+    note: >-
+      Time, CPU and run counts are advisory estimates
+      (docs/research-budget-policy.md), not caps. maximum_memory_gb is machine
+      protection. Stages may be sharded into separate runs by stratum or
+      p-bit cell with disjoint seeds; sharding never changes seeds or sample
+      counts.
+  runtime_limits:
+    memory_gb: 8
+    per_A1_instance_wall_seconds: 3600
+    per_search_wall_seconds: 7200
+    reason: >-
+      Machine-protection watchdogs. Expiry checkpoints the instance or search
+      as failed_infrastructure (censored), resumable with identical seeds; it
+      is never negative evidence and never exhausts the campaign.
+  stopping_rules:
+    - Stage order is fixed. Stage 0 (generate, verify, KC census, instances.json) -> Stage 1 (CAL, calibration.json frozen) -> Stage 2 (PLANT, S1, S2, C5_A1, SEC_D3, C1, C1b) -> Stage 3 (C3, C3b, then S3, S3k, C2, S4, S4_null) -> Stage 4 (verifier over every certificate; analysis; RESULTS.md).
+    - Stop before Stage 1 if any Stage-0 instance verification fails. Implementation bugs may be fixed and Stage 0 rerun with identical seeds; the failed attempt is retained as a failed run.
+    - Stop before Stage 3 if C1, C1b or PLANT fails; stop before any A2/A3 sweep if C3 fails; do not score S4 if C3b fails.
+    - Fixed sample counts. Do not add instances, searches or k-cells to any cell, and do not redraw an instance because its result looks unusual.
+    - "BREAKTHROUGH FLAG: if any cell's A2 or A3 mean draws is below 1/4 of its prediction, or any A1 instance's M_mult is below c2 N / 4, halt that stratum, preserve artifacts, and escalate for review-adversarial then review-breakthrough at max effort (GOAL-ENDO-001 P3). Nothing is claimed."
+  invalidation_rules:
+    - A timeout, crash, memory exhaustion, watchdog stop or dependency failure is failed_infrastructure and never negative mathematical evidence (AGENTS.md rule 5).
+    - Any certificate failing C4 makes its run invalid_measurement; that run's cells are rerun after the defect is fixed, and the invalid run is retained.
+    - A blocking-control failure makes all affected tests INDETERMINATE with label O-INSTRUMENT-INVALID; it falsifies nothing.
+    - M_mult from a run where any F_{p^k} exponentiation, square root or scalar multiplication bypassed the counter is invalid for T1, T1b, T2.
+    - A run whose manifest lacks the instances.json or calibration.json sha256 it consumed is invalid.
+  success_criterion: >-
+    O-SUPPORT-TOY iff every blocking control (C1, C1b, C3, C3b, C4, PLANT)
+    passes, every certificate verifies, Stage-0 verification is 100 percent,
+    and T1, T1b, T2, T3, T3b, T3c all PASS. T4 and T5 are scored and
+    reported as separate outcomes for HEUR-5f03b6-X1 and HEUR-5f03b6-K; they
+    do not gate O-SUPPORT-TOY. O-SUPPORT-TOY supports H-VOLC-5f03b6 at toy
+    scope only.
+  falsification_criterion:
+    - O-FALSIFIED-K-LAW if T1 or T1b FAILs with a valid instrument.
+    - O-FALSIFIED-N-LAW if T2 FAILs with a valid instrument.
+    - O-FALSIFIED-GUESS-LAW if T3, T3b or T3c FAILs with a valid instrument (including a C2 PASS, so the sampler is not suspect).
+    - HEUR-5f03b6-X1 falsified if T4 FAILs or C3b crosses its falsification threshold (chi-square p below 1e-6 or |z| > 6); HEUR-5f03b6-K falsified if T5 FAILs. These are recorded beside the main label and do not change it.
+    - Otherwise O-INCONCLUSIVE (any INDETERMINATE gating test) or O-INSTRUMENT-INVALID (any blocking-control or certificate failure). Neither is negative evidence.
+  outcome_labels:
+    - O-SUPPORT-TOY
+    - O-FALSIFIED-K-LAW
+    - O-FALSIFIED-N-LAW
+    - O-FALSIFIED-GUESS-LAW
+    - O-INCONCLUSIVE
+    - O-INSTRUMENT-INVALID
+  required_artifacts:
+    - experiments/EXP-VOLC-3fee23/implementation/ (generator, counted F_{p^k} wrapper, A1, A2/A2s, A3, verifier, analysis, run entry point, import-graph check)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/manifest.yaml, command.txt, environment.json, stdout.log, stderr.log, raw-result.json (harness/runner.py conventions; python-flint version and inference block recorded)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/instances.json (Stage 0) and kc_census.json
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/calibration.json (Stage 1)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/raw_counts.jsonl (every A1 instance and every search, not just summaries, including censored and failed ones)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/certificates.jsonl and verifier_log.jsonl
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/controls.json (C1, C1b, C2, C3, C3b, C5, PLANT in the same run family as the signal arms)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/metrics.json (T1-T5 point estimates, CIs, PASS/FAIL/INDETERMINATE, measured and modeled columns separated)
+    - experiments/EXP-VOLC-3fee23/RESULTS.md naming exactly one outcome label and the T4, T5 outcomes
+  certificate_policy: >-
+    No ECDLP solve or relation is claimed, so the harness/runner.py
+    certificate kind is `none` for every run. The Problem-B certificates are
+    experiment-level artifacts verified by the C4 verifier inside the run and
+    summarised in raw-result.json; a C4 failure is handled exactly as a failed
+    certificate (invalid_measurement), per docs/claims-and-verification.md.
+  claim_ceiling:
+    tier: toy
+    forbids:
+      - any asymptotic claim about Problem B
+      - reading the small-k cost law as an answer to KN-OPEN-f2f6dc (b)
+      - any novelty claim for the k-dependence
+      - any ECDLP or attack claim on any curve
+  assigned_to: executor
+  approved_by: coordinator
+  approval_decision: DEC-20261003-d35016
+  approval_basis: >-
+    AGENTS.md standing user authorization of 2026-09-06 ("all is approved.
+    ideas/experiments should be always approved"); protocol completeness
+    checked by the Coordinator in DEC-20261003-d35016.
+  reused_design_from:
+    - ref: EXP-VOLC-97533d
+      what: >-
+        Independent labellers that must agree (here the Lemma-5 certificate
+        and, for v = 1, the j-test), two-directional nulls (C1/C1b and the
+        PLANT/planted crater descent), and a verifier written against the
+        certificate format that shares no code with the producer. That
+        contract is a draft, never approved or run; only its design pattern
+        is reused.
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
