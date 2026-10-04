@@ -383,6 +383,43 @@ def test_anthropic_request_shape(cfg):
     assert "temperature" not in body                 # pinned while thinking is on
 
 
+def test_abliteration_request_shapes(cfg):
+    """OpenAI wire sends reasoning_effort; the Anthropic wire sends the effort name.
+
+    A thinking budget on the Anthropic gateway would be remapped to an
+    undisclosed effort, so the manifest and the body would disagree.
+    """
+    chat = adapter.resolve(cfg, "research-deep", backend="abliteration", env={})
+    url, headers, body = adapter.build_request(
+        cfg, chat, system="ROLE", messages=[adapter.Message("user", "hi")],
+        env={"ABLIT_API_KEY": "k"})
+    assert url == "https://api.abliteration.ai/v1/chat/completions"
+    assert headers["Authorization"] == "Bearer k"
+    assert body["model"] == "abliterated-model-large-v2"
+    assert body["reasoning_effort"] == "high"
+    assert "output_config" not in body
+
+    messages = adapter.resolve(
+        cfg, "review-breakthrough", backend="abliteration-anthropic",
+        independent_session=True, env={})
+    url, headers, body = adapter.build_request(
+        cfg, messages, system="ROLE", messages=[adapter.Message("user", "hi")],
+        env={"ABLIT_API_KEY": "k"})
+    assert url == "https://api.abliteration.ai/v1/messages"
+    assert headers["x-api-key"] == "k"
+    assert body["model"] == "abliterated-model-large-v2"
+    assert body["output_config"] == {"effort": "max"}
+    assert "thinking" not in body
+
+    mechanical = adapter.resolve(
+        cfg, "executor-mechanical", backend="abliteration", env={})
+    _, _, body = adapter.build_request(
+        cfg, mechanical, system=None, messages=[adapter.Message("user", "hi")],
+        env={"ABLIT_API_KEY": "k"})
+    assert body["model"] == "abliterated-model"
+    assert body["reasoning_effort"] == "low"
+
+
 def test_openai_request_shape(cfg):
     resolution = adapter.resolve(cfg, "research-deep", backend="zai", env={})
     url, headers, body = adapter.build_request(
