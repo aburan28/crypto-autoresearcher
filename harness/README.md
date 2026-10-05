@@ -16,6 +16,7 @@ and evidence scope needed to interpret results at the scale actually tested.
 | `runner.py` | Run wrapper: captures commit/env/timing/resources, re-verifies every certificate independently, and writes the immutable run record. Refuses to overwrite a run id. |
 | `run.py` | Experiment entry point (EXP-SEMAEV-001). `python -m harness.run --experiment EXP-SEMAEV-001`. |
 | `bench_rho_throughput.py` | Rho **step throughput** on this machine, CPU and CUDA from one walk definition: three implementations cross-checked limb-for-limb before any rate is reported. Kernel and dual-target field arithmetic in `gpu/` (see `gpu/README.md`). |
+| `endosweep/` | Endomorphism-ring **sweeper for scalar-multiplication decompositions** (constructive side, not an attack): certifies the CM discriminant class of a curve without factoring, enumerates units, small-degree endomorphisms, isogeny-cycle pumps and Frobenius-type generators, LLL-reduces every relation lattice exactly, costs each configuration under one operation-count table and labels what it reproduces from the literature. `python -m harness.endosweep`; explicit toy-curve verification in `endosweep/toyverify.py`; see `endosweep/README.md`. |
 
 Run tests with `python -m pytest -q`. Metrics honesty: the Groebner
 `*_max_degree_proxy` is the reduced-basis max degree, an implementation-bound
