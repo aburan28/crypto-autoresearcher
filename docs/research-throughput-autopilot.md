@@ -90,6 +90,8 @@ Coordinator decision and a CLI post. The existing runner's Stage 0 Cairn
 certificate check uses its own offline log, so it never opens the live node's
 exclusive log a second time. The service sets `CAIRN_BRIDGE_LOG` to its private
 `stage0.jsonl`; older standalone runs may still use `CAIRN_LOG`.
+The service clears inherited demo epoch, log, bootstrap, validator, and legacy
+MCP binary settings so this checkout starts against its own private node.
 
 On macOS, use one clean checkout and one private state directory. Build Cairn
 with the reader embedded (`make ui-build` in the Cairn checkout), then create a

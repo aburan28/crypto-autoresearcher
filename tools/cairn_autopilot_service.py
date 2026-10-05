@@ -93,6 +93,12 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("data", "state", "cache", "config"):
         (xdg / name).mkdir(parents=True, exist_ok=True, mode=0o700)
     env = os.environ.copy()
+    # A demo epoch, another node's log, or a legacy MCP binary inherited from
+    # an operator shell would change this service's identity and log semantics.
+    for name in ("CAIRN_EPOCH_SECONDS", "CAIRN_LOG", "CAIRN_MCP_BIN",
+                 "CAIRN_BOOTSTRAP", "CAIRN_ATTEST_IDENTITY"):
+        env.pop(name, None)
+        os.environ.pop(name, None)
     env.update({
         # OpenCode indexes this large checkout. The machine's system volume
         # can be full while the research SSD still has working space.
