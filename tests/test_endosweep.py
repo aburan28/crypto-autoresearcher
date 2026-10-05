@@ -164,3 +164,42 @@ def test_toy_j0_pump_and_4dim_decomposition():
 def test_toy_cm23_two_isogeny_cycle():
     rec = TV.verify_cm23_cycle(bits=20, seed=5)
     assert all(next(iter(c.values())) for c in rec["checks"])
+
+
+# --- explicit chain endomorphisms --------------------------------------------
+
+def test_kernel_polynomial_velu_matches_point_velu_on_toy_curve():
+    from harness.endosweep import explicit as EX
+    E, N, n, t = TV.j0_curve_with_7_torsion(20, 3)
+    p = E.p
+    K, s = None, 0
+    while K is None:
+        s += 1
+        K = E.mul(N // 7, E.point(100 + s))
+    pts = [K, E.add(K, K), E.add(E.add(K, K), K)]
+    h = [1]
+    for (x, _) in pts:
+        h = EX.pmul(h, [(-x) % p, 1], p)
+    vm, ki = TV.VeluMap(E, K, 7), EX.KernelIsogeny(E, h, 7)
+    assert (vm.codomain.a, vm.codomain.b) == (ki.codomain.a, ki.codomain.b)
+    P = E.point(77)
+    assert vm(P) == ki(P) and ki.codomain.on_curve(ki(P))
+    fdiv = EX.division_polynomials(p, E.a, E.b, 7)
+    assert sum(c * pow(K[0], i, p) for i, c in enumerate(fdiv[7])) % p == 0
+    assert h in EX.rational_kernels(E, 7, fdiv)
+
+
+def test_cryptopro_b_degree_175_chain_endomorphism_is_real():
+    """The sweeper's prediction for GOST CryptoPro-B (D_K = -619, h = 5) built and verified."""
+    from harness.endosweep import explicit as EX
+    T = TG.verify(next(t for t in TG.deployed_targets() if t.name == "GOST CryptoPro-B"))
+    assert T.verified
+    scan = QO.small_discriminant_scan(QO.frobenius_discriminant(T.q, T.trace), 10_000)
+    assert scan.found == -619 and QO.min_nonscalar_degree(-619) == 155
+    res = EX.build_chain_endomorphism(T.p, T.coeffs["a"], T.coeffs["b"], T.n, T.h, -619, (4, 1),
+                                      curve_name=T.name)
+    assert res.found, res.note
+    assert res.steps == [5, 5, 7] and res.degree == 175
+    assert res.glv_check["max_coeff_bits"] <= 128
+    # the cycle through the class group: three distinct neighbours, back to j(E)
+    assert res.walk_js[0] == res.walk_js[-1] and len(set(res.walk_js[:-1])) == 3

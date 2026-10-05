@@ -250,6 +250,30 @@ def deployed_targets() -> list[Target]:
         "weierstrass",
         {"a": -3, "b": _hex("28E9FA9E 9D9F5E34 4D5A9E4B CF6509A7 F39789F5 15AB8F92 DDBCBD41 4D940E93")},
         _hex("FFFFFFFE FFFFFFFF FFFFFFFF FFFFFFFF 7203DF6B 21C6052B 53BBF409 39D54123"), 1))
+    # --- GOST R 34.10-2001 CryptoPro parameter sets (RFC 4357) ----------------
+    T.append(Target(
+        "GOST CryptoPro-A", _hex("FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFD97"),
+        "weierstrass", {"a": -3, "b": 0xA6},
+        _hex("FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF 6C611070 995AD100 45841B09 B761B893"), 1,
+        notes="id-GostR3410-2001-CryptoPro-A-ParamSet"))
+    T.append(Target(
+        "GOST CryptoPro-B", _hex("80000000 00000000 00000000 00000000 00000000 00000000 00000000 00000C99"),
+        "weierstrass",
+        {"a": -3, "b": _hex("3E1AF419 A269A5F8 66A7D3C2 5C3DF80A E9792593 73FF2B18 2F49D4CE 7E1BBC8B")},
+        _hex("80000000 00000000 00000000 00000001 5F700CFF F1A624E5 E497161B CC8A198F"), 1,
+        notes="id-GostR3410-2001-CryptoPro-B-ParamSet"))
+    T.append(Target(
+        "GOST CryptoPro-C", _hex("9B9F605F 5A858107 AB1EC85E 6B41C8AA CF846E86 789051D3 7998F7B9 022D759B"),
+        "weierstrass", {"a": -3, "b": 0x805A},
+        _hex("9B9F605F 5A858107 AB1EC85E 6B41C8AA 582CA351 1EDDFB74 F02F3A65 98980BB9"), 1,
+        notes="id-GostR3410-2001-CryptoPro-C-ParamSet"))
+    T.append(Target(
+        "GOST 2001 test curve", _hex("80000000 00000000 00000000 00000000 00000000 00000000 00000000 00000431"),
+        "weierstrass",
+        {"a": 7, "b": _hex("5FBFF498 AA938CE7 39B8E022 FBAFEF40 563F6E6A 3472FC2A 514C0CE9 DAE23B7E")},
+        _hex("80000000 00000000 00000000 00000001 50FE8A18 92976154 C59CFC19 3ACCF5B3"), 1,
+        cost_model="weierstrass_jacobian_generic_a",
+        notes="id-GostR3410-2001-TestParamSet (a test vector, not a deployed curve)"))
     # --- Curve25519 --------------------------------------------------------
     T.append(Target(
         "Curve25519", 2**255 - 19, "montgomery", {"A": 486662, "B": 1},

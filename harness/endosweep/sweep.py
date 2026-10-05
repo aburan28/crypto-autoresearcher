@@ -38,7 +38,10 @@ SMALL_PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47)
 @dataclass
 class SweepOptions:
     disc_bound: int = 2_000_000       # certify |D_K| > bound by exact scan
-    small_norm_max: int = 64          # single-isogeny GLV candidates up to this degree
+    small_norm_max: int = 64          # single-isogeny GLV candidates at least up to this degree
+    norm_bound_multiple: int = 8      # ... and up to this multiple of the minimum non-scalar degree
+    norm_bound_cap: int = 20_000      # ... capped here (the search is O(sqrt(N/|D|)) per norm N)
+    catalogue_keep: int = 16          # keep the cheapest chains only
     pump_primes: tuple[int, ...] = SMALL_PRIMES
     pump_height_steps: tuple[int, ...] = (-1, 0, 1)   # j around the n^(1/4) target
     max_dim: int = 8
@@ -129,12 +132,30 @@ def _unit_generator(D: int, lam_omega: int, n: int) -> CM.Generator | None:
 
 
 def _isogeny_cost(degree: int) -> float:
-    """One cyclic separable endomorphism of the given degree, as a single Velu map."""
-    try:
-        return CM.isogeny_step_cost(degree) + CM.ISOGENY_CHAIN_OVERHEAD_M
-    except ValueError:
-        # composite even degree: Velu-style, ~4(ell-1) M + overhead (assumption)
-        return 4.0 * (degree - 1) + CM.ISOGENY_CHAIN_OVERHEAD_M
+    """One cyclic separable endomorphism of the given degree, as a CHAIN.
+
+    A primitive element of norm N = prod ell_i^e_i generates an ideal that
+    factors as prod p_i^e_i with one prime ideal per ell_i, so the
+    endomorphism is a chain of e_i cyclic ell_i-isogenies through the
+    neighbouring curves of the ideal class -- the intermediate curves need
+    not be E itself, and the prime ideals need not be principal.  Its cost is
+    therefore the sum of the step costs, not one Velu map of degree N: on a
+    class-number-5 curve with D_K = -619 the element omega of norm 155 = 5 * 31
+    is a 5-isogeny followed by a 31-isogeny.
+    """
+    from sympy import factorint
+    total = 0.0
+    for ell, e in factorint(degree).items():
+        total += e * CM.isogeny_step_cost(ell)
+    return total + CM.ISOGENY_CHAIN_OVERHEAD_M
+
+
+def _chain_label(degree: int) -> str:
+    from sympy import factorint
+    fac = factorint(degree)
+    if len(fac) == 1 and list(fac.values())[0] == 1:
+        return str(degree)
+    return "*".join(f"{ell}^{e}" if e > 1 else str(ell) for ell, e in sorted(fac.items()))
 
 
 def build_catalogue(T: Target, D: int | None, lam_omega: int | None, opts: SweepOptions):
@@ -148,15 +169,27 @@ def build_catalogue(T: Target, D: int | None, lam_omega: int | None, opts: Sweep
             gens["unit"] = u
             cheap.append({"name": u.name, "degree": 1, "height": 1, "cost_M": u.cost_M,
                           "kind": "unit"})
-        # small-norm single endomorphisms
-        for N in range(2, opts.small_norm_max + 1):
+        # single endomorphisms of small norm, priced as isogeny chains.  The
+        # inventory must reach past the minimum non-scalar degree (|D|+1)/4,
+        # otherwise a curve like CryptoPro-B (D_K = -619, minimum degree 155)
+        # shows an empty catalogue; it goes several times further because
+        # the cheapest chain is rarely the lowest degree (a norm that splits
+        # into small primes beats a smaller prime norm).
+        mindeg = QO.min_nonscalar_degree(D)
+        norm_bound = max(opts.small_norm_max, min(opts.norm_bound_multiple * mindeg, opts.norm_bound_cap))
+        found: list[tuple[float, int, QO.RingElement]] = []
+        for N in range(2, norm_bound + 1):
             for el in QO.elements_of_norm(D, N, primitive_only=True):
-                g = CM.Generator(f"endo[{el.a}+{el.b}w] deg {N}", el.eigenvalue(lam_omega, n),
-                                 _isogeny_cost(N), "isogeny", degree=N, height=el.height,
-                                 detail={"a": el.a, "b": el.b})
-                gens[f"iso{N}:{el.a},{el.b}"] = g
-                cheap.append({"name": g.name, "degree": N, "height": el.height,
-                              "cost_M": g.cost_M, "kind": "isogeny", "a": el.a, "b": el.b})
+                found.append((_isogeny_cost(N), N, el))
+        found.sort(key=lambda t: (t[0], t[1]))
+        for cost, N, el in found[:opts.catalogue_keep]:
+            g = CM.Generator(f"endo[{el.a}+{el.b}w] deg {_chain_label(N)}", el.eigenvalue(lam_omega, n),
+                             cost, "isogeny", degree=N, height=el.height,
+                             detail={"a": el.a, "b": el.b, "chain": _chain_label(N)})
+            gens[f"iso{N}:{el.a},{el.b}"] = g
+            cheap.append({"name": g.name, "degree": N, "height": el.height,
+                          "cost_M": g.cost_M, "kind": "isogeny", "a": el.a, "b": el.b,
+                          "chain": _chain_label(N)})
         # isogeny-cycle pumps: for each split prime, the first principal power
         for ell in opts.pump_primes:
             if QO.kronecker_symbol_disc(D, ell) != 1:
@@ -231,7 +264,8 @@ def enumerate_configurations(T: Target, D, lam_omega, gens, pumps, opts: SweepOp
             configs.append((f"GLV-2 [{g.name}]", [one, g], "GLV 2001 (Gallant-Lambert-Vanstone), unit automorphism"))
         elif g.kind == "isogeny":
             configs.append((f"GLV-2 [{g.name}]", [one, g],
-                            "GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds)"))
+                            "GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree "
+                            "isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds)"))
         elif g.kind == "frobenius":
             configs.append((f"2-dim [{g.name}]", [one, g], "GLS 2009 (Galbraith-Lin-Scott) / Galbraith-Scott 2008 G2"))
     # paid pumps: unit x pump boxes and two-pump boxes

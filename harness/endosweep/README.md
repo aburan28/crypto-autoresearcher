@@ -74,12 +74,21 @@ and that is exactly what `sweep.py` enumerates.
 | `targets.py` | the registry.  Fourteen deployed curves (secp256k1, P-256/384/521, brainpoolP256r1, SM2, Curve25519, Ed448, Curve1174, Curve41417, E-521, M-511, BN254 G1, BLS12-381 G1) **verified from their constants alone** (n prime, Hasse interval, a point of order divisible by n killed by h·n), structural G2 entries (ψ acts as `[p]`, `r | Φ₁₂(p)`), a synthetic GLS group over `F_{p²}`, and synthetic prime-order CM curves for fourteen small discriminants of class number 1–7.  An entry whose constants fail verification is skipped and reported, never swept. |
 | `sweep.py` | catalogue → configurations → exact lattice reduction → cost → ranking → Markdown/JSON report. |
 | `toyverify.py` | builds the actual maps on toy curves (a j=0 curve with rational 7-torsion; a curve with CM by the class-number-3 order of `Q(√−23)` from its Hilbert class polynomial) and checks every prediction by evaluating them on points: eigenvalues of ζ₃, of the degree-7 endomorphism `2+ω`, of its powers, of the closed 3-walk of 2-isogenies (degree 8, eigenvalue of `1+ω`), and that the 4-dimensional decomposition `{1, ζ, α^j, ζα^j}` reconstructs `kP` with coefficients inside the Babai bound. |
+| `explicit.py` | **builds a predicted chain endomorphism on a real curve and verifies it on points.** For a primitive element of norm `∏ ℓ^e`: the `ℓ`-division polynomials over `F_p`, their rational factors combined into the kernel polynomials of the rational cyclic subgroups, Vélu in Kohel's kernel-polynomial form (codomain and evaluation by traces in `F_p[T]/(h)`, no kernel point needed), a search over closed walks of the right shape through the isogeny class back to `j(E)`, the isomorphism back to `E`, and acceptance only if the composite acts on a point of prime order `n` as a predicted scalar; then an end-to-end GLV-2 check. `python -m harness.endosweep.explicit --target "GOST CryptoPro-B"` builds the degree `5²·7` endomorphism of that curve in about a second. Odd-prime steps only. |
 
 ## Configurations the sweep enumerates
 
 * `generic` — width-w NAF, one scalar.
 * `GLV-2 [g]` — identity plus one cheap endomorphism: the unit (`D_K ∈ {−3, −4}`),
-  or every primitive element of norm ≤ 64 as a single Vélu map.
+  or a primitive element of small norm. The inventory runs from norm 2 up to
+  eight times the minimum non-scalar degree `(|D_K|+1)/4` (capped at 20 000),
+  and every element is **priced as a chain**: a primitive element of norm
+  `∏ ℓ^e` generates `∏ 𝔭_ℓ^e`, a walk of `e` cyclic `ℓ`-isogenies per prime
+  through the class group that ends back at `E`, so its cost is the sum of the
+  step costs whether or not the individual prime ideals are principal. This is
+  what makes CryptoPro-B (`D_K = −619`, class number 5, minimum degree 155)
+  come out at `4+ω` of degree `5²·7` for about 53 M rather than at `ω` of
+  degree `5·31` or at a prime-norm element as one large Vélu map.
 * `pump-4 [u × cycle]` — `{1, u, α, uα}` with `α` a power of the first principal
   power of a split prime, height tuned to `n^{1/4}`; `pump-6`, `pump-8` boxes
   and two-cycle boxes without a unit.

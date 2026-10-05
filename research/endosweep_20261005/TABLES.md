@@ -12,6 +12,10 @@ Options: discriminant scan bound 2000000, single-isogeny degree <= 64, pump prim
 | NIST P-521 | deployed | 521 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 4753 | 4753 | 1.00x | double-and-add / wNAF (no endomorphism) |
 | brainpoolP256r1 | deployed | 256 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2550 | 2550 | 1.00x | double-and-add / wNAF (no endomorphism) |
 | SM2 | deployed | 256 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2448 | 2448 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| GOST CryptoPro-A | deployed | 256 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2448 | 2448 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| GOST CryptoPro-B | deployed | 256 | -619 | 5 | 155 | GLV-2 [endo[4+1w] deg 5^2*7] | 1681 | 2439 | 1.45x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| GOST CryptoPro-C | deployed | 256 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2448 | 2448 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| GOST 2001 test curve | deployed | 256 | -915 | 8 | 229 | GLV-2 [endo[1+1w] deg 3*7*11] | 1740 | 2540 | 1.46x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
 | Curve25519 | deployed | 253 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2280 | 2280 | 1.00x | double-and-add / wNAF (no endomorphism) |
 | Ed448-Goldilocks | deployed | 446 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 3903 | 3903 | 1.00x | double-and-add / wNAF (no endomorphism) |
 | Curve1174 | deployed | 249 | |D_K| > 2000000 (certified) |  | >= 500000 | generic | 2255 | 2255 | 1.00x | double-and-add / wNAF (no endomorphism) |
@@ -23,20 +27,20 @@ Options: discriminant scan bound 2000000, single-isogeny degree <= 64, pump prim
 | BN254 G2 | structural | 254 | n/a (declared generators) |  |  | frob-4 [zeta_3 automorphism x psi (untwist-Frobenius-twist)^(0..1)] | 1131 | 2177 | 1.92x | Longa-Sica 2012 4-GLV (GLV x GLS) |
 | BLS12-381 G2 | structural | 255 | n/a (declared generators) |  |  | frob-4 [zeta_3 automorphism x psi (untwist-Frobenius-twist)^(0..1)] | 1117 | 2185 | 1.96x | Longa-Sica 2012 4-GLV (GLV x GLS) |
 | synthetic GLS over F_p^2, p~2^127 | synthetic | 254 | n/a (declared generators) |  |  | frob-4 [zeta_3 automorphism (j=0 variant) x psi (GLS twist Frobenius), psi^2=-1^(0..1)] | 1015 | 2297 | 2.26x | Longa-Sica 2012 4-GLV (GLV x GLS) |
-| synthetic CM D=-7, p~2^253 | synthetic | 251 | -7 | 1 | 2 | GLV-2 [endo[0+1w] deg 2] | 1680 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-8, p~2^253 | synthetic | 251 | -8 | 1 | 2 | GLV-2 [endo[0+1w] deg 2] | 1680 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-11, p~2^253 | synthetic | 253 | -11 | 1 | 3 | GLV-2 [endo[0+1w] deg 3] | 1693 | 2522 | 1.49x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-19, p~2^253 | synthetic | 253 | -19 | 1 | 5 | GLV-2 [endo[0+1w] deg 5] | 1709 | 2522 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-43, p~2^253 | synthetic | 251 | -43 | 1 | 11 | GLV-2 [endo[0+1w] deg 11] | 1698 | 2495 | 1.47x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-67, p~2^252 | synthetic | 252 | -67 | 1 | 17 | GLV-2 [endo[1+1w] deg 19] | 1714 | 2513 | 1.47x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-163, p~2^253 | synthetic | 251 | -163 | 1 | 41 | GLV-2 [endo[0+1w] deg 41] | 1758 | 2504 | 1.42x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-15, p~2^253 | synthetic | 251 | -15 | 2 | 4 | GLV-2 [endo[0+1w] deg 4] | 1684 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-20, p~2^253 | synthetic | 252 | -20 | 2 | 5 | GLV-2 [endo[0+1w] deg 5] | 1697 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-23, p~2^254 | synthetic | 252 | -23 | 3 | 6 | GLV-2 [endo[1+1w] deg 8] | 1700 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-24, p~2^253 | synthetic | 252 | -24 | 2 | 6 | GLV-2 [endo[1+1w] deg 7] | 1701 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-31, p~2^253 | synthetic | 251 | -31 | 3 | 8 | GLV-2 [endo[0+1w] deg 8] | 1688 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-47, p~2^253 | synthetic | 251 | -47 | 5 | 12 | GLV-2 [endo[4+1w] deg 32] | 1696 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
-| synthetic CM D=-71, p~2^253 | synthetic | 251 | -71 | 7 | 18 | GLV-2 [endo[0+1w] deg 18] | 1744 | 2504 | 1.44x | GLV 2001 with a degree-N endomorphism (cf. Guillevic-Masson-Thome 2020 for N up to the hundreds) |
+| synthetic CM D=-7, p~2^253 | synthetic | 251 | -7 | 1 | 2 | GLV-2 [endo[0+1w] deg 2] | 1680 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-8, p~2^253 | synthetic | 251 | -8 | 1 | 2 | GLV-2 [endo[0+1w] deg 2] | 1680 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-11, p~2^253 | synthetic | 253 | -11 | 1 | 3 | GLV-2 [endo[0+1w] deg 3] | 1693 | 2522 | 1.49x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-19, p~2^253 | synthetic | 253 | -19 | 1 | 5 | GLV-2 [endo[4+1w] deg 5^2] | 1707 | 2522 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-43, p~2^253 | synthetic | 251 | -43 | 1 | 11 | GLV-2 [endo[0+1w] deg 11] | 1698 | 2495 | 1.47x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-67, p~2^252 | synthetic | 252 | -67 | 1 | 17 | GLV-2 [endo[1+1w] deg 19] | 1714 | 2513 | 1.47x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-163, p~2^253 | synthetic | 251 | -163 | 1 | 41 | GLV-2 [endo[0+1w] deg 41] | 1758 | 2504 | 1.42x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-15, p~2^253 | synthetic | 251 | -15 | 2 | 4 | GLV-2 [endo[0+1w] deg 2^2] | 1684 | 2504 | 1.49x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-20, p~2^253 | synthetic | 252 | -20 | 2 | 5 | GLV-2 [endo[3+1w] deg 2*7] | 1694 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-23, p~2^254 | synthetic | 252 | -23 | 3 | 6 | GLV-2 [endo[5+1w] deg 2^2*3^2] | 1696 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-24, p~2^253 | synthetic | 252 | -24 | 2 | 6 | GLV-2 [endo[0+1w] deg 2*3] | 1697 | 2513 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-31, p~2^253 | synthetic | 251 | -31 | 3 | 8 | GLV-2 [endo[0+1w] deg 2^3] | 1688 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-47, p~2^253 | synthetic | 251 | -47 | 5 | 12 | GLV-2 [endo[0+1w] deg 2^2*3] | 1690 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| synthetic CM D=-71, p~2^253 | synthetic | 251 | -71 | 7 | 18 | GLV-2 [endo[0+1w] deg 2*3^2] | 1692 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
 
 ## 2. Isogeny-cycle pumps against the best pump-free configuration
 
@@ -45,22 +49,24 @@ The pump's price per bit of height is 2*cost(ell-step)/log2(ell) field multiplic
 | target | DBL M | cheapest pump (ell, cycle length, M/bit) | best pump config | dim | coeff bits | pump total M | best pump-free config | total M | pump outcome |
 |---|---|---|---|---|---|---|---|---|---|
 | secp256k1 | 6.0 | (7, 1, 9.7) | pump-4 [zeta_3 x cycle[7^46]] | 4 | 65/64 | 1804 | GLV-2 [zeta_3] | 1463 | loses by 23.3% |
+| GOST CryptoPro-B | 7.0 | (5, 5, 8.3) | pump-4 [endo[4+1w] deg 5^2*7 x cycle[5^55]] | 4 | 65/64 | 1959 | GLV-2 [endo[4+1w] deg 5^2*7] | 1681 | loses by 16.6% |
+| GOST 2001 test curve | 7.4 | (7, 4, 9.7) | pump-4 [endo[1+1w] deg 3*7*11 x cycle[7^44]] | 4 | 66/65 | 2090 | GLV-2 [endo[1+1w] deg 3*7*11] | 1740 | loses by 20.1% |
 | BN254 G1 | 6.0 | (7, 1, 9.7) | pump-4 [zeta_3 x cycle[7^45]] | 4 | 65/64 | 1790 | GLV-2 [zeta_3] | 1443 | loses by 24.1% |
 | BLS12-381 G1 | 6.0 | (7, 1, 9.7) | pump-4 [zeta_3 x cycle[7^45]] | 4 | 65/64 | 1790 | GLV-2 [zeta_3] | 1453 | loses by 23.2% |
 | synthetic CM D=-7, p~2^253 | 7.4 | (2, 1, 8.0) | pump-4 [endo[0+1w] deg 2 x cycle[2^125]] | 4 | 64/63 | 1883 | GLV-2 [endo[0+1w] deg 2] | 1680 | loses by 12.1% |
 | synthetic CM D=-8, p~2^253 | 7.4 | (3, 1, 7.1) | pump-4 [endo[0+1w] deg 2 x cycle[3^79]] | 4 | 64/63 | 1825 | GLV-2 [endo[0+1w] deg 2] | 1680 | loses by 8.6% |
 | synthetic CM D=-11, p~2^253 | 7.4 | (3, 1, 7.1) | pump-4 [endo[0+1w] deg 3 x cycle[3^79]] | 4 | 64/63 | 1829 | GLV-2 [endo[0+1w] deg 3] | 1693 | loses by 8.0% |
-| synthetic CM D=-19, p~2^253 | 7.4 | (5, 1, 8.3) | pump-4 [endo[0+1w] deg 5 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[0+1w] deg 5] | 1709 | loses by 11.9% |
+| synthetic CM D=-19, p~2^253 | 7.4 | (5, 1, 8.3) | pump-4 [endo[0+1w] deg 5 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[4+1w] deg 5^2] | 1707 | loses by 12.0% |
 | synthetic CM D=-43, p~2^253 | 7.4 | (11, 1, 12.5) | pump-4 [endo[0+1w] deg 11 x cycle[11^36]] | 4 | 64/63 | 2196 | GLV-2 [endo[0+1w] deg 11] | 1698 | loses by 29.3% |
 | synthetic CM D=-67, p~2^252 | 7.4 | (17, 1, 16.4) | pump-4 [endo[0+1w] deg 17 x cycle[17^31]] | 4 | 65/64 | 2501 | GLV-2 [endo[1+1w] deg 19] | 1714 | loses by 45.9% |
 | synthetic CM D=-163, p~2^253 | 7.4 | (41, 1, 30.5) | pump-4 [endo[0+1w] deg 41 x cycle[41^23]] | 4 | 65/64 | 3433 | GLV-2 [endo[0+1w] deg 41] | 1758 | loses by 95.3% |
-| synthetic CM D=-15, p~2^253 | 7.4 | (2, 2, 8.0) | pump-4 [endo[0+1w] deg 4 x cycle[2^124]] | 4 | 64/63 | 1886 | GLV-2 [endo[0+1w] deg 4] | 1684 | loses by 12.0% |
-| synthetic CM D=-20, p~2^253 | 7.4 | (3, 2, 7.1) | pump-4 [endo[0+1w] deg 5 x cycle[3^80]] | 4 | 64/63 | 1842 | GLV-2 [endo[0+1w] deg 5] | 1697 | loses by 8.5% |
-| synthetic CM D=-23, p~2^254 | 7.4 | (3, 3, 7.1) | pump-4 [endo[1+1w] deg 8 x cycle[3^78]] | 4 | 64/64 | 1853 | GLV-2 [endo[1+1w] deg 8] | 1700 | loses by 9.0% |
-| synthetic CM D=-24, p~2^253 | 7.4 | (5, 2, 8.3) | pump-4 [endo[1+1w] deg 7 x cycle[5^54]] | 4 | 64/63 | 1921 | GLV-2 [endo[1+1w] deg 7] | 1701 | loses by 12.9% |
-| synthetic CM D=-31, p~2^253 | 7.4 | (2, 3, 8.0) | pump-4 [endo[0+1w] deg 8 x cycle[2^126]] | 4 | 64/63 | 1903 | GLV-2 [endo[0+1w] deg 8] | 1688 | loses by 12.7% |
-| synthetic CM D=-47, p~2^253 | 7.4 | (3, 5, 7.1) | pump-4 [endo[4+1w] deg 32 x cycle[3^80]] | 4 | 64/63 | 1863 | GLV-2 [endo[4+1w] deg 32] | 1696 | loses by 9.8% |
-| synthetic CM D=-71, p~2^253 | 7.4 | (3, 7, 7.1) | pump-4 [endo[0+1w] deg 18 x cycle[3^77]] | 4 | 65/64 | 1960 | GLV-2 [endo[0+1w] deg 18] | 1744 | loses by 12.3% |
+| synthetic CM D=-15, p~2^253 | 7.4 | (2, 2, 8.0) | pump-4 [endo[0+1w] deg 2^2 x cycle[2^124]] | 4 | 64/63 | 1887 | GLV-2 [endo[0+1w] deg 2^2] | 1684 | loses by 12.0% |
+| synthetic CM D=-20, p~2^253 | 7.4 | (3, 2, 7.1) | pump-4 [endo[0+1w] deg 5 x cycle[3^80]] | 4 | 64/63 | 1842 | GLV-2 [endo[3+1w] deg 2*7] | 1694 | loses by 8.7% |
+| synthetic CM D=-23, p~2^254 | 7.4 | (3, 3, 7.1) | pump-4 [endo[0+1w] deg 2*3 x cycle[3^78]] | 4 | 64/64 | 1849 | GLV-2 [endo[5+1w] deg 2^2*3^2] | 1696 | loses by 9.0% |
+| synthetic CM D=-24, p~2^253 | 7.4 | (5, 2, 8.3) | pump-4 [endo[0+1w] deg 2*3 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[0+1w] deg 2*3] | 1697 | loses by 12.7% |
+| synthetic CM D=-31, p~2^253 | 7.4 | (2, 3, 8.0) | pump-4 [endo[0+1w] deg 2^3 x cycle[2^126]] | 4 | 64/63 | 1903 | GLV-2 [endo[0+1w] deg 2^3] | 1688 | loses by 12.7% |
+| synthetic CM D=-47, p~2^253 | 7.4 | (3, 5, 7.1) | pump-4 [endo[0+1w] deg 2^2*3 x cycle[3^80]] | 4 | 64/63 | 1850 | GLV-2 [endo[0+1w] deg 2^2*3] | 1690 | loses by 9.5% |
+| synthetic CM D=-71, p~2^253 | 7.4 | (3, 7, 7.1) | pump-4 [endo[0+1w] deg 2*3^2 x cycle[3^77]] | 4 | 65/64 | 1854 | GLV-2 [endo[0+1w] deg 2*3^2] | 1692 | loses by 9.6% |
 
 ## 3. Frobenius-type (free) generators: dimension versus coefficient size
 
@@ -102,19 +108,21 @@ The pump's price per bit of height is 2*cost(ell-step)/log2(ell) field multiplic
 | target | config | dim | coeff bits | total M | best known config | its M | gap |
 |---|---|---|---|---|---|---|---|
 | secp256k1 | pump-4 [zeta_3 x cycle[7^46]] | 4 | 65/64 | 1804 | GLV-2 [zeta_3] | 1463 | +23.3% |
+| GOST CryptoPro-B | pump-4 [endo[4+1w] deg 5^2*7 x cycle[5^55]] | 4 | 65/64 | 1959 | GLV-2 [endo[4+1w] deg 5^2*7] | 1681 | +16.6% |
+| GOST 2001 test curve | pump-4 [endo[1+1w] deg 3*7*11 x cycle[7^44]] | 4 | 66/65 | 2090 | GLV-2 [endo[1+1w] deg 3*7*11] | 1740 | +20.1% |
 | BN254 G1 | pump-4 [zeta_3 x cycle[7^45]] | 4 | 65/64 | 1790 | GLV-2 [zeta_3] | 1443 | +24.1% |
 | BLS12-381 G1 | pump-4 [zeta_3 x cycle[7^45]] | 4 | 65/64 | 1790 | GLV-2 [zeta_3] | 1453 | +23.2% |
 | synthetic CM D=-7, p~2^253 | pump-4 [endo[0+1w] deg 2 x cycle[2^125]] | 4 | 64/63 | 1883 | GLV-2 [endo[0+1w] deg 2] | 1680 | +12.1% |
 | synthetic CM D=-8, p~2^253 | pump-4 [endo[0+1w] deg 2 x cycle[3^79]] | 4 | 64/63 | 1825 | GLV-2 [endo[0+1w] deg 2] | 1680 | +8.6% |
 | synthetic CM D=-11, p~2^253 | pump-4 [endo[0+1w] deg 3 x cycle[3^79]] | 4 | 64/63 | 1829 | GLV-2 [endo[0+1w] deg 3] | 1693 | +8.0% |
-| synthetic CM D=-19, p~2^253 | pump-4 [endo[0+1w] deg 5 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[0+1w] deg 5] | 1709 | +11.9% |
+| synthetic CM D=-19, p~2^253 | pump-4 [endo[0+1w] deg 5 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[4+1w] deg 5^2] | 1707 | +12.0% |
 | synthetic CM D=-43, p~2^253 | pump-4 [endo[0+1w] deg 11 x cycle[11^36]] | 4 | 64/63 | 2196 | GLV-2 [endo[0+1w] deg 11] | 1698 | +29.3% |
 | synthetic CM D=-67, p~2^252 | pump-4 [endo[0+1w] deg 17 x cycle[17^31]] | 4 | 65/64 | 2501 | GLV-2 [endo[1+1w] deg 19] | 1714 | +45.9% |
 | synthetic CM D=-163, p~2^253 | pump-4 [endo[0+1w] deg 41 x cycle[41^23]] | 4 | 65/64 | 3433 | GLV-2 [endo[0+1w] deg 41] | 1758 | +95.3% |
-| synthetic CM D=-15, p~2^253 | pump-4 [endo[0+1w] deg 4 x cycle[2^124]] | 4 | 64/63 | 1886 | GLV-2 [endo[0+1w] deg 4] | 1684 | +12.0% |
-| synthetic CM D=-20, p~2^253 | pump-4 [endo[0+1w] deg 5 x cycle[3^80]] | 4 | 64/63 | 1842 | GLV-2 [endo[0+1w] deg 5] | 1697 | +8.5% |
-| synthetic CM D=-23, p~2^254 | pump-4 [endo[1+1w] deg 8 x cycle[3^78]] | 4 | 64/64 | 1853 | GLV-2 [endo[1+1w] deg 8] | 1700 | +9.0% |
-| synthetic CM D=-24, p~2^253 | pump-4 [endo[1+1w] deg 7 x cycle[5^54]] | 4 | 64/63 | 1921 | GLV-2 [endo[1+1w] deg 7] | 1701 | +12.9% |
-| synthetic CM D=-31, p~2^253 | pump-4 [endo[0+1w] deg 8 x cycle[2^126]] | 4 | 64/63 | 1903 | GLV-2 [endo[0+1w] deg 8] | 1688 | +12.7% |
-| synthetic CM D=-47, p~2^253 | pump-4 [endo[4+1w] deg 32 x cycle[3^80]] | 4 | 64/63 | 1863 | GLV-2 [endo[4+1w] deg 32] | 1696 | +9.8% |
-| synthetic CM D=-71, p~2^253 | pump-4 [endo[0+1w] deg 18 x cycle[3^77]] | 4 | 65/64 | 1960 | GLV-2 [endo[0+1w] deg 18] | 1744 | +12.3% |
+| synthetic CM D=-15, p~2^253 | pump-4 [endo[0+1w] deg 2^2 x cycle[2^124]] | 4 | 64/63 | 1887 | GLV-2 [endo[0+1w] deg 2^2] | 1684 | +12.0% |
+| synthetic CM D=-20, p~2^253 | pump-4 [endo[0+1w] deg 5 x cycle[3^80]] | 4 | 64/63 | 1842 | GLV-2 [endo[3+1w] deg 2*7] | 1694 | +8.7% |
+| synthetic CM D=-23, p~2^254 | pump-4 [endo[0+1w] deg 2*3 x cycle[3^78]] | 4 | 64/64 | 1849 | GLV-2 [endo[5+1w] deg 2^2*3^2] | 1696 | +9.0% |
+| synthetic CM D=-24, p~2^253 | pump-4 [endo[0+1w] deg 2*3 x cycle[5^54]] | 4 | 65/63 | 1913 | GLV-2 [endo[0+1w] deg 2*3] | 1697 | +12.7% |
+| synthetic CM D=-31, p~2^253 | pump-4 [endo[0+1w] deg 2^3 x cycle[2^126]] | 4 | 64/63 | 1903 | GLV-2 [endo[0+1w] deg 2^3] | 1688 | +12.7% |
+| synthetic CM D=-47, p~2^253 | pump-4 [endo[0+1w] deg 2^2*3 x cycle[3^80]] | 4 | 64/63 | 1850 | GLV-2 [endo[0+1w] deg 2^2*3] | 1690 | +9.5% |
+| synthetic CM D=-71, p~2^253 | pump-4 [endo[0+1w] deg 2*3^2 x cycle[3^77]] | 4 | 65/64 | 1854 | GLV-2 [endo[0+1w] deg 2*3^2] | 1692 | +9.6% |
