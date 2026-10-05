@@ -606,6 +606,59 @@ def load_yaml(path: str, ctx: Ctx):
         return None
 
 
+EXTERNAL_VERIFICATION_VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
+EXTERNAL_VERIFICATION_REQUIRED = ("network", "objective_id", "claim_id", "verdict", "node")
+
+
+def check_external_verification(path: str, body: dict, ctx: Ctx) -> None:
+    """An `external_verification:` block is a receipt from a network verifier
+    (docs/cairn-integration-plan.md section 7), and the one rule that makes it
+    safe to carry is invariant (b): a verdict that does not settle --
+    `unavailable`, `invalid_spec` -- says nothing about the artifact, so it may
+    back no direction and no proof. Collapsing "the node could not check" into
+    "the check failed" is the mistake cairn's own `Unavailable` exists to
+    refuse, and this check keeps the ledger from making it on the way in."""
+    blocks = body.get("external_verification")
+    if blocks is None:
+        return
+    if not isinstance(blocks, list):
+        ctx.err(path, "external_verification must be a list of receipt blocks")
+        return
+    refs = set()
+    for field in ("proof_refs", "certificate_refs"):
+        value = body.get(field)
+        if isinstance(value, list):
+            refs.update(str(item) for item in value)
+    for index, block in enumerate(blocks):
+        label = f"external_verification[{index}]"
+        if not isinstance(block, dict):
+            ctx.err(path, f"{label} must be a mapping")
+            continue
+        for field in EXTERNAL_VERIFICATION_REQUIRED:
+            if not block.get(field):
+                ctx.err(path, f"{label} missing '{field}'")
+        verdict = block.get("verdict")
+        if verdict not in EXTERNAL_VERIFICATION_VERDICTS:
+            ctx.err(path, f"{label} verdict must be one of "
+                          f"{'|'.join(EXTERNAL_VERIFICATION_VERDICTS)}")
+            continue
+        if "settled" in block and not isinstance(block["settled"], bool):
+            ctx.err(path, f"{label} settled must be true or false")
+        claim_id = str(block.get("claim_id") or "")
+        if verdict != "accept":
+            if claim_id and claim_id in refs:
+                ctx.err(path, f"{label} verdict '{verdict}' is cited in proof_refs or "
+                              f"certificate_refs; only an accepted claim backs a proof")
+            if block.get("backs_direction") is True:
+                ctx.err(path, f"{label} verdict '{verdict}' may not back a direction")
+        if verdict in ("unavailable", "invalid_spec") and body.get("proof_status") == "certificate" \
+                and not any(isinstance(other, dict) and other.get("verdict") == "accept"
+                            for other in blocks):
+            ctx.err(path, "proof_status 'certificate' with no accepted external_verification "
+                          "and a block that could not be checked: the receipt backs nothing; "
+                          "cite the local certificate or wait for a settling verdict")
+
+
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     supersession = ctx.schema_supersession(path)
     if supersession and supersession.get("redirect_id"):
@@ -657,6 +710,8 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         check_prior_art(path, body, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
+    if rec_type == "evidence":
+        check_external_verification(path, body, ctx)
     if rec_type == "handoff":
         check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
