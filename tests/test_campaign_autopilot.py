@@ -3,10 +3,62 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+import signal
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 from orchestration.campaign import autopilot
+
+
+def test_service_stop_reaps_an_active_worker(tmp_path: Path) -> None:
+    """A launchd stop must not leave a worker holding the Cairn node log."""
+    pidfile = tmp_path / "worker.pid"
+    wrapper = """
+import signal, sys
+sys.path.insert(0, sys.argv[1])
+from orchestration.campaign.autopilot import _run_worker
+signal.signal(signal.SIGTERM, lambda _signum, _frame: sys.exit(0))
+child = "import os,sys,time; open(sys.argv[1], 'w').write(str(os.getpid())); time.sleep(60)"
+_run_worker([sys.executable, '-c', child, sys.argv[2]], timeout=120)
+"""
+    parent = subprocess.Popen(
+        [sys.executable, "-c", wrapper, str(Path(__file__).resolve().parents[1]),
+         str(pidfile)])
+    child_pid: int | None = None
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and child_pid is None:
+            if pidfile.exists():
+                child_pid = int(pidfile.read_text(encoding="utf-8"))
+            elif parent.poll() is not None:
+                raise AssertionError(f"worker wrapper exited {parent.returncode}")
+            else:
+                time.sleep(0.05)
+        assert child_pid is not None, "worker did not start"
+
+        os.kill(parent.pid, signal.SIGTERM)
+        assert parent.wait(timeout=15) == 0
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child_pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError(f"worker {child_pid} survived supervisor stop")
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+            parent.wait()
+        if child_pid is not None:
+            try:
+                os.killpg(child_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def _write(path: Path, content: str) -> None:

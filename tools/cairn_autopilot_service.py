@@ -16,6 +16,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -47,6 +48,21 @@ def wait_for_mcp(process: subprocess.Popen, url: str, seconds: int = 90) -> None
             last = str(exc)
         time.sleep(1)
     raise RuntimeError(f"OpenCode/Cairn MCP did not become ready: {last}")
+
+
+@contextmanager
+def stop_on_sigterm():
+    """Allow the child cleanup blocks to run when launchd stops the service."""
+    previous = signal.getsignal(signal.SIGTERM)
+
+    def stop(signum, _frame):
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, stop)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -121,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
     # Keep the adapter and its child process on the same backend endpoint.
     os.environ.update(env)
     url = f"http://127.0.0.1:{args.opencode_port}"
-    with (state_dir / "opencode.log").open("a", encoding="utf-8") as log:
+    with stop_on_sigterm(), (state_dir / "opencode.log").open("a", encoding="utf-8") as log:
         process = subprocess.Popen(
             ["opencode", "serve", "--hostname", "127.0.0.1", "--port",
              str(args.opencode_port)], cwd=repo, env=env,
@@ -144,13 +160,18 @@ def main(argv: list[str] | None = None) -> int:
                       attach=url, sleeper=sleep_or_fail)
             return 0
         finally:
-            if process.poll() is None:
+            try:
                 os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
                 try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
-                    process.wait()
+                except ProcessLookupError:
+                    pass
+                process.wait()
 
 
 if __name__ == "__main__":

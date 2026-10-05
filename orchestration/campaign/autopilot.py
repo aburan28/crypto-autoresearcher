@@ -236,7 +236,7 @@ def _has_error_events(path: Path) -> bool:
 
 
 def _run_worker(command: list[str], **kwargs) -> subprocess.CompletedProcess:
-    """Kill the whole CLI process group when a worker watchdog expires."""
+    """Keep an interrupted CLI from outliving the supervisor's checkpoint."""
     timeout = kwargs.pop("timeout")
     kwargs.pop("check", None)
     process = subprocess.Popen(command, start_new_session=True, **kwargs)
@@ -249,6 +249,23 @@ def _run_worker(command: list[str], **kwargs) -> subprocess.CompletedProcess:
             pass
         process.wait()
         code = 124
+    except BaseException:
+        # A service stop can interrupt wait() after the CLI has already made a
+        # tool call. Let the next supervisor reconcile its running checkpoint,
+        # but first release this worker and any child holding the node lock.
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        raise
     return subprocess.CompletedProcess(command, code)
 
 
