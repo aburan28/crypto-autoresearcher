@@ -321,6 +321,25 @@ evidence:
                                          # "Refutation artifacts")
   proof_refs: []                         # counterexample certificates / derivation-note
                                          # paths backing proof_status
+  external_verification: []              # optional; receipts from a network verifier
+                                         # (docs/cairn-integration-plan.md section 7), one
+                                         # block per verdict, immutable: a later verdict is a
+                                         # second block, never an edit. Rendered by
+                                         # `tools/exp_to_objective.py record`.
+                                         # - network: cairn
+                                         #   objective_id: sha256:...
+                                         #   claim_id: sha256:...
+                                         #   verdict: accept | reject | unavailable | invalid_spec
+                                         #   checker_sha256: ...     # certificate objectives
+                                         #   node: http://host:port  # where the verdict was read
+                                         #   log_head: sha256:...    # that node's GET /chain head
+                                         #   settled: false
+                                         #   experiment_id: EXP-...
+                                         #   run_id: RUN-...
+                                         # A verdict that does not settle (unavailable,
+                                         # invalid_spec) backs no direction and may not be
+                                         # cited in proof_refs or certificate_refs;
+                                         # tools/validate_ledger.py refuses the record.
   observations: []
   inference: null
   boundaries: []
