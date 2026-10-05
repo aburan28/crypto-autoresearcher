@@ -101,6 +101,49 @@ def main() -> int:
         out.append(f"| {r['name']} | {nb['label']} | {nb['dim']} | {nb['coeff_bits_bound']}/{nb['coeff_bits_empirical']} | "
                    f"{nb['cost_M']:.0f} | {kb['label']} | {kb['cost_M']:.0f} | {gap:+.1f}% |")
     out.append("")
+
+    # ---- Table 5: cross-family comparison in one unit --------------------
+    out.append("## 5. Cross-family comparison at ~128-bit security, in 64-bit word multiplications\n")
+    out.append("Each target's best configuration, converted from its own base-field multiplication to 64-bit word "
+               "multiplications with SCHOOLBOOK scaling (a k-word field multiplication = k^2 word multiplications): "
+               "256-bit fields x16, 128-bit fields x4, F_{p^2} over a 64-bit p x3 (Karatsuba: 3 word multiplications per "
+               "F_{p^2} multiplication). FourQ and the synthetic GLS group are already expressed in F_p (127-bit) "
+               "multiplications, so x4. This is an ASSUMPTION about field arithmetic cost, stated so it can be replaced; "
+               "the genus-2 rows additionally rest on the assumed Jacobian counts of `genus2_projective_assumed` "
+               "(the `genus2_affine_cantor_counted` rows are an upper bound from unoptimised affine Cantor arithmetic).\n")
+    out.append("| target | family | field | best config | M in own unit | weight | 64-bit word mults | relative to P-256 generic |")
+    out.append("|---|---|---|---|---|---|---|---|")
+
+    def weight(r):
+        name = r["name"]
+        if "F_p^2 with GLS" in name and "genus-2" in name:
+            return 3.0, "F_{p^2}, 64-bit p"
+        if "FourQ" in name or "synthetic GLS" in name:
+            return 4.0, "F_p 127-bit units (F_{p^2} ops counted as 3M/2S)"
+        if "genus-2" in name:
+            return 4.0, "F_p 128-bit"
+        if "G2" in name:
+            return 16.0 * 3.0, "F_{p^2}, 254-381-bit p (x3 per F_{p^2} mult)"
+        if r["q_bits"] >= 240:
+            return 16.0 if r["q_bits"] <= 260 else (36.0 if r["q_bits"] <= 400 else 81.0), f"F_p {r['q_bits']}-bit"
+        return 4.0, f"F_p {r['q_bits']}-bit"
+
+    base = next((r for r in results if r["name"] == "NIST P-256"), None)
+    base_words = base["configs"][0]["cost_M"] * 16.0 if base else None
+    wanted = ("NIST P-256", "secp256k1", "GOST CryptoPro-B", "BLS12-381 G1", "BLS12-381 G2", "Curve25519",
+              "synthetic GLS", "FourQ", "synthetic genus-2")
+    for r in results:
+        if not any(r["name"].startswith(w) or w in r["name"] for w in wanted):
+            continue
+        if "genus-2" in r["name"] and "affine_cantor" in r["name"]:
+            continue
+        w, fld = weight(r)
+        best = r["configs"][0]
+        words = best["cost_M"] * w
+        rel = f"{words / base_words:.2f}x" if base_words else ""
+        out.append(f"| {r['name'][:60]} | {r['family']} | {fld} | {best['label'][:50]} | {best['cost_M']:.0f} | x{w:g} | "
+                   f"{words:.0f} | {rel} |")
+    out.append("")
     sys.stdout.write("\n".join(out))
     return 0
 

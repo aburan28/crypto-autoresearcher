@@ -431,8 +431,16 @@ def synthetic_cm_targets(discs=(-7, -8, -11, -19, -43, -67, -163, -15, -20, -23,
     return T
 
 
-def all_targets(*, include_synthetic: bool = True) -> list[Target]:
+def all_targets(*, include_synthetic: bool = True, include_fourq: bool = True,
+                include_genus2: bool = True) -> list[Target]:
     T = deployed_targets() + structural_targets()
     if include_synthetic:
         T += synthetic_gls_targets() + synthetic_cm_targets()
-    return [verify(t) for t in T]
+    out = [verify(t) for t in T]
+    if include_fourq:
+        from .fourq import fourq_target          # verifies the explicit maps itself
+        out.append(fourq_target()[0])
+    if include_genus2 and include_synthetic:
+        from .genus2 import synthetic_genus2_targets
+        out += [verify(t) for t in synthetic_genus2_targets()]
+    return out
