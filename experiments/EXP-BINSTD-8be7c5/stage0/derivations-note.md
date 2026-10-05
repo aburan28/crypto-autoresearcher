@@ -1,0 +1,1 @@
+Stage-0 freeze for EXP-BINSTD-8be7c5. Band 1/2 frozen before any timing. n-1 and chained S_3 attempt launchers were probed; empty candidate lists mean O-IMPEDIMENT at Stages 1-2 (infrastructure). Encoder pin is encode_s3 (encoding, not an attempt). Dual combinadic ranks and dimVV twins recorded. No Magma/Sage/AUXIN/Bedrock. No ECDLP solve.

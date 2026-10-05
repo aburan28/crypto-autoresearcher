@@ -462,6 +462,45 @@ def test_a_correction_only_record_is_still_reachable(tiny_repo):
     assert index.records["EV-ONLY-001"].path.startswith("ledger/corrections/")
 
 
+def test_record_corrections_require_explicit_targets_and_preserve_source(tiny_repo, tmp_path):
+    corrections = tiny_repo / "ledger" / "corrections"
+    corrections.mkdir(parents=True)
+    original = (tiny_repo / "knowledge/findings/KN-FIND-001.md").read_bytes()
+    records = [
+        {"id": "CORR-20260930-111111", "recorded_at": "2026-09-30",
+         "record_id": "KN-FIND-001", "summary": "Conditional scope only",
+         "corrected_value": "The original model does not exclude the other model."},
+        {"id": "CORR-20260928-222222", "recorded_at": "2026-09-28",
+         "record_id": "EV-ECDLP-001", "also_affects": ["KN-FIND-001"],
+         "field": "evidence strength", "corrected_value": "Preliminary."},
+        {"id": "CORR-20260930-333333", "recorded_at": "2026-09-30",
+         "record_id": "KN-OPEN-001", "reason": "Mentions KN-FIND-001 only."},
+        {"id": "CORR-20260930-444444", "record_id": "KN-OPEN-001",
+         "also_affects": "KN-FIND-001", "reason": "Malformed target list."},
+    ]
+    for record in records:
+        (corrections / (record["id"] + ".yaml")).write_text(
+            yaml.safe_dump({"correction": record}))
+    (corrections / "CORR-20260930-555555.yaml").write_text(
+        "correction:\n  id: CORR-20260930-555555\n"
+        "  record_id: KN-FIND-001\n  corrected_value: [broken\n")
+    index = ResearchIndex(tiny_repo).build()
+    live = payloads.record_payload(index, "KN-FIND-001")
+    assert [c["id"] for c in live["corrections"]] == [
+        "CORR-20260930-111111", "CORR-20260928-222222"]
+    assert live["corrections"][0]["summary"] == "Conditional scope only"
+    assert live["corrections"][1]["corrected_value"] == "Preliminary."
+    assert live["raw"].encode() == original
+    assert live["body"]["proof_status"] == "derivation"
+    assert payloads.record_payload(index, "KN-FIND-bare01")["corrections"] == []
+    # GitHub Pages must carry the same correction notice as the live reader.
+    out = tmp_path / "corrected-site"
+    ui_build.build(tiny_repo, out, verbose=False)
+    static = _json(out / "data/records/KN-FIND-001.json")
+    assert static["corrections"] == live["corrections"]
+    assert (tiny_repo / "knowledge/findings/KN-FIND-001.md").read_bytes() == original
+
+
 def test_a_gitkeep_placeholder_is_not_a_run(tiny_repo):
     """`runs/.gitkeep` is how "no runs yet" is committed, not a run."""
     (tiny_repo / "experiments" / "EXP-ECDLP-001" / "runs" / ".gitkeep").write_text("")
