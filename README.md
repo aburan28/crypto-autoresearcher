@@ -67,6 +67,7 @@ evals/suites/                          Eval tasks: verifiable answers and trap c
 docs/measuring-the-harness.md          How harness effectiveness is measured, and what it misses
 docs/inventor-protocol.md              Object-first ideation, closure, and proof-architecture search
 docs/inference-backends.md             Backend/runtime setup and resolution semantics
+docs/batch-inference.md                Message Batches: delivery routing, registry, escalation
 docs/task-lifecycle.md                 End-to-end research state machine
 docs/evidence-and-reproducibility.md   Evidence hierarchy and reproducibility rules
 docs/target-result-profile.md          Target result profile: exemplar-anchored direction criteria

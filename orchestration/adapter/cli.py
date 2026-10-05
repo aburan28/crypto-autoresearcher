@@ -6,6 +6,8 @@
     python -m orchestration.adapter doctor   --probe
     python -m orchestration.adapter models   --backend zai
     python -m orchestration.adapter complete --policy research-deep --prompt-file q.md
+    python -m orchestration.adapter batch submit --role idea-generator --prompt-file q.md
+    python -m orchestration.adapter batch collect msgbatch_...
     python -m orchestration.adapter probe-codex-session --help
 
 `resolve`, `matrix`, `env`, and offline `doctor` touch no network.
@@ -20,6 +22,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import batch_cli as batch_cli_module
 from . import config as config_module
 from . import codex_runtime as codex_runtime_module
 from . import manifest as manifest_module
@@ -356,6 +359,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_codex.add_argument("--timeout-seconds", type=int, default=300,
                          help="positive subprocess timeout (default: 300)")
     p_codex.set_defaults(func=cmd_probe_codex_session)
+
+    batch_cli_module.register(sub, add_selection)
     return parser
 
 
