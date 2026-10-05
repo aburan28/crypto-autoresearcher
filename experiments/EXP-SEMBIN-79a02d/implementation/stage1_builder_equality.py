@@ -28,10 +28,10 @@ TARGETS = {
 }
 
 
-def hash_prefix(polys_first, N):
-    h = hashlib.sha256()
-    for f in polys_first:
-        encoded = sorted(tuple(i for i in range(N) if (m >> i) & 1) for m in f)
+def hash_polys(polys, N, perm, h=None):
+    h = h or hashlib.sha256()
+    for f in polys:
+        encoded = sorted(tuple(sorted(perm[i] for i in range(N) if (m >> i) & 1)) for m in f)
         h.update(len(encoded).to_bytes(8, "big"))
         for mono in encoded:
             h.update(len(mono).to_bytes(4, "big"))
@@ -41,8 +41,13 @@ def hash_prefix(polys_first, N):
 
 
 def search(n, k, target, time_cap):
+    """Search (modulus, variable-index map, z). Index maps: identity (this
+    experiment's order) and reversed (index N-1-i; PolyBoRi's internal order
+    for a degrevlex BooleanPolynomialRing, which g.index() may expose)."""
     L = Layout(n, k)
-    cands = [("conway_candidate", CONWAY[n])]
+    N = L.N
+    maps = {"identity": list(range(N)), "reversed": [N - 1 - i for i in range(N)]}
+    cands = [("conway", CONWAY[n])]
     others = sorted((p for p in range((1 << n) + 1, 1 << (n + 1), 2) if p != CONWAY[n] and is_irreducible(p, n)),
                     key=lambda p: (bin(p).count("1"), p))
     cands += [("irreducible_weight_order", p) for p in others]
@@ -51,27 +56,19 @@ def search(n, k, target, time_cap):
         if time.time() - t0 > time_cap:
             break
         F = GF2n(n, mod)
-        if not is_irreducible(mod, n):
-            continue
         B = 2  # alpha
-        first = [p for p in coordinates(descend_S3_vars(F, L, B), n)]
+        first = coordinates(descend_S3_vars(F, L, B), n)
         assert all(first)
-        h0 = hash_prefix(first, L.N)
+        h0 = {name: hash_polys(first, N, pm) for name, pm in maps.items()}
         tried += 1
         for z in range(1, 1 << n):
             second = [p for p in coordinates(descend_S3_const(F, L, B, z), n) if p]
-            h = h0.copy()
-            for f in second:
-                encoded = sorted(tuple(i for i in range(L.N) if (m >> i) & 1) for m in f)
-                h.update(len(encoded).to_bytes(8, "big"))
-                for mono in encoded:
-                    h.update(len(mono).to_bytes(4, "big"))
-                    for v in mono:
-                        h.update(v.to_bytes(4, "big"))
-            if h.hexdigest() == target:
-                return {"matched": True, "modulus_int": mod, "modulus_label": label,
-                        "modulus_poly": " + ".join(f"X^{i}" for i in range(n, -1, -1) if (mod >> i) & 1),
-                        "z_int": z, "moduli_tried": tried, "seconds": round(time.time() - t0, 1)}
+            for name, pm in maps.items():
+                if hash_polys(second, N, pm, h0[name].copy()).hexdigest() == target:
+                    return {"matched": True, "modulus_int": mod, "modulus_label": label,
+                            "modulus_poly": " + ".join(f"X^{i}" for i in range(n, -1, -1) if (mod >> i) & 1),
+                            "index_map": name, "z_int": z, "moduli_tried": tried,
+                            "seconds": round(time.time() - t0, 1)}
     return {"matched": False, "moduli_tried": tried, "seconds": round(time.time() - t0, 1)}
 
 
@@ -86,8 +83,14 @@ def main():
         if res["matched"]:
             F = GF2n(n, res["modulus_int"]); L = Layout(n, k); B = 2
             polys = build_system(F, L, B, res["z_int"])
-            cell["rebuilt_hash"] = monosets_hash(polys, L.N)
-            cell["hash_equal"] = cell["rebuilt_hash"] == T["hash"]
+            pm = list(range(L.N)) if res["index_map"] == "identity" else [L.N - 1 - i for i in range(L.N)]
+            cell["rebuilt_hash_identity_index"] = monosets_hash(polys, L.N)
+            cell["rebuilt_hash_under_index_map"] = hash_polys(polys, L.N, pm).hexdigest()
+            cell["hash_equal"] = cell["rebuilt_hash_under_index_map"] == T["hash"]
+            cell["equality_statement"] = ("every generator of the DREG builder equals the corresponding generator rebuilt here, "
+                                          "coefficient by coefficient, in the same order, with variable names identical "
+                                          "(u1_j, x1_j, x2_j, x3_j) and DREG integer index = " +
+                                          ("i" if res["index_map"] == "identity" else "N-1-i") + " (sha256 equality of the ordered encoding)")
             cell["n_generators"] = len(polys)
             cell["generator_degrees"] = [poly_deg(f) for f in polys]
             cell["generator_term_counts"] = [len(f) for f in polys]
@@ -97,7 +100,7 @@ def main():
             E = Curve(F, 1, B)
             cell["z_on_curve_x"] = len(E.lift_x(res["z_int"])) > 0
             g = os.path.join(scratch, f"stage1_n{n}.gens"); write_gens(g, polys, L.N)
-            json.dump({"n": n, "k": k, "modulus_int": res["modulus_int"], "z_int": res["z_int"], "B": B},
+            json.dump({"n": n, "k": k, "modulus_int": res["modulus_int"], "z_int": res["z_int"], "B": B, "index_map": res["index_map"]},
                       open(os.path.join(rd, f"anchor_n{n}.json"), "w"))
             if n == 12:
                 a = run_tool(["gf2_armA", "mac", g, 5], 3000); b = run_tool(["gf2_armB", "mac", g, 5], 3000)
