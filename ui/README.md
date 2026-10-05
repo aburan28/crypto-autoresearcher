@@ -435,12 +435,28 @@ global identities and recorded IC/rho timings. See [the cross-repository contrac
 ## Curve catalog, research trails and real comparison receipts
 
 `#/curves` reads `data/curves.json`: two source-reported binary curve records
-(degrees 13 and 19), twelve trait slots, full EC1 identity preimages, per-trait
+(degrees 13 and 19), 63 trait slots (12 core metadata fields plus 51 DiSSECT output fields), full EC1 identity preimages, per-trait
 source links, search and a shareable two-curve comparison. Unknown traits stay
 unknown. Hash checks establish metadata identity, not mathematical certification.
 Integers larger than JavaScript’s exact range are emitted as decimal display
 strings after identity validation, preserving all digits.
 Factor-base and isogeny configurations remain candidate metadata in Compare.
+
+`ui/curves/dissect-traits.json` snapshots all 22 registered DiSSECT trait
+families and their 51 named outputs at upstream commit
+[`8edc3030fb91411a55aa6c07d050507d840c5e55`](https://github.com/crocs-muni/DiSSECT/blob/8edc3030fb91411a55aa6c07d050507d840c5e55/dissect/traits/__init__.py).
+It preserves output types, default parameter lists, descriptions and per-module
+source hashes. Every curve exposes an explicit Unknown slot for each output.
+Use **Filter traits** to search names, families, descriptions and parameters;
+expand **Definition and parameters** for the pinned definition. Definition
+links are separate from result provenance. No DiSSECT tests are run or imported.
+Unknown means no sourced result is loaded; applicability is not established.
+Parameterized fields describe a family of measurements, not a scalar result.
+Future ingestion must retain exact parameter values and measurement provenance;
+it must not fold several parameter combinations into one scalar. Similar labels
+are deliberately not aliased: class-number bounds are not an exact class number,
+extension conductor ratios are not endomorphism-order conductors, and binary
+model coefficients are not short-Weierstrass coefficients.
 
 `ui/curves/catalog.json` allowlists local `curve-capsule/1` JSON files by exact
 file SHA-256. A capsule contains `field`, `curve`, optional `endomorphism`,

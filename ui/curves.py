@@ -53,6 +53,8 @@ def payload(repo: Path):
     if not path.exists():
         return exact_json(result)
     try:
+        registry = json.loads((Path(__file__).parent / 'curves/dissect-traits.json').read_text())
+        result['trait_registry'] = registry
         if path.stat().st_size > 131072:
             raise ValueError('Oversized catalog')
         catalog = json.loads(path.read_text())
@@ -81,6 +83,18 @@ def payload(repo: Path):
                 traits[key] = {'label': label, 'value': value,
                                'status': 'source_reported' if value is not None else 'unknown',
                                'source': source if value is not None else None}
+            # Definitions are not measurement evidence. Parameterized outputs remain
+            # unknown until a separately reviewed, parameter-keyed result reader exists.
+            for family in registry['families']:
+                definition = source_pin(family['source'])
+                for output in family['outputs']:
+                    key = f"dissect.{family['key']}.{output['key']}"
+                    traits[key] = {
+                        'label': f"DiSSECT · {family['key']} · {output['label']}",
+                        'value': None, 'status': 'unknown', 'source': None,
+                        'definition': definition, 'description': family['description'],
+                        'parameters': family['parameters'], 'output_type': output['type'],
+                    }
             row = {**identity, 'field': capsule['field'], 'curve': capsule['curve'],
                    'traits': traits, 'sources': [source], 'capsule': pin}
             if uid in by_uid:

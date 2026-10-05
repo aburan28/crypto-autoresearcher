@@ -18,6 +18,15 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || '../ui/node_modules/
       await page.getByRole('button',{name:'Inspect as first'}).first().click();
       await page.getByRole('button',{name:'Compare as second'}).last().click();
       assert.equal(await page.locator('.comparison-table').count(), 1);
+      assert.equal(await page.locator('.comparison-table tbody tr').count(), 63);
+      await page.getByRole('searchbox', {name:'Filter curve traits'}).fill('volcano');
+      assert.equal(await page.locator('.comparison-table tbody tr').count(), 2);
+      assert.equal(await page.locator('.comparison-table td').filter({hasText:'Unknown'}).count(), 4);
+      await page.locator('.comparison-table summary').first().click();
+      assert.match(await page.locator('.comparison-table').textContent(), /Default parameters/);
+      assert.ok(await page.locator('.comparison-table a[href*="8edc3030fb91411a55aa6c07d050507d840c5e55"]').count() > 0);
+      await page.getByRole('searchbox', {name:'Filter curve traits'}).fill('');
+      assert.equal(await page.locator('.comparison-table tbody tr').count(), 63);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth), false);
       await page.goto(`${base}/#/compare?a=primary-1&b=primary-2`);
       await page.locator('.comparison-table').waitFor();

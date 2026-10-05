@@ -31,12 +31,42 @@ def test_real_curves_have_exact_ids_and_sourced_traits():
     assert len(data['curves']) == 2
     assert {r['field']['degree'] for r in data['curves']} == {13, 19}
     for row in data['curves']:
-        assert len(row['traits']) == 12
+        assert len(row['traits']) == 63
         assert row['traits']['j_invariant']['value'] is None
         for trait in row['traits'].values():
             assert (trait['value'] is None) == (trait['status'] == 'unknown')
             if trait['value'] is not None:
                 assert trait['source']['commit'] in trait['source']['url']
+
+
+def test_dissect_registry_covers_all_pinned_families_without_claiming_results():
+    data = curves.payload(ROOT)
+    registry = data['trait_registry']
+    expected = {
+        'brainpool_overlap': 1, 'class_number': 2, 'cofactor': 2,
+        'conductor': 2, 'discriminant': 3, 'division_polynomials': 2,
+        'embedding': 2, 'hamming_x': 3, 'isogeny_extension': 3,
+        'isogeny_neighbors': 1, 'kn_factorization': 4, 'multiples_x': 4,
+        'pow_distance': 4, 'q_torsion': 1, 'small_prime_order': 2,
+        'square_4p1': 2, 'torsion_extension': 3, 'trace_factorization': 3,
+        'twist_order': 2, 'volcano': 2, 'weierstrass': 2, 'x962_invariant': 1,
+    }
+    assert {f['key']: len(f['outputs']) for f in registry['families']} == expected
+    keys = {f"dissect.{f['key']}.{o['key']}" for f in registry['families'] for o in f['outputs']}
+    assert len(keys) == 51
+    for row in data['curves']:
+        assert {k for k in row['traits'] if k.startswith('dissect.')} == keys
+        for key in keys:
+            trait = row['traits'][key]
+            assert trait['value'] is None and trait['status'] == 'unknown'
+            assert trait['source'] is None  # a definition is not result provenance
+            assert registry['upstream_commit'] in trait['definition']['url']
+        assert row['traits']['dissect.volcano.depth']['parameters'] == {'l': [2, 3, 5, 7, 11, 13, 17, 19]}
+        assert row['traits']['dissect.twist_order.twist_cardinality']['parameters'] == {'deg': [1, 2]}
+        # Similar names do not justify mapping binary model coefficients or
+        # endomorphism-order conductors into unrelated DiSSECT outputs.
+        assert row['traits']['dissect.weierstrass.a']['value'] is None
+        assert row['traits']['dissect.conductor.ratio_sqrt']['value'] is None
 
 
 @pytest.mark.parametrize('change', ['identity', 'path', 'pin', 'source', 'nan'])

@@ -16,7 +16,7 @@ program, solver, experiment dispatch, research-state transition or deployment.
 - Comparison: all nine pre-existing primary archive rows, including their exact
   source references and recorded quantities. No fabricated benchmark pair.
 
-The capsule catalog has twelve trait slots. Missing j-invariant/CM fields are
+The capsule catalog has 63 trait slots (12 core metadata fields plus 51 DiSSECT output fields). Missing j-invariant/CM fields are
 visible unknowns; no algebra is performed to fill them. The two curve records
 are distinct representations, not an assertion of equivalence or security.
 
@@ -47,7 +47,7 @@ source checkout through the authorized GitHub connector.
 
 ## Local validation, 2026-10-05
 
-- 128 Python tests passed, including actual HTTP/static parity. One corpus
+- 129 Python tests passed, including actual HTTP/static parity. One corpus
   calibration test skipped because this checkout contains only selected records.
   One pre-existing telemetry-export test was excluded after its missing
   `orchestration.campaign` dependency prevented execution in the partial checkout.
@@ -57,3 +57,17 @@ source checkout through the authorized GitHub connector.
   rendered without page-level overflow or JavaScript errors; immutable comparison
   source links rendered. Screenshots were inspected locally.
 - Full repository CI and production Pages deployment have not been verified.
+
+## DiSSECT trait coverage follow-up
+
+The registry now covers all 22 families and 51 outputs registered by DiSSECT
+at commit `8edc3030fb91411a55aa6c07d050507d840c5e55`, alongside 12 existing
+metadata fields. Upstream module bytes were checked against Git blob hashes
+at that commit. Each definition preserves default parameters, output names,
+types and its immutable source pin. All DiSSECT measurement slots currently
+remain Unknown; no tests were executed and applicability is unverified.
+The comparison filter searches traits and parameter definitions. Expanded
+source/parameter details remain available offline except external links.
+Regression checks cover full family coverage, unknown/result-provenance
+separation, parameter preservation and 63 rendered rows at mobile/desktop
+widths. Static/local payload parity remains covered by the shared-reader tests.

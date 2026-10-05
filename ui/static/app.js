@@ -1121,6 +1121,7 @@ async function viewCurves(params = new URLSearchParams()) {
     h('select', {class:'field', 'aria-label':`${i ? 'Second' : 'First'} curve`}, h('option', {value:''}, 'Choose a curve…'),
       rows.map(r => h('option', {value:r.curve_uid, selected:params.get(side) === r.curve_uid}, r.curve_id)))));
   const comparison = h('div', {class:'stack', 'aria-live':'polite'});
+  const traitQuery = h('input', {class:'field', type:'search', 'aria-label':'Filter curve traits', placeholder:'Trait name, family, or parameter…'});
   const draw = () => {
     const keys = selected.map(el => el.querySelector('select').value);
     replaceRoute('#/curves', {q:query.value, a:keys[0], b:keys[1]});
@@ -1144,15 +1145,24 @@ async function viewCurves(params = new URLSearchParams()) {
       : 'Exact representation identities; matching traits do not establish curve equivalence or a performance advantage.'),
       available.length ? h('div', {class:'scroll-x', tabindex:'0', role:'region', 'aria-label':'Curve trait comparison'},
         h('table', {class:'comparison-table'}, thead(['Trait', ...available.map(r=>r.curve_id)]),
-          h('tbody', {}, Object.entries(available[0].traits).map(([key, trait]) => h('tr', {},
-            h('th', {scope:'row'}, trait.label), ...available.map(r => h('td', {}, traitValue(r.traits[key]))))))))
+          h('tbody', {}, Object.entries(available[0].traits).filter(([key, trait]) =>
+            JSON.stringify([key, trait.label, trait.description, trait.parameters]).toLowerCase().includes(traitQuery.value.trim().toLowerCase())).map(([key, trait]) => h('tr', {},
+            h('th', {scope:'row'}, trait.label, trait.definition ? h('details', {},
+              h('summary', {}, 'Definition and parameters'),
+              h('p', {}, trait.description),
+              h('p', {class:'mono receipt-hash'}, `Output type: ${trait.output_type}`),
+              h('p', {class:'mono receipt-hash'}, `Default parameters: ${JSON.stringify(trait.parameters)}`),
+              pinnedSource(trait.definition, 'DiSSECT definition ↗')) : null), ...available.map(r => h('td', {}, traitValue(r.traits[key]))))))))
         : h('p', {class:'empty'}, 'Choose a curve to inspect its traits, or two to compare.'));
   };
+  traitQuery.addEventListener('input', draw);
   query.addEventListener('input', draw); selected.forEach(el => el.addEventListener('change', draw));
   fill(root, h('div', {class:'stack'}, snapshotBanner(), h('h1', {}, 'Curve catalog'),
     h('p', {class:'muted'}, data.coverage), ...(data.errors || []).map(e=>h('div',{class:'banner warn',role:'alert'},e)),
     h('label', {}, 'Search ', query), cards, h('h2', {}, 'Compare curve traits'),
     h('div', {class:'comparison-choices'}, selected),
+    h('label', {}, 'Filter traits ', traitQuery),
+    h('p', {class:'muted'}, 'DiSSECT fields show Unknown until sourced results are available. Definitions and default parameters describe tests; they do not establish applicability or prove that a test ran. Parameter-dependent results must be compared with matching parameters.'),
     h('p', {class:'faint'}, 'On narrow screens, scroll the trait table horizontally to see both curves.'), comparison));
   draw();
 }
