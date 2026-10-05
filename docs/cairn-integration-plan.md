@@ -265,6 +265,93 @@ model-distinctness. If it is ever adopted, it gets renamed to what it is —
 weaker and stated beats stronger and false — and it does not by itself restore
 `GOAL_CLOSURE_QUORUM_REQUIRED`.
 
+## 6a. Status, 2026-10-04
+
+What of the stages above is now code, and what is still a proposal. Kept
+here rather than silently edited into the stage text, so the plan still
+reads as the plan and this reads as the ledger of it.
+
+**Built.**
+
+- **Stage 0, both halves.** `tools/cairn_bridge.py` scores every supported
+  witness through cairn's sandboxed checker and refuses a run on a
+  disagreement. It now finds the single `cairn` binary (`CAIRN_BIN`, or
+  `cairn` on `PATH`; its `mcp` subcommand answers) as well as a legacy
+  `cairn-mcp`, which is why every committed cross-check still reads
+  `not_attempted`: the bridge was looking for an executable the current
+  release no longer ships. `harness/certificate_sidecar.py` writes
+  `certificate.json` beside the manifest when a driver asks it to after
+  `write_run`, so a committed run can be claimed on the network. A sidecar
+  rather than a line in `write_run` because `harness/runner.py` is pinned by
+  hash in the locked execution plans; runs that kept only the kind and the
+  verdict cannot be claimed without being re-run.
+- **Stage 1, the seam.** `tools/exp_to_objective.py render` turns a frozen
+  `EXP-*` into an objective file -- a `certificate` objective pinning the
+  Stage 0 checker for a witness-bearing experiment, a `replay` objective
+  pinning a run's command and exact integer metrics otherwise -- with a
+  provenance sidecar binding the specification's hash and the run's commit.
+  Minted, never posted: the `cairn post` line is printed for the Coordinator.
+  `artifact` emits a run's claim in the objective's shape, reading the
+  witness statements committed runs actually keep (the sidecar, a
+  `certificates` list, flat rows under one curve, per-instance blocks; one
+  claim is one witness, `--index` picks it); `record` prints the
+  `external_verification:` block naming the witness; `check` holds an
+  objective to cairn's shape rules without a binary, including the RFC 3339
+  rule a bare `approved_at` date broke on the first real post.
+- **The seam, closed once.** `tools/cairn_seam_demo.py` takes a committed
+  run (`EXP-DTREE-001` / `RUN-DTREE-010` by default) through every step on a
+  node of its own: objective rendered and posted, witness scored and
+  submitted over MCP, attested under bond by the node's validator loop,
+  settled, the receipt read back from `GET /knowledge/{claim}` and held to
+  invariant (b), the log audited. `docs/cairn-runbook.md` is the same walk as
+  a page, with the topology (a session's own `cairn run` through
+  `.mcp.json`; a machine's node as a service with the validator loop) and
+  the three places a real run differs from the demo.
+- **The receipt.** `templates/research-records.md` carries the block on
+  Evidence, and `tools/validate_ledger.py` enforces invariant (b): a verdict
+  that does not settle may be cited in neither `proof_refs` nor
+  `certificate_refs`, may not back a direction, and a `certificate`
+  proof_status with nothing but non-settling receipts is refused.
+- **The tool surface.** `.mcp.json` gains the `cairn` stanza through
+  `tools/cairn_mcp.sh`, which by default launches the session's own complete
+  node (`cairn run`: MCP on stdio, P2P, HTTP, the reader; the session is its
+  supervisor, so what it submits reaches peers while it runs), or a standalone
+  offline `cairn mcp` under `CAIRN_MODE=offline`. Absolute paths are resolved
+  at launch and a signing identity is required, since an unsigned submitter
+  authenticates nothing.
+  `orchestration/roles.yaml` gains `network_submit` (Executor: score and
+  submit) and `network_read` (Validator, Red Team: look a claim and its
+  standing up), both optional capabilities as `send_messages` is, and the
+  Claude Code bindings carry the tools; `tools/check_runtime_bindings.py`
+  holds them to it.
+- **On the network side** (cairn `v1.16`): a node runs the validator loop
+  (`cairn run --attest-identity`, `cairn attest serve`) that re-verifies every
+  claim and stands behind what it finds under bond; `GET /knowledge/{claim}`
+  publishes a claim's standing beside who attested it; `examples/replay-
+  reproduction` is the first worked `replay` objective, the shape a run
+  record takes on the network; `cairn agent` puts a GPU host on the network
+  and runs executor jobs under gVisor or Kata.
+
+**Not built, stated plainly.**
+
+- No `EV-*` yet carries a receipt. The seam has closed end to end on a demo
+  node (above), so what remains is a decision, not code: the Coordinator
+  funds the objective on the program's own node with the program's funder
+  identity, records it in a `DEC-*`, and writes the block into the evidence
+  record that cites the run.
+- A `replay` objective for an existing run is rendered with
+  `replay_wrapper_required: true`: this program's drivers write a run
+  directory and print prose, and cairn's replay verifier needs one JSON
+  object on stdout in a read-only tree. The wrapper (`--replay-wrapper`) is
+  the next piece of harness work.
+- Invariants (c) and (d) -- `seed_derivation` on the objective, one objective
+  per tier with the EV's `claim_tier` matching -- are not enforced;
+  `exp_to_objective.py` records the tier in the statement only.
+- Relations (`replicates`, `refutes`, ...) are not exposed to agents over
+  MCP on cairn's side, so the Validator's "author relations" half of Stage 1
+  is still CLI-only.
+- Stages 2 to 4 are as the sections above say.
+
 ## 7. Work items, by file
 
 **This repository**
