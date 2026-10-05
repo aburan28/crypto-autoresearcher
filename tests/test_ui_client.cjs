@@ -14,7 +14,7 @@ const detail = {
   verified: true, links: { in: [], out: [] }, source_url: 'sources/KN-FIND-test.json',
 };
 const settle = () => new Promise(resolve => setImmediate(resolve));
-function setup(sourceFailure = false) {
+function setup(sourceFailure = false, record = detail) {
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'ui/static/index.html'), 'utf8'), {
     url: 'https://example.test/crypto-autoresearcher/#/record/KN-FIND-test', runScripts: 'outside-only',
   });
@@ -25,7 +25,7 @@ function setup(sourceFailure = false) {
   dom.window.fetch = async url => {
     calls.push(url);
     if (url.includes('/sources/') && fail) { fail = false; return {ok: false, status: 503}; }
-    return {ok: true, json: async () => url.includes('/sources/') ? {raw, path: detail.summary.path} : structuredClone(detail)};
+    return {ok: true, json: async () => url.includes('/sources/') ? {raw, path: record.summary.path} : structuredClone(record)};
   };
   dom.window.eval(app);
   dom.window.ui.state.meta = {mode: 'static', commit: 'abc123', repo_url: 'https://github.com/example/research', built_at: '2026-09-07T00:00:00+00:00'};
@@ -40,6 +40,31 @@ test('entry is complete without downloading source; outline and proof basis are 
   assert.match(dom.window.document.querySelector('.proof-basis').textContent, /not a machine-verified proof/);
   assert.equal(calls.length, 1);
   assert.match(calls[0], /\/crypto-autoresearcher\/data\/records\//);
+  assert.equal(dom.window.document.querySelector('.record-corrections'), null);
+  dom.window.close();
+});
+
+test('corrections precede the original title and safely expose full scope without extra requests', async () => {
+  const record = structuredClone(detail);
+  record.corrections = [{
+    id: 'CORR-20260930-257d1a', date: '2026-09-30',
+    summary: 'Scope corrected: no demonstrated algorithmic speedup.',
+    corrected_value: 'The idealized orbit model is below rho. <script>alert(1)</script>',
+    reason: 'The original numerical result contradicted its interpretation.',
+  }];
+  const {dom, calls} = setup(false, record);
+  await dom.window.ui.viewRecord(record.summary.id);
+  const doc = dom.window.document;
+  const banner = doc.querySelector('.record-corrections');
+  const title = doc.querySelector('.record-title');
+  assert.match(banner.textContent, /Scope corrected: no demonstrated algorithmic speedup/);
+  assert.ok(banner.compareDocumentPosition(title) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.equal(banner.querySelector('a').getAttribute('href'), '#/record/CORR-20260930-257d1a');
+  assert.match(banner.querySelector('details').textContent, /The idealized orbit model is below rho/);
+  assert.equal(banner.querySelector('script'), null);
+  assert.equal(title.textContent, record.summary.title);
+  assert.match(doc.querySelector('.md').textContent, /No general result/);
+  assert.equal(calls.length, 1);
   dom.window.close();
 });
 
