@@ -430,3 +430,65 @@ catalog contract, deployment inputs, evidence boundaries and regression checks.
 
 Compare also includes a pinned, offline curve benchmark archive with exact EC1 /
 global identities and recorded IC/rho timings. See [the cross-repository contract](../docs/curve-identities.md).
+
+
+## Curve catalog, research trails and real comparison receipts
+
+`#/curves` reads `data/curves.json`: two source-reported binary curve records
+(degrees 13 and 19), twelve trait slots, full EC1 identity preimages, per-trait
+source links, search and a shareable two-curve comparison. Unknown traits stay
+unknown. Hash checks establish metadata identity, not mathematical certification.
+Integers larger than JavaScript’s exact range are emitted as decimal display
+strings after identity validation, preserving all digits.
+Factor-base and isogeny configurations remain candidate metadata in Compare.
+
+`ui/curves/catalog.json` allowlists local `curve-capsule/1` JSON files by exact
+file SHA-256. A capsule contains `field`, `curve`, optional `endomorphism`,
+`curve_uid`, and an immutable upstream `source` (repository, commit, path,
+SHA-256). Preserve the source's field/curve hash preimage exactly; do not add
+computed traits to it. Supplementary traits belong outside that identity.
+Each value is labelled source-reported and linked to its source. Identity,
+pin, path or supplementary-trait conflicts fail closed. Browsing fetches no
+upstream data and performs no mathematical computation.
+
+`#/provenance` reads `data/provenance.json`. It follows an experiment and its
+run IDs through at most three inbound citation steps to evidence, decisions,
+corrections and findings. It never follows a shared hypothesis into unrelated
+experiments. Timelines use declared record dates, leaving missing dates unknown.
+Home summarizes visible gaps; experiment records and run tables link to trails.
+`declared_archived` means only that the experiment contract says `archived`.
+Coordination archive receipts, live PR state and worker telemetry are not inferred.
+A citation is not an endorsement; a missing link is a coverage gap, not evidence
+that review or archival never happened. The local server reads its working tree;
+static exports reflect the chosen source tree, including any uncommitted edits.
+
+The Compare selectors now include all nine rows of the existing pinned primary
+benchmark snapshot, registered in `ui/receipts.json` with
+`adapter: benchmark-snapshot/1`. This is a new reader adapter, not a new run.
+Its normalized `comparison-package/1` projection preserves curve/candidate/workload
+IDs, source pins, target counts, verification/status, online and total times,
+operation units, calibration/resource IDs and failures. No arbitrary package
+JSON is accepted as evidence. Add source-specific adapters with validation before
+registering other experiment families. The original Groebner summary reader
+remains supported.
+
+Curve/workload filters and both selected receipts are URL parameters. Missing
+host details, exclusions or incompatible accounting retain a warning and never
+produce a winner. Paired rho timings remain explicitly source-reported, not
+independently archived rho candidates. Both HTTP serving and static generation
+use `ui.payloads` for these new payloads. Source links require network; viewing
+local/static payloads does not.
+
+Focused validation:
+
+```sh
+python3 -m pytest tests/test_ui_research_views.py tests/test_ui_benchmarks.py tests/test_ui_index.py
+cd ui && npm ci && npm test
+```
+
+Optional real-browser layout smoke test: install development-only Playwright
+in `ui/` (`npm install --no-save playwright`, then `npx playwright install chromium`),
+serve the built snapshot or start `python3 -m ui`, and from the repository root run
+`UI_TEST_URL=http://127.0.0.1:8787 node tests/test_ui_research_browser.cjs`.
+`PLAYWRIGHT_MODULE` may name an existing Playwright installation. The test checks
+the new routes at mobile and desktop widths without executing experiments.

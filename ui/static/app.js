@@ -432,6 +432,8 @@ const NAV = [
   { route: '#/goals', label: 'Research', count: (s) => s.meta?.goals },
   { route: '#/experiments', label: 'Experiments', count: (s) => s.meta?.experiments },
   { route: '#/records', label: 'Records', count: (s) => s.records.length || null },
+  { route: '#/curves', label: 'Curves' },
+  { route: '#/provenance', label: 'Provenance' },
   { route: '#/compare', label: 'Compare' },
   { route: '#/integrity', label: 'Integrity', count: (s) => s.overview
       ? Object.entries(s.overview.integrity_totals)
@@ -1093,6 +1095,115 @@ function recentWorkFeed(rows) {
   return h('div', { class: 'activity-panel' }, tabs, list, more);
 }
 
+// Source-backed metadata and record trails share the static/local payload contract.
+function pinnedSource(source, label = source.path) {
+  return h('a', {href: source.url, target: '_blank', rel: 'noopener noreferrer',
+    title: `${source.path} · SHA-256: ${source.sha256}`}, label);
+}
+function traitValue(trait) {
+  if (!trait || trait.value == null) return h('span', {class:'faint'}, 'Unknown');
+  const value = typeof trait.value === 'object' ? JSON.stringify(trait.value) : String(trait.value);
+  return h('div', {class:'stack trait-value'}, h('span', {class:'mono receipt-hash'}, value),
+    h('small', {class:'faint'}, 'Source reported · ', pinnedSource(trait.source, 'source ↗')));
+}
+async function viewCurves(params = new URLSearchParams()) {
+  setCrumb('Curve catalog');
+  const root = fill(view(), loading('Reading pinned curve metadata…'));
+  if (!state.ready) return;
+  let data;
+  try { data = await getJSON('curves.json', {cached: state.meta?.mode === 'static'}); }
+  catch { fill(root, h('div', {class:'banner warn', role:'alert'}, 'Curve metadata could not be loaded. ',
+    h('button', {class:'btn', onclick: () => viewCurves(params)}, 'Retry'))); return; }
+  const rows = data.curves || [];
+  const query = h('input', {class:'field', type:'search', 'aria-label':'Search curves', placeholder:'Curve ID, field, model…', value:params.get('q') || ''});
+  const cards = h('div', {class:'curve-grid', 'aria-live':'polite'});
+  const selected = ['a','b'].map((side, i) => h('label', {class:'comparison-choice'}, `${i ? 'Second' : 'First'} curve`,
+    h('select', {class:'field', 'aria-label':`${i ? 'Second' : 'First'} curve`}, h('option', {value:''}, 'Choose a curve…'),
+      rows.map(r => h('option', {value:r.curve_uid, selected:params.get(side) === r.curve_uid}, r.curve_id)))));
+  const comparison = h('div', {class:'stack', 'aria-live':'polite'});
+  const draw = () => {
+    const keys = selected.map(el => el.querySelector('select').value);
+    replaceRoute('#/curves', {q:query.value, a:keys[0], b:keys[1]});
+    const visible = rows.filter(r => JSON.stringify([r.curve_id,r.curve_uid,r.field,r.curve]).toLowerCase().includes(query.value.trim().toLowerCase()));
+    fill(cards, visible.length ? visible.map(r => h('article', {class:'curve-card stack'},
+      h('h2', {class:'mono receipt-hash'}, r.curve_id),
+      h('p', {class:'mono receipt-hash'}, r.curve_uid),
+      h('p', {}, `Characteristic ${r.field.characteristic} · degree ${r.field.degree} · ${r.field.representation}`),
+      h('p', {}, r.curve.model), h('div', {class:'row'}, ...selected.map((el,i) => h('button', {class:'btn', onclick:() => {
+        el.querySelector('select').value=r.curve_uid; draw();
+      }}, i ? 'Compare as second' : 'Inspect as first'))),
+      h('a', {href:`#/compare?curve=${encodeURIComponent(r.curve_uid)}`}, 'View archived benchmarks →'),
+      h('details', {}, h('summary', {}, 'Exact identity and provenance'),
+        h('pre', {class:'raw'}, JSON.stringify({field:r.field,curve:r.curve}, null, 2)),
+        ...r.sources.map(s => h('p', {}, pinnedSource(s), h('span', {class:'mono receipt-hash'}, ` SHA-256 ${s.sha256}`))))))
+      : h('div', {class:'empty'}, 'No matching curves.'));
+    const [a,b] = keys.map(uid => rows.find(r => r.curve_uid === uid));
+    const available = [a,b].filter(Boolean);
+    fill(comparison, h('p', {class:'muted'}, a && b && a.curve_uid === b.curve_uid
+      ? 'The same exact curve record is selected twice. Choose another record to compare.'
+      : 'Exact representation identities; matching traits do not establish curve equivalence or a performance advantage.'),
+      available.length ? h('div', {class:'scroll-x', tabindex:'0', role:'region', 'aria-label':'Curve trait comparison'},
+        h('table', {class:'comparison-table'}, thead(['Trait', ...available.map(r=>r.curve_id)]),
+          h('tbody', {}, Object.entries(available[0].traits).map(([key, trait]) => h('tr', {},
+            h('th', {scope:'row'}, trait.label), ...available.map(r => h('td', {}, traitValue(r.traits[key]))))))))
+        : h('p', {class:'empty'}, 'Choose a curve to inspect its traits, or two to compare.'));
+  };
+  query.addEventListener('input', draw); selected.forEach(el => el.addEventListener('change', draw));
+  fill(root, h('div', {class:'stack'}, snapshotBanner(), h('h1', {}, 'Curve catalog'),
+    h('p', {class:'muted'}, data.coverage), ...(data.errors || []).map(e=>h('div',{class:'banner warn',role:'alert'},e)),
+    h('label', {}, 'Search ', query), cards, h('h2', {}, 'Compare curve traits'),
+    h('div', {class:'comparison-choices'}, selected),
+    h('p', {class:'faint'}, 'On narrow screens, scroll the trait table horizontally to see both curves.'), comparison));
+  draw();
+}
+const GAP_LABELS = {
+  missing_contract:'Missing contract', no_runs_recorded:'No runs recorded',
+  missing_or_unreadable_manifest:'Missing or unreadable run manifest',
+  incomplete_or_failed_run:'Incomplete or failed run', no_linked_evidence:'No linked evidence',
+  no_linked_decision:'No linked decision',
+};
+function followUpPanel(data) {
+  if (!data) return null;
+  return h('section', {class:'card stack'}, h('h2', {}, 'Research follow-up'),
+    h('p', {}, `${data.needs_follow_up} experiments have visible record gaps.`),
+    h('div', {class:'row'}, Object.entries(data.gap_counts).map(([k,n]) => h('a', {class:'text-link', href:`#/provenance?gap=${encodeURIComponent(k)}`}, `${n} ${GAP_LABELS[k] || k}`))),
+    h('p', {class:'faint'}, 'Coverage gaps are not proof that review or archival did not happen.'),
+    h('a', {href:'#/provenance'}, 'Inspect record timelines →'));
+}
+function provenanceTimeline(row) {
+  return h('div', {class:'stack'}, h('p', {class:'muted'}, `Archive state: ${row.archive_state === 'declared_archived' ? 'declared archived in contract' : 'unknown; no archive receipt inferred'}`),
+    h('ol', {class:'provenance-timeline'}, row.events.map(e=>h('li', {},
+      h('div', {class:'row'}, e.kind === 'RUN' ? h('span',{class:'mono'},e.id) : idLink(e.id), statusTag(e.status)),
+      h('p', {class:'faint'}, `${e.date || 'Date unknown'} · ${e.basis}`),
+      e.via.length ? h('p', {class:'receipt-hash'}, 'References: ', e.via.join(', ')) : null,
+      e.path && sourceUrl(e.path) ? h('a', {href:sourceUrl(e.path),target:'_blank',rel:'noopener noreferrer'}, 'Read source ↗') : null))));
+}
+async function viewProvenance(params = new URLSearchParams()) {
+  setCrumb('Research provenance');
+  const root = fill(view(), loading('Reading research trails…'));
+  if (!state.ready) return;
+  let data;
+  try { data = await getJSON('provenance.json', {cached:state.meta?.mode === 'static'}); }
+  catch { fill(root, h('div', {class:'banner warn',role:'alert'}, 'Research trails could not be loaded. ',
+    h('button', {class:'btn',onclick:()=>viewProvenance(params)}, 'Retry'))); return; }
+  const query = h('input',{class:'field',type:'search','aria-label':'Search experiment trails',value:params.get('q')||params.get('experiment')||''});
+  const gap = h('select',{class:'field','aria-label':'Filter record gaps'},h('option',{value:''},'All experiments'),
+    Object.entries(GAP_LABELS).map(([k,label])=>h('option',{value:k,selected:params.get('gap')===k},label)));
+  const host = h('div',{class:'stack','aria-live':'polite'});
+  let limit=30;
+  const draw=()=>{
+    replaceRoute('#/provenance',{q:query.value,gap:gap.value});
+    const rows=data.experiments.filter(r=>(!gap.value||r.gaps.includes(gap.value))&&`${r.id} ${r.title}`.toLowerCase().includes(query.value.trim().toLowerCase()));
+    fill(host,h('p',{class:'faint'},`${rows.length} matching experiments`),rows.slice(0,limit).map(r=>h('details',{class:'card stack',open:rows.length===1},
+      h('summary',{}, `${r.id} · ${r.declared_status} · ${r.title || 'Untitled experiment'}`),
+      h('p',{}, r.gaps.length ? r.gaps.map(k=>GAP_LABELS[k]).join(' · ') : 'No gaps under these limited checks.'),provenanceTimeline(r))),
+      rows.length>limit ? h('button',{class:'btn',onclick:()=>{limit+=30;draw();}},'Show more') : null);
+  };
+  query.addEventListener('input',()=>{limit=30;draw();});gap.addEventListener('change',()=>{limit=30;draw();});
+  fill(root,h('div',{class:'stack'},snapshotBanner(),h('h1',{},'Research provenance'),h('p',{class:'muted'},data.coverage),
+    h('div',{class:'row'},h('label',{},'Search ',query),h('label',{},'Record gap ',gap)),host));draw();
+}
+
 // Research telemetry is an explicitly supplied aggregate snapshot, never worker logs.
 function progressPanel(p) {
   const body = h('div', { class: 'panel-body stack', style: 'gap:12px' });
@@ -1127,6 +1238,7 @@ function progressPanel(p) {
 
 function comparisonReasons(a, b) {
   if (!a || !b) return ['Choose two archived receipts.'];
+  if (a.adapter === 'benchmark-snapshot/1' || b.adapter === 'benchmark-snapshot/1') return benchmarkComparisonReasons(a, b);
   const reasons = [];
   if (a.id === b.id) reasons.push('Choose two different receipts.');
   if (!a.manifest_sha256 || a.manifest_sha256 !== b.manifest_sha256) reasons.push('Frozen manifests differ or are missing.');
@@ -1142,11 +1254,28 @@ function comparisonReasons(a, b) {
   return reasons;
 }
 
+function benchmarkComparisonReasons(a, b) {
+  const reasons = [];
+  if (a.id === b.id) reasons.push('Choose two different receipts.');
+  if (a.adapter !== b.adapter) reasons.push('Receipt adapters and measurement scopes differ.');
+  for (const [key, label] of [['curve_uid','Curve identities'], ['workload_sha256','Frozen workloads'],
+    ['target_count','Target counts'], ['timing_boundary','Online timing boundaries'],
+    ['operation_unit','Operation units'], ['scope','Measurement scopes'],
+    ['calibration_id','Calibration'], ['resource_envelope_id','Resource envelopes']]) {
+    if (a[key] == null || a[key] === '' || b[key] == null || b[key] === '' || a[key] !== b[key]) reasons.push(`${label} differ or are missing.`);
+  }
+  if (!a.complete || !b.complete || a.verification !== 'recorded_verified' || b.verification !== 'recorded_verified') reasons.push('At least one run is incomplete or lacks recorded verification.');
+  if (a.metrics?.total_wall_seconds == null || b.metrics?.total_wall_seconds == null) reasons.push('Recorded wall time is missing.');
+  if (!a.environment || !b.environment || a.excluded_costs == null || b.excluded_costs == null) reasons.push('Host details or full cost exclusions are unknown; descriptive comparison only.');
+  if (a.fixture || b.fixture) reasons.push('Synthetic fixture — not performance evidence.');
+  return reasons;
+}
+
 function comparisonTable(a, b) {
   const metric = (r, key, fmt = String) => r.metrics?.[key] == null ? '—' : fmt(r.metrics[key]);
   const sources = r => h('div', { class: 'stack', style: 'gap:8px' },
     Object.entries(r.sources || {}).map(([kind, source]) => h('div', {},
-      pathLink(source.path, `${kind} source`),
+      source.url ? pinnedSource(source) : pathLink(source.path, `${kind} source`),
       h('div', { class: 'mono receipt-hash' }, source.sha256))));
   const count = r => Object.entries(r.outcomes || {}).map(([key, value]) => `${value} ${key}`).join(' · ') || 'unknown';
   const attempts = r => r.attempt_status == null ? 'Not supplied' :
@@ -1154,20 +1283,29 @@ function comparisonTable(a, b) {
   const rows = [
     ['Backend / mode', r => `${r.backend?.id || 'unknown'} / ${r.backend?.mode || 'unknown'}`],
     ['Scope', r => r.scope || 'unknown'],
+    ['Global curve ID', r => r.curve_uid ? h('a', {class:'mono receipt-hash',href:`#/curves?a=${encodeURIComponent(r.curve_uid)}`}, r.curve_uid) : 'Not supplied'],
+    ['Candidate', r => r.candidate_id || r.backend?.id || 'Unknown'],
+    ['Frozen workload', r => h('span', {class:'mono receipt-hash'}, r.workload_sha256 || r.manifest_sha256 || 'Unknown')],
+    ['Targets verified / requested', r => r.target_count == null ? 'Not supplied' : `${r.metrics?.targets_verified ?? 'unknown'} / ${r.target_count}`],
+    ['IC online (source reported)', r => metric(r, 'ic_online_ns', v => fmtDuration(v / 1e9))],
+    ['Paired rho online (source reported)', r => metric(r, 'rho_online_ns', v => fmtDuration(v / 1e9))],
+    ['Recorded operations / unit', r => r.metrics?.total_operations == null ? 'Not supplied' : `${r.metrics.total_operations} / ${r.operation_unit || 'unknown'}`],
+    ['Calibration / resource envelope', r => `${r.calibration_id || 'unknown'} / ${r.resource_envelope_id || 'unknown'}`],
     ['Recorded environment', r => r.environment ? `${r.environment.python} · ${r.environment.platform}` : 'Not supplied'],
     ['Harness source digest', r => h('span', { class: 'mono receipt-hash' }, r.environment?.harness_sha256 || 'Not supplied')],
     ['Receipt completeness', r => r.complete ? 'All input results recorded' : 'Incomplete'],
     ['Verification in receipt', r => r.verification === 'recorded_verified' ? 'Verified outputs recorded' : 'Incomplete or unknown'],
     ['Final outcomes', count],
     ['Worker attempts (includes fallback)', attempts],
-    ['Charged wall time', r => metric(r, 'total_wall_seconds', fmtDuration)],
+    ['Recorded total wall time', r => metric(r, 'total_wall_seconds', fmtDuration)],
     ['CPU time (parent + reaped children)', r => metric(r, 'parent_and_reaped_children_cpu_seconds', fmtDuration)],
     ['Peak single-worker RSS', r => metric(r, 'peak_worker_process_rss_bytes', fmtBytes)],
     ['Recorded independent rank', r => r.relation_verification_complete ? metric(r, 'verified_relation_rank') : 'Unknown — verification incomplete or absent'],
     ['Fallback attempts', r => metric(r, 'fallback_attempts')],
-    ['Timing boundary', r => r.timing_boundary || 'unknown'],
+    ['Timing boundary (online for benchmark packages)', r => r.timing_boundary || 'unknown'],
     ['Excluded costs', r => r.excluded_costs == null ? 'unknown' : (r.excluded_costs.join('; ') || 'None recorded')],
     ['Frozen manifest SHA-256', r => h('span', { class: 'mono receipt-hash' }, r.manifest_sha256)],
+    ['Limitations', r => (r.limitations || []).join(' ') || 'See scope and excluded costs.'],
     ['Pinned sources', sources],
   ];
   return h('div', { class: 'scroll-x', tabindex: '0', role: 'region', 'aria-label': 'Run comparison, scroll horizontally for both runs' }, h('table', { class: 'comparison-table' },
@@ -1176,7 +1314,7 @@ function comparisonTable(a, b) {
       h('th', { scope: 'row' }, label), h('td', {}, render(a)), h('td', {}, render(b)))))));
 }
 
-function benchmarkPanel(data = {}) {
+function benchmarkPanel(data = {}, curveFilter = '') {
   const section = h('section', { class: 'stack' }, h('h2', {}, 'Curve benchmark archive'));
   section.append(h('p', { class: 'muted' },
     'Archived toy-curve measurements. Verification is reported by the source, not rerun here. This is an evidence table, with no cross-curve ranking or inferred speedup.'));
@@ -1188,6 +1326,8 @@ function benchmarkPanel(data = {}) {
   const choose = h('select', {class:'field', 'aria-label':'Filter benchmark curve'},
     h('option', {value:''}, 'All recorded curves'),
     Object.entries(data.identities || {}).map(([uid, value]) => h('option', {value:uid}, value.curve_id)));
+  if (curveFilter && !Object.hasOwn(data.identities || {}, curveFilter)) choose.append(h('option', {value:curveFilter}, 'Requested curve (no archived runs)'));
+  choose.value = curveFilter;
   const host = h('div', {class:'stack', 'aria-live':'polite'});
   const number = value => value == null ? '—' : String(value);
   const draw = () => {
@@ -1212,7 +1352,7 @@ function benchmarkPanel(data = {}) {
             h('a', {href:source.url, target:'_blank', rel:'noopener noreferrer'}, path),
             h('span', {class:'mono receipt-hash'}, ` SHA-256: ${source.sha256}`));}));
         return h('article', {class:'card stack'},
-          h('h3', {class:'mono receipt-hash'}, r.curve_id),
+          h('h3', {class:'mono receipt-hash'}, h('a', {href:`#/curves?a=${encodeURIComponent(r.curve_uid)}`}, r.curve_id)),
           h('p', {class:'mono receipt-hash'}, r.run_id),
           h('p', {}, `${r.method} · ${r.suite || 'unknown suite'} · ${r.status} · ${r.verification === 'recorded_verified' ? 'source reports verified' : 'verification unknown'} · targets ${number(r.targets_verified)}/${number(r.target_count)}`),
           h('div', {class:'row'},
@@ -1239,6 +1379,14 @@ async function viewCompare(params = new URLSearchParams()) {
     return;
   }
   const receipts = data.receipts || [];
+  const curveChoice = h('select', {class:'field', 'aria-label':'Filter receipt curve'}, h('option', {value:''}, 'All curves'),
+    [...new Set(receipts.map(r=>r.curve_uid).filter(Boolean))].map(uid=>h('option', {value:uid}, receipts.find(r=>r.curve_uid===uid).curve_id || uid)));
+  if (params.get('curve') && !receipts.some(r=>r.curve_uid===params.get('curve'))) curveChoice.append(h('option',{value:params.get('curve')},'Requested curve (no receipts)'));
+  curveChoice.value=params.get('curve') || '';
+  const workloadChoice = h('select', {class:'field', 'aria-label':'Filter receipt workload'}, h('option',{value:''},'All workloads'),
+    [...new Set(receipts.map(r=>r.workload_sha256 || r.manifest_sha256).filter(Boolean))].map(uid=>h('option',{value:uid},uid.slice(0,16))));
+  workloadChoice.value=params.get('workload') || '';
+  const filters = h('div', {class:'comparison-choices'}, h('label',{},'Curve ',curveChoice), h('label',{},'Workload ',workloadChoice));
   const host = h('div', { class: 'stack', 'aria-live': 'polite' });
   const choice = (label, key) => h('label', { class: 'comparison-choice' }, h('span', {}, label),
     h('select', { class: 'field', 'aria-label': label, 'data-side': key },
@@ -1248,21 +1396,32 @@ async function viewCompare(params = new URLSearchParams()) {
   const draw = () => {
     const keys = [...controls.querySelectorAll('select')].map(el => el.value);
     const [a, b] = keys.map(key => receipts.find(r => r.id === key));
-    replaceRoute('#/compare', { a: keys[0], b: keys[1] });
+    replaceRoute('#/compare', { a: keys[0], b: keys[1], curve:curveChoice.value, workload:workloadChoice.value });
     const reasons = comparisonReasons(a, b);
     fill(host, h('div', { class: `banner ${reasons.length ? 'warn' : 'info'}` },
       reasons.length ? reasons.join(' ') : 'Matched frozen inputs and accounting; recorded verification is present.'),
       a && b ? comparisonTable(a, b) : null);
   };
+  const filter = () => {
+    const visible = receipts.filter(r=>(!curveChoice.value || r.curve_uid===curveChoice.value) && (!workloadChoice.value || (r.workload_sha256 || r.manifest_sha256)===workloadChoice.value));
+    for (const select of controls.querySelectorAll('select')) {
+      const value=select.value;
+      fill(select,h('option',{value:''},'Choose a receipt…'),visible.map(r=>h('option',{value:r.id},`${r.label}${r.fixture ? ' (fixture)' : ''}`)));
+      select.value=visible.some(r=>r.id===value) ? value : '';
+    }
+    draw();
+  };
+  filters.addEventListener('change',filter);
   controls.addEventListener('change', draw);
   fill(root, h('div', { class: 'stack' }, snapshotBanner(),
     h('div', {}, h('h1', {}, 'Compare run receipts'),
       h('p', { class: 'muted' }, 'Read archived measurements side by side. Source hashes are checked; scientific verification is reported from the receipt, not rerun by this dashboard. No automatic winner or full-algorithm speedup is inferred.')),
     ...(data.errors || []).map(e => h('div', { class: 'banner warn' }, `${e.id}: ${e.reason}`)),
+    receipts.length ? filters : null,
     receipts.length ? controls : h('div', { class: 'empty' }, 'No archived comparison receipts are registered in this snapshot.'),
     receipts.length ? h('p', { class: 'faint', style: 'font-size:12px' }, 'On narrow screens, scroll the table horizontally to see both runs.') : null,
-    host, benchmarkPanel(data.benchmarks)));
-  if (receipts.length) draw();
+    host, benchmarkPanel(data.benchmarks, params.get('curve') || '')));
+  if (receipts.length) filter();
 }
 
 async function viewOverview() {
@@ -1302,6 +1461,7 @@ async function viewOverview() {
       metric(findings.current, 'current findings', '#/findings'),
       metric(o.experiments.total, 'experiments recorded', '#/experiments')),
     progressPanel(progress),
+    followUpPanel(o.follow_up),
     opsPanel(state.ops),
     homeSection('What we’re working on',
       'Recently updated active goals, with elliptic-curve research first. An active goal may be waiting on a next step.',
@@ -2223,6 +2383,7 @@ async function viewRecord(id, params = new URLSearchParams()) {
     h('div', { class: 'detail' },
       h('section', { class: 'panel' }, tabs, paneHost),
       h('aside', { class: 'stack' },
+        s.kind === 'EXP' ? h('a', {class:'card',href:`#/provenance?experiment=${encodeURIComponent(id)}`}, 'Research timeline and record gaps →') : null,
         linkList('Cited by', body.links.in), linkList('Cites', body.links.out)))));
   const requested = params.get('tab');
   show(tabList.some(([key]) => key === requested) ? requested : tabList[0][0], false);
@@ -2404,6 +2565,7 @@ async function viewExperiments(params) {
     return h('tr', { class: 'run-detail' }, h('td', { colspan: '8' },
       h('div', { class: 'stack', style: 'gap:8px' },
         h('div', { class: 'row faint', style: 'font-size:11.5px' },
+          h('a', {href:`#/provenance?experiment=${encodeURIComponent(e.id)}`}, 'Research timeline →'),
           `${e.run_count} run${e.run_count === 1 ? '' : 's'}`,
           e.runs_timed ? h('span', {}, `· ${e.runs_timed} report a start time`) : null,
           e.runs_measured ? h('span', {}, `· ${e.runs_measured} report a duration`) : null,
@@ -2617,6 +2779,8 @@ async function route() {
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);
     if (path === '/experiments') return await viewExperiments(params);
+    if (path === '/curves') return await viewCurves(params);
+    if (path === '/provenance') return await viewProvenance(params);
     if (path === '/compare') return await viewCompare(params);
     if (path === '/integrity') return await viewIntegrity();
     return await viewOverview();
@@ -2720,3 +2884,4 @@ initChrome();
 renderNav();
 route();
 boot();
+

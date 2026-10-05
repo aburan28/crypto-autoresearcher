@@ -50,6 +50,10 @@ def _read(repo, spec, limit=4 * 1024 * 1024):
 
 
 def receipt(repo, entry):
+    if entry.get("adapter") == "benchmark-snapshot/1":
+        return benchmark_receipt(repo, entry)
+    if entry.get("adapter") not in (None, "groebner-summary/1"):
+        raise ValueError("Unsupported receipt adapter.")
     sources = {}
     manifest_raw, sources["manifest"] = _read(repo, entry.get("manifest"))
     summary_raw, sources["summary"] = _read(repo, entry.get("summary"))
@@ -151,3 +155,36 @@ def payload(repo: Path):
         except (OSError, UnicodeError, TypeError, KeyError, AttributeError, OverflowError, RecursionError):
             errors.append({"id": key, "reason": "Pinned receipt is missing, unreadable, or malformed."})
     return {"schema": 1, "receipts": receipts, "errors": errors}
+
+
+
+def benchmark_receipt(repo, entry):
+    """Adapt existing measurements only; retain unknown host/accounting metadata."""
+    from . import benchmarks
+    data = benchmarks.payload(repo, entry.get('snapshot', {}))
+    if data.get('error'):
+        raise ValueError('Pinned benchmark package is invalid.')
+    row = next((r for r in data.get('rows', []) if r['id'] == entry.get('row_id')), None)
+    if row is None:
+        raise ValueError('Registered benchmark row is missing.')
+    complete = row['status'] == 'complete' and row.get('target_count') is not None and row.get('targets_verified') == row['target_count']
+    return {'id': entry['id'], 'label': _text(entry.get('label'), 120) or row['run_id'],
+            'adapter': 'benchmark-snapshot/1', 'package_schema': 'comparison-package/1',
+            'scope': row['scope'], 'curve_uid': row['curve_uid'], 'curve_id': row['curve_id'],
+            'candidate_id': row['candidate_id'], 'candidate_sha256': row['candidate_sha256'],
+            'workload_sha256': row['workload_sha256'], 'workload_id': row['workload_id'],
+            'manifest_sha256': row['candidate_sha256'], 'target_count': row.get('target_count'),
+            'backend': {'id': row['method'], 'mode': row.get('suite', '')},
+            'timing_boundary': row.get('online_boundary'), 'excluded_costs': None,
+            'operation_unit': row.get('operation_unit'), 'calibration_id': row.get('calibration_id'),
+            'resource_envelope_id': row.get('resource_envelope_id'),
+            'status': row['status'], 'complete': complete, 'verification': row['verification'],
+            'environment': None, 'relation_verification_complete': False, 'fixture': False,
+            'outcomes': {row['status']: 1}, 'attempt_status': None,
+            'metrics': {**dict.fromkeys(NUMBERS),
+                        'total_wall_seconds': row['wall_ns'] / 1e9 if row.get('wall_ns') is not None else None,
+                        'ic_online_ns': row.get('ic_online_ns'), 'rho_online_ns': row.get('rho_online_ns'),
+                        'total_operations': row.get('total_operations'), 'targets_verified': row.get('targets_verified')},
+            'sources': {str(i): data['sources'][p] for i, p in enumerate(row['sources'])},
+            'limitations': ['Host details, complete exclusions and independent relation rank are not supplied by this snapshot.',
+                            'Paired rho timing is source-reported; it is not an independently archived rho candidate.']}
