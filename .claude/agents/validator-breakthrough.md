@@ -7,7 +7,7 @@ description: >-
   result contradicting prior independently validated evidence. Ordinary
   claim-changing validation goes to `validator`. Never changes research status
   or raw artifacts.
-tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
+tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: inherit
 # Policy-tier variant of `validator` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
