@@ -597,6 +597,12 @@ handoff:
     degraded_allowed: false        # permit a RECORDED downgrade; needs an
                                    # inference_amendment naming the gap
     independent_session_required: false
+    delivery: interactive          # interactive | batch | auto. `batch` sends
+                                   # single-turn prompts through the Message
+                                   # Batches API (half price, up to 24 h);
+                                   # `auto` batches only when deadline_seconds
+                                   # leaves room. See docs/batch-inference.md.
+    deadline_seconds: null         # when the result is needed; drives `auto`
   budget:
     wall_clock_seconds: null
     memory_gb: null
