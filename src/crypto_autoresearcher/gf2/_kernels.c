@@ -841,6 +841,125 @@ HOT i64 gf2_row_pass(const u64 *M0, i64 R, i64 W, i64 C, i32 *Z, i32 *leads, i64
     return nz;
 }
 
+/*
+ * Macaulay rows straight from monomial masks, for the rank-profile solver.
+ * Column order is that of closure.column_order: degree descending, then mask
+ * ascending, and ascending mask order within a degree is colex order, so the
+ * column of a degree-d monomial with bits b_1 < ... < b_d is
+ *     off[d] + sum_i C(b_i, i),   off[d] = sum_{e = d+1 .. D} C(nv, e).
+ * No 2^nv table is needed.
+ *
+ * Row i is mu[i] * f_{k[i]} in B (product = OR of masks; equal products
+ * cancel in pairs, as the XOR build of Closure.build_M does). Equation k's
+ * monomials are emon[eoff[k] .. eoff[k+1]). For every row: lead[i] = its
+ * lowest column (-1 if the row is zero) and weight[i] = its number of
+ * monomials; if M is not NULL, row i is written into M (R x W words, zeroed
+ * by the caller). Rows are independent, so threads split them.
+ */
+static void binom_table(int nv, int D, i64 *B /* (nv+1) x (D+1) */)
+{
+    for (int n = 0; n <= nv; n++)
+        for (int r = 0; r <= D; r++) {
+            i64 v;
+            if (r == 0)
+                v = 1;
+            else if (n == 0)
+                v = 0;
+            else
+                v = B[(size_t)(n - 1) * (D + 1) + r - 1] + B[(size_t)(n - 1) * (D + 1) + r];
+            B[(size_t)n * (D + 1) + r] = v;
+        }
+}
+
+static int cmp_i64(const void *a, const void *b)
+{
+    i64 x = *(const i64 *)a, y = *(const i64 *)b;
+    return (x > y) - (x < y);
+}
+
+int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const u64 *mu,
+                   const i32 *k, i64 W, u64 *M, i64 *lead, i64 *weight, int nthreads)
+{
+    if (nv < 1 || nv > 64 || D < 0)
+        return -1;
+    i64 *B = (i64 *)malloc((size_t)(nv + 1) * (D + 1) * sizeof(i64));
+    i64 *off = (i64 *)malloc((size_t)(D + 2) * sizeof(i64));
+    if (!B || !off) {
+        free(B); free(off);
+        return -1;
+    }
+    binom_table(nv, D, B);
+    off[D] = 0;
+    for (int d = D - 1; d >= 0; d--)
+        off[d] = off[d + 1] + B[(size_t)nv * (D + 1) + d + 1];
+    i64 maxf = 0;
+    for (i64 i = 0; i < n; i++) {
+        i64 len = eoff[k[i] + 1] - eoff[k[i]];
+        if (len > maxf)
+            maxf = len;
+    }
+    int nt = 1;
+#ifdef _OPENMP
+    if (nthreads > 1 && n > 4096)
+        nt = nthreads;
+#endif
+    (void)nthreads;
+    (void)nt;
+    int err = 0;
+#ifdef _OPENMP
+#pragma omp parallel num_threads(nt) if (nt > 1) reduction(|| : err)
+#endif
+    {
+        i64 *cols = (i64 *)malloc((size_t)(maxf > 0 ? maxf : 1) * sizeof(i64));
+        if (!cols) {
+            err = 1;
+        } else {
+#ifdef _OPENMP
+#pragma omp for schedule(static, 256)
+#endif
+            for (i64 i = 0; i < n; i++) {
+                const u64 *f = emon + eoff[k[i]];
+                i64 len = eoff[k[i] + 1] - eoff[k[i]], nc = 0;
+                for (i64 t = 0; t < len; t++) {
+                    u64 x = mu[i] | f[t];
+                    int d = __builtin_popcountll(x);
+                    i64 r = 0;
+                    int idx = 1;
+                    while (x) {
+                        int b = __builtin_ctzll(x);
+                        x &= x - 1;
+                        r += B[(size_t)b * (D + 1) + idx];
+                        idx++;
+                    }
+                    cols[nc++] = off[d] + r;
+                }
+                qsort(cols, (size_t)nc, sizeof(i64), cmp_i64);
+                i64 l = -1, w = 0;
+                u64 *row = M ? M + (size_t)i * W : NULL;
+                for (i64 t = 0; t < nc;) {
+                    i64 c = cols[t], run = 0;
+                    while (t < nc && cols[t] == c) {
+                        run++;
+                        t++;
+                    }
+                    if (run & 1) {
+                        if (l < 0)
+                            l = c;
+                        w++;
+                        if (row)
+                            row[c >> 6] |= 1ULL << (c & 63);
+                    }
+                }
+                lead[i] = l;
+                weight[i] = w;
+            }
+            free(cols);
+        }
+    }
+    free(B); free(off);
+    return err ? -1 : 0;
+}
+
 /* lead[i] = lowest set column of row i (-1 if none), weight[i] = popcount. */
 HOT void gf2_row_lead_weight(const u64 *M, i64 R, i64 W, i64 *lead, i64 *weight)
 {

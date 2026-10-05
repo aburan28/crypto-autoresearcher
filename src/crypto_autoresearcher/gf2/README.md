@@ -20,7 +20,7 @@ New experiments import this package instead of copying the engine again.
 | `kernels` | `column_pass` (algorithms `auto`, `sb`, `blocked`, `direct`), `row_pass`, `ops_json_bytes` / `trace_hashes`, `replay_planes`, `replay_direct`, `backtrace`, `products`, `map_threads`, `inner_threads`, `OpLog` |
 | `closure` | `Closure` (M_D, W_D, certificates), `eliminate` (the trace instrument), `eval_cert`, `cert_to_json` |
 | `reference` | numpy definitions copied from the archived engines; the native kernels must equal these |
-| `rankprofile` | `macaulay_profile` (M_D record by rank profile, F5/Frobenius row filter, lead-descending row order), `f5_keep`, `lead_desc_order` |
+| `rankprofile` | `macaulay_profile` and `w_profile` (M_D and W_D records by rank profile), `f5_keep`, `Shape` (column tables without 2^nv arrays), `cert_sums_to_one` |
 | `_kernels.c` | the native kernels (C99 plus GCC builtins); compiled on first use and loaded with ctypes |
 
 ## Install
@@ -157,41 +157,59 @@ threads.
 
 ## Rank-profile solver (`rankprofile`)
 
-`macaulay_profile(eqs, nv, D)` returns the M_D record `{rank, one,
-dims_by_deg}`, which equals `Closure.macaulay_closure`'s, together with a
-certificate when 1 is in M_D. It is faster because it needs only the column
-rank profile (the pivot-column set in the fixed column order), and every
-elimination of every spanning set of the row space gives the same profile:
+`macaulay_profile(eqs, nv, D)` and `w_profile(eqs, nv, D)` return the M_D
+and W_D records of `Closure.macaulay_closure` and `Closure.w_closure` field
+for field, plus a certificate when 1 is reached. They are faster because the
+records depend only on column rank profiles (pivot-column sets in the fixed
+column order), and every elimination of every spanning set gives the same
+profiles:
 
 1. **F5/Frobenius row filter.** A row mu*f_k is dropped when mu is a degree-e
    leading monomial of span{nu*f_j : j <= k, deg nu <= e - 2}. Using
-   f_k^2 = f_k in B, such a row is a sum of rows with smaller keys; the module
-   docstring has the proof. The lead sets come from small lower-degree
-   matrices processed equation by equation (`kernels.row_leads`). The filter
-   removes every zero-reducing row at D <= 5 on CERTBIN-shaped systems, and
-   38.8k of the 57.3k at nv = 20, D = 6.
-2. **Lead-descending row order.** Unreduced, still-sparse rows become pivots
+   f_k^2 = f_k in B, such a row is a sum of rows with smaller keys (proof in
+   the module docstring). The lead sets come from small lower-degree matrices
+   processed equation by equation. The filter removes every zero-reducing row
+   at D <= 5 on CERTBIN-shaped systems, and 38.8k of the 57.3k at nv = 20,
+   D = 6.
+2. **Native row builder, no 2^nv tables.** Within a degree the column order is
+   colex order, so a monomial's column is a sum of binomials
+   (`kernels.build_rows`, threaded). Only the kept rows are built, and they are
+   written already in pivot order. `Shape` replaces `Closure`'s tables; `Closure`
+   allocates 2^nv words, which is 512 MB at nv = 26.
+3. **Lead-descending row order.** Unreduced, still-sparse rows become pivots
    before filled-in ones, so fill-in drops.
-3. The native column pass on what remains.
+4. **W_D: a smaller first product set.** M_{D-1} is a subspace of M_D's low
+   part and v_j * M_{D-1} lies in M_D, so the first iteration multiplies only
+   a complement of M_{D-1} (2356 rows instead of 6175 at nv = 20, D = 5). The
+   spaces V_i are the exact engine's, and the record reports its counts. Each
+   stacked matrix puts the basis rows first and orders the products
+   lead-descending.
 
-Its certificate is a valid list of (mu, k) Macaulay rows summing to 1,
-checked by `eval_cert` before it is returned. It is generally not the
-certificate the declared column pass extracts, and there is no op log or
-trace hash. **It is a separate instrument:** an experiment whose protocol pins
-the exact engine's certificates or hashes must keep using `Closure`.
+Certificates are flat lists of (mu, k) rows summing to 1, checked natively
+(`cert_sums_to_one`, the parity test of `eval_cert`) before they are
+returned. They are generally not the declared engine's certificates, and there
+is no op log or trace hash. **It is a separate instrument:** an experiment
+whose protocol pins the exact engine's certificates or hashes must keep using
+`Closure`. M4RI (`mzd_ple`) gives the same rank profiles on the matrices
+below but is 3 to 9x slower there.
 
-Measured, warm, 4 cores (random systems, neq = nv - 1; records identical):
+Measured, 4 cores (random systems, neq = nv - 1; records identical):
 
-| matrix | exact `Closure.macaulay_closure` | `rankprofile` | rows kept / rank |
-| --- | --- | --- | --- |
-| nv = 20, D = 5 | 1.36 s | 0.78 s | 21679 / 21679 |
-| nv = 24, D = 5 | 7.30 s | 3.43 s | 46575 / 46575 |
-| nv = 20, D = 6 | 35.4 s | 8.28 s | 78964 / 60453 |
+| workload | exact `Closure` | `rankprofile` |
+| --- | --- | --- |
+| M_5, nv = 20 | 1.36 s | 0.91 s |
+| M_5, nv = 24 (cold, incl. table setup) | 7.3 s + 1.0 s setup | 3.2 s |
+| M_6, nv = 20 | 35.4 s | 6.5 s |
+| M_5, nv = 26 (cold) | (2^26 table: 512 MB) | 5.6 s |
+| W_5, nv = 20 | 15.1 s | 6.7 s |
+| W_5, nv = 22 | 39.1 s | 19.8 s |
 
-`python3 tools/gf2_replay_rc1.py --solver rankprofile` replays all 784
-archived RC-1 M_D records with 0 mismatches. Its 186 refutation certificates
-are checked by evaluation instead of compared, because they differ from the
-archived ones.
+`python3 tools/gf2_replay_rc1.py --solver rankprofile` replays all 1062
+archived RC-1 records (M_3, M_4, M_5, W_4, W_5) with 0 mismatches. Its 268
+refutation certificates are checked by evaluation instead of compared,
+because they differ from the archived ones. Wall clock with 4 workers: 34.5 s
+(the exact engine: 48.7 s on the same machine). On RC-1's smallest matrices
+(W_4 at nv = 18) per-call overhead makes it slightly slower than `Closure`.
 
 ## Not covered yet
 
@@ -258,6 +276,10 @@ Optional extra: `pip install -e ".[gf2-gpu]"` (pulls `cupy-cuda12x`).
   - `macaulay_profile` equals the exact engine on random and edge-case systems,
     and planted-solution systems are never refuted;
   - every dropped row lies in the span of the kept rows;
-  - archived RC-1 M_D records are reproduced;
+  - the native row builder, `Shape` and the certificate check equal
+    `Closure.build_M`, `Closure`'s tables and `eval_cert`;
+  - `w_profile` equals `Closure.w_closure`, including multi-iteration and
+    refuted systems;
+  - archived RC-1 M_D and W_D records are reproduced;
   - the reference backend runs the same code.
 - `tools/gf2_replay_rc1.py [--solver rankprofile]`: the full RC-1 sweep.

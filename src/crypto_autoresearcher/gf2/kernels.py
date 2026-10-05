@@ -199,6 +199,40 @@ def row_pass(M0, C):
     return Z[:nz].tolist(), leads[:nl.value].tolist()
 
 
+def pack_eqs(eqs):
+    """Equations (lists of monomial masks) -> (eoff int64[neq+1], emon uint64[])."""
+    lens = np.array([len(f) for f in eqs], dtype=np.int64)
+    eoff = np.zeros(len(eqs) + 1, dtype=np.int64)
+    np.cumsum(lens, out=eoff[1:])
+    emon = np.array([int(m) for f in eqs for m in f], dtype=np.uint64)
+    return eoff, emon
+
+
+def build_rows(eoff, emon, nv, D, mu, k, W=None, threads=None):
+    """Macaulay rows mu[i] * f_{k[i]} in Closure(nv, D, .) column order.
+
+    Returns (M or None, lead, weight): with W given, M is the (n x W) packed
+    matrix (equal to the matching rows of Closure.build_M); lead is each row's
+    lowest column (-1 for a zero row), weight its number of monomials."""
+    mu = np.ascontiguousarray(mu, dtype=np.uint64)
+    k = np.ascontiguousarray(k, dtype=np.int32)
+    n = len(mu)
+    lead = np.empty(n, dtype=np.int64)
+    weight = np.empty(n, dtype=np.int64)
+    M = np.zeros((n, W), dtype=np.uint64) if W is not None else None
+    lib = _native.load()
+    if lib is None:
+        return reference.build_rows(eoff, emon, nv, D, mu, k, M, lead, weight)
+    nt = inner_threads() if threads is None else max(1, int(threads))
+    rc = _lib_for(n * 64).gf2_build_rows(_ptr(eoff), _ptr(emon) if len(emon) else None, nv, D, n,
+                                         _ptr(mu), _ptr(k), W or 0,
+                                         _ptr(M) if M is not None else None,
+                                         _ptr(lead), _ptr(weight), nt)
+    if rc != 0:
+        raise MemoryError("gf2_build_rows failed")
+    return M, lead, weight
+
+
 def row_lead_weight(M):
     """(lead, weight) int64 arrays: lowest set column of each row (-1 for a zero
     row) and its popcount."""

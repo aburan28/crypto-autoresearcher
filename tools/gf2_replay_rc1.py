@@ -14,11 +14,11 @@ evidence about any hypothesis.
     python3 tools/gf2_replay_rc1.py [--threads N] [--limit K] [--json OUT]
                                     [--solver exact|rankprofile]
 
---solver rankprofile replays the M_D records with
-``crypto_autoresearcher.gf2.rankprofile`` instead. That solver does not
-reproduce the declared op log, so its certificates differ from the archived
-ones; they are checked by evaluation (sum mu*f_k = 1) instead of by equality.
-W_D records are skipped in that mode.
+--solver rankprofile replays every record with
+``crypto_autoresearcher.gf2.rankprofile`` (macaulay_profile for M_D,
+w_profile for W_D) instead. That solver does not reproduce the declared op
+log, so its certificates differ from the archived ones; they are checked by
+evaluation (sum mu*f_k = 1) instead of by equality.
 """
 from __future__ import annotations
 
@@ -70,8 +70,8 @@ def run_one(job, eqs, closures, solver="exact"):
     cl = closures[D]
     t = time.perf_counter()
     if solver == "rankprofile":
-        got, cert, _ = rankprofile.macaulay_profile(eqs[rec["key"]], NV, D,
-                                                    want_cert=cert_ref is not None)
+        run = rankprofile.macaulay_profile if kind == "M" else rankprofile.w_profile
+        got, cert, _ = run(eqs[rec["key"]], NV, D, want_cert=cert_ref is not None)
         wall = time.perf_counter() - t
         want = {k: v for k, v in rec.items() if k not in DRIVER_FIELDS}
         diffs = [k for k in want if got.get(k) != want[k]]
@@ -102,13 +102,11 @@ def main():
     ap.add_argument("--limit", type=int, default=None, help="first K records only")
     ap.add_argument("--json", help="write the per-record results here")
     ap.add_argument("--solver", choices=("exact", "rankprofile"), default="exact",
-                    help="rankprofile: M_D records only, certificates checked by evaluation")
+                    help="rankprofile: certificates checked by evaluation, not compared")
     a = ap.parse_args()
 
     rows = [json.loads(line) for line in gzip.open(RUN / "closures.jsonl.gz", "rt")]
     certs = {(c["key"], c["closure"]): c for c in map(json.loads, gzip.open(RUN / "certificates.jsonl.gz", "rt"))}
-    if a.solver == "rankprofile":
-        rows = [r for r in rows if r["closure"][0] == "M"]
     if a.limit:
         rows = rows[:a.limit]
     eqs = load_eqs()

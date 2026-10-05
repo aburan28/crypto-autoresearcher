@@ -188,3 +188,34 @@ def row_leads(M0, C):
                 break
             v = v ^ basis[lc]
     return out
+
+
+def build_rows(eoff, emon, nv, D, mu, k, M, lead, weight):
+    """Numpy/Python twin of gf2_build_rows (colex column ranks, pairwise
+    cancellation); fills M (if given), lead and weight in place."""
+    from math import comb
+    off = [0] * (D + 2)
+    for d in range(D - 1, -1, -1):
+        off[d] = off[d + 1] + comb(nv, d + 1)
+
+    def col(x):
+        d, r, i = bin(x).count("1"), 0, 1
+        while x:
+            b = (x & -x).bit_length() - 1
+            x &= x - 1
+            r += comb(b, i)
+            i += 1
+        return off[d] + r
+
+    for i in range(len(mu)):
+        par = {}
+        for m in emon[eoff[k[i]]:eoff[k[i] + 1]].tolist():
+            c = col(int(mu[i]) | int(m))
+            par[c] = par.get(c, 0) ^ 1
+        cs = sorted(c for c, p in par.items() if p)
+        lead[i] = cs[0] if cs else -1
+        weight[i] = len(cs)
+        if M is not None:
+            for c in cs:
+                M[i, c >> 6] |= np.uint64(1 << (c & 63))
+    return M, lead, weight

@@ -6,8 +6,11 @@ exact engine's M_D record, and every certificate it returns sums to 1.
     random and edge-case systems (duplicate, zero, constant, linear-only,
     sparse, dense, planted-solution), with and without the F5/Frobenius
     filter and the row reordering; planted-solution systems are never refuted;
-  * archived RC-1 M_D records of RUN-CERTBIN-c417e0 are reproduced (the full
-    sweep is ``tools/gf2_replay_rc1.py --solver rankprofile``).
+  * the native row builder equals Closure.build_M, Shape equals Closure's
+    tables, and the native certificate check equals closure.eval_cert;
+  * w_profile == Closure.w_closure field for field;
+  * archived RC-1 M_D and W_D records of RUN-CERTBIN-c417e0 are reproduced
+    (the full sweep is ``tools/gf2_replay_rc1.py --solver rankprofile``).
 """
 import gzip
 import json
@@ -120,8 +123,53 @@ def test_f5_filter_drops_rows_and_keeps_the_span():
     assert np.all(kernels.row_leads(both, cl.C)[keep.sum():] == -1)
 
 
+def test_build_rows_shape_and_cert_check_match_closure():
+    rng = np.random.default_rng(2)
+    for t in range(30):
+        nv, D, neq = int(rng.integers(2, 11)), int(rng.integers(2, 6)), int(rng.integers(1, 7))
+        eqs = [[m for m in _monos(nv) if rng.random() < 0.4] for _ in range(neq)]
+        if t % 5 == 0:
+            eqs[0] = eqs[0] + eqs[0][:2]                 # repeated monomials cancel
+        cl = fc.Closure(nv, D, neq)
+        sh = rankprofile.Shape(nv, D)
+        assert sh.C == cl.C and np.array_equal(sh.mu_mask.astype(np.int64), cl.mu_mask)
+        assert np.array_equal(sh.col_deg(np.arange(sh.C)), cl.col_deg)
+        assert np.array_equal(sh.masks.astype(np.int64), cl.col_mask)
+        if D >= 2:
+            assert np.array_equal(sh.product_tables[0], cl.colmap)
+        rows = np.arange(cl.R)
+        eoff, emon = kernels.pack_eqs(eqs)
+        M, lead, weight = kernels.build_rows(eoff, emon, nv, D, cl.mu_mask[rows // neq].astype(np.uint64),
+                                             (rows % neq).astype(np.int32), W=cl.W)
+        want = cl.build_M(eqs)
+        assert np.array_equal(M, want)
+        assert all(np.array_equal(a, b) for a, b in zip((lead, weight), kernels.row_lead_weight(want)))
+        cert = [(int(rng.integers(1 << nv)) & int(rng.integers(1 << nv)), int(rng.integers(neq)))
+                for _ in range(int(rng.integers(1, 6)))]
+        if t % 3 == 0:
+            cert, eqs[0] = [(0, 0)], [0]
+        assert rankprofile.cert_sums_to_one(cert, eqs, nv) == (fc.eval_cert(cert, eqs) == [0])
+
+
+@pytest.mark.parametrize("stack_order", ["basis_first", "lead_desc", "built"])
+def test_w_profile_matches_exact_engine(monkeypatch, stack_order):
+    monkeypatch.setattr(rankprofile, "STACK_ORDER", stack_order)
+    seen_iter = refuted = 0
+    for nv, D, eqs, planted in _systems(seed=8, n=80):
+        want, _ = fc.Closure(nv, D, len(eqs)).w_closure(eqs, want_cert=False)
+        got, cert, _ = rankprofile.w_profile(eqs, nv, D)
+        assert got == want, (nv, D, len(eqs))
+        seen_iter += got["iterations_to_fixpoint"] > 0
+        if got["one"]:
+            refuted += 1
+            assert fc.eval_cert(cert, eqs) == [0]
+        if planted is not None:
+            assert not got["one"]
+    assert seen_iter > 0 and refuted > 5
+
+
 @pytest.mark.skipif(not (RUN / "closures.jsonl.gz").exists(), reason="RC-1 run package absent")
-def test_profile_reproduces_archived_rc1_m_records():
+def test_profile_reproduces_archived_rc1_records():
     sys.path.insert(0, str(ROOT / "tools"))
     try:
         import gf2_replay_rc1 as replay
@@ -130,19 +178,20 @@ def test_profile_reproduces_archived_rc1_m_records():
     keys = {"U62:F-S3:27", "N-AFF62:F-AFF-1:8", "C20:F-S3:3"}
     eqs = replay.load_eqs()
     rows = [r for r in map(json.loads, gzip.open(RUN / "closures.jsonl.gz", "rt"))
-            if r["key"] in keys and r["closure"][0] == "M"]
+            if r["key"] in keys]
     certs = {(c["key"], c["closure"]) for c in map(json.loads, gzip.open(RUN / "certificates.jsonl.gz", "rt"))}
     checked = 0
     for rec in rows:
         D = int(rec["closure"][2])
-        got, cert, _ = rankprofile.macaulay_profile(eqs[rec["key"]], 18, D)
+        run = rankprofile.macaulay_profile if rec["closure"][0] == "M" else rankprofile.w_profile
+        got, cert, _ = run(eqs[rec["key"]], 18, D)
         for k, v in rec.items():
             if k not in replay.DRIVER_FIELDS:
                 assert got[k] == v, (rec["key"], rec["closure"], k)
         if (rec["key"], rec["closure"]) in certs:
             assert cert is not None and fc.eval_cert(cert, eqs[rec["key"]]) == [0]
         checked += 1
-    assert checked >= 6
+    assert checked >= 8                                 # M_3, M_4, M_5 and W_4 per key
 
 
 def test_profile_runs_on_the_reference_backend():
@@ -154,6 +203,9 @@ def test_profile_runs_on_the_reference_backend():
         "a, _ = fc.Closure(3, 4, 6).macaulay_closure(eqs)\n"
         "b, c, _ = rankprofile.macaulay_profile(eqs, 3, 4)\n"
         "assert a == b, (a, b)\n"
+        "wa, _ = fc.Closure(3, 4, 6).w_closure(eqs)\n"
+        "wb, _, _ = rankprofile.w_profile(eqs, 3, 4)\n"
+        "assert wa == wb, (wa, wb)\n"
         "assert (c is None) == (not b['one'])\n"
         "print('ok')\n" % str(ROOT / "src"))
     env = dict(__import__("os").environ, CRYPTO_AR_GF2_BACKEND="reference")
