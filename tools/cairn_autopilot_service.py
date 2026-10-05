@@ -75,6 +75,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--opencode-port", type=int, default=4096)
     parser.add_argument("--cairn-listen", default="127.0.0.1:9000")
     parser.add_argument("--cairn-serve", default="127.0.0.1:8080")
+    parser.add_argument("--bootstrap", type=Path, action="append", default=[],
+                        help="trusted Cairn peer bootstrap file; repeat for more peers")
+    parser.add_argument("--attest-identity", type=Path,
+                        help="separate funded validator identity for this node")
     parser.add_argument("--local-model-url",
                         help="override opencode.json's local vLLM base URL")
     parser.add_argument("--backend", action="append", default=None)
@@ -98,6 +102,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"Cairn binary is not executable: {args.cairn_bin}")
     if not args.identity.is_file():
         parser.error(f"Cairn identity is missing: {args.identity}")
+    for peer in args.bootstrap:
+        if not peer.is_file():
+            parser.error(f"Cairn bootstrap file is missing: {peer}")
+    if args.attest_identity and not args.attest_identity.is_file():
+        parser.error(f"Cairn validator identity is missing: {args.attest_identity}")
     if not 1 <= args.opencode_port <= 65535:
         parser.error("--opencode-port must be between 1 and 65535")
 
@@ -134,6 +143,10 @@ def main(argv: list[str] | None = None) -> int:
         "CAIRN_BRIDGE_LOG": str(state_dir / "stage0.jsonl"),
         "LOCAL_LLM_BASE_URL": local_model_url,
     })
+    if args.bootstrap:
+        env["CAIRN_BOOTSTRAP"] = ":".join(str(peer.resolve()) for peer in args.bootstrap)
+    if args.attest_identity:
+        env["CAIRN_ATTEST_IDENTITY"] = str(args.attest_identity.resolve())
     # Keep the adapter and its child process on the same backend endpoint.
     os.environ.update(env)
     url = f"http://127.0.0.1:{args.opencode_port}"

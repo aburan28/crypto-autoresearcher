@@ -19,13 +19,18 @@ LABEL = "com.crypto-autoresearcher.cairn"
 
 def render(*, repo: Path, state_dir: Path, cairn_bin: Path, identity: Path,
            cairn_data: Path, opencode_port: int, cairn_serve: str,
-           cairn_listen: str, backend: str, opencode_bin: Path) -> dict:
+           cairn_listen: str, backend: str, opencode_bin: Path,
+           bootstrap: list[Path] | None = None, attest_identity: Path | None = None) -> dict:
     service = repo / "tools" / "cairn_autopilot_service.py"
     argv = [sys.executable, str(service), "--repo", str(repo),
             "--state-dir", str(state_dir), "--cairn-bin", str(cairn_bin),
             "--identity", str(identity), "--cairn-data", str(cairn_data),
             "--opencode-port", str(opencode_port), "--cairn-serve", cairn_serve,
             "--cairn-listen", cairn_listen, "--backend", backend]
+    for peer in bootstrap or []:
+        argv.extend(["--bootstrap", str(peer)])
+    if attest_identity:
+        argv.extend(["--attest-identity", str(attest_identity)])
     return {
         "Label": LABEL,
         "ProgramArguments": argv,
@@ -55,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cairn-serve", default="127.0.0.1:8081")
     parser.add_argument("--cairn-listen", default="127.0.0.1:9001")
     parser.add_argument("--backend", default="local")
+    parser.add_argument("--bootstrap", type=Path, action="append", default=[])
+    parser.add_argument("--attest-identity", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     opencode = shutil.which("opencode")
@@ -70,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
         identity=args.identity.resolve(), cairn_data=args.cairn_data.resolve(),
         opencode_port=args.opencode_port, cairn_serve=args.cairn_serve,
         cairn_listen=args.cairn_listen, backend=args.backend,
+        bootstrap=[peer.resolve() for peer in args.bootstrap],
+        attest_identity=args.attest_identity.resolve() if args.attest_identity else None,
         # Keep the configured executable path rather than its current Cellar
         # target, so a package-manager upgrade can update the symlink.
         opencode_bin=Path(opencode).absolute())

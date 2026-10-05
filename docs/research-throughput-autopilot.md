@@ -151,15 +151,45 @@ node log, and campaign event log are all in `.cairn-runtime/`. Stop it with
 running a manual copy on the same ports and log. Keep this dedicated checkout
 and its ignored runtime directory in place while the service is installed.
 
-This first continuous node gives research agents the network tools and makes
-the existing Stage 0 certificate check available during runs. A general
-automatic route from every approved experiment to a live, funded Cairn
-objective is still missing. `tools/exp_to_objective.py` can render certificate
-objectives, and `tools/cairn_seam_demo.py` proves one fixed EXP/RUN end to end;
-the replay path still needs a read-only wrapper, a Coordinator funding record,
-and durable receipt reconciliation before it can be made automatic. Until
-then, an action with no posted matching objective must continue its normal
-harness work rather than claim it contributed a network result.
+The service can join trusted peers with repeated `--bootstrap
+/absolute/path/to/bootstrap.json` arguments. `--attest-identity
+/absolute/path/to/validator.identity.json` enables Cairn's validator loop
+under a separate funded identity. The launchd renderer accepts the same
+flags and preserves them in its command line. Each node still needs its own
+data directory and port pair; its HTTP `/peers`, `/network`, and
+`/work_assignment` endpoints expose topology and the current search slice.
+
+Coordinator publication is a separate action from the research agent's
+zero-spend MCP tools. Prepare an approved frozen experiment with:
+
+```sh
+python3 tools/cairn_publish_objective.py \
+  --exp EXP-ECDLP-5cad48 --run RUN-ECDLP-5cad48-S1CS \
+  --node http://127.0.0.1:8081
+```
+
+The tool checks the committed experiment, approval and stage decisions,
+clean run manifest, and the read-only replay adapter against the archived
+exact metrics. `--publish --cairn-bin .cairn-runtime/bin/cairn --identity
+/absolute/path/to/funder.identity.json` signs through Cairn and queues the
+objective at the running node, then waits for admission. It never opens the
+node's locked log. A positive reward also requires `--funding-decision
+DEC-... --funder <public-key>`; the committed decision must explicitly carry
+`cairn_funding: {reward: <units>, funder: <public-key>}`. No existing
+experiment approval silently authorizes network spending. The first audited
+replay adapter is `tools/cairn_replay_stage1cs.py`; other replay runs remain
+unpublishable until they have an exact, read-only adapter. Certificate runs
+use the pinned Stage 0 checkers.
+
+After a claim has an accepted verdict and a settlement, derive a draft
+receipt with `python3 tools/cairn_settlement_receipt.py --exp EXP-... --run
+RUN-... --objective sha256:... --claim sha256:... --node
+http://127.0.0.1:8081 --out <new-file>.yaml`. It compares the public claim
+artifact with the archived run, checks the settlement and verdict, and records
+the ledger head. The Coordinator reviews that draft before adding it to a
+new evidence record; the receipt alone changes no scientific state. An
+action with no posted matching objective continues normal harness work and
+cannot claim a network result.
 
 ## What to measure every day
 
