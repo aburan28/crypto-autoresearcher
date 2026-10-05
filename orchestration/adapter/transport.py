@@ -226,7 +226,16 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         }
         if system:
             body["system"] = system
-        if reasoning.get("mode") == "output_effort":
+        if reasoning.get("mode") == "anthropic_adaptive":
+            # Claude 4.6+ models think adaptively and take depth as a named
+            # effort: `thinking.budget_tokens` and `temperature` are rejected
+            # with a 400 on Opus 5 / Sonnet 5, so neither is ever sent here.
+            # The policy's effort selects the name, so calibrating a role
+            # still changes what is sent, not only what is recorded.
+            body["thinking"] = {"type": "adaptive"}
+            body["output_config"] = {"effort": _adaptive_effort(
+                reasoning, resolution.reasoning_effort)}
+        elif reasoning.get("mode") == "output_effort":
             # Some Anthropic-compatible gateways (Abliteration) take a named
             # effort and, if also given a thinking budget, ignore the budget.
             # Send the name the binding asked for and nothing else, so the
@@ -281,6 +290,31 @@ def build_request(config, resolution: Resolution, *, system: str | None,
         *(body.get(field) for field in REQUEST_TARGET_SELECTOR_FIELDS),
         context="final inference request")
     return url, headers, body
+
+
+# This program's effort lattice -> the Messages API's `output_config.effort`
+# vocabulary. `none` has no API counterpart (thinking cannot be disabled on
+# the models that take this mode) and `ultra` sits above the API's top value.
+ADAPTIVE_EFFORT_DEFAULT = {"none": "low", "low": "low", "medium": "medium",
+                           "high": "high", "xhigh": "xhigh", "max": "max",
+                           "ultra": "max"}
+
+
+def _adaptive_effort(reasoning: dict[str, Any], effort: str) -> str:
+    """The named effort for an `anthropic_adaptive` binding.
+
+    A binding may override the default map (a model that lacks `xhigh`, say),
+    and an effort the map does not name is a configuration error rather than
+    a silent nearest match.
+    """
+    effort_map = dict(ADAPTIVE_EFFORT_DEFAULT)
+    effort_map.update(reasoning.get("effort_map") or {})
+    try:
+        return effort_map[effort]
+    except KeyError:
+        raise ConfigError(
+            f"anthropic_adaptive binding has no effort_map entry for "
+            f"{effort!r}; known: {', '.join(sorted(effort_map))}") from None
 
 
 def _thinking_budget(reasoning: dict[str, Any], effort: str,
