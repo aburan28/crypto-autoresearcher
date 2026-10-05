@@ -1,0 +1,32 @@
+# BULK: bulk corruption inside ech(): flip one pseudo-random column in each of nbad pseudo-random output rows (call mutb_call_), re-echelonize silently, then the evalcheck accounts the output
+--- closure.c
++++ closure_BULK.c
+@@ -279,6 +279,9 @@
+     return ok;
+ }
+ 
++
++static long mutb_call_ = -1, mutb_n_ = 0, mutb_seed_ = 0; static int mutb_done_ = 0;
++void closure_mutb_set(long call, long nbad, long seed) { mutb_call_ = call; mutb_n_ = nbad; mutb_seed_ = seed; mutb_done_ = 0; }
+ static rci_t ech(mzd_t *M) {
+ #if defined(ECH_CROSSCHECK)
+     mzd_t *C = mzd_copy(NULL, M);
+@@ -307,6 +310,18 @@
+     rci_t r1 = ech_method_ == 1 ? mzd_echelonize_pluq(M, 1)
+              : ech_method_ == 2 ? mzd_echelonize_m4ri(M, 1, 0)
+              : mzd_echelonize(M, 1);
++
++    if (mutb_call_ >= 0 && ech_calls_ == mutb_call_ && !mutb_done_ && r1 > 10) {
++        unsigned long long st = 88172645463325252ULL ^ (unsigned long long)(mutb_seed_ * 2654435761ULL + 1);
++        for (long s = 0; s < mutb_n_; s++) {
++            st ^= st << 13; st ^= st >> 7; st ^= st << 17; long i = (long)(st % (unsigned long long)r1);
++            st ^= st << 13; st ^= st >> 7; st ^= st << 17; long j = (long)(st % (unsigned long long)ncols_);
++            mzd_write_bit(M, (rci_t)i, (rci_t)j, !mzd_read_bit(M, (rci_t)i, (rci_t)j));
++        }
++        r1 = mzd_echelonize_pluq(M, 1);
++        mutb_done_ = 1;
++        fprintf(stderr, "[mutb] flipped %ld pseudo-random bits in call %ld before the output accounting; rank now %d\n", mutb_n_, ech_calls_, (int)r1);
++    }
+     long bout = witness_set_ ? rows_not_vanishing(M, r1, &fout) : -1;
+     fprintf(stderr, "[ech %ld %s] %d x %d rank %d | rows not vanishing at the zero: in=%ld out=%ld%s\n",
+             ech_calls_, ech_method_ == 1 ? "pluq" : ech_method_ == 2 ? "m4ri" : "default", (int)M->nrows, (int)M->ncols, (int)r1, bin, bout,
