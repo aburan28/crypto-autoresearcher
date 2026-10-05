@@ -7,7 +7,7 @@ description: >-
   schema. Any task whose specification must be interpreted, debugged, or
   completed goes to `executor` instead. Never interprets results or changes
   hypothesis status.
-tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
+tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim
 model: inherit
 # Policy-tier variant of `executor` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
