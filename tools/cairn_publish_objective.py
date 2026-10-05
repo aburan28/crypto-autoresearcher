@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,13 @@ def request_json(url: str, body: dict | None = None) -> dict:
     return result
 
 
+def decoded_objective_id(output: str) -> str:
+    match = re.fullmatch(r"ok (sha256:[0-9a-f]{64})\s*", output)
+    if not match:
+        raise BridgeError(f"Cairn did not return an objective content id: {output.strip()!r}")
+    return match.group(1)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO)
@@ -144,12 +152,18 @@ def main(argv: list[str] | None = None) -> int:
                                      "--identity", str(args.identity)], capture_output=True,
                                     text=True, timeout=30, check=True)
             record = json.loads(signed.stdout)
+            signed_path = Path(temp) / "signed.json"
+            signed_path.write_text(signed.stdout, encoding="utf-8")
+            decoded = subprocess.run([str(args.cairn_bin), "decode", "objective", "--record",
+                                      str(signed_path)], capture_output=True, text=True,
+                                     timeout=30, check=True)
+            objective_id = decoded_objective_id(decoded.stdout)
         if args.reward and record.get("funder") != args.funder:
             raise BridgeError("signing identity differs from Coordinator funding decision")
         queued = request_json(node + "/submit?kind=objective", record)
-        objective_id = queued.get("queued")
-        if not isinstance(objective_id, str):
-            raise BridgeError(f"node did not return a queued objective id: {queued}")
+        queue_ticket = queued.get("queued")
+        if queued.get("kind") != "objective" or not isinstance(queue_ticket, str):
+            raise BridgeError(f"node did not return an objective queue ticket: {queued}")
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             try:
@@ -161,10 +175,12 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if admitted.get("record") != record:
                 raise BridgeError("admitted objective differs from signed record")
-            print(json.dumps({"objective_id": objective_id, "status": "admitted",
+            print(json.dumps({"objective_id": objective_id, "queue_ticket": queue_ticket,
+                              "status": "admitted",
                               "provenance": provenance}, indent=2, sort_keys=True))
             return 0
-        print(json.dumps({"objective_id": objective_id, "status": "queued_not_yet_admitted",
+        print(json.dumps({"objective_id": objective_id, "queue_ticket": queue_ticket,
+                          "status": "queued_not_yet_admitted",
                           "provenance": provenance}, indent=2, sort_keys=True))
         return 3
     except (BridgeError, OSError, ValueError, subprocess.CalledProcessError,

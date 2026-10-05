@@ -37,7 +37,7 @@ def receipt(repo: Path, node: str, exp_id: str, run_id: str, objective_id: str,
                                             live_objective.get("reward"), None,
                                             "auto" if kind == "replay" else None)
     unsigned = {key: value for key, value in live_objective.items()
-                if key not in ("funder", "funding_signature")}
+                if key not in ("type", "funder", "funding_signature")}
     expected_unsigned = {key: value for key, value in expected_objective.items() if key != "funder"}
     if unsigned != expected_unsigned:
         raise BridgeError("settled objective differs from the approved experiment objective")

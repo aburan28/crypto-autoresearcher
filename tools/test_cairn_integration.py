@@ -33,6 +33,10 @@ class BridgeTests(unittest.TestCase):
                 publish.local_node(url)
         with self.assertRaisesRegex(e2o.BridgeError, "funding-decision"):
             publish.funding(Path("/tmp"), "EXP-X", 1, None, None)
+        content_id = "sha256:" + "a" * 64
+        self.assertEqual(publish.decoded_objective_id("ok " + content_id + "\n"), content_id)
+        with self.assertRaisesRegex(e2o.BridgeError, "content id"):
+            publish.decoded_objective_id("ok queue-ticket\n")
 
     def test_launchd_carries_trusted_peers_and_validator_identity(self) -> None:
         path = Path("/tmp/cairn")
@@ -56,6 +60,7 @@ class BridgeTests(unittest.TestCase):
                                   "certificate", 0, None, None)
         objective["funder"] = "a" * 64
         objective["funding_signature"] = "b" * 128
+        objective["type"] = "objective"
         pages = {
             "/objective/sha256:objective": {"id": "sha256:objective",
                                            "settlement": {"claim_id": "sha256:claim", "reward": 0},
