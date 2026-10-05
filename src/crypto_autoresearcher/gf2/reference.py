@@ -163,3 +163,28 @@ def products(rows, maps, nv, C, W):
             o[:, Bc] ^= d[:, Bc]
             out[j * n + s:j * n + s + m] = pack(o)
     return out
+
+
+def row_leads(M0, C):
+    """Per-row leads in row order (see gf2_row_leads): lead column each row adds
+    to the span of the rows before it, or -1."""
+    R, W = M0.shape
+    basis = {}
+    out = np.full(R, -1, dtype=np.int32)
+    for i in range(R):
+        v = M0[i].copy()
+        while True:
+            nzw = np.flatnonzero(v)
+            if not len(nzw):
+                break
+            w = int(nzw[0])
+            x = int(v[w])
+            lc = w * 64 + ((x & -x).bit_length() - 1)
+            if lc >= C:
+                break
+            if lc not in basis:
+                basis[lc] = v
+                out[i] = lc
+                break
+            v = v ^ basis[lc]
+    return out

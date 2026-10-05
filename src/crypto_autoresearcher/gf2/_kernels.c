@@ -841,6 +841,66 @@ HOT i64 gf2_row_pass(const u64 *M0, i64 R, i64 W, i64 C, i32 *Z, i32 *leads, i64
     return nz;
 }
 
+/* lead[i] = lowest set column of row i (-1 if none), weight[i] = popcount. */
+HOT void gf2_row_lead_weight(const u64 *M, i64 R, i64 W, i64 *lead, i64 *weight)
+{
+    for (i64 i = 0; i < R; i++) {
+        const u64 *row = M + (size_t)i * W;
+        i64 l = -1, w = 0;
+        for (i64 x = 0; x < W; x++) {
+            u64 v = row[x];
+            if (v && l < 0)
+                l = x * 64 + __builtin_ctzll(v);
+            w += __builtin_popcountll(v);
+        }
+        lead[i] = l;
+        weight[i] = w;
+    }
+}
+
+/*
+ * Per-row leads in row order: out[i] = the leading (lowest) column that row i
+ * adds to the span of rows 0..i-1, or -1 when row i lies in that span. For
+ * every prefix the set of out[] values >= 0 is the leading-column set of the
+ * prefix's row space (independent of which echelon basis is kept). Used by
+ * the rank-profile solver's F5/Frobenius row filter.
+ */
+HOT i64 gf2_row_leads(const u64 *M0, i64 R, i64 W, i64 C, i32 *out)
+{
+    i32 *slot = (i32 *)malloc((size_t)(C > 0 ? C : 1) * sizeof(i32));
+    i64 kmax = R < C ? R : C;
+    u64 *basis = (u64 *)malloc((size_t)(kmax > 0 ? kmax : 1) * W * sizeof(u64));
+    u64 *v = (u64 *)malloc((size_t)(W > 0 ? W : 1) * sizeof(u64));
+    if (!slot || !basis || !v) {
+        free(slot); free(basis); free(v);
+        return -1;
+    }
+    for (i64 c = 0; c < C; c++)
+        slot[c] = -1;
+    i64 nb = 0;
+    for (i64 i = 0; i < R; i++) {
+        memcpy(v, M0 + (size_t)i * W, (size_t)W * sizeof(u64));
+        int lc = lowest_bit_from(v, (int)W, 0);
+        while (lc >= 0 && lc < C && slot[lc] >= 0) {
+            const u64 *b = basis + (size_t)slot[lc] * W;
+            int w0 = lc >> 6;
+            for (int x = w0; x < W; x++)
+                v[x] ^= b[x];
+            lc = lowest_bit_from(v, (int)W, w0);
+        }
+        if (lc < 0 || lc >= C) {
+            out[i] = -1;
+            continue;
+        }
+        memcpy(basis + (size_t)nb * W, v, (size_t)W * sizeof(u64));
+        slot[lc] = (i32)nb;
+        nb++;
+        out[i] = lc;
+    }
+    free(slot); free(basis); free(v);
+    return nb;
+}
+
 /* ------------------------------------------------------------------------ */
 /* Canonical JSON of the op log: [[p,c,[x,...]],...] with no spaces.         */
 /* ------------------------------------------------------------------------ */

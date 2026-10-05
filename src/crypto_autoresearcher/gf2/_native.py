@@ -84,6 +84,10 @@ def _declare(lib):
     lib.gf2_log_free.argtypes = [P]
     lib.gf2_row_pass.restype = i64
     lib.gf2_row_pass.argtypes = [P, i64, i64, i64, P, P, ctypes.POINTER(i64)]
+    lib.gf2_row_lead_weight.restype = None
+    lib.gf2_row_lead_weight.argtypes = [P, i64, i64, P, P]
+    lib.gf2_row_leads.restype = i64
+    lib.gf2_row_leads.argtypes = [P, i64, i64, i64, P]
     lib.gf2_ops_json_bound.restype = i64
     lib.gf2_ops_json_bound.argtypes = [i64, i64]
     lib.gf2_ops_json.restype = i64

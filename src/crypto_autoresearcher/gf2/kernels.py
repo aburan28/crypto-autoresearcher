@@ -199,6 +199,45 @@ def row_pass(M0, C):
     return Z[:nz].tolist(), leads[:nl.value].tolist()
 
 
+def row_lead_weight(M):
+    """(lead, weight) int64 arrays: lowest set column of each row (-1 for a zero
+    row) and its popcount."""
+    _need(M, np.uint64, "M")
+    R, W = M.shape
+    lib = _native.load()
+    if lib is None:
+        nz = M != 0
+        has = nz.any(axis=1)
+        fw = np.argmax(nz, axis=1)
+        word = M[np.arange(R), fw]
+        low = word & (~word + np.uint64(1))
+        bit = np.zeros(R, dtype=np.int64)
+        bit[has] = np.log2(low[has].astype(np.float64)).astype(np.int64)
+        lead = np.where(has, fw.astype(np.int64) * 64 + bit, -1)
+        weight = np.unpackbits(M.view(np.uint8), axis=1).sum(axis=1).astype(np.int64)
+        return lead, weight
+    lead = np.empty(R, dtype=np.int64)
+    weight = np.empty(R, dtype=np.int64)
+    _lib_for(R * W).gf2_row_lead_weight(_ptr(M), R, W, _ptr(lead), _ptr(weight))
+    return lead, weight
+
+
+def row_leads(M0, C):
+    """Per-row leads in row order: int32 array, out[i] = the leading column row
+    i adds to the span of rows 0..i-1, or -1 if it adds none. M0 is not
+    modified."""
+    _need(M0, np.uint64, "M0")
+    lib = _native.load()
+    if lib is None:
+        return reference.row_leads(M0, C)
+    R, W = M0.shape
+    out = np.empty(R, dtype=np.int32)
+    lib = _lib_for(R * W)
+    if lib.gf2_row_leads(_ptr(M0), R, W, C, _ptr(out)) < 0:
+        raise MemoryError("gf2_row_leads: allocation failed")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # canonical op-log JSON and trace hashes
 # ---------------------------------------------------------------------------

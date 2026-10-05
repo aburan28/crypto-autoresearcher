@@ -20,6 +20,7 @@ New experiments import this package instead of copying the engine again.
 | `kernels` | `column_pass` (algorithms `auto`, `sb`, `blocked`, `direct`), `row_pass`, `ops_json_bytes` / `trace_hashes`, `replay_planes`, `replay_direct`, `backtrace`, `products`, `map_threads`, `inner_threads`, `OpLog` |
 | `closure` | `Closure` (M_D, W_D, certificates), `eliminate` (the trace instrument), `eval_cert`, `cert_to_json` |
 | `reference` | numpy definitions copied from the archived engines; the native kernels must equal these |
+| `rankprofile` | `macaulay_profile` (M_D record by rank profile, F5/Frobenius row filter, lead-descending row order), `f5_keep`, `lead_desc_order` |
 | `_kernels.c` | the native kernels (C99 plus GCC builtins); compiled on first use and loaded with ctypes |
 
 ## Install
@@ -154,6 +155,44 @@ a single scatter-XOR. Without these two measures, many short GIL releases under
 a thread pool cause a convoy that made small closures 10x *slower* with 4
 threads.
 
+## Rank-profile solver (`rankprofile`)
+
+`macaulay_profile(eqs, nv, D)` returns the M_D record `{rank, one,
+dims_by_deg}`, which equals `Closure.macaulay_closure`'s, together with a
+certificate when 1 is in M_D. It is faster because it needs only the column
+rank profile (the pivot-column set in the fixed column order), and every
+elimination of every spanning set of the row space gives the same profile:
+
+1. **F5/Frobenius row filter.** A row mu*f_k is dropped when mu is a degree-e
+   leading monomial of span{nu*f_j : j <= k, deg nu <= e - 2}. Using
+   f_k^2 = f_k in B, such a row is a sum of rows with smaller keys; the module
+   docstring has the proof. The lead sets come from small lower-degree
+   matrices processed equation by equation (`kernels.row_leads`). The filter
+   removes every zero-reducing row at D <= 5 on CERTBIN-shaped systems, and
+   38.8k of the 57.3k at nv = 20, D = 6.
+2. **Lead-descending row order.** Unreduced, still-sparse rows become pivots
+   before filled-in ones, so fill-in drops.
+3. The native column pass on what remains.
+
+Its certificate is a valid list of (mu, k) Macaulay rows summing to 1,
+checked by `eval_cert` before it is returned. It is generally not the
+certificate the declared column pass extracts, and there is no op log or
+trace hash. **It is a separate instrument:** an experiment whose protocol pins
+the exact engine's certificates or hashes must keep using `Closure`.
+
+Measured, warm, 4 cores (random systems, neq = nv - 1; records identical):
+
+| matrix | exact `Closure.macaulay_closure` | `rankprofile` | rows kept / rank |
+| --- | --- | --- | --- |
+| nv = 20, D = 5 | 1.36 s | 0.78 s | 21679 / 21679 |
+| nv = 24, D = 5 | 7.30 s | 3.43 s | 46575 / 46575 |
+| nv = 20, D = 6 | 35.4 s | 8.28 s | 78964 / 60453 |
+
+`python3 tools/gf2_replay_rc1.py --solver rankprofile` replays all 784
+archived RC-1 M_D records with 0 mismatches. Its 186 refutation certificates
+are checked by evaluation instead of compared, because they differ from the
+archived ones.
+
 ## Not covered yet
 
 - **Regime B** (`EXP-CERTBIN-a58c63` `regimeB.py`). Its elimination is dense
@@ -214,4 +253,11 @@ Optional extra: `pip install -e ".[gf2-gpu]"` (pulls `cupy-cuda12x`).
   combination certificates verify.
 - `tests/test_gf2_gpu_tail.py`: CPU tables==direct; GPU==CPU when a device is
   present (skipped otherwise).
-- `tools/gf2_replay_rc1.py`: the full RC-1 sweep.
+- `tests/test_gf2_rankprofile.py`:
+  - native `row_leads` and `row_lead_weight` equal their references;
+  - `macaulay_profile` equals the exact engine on random and edge-case systems,
+    and planted-solution systems are never refuted;
+  - every dropped row lies in the span of the kept rows;
+  - archived RC-1 M_D records are reproduced;
+  - the reference backend runs the same code.
+- `tools/gf2_replay_rc1.py [--solver rankprofile]`: the full RC-1 sweep.
