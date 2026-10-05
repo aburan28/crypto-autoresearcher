@@ -15,6 +15,7 @@ permission:
   bash: deny
   webfetch: allow
   websearch: allow
+  "cairn_*": deny
   # A subagent never delegates: the Coordinator owns dispatch.
   task:
     "*": deny

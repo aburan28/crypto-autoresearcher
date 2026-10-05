@@ -265,6 +265,15 @@ def _read_opencode_binding(path: Path) -> tuple[Any, set[str]]:
     # only for a hand-edited one, where silence must not read as a denial.
     granted = {key for key in _OPENCODE_TOOL_KEYS
                if permission.get(key, "allow") != "deny"}
+    if permission.get("cairn_*") != "deny":
+        raise ValueError(f"{path}: cairn_* must be denied before per-role grants")
+    for key, decision in permission.items():
+        if not key.startswith("cairn_") or key == "cairn_*":
+            continue
+        if "*" in key or "?" in key:
+            raise ValueError(f"{path}: Cairn permissions must name exact tools: {key}")
+        if decision == "allow":
+            granted.add(key)
     # The agent name is the filename; OpenCode frontmatter has no name field.
     return Path(path).stem, granted
 

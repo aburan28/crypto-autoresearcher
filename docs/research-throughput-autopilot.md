@@ -43,8 +43,10 @@ comes next before any repeat. A process killed mid-action also reconciles on
 restart. The Coordinator must still archive, verify, and publish per AGENTS.md.
 
 Each OpenCode call uses the primary `build` dispatcher with `--format json` and
-an explicit model. The dispatcher invokes the Coordinator subagent for reserved
-decisions. OpenCode's generated Coordinator and Executor are subagents and
+an explicit model. It also uses `--auto` for unattended permission requests;
+explicit role `deny` rules remain in force. The dispatcher invokes the
+Coordinator subagent for reserved decisions. OpenCode's generated Coordinator
+and Executor are subagents and
 cannot perform the full top-level workflow alone. Their fixed model overrides
 were removed so they inherit the selected primary model on failover. The
 candidate list comes from the existing model bindings and the role's policy; candidates
@@ -76,6 +78,86 @@ probe-verified solely because the router endpoint responded. OpenRouter
 [provider failover is automatic, while model fallbacks require an explicit
 list](https://openrouter.ai/blog/insights/reliability-failover/);
 the supervisor's backend failover covers a different failure boundary.
+
+## Continuous local Cairn node
+
+The supervisor above uses OpenCode. `opencode.json` now starts the Cairn MCP
+server and the generated Executor/Validator/Red Team bindings grant only their
+role's network tools. The Coordinator remains responsible for posting and
+funding objectives; the MCP launcher forces `CAIRN_MCP_MAX_SPEND=0` even when
+an operator shell sets a higher value. A funded objective still needs a
+Coordinator decision and a CLI post. The existing runner's Stage 0 Cairn
+certificate check uses its own offline log, so it never opens the live node's
+exclusive log a second time. The service sets `CAIRN_BRIDGE_LOG` to its private
+`stage0.jsonl`; older standalone runs may still use `CAIRN_LOG`.
+
+On macOS, use one clean checkout and one private state directory. Build Cairn
+with the reader embedded (`make ui-build` in the Cairn checkout), then create a
+signed submitter identity once:
+
+```sh
+mkdir -p .cairn-runtime/bin
+cp /absolute/path/to/reader-enabled/cairn .cairn-runtime/bin/cairn
+.cairn-runtime/bin/cairn identity --out .cairn-runtime/executor.identity.json
+python3 tools/cairn_autopilot_service.py \
+  --repo . --state-dir .cairn-runtime/campaign \
+  --cairn-bin .cairn-runtime/bin/cairn \
+  --identity .cairn-runtime/executor.identity.json \
+  --cairn-data .cairn-runtime/node \
+  --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
+  --cairn-listen 127.0.0.1:9001 --backend local
+```
+
+`tools/cairn_autopilot_service.py` keeps `opencode serve` on loopback,
+requires its `/mcp` endpoint to report Cairn connected, and attaches the
+existing bounded-action supervisor to it. The node and campaign checkpoint
+survive individual actions; its state, identity, node log and OpenCode log stay
+in `.cairn-runtime/`, which Git ignores. Use a user service manager such as
+launchd with restart enabled for reboots and process failures. The command
+above runs indefinitely until stopped. `--once` runs one campaign action for
+a bounded live check; `--check` only confirms that Cairn connected and then
+stops. `--timeout` caps one OpenCode action without treating a
+watchdog as research evidence. `autoresearch campaign autopilot --repo .
+--state-dir .cairn-runtime/campaign --report` reads its progress.
+The service puts OpenCode's XDG data, state, cache, and config under the same
+private state directory, so a full system volume or an unrelated global plugin
+cannot break this checkout's continuous run.
+
+After `--check` and `--once` succeed, render a launchd agent with the same
+paths and ports, then install it for the current macOS user:
+
+```sh
+python3 tools/cairn_autopilot_launchd.py --repo . \
+  --state-dir .cairn-runtime/campaign \
+  --cairn-bin .cairn-runtime/bin/cairn \
+  --identity .cairn-runtime/executor.identity.json \
+  --cairn-data .cairn-runtime/node \
+  --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
+  --cairn-listen 127.0.0.1:9001 --backend local \
+  --out .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist
+mkdir -p ~/Library/LaunchAgents
+cp .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist \
+  ~/Library/LaunchAgents/com.crypto-autoresearcher.cairn.plist
+launchctl bootstrap "gui/$(id -u)" \
+  ~/Library/LaunchAgents/com.crypto-autoresearcher.cairn.plist
+launchctl print "gui/$(id -u)/com.crypto-autoresearcher.cairn"
+```
+
+The generated agent restarts after failures and login; its stdout, stderr,
+node log, and campaign event log are all in `.cairn-runtime/`. Stop it with
+`launchctl bootout "gui/$(id -u)/com.crypto-autoresearcher.cairn"` before
+running a manual copy on the same ports and log. Keep this dedicated checkout
+and its ignored runtime directory in place while the service is installed.
+
+This first continuous node gives research agents the network tools and makes
+the existing Stage 0 certificate check available during runs. A general
+automatic route from every approved experiment to a live, funded Cairn
+objective is still missing. `tools/exp_to_objective.py` can render certificate
+objectives, and `tools/cairn_seam_demo.py` proves one fixed EXP/RUN end to end;
+the replay path still needs a read-only wrapper, a Coordinator funding record,
+and durable receipt reconciliation before it can be made automatic. Until
+then, an action with no posted matching objective must continue its normal
+harness work rather than claim it contributed a network result.
 
 ## What to measure every day
 

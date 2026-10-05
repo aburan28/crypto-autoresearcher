@@ -292,7 +292,9 @@ def invoke_opencode(action: Action, repo: Path, attempt_dir: Path,
         started = time.monotonic()
         with out.open("w", encoding="utf-8") as stdout, err.open("w", encoding="utf-8") as stderr:
             try:
-                command = ["opencode", "run"]
+                # This process has no terminal to answer an OpenCode `ask`.
+                # The role bindings still enforce every explicit `deny`.
+                command = ["opencode", "run", "--auto"]
                 if attach:
                     command.extend(["--attach", attach])
                 command.extend(["--format", "json", "--agent", "build",

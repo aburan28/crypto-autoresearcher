@@ -76,8 +76,9 @@ def test_model_failover_only_before_tools_or_checkout_effects(
     calls = []
 
     def run(command, **kwargs):
-        assert command[5] == "build"  # top-level dispatcher can invoke the subagent
-        calls.append(command[7])
+        assert command[2] == "--auto"  # no terminal to answer tool prompts
+        assert command[6] == "build"  # top-level dispatcher can invoke the subagent
+        calls.append(command[8])
         kwargs["stdout"].write(json.dumps({"part": {"type": "step-finish",
             "tokens": {"input": 100, "output": 20}, "cost": 0.001}}) + "\n")
         return subprocess.CompletedProcess(command, 1 if len(calls) == 1 else 0)
