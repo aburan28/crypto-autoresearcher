@@ -319,14 +319,19 @@ def normalise_ts(value: Any) -> str:
 
 
 def render(repo: Path, exp_id: str, run_id: str | None, kind: str | None, reward: int,
-           created_at: str | None, replay_wrapper: str | None) -> tuple[dict[str, Any], dict[str, Any]]:
+           created_at: str | None, replay_wrapper: str | None,
+           *, isolated_demo: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
     """The objective and its provenance sidecar."""
     spec_path, spec = load_spec(repo, exp_id)
     run = None
     manifest_path = None
     if run_id:
         manifest_path, run = load_manifest(repo, exp_id, run_id)
-    approval_provenance = approval(repo, exp_id, spec, run)
+    # The legacy seam demo mints supply and posts only to its throwaway log.
+    # Its historical fixture predates DEC records; production callers never
+    # set this flag and must pass the Coordinator gate above.
+    approval_provenance = ({"isolated_demo": True} if isolated_demo
+                           else approval(repo, exp_id, spec, run))
     kind = kind or infer_kind(spec, run)
     goal = str(spec.get("goal_id") or exp_id)
     stamp, stamp_source = created_at_for(spec, run, created_at)

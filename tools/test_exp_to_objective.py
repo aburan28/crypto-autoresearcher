@@ -209,6 +209,10 @@ class RenderTests(unittest.TestCase):
         decision_path.write_text(yaml.safe_dump(decision))
         with self.assertRaisesRegex(e2o.BridgeError, "does not approve"):
             e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", None, None, 0, None, None)
+        demo, provenance = e2o.render(self.repo.root, "EXP-ECDLP-aaaaaa", "RUN-ECDLP-aaaaaa-1",
+                                      "certificate", 0, None, None, isolated_demo=True)
+        self.assertEqual(demo["verifier"]["kind"], "certificate")
+        self.assertEqual(provenance["approval"], {"isolated_demo": True})
 
 
 class ArtifactAndRecordTests(unittest.TestCase):
