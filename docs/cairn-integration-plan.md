@@ -5,6 +5,11 @@ ledger record depends on it, and adopting it is a Coordinator decision that
 needs its own `DEC-*` record plus an `AGENTS.md` amendment — this document
 grants no authority by existing.*
 
+The Stage 1 tool inventory below describes the original proposal. Cairn 1.17
+also exposes `post_objective` over MCP. The current runtime denies Cairn tools
+by default and grants only the exact tools listed for each role in
+`orchestration/roles.yaml`; posting and funding remain Coordinator decisions.
+
 Target: `aburan28/distributed-researcher` (the `cairn` crate) becomes the
 verification and distribution layer under this program, so that every claimed
 solve is re-checked by an independent implementation, every measurement-style
@@ -351,6 +356,23 @@ reads as the plan and this reads as the ledger of it.
   MCP on cairn's side, so the Validator's "author relations" half of Stage 1
   is still CLI-only.
 - Stages 2 to 4 are as the sections above say.
+
+## 6b. Continuous local runtime, 2026-10-05
+
+`opencode.json` and generated role bindings now make Cairn MCP available to
+the OpenCode campaign dispatcher. `tools/cairn_autopilot_service.py` keeps one
+reader-enabled Cairn node attached to the bounded-action supervisor, with a
+private node log and a separate Stage 0 certificate log. The MCP launcher caps
+spend at zero. `tools/cairn_autopilot_launchd.py` renders a restart-on-login
+service for a local Mac. A connect-only check and the fixed certificate seam
+have run successfully; continuous research has **not** started because the
+configured local inference proxy's AWS account is blocked. See
+`docs/research-throughput-autopilot.md` for the exact launch and status commands.
+
+This runtime connection does not post a matching objective for every campaign
+action. General replay wrappers, Coordinator funding records, settlement
+reconciliation into `EV-*`, and multi-node work assignment remain open. A
+model action without a posted objective is harness work, not a network claim.
 
 ## 7. Work items, by file
 
