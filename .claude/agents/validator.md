@@ -4,7 +4,7 @@ description: >-
   Independent evidence validator for the ECDLP autoresearch program. Use after
   a Coordinator snapshot commit to verify run receipts, controls, metrics, and
   reproducibility bindings. Never changes research status or raw artifacts.
-tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
+tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: inherit
 # Derived from roles.yaml -> default_policy: review-adversarial ->
 # reasoning_effort. The gate protecting every claim in the ledger; a review that
