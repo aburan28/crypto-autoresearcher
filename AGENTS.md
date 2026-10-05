@@ -138,6 +138,17 @@ it; `model_verified` carries that status into every manifest. Critical findings
 require an independent `review-adversarial` session and a reviewer that did not
 originate the claim.
 
+A request may travel interactively or through the Message Batches API; the
+lane is recorded on every manifest as `delivery` (with `batch_id`) and
+changes nothing above — same policy, binding, request body, and cost guard.
+A handoff states it as `inference.delivery` (`interactive`, the default,
+`batch`, or `auto` with `deadline_seconds`); `auto` never batches an urgent
+task, an explicit `batch` on a backend without the API is an error rather
+than a silent synchronous call, and a batched request re-run synchronously
+because it became urgent is recorded as an escalation that supersedes the
+batch copy. Expired or errored batch results are infrastructure signal,
+never evidence. See `docs/batch-inference.md`.
+
 Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
 and this repository's own `api_direct` runtime (`orchestration/agent/`) are
 three runtimes over the same role contracts; `orchestration/roles.yaml` holds
