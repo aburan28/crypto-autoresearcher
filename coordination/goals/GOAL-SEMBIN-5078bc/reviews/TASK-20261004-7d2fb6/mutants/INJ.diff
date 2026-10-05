@@ -1,0 +1,31 @@
+# INJ: inside ech(), after the elimination of call number mut_call_ and BEFORE the evalcheck's output accounting, add the row p=(x_a+w_a)*mu (vanishes at the witness, not at a zero that differs in coordinate a), re-echelonize silently
+--- closure.c
++++ closure_INJ.c
+@@ -279,6 +279,10 @@
+     return ok;
+ }
+ 
++
++static long mut_call_ = -1; static int mut_a_ = 0; static u64 mut_mu_ = 0; static int mut_done_flag_ = 0;
++void closure_mut_inject(long call, int a, u64 mu) { mut_call_ = call; mut_a_ = a; mut_mu_ = mu; mut_done_flag_ = 0; }
++static long col_of2(u64 m);
+ static rci_t ech(mzd_t *M) {
+ #if defined(ECH_CROSSCHECK)
+     mzd_t *C = mzd_copy(NULL, M);
+@@ -307,6 +311,16 @@
+     rci_t r1 = ech_method_ == 1 ? mzd_echelonize_pluq(M, 1)
+              : ech_method_ == 2 ? mzd_echelonize_m4ri(M, 1, 0)
+              : mzd_echelonize(M, 1);
++
++    if (mut_call_ >= 0 && ech_calls_ == mut_call_ && !mut_done_flag_ && r1 >= 0 && r1 < (rci_t)M->nrows) {
++        u64 m1 = mut_mu_ | (1ULL << mut_a_), m2 = mut_mu_;
++        long c1 = col_of2(m1), c2 = col_of2(m2);
++        mzd_write_bit(M, r1, (rci_t)c1, 1);
++        if ((witness_ >> mut_a_) & 1) mzd_write_bit(M, r1, (rci_t)c2, 1);
++        r1 = mzd_echelonize_pluq(M, 1);
++        mut_done_flag_ = 1;
++        fprintf(stderr, "[mut] injected p=(x_%d + w_%d)*mu(mask %llu) after call %ld; rank now %d\n", mut_a_, mut_a_, (unsigned long long)mut_mu_, ech_calls_, (int)r1);
++    }
+     long bout = witness_set_ ? rows_not_vanishing(M, r1, &fout) : -1;
+     fprintf(stderr, "[ech %ld %s] %d x %d rank %d | rows not vanishing at the zero: in=%ld out=%ld%s\n",
+             ech_calls_, ech_method_ == 1 ? "pluq" : ech_method_ == 2 ? "m4ri" : "default", (int)M->nrows, (int)M->ncols, (int)r1, bin, bout,
