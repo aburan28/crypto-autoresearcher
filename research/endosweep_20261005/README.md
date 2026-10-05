@@ -4,10 +4,11 @@ Exploratory tooling and sweeps, 5 October 2026. Repository
 `aburan28/crypto-autoresearcher`. **Status: a sweeper with certificates, a
 modelled ranking, an explicit builder that constructs and verifies the
 endomorphisms it predicts, a pass over the whole standardized-curve corpus,
-FourQ verified with its real maps, and the genus-2 route modelled. No ledger
-record is created or changed, no hypothesis moves, and no number in this
-directory is a measured timing (the native timing experiment lives in the
-`crypto` repository, see §9).**
+FourQ verified with its real maps, the genus-2 route modelled, and the
+CryptoPro-B chain measured natively (1.25× median / 1.34× min, §9). No
+ledger record is created or changed and no hypothesis moves; every number
+here is an operation count under the stated model except the timings quoted
+in §9 from the `crypto` repository's benchmark record.**
 
 **Question (user, 2026-10-05).** Beyond the obvious constructions (Frobenius
 expansions, GLV, GLS), are there algorithmically discoverable endomorphism-based
@@ -207,19 +208,40 @@ scale: the CryptoPro-B `5²·7` and `5·31` chains; on a 255-bit curve with
 rational 2-torsion kernel; the dual is excluded by the `±[2]` test, not by
 j-invariant, which is what lets a two-step walk legitimately return to `E`).
 
-## 9. Native timing experiment (separate repository)
+## 9. Native timing experiment (separate repository): measured
 
 The 5·5·7 and 5·31 chains are implemented natively in Rust in the `crypto`
-repository (branch `cryptopro-b-glv-chain-20261005`): Montgomery-form field
-for `p = 2^255 + 3225`, Jacobian `a = −3` arithmetic, width-w NAF baseline,
-the chain evaluator as `x ↦ N(x)/ψ(x)²`, `y ↦ y·M(x)/ψ(x)³` in projective
-coordinates, Babai decomposition, interleaved 2-dimensional wNAF, tests
-against the exported vectors and the eigenvalue, and a seeded, interleaved
-benchmark reporting one table in nanoseconds per scalar multiplication with
-a correctness column. Its result is recorded in that repository's research
-directory and pull request, not here; at the time of writing this document
-the run had not been reported back, so **no timing is claimed in this
-directory**.
+repository, pull request aburan28/crypto#1408 (branch
+`cryptopro-b-glv-chain-20261005`, `research/cryptopro_b_glv_chain_20261005/`
+there): Montgomery-form field for `p = 2^255 + 3225`, variable-time Jacobian
+`a = −3` arithmetic shared by every arm, width-5 NAF baseline, the chain
+evaluator as `x ↦ N(x)/ψ(x)²`, `y ↦ y·M(x)/ψ(x)³` in projective coordinates,
+exact-rational Babai decomposition, interleaved 2-dimensional wNAF, 32 tests
+against the exported vectors and the eigenvalue (and the full 3492-test
+library suite), and a seeded, interleaved, CPU-pinned benchmark (256 pairs ×
+20 rounds, alternating arm order, an A/A control arm). Its table, in
+nanoseconds per scalar multiplication, median / minimum of 20 rounds, on an
+Intel Xeon 2.10 GHz cloud VM:
+
+| arm | median ns | min ns | ratio baseline/arm (median / min) | correct |
+|---|---|---|---|---|
+| width-5 NAF baseline | 111 158 | 107 220 | 1.000 / 1.000 | == textbook reference on all 256 pairs |
+| GLV-2 via the `5·5·7` chain (`4+ω`, degree 175) | 88 759 | 80 199 | **1.252 / 1.337** | == baseline on all 256 pairs |
+| GLV-2 via the `5·31` chain (`ω`, degree 155) | 91 799 | 84 544 | 1.211 / 1.268 | == baseline on all 256 pairs |
+| A/A control (baseline timed again) | 118 769 | 108 890 | 0.936 / 0.985 | noise floor |
+
+Stage diagnostics: decomposition ≈ 1.0 µs (about 1 % of the GLV total,
+num-bigint), `φ(P)` ≈ 4.3 µs for the `5·5·7` chain and ≈ 9.5 µs for `5·31`.
+The declared success condition (ratio above 1 on both medians and minima
+with every correctness check passing) is met; the result is classed
+**engineering** (same problem, constant factor) per that repository's rules.
+It is **short of the modelled 1.45×**: the record reconciles the gap with a
+formula-derived count for that implementation — the projective chain costs
+about 128 M against the model's 53 M affine form, the Fermat inversion is
+shared, and the GLV arm pays a second table and a larger batch — which puts
+the implementation's own expected ratio near 1.30, where the measurement
+sits. One host, one hardware class, variable-time code: a measurement of
+this implementation, not a bound on what an optimised one would reach.
 
 ## 10. Limits
 
