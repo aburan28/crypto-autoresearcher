@@ -63,6 +63,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # refuse elsewhere (AGENTS.md rule 5: never fabricate what was not told to
 # you). Point at it or the bridge reports unavailable; nothing in between.
 ENV_BIN = "CAIRN_MCP_BIN"
+# The single `cairn` binary (releases since 1.x ship one executable; the MCP
+# server is its `mcp` subcommand). Either variable works; this one is what
+# `tools/lab_mcp.sh` and `tools/cairn_mcp.sh` already read, so one setting
+# covers the lab, the network stanza and this bridge.
+ENV_CLI = "CAIRN_BIN"
 ENV_LOG = "CAIRN_LOG"
 
 DISCRETE_LOG_OBJECTIVE = os.path.join(REPO, "cairn", "objectives", "discrete-log-reverification.json")
@@ -137,12 +142,29 @@ class CairnVerdict:
 
 
 def _cairn_mcp_bin() -> str | None:
+    """The executable that answers MCP: a legacy `cairn-mcp`, or the single
+    `cairn` binary whose `mcp` subcommand does the same job. `_mcp_argv` and
+    `_run_cli` know which they were handed by its basename."""
     configured = os.environ.get(ENV_BIN)
     if configured:
         path = Path(configured)
         return str(path) if path.is_file() and os.access(path, os.X_OK) else None
+    single = os.environ.get(ENV_CLI)
+    if single:
+        path = Path(single)
+        return str(path) if path.is_file() and os.access(path, os.X_OK) else None
     found = shutil.which("cairn-mcp")
-    return found
+    if found:
+        return found
+    return shutil.which("cairn")
+
+
+def _is_single_binary(bin_path: str) -> bool:
+    return os.path.basename(bin_path) != "cairn-mcp"
+
+
+def _mcp_argv(bin_path: str) -> list[str]:
+    return [bin_path, "mcp"] if _is_single_binary(bin_path) else [bin_path]
 
 
 def _default_log_path() -> str:
@@ -160,9 +182,10 @@ def available() -> bool:
 
 
 def _run_cli(bin_path: str, log_path: str, *args: str) -> subprocess.CompletedProcess:
-    # The CLI binary sits beside cairn-mcp in the same target/release/ -- one
-    # env var covers both, since a build that has one has the other.
-    cli_bin = os.path.join(os.path.dirname(bin_path), "cairn")
+    # A single `cairn` binary is its own CLI. A legacy cairn-mcp has the CLI
+    # beside it in the same target/release/ -- one env var covers both, since
+    # a build that has one has the other.
+    cli_bin = bin_path if _is_single_binary(bin_path) else os.path.join(os.path.dirname(bin_path), "cairn")
     if not (os.path.isfile(cli_bin) and os.access(cli_bin, os.X_OK)):
         raise CairnUnavailableError(
             f"{ENV_BIN} points at cairn-mcp but no 'cairn' CLI binary sits beside it "
@@ -304,8 +327,8 @@ def score_certificate(cert: dict[str, Any]) -> CairnVerdict:
     bin_path = _cairn_mcp_bin()
     if bin_path is None:
         raise CairnUnavailableError(
-            f"no cairn-mcp binary: set {ENV_BIN} to a built "
-            f"distributed-researcher target/release/cairn-mcp, or leave Stage 0 disabled."
+            f"no cairn binary: set {ENV_CLI} to a built cairn (its `mcp` subcommand answers), "
+            f"or {ENV_BIN} to a legacy cairn-mcp, or leave Stage 0 disabled."
         )
     log_path = _log_path()
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
@@ -323,7 +346,7 @@ def score_certificate(cert: dict[str, Any]) -> CairnVerdict:
     }
     try:
         result = subprocess.run(
-            [bin_path, "--log", log_path, "--root", REPO],
+            [*_mcp_argv(bin_path), "--log", log_path, "--root", REPO],
             input=json.dumps(request) + "\n",
             capture_output=True, text=True, timeout=_DEFAULT_TIMEOUT_SECONDS,
         )
