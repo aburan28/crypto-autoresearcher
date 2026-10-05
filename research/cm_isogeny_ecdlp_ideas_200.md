@@ -4,7 +4,7 @@
 
 This replaces the unrelated crypto-market/trading proposal. The subject is elliptic-curve cryptanalysis, especially the discrete-log problem (ECDLP), CM discriminants, endomorphism orders, and **horizontal isogenies on the same crater / same endomorphism-order level**, alongside controlled vertical moves between conductor levels.
 
-These are **candidate research jobs**, not 200 claims of priority, attacks, or established findings. Novelty against the published literature is **unverified** for every entry; repository deduplication is partial and each item needs a focused prior-art check before becoming a canonical idea. The catalog deliberately treats “same crater level” as the intended meaning of the user’s “same creator level.”
+These are **candidate research jobs**, not 200 claims of priority, attacks, or established findings. Novelty against the published literature is **unverified** for every entry; repository deduplication is partial and each item needs a focused prior-art check before becoming a canonical idea. The central comparison is between horizontal neighbors at the same crater / endomorphism-order level, with vertical conductor moves kept as a separate control.
 
 ## Mathematical guardrails
 
@@ -16,7 +16,7 @@ For the CryptoPro-B audit thread, existing notes report D_K = −619, class numb
 
 ## Relation to prior project work
 
-The project already has ECDLP-IDEA-434 on variation in mean Semaev decomposition yield across a fixed isogeny class under a fixed base and parameter. This catalog does **not** present that same mean-yield question as new. Related jobs focus on distinct observables such as support dependence, rank gained per unit compute, ideal and Gröbner profiles, map amortization, and exact subgroup transport. Existing work also discusses isogeny-class equivalence, summation-polynomial methods, and broad volcano comparisons; candidates below should be deduplicated again before canonical registration.
+The repository already contains a substantial CM/isogeny ECDLP program, including broad isogeny-class invariance, special-j/CM, volcano-depth, class-group, and Semaev/solver proposals. ECDLP-IDEA-434 specifically studies mean Semaev decomposition yield across a fixed isogeny class. This atlas avoids restating that exact question, but related follow-up dimensions may overlap other existing proposals. Treat the entries as an exploratory backlog, not as 200 repository-unique or literature-verified discoveries; deduplicate every candidate against the full active, deferred, rejected, and published-work records before canonical registration.
 
 ## How to read each job
 
