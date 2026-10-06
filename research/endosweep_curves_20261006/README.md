@@ -174,6 +174,20 @@ endomorphism ring offers nothing cheaper than a width-w NAF.
    Grouping the factors by subgroup through `∏ (Y − x([k]P))` finds all 44
    kernels in 10 s and builds `8 + ω` as `43·7` in 12 s.
 
+## Relation to the corpus pass
+
+The corpus pass of #1855 ([`../endosweep_20261005/corpus/corpus.md`](../endosweep_20261005/corpus/corpus.md))
+ranked the std-curves part of this corpus with the sweep's first chain model,
+which charges CryptoPro-B's `5·5·7` chain 53 M in an affine form.  The
+evaluator measured in crypto#1408 spends 128 M_eq on it (a count the counting
+build of crypto#1423 reproduced exactly), and that pass's modelled 1.45× for
+CryptoPro-B compares with 1.408× counted natively for the best configuration.
+The figures here use the confirmed evaluator and supersede that pass's ratios
+(1.40–1.52× on these curves).  The cheapest element changes where the two
+models price steps differently: on Tom-256 the corpus pass chose `49 + 2ω`
+(`5·11³`), which costs 213 M_eq here against 161 for `2 + ω` (`19·5·11`).
+That pass also could not parse Bandersnatch, which this one does.
+
 ## Scope
 
 * Operation counts (`M_eq = M + S`), expected over random scalars, not
