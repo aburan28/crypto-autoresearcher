@@ -189,6 +189,33 @@ def test_kernel_polynomial_velu_matches_point_velu_on_toy_curve():
     assert h in EX.rational_kernels(E, 7, fdiv)
 
 
+def test_flint_and_pure_python_division_polynomials_and_kernels_agree():
+    from harness.endosweep import explicit as EX
+    pytest.importorskip("flint")
+    T = TG.verify(next(t for t in TG.deployed_targets() if t.name == "GOST CryptoPro-B"))
+    p, a, b = T.p, T.coeffs["a"] % T.p, T.coeffs["b"] % T.p
+    py = EX.division_polynomials(p, a, b, 7)
+    fl = EX.division_polynomials_flint(p, a, b, 7)
+    assert py[5] == fl[5] and py[7] == fl[7]
+    E = TV.Curve(p, a, b)
+    trace = p + 1 - T.n
+    for ell in (5, 7):
+        by_factoring = sorted(EX.rational_kernels(E, ell, py))
+        by_frobenius = sorted(EX.rational_kernels_frobenius(E, ell, trace, fl))
+        assert by_factoring == by_frobenius and len(by_factoring) == 2
+
+
+def test_cryptopro_b_degree_155_chain_omega_itself():
+    """omega = (1+sqrt(-619))/2 of norm 5*31 as a 5-isogeny followed by a 31-isogeny."""
+    pytest.importorskip("flint")
+    from harness.endosweep import explicit as EX
+    T = TG.verify(next(t for t in TG.deployed_targets() if t.name == "GOST CryptoPro-B"))
+    res = EX.build_chain_endomorphism(T.p, T.coeffs["a"], T.coeffs["b"], T.n, T.h, -619, (0, 1),
+                                      curve_name=T.name)
+    assert res.found, res.note
+    assert res.steps == [5, 31] and res.degree == 155 and res.glv_check["max_coeff_bits"] <= 128
+
+
 def test_cryptopro_b_degree_175_chain_endomorphism_is_real():
     """The sweeper's prediction for GOST CryptoPro-B (D_K = -619, h = 5) built and verified."""
     from harness.endosweep import explicit as EX
@@ -203,3 +230,63 @@ def test_cryptopro_b_degree_175_chain_endomorphism_is_real():
     assert res.glv_check["max_coeff_bits"] <= 128
     # the cycle through the class group: three distinct neighbours, back to j(E)
     assert res.walk_js[0] == res.walk_js[-1] and len(set(res.walk_js[:-1])) == 3
+
+
+def test_two_isogeny_chains_on_a_256_bit_class_number_3_curve():
+    """Degree-2 steps in kernel-polynomial form, at real scale, on a CM curve from H_{-23}."""
+    from harness.endosweep import explicit as EX
+    E, N, n, t, j = TV.cm_curve_from_class_polynomial(-23, TV.HILBERT_CLASS_POLY_M23, 256, seed=3)
+    assert E.p.bit_length() >= 250 and (t * t - 4 * E.p) % 23 == 0
+    for element, steps in (((1, 1), [2, 2, 2]), ((5, 1), [2, 2, 3, 3]), ((0, 1), [2, 3])):
+        r = EX.build_chain_endomorphism(E.p, E.a, E.b, n, N // n, -23, element)
+        assert r.found, (element, r.note)
+        assert r.steps == steps and r.glv_check["max_coeff_bits"] <= r.glv_check["babai_bound_bits"]
+
+
+# --- FourQ, genus 2, corpus ----------------------------------------------------
+
+def test_fourq_maps_verify_and_decompose():
+    from harness.endosweep import fourq as FQ
+    res = FQ.verify_fourq()
+    assert res.verified_parameters
+    assert res.cm_discriminant == -40
+    assert res.psi_relation.startswith("psi^2 = 0 psi + 32")
+    assert res.phi_relation.startswith("phi^2 = 0 phi + -80")
+    assert all(res.endomorphism_checks[k] for k in res.endomorphism_checks if "norm <= 64" not in k)
+    assert res.decomposition["reconstructs kP (4 random k)"]
+    assert res.decomposition["max_coeff_bits"] <= 63
+    T, _ = FQ.fourq_target()
+    assert T.verified and len(T.declared_generators) == 2
+
+
+def test_genus2_toy_rank4_decomposition():
+    from harness.endosweep import genus2 as G2
+    for fam in ("BK", "FKT"):
+        r = G2.verify_genus2_toy(fam, bits=9, seed=1)
+        assert r.eigenvalue is not None
+        assert all(v is True for k, v in r.checks.items() if isinstance(v, bool)), r.checks
+        assert r.ops_add["M"] > 0 and r.ops_dbl["M"] > 0
+
+
+def test_corpus_ingestion_and_scan(tmp_path):
+    from harness.endosweep import corpus as CO
+    cat = tmp_path / "gost"
+    cat.mkdir()
+    curve = {
+        "name": "cryptopro-b", "category": "gost", "field": {"type": "Prime", "bits": 256,
+            "p": "0x8000000000000000000000000000000000000000000000000000000000000c99"},
+        "form": "Weierstrass",
+        "params": {"a": {"raw": "0x8000000000000000000000000000000000000000000000000000000000000c96"},
+                   "b": {"raw": "0x3e1af419a269a5f866a7d3c25c3df80ae979259373ff2b182f49d4ce7e1bbc8b"}},
+        "order": "0x800000000000000000000000000000015f700cfff1a624e5e497161bcc8a198f", "cofactor": "0x1",
+        "characteristics": {"cm_disc": "-619", "conductor": "4646402506017662432554672533504826433"},
+    }
+    binary = {"name": "k163", "category": "gost", "field": {"type": "Binary", "bits": 163}, "form": "Weierstrass"}
+    (cat / "curves.json").write_text(__import__("json").dumps({"curves": [curve, binary]}))
+    loaded = CO.load_std_curves(str(tmp_path))
+    assert len(loaded) == 2
+    T, entry, _ = loaded[0]
+    e = CO.scan_entry(T, entry, disc_bound=10_000, explicit_max_prime=7, explicit_time_budget_s=60)
+    assert e.verified and e.scan_D == -619 and e.db_agreement == "agree"
+    assert e.cheapest_chain["chain"] == "5^2*7" and e.explicit["found"] is True
+    assert loaded[1][1].skipped.startswith("field type Binary")
