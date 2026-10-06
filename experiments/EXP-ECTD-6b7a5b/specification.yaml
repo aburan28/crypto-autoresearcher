@@ -1,0 +1,344 @@
+# =============================================================================
+# EXP-ECTD-6b7a5b — version 1, approved by DEC-20261006-a0a55f.
+# Frozen conductor-and-torsion measurement for IDEA-20261005-e7ad98.
+# The prediction is conductor 3 together with absent full rational
+# 5-torsion. A different conductor is a negative. The presence of that
+# torsion is a negative. No trapdoor. No ECDLP algorithm. No run in this
+# design. The source idea is on origin/design/pair-3a18d1-hcp and is not
+# copied.
+# =============================================================================
+experiment:
+  id: EXP-ECTD-6b7a5b
+  hypothesis_id: H-ECTD-2570d9
+  question_id: RQ-ECTD-001
+  source_idea: IDEA-20261005-e7ad98
+  goal_id: null
+  version: 1
+  title: >-
+    Conductor of Z[pi] and full rational 5-torsion for y^2 = x^3 + x + 1
+    at the ordinary prime p = 13
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-a0a55f
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the conductor is 3, does not assert that full rational 5-torsion is
+      absent, does not assert a trapdoor, and does not assert an ECDLP
+      algorithm or an exponent improvement.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide which completed outcome the one-prime reduction supports.
+    Success is conductor exactly 3 together with full-rational-5-torsion
+    bit exactly 0, on an agreed point count of 18 and a j-residue of 7.
+    A different conductor is a negative. The presence of that torsion is
+    a negative. Success can fail.
+
+  inputs:
+    curve:
+      equation: y^2 = x^3 + x + 1
+      A: 1
+      B: 1
+      rational_j: 6912/31
+      cubic_discriminant: -496
+    prime: 13
+    field_elements: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    enumeration: >-
+      For each x in F_13 compute rhs = x^3 + x + 1 modulo 13. If rhs is 0,
+      add one point. If rhs is a nonzero square, add two points. Otherwise
+      add zero. Add one for the point at infinity. Compute the squares by
+      squaring 0 through 12. Do not return 18 without enumerating.
+    orders:
+      - name: ascending
+        seed: 0
+        direction: x from 0 through 12
+      - name: descending
+        seed: 1
+        direction: x from 12 through 0
+    trace_rule: t = 14 - agreed_count
+    discriminant_rule: Delta = t^2 - 4*13
+    conductor_rule: >-
+      f is the largest positive integer such that f^2 divides Delta and
+      Delta/f^2 is a fundamental discriminant. A negative integer D is
+      fundamental when either D is congruent to 1 modulo 4 and square-free,
+      or D is divisible by 4, D/4 is square-free, and D/4 is congruent to
+      2 or 3 modulo 4. A core not congruent to 0 or 1 modulo 4 is rejected.
+      Do not take the largest f whose square divides Delta and then skip
+      the fundamental-discriminant test.
+    torsion_rule: >-
+      full_rational_5_torsion_bit is 1 when 25 divides the agreed count,
+      and 0 otherwise. The bit is about a subgroup of order 25. It is not
+      the bit "5 divides the count".
+    j_rule: >-
+      Reduce 6912 * inverse(31) modulo 13. Record 1728 modulo 13 as a
+      comparison residue. Record the denominator of 6912/31 in lowest
+      terms. Do not replace this j by a class polynomial.
+    extractor_fixtures:
+      - delta: -4
+        expected_conductor: 1
+      - delta: -3
+        expected_conductor: 1
+      - delta: -36
+        expected_conductor: 3
+        rejected_candidate: >-
+          f = 6 gives core -1, which is not congruent to 0 or 1 modulo 4
+          and is not a fundamental discriminant. Returning 6 fails the fixture.
+    twist:
+      equation: y^2 = 2*(x^3 + x + 1)
+      role: >-
+        Enumerate it under its own label. Do not copy its count into the
+        primary count. Its trace is not required to equal -4.
+    ordinary_gate: >-
+      If the agreed trace is divisible by 13, the reduction is not the
+      ordinary reduction in the test boundary. Stop as invalid. Do not
+      read a conductor.
+    seeds: [0, 1]
+    forbidden:
+      - Do not claim a trapdoor.
+      - Do not claim an ECDLP algorithm or an exponent improvement.
+      - Do not build a class polynomial, an isogeny, or a discrete-log walk.
+      - Do not substitute the quadratic twist for E.
+      - Do not hard-code the count 18 as the output of the enumerator.
+      - Do not feed the fixture Delta = -36 into the scientific conductor. The scientific conductor uses the enumerated trace.
+      - Do not read a curve conductor if an extractor fixture fails.
+
+  controls:
+    - id: nonsingular
+      statement: >-
+        13 does not divide 496, and the cubic x^3 + x + 1 and its
+        derivative are coprime in F_13[x].
+      pass_condition: 496 modulo 13 is nonzero and the gcd is 1
+      on_fail: The prime or the curve is wrong. The run is invalid. No conductor is read.
+    - id: two-enumerations
+      statement: >-
+        The ascending pass and the descending pass return the same point
+        count, and each pass records infinity_counted = 1.
+      pass_condition: the two counts are equal and both infinity flags are 1
+      on_fail: The counter is broken. The run is invalid. No conductor is read.
+    - id: twist-label
+      statement: >-
+        The primary equation string is y^2 = x^3 + x + 1. The twist count
+        is stored under twist_count and is not copied into the primary count.
+      pass_condition: primary_equation is the untwisted equation and twist_count is a separate field
+      on_fail: The curve was substituted. The run is invalid. No conductor is read.
+    - id: extractor-fixtures
+      statement: >-
+        The same extractor returns 1 on Delta = -4, returns 1 on Delta = -3,
+        and returns 3 on Delta = -36. It does not return 6 on Delta = -36.
+      pass_condition: all three expected conductors match
+      on_fail: The extractor is broken. The run is invalid. No curve conductor is read.
+    - id: denominator
+      statement: >-
+        The rational 6912/31 in lowest terms has denominator 31.
+      pass_condition: denominator is 31
+      on_fail: The j-invariant is not the stated one. The run is invalid. No residue is read as the prediction.
+
+  independent_variables:
+    - the x-order of the enumeration, ascending or descending, which must agree
+    - whether the counted equation is E or the labeled twist
+
+  metrics:
+    primary:
+      - id: conductor_of_Z_pi
+        statement: >-
+          The conductor extracted from the agreed trace. The prediction is
+          3. Any other integer is the negative.
+      - id: full_rational_5_torsion_bit
+        statement: >-
+          1 when 25 divides the agreed count, else 0. The prediction is 0.
+          The value 1 is the negative.
+    secondary:
+      - id: enumerated_point_count_over_F_13
+        statement: The agreed count. The prediction is 18.
+      - id: trace
+        statement: 14 minus the agreed count. The prediction, if the count is 18, is -4.
+      - id: discriminant
+        statement: t^2 - 52. The prediction, if the trace is -4, is -36.
+      - id: j_residue_mod_13
+        statement: 6912 * inverse(31) modulo 13. The prediction is 7.
+      - id: j_denominator
+        statement: Denominator of 6912/31 in lowest terms. The input check needs 31.
+      - id: comparison_1728_mod_13
+        statement: 1728 modulo 13, recorded so the residue 7 can be seen to differ from it.
+      - id: twist_count
+        statement: Point count of the labeled twist, not used as the primary count.
+      - id: outcome
+        statement: >-
+          A when the prediction holds. B when the instrument passes and at
+          least one pre-registered integer fails. C when the run is invalid.
+
+  heuristic_under_test: H1
+  heuristic_under_test_note: >-
+    H1 is the claim that this one ordinary reduction has conductor 3 and
+    full-rational-5-torsion bit 0. A different conductor, or bit 1,
+    falsifies H1 on this prime. A failed control rejects the instrument
+    and falsifies nothing about the curve.
+
+  preregistered_prediction:
+    quantity: >-
+      The conductor of Z[pi] for y^2 = x^3 + x + 1 at p = 13, together
+      with the bit that says whether full rational 5-torsion is present,
+      the enumerated point count, and the residue of j modulo 13.
+    formula: >-
+      The conductor equals 3. The torsion bit equals 0. The count equals
+      18. The j-residue equals 7. A different conductor is the negative.
+      Torsion bit 1 is the negative. A different count or a different
+      residue is a negative of the same package. No other formula is
+      written here.
+    source: >-
+      The four integers are copied from IDEA-20261005-e7ad98 before any
+      run of EXP-ECTD-6b7a5b. The conductor definition is the definition
+      of the quadratic order attached to X^2 - t X + p. The Silverman
+      sentence on CM j-invariants is provenance recalled and is not this
+      formula.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested object is one curve over a field of 13 elements. A
+      result here is not a result at a cryptographic prime, not a
+      trapdoor, and not a discrete-logarithm algorithm. No extrapolation
+      is authorized.
+    correspondence: >-
+      Direct enumeration in one prime field. No Deuring correspondence
+      and no sampling equivalence to a larger field is used.
+
+  tail_checks:
+    - >-
+      There is no smoothness tail. The extreme check is a single
+      mismatched integer: one conductor other than 3, or one torsion bit
+      equal to 1, already forces outcome B. Do not drop a point to keep
+      the count at 18.
+
+  replication:
+    seeds:
+      - name: ascending
+        algorithm: x from 0 through 12
+        seed: [0]
+      - name: descending
+        algorithm: x from 12 through 0
+        seed: [1]
+        note: >-
+          The second order is a control that the count is stable. It is
+          not a second curve. Adding a second prime is a protocol amendment.
+    independent_instances: 1
+    independent_instances_note: >-
+      One curve at one prime. The twist and the extractor fixtures are
+      not a second scientific curve.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 2
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not change the one prime.
+      maximum_runs is 2 so one infrastructure retry may take a new run id.
+      Watch expiry is failed_infrastructure, never a negative mathematical
+      result.
+
+  procedure:
+    controls_first: >-
+      Check that 13 does not divide 496 and that the cubic is separable.
+      Run the extractor on -4, -3, and -36. Check the denominator of
+      6912/31. If any of these fails, stop as invalid and do not enumerate
+      a conductor for the curve.
+    enumerate: >-
+      Count points in ascending x and in descending x, each adding the
+      point at infinity once. If the counts differ, stop as invalid.
+      Enumerate the twist under its own label.
+    extract: >-
+      Set t = 14 - agreed_count and Delta = t^2 - 52. If 13 divides t,
+      stop as invalid. Otherwise extract f from that Delta with the same
+      function that passed the fixtures. Set the torsion bit from whether
+      25 divides the agreed count. Reduce j modulo 13.
+    mechanism_assignment:
+      - observation: >-
+          The controls pass, the two counts agree, the count is 18, the
+          conductor is 3, the torsion bit is 0, and the j-residue is 7.
+        assigns_to: >-
+          The prediction holds on this prime. The conductor is 3 and full
+          rational 5-torsion is absent. This is not a trapdoor and not an
+          ECDLP algorithm.
+      - observation: >-
+          The controls pass, the two counts agree, and at least one of
+          the conductor, the torsion bit, the count, or the j-residue
+          differs from the prediction. In particular, a conductor other
+          than 3, or torsion bit 1, is this row.
+        assigns_to: >-
+          Negative. A different conductor, or the presence of full
+          rational 5-torsion, is the datum. Success does not hold.
+      - observation: >-
+          A control fails, the enumerations disagree, the cubic is
+          singular, or the trace is divisible by 13.
+        assigns_to: >-
+          Invalid. Not evidence for either reading of the conductor.
+      - observation: >-
+          The watch expires, a dependency is missing, or the process crashes.
+        assigns_to: >-
+          failed_infrastructure. Not evidence.
+
+  stopping_rules:
+    - Stop after the one prime, the controls, and the two enumerations, or when an invalid row fires.
+    - Do not add a second prime, a class polynomial, an isogeny, or a discrete-log walk.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing dependency is failed_infrastructure and is not evidence against the hypothesis.
+    - Reading a curve conductor after a failed control invalidates the run.
+    - Returning 18 without enumerating both x-orders invalidates the run.
+    - Substituting the twist, or feeding fixture Delta -36 in as the scientific discriminant, invalidates the run.
+    - Claiming a trapdoor or an ECDLP exponent change invalidates the run.
+    - Reporting success when the conductor is not 3, or when the torsion bit is 1, invalidates the run.
+
+  success_criterion: >-
+    The run is a success for the prediction exactly when the first row of
+    mechanism_assignment holds: the conductor is 3 and the torsion bit is
+    0, with the agreed count 18 and the j-residue 7. Any other completed
+    assignment is not this success. The second row is a negative, so
+    success can fail.
+
+  falsification_criterion: >-
+    The prediction is falsified when the second row holds: the controls
+    and the two enumerations pass, and the conductor is an integer other
+    than 3, or the torsion bit is 1, or the count is not 18, or the
+    j-residue is not 7. A different conductor is a negative. The presence
+    of full rational 5-torsion is a negative. The third and fourth rows
+    falsify nothing about the conductor.
+
+  required_artifacts:
+    - experiments/EXP-ECTD-6b7a5b/runs/RUN-*/manifest.yaml
+    - experiments/EXP-ECTD-6b7a5b/runs/RUN-*/stdout.txt
+    - experiments/EXP-ECTD-6b7a5b/runs/RUN-*/stderr.txt
+    - experiments/EXP-ECTD-6b7a5b/runs/RUN-*/raw-result.json
+    - experiments/EXP-ECTD-6b7a5b/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      ascending_count, descending_count, infinity flags, agreed_count,
+      trace, discriminant, conductor, full_rational_5_torsion_bit,
+      j_residue, j_denominator, residue of 1728, twist_count,
+      fixture outputs, nonsingular bit, outcome A or B or C, and the
+      name of the failing check when the outcome is not A.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row.
+      It does not change hypothesis status. It does not claim a trapdoor.
+
+  assigned_to: executor
+  zero_runs_in_design: true
