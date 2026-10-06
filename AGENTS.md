@@ -420,6 +420,47 @@ python3 tools/ecc_priority.py --budget-violations   # instruction 1's check
    approves it. The Coordinator supplies that decision under standing user
    authorization once the protocol is complete; no user confirmation is needed.
 
+### Approval is bounded by execution
+
+Additive amendment, 2026-10-07, from `docs/track-record-review-20261006.md`
+(P0.1, P0.2, P0.4) and the operator-level request in `DEC-20261005-138b51`
+F-1. It bounds the reading of instruction 3; it rewrites no record and
+relaxes no rule above.
+
+"Designed, not shelved" means an open ECC idea is **designed when it can be
+approved**, and approval has two conditions the ledger checks:
+
+- **Capacity.** A goal (or, for a contract without one, its area) holds at
+  most `APPROVAL_CAPACITY_CAP` (`tools/portfolio_kpis.py`, three) approved
+  contracts that have never run. A `DEC-*` approving a contract over that
+  cap is refused by `tools/validate_ledger.py` for decisions minted on or
+  after the amendment date, unless the same decision retires one of them
+  (`supersedes_experiments` / `withdraws_experiments`). The review counted
+  1,137 approved contracts that had never run; approving a 1,138th reduces no
+  uncertainty, it only costs the tokens that wrote it.
+- **Runnable.** A contract is approved only when `python3
+  tools/newest_experiments.py --experiment <EXP-ID>` reports
+  `execution_state: ready`: a committed launcher or trial plan exists.
+  Implementation belongs to the design lane, where the designer's context
+  already is. A contract that cannot be made runnable in the designing
+  session stays `review_required` with the reason recorded.
+
+An idea that cannot be approved under those conditions **stays `proposed`
+with the reason recorded**: the designing session's receipt
+(`tools/session_receipt.py --outcome refused_capacity`, naming the idea and
+the goal whose capacity or launcher is missing) and, where a goal exists,
+its `next_action`. The proposal record itself is not edited. That is not
+shelving: the idea is still ranked work, it is still visible to
+`tools/ecc_priority.py --open-ideas`, and it is designed in the session that
+has the headroom or the launcher. Designing it earlier manufactures a
+hypothesis and a contract the harness cannot act on, which is the make-work
+instruction 1 forbids under another name.
+
+Unchanged: ECC priority still orders the queue; unlimited budgets still
+remove the batch ceiling and not the duty to rank; designing is still not
+approving; and an approved-but-unrun contract is still neither evidence nor
+a failure of its hypothesis.
+
 ## Target result profile
 
 The canonical exemplar of the output this system exists to produce is
@@ -540,7 +581,7 @@ Every inter-agent task must include:
 
 ```yaml
 handoff:
-  id: TASK-YYYYMMDD-NNN
+  id: TASK-YYYYMMDD-<tok>
   from: coordinator
   to: idea-generator | executor | reviewer | validator | red-team
   objective: precise uncertainty to reduce
@@ -548,7 +589,7 @@ handoff:
   constraints: []
   deliverables: []
   artifact_paths: []
-  archived_by: TASK-YYYYMMDD-NNN
+  archived_by: TASK-YYYYMMDD-<tok>
   inference:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | executor-implementation | executor-mechanical |
