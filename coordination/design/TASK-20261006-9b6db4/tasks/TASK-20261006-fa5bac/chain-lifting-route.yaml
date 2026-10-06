@@ -1,0 +1,64 @@
+task_id: TASK-20261006-fa5bac
+route_id: B
+mechanism: unique_calibrated_map_reconstruction
+formulation: forward_backward_two_isogeny_chain_lifting
+status: finite_exponential_meet_in_the_middle
+selected_finalist: false
+input:
+  exact: [O, E, C, P, X, D, N, U, V, k, frozen_encodings]
+  excluded: [connecting_path, Hom_E_C, target_order, orientation, retained_sender_map, per_instance_advice]
+state_types:
+  forward: "(depth, normalized midpoint curve, composed evaluator E->mid, image of P, forbidden dual edge)"
+  backward: "(depth, normalized midpoint curve, composed evaluator mid->C, unique N-torsion preimage of X, forbidden dual edge)"
+recursion:
+  forward: enumerate all three initial degree-2 kernels, then the two non-dual kernels per step
+  backward: enumerate all three initial degree-2 kernels from C, then two non-dual kernels; pull X backward as "[2^(-1) mod N] dual(psi)(X)"
+  cycles: allowed; retain path/evaluator identity even when normalized vertices merge
+  mergers: deduplicate only identical full states including transported point and forbidden edge
+  initial_branching: 3
+  nonbacktracking_branching: 2
+  path_count_positive_depth: "3*2^(depth-1) before cycles/mergers"
+meet_in_the_middle:
+  split: "t=floor(a/2), a-t=ceil(a/2)"
+  table_key: "normalized midpoint plus transported labelled N-torsion point, with all compatible model isomorphisms explicitly tested"
+  predicate:
+    soundness: a match composes to a degree-D chain from E to C sending P to X after exact verification
+    completeness: every nonbacktracking degree-two factorization of an honest f has its prefix/suffix states in the two tables
+    caveat: curve endpoint collision without the point/isomorphism condition is not a match
+local_predicate:
+  available: encoding, field, nonsingularity, exact degree-2 kernel, order preservation, model-isomorphism and immediate nonbacktracking checks
+  unavailable: "no additional sound-and-complete prefix predicate separating extendable from nonextendable honest prefixes"
+  full_path_not_local: checking final C and f(P)=X occurs only after the halves meet
+program: |
+  Validate inputs and enumerate all forward states to depth floor(a/2).
+  Validate inputs and enumerate all backward states to depth ceil(a/2).
+  Join on normalized curve and labelled transported-point equality under explicit isomorphisms.
+  For every match, compose, normalize and certify the exact degree-D map.
+  Retain only maps with f(P)=X; evaluate f(U),f(V); run the slope decoder.
+  If no match survives, return bottom(NO_CHAIN_MATCH_IN_ENUMERATED_SPACE).
+cost:
+  bit_time: "Theta(2^(a/2))*poly(log p,a,B) expected table/curve/isomorphism/evaluation work, before instance-specific merger savings"
+  memory: "Theta(2^(a/2))*poly(log p,a) bits for a balanced table"
+  output: "O(a) degree-two map descriptions plus certificates when successful; constant tagged bottom otherwise"
+  preprocessing: none outside the charged two tables
+  cycles_mergers: may improve a particular table but have no proved uniform polynomial compression
+  normalization: every midpoint and final model isomorphism/point transport charged
+  evaluation: composition on U,V costs a degree-two chain of length a after selection
+  failure: deterministic completeness only for fully enumerated states; resource truncation is infrastructure failure, not evidence
+complexity_boundary:
+  bit_polynomial: false
+  reason: balanced branch count is exponential in a=log2(D)
+decoder:
+  requirement: certified composed evaluator f and kernel shape
+  path: "f(U),f(V) -> H,G -> checked binary t=m"
+wrong_key_malformed:
+  detected: reject invalid model, point order, edge, dual, composition, degree, endpoint, column or certificate
+  undetected: no authenticated guarantee for plausible nonhonest ciphertext/key pairs
+nonduplication:
+  prior_F3: this is a two-sided chain collision, not D independent slope-quotient replays
+  limit: both remain exponential public baselines and neither gives a recipient-only polynomial advantage
+citations:
+  - {ref: KN-TECH-029, provenance: kb, claim: reported meet-in-the-middle baseline for auxiliary-data-free supersingular path finding, verified_by: knowledge entry}
+  - {ref: KN-LIT-961, provenance: kb, claim: abstract-level report on computing 2-power isogenies once a chain/kernel representation is available, verified_by: knowledge entry}
+novelty_status: unverified
+
