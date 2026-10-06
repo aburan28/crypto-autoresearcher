@@ -96,6 +96,17 @@ state.
   appeared near `p/2` modes. These are external measurements and algebraic
   identities, not canonical findings or a claimed ECDLP algorithm. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Full-coverage continuation isolates two corrections but target decoding is BSGS.**
+  Direct factor summation and a joint residue/scalar transform were exact, yet
+  tensor ranks matched controls and dense 2D state expanded to 93--895 entries
+  per rectangle cell. A quotient/remainder layout then covered the entire
+  scalar orbit with an exact rank-four character base plus exactly two
+  singular corrections on all 28 cases. Translating the layout by a target
+  recovered all 9,096 toy logs through a guaranteed signed point collision,
+  using square-root labelled baby/giant tables. This is an end-to-end positive
+  control and exact representation, but its decoder is Shanks
+  baby-step/giant-step prior art rather than a new ECDLP method. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a

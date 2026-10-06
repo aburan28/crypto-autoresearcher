@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then three structured spectral measurements continued the path. Ordinary baby/giant phase matrices were high-rank, denominator clearing exposed an exact constructible rank-four addition factor plus rank-one second Cauchy displacement, and dense Gauss-expansion statistics now motivate direct bilinear-phase summation.
+- Bottom line: five earlier frozen successors failed their gates, then seven structured addition/spectral measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -54,8 +54,28 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `gauss_expansion_lab.py` | `8fc4ea1c1ae78533df2a25d1d5e174c7d04d6fb503775a99ef6092f4244f71ab` |
 | `tests/test_gauss_expansion_lab.py` | `9415147685f938a4192e5a4e0cce99b93b687ff829cad9c53f36ad6e833a0a12` |
 | `results/gauss-character-expansion.json` | `ceac60648d389a6897941534e94a9dd197a34bff66b4bcab32f0984abd356b2c` |
+| direct-factor decision-rule commit | `168b34b` |
+| direct-factor implementation commit | `22510a9` |
+| `four_factor_summation_lab.py` | `1792310cafadc56530387656ce3e808f264399996cebb0281b2cdf62c3c15eb3` |
+| `tests/test_four_factor_summation_lab.py` | `6d7c33207ab575d1bc67f759ffb88862a802833be5cf5ac8ee65158cac178a6f` |
+| `results/direct-four-factor-summation.json` | `0850b12efe96ab7c5c076ffdcea02f3227a6e517736a4c5b59f6da7ad2fdf6f1` |
+| joint-transform decision-rule commit | `ccc20f0` |
+| joint-transform implementation commit | `792206b` |
+| `joint_transform_lab.py` | `497493d2753386956062d9ef4bd311ed58d3614bd89ca919c35830bac29d1713` |
+| `tests/test_joint_transform_lab.py` | `cbe4007b5ace3fc8f6baf69000c67fe6268f1d0002eb42a14b08e6ad966857f8` |
+| `results/joint-residue-scalar-transform.json` | `172eaa16734f46b303df5e9e488564eb739a44c0f199b56da510268e07a6a2fb` |
+| full-coverage decision-rule commit | `3bcd12e` |
+| full-coverage implementation commit | `9fd6f69` |
+| `full_coverage_correction_lab.py` | `d291b00ba03122514b7f95b72351fb949ea27e89e66693984c9da2aba93c1222` |
+| `tests/test_full_coverage_correction_lab.py` | `140b2d28a1a6aa1a64aeaa7736753cbd724d9849f147d6b6850a86761674f036` |
+| `results/full-coverage-sparse-correction.json` | `8f29bd3e30e14aa03f7bfcca30477024af343b1a9aa41baf40abf8c992de5382` |
+| translated-target decision-rule commit | `a4770aa` |
+| translated-target implementation commit | `331c439` |
+| `target_translation_lab.py` | `bc51cb42e2adad6da9c6d958d37e1f602283886c5e675b20f0d798451305f2ea` |
+| `tests/test_target_translation_lab.py` | `eb40cc33b23e67a028e60782bdaed3841ff645d9038cad29e9e2ea8989b10fbc` |
+| `results/target-translated-collision-decoder.json` | `9b52c7ef77f5b01806fcf68ca5cf820aa646528c43e1ef4351a83f5c5760e3ef` |
 
-All eight result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 44/44 tests. These are provenance statements, not repository run receipts.
+All twelve result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 56/56 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -308,11 +328,53 @@ balanced-function control distributions are retained in full. The next
 experiment is direct summation of individual bilinear phase terms from H15's
 four factors.
 
+## H17 — direct four-factor phase summation
+
+Direct cells, full-feature aggregation, residue/DFT batching, and a four-factor
+Hadamard construction agreed exactly on 28 elliptic and 56 permuted-feature
+cases. Full feature tuples never collided. Phase 99%-energy rank fractions had
+the same median, `0.857143`, for elliptic inputs and controls; rank-capped tensor
+recompression had median matrix error `0.815288` versus `0.807678` for controls.
+The exact residue histogram still visited every cell once, but when all
+additive modes were requested its modeled work ratio fell from 0.384 to 0.052
+over the curve ladder.
+
+## H18 — joint residue/scalar-frequency transform
+
+A mixed-sign 2D transform exactly reconstructed every sampled `(t,q)` phase
+and the complete all-`q` quadratic-character spectrum. Its joint support used a
+median 96% of cells, dense state expanded from 93 to 895 entries per cell, and
+dense 2D work was 1.91--1.96 times the repeated one-dimensional route. The
+singular-free step-one rectangle covered only 21.7% down to 6.4% of scalar
+sums, motivating a different layout rather than a denser transform.
+
+## H19 — full-coverage sparse singular correction
+
+The masked quotient/remainder layout covered every scalar exactly once. Across
+all 28 curve/generator cases, the rank-four character formula held away from
+exactly two cells: one doubling at scalar 2 and one inverse pair at scalar 0.
+Adding those two explicit corrections reconstructed the full character orbit
+and its DFT exactly. Correction relative L2 fell from 0.158 to 0.046 across the
+ladder. This is an exact positive algebraic representation, not yet a fast
+nonlinear evaluator.
+
+## H20 — target-translated collision decoder
+
+Translating the giant side by `Q=[k]G` makes a same/inverse point collision emit
+`k=+/-a-o-m*j`. Every one of 9,096 nonidentity targets was recovered with
+`floor(sqrt(r))` baby points and `ceil(r/m)` translated giant points; the
+full-coverage mask guaranteed one inverse collision. Permuting the giant
+points' scalar labels reduced median recovery to 11.1%, declining to roughly
+6% on the largest curve. All 420 sampled translated rank-four/correction
+systems were exact. This positive decoder is the standard signed, shifted
+baby-step/giant-step meet-in-the-middle mechanism and is retained as a control,
+not claimed as novel.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- direct bilinear-phase summation from the four exact rational-addition factors,
-  comparing cell enumeration, feature histograms, and tensor contractions.
+- aggregate translated-factor localization without explicit baby/giant point
+  equality matching or its labelled square-root table.
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
