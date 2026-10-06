@@ -69,6 +69,21 @@ running it. Named-goal execution remains `run`. Old harness skill names
 
 Only the Coordinator may change the official status of a hypothesis or research direction.
 
+## Visual research record for new mathematical searches
+
+For a substantive search for new isogenies, curves, scalar rules,
+endomorphisms, or related ECDLP mechanisms, use the
+[`research-visuals` skill](.claude/skills/research-visuals/SKILL.md) (also
+available under `.agents/skills/`). Deliver a source-linked report, an
+explanatory diagram, and a PDF containing both for each search round,
+including negative and inconclusive findings. When a verified finding or
+correction changes a published relationship or comparison, update the
+affected canonical graph source and rendered output in the same scoped change.
+If no graph changes, record what was checked and why. Label conjectural edges,
+rules, and extrapolations explicitly; cite immutable evidence for verified
+ones. The Coordinator owns any official status or shared-ledger change, and
+existing run-only, write-scope, review, and archive rules still apply.
+
 ## Standing user authorization for ideas and experiments
 
 On 2026-09-06 the user directed: "all is approved. ideas/experiments should be always approved".
@@ -137,6 +152,17 @@ model identifier is unverified configuration until
 it; `model_verified` carries that status into every manifest. Critical findings
 require an independent `review-adversarial` session and a reviewer that did not
 originate the claim.
+
+A request may travel interactively or through the Message Batches API; the
+lane is recorded on every manifest as `delivery` (with `batch_id`) and
+changes nothing above — same policy, binding, request body, and cost guard.
+A handoff states it as `inference.delivery` (`interactive`, the default,
+`batch`, or `auto` with `deadline_seconds`); `auto` never batches an urgent
+task, an explicit `batch` on a backend without the API is an error rather
+than a silent synchronous call, and a batched request re-run synchronously
+because it became urgent is recorded as an escalation that supersedes the
+batch copy. Expired or errored batch results are infrastructure signal,
+never evidence. See `docs/batch-inference.md`.
 
 Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
 and this repository's own `api_direct` runtime (`orchestration/agent/`) are
@@ -430,6 +456,26 @@ Coordinator verifies the promotion gates in `agents/coordinator.md`: archived
 proof decomposition, validated heuristics, concrete-cost table, and
 independent `review-xhigh` plus red-team pass. This profile biases direction
 and never lowers the evidence rules above.
+
+## Cryptographic scheme construction
+
+For new signature, PKE, KEM, or authenticated key-exchange proposals and
+scheme-security claims, use the six obligations in
+[docs/scheme-construction-contract.md](docs/scheme-construction-contract.md)
+and its [companion YAML template](templates/scheme-construction-contract.yaml).
+State the exact EUF-CMA, SUF-CMA, IND-CPA, IND-CCA1/IND-CCA2, or named AKE
+game, adversary model, oracle access, and assumptions for each claim.
+An EndRing hardness claim must cover the actual key distribution and public
+auxiliary data, include efficient honest-party algorithms and actual
+message/key recovery, and give a correctly directed security reduction.
+Name missing recipient lifts or additional assumptions explicitly.
+
+Attach this companion artifact to the existing hypothesis/proof-search map
+and handoff; it does not replace ledger schemas, archival ownership, or
+independent scientific review. Open obligations remain candidates with a
+concrete next action. Template completeness and PR merge do not certify
+security or change official research state. Apply prospectively without
+rewriting immutable historical records. This adds no preflight to `run`.
 
 ## Inventor protocol
 
@@ -879,6 +925,24 @@ For new curve comparisons and UI exports, follow [docs/curve-identities.md](docs
 and `tools/curve_identity.py`. Reuse EC1 aliases and full curve UIDs across IC and
 Pollard rho; keep factor-base/isogeny candidate identities separate. Preserve
 immutable historical names and never infer exact identity from field degree alone.
+
+## Measured bounds and frontiers
+
+A claim about what a method *costs* -- "the negation-map rho runs at 1.47x
+the generic floor on toy prime curves", "this variant moves the exponent" --
+enters the ledger only as a **measured bound**: a sealed `ECBND1h...` record
+produced by the measuring repository's harness (aburan28/crypto
+`docs/bounds/README.md`), carried in an evidence record's `measured_bound`
+block with `claim_tier` equal to the bound's tier. Four levels exist for a cost
+change (exponent, constant, primitive weights, machine) and a claim names
+exactly one; a cheaper formula is a primitive-weight change and is never
+reported as an exponent or a constant in a unit that does not charge it. A
+frontier moves only on a **verdict** from a frozen, paired challenge:
+`advances`, `trade`, `matches` and `regresses` are measurements,
+`inadmissible` is never negative evidence (rule 3), and the Coordinator's
+decision, not the verdict, changes research state (rule 1). Wall time is never
+a bound. The known-results map carries settled bounds as `known_bound` rows
+with `status: measured`. See `docs/bounds-and-frontiers.md`.
 
 ## Cursor Cloud specific instructions
 
