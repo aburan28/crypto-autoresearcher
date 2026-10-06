@@ -1,4 +1,4 @@
-# Prime-field ECDLP controlled follow-ups: cocycles, beams, and translation defects — 2026-10-06
+# Prime-field ECDLP controlled follow-ups: cocycles, beams, translation defects, and linear state — 2026-10-06
 
 ## Intake status
 
@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: all three frozen successors failed. P-adic cocycle arithmetic was correct but every proposed formula remained lift-section dependent; height/carry beams required width exponents above the square-root target; and the explicit sparse translation-defect representation has a direct linear advice lower bound and failed its matched-control gate.
+- Bottom line: all four frozen successors failed. P-adic cocycle formulas remained lift-section dependent; height/carry beams required width exponents above the square-root target; the explicit sparse translation-defect representation has a direct linear advice lower bound; and the multi-channel autonomous linear state remained exactly period-sized with no state-to-index decoder.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -29,8 +29,13 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `translation_defect_lab.py` | `e7239dadc9380404326c66c710a1bc3de72937b6c0b05618251b7a2180c65f12` |
 | `tests/test_translation_defect_lab.py` | `ceb2485aa64ad901604582254279f50268cb39958c6e804bd9a76217bfab39fb` |
 | `results/sparse-translation-defect.json` | `7314973c8a820cf56f74b633719089074d8dcbbef625d69a621d9c5f3296d7c2` |
+| block-Hankel decision-rule commit | `bc973a3` |
+| block-Hankel implementation commit | `aa7c91c` |
+| `block_hankel_lab.py` | `997bcce5994dda04e4bf775d1396487f55c2a5133364f551618138514a78c801` |
+| `tests/test_block_hankel_lab.py` | `8e5b2f84a4a1d3c08b1e373a17c822f67f10eb64f51c98cffb95708ff788276f` |
+| `results/block-hankel-state.json` | `6acd64cdf432c65c892969bb0d83158a02b2f99cb960b96bd5b1385a4058eb44` |
 
-All three result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 25/25 tests. These are provenance statements, not repository run receipts.
+All four result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 29/29 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -178,12 +183,47 @@ Disposition: retire the explicit sparse-exception representation. A successor
 must derive a compact dense correction rule and an online evaluator before
 examining scalar-labelled data. Allocate no canonical ID from this packet.
 
+## H12 — block-Hankel shared state and index inversion
+
+### Mechanism and obstruction
+
+The frozen channel family was `x`, `y`, `x^2`, `xy`, `chi(x)`, and
+`chi(x-1)`. If a `d`-dimensional autonomous linear state obeys
+`z_(k+1)=A z_k`, Cayley--Hamilton makes every linear output satisfy a
+recurrence of degree at most `d`. Therefore the joint state dimension is at
+least the maximum scalar-channel complexity. Conversely, any period-`r` vector
+sequence has an `r`-state cyclic realization.
+
+The protocol measured Berlekamp--Massey complexity on two periods for all seven
+curves and generators `[u]P`, `u in {1,2,3,5}`. Two shared scalar-position
+permutations preserved full observable tuples; two independent per-channel
+permutations preserved every marginal. A synthetic three-state generator was
+the positive control. State-to-index lookup entries and bits were charged
+separately.
+
+### Result
+
+The positive control measured complexity three. On all 28 curve/generator
+pairs, `x`, `x^2`, and both character channels had complexity exactly `r`,
+while `y` and `xy` had `r-1`. Hence the minimum joint autonomous linear-state
+dimension was exactly `r`, from 83 through 947. Both control families also had
+exact dimension `r` everywhere, so strict control support was **0/7**.
+
+A generic state-to-index table needs `r` entries (581 to 9,470 bits on the toy
+ladder), and the hypothesis supplied no sub-square-root decoder. The state gate,
+control gate, and independent index-decoder gate all failed. The timing-free
+JSON reproduced byte-for-byte.
+
+Disposition: retire the frozen autonomous linear-state model. A successor must
+preregister a nonlinear state representation and a direct target-to-index
+algorithm with complete advice accounting. Allocate no canonical ID from this
+packet.
+
 ## Remaining preregistered cards, not results
 
-The external plan retains three unexecuted proposals. These have no positive evidence and are not canonical candidates:
+The external plan retains two unexecuted proposals. These have no positive evidence and are not canonical candidates:
 
 - a generator-blind coordinate-bit grammar with whole-curve holdout and relabelled labels;
-- a theorem-first sparse spectral coefficient oracle, with no benchmark allowed before sub-square-root coefficient construction is derived;
-- a block-Hankel multi-coordinate recurrence with mandatory state-to-index inversion.
+- a theorem-first sparse spectral coefficient oracle, with no benchmark allowed before sub-square-root coefficient construction is derived.
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

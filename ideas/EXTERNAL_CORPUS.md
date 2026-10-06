@@ -61,7 +61,7 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
-- **Three preregistered coordinate/orbit successors also fail their gates.**
+- **Four preregistered coordinate/orbit successors also fail their gates.**
   Four-section p-adic cocycle arithmetic was exact and both Smart controls
   recovered 96/96 logs, but all six signed/dyadic formulas changed with the
   section and had 0/7 ordinary-curve support. Separately, scalar-balanced
@@ -76,6 +76,11 @@ state.
   curve beat both matched controls on all four generators (0/7). This closes
   only the explicit sparse-exception representation, not every compact dense
   correction rule.
+  Finally, a six-channel block-Hankel successor had exact joint autonomous
+  linear-state dimension `r` on every curve and generator because required
+  scalar channels already had complexity `r`. Both matched controls did too
+  (0/7 strict support), and no sub-square-root state-to-index decoder was
+  supplied. This closes the frozen linear state, not nonlinear models.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
