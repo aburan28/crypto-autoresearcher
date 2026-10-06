@@ -106,6 +106,55 @@ Repository search found the existing generic preprocessing record `KR-RHO-ea34b8
 
 This mechanism is distinct in operation from Pollard rho and index calculus, but its exhaustive fixed-base codebook places it squarely in the already charged preprocessing/advice regime.
 
+## Executed follow-up — scalar-leaf advice erasure
+
+The tree-depth null result leaves a sharper question: perhaps the tree geometry is
+generic, but the canonical ternary-path-to-scalar leaf permutation is compact.
+This was preregistered externally before implementation. The primary
+representation was a shortest scalar linear recurrence over `F_r`, charged as
+`2 L ceil(log2(r))` bits for `L` initial labels and `L` coefficients.
+
+The frozen measurement used four generators `[u]P`,
+`u in {1,2,3,5}`, and 100 random scalar relabellings of the exact same tree per
+curve. It required the recurrence payload to be below `sqrt(r)` bits and below
+every control for every generator on at least five of seven curves. Secondary
+entropy, exact-polynomial-degree, and general-compression metrics could not
+rescue a primary failure.
+
+Result: **0/7 curves passed**.
+
+| Curve | Order | Leaves | Recurrence L across generators | Payload bits | Random range | Exact path-rank degree |
+|---|---:|---:|---:|---:|---:|---:|
+| E101 | 83 | 41 | 21,21,21,21 | 294 | 280–294 | 40 |
+| E127 | 109 | 54 | 27,27,27,27 | 378 | 378–392 | 53 |
+| E149 | 139 | 69 | 35,35,35,35 | 560 | 560–560 | 68 |
+| E211 | 223 | 111 | 56,56,55,56 | 896,896,880,896 | 896–896 | 110 |
+| E283 | 281 | 140 | 70,70,70,70 | 1260 | 1260–1278 | 139 |
+| E503 | 499 | 249 | 125,125,125,125 | 2250 | 2250–2250 | 248 |
+| E907 | 947 | 473 | 237,237,237,237 | 4740 | 4720–4740 | 472 |
+
+Recurrence length was essentially the random-permutation value `ceil(N/2)` for
+`N=(r-1)/2` leaves. Exact path-rank polynomial degree was the maximum `N-1`
+in every generator cell. The follow-up therefore found no compression of the
+scalar labels; the shallow tree remains a complete log codebook.
+
+This is a scoped negative for the frozen representations, not an
+incompressibility theorem. A further successor would need a mathematical
+path-to-scalar constructor specified before scalar labels are enumerated.
+
+External provenance for the follow-up:
+
+| Source artifact | SHA-256 |
+|---|---|
+| local source commit | `a8bddcb` |
+| `leaf_label_lab.py` | `fd7cff5e9817b1b772e835502a10705b9bfc6bfdca13d095603665857f0bccff` |
+| `tests/test_leaf_label_lab.py` | `7be982572c198e648f45f24d75c4f7d53c0876be393c12d930f96aa7cd94467c` |
+| `results/leaf-label-erasure.json` | `6bf09d1ee6fb3f259dd18ea09241ec65ba33b6766b3d206d2edb6ae361dd74c5` |
+
+The result payload contains no timing fields and reproduced byte-for-byte. The
+expanded external suite passed 14/14 tests. These remain provenance statements,
+not repository run receipts.
+
 ## Intake disposition
 
 - Preserve as a scoped negative and a deterministic control for coordinate-separating proposals.
