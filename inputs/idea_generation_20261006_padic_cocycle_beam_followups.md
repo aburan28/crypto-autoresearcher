@@ -1,4 +1,4 @@
-# Prime-field ECDLP controlled follow-ups: cocycles, beams, translation defects, and linear state — 2026-10-06
+# Prime-field ECDLP controlled mechanism follow-ups — 2026-10-06
 
 ## Intake status
 
@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: all four frozen successors failed. P-adic cocycle formulas remained lift-section dependent; height/carry beams required width exponents above the square-root target; the explicit sparse translation-defect representation has a direct linear advice lower bound; and the multi-channel autonomous linear state remained exactly period-sized with no state-to-index decoder.
+- Bottom line: all five frozen successors failed. P-adic cocycle formulas remained lift-section dependent; height/carry beams exceeded the square-root target; explicit sparse translation defects have a linear advice lower bound; multi-channel linear state remained period-sized; and a generator-blind coordinate grammar stayed at chance on unseen curves and generator relabelings.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -34,8 +34,13 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `block_hankel_lab.py` | `997bcce5994dda04e4bf775d1396487f55c2a5133364f551618138514a78c801` |
 | `tests/test_block_hankel_lab.py` | `8e5b2f84a4a1d3c08b1e373a17c822f67f10eb64f51c98cffb95708ff788276f` |
 | `results/block-hankel-state.json` | `6acd64cdf432c65c892969bb0d83158a02b2f99cb960b96bd5b1385a4058eb44` |
+| generator-blind decision-rule commits | `d0bb017`, `50df5ab` |
+| generator-blind implementation commit | `9be8ee9` |
+| `generator_blind_lab.py` | `1b5f9d1b3766c940d504cf099f1420ab5f0b16c8142548be87dce7fe8fce5d74` |
+| `tests/test_generator_blind_lab.py` | `9bcdb24e5c80a4725221368acc7d9176767532ab17318e44b12e5651f2be82d3` |
+| `results/generator-blind-grammar.json` | `9134f6d0114ca22d4a40b6299250a9775c56f782ae70577bc4f153c4a780f835` |
 
-All four result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 29/29 tests. These are provenance statements, not repository run receipts.
+All five result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 34/34 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -219,11 +224,41 @@ preregister a nonlinear state representation and a direct target-to-index
 algorithm with complete advice accounting. Allocate no canonical ID from this
 packet.
 
+## H13 — generator-blind coordinate-bit grammar
+
+### Frozen model and controls
+
+The model used a fixed 172-term grammar: centered `x,y`, six public interval
+tests, quadratic characters of eight low-degree functions, two character
+ratios, all pairwise products, and an intercept. A ridge linear classifier was
+trained leave-one-curve-out with no curve identifier, generator multiplier, or
+fitted field constant. A point-invariant public hash split scalar-training from
+scalar-held-out points.
+
+Each fold trained on generators `[u]P`, `u in {1,2,3,5}`, then evaluated the
+fully unseen curve under all four generator relabelings. Thirty-two balanced
+random-label and 32 scalar-permutation refits used the same feature matrices,
+class weights, coefficient budget, and supplied-label count. The frozen gate
+required every generator's one-sided 99% lower advantage to reach 0.05 and its
+accuracy to exceed every matched refit, on at least five of seven curves.
+
+### Result
+
+Across all 28 unseen curve/generator evaluations, accuracy ranged from 27.8% to
+58.8%. Every 99% lower advantage was negative; the best was -5.1% on the
+largest curve. No EC accuracy beat all 64 matched refits, so support was
+**0/7**. The fits consumed 824--1,340 known base logs per fold and stored 172
+float64 coefficients. Recursive peeling was neither authorized nor run. The
+timing-free JSON reproduced byte-for-byte.
+
+Disposition: retire the frozen grammar without feature tuning. A successor
+needs a mathematical generator-covariance mechanism derived before another
+labelled sweep. Allocate no canonical ID from this packet.
+
 ## Remaining preregistered cards, not results
 
-The external plan retains two unexecuted proposals. These have no positive evidence and are not canonical candidates:
+The external plan retains one unexecuted proposal. It has no positive evidence and is not a canonical candidate:
 
-- a generator-blind coordinate-bit grammar with whole-curve holdout and relabelled labels;
 - a theorem-first sparse spectral coefficient oracle, with no benchmark allowed before sub-square-root coefficient construction is derived.
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

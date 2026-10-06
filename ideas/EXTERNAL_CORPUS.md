@@ -61,7 +61,7 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
-- **Four preregistered coordinate/orbit successors also fail their gates.**
+- **Five preregistered coordinate/orbit successors also fail their gates.**
   Four-section p-adic cocycle arithmetic was exact and both Smart controls
   recovered 96/96 logs, but all six signed/dyadic formulas changed with the
   section and had 0/7 ordinary-curve support. Separately, scalar-balanced
@@ -81,6 +81,11 @@ state.
   scalar channels already had complexity `r`. Both matched controls did too
   (0/7 strict support), and no sub-square-root state-to-index decoder was
   supplied. This closes the frozen linear state, not nonlinear models.
+  A fifth successor trained a frozen 172-term coordinate grammar with
+  leave-one-curve-out and scalar holdout. All 28 one-sided 99% lower parity
+  advantages were negative, no generator beat all matched refits, and support
+  was 0/7; recursive peeling was not run. This closes only the frozen grammar,
+  not every mathematically derived generator-covariant predicate.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
