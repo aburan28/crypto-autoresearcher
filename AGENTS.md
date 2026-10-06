@@ -203,6 +203,17 @@ amortized costs separately. Separate exponent changes, constant factors,
 primitive costs, and hardware throughput. Faster known-scalar multiplication
 alone does not establish faster unknown-scalar recovery.
 
+Under the user's hidden-route scenario, public discovery must require
+substantial deliberate work rather than routine inspection or accidental
+rediscovery. An illustrative reconstruction cost near 2^60 operations is a
+scenario parameter, not a measured bound or evidence of agency capability.
+Define the operation unit, algorithm, success probability, memory, parallelism,
+and uncertainty before interpreting that number. Keep public discovery cost,
+designer setup with a retained witness, map evaluation, and destination solving
+separate. Isogeny degree alone establishes none of these costs. Assess cheaper
+equivalent routes as well as reconstruction of the exact withheld map; one
+comparably useful public shortcut can defeat the claimed access asymmetry.
+
 Treat secrecy as a separate hypothesis: identify the withheld information,
 whether it can be reconstructed from public parameters, and whether a
 comparably useful public route exists. A high-degree map is not automatically
