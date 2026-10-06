@@ -554,6 +554,8 @@ class Ctx:
     ):
         self.errors: list[str] = []
         self.legacy_warnings: list[str] = []
+        # Never fail the build. Visible every run so a backlog cannot hide.
+        self.advisories: list[str] = []
         self.ids: dict[str, str] = {}          # id -> source path
         self.records: dict[str, dict] = {}      # id -> record body
         self.record_types: dict[str, str] = {}
@@ -584,6 +586,10 @@ class Ctx:
             self.legacy_warnings.append(rendered)
         else:
             self.errors.append(rendered)
+
+    def advise(self, path: str, msg: str):
+        msg = str(msg).splitlines()[0].strip()
+        self.advisories.append(f"{os.path.relpath(path, REPO)}: {msg}")
 
     def register(self, rec_id: str, path: str, body: dict, rec_type: str):
         if rec_id in self.ids:
@@ -927,6 +933,7 @@ def check_experiment(path: str, ctx: Ctx):
                       "approved_by"):
             if not field_is_satisfied(body, field):
                 ctx.err(path, f"approved experiment has null '{field}'")
+    check_outcome_not_prewritten(path, body, ctx)
     ctx.register(str(rec_id), path, body, "experiment")
 
 
@@ -2695,6 +2702,207 @@ def check_goals(ctx: Ctx):
                               "ledger archive may perform the transition")
 
 
+# ---------------------------------------------------------------------------
+# Portfolio hygiene (docs/track-record-review-20261006.md).
+#
+# Two hard rules and three advisories. The hard rules are DATE-GATED on the
+# record's own id or designed_at so that no immutable record predating them
+# can fail (the baseline is prune-only, so a rule that failed history could
+# never land). The advisories go to ctx.advisories, which never fails the
+# build: they exist so that the backlog is visible at every validation,
+# not so that history is re-litigated.
+
+# A coordinator_decision minted on or after this date that approves an
+# experiment is refused while the experiment's goal already holds
+# APPROVAL_CAPACITY_CAP approved contracts with no run. 1,137 of 1,473
+# approved contracts had never run when the rule was written; approving a
+# 1,138th does not reduce any uncertainty.
+APPROVAL_CAPACITY_ENFORCED_FROM = "20261007"
+APPROVE_DECISIONS = {"approve", "approved", "approve_protocol",
+                     "approve_experiment", "approval"}
+# A decision may name contracts it retires in the same act; they do not count
+# against the goal's capacity. Either key is accepted; both are lists of ids.
+CAPACITY_RELEASE_KEYS = ("supersedes_experiments", "withdraws_experiments")
+
+# A specification designed on or after this date must say, before any run,
+# what each outcome changes. A contract whose success and falsification
+# criteria are the same sentence, or whose outcome is already written into
+# the record, is a spec written to the answer (review finding F-2).
+OUTCOME_RULE_ENFORCED_FROM = "2026-10-07"
+DECISION_IMPACT_KEYS = ("on_positive", "on_negative")
+PREWRITTEN_OUTCOME_KEYS = ("outcome", "result", "observed_result",
+                           "conclusion", "verdict")
+
+# Advisory caps. A goal head past GOAL_HEAD_CAP_BYTES is read in full at every
+# wake by every session that touches the goal; next_action past
+# NEXT_ACTION_CAP_CHARS is a plan, not a pointer. Ideas past IDEA_CAP_BYTES
+# (new ones only) cost more to design than they save.
+GOAL_HEAD_CAP_BYTES = 64 * 1024
+NEXT_ACTION_CAP_CHARS = 1000
+IDEA_CAP_BYTES = 8 * 1024
+IDEA_CAP_ENFORCED_FROM = "20261007"
+AGED_HANDOFF_DAYS = 14
+
+_ID_DATE = re.compile(r"-(\d{8})-")
+
+
+def _id_date(rec_id: str) -> str | None:
+    match = _ID_DATE.search(str(rec_id or ""))
+    return match.group(1) if match else None
+
+
+def _experiment_has_runs(exp_id: str, ctx: Ctx) -> bool:
+    path = ctx.ids.get(exp_id)
+    if not path:
+        return False
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import portfolio_kpis  # noqa: E402  (same scan the KPI census uses)
+    return portfolio_kpis.runs_present(Path(os.path.dirname(path)))
+
+
+def _goal_of(exp_id: str, body: dict) -> str:
+    goal = body.get("goal_id")
+    if isinstance(goal, str) and goal.strip():
+        return goal.strip()
+    match = re.match(r"^EXP-([A-Za-z0-9]+)-", exp_id)
+    return f"area:{match.group(1)}" if match else "area:unknown"
+
+
+def check_approval_capacity(ctx: Ctx) -> None:
+    """P0.1: refuse a new approval while the goal's approved-unrun backlog is at cap."""
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import portfolio_kpis  # noqa: E402
+    cap = portfolio_kpis.APPROVAL_CAPACITY_CAP
+
+    backlog: dict[str, set[str]] = {}
+    for exp_id, kind in ctx.record_types.items():
+        if kind != "experiment":
+            continue
+        body = ctx.records[exp_id]
+        if body.get("status") != "approved" or _experiment_has_runs(exp_id, ctx):
+            continue
+        backlog.setdefault(_goal_of(exp_id, body), set()).add(exp_id)
+
+    for dec_id, kind in ctx.record_types.items():
+        if kind != "coordinator_decision":
+            continue
+        when = _id_date(dec_id)
+        if when is None or when < APPROVAL_CAPACITY_ENFORCED_FROM:
+            continue
+        body = ctx.records[dec_id]
+        if str(body.get("decision") or "").strip().lower() not in APPROVE_DECISIONS:
+            continue
+        released: set[str] = set()
+        for key in CAPACITY_RELEASE_KEYS:
+            raw = body.get(key) or []
+            if isinstance(raw, list):
+                released.update(str(x) for x in raw)
+        targets = [str(t) for t in (body.get("target_ids") or [])
+                   if str(t).startswith("EXP-")]
+        approved_here = {t for t in targets
+                         if ctx.record_types.get(t) == "experiment"
+                         and ctx.records[t].get("status") == "approved"}
+        for exp_id in sorted(approved_here):
+            goal = _goal_of(exp_id, ctx.records[exp_id])
+            standing = backlog.get(goal, set()) - approved_here - released
+            if len(standing) >= cap:
+                ctx.err(ctx.ids[dec_id],
+                        f"approval capacity: {goal} already holds "
+                        f"{len(standing)} approved contract(s) with no run "
+                        f"(cap {cap}); run or supersede one before approving "
+                        f"{exp_id} (name retired ids under "
+                        f"{' or '.join(CAPACITY_RELEASE_KEYS)})")
+
+
+def check_outcome_not_prewritten(path: str, body: dict, ctx: Ctx) -> None:
+    """P0.5: a new contract declares what each outcome changes and no outcome."""
+    designed = str(body.get("designed_at") or "")[:10]
+    if not designed or designed < OUTCOME_RULE_ENFORCED_FROM:
+        return
+    for key in PREWRITTEN_OUTCOME_KEYS:
+        if body.get(key) not in (None, "", [], {}):
+            ctx.err(path, f"specification carries '{key}' before any run; an "
+                          "outcome belongs in a run record or evidence, never "
+                          "in the contract")
+    success = str(body.get("success_criterion") or "").strip()
+    falsify = str(body.get("falsification_criterion") or "").strip()
+    if success and falsify and success.lower() == falsify.lower():
+        ctx.err(path, "success_criterion and falsification_criterion are the "
+                      "same text; a contract that cannot fail decides nothing")
+    impact = body.get("decision_impact")
+    if not isinstance(impact, dict):
+        ctx.err(path, "missing 'decision_impact' (on_positive/on_negative): "
+                      "say before the run what each outcome changes")
+        return
+    for key in DECISION_IMPACT_KEYS:
+        if not str(impact.get(key) or "").strip():
+            ctx.err(path, f"decision_impact.{key} is empty")
+    pos = str(impact.get("on_positive") or "").strip().lower()
+    neg = str(impact.get("on_negative") or "").strip().lower()
+    if pos and pos == neg:
+        ctx.err(path, "decision_impact.on_positive equals on_negative; the "
+                      "experiment then changes nothing either way")
+
+
+def check_record_sizes(ctx: Ctx) -> None:
+    """P1.7 / P1.10 advisories: oversized goal heads, next_action, new ideas."""
+    for rec_id, kind in ctx.record_types.items():
+        path = ctx.ids[rec_id]
+        if kind == "research_goal":
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            if size > GOAL_HEAD_CAP_BYTES:
+                ctx.advise(path, f"goal head is {size // 1024} KiB (cap "
+                                 f"{GOAL_HEAD_CAP_BYTES // 1024} KiB); move "
+                                 "history to checkpoints or docs and keep a "
+                                 "pointer")
+            action = ctx.records[rec_id].get("next_action")
+            length = len(str(action or ""))
+            if length > NEXT_ACTION_CAP_CHARS:
+                ctx.advise(path, f"next_action is {length} chars (cap "
+                                 f"{NEXT_ACTION_CAP_CHARS}); a next action is "
+                                 "a pointer to a task, not a plan")
+        elif kind == "idea":
+            when = _id_date(rec_id)
+            if when is None or when < IDEA_CAP_ENFORCED_FROM:
+                continue
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            if size > IDEA_CAP_BYTES:
+                ctx.advise(path, f"proposal is {size // 1024} KiB (cap "
+                                 f"{IDEA_CAP_BYTES // 1024} KiB); split it or "
+                                 "move supporting material to knowledge/")
+
+
+def check_aged_handoffs(ctx: Ctx, today: str | None = None) -> None:
+    """P3.17 advisory: dispatched handoffs with no return past AGED_HANDOFF_DAYS."""
+    import datetime as _dt
+    now = (_dt.datetime.strptime(today, "%Y%m%d").date() if today
+           else _dt.date.today())
+    for rec_id, kind in ctx.record_types.items():
+        if kind != "handoff" or ctx.records[rec_id].get("archived_by"):
+            continue
+        when = _id_date(rec_id)
+        if when is None:
+            continue
+        try:
+            age = (now - _dt.datetime.strptime(when, "%Y%m%d").date()).days
+        except ValueError:
+            continue
+        if age > AGED_HANDOFF_DAYS:
+            ctx.advise(ctx.ids[rec_id], f"handoff dispatched {age} days ago has "
+                                        "no archived_by; record its return or "
+                                        "a correction closing it")
+
+
 def check_knowledge_index(ctx: Ctx):
     # --verify-corpus, not --check. INDEX.md is generated and no longer
     # committed (see build_knowledge_index.py), so there is no file to be stale
@@ -2794,6 +3002,9 @@ def main() -> int:
                     help="prune baseline entries that no longer occur "
                          "(bootstraps the full set only if no baseline "
                          "file exists; never grows an existing one)")
+    ap.add_argument("--advisories", action="store_true",
+                    help="list every non-failing advisory (oversized goal "
+                         "heads and proposals, aged open handoffs)")
     args = ap.parse_args()
 
     # This must precede every inventory, glob, supersession, and record read.
@@ -2866,6 +3077,9 @@ def main() -> int:
     check_goals(ctx)
     check_cross_refs(ctx)
     check_knowledge_index(ctx)
+    check_approval_capacity(ctx)
+    check_record_sizes(ctx)
+    check_aged_handoffs(ctx)
 
     current = set(ctx.errors)
     if args.update_baseline:
@@ -2903,6 +3117,19 @@ def main() -> int:
     if stale:
         print(f"note: {len(stale)} baseline entrie(s) no longer occur; prune "
               f"with --update-baseline")
+    if ctx.advisories:
+        kinds = {"goal head": 0, "next_action": 0, "proposal": 0, "handoff": 0}
+        for line in ctx.advisories:
+            for key in kinds:
+                if f": {key}" in line:
+                    kinds[key] += 1
+                    break
+        summary = ", ".join(f"{v} {k}" for k, v in kinds.items() if v)
+        print(f"note: {len(ctx.advisories)} advisory(ies), not failures "
+              f"({summary}); list with --advisories")
+        if args.advisories:
+            for line in ctx.advisories:
+                print(f"  ~ {line}")
 
     if new:
         print(f"FAIL: {len(new)} new validation error(s):\n", file=sys.stderr)

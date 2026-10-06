@@ -153,6 +153,15 @@ def _now() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _expires_at(ttl_days: float | None) -> str | None:
+    if ttl_days is None:
+        return None
+    if ttl_days <= 0:
+        raise SystemExit("REFUSE: --ttl-days must be positive.")
+    when = _dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(days=ttl_days)
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _today() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
 
@@ -419,8 +428,31 @@ def verify_refs(refs: list[str]) -> tuple[dict[str, list[str]], list[str], list[
     return resolved, unresolved, unchecked
 
 
+def is_expired(rec: dict, now: float | None = None) -> bool:
+    """A message past its `expires_at` is hidden from inboxes, never deleted.
+
+    89% of bus traffic was never acked when this landed: most messages are
+    pointers whose usefulness ends with the merge or the batch they name, and
+    an inbox that lists every one of them forever is a wall nobody reads. A
+    sender states the shelf life with `send --ttl-days`; a message without one
+    never expires, so nothing already on the bus changes behaviour.
+    """
+    raw = str(rec.get("expires_at") or "").strip().replace("Z", "+00:00")
+    if not raw:
+        return False
+    try:
+        parsed = _dt.datetime.fromisoformat(raw)
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_dt.timezone.utc)
+    now = _dt.datetime.now(_dt.timezone.utc).timestamp() if now is None else now
+    return parsed.timestamp() < now
+
+
 def inbox_for(root: str, addr: str, *, include_read: bool = False,
-              include_own: bool = False) -> list[dict]:
+              include_own: bool = False, include_expired: bool = False,
+              since: float | None = None) -> list[dict]:
     out = []
     for rec in load_messages(root):
         if not addressed_to(rec, addr):
@@ -429,8 +461,26 @@ def inbox_for(root: str, addr: str, *, include_read: bool = False,
             continue
         if not include_read and acked_by(root, rec["id"], addr):
             continue
+        if not include_expired and is_expired(rec):
+            continue
+        if since is not None and not in_window(rec, since, None):
+            continue
         out.append(rec)
     return out
+
+
+def unread_counts(root: str) -> dict[str, int]:
+    """Unread, unexpired messages per registered address; `all` is per reader."""
+    counts: dict[str, int] = {}
+    sessions_dir = os.path.join(root, "sessions")
+    if not os.path.isdir(sessions_dir):
+        return counts
+    for name in sorted(os.listdir(sessions_dir)):
+        if not name.endswith(".yaml"):
+            continue
+        addr = name[:-5]
+        counts[addr] = len(inbox_for(root, addr))
+    return counts
 
 
 # --------------------------------------------------------------------------
@@ -495,6 +545,7 @@ def cmd_send(args) -> int:
         "thread": thread or mid,
         "in_reply_to": thread,
         "sent_at": _now(),
+        "expires_at": _expires_at(getattr(args, "ttl_days", None)),
         "refs": list(args.ref or []),
         "commit": _git(["rev-parse", "HEAD"], cwd=root) or None,
         "branch": _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or None,
@@ -723,10 +774,15 @@ def _fmt_row(rec: dict, root: str, addr: str) -> str:
             f"{rec.get('from', '?'):>14} -> {to:<14} {rec.get('subject') or ''}")
 
 
+INBOX_DIGEST_ROWS = 20
+
+
 def cmd_inbox(args) -> int:
     root = _root(args)
     addr = _check_addr(args.addr)
-    msgs = inbox_for(root, addr, include_read=args.all, include_own=args.all)
+    since = parse_window(args.since)
+    msgs = inbox_for(root, addr, include_read=args.all, include_own=args.all,
+                     include_expired=args.all or args.include_expired, since=since)
     if args.json:
         print(json.dumps(msgs, indent=2))
         return 0
@@ -734,9 +790,18 @@ def cmd_inbox(args) -> int:
     if not msgs:
         print(f"no {label} for {addr}.")
         return 0
+    # Newest first, bounded. A wake that prints two hundred stale pointers
+    # teaches the reader to skip the inbox; the count of what was not shown
+    # is the part that must never be hidden.
+    msgs.sort(key=lambda r: _sent_epoch(r) or 0.0, reverse=True)
+    limit = 0 if args.full else INBOX_DIGEST_ROWS
+    shown = msgs[:limit] if limit else msgs
     print(f"{len(msgs)} {label} for {addr}   (* = unread, ! = high priority)\n")
-    for rec in msgs:
+    for rec in shown:
         print(_fmt_row(rec, root, addr))
+    if len(shown) < len(msgs):
+        print(f"\n… {len(msgs) - len(shown)} older {label} not shown "
+              f"(--full lists all; --since 7d narrows). Ack what is handled:")
     print(f"\nread one:  python3 tools/agent_bus.py read <MSG-id>")
     print(f"handle it: python3 tools/agent_bus.py ack <MSG-id> --as {addr}")
     return 0
@@ -1004,6 +1069,9 @@ def _add_send_fields(p) -> None:
     p.add_argument("--body", help="message body")
     p.add_argument("--body-file", help="read the body from a file")
     p.add_argument("--priority", choices=PRIORITIES, default="normal")
+    p.add_argument("--ttl-days", type=float, default=None, metavar="DAYS",
+                   help="shelf life; after it the message leaves inboxes "
+                        "(it is never deleted). Omit for no expiry.")
     p.add_argument("--ref", action="append", metavar="ID",
                    help="ledger/experiment id this message points at "
                         "(repeatable) -- the state lives there, not here")
@@ -1043,7 +1111,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("inbox", help="list messages waiting for an address")
     _add_common(p)
     p.add_argument("--as", dest="addr", required=True)
-    p.add_argument("--all", action="store_true", help="include already-acked")
+    p.add_argument("--all", action="store_true",
+                   help="include already-acked, own and expired messages")
+    p.add_argument("--since", help="only messages sent within this window "
+                   "(e.g. 7d, 36h, or an ISO timestamp)")
+    p.add_argument("--full", action="store_true",
+                   help=f"list every row instead of the newest {INBOX_DIGEST_ROWS}")
+    p.add_argument("--include-expired", action="store_true",
+                   help="show messages past their expires_at")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_inbox)
 
