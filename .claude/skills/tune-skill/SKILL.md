@@ -74,7 +74,7 @@ covers the four skills above.
    receipts (`tools/session_receipt.py`) that cover the window, including
    the summed `bounced` counts. Where no receipts exist for the window it
    says so and the round record carries that caveat; nothing is estimated.
-   Round 1 (`coordination/skill-tuning/*/round-*.yaml`, 2026-10-07) is the
+   Round 1 (`coordination/skill-tuning/*/round-*.yaml`, window closed 2026-10-07) is the
    reference run: full history, both skills above the thin threshold, and
    for `propose-ideas` three terminal items in four found only by free
    text. For `run` and `review-evidence` the walk is still manual, in the
