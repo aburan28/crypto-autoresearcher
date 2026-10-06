@@ -29,6 +29,15 @@ wire_protocols:
     static_headers:
       anthropic-version: "2023-06-01"
     models_path: /v1/models
+    # Message Batches: the same request bodies, submitted asynchronously and
+    # processed within 24 hours at half price. Only a backend that declares
+    # `supports_message_batches: true` is sent here; a gateway that merely
+    # speaks the wire format is not assumed to implement it.
+    batches_path: /v1/messages/batches
+    # Shape validation without generation. A batch validates its requests
+    # asynchronously and reports a malformed one only when the whole batch has
+    # ended, so `batch submit` preflights one request here first.
+    count_tokens_path: /v1/messages/count_tokens
     system_field: system                 # top-level, not a message
     max_tokens_field: max_tokens
 
@@ -57,6 +66,8 @@ backends:
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_API_KEY
     supports_models_probe: true
+    # The only backend with the Message Batches API. See docs/batch-inference.md.
+    supports_message_batches: true
 
   zai:
     display_name: Z.ai open platform (GLM), OpenAI-compatible
@@ -281,3 +292,23 @@ defaults:
   runtime_env: AUTORESEARCH_RUNTIME
   request_timeout_seconds: 600
   max_retries: 3
+  # Delivery routing between the synchronous Messages API and Message Batches.
+  # `delivery: auto` on a request compares its deadline with these figures;
+  # see docs/batch-inference.md. Latencies are the provider's published
+  # envelope (most batches finish within an hour; a request not served within
+  # 24 hours expires unbilled), not a guarantee: `batch escalate` exists for
+  # the case where a result became urgent after submission.
+  batch:
+    expected_latency_seconds: 3600
+    max_latency_seconds: 86400
+    # A task at or above this dispatch priority (0..100) is never batched
+    # under `auto`: the queue already says it is wanted now.
+    urgent_priority: 90
+    # A deadline must leave this much slack beyond the expected latency
+    # before `auto` chooses the batch; shorter and the request runs now.
+    deadline_slack_seconds: 1800
+    # Write-once submission, result, and escalation records, one directory
+    # per provider batch id. Overridable with AUTORESEARCH_BATCH_DIR.
+    registry_dir: coordination/inference-batches
+    # Poll cadence for `batch wait`; the API asks for minutes, not seconds.
+    poll_interval_seconds: 60
