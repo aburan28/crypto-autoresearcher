@@ -201,8 +201,18 @@ def build(root: Path, recent: int) -> dict[str, Any]:
         "open_handoffs": open_handoffs(areas["handoffs"]["_records"]),
         "kpis": portfolio_kpis.build(root),
         "bus_unread": bus_unread(root),
+        "session_receipts": session_receipts(root),
     }
     return report
+
+
+def session_receipts(root: Path) -> dict[str, Any]:
+    """Aggregate tools/session_receipt.py receipts (P2.11): the cost denominator."""
+    try:
+        import session_receipt
+    except ImportError:  # pragma: no cover
+        return {"receipts": 0, "usage_known": 0, "by_skill": {}, "records_created_by_skill": {}}
+    return session_receipt.summary(session_receipt.load_all(root))
 
 
 def bus_unread(root: Path) -> dict[str, int]:
@@ -274,6 +284,11 @@ def render(report: dict[str, Any], recent: int, max_open: int) -> str:
                      "(newest 20; --full for all) and ack what you handle")
     else:
         lines.append("no unread messages for any registered address")
+
+    receipts = report.get("session_receipts")
+    if receipts is not None:
+        import session_receipt
+        lines += ["", "## Session receipts", "", session_receipt.render_summary(receipts)]
 
     bad = {a: d["unparseable"] for a, d in report["areas"].items() if d["unparseable"]}
     lines += ["", "## Unparseable records", ""]
