@@ -100,6 +100,37 @@ pass.
 8. Audit point, curve, subgroup, output, and cofactor validation using
    KN-TECH-034 when an implementation or chosen-input protocol is in scope.
 
+### Follow the formulas beyond the named twist
+
+When adversarial points, post-validation faults, or a raw scalar-multiplication
+API are in scope, inspecting only the standard quadratic twist is incomplete.
+Record which coefficients are used by point decoding, addition, doubling, the
+ladder, and output validation. Short-Weierstrass addition and doubling, for
+example, may use `a` while omitting `b`; every accepted same-`a` companion is
+then in scope if the caller does not enforce the source equation. Search that
+formula-compatible family rather than treating the named twist as the entire
+invalid-curve surface.
+
+Include singular parameter values as negative controls and potential
+implementation inputs. A nodal cubic is not an elliptic curve and is not an
+isogenous representative, but its nonsingular locus can carry a cyclic group
+isomorphic to a split or nonsplit torus, often of order `q - 1` or `q + 1`.
+A claim about such an input must prove the singularity, parameterize or
+otherwise certify the smooth-locus group law and order, exhibit exact-order
+points, and demonstrate that the implementation's formulas actually process
+them. Its only admissible audit label is `IMPLEMENTATION_WEAK`.
+
+The leakage cost depends on the observable. If the attacker receives a full
+result point or raw coordinate that remains a DLP target, Pohlig--Hellman and
+generic square-root costs may apply. A KDF/MAC/ciphertext confirmation is not
+a group element: charge direct subgroup enumeration or adaptive prime-power
+digit recovery, all chosen-input queries, x-coordinate sign ambiguity, CRT,
+and any final bounded-interval search against the legitimate public key.
+Never price a confirmation-only oracle as a square-root DLP merely because the
+companion order contains a medium-size prime. State scalar reuse, point/fault
+injection capability, decoder behavior, error behavior at infinity, and both
+input and output validation as explicit preconditions.
+
 These establish a valid instance and the known attack surface. Passing them
 does not prove ECDLP hardness.
 

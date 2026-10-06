@@ -55,6 +55,9 @@ class AuditCurveSkillTests(unittest.TestCase):
             "online_work: null",
             "indeterminate_samples: null",
             "false_negative_assessment: null",
+            "adversarial_input_capability: null",
+            "formula_compatible_companions: []",
+            "singular_smooth_locus_checks: []",
         ):
             self.assertIn(section, report)
 
@@ -95,6 +98,18 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("advisory secondary structural", body)
         self.assertIn("does not validate the primality of `p`", body)
         self.assertIn("research-visuals/SKILL.md", body)
+        self.assertIn("formula-compatible companion", body)
+        self.assertIn("companion is not an elliptic curve", body)
+        self.assertIn("inherit a square-root DLP cost automatically", body)
+
+        agents = AGENTS.read_text(encoding="utf-8")
+        self.assertIn("formula-compatible", agents)
+        self.assertIn("confirmation-only oracle", agents)
+
+        knowledge = KNOWLEDGE.read_text(encoding="utf-8")
+        self.assertIn("Follow the formulas beyond the named twist", knowledge)
+        self.assertIn("singular parameter values", knowledge)
+        self.assertIn("confirmation-only oracle", knowledge)
 
     def test_skill_does_not_create_a_second_execution_entry_point(self) -> None:
         body = CANONICAL.read_text(encoding="utf-8")
