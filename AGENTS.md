@@ -69,6 +69,21 @@ running it. Named-goal execution remains `run`. Old harness skill names
 
 Only the Coordinator may change the official status of a hypothesis or research direction.
 
+## Visual research record for new mathematical searches
+
+For a substantive search for new isogenies, curves, scalar rules,
+endomorphisms, or related ECDLP mechanisms, use the
+[`research-visuals` skill](.claude/skills/research-visuals/SKILL.md) (also
+available under `.agents/skills/`). Deliver a source-linked report, an
+explanatory diagram, and a PDF containing both for each search round,
+including negative and inconclusive findings. When a verified finding or
+correction changes a published relationship or comparison, update the
+affected canonical graph source and rendered output in the same scoped change.
+If no graph changes, record what was checked and why. Label conjectural edges,
+rules, and extrapolations explicitly; cite immutable evidence for verified
+ones. The Coordinator owns any official status or shared-ledger change, and
+existing run-only, write-scope, review, and archive rules still apply.
+
 ## Standing user authorization for ideas and experiments
 
 On 2026-09-06 the user directed: "all is approved. ideas/experiments should be always approved".
