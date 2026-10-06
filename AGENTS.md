@@ -57,6 +57,15 @@ running it. Named-goal execution remains `run`. Old harness skill names
 (`crypto-autoresearcher-harness`, `launch-research-harness`,
 `coordinate-research-goal`) stay retired; do not recreate those adapters.
 
+## Skill routing
+
+Use [the workflow map](docs/skill-routing.md) and [route](.claude/skills/route/SKILL.md)
+when selecting a recurring analysis, implementation, review or maintenance workflow.
+Canonical skills live under `.claude/skills/`; `.agents/skills/` exposes the same
+names to Codex/OpenCode. Choose by action first, then load a relevant subject profile.
+Explicit scientific execution goes directly to `run`: catalog checks and subject
+assessment are not launch prerequisites. This map adds no runtime role or authority.
+
 ## Roles
 
 - **Coordinator** owns priorities, task decomposition, state transitions, and synthesis.
@@ -476,6 +485,24 @@ independent scientific review. Open obligations remain candidates with a
 concrete next action. Template completeness and PR merge do not certify
 security or change official research state. Apply prospectively without
 rewriting immutable historical records. This adds no preflight to `run`.
+
+## Mathematical transfer assessment
+
+Use [transfer](.claude/skills/transfer/SKILL.md), also exposed through
+`.agents/skills/transfer/`, when assessing a supplied lift, descent, field
+extension, isogeny, curve cover, Jacobian correspondence, or decomposition
+representation; auditing subgroup preservation; comparing representation costs;
+or specifying evidence for a claim that changing objects makes a problem easier.
+
+Record existence, executable construction, correctness, subgroup preservation,
+computational advantage, and scaling as separate obligations. Require complete
+cost accounting, paired controls, canonical identities, and an explicit
+exploration boundary. Keep missing evidence unknown and bounded results scoped.
+
+This is an assessment skill, not a new agent or runtime role. The Coordinator
+and existing review/archive rules retain authority over official status changes.
+Actual scientific trial execution stays with `run`, without an assessment
+preflight. Apply prospectively and preserve immutable records.
 
 ## Inventor protocol
 
@@ -976,3 +1003,5 @@ The dashboard is `python3 -m ui --host 127.0.0.1 --port 8787`. Set
 links are built from `origin` when that variable is unset, and a Cloud Agent
 remote embeds a credential. `formal/setup.sh` (Lean) is not part of this
 environment.
+
+

@@ -7,13 +7,15 @@ BACKEND ?= $(AUTORESEARCH_BACKEND)
 TRIALS ?= 5
 
 .PHONY: help install doctor status check check-harness check-ledger test loop \
-        eval-dev eval-held-out baseline sources clean ui ui-build
+        eval-dev eval-held-out baseline sources clean ui ui-build skills check-skills
 
 help:
 	@echo "setup"
 	@echo "  make install         editable install + all dependencies"
 	@echo "  make doctor          is this machine ready? (free, offline)"
 	@echo "  make status          what is configured and recorded (free)"
+	@echo "  make skills          skill routing and available tool declarations"
+	@echo "  make check-skills    validate skill discovery and catalog paths"
 	@echo ""
 	@echo "verify (free, offline)"
 	@echo "  make check           everything below"
@@ -68,10 +70,18 @@ doctor:
 status:
 	@$(PYTHON) -m orchestration status
 
+skills:
+	@$(PYTHON) tools/skill_catalog.py list
+
+check-skills:
+	$(PYTHON) tools/skill_catalog.py check
+	$(PYTHON) -m unittest discover -s tests -p test_skill_catalog.py -v
+
 check: check-harness check-ledger
 
 # What this toolchain owns. Green means your setup is good.
 check-harness:
+	$(PYTHON) tools/skill_catalog.py check
 	$(PYTHON) -m orchestration.adapter doctor
 	$(PYTHON) tools/check_inference_cost_policy.py
 	$(PYTHON) tools/generate_runtime_agents.py --check
