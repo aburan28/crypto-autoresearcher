@@ -70,6 +70,13 @@ Code specifically.
   - `/consolidate-lanes` — periodic cross-lane pass: read bus traffic ACROSS
     lanes that cannot see each other and carry pointers between them; read-only
     as to research state, writes no ledger record
+- **Batch delivery** (`python3 -m orchestration.adapter batch …`): single-turn
+  prompts can travel through the Message Batches API — half price, answered
+  within 24 h, collectable from any later session. A handoff opts in with
+  `inference.delivery: batch | auto` and `deadline_seconds`; `auto` never
+  batches an urgent task, and `batch escalate` re-runs a batched request
+  synchronously when it becomes urgent. Records are write-once under
+  `coordination/inference-batches/`. See `docs/batch-inference.md`.
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -180,6 +187,13 @@ heuristics, validated at cryptographic scale, and costed honestly. Idea
 Generator proposals and Coordinator prioritization decisions are evaluated
 against that profile; the profile is not a license to overclaim, so the
 evidence rules above apply unchanged.
+
+Cost claims are **measured bounds**: a method's constant and exponent with
+intervals, scoped to one domain and tier, sealed by the measuring harness
+(aburan28/crypto `docs/bounds/README.md`) and carried here in an evidence
+record's `measured_bound` block. A frontier moves only on a paired challenge
+verdict, and the Coordinator decides what the verdict means. "Faster" is not
+a value; `docs/bounds-and-frontiers.md` says what is.
 
 ## Conventions
 
