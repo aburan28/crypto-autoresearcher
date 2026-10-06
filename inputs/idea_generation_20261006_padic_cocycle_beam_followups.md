@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: all five frozen successors failed. P-adic cocycle formulas remained lift-section dependent; height/carry beams exceeded the square-root target; explicit sparse translation defects have a linear advice lower bound; multi-channel linear state remained period-sized; and a generator-blind coordinate grammar stayed at chance on unseen curves and generator relabelings.
+- Bottom line: five earlier frozen successors failed their gates, then three structured spectral measurements continued the path. Ordinary baby/giant phase matrices were high-rank, denominator clearing exposed an exact constructible rank-four addition factor plus rank-one second Cauchy displacement, and dense Gauss-expansion statistics now motivate direct bilinear-phase summation.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -39,8 +39,23 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `generator_blind_lab.py` | `1b5f9d1b3766c940d504cf099f1420ab5f0b16c8142548be87dce7fe8fce5d74` |
 | `tests/test_generator_blind_lab.py` | `9bcdb24e5c80a4725221368acc7d9176767532ab17318e44b12e5651f2be82d3` |
 | `results/generator-blind-grammar.json` | `9134f6d0114ca22d4a40b6299250a9775c56f782ae70577bc4f153c4a780f835` |
+| addition-kernel decision-rule commit | `d376c7d` |
+| addition-kernel implementation commit | `a9fb5d0` |
+| `addition_kernel_lab.py` | `eb141c6ed713e85f415a5f3b8b7b5f29fef490db722eb638b5dd15a62485ff86` |
+| `tests/test_addition_kernel_lab.py` | `9586bbd995bb5f415b26998209740235cb2f4d766ffeb30e045ef6c014bb6776` |
+| `results/addition-kernel-rank.json` | `c97d206dd03c60dd776fd8caca55ed6929213974253779e43bd5050a3f11ad6b` |
+| rational-addition decision/layout commits | `2bbaa1d`, `b5ca515` |
+| rational-addition implementation commit | `04c592b` |
+| `rational_addition_lab.py` | `e4a54969b5b88481b88a96d1872a36f28a32cfac838cde511372a4a1f58fd824` |
+| `tests/test_rational_addition_lab.py` | `cfbb3a28693a996e0111e65e6a133696ef038d5aba89874c62910fcf83f63131` |
+| `results/rational-addition-structure.json` | `6f3a68202efcce5d2f2c8af03f31fa85245ce9f70c302a4ecf02a80b9802cd7c` |
+| Gauss-expansion decision-rule commit | `faf037a` |
+| Gauss-expansion implementation commit | `5fb2c97` |
+| `gauss_expansion_lab.py` | `8fc4ea1c1ae78533df2a25d1d5e174c7d04d6fb503775a99ef6092f4244f71ab` |
+| `tests/test_gauss_expansion_lab.py` | `9415147685f938a4192e5a4e0cce99b93b687ff829cad9c53f36ad6e833a0a12` |
+| `results/gauss-character-expansion.json` | `ceac60648d389a6897941534e94a9dd197a34bff66b4bcab32f0984abd356b2c` |
 
-All five result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 34/34 tests. These are provenance statements, not repository run receipts.
+All eight result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 44/44 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -255,10 +270,49 @@ Disposition: retire the frozen grammar without feature tuning. A successor
 needs a mathematical generator-covariance mechanism derived before another
 labelled sweep. Allocate no canonical ID from this packet.
 
+## H14 — baby/giant addition-kernel separation rank
+
+The scalar orbit was reshaped as `k=a+m*b`, `m=floor(sqrt(r))`, and analyzed as
+a two-variable addition kernel. Raw `x` matrices had full finite-field row rank.
+Complex phase matrices needed 78%--93% of row rank for 99% energy, overlapping
+shuffled and random-field controls. At rank `ceil(r^(1/4))`, median separable
+Fourier-query error increased from 0.489 to 0.689 and top-16 mode recall fell
+from 0.688 to 0.281 over the ladder. All full-rank reconstruction controls
+passed. This measurement motivated exact displacement structure rather than a
+stop.
+
+## H15 — exact rational-addition factor and displacement
+
+For affine `A=(u,v)`, `B=(s,t)`, direct rearrangement of the addition law gives
+
+```
+(s-u)^2*x(A+B) = a(u+s)+2b-2vt+u*s^2+u^2*s.
+```
+
+All 28 curve/generator cases verified exact denominator-cleared rank four and
+rank-one second Cauchy displacement. Raw output, inverse-square denominator,
+and first displacement remained full rank. Both output-control families made
+the cleared matrix full rank again. The constructible four-factor storage
+fraction fell from 0.844 to 0.258 along the ladder. This is an exact positive
+algebraic structure, not an ECDLP solution or novelty claim.
+
+## H16 — Gauss expansion on the rank-four numerator
+
+The quadratic character cancels the square denominator, and its nonzero
+additive Fourier coefficients all had magnitude `sqrt(p)` exactly to recorded
+precision. At `ceil(sqrt(p))` modes, retained energy fell from 11.0% to 3.4%,
+median matrix error was 0.946--0.985, and median rectangle-spectrum error was
+0.905--0.969. Deterministic truncation reached 90% sign accuracy near `p/2`
+modes; matrix error below 0.25 used the full `p-1` budget. Random-mode and
+balanced-function control distributions are retained in full. The next
+experiment is direct summation of individual bilinear phase terms from H15's
+four factors.
+
 ## Remaining preregistered cards, not results
 
-The external plan retains one unexecuted proposal. It has no positive evidence and is not a canonical candidate:
+The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a theorem-first sparse spectral coefficient oracle, with no benchmark allowed before sub-square-root coefficient construction is derived.
+- direct bilinear-phase summation from the four exact rational-addition factors,
+  comparing cell enumeration, feature histograms, and tensor contractions.
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

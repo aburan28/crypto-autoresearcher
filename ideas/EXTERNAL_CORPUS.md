@@ -86,6 +86,16 @@ state.
   advantages were negative, no generator beat all matched refits, and support
   was 0/7; recursive peeling was not run. This closes only the frozen grammar,
   not every mathematically derived generator-covariant predicate.
+- **Structured spectral continuation exposes exact rational-addition structure.**
+  Baby/giant coordinate phases required 78%-93% row rank for 99% energy and
+  matched controls. Denominator clearing then produced an exact rank-four
+  factor for `(x_B-x_A)^2*x(A+B)` and rank-one second Cauchy displacement on
+  all 28 curve/generator cases; shuffled/random outputs returned to full rank.
+  A subsequent exact Gauss expansion was dense: square-root mode budgets kept
+  3%-11% energy with roughly 0.95-0.99 matrix error, while 90% sign accuracy
+  appeared near `p/2` modes. These are external measurements and algebraic
+  identities, not canonical findings or a claimed ECDLP algorithm. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
