@@ -5,6 +5,13 @@ Only explicit trial-plan coverage establishes measurement completion. Legacy
 activity without a plan is surfaced by --include-blocked for reconciliation,
 not silently called complete and not automatically rerun. Selection never
 replaces the dispatcher, committed approval, claim or archive gates.
+
+Committed `coordinator_decision.withheld_contracts` blocks drop their explicit
+`ids` from unqualified and --goal selection; `released_contracts.ids` in a later
+decision restores them. --experiment still returns a named withheld row. Every
+run prints one stderr count line naming each honouring decision, and
+--show-withheld lists every held id with its decision (stderr under --json,
+stdout after the rows otherwise). --json stdout keeps its row shape.
 """
 from __future__ import annotations
 
@@ -73,13 +80,63 @@ def _superseded_ids(specs: list[tuple[Path, dict[str, Any]]]) -> set[str]:
     return superseded
 
 
+def withheld_state(repo: Path = REPO, *, warn=ecc_priority.warn) -> dict[str, str]:
+    """Experiment id -> id of the committed decision that currently withholds it.
+
+    Membership is `withheld_contracts.ids` only. A block is honoured only when
+    every rule_9_fields entry is non-empty; otherwise it warns, naming the
+    decision, and its ids stay selectable. `released_contracts.ids` restores
+    ids and needs no guard. Decisions apply in ecc_priority.ORDERING_RULE
+    order; within one decision a release is applied after its holds.
+    """
+    state: dict[str, str] = {}
+    keys = ("withheld_contracts", "released_contracts")
+    for dec in ecc_priority.committed_decision_blocks(keys, repo, warn=warn):
+        did = dec["decision_id"]
+        for key in keys:
+            for block in ecc_priority.blocks_of(dec, key, warn=warn):
+                raw = block.get("ids")
+                if not isinstance(raw, list):
+                    warn(f"{did}: {key} has no ids list; nothing in it is applied")
+                    continue
+                ids = []
+                for item in raw:
+                    eid = item.get("id") if isinstance(item, dict) else item
+                    if isinstance(eid, str) and eid.strip():
+                        ids.append(eid.strip())
+                    else:
+                        warn(f"{did}: a {key}.ids entry is not an explicit id; ignored")
+                if key == "released_contracts":
+                    for eid in ids:
+                        state.pop(eid, None)
+                    continue
+                missing = ecc_priority.rule_9_missing(block)
+                if missing:
+                    warn(f"{did}: withheld_contracts not honoured, rule_9_fields empty or "
+                         f"missing: {', '.join(missing)}; its {len(ids)} id(s) stay selectable")
+                    continue
+                for eid in ids:
+                    state[eid] = did
+    return state
+
+
 def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
-                    goal: str | None = None, experiment_ids: set[str] | None = None) -> list[dict[str, Any]]:
+                    goal: str | None = None, experiment_ids: set[str] | None = None,
+                    honour_holds: bool = True,
+                    hold_report: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Selectable rows, ECC first and newest first.
+
+    Withheld ids (withheld_state) are dropped unless `experiment_ids` names
+    them. Pass a dict as `hold_report` to receive what the holds did.
+    """
     repo = repo.resolve()
     policy = ecc_priority.load_policy(repo / "orchestration" / "research-priority.yaml")
     specs = [(spec, exp) for spec in sorted((repo / "experiments").glob("EXP-*/specification.yaml"))
              if (exp := _load(spec)) is not None]
     superseded = _superseded_ids(specs)
+    held = withheld_state(repo) if honour_holds else {}
+    dropped: list[dict[str, str]] = []
+    explicit: list[dict[str, str]] = []
     rows: list[dict[str, Any]] = []
     for spec, exp in specs:
         exp_id = str(exp.get("id") or spec.parent.name)
@@ -96,6 +153,12 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
             continue
         if not include_blocked and progress["execution_state"] not in ("ready", "needs_implementation_or_plan"):
             continue
+        if exp_id in held:
+            hold = {"id": exp_id, "decision_id": held[exp_id]}
+            if experiment_ids is None:
+                dropped.append(hold)
+                continue
+            explicit.append(hold)
         rows.append({"id": exp_id, "designed_at": str(exp.get("designed_at") or ""),
                      "goal_id": exp.get("goal_id"), "hypothesis_id": exp.get("hypothesis_id"),
                      "specification": str(spec.relative_to(repo)),
@@ -104,7 +167,33 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
     non = [r for r in rows if not r["ecc"]]
     for group in (ecc, non):
         group.sort(key=lambda r: (r["designed_at"], r["id"]), reverse=True)
+    if hold_report is not None:
+        decisions: dict[str, dict[str, Any]] = {}
+        for eid, did in sorted(held.items()):
+            decisions.setdefault(did, {"decision_id": did, "held": 0, "dropped": 0})["held"] += 1
+        for hold in dropped:
+            decisions[hold["decision_id"]]["dropped"] += 1
+        hold_report.update({
+            "honour_holds": honour_holds,
+            "ordering_rule": ecc_priority.ORDERING_RULE,
+            "decisions": sorted(decisions.values(), key=lambda d: d["decision_id"]),
+            "withheld": [{"id": eid, "decision_id": did} for eid, did in sorted(held.items())],
+            "dropped": dropped,
+            "explicit": explicit,
+        })
     return ecc + non
+
+
+def hold_count_line(report: dict[str, Any]) -> str:
+    if not report.get("honour_holds", True):
+        return "newest_experiments: holds: not honoured (honour_holds=False); 0 row(s) dropped"
+    decisions = report.get("decisions") or []
+    if not decisions:
+        return "newest_experiments: holds: no honouring decision; 0 row(s) dropped"
+    parts = [f"{d['decision_id']} dropped {d['dropped']} row(s) of {d['held']} held id(s)"
+             for d in decisions]
+    return (f"newest_experiments: holds: {'; '.join(parts)}; "
+            f"explicit --experiment overrides {len(report.get('explicit') or [])}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -114,9 +203,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--include-blocked", action="store_true")
     parser.add_argument("--goal")
     parser.add_argument("--experiment", action="append")
+    parser.add_argument("--show-withheld", action="store_true",
+                        help="list every withheld id and its decision (stderr under --json)")
     args = parser.parse_args(argv)
+    report: dict[str, Any] = {}
     rows = newest_runnable(include_blocked=args.include_blocked, goal=args.goal,
-                           experiment_ids=set(args.experiment) if args.experiment else None)
+                           experiment_ids=set(args.experiment) if args.experiment else None,
+                           hold_report=report)
     shown = rows[:max(args.limit, 0)] if args.limit else rows
     if args.json:
         print(json.dumps(shown, indent=2))
@@ -124,6 +217,16 @@ def main(argv: list[str] | None = None) -> int:
         for row in shown:
             print(f"{row['id']}\t{row['designed_at']}\t{'ECC' if row['ecc'] else 'non-ECC'}"
                   f"\t{row['execution_state']}\t{row['specification']}")
+    for hold in report.get("explicit") or []:
+        print(f"newest_experiments: {hold['id']} is withheld from dispatch by "
+              f"{hold['decision_id']}; returned because --experiment named it "
+              "(the hold governs unqualified and --goal selection only)", file=sys.stderr)
+    print(hold_count_line(report), file=sys.stderr)
+    if args.show_withheld:
+        withheld = report.get("withheld") or []
+        lines = [f"# withheld by decision: {len(withheld)}"]
+        lines += [f"{hold['id']}\t{hold['decision_id']}" for hold in withheld]
+        print("\n".join(lines), file=sys.stderr if args.json else sys.stdout)
     return 0
 
 
