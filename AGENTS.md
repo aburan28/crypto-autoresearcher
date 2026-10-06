@@ -210,6 +210,22 @@ cheap to evaluate or hard to reconstruct. State field and construction-family
 restrictions; do not transfer composite-degree binary-field conclusions to
 prime fields or prime-degree binary extensions without justification.
 
+When the user stipulates layered adversary capability, assess a portfolio
+rather than one all-purpose vulnerability. Record each hypothetical technique's
+prerequisites, coverage, cost, reusable setup, access requirements, secrecy,
+and failure conditions. Distinguish independent alternatives from methods
+sharing the same dependency; do not assume independence or multiply speculative
+probabilities. Include redundancy, complementary combinations, and what
+remains available if one technique is disclosed, patched, or loses its advantage.
+
+Model reserved capabilities and exceptional-use scenarios explicitly, including
+activation constraints, scarcity, exposure risk, and the cost of losing secrecy.
+These are stipulated game-theoretic assumptions, not observations of agency
+behavior or proof of any particular mathematical capability. Alternative
+implementation or protocol compromises do not refute an algebraic hypothesis
+and do not replace an algebraic workstream the user has requested. Preserve
+each requested track and its unresolved obligations.
+
 Apply existing transfer, evidence, run-routing, and review rules. Missing
 formulas or measurements remain open obligations. Bounded failure is not
 universal nonexistence. This assessment rule adds no autonomous key-recovery
