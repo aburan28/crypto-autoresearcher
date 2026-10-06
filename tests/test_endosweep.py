@@ -377,3 +377,145 @@ def test_build_every_ordering_of_4_plus_omega_on_cryptopro_b():
     assert len(lams) == 1                                # one endomorphism, three walks
     with pytest.raises(ValueError):
         EX.build_chain_endomorphism(p, a, b, n, T.h, -619, (4, 1), steps=[5, 7])
+
+
+# --- cross-curve sweep ---------------------------------------------------------
+
+import json as _json   # noqa: E402
+import os as _os       # noqa: E402
+
+from harness.endosweep import arkworks as AK      # noqa: E402
+from harness.endosweep import curvesweep as CV    # noqa: E402
+
+_ARK = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_curves_20261006", "arkworks",
+                     "curves.json")
+
+
+def _ark_target(name: str) -> TG.Target:
+    from harness.endosweep.corpus import _int
+    e = next(c for c in _json.load(open(_ARK))["curves"] if c["name"] == name)
+    p, n, h = _int(e["field"]["p"]), _int(e["order"]), _int(e["cofactor"])
+    a = _int(e["params"]["a"])
+    if e["form"] == "Weierstrass":
+        return TG.Target(name, p, "weierstrass", {"a": a, "b": _int(e["params"]["b"])}, n, h)
+    return TG.Target(name, p, "edwards", {"a": a, "d": _int(e["params"]["d"])}, n, h)
+
+
+def test_corpus_parses_signed_hex():
+    from harness.endosweep.corpus import _int
+    assert [_int(s) for s in ("-0x05", "0x1F", "17", "-17", {"raw": "-0x05"}, "+0x10")] == [-5, 31, 17, -17, -5, 16]
+
+
+def test_arkworks_source_parsing_without_network():
+    src = '''
+impl CurveConfig for C { const COFACTOR: &'static [u64] = &[
+        0x1, 0x2,
+    ]; }
+impl SWCurveConfig for C {
+    const COEFF_A: Fq = Fq::ZERO;
+    const COEFF_B: Fq =
+        MontFp!("-17");
+    const GENERATOR: Affine = Affine::new_unchecked(GX, GY);
+}
+pub const GX: Fq = MontFp!("1");
+pub const GY: Fq = MontFp!("3");
+'''
+    p = 101
+    block = AK._block(src, AK.re.compile(r"impl\s+SWCurveConfig\s+for\s+\w+\s*\{"))
+    assert AK._const(block, "COEFF_A", p) == 0 and AK._const(block, "COEFF_B", p) == 84
+    assert AK._cofactor(src) == 1 + (2 << 64)
+    assert AK._generator(src, block, p) == (1, 3)
+    with pytest.raises(ValueError):
+        AK._expr("Fq::from(7)", p)
+
+
+def test_arkworks_extraction_is_complete_and_generators_check():
+    doc = _json.load(open(_ARK))
+    assert doc["commit"] == "e2d16a27e2cfa9f972ae9772df827a22730011b4"
+    names = {c["name"] for c in doc["curves"]}
+    assert {"mnt4_753", "mnt6_753", "cp6_782", "bw6_761", "grumpkin", "ed_on_bls12_381_bandersnatch"} <= names
+    for c in doc["curves"]:
+        assert "unparsed" not in c, c["name"]
+        assert c["generator_check"] == "generator on the curve, killed by h*n", c["name"]
+        assert all(s["url"].startswith("https://raw.githubusercontent.com/arkworks-rs/curves/" + doc["commit"])
+                   for s in c["sources"])
+
+
+def test_order_pin_for_a_g1_smaller_than_4_sqrt_q():
+    import re
+    from math import isqrt
+    T = TG.verify(_ark_target("bw6_761"))                       # n has 377 bits, p 761
+    assert T.verified and "only multiple of n in the Hasse interval" in T.verification
+    K = int(re.search(r"order > (\d+)", T.verification).group(1))
+    assert K * T.n >= 4 * isqrt(T.q) + 2                        # every other multiple of n in the interval is excluded
+    bad = TG.verify(TG.Target("bw6_761 wrong", T.p, "weierstrass", dict(T.coeffs), T.n, T.h + 6))
+    assert bad.verified is False
+
+
+def test_edwards_curves_convert_to_a_verified_weierstrass_model():
+    T = TG.verify(_ark_target("ed_on_bls12_381_bandersnatch"))
+    W = TG.weierstrass_target(T)
+    assert T.verified and W.verified and W.model == "weierstrass" and W.n == T.n and W.h == T.h
+
+
+def test_closed_form_best_order_matches_brute_force():
+    import itertools
+    import random
+    rng = random.Random(1)
+    for _ in range(200):
+        ms = sorted(rng.choice([2, 3, 5, 7, 11, 23, 31]) for _ in range(rng.randrange(1, 6)))
+        for v in ("optimised", "generic"):
+            brute = min(CV.chain_ops(o, v)["M_eq"] for o in set(itertools.permutations(ms)))
+            assert CV.best_order(ms, v)[1]["M_eq"] == brute
+    assert CV.chain_ops((7, 5, 5), "optimised") == CS.chain_ops((7, 5, 5), "optimised")
+    assert CV.multiset_orderings([5, 5, 7]) == 3 and len(CV.distinct_orders([2] * 15)) == 1
+
+
+def test_cost_bounded_catalogue_is_exhaustive():
+    """Every element a norm-bounded brute force finds under the cost limit is in it, and vice versa."""
+    for D in (-619, -339, -8, -91):
+        cc = CV.complete_catalogue(D, 2.0)
+        limit = cc["limit"]
+        got = {(e["a"], e["b"]) for e in cc["catalogue"]}
+        brute = {(e["a"], e["b"]) for e in CV.catalogue(D, 200_000, 400)
+                 if CV.best_order(e["steps"], "optimised")[1]["M_eq"] <= limit}
+        assert brute <= got and all(e["norm"] <= 200_000 or (e["a"], e["b"]) not in brute for e in cc["catalogue"])
+        assert cc["best"] == min(CV.best_order(e["steps"], "optimised")[1]["M_eq"] for e in cc["catalogue"])
+    assert CV.complete_catalogue(-619, 2.0)["best"] == 80
+
+
+def test_bandersnatch_sqrt_minus_2_is_a_verified_degree_2_endomorphism():
+    T = _ark_target("ed_on_bls12_381_bandersnatch")
+    r = CV.sweep_curve(T, -8, source="test", build=True)
+    assert r.kind == "chain" and r.best_order == [2] and r.best_verified and r.eigenvalues_consistent
+    assert r.best_chain_M_eq["optimised"] == 6 and r.model_ops["ratio"] > 1.4
+
+
+def test_automorphism_curves_verify_the_unit():
+    T = next(t for t in TG.deployed_targets() if t.name == "secp256k1")
+    ok, lam, what = CV.verify_automorphism(TG.verify(T), -3)
+    assert ok and pow(lam, 3, T.n) == 1 and lam != 1
+
+
+def test_checkpoint_resumes_finished_curves_only(tmp_path):
+    path = tmp_path / "checkpoint.jsonl"
+    path.write_text(_json.dumps({"name": "done", "D": -3, "kind": "automorphism"}) + "\n"
+                    + _json.dumps({"name": "failed", "D": -91, "error": "TimeoutError: budget"}) + "\n"
+                    + '{"name": "trunc')                                   # the run died mid-line
+    assert set(CV._load_checkpoint(str(path))) == {"done"}
+    assert CV._load_checkpoint(str(tmp_path / "missing.jsonl")) == {} and CV._load_checkpoint(None) == {}
+
+
+def test_scalar_frobenius_kernels_are_grouped_by_subgroup():
+    """43 divides the conductor of Z[pi] on the GOST 2001 test curve and Frobenius is the scalar 7 on E[43]:
+    all 44 subgroups are rational, f_43 splits into 308 cubics, and every kernel is a product of 7 of them."""
+    pytest.importorskip("flint")
+    T = TG.verify(next(t for t in TG.deployed_targets() if t.name == "GOST 2001 test curve"))
+    p, a, b = T.p, T.coeffs["a"] % T.p, T.coeffs["b"] % T.p
+    t = p + 1 - T.n * T.h
+    assert (t * t - 4 * p) % 43 == 0
+    ks = EX.rational_kernels(TV.Curve(p, a, b), 43, EX.division_polynomials_flint(p, a, b, 45), trace=t)
+    assert len(ks) == 44 and {len(k) - 1 for k in ks} == {21}
+    cr = EX.build_chain_endomorphism(p, a, b, T.n, T.h, -915, (8, 1), curve_name=T.name, steps=(43, 7),
+                                     conjugates=False, omega_root=QO.omega_eigenvalues(-915, T.n)[0])
+    assert cr.found

@@ -304,10 +304,64 @@ def rational_kernels_frobenius(E: Curve, ell: int, trace: int, fdiv: dict[int, l
             if _is_isogeny_kernel(E, h, ell):
                 out.append(h)
         elif g.degree() > s:
-            # more than one subgroup shares this eigenvalue (mu double root); fall back to factoring g
-            for fac, _e in _factor_mod_p([int(c) % p for c in g.coeffs()], p):
-                if len(fac) - 1 == s and _is_isogeny_kernel(E, fac, ell):
-                    out.append(fac)
+            # More than one subgroup shares this eigenvalue: Frobenius is the scalar mu on all of E[ell]
+            # (ell divides the conductor of Z[pi]) or t = 0 (mod ell).  A kernel polynomial is then a
+            # product of irreducible factors of g, one per Frobenius orbit, so group them by subgroup.
+            facs = [fac for fac, _e in _factor_mod_p([int(c) % p for c in g.coeffs()], p)]
+            out.extend(k for k in _kernels_from_orbits(E, ell, facs, fdiv) if k not in out)
+    return out
+
+
+def _kernels_from_orbits(E: Curve, ell: int, factors: list[list[int]], fdiv: dict[int, list[int]]) -> list[list[int]]:
+    """Kernel polynomials of the rational order-ell subgroups whose x-coordinates are roots of ``factors``.
+
+    For a root X of one irreducible factor (a point P of order ell over an
+    extension), the kernel polynomial of <P> is prod_{k=1..s} (Y - x([k]P)),
+    with x([k]P) = X - num_k(X) / den_k(X) through the f_n as in
+    ``rational_kernels_frobenius``.  Computed in F_p[X]/(factor), its
+    coefficients are constants exactly when <P> is rational; every factor
+    dividing it belongs to the same subgroup and is not tried again.  This is
+    linear in the number of subgroups where trying products of factors is
+    exponential (on a curve where Frobenius is a scalar of order 3 on E[43],
+    f_43 splits into 308 cubics and each kernel is a product of 7 of them).
+    """
+    flint = _flint()
+    p = E.p
+    s = (ell - 1) // 2
+    fd = fdiv if all(k in fdiv for k in range(s + 2)) else division_polynomials_flint(p, E.a, E.b, s + 2)
+    ctx = flint.fmpz_mod_poly_ctx(p)
+    Fpoly = ctx([E.b, E.a, 0, 1])
+    G = [ctx(g) for g in factors]
+    done = [g.degree() > s for g in G]
+    out: list[list[int]] = []
+    for i, g in enumerate(G):
+        if done[i]:
+            continue
+        done[i] = True
+        X = ctx([0, 1]) % g
+        F = [ctx(fd[k]) % g for k in range(s + 2)]
+        Fp = Fpoly % g
+        h = [ctx([1])]                                  # coefficients in F_p[X]/(g), low-first
+        for k in range(1, s + 1):
+            if k % 2 == 1:
+                num, den = Fp * F[k - 1] * F[k + 1] % g, F[k] * F[k] % g
+            else:
+                num, den = F[k - 1] * F[k + 1] % g, Fp * F[k] * F[k] % g
+            xk = (X - num * den.inverse_mod(g)) % g
+            nh = [ctx([0]) for _ in range(len(h) + 1)]
+            for j, c in enumerate(h):
+                nh[j + 1] = nh[j + 1] + c
+                nh[j] = (nh[j] - c * xk) % g
+            h = nh
+        if any(c.degree() > 0 for c in h):
+            continue                                    # <P> is not rational
+        hk = [int(c.coeffs()[0]) % p if c.degree() >= 0 else 0 for c in h]
+        H = ctx(hk)
+        for j in range(len(G)):
+            if not done[j] and (H % G[j]).is_zero():
+                done[j] = True
+        if hk not in out and _is_isogeny_kernel(E, hk, ell):
+            out.append(hk)
     return out
 
 

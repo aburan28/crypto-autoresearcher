@@ -36,10 +36,16 @@ from .targets import Target, verify
 
 
 def _int(raw) -> int:
+    """A database integer: decimal or 0x-hex, optionally signed ("-0x05" is
+    Bandersnatch's twisted-Edwards a)."""
     if isinstance(raw, dict):
         raw = raw.get("raw")
     s = str(raw).strip()
-    return int(s, 16) if s.lower().startswith("0x") else int(s)
+    neg = s.startswith("-")
+    if neg or s.startswith("+"):
+        s = s[1:].strip()
+    v = int(s, 16) if s.lower().startswith("0x") else int(s)
+    return -v if neg else v
 
 
 @dataclass
