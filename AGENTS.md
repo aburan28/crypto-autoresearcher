@@ -477,25 +477,23 @@ concrete next action. Template completeness and PR merge do not certify
 security or change official research state. Apply prospectively without
 rewriting immutable historical records. This adds no preflight to `run`.
 
-## Correspondence assessment — Agent 70
+## Mathematical transfer assessment
 
-Agent 70 is the correspondence-assessment workflow profile, used by the existing
-research and review roles. Its contract is [agents/agent-70.md](agents/agent-70.md)
-and its skill is [assess-correspondence](.claude/skills/assess-correspondence/SKILL.md),
-with the same name exposed through `.agents/skills/assess-correspondence/`.
+Use [transfer](.claude/skills/transfer/SKILL.md), also exposed through
+`.agents/skills/transfer/`, when assessing a supplied lift, descent, field
+extension, isogeny, curve cover, Jacobian correspondence, or decomposition
+representation; auditing subgroup preservation; comparing representation costs;
+or specifying evidence for a claim that changing objects makes a problem easier.
 
-Use it to audit supplied lifts, descents, extensions, isogenies, covers, Jacobian
-correspondences, and decomposition representations. Record existence, executable
-construction, correctness, subgroup preservation, computational advantage, and
-scaling as separate obligations. Require complete cost accounting, paired
-controls, field/representation identities, and an explicit exploration boundary.
-Keep missing evidence unknown; bounded searches establish only bounded results.
+Record existence, executable construction, correctness, subgroup preservation,
+computational advantage, and scaling as separate obligations. Require complete
+cost accounting, paired controls, canonical identities, and an explicit
+exploration boundary. Keep missing evidence unknown and bounded results scoped.
 
-This profile introduces no runtime role, model binding, or permission change.
-Assessments are companion artifacts, not official research-state transitions.
-The Coordinator and existing review/archive rules retain authority. Actual
-scientific trial execution stays with `run`, without a new assessment preflight.
-Apply prospectively and preserve immutable records.
+This is an assessment skill, not a new agent or runtime role. The Coordinator
+and existing review/archive rules retain authority over official status changes.
+Actual scientific trial execution stays with `run`, without an assessment
+preflight. Apply prospectively and preserve immutable records.
 
 ## Inventor protocol
 
@@ -996,4 +994,5 @@ The dashboard is `python3 -m ui --host 127.0.0.1 --port 8787`. Set
 links are built from `origin` when that variable is unset, and a Cloud Agent
 remote embeds a credential. `formal/setup.sh` (Lean) is not part of this
 environment.
+
 

@@ -1,9 +1,9 @@
 ---
-name: assess-correspondence
-description: Assess supplied lifts, descents, field extensions, isogenies, curve covers, Jacobian correspondences, and decomposition representations. Use for Agent 70 assessments, subgroup-preservation audits, and checking claims that changing algebraic objects makes a problem easier. Produce explicit certificates, cost accounting, controls, and open obligations.
+name: transfer
+description: Assess supplied lifts, descents, field extensions, isogenies, curve covers, Jacobian correspondences, and decomposition representations. Use for mathematical transfer assessments, subgroup-preservation audits, and checking claims that changing algebraic objects makes a problem easier. Use when asked to evaluate whether moving a problem to another curve, field, or Jacobian helps; audit a supplied map; assess a cover or descent claim; compare representation costs; or specify evidence for a claimed speedup. Produce explicit certificates, cost accounting, controls, and open obligations.
 ---
 
-# Agent 70: assess correspondence
+# Assess mathematical transfers
 
 Use this as an assessment profile, not a new runtime role or execution harness.
 Audit supplied constructions and bounded educational examples. Separate
@@ -50,7 +50,7 @@ not an authoritative ledger record or mathematical certificate.
 In Crypto Autoresearcher follow `AGENTS.md`, `docs/curve-identities.md`, citation
 provenance, archival ownership, and existing model policies. Search available
 knowledge before claims of novelty, prior testing, or literature obstruction.
-Disclose unavailable retrieval or dependencies. Keep Agent 70 within existing
+Disclose unavailable retrieval or dependencies. Keep assessment work within existing
 roles and permissions. Keep `run` as the single scientific execution skill;
 add no mandatory assessment preflight to run requests. Preserve immutable
 records and use additive corrections.
