@@ -57,6 +57,15 @@ running it. Named-goal execution remains `run`. Old harness skill names
 (`crypto-autoresearcher-harness`, `launch-research-harness`,
 `coordinate-research-goal`) stay retired; do not recreate those adapters.
 
+## Skill routing
+
+Use [the workflow map](docs/skill-routing.md) and [route](.claude/skills/route/SKILL.md)
+when selecting a recurring analysis, implementation, review or maintenance workflow.
+Canonical skills live under `.claude/skills/`; `.agents/skills/` exposes the same
+names to Codex/OpenCode. Choose by action first, then load a relevant subject profile.
+Explicit scientific execution goes directly to `run`: catalog checks and subject
+assessment are not launch prerequisites. This map adds no runtime role or authority.
+
 ## Roles
 
 - **Coordinator** owns priorities, task decomposition, state transitions, and synthesis.

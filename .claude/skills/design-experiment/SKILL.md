@@ -36,8 +36,10 @@ specification, experiment design, approval, and handoff.
      variables, primary/secondary metrics, seeds and replication plan,
      budget, stopping and invalidation rules, success and falsification
      criteria, and required artifacts;
-   - refuse approval while any of those fields is null (status stays
-     `review_required`).
+   - refuse approval while required scientific-contract fields are incomplete
+     (status stays `review_required`). Advisory research estimates and unlimited
+     campaign budgets may be null under the current budget policy; that alone
+     does not prevent approval.
 3. Create the experiment directory:
    `experiments/EXP-<AREA>-<NNN>/specification.yaml` (plus empty
    `amendments/` and `runs/`).
