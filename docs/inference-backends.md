@@ -127,9 +127,14 @@ frozen design, which is both wasted budget and the route by which an Executor
 drifts into reinterpreting a specification it is supposed to follow exactly.
 
 This reaches the wire, not just the manifest. On the Anthropic protocol a
-binding maps effort to a thinking budget (`budget_by_effort`), and `low` maps to
-`0`, which disables extended thinking and lets `temperature: 0.0` through. On
-the OpenAI protocol the effort maps to `reasoning_effort`.
+binding declares one of two reasoning modes. `anthropic_adaptive` (the Claude
+5 bindings) sends `thinking: {type: adaptive}` plus the effort as a named
+`output_config.effort`; those models reject `budget_tokens` and `temperature`
+outright, and thinking cannot be disabled on them, so the `low` tier is low
+effort rather than no thinking. `anthropic_thinking` (the Haiku 4.5 binding)
+maps effort to an explicit `budget_tokens` (`budget_by_effort`), where `low`
+maps to `0`, which disables extended thinking and lets `temperature: 0.0`
+through. On the OpenAI protocol the effort maps to `reasoning_effort`.
 
 ### Per subagent, where the runtime can express it
 
@@ -233,6 +238,38 @@ silently granted. And a review policy may not be calibrated below its floor —
 `tools/research_dispatch.py` rejects the handoff. Review is where discipline
 lives, and buying budget by thinking less there is exactly the trade
 `evals/suites/discipline.yaml` exists to catch.
+
+## Two delivery lanes: interactive and batch
+
+A resolved request can travel one of two ways. The synchronous Messages API
+answers now; the Message Batches API answers within 24 hours (most within an
+hour) at half the token price, with results collectable for 29 days. The
+lane is a transport fact recorded on every manifest (`delivery`, `batch_id`)
+and changes nothing about resolution: same policy, same binding, same
+request body, same cost-policy guard.
+
+A handoff chooses with `inference.delivery` (`interactive` — the default —
+`batch`, or `auto`) and `inference.deadline_seconds`. Under `auto` the
+router batches only when the deadline leaves room beyond the provider's
+published latency envelope and never batches a task at or above the urgent
+dispatch priority; a result that becomes urgent after submission is
+re-run synchronously with `batch escalate`, which marks the late batch copy
+superseded and cancels what is no longer wanted. Only the first-party
+`anthropic` backend declares `supports_message_batches`; asking a gateway
+to batch is an error, never a silent synchronous call. Submissions, results,
+and escalations are recorded write-once under
+`coordination/inference-batches/<batch id>/`, so a batch submitted from one
+ephemeral session is collected from any other.
+
+```sh
+python3 -m orchestration.adapter batch plan    --delivery auto --deadline-seconds 7200
+python3 -m orchestration.adapter batch submit  --task ledger/handoffs/TASK-....yaml --prompts-jsonl p.jsonl
+python3 -m orchestration.adapter batch status  --all
+python3 -m orchestration.adapter batch collect msgbatch_...
+```
+
+Full semantics, the registry layout, and the result-type table:
+[`docs/batch-inference.md`](batch-inference.md).
 
 ## Policy ids and the alias contract
 
@@ -544,8 +581,10 @@ inference:
   fallback_reason: null
   degraded_requirements: []
   independent_session: false
-  adapter_version: 1.0.0
+  adapter_version: 1.2.0
   config_digest: sha256:...              # binds the run to exact configuration
+  delivery: interactive                  # or batch, with the batch named
+  batch_id: null
 ```
 
 Deterministic harness runs record the same block with `resolved_model_id: null`
