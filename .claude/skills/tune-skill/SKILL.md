@@ -59,6 +59,16 @@ covers the four skills above.
 
 3. **Collect the batch.** Per the table above, find every output record of
    the target skill dated inside the window, then walk the chain forward.
+   Start from the generated indexes, not the corpus: `python3
+   tools/build_ledger_index.py` writes `ledger/.index/{proposals,hypotheses,
+   experiments}.jsonl` (one line per record: id, area, date, status, the ids
+   it references, a 200-character excerpt), which is where the structured
+   pass below greps first; open a YAML file only to verify a hit. Bound the
+   batch with `python3 tools/session_receipt.py summary` where receipts
+   exist for the window: the number of sessions that ran the target skill
+   is the denominator the review found missing (1,995 unused proposals and
+   no count of the sessions that wrote them). Where no receipts exist for
+   the window, say so in the round record's `caveats`; do not estimate.
    **Structured fields alone under-count badly** — a dry run against
    `propose-ideas`'s full history (799 ideas) found only 2 terminal outcomes
    via fields alone, versus at least 5 once free-text matching was added
@@ -195,8 +205,13 @@ covers the four skills above.
 9. **Commit and push as a normal code change.** One commit covering the
    skill/agent file edit(s) and the round record, message referencing the
    round id. No ledger snapshot/archive step applies — this isn't a ledger
-   record — but open a PR as usual so the diff gets the same review any other
-   instruction change would.
+   record — but open or refresh a PR with the runtime's PR tool as usual so
+   the diff gets the same review any other instruction change would.
+
+10. **Receipt.** `python3 tools/session_receipt.py --skill tune-skill
+    --role <role> --outcome <published|no_change|impeded> --files-read <n>`
+    (`docs/session-receipts.md`). A round with a thin batch is
+    `no_change`; it is still a round.
 
 ## If this proves out
 
