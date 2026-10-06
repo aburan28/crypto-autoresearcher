@@ -9,6 +9,13 @@ exact engine's M_D record, and every certificate it returns sums to 1.
   * the native row builder equals Closure.build_M, Shape equals Closure's
     tables, and the native certificate check equals closure.eval_cert;
   * w_profile == Closure.w_closure field for field;
+  * both hold with the syndrome test on, forced onto most rows, switched off,
+    with every new block reduced row by row or stacked under the basis, and
+    with no test at all;
+  * the annihilator, syndrome, reduction and product kernels equal their
+    numpy references; a row's syndrome is zero exactly when it lies in the
+    span, and rows with independent syndromes add exactly the rank all rows
+    add;
   * archived RC-1 M_D and W_D records of RUN-CERTBIN-c417e0 are reproduced
     (the full sweep is ``tools/gf2_replay_rc1.py --solver rankprofile``).
 """
@@ -88,14 +95,99 @@ def test_row_leads_and_lead_weight_match_reference():
         assert np.array_equal(lead, want)
 
 
+# (SPLIT, MAX_SYNDROME_WORDS, RESTACK, dual): the default; a small primal
+# prefix, so most rows are selected by syndrome; no syndrome test at all; a
+# huge RESTACK, so every new block is reduced row by row; a tiny one, so every
+# new block is stacked under the basis; elimination of everything.
+KNOBS = [(1.0, 256, 1 / 16, True), (0.3, 256, 1 / 16, True), (0.3, 0, 1 / 16, True),
+         (0.3, 256, 1e9, True), (0.3, 256, 1e-9, True), (1.0, 256, 1 / 16, False)]
+
+
+def _mk(rng, R, C, dens):
+    W = (C + 63) // 64
+    d = (rng.random((R, C)) < dens).astype(np.uint8)
+    d = np.concatenate([d, np.zeros((R, W * 64 - C), np.uint8)], 1)
+    return np.ascontiguousarray(np.packbits(d, axis=1, bitorder="little")).view(np.uint64).reshape(R, W).copy()
+
+
+@native
+def test_annihilator_syndromes_and_reduction_match_reference_and_rank():
+    rng = np.random.default_rng(1)
+    for _ in range(150):
+        C, R = int(rng.integers(1, 300)), int(rng.integers(0, 200))
+        dens = float(rng.choice([0.01, 0.05, 0.3]))
+        M = _mk(rng, R, C, dens)
+        A = M.copy()
+        log = kernels.column_pass(A, C, keep_ops=False)
+        E, lead = np.ascontiguousarray(A[log.ps]), log.cs.astype(np.int64)
+        K = kernels.annihilator([(E, np.arange(len(E)), lead)], C)
+        o = np.argsort(-lead)
+        Kr = reference.annihilator(np.ascontiguousarray(E[o]), lead[o].copy(), C, np.zeros_like(K))
+        assert np.array_equal(K, Kr)
+        assert not kernels.syndromes(M, K).any()
+        Q = _mk(rng, int(rng.integers(1, 60)), C, dens)
+        S = kernels.syndromes(Q, K)
+        assert np.array_equal(S, reference.syndromes(Q, K))
+        idx = rng.permutation(len(Q))[: len(Q) // 2]
+        assert np.array_equal(kernels.syndromes(Q, K, idx=idx), S[idx])
+        # independent syndromes <=> independent modulo span(M): the selected
+        # rows add exactly the rank all of Q adds
+        f = C - log.K
+        sel = kernels.column_pass(S.copy(), max(f, 1), keep_ops=False).ps if f else np.zeros(0, np.int64)
+        full = kernels.column_pass(np.concatenate([M, Q]), C, keep_ops=False).K
+        part = kernels.column_pass(np.concatenate([M, Q[np.sort(sel)]]), C, keep_ops=False).K
+        assert full == part == log.K + len(sel)
+        # reduce_rows: lead-chain and full reduction, against the reference
+        blocks = [(A, log.ps.astype(np.int64), lead, 7 + log.ps.astype(np.int64))]
+        for full_red in (False, True):
+            Q1, Q2 = Q.copy(), Q.copy()
+            l1, X1 = kernels.reduce_rows(Q1, C, blocks, keep_ops=True, full=full_red)
+            l2, X2 = reference.reduce_rows(Q2, C, blocks, True, full_red)
+            assert np.array_equal(l1, l2) and np.array_equal(Q1, Q2)
+            assert all(np.array_equal(a, b) for a, b in zip(X1, X2))
+            assert np.array_equal(l1 < 0, ~S.any(axis=1))      # zero exactly when in the span
+            if full_red and len(lead):
+                assert not (Q1[:, lead >> 6] >> (lead & 63).astype(np.uint64) & np.uint64(1)).any()
+
+
+@native
+def test_product_syndromes_and_pairs_match_formed_products():
+    rng = np.random.default_rng(4)
+    for _ in range(25):
+        nv, D = int(rng.integers(3, 10)), int(rng.integers(2, 6))
+        sh = rankprofile.Shape(nv, D)
+        colmap, maps = sh.product_tables
+        low = sh.col_deg(np.arange(sh.C)) <= D - 1
+        rows = _mk(rng, int(rng.integers(1, 30)), sh.C, 0.1)
+        rows &= np.packbits(np.r_[low, np.zeros(sh.W * 64 - sh.C, bool)].astype(np.uint8),
+                            bitorder="little").view(np.uint64)
+        rows = np.ascontiguousarray(rows)
+        P = kernels.products(rows, colmap, maps, nv, sh.C, sh.W)
+        E = _mk(rng, int(rng.integers(0, 40)), sh.C, 0.2)
+        log = kernels.column_pass(E, sh.C, keep_ops=False)
+        K = kernels.annihilator([(E, log.ps.astype(np.int64), log.cs.astype(np.int64))], sh.C)
+        addrs = np.uint64(rows.ctypes.data) + np.arange(len(rows), dtype=np.uint64) * np.uint64(sh.W * 8)
+        S = kernels.product_syndromes(addrs, sh.W, sh.C, colmap, nv, K)
+        assert np.array_equal(S, kernels.syndromes(P, K))
+        assert np.array_equal(S, reference.product_syndromes(rows, colmap, nv, sh.C, K))
+        q = rng.integers(0, nv * len(rows), size=20)
+        j, f = np.divmod(q, len(rows))
+        assert np.array_equal(kernels.product_pairs(addrs[f], j, sh.W, sh.C, colmap), P[q])
+        assert np.array_equal(reference.product_pairs(rows[f], j, colmap, sh.C, sh.W), P[q])
+
+
 @pytest.mark.parametrize("use_f5,order", [(True, "lead_desc"), (True, "built"), (False, "lead_desc")])
-def test_profile_matches_exact_engine(use_f5, order):
+@pytest.mark.parametrize("split,synw,restack,dual", KNOBS)
+def test_profile_matches_exact_engine(monkeypatch, use_f5, order, split, synw, restack, dual):
+    for name, v in (("SPLIT", split), ("MAX_SYNDROME_WORDS", synw), ("RESTACK", restack)):
+        monkeypatch.setattr(rankprofile, name, v)
     refuted = 0
     for nv, D, eqs, planted in _systems():
         want, _ = fc.Closure(nv, D, len(eqs)).macaulay_closure(eqs, want_cert=False)
-        got, cert, info = rankprofile.macaulay_profile(eqs, nv, D, use_f5=use_f5, order=order)
+        got, cert, info = rankprofile.macaulay_profile(eqs, nv, D, use_f5=use_f5, order=order, dual=dual)
         assert got == want, (nv, D, len(eqs))
         assert info["rows_kept"] <= info["rows_total"]
+        assert got["rank"] <= info["rows_eliminated"] <= info["rows_kept"]
         assert len(info["pivcols"]) == got["rank"]
         if got["one"]:
             refuted += 1
@@ -151,13 +243,14 @@ def test_build_rows_shape_and_cert_check_match_closure():
         assert rankprofile.cert_sums_to_one(cert, eqs, nv) == (fc.eval_cert(cert, eqs) == [0])
 
 
-@pytest.mark.parametrize("stack_order", ["basis_first", "lead_desc", "built"])
-def test_w_profile_matches_exact_engine(monkeypatch, stack_order):
-    monkeypatch.setattr(rankprofile, "STACK_ORDER", stack_order)
+@pytest.mark.parametrize("split,synw,restack,dual", KNOBS)
+def test_w_profile_matches_exact_engine(monkeypatch, split, synw, restack, dual):
+    for name, v in (("SPLIT", split), ("MAX_SYNDROME_WORDS", synw), ("RESTACK", restack)):
+        monkeypatch.setattr(rankprofile, name, v)
     seen_iter = refuted = 0
     for nv, D, eqs, planted in _systems(seed=8, n=80):
         want, _ = fc.Closure(nv, D, len(eqs)).w_closure(eqs, want_cert=False)
-        got, cert, _ = rankprofile.w_profile(eqs, nv, D)
+        got, cert, _ = rankprofile.w_profile(eqs, nv, D, dual=dual)
         assert got == want, (nv, D, len(eqs))
         seen_iter += got["iterations_to_fixpoint"] > 0
         if got["one"]:

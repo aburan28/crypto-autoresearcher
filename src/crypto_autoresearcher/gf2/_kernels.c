@@ -871,12 +871,6 @@ static void binom_table(int nv, int D, i64 *B /* (nv+1) x (D+1) */)
         }
 }
 
-static int cmp_i64(const void *a, const void *b)
-{
-    i64 x = *(const i64 *)a, y = *(const i64 *)b;
-    return (x > y) - (x < y);
-}
-
 int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const u64 *mu,
                    const i32 *k, i64 W, u64 *M, i64 *lead, i64 *weight, int nthreads)
 {
@@ -911,7 +905,8 @@ int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const
 #endif
     {
         i64 *cols = (i64 *)malloc((size_t)(maxf > 0 ? maxf : 1) * sizeof(i64));
-        if (!cols) {
+        u64 *scr = M ? NULL : (u64 *)calloc((size_t)(off[0] / 64 + 1), sizeof(u64));
+        if (!cols || (!M && !scr)) {
             err = 1;
         } else {
 #ifdef _OPENMP
@@ -920,6 +915,11 @@ int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const
             for (i64 i = 0; i < n; i++) {
                 const u64 *f = emon + eoff[k[i]];
                 i64 len = eoff[k[i] + 1] - eoff[k[i]], nc = 0;
+                /* XOR each monomial's bit into the row (a repeated product
+                 * cancels in pairs): into row i of M when it is wanted, else
+                 * into a private scratch row that is cleared afterwards. */
+                u64 *row = M ? M + (size_t)i * W : scr;
+                i64 l = -1, w = 0;
                 for (i64 t = 0; t < len; t++) {
                     u64 x = mu[i] | f[t];
                     int d = __builtin_popcountll(x);
@@ -931,30 +931,28 @@ int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const
                         r += B[(size_t)b * (D + 1) + idx];
                         idx++;
                     }
-                    cols[nc++] = off[d] + r;
+                    i64 c = off[d] + r;
+                    u64 bit = 1ULL << (c & 63);
+                    row[c >> 6] ^= bit;
+                    w += (row[c >> 6] & bit) ? 1 : -1;
+                    cols[nc++] = c;
                 }
-                qsort(cols, (size_t)nc, sizeof(i64), cmp_i64);
-                i64 l = -1, w = 0;
-                u64 *row = M ? M + (size_t)i * W : NULL;
-                for (i64 t = 0; t < nc;) {
-                    i64 c = cols[t], run = 0;
-                    while (t < nc && cols[t] == c) {
-                        run++;
-                        t++;
-                    }
-                    if (run & 1) {
-                        if (l < 0)
-                            l = c;
-                        w++;
-                        if (row)
-                            row[c >> 6] |= 1ULL << (c & 63);
-                    }
+                for (i64 t = 0; t < nc; t++) {
+                    i64 c = cols[t];
+                    if (!((row[c >> 6] >> (c & 63)) & 1))
+                        continue;            /* cancelled */
+                    if (l < 0 || c < l)
+                        l = c;
                 }
+                if (!M)
+                    for (i64 t = 0; t < nc; t++)
+                        scr[cols[t] >> 6] = 0;
                 lead[i] = l;
                 weight[i] = w;
             }
-            free(cols);
         }
+        free(cols);
+        free(scr);
     }
     free(B); free(off);
     return err ? -1 : 0;
@@ -1018,6 +1016,271 @@ HOT i64 gf2_row_leads(const u64 *M0, i64 R, i64 W, i64 C, i32 *out)
     }
     free(slot); free(basis); free(v);
     return nb;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Dual (annihilator) side of the rank-profile solver.                        */
+/* ------------------------------------------------------------------------ */
+/*
+ * Annihilator of an echelon row set. E points at r rows (W words each) with
+ * pairwise distinct leads lead[i] (lowest set column), given in strictly
+ * DESCENDING lead order. K (C x fw words, zeroed by the caller) receives a
+ * basis of U^perp = {k : E_i . k = 0 for all i}, U = span(E), as its columns:
+ * the t-th non-lead column (ascending) gets K[free_t] = e_t, and lead column
+ * p_i gets K[p_i] = sum of K[c] over the other set columns c of row i
+ * (back-substitution: every such c > p_i is final by then). Then
+ * E_i . K = K[p_i] + sum_c K[c] = 0. The f = C - r columns are independent
+ * (identity on the free columns), so they span U^perp. Cost: the number of
+ * set bits of E times fw. Returns f, or -1 on bad input (fw too small,
+ * leads out of range, not strictly descending).
+ */
+HOT i64 gf2_annihilator(const u64 *const *E, i64 r, i64 W, i64 C, const i64 *lead, u64 *K, i64 fw)
+{
+    unsigned char *isp = (unsigned char *)calloc((size_t)(C > 0 ? C : 1), 1);
+    if (!isp)
+        return -1;
+    for (i64 i = 0; i < r; i++) {
+        i64 p = lead[i];
+        if (p < 0 || p >= C || isp[p] || (i > 0 && p >= lead[i - 1])) {
+            free(isp);
+            return -1;
+        }
+        isp[p] = 1;
+    }
+    i64 f = 0;
+    for (i64 c = 0; c < C; c++) {
+        if (isp[c])
+            continue;
+        if ((f >> 6) >= fw) {
+            free(isp);
+            return -1;
+        }
+        K[(size_t)c * fw + (f >> 6)] |= 1ULL << (f & 63);
+        f++;
+    }
+    free(isp);
+    for (i64 i = 0; i < r; i++) {
+        const u64 *row = E[i];
+        i64 p = lead[i];
+        u64 *acc = K + (size_t)p * fw;
+        for (i64 w = p >> 6; w < W; w++) {
+            u64 x = row[w];
+            if (w == (p >> 6))
+                x &= ~(((2ULL << (p & 63)) - 1));   /* drop bits <= p */
+            while (x) {
+                i64 c = w * 64 + __builtin_ctzll(x);
+                x &= x - 1;
+                const u64 *kc = K + (size_t)c * fw;
+                for (i64 q = 0; q < fw; q++)
+                    acc[q] ^= kc[q];
+            }
+        }
+    }
+    return f;
+}
+
+/*
+ * Reduce rows against an echelon basis held elsewhere. slot[c] is the address
+ * of the basis row whose lead is c (0 if none) and sgid[c] its global row id.
+ * Each row of Q is reduced in place: with full == 0 until its lead is not a
+ * basis lead (or it is zero); with full != 0 until it has no bit at any basis
+ * lead (each XOR adds bits only right of the column it clears, so one sweep
+ * left to right suffices). After a full reduction, XORs among the reduced
+ * rows can never produce a basis lead again. With keep, the
+ * returned log has one entry per row (ps = row, cs = final lead or -1) and X =
+ * the global ids used, in order; without keep only cs is meaningful and rows
+ * are split across threads.
+ */
+HOT oplog_t *gf2_reduce_rows(u64 *Q, i64 nq, i64 W, i64 C, const u64 *slot, const i64 *sgid,
+                             int keep, int full, int nthreads)
+{
+    u64 *smask = (u64 *)calloc((size_t)(W > 0 ? W : 1), sizeof(u64));
+    if (!smask)
+        return NULL;
+    for (i64 c = 0; c < C; c++)
+        if (slot[c])
+            smask[c >> 6] |= 1ULL << (c & 63);
+    oplog_t *L = (oplog_t *)calloc(1, sizeof(oplog_t));
+    if (!L) {
+        free(smask);
+        return NULL;
+    }
+    L->ps = (i32 *)malloc((size_t)(nq + 1) * sizeof(i32));
+    L->cs = (i32 *)malloc((size_t)(nq + 1) * sizeof(i32));
+    L->xoff = (i64 *)malloc((size_t)(nq + 2) * sizeof(i64));
+    if (!L->ps || !L->cs || !L->xoff)
+        goto fail;
+    L->xoff[0] = 0;
+    int nt = 1;
+#ifdef _OPENMP
+    if (!keep && nthreads > 1 && nq > 64)
+        nt = nthreads;
+#endif
+    (void)nthreads;
+    (void)nt;
+    int err = 0;
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(nt) if (nt > 1) schedule(dynamic, 16) reduction(|| : err)
+#endif
+    for (i64 i = 0; i < nq; i++) {
+        if (err)
+            continue;
+        u64 *row = Q + (size_t)i * W;
+        int lc = lowest_bit_from(row, (int)W, 0);
+        if (full) {
+            for (i64 w = 0; w < W; w++) {
+                u64 x;
+                while ((x = row[w] & smask[w])) {
+                    i64 c = w * 64 + __builtin_ctzll(x);
+                    const u64 *b = (const u64 *)(uintptr_t)slot[c];
+                    for (i64 y = w; y < W; y++)
+                        row[y] ^= b[y];
+                    if (keep && push_x(L, (i32)sgid[c]))
+                        err = 1;
+                }
+            }
+            lc = lowest_bit_from(row, (int)W, 0);
+        }
+        while (lc >= 0 && lc < C && slot[lc]) {
+            const u64 *b = (const u64 *)(uintptr_t)slot[lc];
+            int w0 = lc >> 6;
+            for (int x = w0; x < W; x++)
+                row[x] ^= b[x];
+            if (keep && push_x(L, (i32)sgid[lc]))
+                err = 1;
+            lc = lowest_bit_from(row, (int)W, w0);
+        }
+        L->ps[i] = (i32)i;
+        L->cs[i] = (i32)(lc >= 0 && lc < C ? lc : -1);
+        if (keep)
+            L->xoff[i + 1] = L->nx;
+    }
+    free(smask);
+    smask = NULL;
+    if (err)
+        goto fail;
+    L->K = nq;
+    if (!keep)
+        for (i64 i = 0; i <= nq; i++)
+            L->xoff[i] = 0;
+    return L;
+fail:
+    free(smask);
+    free(L->ps); free(L->cs); free(L->xoff); free(L->xs); free(L);
+    return NULL;
+}
+
+/* s = A_row . K (fw words); returns whether s != 0. */
+static inline int dual_dot(const u64 *row, i64 W, const u64 *K, i64 fw, u64 *s)
+{
+    memset(s, 0, (size_t)fw * sizeof(u64));
+    for (i64 w = 0; w < W; w++) {
+        u64 x = row[w];
+        while (x) {
+            i64 c = w * 64 + __builtin_ctzll(x);
+            x &= x - 1;
+            const u64 *kc = K + (size_t)c * fw;
+            for (i64 q = 0; q < fw; q++)
+                s[q] ^= kc[q];
+        }
+    }
+    u64 any = 0;
+    for (i64 q = 0; q < fw; q++)
+        any |= s[q];
+    return any != 0;
+}
+
+/*
+ * Syndromes: S[i] = A_i . K (fw words), A_i = row idx[i] of A (row i when idx
+ * is NULL). S[i] == 0 exactly when A_i lies in the space K annihilates, and a
+ * set of rows is independent modulo that space exactly when their syndromes
+ * are independent.
+ */
+HOT int gf2_syndromes(const u64 *A, i64 R, i64 W, const i64 *idx, const u64 *K, i64 fw, u64 *S,
+                      int nthreads)
+{
+    int nt = 1;
+#ifdef _OPENMP
+    if (nthreads > 1 && R > 256)
+        nt = nthreads;
+#endif
+    (void)nthreads;
+    (void)nt;
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(nt) if (nt > 1) schedule(dynamic, 64)
+#endif
+    for (i64 i = 0; i < R; i++)
+        dual_dot(A + (size_t)(idx ? idx[i] : i) * W, W, K, fw, S + (size_t)i * fw);
+    return 0;
+}
+
+/*
+ * Syndromes of products without forming them: S[j*n + f] = (v_j * row_f) . K
+ * = sum over the set columns c of row_f of K[colmap[j][c]] (colmap as in
+ * gf2_products; v_j * row_f = sum_c e_{colmap[j][c]}, so equal products of
+ * two columns cancel in the sum as they do in the row). rows[f] is the
+ * address of row f.
+ */
+HOT int gf2_product_syndromes(const u64 *const *rows, i64 n, i64 W, i64 C, const i32 *colmap,
+                              i64 nv, const u64 *K, i64 fw, u64 *S, int nthreads)
+{
+    int nt = 1;
+#ifdef _OPENMP
+    if (nthreads > 1 && n > 16)
+        nt = nthreads;
+#endif
+    (void)nthreads;
+    (void)nt;
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(nt) if (nt > 1) schedule(dynamic, 8)
+#endif
+    for (i64 f = 0; f < n; f++) {
+        const u64 *r = rows[f];
+        for (i64 j = 0; j < nv; j++)
+            memset(S + ((size_t)j * n + f) * fw, 0, (size_t)fw * sizeof(u64));
+        for (i64 w = 0; w < W; w++) {
+            u64 x = r[w];
+            while (x) {
+                i64 c = w * 64 + __builtin_ctzll(x);
+                x &= x - 1;
+                if (c >= C)
+                    continue;
+                for (i64 j = 0; j < nv; j++) {
+                    i32 t = colmap[(size_t)j * C + c];
+                    if (t < 0)
+                        continue;
+                    const u64 *kt = K + (size_t)t * fw;
+                    u64 *sj = S + ((size_t)j * n + f) * fw;
+                    for (i64 q = 0; q < fw; q++)
+                        sj[q] ^= kt[q];
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+/* out[p] = v_{js[p]} * rows[p] (rows[p]: address of a row), zeroed by caller. */
+void gf2_product_pairs(const u64 *const *rows, const i64 *js, i64 np, i64 W, i64 C,
+                       const i32 *colmap, u64 *out)
+{
+    for (i64 p = 0; p < np; p++) {
+        const u64 *r = rows[p];
+        const i32 *cm = colmap + (size_t)js[p] * C;
+        u64 *o = out + (size_t)p * W;
+        for (i64 w = 0; w < W; w++) {
+            u64 x = r[w];
+            while (x) {
+                i64 c = w * 64 + __builtin_ctzll(x);
+                x &= x - 1;
+                if (c >= C)
+                    continue;
+                i32 t = cm[c];
+                if (t >= 0)
+                    o[t >> 6] ^= 1ULL << (t & 63);
+            }
+        }
+    }
 }
 
 /* ------------------------------------------------------------------------ */

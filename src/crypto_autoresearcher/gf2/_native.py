@@ -90,6 +90,16 @@ def _declare(lib):
     lib.gf2_row_lead_weight.restype = None
     lib.gf2_row_lead_weight.argtypes = [P, i64, i64, P, P]
     lib.gf2_row_leads.restype = i64
+    lib.gf2_annihilator.restype = i64
+    lib.gf2_annihilator.argtypes = [P, i64, i64, i64, P, P, i64]
+    lib.gf2_reduce_rows.restype = P
+    lib.gf2_reduce_rows.argtypes = [P, i64, i64, i64, P, P, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    lib.gf2_syndromes.restype = ctypes.c_int
+    lib.gf2_syndromes.argtypes = [P, i64, i64, P, P, i64, P, ctypes.c_int]
+    lib.gf2_product_syndromes.restype = ctypes.c_int
+    lib.gf2_product_syndromes.argtypes = [P, i64, i64, i64, P, i64, P, i64, P, ctypes.c_int]
+    lib.gf2_product_pairs.restype = None
+    lib.gf2_product_pairs.argtypes = [P, P, i64, i64, i64, P, P]
     lib.gf2_row_leads.argtypes = [P, i64, i64, i64, P]
     lib.gf2_ops_json_bound.restype = i64
     lib.gf2_ops_json_bound.argtypes = [i64, i64]

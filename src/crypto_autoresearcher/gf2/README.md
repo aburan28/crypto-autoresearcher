@@ -173,43 +173,93 @@ profiles:
    D = 6.
 2. **Native row builder, no 2^nv tables.** Within a degree the column order is
    colex order, so a monomial's column is a sum of binomials
-   (`kernels.build_rows`, threaded). Only the kept rows are built, and they are
-   written already in pivot order. `Shape` replaces `Closure`'s tables; `Closure`
-   allocates 2^nv words, which is 512 MB at nv = 26.
+   (`kernels.build_rows`, threaded; each monomial's bit is XORed straight into
+   the row, no per-row sort). Only the kept rows are built. `Shape` replaces
+   `Closure`'s tables; `Closure` allocates 2^nv words, which is 512 MB at
+   nv = 26.
 3. **Lead-descending row order.** Unreduced, still-sparse rows become pivots
-   before filled-in ones, so fill-in drops.
-4. **W_D: a smaller first product set.** M_{D-1} is a subspace of M_D's low
-   part and v_j * M_{D-1} lies in M_D, so the first iteration multiplies only
-   a complement of M_{D-1} (2356 rows instead of 6175 at nv = 20, D = 5). The
-   spaces V_i are the exact engine's, and the record reports its counts. Each
-   stacked matrix puts the basis rows first and orders the products
-   lead-descending.
+   before filled-in ones, so fill-in drops, and the echelon rows stay sparse
+   (1 to 2% of the columns at D = 5).
+4. **Speculate, then verify (exact).** 88 to 93% of the elimination work went
+   into rows that reduce to zero. Now only the first min(R, C) rows in key
+   order are eliminated outright. For the others:
+   - `kernels.annihilator` builds K, a basis of U^perp for the space U found
+     so far (back-substitution over the sparse echelon rows, cost = their bit
+     count times f/64, f = C - dim U);
+   - each row gets its syndrome r . K (`kernels.syndromes`). A row is in U
+     exactly when its syndrome is 0, and rows are independent modulo U exactly
+     when their syndromes are;
+   - a column pass over the syndromes (f columns) picks a maximal independent
+     subset, and only that subset is eliminated (reduced in place against the
+     basis by `kernels.reduce_rows`, or stacked under it when large). Every
+     other row is proved to lie in the span; nothing is sampled.
+5. **W_D without re-elimination.** V_0 is the space above. Each iteration
+   multiplies only a complement of the previous low part (at i = 0, a
+   complement of M_{D-1}: 2356 rows instead of 6175 at nv = 20, D = 5).
+   Products whose lead is provably new (v_j * n has lead x_j * lead(n) when
+   x_j is not in lead(n)) are added directly, one per lead. For the rest the
+   syndromes are computed from the basis rows (`kernels.product_syndromes`),
+   and only the selected products are formed (`kernels.product_pairs`). The
+   basis is never re-eliminated, and the product matrix (585 MB at nv = 22)
+   is never built.
+6. **`blocked` column pass.** On these row orders it beats `sb` at 1 and 4
+   threads (0.93 s vs 1.13 s on M_5 at nv = 24, 4 threads).
 
-Certificates are flat lists of (mu, k) rows summing to 1, checked natively
-(`cert_sums_to_one`, the parity test of `eval_cert`) before they are
-returned. They are generally not the declared engine's certificates, and there
-is no op log or trace hash. **It is a separate instrument:** an experiment
-whose protocol pins the exact engine's certificates or hashes must keep using
-`Closure`. M4RI (`mzd_ple`) gives the same rank profiles on the matrices
-below but is 3 to 9x slower there.
+Certificates are flat lists of (mu, k) rows summing to 1, traced back through
+every block, and checked natively (`cert_sums_to_one`, the parity test of
+`eval_cert`) before they are returned. They are generally not the declared
+engine's certificates, and there is no op log or trace hash. **It is a
+separate instrument** (`SOLVER = "rankprofile-v2"`; v2 certificates differ
+from v1's, records do not): an experiment whose protocol pins the exact
+engine's certificates or hashes must keep using `Closure`. M4RI (`mzd_ple`)
+gives the same rank profiles on the matrices below but is 3 to 9x slower
+there.
 
-Measured, 4 cores (random systems, neq = nv - 1; records identical):
+Measured, 4 cores (random systems, neq = nv - 1; records identical to the
+exact engine's; `rankprofile` best of two fresh processes, v1 = the previous
+version of this solver):
 
-| workload | exact `Closure` | `rankprofile` |
-| --- | --- | --- |
-| M_5, nv = 20 | 1.36 s | 0.91 s |
-| M_5, nv = 24 (cold, incl. table setup) | 7.3 s + 1.0 s setup | 3.2 s |
-| M_6, nv = 20 | 35.4 s | 6.5 s |
-| M_5, nv = 26 (cold) | (2^26 table: 512 MB) | 5.6 s |
-| W_5, nv = 20 | 15.1 s | 6.7 s |
-| W_5, nv = 22 | 39.1 s | 19.8 s |
+| workload | exact `Closure` | `rankprofile` v1 | `rankprofile` v2 |
+| --- | --- | --- | --- |
+| M_5, nv = 20 | 1.36 s | 0.81 s | 0.44 s |
+| M_5, nv = 24 (cold) | 7.3 s + 1.0 s setup | 1.5 s | 1.2 s |
+| M_6, nv = 20 | 35.4 s | 7.0 s | 2.4 s |
+| M_5, nv = 26 (cold) | (2^26 table: 512 MB) | 5.6 s | 2.3 s |
+| W_5, nv = 20 | 15.1 s | 4.2 s | 0.67 s |
+| W_5, nv = 22 | 39.1 s | 19.8 s | 2.9 s |
+
+The v1 figures for M_5 at nv = 20 and 24, M_6 and W_5 at nv = 20 were measured
+on this machine before any of the v2 changes; the other two are v1's published
+figures.
+Refuting systems get valid certificates at this scale too (M_5 at nv = 22,
+neq = 44: 1.2 s, 17756-term certificate, checked by `eval_cert`).
+
+RC-1 per record, one thread (v1 → v2): M_5 191 → 133 ms, W_4 139 → 28 ms,
+W_5 783 → 142 ms, M_4 16.6 → 8.7 ms.
 
 `python3 tools/gf2_replay_rc1.py --solver rankprofile` replays all 1062
 archived RC-1 records (M_3, M_4, M_5, W_4, W_5) with 0 mismatches. Its 268
 refutation certificates are checked by evaluation instead of compared,
-because they differ from the archived ones. Wall clock with 4 workers: 34.5 s
-(the exact engine: 48.7 s on the same machine). On RC-1's smallest matrices
-(W_4 at nv = 18) per-call overhead makes it slightly slower than `Closure`.
+because they differ from the archived ones. Wall clock with 4 workers: 14.9 s
+(v1: 22.4 s on the same machine and day; the exact engine: 48.7 s).
+
+What was evaluated and not built:
+
+- **Degree-block elimination.** The trailing update already works on
+  L2-sized column chunks (`CRYPTO_AR_GF2_TAIL_TABLE_WORDS`). Sweeping that
+  size from 64k to 512k words moved M_6 at nv = 20 only within run-to-run
+  noise (1.5 to 1.7 s at 4 threads), so there is no locality left to recover.
+- **GFNI / VPCLMULQDQ.** The hot loops XOR table rows; there are no bit
+  transposes or carry-less products for those instructions to speed up. The
+  Gray-code tables already use k = 8.
+- **Signature (Matrix-F5) propagation** of zero rows found at D - 1: it
+  removed only about 25% of the zero rows at D (RC-1 M_5: 13988 to 13126
+  rows, 2512 zero rows left), far less than the syndrome test, which skips
+  them all.
+- **A smaller primal prefix.** SPLIT = 0.9 is about 20% faster on RC-1 M_5
+  but 3x slower on M_6 at nv = 20, where the space left after the prefix has
+  codimension about 6000 over denser echelon rows and the annihilator costs
+  more than it saves. SPLIT = 1.0 has no such cliff.
 
 ## Not covered yet
 
@@ -280,6 +330,13 @@ Optional extra: `pip install -e ".[gf2-gpu]"` (pulls `cupy-cuda12x`).
     `Closure.build_M`, `Closure`'s tables and `eval_cert`;
   - `w_profile` equals `Closure.w_closure`, including multi-iteration and
     refuted systems;
+  - both hold with the syndrome test on (default), forced onto most rows,
+    switched off, with every new block reduced row by row or stacked under
+    the basis, and with no test at all;
+  - `annihilator`, `syndromes`, `reduce_rows`, `product_syndromes` and
+    `product_pairs` equal their numpy references; a row's syndrome is 0
+    exactly when it lies in the span, and the rows a syndrome pass selects add
+    exactly the rank all rows add;
   - archived RC-1 M_D and W_D records are reproduced;
   - the reference backend runs the same code.
 - `tools/gf2_replay_rc1.py [--solver rankprofile]`: the full RC-1 sweep.
