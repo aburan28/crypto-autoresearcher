@@ -926,6 +926,24 @@ and `tools/curve_identity.py`. Reuse EC1 aliases and full curve UIDs across IC a
 Pollard rho; keep factor-base/isogeny candidate identities separate. Preserve
 immutable historical names and never infer exact identity from field degree alone.
 
+## Measured bounds and frontiers
+
+A claim about what a method *costs* -- "the negation-map rho runs at 1.47x
+the generic floor on toy prime curves", "this variant moves the exponent" --
+enters the ledger only as a **measured bound**: a sealed `ECBND1h...` record
+produced by the measuring repository's harness (aburan28/crypto
+`docs/bounds/README.md`), carried in an evidence record's `measured_bound`
+block with `claim_tier` equal to the bound's tier. Four levels exist for a cost
+change (exponent, constant, primitive weights, machine) and a claim names
+exactly one; a cheaper formula is a primitive-weight change and is never
+reported as an exponent or a constant in a unit that does not charge it. A
+frontier moves only on a **verdict** from a frozen, paired challenge:
+`advances`, `trade`, `matches` and `regresses` are measurements,
+`inadmissible` is never negative evidence (rule 3), and the Coordinator's
+decision, not the verdict, changes research state (rule 1). Wall time is never
+a bound. The known-results map carries settled bounds as `known_bound` rows
+with `status: measured`. See `docs/bounds-and-frontiers.md`.
+
 ## Cursor Cloud specific instructions
 
 The Cloud Agent image's Ubuntu `python3` is not the interpreter this repository

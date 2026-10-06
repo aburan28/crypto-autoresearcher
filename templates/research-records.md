@@ -371,6 +371,40 @@ evidence:
                                 # RESOURCE, or an explicit statement that the
                                 # check ran and found none
       spawned_ids: []           # IDEA-*/H-* records that took it as a resource
+  measured_bound:               # optional; present when the evidence is a
+                                # measured performance bound or a challenge
+                                # verdict (docs/bounds-and-frontiers.md; the
+                                # record itself: aburan28/crypto
+                                # docs/bounds/README.md)
+    bound_id: ECBND1h7b69b9787056       # the sealed record's id
+    repository: aburan28/crypto
+    commit: null                        # commit the record is committed at
+    record_path: docs/bounds/records/prime-rho-neg.json
+    domain_id: ECDOM1ha1f283af3a5d
+    domain:                             # copied from the record
+      problem: ecdlp.single_target
+      family: prime | koblitz | binary
+      target_kind: planted | public
+      unit: ecbench.gae                 # counted, never a clock
+      tier: toy | medium | crypto       # MUST equal claim_tier above
+    method_id: ECM1hefea4e0ebe79
+    method: rho.negation
+    level: exponent | constant          # exponent only with >= 4 sizes and
+                                        # alpha.scaling_claim true
+    ops_ratio_to_floor: {value: 1.466, ci95: [1.278, 1.653]}
+    alpha: {value: 0.454, ci95: [0.273, 0.607], declared: 0.5, scaling_claim: true}
+    sizes_log2_r: [17.7, 19.1, 21.2, 24.0]
+    verified_runs: 96
+    bounded: true                       # unpriced work counted beside the figure
+    verdict:                            # optional; present when a challenge ran
+      verdict_id: ECVD1h9c8f1f49a76c
+      challenge_id: ECCH1h9b3b00f6ac6e
+      epoch: 1
+      outcome: advances | trade | matches | regresses | inadmissible
+      advances_on: [ops]                # deciding axes clearly better
+      regresses_on: []                  # deciding axes clearly worse
+      level_moved: constant | exponent | null   # only on an advance on ops
+      improves_on: []                   # bound ids the new bound replaces
   reviewed_by: coordinator
 ```
 
@@ -388,6 +422,15 @@ program can act on — including by reading it the other way round.
 is lowest, and `tools/obstruction_registry.py` re-poses the question to every
 open obstruction at each rerank. Neither is a claim: `examined: true` with
 `reading` recording that no resource was found is a complete, honest answer.
+
+`measured_bound` carries a cost measurement in the form the measuring harness
+seals it: a constant and an exponent with intervals, one domain, one tier. The
+validator holds it to four rules (`docs/bounds-and-frontiers.md`): the tier is
+the record's tier (`claim_tier` must equal it), the unit is counted and never a
+clock, an exponent needs four sizes and a scaling claim, and a verdict of
+`inadmissible` is never evidence for or against anything (`direction: neutral`,
+AGENTS.md rule 3). A verdict is evidence; the Coordinator's decision moves
+research state.
 
 ## Prior art on ideas
 
