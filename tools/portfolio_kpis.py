@@ -264,7 +264,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--backlog", action="store_true",
                         help="print the full per-goal approved-unrun table")
+    parser.add_argument("--capacity", metavar="GOAL_OR_AREA",
+                        help="approval headroom for one goal key (GOAL-... or "
+                             "area:AREA); exit 1 when the goal is at the cap")
     args = parser.parse_args(argv)
+    if args.capacity:
+        unrun = approved_unrun(args.repo_root).get(args.capacity, [])
+        headroom = max(0, APPROVAL_CAPACITY_CAP - len(unrun))
+        print(f"{args.capacity}\tapproved_unrun={len(unrun)}\t"
+              f"cap={APPROVAL_CAPACITY_CAP}\theadroom={headroom}")
+        for eid in unrun:
+            print(f"  {eid}")
+        return 0 if headroom else 1
     report = build(args.repo_root)
     if args.json:
         print(json.dumps(report, indent=2, default=str))
