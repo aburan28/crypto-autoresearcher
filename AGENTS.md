@@ -179,6 +179,42 @@ budget is reported as such and never as a result, and a role whose capabilities
 that runtime cannot provide is refused outright rather than run with a reduced
 tool surface.
 
+## Intermediate-cost and asymmetric-access hypotheses
+
+User instruction, 2026-10-06. In assessments of supplied or published claims
+of hidden mathematical advantage, include costly intermediate advantages:
+a hypothetical reduction from subgroup-size work r^(1/2) to r^alpha with
+alpha < 1/2 may matter even when recovery remains expensive. The example
+alpha = 1/3 is a threat-model assumption, not a discovered algorithm or a
+required outcome. Do not dismiss a claim solely because it fails to make
+recovery trivial; do not infer practical recovery from its exponent alone.
+
+Keep mathematical existence, executable transfer, subgroup preservation,
+destination-solver advantage, practical resources, and asymmetric access as
+separate obligations. A hypothesis about agency capabilities or motives is
+not evidence that a trapdoor exists. Distinguish a deliberately selected
+weak instance from an unpublished method applying to honestly generated
+instances, and distinguish both from implementation compromise.
+
+Account for curve-specific construction and preprocessing, per-target work,
+transfer and recovery, verification, failed attempts, memory, hardware, and
+the exact number of targets reusing setup. Report cold-start and genuinely
+amortized costs separately. Separate exponent changes, constant factors,
+primitive costs, and hardware throughput. Faster known-scalar multiplication
+alone does not establish faster unknown-scalar recovery.
+
+Treat secrecy as a separate hypothesis: identify the withheld information,
+whether it can be reconstructed from public parameters, and whether a
+comparably useful public route exists. A high-degree map is not automatically
+cheap to evaluate or hard to reconstruct. State field and construction-family
+restrictions; do not transfer composite-degree binary-field conclusions to
+prime fields or prime-degree binary extensions without justification.
+
+Apply existing transfer, evidence, run-routing, and review rules. Missing
+formulas or measurements remain open obligations. Bounded failure is not
+universal nonexistence. This assessment rule adds no autonomous key-recovery
+campaign, production-target exploitation, or scientific state transition.
+
 ## Core rules
 
 1. Separate speculation, implementation, observation, and conclusion.
