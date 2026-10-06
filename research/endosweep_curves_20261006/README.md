@@ -2,8 +2,10 @@
 
 **Question.**  The chain sweep ([`../endosweep_chainsweep_20261006`](../endosweep_chainsweep_20261006/README.md))
 found the cheapest endomorphism of one curve, GOST CryptoPro-B (`D_K = −619`),
-proved that nothing cheaper exists, built every candidate on the curve, and
-the crypto repository measured it natively at 1.41× over the best width-w NAF
+proved that no chain outside its catalogue is cheaper under the evaluator's
+operation count, built every candidate on the curve, and the crypto
+repository measured the result natively: 1.408× fewer counted field
+operations per `k·P` than the best width-w NAF, 1.417× in median time
 (aburan28/crypto#1423).  This directory asks the same question of every curve
 we could collect: which curves have an endomorphism cheap enough to matter,
 what is the cheapest one, does it exist on the curve, and what would it buy?
@@ -187,8 +189,12 @@ endomorphism ring offers nothing cheaper than a width-w NAF.
   affected (every other Edwards or Montgomery curve in the corpus has
   `|D_K| > 2 000 000`).
 * Variable-base scalar multiplication only, variable time, rank-2 GLV.
-* Nothing here is a security claim; it computes `k·P` faster on the same
-  curves.
+* In the terms of [`docs/bounds-and-frontiers.md`](../../docs/bounds-and-frontiers.md)
+  every figure here is at the primitive-weights level (field operations per
+  scalar multiplication, in `M_eq`), modelled rather than measured; no
+  bound, frontier or ledger evidence record is produced.
+* Nothing here is a security claim: it counts the field operations of `k·P`
+  on the same curves.
 
 ## Files
 
