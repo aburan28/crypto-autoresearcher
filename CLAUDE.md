@@ -188,6 +188,13 @@ Generator proposals and Coordinator prioritization decisions are evaluated
 against that profile; the profile is not a license to overclaim, so the
 evidence rules above apply unchanged.
 
+Cost claims are **measured bounds**: a method's constant and exponent with
+intervals, scoped to one domain and tier, sealed by the measuring harness
+(aburan28/crypto `docs/bounds/README.md`) and carried here in an evidence
+record's `measured_bound` block. A frontier moves only on a paired challenge
+verdict, and the Coordinator decides what the verdict means. "Faster" is not
+a value; `docs/bounds-and-frontiers.md` says what is.
+
 ## Conventions
 
 - IDs: `GOAL-<AREA>-<tok>`, `RQ-<AREA>-<tok>`, `IDEA-YYYYMMDD-<tok>`, `H-<AREA>-<tok>`,
