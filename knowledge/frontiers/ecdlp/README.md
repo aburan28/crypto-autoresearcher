@@ -92,6 +92,19 @@ superseded_by: null           # set ONLY when a newer row replaces this one
    of novelty. The literature search in `agents/idea-generator.md` still
    applies. The map removes the known collisions from the path.
 
+## Measured rows
+
+A row may state what this program *measured*, not only what the literature
+established: `kind: known_bound`, `status: measured`. Its `cost` quotes the
+bound's figure with its interval, unit, sizes and tier exactly as the sealed
+record states them (`docs/bounds-and-frontiers.md`; the record lives in
+aburan28/crypto `docs/bounds/records/`), its `sources` cite the `KN-FIND`
+promoted from the evidence record that carried the bound, and its `internal`
+names that evidence record with `relation: measured`. A measured row never
+outranks a proven one and never crosses a tier: a `toy` figure stays a `toy`
+row, and an idea positioned against it learns the measured constant, not a
+licence to extrapolate.
+
 ## How ideation uses it
 
 - `/propose-ideas` and `/deep-research` render the map for the area and paste

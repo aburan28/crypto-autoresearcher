@@ -498,6 +498,19 @@ def validate_inference(handoff: dict[str, Any], role: str | None,
                 f"{floor!r} floor for review policy {policy_id!r}; a review may "
                 f"not be calibrated down to save budget")
 
+    delivery = inference.get("delivery")
+    if delivery is not None and delivery not in ("interactive", "batch", "auto"):
+        raise DispatchError(
+            f"{location}.inference.delivery {delivery!r} must be one of "
+            f"interactive, batch, auto")
+    deadline = inference.get("deadline_seconds")
+    if deadline is not None and (isinstance(deadline, bool)
+                                 or not isinstance(deadline, (int, float))
+                                 or deadline < 0):
+        raise DispatchError(
+            f"{location}.inference.deadline_seconds {deadline!r} must be a "
+            f"non-negative number of seconds")
+
     if role in INDEPENDENT_REVIEW_ROLES and not policy.get(
             "independent_session_required"):
         raise DispatchError(
