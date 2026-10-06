@@ -1,0 +1,186 @@
+experiment:
+  id: EXP-KIC-6ee7d9
+  hypothesis_id: H-KIC-278c66
+  idea_id: IDEA-20260930-4406e0
+  version: 1
+  title: Charged-operation split of CryptoMiniSat against exact meet-in-the-middle
+  status: approved
+  objective: >-
+    Decide explanation O against explanation S for H-KIC-278c66 on the n=7
+    Koblitz subgroup, and record the capped n=11 cell without using it as
+    the decision.
+  inputs:
+    curve: y^2 + xy = x^3 + x^2 + 1
+    n7:
+      modulus: x^7+x+1
+      group_order: 142
+      r: 71
+      m: 8
+      targets: every point of the order-r subgroup
+      conflict_cap: null
+      seeds: [1, 2]
+    n11:
+      modulus: x^11+x^2+1
+      r: computed in the run from the same curve equation
+      m: 12
+      targets: the lexicographically first 32 points of the order-r subgroup
+      conflict_cap: 100000
+      seed: 1
+    base_rule: >-
+      Order the order-r subgroup by the point at infinity first, then affine
+      points by the integer value of x with low degree in the low bit, then
+      by y the same way. B is the first m points. Write base.json and its
+      sha256 before any search.
+    charged_unit:
+      field_multiplication: 1
+      membership_test: 1
+      conflict: 1
+      decision: 1
+      clause_inspection: 1
+      wall_time: recorded and excluded
+    multiplier: >-
+      One multiplier circuit is shared by the SAT encoding and by
+      meet-in-the-middle. G counts invocations of that circuit. Squarings
+      and additions are not invocations.
+    meet_in_the_middle: >-
+      Every ordered pair from B x B is evaluated, including pairs whose
+      third point is not in B. Failed trials are charged.
+    controls_n7:
+      panel: the lexicographically first 16 subgroup points
+      random_xor:
+        generator: Python random.Random(0x4406E0)
+        rule: >-
+          Replace each XOR row of the curve system by a row of equal width
+          whose bits, including the constant, are random.getrandbits(1).
+      cyclic:
+        modulus: r
+        base: the residues 0 through m-1
+        targets: the integers 1 through 16
+        law: integer addition of three residues modulo r
+    solver: >-
+      The CryptoMiniSat binary on PATH. Record its version from the binary.
+      Pass integer seeds 1 and 2 through the seed flag named by that
+      binary's help. Read conflicts, decisions, and clause inspections from
+      the binary's own counters.
+  controls:
+    - >-
+      Identity: at n=7 the solver triples, meet-in-the-middle triples, and
+      an independent loop over B^3 are equal.
+    - >-
+      Random XOR: equal row count and width. A model that passes curve
+      replay invalidates the run.
+    - >-
+      Z/rZ: its own meet-in-the-middle and its own f, on 16 targets.
+    - >-
+      Second seed: if seed 1 and seed 2 disagree on whether the n=7 mean of
+      f is at least 0.5, the decision is unresolved.
+    - >-
+      Cap: n=11 targets that reach 100000 conflicts are UNKNOWN and stay
+      out of every mean.
+  independent_variables:
+    - cell in {n7-curve, n11-curve, n7-random-xor, n7-cyclic}
+    - seed in {1, 2} on the n=7 curve cell
+  metrics:
+    primary:
+      - f_mean_n7_seed1
+      - f_min_n7_seed1
+      - G_sat_over_G_mitm_n7_seed1
+      - verified_triple_set_equality_n7
+    secondary:
+      - f_mean_n7_seed2
+      - f_excluding_membership_mean_and_min_n7
+      - L_conflict_given_addition_count
+      - b_decisions_per_forced_mask
+      - n11_uncapped_f_mean
+      - n11_capped_count
+      - false_model_count
+      - wall_time_seconds
+      - peak_rss_bytes
+  heuristic_under_test: H1
+  preregistered_prediction:
+    quantity: >-
+      The n=7 overhead fraction and the group-law operation ratio
+    formula: >-
+      f = (C_sat - G_sat) / C_sat with C_sat = G_sat + M + conflicts +
+      decisions + clause inspections, each weight 1. Explanation O is
+      mean f >= 0.5, minimum f >= 0.5, and G_sat <= 1.1 * G_mitm, with
+      equal verified triple sets. The stricter ratio
+      (C_sat - G_sat - M) / C_sat is reported and does not define
+      explanation O. L = log2 of the mean, over addition-count fibers, of
+      the number of distinct conflict totals. A fiber of one target
+      contributes 1.
+    source: >-
+      IDEA-20260930-4406e0 mechanism and falsification sections. The
+      conflict cap 100000 and the seeds 1 and 2 are the integers this
+      contract supplies because the proposal required them and did not
+      name them. They were not measured.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The decision cell is the full subgroup at n=7, r=71. The n=11 cell
+      has 32 targets. No transfer to n=131, to F4, or to another solver
+      is assumed.
+    correspondence: null
+  tail_checks:
+    - >-
+      The minimum of f over n=7 seed-1 targets. A minimum below 0.5 with
+      a mean at least 0.5 is a split population and does not confirm
+      explanation O.
+    - >-
+      L=0 means each addition-count fiber has one conflict total. Record
+      that the independence sentence fails. Do not relabel explanation O
+      as explanation S for that reason alone.
+  replication:
+    seeds: [1, 2]
+    independent_instances: 71
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: 1
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after the n=7 list on both seeds, the 16-target controls, and the 32 n=11 targets.
+    - Do not compare the solver with F4.
+    - Do not retune the encoding after the first solve.
+    - Do not add targets beyond the frozen lists.
+  invalidation_rules:
+    - The verified triple sets differ on any uncapped target.
+    - A random-XOR model passes curve replay.
+    - A counter the binary does not expose is given a numeric value.
+    - A weight other than 1 enters f.
+    - The circuit or B changes after the first solver invocation.
+    - n=7 is run under a conflict cap.
+    - Propagations are renamed to clause inspections.
+    - >-
+      If r at n=11 is below 32, the n=11 cell is invalid rather than
+      shortened. The n=7 decision may still be read.
+  success_criterion: >-
+    The run is valid and complete. On n=7 seed 1, mean f is at least 0.5,
+    minimum f is at least 0.5, G_sat <= 1.1 * G_mitm, and the verified
+    triple sets match. Seed 2's mean f is also at least 0.5. No random-XOR
+    model passes curve replay. Every declared counter that enters f was
+    read from the binary.
+  falsification_criterion: >-
+    The run is valid and complete, the verified triple sets match, and
+    either the n=7 seed-1 mean of f is strictly below 0.5, or that mean is
+    at least 0.5 while G_sat > 1.1 * G_mitm.
+  required_artifacts:
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/command.txt
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/base.json
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/circuit-before-solve.sha256
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/counters.json
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/stdout.txt
+    - experiments/EXP-KIC-6ee7d9/runs/<RUN-ID>/stderr.txt
+  assigned_to: executor
+  approved_by: coordinator
+  approval:
+    decision_id: DEC-20261005-b27a52
+    basis: >-
+      AGENTS.md standing user authorization of 2026-09-06. This record
+      freezes the protocol. It does not start the executor.
+    not_launched_because: >-
+      The design turn archives the contract and does not launch
+      TASK-20261005-c0e8ed. That handoff is eligible once its archive
+      commit is reachable and a lane is claimed.
