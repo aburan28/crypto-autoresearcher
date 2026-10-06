@@ -138,6 +138,17 @@ it; `model_verified` carries that status into every manifest. Critical findings
 require an independent `review-adversarial` session and a reviewer that did not
 originate the claim.
 
+A request may travel interactively or through the Message Batches API; the
+lane is recorded on every manifest as `delivery` (with `batch_id`) and
+changes nothing above — same policy, binding, request body, and cost guard.
+A handoff states it as `inference.delivery` (`interactive`, the default,
+`batch`, or `auto` with `deadline_seconds`); `auto` never batches an urgent
+task, an explicit `batch` on a backend without the API is an error rather
+than a silent synchronous call, and a batched request re-run synchronously
+because it became urgent is recorded as an escalation that supersedes the
+batch copy. Expired or errored batch results are infrastructure signal,
+never evidence. See `docs/batch-inference.md`.
+
 Runtimes are interchangeable too. Claude Code, an OpenAI-protocol agent CLI,
 and this repository's own `api_direct` runtime (`orchestration/agent/`) are
 three runtimes over the same role contracts; `orchestration/roles.yaml` holds
@@ -430,6 +441,26 @@ Coordinator verifies the promotion gates in `agents/coordinator.md`: archived
 proof decomposition, validated heuristics, concrete-cost table, and
 independent `review-xhigh` plus red-team pass. This profile biases direction
 and never lowers the evidence rules above.
+
+## Cryptographic scheme construction
+
+For new signature, PKE, KEM, or authenticated key-exchange proposals and
+scheme-security claims, use the six obligations in
+[docs/scheme-construction-contract.md](docs/scheme-construction-contract.md)
+and its [companion YAML template](templates/scheme-construction-contract.yaml).
+State the exact EUF-CMA, SUF-CMA, IND-CPA, IND-CCA1/IND-CCA2, or named AKE
+game, adversary model, oracle access, and assumptions for each claim.
+An EndRing hardness claim must cover the actual key distribution and public
+auxiliary data, include efficient honest-party algorithms and actual
+message/key recovery, and give a correctly directed security reduction.
+Name missing recipient lifts or additional assumptions explicitly.
+
+Attach this companion artifact to the existing hypothesis/proof-search map
+and handoff; it does not replace ledger schemas, archival ownership, or
+independent scientific review. Open obligations remain candidates with a
+concrete next action. Template completeness and PR merge do not certify
+security or change official research state. Apply prospectively without
+rewriting immutable historical records. This adds no preflight to `run`.
 
 ## Inventor protocol
 
