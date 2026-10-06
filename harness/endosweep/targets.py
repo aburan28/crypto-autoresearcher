@@ -124,6 +124,30 @@ def _mul(add, identity, k, P):
     return R
 
 
+def _order_exceeds(add, identity, R, K: int) -> bool:
+    """True iff m R != O for every 1 <= m <= K (baby-step giant-step).
+
+    Used to pin #E when n <= 4 sqrt(q): #E = N + k n for some |k| <= K, and if
+    N P = O then k (n P) = O, so ord(n P) > K forces k = 0.
+    """
+    if R == identity:
+        return False
+    b = isqrt(K) + 1
+    table = {}
+    Q = identity
+    for j in range(b):            # Q = j R
+        table.setdefault(Q, j)
+        Q = add(Q, R)
+    giant = Q                     # b R
+    Q = identity
+    for i in range(1, b + 2):     # Q = i b R; i b R = j R  <=>  (i b - j) R = O
+        Q = add(Q, giant)
+        j = table.get(Q)
+        if j is not None and 1 <= i * b - j <= K:
+            return False
+    return True
+
+
 def verify(t: Target) -> Target:
     """Fill t.verified / t.verification; never raises on bad constants."""
     p, n, h = t.p, t.n, t.h
@@ -146,8 +170,13 @@ def verify(t: Target) -> Target:
             raise ValueError("h*n is outside the Hasse interval")
         if not isprime(p):
             raise ValueError("p is not prime")
-        if 4 * isqrt(q) >= n:
-            raise ValueError("n too small to pin the group order from one point")
+        # With n > 4 sqrt(q) one point of order divisible by n pins #E.  A
+        # smaller n (G1 of BW6/CP6 curves) leaves other multiples of n in the
+        # Hasse interval: #E and N both lie within 2 isqrt(q) + 1 of q + 1, so
+        # #E = N + k n with |k| <= K.  Then #E = N is proved by a point P with
+        # N P = O whose multiple n P has order > K (see _order_exceeds above).
+        K = (4 * isqrt(q) + 2) // n + 1
+        pin_needed = 4 * isqrt(q) >= n
         # deterministic point search on the stated model
         found = False
         for x in range(2, 2 + 500):
@@ -188,16 +217,55 @@ def verify(t: Target) -> Target:
             # n must divide the order of P: h*P != identity
             if _mul(add, ident, h, P) == ident:
                 continue   # unlucky small-order point; try another x
+            if pin_needed and not _order_exceeds(add, ident, _mul(add, ident, n, P), K):
+                continue   # n*P has small order: this P cannot rule out N + k n; try another x
             found = True
             break
         if not found:
-            raise ValueError("no point of order divisible by n found in 500 tries")
+            raise ValueError("no point of order divisible by n found in 500 tries" if not pin_needed else
+                             "no point pinning #E among the multiples of n in the Hasse interval")
         t.verified = True
-        t.verification = f"point with x={x} has order divisible by n and is killed by h*n; #E = h*n"
+        if pin_needed:
+            t.verification = (f"point with x={x} is killed by h*n and n*P has order > {K}, so h*n is the only "
+                              f"multiple of n in the Hasse interval that kills it; #E = h*n")
+        else:
+            t.verification = f"point with x={x} has order divisible by n and is killed by h*n; #E = h*n"
     except Exception as e:  # noqa: BLE001 - we want the message, whatever it is
         t.verified = False
         t.verification = f"VERIFICATION FAILED: {e}"
     return t
+
+
+def weierstrass_target(t: Target) -> Target:
+    """The same curve as a short Weierstrass model y^2 = x^3 + a x + b.
+
+    Twisted Edwards a x^2 + y^2 = 1 + d x^2 y^2 is birational to the
+    Montgomery curve B v^2 = u^3 + A u^2 + u with A = 2(a+d)/(a-d) and
+    B = 4/(a-d), and that to y^2 = x^3 + a4 x + a6 with
+    a4 = (3 - A^2)/(3 B^2), a6 = (2A^3 - 9A)/(27 B^3).  The group, its order
+    and the endomorphism ring are those of the original curve; the returned
+    target is verified from its own constants like any other.  A Weierstrass
+    target is returned as is.
+    """
+    if t.model == "weierstrass":
+        return t
+    p = t.p
+    if t.model == "edwards":
+        a, d = t.coeffs["a"] % p, t.coeffs["d"] % p
+        inv = pow((a - d) % p, -1, p)
+        A, B = 2 * (a + d) * inv % p, 4 * inv % p
+    elif t.model == "montgomery":
+        A, B = t.coeffs["A"] % p, t.coeffs.get("B", 1) % p
+    else:
+        raise ValueError(f"no short Weierstrass model for model {t.model!r}")
+    a4 = (3 - A * A) * pow(3 * B * B % p, -1, p) % p
+    a6 = (2 * pow(A, 3, p) - 9 * A) * pow(27 * pow(B, 3, p) % p, -1, p) % p
+    w = Target(f"{t.name} (short Weierstrass model)", p, "weierstrass", {"a": a4, "b": a6}, t.n, t.h,
+               ext_degree=t.ext_degree,
+               cost_model="weierstrass_jacobian_a=-3" if (a4 + 3) % p == 0
+               else "weierstrass_jacobian_a=0" if a4 == 0 else "weierstrass_jacobian_generic_a",
+               notes=f"converted from the {t.model} model of {t.name}", family=t.family)
+    return verify(w)
 
 
 # ---------------------------------------------------------------------------
@@ -431,8 +499,16 @@ def synthetic_cm_targets(discs=(-7, -8, -11, -19, -43, -67, -163, -15, -20, -23,
     return T
 
 
-def all_targets(*, include_synthetic: bool = True) -> list[Target]:
+def all_targets(*, include_synthetic: bool = True, include_fourq: bool = True,
+                include_genus2: bool = True) -> list[Target]:
     T = deployed_targets() + structural_targets()
     if include_synthetic:
         T += synthetic_gls_targets() + synthetic_cm_targets()
-    return [verify(t) for t in T]
+    out = [verify(t) for t in T]
+    if include_fourq:
+        from .fourq import fourq_target          # verifies the explicit maps itself
+        out.append(fourq_target()[0])
+    if include_genus2 and include_synthetic:
+        from .genus2 import synthetic_genus2_targets
+        out += [verify(t) for t in synthetic_genus2_targets()]
+    return out
