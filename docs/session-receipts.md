@@ -44,6 +44,11 @@ python3 tools/session_receipt.py --skill design-experiment --role coordinator \
     --files-read 41 --goal GOAL-FROB-000001
 ```
 
+`--bounced <n>` records how many records the session sent back to a
+subagent for schema completeness before filing (`propose-ideas` step 4). It
+is `null` when the session did not count, never an estimate, and
+`tools/tune_skill_batch.py` sums it per window as a diagnostic.
+
 Outcomes are a closed list (`approved`, `review_required`, `refused_capacity`,
 `proposed`, `ran`, `nothing_executable`, `reviewed`, `archived`, `published`,
 `impeded`, `no_change`, `other`) so they aggregate. Runtime and model are

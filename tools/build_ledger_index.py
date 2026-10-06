@@ -115,11 +115,19 @@ def index_record(kind: str, path: Path, body: dict[str, Any], size: int) -> dict
         row.update({
             "statement": excerpt(body.get("statement")),
             "mechanism": excerpt(body.get("mechanism")),
-            "proposal_id": body.get("proposal_id") or body.get("source_proposal"),
+            # The corpus names the idea a hypothesis came from under four
+            # different keys; tune-skill's dry run found that reading fewer
+            # silently drops records from the chain.
+            "proposal_id": (body.get("proposal_id") or body.get("source_proposal")
+                            or body.get("source_idea_id") or body.get("idea_id")),
         })
     else:
         row.update({
             "hypothesis_id": body.get("hypothesis_id"),
+            # Many contracts skip the hypothesis link and cite the idea
+            # directly; without this the IDEA -> EXP edge is invisible.
+            "derived_from_idea": (body.get("derived_from_idea")
+                                  or body.get("derived_from_proposal")),
             "approved_by": body.get("approved_by"),
             "designed_at": str(body.get("designed_at")) if body.get("designed_at") else None,
             "success_criterion": excerpt(body.get("success_criterion")),

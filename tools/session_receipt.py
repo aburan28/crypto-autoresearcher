@@ -128,6 +128,7 @@ def receipt(args: argparse.Namespace, *, repo_root: Path, now: datetime | None =
         "records_created": created_by_kind(ids),
         "records_created_count": len(ids),
         "files_read": args.files_read,
+        "bounced": args.bounced,
         "usage": usage,
         "usage_source": args.usage_source if usage else None,
         "branch": _git(repo_root, "rev-parse", "--abbrev-ref", "HEAD"),
@@ -171,10 +172,12 @@ def load_all(repo_root: Path) -> list[dict[str, Any]]:
 def summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     by_skill: dict[str, Counter] = defaultdict(Counter)
     created: Counter = Counter()
+    bounced: Counter = Counter()
     usage_known = 0
     for r in rows:
         by_skill[r.get("skill") or "?"][r.get("outcome") or "?"] += 1
         created[r.get("skill") or "?"] += int(r.get("records_created_count") or 0)
+        bounced[r.get("skill") or "?"] += int(r.get("bounced") or 0)
         if r.get("usage"):
             usage_known += 1
     return {
@@ -182,6 +185,7 @@ def summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "usage_known": usage_known,
         "by_skill": {k: dict(v) for k, v in sorted(by_skill.items())},
         "records_created_by_skill": dict(created),
+        "bounced_by_skill": {k: v for k, v in bounced.items() if v},
     }
 
 
@@ -192,7 +196,10 @@ def render_summary(s: dict[str, Any]) -> str:
     for skill, outcomes in s["by_skill"].items():
         total = sum(outcomes.values())
         parts = ", ".join(f"{o} {n}" for o, n in sorted(outcomes.items(), key=lambda kv: -kv[1]))
-        lines.append(f"  {skill}: {total} ({parts}); records created {s['records_created_by_skill'].get(skill, 0)}")
+        line = f"  {skill}: {total} ({parts}); records created {s['records_created_by_skill'].get(skill, 0)}"
+        if s.get("bounced_by_skill", {}).get(skill):
+            line += f"; bounced {s['bounced_by_skill'][skill]}"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -210,6 +217,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--outcome", choices=OUTCOMES)
         p.add_argument("--created", help="comma-separated record ids this session created")
         p.add_argument("--files-read", type=int, help="count of files read, if the session counted")
+        p.add_argument("--bounced", type=int,
+                       help="records sent back to a subagent for schema completeness before filing "
+                            "(propose-ideas step 4); the tune-skill signal that used to leave no trace")
         p.add_argument("--started", help="ISO start time; defaults to $SESSION_RECEIPT_STARTED")
         p.add_argument("--runtime", help="override the detected runtime")
         p.add_argument("--model", help="resolved model id, if the runtime exposes it")

@@ -65,6 +65,9 @@ step 2).
    assumptions each with an experimental validation route, target time and
    memory exponents versus the best known, and cost. Send incomplete
    ideas back to the subagent for completion — do not repair them yourself.
+   Count every idea you send back; the count goes in the session receipt
+   (step 7), which is the only place this signal exists (`tune-skill`,
+   "Bounces").
 5. Save each complete idea as `ledger/proposals/IDEA-YYYYMMDD-<tok>.yaml`
    (`python3 tools/allocate_id.py --next idea --date YYYYMMDD`, then
    `--check`). Keep a proposal under 8 KB: the claim, mechanism, predictions,
@@ -82,8 +85,9 @@ step 2).
 7. Report to the user: one-line summary per idea (ID, class, claim,
    novelty status, cost) plus the generator's recommended first test, and
    end with `python3 tools/session_receipt.py --skill propose-ideas --role
-   coordinator --outcome proposed --created <RQ/IDEA ids>`
-   (`docs/session-receipts.md`).
+   coordinator --outcome proposed --created <RQ/IDEA ids> --bounced <n>`
+   (`docs/session-receipts.md`), where `<n>` is the step 4 count, `0` when
+   nothing was sent back.
 
 ## Branch and PR hygiene
 

@@ -21,7 +21,7 @@ def _args(**over) -> argparse.Namespace:
                 created="EXP-FROB-123456,H-FROB-000001,TASK-20261007-aaaaaa,weird",
                 files_read=12, started=None, runtime=None, model=None, policy=None,
                 usage_json=None, usage_source=None, goal="GOAL-FROB-000001", notes=None,
-                supersedes=None)
+                supersedes=None, bounced=None)
     base.update(over)
     return argparse.Namespace(**base)
 
@@ -91,6 +91,20 @@ class ReceiptTests(unittest.TestCase):
         self.assertIn("session receipts: 2", text)
         self.assertIn("design-experiment: 1 (approved 1); records created 4", text)
         self.assertIn("none yet", sr.render_summary(sr.summary([])))
+
+    def test_bounce_count_is_recorded_and_summed(self) -> None:
+        rec = sr.receipt(_args(skill="propose-ideas", outcome="proposed", bounced=3),
+                         repo_root=self.root, now=self.now, env={})
+        self.assertEqual(rec["bounced"], 3)
+        sr.write(rec, self.root)
+        rec2 = sr.receipt(_args(skill="propose-ideas", outcome="proposed", bounced=2),
+                          repo_root=self.root, now=self.now, env={})
+        sr.write(rec2, self.root)
+        s = sr.summary(sr.load_all(self.root))
+        self.assertEqual(s["bounced_by_skill"], {"propose-ideas": 5})
+        self.assertIn("bounced 5", sr.render_summary(s))
+        # A receipt that did not count bounces records null, never zero.
+        self.assertIsNone(sr.receipt(_args(), repo_root=self.root, now=self.now, env={})["bounced"])
 
     def test_cli_requires_skill_and_outcome(self) -> None:
         with self.assertRaises(SystemExit):
