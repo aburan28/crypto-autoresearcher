@@ -61,7 +61,7 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
-- **Two preregistered coordinate/orbit successors also fail their gates.**
+- **Three preregistered coordinate/orbit successors also fail their gates.**
   Four-section p-adic cocycle arithmetic was exact and both Smart controls
   recovered 96/96 logs, but all six signed/dyadic formulas changed with the
   section and had 0/7 ordinary-curve support. Separately, scalar-balanced
@@ -70,6 +70,12 @@ state.
   every generator on any curve. A stricter largest-scalar-bucket diagnostic
   increased the estimates to 0.970 and 0.938. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+  A third successor sought `f(Q+P)-f(Q)=1` outside explicit exceptions. For
+  `f in L(mO)`, the residual has pole degree at most `2m`, forcing the
+  undercharged bound `d+e >= ceil(r/2)`. All planted controls passed, but no
+  curve beat both matched controls on all four generators (0/7). This closes
+  only the explicit sparse-exception representation, not every compact dense
+  correction rule.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a

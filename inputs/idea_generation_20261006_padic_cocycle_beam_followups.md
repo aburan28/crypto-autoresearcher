@@ -1,4 +1,4 @@
-# Prime-field ECDLP controlled follow-ups: p-adic cocycles and beam exponents — 2026-10-06
+# Prime-field ECDLP controlled follow-ups: cocycles, beams, and translation defects — 2026-10-06
 
 ## Intake status
 
@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: both frozen successors failed. P-adic cocycle arithmetic was correct but every proposed formula remained lift-section dependent; height/carry beams required width exponents above the square-root target and failed generator/control gates.
+- Bottom line: all three frozen successors failed. P-adic cocycle arithmetic was correct but every proposed formula remained lift-section dependent; height/carry beams required width exponents above the square-root target; and the explicit sparse translation-defect representation has a direct linear advice lower bound and failed its matched-control gate.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -24,8 +24,13 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `beam_exponent_lab.py` | `3e10208bd4f955f8432e51c364d96cadce9531ec77d42c4901ad0c69fde71719` |
 | `tests/test_beam_exponent_lab.py` | `f4da6de0276fac21c181a2d2c821c2e5527487ae8123672104ad01f839aa3d3d` |
 | `results/beam-exponent.json` | `b9a15961813afe9c8ee5d5830ab9876441d66661fafb8e2654d648faa9c79f7e` |
+| sparse-defect decision-rule commits | `cd8939f`, `1249bb8` |
+| sparse-defect implementation commit | `df744b2` |
+| `translation_defect_lab.py` | `e7239dadc9380404326c66c710a1bc3de72937b6c0b05618251b7a2180c65f12` |
+| `tests/test_translation_defect_lab.py` | `ceb2485aa64ad901604582254279f50268cb39958c6e804bd9a76217bfab39fb` |
+| `results/sparse-translation-defect.json` | `7314973c8a820cf56f74b633719089074d8dcbbef625d69a621d9c5f3296d7c2` |
 
-Both result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 22/22 tests. These are provenance statements, not repository run receipts.
+All three result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 25/25 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -117,12 +122,67 @@ Complete toy orbit tables accelerated the measurement simulator, but were not cr
 
 Disposition: retire the frozen height and carry rankings. A successor needs a generator-invariant branch statistic and a predicted sub-square-root survival exponent before another beam sweep. Allocate no canonical ID from this packet.
 
+## H11 — sparse translation-defect equation
+
+### Mechanism and obstruction
+
+For `f` in the Riemann--Roch space `L(mO)`, the frozen proposal sought
+
+```
+f(Q+P) - f(Q) = 1
+```
+
+outside an explicitly stored exception set. The residual
+`g(Q)=f(Q+P)-f(Q)-1` has poles only at `O` and `-P`, with total pole degree at
+most `2m`. It is not identically zero on an ordinary order-`r` cycle: summing
+over `r` translations would imply `r=0` in `F_p`, but `r != p`. Thus at most
+`2m` affine edges agree.
+
+The two edges touching `O` are mandatory exceptions. With the constant
+coefficient removed because it cancels under translation, there are `d=m-1`
+useful coefficients and
+
+```
+e >= max(2, r-2m),
+d+e >= ceil(r/2).
+```
+
+This is an undercharged linear lower bound before storing exception locations
+or correction values. It is scoped to the explicit-exception representation;
+it is not a general ECDLP lower bound or a novelty claim.
+
+### Frozen audit and result
+
+The audit used all seven ordinary toy curves, generators `[u]P` for
+`u in {1,2,3,5}`, pole orders `2,3,4,8,16,32`, fixed deterministic consensus
+samples, permuted-point controls, random-label-difference controls, and a
+planted one-defect positive control. The rule and exact secondary comparison
+were committed before implementation.
+
+| curve | order | optimized lower bound on `d+e` | bound / `sqrt(r)` | generators beating both controls |
+|---|---:|---:|---:|---:|
+| E101 | 83 | 42 | 4.610 | 2/4 |
+| E127 | 109 | 55 | 5.268 | 2/4 |
+| E149 | 139 | 70 | 5.937 | 1/4 |
+| E211 | 223 | 112 | 7.500 | 3/4 |
+| E283 | 281 | 141 | 8.411 | 2/4 |
+| E503 | 499 | 250 | 11.192 | 1/4 |
+| E907 | 947 | 474 | 15.403 | 2/4 |
+
+Every arithmetic and planted-defect audit passed. Every EC witness respected
+the `2m` divisor ceiling and every required complete system was inconsistent.
+No curve beat both matched controls on all four generators, so the empirical
+gate scored **0/7**. The timing-free JSON reproduced byte-for-byte.
+
+Disposition: retire the explicit sparse-exception representation. A successor
+must derive a compact dense correction rule and an online evaluator before
+examining scalar-labelled data. Allocate no canonical ID from this packet.
+
 ## Remaining preregistered cards, not results
 
-The external plan retains four unexecuted proposals. These have no positive evidence and are not canonical candidates:
+The external plan retains three unexecuted proposals. These have no positive evidence and are not canonical candidates:
 
 - a generator-blind coordinate-bit grammar with whole-curve holdout and relabelled labels;
-- a sparse-defect translation equation `f(Q+P)-f(Q)=1` outside a compact exception set;
 - a theorem-first sparse spectral coefficient oracle, with no benchmark allowed before sub-square-root coefficient construction is derived;
 - a block-Hankel multi-coordinate recurrence with mandatory state-to-index inversion.
 
