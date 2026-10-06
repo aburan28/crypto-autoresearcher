@@ -598,10 +598,7 @@ handoff:
     fallback_allowed: false
     degraded_allowed: false
     independent_session_required: false
-  budget:
-    wall_clock_seconds: null
-    memory_gb: null
-    maximum_runs: null
+  budget: {}                 # only limits you actually set; no null placeholders
   completion_gate: []
   review_plan: null               # required when this handoff opens a
                                   # claim-changing review round

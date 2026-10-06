@@ -2743,6 +2743,19 @@ IDEA_CAP_BYTES = 8 * 1024
 IDEA_CAP_ENFORCED_FROM = "20261007"
 AGED_HANDOFF_DAYS = 14
 
+# Ceremony (review item P1.9). 2,708 records carry an `amazon_bedrock:`
+# attestation that no template asked for and no check reads: the offline guard
+# in orchestration/adapter enforces core rule 16, and a field saying "NOT
+# USED" proves nothing a reader can verify. Null `budget.*` placeholders and
+# all-caps prose in next_action are the same habit. All three are advisories
+# on records minted on or after the date; history keeps its ceremony.
+CEREMONY_ENFORCED_FROM = "20261007"
+CEREMONY_KEY_PREFIXES = ("amazon_bedrock",)
+# Words of four or more capitals that are not identifiers (no digit, hyphen or
+# underscore). Five of them in one next_action is shouting, not pointing.
+_SHOUT_WORD = re.compile(r"(?<![\w-])[A-Z]{4,}(?![\w-])")
+SHOUT_WORDS_CAP = 5
+
 _ID_DATE = re.compile(r"-(\d{8})-")
 
 
@@ -2880,6 +2893,42 @@ def check_record_sizes(ctx: Ctx) -> None:
                 ctx.advise(path, f"proposal is {size // 1024} KiB (cap "
                                  f"{IDEA_CAP_BYTES // 1024} KiB); split it or "
                                  "move supporting material to knowledge/")
+
+
+def _ceremony_keys(body: dict) -> list[str]:
+    return sorted(k for k in body
+                  if str(k).lower().startswith(CEREMONY_KEY_PREFIXES))
+
+
+def check_ceremony(ctx: Ctx) -> None:
+    """P1.9 advisories: attestation fields, null budgets, shouted next_action."""
+    for rec_id, kind in ctx.record_types.items():
+        body = ctx.records[rec_id]
+        path = ctx.ids[rec_id]
+        if kind == "research_goal":
+            action = str(body.get("next_action") or "")
+            shouted = _SHOUT_WORD.findall(action)
+            if len(shouted) > SHOUT_WORDS_CAP:
+                ctx.advise(path, f"next_action has {len(shouted)} all-caps words "
+                                 f"({', '.join(sorted(set(shouted))[:4])}, ...); "
+                                 "emphasis is not instruction, write it plainly")
+            continue
+        if kind not in ("handoff", "coordinator_decision"):
+            continue
+        when = _id_date(rec_id)
+        if when is None or when < CEREMONY_ENFORCED_FROM:
+            continue
+        for key in _ceremony_keys(body):
+            ctx.advise(path, f"'{key}' is an attestation nothing reads; the "
+                             "adapter's offline guard enforces rule 16, drop "
+                             "the field")
+        if kind == "handoff":
+            budget = body.get("budget")
+            if isinstance(budget, dict) and budget and all(
+                    v is None for v in budget.values()):
+                ctx.advise(path, "budget holds only null placeholders; write "
+                                 "`budget: {}` and add a limit when you set "
+                                 "one")
 
 
 def check_aged_handoffs(ctx: Ctx, today: str | None = None) -> None:
@@ -3079,6 +3128,7 @@ def main() -> int:
     check_knowledge_index(ctx)
     check_approval_capacity(ctx)
     check_record_sizes(ctx)
+    check_ceremony(ctx)
     check_aged_handoffs(ctx)
 
     current = set(ctx.errors)

@@ -221,6 +221,49 @@ class Advisories(unittest.TestCase):
         self.assertEqual(len(ctx.advisories), 1)
         self.assertIn("TASK-20260901-aaaaaa", ctx.advisories[0])
 
+    def test_ceremony_is_advised_on_new_records_only(self):
+        ctx = _ctx()
+        old = {"id": "TASK-20260901-aaaaaa", "budget": {"memory_gb": None},
+               "amazon_bedrock": "NOT SELECTED, NOT USED."}
+        new = {"id": "TASK-20261010-bbbbbb",
+               "budget": {"wall_clock_seconds": None, "memory_gb": None},
+               "amazon_bedrock_selected_configured_probed_contacted_or_used": False}
+        fine = {"id": "TASK-20261010-cccccc", "budget": {"memory_gb": 4}}
+        for body in (old, new, fine):
+            path = self.root / f"{body['id']}.yaml"
+            path.write_text("")
+            ctx.register(body["id"], str(path), body, "handoff")
+        dec = {"id": "DEC-20261010-dddddd", "amazon_bedrock": "not used"}
+        dpath = self.root / f"{dec['id']}.yaml"
+        dpath.write_text("")
+        ctx.register(dec["id"], str(dpath), dec, "coordinator_decision")
+        vl.check_ceremony(ctx)
+        self.assertEqual(ctx.errors, [])
+        joined = "\n".join(ctx.advisories)
+        self.assertNotIn("TASK-20260901-aaaaaa", joined)
+        self.assertNotIn("TASK-20261010-cccccc", joined)
+        self.assertEqual(joined.count("TASK-20261010-bbbbbb"), 2)
+        self.assertIn("DEC-20261010-dddddd", joined)
+        self.assertIn("budget holds only null placeholders", joined)
+
+    def test_shouted_next_action_advises(self):
+        ctx = _ctx()
+        quiet = {"id": "GOAL-T-000001",
+                 "next_action": "Run EXP-FROB-123456 via TASK-20261007-aaaaaa; "
+                                "see DEC-20261007-bbbbbb."}
+        loud = {"id": "GOAL-T-000002",
+                "next_action": "DO NOT DISPATCH. READ THIS FIRST. EVERY "
+                               "SESSION MUST CHECK THE QUEUE BEFORE ANYTHING."}
+        for body in (quiet, loud):
+            path = self.root / f"{body['id']}.yaml"
+            path.write_text("")
+            ctx.register(body["id"], str(path), body, "research_goal")
+        vl.check_ceremony(ctx)
+        self.assertEqual(ctx.errors, [])
+        self.assertEqual(len(ctx.advisories), 1)
+        self.assertIn("GOAL-T-000002", ctx.advisories[0])
+        self.assertIn("all-caps", ctx.advisories[0])
+
 
 class KpiModule(unittest.TestCase):
     def test_runs_present_ignores_placeholders(self):

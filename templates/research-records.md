@@ -617,6 +617,14 @@ too — usually `not_warranted` with a one-line reason.
 
 ## Agent handoff
 
+A handoff carries the fields below and nothing ceremonial. In particular, no
+record carries an `amazon_bedrock:` attestation: core rule 16 is enforced by
+the adapter's offline guard before any request, and a field that says "NOT
+USED" is a claim nothing can verify. 2,708 records copied one forward from
+each other before this note existed; `validate_ledger.py` now flags the
+field, a `budget` block of nulls, and shouted `next_action` prose on new
+records (review item P1.9).
+
 ```yaml
 handoff:
   id: TASK-YYYYMMDD-<tok>
@@ -652,10 +660,9 @@ handoff:
                                    # `auto` batches only when deadline_seconds
                                    # leaves room. See docs/batch-inference.md.
     deadline_seconds: null         # when the result is needed; drives `auto`
-  budget:
-    wall_clock_seconds: null
-    memory_gb: null
-    maximum_runs: null
+  budget: {}                     # add a key only for a limit you actually set
+                                 # (wall_clock_seconds, memory_gb, maximum_runs);
+                                 # a block of nulls is noise the validator flags
   completion_gate: []
   return_format: null
   review_plan: null              # required on the handoff that OPENS a
