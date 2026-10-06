@@ -366,6 +366,21 @@ def test_table_search_finds_what_enumeration_finds(curve10, kind, m):
             assert st.successes == (one is not None)
 
 
+@pytest.mark.parametrize("m,size", [(6, 6), (7, 5)])
+def test_table_search_at_higher_arity(curve10, m, size):
+    """Tables of four to six points, which only m >= 5 uses, find what the
+    exhaustive search finds; the base is small so that search stays quick."""
+    E, _ = curve10
+    fb = build_factor_base(E, "random", size)
+    tables = [TailTable(E, fb, h) for h in range(2, m)]
+    for R in _hard_targets(E, fb, m, 10, seed=m):
+        one = decompose(E, fb, R, m, accelerate=False)
+        every = decompose_all(E, fb, R, m, accelerate=False)
+        for tab in tables:
+            assert decompose(E, fb, R, m, accelerate=False, table=tab) == one
+            assert decompose_all(E, fb, R, m, accelerate=False, table=tab) == every
+
+
 @pytest.mark.parametrize("m,h,size", [(3, 2, 90), (4, 2, 60), (5, 3, 50)])
 def test_table_search_accelerated_is_identical(m, h, size):
     """The numpy scan with a table (the m = h + 1 level and the m = h + 2 block

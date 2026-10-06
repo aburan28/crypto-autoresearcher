@@ -1,0 +1,10559 @@
+{
+ "task_id": "TASK-20260930-40470a",
+ "goal_id": "GOAL-MONO-001",
+ "batch_id": "BATCH-44adf9",
+ "plan_id": "REVIEW-MONO-20260930-40470a",
+ "what_this_is": "Review computations only (zero scientific runs). Every script, command, library version and raw output that review_report.md relies on, embedded as text. Scratch working directory was outside the repository; nothing else is archived.",
+ "repository_snapshot_read": {
+  "branch": "claude/coordinate-mono-20260930",
+  "head": "d771721ac052bce33dc302e6aa2d1d804a1c5db0"
+ },
+ "environment": {
+  "python": "3.11.15",
+  "implementation": "CPython",
+  "platform": "Linux-6.18.44-fc-v50-x86_64-with-glibc2.39",
+  "venv_packages": {
+   "cypari2": "2.2.0",
+   "cysignals": "1.12.5",
+   "mpmath": "1.3.0",
+   "pip": "24.0",
+   "python-flint": "0.9.0",
+   "setuptools": "79.0.1",
+   "sympy": "1.14.0"
+  },
+  "venv_note": "python3 -m venv <scratch>/venv; <scratch>/venv/bin/pip install python-flint; <scratch>/venv/bin/pip install --only-binary=:all: cypari2; <scratch>/venv/bin/pip install sympy. PARI library version reported by cypari2: 2.15.4.",
+  "working_directory": "<scratch>/v40470a  (outside the repository; <scratch> = the session scratchpad)"
+ },
+ "blind_from_respected": "No file under experiments/EXP-MONO-4b50b6/ or coordination/goals/GOAL-MONO-001/batches/BATCH-003/ was opened, listed, grepped or imported by any script here. All code below was written in this session from the textbook definitions.",
+ "commands": [
+  {
+   "step": "S4 construction (route A sympy resultant, route B PARI polresultant) and structural checks",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "../venv/bin/python s4_build.py s4_build_out.json > s4_build_stdout.txt 2>&1",
+   "wall_s": 10.9,
+   "exit": 0
+  },
+  {
+   "step": "unit test: S_5 formal 6x6 Sylvester determinant (PARI matdet) versus sympy resultant on 3 tuples",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "../venv/bin/python t5.py > t5_stdout.txt 2>&1",
+   "wall_s": 0.4,
+   "exit": 0
+  },
+  {
+   "step": "factor-base-locus checks: exhaustive m=3,4 on C1 and C2, random FB tuples m=3,4,5 on C2,C3,C4,C5 with PARI cross-checks",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "timeout 3000 ../venv/bin/python fb_checks.py s4_build_out.json fb_checks_out.json > fb_checks_stdout.txt 2>&1",
+   "wall_s": 35.6,
+   "exit": 0
+  },
+  {
+   "step": "J1(c) constructed degeneracies on C1 and C5",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "timeout 600 ../venv/bin/python degeneracies.py s4_build_out.json degeneracies_out.json > degeneracies_stdout.txt 2>&1",
+   "wall_s": 0.1,
+   "exit": 0
+  },
+  {
+   "step": "proves-too-much control (object 1: generic base tuples, ordered base; object 2: D-4 swapped FB-point count), D-5 transport identity, curve-free sign-class group computation (J4)",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "timeout 3000 ../venv/bin/python ptm.py s4_build_out.json ptm_out.json > ptm_stdout.txt 2>&1",
+   "wall_s": 85.3,
+   "exit": 0
+  },
+  {
+   "step": "retrieve Semaev 2004 (public source, declared)",
+   "cwd": "<scratch>/v40470a",
+   "cmd": "timeout 60 curl -sS -L -o semaev_2004_031.pdf https://eprint.iacr.org/2004/031.pdf",
+   "exit": 0,
+   "stdout": "200 application/pdf 131064"
+  }
+ ],
+ "scripts": {
+  "s4_build.py": {
+   "sha256": "4b5c2b2330bed138e4a9ab6b4e44bd3978bdedf757936e15b37e84f0cd66ce4d",
+   "text": "# s4_build.py -- reviewer's own construction of S_3 and S_4 (TASK-20260930-40470a).\n# Route A: sympy resultant over Z[a,b,x1..x4].  Route B: PARI polresultant (disjoint code base).\n# Written from the textbook definition only; no producer code was read.\nimport hashlib, itertools, json, sys\nimport sympy as sp\nimport cypari2\n\na, b, x1, x2, x3, x4, X, T = sp.symbols('a b x1 x2 x3 x4 X T')\n\ndef S3(u, v, w):\n    # Semaev's third summation polynomial for y^2 = x^3 + a x + b (recalled definition, re-verified below)\n    return (u - v)**2 * w**2 - 2*((u + v)*(u*v + a) + 2*b)*w + (u*v - a)**2 - 4*b*(u + v)\n\nout = {}\nS3e = sp.expand(S3(x1, x2, x3))\nout['S3'] = str(S3e)\nout['S3_symmetric'] = bool(all(sp.expand(S3e.subs({x1: s[0], x2: s[1], x3: s[2]}, simultaneous=True) - S3e) == 0\n                          for s in itertools.permutations([x1, x2, x3])))\nout['S3_deg_each'] = [int(sp.degree(S3e, v)) for v in (x1, x2, x3)]\n\n# Route A: S_4 = Res_X(S_3(x1,x2,X), S_3(x3,x4,X))\nS4A = sp.expand(sp.resultant(sp.expand(S3(x1, x2, X)), sp.expand(S3(x3, x4, X)), X))\nPA = sp.Poly(S4A, a, b, x1, x2, x3, x4)\nterms = sorted([[int(e) for e in m] + [int(c)] for m, c in PA.terms()])\nout['S4_num_terms'] = len(terms)\nout['S4_deg_each_x'] = [int(sp.degree(S4A, v)) for v in (x1, x2, x3, x4)]\nout['S4_total_deg_in_x'] = int(max(sum(t[2:6]) for t in terms))\nout['S4_content_gcd'] = int(sp.gcd_list([t[6] for t in terms]))\ncanon = json.dumps(terms, separators=(',', ':'))\nout['S4_sha256_of_term_list'] = hashlib.sha256(canon.encode()).hexdigest()\n# symmetry under all 24 permutations of (x1,x2,x3,x4)\nsym = True\nfor s in itertools.permutations([x1, x2, x3, x4]):\n    if sp.expand(S4A.subs(dict(zip([x1, x2, x3, x4], s)), simultaneous=True) - S4A) != 0:\n        sym = False; break\nout['S4_symmetric_all_24_perms'] = sym\n# leading coefficient in x4 versus S_3(x1,x2,x3)^2 ; and LC_{x3} S_3 versus (x1-x2)^2\nLC4 = sp.Poly(S4A, x4).LC()\nout['LC_x4_S4_equals_S3_x1x2x3_squared'] = sp.expand(LC4 - S3e**2) == 0\nout['LC_x3_S3_equals_(x1-x2)^2'] = sp.expand(sp.Poly(S3e, x3).LC() - (x1 - x2)**2) == 0\n\n# Route B: PARI polresultant over Z[a,b,x1..x4], compared term-by-term with route A\npari = cypari2.Pari()\npari.allocatemem(2*10**9)\ns3p = lambda u, v, w: f\"(({u})-({v}))^2*({w})^2 - 2*((({u})+({v}))*(({u})*({v})+a)+2*b)*({w}) + (({u})*({v})-a)^2 - 4*b*(({u})+({v}))\"\n# PARI variable priority: create X last-priority-safe by using variable 'X'\nS4B_str = str(pari(f\"polresultant({s3p('x1','x2','X')}, {s3p('x3','x4','X')}, X)\"))\nS4B = sp.expand(sp.sympify(S4B_str.replace('^', '**'), locals={'a': a, 'b': b, 'x1': x1, 'x2': x2, 'x3': x3, 'x4': x4}))\ndiffAB = sp.expand(S4A - S4B)\nout['routeB_minus_routeA'] = str(diffAB)\nout['routeA_equals_routeB_exactly'] = (diffAB == 0)\nout['routeA_equals_minus_routeB'] = (sp.expand(S4A + S4B) == 0)\nout['pari_version'] = str(pari.version())\nout['sympy_version'] = sp.__version__\n\n# symbolic m=3 product formula over the function field of E x E:\ny1, y2 = sp.symbols('y1 y2')\nlam_p = (y2 - y1)/(x2 - x1); lam_m = (-y2 - y1)/(x2 - x1)\nxs_p = lam_p**2 - x1 - x2; xs_m = lam_m**2 - x1 - x2       # x(P1+P2), x(P1-P2)\nprod = (x1 - x2)**2*(T - xs_p)*(T - xs_m)\nnum = sp.numer(sp.together(sp.expand(prod) - S3(x1, x2, T)))\nnum = sp.expand(num)\nfcurve = lambda x: x**3 + a*x + b\nred = sp.expand(num.subs({y1**2: fcurve(x1)}))\n# reduce all powers of y1,y2 modulo the curve equations\ndef reduce_y(expr):\n    P = sp.Poly(expr, y1, y2)\n    acc = 0\n    for (e1, e2), c in P.terms():\n        acc += c * (fcurve(x1)**(e1//2)) * (y1**(e1 % 2)) * (fcurve(x2)**(e2//2)) * (y2**(e2 % 2))\n    return sp.expand(acc)\nout['m3_product_formula_identity_mod_curve'] = (reduce_y(num) == 0)\n\njson.dump({'summary': out, 'S4_terms': terms}, open(sys.argv[1], 'w'), separators=(',', ':'))\nprint(json.dumps(out, indent=1, default=str)[:4000])\n"
+  },
+  "t5.py": {
+   "sha256": "fe62289a8f42d37bfe200830ee27792b874e7515e5ac9e53208ae7aa113331e9",
+   "text": "import json, sys, sympy as sp\nsys.argv=['x','s4_build_out.json','/dev/null']\nexec(open('fb_checks.py').read().split('def main():')[0])\nC = Curve('C1', 101, -7, 6)\nX,T = sp.symbols('X T')\nimport random\nr = random.Random(5)\nfor _ in range(3):\n    xs = [r.choice(C.xs) for _ in range(4)]\n    A = C.S4T_eval(*xs[:3])\n    Apoly = sum(c*X**k for k,c in enumerate(A))\n    x4=xs[3]; a,b,p=C.a,C.b,C.p\n    Bpoly = (x4-T)**2*X**2 - 2*((x4+T)*(x4*T+a)+2*b)*X + (x4*T-a)**2 - 4*b*(x4+T)\n    R = sp.Poly(sp.resultant(sp.Poly(Apoly, X, modulus=p).as_expr(), Bpoly, X), T, modulus=p)\n    mine = C.S5T_eval(*xs)\n    print(xs, 'lcA', A[-1], 'sympy', [int(c)%p for c in reversed(R.all_coeffs())], 'pari-formal', mine)\n"
+  },
+  "fb_checks.py": {
+   "sha256": "6a95571c39614ea868a544ea1543cda0f3609650f3d4d2d899cfcb5ac147b353",
+   "text": "# fb_checks.py -- TASK-20260930-40470a blind re-derivation checks on the factor-base locus.\n# Uses the reviewer's own S_4 (s4_build_out.json, route A == route B).\n# Group law: reviewer's own affine Python code, cross-checked against PARI elladd (disjoint code base).\n# Factorization over F_p: python-flint nmod_poly.factor, cross-checked against PARI factormod.\nimport json, random, sys, itertools, collections, hashlib, time\nimport flint, cypari2\n\npari = cypari2.Pari()\nS4TERMS = json.load(open(sys.argv[1]))['S4_terms']\n\ndef polmul(A, B, p):\n    R = [0]*(len(A)+len(B)-1)\n    for i, x in enumerate(A):\n        if x:\n            for j, y in enumerate(B):\n                R[i+j] = (R[i+j] + x*y) % p\n    return R\n\ndef trim(A):\n    A = list(A)\n    while A and A[-1] == 0: A.pop()\n    return A\n\nclass Curve:\n    def __init__(self, name, p, a, b):\n        assert (4*a**3 + 27*b**2) % p != 0\n        self.name, self.p, self.a, self.b = name, p, a % p, b % p\n        self.S4T = collections.defaultdict(list)\n        acc = collections.defaultdict(int)\n        for ea, eb, e1, e2, e3, e4, c in S4TERMS:\n            acc[(e1, e2, e3, e4)] = (acc[(e1, e2, e3, e4)] + c*pow(self.a, ea, p)*pow(self.b, eb, p)) % p\n        for (e1, e2, e3, e4), c in acc.items():\n            if c: self.S4T[e4].append((e1, e2, e3, c))\n        # enumerate points (own code)\n        sqrt = collections.defaultdict(list)\n        for y in range(p): sqrt[y*y % p].append(y)\n        self.pts = []\n        for x in range(p):\n            for y in sqrt[self.rhs(x)]: self.pts.append((x, y))\n        self.xs = sorted(set(P[0] for P in self.pts))\n        self.byx = {x: [P for P in self.pts if P[0] == x] for x in self.xs}\n        self.E = pari.ellinit([self.a, self.b], p)\n        self.card_own = len(self.pts) + 1\n        self.card_pari = int(pari.ellcard(self.E))\n        self.two_torsion = [P for P in self.pts if P[1] == 0]\n    def rhs(self, x): return (x*x*x + self.a*x + self.b) % self.p\n    def neg(self, P): return None if P is None else (P[0], (-P[1]) % self.p)\n    def add(self, P, Q):\n        p = self.p\n        if P is None: return Q\n        if Q is None: return P\n        if P[0] == Q[0] and (P[1] + Q[1]) % p == 0: return None\n        if P == Q: lam = (3*P[0]*P[0] + self.a) * pow(2*P[1], -1, p) % p\n        else: lam = (Q[1] - P[1]) * pow(Q[0] - P[0], -1, p) % p\n        x3 = (lam*lam - P[0] - Q[0]) % p\n        return (x3, (lam*(P[0] - x3) - P[1]) % p)\n    def pari_add(self, P, Q):\n        pp = [0] if P is None else [pari.Mod(P[0], self.p), pari.Mod(P[1], self.p)]\n        qq = [0] if Q is None else [pari.Mod(Q[0], self.p), pari.Mod(Q[1], self.p)]\n        R = pari.elladd(self.E, pp, qq)\n        if len(R) == 1: return None\n        return (int(pari.lift(R[0])), int(pari.lift(R[1])))\n    def S3T(self, x1, x2):\n        p, a, b = self.p, self.a, self.b\n        return [((x1*x2 - a)**2 - 4*b*(x1 + x2)) % p, (-2*((x1 + x2)*(x1*x2 + a) + 2*b)) % p, ((x1 - x2)**2) % p]\n    def S3val(self, x1, x2, x3):\n        c = self.S3T(x1, x2); return (c[0] + c[1]*x3 + c[2]*x3*x3) % self.p\n    def S4T_eval(self, x1, x2, x3):\n        p = self.p\n        pw = [[pow(x, k, p) for k in range(5)] for x in (x1, x2, x3)]\n        return [sum(c*pw[0][e1]*pw[1][e2]*pw[2][e3] for e1, e2, e3, c in self.S4T[e4]) % p for e4 in range(5)]\n    def S5T_eval(self, x1, x2, x3, x4):\n        # S_5(x1..x4,T) = Res_X(S_4(x1,x2,x3,X), S_3(x4,T,X)) with FORMAL degrees (4,2):\n        # 6x6 Sylvester matrix over F_p[T], determinant by PARI matdet.\n        p, a, b = self.p, self.a, self.b\n        A = self.S4T_eval(x1, x2, x3)                  # a0..a4 in F_p\n        m4 = f'Mod({x4},{p})'\n        B = [f'(({m4}*T-{a})^2 - 4*{b}*({m4}+T))',       # b0(T)\n             f'(-2*(({m4}+T)*({m4}*T+{a})+2*{b}))',      # b1(T)\n             f'(({m4}-T)^2)']                             # b2(T)\n        rows = []\n        Ahi = [f'Mod({c},{p})' for c in reversed(A)]    # a4..a0\n        Bhi = list(reversed(B))                          # b2..b0\n        for i in range(2): rows.append(['0']*i + Ahi + ['0']*(1-i))\n        for i in range(4): rows.append(['0']*i + Bhi + ['0']*(3-i))\n        M = '[' + ';'.join(','.join(r) for r in rows) + ']'\n        R = pari(f'matdet({M})')\n        if R == 0: return []\n        deg = int(pari.poldegree(R, pari('T')))\n        return [int(pari.lift(pari.polcoef(R, k, pari('T')))) % p for k in range(deg+1)]\n\ndef signsums(C, pts, use_pari=False):\n    \"\"\"eps_1 = +1 classes; returns list of (eps, Q)\"\"\"\n    add = C.pari_add if use_pari else C.add\n    m1 = len(pts)\n    res = []\n    for eps in itertools.product([1, -1], repeat=m1 - 1):\n        eps = (1,) + eps\n        Q = None\n        for e, P in zip(eps, pts):\n            Q = add(Q, P if e == 1 else C.neg(P))\n        res.append((eps, Q))\n    return res\n\ndef fpoly(C, xs):\n    m1 = len(xs)\n    if m1 == 2: return trim(C.S3T(*xs))\n    if m1 == 3: return trim(C.S4T_eval(*xs))\n    if m1 == 4: return trim(C.S5T_eval(*xs))\n\ndef flint_roots(f, p):\n    F = flint.nmod_poly(f, p)\n    lc, facs = F.factor()\n    degs = [int(g.degree()) for g, e in facs for _ in range(int(e))]\n    roots = collections.Counter()\n    for g, e in facs:\n        if g.degree() == 1:\n            roots[int((-int(g[0])) % p)] += int(e)   # factors are monic\n    return int(lc), degs, roots\n\ndef pari_roots(f, p):\n    if len(f) <= 1: return [], collections.Counter()\n    s = '+'.join(f'{c}*T^{k}' for k, c in enumerate(f))\n    M = pari(f'factormod({s}, {p})')\n    degs, roots = [], collections.Counter()\n    for i in range(int(pari.matsize(M)[0])):\n        g, e = M[i, 0], int(M[i, 1])\n        d = int(pari.poldegree(g)); degs += [d]*e\n        if d == 1:\n            c0 = int(pari.lift(pari.polcoef(g, 0))); c1 = int(pari.lift(pari.polcoef(g, 1)))\n            roots[(-c0*pow(c1, -1, p)) % p] += e\n    return degs, roots\n\ndef check_tuple(C, pts, cross=False):\n    p = C.p\n    xs = [P[0] for P in pts]\n    m = len(pts) + 1\n    f = fpoly(C, xs)\n    ss = signsums(C, pts)\n    if cross:\n        ss2 = signsums(C, pts, use_pari=True)\n        assert ss == ss2, ('group law mismatch', C.name, pts)\n    nO = sum(1 for e, Q in ss if Q is None)\n    sx = collections.Counter(Q[0] for e, Q in ss if Q is not None)\n    rec = {'m': m, 'xs': xs, 'f_coeffs_low_to_high': f, 'deg_f': len(f) - 1,\n           'sign_sums': [[list(e), None if Q is None else list(Q)] for e, Q in ss],\n           'n_sign_classes_equal_O': nO}\n    if len(f) == 0:\n        rec['f_identically_zero'] = True; rec['ok'] = False; return rec\n    lc, degs, roots = flint_roots(f, p)\n    rec['factor_degrees_flint'] = sorted(degs)\n    rec['roots_flint'] = sorted(roots.elements())\n    rec['splits_completely'] = all(d == 1 for d in degs)\n    rec['root_multiset_equals_signsum_multiset'] = (roots == sx)\n    rec['deg_equals_2^(m-2)_minus_nO'] = (len(f) - 1 == 2**(m-2) - nO)\n    # exact identity f == lc * prod (T - x(Q))\n    prod = [1]\n    for x in sx.elements(): prod = polmul(prod, [(-x) % p, 1], p)\n    rec['exact_identity_f_eq_lc_prod'] = (trim([(lc*c) % p for c in prod]) == f)\n    rec['squarefree'] = all(v == 1 for v in roots.values()) and rec['splits_completely']\n    rec['full_degree'] = (nO == 0)\n    if cross:\n        degs2, roots2 = pari_roots(f, p)\n        rec['pari_factor_agrees'] = (sorted(degs2) == sorted(degs) and roots2 == roots)\n    rec['ok'] = rec['splits_completely'] and rec['root_multiset_equals_signsum_multiset'] and rec['deg_equals_2^(m-2)_minus_nO'] and rec['exact_identity_f_eq_lc_prod'] and rec.get('pari_factor_agrees', True)\n    return rec\n\ndef summarize(recs):\n    s = collections.Counter()\n    for r in recs:\n        s['n'] += 1\n        s['ok'] += r['ok']\n        s['generic_fibre(squarefree,full_degree)'] += (r.get('squarefree', False) and r['full_degree'])\n        s['full_degree_repeated_root'] += (r['full_degree'] and not r.get('squarefree', False))\n        s['degree_drop'] += (not r['full_degree'])\n        s['pari_cross_checked'] += ('pari_factor_agrees' in r)\n    return dict(s)\n\ndef main():\n    out = {'versions': {'python-flint': flint.__version__, 'pari': str(pari.version()), 'cypari2': '2.2.0'}}\n    t0 = time.time()\n    curves = {\n        'C1': Curve('C1', 101, -7, 6),      # full rational 2-torsion: x = 1, 2, -3\n        'C2': Curve('C2', 211, 3, 8),       # the producer's curve, named in the plan; used only for comparability\n        'C5': Curve('C5', 1009, -7, 6),     # full rational 2-torsion at a larger prime\n    }\n    rng = random.Random(20260930)\n    for name, p in (('C3', 1009), ('C4', 1999)):\n        while True:\n            a, b = rng.randrange(p), rng.randrange(p)\n            if (4*a**3 + 27*b**2) % p: break\n        curves[name] = Curve(name, p, a, b)\n    out['curves'] = {n: {'p': C.p, 'a': C.a, 'b': C.b, 'card_own': C.card_own, 'card_pari': C.card_pari,\n                         'n_affine_points': len(C.pts), 'n_rational_x': len(C.xs),\n                         'two_torsion': C.two_torsion} for n, C in curves.items()}\n    assert all(C.card_own == C.card_pari for C in curves.values())\n    # group-law cross-check: full addition table on C1 against PARI\n    C1 = curves['C1']\n    allp = [None] + C1.pts\n    mism = sum(1 for P in allp for Q in allp if C1.add(P, Q) != C1.pari_add(P, Q))\n    out['C1_full_addition_table_vs_pari'] = {'pairs': len(allp)**2, 'mismatches': mism}\n\n    # (A) exhaustive m=3 and m=4 on C1 (all ordered x-tuples of rational points)\n    for m in (3, 4):\n        recs = []\n        for xs in itertools.product(C1.xs, repeat=m-1):\n            pts = [C1.byx[x][0] for x in xs]\n            recs.append(check_tuple(C1, pts, cross=False))\n        out[f'C1_exhaustive_m{m}'] = summarize(recs)\n        out[f'C1_exhaustive_m{m}_failures'] = [r for r in recs if not r['ok']][:20]\n    # (B) exhaustive m=3 (ordered) and m=4 (unordered with repetition; S_4 symmetric) on C2\n    C2 = curves['C2']\n    recs = [check_tuple(C2, [C2.byx[x][0] for x in xs]) for xs in itertools.product(C2.xs, repeat=2)]\n    out['C2_exhaustive_m3'] = summarize(recs); out['C2_exhaustive_m3_failures'] = [r for r in recs if not r['ok']][:20]\n    recs = [check_tuple(C2, [C2.byx[x][0] for x in xs]) for xs in itertools.combinations_with_replacement(C2.xs, 3)]\n    out['C2_exhaustive_m4_unordered'] = summarize(recs); out['C2_exhaustive_m4_failures'] = [r for r in recs if not r['ok']][:20]\n    out['time_after_exhaustive_s'] = round(time.time() - t0, 1)\n\n    # (C) random factor-base tuples, FB = affine points with x < ceil(p/3); PARI cross-checks on every tuple\n    for name in ('C3', 'C4', 'C2', 'C5'):\n        C = curves[name]\n        B = -(-C.p // 3)\n        FB = [P for P in C.pts if P[0] < B]\n        r = random.Random({'C2': 11, 'C3': 13, 'C4': 17, 'C5': 19}[name] * 1000003 + 20260930)\n        for m, N in ((3, 100), (4, 100), (5, 25)):\n            recs = []\n            for _ in range(N):\n                pts = [r.choice(FB) for _ in range(m-1)]\n                recs.append(check_tuple(C, pts, cross=True))\n            key = f'{name}_random_FB_m{m}'\n            out[key] = summarize(recs)\n            out[key + '_FB_size'] = len(FB)\n            out[key + '_failures'] = [x for x in recs if not x['ok']]\n            if m == 4 and name in ('C3', 'C4'):\n                out[key + '_first25_raw'] = [{k: x[k] for k in ('xs', 'f_coeffs_low_to_high', 'roots_flint', 'sign_sums', 'ok', 'pari_factor_agrees')} for x in recs[:25]]\n    out['elapsed_s'] = round(time.time() - t0, 1)\n    json.dump(out, open(sys.argv[2], 'w'), separators=(',', ':'))\n    brief = {k: v for k, v in out.items() if not k.endswith('_raw') and not k.endswith('failures')}\n    print(json.dumps(brief, indent=1)[:6000])\n    print('failures:', {k: len(v) for k, v in out.items() if k.endswith('failures')})\n\nmain()\n"
+  },
+  "degeneracies.py": {
+   "sha256": "20ed1d9a0f4994f2c971bf414a7ad7ef7bfd9901f879693239512e030bd76562",
+   "text": "# degeneracies.py -- J1(c): constructed degenerate factor-base-locus instances (TASK-20260930-40470a).\nimport json, sys, random\nsys_argv = sys.argv[:]\nsys.argv = ['x', sys_argv[1], '/dev/null']\nexec(open('fb_checks.py').read().split('def main():')[0])   # reuse Curve, check_tuple (own code)\n\ndef mul(C, k, P):\n    R = None\n    for _ in range(k): R = C.add(R, P)\n    return R\n\ndef pick_generic(C, r, avoid):\n    while True:\n        P = r.choice(C.pts)\n        if P[1] != 0 and P[0] not in avoid: return P\n\nout = {}\nfor name, (p, a, b) in (('C1', (101, -7, 6)), ('C5', (1009, -7, 6))):\n    C = Curve(name, p, a, b)\n    T1, T2, T3 = C.two_torsion           # three nonzero 2-torsion points (full rational 2-torsion)\n    r = random.Random(424242 + p)\n    P1 = pick_generic(C, r, set())\n    P2 = pick_generic(C, r, {P1[0]})\n    P3 = pick_generic(C, r, {P1[0], P2[0]})\n    # P with P + Q = T1 : Q = T1 - P\n    Q_T = C.add(T1, C.neg(P1))\n    inst = {\n      'm3_x1_eq_x2 (P2 = +/-P1)': [P1, P1],\n      'm3_P1_2torsion': [T1, P2],\n      'm3_both_2torsion_distinct': [T1, T2],\n      'm3_x1_eq_x2_eq_2torsion': [T1, T1],\n      'm4_P2_eq_P1 (x1 = x2)': [P1, P1, P3],\n      'm4_P2_eq_minusP1 (same x-tuple as above)': [P1, C.neg(P1), P3],\n      'm4_P1_2torsion': [T1, P2, P3],\n      'm4_coincident_sum P1+P2 = T1 (2-torsion), P3 generic': [P1, Q_T, P3],\n      'm4_coincident_sum x2 = x3 (P3 = P2)': [P1, P2, P2],\n      'm4_signed_sum_is_O: P3 = -(P1+P2)': [P1, P2, C.neg(C.add(P1, P2))],\n      'm4_two_signed_sums_O: P1+P2 = T1, P3 = T1': [P1, Q_T, T1],\n      'm4_all_four_signed_sums_O: P1,P2,P3 = the three 2-torsion points': [T1, T2, T3],\n      'm4_x1=x2=x3 (P1=P2=P3)': [P1, P1, P1],\n      'm4_x1=x2, P3 = 2P1': [P1, P1, mul(C, 2, P1)],\n      'm4_x1=x2=2torsion, P3 generic': [T1, T1, P3],\n    }\n    res = {}\n    for k, pts in inst.items():\n        if any(P is None for P in pts):\n            res[k] = 'construction hit O; skipped'; continue\n        rec = check_tuple(C, pts, cross=True)\n        res[k] = {'points': [list(P) for P in pts], 'xs': rec['xs'], 'deg_f': rec['deg_f'],\n                  'f_coeffs_low_to_high': rec['f_coeffs_low_to_high'],\n                  'n_sign_classes_equal_O': rec['n_sign_classes_equal_O'],\n                  'roots_with_multiplicity': rec.get('roots_flint'),\n                  'factor_degrees': rec.get('factor_degrees_flint'),\n                  'splits_completely': rec.get('splits_completely'),\n                  'root_multiset_equals_signsum_multiset': rec.get('root_multiset_equals_signsum_multiset'),\n                  'deg_equals_2^(m-2)_minus_nO': rec.get('deg_equals_2^(m-2)_minus_nO'),\n                  'exact_identity_f_eq_lc_prod': rec.get('exact_identity_f_eq_lc_prod'),\n                  'pari_factor_agrees': rec.get('pari_factor_agrees'),\n                  'squarefree': rec.get('squarefree'), 'full_degree': rec['full_degree'],\n                  'frobenius_on_roots': 'identity (every root in F_p)' if rec.get('splits_completely') else 'NOT identity',\n                  'ok': rec['ok']}\n    out[name] = {'curve': {'p': p, 'a': a % p, 'b': b % p}, 'two_torsion': [list(T1), list(T2), list(T3)],\n                 'generic_points_used': [list(P1), list(P2), list(P3)], 'instances': res}\njson.dump(out, open(sys_argv[2], 'w'), separators=(',', ':'))\nfor name in out:\n    print('==', name, out[name]['curve'], 'E[2]:', out[name]['two_torsion'], 'P1,P2,P3:', out[name]['generic_points_used'])\n    for k, v in out[name]['instances'].items():\n        if isinstance(v, str): print('  ', k, v); continue\n        print(f\"   {k}: xs={v['xs']} deg={v['deg_f']} nO={v['n_sign_classes_equal_O']} roots={v['roots_with_multiplicity']} split={v['splits_completely']} multiset_eq={v['root_multiset_equals_signsum_multiset']} deg_rule={v['deg_equals_2^(m-2)_minus_nO']} identity={v['exact_identity_f_eq_lc_prod']} pari={v['pari_factor_agrees']} f={v['f_coeffs_low_to_high']} ok={v['ok']}\")\n"
+  },
+  "ptm.py": {
+   "sha256": "a612a804b3c779fe6931f6c7b39f64caf94316e7ee29ede59d9d9e05bba103d6",
+   "text": "# ptm.py -- TASK-20260930-40470a proves-too-much control (both named objects), the D-5 transport\n# identity, and a curve-free group computation used by J4. Reuses the reviewer's own Curve/S_4 code.\nimport json, sys, random, collections, itertools, time\nsys_argv = sys.argv[:]\nsys.argv = ['x', sys_argv[1], '/dev/null']\nexec(open('fb_checks.py').read().split('def main():')[0])\nimport sympy as sp\nfrom sympy.combinatorics import Permutation, PermutationGroup\n\ndef legendre(a, p):\n    a %= p\n    if a == 0: return 0\n    return 1 if pow(a, (p-1)//2, p) == 1 else -1\n\ndef factor_type(f, p):\n    \"\"\"returns (full_degree_flag_given_expected, squarefree, sorted factor degrees)\"\"\"\n    F = flint.nmod_poly(f, p)\n    lc, facs = F.factor()\n    degs = sorted(int(g.degree()) for g, e in facs for _ in range(int(e)))\n    sqf = all(int(e) == 1 for g, e in facs)\n    return sqf, degs\n\nout = {}\nt0 = time.time()\n# ------------------------------------------------------------------ Object 1: generic base tuples\ndef object1(C, m, tuples):\n    p = C.p\n    hist = collections.Counter(); nongeneric = collections.Counter()\n    pred_ok = 0; pred_bad = []; n_bad = 0; n_generic = 0\n    for xs in tuples:\n        f = trim(C.S3T(*xs)) if m == 3 else trim(C.S4T_eval(*xs))\n        if len(f) - 1 != 2**(m-2):\n            nongeneric['degree_drop'] += 1; continue\n        sqf, degs = factor_type(f, p)\n        if not sqf:\n            nongeneric['repeated_root'] += 1; continue\n        n_generic += 1\n        ct = '+'.join(map(str, degs))\n        hist[ct] += 1\n        d = [legendre(C.rhs(x), p) for x in xs]\n        if 0 in d:\n            nongeneric['generic_but_some_f(x_i)=0'] += 1\n            continue\n        # prediction from the group law off the locus: Frob(P_i) = d_i P_i\n        # m=3: split (1+1) iff d1 == d2 ; m=4: 1^4 iff d1==d2==d3 else 2+2\n        if m == 3: pred = '1+1' if d[0] == d[1] else '2'\n        else: pred = '1+1+1+1' if d[0] == d[1] == d[2] else '2+2'\n        if pred == ct: pred_ok += 1\n        else:\n            n_bad += 1\n            if len(pred_bad) < 20: pred_bad.append({'xs': list(xs), 'chi': d, 'observed': ct, 'predicted': pred})\n    all_on_locus = sum(1 for xs in tuples if all(legendre(C.rhs(x), p) >= 0 for x in xs))\n    return {'n_tuples': len(tuples), 'n_generic_fibres(full degree, squarefree)': n_generic,\n            'cycle_type_histogram_generic': dict(hist), 'non_generic': dict(nongeneric),\n            'group_law_prediction_agrees': pred_ok, 'group_law_prediction_disagrees': n_bad,\n            'group_law_prediction_disagrees_examples': pred_bad,\n            'n_tuples_on_FB_locus(all f(x_i) square or 0)': all_on_locus}\n\nC1 = Curve('C1', 101, -7, 6); C2 = Curve('C2', 211, 3, 8)\nrng = random.Random(20260930)\ndef seeded_curve(name, p):\n    while True:\n        a, b = rng.randrange(p), rng.randrange(p)\n        if (4*a**3 + 27*b**2) % p: return Curve(name, p, a, b)\nC3 = seeded_curve('C3', 1009); C4 = seeded_curve('C4', 1999)   # same seeding as fb_checks.py -> same curves\nout['curves'] = {C.name: [C.p, C.a, C.b] for C in (C1, C2, C3, C4)}\nout['object1'] = {\n  'C2_m3_exhaustive_all_(x1,x2)_in_Fp^2': object1(C2, 3, list(itertools.product(range(C2.p), repeat=2))),\n  'C1_m4_exhaustive_all_(x1,x2,x3)_in_Fp^3': object1(C1, 4, list(itertools.product(range(C1.p), repeat=3))),\n}\nr = random.Random(4040)\nfor C in (C3, C4):\n    out['object1'][f'{C.name}_m4_random_50000'] = object1(C, 4, [tuple(r.randrange(C.p) for _ in range(3)) for _ in range(50000)])\nout['time_object1_s'] = round(time.time() - t0, 1)\n\n# ------------------------------------------------------------------ D-5 transport identity (symbolic)\nA, B, x1, x2, x3, T0, X = sp.symbols('A B x1 x2 x3 T0 X')\nS3s = lambda u, v, w: (u - v)**2*w**2 - 2*((u + v)*(u*v + A) + 2*B)*w + (u*v - A)**2 - 4*B*(u + v)\nfx = lambda x: x**3 + A*x + B\nd_T = sp.discriminant(sp.expand(S3s(x1, x2, X)), X)\nd_x2 = sp.discriminant(sp.expand(S3s(x1, X, T0)), X)\nout['D5_transport'] = {\n  'OBS-1: disc_T S3(x1,x2,T) - 16 f(x1) f(x2)': str(sp.expand(d_T - 16*fx(x1)*fx(x2))),\n  'D-5 transport: disc_{x2} S3(x1,x2,T0) - 16 f(x1) f(T0)': str(sp.expand(d_x2 - 16*fx(x1)*fx(T0))),\n  'reason': 'S3 is symmetric in all three variables, so S3(x1,X,T0) = S3(x1,T0,X) and the identity transports by relabelling.'}\n\n# ------------------------------------------------------------------ Object 2: D-4 swapped statistic\ndef object2(C, m, B):\n    p = C.p\n    V = sorted(x for x in C.xs if x < B and C.rhs(x) != 0)      # factor base x-values (2-torsion excluded, see note)\n    Vset = set(V)\n    Rx = sorted(C.xs)                                          # x(R) for R in E(F_p) affine\n    # (a) group-law count: for every ordered FB tuple, the fibre values x(sum eps_i P_i)\n    cnt = collections.Counter()\n    for xs in itertools.product(V, repeat=m-1):\n        pts = [C.byx[x][0] for x in xs]\n        vals = collections.Counter(Q[0] for e, Q in signsums(C, pts) if Q is not None)\n        for v, k in vals.items(): cnt[v] += 1          # count TUPLES whose fibre contains x(R) (not multiplicity)\n    N_grouplaw = {x: cnt.get(x, 0) for x in Rx}\n    # (b) polynomial count, independent of the group law: for every FB (m-2)-tuple and every x(R),\n    # take the roots in X of S_m(xs..., X, x(R)) over F_p and count those lying in V.\n    N_poly = {}; frob_trivial = 0; frob_total = 0; roots_in_V_hist = collections.Counter()\n    for xr in Rx:\n        tot = 0\n        for xs in itertools.product(V, repeat=m-2):\n            if m == 3: f = trim(C.S3T(xs[0], xr))                 # S3(x1, X, T0) = S3(x1, T0, X)\n            else: f = trim(C.S4T_eval(xs[0], xs[1], xr))          # S4(x1,x2,X,T0) = S4(x1,x2,T0,X) by symmetry\n            if len(f) <= 1: continue\n            Fl = flint.nmod_poly(f, p); lc, facs = Fl.factor()\n            frob_total += 1\n            if all(g.degree() == 1 for g, e in facs): frob_trivial += 1\n            rts = set(int((-int(g[0])) % p) for g, e in facs if g.degree() == 1)\n            k = len(rts & Vset); roots_in_V_hist[k] += 1\n            tot += k\n        N_poly[xr] = tot\n    # (c) the \"collapse\" prediction of D-5 at m=3: chi(f(x1) f(T0)) for x1 in V, T0 = x(R)\n    chi_prod_values = collections.Counter(legendre(C.rhs(x) * C.rhs(xr), p) for x in V for xr in Rx)\n    vals = list(N_poly.values())\n    return {'p': p, 'FB_rule': f'x(P) < {B}, x(P) not a 2-torsion x-coordinate', '|V|': len(V), 'n_x(R)_values': len(Rx),\n            'N_polynomial_route_equals_group_law_route_for_every_R': (N_poly == N_grouplaw),\n            'N_by_x(R)_min_max_mean': [min(vals), max(vals), round(sum(vals)/len(vals), 4)],\n            'n_distinct_N_values': len(set(vals)), 'n_R_with_N_zero': sum(1 for v in vals if v == 0),\n            'n_R_with_N_positive': sum(1 for v in vals if v > 0),\n            'N_histogram': dict(collections.Counter(vals)),\n            'swapped_Frobenius_statistic: fibres in the free coordinate that split completely / total': [frob_trivial, frob_total],\n            'histogram_of_#roots_in_FB_per_swapped_fibre': dict(roots_in_V_hist),\n            'chi(f(x1) f(x(R))) over x1 in V, all R (D-5 collapse would make this the statistic)': dict(chi_prod_values),\n            'N_grouplaw_vs_poly_note': 'N(R) counts ordered FB tuples (x_1..x_{m-1}) in V^{m-1} with S_m(x_1..x_{m-1},x(R)) = 0. Polynomial route: for each FB (m-2)-tuple, the distinct roots in V of S_m(...,X,x(R)) (symmetry of S_m). Group-law route: ordered FB tuples whose finite sign-sum x-value set contains x(R).'}\nout['object2'] = {\n  'C3_m3': object2(C3, 3, 200),\n  'C2_m3': object2(C2, 3, 71),\n  'C2_m4': object2(C2, 4, 71),\n}\nout['time_object2_s'] = round(time.time() - t0, 1)\n\n# ------------------------------------------------------------------ J4 support: curve-free group computation\ndef sign_class_groups(m):\n    k = m - 1\n    classes = sorted({min(v, tuple(1 - t for t in v)) for v in itertools.product((0, 1), repeat=k)})\n    idx = {c: i for i, c in enumerate(classes)}\n    norm = lambda v: min(v, tuple(1 - t for t in v))\n    def perm_from(fn): return Permutation([idx[norm(fn(c))] for c in classes])\n    flips = [perm_from(lambda c, i=i: tuple(c[j] ^ (1 if j == i else 0) for j in range(k))) for i in range(k)]\n    def transpose(c, i):\n        c = list(c); c[i], c[i+1] = c[i+1], c[i]; return tuple(c)\n    swaps = [perm_from(lambda c, i=i: transpose(c, i)) for i in range(k-1)]\n    G_ord = PermutationGroup(flips)\n    G_sym = PermutationGroup(flips + swaps)\n    n = len(classes)\n    return {'m': m, 'n_roots=2^(m-2)': n,\n            'ordered_base_group(sign flips)': {'order': int(G_ord.order()), 'transitive': G_ord.is_transitive(), 'primitive': G_ord.is_primitive() if n > 1 else None, 'is_elementary_abelian': G_ord.is_abelian},\n            'symmetric_base_group(sign flips + permutations of P_i)': {'order': int(G_sym.order()), 'transitive': G_sym.is_transitive(), 'primitive': G_sym.is_primitive() if n > 2 else True, 'equals_Sym(n)': int(G_sym.order()) == int(sp.factorial(n))}}\nout['J4_group_structure'] = [sign_class_groups(m) for m in (3, 4, 5, 6, 7)]\nout['elapsed_s'] = round(time.time() - t0, 1)\njson.dump(out, open(sys_argv[2], 'w'), separators=(',', ':'))\nprint(json.dumps(out, indent=1)[:12000])\n"
+  },
+  "assemble.py": {
+   "sha256": "808b9d9adcaad19d019fd46357f4b9c1a8a6dbcb6d6811b4ca074bcf2dea7874",
+   "text": "# assemble.py -- embeds every script, command, library version and raw output relied on into\n# coordination/goals/GOAL-MONO-001/review/TASK-20260930-40470a/s4_construction/computations.json\nimport json, hashlib, os, sys, platform, subprocess\n\nHERE = os.path.dirname(os.path.abspath(__file__))\nDEST = '/home/user/crypto-autoresearcher/coordination/goals/GOAL-MONO-001/review/TASK-20260930-40470a/s4_construction/computations.json'\nmanifest = json.load(open(os.path.join(HERE, 'manifest.json')))\n\ndef sha(b): return hashlib.sha256(b).hexdigest()\n\ndef pipver():\n    out = subprocess.run([os.path.join(HERE, '..', 'venv', 'bin', 'pip'), 'list', '--format=json'], capture_output=True, text=True).stdout\n    return {d['name']: d['version'] for d in json.loads(out)}\n\ndoc = {\n  'task_id': 'TASK-20260930-40470a',\n  'goal_id': 'GOAL-MONO-001',\n  'batch_id': 'BATCH-44adf9',\n  'plan_id': 'REVIEW-MONO-20260930-40470a',\n  'what_this_is': 'Review computations only (zero scientific runs). Every script, command, library version and raw output that review_report.md relies on, embedded as text. Scratch working directory was outside the repository; nothing else is archived.',\n  'repository_snapshot_read': {'branch': 'claude/coordinate-mono-20260930', 'head': 'd771721ac052bce33dc302e6aa2d1d804a1c5db0'},\n  'environment': {\n     'python': platform.python_version(), 'implementation': platform.python_implementation(),\n     'platform': platform.platform(),\n     'venv_packages': pipver(),\n     'venv_note': 'python3 -m venv <scratch>/venv; <scratch>/venv/bin/pip install python-flint; <scratch>/venv/bin/pip install --only-binary=:all: cypari2; <scratch>/venv/bin/pip install sympy. PARI library version reported by cypari2: 2.15.4.',\n     'working_directory': '<scratch>/v40470a  (outside the repository; <scratch> = the session scratchpad)',\n  },\n  'blind_from_respected': 'No file under experiments/EXP-MONO-4b50b6/ or coordination/goals/GOAL-MONO-001/batches/BATCH-003/ was opened, listed, grepped or imported by any script here. All code below was written in this session from the textbook definitions.',\n  'commands': manifest['commands'],\n  'scripts': {},\n  'outputs': {},\n  'retrieved_sources': manifest.get('retrieved_sources', []),\n  'notes': manifest.get('notes', []),\n}\nfor name in manifest['scripts']:\n    b = open(os.path.join(HERE, name), 'rb').read()\n    doc['scripts'][name] = {'sha256': sha(b), 'text': b.decode()}\nfor name in manifest['outputs']:\n    b = open(os.path.join(HERE, name), 'rb').read()\n    try: content = json.loads(b)\n    except Exception: content = b.decode()\n    doc['outputs'][name] = {'sha256_of_raw_file': sha(b), 'content': content}\nos.makedirs(os.path.dirname(DEST), exist_ok=True)\nwith open(DEST, 'w') as f:\n    json.dump(doc, f, indent=1, sort_keys=False)\n    f.write('\\n')\nprint('wrote', DEST, os.path.getsize(DEST), 'bytes')\n"
+  }
+ },
+ "outputs": {
+  "s4_build_out.json": {
+   "sha256_of_raw_file": "5224adb883d1f6f648cb5cf264c6de198e46ee6547bccabe997a3de0895c6153",
+   "content": {
+    "summary": {
+     "S3": "a**2 - 2*a*x1*x2 - 2*a*x1*x3 - 2*a*x2*x3 - 4*b*x1 - 4*b*x2 - 4*b*x3 + x1**2*x2**2 - 2*x1**2*x2*x3 + x1**2*x3**2 - 2*x1*x2**2*x3 - 2*x1*x2*x3**2 + x2**2*x3**2",
+     "S3_symmetric": true,
+     "S3_deg_each": [
+      2,
+      2,
+      2
+     ],
+     "S4_num_terms": 540,
+     "S4_deg_each_x": [
+      4,
+      4,
+      4,
+      4
+     ],
+     "S4_total_deg_in_x": 12,
+     "S4_content_gcd": 1,
+     "S4_sha256_of_term_list": "dcd2d3508a2bc9e0c398cd7985510363a9fb071f58194e4ce140e177e0ed8c67",
+     "S4_symmetric_all_24_perms": true,
+     "LC_x4_S4_equals_S3_x1x2x3_squared": true,
+     "LC_x3_S3_equals_(x1-x2)^2": true,
+     "routeB_minus_routeA": "0",
+     "routeA_equals_routeB_exactly": true,
+     "routeA_equals_minus_routeB": false,
+     "pari_version": "(2, 15, 4)",
+     "sympy_version": "1.14.0",
+     "m3_product_formula_identity_mod_curve": true
+    },
+    "S4_terms": [
+     [
+      0,
+      0,
+      0,
+      4,
+      4,
+      4,
+      1
+     ],
+     [
+      0,
+      0,
+      1,
+      3,
+      4,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      1,
+      4,
+      3,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      1,
+      4,
+      4,
+      3,
+      -4
+     ],
+     [
+      0,
+      0,
+      2,
+      2,
+      4,
+      4,
+      6
+     ],
+     [
+      0,
+      0,
+      2,
+      3,
+      3,
+      4,
+      4
+     ],
+     [
+      0,
+      0,
+      2,
+      3,
+      4,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      2,
+      4,
+      2,
+      4,
+      6
+     ],
+     [
+      0,
+      0,
+      2,
+      4,
+      3,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      2,
+      4,
+      4,
+      2,
+      6
+     ],
+     [
+      0,
+      0,
+      3,
+      1,
+      4,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      3,
+      2,
+      3,
+      4,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      2,
+      4,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      3,
+      2,
+      4,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      3,
+      3,
+      3,
+      -40
+     ],
+     [
+      0,
+      0,
+      3,
+      3,
+      4,
+      2,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      4,
+      1,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      3,
+      4,
+      2,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      4,
+      3,
+      2,
+      4
+     ],
+     [
+      0,
+      0,
+      3,
+      4,
+      4,
+      1,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      0,
+      4,
+      4,
+      1
+     ],
+     [
+      0,
+      0,
+      4,
+      1,
+      3,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      1,
+      4,
+      3,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      2,
+      2,
+      4,
+      6
+     ],
+     [
+      0,
+      0,
+      4,
+      2,
+      3,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      4,
+      2,
+      4,
+      2,
+      6
+     ],
+     [
+      0,
+      0,
+      4,
+      3,
+      1,
+      4,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      3,
+      2,
+      3,
+      4
+     ],
+     [
+      0,
+      0,
+      4,
+      3,
+      3,
+      2,
+      4
+     ],
+     [
+      0,
+      0,
+      4,
+      3,
+      4,
+      1,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      4,
+      0,
+      4,
+      1
+     ],
+     [
+      0,
+      0,
+      4,
+      4,
+      1,
+      3,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      4,
+      2,
+      2,
+      6
+     ],
+     [
+      0,
+      0,
+      4,
+      4,
+      3,
+      1,
+      -4
+     ],
+     [
+      0,
+      0,
+      4,
+      4,
+      4,
+      0,
+      1
+     ],
+     [
+      0,
+      1,
+      0,
+      2,
+      3,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      0,
+      2,
+      4,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      0,
+      3,
+      2,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      0,
+      3,
+      3,
+      3,
+      -48
+     ],
+     [
+      0,
+      1,
+      0,
+      3,
+      4,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      0,
+      4,
+      2,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      0,
+      4,
+      3,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      1,
+      1,
+      3,
+      4,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      1,
+      4,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      2,
+      2,
+      4,
+      24
+     ],
+     [
+      0,
+      1,
+      1,
+      2,
+      3,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      2,
+      4,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      1,
+      3,
+      1,
+      4,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      3,
+      2,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      3,
+      3,
+      2,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      3,
+      4,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      4,
+      1,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      1,
+      4,
+      2,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      1,
+      4,
+      3,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      2,
+      0,
+      3,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      2,
+      0,
+      4,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      2,
+      1,
+      2,
+      4,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      1,
+      3,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      2,
+      1,
+      4,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      2,
+      1,
+      4,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      2,
+      2,
+      3,
+      -72
+     ],
+     [
+      0,
+      1,
+      2,
+      2,
+      3,
+      2,
+      -72
+     ],
+     [
+      0,
+      1,
+      2,
+      2,
+      4,
+      1,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      3,
+      0,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      2,
+      3,
+      1,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      2,
+      3,
+      2,
+      2,
+      -72
+     ],
+     [
+      0,
+      1,
+      2,
+      3,
+      3,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      2,
+      3,
+      4,
+      0,
+      -8
+     ],
+     [
+      0,
+      1,
+      2,
+      4,
+      0,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      2,
+      4,
+      1,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      4,
+      2,
+      1,
+      24
+     ],
+     [
+      0,
+      1,
+      2,
+      4,
+      3,
+      0,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      0,
+      2,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      0,
+      3,
+      3,
+      -48
+     ],
+     [
+      0,
+      1,
+      3,
+      0,
+      4,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      1,
+      1,
+      4,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      1,
+      2,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      1,
+      3,
+      2,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      1,
+      4,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      2,
+      0,
+      4,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      2,
+      1,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      2,
+      2,
+      2,
+      -72
+     ],
+     [
+      0,
+      1,
+      3,
+      2,
+      3,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      2,
+      4,
+      0,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      3,
+      0,
+      3,
+      -48
+     ],
+     [
+      0,
+      1,
+      3,
+      3,
+      1,
+      2,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      3,
+      2,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      3,
+      3,
+      0,
+      -48
+     ],
+     [
+      0,
+      1,
+      3,
+      4,
+      0,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      3,
+      4,
+      1,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      3,
+      4,
+      2,
+      0,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      0,
+      2,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      0,
+      3,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      1,
+      1,
+      3,
+      16
+     ],
+     [
+      0,
+      1,
+      4,
+      1,
+      2,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      4,
+      1,
+      3,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      4,
+      2,
+      0,
+      3,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      2,
+      1,
+      2,
+      24
+     ],
+     [
+      0,
+      1,
+      4,
+      2,
+      2,
+      1,
+      24
+     ],
+     [
+      0,
+      1,
+      4,
+      2,
+      3,
+      0,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      3,
+      0,
+      2,
+      -8
+     ],
+     [
+      0,
+      1,
+      4,
+      3,
+      1,
+      1,
+      16
+     ],
+     [
+      0,
+      1,
+      4,
+      3,
+      2,
+      0,
+      -8
+     ],
+     [
+      0,
+      2,
+      0,
+      0,
+      2,
+      4,
+      16
+     ],
+     [
+      0,
+      2,
+      0,
+      0,
+      3,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      0,
+      4,
+      2,
+      16
+     ],
+     [
+      0,
+      2,
+      0,
+      1,
+      1,
+      4,
+      32
+     ],
+     [
+      0,
+      2,
+      0,
+      1,
+      2,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      1,
+      3,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      1,
+      4,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      0,
+      2,
+      0,
+      4,
+      16
+     ],
+     [
+      0,
+      2,
+      0,
+      2,
+      1,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      2,
+      2,
+      2,
+      144
+     ],
+     [
+      0,
+      2,
+      0,
+      2,
+      3,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      2,
+      4,
+      0,
+      16
+     ],
+     [
+      0,
+      2,
+      0,
+      3,
+      0,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      3,
+      1,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      3,
+      2,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      3,
+      3,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      0,
+      4,
+      0,
+      2,
+      16
+     ],
+     [
+      0,
+      2,
+      0,
+      4,
+      1,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      0,
+      4,
+      2,
+      0,
+      16
+     ],
+     [
+      0,
+      2,
+      1,
+      0,
+      1,
+      4,
+      32
+     ],
+     [
+      0,
+      2,
+      1,
+      0,
+      2,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      0,
+      3,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      0,
+      4,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      0,
+      4,
+      32
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      1,
+      3,
+      -192
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      2,
+      2,
+      96
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      3,
+      1,
+      -192
+     ],
+     [
+      0,
+      2,
+      1,
+      1,
+      4,
+      0,
+      32
+     ],
+     [
+      0,
+      2,
+      1,
+      2,
+      0,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      2,
+      1,
+      2,
+      96
+     ],
+     [
+      0,
+      2,
+      1,
+      2,
+      2,
+      1,
+      96
+     ],
+     [
+      0,
+      2,
+      1,
+      2,
+      3,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      3,
+      0,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      3,
+      1,
+      1,
+      -192
+     ],
+     [
+      0,
+      2,
+      1,
+      3,
+      2,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      1,
+      4,
+      0,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      1,
+      4,
+      1,
+      0,
+      32
+     ],
+     [
+      0,
+      2,
+      2,
+      0,
+      0,
+      4,
+      16
+     ],
+     [
+      0,
+      2,
+      2,
+      0,
+      1,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      0,
+      2,
+      2,
+      144
+     ],
+     [
+      0,
+      2,
+      2,
+      0,
+      3,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      0,
+      4,
+      0,
+      16
+     ],
+     [
+      0,
+      2,
+      2,
+      1,
+      0,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      1,
+      1,
+      2,
+      96
+     ],
+     [
+      0,
+      2,
+      2,
+      1,
+      2,
+      1,
+      96
+     ],
+     [
+      0,
+      2,
+      2,
+      1,
+      3,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      2,
+      0,
+      2,
+      144
+     ],
+     [
+      0,
+      2,
+      2,
+      2,
+      1,
+      1,
+      96
+     ],
+     [
+      0,
+      2,
+      2,
+      2,
+      2,
+      0,
+      144
+     ],
+     [
+      0,
+      2,
+      2,
+      3,
+      0,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      3,
+      1,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      2,
+      4,
+      0,
+      0,
+      16
+     ],
+     [
+      0,
+      2,
+      3,
+      0,
+      0,
+      3,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      0,
+      1,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      0,
+      2,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      0,
+      3,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      1,
+      0,
+      2,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      1,
+      1,
+      1,
+      -192
+     ],
+     [
+      0,
+      2,
+      3,
+      1,
+      2,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      2,
+      0,
+      1,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      2,
+      1,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      3,
+      3,
+      0,
+      0,
+      -32
+     ],
+     [
+      0,
+      2,
+      4,
+      0,
+      0,
+      2,
+      16
+     ],
+     [
+      0,
+      2,
+      4,
+      0,
+      1,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      4,
+      0,
+      2,
+      0,
+      16
+     ],
+     [
+      0,
+      2,
+      4,
+      1,
+      0,
+      1,
+      32
+     ],
+     [
+      0,
+      2,
+      4,
+      1,
+      1,
+      0,
+      32
+     ],
+     [
+      0,
+      2,
+      4,
+      2,
+      0,
+      0,
+      16
+     ],
+     [
+      0,
+      3,
+      0,
+      0,
+      0,
+      3,
+      -64
+     ],
+     [
+      0,
+      3,
+      0,
+      0,
+      1,
+      2,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      0,
+      2,
+      1,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      0,
+      3,
+      0,
+      -64
+     ],
+     [
+      0,
+      3,
+      0,
+      1,
+      0,
+      2,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      1,
+      1,
+      1,
+      -128
+     ],
+     [
+      0,
+      3,
+      0,
+      1,
+      2,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      2,
+      0,
+      1,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      2,
+      1,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      0,
+      3,
+      0,
+      0,
+      -64
+     ],
+     [
+      0,
+      3,
+      1,
+      0,
+      0,
+      2,
+      64
+     ],
+     [
+      0,
+      3,
+      1,
+      0,
+      1,
+      1,
+      -128
+     ],
+     [
+      0,
+      3,
+      1,
+      0,
+      2,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      1,
+      1,
+      0,
+      1,
+      -128
+     ],
+     [
+      0,
+      3,
+      1,
+      1,
+      1,
+      0,
+      -128
+     ],
+     [
+      0,
+      3,
+      1,
+      2,
+      0,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      2,
+      0,
+      0,
+      1,
+      64
+     ],
+     [
+      0,
+      3,
+      2,
+      0,
+      1,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      2,
+      1,
+      0,
+      0,
+      64
+     ],
+     [
+      0,
+      3,
+      3,
+      0,
+      0,
+      0,
+      -64
+     ],
+     [
+      1,
+      0,
+      0,
+      3,
+      3,
+      4,
+      -4
+     ],
+     [
+      1,
+      0,
+      0,
+      3,
+      4,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      0,
+      4,
+      3,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      1,
+      2,
+      4,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      1,
+      3,
+      2,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      1,
+      3,
+      3,
+      3,
+      -24
+     ],
+     [
+      1,
+      0,
+      1,
+      3,
+      4,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      1,
+      4,
+      2,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      1,
+      4,
+      3,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      1,
+      3,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      1,
+      4,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      2,
+      2,
+      4,
+      24
+     ],
+     [
+      1,
+      0,
+      2,
+      2,
+      3,
+      3,
+      -8
+     ],
+     [
+      1,
+      0,
+      2,
+      2,
+      4,
+      2,
+      24
+     ],
+     [
+      1,
+      0,
+      2,
+      3,
+      1,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      3,
+      2,
+      3,
+      -8
+     ],
+     [
+      1,
+      0,
+      2,
+      3,
+      3,
+      2,
+      -8
+     ],
+     [
+      1,
+      0,
+      2,
+      3,
+      4,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      4,
+      1,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      2,
+      4,
+      2,
+      2,
+      24
+     ],
+     [
+      1,
+      0,
+      2,
+      4,
+      3,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      0,
+      3,
+      4,
+      -4
+     ],
+     [
+      1,
+      0,
+      3,
+      0,
+      4,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      3,
+      1,
+      2,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      1,
+      3,
+      3,
+      -24
+     ],
+     [
+      1,
+      0,
+      3,
+      1,
+      4,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      2,
+      1,
+      4,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      2,
+      2,
+      3,
+      -8
+     ],
+     [
+      1,
+      0,
+      3,
+      2,
+      3,
+      2,
+      -8
+     ],
+     [
+      1,
+      0,
+      3,
+      2,
+      4,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      3,
+      0,
+      4,
+      -4
+     ],
+     [
+      1,
+      0,
+      3,
+      3,
+      1,
+      3,
+      -24
+     ],
+     [
+      1,
+      0,
+      3,
+      3,
+      2,
+      2,
+      -8
+     ],
+     [
+      1,
+      0,
+      3,
+      3,
+      3,
+      1,
+      -24
+     ],
+     [
+      1,
+      0,
+      3,
+      3,
+      4,
+      0,
+      -4
+     ],
+     [
+      1,
+      0,
+      3,
+      4,
+      0,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      3,
+      4,
+      1,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      4,
+      2,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      3,
+      4,
+      3,
+      0,
+      -4
+     ],
+     [
+      1,
+      0,
+      4,
+      0,
+      3,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      4,
+      1,
+      2,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      1,
+      3,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      2,
+      1,
+      3,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      2,
+      2,
+      2,
+      24
+     ],
+     [
+      1,
+      0,
+      4,
+      2,
+      3,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      3,
+      0,
+      3,
+      -4
+     ],
+     [
+      1,
+      0,
+      4,
+      3,
+      1,
+      2,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      3,
+      2,
+      1,
+      4
+     ],
+     [
+      1,
+      0,
+      4,
+      3,
+      3,
+      0,
+      -4
+     ],
+     [
+      1,
+      1,
+      0,
+      1,
+      2,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      0,
+      1,
+      3,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      0,
+      1,
+      4,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      0,
+      2,
+      1,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      0,
+      2,
+      2,
+      3,
+      -8
+     ],
+     [
+      1,
+      1,
+      0,
+      2,
+      3,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      0,
+      2,
+      4,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      0,
+      3,
+      1,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      0,
+      3,
+      2,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      0,
+      3,
+      3,
+      1,
+      -32
+     ],
+     [
+      1,
+      1,
+      0,
+      4,
+      1,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      0,
+      4,
+      2,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      0,
+      2,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      0,
+      3,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      1,
+      0,
+      4,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      1,
+      1,
+      4,
+      48
+     ],
+     [
+      1,
+      1,
+      1,
+      1,
+      2,
+      3,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      1,
+      3,
+      2,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      1,
+      4,
+      1,
+      48
+     ],
+     [
+      1,
+      1,
+      1,
+      2,
+      0,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      2,
+      1,
+      3,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      2,
+      2,
+      2,
+      168
+     ],
+     [
+      1,
+      1,
+      1,
+      2,
+      3,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      2,
+      4,
+      0,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      3,
+      0,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      1,
+      3,
+      1,
+      2,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      3,
+      2,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      1,
+      3,
+      3,
+      0,
+      -32
+     ],
+     [
+      1,
+      1,
+      1,
+      4,
+      0,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      1,
+      4,
+      1,
+      1,
+      48
+     ],
+     [
+      1,
+      1,
+      1,
+      4,
+      2,
+      0,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      0,
+      1,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      0,
+      2,
+      3,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      0,
+      3,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      0,
+      4,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      1,
+      0,
+      4,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      1,
+      1,
+      3,
+      -64
+     ],
+     [
+      1,
+      1,
+      2,
+      1,
+      2,
+      2,
+      168
+     ],
+     [
+      1,
+      1,
+      2,
+      1,
+      3,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      2,
+      1,
+      4,
+      0,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      2,
+      0,
+      3,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      2,
+      1,
+      2,
+      168
+     ],
+     [
+      1,
+      1,
+      2,
+      2,
+      2,
+      1,
+      168
+     ],
+     [
+      1,
+      1,
+      2,
+      2,
+      3,
+      0,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      3,
+      0,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      3,
+      1,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      2,
+      3,
+      2,
+      0,
+      -8
+     ],
+     [
+      1,
+      1,
+      2,
+      4,
+      0,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      2,
+      4,
+      1,
+      0,
+      16
+     ],
+     [
+      1,
+      1,
+      3,
+      0,
+      1,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      3,
+      0,
+      2,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      3,
+      0,
+      3,
+      1,
+      -32
+     ],
+     [
+      1,
+      1,
+      3,
+      1,
+      0,
+      3,
+      -32
+     ],
+     [
+      1,
+      1,
+      3,
+      1,
+      1,
+      2,
+      -64
+     ],
+     [
+      1,
+      1,
+      3,
+      1,
+      2,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      3,
+      1,
+      3,
+      0,
+      -32
+     ],
+     [
+      1,
+      1,
+      3,
+      2,
+      0,
+      2,
+      -8
+     ],
+     [
+      1,
+      1,
+      3,
+      2,
+      1,
+      1,
+      -64
+     ],
+     [
+      1,
+      1,
+      3,
+      2,
+      2,
+      0,
+      -8
+     ],
+     [
+      1,
+      1,
+      3,
+      3,
+      0,
+      1,
+      -32
+     ],
+     [
+      1,
+      1,
+      3,
+      3,
+      1,
+      0,
+      -32
+     ],
+     [
+      1,
+      1,
+      4,
+      0,
+      1,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      4,
+      0,
+      2,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      4,
+      1,
+      0,
+      2,
+      16
+     ],
+     [
+      1,
+      1,
+      4,
+      1,
+      1,
+      1,
+      48
+     ],
+     [
+      1,
+      1,
+      4,
+      1,
+      2,
+      0,
+      16
+     ],
+     [
+      1,
+      1,
+      4,
+      2,
+      0,
+      1,
+      16
+     ],
+     [
+      1,
+      1,
+      4,
+      2,
+      1,
+      0,
+      16
+     ],
+     [
+      1,
+      2,
+      0,
+      0,
+      1,
+      3,
+      -32
+     ],
+     [
+      1,
+      2,
+      0,
+      0,
+      2,
+      2,
+      64
+     ],
+     [
+      1,
+      2,
+      0,
+      0,
+      3,
+      1,
+      -32
+     ],
+     [
+      1,
+      2,
+      0,
+      1,
+      0,
+      3,
+      -32
+     ],
+     [
+      1,
+      2,
+      0,
+      1,
+      1,
+      2,
+      32
+     ],
+     [
+      1,
+      2,
+      0,
+      1,
+      2,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      0,
+      1,
+      3,
+      0,
+      -32
+     ],
+     [
+      1,
+      2,
+      0,
+      2,
+      0,
+      2,
+      64
+     ],
+     [
+      1,
+      2,
+      0,
+      2,
+      1,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      0,
+      2,
+      2,
+      0,
+      64
+     ],
+     [
+      1,
+      2,
+      0,
+      3,
+      0,
+      1,
+      -32
+     ],
+     [
+      1,
+      2,
+      0,
+      3,
+      1,
+      0,
+      -32
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      0,
+      3,
+      -32
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      1,
+      2,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      2,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      0,
+      3,
+      0,
+      -32
+     ],
+     [
+      1,
+      2,
+      1,
+      1,
+      0,
+      2,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      1,
+      1,
+      1,
+      -384
+     ],
+     [
+      1,
+      2,
+      1,
+      1,
+      2,
+      0,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      2,
+      0,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      2,
+      1,
+      0,
+      32
+     ],
+     [
+      1,
+      2,
+      1,
+      3,
+      0,
+      0,
+      -32
+     ],
+     [
+      1,
+      2,
+      2,
+      0,
+      0,
+      2,
+      64
+     ],
+     [
+      1,
+      2,
+      2,
+      0,
+      1,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      2,
+      0,
+      2,
+      0,
+      64
+     ],
+     [
+      1,
+      2,
+      2,
+      1,
+      0,
+      1,
+      32
+     ],
+     [
+      1,
+      2,
+      2,
+      1,
+      1,
+      0,
+      32
+     ],
+     [
+      1,
+      2,
+      2,
+      2,
+      0,
+      0,
+      64
+     ],
+     [
+      1,
+      2,
+      3,
+      0,
+      0,
+      1,
+      -32
+     ],
+     [
+      1,
+      2,
+      3,
+      0,
+      1,
+      0,
+      -32
+     ],
+     [
+      1,
+      2,
+      3,
+      1,
+      0,
+      0,
+      -32
+     ],
+     [
+      2,
+      0,
+      0,
+      2,
+      2,
+      4,
+      6
+     ],
+     [
+      2,
+      0,
+      0,
+      2,
+      3,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      0,
+      2,
+      4,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      0,
+      3,
+      2,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      0,
+      3,
+      3,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      0,
+      4,
+      2,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      1,
+      1,
+      2,
+      4,
+      4
+     ],
+     [
+      2,
+      0,
+      1,
+      1,
+      3,
+      3,
+      -40
+     ],
+     [
+      2,
+      0,
+      1,
+      1,
+      4,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      1,
+      2,
+      1,
+      4,
+      4
+     ],
+     [
+      2,
+      0,
+      1,
+      2,
+      2,
+      3,
+      -8
+     ],
+     [
+      2,
+      0,
+      1,
+      2,
+      3,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      1,
+      2,
+      4,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      1,
+      3,
+      1,
+      3,
+      -40
+     ],
+     [
+      2,
+      0,
+      1,
+      3,
+      2,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      1,
+      3,
+      3,
+      1,
+      -40
+     ],
+     [
+      2,
+      0,
+      1,
+      4,
+      1,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      1,
+      4,
+      2,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      0,
+      2,
+      4,
+      6
+     ],
+     [
+      2,
+      0,
+      2,
+      0,
+      3,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      0,
+      4,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      2,
+      1,
+      1,
+      4,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      1,
+      2,
+      3,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      1,
+      3,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      1,
+      4,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      2,
+      0,
+      4,
+      6
+     ],
+     [
+      2,
+      0,
+      2,
+      2,
+      1,
+      3,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      2,
+      2,
+      2,
+      168
+     ],
+     [
+      2,
+      0,
+      2,
+      2,
+      3,
+      1,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      2,
+      4,
+      0,
+      6
+     ],
+     [
+      2,
+      0,
+      2,
+      3,
+      0,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      3,
+      1,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      3,
+      2,
+      1,
+      -8
+     ],
+     [
+      2,
+      0,
+      2,
+      3,
+      3,
+      0,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      4,
+      0,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      2,
+      4,
+      1,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      2,
+      4,
+      2,
+      0,
+      6
+     ],
+     [
+      2,
+      0,
+      3,
+      0,
+      2,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      3,
+      0,
+      3,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      3,
+      1,
+      1,
+      3,
+      -40
+     ],
+     [
+      2,
+      0,
+      3,
+      1,
+      2,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      3,
+      1,
+      3,
+      1,
+      -40
+     ],
+     [
+      2,
+      0,
+      3,
+      2,
+      0,
+      3,
+      4
+     ],
+     [
+      2,
+      0,
+      3,
+      2,
+      1,
+      2,
+      -8
+     ],
+     [
+      2,
+      0,
+      3,
+      2,
+      2,
+      1,
+      -8
+     ],
+     [
+      2,
+      0,
+      3,
+      2,
+      3,
+      0,
+      4
+     ],
+     [
+      2,
+      0,
+      3,
+      3,
+      0,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      3,
+      3,
+      1,
+      1,
+      -40
+     ],
+     [
+      2,
+      0,
+      3,
+      3,
+      2,
+      0,
+      4
+     ],
+     [
+      2,
+      0,
+      4,
+      0,
+      2,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      4,
+      1,
+      1,
+      2,
+      4
+     ],
+     [
+      2,
+      0,
+      4,
+      1,
+      2,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      4,
+      2,
+      0,
+      2,
+      6
+     ],
+     [
+      2,
+      0,
+      4,
+      2,
+      1,
+      1,
+      4
+     ],
+     [
+      2,
+      0,
+      4,
+      2,
+      2,
+      0,
+      6
+     ],
+     [
+      2,
+      1,
+      0,
+      0,
+      1,
+      4,
+      -8
+     ],
+     [
+      2,
+      1,
+      0,
+      0,
+      2,
+      3,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      0,
+      3,
+      2,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      0,
+      4,
+      1,
+      -8
+     ],
+     [
+      2,
+      1,
+      0,
+      1,
+      0,
+      4,
+      -8
+     ],
+     [
+      2,
+      1,
+      0,
+      1,
+      2,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      0,
+      1,
+      4,
+      0,
+      -8
+     ],
+     [
+      2,
+      1,
+      0,
+      2,
+      0,
+      3,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      2,
+      1,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      0,
+      2,
+      2,
+      1,
+      16
+     ],
+     [
+      2,
+      1,
+      0,
+      2,
+      3,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      3,
+      0,
+      2,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      3,
+      2,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      0,
+      4,
+      0,
+      1,
+      -8
+     ],
+     [
+      2,
+      1,
+      0,
+      4,
+      1,
+      0,
+      -8
+     ],
+     [
+      2,
+      1,
+      1,
+      0,
+      0,
+      4,
+      -8
+     ],
+     [
+      2,
+      1,
+      1,
+      0,
+      2,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      1,
+      0,
+      4,
+      0,
+      -8
+     ],
+     [
+      2,
+      1,
+      1,
+      1,
+      1,
+      2,
+      -48
+     ],
+     [
+      2,
+      1,
+      1,
+      1,
+      2,
+      1,
+      -48
+     ],
+     [
+      2,
+      1,
+      1,
+      2,
+      0,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      1,
+      2,
+      1,
+      1,
+      -48
+     ],
+     [
+      2,
+      1,
+      1,
+      2,
+      2,
+      0,
+      16
+     ],
+     [
+      2,
+      1,
+      1,
+      4,
+      0,
+      0,
+      -8
+     ],
+     [
+      2,
+      1,
+      2,
+      0,
+      0,
+      3,
+      8
+     ],
+     [
+      2,
+      1,
+      2,
+      0,
+      1,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      0,
+      2,
+      1,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      0,
+      3,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      2,
+      1,
+      0,
+      2,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      1,
+      1,
+      1,
+      -48
+     ],
+     [
+      2,
+      1,
+      2,
+      1,
+      2,
+      0,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      2,
+      0,
+      1,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      2,
+      1,
+      0,
+      16
+     ],
+     [
+      2,
+      1,
+      2,
+      3,
+      0,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      3,
+      0,
+      0,
+      2,
+      8
+     ],
+     [
+      2,
+      1,
+      3,
+      0,
+      2,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      3,
+      2,
+      0,
+      0,
+      8
+     ],
+     [
+      2,
+      1,
+      4,
+      0,
+      0,
+      1,
+      -8
+     ],
+     [
+      2,
+      1,
+      4,
+      0,
+      1,
+      0,
+      -8
+     ],
+     [
+      2,
+      1,
+      4,
+      1,
+      0,
+      0,
+      -8
+     ],
+     [
+      3,
+      0,
+      0,
+      1,
+      1,
+      4,
+      -4
+     ],
+     [
+      3,
+      0,
+      0,
+      1,
+      2,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      1,
+      3,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      1,
+      4,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      0,
+      2,
+      1,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      2,
+      2,
+      2,
+      24
+     ],
+     [
+      3,
+      0,
+      0,
+      2,
+      3,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      3,
+      1,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      3,
+      2,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      0,
+      4,
+      1,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      0,
+      1,
+      4,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      0,
+      2,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      0,
+      3,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      0,
+      4,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      1,
+      0,
+      4,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      1,
+      1,
+      3,
+      -24
+     ],
+     [
+      3,
+      0,
+      1,
+      1,
+      2,
+      2,
+      -8
+     ],
+     [
+      3,
+      0,
+      1,
+      1,
+      3,
+      1,
+      -24
+     ],
+     [
+      3,
+      0,
+      1,
+      1,
+      4,
+      0,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      2,
+      0,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      2,
+      1,
+      2,
+      -8
+     ],
+     [
+      3,
+      0,
+      1,
+      2,
+      2,
+      1,
+      -8
+     ],
+     [
+      3,
+      0,
+      1,
+      2,
+      3,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      3,
+      0,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      3,
+      1,
+      1,
+      -24
+     ],
+     [
+      3,
+      0,
+      1,
+      3,
+      2,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      1,
+      4,
+      0,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      1,
+      4,
+      1,
+      0,
+      -4
+     ],
+     [
+      3,
+      0,
+      2,
+      0,
+      1,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      2,
+      0,
+      2,
+      2,
+      24
+     ],
+     [
+      3,
+      0,
+      2,
+      0,
+      3,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      2,
+      1,
+      0,
+      3,
+      4
+     ],
+     [
+      3,
+      0,
+      2,
+      1,
+      1,
+      2,
+      -8
+     ],
+     [
+      3,
+      0,
+      2,
+      1,
+      2,
+      1,
+      -8
+     ],
+     [
+      3,
+      0,
+      2,
+      1,
+      3,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      2,
+      2,
+      0,
+      2,
+      24
+     ],
+     [
+      3,
+      0,
+      2,
+      2,
+      1,
+      1,
+      -8
+     ],
+     [
+      3,
+      0,
+      2,
+      2,
+      2,
+      0,
+      24
+     ],
+     [
+      3,
+      0,
+      2,
+      3,
+      0,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      2,
+      3,
+      1,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      0,
+      1,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      0,
+      2,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      1,
+      0,
+      2,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      1,
+      1,
+      1,
+      -24
+     ],
+     [
+      3,
+      0,
+      3,
+      1,
+      2,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      2,
+      0,
+      1,
+      4
+     ],
+     [
+      3,
+      0,
+      3,
+      2,
+      1,
+      0,
+      4
+     ],
+     [
+      3,
+      0,
+      4,
+      0,
+      1,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      4,
+      1,
+      0,
+      1,
+      -4
+     ],
+     [
+      3,
+      0,
+      4,
+      1,
+      1,
+      0,
+      -4
+     ],
+     [
+      3,
+      1,
+      0,
+      0,
+      0,
+      3,
+      -8
+     ],
+     [
+      3,
+      1,
+      0,
+      0,
+      1,
+      2,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      0,
+      2,
+      1,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      0,
+      3,
+      0,
+      -8
+     ],
+     [
+      3,
+      1,
+      0,
+      1,
+      0,
+      2,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      1,
+      1,
+      1,
+      -16
+     ],
+     [
+      3,
+      1,
+      0,
+      1,
+      2,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      2,
+      0,
+      1,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      2,
+      1,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      0,
+      3,
+      0,
+      0,
+      -8
+     ],
+     [
+      3,
+      1,
+      1,
+      0,
+      0,
+      2,
+      8
+     ],
+     [
+      3,
+      1,
+      1,
+      0,
+      1,
+      1,
+      -16
+     ],
+     [
+      3,
+      1,
+      1,
+      0,
+      2,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      1,
+      1,
+      0,
+      1,
+      -16
+     ],
+     [
+      3,
+      1,
+      1,
+      1,
+      1,
+      0,
+      -16
+     ],
+     [
+      3,
+      1,
+      1,
+      2,
+      0,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      2,
+      0,
+      0,
+      1,
+      8
+     ],
+     [
+      3,
+      1,
+      2,
+      0,
+      1,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      2,
+      1,
+      0,
+      0,
+      8
+     ],
+     [
+      3,
+      1,
+      3,
+      0,
+      0,
+      0,
+      -8
+     ],
+     [
+      4,
+      0,
+      0,
+      0,
+      0,
+      4,
+      1
+     ],
+     [
+      4,
+      0,
+      0,
+      0,
+      1,
+      3,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      0,
+      2,
+      2,
+      6
+     ],
+     [
+      4,
+      0,
+      0,
+      0,
+      3,
+      1,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      1
+     ],
+     [
+      4,
+      0,
+      0,
+      1,
+      0,
+      3,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      1,
+      1,
+      2,
+      4
+     ],
+     [
+      4,
+      0,
+      0,
+      1,
+      2,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      0,
+      1,
+      3,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      2,
+      0,
+      2,
+      6
+     ],
+     [
+      4,
+      0,
+      0,
+      2,
+      1,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      0,
+      2,
+      2,
+      0,
+      6
+     ],
+     [
+      4,
+      0,
+      0,
+      3,
+      0,
+      1,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      3,
+      1,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      0,
+      4,
+      0,
+      0,
+      1
+     ],
+     [
+      4,
+      0,
+      1,
+      0,
+      0,
+      3,
+      -4
+     ],
+     [
+      4,
+      0,
+      1,
+      0,
+      1,
+      2,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      0,
+      2,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      0,
+      3,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      1,
+      1,
+      0,
+      2,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      1,
+      1,
+      1,
+      -40
+     ],
+     [
+      4,
+      0,
+      1,
+      1,
+      2,
+      0,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      2,
+      0,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      2,
+      1,
+      0,
+      4
+     ],
+     [
+      4,
+      0,
+      1,
+      3,
+      0,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      2,
+      0,
+      0,
+      2,
+      6
+     ],
+     [
+      4,
+      0,
+      2,
+      0,
+      1,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      2,
+      0,
+      2,
+      0,
+      6
+     ],
+     [
+      4,
+      0,
+      2,
+      1,
+      0,
+      1,
+      4
+     ],
+     [
+      4,
+      0,
+      2,
+      1,
+      1,
+      0,
+      4
+     ],
+     [
+      4,
+      0,
+      2,
+      2,
+      0,
+      0,
+      6
+     ],
+     [
+      4,
+      0,
+      3,
+      0,
+      0,
+      1,
+      -4
+     ],
+     [
+      4,
+      0,
+      3,
+      0,
+      1,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      3,
+      1,
+      0,
+      0,
+      -4
+     ],
+     [
+      4,
+      0,
+      4,
+      0,
+      0,
+      0,
+      1
+     ]
+    ]
+   }
+  },
+  "s4_build_stdout.txt": {
+   "sha256_of_raw_file": "1a49b529d89837390ca292150e1bdf02589a83ca7f4985aa2a59c8b7f68afaa8",
+   "content": "PARI stack size set to 2000000000 bytes, maximum size set to 2000003072\n{\n \"S3\": \"a**2 - 2*a*x1*x2 - 2*a*x1*x3 - 2*a*x2*x3 - 4*b*x1 - 4*b*x2 - 4*b*x3 + x1**2*x2**2 - 2*x1**2*x2*x3 + x1**2*x3**2 - 2*x1*x2**2*x3 - 2*x1*x2*x3**2 + x2**2*x3**2\",\n \"S3_symmetric\": true,\n \"S3_deg_each\": [\n  2,\n  2,\n  2\n ],\n \"S4_num_terms\": 540,\n \"S4_deg_each_x\": [\n  4,\n  4,\n  4,\n  4\n ],\n \"S4_total_deg_in_x\": 12,\n \"S4_content_gcd\": 1,\n \"S4_sha256_of_term_list\": \"dcd2d3508a2bc9e0c398cd7985510363a9fb071f58194e4ce140e177e0ed8c67\",\n \"S4_symmetric_all_24_perms\": true,\n \"LC_x4_S4_equals_S3_x1x2x3_squared\": true,\n \"LC_x3_S3_equals_(x1-x2)^2\": true,\n \"routeB_minus_routeA\": \"0\",\n \"routeA_equals_routeB_exactly\": true,\n \"routeA_equals_minus_routeB\": false,\n \"pari_version\": \"(2, 15, 4)\",\n \"sympy_version\": \"1.14.0\",\n \"m3_product_formula_identity_mod_curve\": true\n}\n"
+  },
+  "t5_stdout.txt": {
+   "sha256_of_raw_file": "21a3dab60047a2eeb60c8b8add0232c0d4af383b515024a68df3226b575ee9e4",
+   "content": "[81, 40, 97, 54] lcA 52 sympy [90, 38, 100, 41, 25, 33, 86, 90, 70] pari-formal [90, 38, 100, 41, 25, 33, 86, 90, 70]\n[90, 97, 87, 71] lcA 68 sympy [0, 81, 22, 61, 63, 68, 53, 36, 6] pari-formal [0, 81, 22, 61, 63, 68, 53, 36, 6]\n[1, 62, 39, 87] lcA 1 sympy [36, 9, 65, 13, 94, 34, 70, 56, 79] pari-formal [36, 9, 65, 13, 94, 34, 70, 56, 79]\n"
+  },
+  "fb_checks_out.json": {
+   "sha256_of_raw_file": "c7ff9dc16257d5a913034a3b470fd0b2103048fd407f637ee697435795be5714",
+   "content": {
+    "versions": {
+     "python-flint": "0.9.0",
+     "pari": "(2, 15, 4)",
+     "cypari2": "2.2.0"
+    },
+    "curves": {
+     "C1": {
+      "p": 101,
+      "a": 94,
+      "b": 6,
+      "card_own": 96,
+      "card_pari": 96,
+      "n_affine_points": 95,
+      "n_rational_x": 49,
+      "two_torsion": [
+       [
+        1,
+        0
+       ],
+       [
+        2,
+        0
+       ],
+       [
+        98,
+        0
+       ]
+      ]
+     },
+     "C2": {
+      "p": 211,
+      "a": 3,
+      "b": 8,
+      "card_own": 204,
+      "card_pari": 204,
+      "n_affine_points": 203,
+      "n_rational_x": 102,
+      "two_torsion": [
+       [
+        46,
+        0
+       ]
+      ]
+     },
+     "C5": {
+      "p": 1009,
+      "a": 1002,
+      "b": 6,
+      "card_own": 1056,
+      "card_pari": 1056,
+      "n_affine_points": 1055,
+      "n_rational_x": 529,
+      "two_torsion": [
+       [
+        1,
+        0
+       ],
+       [
+        2,
+        0
+       ],
+       [
+        1006,
+        0
+       ]
+      ]
+     },
+     "C3": {
+      "p": 1009,
+      "a": 473,
+      "b": 415,
+      "card_own": 1005,
+      "card_pari": 1005,
+      "n_affine_points": 1004,
+      "n_rational_x": 502,
+      "two_torsion": []
+     },
+     "C4": {
+      "p": 1999,
+      "a": 1291,
+      "b": 1494,
+      "card_own": 2000,
+      "card_pari": 2000,
+      "n_affine_points": 1999,
+      "n_rational_x": 1000,
+      "two_torsion": [
+       [
+        997,
+        0
+       ]
+      ]
+     }
+    },
+    "C1_full_addition_table_vs_pari": {
+     "pairs": 9216,
+     "mismatches": 0
+    },
+    "C1_exhaustive_m3": {
+     "n": 2401,
+     "ok": 2401,
+     "generic_fibre(squarefree,full_degree)": 2070,
+     "full_degree_repeated_root": 282,
+     "degree_drop": 49,
+     "pari_cross_checked": 0
+    },
+    "C1_exhaustive_m3_failures": [],
+    "C1_exhaustive_m4": {
+     "n": 117649,
+     "ok": 117649,
+     "generic_fibre(squarefree,full_degree)": 71328,
+     "full_degree_repeated_root": 41853,
+     "degree_drop": 4468,
+     "pari_cross_checked": 0
+    },
+    "C1_exhaustive_m4_failures": [],
+    "C2_exhaustive_m3": {
+     "n": 10404,
+     "ok": 10404,
+     "generic_fibre(squarefree,full_degree)": 10100,
+     "full_degree_repeated_root": 202,
+     "degree_drop": 102,
+     "pari_cross_checked": 0
+    },
+    "C2_exhaustive_m3_failures": [],
+    "C2_exhaustive_m4_unordered": {
+     "n": 182104,
+     "ok": 182104,
+     "generic_fibre(squarefree,full_degree)": 158432,
+     "full_degree_repeated_root": 20204,
+     "degree_drop": 3468,
+     "pari_cross_checked": 0
+    },
+    "C2_exhaustive_m4_failures": [],
+    "time_after_exhaustive_s": 35.2,
+    "C3_random_FB_m3": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 100,
+     "full_degree_repeated_root": 0,
+     "degree_drop": 0,
+     "pari_cross_checked": 100
+    },
+    "C3_random_FB_m3_FB_size": 364,
+    "C3_random_FB_m3_failures": [],
+    "C3_random_FB_m4": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 96,
+     "full_degree_repeated_root": 3,
+     "degree_drop": 1,
+     "pari_cross_checked": 100
+    },
+    "C3_random_FB_m4_FB_size": 364,
+    "C3_random_FB_m4_failures": [],
+    "C3_random_FB_m4_first25_raw": [
+     {
+      "xs": [
+       122,
+       184,
+       1
+      ],
+      "f_coeffs_low_to_high": [
+       231,
+       532,
+       920,
+       404,
+       829
+      ],
+      "roots_flint": [
+       48,
+       179,
+       311,
+       832
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         179,
+         154
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         48,
+         911
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         832,
+         41
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         311,
+         863
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       150,
+       312,
+       223
+      ],
+      "f_coeffs_low_to_high": [
+       882,
+       883,
+       517,
+       751,
+       847
+      ],
+      "roots_flint": [
+       244,
+       318,
+       338,
+       369
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         318,
+         1000
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         338,
+         654
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         244,
+         860
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         369,
+         200
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       247,
+       215,
+       228
+      ],
+      "f_coeffs_low_to_high": [
+       872,
+       956,
+       324,
+       665,
+       649
+      ],
+      "roots_flint": [
+       370,
+       538,
+       558,
+       708
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         708,
+         845
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         558,
+         626
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         370,
+         832
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         538,
+         724
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       213,
+       8,
+       253
+      ],
+      "f_coeffs_low_to_high": [
+       139,
+       346,
+       320,
+       956,
+       502
+      ],
+      "roots_flint": [
+       83,
+       263,
+       459,
+       990
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         83,
+         45
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         263,
+         231
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         990,
+         210
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         459,
+         410
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       246,
+       278,
+       182
+      ],
+      "f_coeffs_low_to_high": [
+       232,
+       907,
+       917,
+       797,
+       42
+      ],
+      "roots_flint": [
+       80,
+       425,
+       535,
+       935
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         425,
+         547
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         935,
+         629
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         80,
+         902
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         535,
+         868
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       317,
+       274,
+       284
+      ],
+      "f_coeffs_low_to_high": [
+       928,
+       875,
+       917,
+       369,
+       600
+      ],
+      "roots_flint": [
+       146,
+       351,
+       493,
+       760
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         351,
+         956
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         146,
+         412
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         760,
+         625
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         493,
+         373
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       145,
+       190,
+       329
+      ],
+      "f_coeffs_low_to_high": [
+       40,
+       3,
+       47,
+       681,
+       191
+      ],
+      "roots_flint": [
+       238,
+       570,
+       591,
+       626
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         626,
+         56
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         238,
+         1007
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         591,
+         454
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         570,
+         441
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       321,
+       120,
+       264
+      ],
+      "f_coeffs_low_to_high": [
+       332,
+       484,
+       282,
+       122,
+       398
+      ],
+      "roots_flint": [
+       717,
+       803,
+       805,
+       940
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         805,
+         203
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         803,
+         1008
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         940,
+         689
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         717,
+         103
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       143,
+       324,
+       146
+      ],
+      "f_coeffs_low_to_high": [
+       465,
+       628,
+       20,
+       821,
+       682
+      ],
+      "roots_flint": [
+       169,
+       303,
+       493,
+       929
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         169,
+         707
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         493,
+         373
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         929,
+         312
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         303,
+         942
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       322,
+       202,
+       199
+      ],
+      "f_coeffs_low_to_high": [
+       27,
+       879,
+       111,
+       288,
+       168
+      ],
+      "roots_flint": [
+       112,
+       135,
+       144,
+       328
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         135,
+         863
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         328,
+         789
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         144,
+         437
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         112,
+         102
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       194,
+       172,
+       14
+      ],
+      "f_coeffs_low_to_high": [
+       397,
+       695,
+       21,
+       828,
+       112
+      ],
+      "roots_flint": [
+       132,
+       223,
+       395,
+       648
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         223,
+         599
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         395,
+         473
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         648,
+         725
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         132,
+         390
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       118,
+       272,
+       215
+      ],
+      "f_coeffs_low_to_high": [
+       864,
+       591,
+       731,
+       337,
+       525
+      ],
+      "roots_flint": [
+       351,
+       399,
+       421,
+       929
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         421,
+         742
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         399,
+         874
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         351,
+         956
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         929,
+         697
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       165,
+       264,
+       132
+      ],
+      "f_coeffs_low_to_high": [
+       957,
+       682,
+       223,
+       283,
+       433
+      ],
+      "roots_flint": [
+       572,
+       610,
+       786,
+       816
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         610,
+         605
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         816,
+         1007
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         786,
+         318
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         572,
+         259
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       317,
+       258,
+       129
+      ],
+      "f_coeffs_low_to_high": [
+       389,
+       910,
+       999,
+       192,
+       557
+      ],
+      "roots_flint": [
+       246,
+       432,
+       595,
+       799
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         799,
+         400
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         432,
+         375
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         595,
+         943
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         246,
+         114
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       83,
+       4,
+       143
+      ],
+      "f_coeffs_low_to_high": [
+       768,
+       748,
+       209,
+       454,
+       290
+      ],
+      "roots_flint": [
+       111,
+       367,
+       376,
+       731
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         376,
+         333
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         731,
+         819
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         367,
+         350
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         111,
+         208
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       172,
+       90,
+       332
+      ],
+      "f_coeffs_low_to_high": [
+       530,
+       947,
+       818,
+       397,
+       127
+      ],
+      "roots_flint": [
+       20,
+       174,
+       416,
+       666
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         416,
+         51
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         174,
+         584
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         20,
+         269
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         666,
+         248
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       144,
+       52,
+       3
+      ],
+      "f_coeffs_low_to_high": [
+       393,
+       269,
+       785,
+       496,
+       5
+      ],
+      "roots_flint": [
+       165,
+       365,
+       582,
+       605
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         582,
+         236
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         165,
+         576
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         365,
+         355
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         605,
+         824
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       151,
+       132,
+       315
+      ],
+      "f_coeffs_low_to_high": [
+       218,
+       686,
+       718,
+       463,
+       904
+      ],
+      "roots_flint": [
+       202,
+       378,
+       492,
+       739
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         378,
+         45
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         739,
+         659
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         492,
+         332
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         202,
+         84
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       20,
+       22,
+       1
+      ],
+      "f_coeffs_low_to_high": [
+       439,
+       570,
+       62,
+       135,
+       226
+      ],
+      "roots_flint": [
+       129,
+       329,
+       435,
+       986
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         986,
+         985
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         129,
+         140
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         329,
+         992
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         435,
+         954
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       104,
+       303,
+       314
+      ],
+      "f_coeffs_low_to_high": [
+       620,
+       272,
+       540,
+       321,
+       646
+      ],
+      "roots_flint": [
+       148,
+       152,
+       902,
+       992
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         992,
+         400
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         148,
+         623
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         902,
+         106
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         152,
+         637
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       1,
+       92,
+       135
+      ],
+      "f_coeffs_low_to_high": [
+       867,
+       78,
+       855,
+       286,
+       294
+      ],
+      "roots_flint": [
+       79,
+       555,
+       796,
+       992
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         992,
+         400
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         796,
+         85
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         555,
+         744
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         79,
+         240
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       271,
+       18,
+       17
+      ],
+      "f_coeffs_low_to_high": [
+       787,
+       148,
+       141,
+       665,
+       473
+      ],
+      "roots_flint": [
+       117,
+       511,
+       521,
+       778
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         511,
+         356
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         778,
+         52
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         117,
+         40
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         521,
+         780
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       91,
+       33,
+       92
+      ],
+      "f_coeffs_low_to_high": [
+       639,
+       502,
+       636,
+       757,
+       768
+      ],
+      "roots_flint": [
+       146,
+       648,
+       763,
+       887
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         146,
+         597
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         763,
+         250
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         648,
+         284
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         887,
+         669
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       321,
+       91,
+       280
+      ],
+      "f_coeffs_low_to_high": [
+       996,
+       526,
+       484,
+       833,
+       410
+      ],
+      "roots_flint": [
+       280,
+       581,
+       696,
+       993
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         581,
+         175
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         280,
+         736
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         696,
+         385
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         993,
+         615
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       274,
+       335,
+       282
+      ],
+      "f_coeffs_low_to_high": [
+       799,
+       609,
+       42,
+       298,
+       391
+      ],
+      "roots_flint": [
+       273,
+       634,
+       682,
+       805
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         634,
+         984
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         682,
+         691
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         273,
+         991
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         805,
+         806
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     }
+    ],
+    "C3_random_FB_m5": {
+     "n": 25,
+     "ok": 25,
+     "generic_fibre(squarefree,full_degree)": 21,
+     "full_degree_repeated_root": 3,
+     "degree_drop": 1,
+     "pari_cross_checked": 25
+    },
+    "C3_random_FB_m5_FB_size": 364,
+    "C3_random_FB_m5_failures": [],
+    "C4_random_FB_m3": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 100,
+     "full_degree_repeated_root": 0,
+     "degree_drop": 0,
+     "pari_cross_checked": 100
+    },
+    "C4_random_FB_m3_FB_size": 674,
+    "C4_random_FB_m3_failures": [],
+    "C4_random_FB_m4": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 96,
+     "full_degree_repeated_root": 4,
+     "degree_drop": 0,
+     "pari_cross_checked": 100
+    },
+    "C4_random_FB_m4_FB_size": 674,
+    "C4_random_FB_m4_failures": [],
+    "C4_random_FB_m4_first25_raw": [
+     {
+      "xs": [
+       97,
+       119,
+       146
+      ],
+      "f_coeffs_low_to_high": [
+       1865,
+       443,
+       551,
+       1517,
+       808
+      ],
+      "roots_flint": [
+       357,
+       879,
+       925,
+       1704
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         879,
+         6
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         357,
+         539
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1704,
+         106
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         925,
+         652
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       154,
+       439,
+       257
+      ],
+      "f_coeffs_low_to_high": [
+       554,
+       879,
+       159,
+       95,
+       986
+      ],
+      "roots_flint": [
+       476,
+       623,
+       1293,
+       1539
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1293,
+         1607
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1539,
+         1685
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         623,
+         1441
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         476,
+         665
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       621,
+       258,
+       172
+      ],
+      "f_coeffs_low_to_high": [
+       1218,
+       1813,
+       1711,
+       1640,
+       500
+      ],
+      "roots_flint": [
+       1066,
+       1327,
+       1504,
+       1537
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1537,
+         307
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1504,
+         1990
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1066,
+         1575
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1327,
+         235
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       612,
+       20,
+       622
+      ],
+      "f_coeffs_low_to_high": [
+       1521,
+       1820,
+       1604,
+       67,
+       1557
+      ],
+      "roots_flint": [
+       361,
+       610,
+       962,
+       1735
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         962,
+         1591
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1735,
+         549
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         610,
+         1625
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         361,
+         1068
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       296,
+       504,
+       421
+      ],
+      "f_coeffs_low_to_high": [
+       1730,
+       1282,
+       1931,
+       1085,
+       900
+      ],
+      "roots_flint": [
+       1293,
+       1345,
+       1523,
+       1646
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1646,
+         1635
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1345,
+         350
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1293,
+         1607
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1523,
+         1788
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       138,
+       584,
+       125
+      ],
+      "f_coeffs_low_to_high": [
+       935,
+       788,
+       118,
+       1662,
+       333
+      ],
+      "roots_flint": [
+       570,
+       825,
+       1235,
+       1345
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         570,
+         774
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1235,
+         43
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         825,
+         1662
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1345,
+         1649
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       79,
+       606,
+       453
+      ],
+      "f_coeffs_low_to_high": [
+       796,
+       1428,
+       762,
+       1845,
+       1723
+      ],
+      "roots_flint": [
+       173,
+       173,
+       764,
+       1830
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         173,
+         972
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         764,
+         661
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1830,
+         961
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         173,
+         972
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       492,
+       620,
+       104
+      ],
+      "f_coeffs_low_to_high": [
+       1043,
+       660,
+       69,
+       1232,
+       727
+      ],
+      "roots_flint": [
+       623,
+       633,
+       1530,
+       1653
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         623,
+         1441
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1530,
+         269
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1653,
+         1501
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         633,
+         500
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       555,
+       79,
+       43
+      ],
+      "f_coeffs_low_to_high": [
+       968,
+       817,
+       1039,
+       1684,
+       1987
+      ],
+      "roots_flint": [
+       175,
+       201,
+       1389,
+       1707
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1389,
+         1928
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         201,
+         1923
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         175,
+         1461
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1707,
+         1733
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       185,
+       665,
+       479
+      ],
+      "f_coeffs_low_to_high": [
+       1384,
+       1061,
+       330,
+       1376,
+       242
+      ],
+      "roots_flint": [
+       730,
+       1082,
+       1146,
+       1183
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1082,
+         531
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1146,
+         1930
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1183,
+         1490
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         730,
+         1437
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       321,
+       208,
+       528
+      ],
+      "f_coeffs_low_to_high": [
+       590,
+       393,
+       1335,
+       919,
+       104
+      ],
+      "roots_flint": [
+       919,
+       941,
+       1195,
+       1876
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1195,
+         1322
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1876,
+         202
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         941,
+         1398
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         919,
+         1282
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       636,
+       202,
+       303
+      ],
+      "f_coeffs_low_to_high": [
+       776,
+       381,
+       1144,
+       1921,
+       938
+      ],
+      "roots_flint": [
+       75,
+       247,
+       773,
+       1049
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         75,
+         548
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1049,
+         1976
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         247,
+         1246
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         773,
+         170
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       639,
+       91,
+       571
+      ],
+      "f_coeffs_low_to_high": [
+       1091,
+       1563,
+       1832,
+       200,
+       679
+      ],
+      "roots_flint": [
+       836,
+       877,
+       983,
+       1181
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         983,
+         724
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         877,
+         1036
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1181,
+         397
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         836,
+         1449
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       280,
+       528,
+       528
+      ],
+      "f_coeffs_low_to_high": [
+       1620,
+       1755,
+       579,
+       2,
+       578
+      ],
+      "roots_flint": [
+       280,
+       280,
+       557,
+       965
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         557,
+         1742
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         280,
+         1872
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         280,
+         1872
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         965,
+         172
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       185,
+       296,
+       296
+      ],
+      "f_coeffs_low_to_high": [
+       886,
+       135,
+       1885,
+       382,
+       204
+      ],
+      "roots_flint": [
+       185,
+       185,
+       940,
+       1961
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1961,
+         357
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         185,
+         106
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         185,
+         106
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         940,
+         863
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       342,
+       432,
+       191
+      ],
+      "f_coeffs_low_to_high": [
+       1828,
+       1019,
+       1067,
+       1717,
+       1244
+      ],
+      "roots_flint": [
+       303,
+       849,
+       1210,
+       1723
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1210,
+         140
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         849,
+         1061
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1723,
+         1037
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         303,
+         1168
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       653,
+       327,
+       161
+      ],
+      "f_coeffs_low_to_high": [
+       875,
+       881,
+       482,
+       802,
+       1697
+      ],
+      "roots_flint": [
+       38,
+       162,
+       830,
+       1435
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         38,
+         1518
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1435,
+         1740
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         830,
+         258
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         162,
+         585
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       314,
+       234,
+       158
+      ],
+      "f_coeffs_low_to_high": [
+       1018,
+       1970,
+       1709,
+       888,
+       1135
+      ],
+      "roots_flint": [
+       408,
+       1255,
+       1390,
+       1890
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1390,
+         946
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         408,
+         711
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1255,
+         343
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1890,
+         1675
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       395,
+       168,
+       390
+      ],
+      "f_coeffs_low_to_high": [
+       543,
+       1660,
+       1160,
+       36,
+       1196
+      ],
+      "roots_flint": [
+       581,
+       746,
+       1267,
+       1297
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1297,
+         556
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         746,
+         1693
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1267,
+         988
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         581,
+         1569
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       561,
+       632,
+       81
+      ],
+      "f_coeffs_low_to_high": [
+       410,
+       909,
+       541,
+       53,
+       845
+      ],
+      "roots_flint": [
+       346,
+       365,
+       763,
+       1334
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1334,
+         319
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         346,
+         850
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         763,
+         1609
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         365,
+         1414
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       397,
+       301,
+       218
+      ],
+      "f_coeffs_low_to_high": [
+       443,
+       1233,
+       952,
+       1772,
+       265
+      ],
+      "roots_flint": [
+       573,
+       1045,
+       1218,
+       1970
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1045,
+         874
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         573,
+         168
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1218,
+         1135
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1970,
+         894
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       148,
+       645,
+       381
+      ],
+      "f_coeffs_low_to_high": [
+       1682,
+       1655,
+       366,
+       530,
+       1114
+      ],
+      "roots_flint": [
+       557,
+       783,
+       1082,
+       1938
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1082,
+         531
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1938,
+         1859
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         557,
+         257
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         783,
+         1597
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       465,
+       364,
+       381
+      ],
+      "f_coeffs_low_to_high": [
+       358,
+       1972,
+       238,
+       1017,
+       651
+      ],
+      "roots_flint": [
+       991,
+       1198,
+       1283,
+       1418
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         1283,
+         1484
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         991,
+         1449
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1418,
+         382
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1198,
+         1216
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       255,
+       94,
+       330
+      ],
+      "f_coeffs_low_to_high": [
+       1800,
+       432,
+       830,
+       110,
+       821
+      ],
+      "roots_flint": [
+       306,
+       1008,
+       1292,
+       1555
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         306,
+         397
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1292,
+         839
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         1008,
+         1309
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1555,
+         621
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     },
+     {
+      "xs": [
+       517,
+       361,
+       167
+      ],
+      "f_coeffs_low_to_high": [
+       1025,
+       1078,
+       254,
+       1952,
+       142
+      ],
+      "roots_flint": [
+       30,
+       634,
+       1028,
+       1701
+      ],
+      "sign_sums": [
+       [
+        [
+         1,
+         1,
+         1
+        ],
+        [
+         30,
+         1052
+        ]
+       ],
+       [
+        [
+         1,
+         1,
+         -1
+        ],
+        [
+         1028,
+         1567
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         1
+        ],
+        [
+         634,
+         913
+        ]
+       ],
+       [
+        [
+         1,
+         -1,
+         -1
+        ],
+        [
+         1701,
+         223
+        ]
+       ]
+      ],
+      "ok": true,
+      "pari_factor_agrees": true
+     }
+    ],
+    "C4_random_FB_m5": {
+     "n": 25,
+     "ok": 25,
+     "generic_fibre(squarefree,full_degree)": 23,
+     "full_degree_repeated_root": 1,
+     "degree_drop": 1,
+     "pari_cross_checked": 25
+    },
+    "C4_random_FB_m5_FB_size": 674,
+    "C4_random_FB_m5_failures": [],
+    "C2_random_FB_m3": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 92,
+     "full_degree_repeated_root": 4,
+     "degree_drop": 4,
+     "pari_cross_checked": 100
+    },
+    "C2_random_FB_m3_FB_size": 67,
+    "C2_random_FB_m3_failures": [],
+    "C2_random_FB_m4": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 85,
+     "full_degree_repeated_root": 14,
+     "degree_drop": 1,
+     "pari_cross_checked": 100
+    },
+    "C2_random_FB_m4_FB_size": 67,
+    "C2_random_FB_m4_failures": [],
+    "C2_random_FB_m5": {
+     "n": 25,
+     "ok": 25,
+     "generic_fibre(squarefree,full_degree)": 8,
+     "full_degree_repeated_root": 14,
+     "degree_drop": 3,
+     "pari_cross_checked": 25
+    },
+    "C2_random_FB_m5_FB_size": 67,
+    "C2_random_FB_m5_failures": [],
+    "C5_random_FB_m3": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 96,
+     "full_degree_repeated_root": 2,
+     "degree_drop": 2,
+     "pari_cross_checked": 100
+    },
+    "C5_random_FB_m3_FB_size": 330,
+    "C5_random_FB_m3_failures": [],
+    "C5_random_FB_m4": {
+     "n": 100,
+     "ok": 100,
+     "generic_fibre(squarefree,full_degree)": 90,
+     "full_degree_repeated_root": 10,
+     "degree_drop": 0,
+     "pari_cross_checked": 100
+    },
+    "C5_random_FB_m4_FB_size": 330,
+    "C5_random_FB_m4_failures": [],
+    "C5_random_FB_m5": {
+     "n": 25,
+     "ok": 25,
+     "generic_fibre(squarefree,full_degree)": 22,
+     "full_degree_repeated_root": 3,
+     "degree_drop": 0,
+     "pari_cross_checked": 25
+    },
+    "C5_random_FB_m5_FB_size": 330,
+    "C5_random_FB_m5_failures": [],
+    "elapsed_s": 35.5
+   }
+  },
+  "fb_checks_stdout.txt": {
+   "sha256_of_raw_file": "f22f6d8ace1101b5338f6ec88d19b4c9998c1524b5c0f6505ea337acd822c079",
+   "content": "{\n \"versions\": {\n  \"python-flint\": \"0.9.0\",\n  \"pari\": \"(2, 15, 4)\",\n  \"cypari2\": \"2.2.0\"\n },\n \"curves\": {\n  \"C1\": {\n   \"p\": 101,\n   \"a\": 94,\n   \"b\": 6,\n   \"card_own\": 96,\n   \"card_pari\": 96,\n   \"n_affine_points\": 95,\n   \"n_rational_x\": 49,\n   \"two_torsion\": [\n    [\n     1,\n     0\n    ],\n    [\n     2,\n     0\n    ],\n    [\n     98,\n     0\n    ]\n   ]\n  },\n  \"C2\": {\n   \"p\": 211,\n   \"a\": 3,\n   \"b\": 8,\n   \"card_own\": 204,\n   \"card_pari\": 204,\n   \"n_affine_points\": 203,\n   \"n_rational_x\": 102,\n   \"two_torsion\": [\n    [\n     46,\n     0\n    ]\n   ]\n  },\n  \"C5\": {\n   \"p\": 1009,\n   \"a\": 1002,\n   \"b\": 6,\n   \"card_own\": 1056,\n   \"card_pari\": 1056,\n   \"n_affine_points\": 1055,\n   \"n_rational_x\": 529,\n   \"two_torsion\": [\n    [\n     1,\n     0\n    ],\n    [\n     2,\n     0\n    ],\n    [\n     1006,\n     0\n    ]\n   ]\n  },\n  \"C3\": {\n   \"p\": 1009,\n   \"a\": 473,\n   \"b\": 415,\n   \"card_own\": 1005,\n   \"card_pari\": 1005,\n   \"n_affine_points\": 1004,\n   \"n_rational_x\": 502,\n   \"two_torsion\": []\n  },\n  \"C4\": {\n   \"p\": 1999,\n   \"a\": 1291,\n   \"b\": 1494,\n   \"card_own\": 2000,\n   \"card_pari\": 2000,\n   \"n_affine_points\": 1999,\n   \"n_rational_x\": 1000,\n   \"two_torsion\": [\n    [\n     997,\n     0\n    ]\n   ]\n  }\n },\n \"C1_full_addition_table_vs_pari\": {\n  \"pairs\": 9216,\n  \"mismatches\": 0\n },\n \"C1_exhaustive_m3\": {\n  \"n\": 2401,\n  \"ok\": 2401,\n  \"generic_fibre(squarefree,full_degree)\": 2070,\n  \"full_degree_repeated_root\": 282,\n  \"degree_drop\": 49,\n  \"pari_cross_checked\": 0\n },\n \"C1_exhaustive_m4\": {\n  \"n\": 117649,\n  \"ok\": 117649,\n  \"generic_fibre(squarefree,full_degree)\": 71328,\n  \"full_degree_repeated_root\": 41853,\n  \"degree_drop\": 4468,\n  \"pari_cross_checked\": 0\n },\n \"C2_exhaustive_m3\": {\n  \"n\": 10404,\n  \"ok\": 10404,\n  \"generic_fibre(squarefree,full_degree)\": 10100,\n  \"full_degree_repeated_root\": 202,\n  \"degree_drop\": 102,\n  \"pari_cross_checked\": 0\n },\n \"C2_exhaustive_m4_unordered\": {\n  \"n\": 182104,\n  \"ok\": 182104,\n  \"generic_fibre(squarefree,full_degree)\": 158432,\n  \"full_degree_repeated_root\": 20204,\n  \"degree_drop\": 3468,\n  \"pari_cross_checked\": 0\n },\n \"time_after_exhaustive_s\": 35.2,\n \"C3_random_FB_m3\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 100,\n  \"full_degree_repeated_root\": 0,\n  \"degree_drop\": 0,\n  \"pari_cross_checked\": 100\n },\n \"C3_random_FB_m3_FB_size\": 364,\n \"C3_random_FB_m4\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 96,\n  \"full_degree_repeated_root\": 3,\n  \"degree_drop\": 1,\n  \"pari_cross_checked\": 100\n },\n \"C3_random_FB_m4_FB_size\": 364,\n \"C3_random_FB_m5\": {\n  \"n\": 25,\n  \"ok\": 25,\n  \"generic_fibre(squarefree,full_degree)\": 21,\n  \"full_degree_repeated_root\": 3,\n  \"degree_drop\": 1,\n  \"pari_cross_checked\": 25\n },\n \"C3_random_FB_m5_FB_size\": 364,\n \"C4_random_FB_m3\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 100,\n  \"full_degree_repeated_root\": 0,\n  \"degree_drop\": 0,\n  \"pari_cross_checked\": 100\n },\n \"C4_random_FB_m3_FB_size\": 674,\n \"C4_random_FB_m4\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 96,\n  \"full_degree_repeated_root\": 4,\n  \"degree_drop\": 0,\n  \"pari_cross_checked\": 100\n },\n \"C4_random_FB_m4_FB_size\": 674,\n \"C4_random_FB_m5\": {\n  \"n\": 25,\n  \"ok\": 25,\n  \"generic_fibre(squarefree,full_degree)\": 23,\n  \"full_degree_repeated_root\": 1,\n  \"degree_drop\": 1,\n  \"pari_cross_checked\": 25\n },\n \"C4_random_FB_m5_FB_size\": 674,\n \"C2_random_FB_m3\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 92,\n  \"full_degree_repeated_root\": 4,\n  \"degree_drop\": 4,\n  \"pari_cross_checked\": 100\n },\n \"C2_random_FB_m3_FB_size\": 67,\n \"C2_random_FB_m4\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 85,\n  \"full_degree_repeated_root\": 14,\n  \"degree_drop\": 1,\n  \"pari_cross_checked\": 100\n },\n \"C2_random_FB_m4_FB_size\": 67,\n \"C2_random_FB_m5\": {\n  \"n\": 25,\n  \"ok\": 25,\n  \"generic_fibre(squarefree,full_degree)\": 8,\n  \"full_degree_repeated_root\": 14,\n  \"degree_drop\": 3,\n  \"pari_cross_checked\": 25\n },\n \"C2_random_FB_m5_FB_size\": 67,\n \"C5_random_FB_m3\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 96,\n  \"full_degree_repeated_root\": 2,\n  \"degree_drop\": 2,\n  \"pari_cross_checked\": 100\n },\n \"C5_random_FB_m3_FB_size\": 330,\n \"C5_random_FB_m4\": {\n  \"n\": 100,\n  \"ok\": 100,\n  \"generic_fibre(squarefree,full_degree)\": 90,\n  \"full_degree_repeated_root\": 10,\n  \"degree_drop\": 0,\n  \"pari_cross_checked\": 100\n },\n \"C5_random_FB_m4_FB_size\": 330,\n \"C5_random_FB_m5\": {\n  \"n\": 25,\n  \"ok\": 25,\n  \"generic_fibre(squarefree,full_degree)\": 22,\n  \"full_degree_repeated_root\": 3,\n  \"degree_drop\": 0,\n  \"pari_cross_checked\": 25\n },\n \"C5_random_FB_m5_FB_size\": 330,\n \"elapsed_s\": 35.5\n}\nfailures: {'C1_exhaustive_m3_failures': 0, 'C1_exhaustive_m4_failures': 0, 'C2_exhaustive_m3_failures': 0, 'C2_exhaustive_m4_failures': 0, 'C3_random_FB_m3_failures': 0, 'C3_random_FB_m4_failures': 0, 'C3_random_FB_m5_failures': 0, 'C4_random_FB_m3_failures': 0, 'C4_random_FB_m4_failures': 0, 'C4_random_FB_m5_failures': 0, 'C2_random_FB_m3_failures': 0, 'C2_random_FB_m4_failures': 0, 'C2_random_FB_m5_failures': 0, 'C5_random_FB_m3_failures': 0, 'C5_random_FB_m4_failures': 0, 'C5_random_FB_m5_failures': 0}\n"
+  },
+  "degeneracies_out.json": {
+   "sha256_of_raw_file": "a702e9270dd57a93d633f695f341519a094e048d840552b499548e912fe72bc5",
+   "content": {
+    "C1": {
+     "curve": {
+      "p": 101,
+      "a": 94,
+      "b": 6
+     },
+     "two_torsion": [
+      [
+       1,
+       0
+      ],
+      [
+       2,
+       0
+      ],
+      [
+       98,
+       0
+      ]
+     ],
+     "generic_points_used": [
+      [
+       76,
+       98
+      ],
+      [
+       81,
+       23
+      ],
+      [
+       89,
+       68
+      ]
+     ],
+     "instances": {
+      "m3_x1_eq_x2 (P2 = +/-P1)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         98
+        ]
+       ],
+       "xs": [
+        76,
+        76
+       ],
+       "deg_f": 1,
+       "f_coeffs_low_to_high": [
+        58,
+        65
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        97
+       ],
+       "factor_degrees": [
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_P1_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         81,
+         23
+        ]
+       ],
+       "xs": [
+        1,
+        81
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        19,
+        61,
+        37
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        6,
+        6
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_both_2torsion_distinct": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         2,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        2
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        9,
+        6,
+        1
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        98,
+        98
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_x1_eq_x2_eq_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        1
+       ],
+       "deg_f": 0,
+       "f_coeffs_low_to_high": [
+        16
+       ],
+       "n_sign_classes_equal_O": 2,
+       "roots_with_multiplicity": [],
+       "factor_degrees": [],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P2_eq_P1 (x1 = x2)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         98
+        ],
+        [
+         89,
+         68
+        ]
+       ],
+       "xs": [
+        76,
+        76,
+        89
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        95,
+        94,
+        100,
+        68,
+        23
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        21,
+        22,
+        89,
+        89
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P2_eq_minusP1 (same x-tuple as above)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         3
+        ],
+        [
+         89,
+         68
+        ]
+       ],
+       "xs": [
+        76,
+        76,
+        89
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        95,
+        94,
+        100,
+        68,
+        23
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        21,
+        22,
+        89,
+        89
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P1_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         81,
+         23
+        ],
+        [
+         89,
+         68
+        ]
+       ],
+       "xs": [
+        1,
+        81,
+        89
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        82,
+        61,
+        10,
+        92,
+        52
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        6,
+        6,
+        98,
+        98
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_coincident_sum P1+P2 = T1 (2-torsion), P3 generic": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         40,
+         55
+        ],
+        [
+         89,
+         68
+        ]
+       ],
+       "xs": [
+        76,
+        40,
+        89
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        56,
+        96,
+        13,
+        73,
+        85
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        21,
+        79,
+        79,
+        97
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_coincident_sum x2 = x3 (P3 = P2)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         81,
+         23
+        ],
+        [
+         81,
+         23
+        ]
+       ],
+       "xs": [
+        76,
+        81,
+        81
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        49,
+        5,
+        12,
+        48,
+        84
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        62,
+        74,
+        76,
+        76
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_signed_sum_is_O: P3 = -(P1+P2)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         81,
+         23
+        ],
+        [
+         68,
+         16
+        ]
+       ],
+       "xs": [
+        76,
+        81,
+        68
+       ],
+       "deg_f": 3,
+       "f_coeffs_low_to_high": [
+        91,
+        26,
+        25,
+        96
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        21,
+        89,
+        97
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_two_signed_sums_O: P1+P2 = T1, P3 = T1": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         40,
+         55
+        ],
+        [
+         1,
+         0
+        ]
+       ],
+       "xs": [
+        76,
+        40,
+        1
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        5,
+        53,
+        95
+       ],
+       "n_sign_classes_equal_O": 2,
+       "roots_with_multiplicity": [
+        97,
+        97
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_all_four_signed_sums_O: P1,P2,P3 = the three 2-torsion points": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         2,
+         0
+        ],
+        [
+         98,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        2,
+        98
+       ],
+       "deg_f": 0,
+       "f_coeffs_low_to_high": [
+        16
+       ],
+       "n_sign_classes_equal_O": 4,
+       "roots_with_multiplicity": [],
+       "factor_degrees": [],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2=x3 (P1=P2=P3)": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         98
+        ]
+       ],
+       "xs": [
+        76,
+        76,
+        76
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        5,
+        24,
+        40,
+        76,
+        78
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        30,
+        76,
+        76,
+        76
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2, P3 = 2P1": {
+       "points": [
+        [
+         76,
+         98
+        ],
+        [
+         76,
+         98
+        ],
+        [
+         97,
+         77
+        ]
+       ],
+       "xs": [
+        76,
+        76,
+        97
+       ],
+       "deg_f": 3,
+       "f_coeffs_low_to_high": [
+        30,
+        99,
+        6,
+        81
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        79,
+        97,
+        97
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2=2torsion, P3 generic": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         0
+        ],
+        [
+         89,
+         68
+        ]
+       ],
+       "xs": [
+        1,
+        1,
+        89
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        58,
+        53,
+        95,
+        67,
+        54
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        89,
+        89,
+        89,
+        89
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      }
+     }
+    },
+    "C5": {
+     "curve": {
+      "p": 1009,
+      "a": 1002,
+      "b": 6
+     },
+     "two_torsion": [
+      [
+       1,
+       0
+      ],
+      [
+       2,
+       0
+      ],
+      [
+       1006,
+       0
+      ]
+     ],
+     "generic_points_used": [
+      [
+       912,
+       279
+      ],
+      [
+       427,
+       769
+      ],
+      [
+       318,
+       989
+      ]
+     ],
+     "instances": {
+      "m3_x1_eq_x2 (P2 = +/-P1)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         279
+        ]
+       ],
+       "xs": [
+        912,
+        912
+       ],
+       "deg_f": 1,
+       "f_coeffs_low_to_high": [
+        846,
+        417
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        223
+       ],
+       "factor_degrees": [
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_P1_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         427,
+         769
+        ]
+       ],
+       "xs": [
+        1,
+        427
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        500,
+        669,
+        865
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        181,
+        181
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_both_2torsion_distinct": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         2,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        2
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        9,
+        6,
+        1
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        1006,
+        1006
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m3_x1_eq_x2_eq_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        1
+       ],
+       "deg_f": 0,
+       "f_coeffs_low_to_high": [
+        16
+       ],
+       "n_sign_classes_equal_O": 2,
+       "roots_with_multiplicity": [],
+       "factor_degrees": [],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P2_eq_P1 (x1 = x2)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         279
+        ],
+        [
+         318,
+         989
+        ]
+       ],
+       "xs": [
+        912,
+        912,
+        318
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        762,
+        724,
+        455,
+        765,
+        75
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        318,
+        318,
+        513,
+        657
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P2_eq_minusP1 (same x-tuple as above)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         730
+        ],
+        [
+         318,
+         989
+        ]
+       ],
+       "xs": [
+        912,
+        912,
+        318
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        762,
+        724,
+        455,
+        765,
+        75
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        318,
+        318,
+        513,
+        657
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_P1_2torsion": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         427,
+         769
+        ],
+        [
+         318,
+         989
+        ]
+       ],
+       "xs": [
+        1,
+        427,
+        318
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        518,
+        985,
+        351,
+        557,
+        374
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        506,
+        506,
+        509,
+        509
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_coincident_sum P1+P2 = T1 (2-torsion), P3 generic": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         104,
+         376
+        ],
+        [
+         318,
+         989
+        ]
+       ],
+       "xs": [
+        912,
+        104,
+        318
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        940,
+        422,
+        354,
+        249,
+        939
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        36,
+        36,
+        135,
+        647
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_coincident_sum x2 = x3 (P3 = P2)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         427,
+         769
+        ],
+        [
+         427,
+         769
+        ]
+       ],
+       "xs": [
+        912,
+        427,
+        427
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        549,
+        873,
+        9,
+        489,
+        70
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        138,
+        640,
+        912,
+        912
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_signed_sum_is_O: P3 = -(P1+P2)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         427,
+         769
+        ],
+        [
+         253,
+         976
+        ]
+       ],
+       "xs": [
+        912,
+        427,
+        253
+       ],
+       "deg_f": 3,
+       "f_coeffs_low_to_high": [
+        512,
+        637,
+        250,
+        922
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        223,
+        488,
+        672
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_two_signed_sums_O: P1+P2 = T1, P3 = T1": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         104,
+         376
+        ],
+        [
+         1,
+         0
+        ]
+       ],
+       "xs": [
+        912,
+        104,
+        1
+       ],
+       "deg_f": 2,
+       "f_coeffs_low_to_high": [
+        56,
+        642,
+        813
+       ],
+       "n_sign_classes_equal_O": 2,
+       "roots_with_multiplicity": [
+        223,
+        223
+       ],
+       "factor_degrees": [
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_all_four_signed_sums_O: P1,P2,P3 = the three 2-torsion points": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         2,
+         0
+        ],
+        [
+         1006,
+         0
+        ]
+       ],
+       "xs": [
+        1,
+        2,
+        1006
+       ],
+       "deg_f": 0,
+       "f_coeffs_low_to_high": [
+        578
+       ],
+       "n_sign_classes_equal_O": 4,
+       "roots_with_multiplicity": [],
+       "factor_degrees": [],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": true,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2=x3 (P1=P2=P3)": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         279
+        ]
+       ],
+       "xs": [
+        912,
+        912,
+        912
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        443,
+        988,
+        124,
+        91,
+        946
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        853,
+        912,
+        912,
+        912
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2, P3 = 2P1": {
+       "points": [
+        [
+         912,
+         279
+        ],
+        [
+         912,
+         279
+        ],
+        [
+         223,
+         101
+        ]
+       ],
+       "xs": [
+        912,
+        912,
+        223
+       ],
+       "deg_f": 3,
+       "f_coeffs_low_to_high": [
+        484,
+        375,
+        192,
+        955
+       ],
+       "n_sign_classes_equal_O": 1,
+       "roots_with_multiplicity": [
+        6,
+        223,
+        223
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": false,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      },
+      "m4_x1=x2=2torsion, P3 generic": {
+       "points": [
+        [
+         1,
+         0
+        ],
+        [
+         1,
+         0
+        ],
+        [
+         318,
+         989
+        ]
+       ],
+       "xs": [
+        1,
+        1,
+        318
+       ],
+       "deg_f": 4,
+       "f_coeffs_low_to_high": [
+        486,
+        51,
+        1004,
+        275,
+        256
+       ],
+       "n_sign_classes_equal_O": 0,
+       "roots_with_multiplicity": [
+        318,
+        318,
+        318,
+        318
+       ],
+       "factor_degrees": [
+        1,
+        1,
+        1,
+        1
+       ],
+       "splits_completely": true,
+       "root_multiset_equals_signsum_multiset": true,
+       "deg_equals_2^(m-2)_minus_nO": true,
+       "exact_identity_f_eq_lc_prod": true,
+       "pari_factor_agrees": true,
+       "squarefree": false,
+       "full_degree": true,
+       "frobenius_on_roots": "identity (every root in F_p)",
+       "ok": true
+      }
+     }
+    }
+   }
+  },
+  "degeneracies_stdout.txt": {
+   "sha256_of_raw_file": "01643446b15bfb976321e61850c4aa010928e0a92950ffb4b467d185be275db3",
+   "content": "== C1 {'p': 101, 'a': 94, 'b': 6} E[2]: [[1, 0], [2, 0], [98, 0]] P1,P2,P3: [[76, 98], [81, 23], [89, 68]]\n   m3_x1_eq_x2 (P2 = +/-P1): xs=[76, 76] deg=1 nO=1 roots=[97] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[58, 65] ok=True\n   m3_P1_2torsion: xs=[1, 81] deg=2 nO=0 roots=[6, 6] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[19, 61, 37] ok=True\n   m3_both_2torsion_distinct: xs=[1, 2] deg=2 nO=0 roots=[98, 98] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[9, 6, 1] ok=True\n   m3_x1_eq_x2_eq_2torsion: xs=[1, 1] deg=0 nO=2 roots=[] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[16] ok=True\n   m4_P2_eq_P1 (x1 = x2): xs=[76, 76, 89] deg=4 nO=0 roots=[21, 22, 89, 89] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[95, 94, 100, 68, 23] ok=True\n   m4_P2_eq_minusP1 (same x-tuple as above): xs=[76, 76, 89] deg=4 nO=0 roots=[21, 22, 89, 89] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[95, 94, 100, 68, 23] ok=True\n   m4_P1_2torsion: xs=[1, 81, 89] deg=4 nO=0 roots=[6, 6, 98, 98] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[82, 61, 10, 92, 52] ok=True\n   m4_coincident_sum P1+P2 = T1 (2-torsion), P3 generic: xs=[76, 40, 89] deg=4 nO=0 roots=[21, 79, 79, 97] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[56, 96, 13, 73, 85] ok=True\n   m4_coincident_sum x2 = x3 (P3 = P2): xs=[76, 81, 81] deg=4 nO=0 roots=[62, 74, 76, 76] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[49, 5, 12, 48, 84] ok=True\n   m4_signed_sum_is_O: P3 = -(P1+P2): xs=[76, 81, 68] deg=3 nO=1 roots=[21, 89, 97] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[91, 26, 25, 96] ok=True\n   m4_two_signed_sums_O: P1+P2 = T1, P3 = T1: xs=[76, 40, 1] deg=2 nO=2 roots=[97, 97] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[5, 53, 95] ok=True\n   m4_all_four_signed_sums_O: P1,P2,P3 = the three 2-torsion points: xs=[1, 2, 98] deg=0 nO=4 roots=[] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[16] ok=True\n   m4_x1=x2=x3 (P1=P2=P3): xs=[76, 76, 76] deg=4 nO=0 roots=[30, 76, 76, 76] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[5, 24, 40, 76, 78] ok=True\n   m4_x1=x2, P3 = 2P1: xs=[76, 76, 97] deg=3 nO=1 roots=[79, 97, 97] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[30, 99, 6, 81] ok=True\n   m4_x1=x2=2torsion, P3 generic: xs=[1, 1, 89] deg=4 nO=0 roots=[89, 89, 89, 89] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[58, 53, 95, 67, 54] ok=True\n== C5 {'p': 1009, 'a': 1002, 'b': 6} E[2]: [[1, 0], [2, 0], [1006, 0]] P1,P2,P3: [[912, 279], [427, 769], [318, 989]]\n   m3_x1_eq_x2 (P2 = +/-P1): xs=[912, 912] deg=1 nO=1 roots=[223] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[846, 417] ok=True\n   m3_P1_2torsion: xs=[1, 427] deg=2 nO=0 roots=[181, 181] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[500, 669, 865] ok=True\n   m3_both_2torsion_distinct: xs=[1, 2] deg=2 nO=0 roots=[1006, 1006] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[9, 6, 1] ok=True\n   m3_x1_eq_x2_eq_2torsion: xs=[1, 1] deg=0 nO=2 roots=[] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[16] ok=True\n   m4_P2_eq_P1 (x1 = x2): xs=[912, 912, 318] deg=4 nO=0 roots=[318, 318, 513, 657] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[762, 724, 455, 765, 75] ok=True\n   m4_P2_eq_minusP1 (same x-tuple as above): xs=[912, 912, 318] deg=4 nO=0 roots=[318, 318, 513, 657] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[762, 724, 455, 765, 75] ok=True\n   m4_P1_2torsion: xs=[1, 427, 318] deg=4 nO=0 roots=[506, 506, 509, 509] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[518, 985, 351, 557, 374] ok=True\n   m4_coincident_sum P1+P2 = T1 (2-torsion), P3 generic: xs=[912, 104, 318] deg=4 nO=0 roots=[36, 36, 135, 647] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[940, 422, 354, 249, 939] ok=True\n   m4_coincident_sum x2 = x3 (P3 = P2): xs=[912, 427, 427] deg=4 nO=0 roots=[138, 640, 912, 912] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[549, 873, 9, 489, 70] ok=True\n   m4_signed_sum_is_O: P3 = -(P1+P2): xs=[912, 427, 253] deg=3 nO=1 roots=[223, 488, 672] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[512, 637, 250, 922] ok=True\n   m4_two_signed_sums_O: P1+P2 = T1, P3 = T1: xs=[912, 104, 1] deg=2 nO=2 roots=[223, 223] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[56, 642, 813] ok=True\n   m4_all_four_signed_sums_O: P1,P2,P3 = the three 2-torsion points: xs=[1, 2, 1006] deg=0 nO=4 roots=[] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[578] ok=True\n   m4_x1=x2=x3 (P1=P2=P3): xs=[912, 912, 912] deg=4 nO=0 roots=[853, 912, 912, 912] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[443, 988, 124, 91, 946] ok=True\n   m4_x1=x2, P3 = 2P1: xs=[912, 912, 223] deg=3 nO=1 roots=[6, 223, 223] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[484, 375, 192, 955] ok=True\n   m4_x1=x2=2torsion, P3 generic: xs=[1, 1, 318] deg=4 nO=0 roots=[318, 318, 318, 318] split=True multiset_eq=True deg_rule=True identity=True pari=True f=[486, 51, 1004, 275, 256] ok=True\n"
+  },
+  "ptm_out.json": {
+   "sha256_of_raw_file": "30ce6f25861d5fc8f101b389736cf06936f7355d143da8d689fd05b89f5a6066",
+   "content": {
+    "curves": {
+     "C1": [
+      101,
+      94,
+      6
+     ],
+     "C2": [
+      211,
+      3,
+      8
+     ],
+     "C3": [
+      1009,
+      473,
+      415
+     ],
+     "C4": [
+      1999,
+      1291,
+      1494
+     ]
+    },
+    "object1": {
+     "C2_m3_exhaustive_all_(x1,x2)_in_Fp^2": {
+      "n_tuples": 44521,
+      "n_generic_fibres(full degree, squarefree)": 43890,
+      "cycle_type_histogram_generic": {
+       "1+1": 21872,
+       "2": 22018
+      },
+      "non_generic": {
+       "degree_drop": 211,
+       "repeated_root": 420
+      },
+      "group_law_prediction_agrees": 43890,
+      "group_law_prediction_disagrees": 0,
+      "group_law_prediction_disagrees_examples": [],
+      "n_tuples_on_FB_locus(all f(x_i) square or 0)": 10404
+     },
+     "C1_m4_exhaustive_all_(x1,x2,x3)_in_Fp^3": {
+      "n_tuples": 1030301,
+      "n_generic_fibres(full degree, squarefree)": 824256,
+      "cycle_type_histogram_generic": {
+       "2+2": 647712,
+       "1+1+1+1": 176544
+      },
+      "non_generic": {
+       "repeated_root": 195909,
+       "degree_drop": 10136
+      },
+      "group_law_prediction_agrees": 824256,
+      "group_law_prediction_disagrees": 0,
+      "group_law_prediction_disagrees_examples": [],
+      "n_tuples_on_FB_locus(all f(x_i) square or 0)": 117649
+     },
+     "C3_m4_random_50000": {
+      "n_tuples": 50000,
+      "n_generic_fibres(full degree, squarefree)": 49806,
+      "cycle_type_histogram_generic": {
+       "2+2": 37305,
+       "1+1+1+1": 12501
+      },
+      "non_generic": {
+       "repeated_root": 146,
+       "degree_drop": 48
+      },
+      "group_law_prediction_agrees": 49806,
+      "group_law_prediction_disagrees": 0,
+      "group_law_prediction_disagrees_examples": [],
+      "n_tuples_on_FB_locus(all f(x_i) square or 0)": 6265
+     },
+     "C4_m4_random_50000": {
+      "n_tuples": 50000,
+      "n_generic_fibres(full degree, squarefree)": 49726,
+      "cycle_type_histogram_generic": {
+       "1+1+1+1": 12316,
+       "2+2": 37410
+      },
+      "non_generic": {
+       "repeated_root": 246,
+       "degree_drop": 28
+      },
+      "group_law_prediction_agrees": 49726,
+      "group_law_prediction_disagrees": 0,
+      "group_law_prediction_disagrees_examples": [],
+      "n_tuples_on_FB_locus(all f(x_i) square or 0)": 6156
+     }
+    },
+    "time_object1_s": 76.6,
+    "D5_transport": {
+     "OBS-1: disc_T S3(x1,x2,T) - 16 f(x1) f(x2)": "0",
+     "D-5 transport: disc_{x2} S3(x1,x2,T0) - 16 f(x1) f(T0)": "0",
+     "reason": "S3 is symmetric in all three variables, so S3(x1,X,T0) = S3(x1,T0,X) and the identity transports by relabelling."
+    },
+    "object2": {
+     "C3_m3": {
+      "p": 1009,
+      "FB_rule": "x(P) < 200, x(P) not a 2-torsion x-coordinate",
+      "|V|": 105,
+      "n_x(R)_values": 502,
+      "N_polynomial_route_equals_group_law_route_for_every_R": true,
+      "N_by_x(R)_min_max_mean": [
+       24,
+       68,
+       43.7151
+      ],
+      "n_distinct_N_values": 41,
+      "n_R_with_N_zero": 0,
+      "n_R_with_N_positive": 502,
+      "N_histogram": {
+       "49": 14,
+       "50": 30,
+       "30": 6,
+       "34": 14,
+       "44": 42,
+       "40": 54,
+       "47": 11,
+       "46": 42,
+       "48": 26,
+       "38": 27,
+       "42": 52,
+       "37": 9,
+       "35": 6,
+       "28": 4,
+       "52": 18,
+       "43": 12,
+       "60": 3,
+       "36": 25,
+       "54": 16,
+       "39": 9,
+       "45": 6,
+       "41": 12,
+       "63": 3,
+       "32": 12,
+       "59": 2,
+       "24": 1,
+       "27": 2,
+       "58": 4,
+       "53": 3,
+       "56": 16,
+       "33": 2,
+       "51": 5,
+       "26": 2,
+       "31": 2,
+       "25": 1,
+       "29": 1,
+       "55": 3,
+       "57": 1,
+       "61": 1,
+       "64": 2,
+       "68": 1
+      },
+      "swapped_Frobenius_statistic: fibres in the free coordinate that split completely / total": [
+       52710,
+       52710
+      ],
+      "histogram_of_#roots_in_FB_per_swapped_fibre": {
+       "1": 17435,
+       "0": 33020,
+       "2": 2255
+      },
+      "chi(f(x1) f(x(R))) over x1 in V, all R (D-5 collapse would make this the statistic)": {
+       "1": 52710
+      },
+      "N_grouplaw_vs_poly_note": "N(R) counts ordered FB tuples (x_1..x_{m-1}) in V^{m-1} with S_m(x_1..x_{m-1},x(R)) = 0. Polynomial route: for each FB (m-2)-tuple, the distinct roots in V of S_m(...,X,x(R)) (symmetry of S_m). Group-law route: ordered FB tuples whose finite sign-sum x-value set contains x(R)."
+     },
+     "C2_m3": {
+      "p": 211,
+      "FB_rule": "x(P) < 71, x(P) not a 2-torsion x-coordinate",
+      "|V|": 33,
+      "n_x(R)_values": 102,
+      "N_polynomial_route_equals_group_law_route_for_every_R": true,
+      "N_by_x(R)_min_max_mean": [
+       8,
+       30,
+       21.0294
+      ],
+      "n_distinct_N_values": 17,
+      "n_R_with_N_zero": 0,
+      "n_R_with_N_positive": 102,
+      "N_histogram": {
+       "18": 16,
+       "23": 2,
+       "25": 8,
+       "26": 6,
+       "30": 4,
+       "8": 1,
+       "19": 3,
+       "22": 16,
+       "20": 14,
+       "12": 2,
+       "13": 1,
+       "16": 6,
+       "14": 3,
+       "28": 4,
+       "24": 9,
+       "17": 3,
+       "21": 4
+      },
+      "swapped_Frobenius_statistic: fibres in the free coordinate that split completely / total": [
+       3366,
+       3366
+      ],
+      "histogram_of_#roots_in_FB_per_swapped_fibre": {
+       "0": 1572,
+       "2": 351,
+       "1": 1443
+      },
+      "chi(f(x1) f(x(R))) over x1 in V, all R (D-5 collapse would make this the statistic)": {
+       "1": 3333,
+       "0": 33
+      },
+      "N_grouplaw_vs_poly_note": "N(R) counts ordered FB tuples (x_1..x_{m-1}) in V^{m-1} with S_m(x_1..x_{m-1},x(R)) = 0. Polynomial route: for each FB (m-2)-tuple, the distinct roots in V of S_m(...,X,x(R)) (symmetry of S_m). Group-law route: ordered FB tuples whose finite sign-sum x-value set contains x(R)."
+     },
+     "C2_m4": {
+      "p": 211,
+      "FB_rule": "x(P) < 71, x(P) not a 2-torsion x-coordinate",
+      "|V|": 33,
+      "n_x(R)_values": 102,
+      "N_polynomial_route_equals_group_law_route_for_every_R": true,
+      "N_by_x(R)_min_max_mean": [
+       693,
+       1470,
+       1359.6176
+      ],
+      "n_distinct_N_values": 74,
+      "n_R_with_N_zero": 0,
+      "n_R_with_N_positive": 102,
+      "N_histogram": {
+       "1459": 1,
+       "1352": 1,
+       "1408": 1,
+       "1264": 1,
+       "1338": 3,
+       "1366": 2,
+       "1370": 1,
+       "1315": 1,
+       "1444": 1,
+       "1432": 3,
+       "1294": 1,
+       "1396": 2,
+       "1438": 1,
+       "1345": 4,
+       "1430": 1,
+       "1426": 1,
+       "1407": 2,
+       "1448": 2,
+       "693": 1,
+       "1357": 1,
+       "1369": 1,
+       "1313": 1,
+       "1381": 1,
+       "1451": 1,
+       "1342": 1,
+       "1336": 1,
+       "1376": 1,
+       "1319": 1,
+       "1363": 1,
+       "1351": 1,
+       "1440": 2,
+       "1329": 1,
+       "1404": 2,
+       "1324": 1,
+       "1287": 1,
+       "1335": 2,
+       "1347": 2,
+       "1422": 2,
+       "1314": 2,
+       "1359": 2,
+       "1365": 3,
+       "1434": 1,
+       "1356": 2,
+       "1377": 2,
+       "1375": 1,
+       "1368": 2,
+       "1278": 1,
+       "1308": 1,
+       "1406": 1,
+       "1380": 1,
+       "1317": 2,
+       "1320": 1,
+       "1349": 1,
+       "1326": 1,
+       "1401": 2,
+       "1285": 2,
+       "1344": 1,
+       "1470": 1,
+       "1392": 1,
+       "1383": 1,
+       "1413": 1,
+       "1269": 1,
+       "1323": 1,
+       "1371": 2,
+       "1425": 1,
+       "1332": 2,
+       "1405": 1,
+       "1339": 1,
+       "1311": 1,
+       "1296": 1,
+       "1321": 1,
+       "1428": 1,
+       "1362": 1,
+       "1358": 1
+      },
+      "swapped_Frobenius_statistic: fibres in the free coordinate that split completely / total": [
+       111078,
+       111078
+      ],
+      "histogram_of_#roots_in_FB_per_swapped_fibre": {
+       "1": 45032,
+       "2": 30880,
+       "3": 9179,
+       "0": 24899,
+       "4": 1088
+      },
+      "chi(f(x1) f(x(R))) over x1 in V, all R (D-5 collapse would make this the statistic)": {
+       "1": 3333,
+       "0": 33
+      },
+      "N_grouplaw_vs_poly_note": "N(R) counts ordered FB tuples (x_1..x_{m-1}) in V^{m-1} with S_m(x_1..x_{m-1},x(R)) = 0. Polynomial route: for each FB (m-2)-tuple, the distinct roots in V of S_m(...,X,x(R)) (symmetry of S_m). Group-law route: ordered FB tuples whose finite sign-sum x-value set contains x(R)."
+     }
+    },
+    "time_object2_s": 84.6,
+    "J4_group_structure": [
+     {
+      "m": 3,
+      "n_roots=2^(m-2)": 2,
+      "ordered_base_group(sign flips)": {
+       "order": 2,
+       "transitive": true,
+       "primitive": true,
+       "is_elementary_abelian": true
+      },
+      "symmetric_base_group(sign flips + permutations of P_i)": {
+       "order": 2,
+       "transitive": true,
+       "primitive": true,
+       "equals_Sym(n)": true
+      }
+     },
+     {
+      "m": 4,
+      "n_roots=2^(m-2)": 4,
+      "ordered_base_group(sign flips)": {
+       "order": 4,
+       "transitive": true,
+       "primitive": false,
+       "is_elementary_abelian": true
+      },
+      "symmetric_base_group(sign flips + permutations of P_i)": {
+       "order": 24,
+       "transitive": true,
+       "primitive": true,
+       "equals_Sym(n)": true
+      }
+     },
+     {
+      "m": 5,
+      "n_roots=2^(m-2)": 8,
+      "ordered_base_group(sign flips)": {
+       "order": 8,
+       "transitive": true,
+       "primitive": false,
+       "is_elementary_abelian": true
+      },
+      "symmetric_base_group(sign flips + permutations of P_i)": {
+       "order": 192,
+       "transitive": true,
+       "primitive": false,
+       "equals_Sym(n)": false
+      }
+     },
+     {
+      "m": 6,
+      "n_roots=2^(m-2)": 16,
+      "ordered_base_group(sign flips)": {
+       "order": 16,
+       "transitive": true,
+       "primitive": false,
+       "is_elementary_abelian": true
+      },
+      "symmetric_base_group(sign flips + permutations of P_i)": {
+       "order": 1920,
+       "transitive": true,
+       "primitive": true,
+       "equals_Sym(n)": false
+      }
+     },
+     {
+      "m": 7,
+      "n_roots=2^(m-2)": 32,
+      "ordered_base_group(sign flips)": {
+       "order": 32,
+       "transitive": true,
+       "primitive": false,
+       "is_elementary_abelian": true
+      },
+      "symmetric_base_group(sign flips + permutations of P_i)": {
+       "order": 23040,
+       "transitive": true,
+       "primitive": false,
+       "equals_Sym(n)": false
+      }
+     }
+    ],
+    "elapsed_s": 84.6
+   }
+  }
+ },
+ "retrieved_sources": [
+  {
+   "citation": "I. Semaev, Summation polynomials and the discrete logarithm problem on elliptic curves, IACR Cryptology ePrint Archive 2004/031, dated February 5, 2004",
+   "url": "https://eprint.iacr.org/2004/031.pdf",
+   "retrieved_at": "2026-09-30 (this session)",
+   "sha256_of_retrieved_pdf": "1cab0ae675996cdba6393b1e369a22113fd2e74bcf1223595743dc140631c7d6",
+   "bytes": 131064,
+   "provenance": "retrieved",
+   "verified_by": "TASK-20260930-40470a (validator-breakthrough session); the PDF was read in full (6 pages); it is not archived here",
+   "statements_relied_on": [
+    "Section 2 definition: for x_1..x_n in the algebraic closure, f_n(x_1..x_n) = 0 iff there exist y_i with (x_i,y_i) on E and (x_1,y_1)+...+(x_n,y_n) = P_infinity (proved in Theorem 1's proof, both directions)",
+    "Theorem 1: f_2 = X_1 - X_2; f_3 = (X_1-X_2)^2 X_3^2 - 2((X_1+X_2)(X_1X_2+A)+2B)X_3 + ((X_1X_2-A)^2 - 4B(X_1+X_2)); f_n = Res_X(f_{n-k}(X_1..X_{n-k-1},X), f_{k+2}(X_{n-k}..X_n,X)) for n >= 4, n-3 >= k >= 1",
+    "Theorem 1: f_n is symmetric and of degree 2^{n-2} in each variable for n >= 3; absolutely irreducible",
+    "Theorem 1: f_n(X_1..X_{n-1},X_n) = f_{n-1}^2(X_1..X_{n-1}) X_n^{2^{n-2}} + ... for n >= 3 (leading coefficient f_{n-1}^2: the degree-drop locus is f_{n-1} = 0)",
+    "Proof of Theorem 1: for suitable x_1..x_{n-1} the 2^{n-2} x-coordinates of (x_1,y_1) +/- ... +/- (x_{n-1},y_{n-1}) are pairwise different, so f_n(x_1..x_{n-1},X_n) has exactly 2^{n-2} different roots"
+   ]
+  }
+ ],
+ "notes": [
+  "Each step was run twice: first from the scratchpad root, then (the recorded commands) from <scratch>/v40470a after the files were moved away from files another session had left in the shared scratchpad. Outputs of the two runs are byte-identical except the two wall-clock fields of fb_checks_out.json (time_after_exhaustive_s, elapsed_s).",
+  "Seeds: curve parameters for C3/C4 from random.Random(20260930); random factor-base tuples from random.Random(k*1000003+20260930) with k = 11 (C2), 13 (C3), 17 (C4), 19 (C5); degeneracy generic points from random.Random(424242+p).",
+  "Factor base for random sampling: FB = affine points of E(F_p) with x < ceil(p/3). The exhaustive runs cover ALL affine rational x-values, so they contain every factor base on those curves.",
+  "C2 (p=211, y^2=x^3+3x+8) is the curve the plan names as the producer's. It is used only as one of five curves, for comparability. No producer artifact was read.",
+  "ptm.py reuses the Curve / S_4 code of fb_checks.py by exec of its text before main(); the curves C3 and C4 are regenerated with the same seed (random.Random(20260930)) and are identical to those of fb_checks.py (p=1009 a=473 b=415; p=1999 a=1291 b=1494).",
+  "ptm_stdout.txt is the pretty-printed first 12000 characters of ptm_out.json and is omitted as redundant; ptm_out.json is embedded in full."
+ ]
+}

@@ -1,0 +1,296 @@
+handoff:
+  id: TASK-20260811-bc336d
+  recorded_at: '2026-08-11'
+  from: coordinator
+  to: executor
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-d7e255
+  experiment_id: EXP-INSTR-36c8cf
+  hypothesis_id: H-INSTR-444c7b
+  question_id: RQ-INSTR-f8faa0
+  contract_version: 2
+  not_a_new_experiment_contract: >-
+    THIS IS A BOUNDED REANALYSIS AND CONTROL, DISPATCHED DIRECTLY FROM A
+    COORDINATOR DECISION'S NAMED next_actions, NOT A NEW /design-experiment
+    CYCLE. Precedent: CTRL-VALUESHUFFLE (EXP-INSTR-85b102, this same batch's
+    predecessor experiment) was dispatched and executed the same way, as a
+    new module producing a new immutable run under an EXISTING contract's
+    experiment_id, with no new specification.yaml and no amendment. This task
+    is the same shape: R3 and R4 as required and specified verbatim by
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/execution/EXP-INSTR-36c8cf/validation_v2_redteam_report.md
+    (RT-20260811-35ab34), adjudicated as the concrete next step by
+    ledger/decisions/DEC-20260811-a4c7ec.yaml.
+
+  objective: >-
+    Run R3 (leave-one-out jackknife exceedance-rate reanalysis of
+    already-collected reference-sampling data, plus a row-level correlation
+    test) and R4 (a Student-t(df=5) null-object control run through the
+    IDENTICAL, UNMODIFIED E1/E2/E3 pipeline functions the real
+    characterisation uses) as specified by RT-20260811-35ab34's required
+    controls R3 and R4 (report lines 294-299, 434-444). Both are named by
+    DEC-20260811-a4c7ec.next_actions as the cheapest, fastest path to an
+    actual verdict on whether HEUR-INSTR-4 (ordinary noise) can be
+    discriminated from competing_explanation_not_excluded (heavy-tailed but
+    finite-variance) by the amendment's own T2 acceptance rule -- cheaper
+    than any further seed collection, and computable today from data already
+    on disk plus pure simulation.
+
+  uncertainty_reduced: >-
+    V2's structural finding (RT-20260811-35ab34 F1) is that E3's stability
+    trigger is satisfied by BOTH live explanations given enough seeds, so
+    passing it does not by itself discriminate them. That claim is currently
+    argued analytically. R4 makes it EMPIRICAL: does a synthetic
+    heavy-tailed-but-finite-variance process, run through the exact same
+    interval_for_rung/stability_check code the real data uses, also reach
+    accepted_rung within the declared 8-rung ladder, and at what empirical
+    rate across independent replications? R3 makes the fb=11/fb=22 exceedance
+    question empirical in a second, independent way: does correcting the
+    in-sample circularity V2 identified (F3) raise the exceedance count
+    materially above the naive 2.4, and is that count correlated with which
+    rows fail the E3 stability rule?
+
+  inputs:
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/execution/EXP-INSTR-36c8cf/validation_v2_redteam_report.md
+    - ledger/decisions/DEC-20260811-a4c7ec.yaml
+    - experiments/EXP-INSTR-36c8cf/amendments/v2.yaml
+    - experiments/EXP-INSTR-36c8cf/amendments/v1.yaml
+    - experiments/EXP-INSTR-36c8cf/specification.yaml
+    - experiments/EXP-INSTR-36c8cf/runs/RUN-INSTR-36c8cf-phaseA-v2-57ca9a/sr3v3-reference-sampling.json
+    - harness/exp_instr_36c8cf/sr3v3.py
+    - harness/exp_instr_36c8cf/refvalues_v2.py
+    - >-
+      harness/ctrl_valueshuffle.py -- style precedent, a new control module
+      in the same shape, reusing frozen functions unmodified, writing a new
+      run record under an existing experiment_id
+
+  what_to_build:
+    - >-
+      A NEW MODULE ONLY: harness/exp_instr_36c8cf/ctrl_r3r4.py (or an
+      equally clear name of your choosing under the same package). It
+      IMPORTS AND CALLS, UNMODIFIED: sr3v3.interval_for_rung,
+      sr3v3.stability_check, sr3v3.z_from_coverage,
+      refvalues_v2.amendment_frozen_parameters,
+      refvalues_v2.icinv_frozen_grid. Do not edit sr3v3.py, phase_a_v2.py,
+      refvalues.py, refvalues_v2.py, or any file under experiments/. Every
+      frozen parameter you need (the 5% stability threshold, the 13 fb
+      sizes, the 519/520 coverage) is READ from those functions/records at
+      run time, exactly as phase_a_v2.py does it -- do not transcribe any of
+      them as a literal (standing rule A4).
+    - >-
+      R3a (jackknife exceedance rate). Read
+      RUN-INSTR-36c8cf-phaseA-v2-57ca9a/sr3v3-reference-sampling.json,
+      families["4001"], rungs[2] (rung 3, n_seeds=48). For each of the 13
+      rows (fb sizes read from icinv_frozen_grid, not hardcoded): for each
+      of the 48 per_seed_ratios, hold it out, refit
+      interval_for_rung on the other 47 using z from z_from_coverage(519,
+      520) (recomputed, not read from the file), and record whether the
+      held-out ratio falls outside [interval_low, interval_high], and which
+      side. Report, per row and in total across all 13*48=624 trials: the
+      out-of-sample (jackknife) exceedance count split by side, next to the
+      IN-SAMPLE exceedance count (recoverable directly from the same file:
+      max_per_seed_ratio vs interval_high, min_per_seed_ratio vs
+      interval_low, at the already-computed rung-3 interval) and the
+      Gaussian-rule expected count 13*48/260 (~2.4). State plainly whether
+      the jackknife count exceeds the in-sample count, which is V2's
+      prediction (F3): in-sample checking mechanically suppresses the true
+      rate.
+    - >-
+      R3b (correlation test). Build the 13-row 2x2 table: "row has >=1
+      jackknife exceedance" (from R3a) x "row fails the E3 stability rule at
+      the rung2->rung3 transition" -- recompute the latter yourself by
+      calling stability_check on rung 2 and rung 3's intervals dicts from
+      the same committed file (do not hand-copy the rows_failing list from
+      any derived report; recompute it from the raw intervals via the
+      frozen function, then you may cross-check it against
+      sr3v3-interval-stability.json's rung 3 stability_vs_previous_rung if
+      you want a sanity check, but the number you report must come from
+      your own call to stability_check). Compute an exact Fisher's-exact
+      p-value for this 2x2 table (direct hypergeometric enumeration over
+      tables at least as extreme -- math.comb is sufficient, no scipy
+      needed; state the formula you used). A permutation-test cross-check is
+      welcome but not required.
+    - >-
+      R4 (Student-t(df=5) null-object control). For each of the 13 rows,
+      set a target scale equal to that row's OWN observed rung-3
+      sd_sample_n_minus_1 (from the same committed file) and a target
+      location equal to that row's own observed rung-3 mean. Student-t(df=5)
+      has variance 5/3 in standard form, so draw
+      loc + scale/sqrt(5/3) * standard_t(df=5, size=1536) per row, ONCE,
+      using numpy's Generator (numpy is already a dependency elsewhere in
+      harness/; see harness/ctrl_valueshuffle.py). Take the first
+      12/24/48/96/192/384/768/1536 draws as the eight nested rungs (mirrors
+      E2/E6's nesting exactly: each rung's set is a superset of the
+      previous). At each rung compute interval_for_rung with the SAME z
+      (z_from_coverage(519,520)); from rung 2 on, call stability_check
+      against the previous rung with the SAME frozen 5% threshold (read via
+      amendment_frozen_parameters, not hardcoded). Determine the first rung
+      (if any, within the 8-rung ladder T1=1536) at which
+      met_at_every_row=True across all 13 rows -- this is the simulated
+      family's accepted_rung, directly analogous to the real pipeline's own
+      field of that name. If none by rung 8, record that explicitly (the
+      simulated analogue of F4 firing).
+    - >-
+      R4 replication. A single draw is one Monte Carlo sample and is not by
+      itself a verdict. REPEAT the entire per-row R4 ladder (all 13 rows,
+      independently redrawn) across many independent replications --
+      construct each replication's RNG via
+      numpy.random.SeedSequence(<a single declared master seed of your
+      choice, stated explicitly in the output, an arbitrary fixed integer
+      you name -- NOT the system clock, NOT a contract seed borrowed from
+      elsewhere>).spawn(n_replications), so the whole run is reproducible
+      from that one declared integer. Use enough replications for a stable
+      empirical rate (a few hundred is almost certainly enough given how
+      cheap each replication is -- this is pure numpy on 13*1536 floats per
+      replication, no elliptic-curve arithmetic; if in doubt, more
+      replications cost you seconds, not budget). Report: the empirical
+      fraction of replications that reach accepted_rung by rung 8, the
+      empirical distribution over which rung first accepts (including "did
+      not accept by rung 8"), and — as a DIAGNOSTIC ONLY, gating nothing,
+      exactly as D2 gates nothing in the real design — the per-replication
+      sample skewness (state which formula you use) and exceedance
+      count/side-asymmetry at the accepted (or terminal) rung, reported as a
+      distribution across replications. Do not invent a new pass/fail
+      threshold on top of these diagnostics; report the raw numbers.
+    - >-
+      OPTIONAL, ENCOURAGED, NOT REQUIRED: a matched-variance Gaussian
+      calibration arm (same replication machinery, numpy Generator.normal
+      in place of standard_t) run side by side, to show the contrast between
+      Explanation A and Explanation B's empirical accept rates directly. If
+      you include it, label it clearly as supplementary context, not part
+      of R3/R4's own required text, and do not let it delay or crowd out R3
+      and R4 themselves.
+
+  what_this_does_not_do:
+    - >-
+      IT DOES NOT DISCHARGE R1, R2 OR R5. R1 (binding D1/D2 into T2's
+      acceptance condition) and R5 (textual correction of the "changes no
+      acceptance region" overclaim) are edits to
+      experiments/EXP-INSTR-36c8cf/amendments/v2.yaml or a successor v3
+      amendment, which only the Coordinator files. R2(ii) (independently
+      re-deriving the closed-form reachability table) is a SEPARATE,
+      analytical task; the empirical accept-rate this task produces under
+      R4 is informative context for R2 but is explicitly NOT a substitute
+      for R2's own closed-form re-derivation, and must not be reported or
+      relied upon as one.
+    - >-
+      IT DOES NOT APPROVE, REJECT, WITHDRAW OR AMEND EXP-INSTR-36c8cf
+      amendment v2. approved_by stays null. No successor run of the REAL
+      SR3 v3 characterisation is authorized by this task or by this task's
+      results.
+    - >-
+      IT DOES NOT TOUCH RUN-INSTR-36c8cf-phaseA-v2-57ca9a OR
+      RUN-INSTR-36c8cf-phaseA-2a5cd1. Both are read-only inputs; neither
+      artifact is edited, re-scored or re-classified.
+    - >-
+      IT DOES NOT TOUCH EXP-ICINV-4d33aa OR ITS SR3 v3 GATE. That lane stays
+      paused regardless of this task's outcome.
+    - >-
+      IT MAKES NO CURVE-SIDE, WITHIN-CLASS OR BETWEEN-CLASS CLAIM. The 13
+      rows are a statistical-instrument characterisation; nothing here is an
+      ECDLP attack, exponent, or speedup claim. claim_tier toy, sota_delta
+      zero on every axis, exactly as the amendment and both prior reviews
+      state.
+    - >-
+      IT DOES NOT MOVE ANY HYPOTHESIS STATUS. H-INSTR-444c7b, H-ICINV-d5e351
+      and H-ICINV-6c7920 are all outside this task's authority to change.
+
+  deliverable:
+    - >-
+      A NEW IMMUTABLE RUN RECORD under experiments/EXP-INSTR-36c8cf/runs/,
+      written via harness.runner.write_run exactly as
+      harness/ctrl_valueshuffle.py and harness/exp_instr_36c8cf/phase_a_v2.py
+      do it, with a certificate of {kind: none} (no discrete-log solve, no
+      relation claimed anywhere in this task), pinning the sha256 of every
+      committed file you read (the reference-sampling JSON, the amendment,
+      sr3v3.py, refvalues_v2.py) in the manifest's source-provenance block.
+    - >-
+      Artifacts under the run directory covering R3a, R3b and R4 (raw
+      numbers, not just a verdict): jackknife exceedance table (13 rows x
+      side-split counts), the 2x2 contingency table and its exact p-value,
+      the per-replication accept/rung outcomes and their empirical
+      distribution, and the skewness/exceedance diagnostics distribution.
+    - >-
+      An execution report at
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-d7e255/execution/EXP-INSTR-36c8cf/execution_report_r3r4.md
+      narrating what ran, what the numbers were, and explicitly NOT
+      interpreting them against HEUR-INSTR-4 or the amendment's approval --
+      that interpretation is the Coordinator's, after independent review, in
+      a decision record.
+
+  constraints:
+    - >-
+      DETERMINISTIC AND REPRODUCIBLE. State your declared master seed(s)
+      explicitly in the output. No system clock, no PID, no unseeded
+      randomness anywhere.
+    - >-
+      z IS COMPUTED, NEVER TRANSCRIBED (standing rule A4, CORR-20260807-a24675).
+      Call z_from_coverage(519, 520) yourself; do not copy a numeric z from
+      any committed file or report.
+    - >-
+      THE 5% STABILITY THRESHOLD AND THE 13 DENSITY ROWS ARE READ FROM THEIR
+      RECORDS AT RUN TIME (amendment_frozen_parameters, icinv_frozen_grid),
+      not hardcoded, so a future reader can trust this control tracks the
+      frozen contract rather than a private copy of its numbers.
+    - >-
+      NO EDITS to sr3v3.py, phase_a_v2.py, refvalues.py, refvalues_v2.py, or
+      anything under experiments/. New code goes in the new module named
+      above.
+    - >-
+      Budget: this is pure post-hoc statistics and numpy simulation, no
+      elliptic-curve arithmetic and no isogeny-class enumeration. Expect
+      this to run in well under a minute end to end even at several hundred
+      replications. A generous wall-clock cap of 1800 s applies; if you
+      approach it, something is wrong (most likely an accidental O(n^2) or
+      more replications than intended) and you should stop, report what
+      happened, and not silently truncate the replication count without
+      saying so.
+    - >-
+      If ANYTHING here turns out to be underspecified once you are in the
+      data (e.g. a tie-breaking rule, a formula convention), STATE THE
+      CHOICE YOU MADE AND WHY in the execution report rather than silently
+      picking one -- this campaign's standing rule against unstated
+      judgment calls in a nominally mechanical task.
+
+  refs:
+    - GOAL-ENDO-001
+    - BATCH-d7e255
+    - EXP-INSTR-36c8cf
+    - H-INSTR-444c7b
+    - RQ-INSTR-f8faa0
+    - RT-20260811-35ab34
+    - DEC-20260811-a4c7ec
+    - DEC-20260810-5aeeaa
+    - RUN-INSTR-36c8cf-phaseA-v2-57ca9a
+    - experiments/EXP-INSTR-36c8cf/amendments/v2.yaml
+    - experiments/EXP-INSTR-36c8cf/amendments/v1.yaml
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 8
+    maximum_runs: 1
+    total_cpu_hours: 0.5
+    budget_note: >-
+      Generous relative to the actual work: pure post-hoc statistics and
+      numpy simulation on already-collected data, no elliptic-curve
+      arithmetic and no isogeny-class enumeration, expected to complete in
+      well under a minute even at several hundred replications. Not taken
+      from specification.yaml's own per-run budget (14400 s), which governs
+      the real characterisation run, not this reanalysis/control task.
+
+  requested_policy: executor-implementation
+  effort_expected: medium
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-sonnet-5
+    reasoning_effort: high
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one
+      model the session runs on (AGENTS.md rule 11; CLAUDE.md "Model policy
+      note"). Recorded, never silently substituted.
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.

@@ -26,6 +26,11 @@ class LandingHarness(unittest.TestCase):
         run_git(self.repo, "init", "-q", "-b", "main")
         run_git(self.repo, "config", "user.email", "t@example.com")
         run_git(self.repo, "config", "user.name", "Test")
+        # No background gc/maintenance: it can still be writing objects/ when
+        # tearDown removes the tree (ENOTEMPTY). Repo config, not -c, so the
+        # tool's own git calls are covered too.
+        run_git(self.repo, "config", "gc.auto", "0")
+        run_git(self.repo, "config", "maintenance.auto", "false")
         (self.repo / "AGENTS.md").write_text("marker\n")
         run_git(self.repo, "add", "AGENTS.md")
         run_git(self.repo, "commit", "-q", "-m", "init")

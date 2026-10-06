@@ -187,6 +187,70 @@ class TailTable:
         return {"arity": self.arity, "entries": self.entries,
                 "s3_solves": self.s3_solves, "seconds": self.seconds}
 
+    # -- read-only accessors (collision harvest) -----------------------------
+    def iter_keys(self):
+        """Every stored x-key in ascending x, with its packed codes in stored order.
+
+        Stored order is the sorted arrays' order on the numpy path (largest
+        first index first within an x) and the sorted codes on the dict path.
+        Nothing is modified.
+        """
+        if self._sorted is not None:
+            xs, cs = self._sorted.x.tolist(), self._sorted.code.tolist()
+            i, n = 0, len(xs)
+            while i < n:
+                j = i + 1
+                while j < n and xs[j] == xs[i]:
+                    j += 1
+                yield xs[i], cs[i:j]
+                i = j
+            return
+        for x in sorted(self._map):
+            c = self._map[x]
+            yield x, ([c] if type(c) is int else sorted(c))
+
+    def iter_keys_selected(self, extra_keys=()):
+        """``iter_keys`` restricted to keys holding >= 2 tails or lying in extra_keys.
+
+        The same keys, codes and order as filtering ``iter_keys``; on the numpy
+        path the selection is vectorised.  Nothing is modified.
+        """
+        extra = set(extra_keys)
+        if self._sorted is None or self._sorted.n == 0:
+            for x, codes in self.iter_keys():
+                if len(codes) >= 2 or x in extra:
+                    yield x, codes
+            return
+        import numpy as np
+
+        X, C = self._sorted.x, self._sorted.code
+        n = len(X)
+        starts = np.flatnonzero(np.concatenate(([True], X[1:] != X[:-1])))
+        ends = np.append(starts[1:], n)
+        keep = (ends - starts) >= 2
+        if extra:
+            ex = np.array(sorted(extra), dtype=np.uint64)
+            keep |= np.isin(X[starts].astype(np.uint64), ex)
+        for s, e in zip(starts[keep].tolist(), ends[keep].tolist()):
+            yield int(X[s]), [int(c) for c in C[s:e].tolist()]
+
+    def distinct_keys(self) -> int:
+        """Number of distinct stored x-keys."""
+        if self._sorted is not None:
+            import numpy as np
+
+            X = self._sorted.x
+            return int(len(X) and 1 + np.count_nonzero(X[1:] != X[:-1]))
+        return len(self._map)
+
+    def decode(self, code: int) -> tuple[Tail, int]:
+        """(the tail in STORED orientation, s_1 = +1; the y-bit ``code & 1``)."""
+        v, out = code >> 1, []
+        for _ in range(self.arity):
+            v, d = divmod(v, self.base)
+            out.append((d >> 1, -1 if d & 1 else 1))
+        return out, code & 1
+
     def _first(self, code: int) -> int:
         return ((code >> 1) % self.base) >> 1
 

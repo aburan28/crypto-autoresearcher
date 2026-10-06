@@ -1,0 +1,435 @@
+# RT-20261002-bdda1a -- Red Team, TASK-20261001-b2c916
+# Review plan REVIEW-SEMBIN-20261001-04ec3c-v2 (ledger/handoffs/TASK-20261001-41f6b3.yaml).
+# Joints owned: JV-2 (failure power of C-IMPL-GATE) and the proves_too_much control.
+# Snapshot reviewed: b8019a6fb (RUN-SEMBIN-be48b7, experiments/EXP-SEMBIN-04ec3c/code/v2/,
+# RESULTS-amd-e61f2b.md). Working-tree-only until the Coordinator's ledger archive commits it.
+# Nothing committed; no status changed.
+
+red_team_report:
+  id: RT-20261002-bdda1a   # allocate_id.py has no RT type; random 6-hex token, grep-checked absent in ledger/, coordination/, knowledge/, experiments/
+  task_id: TASK-20261001-b2c916
+  review_plan: REVIEW-SEMBIN-20261001-04ec3c-v2
+  joints_owned: [JV-2, proves_too_much]
+  verdicts:
+    JV-2: breaks
+    proves_too_much: holds   # declared failure signature did NOT fire
+  claim_under_review: >-
+    The v2 receipt RUN-SEMBIN-be48b7 at b8019a6fb, built to support the R6 restatement
+    (construction charged at one operation per entry; no ENUM / MITM / MITM_CAPPED cell at
+    the ten degrees below the vOW column at any store; heuristic_estimate; no curve
+    touched). JV-2: whether C-IMPL-GATE (AMD-20261001-e61f2b C-4 (a)-(e)) fails on wrong
+    code. proves_too_much: whether the v2 accounting, charge included, still finds
+    sub-rho cells with real oracles on F_q^* and high-genus Jacobians, and none with the
+    generic oracles.
+
+  what_was_run:
+    harness_validity: >-
+      jv2_wrong_drivers.py copies the hash-verified committed code, applies one exact,
+      count-checked patch per wrong driver, regenerates M1-M4 FROM THE WRONG DRIVER, and
+      runs the committed run_v2.py end to end: gate (a)-(d) on the wrong driver and its four
+      mutants, (e), the C-3 flag, and then rows. Null control W0, with no patch,
+      reproduces the committed raw-result.json byte for byte (sha256 4df28d20...ff5ca6).
+    wrong_drivers:
+      - id: W1
+        defect: FILL = log2((1 << int(d)) ** s), an exact integer table count; int() floors the quarter-step d
+        class: off-grid d. Gate (b) evaluates only d in {16, 24, 32}, all integers.
+        direction: anti-conservative
+        gate_a_to_e: pass
+        C3: silent (min slack 17.50 bits)
+        non_stopping_controls: all pass
+        E2_store_free_margin_delta_bits: "-0.197 (n=163,191) .. -0.811 (n=109); n=131 -0.461 vs VOW and vs PUB"
+        argmin_rows_changed: 622 of 3300 (344 by more than 0.1 bit; max 0.879)
+        breaks: true
+      - id: W2
+        defect: FILL = s * ceil(d), with the table sized for ceil(d)-bit keys
+        class: off-grid d
+        direction: CONSERVATIVE
+        gate_a_to_e: pass
+        C3: silent
+        non_stopping_controls: all pass
+        E2_store_free_margin_delta_bits: "+0.055 (97) .. +0.953 (571); n=131 +0.916"
+        argmin_rows_changed: 594 (284 by more than 0.1 bit; max 2.72)
+        breaks: true
+      - id: W3
+        defect: >-
+          CALLS = TPR. This is C-2 read by its own title, "Trials >= 1 domain guard"
+          (trials per relation >= 1, not total calls >= 1).
+        class: domain predicate. No check in (a)-(e) reads CALLS.
+        direction: CONSERVATIVE
+        gate_a_to_e: pass
+        C3: silent
+        non_stopping_controls: all pass
+        E2_store_free_margin_delta_bits: "+5.42 (97) .. +19.32 (571); n=131 +6.845 vs VOW and vs PUB"
+        in_domain_primary_cells: 362219 -> 260711 (the required T3 out-of-domain metric moves 1233991 -> 1335499, unflagged)
+        argmin_rows_changed: 904, all by more than 0.1 bit (max 46.86)
+        breaks: true
+      - id: W4
+        defect: integer d grid (D_STEP 1.0, not 0.25)
+        class: >-
+          shared enumerator. Gate (a), (c) and (d) see only the cells the driver's own
+          sweep emits. (a) checked 409,680 cells instead of 1,633,320 and still reported
+          pass.
+        direction: CONSERVATIVE
+        gate_a_to_e: pass
+        C3: silent
+        non_stopping_controls: all pass (C-BOUND-PROBE agrees at both bounds)
+        E2_store_free_margin_delta_bits: "+0.055 .. +1.657 (409); n=131 +0.916"
+        argmin_rows_changed: 1444 (1386 by more than 0.1 bit; max 5.25)
+        breaks: true
+      - id: W5
+        defect: >-
+          N at n=131 from log2(4r), the group order printed beside r in the frozen input,
+          instead of log2(r). The patch is in run_v2.read_subgroup_order.
+        class: >-
+          shared input. The gate's ref_N, C-BASELINE-CONSISTENCY and the driver all read
+          the same log2_r.
+        direction: conservative on TOTAL; VOW moves too
+        gate_a_to_e: pass
+        C3: silent
+        non_stopping_controls: >-
+          all pass. C-BASELINE-CONSISTENCY reports passed: true while its own n131 fields
+          read VOW_below_naive_bits 0.000 (amendment: 1.000) and PUB_minus_VOW -4.516
+          (amendment: -3.516).
+        E2_store_free_margin_delta_bits: "n=131 +0.164 vs VOW, +1.164 vs PUB; 0 elsewhere"
+        argmin_rows_changed: 330 (max 2.0)
+        breaks: true
+      - id: W7
+        defect: vow_column = log2(0.886) + n/2, the textbook rho figure (the A7 confusion)
+        class: baseline column. No STOPPING check reads vow_column.
+        gate_a_to_e: pass
+        C3: silent
+        non_stopping_controls: C-BASELINE-CONSISTENCY = false, but non-stopping; the run exits 0 and writes rows
+        E2_store_free_margin_delta_bits: "n=131 -1.000 vs VOW"
+        breaks: true (formally; a non-stopping control notices it)
+      - id: W6
+        defect: TPR from the exact C(2^d, m) only for d < 16
+        class: >-
+          d < 16. Gate (a)'s window is d >= 16, and (b) checks only d in {16, 24, 32}.
+        gate_a_to_e: pass
+        C3: silent
+        E2_store_free_margin_delta_bits: 0 at every degree (every per-degree minimum sits at d >= 17.75)
+        argmin_rows_changed: 1342 (556 by more than 0.1 bit; max 2.50)
+        breaks: false (gate-blind, but below the plan's breaking threshold)
+      - id: W1b
+        defect: W1, plus the oracle time half from the same integer count
+        gate_a_to_e: >-
+          FAIL, caught by (e). With o and FILL no longer flowing through the M3 mutation
+          site, the wrong driver's own M3 passes (a)-(d), so the self-test fails.
+        breaks: false
+        reading: >-
+          (e) has incidental power against drivers that route around the mutation sites.
+          It has no designed power against any of the classes above.
+    sub_rho_counts: >-
+      Every completed wrong run leaves the primary sub-rho counts at 0 against VOW and 0
+      against PUB. Conservative errors cannot lower a zero count. An anti-conservative
+      error can raise one without stopping only by putting an in-domain cell into
+      [N/2 - 2, N/2 - 0.175), a 1.83-bit window, while keeping every primary cell above
+      N/2 - 2. None of my natural mutants does this, and I did not build a contrived,
+      localised one. The break is therefore through the E-2 margin leg of the plan's
+      breaking artifact.
+
+  objections:
+    - id: OBJ-1
+      joint: JV-2
+      text: >-
+        C-IMPL-GATE repeats A1's failure in a new place. Six wrong v2 implementations
+        (W1, W2, W3, W4, W5, W7) pass (a)-(e). Each leaves the C-3 flag silent, runs to rows,
+        and moves store-free (E-2) margins by 0.16 to 19.3 bits. W3 is a literal reading of
+        C-2's own title. W1 and W2 are one-token rounding habits. W5 is the group order
+        printed beside r in the frozen input.
+    - id: OBJ-2
+      joint: JV-2
+      text: >-
+        The domain predicate is load-bearing at every even-m minimum, and no gate check reads
+        it. For store-free MITM at even m, CALLS == PROBE - FILL identically (residual 0.0
+        over all ten degrees). The unconstrained optimum therefore sits log2(s/(s-1)) bits
+        inside the C-2 edge. The committed argmins sit 0.05-2.04 bits inside it, and in
+        120 of 150 rows the next grid point is out of domain. E-2 is co-determined by C-2,
+        and the gate is blind to C-2 (W3: +5.4 to +19.3 bits).
+    - id: OBJ-3
+      joint: JV-2
+      text: >-
+        (b) is the only check on PROBE, FILL, LA and TOTAL, and it evaluates three integer d
+        values. The sweep's d is a quarter grid, so any floor, ceil, int or round of d in
+        FILL, o or LA is invisible (W1, W2). The (a) yield identity checks TPR only, and
+        only at d >= 16 (W6).
+    - id: OBJ-4
+      joint: JV-2
+      text: >-
+        (a), (c) and (d) run over the cells the driver chooses to emit, and (d) re-evaluates
+        with the driver's own d_grid. An enumerator defect shrinks the checked set instead of
+        failing it. W4 cut (a) from 1,633,320 cells to 409,680 and passed.
+    - id: OBJ-5
+      joint: JV-2
+      text: >-
+        The gate's reference N is not independent: ref_N, the driver and
+        C-BASELINE-CONSISTENCY share the single log2_r that run_v2 reads (W5). vow_column is
+        read by no stopping check (W7).
+    - id: OBJ-6
+      joint: JV-2
+      text: >-
+        The (e) self-test certifies only that the gate catches defects passing through the
+        four mutation sites, and all four are on-grid, large and structural. The plan
+        anticipated exactly this ("find a fifth it misses"). Five classes are missed: off-grid
+        d, domain predicate, enumerator, shared input and baseline column.
+    - id: OBJ-7
+      joint: JV-2
+      text: >-
+        The stopping net is asymmetric in the wrong direction for a negative receipt. C-3
+        fences only anti-conservative errors, and only beyond 18.4-44.6 bits of slack.
+        Conservative errors (W2, W3, W4, W6) are the direction that would hide a sub-rho
+        cell, and they are fenced only by (b) at three integer d.
+    - id: OBJ-8
+      joint: JV-2, bearing on prior item (d)
+      text: >-
+        The E-2 disagreement rule (0.1 bit) is finer than the protocol grid's own noise.
+        Holding the committed model_v2.evaluate fixed and changing only the d step from 0.25
+        to 0.001 moves the per-degree store-free minimum by 0.004-0.230 bits. On the fine
+        grid the committed driver matches E-2 to within 0.006 bit at all ten degrees.
+        The committed exceedances (n=239 +0.2295, n=571 +0.1521) equal the grid effect
+        (0.2299, 0.1507) to within 0.0014 bit. They therefore localise to the protocol's
+        d-grid, not to any of the three named implementations. n=163 and 191 have a grid
+        effect of 0.1028 and pass at 0.098 only through E-2's rounding. The rule cannot
+        separate a wrong implementation smaller than ~0.23 bit from grid noise. This uses
+        the committed driver, so it is not independent evidence about E-2 itself (that is
+        the blind re-deriver's).
+  required_controls:
+    - id: RC-1
+      text: >-
+        By additive amendment, adopt as STOPPING the four checks in jv2_gate_plus.py, all
+        written from the header block with no shared code, grid, enumerator or input:
+        (b+) closed forms for all seven returned fields (s, TPR, CALLS, PROBE, FILL, LA,
+        TOTAL) on every cell of the gate's own 0.25 grid (1,741,320 cells; about 14 s per
+        driver); (f) the driver's sweep emits exactly the gate's independent cell set;
+        (g) N at 131 equals log2 of an independently parsed r, and r is probable-prime;
+        (h) VOW = log2(0.886) + N/2 with the independent N, and PUB only at 131.
+        Demonstrated: it PASSES the committed driver (max deviation 4.26e-14 bit) and FAILS
+        M1-M4 and every wrong driver W1, W1b, W2-W7.
+    - id: RC-2
+      text: >-
+        Add W1, W2, W3, W4, W5 and W7 to the (e) mutant set (as M5-M10) so the self-test has
+        designed power for each blind-spot class, not just the four on-grid structural ones.
+    - id: RC-3
+      text: >-
+        Make the planted-cell positive control (jv2_planted_counter.py) standing: run_v2.
+        DataPass is otherwise ungated. At b8019a6fb it PASSES: six planted in-domain cells
+        are each counted exactly once, the planted out-of-domain cell is excluded, the PUB
+        count is 0 and C-3 stays silent.
+    - id: RC-4
+      text: >-
+        Compare v2 minima against E-2 on the same grid before applying the 0.1-bit rule:
+        either recompute E-2 on the 0.25 grid, or report the v2 minima on a fine d grid
+        beside the protocol-grid figure.
+    - id: RC-5
+      text: >-
+        Keep the proves-too-much objects as a standing regression. The v2 real-oracle
+        accounting must reproduce Harley's exponents (measured 1.5, 1.6, 1.6667, 1.7778 at
+        g = 3, 4, 5, 8: exact), and generic cells must sit about 1 bit above the analytic
+        floor on every object.
+  counterexample_or_mutation: >-
+    W3, a one-line patch of model_v2.py: "    CALLS = K + TPR" -> "    CALLS = TPR". It passes
+    C-IMPL-GATE (a)-(e), C-3 and every non-stopping control, and moves the n=131 store-free
+    margin from +19.129 to +25.974 bits (vs VOW) and every E-2 margin by +5.4 to +19.3
+    bits. Source: jv2_out/W3_model_v2.py; gate output: jv2_out/W3_gate_report.json. W1
+    (FILL = log2((1 << int(d)) ** s)) is the smallest anti-conservative break: -0.20 to -0.81
+    bits.
+  baseline_comparison: >-
+    Columns are kept separate: VOW = log2(0.886) + N/2 per degree, and PUB = 60.8090 only
+    at n = 131. In every completed run (the committed run, W0, and the eight wrong drivers)
+    no primary cell falls below VOW or PUB, so dominated_by: vOW rho on time at every row.
+    BSGS is dominated by vOW on memory. On the proves-too-much objects the closest
+    specialized baselines are Harley/Gaudry factor-u, reproduced exactly as the real
+    oracle; GTTD double large prime 2 - 2/g, which is better and not modelled (KN-LIT-92caf4,
+    kb); and L_q[1/2] for F_q^* (recalled, scale only). I did not compute the
+    precomputation reading of prior item (c) (Bernstein-Lange KN-LIT-7cc07f; CGK
+    KN-LIT-013); that is JV-1's.
+  heuristic_challenges:
+    - >-
+      HEUR-GENERIC-MSUM still carries the whole verdict. The proves-too-much run shows the
+      generic-oracle result is object-independent: on F_q^* and on g >= 4/5 Jacobians, where
+      index calculus wins, the generic minimum sits 1.000-1.151 bits above (N + L + d)/2,
+      exactly as on the binary-curve degrees. The cheapest deviation test is unchanged from
+      the previous round: measured summation-polynomial decomposition cost against
+      |F|^(m-s).
+    - HEUR-VOW-CURVE remains unvalidated, as RESULTS states. Every margin rests on it.
+  cost_model_challenges:
+    - >-
+      Because CALLS == PROBE - FILL at even m, the C-2 domain definition is part of the cost
+      model at the optimum, not a hygiene filter. Whether "CALLS >= 0" is the right
+      predicate, rather than "trials per relation >= 1" or "independent targets >= |F|",
+      is a modelling question for JV-1. It moves E-2 by up to 19 bits.
+    - >-
+      Factor-base construction (|F| entries) goes uncharged for every model. This is
+      harmless, because LA = 2d dominates it, and verified on the proves-too-much objects
+      (charged and uncharged minima are identical).
+    - Prior item (c), the table as amortised precomputation, was not examined here. It is JV-1's joint.
+  reduction_and_scope_challenges:
+    - >-
+      The v2 negative must carry the generic-class conditional everywhere it is quoted. The
+      identical statement is TRUE of F_q^* at n = 131-1024 and of genus 4-8 Jacobians at
+      n ~ 160/256, where index calculus beats rho by 16-366 bits. It therefore carries no
+      binary-curve-specific content, and any quotation as a property of binary curves is
+      refuted by this control.
+  proof_architecture_challenges:
+    - >-
+      Observation-fiber: the gate's observation (a)-(e) is identical for W0 and for each of
+      W1-W5 and W7, while E-2 differs by 0.16-19.3 bits. The missing separators are
+      off-grid closed forms, the CALLS field, enumerator completeness, an independent input
+      and a gated baseline column (RC-1 supplies all five).
+    - >-
+      Nearby-object: F_q^* and the high-genus Jacobian are not separated from binary curves
+      by the generic accounting. They are separated only by the oracle law (same location
+      as the previous round's finding).
+    - >-
+      Method ceiling: on every object the generic minimum equals the analytic floor
+      (N + L + d)/2 plus 1.000-1.151 bits. The run cannot produce a sub-rho cell for any N;
+      it is a fixture of an identity, which is what AMD-20261001-e61f2b says.
+  proves_too_much:
+    verdict: holds (failure signature did not fire)
+    objects_and_results:
+      jacobian_real_oracle_factor_u_FB_table_charged: >-
+        Genus g Jacobian over F_2^b, N = g b, d <= b. g=5/b=32: 61.45 (-18.38 vs VOW, 27
+        sub-rho cells). g=6/b=27: 54.06 (-26.77, 24). g=8/b=20: 49.94 (-29.88, 18; argmin
+        at the FB cap). g=4/b=64: 111.61 (-16.21, 57). g=5/b=51: 93.55 (-33.77, 54).
+        g=8/b=32: 64.69 (-63.13, 37). Contrast: g=2: +38.19, g=3: +9.78, 0 cells.
+      jacobian_generic_oracles_committed_model_v2: >-
+        All primary models at all budgets, d <= b and d <= n: 0 sub-rho cells, and C-3
+        never fires. Minima are +21.29..+22.33 vs VOW at n ~ 160 and +27.45..+27.54 at
+        n ~ 256.
+      fq_star_real_oracles: >-
+        N = n - 1. Trial division (sieve of Eratosthenes charged):
+        n=131 50.38 (-14.44), 256 78.06 (-49.27), 512 121.04 (-134.29),
+        1024 185.35 (-325.98). Batch smoothness (product tree charged): 47.44 (-17.38),
+        68.07 (-59.26), 99.16 (-156.16), 144.83 (-366.49). Stress variant, a table with one
+        entry per candidate, charged: 36.25 (-28.58) .. 128.68 (-382.64). Sub-rho cell
+        counts 91-743 per object.
+      fq_star_generic_oracles_committed_model_v2: >-
+        0 sub-rho cells and C-3 silent: +19.20 (131), +27.45 (256), +40.15 (512),
+        +59.20 (1024).
+      harley_check: 'v2 accounting, FB charged: 1.5, 1.6, 1.6667, 1.7778 at g = 3, 4, 5, 8 = 2 - 2/(g+1) exactly'
+    where_it_survives: >-
+      The construction charge does not bleed into non-table oracles, and it does not
+      remove index-calculus wins even for a real oracle whose table grows with the
+      candidate count (cost at most about 2.2 bits). It removes only tables larger than
+      the probe work they save, which is the target-independent |F|^s s-sum table at the
+      PROBE = FILL balance. Prior item (b) is not triggered. The generic verdict survives
+      on every object, so the oracle law is the sole separator.
+  narrowest_supported_statement: >-
+    At b8019a6fb: (1) C-IMPL-GATE (a)-(e) lacks failure power against five defect classes:
+    off-grid d, the CALLS domain predicate, the sweep enumerator, the shared N input, and
+    the baseline column (stopping-wise). Six concrete wrong drivers pass it with C-3 silent
+    and move E-2 margins by 0.16-19.3 bits. No primary sub-rho count changes (all 0).
+    (2) The committed driver itself passes an independent four-check gate (b+, f, g, h)
+    over 1,741,320 cells with max deviation 4.26e-14 bit, and its DataPass counter passes a
+    planted-cell control. So the break is in the gate's power, not in RUN-SEMBIN-be48b7's
+    numbers relative to the header block. That header block is shared by every gate, and
+    its correctness is JV-1's. (3) The receipt's two E-2 exceedances localise to the 0.25
+    d-grid. (4) The proves-too-much control holds: the charge is not mis-specified on these
+    objects, and the generic negative is object-independent.
+  next_concrete_action: >-
+    Coordinator, at the ledger archive of this round: record JV-2 as broken. Cite
+    jv2_gate_plus.json, once archived, as the independent failure-power evidence for
+    RUN-SEMBIN-be48b7's driver (passes committed; fails M1-M4 and W1-W7). Record the
+    n=239/571 E-2 exceedances as grid-localised, per jv2_grid_resolution.json. Then adopt
+    RC-1 to RC-3 by additive amendment for any further run of this family. No rerun of
+    RUN-SEMBIN-be48b7 is needed for this joint.
+  artifact_paths:
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/red_team_report.yaml
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/jv2_wrong_drivers.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/jv2_gate_plus.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/jv2_grid_resolution.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/jv2_planted_counter.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/ptm_v2.py
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/jv2_out/ (jv2_results.json, jv2_stdout.txt, jv2_gate_plus.json, jv2_gate_plus_stdout.txt, jv2_grid_resolution.json, jv2_grid_resolution_stdout.txt, jv2_planted_counter.json, W*_gate_report.json, W*_model_v2.py, W5_run_v2.py)
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-b2c916/ptm_out/ (ptm_v2_results.json, ptm_v2_stdout.txt)
+  reproduce: >-
+    From the task directory, run python3 jv2_wrong_drivers.py --work <scratch> (about
+    3.5 min); then python3 jv2_gate_plus.py --work <same scratch> (about 3 min);
+    python3 jv2_grid_resolution.py (20 s); python3 jv2_planted_counter.py (5 s); and
+    python3 ptm_v2.py (5 s). Every script refuses to run if the committed code, raw result
+    or reused previous-round script differs from its recorded sha256. The full per-driver
+    run directories are regenerated deterministically; their raw-result sha256 values are
+    in jv2_results.json.
+  citations:
+    - {id: KN-LIT-011, what: Shoup 1997 generic lower bound, provenance: kb}
+    - {id: KN-LIT-013, what: Corrigan-Gibbs and Kogan, DLP with preprocessing, provenance: kb}
+    - {id: KN-LIT-7cc07f, what: Bernstein-Lange, rho with precomputation, provenance: kb}
+    - id: KN-LIT-92caf4
+      what: GTTD double large prime, O~(q^(2-2/g)); the record states 2 - 2/g, not Harley's 2 - 2/(g+1)
+      provenance: kb
+    - what: Harley exponent 2 - 2/(g+1) and GTTD Sec. 4 decomposition probability
+      provenance: retrieved by TASK-20260928-3f90b8 (ePrint 2004/153); NOT re-opened by me
+    - {what: "L_q[1/2, sqrt 2]; Bernstein batch smoothness", provenance: recalled, note: scale and oracle shape only, not support}
+
+review_attestation:
+  task_id: TASK-20261001-b2c916
+  role: red-team
+  joints_owned: [JV-2, proves_too_much]
+  independent_session: true
+  originated_claim: false
+  requested_policy: review-adversarial
+  resolved_model_id: claude-opus-5-5   # session-reported, not probe-verified
+  model_verified: false
+  fallback_used: false
+  snapshot_commit: b8019a6fb
+  head_at_review: 4a0b13aec   # one commit past the snapshot; git diff b8019a6fb HEAD on experiments/EXP-SEMBIN-04ec3c is empty
+  paths_read:
+    - AGENTS.md (whole)
+    - agents/red-team.md
+    - ledger/handoffs/TASK-20261001-41f6b3.yaml (whole, including coordinator_prior; see D7)
+    - experiments/EXP-SEMBIN-04ec3c/amendments/AMD-20261001-e61f2b.yaml
+    - experiments/EXP-SEMBIN-04ec3c/RESULTS-amd-e61f2b.md
+    - experiments/EXP-SEMBIN-04ec3c/code/v2/{model_v2.py, gate_v2.py, run_v2.py, make_mutants.py, launch.py}
+    - experiments/EXP-SEMBIN-04ec3c/code/v2/exploratory_v2.py (all_columns only; executed as part of run_v2)
+    - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/{artifact-digests.json, command.txt, environment.json, raw-result.json (parsed by scripts)}
+    - experiments/EXP-SEMBIN-04ec3c/runs/RUN-SEMBIN-be48b7/manifest.yaml (grep for gate/domain/grid/PD lines only)
+    - inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md (grep for r)
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20260928-3f90b8/{report.md, ptm_known_false_objects.py, ptm_results.json}  # previous round, permitted
+    - knowledge/literature/{KN-LIT-92caf4, KN-LIT-011, KN-LIT-013, KN-LIT-7cc07f}.md (grep only)
+  not_read:
+    - coordination/goals/GOAL-SEMBIN-5078bc/reviews/TASK-20261001-{0e7f53, 6a4d08, f39c27}/ (present in the working tree, not opened)
+    - previous-round dirs TASK-20260928-{4e5c26, 62ad14, a1c7e5, d8b371} (not opened)
+    - experiments/EXP-SEMBIN-04ec3c/specification.yaml, ledger/decisions/DEC-20261001-5c9e7a.yaml, ledger/corrections/CORR-20261001-a38d14.yaml
+  read_sibling_reports: false
+  verdict: {JV-2: breaks, proves_too_much: holds}
+  procedure_deviations:
+    - id: D1
+      text: >-
+        No committed handoff card for TASK-20261001-b2c916 exists at HEAD. git grep finds
+        the id only in TASK-20261001-41f6b3.yaml, whose reviewer_cards clause requires the
+        cards to be committed, with archived_by bound, before any reviewer is dispatched.
+        This is a dispatcher precondition, recorded here and not cured.
+    - id: D2
+      text: >-
+        The session was cut off by an API session limit and resumed on a Coordinator
+        message. No artifact existed before the interruption, and scope did not change.
+    - id: D3
+      text: >-
+        My importlib loads wrote __pycache__ into three directories outside my write scope:
+        code/v2/, code/v2/mutants/ and TASK-20260928-3f90b8/. All three are gitignored and
+        were created between 22:06 and 22:12 by my runs. I deleted them and pinned
+        sys.dont_write_bytecode in every script. Afterwards every artifact-digests entry
+        re-verified (0 mismatches), the reused script's sha256 was unchanged, and git status
+        showed only untracked review directories.
+    - id: D4
+      text: >-
+        Full per-driver run directories (each about 5 MB of raw-result.json) live in the
+        session scratchpad, not the write scope. Their sha256 values are recorded, and they
+        regenerate deterministically.
+    - id: D5
+      text: >-
+        My first strengthened gate had checks (b+), (f) and (g), and it did not catch W7.
+        I added (h) after building W7. The reported result is the four-check version.
+    - id: D6
+      text: >-
+        The first planted-counter run included the FREE control in its comparison, which
+        has sub-rho cells by design, and reported passed: false. I restricted the comparison
+        to primary models and reran; the file was overwritten with the corrected (passed)
+        output.
+    - id: D7
+      text: >-
+        I read coordinator_prior before starting work, because it is in the card I was
+        directed to read. Both verdicts rest on executed runs.
+    - id: D8
+      text: The kb MCP server was not exposed in this session; I used grep over knowledge/.
+  committed: false

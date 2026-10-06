@@ -91,7 +91,7 @@ Costs are counts in separate columns, and columns are never summed.
   in the sweep. Every base in a cell then uses the subgroup base's actual
   size.
 
-## Results (2026-09-24; sections 3 and 4 2026-09-26)
+## Results (2026-09-24; sections 3 and 4 2026-09-26; section 5 2026-09-28)
 
 These are toy sizes: the sweep uses primes of 12 to 32 bits, and the msolve
 comparison uses one 16-bit prime. The runs were on a 4-core Intel Xeon
@@ -494,6 +494,63 @@ What the changes show:
 - **Memory no longer limits the sizes run here.** A 32-bit m = 3 table
   takes 12 MB. The numpy path, and with it the array storage, stops at
   p < 2^32, as the vectorised scan always has.
+
+### 5. The arity ladder to m = 7 (2026-09-28)
+
+The model of section 3 predicts a cost of `N^(max(h, m−h+1)/m)`. That is
+lowest at odd `m`, and it falls toward 1/2 as `m` grows without ever
+reaching it. m = 7 uses tables of four points (`h = 4`) and is predicted at
+4/7 ≈ 0.571, below m = 5's 0.6. This sweep adds m = 6 and m = 7 on the
+curves of section 3's arity sweep.
+
+```sh
+python -m crypto_autoresearcher.index_calculus sweep \
+    --bits 12 14 16 18 20 22 24 26 28 30 32 --m 6 7 --fb small_x \
+    --curves 5 --rho-curves 10 --engine enumerate mitm \
+    --m-max-bits enumerate:6=14 enumerate:7=14 --workers 4 \
+    --out results/sweep-arity67-20260928.jsonl
+gzip -n results/sweep-arity67-20260928.jsonl
+python -m crypto_autoresearcher.index_calculus analyze results/sweep-arity67-20260928.jsonl.gz
+```
+
+- **Runs.** 110 mitm instances and 110 rho, with the `min_fill` pivot rule.
+  Every logarithm was checked; none failed.
+- **Same curves, checked.** The 110 rho rows equal those of
+  `sweep-arity-minfill-20260926`, so every arity below ran on the same
+  curves.
+- **Same runs, checked.** The 20 instances also run with exhaustive search
+  (12–14 bits) made identical runs. The tests compare tables of up to six
+  points with exhaustive search at m = 6 and 7.
+
+| m | table arity h | model | measured S₃ exponent [95% CI] | median S₃ solves at 32 bits | vs rho's walk |
+|---|---|---|---|---|---|
+| 3 | 2 | 2/3 ≈ 0.667 | 0.66 [0.65, 0.68] | 2.08·10⁶ | 22× |
+| 4 | 2 | 3/4 = 0.750 | 0.75 [0.74, 0.77] | 1.71·10⁷ | 183× |
+| 5 | 3 | 3/5 = 0.600 | 0.60 [0.58, 0.61] | 1.38·10⁶ | 15× |
+| 6 | 3 | 2/3 ≈ 0.667 | 0.68 [0.66, 0.70] | 7.75·10⁶ | 83× |
+| 7 | 4 | 4/7 ≈ 0.571 | **0.58** [0.57, 0.60] | 1.78·10⁶ | 19× |
+| rho | – | 1/2 | 0.51 [0.48, 0.53] (walk) | 93,546 additions | 1× |
+
+m = 3–5 are section 3's second sweep (S₃ counts do not depend on the pivot
+rule). At 32 bits, |F| is 984, 209, 87, 50 and 34 for m = 3 to 7. The m = 7
+table holds 5.0·10⁵ tails.
+
+What the ladder shows:
+
+- **The model predicts all five arities.** Every measured exponent lies
+  within about 0.01 of it, and the pattern it predicts is there: odd `m`
+  beats its even neighbours, and m = 7 has the lowest exponent measured.
+- **A lower exponent is not yet a lower cost.** At 32 bits m = 7 costs 1.3×
+  what m = 5 does. Extrapolating, m = 7 would overtake m = 5 only near 2^45
+  on the model's exponents (a gap of 0.029), or near 2^54 on the fitted
+  ones (0.017). That is an extrapolation, not a measurement.
+- **No arity closes on rho.** Each exponent stays above rho's, so the gap
+  still grows with N. For the best arities it grows like N^0.08–0.09
+  relative to rho. As `m` grows the model tends to 1/2 from above, which
+  is what a generic algorithm's cost should do.
+- **Cost of the higher arities in wall time.** A 32-bit solve took up to
+  208 s at m = 6 and 48 s at m = 7, against a few seconds at m = 3. The
+  fixed head points are still enumerated in Python.
 
 ### Caveats
 

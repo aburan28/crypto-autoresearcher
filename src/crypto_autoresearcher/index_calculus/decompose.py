@@ -29,6 +29,16 @@ finds anything it collects every hit and keeps the one the exhaustive search
 would have reached first (``_search_order``), so an index-calculus run makes
 the same relations, attempts and logarithm with either engine and differs
 only in what they cost.
+
+Recorder (collision harvest)
+----------------------------
+``decompose`` takes an optional ``recorder`` (harvest.SearchRecorder).  It is
+told, for every last-level S_3 scan, the point R' it scanned (R minus the
+fixed head), the head itself and the exact index range [lo, hi] whose S_3
+solves were CHARGED (hi is where the scan returned early, else |F| - 1).
+The recorder computes its encodings itself and never touches E.ops, the
+DecompStats or the table; with ``recorder=None`` every code path, counter and
+relation is unchanged.
 """
 
 from __future__ import annotations
@@ -92,12 +102,14 @@ def _table(fb: FactorBase, m: int, table: TailTable | None) -> TailTable | None:
 def decompose(E: Curve, fb: FactorBase, R: Point, m: int,
               stats: DecompStats | None = None,
               accelerate: bool | None = None,
-              table: TailTable | None = None) -> Relation | None:
+              table: TailTable | None = None,
+              recorder=None) -> Relation | None:
     """One decomposition of R into m signed factor-base points, or None."""
     stats = stats if stats is not None else DecompStats()
     tab = _table(fb, m, table)
     stats.attempts += 1
-    found = _decompose(E, fb, R, m, 0, stats, False, use_acceleration(fb, accelerate), tab)
+    found = _decompose(E, fb, R, m, 0, stats, False, use_acceleration(fb, accelerate), tab,
+                       recorder)
     if not found:
         return None
     rel = found[0]
@@ -187,7 +199,8 @@ def _search_order(fb: FactorBase, rel: Relation) -> tuple:
 
 
 def _level2(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
-            all_: bool, accel: bool, tab: TailTable | None = None) -> list[Relation]:
+            all_: bool, accel: bool, tab: TailTable | None = None,
+            recorder=None) -> list[Relation]:
     """The last S_3 step over i = lo, lo + 1, ... (the m = 2 level when tab is None)."""
     n = len(fb)
     out: list[Relation] = []
@@ -200,16 +213,20 @@ def _level2(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
             if found:
                 out.extend(found)
                 if not all_:
+                    if recorder is not None:
+                        recorder.scan(R, lo, i)
                     return out
+        if recorder is not None:
+            recorder.scan(R, lo, n - 1)
         return out
     cands = _accel.m2_candidates(fb.arrays(), R[0], R[1], lo,
                                  None if tab is None else tab.arrays())
-    return _walk_candidates(E, fb, R, lo, cands, stats, all_, tab)
+    return _walk_candidates(E, fb, R, lo, cands, stats, all_, tab, recorder)
 
 
 def _walk_candidates(E: Curve, fb: FactorBase, R: Point, lo: int, cands,
                      stats: DecompStats, all_: bool,
-                     tab: TailTable | None = None) -> list[Relation]:
+                     tab: TailTable | None = None, recorder=None) -> list[Relation]:
     """Run the scalar m = 2 step at the scan's marked indices only.
 
     Every index the scan does not mark has x_i != x(R) and no root in the
@@ -230,9 +247,13 @@ def _walk_candidates(E: Curve, fb: FactorBase, R: Point, lo: int, cands,
         if found:
             out.extend(found)
             if not all_:
+                if recorder is not None:
+                    recorder.scan(R, lo, c)
                 return out
     stats.s3_solves += n - pos
     stats.membership_tests += 2 * (n - pos)
+    if recorder is not None:
+        recorder.scan(R, lo, n - 1)
     return out
 
 
@@ -240,7 +261,7 @@ LEVEL3_BLOCK = 64  # (i, sign) pairs scanned together at m = 3
 
 
 def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
-            all_: bool, tab: TailTable | None = None) -> list[Relation]:
+            all_: bool, tab: TailTable | None = None, recorder=None) -> list[Relation]:
     """m = 3 (m = h + 2 with a table) with blocks of (i, s) pairs scanned in one 2-D pass.
 
     The scalar loop visits (i, +1), (i, -1) for i = lo, lo+1, ... and runs the
@@ -279,7 +300,13 @@ def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
             Rp = rps[k]
             if Rp is None:
                 continue
-            for sub in _walk_candidates(E, fb, Rp, i, cand_of[k], stats, all_, tab):
+            if recorder is not None:
+                recorder.push(i, s)
+                subs = _walk_candidates(E, fb, Rp, i, cand_of[k], stats, all_, tab, recorder)
+                recorder.pop()
+            else:
+                subs = _walk_candidates(E, fb, Rp, i, cand_of[k], stats, all_, tab)
+            for sub in subs:
                 out.append([(i, s)] + sub)
                 if not all_:
                     return out
@@ -288,7 +315,7 @@ def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
 
 def _decompose(E: Curve, fb: FactorBase, R: Point, m: int, lo: int,
                stats: DecompStats, all_: bool, accel: bool,
-               tab: TailTable | None = None) -> list[Relation]:
+               tab: TailTable | None = None, recorder=None) -> list[Relation]:
     if R is None:
         return []
     h = 1 if tab is None else tab.arity
@@ -299,15 +326,21 @@ def _decompose(E: Curve, fb: FactorBase, R: Point, m: int, lo: int,
             return []
         return [[(i, 1 if R == fb.points[i] else -1)]]
     if m == h + 1:
-        return _level2(E, fb, R, lo, stats, all_, accel, tab)
+        return _level2(E, fb, R, lo, stats, all_, accel, tab, recorder)
     if m == h + 2 and accel and len(fb) - lo >= ACCEL_MIN_SPAN:
-        return _level3(E, fb, R, lo, stats, all_, tab)
+        return _level3(E, fb, R, lo, stats, all_, tab, recorder)
     out: list[Relation] = []
     for i in range(lo, len(fb)):
         F = fb.points[i]
         for s in (1, -1):
             Rp = E.sub(R, F if s > 0 else E.neg(F))
-            for sub in _decompose(E, fb, Rp, m - 1, i, stats, all_, accel, tab):
+            if recorder is not None:
+                recorder.push(i, s)
+                subs = _decompose(E, fb, Rp, m - 1, i, stats, all_, accel, tab, recorder)
+                recorder.pop()
+            else:
+                subs = _decompose(E, fb, Rp, m - 1, i, stats, all_, accel, tab)
+            for sub in subs:
                 out.append([(i, s)] + sub)
                 if not all_:
                     return out

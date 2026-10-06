@@ -1,0 +1,400 @@
+# =============================================================================
+# TASK-20261001-7f7a33 -- EXECUTOR task for EXP-PFDR-011cd0 (relation-level
+# structural census; H-PFDR-2765d2). Implements EC-1..EC-9, runs R01-R16 in the
+# frozen order, and R17/R18 only under their triggers. Approved by
+# DEC-20261001-56f873. Constraints at least as strict as TASK-20260929-89c123.
+# HELD: not dispatchable until the TW-FLOOR round (DEC-20261001-709f0d) has been
+# composed and decided and the contract-touch ruling is committed (see
+# dispatch_preconditions).
+# =============================================================================
+handoff:
+  id: TASK-20261001-7f7a33
+  id_provenance: >-
+    Reserved by the top-level session with tools/allocate_id.py and confirmed
+    free with --check; this Coordinator holds no shell and minted no
+    identifier.
+  created_at: '2026-10-01'
+  created_by: coordinator
+  from: coordinator
+  to: executor
+  status: written_not_dispatched
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  experiment_id: EXP-PFDR-011cd0
+  hypothesis_id: H-PFDR-2765d2
+  approval_decisions: [DEC-20261001-56f873]
+  protocol: experiments/EXP-PFDR-011cd0/specification.yaml (v1, FROZEN) plus any additive amendment in experiments/EXP-PFDR-011cd0/amendments/ approved and archived before dispatch
+  title: >-
+    Implement EC-1..EC-9 and run EXP-PFDR-011cd0 R01-R16 (R17, R18 if
+    triggered): regressions with solve certificates, the OBJ-5 fix check, the
+    P0 power design, the table and search census panels, the equality checks,
+    and the blinded two-step analysis
+  objective: >-
+    Produce the complete, valid run set of EXP-PFDR-011cd0 exactly as frozen:
+    the engine changes EC-1..EC-9 and their tests; R01 tests; R02-R09
+    regressions with --solve-certs; R10 fix check; R11 P0 design (final curves
+    per rung by the frozen rule); R12 table panel; R13 search panel; R14
+    search and table equality checks; R15 blinded calibration; R16 unmasked
+    analysis; R17 only on O-CANDIDATE; R18 only if G1', G2' or G-FIX fails.
+    Observations only; no interpretation beyond the outcome table.
+  uncertainty_reduced: >-
+    Whether coset, Dickson or small_x bases carry a non-generic excess of
+    DISTINCT informative relations over matched random bases at 30-32 bits for
+    TT and SS at m = 3, 4, 5 (TT m 4 included) and TB at m = 3, under a null
+    calibrated on the random arms and checked by a known-null arm, with power
+    to detect relation-level kappa 1.15 (1.5 for TB m 3); and whether the
+    restated heuristics HEUR-2765d2-H1a/b/c, H3, H4, H5 hold.
+  inputs:
+    - experiments/EXP-PFDR-011cd0/specification.yaml (FROZEN; governs everything)
+    - experiments/EXP-PFDR-011cd0/amendments/ (any approved, archived amendment governs where it names a field)
+    - ledger/decisions/DEC-20261001-56f873.yaml (the approval) and ledger/hypotheses/H-PFDR-2765d2.yaml
+    - the committed engine at the build base (spec inputs.build_base) and the six committed results/sweep-*.jsonl.gz files
+    - experiments/EXP-PFDR-1b78f7/compare_regression.py and experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py (invoked by path, read-only)
+    - experiments/EXP-PFDR-1b78f7/amd-430f44/run_jobs.py (may be copied as the starting point of the new launcher; read-only)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m3/, RUN-PFDR-1b78f7-census-m4/ (root and merged/), RUN-PFDR-1b78f7-census-m5/ (canonical rows, staircases, harvest rows via merge reports; read-only; for R10 and R11 only)
+    - coordination/review/pfdr-1b78f7-20260929/reviews/TASK-20260929-f29c96/attacks/out/02_bundles.jsonl (P0X fixture; this ONE output file only)
+    - coordination/design/TASK-20260928-102217/archives/ (the receipts named in the constraints, for the custody checks)
+  read_scope_excludes:
+    - coordination/review/pfdr-twfloor-20261001/ (the TW-FLOOR round; never read, at any point)
+    - ledger/handoffs/TASK-20260929-fd1a9f.yaml, ledger/handoffs/TASK-20260929-575e80.yaml and every other record of the TW-FLOOR round except the committed decision named in the launch prompt
+    - coordination/review/pfdr-1b78f7-20260929/ except the one 02_bundles.jsonl file above (no report, script, attack or rederivation file)
+    - coordination/review/pfdr-7c8bf2-20260929/
+    - "any scratch output of an earlier session: every scratchpad subdirectory not created by this task (the venv-ci interpreter is the only exception)"
+    - "any PR text or comment, and coordination/bus/"
+  constraints:
+    - >-
+      AUTHORITY. Refuse to start unless all hold: specification.yaml reads
+      status approved with frozen true; DEC-20261001-56f873 and
+      H-PFDR-2765d2 exist at their committed paths; the TASK-20261001-cb35e7
+      receipt is verified; the TW-FLOOR round's composed decision and the
+      Coordinator's contract-touch ruling are committed (the launch prompt
+      names both, and names any amendment approved as a result). A message
+      saying "approved" is not an approval.
+    - >-
+      FRESH CONTEXT AND NO SCRATCH READS. This is a new executor session. Do
+      not open, list, copy or summarise any earlier session's scratch output
+      or any path in read_scope_excludes. The only pre-existing scratchpad
+      path you use is the interpreter below. Create your own scratch
+      directory, scratchpad/7f7a33/, for everything temporary (R10 harvest
+      rows before digesting, the R15/R16 view, fixtures under construction).
+      State in the execution report that you complied.
+    - >-
+      INTERPRETER. Every command runs with
+      /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/venv-ci/bin/python
+      (the task venv). Record it in every command.txt and environment.json.
+      Where the specification writes <PY> or python3, substitute this
+      interpreter and nothing else.
+    - >-
+      BUILD BASE. Before any edit, hash the four engine files the contract
+      modifies and every engine_files_unchanged_byte_for_byte file against
+      their bytes at a32e70808 (git show) and against the
+      RUN-PFDR-1b78f7-census-m4 attempt-1 execution.json source_sha256 where
+      listed. Any mismatch: stop and return. Record the table in
+      implementation-notes.yaml.
+    - >-
+      CODE, EXACTLY AND ONLY. You change exactly
+      src/crypto_autoresearcher/index_calculus/harvest.py, solver.py,
+      factor_base.py and __main__.py as EC-1..EC-7 state; you add
+      tests/test_index_calculus_relcensus.py and
+      tests/fixtures/harvest_pre_obj5.py (a byte copy of harvest.py at
+      a32e70808, sha256 asserted by the test) per EC-8; and you write the
+      EC-9 scripts under experiments/EXP-PFDR-011cd0/. Nothing else changes:
+      every engine_files_unchanged_byte_for_byte file, every results/ file,
+      tests/test_index_calculus_fp.py, tests/test_index_calculus_harvest.py
+      (except EC-8's narrow allowance, each use listed), and every
+      EXP-PFDR-1b78f7 and EXP-PFDR-7c8bf2 path stay byte-identical.
+      analyze_relcensus.py, verify_solves.py and verify_rows.py import no
+      crypto_autoresearcher module; design_curves.py imports only curve.py
+      and factor_base.py; merge_relcensus.py and run_jobs.py import no engine
+      module.
+    - >-
+      OBJ-5 REGRESSION FIRST. T-OBJ5 must show the undercount on the pre-fix
+      code and C(k', 2) on the repaired code before any run. If the fixture
+      does not make the old code undercount, the test is not discriminating:
+      stop and return rather than weakening it.
+    - >-
+      PINNED BEFORE DATA. Before first use on real data, record the sha256
+      and a timestamp of every EC-9 script, of each modified engine file and
+      of both new test files in experiments/EXP-PFDR-011cd0/implementation-notes.yaml.
+      Before that point run_jobs.py runs only dummy commands, and
+      merge_relcensus.py and analyze_relcensus.py run only on synthetic
+      fixtures you construct (planted duplicates, a missing key, a planted
+      excess of known size, a known-null arm, a straddling SS group), never
+      on a panel file. Record the fixture exercise and its planted-case
+      results. analyze_relcensus.py is pinned before R11 and is the same
+      file for R11, R15, R16 and R17. design.json is pinned before R12;
+      calibration.json is pinned before R16. Any later edit of a pinned file
+      is a deviation recorded with its reason and both hashes, and a pinned
+      analysis or design file may not be edited after any data it governs
+      exists (stop and return instead).
+    - >-
+      ORDER, EXACTLY (spec stopping_rules). (a) build base check; (b)
+      implement EC-1..EC-9 and tests; (c) R01; (d) R02-R09 with
+      compare_regression.py and verify_solves.py; (e) G1', G2', G3' check;
+      (f) R10 and G-FIX; if G1', G2', G3' or G-FIX fails, run R18 and STOP;
+      (g) R11 (design_curves.py, then analyze_relcensus.py p0); if P0X fails
+      or P0 reaches a design stop, STOP; pin design.json; (h) R12 from
+      design.json, merge, verify_rows.py; (i) R13 likewise; (j) R14 and the
+      G-TAB, G-SRCH, G-CURVE, G-REL, G4-D, G4-R checks; (k) build the view
+      after every merge; R15 (calibrate; structured and planted arms are
+      filtered out by arm name before any count is parsed; archive
+      arm-read-log.json); pin calibration.json; (l) R16 (unmask) with the
+      pinned sha256; (m) R17 only if R16 reports O-CANDIDATE.
+    - >-
+      CELLS, EXACTLY. The curves, arms, seeds, modes, flags and X_fix of the
+      specification's `cells`, with the final curves per rung from the pinned
+      design.json (P0 may only RAISE n by its frozen rule). Fresh curves
+      only: census c >= 10, Stage R' c >= 20000. No extra curve, seed, rung,
+      arm or mode, and no skipped cell.
+    - >-
+      GATES AND CERTIFICATES, UNRELAXED. G4 in process on every row; G4-D:
+      every instance that determines k writes (P, Q, k) with --solve-certs,
+      and verify_solves.py (standard library only, its own primality test and
+      curve arithmetic) re-verifies every record of the run before its
+      manifest is written; G4-R: verify_rows.py re-verifies every retained
+      row of every instance with curve % 10 == 0 from its bases file; G5, G6,
+      G7, G-FIX, G-TAB, G-SRCH, G-CURVE, G-REL, P0X; PC-R (iii). A
+      certificate or gate failure stops that run as invalid with rows
+      retained. A gate failure is an implementation finding, never evidence
+      about the hypothesis.
+    - >-
+      CERTIFICATE FORMAT (tools/validate_ledger.py run schema). In every
+      manifest you write (attempt, canonical location, run root) whose
+      result.certificate.kind is discrete_log, result.certificate.verified is
+      the boolean true, and only when every claimed solve it covers has been
+      re-verified by verify_solves.py; the counts go in instances_claimed and
+      instances_verified. It is never a count, a string or null. A run that
+      claims no solve uses kind none. If any claimed solve fails, the run is
+      invalid (I-3); never write verified true in that case, and never false
+      to keep going.
+    - >-
+      MACHINE PROTECTION (binding; time is advisory). Host: 4 cores, 15 GB,
+      about 8 GB free disk. At most 4 job processes at once (run_jobs.py), or
+      a frozen sweep's 4 workers with nothing else running. Every job process
+      under experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py exec
+      (RLIMIT_AS 3.5e9; ru_maxrss recorded on MemoryError). No job starts
+      while MemAvailable < 4 GB or free disk < 2.5 GB. Watchdogs: 1800 s per
+      instance (R12, R13), 7200 s (R10, R14), 21600 s per job, 86400 s per
+      attempt (expiry checkpoints; unfinished jobs resume in attempt-N),
+      task watchdog below. If experiments/EXP-PFDR-011cd0/ exceeds 1.5 GB,
+      checkpoint and return (TW-DISK). Every JSONL is gzip -n compressed when
+      its job ends and hashed after compression; no single file may exceed
+      95 MB (per-job files keep them small; if one would, stop and return).
+      Timeouts, memory stops, disk checkpoints and crashes are
+      failed_infrastructure or checkpoints, retained with their logs, never
+      a mathematical result. Do not raise a cap, a watchdog or the worker
+      count for any reason.
+    - >-
+      OUTPUT PATHS. Write only under write_scope. New run directories use the
+      specification's run ids under experiments/EXP-PFDR-011cd0/runs/.
+      Never modify, rename, recompress or delete any existing file anywhere,
+      in particular any EXP-PFDR-1b78f7 or EXP-PFDR-7c8bf2 path,
+      specification.yaml or amendments/. No __pycache__ or .pyc file is an
+      artifact.
+    - >-
+      REQUIRED ARTIFACTS (AGENTS.md "Artifact policy"; spec required_artifacts,
+      including NA-16). Every attempt, canonical location and run root holds
+      a manifest.yaml with: exact command or template and job list; git
+      commit, dirty state and sha256 of every executed source file; the
+      environment; inputs, cells and every seed (R01 states "no seeds
+      (deterministic tests)"); protocol version and any amendment ids; an
+      inference block (requested policy executor-implementation, backend,
+      resolved model identifier recorded as null with provenance "withheld by
+      the session's artifact policy; not probe-verified", model_verified
+      false, reasoning effort, fallback_used, degraded requirements); status
+      completed_valid | failed_infrastructure | invalid with completeness;
+      non-null started_at and finished_at; peak RSS, CPU and wall seconds;
+      the certificate block. Each also holds command.txt, environment.json,
+      stdout.log, stderr.log, raw-result.json and checksums.sha256 covering
+      every file beneath it. Views are built after the merges they depend on,
+      and view-map.json is archived with R15 and R16.
+    - >-
+      NO COMMITS. Do not commit, push, stage, rebase or merge. The Coordinator
+      archives by exact path in TASK-20261001-b64be7. Leave the engine and
+      test edits uncommitted in the working tree; they are pinned by sha256 in
+      implementation-notes.yaml and every manifest.
+    - >-
+      NO JUDGMENT ON SCOPE. Change no threshold, seed, cell, convention,
+      flag, rule or definition after seeing any output. If the protocol is
+      ambiguous or unimplementable at some point (an unforeseen row shape, a
+      key the merge rules do not classify, a test that cannot be written as
+      stated), implement nothing around it: stop that step, record the
+      ambiguity with options in execution-report.yaml, and return.
+    - >-
+      NO INTERPRETATION. Report outcome ids as R16 (and R17) compute them. Do
+      not describe any result as a lever, a closure, support or refutation.
+      TW-ALIVE is reported as fired, nothing more. Do not compute or print any
+      kappa, z, ratio or dispersion of a structured or planted arm outside
+      R16 and R17, and none of any arm outside R11, R15, R16 and R17. Compute
+      no floor ratio and run no harvest-on mode (TW-FLOOR-INDEPENDENCE).
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock (AGENTS.md rule 16).
+  deliverables:
+    - the engine and test changes of EC-1..EC-8 (uncommitted, pinned)
+    - experiments/EXP-PFDR-011cd0/run_jobs.py, merge_relcensus.py, design_curves.py, analyze_relcensus.py, verify_solves.py, verify_rows.py and fixtures/
+    - experiments/EXP-PFDR-011cd0/implementation-notes.yaml (EC-1..EC-9 mapped to files and functions; build-base table; pins with timestamps; fixture exercise; the EC-8 allowance if used; every deviation with reason and both hashes)
+    - experiments/EXP-PFDR-011cd0/runs/ R01-R16 (R17, R18 if triggered), each with all required artifacts
+    - >-
+      experiments/EXP-PFDR-011cd0/execution-report.yaml: build-base result;
+      runs and attempts with statuses and completeness; every gate and
+      control result (G1'..P0X, PC-NULL, PC-R, PC-1); P0's final n per (panel,
+      m, rung) and whether its rule raised any; outcome ids; every
+      failed_infrastructure instance and CC-6 exclusion; unexpected
+      observations (including any A-TAIL listing); the TW-DISK state; the
+      no-scratch-read and read-scope statement; and the artifact paths.
+  artifact_paths:
+    - src/crypto_autoresearcher/index_calculus/harvest.py
+    - src/crypto_autoresearcher/index_calculus/solver.py
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - tests/test_index_calculus_relcensus.py
+    - tests/fixtures/harvest_pre_obj5.py
+    - tests/test_index_calculus_harvest.py (only if the EC-8 narrow allowance was used)
+    - experiments/EXP-PFDR-011cd0/run_jobs.py
+    - experiments/EXP-PFDR-011cd0/merge_relcensus.py
+    - experiments/EXP-PFDR-011cd0/design_curves.py
+    - experiments/EXP-PFDR-011cd0/analyze_relcensus.py
+    - experiments/EXP-PFDR-011cd0/verify_solves.py
+    - experiments/EXP-PFDR-011cd0/verify_rows.py
+    - experiments/EXP-PFDR-011cd0/fixtures/
+    - experiments/EXP-PFDR-011cd0/implementation-notes.yaml
+    - experiments/EXP-PFDR-011cd0/execution-report.yaml
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-tests/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-20260924/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-mitm-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-arity-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-minfill-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-arity-minfill-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-off-sweep-arity67-20260928/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-census-sweep-minfill-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-census-sweep-arity-minfill-20260926/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-fix-check/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-p0-design/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-table/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-search/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-srch-check/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-calibrate/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-analysis/
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-stage-r/ (only on O-CANDIDATE)
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-reg-attribution/ (only if G1', G2' or G-FIX fails)
+  write_scope:
+    - src/crypto_autoresearcher/index_calculus/harvest.py
+    - src/crypto_autoresearcher/index_calculus/solver.py
+    - src/crypto_autoresearcher/index_calculus/factor_base.py
+    - src/crypto_autoresearcher/index_calculus/__main__.py
+    - tests/test_index_calculus_relcensus.py
+    - tests/fixtures/harvest_pre_obj5.py
+    - tests/test_index_calculus_harvest.py (EC-8 narrow allowance only)
+    - experiments/EXP-PFDR-011cd0/run_jobs.py
+    - experiments/EXP-PFDR-011cd0/merge_relcensus.py
+    - experiments/EXP-PFDR-011cd0/design_curves.py
+    - experiments/EXP-PFDR-011cd0/analyze_relcensus.py
+    - experiments/EXP-PFDR-011cd0/verify_solves.py
+    - experiments/EXP-PFDR-011cd0/verify_rows.py
+    - experiments/EXP-PFDR-011cd0/fixtures/
+    - experiments/EXP-PFDR-011cd0/implementation-notes.yaml
+    - experiments/EXP-PFDR-011cd0/execution-report.yaml
+    - experiments/EXP-PFDR-011cd0/runs/RUN-PFDR-011cd0-*/
+  write_scope_note: >-
+    Exactly the paths above, plus the task's own scratch directory
+    /tmp/claude-0/-home-user/015c3767-cc03-52db-9b0c-bd2aa6c26537/scratchpad/7f7a33/,
+    outside the repository and never archived. Not writable:
+    experiments/EXP-PFDR-011cd0/specification.yaml,
+    experiments/EXP-PFDR-011cd0/amendments/, experiments/EXP-PFDR-011cd0/runs/.gitkeep,
+    every other engine, CLI or test file, results/, README.md, every ledger
+    record, every coordination/ path, and every EXP-PFDR-1b78f7 and
+    EXP-PFDR-7c8bf2 path.
+  archived_by: TASK-20261001-b64be7
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    fresh_session_required: true
+    model_identifier_rule: >-
+      The resolved model identifier is recorded as null, with provenance
+      "withheld by the session's artifact policy; not probe-verified" and
+      model_verified false, as in every run of TASK-20260929-f90fed and
+      TASK-20260929-89c123. Bedrock is never selected.
+  budget:
+    wall_clock_seconds: 259200
+    wall_clock_note: >-
+      Task-level watchdog (machine protection, 72 h). Expiry checkpoints the
+      task with all completed attempts retained and a remaining-work list in
+      execution-report.yaml. It exhausts nothing and is never a result. The
+      advisory compute estimate is about 30 CPU-hours (8-12 h wall).
+    memory_gb: 14
+    maximum_runs: 18
+    maximum_runs_note: R01-R16 planned; R17 and R18 conditional (spec budget.maximum_runs)
+    per_attempt_watchdog_seconds: 86400
+    per_job_watchdog_seconds: 21600
+    per_instance_watchdog_seconds: 1800
+    per_instance_watchdog_note: 1800 s in R12 and R13; the census default 7200 s in R10 and R14; none inside the frozen sweep subcommand (per-job and per-attempt watchdogs bind)
+    maximum_concurrent_processes: 4
+    per_process_address_space_bytes: 3500000000
+    disk_floor_gb: 2.5
+    package_guard_gb: 1.5
+  completion_gate:
+    - the build-base check passed and is tabled in implementation-notes.yaml
+    - every EC-9 script, modified engine file and new test file is pinned before first real use; the fixture exercise shows every planted case handled
+    - R01 passes and T-OBJ5 shows the undercount on the pre-fix code and C(k', 2) on the repaired code
+    - G1' and G2' pass on every committed row; every solve of R02-R09 is re-verified by verify_solves.py
+    - G-FIX passes (or the task stopped after R18 and returned)
+    - P0X passes, design.json is pinned before R12, and any n raised by P0 is recorded with its reason (or the task stopped at a design stop)
+    - every key of R12 and R13 has exactly one canonical row; G-TAB, G-SRCH, G-CURVE, G-REL, G4, G4-D, G4-R, G5, G6, G7 pass counts are reported
+    - R15's arm-read-log shows no structured or planted arm parsed; calibration.json is pinned before R16; R16 ran with that sha256
+    - every discrete_log manifest has result.certificate.verified equal to the boolean true with instances_claimed and instances_verified; tools/validate_ledger.py (run read-only before returning) reports no error naming a new path; its output for the new paths is listed
+    - every attempt, canonical location and run root carries its required artifacts and a checksums.sha256 covering every file beneath it; no file exceeds 95 MB; the package size is reported
+    - no file outside write_scope changed; every EXP-PFDR-1b78f7 and EXP-PFDR-7c8bf2 path is hash-equal to its archive receipt (the two manifest paths of CORR-20261001-6cc5cd excepted as known)
+    - execution-report.yaml lists everything its deliverable names, including the no-scratch-read and read-scope statement
+  return_format: >-
+    A short report: build-base result; R01 and T-OBJ5; G1', G2', G-FIX; P0X and
+    P0's final n per (panel, m, rung); runs and attempts with statuses and
+    completeness; every gate and control result; outcome ids; failed
+    instances, CC-6 exclusions and A-TAIL listings; package size; every
+    deviation or ambiguity recorded; and the exact artifact paths for
+    TASK-20261001-b64be7 to stage, including which conditional paths exist.
+  review_required: true
+  review_required_note: >-
+    A claim-relevant producer. Its dependent validator and red-team tasks are
+    minted after TASK-20261001-b64be7 verifies, under a review_plan written
+    first (DEC-20261001-56f873 next_actions). No output of this task is read
+    as evidence before they report.
+  review_plan: null
+  review_plan_note: No review round opens here.
+  dispatch_preconditions:
+    - >-
+      TW-FLOOR ROUND DECIDED. The TW-FLOOR review-breakthrough round
+      (DEC-20261001-709f0d; reviewers TASK-20260929-fd1a9f and
+      TASK-20260929-575e80) has been COMPOSED AND DECIDED by a committed
+      Coordinator decision whose ledger archive receipt has verified. Until
+      then this card is not dispatched, whatever else holds.
+    - >-
+      CONTRACT-TOUCH RULING. After that decision, a committed Coordinator
+      decision records whether any finding of the round touches
+      EXP-PFDR-011cd0 (the relation unit CC-1..CC-3, EC-1..EC-9, solve
+      certification, or any harvest-on reading). If it touches, an additive
+      protocol_amendment is approved and archived first, and the launch
+      prompt names it. If it does not, the launch prompt says so and cites
+      the ruling.
+    - TASK-20261001-cb35e7's receipt is verified, so the hypothesis, the frozen specification, DEC-20261001-56f873, this card and TASK-20261001-b64be7 are committed and pushed.
+    - archived_by is bound on this card (TASK-20261001-b64be7); satisfied as written.
+    - >-
+      No other open task, lane claim, bus-announced work or unmerged branch
+      holds write scope over src/crypto_autoresearcher/index_calculus/**,
+      tests/test_index_calculus_*.py, tests/fixtures/** or
+      experiments/EXP-PFDR-011cd0/**; in particular no certification or
+      re-execution run of the TW-FLOOR round is live. goal_id is null, so
+      there is no goal lane; check open PRs and the coordinator inbox. The
+      task is claimed before launch.
+    - The four engine files to be modified still equal their a32e70808 bytes (the build base); otherwise a Coordinator decision first.
+    - origin/main is merged into the working branch (merge, never rebase) immediately before launch; the launch prompt records the base commit.
+    - >-
+      A fresh executor subagent context. The launch prompt names this card,
+      the verified TASK-20261001-cb35e7 receipt, the TW-FLOOR decision and the
+      contract-touch ruling (and any amendment), and the base commit, and
+      carries no summary of any scratch output, of any review report, or of
+      any EXP-PFDR-1b78f7 value.
+    - No other solver, review computation or archive is running on the host at launch; at least 14 GB of memory and at least 4 GB of free disk are available.
+  runs_launched: 0

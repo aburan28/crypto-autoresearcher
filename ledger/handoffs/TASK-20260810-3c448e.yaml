@@ -1,0 +1,282 @@
+handoff:
+  id: TASK-20260810-3c448e
+  recorded_at: '2026-08-10'
+  from: coordinator
+  to: executor
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-74ebef
+  experiment_id: EXP-ICINV-4d33aa
+  hypothesis_id: H-ICINV-6c7920
+  question_id: RQ-ICINV-475b5e
+  contract_version: 3
+  objective: >-
+    Execute EXP-ICINV-4d33aa VERSION 3 -- the frozen, approved
+    protocol_amendment at experiments/EXP-ICINV-4d33aa/amendments/v3.yaml --
+    which replaces SR3's literal point-estimate band check with a
+    statistical comparison. Read that amendment file FIRST, IN FULL, then
+    the original frozen specification.yaml (still governs everything the
+    amendment does not name), then amendment v2 (still in force for changes
+    A1-A6), then DEC-20260809-de11f9 (why version 2 terminated INVALID a
+    second time) and CORR-20260810-6e4fa7 (unrelated to this experiment
+    directly, but shows this goal's own standard for catching stale
+    unverified claims -- hold this run to the same standard).
+  uncertainty_reduced: >-
+    Whether EV-ENDO-10109d's density-independent within-class over-dispersion
+    survives a certified full-group target sampler, and whether it
+    stratifies by r -- unchanged from version 2's own framing. Version 2's
+    Arm A0 reproduced the correctly re-measured p=6007 baseline exactly
+    (delta 0.0 at 13/13 rows) but the gate still failed because the
+    baseline ITSELF crosses the literal [1.3, 3.6] band at its two
+    noisiest rows (fb=4, fb=5) -- a gate-design fragility, not a
+    measurement defect, predicted by amendment v2's own standing caution
+    A5 before this run existed. Version 3 repairs the GATE, not the
+    measurement: it tests whether each row's own measured ratio is
+    STATISTICALLY consistent with the band once its finite-sample sampling
+    uncertainty is accounted for, rather than requiring literal membership.
+  inputs:
+    - experiments/EXP-ICINV-4d33aa/amendments/v3.yaml
+    - experiments/EXP-ICINV-4d33aa/amendments/v3-verification.py
+    - experiments/EXP-ICINV-4d33aa/amendments/v3-verification-output.txt
+    - experiments/EXP-ICINV-4d33aa/amendments/v2.yaml
+    - experiments/EXP-ICINV-4d33aa/specification.yaml
+    - ledger/hypotheses/H-ICINV-6c7920.yaml
+    - ledger/decisions/DEC-20260809-de11f9.yaml
+    - harness/exp_icinv.py
+    - harness/exp_icinv_fullgroup.py
+    - harness/run_fullgroup.py
+    - harness/runner.py
+    - tools/check_run_source_provenance.py
+    - experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-99f722/decision-rule-evaluation.json
+    - experiments/EXP-ICINV-55c2d8/runs/RUN-ICINV-f09176/raw-result.json
+    - experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-40622f/
+  constraints:
+    - >-
+      CHANGE A7, THE CORE OF THIS VERSION. Implement `baseline_reproduction_v3`
+      in harness/run_fullgroup.py (or harness/exp_icinv_fullgroup.py,
+      whichever already holds baseline_reproduction_v2 -- extend it in
+      place with a new function, do not overwrite v2's), replacing ONLY
+      the per-row `in_band_1_3_to_3_6` check's contribution to
+      `checks["every_row_..._band"]` with a CI-overlap test. Exact formula
+      (amendment v3.yaml change A7, reproduced there in full): for each
+      row, df := n_curves - 1; stat := df * variance_ratio_measured; using
+      the SAME Wilson-Hilferty z=1.96 quantile approximation already
+      frozen in harness/exp_icinv.py:binomial_null_verdict (lines
+      428-433), lo := df*(1-2/(9df)-z*sqrt(2/(9df)))^3, hi :=
+      df*(1-2/(9df)+z*sqrt(2/(9df)))^3; r_true_95pct_ci := [stat/hi,
+      stat/lo]; row passes iff that interval overlaps [1.3, 3.6]. The
+      OLD literal `in_band_1_3_to_3_6` field and its per-row values are
+      KEPT and REPORTED (not deleted), now explicitly labelled as
+      non-gating; a NEW field (e.g. `ci_overlaps_band_1_3_to_3_6`, and a
+      new row-level `r_true_95pct_ci` pair) becomes what
+      `checks["every_row_..._band"]`-equivalent actually gates on. Do not
+      touch `monotonic_decay_is_false` or `operating_row_within_tolerance`
+      -- neither was the defect and neither is in scope for this change.
+      The band `[1.3, 3.6]` itself is NOT moved, widened, or re-estimated
+      anywhere in this implementation; only the per-row comparison against
+      it changes.
+    - >-
+      CHANGE A8, BLOCKING PRECONDITION ON A7. harness/exp_icinv.py MUST
+      NOT BE EDITED (unchanged invalidation rule from every prior
+      version). The Wilson-Hilferty bound computation above must therefore
+      be REIMPLEMENTED, not imported, inside harness/exp_icinv_fullgroup.py.
+      Name it `chi2_wilson_hilferty_bounds(df, z)` or equivalent. It MUST
+      carry a mandatory self-check, run once at the start of any run that
+      uses it, that calls the COMMITTED harness/exp_icinv.py:binomial_null_verdict
+      on synthetic data at a representative range of df (at minimum df in
+      {1, 5, 20, 69, 138, 139} -- these cover this campaign's own stratum
+      floors and both class sizes already in use) and confirms the local
+      reimplementation's (lo, hi) match the committed function's own
+      output to within 1e-9 relative at every probed df. Write this
+      self-check's result to wilson-hilferty-crosscheck.json. A mismatch
+      at ANY probed df makes the run INVALID -- do not proceed past it.
+    - >-
+      CHANGE A9, DATA PROVENANCE. Version 2's own Stage 3 measurements at
+      p=4001 (RUN-ICINV-40622f) and p=6007 (RUN-ICINV-c670c2) MAY be read
+      as declared input to a fresh v3 gate computation WITHOUT redrawing
+      samples -- Arm A0 is deterministic given the frozen seed (20260807),
+      so a genuine re-draw would reproduce the identical thirteen numbers.
+      If you do this, name the source run id, path, and sha256 for every
+      value read this way in the new run's manifest, with the same
+      discipline amendment v2 change A4 requires of
+      baseline-provenance.json.
+
+      p=2003 IS DIFFERENT. Stage 3 at p=2003 was never executed under
+      version 2 (SR3 halted the per-prime sequence at p=6007 before
+      reaching it). BEFORE relying on anything at p=2003, AUDIT whether a
+      valid version-2 Stage 1/2 record already exists there: candidate
+      run directories visible in the working tree include
+      RUN-ICINV-fg-stage1-p2003 and several RUN-ICINV-fg-nullr*-p2003
+      directories, but their timestamps and naming are consistent with
+      VERSION-1 origin, not version 2, and this has NOT been independently
+      audited. Check each candidate's manifest for which contract version
+      and which commit produced it (git log --diff-filter=A on the
+      manifest path is one way) before treating any of them as valid
+      version-2 input. If none is valid, run a fresh Stage 1/2/3 at p=2003
+      under the unchanged sampler and class-selection rules and declare
+      that you did so. State the audit's outcome explicitly in the
+      execution report either way -- "assumed valid" is not an acceptable
+      substitute for "checked."
+    - >-
+      A6 (from amendment v2, still in force). Every run manifest must pin
+      the hash of every source file it executes. Run `python3
+      tools/check_run_source_provenance.py --experiment EXP-ICINV-4d33aa
+      --strict --since-commit <this task's own starting commit sha>`
+      before considering any version-3 run complete. Scope the check to
+      this task's own commits, exactly as DEC-20260809-de11f9 did for
+      version 2 -- the 19 version-1 runs and version 2's own runs
+      predate this task and are not re-scored by it.
+    - >-
+      A4 (from amendment v2, still in force). No reference value is
+      transcribed into source at any precision. Read every committed
+      number at run time and bind it by source_sha256.
+    - >-
+      DO NOT EDIT harness/exp_icinv.py. All new behaviour for A7/A8 goes
+      in harness/exp_icinv_fullgroup.py / harness/run_fullgroup.py,
+      extending the existing version-2 code, not starting fresh modules.
+    - >-
+      EVERYTHING ELSE FROM THE ORIGINAL CONTRACT AND AMENDMENT V2 STILL
+      APPLIES UNCHANGED: the four sampler arms and their support
+      certificates; SR1/SR2 stage gates; the persistence/stratification
+      statistics (state_2/state_3); the three-prime majority; every
+      invalidation rule; SR6 (terminal state computed inside the run,
+      never chosen afterward); the primes {2003, 4001, 6007}, factor-base
+      sizes, target counts, seed 20260807 primary.
+    - >-
+      THE RESULTING EVIDENCE RECORD IS PRE-CAPPED AT `preliminary`
+      REGARDLESS OF OUTCOME (amendment v3 confirmatory_status:
+      exploratory_only, STRENGTHENED beyond version 2's own reason -- the
+      Coordinator drafting v3 already saw the exact numeric effect of the
+      redesign on the two rows that motivated it). Report the emitted
+      terminal_state plainly; do not read a stronger claim into it than
+      `preliminary` permits.
+    - >-
+      DO NOT INTERPRET AND DO NOT MOVE ANY STATUS. Produce run records and
+      an execution report. The hypothesis status, the evidence record, and
+      any supersession of EV-ENDO-10109d are the Coordinator's, on a
+      separate ledger archive, after independent review.
+    - >-
+      Never fabricate a command, output, timing, or statistic. A
+      measurement not taken stays missing and is reported as missing
+      (AGENTS.md rule 9). A timeout, crash, or OOM is
+      failed_infrastructure, never negative evidence (AGENTS.md rule 5).
+    - >-
+      Fetch origin/main and compare it with this branch before the run
+      manifests are written; record the base commit checked and the merge
+      outcome in the execution report. Merge new main changes, never
+      rebase pushed run records.
+    - >-
+      Mint every new identifier with `python3 tools/allocate_id.py --next
+      <type>` and confirm it with `--check` before use.
+    - >-
+      Lawful defensive cryptanalysis on public toy constructions only (p
+      <= 10007). No live key, wallet, or deployed system is touched.
+    - >-
+      SESSION SURVIVAL. Commit after A8's cross-check passes, again after
+      A9's p=2003 audit/measurement, again after the SR3 gate evaluation,
+      again after each remaining stage. Never hold results only in
+      memory.
+  deliverables:
+    - >-
+      experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/wilson-hilferty-crosscheck.json
+      -- change A8's self-check output across the required df probe set,
+      BEFORE any gate evaluation depends on it.
+    - >-
+      An explicit, dated audit result for whether a valid version-2 Stage
+      1/2 record exists at p=2003 (change A9), and either the source run
+      ids consulted or a note that fresh Stage 1/2/3 measurement was run
+      there.
+    - >-
+      One immutable run directory per (prime, class role) under
+      experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/ for the version-3
+      execution, each carrying the contract's full required-artifact set
+      plus wilson-hilferty-crosscheck.json and (if change A9's reuse path
+      is taken for p=4001/p=6007) a provenance block naming the source
+      run ids and hashes read.
+    - >-
+      decision-rule-evaluation.json reporting BOTH the old literal
+      in_band check (non-gating, for comparison) and the new CI-overlap
+      check (gating) at every row, so a reviewer can see exactly which
+      rows the redesign affected.
+    - >-
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-74ebef/execution/EXP-ICINV-4d33aa-v3/execution_report.md
+      -- what ran, what did not, every deviation, the emitted terminal
+      state, the check_run_source_provenance.py --strict result, with no
+      interpretation of what it means for the research question.
+  artifact_paths:
+    - experiments/EXP-ICINV-4d33aa/runs/
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-74ebef/execution/EXP-ICINV-4d33aa-v3/execution_report.md
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    requested_policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    independent_session_note: >-
+      Under this Claude Code harness every policy alias resolves to the
+      one model the session runs on (CLAUDE.md model policy note);
+      "independent session" means independent context, not a different
+      model. Record requested_policy alongside the resolved model id in
+      every run manifest, with fallback_used: true and its reason if they
+      differ.
+  budget:
+    wall_clock_seconds: 14400
+    memory_gb: 4
+    maximum_runs: 30
+    total_cpu_hours: 12
+    budget_note: >-
+      Taken from amendment v2 change A3, unchanged by v3. Version 2 used
+      0.082 of 12 CPU-hours and 11 of 30 runs; this version adds change
+      A8's self-check (seconds) and, if change A9's audit finds no valid
+      p=2003 Stage 1/2 record, a fresh Stage 1/2/3 measurement there
+      (comparable cost to the other two primes' Stage 1/2, per version
+      2's own execution report), still well inside the existing budget.
+  completion_gate:
+    - >-
+      Change A8's Wilson-Hilferty cross-check passes at every probed df
+      before any gate result is interpreted.
+    - >-
+      Change A9's p=2003 audit is performed and its outcome (reused valid
+      record found, or fresh measurement run) is stated explicitly, never
+      assumed.
+    - >-
+      `python3 tools/check_run_source_provenance.py --experiment
+      EXP-ICINV-4d33aa --strict --since-commit <this task's starting
+      commit>` passes for every version-3 run.
+    - >-
+      No reference value is transcribed into source; every one is read
+      from its committed record at run time and bound by source_sha256.
+    - >-
+      The frozen decision rule terminates in EXACTLY ONE of INVALID,
+      PREMISE-FAILED, OUTCOME-A, OUTCOME-B, or OUTCOME-C, emitted by the
+      run itself, with the persistence and stratification statistics and
+      all tail checks reported.
+    - >-
+      At least two of the three required primes yield a persistence
+      verdict; fewer, or exactly two that disagree, is INVALID and
+      returns for the missing prime rather than producing a result.
+    - >-
+      The execution report names every deviation from the contract and
+      amendments v2/v3, every dropped curve with its reason, and every
+      infrastructure failure, and interprets nothing.
+  return_format: >-
+    An execution report at the path above plus the run directories. State
+    the emitted terminal_state and the numbers that produced it, including
+    the old-literal-vs-new-CI comparison at every row, and stop there. Do
+    NOT write an evidence record, do not move a hypothesis status, and do
+    not characterise what the result means for EV-ENDO-10109d,
+    RQ-ICINV-475b5e, or GOAL-ENDO-001 -- those are Coordinator acts on a
+    later ledger archive after independent review. If SR3 fires again even
+    under the redesigned gate, report the numbers that caused it exactly
+    as fully as a successful run would be reported -- an INVALID verdict is
+    not a lesser deliverable.
+  scope_and_honesty: >-
+    Toy scale throughout (p <= 10007), claim_tier: toy, sota_delta zero. No
+    run of this contract can support or reject an ECDLP cost claim. Any
+    resulting evidence record is pre-capped at `preliminary` per amendment
+    v3's `confirmatory_status: exploratory_only`, STRENGTHENED beyond
+    version 2's own reason, regardless of outcome. OUTCOME-C -- the
+    over-dispersion persists and r does not explain it -- fully satisfies
+    the success criterion and must be reported with the same clarity as
+    any other outcome.

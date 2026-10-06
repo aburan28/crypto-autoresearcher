@@ -1,0 +1,372 @@
+# =============================================================================
+# DEC-20260929-bb40ce -- STOP-1 ruling for the EXP-PFDR-1b78f7 continuation:
+# approve protocol amendment AMD-20260929-430f44 (v2 -> v3; per-job
+# single-process invocation, canonical merge, R15 view), rule on DEV-1..DEV-4,
+# the "partial_failed_infrastructure" label and the 66 non-cell known_log rows;
+# authorise the executor continuation TASK-20260929-89c123, the packet archive
+# TASK-20260929-335bc4 and the output archive TASK-20260929-0f66ef.
+# No hypothesis status changes. No result is interpreted.
+# =============================================================================
+coordinator_decision:
+  id: DEC-20260929-bb40ce
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check; this Coordinator holds no shell and minted no
+    identifier.
+  recorded_at: '2026-09-29'
+  decided_at: '2026-09-29'
+  decided_by: coordinator
+  archived_by: TASK-20260929-335bc4
+  goal_id: null
+  batch_id: null
+  question_id: RQ-PFDR-ae2fba
+  review_plan_id: null
+  authorised_by: DEC-20260929-523aab NA-7 ("rule it by a further additive amendment; never repair it in prose or in a handoff")
+
+  decision: approve
+  decision_label: approve_AMD-20260929-430f44_rule_STOP-1_authorise_TASK-20260929-89c123
+  target_ids:
+    - EXP-PFDR-1b78f7
+    - AMD-20260929-430f44
+    - AMD-20260929-1de84f
+    - RUN-PFDR-1b78f7-census-m4
+    - RUN-PFDR-1b78f7-census-m5
+    - RUN-PFDR-1b78f7-rho
+    - RUN-PFDR-1b78f7-j0
+    - RUN-PFDR-1b78f7-analysis
+    - H-PFDR-4765e4
+    - TASK-20260929-f90fed
+    - TASK-20260929-89c123
+    - TASK-20260929-335bc4
+    - TASK-20260929-0f66ef
+  standing_user_authorization:
+    source: AGENTS.md "Standing user authorization for ideas and experiments"
+    instruction_date: '2026-09-06'
+    renewed_user_approval_required: false
+    note: >-
+      Approval of a complete, pre-data protocol amendment and of the handoffs
+      that execute and archive it. Research cost estimates are advisory
+      (docs/research-budget-policy.md). Machine limits bind as protection.
+
+  context: >-
+    TASK-20260929-f90fed returned STOPPED after R11 on STOP-1
+    (experiments/EXP-PFDR-1b78f7/execution-report-amd1de84f.yaml). Its build
+    certificate passed (E-1..E-5; R01a completed_valid). R10
+    (RUN-PFDR-1b78f7-census-m3) is completed_valid. R11
+    (RUN-PFDR-1b78f7-census-m4) ran the frozen command until its process pool
+    broke at 3803 s: 396 cell instances completed_valid and 594
+    failed_infrastructure (bits 12-22, every curve; bits 24, curves 1, 3, 4),
+    plus 66 non-cell known_log rows. R12-R16 have not started. The
+    executor's options were (A) per-job continuation with the same flags,
+    (B) streaming code change and full R11 re-run, (C) raising a limit, and
+    (D) accepting the loss. The package is archived as produced at dc61c5e1e
+    (TASK-20260929-599b4b; receipt verified, 133 paths, content_at_commit;
+    PR #1487).
+
+  validity_check_before_ruling:
+    scope: >-
+      Only what these rulings rely on. No census number is interpreted, and
+      no row file is opened.
+    checked:
+      - >-
+        experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m4/: the file
+        list (manifest, command.txt, environment.json, execution.json,
+        stdout/stderr, memory-samples.log, post-processing, raw-result.json,
+        rows/harvest-rows/staircase .jsonl.gz, checksums.sha256). command.txt
+        is the frozen command with the venv interpreter. execution.json has
+        RLIMIT_AS 3.5e9, watchdog 86400 s not expired, exit 0, wall 3821.0 s,
+        and peak RSS max descendant 3302154240. The manifest status line is
+        partial_failed_infrastructure.
+      - >-
+        src/crypto_autoresearcher/index_calculus/__main__.py lines 600-962:
+        _census_instance, _census_job, cmd_census and job_failure. Sinks open
+        in append mode. With --workers > 1, every Future is kept in `futs`
+        until the pool exits. The --workers 1 path runs _census_job in
+        process. job_failure writes rows for every arm of the job's --arms
+        list.
+      - >-
+        experiments/EXP-PFDR-1b78f7/analyze_census.py: rows_of,
+        build_index (last row wins per key), analyze()'s reads of
+        <runs-dir>/RUN-PFDR-1b78f7-<id>/{rows.jsonl, staircase.jsonl,
+        execution.json, regression-report.json, raw-result.json}, and its
+        seeded bootstraps over row order (A2, A4).
+    not_checked: >-
+      Row contents, raw-result.json and the R10 package were not opened by
+      this Coordinator. Full validity of the whole run set is the later
+      review's job (DEC-20260929-523aab NA-6). The 594/66 counts and the job
+      list are the executor's report, and M-2 has merge_census.py assert them
+      mechanically before any resumed job.
+    verdict: >-
+      Nothing seen contradicts the executor's report. The failure is an
+      infrastructure event of the frozen invocation.
+
+  rulings:
+    - id: R-1
+      subject: STOP-1 (which option)
+      ruling: >-
+        A strengthened option (A), written as AMD-20260929-430f44 M-1..M-6.
+        Every unfinished job runs as its own census process with --workers 1
+        and the frozen flags restricted to that job. At most four such
+        processes run at once, each under the unchanged 3.5e9-byte cap. The
+        engine code is unchanged. R11 resumes exactly its 33 job-crash jobs
+        in attempt-2, R12 and R14 run this way from their start, and R13
+        keeps its frozen command.
+      why_this_option: >-
+        The committed code shows the likely failure point: the pool parent
+        keeps every completed Future's result, including all retained harvest
+        rows, and unpickles each result under its own cap. The executor's
+        option (A) with --workers 4 would keep a pool and a pickled transfer
+        per job. With --workers 1 there is no pool, no Future and no pickle,
+        and the process holds exactly the working set a worker held in
+        attempt 1. The worker count is the one flag changed, and I-5 plus the
+        R01a determinism test already require it to change nothing. IE-1
+        checks this directly on one completed job before any resumed job
+        runs.
+      options_not_taken:
+        B: >-
+          A streaming code change in _census_job and cmd_census would be
+          robust, but it is a post-data code change to functions that
+          produced R10 and 396 R11 instances. It would need a fresh C-2-style
+          certificate and a full R11 re-run, and it adds risk that the
+          invocation change avoids.
+        C: >-
+          Raising a cap or changing the worker envelope is machine
+          protection, not a research lever. It is not taken, and nothing in
+          the chosen option needs it.
+        D: >-
+          Accepting the loss would leave m = 4, and almost certainly m = 5,
+          empty at 12-24 bits. That removes whole A1 rungs and weakens the
+          dynamic-range controls, when a cheap equivalent route exists.
+          Declining that route would be premature closure.
+    - id: R-2
+      subject: R12 (m = 5) very likely hitting the same failure
+      ruling: >-
+        R12 is never attempted under its frozen single invocation. It runs
+        all 55 jobs under the per-job procedure from its start (M-2). R14 does
+        the same, because every R14 job is at bits <= 24 and retains every
+        harvested row. R13 has no harvest rows and keeps its frozen command.
+        Any frozen-invocation attempt that ends with job-crash rows resumes
+        those jobs the same way (M-2 general rule).
+      residual_risk_and_bounded_fallback: >-
+        A single 24-bit m = 4 or m = 5 job may still exceed the per-process
+        cap inside an instance. The frozen code then records that instance
+        failed_infrastructure ("address-space cap:", with ru_maxrss) and the
+        job continues. For such jobs M-4 allows one per-arm re-run of the
+        affected arms, main panel only, after IE-2 proves per-arm
+        equivalence. Its outcome is final. No other retry exists.
+    - id: R-3
+      subject: making the rows R15 reads complete and unambiguous
+      ruling: >-
+        M-5 defines, per run, a cell universe U and one canonical row per key
+        in U. A key keeps its attempt-1 row unless its job was resumed, in
+        which case the row comes from the latest attempt that ran it. A key
+        with no row gets a placeholder failed_infrastructure row. Non-cell
+        rows are excluded and listed, and duplicates within an attempt stop
+        the run. Canonical rows and staircases are sorted by (bits, curve, m,
+        arm, mode). R11's canonical files go to <R11>/merged/, because its
+        root holds attempt 1 as archived. R12, R14 and R16 write theirs at
+        the run root. R15 runs the pinned analyze_census.py unchanged
+        (c40ea02f...) with --runs-dir pointing at a view of symbolic links:
+        merged/ where it exists, the run root otherwise (M-6).
+      why: >-
+        analyze_census.py keeps the last row per key and bootstraps over row
+        order with fixed seeds. Duplicates or an arbitrary order would
+        therefore make R15 depend on how the files were assembled. The
+        EXP-PFDR-7c8bf2 review showed that such order effects can decide an
+        outcome id at the Monte Carlo level (DEC-20260929-1b779a, finding
+        G-1). Editing the pinned analysis after data exist would be a
+        post-data change. Writing into R11's archived root would overwrite
+        an immutable record. The view changes only one path argument.
+    - id: R-4
+      subject: another build-equivalence certificate?
+      ruling: >-
+        No new certificate of the C-2 kind. C-2 certified engine-code changes
+        between builds. Nothing in the engine, CLI, tests or analysis changes
+        here, so BI-1 requires every pinned file to equal its R11 attempt-1
+        and dc61c5e1e bytes. The changed invocation is covered by I-5 and the
+        R01a determinism test, and checked directly by IE-1 (and IE-2 before
+        any per-arm fallback). The two new harness scripts import no engine
+        module. They are pinned before use and exercised on dummy commands
+        and synthetic fixtures only. R01a stands as G3 for this build.
+    - id: R-5
+      subject: the pool break and its 594 rows
+      ruling: >-
+        The pool break is failed_infrastructure and never evidence about any
+        base, class, m or prediction. The 594 job-crash rows stay in R11's
+        archived root file, unedited. In the canonical set they are
+        superseded, not deleted, by the attempt-2 rows of the same keys. The
+        resume set is defined mechanically, before any of its data exist, as
+        every job with only job-crash rows. No instance outcome was observed
+        for those jobs, so resuming them is not adaptive sampling.
+    - id: R-6
+      subject: DEV-1..DEV-4
+      ruling: >-
+        Material and ratified (AMD-20260929-430f44 M-8): DEV-1 (ru_maxrss and
+        the address-space-cap label, required by C-8 D-2), DEV-2 (G3 reads
+        R01 and R01a) and DEV-3 (the H3 permutation tally restricted to
+        A3-qualifying instances). DEV-1 is inside E-3's allowed functions and
+        certificate-passed; DEV-2 and DEV-3 were pinned before R10. Accepted
+        as recorded: DEV-4 (summarize_run.py correction, post-processing
+        only; the corrected hash governs BI-1). Also accepted as recorded:
+        the venv interpreter (C-8 D-12) and the skipped msolve tests (D-15).
+    - id: R-7
+      subject: run-level label "partial_failed_infrastructure"
+      ruling: >-
+        Not a status value (M-7). R11's attempt-1 manifest keeps the label,
+        because it is immutable, and the label is read as
+        failed_infrastructure at attempt level with its completeness counts.
+        R11's run-level status is written once, in <R11>/merged/manifest.yaml,
+        by M-7's rule. Later records use completed_valid,
+        failed_infrastructure or invalid plus a completeness field.
+    - id: R-8
+      subject: the 66 non-cell known_log rows at m = 4
+      ruling: >-
+        They are artefacts of the frozen job_failure path, which ignores the
+        known_log applicability rule. They are retained unedited in the
+        archive and excluded from the canonical set and listed (M-5 (3),
+        M-9). They are never counted as instances or failures, and never
+        evidence. No code change.
+    - id: R-9
+      subject: pre-data status
+      ruling: >-
+        PRE-DATA for every quantity R11-R15 measure (AMD-20260929-430f44
+        pre_data_assessment). This Coordinator read statuses, counts, RSS and
+        timing only, and no change depends on a value. The one order-bearing
+        choice (M-5 (7)) is fixed by rule. Residual risk: the executor's
+        attestation that no measured quantity was read. It is mitigated by a
+        fresh session and the unchanged analysis pin.
+
+  official_transitions:
+    experiment:
+      id: EXP-PFDR-1b78f7
+      protocol_version: 2 -> 3 (specification.yaml v1 + AMD-20260929-1de84f + AMD-20260929-430f44; nothing earlier edited)
+      status: approved (unchanged); frozen true (unchanged)
+      maximum_runs: 26 (unchanged)
+    handoffs_authorised:
+      - TASK-20260929-89c123 (executor; continuation under protocol v3)
+      - TASK-20260929-335bc4 (Coordinator snapshot archive of this packet)
+      - TASK-20260929-0f66ef (Coordinator snapshot archive of the continuation's outputs)
+    hypotheses: none (H-PFDR-4765e4 and H-PFDR-0cc7e8 unchanged)
+    goal: none
+
+  rationale:
+    - >-
+      This is a defect of invocation, not of the science or the data. An
+      additive, pre-data amendment keeps the frozen specification, v2 and
+      every archived run file intact (DEC-20260929-523aab NA-7).
+    - >-
+      The chosen route changes one flag and the job partition. It changes no
+      code, and it removes the diagnosed failure point instead of working
+      around it. Equivalence is checked on data before it is relied on (IE-1).
+    - >-
+      Completeness and unambiguity of R15's input are enforced mechanically:
+      one row per cell key, placeholders instead of silent gaps, excluded
+      non-cell rows, and a rule-fixed order. The pinned analysis is not
+      touched.
+    - >-
+      Infrastructure outcomes stay infrastructure. Pool breaks, memory stops,
+      attempt-limit stops and placeholders are failed_infrastructure, never
+      evidence. Retries are bounded, pre-declared and infrastructure-triggered.
+    - >-
+      Target profile (docs/target-result-profile.md). The kappa census is
+      the lane's only exponent-relevant reading. Recovering m = 4 and m = 5 at
+      12-24 bits restores full A1 rungs and the dynamic-range controls for
+      it. It ranks above the Stage 0 replication (DEC-20260929-1b779a NA-3).
+
+  evidence_refs:
+    - experiments/EXP-PFDR-1b78f7/execution-report-amd1de84f.yaml (read in full; STOP-1, options, deviations, anomalies, remaining_work)
+    - experiments/EXP-PFDR-1b78f7/implementation-notes-amd1de84f.yaml (read in full)
+    - experiments/EXP-PFDR-1b78f7/amendments/AMD-20260929-1de84f.yaml (read in full)
+    - ledger/decisions/DEC-20260929-523aab.yaml and ledger/handoffs/TASK-20260929-f90fed.yaml (read in full)
+    - experiments/EXP-PFDR-1b78f7/specification.yaml (IC-5, IC-7, cells, budget, stopping and invalidation rules, runs, run_procedures, required_artifacts; read)
+    - experiments/EXP-PFDR-1b78f7/runs/RUN-PFDR-1b78f7-census-m4/command.txt and execution.json (read in full); manifest.yaml (status line)
+    - src/crypto_autoresearcher/index_calculus/__main__.py lines 600-1019 (read)
+    - experiments/EXP-PFDR-1b78f7/analyze_census.py lines 60-180, 199-219, 270-300, 325-355, 380-460, 565-665, 810-944 (read)
+    - experiments/EXP-PFDR-1b78f7/amd-1de84f/run_wrapper.py (function and argument list; grep)
+    - ledger/handoffs/TASK-20260929-599b4b.yaml and its snapshot-receipt.json (package_status, scope_findings)
+    - ledger/decisions/DEC-20260929-1b779a.yaml (finding G-1, cited for the order rule)
+  evidence_refs_not_read: >-
+    Row files, raw-result.json, staircases, memory-samples.log and R10's
+    package were not opened. The kb MCP index was not queried; no empty
+    result is treated as evidence.
+
+  limitations:
+    - The pool-break diagnosis is a reading of the code consistent with the executor's samples, not a reproduced failure. If per-job processes also fail, the result stays failed_infrastructure under M-2 and M-4.
+    - "The invocation equivalence is checked on one completed job, (4, 26, 0) (IE-1), and on nine per-arm processes only if M-4 triggers (IE-2). It is a test, not a proof for every job."
+    - The merge and launch scripts are new code written by the executor. Their correctness rests on the synthetic-fixture exercise, the merge-report invariants and the later validity review, which must re-derive the canonical set blind to merge_census.py (NA-5).
+    - The pre-data status rests partly on the executor's attestation.
+    - No YAML parse or validate_ledger run was possible in this session (no shell). TASK-20260929-335bc4 parses every file and runs both checks before committing.
+    - One model served this Coordinator.
+
+  next_actions:
+    - id: NA-1
+      role: top-level session
+      text: >-
+        Run TASK-20260929-335bc4 alone. It does not wait for
+        TASK-20260929-091c3a (Job 1), but it never runs at the same time as
+        another archive. Steps:
+        merge origin/main, parse and validate the five packet files, commit
+        exactly its artifact_paths, verify the receipt, push, and refresh PR
+        #1487.
+    - id: NA-2
+      role: top-level session
+      text: >-
+        After NA-1 verifies and every dispatch_precondition of
+        TASK-20260929-89c123 holds, dispatch it to a FRESH executor session
+        under executor-implementation. The prompt names the card, the
+        verified TASK-20260929-335bc4 receipt and the base commit, and
+        carries no summary of any scratch output or of the Stage 0 review.
+    - id: NA-3
+      role: top-level session
+      text: >-
+        When TASK-20260929-89c123 returns (any status) and its session has
+        ended, run TASK-20260929-0f66ef alone. A failed, partial or invalid
+        run set is archived as produced and is never evidence.
+    - id: NA-4
+      role: coordinator
+      text: >-
+        If the continuation stops again on an ambiguity (for example IE-1
+        fails, or a resume set differs from M-2's assertion), rule it by a
+        further additive amendment. Never repair it in prose or in a handoff.
+    - id: NA-5
+      role: coordinator (DEC-20260929-523aab NA-6, when written)
+      text: >-
+        The validity review of the whole EXP-PFDR-1b78f7 run set adds three
+        joints for protocol v3. First, BI-1 and IE-1 (and IE-2 if run)
+        against the archived files. Second, a blind re-derivation of R11's,
+        R12's and R14's canonical row sets from the attempt files and M-5's
+        text alone, never reading merge_census.py. Third, the view-map
+        against the files R15 read. Also add the Stage 0 lessons from
+        DEC-20260929-1b779a NA-4: seed and order sensitivity, and calibration
+        at five curves per rung.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      A protocol amendment and dispatch only. No evidence was reviewed and no
+      finding exists to promote.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    served_by: claude-opus-5-5 as reported in this subagent's own context; not probe-verified
+    model_verified: false
+    fallback_used: true
+    fallback_reason: >-
+      Possible substitution by runtime inheritance (Claude Code subagent,
+      model inherit; adapter binding not resolved in this session). Policy
+      and effort are unchanged.
+    degraded_allowed: false
+    amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
+
+  records_written:
+    - experiments/EXP-PFDR-1b78f7/amendments/AMD-20260929-430f44.yaml
+    - ledger/decisions/DEC-20260929-bb40ce.yaml
+    - ledger/handoffs/TASK-20260929-89c123.yaml
+    - ledger/handoffs/TASK-20260929-335bc4.yaml
+    - ledger/handoffs/TASK-20260929-0f66ef.yaml
+  reserved_ids:
+    used: [AMD-20260929-430f44, DEC-20260929-bb40ce, TASK-20260929-89c123, TASK-20260929-335bc4, TASK-20260929-0f66ef]
+    returned_unused: []
+  runs_launched: 0
+  records_edited: none (every record written is new; no existing record was modified)

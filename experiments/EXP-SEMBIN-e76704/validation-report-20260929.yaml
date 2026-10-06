@@ -1,0 +1,245 @@
+validation_report:
+  id: VAL-20260929-sembine76704
+  id_provenance: >-
+    Free-form VAL-YYYYMMDD-<tag> identifier following the existing convention
+    (e.g. VAL-20260830-mono7c819ba); tools/allocate_id.py has no validation
+    report type. Tag accepted by the top-level session on 2026-09-29.
+  task_id: null
+  task_id_note: >-
+    No TASK-* handoff record for this validation exists in ledger/handoffs/
+    (checked 2026-09-29), and no review_plan was written, although
+    DEC-20260929-79ba35 NA-3 called for one. The validator was dispatched
+    directly by the top-level session. Recorded as a procedure deviation
+    in DEC-20260929-d75c82.
+  experiment_id: EXP-SEMBIN-e76704
+  hypothesis_id: H-SEMBIN-934774
+  question_id: RQ-SEMBIN-9e8f82
+  goal_id: GOAL-SEMBIN-fcb7a2
+  run_ids:
+    - RUN-SEMBIN-79996f
+  validated_by: validator (independent session, dispatched by the top-level session, 2026-09-29)
+  transcribed_by: >-
+    coordinator (DEC-20260929-d75c82). This file transcribes the validator's
+    verbatim summary as the top-level session relayed it on 2026-09-29. The
+    Coordinator did not receive the validator's full-length prose report, and
+    that report is not archived here. Every finding below belongs to the
+    validator. Wherever the Coordinator adds something, it is marked
+    coordinator_note. The values in exact_results are copied from the
+    validator's preserved JSON outputs.
+  artifacts_root: experiments/EXP-SEMBIN-e76704/validation/validator-20260929/
+  artifacts_commit: 918c56c639 (session report, 2026-09-29)
+
+  verdict: failed
+  verdict_basis: >-
+    Failed on the metric-definition (definitional audit) check. The
+    provenance, scoring and reproducibility checks all pass.
+  recommendation: >-
+    valid-with-limits: treat the run as a computation receipt only.
+  run_classification:
+    RUN-SEMBIN-79996f: >-
+      completed; a faithful and reproducible execution of the frozen code.
+      The computed observable is NOT the declared one, so the run is a
+      computation receipt, not a measurement of the declared observable.
+
+  checks:
+    provenance:
+      result: PASS
+      findings:
+        - >-
+          The source hashes match specification.yaml and manifest.json at
+          def455811a and at HEAD.
+        - >-
+          raw-result.json is byte-identical to results.json, sha256
+          24720779ea353b8c827ed42e2b2487ea23eb4d715f9c8dfae069487d300e56e4
+          (the validator reported the prefix 24720779...; the full value is
+          from runs/RUN-SEMBIN-79996f/manifest.yaml).
+      minor_gaps:
+        - manifest.yaml lacks result.exit_code
+        - manifest.yaml lacks inputs.parameters.field_bits
+        - manifest.yaml lacks certificate.verified and certificate.verifier
+        - IR-2 clean-tree status is self-reported (manifest.yaml code.dirty true, porcelain limited to the run's own output directory)
+        - run launched by the orchestrating session, not an executor subagent (disclosed in manifest.yaml protocol_deviations)
+        - the archive record TASK-20260929-e3eed9 (post-run snapshot) is absent
+    scoring:
+      result: PASS
+      findings:
+        - Verdict re-derived from results.json against the specification's PRED values; it agrees.
+    reproducibility:
+      result: PASS
+      findings:
+        - C1, T1, C2, T3 and T4 re-executed with identical results (rerun_fast.json).
+        - >-
+          T2 is identical by an exact row-set symmetry recount (83,328 row-sets
+          x 120 = 9,999,360), not by re-enumerating all of GL_5(F_2)
+          (recount_T2.json).
+    definitional_audit:
+      result: FAIL
+      findings:
+        - id: DA-1 OR-row product
+          text: >-
+            Both instruments compute m*f as the SET of OR-ed monomials
+            {mm|m for mm in f}. Colliding monomials collapse instead of
+            cancelling over F_2, so this is not the Boolean-ring product. At
+            (6,3), 270 of 320 rows differ from the true product.
+          locations:
+            - experiments/EXP-SEMBIN-e76704/src/ffd_semaev.py:95
+            - experiments/EXP-SEMBIN-e76704/src/recomb_search.py:31
+            - experiments/EXP-SEMBIN-e76704/src/fastfall.py:25 (r |= 1 << idx[mm | m])
+          script: audit_or_xor.py
+          coordinator_note: >-
+            The top-level session independently confirmed the core case. In
+            the Boolean ring over F_2, u0u1 * (u0 + u1) = u0u1 + u0u1 = 0, but
+            the set-OR product returns u0u1.
+        - id: DA-2 fast kernel uses neither convention
+          text: >-
+            The fast kernel XORs OR-rows when it recombines generators, so it
+            implements neither the OR convention nor the true product. At T1
+            the slow and fast instruments build different V_D (dim V_2 12
+            versus 13). At T3 the fast kernel reports new_falls(M, 2) = 4 on
+            5,376 matrices where the slow instrument and the true product both
+            give 0 (instrument disagreement).
+          scripts: [slow_vs_fast.py, span_compare.py, crossval.py]
+        - id: DA-3 true Boolean product values
+          text: >-
+            Under the true (XOR, cancelling) Boolean product: T1 is unchanged
+            (d'_ff 2 -> 3); T2 upward is 1,355,520; T3 upward is 0; T4 upward is
+            4,824.
+          scripts: [truekernel.py, boolring.py, recount.py]
+          outputs: [recount_T2.json, recount_T3.json, recount_T4.json]
+        - id: DA-4 counterexample in the counted set
+          text: >-
+            M = [1, 2, 4, 13, 26] at (6,3). The true product gives u1w1 * h3 =
+            u1w1, and h0 + h2 + u1w1*h3 + u0*h4 + u2*h4 = 1 + u1 + u2 + w0 + w1,
+            which is not in V_1 = span{h4}. So d'_ff(M) = 2, but the src
+            instrument counts this M as upward.
+          scripts: [certificate.py, certificate2.py]
+        - id: DA-5 mechanism of the (6,3) count
+          text: >-
+            Every upward M contains row 26. 1,612,800 = 5 * |GL_5(F_2)| / 31 is
+            exactly the number of matrices whose generators include h4 = f1 +
+            f3 + f4 = u0 + u2 + w0 + w2. That is the unique element of the
+            generator span with degree <= 1.
+          scripts: [inspect63.py, recount.py]
+        - id: DA-6 Nagao 2013/549 Definition 1, no field equations
+          text: >-
+            At D = 2 for the witness M = [1, 2, 4, 8, 26], the top-degree kernel
+            has dimension 0 (21 equations, 10 unknowns), so there is no fall.
+            D_ff(M) = 3 is reached through the Koszul (trivial) syzygy g0 = h4,
+            g4 = h0 + 1. Over GL_5(F_2), exactly 1,612,800 matrices separate
+            under Definition 1.
+          scripts: [nagao_def1.py, def1_general.py, def1_all_and_c1.py]
+        - id: DA-7 Definition 1 with field equations as generators
+          text: >-
+            With u_j^2 + u_j included as generators, h4*h4 + sum_j (u_j^2 + u_j)
+            = h4 is a fall at D = 2. So D_ff(M) = 2 and there is no separation.
+          scripts: [nagao_def1.py, def1_general.py]
+        - id: DA-8 literal 2015/984 Definition 6
+          text: >-
+            d'_F = 1 for every presentation, because 1 is in the ideal: the
+            instances are unsatisfiable.
+          scripts: [hps_def6.py]
+        - id: DA-9 null under Definition 1
+          text: >-
+            T4 null under Definition 1, adjusted for trivial syzygies:
+            D_ff(I) = D_ff(M) = 3 for all 20,160 matrices, so 0 are upward.
+          scripts: [def1_general.py, hps_all42.py]
+        - id: DA-10 T3 structurally forced
+          text: >-
+            The T3 negative is structurally forced, because 1 is in the
+            generator span at Semaev (4,2).
+          scripts: [def1_all_and_c1.py]
+    scope:
+      result: FAIL
+      findings:
+        - >-
+          The "definition #4" label is wrong. The code computes the OR-row
+          artifact, not the Boolean-ring d'_ff, and literal 2015/984 Definition
+          6 gives d'_F = 1 on these unsatisfiable instances (DA-1, DA-8).
+        - H-SEMBIN-934774 contradicts itself on T2/T4 (validator finding, transcribed as stated).
+        - >-
+          The interpretation "generic, not descent-specific (the null separates
+          too)" is contradicted: under Definition 1 the null does not separate
+          (DA-9).
+        - >-
+          The claim "degree-drop absorption not supported" is contradicted:
+          at (6,3), separation occurs exactly for the M whose generators
+          include the unique degree-<=1 span element h4 (DA-5).
+
+  exact_results:
+    source: validator JSON outputs under artifacts_root, copied field by field
+    T1_witness_6_3:
+      M: [1, 2, 4, 8, 26]
+      src_rerun: {D_ff_identity: 2, D_ff_M: 3, new_falls_identity: [0, 1, 15], new_falls_M: [0, 0, 10], degrees_M: [2, 2, 2, 2, 1]}
+      true_product: {D_ff_identity: 2, D_ff_M: 3}
+      x_R: 15
+    T2_semaev_6_3:
+      group_order: 9999360
+      row_sets: 83328
+      src_fast_kernel: {upward: 1612800, downward: 0, D_ff_max: 3, distribution: {'2': 8386560, '3': 1612800}}
+      true_product: {upward: 1355520, downward: 0, D_ff_max: 3, distribution: {'2': 8643840, '3': 1355520}}
+      rows_in_every_upward_set: [26]
+      nagao_def1_no_field_equations_upward: 1612800
+      nagao_def1_with_field_equations_upward: 0
+    T3_semaev_4_2:
+      group_order: 20160
+      src_fast_kernel: {upward: 0, downward: 0, D_ff_max: 2, distribution: {'1': 5376, '2': 14784}}
+      true_product: {upward: 0, downward: 5376, D_ff_max: 2, distribution: {'1': 5376, '2': 14784}}
+    T4_null_4_2:
+      group_order: 20160
+      src_fast_kernel: {upward: 5424, downward: 0, D_ff_identity: 2, D_ff_max: 3}
+      true_product: {upward: 4824, downward: 0, D_ff_identity: 2, D_ff_max: 3}
+      nagao_def1_trivial_syzygy_adjusted: {D_ff_identity: 3, D_ff_M_all: 3, upward: 0}
+    C1_identity_cells: >-
+      All 10 cells match between the src slow and fast instruments
+      (rerun_fast.json). The validator reports that identity-presentation d'_ff
+      is unchanged under the true product in every C1 cell (def1_all_and_c1.py;
+      that script's console output is not preserved as a file).
+    coordinator_note: >-
+      Under the Boolean-ring definition, recount_T4.json gives D_ff_identity 2
+      for the T4 null under BOTH products; the product error changes the upward
+      count there, not the identity value. The value 3 for the T4 null identity
+      appears only under Nagao Definition 1 (DA-9).
+
+  validator_limitations:
+    - "The validation was not blind: the validator read the producer's code."
+    - It reused the src system construction (run_separation.cell_systems, ffd_semaev.build_system), so a defect there would be shared.
+    - T2 is an exact row-set symmetry recount (83,328 row-sets x 120), not a full enumeration by the true kernel.
+  coordinator_notes_on_artifacts:
+    - >-
+      The scripts/outputs attached to each finding are the Coordinator's
+      mapping, made by reading each script's print statements. The validator's
+      summary does not attach scripts to findings.
+    - >-
+      Only four validator outputs are preserved as files: recount_T2.json,
+      recount_T3.json, recount_T4.json and rerun_fast.json. Several results
+      are recorded only in this summary, as values of scripts that can be
+      re-run: the Definition 1 and field-equation results, the Definition 6
+      result, the certificate combination, the 270/320 row count, the
+      dim V_2 12/13 comparison and the C1 true-product identity check.
+    - >-
+      The validator scripts put /tmp/claude-0/validator on sys.path. The
+      modules they import from it (boolring.py, truekernel.py) are preserved
+      in artifacts_root, so a re-run must point sys.path at artifacts_root.
+
+  claim_boundary:
+    claim_tier: toy
+    permits:
+      - >-
+        The frozen code at the pinned hashes executes faithfully and
+        reproduces its own PRED values (computation receipt).
+      - >-
+        At (6,3), exactly 1,612,800 matrices in GL_5(F_2) separate under Nagao
+        2013/549 Definition 1 on the bare generators (no field equations),
+        with D_ff(M) = 3 reached only through a trivial (Koszul) syzygy.
+        Validator computation, non-blind.
+    forbids:
+      - "any reading of the T2/T4 counts as values of the Boolean-ring d'_ff (definition #4)"
+      - "calling the measured quantity \"definition #4\""
+      - the interpretation that the separation is "generic, not descent-specific"
+      - any separation claim for the field-equation form ({f} union S_fe) relevant to Weil descent
+      - resolving KN-OPEN-7f0511 item (A)
+      - degree-of-regularity, solving-degree or ECDLP complexity inference
+  next_action: >-
+    The Coordinator records EV-SEMBIN-c71cad, CORR-20260929-616d03 and
+    DEC-20260929-d75c82. The session archives them together with this report
+    and artifacts_root in one ledger commit.

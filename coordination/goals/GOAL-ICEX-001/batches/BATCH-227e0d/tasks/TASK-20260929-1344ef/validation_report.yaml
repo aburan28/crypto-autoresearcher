@@ -1,0 +1,498 @@
+# Independent re-check of the EXP-ICEX-aaccfc protocol-v4 repair
+# (pre-admission implementation check; zero scientific runs).
+validation_report:
+  id: VAL-20260929-1344ef
+  task_id: TASK-20260929-1344ef
+  role: validator
+  reviewer_continuity: >-
+    Same reviewer as TASK-20260929-e3446a (VAL-20260929-e3446a), whose
+    findings F-1..F-6 and A-1..A-4 motivated AMD-20260929-5a84eb. This is not
+    a fresh pair of eyes on the original findings; it checks their closure.
+  experiment_id: EXP-ICEX-aaccfc
+  subject: experiments/EXP-ICEX-aaccfc/implementation/ (snapshot TASK-20260929-8428ad; repair TASK-20260929-1211f7)
+  snapshot_commit: 9698f4a36ab3b37ad5775277230afcb7788a7f4d
+  snapshot_parent: 25c6f0d4de0aaa3a97603e2fa67f05c757ecde07
+  head_at_validation: 405d3256d8
+  protocol: v4 = specification.yaml + AMD-20260926-ced670 + AMD-20260929-143d11 + AMD-20260929-5a84eb (DEC-20260929-986b4c)
+  run_ids: []
+  scientific_runs_performed: 0
+  verdict: PASS_WITH_FINDINGS
+  verdict_meaning: >-
+    FX-1, FX-2, FX-3, FX-5, FX-7 and FX-8 are closed as written and verified
+    by direct tests. OQ-18 holds. Charging, controls, FX-A, the C-5 rule and
+    seed labels are unchanged from the audited d04f29 code except for the
+    required guard and non-verdict additions.
+    Four must_fix_before_run findings remain:
+      - an orphaned cell child survives a driver SIGKILL and writes after the
+        run is abandoned;
+      - a hand-written 'running' manifest passes the cellrun guard, so FX-4 is
+        not fully closed;
+      - the snapshot receipt need not be committed, archived or genuine;
+      - an exception before the first manifest leaves an unclassified run
+        directory.
+    None is blocking: all four are pre-admission and cheap to fix. This report
+    makes no ECDLP claim and authorizes nothing.
+
+  checks:
+    - id: 1
+      name: snapshot integrity, tree clean
+      result: PASS
+      evidence:
+        - >-
+          Receipt .../archives/TASK-20260929-8428ad/snapshot-receipt.json has 180
+          path_sha256 entries. All 180 match both the worktree and
+          `git show 9698f4a36a:<path>` (0 mismatches).
+        - >-
+          The commit's parent is 25c6f0d4de, which equals the receipt's
+          parent_sha.
+        - >-
+          The commit adds or changes the receipt plus a subset of the declared
+          paths. The other declared paths are unchanged carry-overs, bound by
+          content (binding_mode content_at_commit), and every one of them
+          hash-matches.
+        - >-
+          trial-plan-v2.json sha256 is 58c36b6d...c2e983, matching the expected
+          value. AMD-20260929-5a84eb.yaml sha256 is 61926b8c...b310d, equal to
+          common.AMENDMENT_V4_SHA256.
+        - >-
+          `git status --porcelain -- experiments/EXP-ICEX-aaccfc` prints 0 lines.
+          driver.verify_snapshot(real repo, real receipt) returns checked 180,
+          no mismatches, missing or unpinned files, and dirty false.
+    - id: 2
+      name: pytest and OQ-18
+      result: PASS
+      evidence:
+        - >-
+          `nice -n 10 python3 -m pytest experiments/EXP-ICEX-aaccfc/implementation
+          -q -rsP -p no:cacheprovider` gave 86 passed, 0 skipped, 0 failed in
+          44.78 s (exit 0).
+        - >-
+          OQ-18, test code: frozen b16-s21 and b16-s22 are exercised through
+          conftest.smoke_primary (log_fn silenced), test_controls (log_fn
+          silenced for null; stage2/rho return values only), test_charging and
+          test_fxa. Every value is used only in in-memory assertions. None is
+          printed or written.
+        - >-
+          The only frozen-fixture file written is test_guard's refused
+          FROZEN_TASK (b16-s22:rho), whose output carries status 'refused' and no
+          result.
+        - >-
+          The driver stub tests write stub results (b16-s22 id, {'stub': True})
+          and no costs.
+        - >-
+          OQ-18, captured output: 7 passed tests emitted captured output (C-7
+          reading and refusal text). A script scan for units, complete, attempt,
+          ratio, exponent, pt_ops and cost found 0 lines in any of them.
+        - >-
+          OQ-18, persisted files: 8 files were created or modified during pytest,
+          all under the shared $TMPDIR/icex-aaccfc-tests. A key scan for
+          complete_units, n_attempts, units, pt_ops, attempt_log, stage1, ratio
+          and exponent found none. No new files appeared under
+          pytest-of-adamburan.
+        - >-
+          Residual (advisory G-7): a FAILING assertion in these tests would show
+          frozen-fixture values in pytest's assertion rewrite.
+    - id: 3
+      name: FX-1 (check_decision)
+      result: PASS
+      evidence:
+        - >-
+          The decision was exercised in a temporary git repo:
+            - refused: uncommitted; dirty; coordinator_decision status
+              'superseded' or 'Withdrawn'; document-level status 'superseded';
+              superseded_by non-null; execution_admission.superseded_by;
+              decision 'pause';
+            - refused when superseded by a later decision, uncommitted or
+              committed, whether listed under coordinator_decision.supersedes or
+              as a top-level string;
+            - accepted: the valid committed decision, and the same decision
+              again once the superseder was removed.
+        - >-
+          Also accepted: decision 'approve'. This is within FX-1's wording
+          ("admission/approve decision") and matches ADMIT_DECISIONS at
+          driver.py:72. See advisory G-6.
+        - >-
+          The real repo still refuses the missing DEC-20260929-47a574. The
+          suite's test_main tests cover this.
+    - id: 4
+      name: FX-2 (canonical run manifest)
+      result: PASS
+      evidence:
+        - >-
+          The manifest written by a synthetic smoke run on a temporary copy has
+          top-level keys [run, driver]. run contains: id, experiment_id,
+          hypothesis_id, protocol_version, purpose, code, environment, inputs,
+          inference, status, status_note, failure_class, failure_reason, timing,
+          resources, result, artifacts and depends_on_runs. Compared with
+          RUN-SDEG-3de103/manifest_v2.yaml, only 'supersedes' is absent, which
+          is not applicable to a first run.
+        - >-
+          All companion files are written: command.txt, environment.json,
+          stdout.log, stderr.log and raw-result.json.
+        - >-
+          inputs.protocol.records binds the sha256 of the specification, the
+          three amendments, decision_v3, decision_v4, the B0 definition, the
+          fixtures and the generator (driver.py:90-100, 244-252).
+          check_protocol_binding compares the v3 and v4 amendment hashes with
+          each decision's amendment_sha256_at_decision (driver.py:255-277).
+    - id: 5
+      name: FX-3 (exceptions and signals)
+      result: PASS
+      evidence:
+        - >-
+          On a temporary copy (synthetic smoke path, C-1 stubbed), with each
+          fault injected into audit.audit_run:
+            - RuntimeError gives exit 8, failed_infrastructure / exception;
+            - ProcedureDefect gives exit 7, invalid / procedure_defect;
+            - KeyboardInterrupt gives exit 8, failed_infrastructure / signal.
+          raw-result.json and finished_at were written in every case.
+        - >-
+          A real SIGTERM mid-cell gives exit 8, failed_infrastructure / signal,
+          with raw-result.json written (see check 11).
+        - >-
+          The manifest reads 'running' before the first cell and is rewritten
+          after every cell (driver.py:573, 599).
+        - >-
+          FX-A runs strictly after metrics.json (driver.py:624-643), and
+          analyse() defaults to fxa=None (analysis.py diff).
+        - >-
+          Gap: an exception before the RunRecord exists leaves no manifest (G-4).
+    - id: 6
+      name: FX-4 (cellrun and pipeline frozen-namespace guard)
+      result: FAIL
+      evidence:
+        - >-
+          pipeline.run_primary, run_null_randfb, run_stage_cost and run_rho_cell
+          raise NamespaceRefused for FROZEN_NS unless FROZEN_ADMITTED is set
+          (pipeline.py diff; test_guard).
+        - >-
+          cellrun refuses without the admission environment ("admission
+          environment absent"), refuses namespaces other than frozen or
+          'smoke|...', and re-checks check_decision; a superseded decision is
+          refused.
+        - >-
+          The guard fails for a HAND-WRITTEN manifest. A validator-written
+          {run: {status: running, inputs: {admission_decision: D, namespace:
+          EXP-ICEX-aaccfc/v2}}} in an arbitrary directory, together with a valid
+          committed admission decision (temporary repo), made
+          cellrun.admission_guard return (True, 'admitted by
+          DEC-20990101-abcdef for RUN-fake'). Only the guard function was
+          called; no cell ran.
+        - >-
+          Nothing binds the manifest to a live driver process or to the runs/
+          directory. Combined with G-1, a SIGKILLed real run leaves a permanent
+          'running' manifest that later ad-hoc cellrun invocations can use. See
+          G-2.
+    - id: 7
+      name: FX-5 (smoke refuses frozen fixtures, no cost fields)
+      result: PASS
+      evidence:
+        - >-
+          driver.smoke_fixture uses synthetic.synthetic_fixture only and raises
+          if it is frozen (driver.py:687-693).
+        - >-
+          smoke.summarize runs refuse_frozen on every cell's task and result
+          fixture, and assert_no_cost_fields on the summary (smoke.py:36-107).
+        - >-
+          cellrun.task_fixture refuses inline fixtures outside smoke namespaces,
+          and inline frozen fixtures (test_guard).
+        - >-
+          Advisory G-5: cellrun still accepts a smoke-namespace task that names a
+          frozen fixture by bits and seed. The OQ-18 tests rely on this.
+    - id: 8
+      name: FX-6 (snapshot receipt)
+      result: FAIL
+      evidence:
+        - >-
+          Refused: a hash mismatch (driver.py pin zeroed); an unpinned
+          tests/test_guard.py; and no receipt at all. Dirty-tree refusal is
+          implemented (driver.py:328-334) and covered by the suite's FX-6 tests.
+        - >-
+          ACCEPTED: an exact copy of the receipt placed OUTSIDE the repo
+          (uncommitted), and a HAND-WRITTEN receipt with task_id 'TASK-FAKE'
+          whose path_sha256 simply lists the current file hashes. Both returned
+          verify_snapshot True.
+        - >-
+          The receipt need not be committed, clean, under archives/, or named by
+          the admission decision. Its task_id is recorded but not checked. FX-6
+          as written does not demand this, but the user-specified re-check asked
+          for it. See G-3.
+    - id: 9
+      name: FX-7 (inference variables and FX-A ordering note)
+      result: PASS
+      evidence:
+        - >-
+          inference_block (driver.py:362-379) reads AUTORESEARCH_POLICY,
+          _BACKEND, _FALLBACK_ALLOWED, _DEGRADED_ALLOWED and
+          _INDEPENDENT_SESSION.
+        - >-
+          With none set, every field is null, resolved_model_id is 'unverified'
+          and model_verified is false.
+        - >-
+          With all set, the values are passed through (true, false and true
+          parsed), and model_verified stays false.
+        - >-
+          implementation.md was revised (+90/-); FX-A now follows metrics.json in
+          code.
+    - id: 10
+      name: FX-8 (leave-b16-s21-out fit)
+      result: PASS
+      evidence:
+        - >-
+          analysis.leave_out_sensitivity uses 5 points and its own bootstrap
+          label '<ns>|bootstrap|leave_out|b16-s21'. It is labelled 'NOT a verdict
+          input' and has no verdict key.
+        - >-
+          On four synthetic 6-fixture inputs, including b16-s21 outliers of
+          x1e4 and x1e-3, verdict, exponent, CI and ratios were identical with
+          sensitivity on and off (sub_rho_signal, sub_rho_signal,
+          scoped_negative, scoped_negative).
+        - >-
+          The C-5 verdict lines are untouched by the diff.
+    - id: 11
+      name: orphan-child and pre-manifest checks
+      result: FAIL
+      evidence:
+        - >-
+          SIGTERM to the driver mid-cell, on a temporary copy of the
+          implementation: synthetic smoke path, C-1 stubbed, a real cellrun
+          child running the rho cell, the child in the driver's process group.
+            - The driver exits 8, failed_infrastructure / signal, finished_at set.
+            - The child pid is gone right after driver exit and again after 5 s
+              (no zombie).
+            - The rho cell has no result.json.
+            - The newest file is raw-result.json, written in the same final
+              write as the manifest. Nothing was written in the following 5 s.
+          PASS.
+        - >-
+          SIGKILL to the driver mid-cell: the child is still alive (ps state RN)
+          and runs to completion about 4.3 s later. It writes
+          cells/b13-s900__rho/result.json after the driver died, while the
+          manifest stays status 'running' with no finished_at. FAIL (G-1).
+        - >-
+          Exception before the first manifest: environment_info was made to
+          raise. The driver exits 8 and the run directory holds only
+          command.txt, stdout.log and stderr.log, with no manifest and no
+          raw-result.json. FAIL (G-4).
+        - >-
+          Receipt committed or clean at HEAD: not required. FAIL (G-3, check 8).
+    - id: 12
+      name: regression spot check of first-audit checks 3-7
+      result: PASS
+      evidence:
+        - >-
+          arith.py, b0.py, la.py, rho.py, audit.py, verify.py, oracle.py and
+          hostinfo.py are hash-equal between the d04f29 and 8428ad receipts and
+          absent from `git diff --stat d6da4cd606 9698f4a36a`.
+        - >-
+          pipeline.py changes only add _ns_guard and its four call sites.
+        - >-
+          analysis.py changes: fxa now defaults to None, and fxa_report and
+          leave_out_sensitivity are added. The C-5 lines (ratio, bootstrap
+          label, verdict thresholds, dominant stage) are unchanged.
+        - >-
+          common.py adds constants, is_smoke_ns and is_frozen_fixture. Frozen and
+          smoke namespaces and all existing labels are unchanged. The one new
+          label is namespace-scoped and distinct.
+        - >-
+          The suite's charging, controls and FX-A tests pass. The first audit's
+          synthetic proves-too-much checks were not repeated, since the code
+          behind them is unchanged.
+    - id: 13
+      name: old smoke artifacts unchanged and not opened
+      result: PASS
+      evidence:
+        - >-
+          All 77 smoke paths of the d04f29 receipt are present in the 8428ad
+          receipt with equal sha256.
+        - >-
+          `git diff --quiet d6da4cd606 HEAD` on the old smoke summaries and
+          driver_dryrun is clean. No d04f29 path was dropped.
+        - >-
+          This session opened none of these files. They were hashed only.
+          Manifest reads were limited to smoke/v4 (synthetic b13-s900: cell
+          timings and status) and the validator's own temporary-copy runs.
+
+  findings:
+    - id: G-1
+      severity: must_fix_before_run
+      check: 11
+      summary: >-
+        An orphaned cell child survives a driver SIGKILL and writes into an
+        abandoned run.
+      detail: >-
+        run_cell_process uses subprocess.run without any parent-death binding
+        (driver.py:427-440). After SIGKILL of the driver, the cellrun child
+        (reparented) finished and wrote result.json, while manifest.yaml stays
+        'running' indefinitely. In a real run this is an unrecorded
+        frozen-namespace computation that continues after the run record died,
+        and the stale 'running' manifest keeps satisfying the cellrun guard
+        (G-2).
+      remedy: >-
+        In cellrun, record os.getppid() at start and run a daemon watchdog
+        thread (or a check inside the existing per-level mem_guard hook) that
+        calls os._exit(8) without writing result.json once the parent pid
+        changes or dies.
+        Launch children with start_new_session=True, and on every driver exit
+        path os.killpg the child's group and wait.
+        Have the driver record its pid in the manifest; cellrun then refuses
+        unless os.getppid() equals that pid.
+        Add a test that SIGKILLs a driver running a synthetic long cell and
+        asserts the child is gone and wrote nothing.
+    - id: G-2
+      severity: must_fix_before_run
+      check: 6
+      summary: >-
+        The cellrun guard accepts a hand-written 'running' manifest, so FX-4 is
+        not fully closed.
+      detail: >-
+        admission_guard (cellrun.py:47-69) checks the decision and the manifest
+        status, decision and namespace fields only. Anyone holding an admitted
+        decision can write that YAML anywhere and run frozen cells outside the
+        driver. This was shown with the guard function and a valid committed
+        decision in a temporary repo.
+      remedy: >-
+        Require:
+          - RUN_DIR under experiments/EXP-ICEX-aaccfc/runs/ with a RUN-* name;
+          - a manifest driver pid equal to os.getppid() that is alive;
+          - a manifest code.commit equal to HEAD;
+          - a per-run nonce the driver writes into the manifest and passes in
+            the child environment, which must match.
+        Add a test with a hand-written manifest that is refused.
+    - id: G-3
+      severity: must_fix_before_run
+      check: 8
+      summary: >-
+        The snapshot receipt need not be committed, archived or genuine.
+      detail: >-
+        verify_snapshot (driver.py:288-337) accepts a receipt outside the repo
+        and a hand-written receipt listing the current hashes. The clean-tree
+        and pin checks guarantee the code is committed, but not that it is the
+        Coordinator-archived snapshot.
+      remedy: >-
+        Require the receipt path to be inside the repo under
+        coordination/goals/*/batches/*/archives/TASK-*/snapshot-receipt.json,
+        tracked, and clean at HEAD. Require its task_id to equal the snapshot
+        task named in the admission decision (TASK-20260929-8428ad or a
+        successor), or require its content-binding commit (located by
+        message) to be an ancestor of HEAD. Record the check in
+        inputs.snapshot_verification and add tests.
+    - id: G-4
+      severity: must_fix_before_run
+      check: 11
+      summary: >-
+        An exception before the first manifest leaves an unclassified run
+        directory.
+      detail: >-
+        In execute(), run_dir is created and command.txt written before
+        RunRecord exists (driver.py:554-572). If environment_info(), git_state()
+        or RunRecord construction raises, the finally block writes nothing
+        (rec is None). The result is a runs/<RUN-ID>/ with no manifest or
+        raw-result, and the run id can never be reused.
+      remedy: >-
+        Write a minimal manifest immediately after mkdir, before anything
+        fallible: run.id, experiment_id, status running, started_at and command.
+        In the except path, when rec is None, write a minimal manifest with
+        status failed_infrastructure, the traceback and an empty raw-result.json.
+        Add a test that injects a failure into environment_info.
+    - id: G-5
+      severity: advisory
+      check: 7
+      summary: >-
+        cellrun accepts a smoke-namespace task naming a frozen fixture by bits
+        and seed.
+      detail: >-
+        task_fixture refuses inline frozen fixtures but not {bits: 16, seed: 21}
+        with namespace 'smoke|...'. This is what the accepted OQ-18 tests do, but
+        an ad-hoc smoke cell could re-create the F-5 preview and persist it.
+      remedy: >-
+        Refuse frozen bits and seed in cellrun unless the namespace starts with
+        'smoke|EXP-ICEX-aaccfc/v2|tests' and no result is persisted, or document
+        this as accepted under OQ-18.
+    - id: G-6
+      severity: advisory
+      check: 3
+      summary: >-
+        ADMIT_DECISIONS includes the generic 'approve'.
+      detail: >-
+        Permitted by the FX-1 wording. OQ-16 fixes the admission decision as
+        'admit_execution'. Other checks (an execution_admission block with
+        currently_admitted true) still bind.
+      remedy: >-
+        Optionally narrow ADMIT_DECISIONS to ('admit_execution',) now that OQ-16
+        is ruled.
+    - id: G-7
+      severity: advisory
+      check: 2
+      summary: >-
+        A failing frozen-fixture unit test would display values.
+      detail: >-
+        pytest assertion rewriting prints operand values on failure (for example
+        s1['units'] comparisons in test_charging).
+      remedy: >-
+        Wrap frozen-fixture assertions in a helper that re-raises without
+        operand values, or run those tests with --tb=no -q in CI.
+
+  artifact_checks:
+    - 180/180 receipt hashes match (worktree and commit 9698f4a36a); parent matches; implementation tree clean
+    - trial-plan-v2.json sha256 58c36b6d...c2e983 matches; AMD-20260929-5a84eb sha256 61926b8c...b310d matches common.AMENDMENT_V4_SHA256
+    - experiments/EXP-ICEX-aaccfc/runs/ holds no RUN-*
+  metric_recomputations:
+    - none of scientific type; FX-8 isolation checked on synthetic inputs only
+  control_checks:
+    - unchanged from VAL-20260929-e3446a (charged and verifier code hash-identical); suite control tests pass
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  limitations:
+    - Orphan and signal tests ran on a temporary copy with C-1 (Sage) stubbed and a synthetic 13-bit fixture; the real frozen path was not exercised (maximum_runs 0).
+    - FX-4 bypass demonstrated at the guard-function level only; no frozen cell was executed.
+    - C-1 Sage reproduction not re-run (load 15-min about 28; repo volume 4.7 GiB free).
+    - The pytest run rewrote 8 scratch files in the shared $TMPDIR/icex-aaccfc-tests (created by the suite, owned by the executor's directory); left in place, not deleted.
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20260929-1344ef/validation_report.yaml
+
+  commands_run:
+    - git log --grep='snapshot(TASK-20260929-8428ad)' --format='%H %P %s'
+    - python3 (hash all 180 receipt entries vs worktree and `git show 9698f4a36a:<path>`; commit file list vs receipt; trial-plan and amendment sha256)
+    - git status --porcelain -- experiments/EXP-ICEX-aaccfc
+    - git diff --stat / git diff d6da4cd606 9698f4a36a -- experiments/EXP-ICEX-aaccfc (pipeline.py, analysis.py, common.py)
+    - nice -n 10 python3 -m pytest experiments/EXP-ICEX-aaccfc/implementation -q -rsP -p no:cacheprovider   # 86 passed in 44.78s
+    - python3 (script scan of captured pytest output and files newer than a marker for cost-like keys; counts and key names only)
+    - python3 $TMPDIR/val1344ef/harness.py sigterm | sigkill | env_raise   # temporary copy, synthetic smoke, real cellrun children
+    - python3 (in-process driver.main --smoke-dry-run on the copy with injected RuntimeError / ProcedureDefect / KeyboardInterrupt; FX-2 manifest keys; FX-7 env; FX-8 synthetic)
+    - python3 (driver.check_decision in a temporary git repo; cellrun.admission_guard with a hand-written manifest; driver.verify_snapshot with real, copied, fake, mismatched and unpinned receipts)
+    - python3 (compare d04f29 vs 8428ad receipt entries for smoke paths and charged code)
+    - rm -rf $TMPDIR/val1344ef; pgrep for leftover cellrun / runner processes (none)
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    independence_note: same reviewer session lineage as TASK-20260929-e3446a (closure re-check), independent of the producer and the repair executor
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - AGENTS.md
+      - agents/validator.md
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-5a84eb.yaml
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-8428ad/snapshot-receipt.json
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/TASK-20260929-d04f29/snapshot-receipt.json (hashes only)
+      - experiments/EXP-ICEX-aaccfc/implementation/{driver,cellrun,smoke}.py (full)
+      - experiments/EXP-ICEX-aaccfc/implementation/{pipeline,analysis,common}.py (diff vs d04f29)
+      - experiments/EXP-ICEX-aaccfc/implementation/synthetic.py (header)
+      - experiments/EXP-ICEX-aaccfc/implementation/tests/{conftest,test_guard}.py (full); test_charging.py, test_driver.py (excerpts); other tests (grep)
+      - experiments/EXP-ICEX-aaccfc/implementation/smoke/v4/driver_dryrun/DRYRUN-smoke-v4-002/manifest.yaml (synthetic cell timings and status)
+      - experiments/EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/manifest_v2.yaml (run keys only)
+    not_read:
+      - experiments/EXP-ICEX-aaccfc/implementation/repair_report_v4.yaml (verified against code and tests instead)
+      - old smoke artifacts (DRYRUN-smoke-001..003; hashed only)
+      - ledger/decisions/DEC-20260929-986b4c.yaml body
+      - the executor's conversation, other agents' transcripts or reports
+
+  review_attestation:
+    joints_owned: [checks 1-13]
+    read_sibling_reports: false
+    verdict: PASS_WITH_FINDINGS

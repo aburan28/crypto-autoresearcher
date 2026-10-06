@@ -25,6 +25,7 @@ Screening is a Coordinator-run operation, not a file copy.
 
 | External source | What it holds | Relevance here |
 |---|---|---|
+| `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md` | Six coordinate/orbit alternatives with toy measurements on seven ordinary prime-order groups and two anomalous controls | **Screened external packet.** Five mechanisms map to existing records or known results; the carry-ranked binary branch score is a distinct tested variant with no stable control advantage. H3's matched-random result directly bears on ECDLP-IDEA-110. No IDs allocated. |
 | `ECDLP_MECHANISM_CATALOG.md` | ~111 prime-field mechanisms mined from an external corpus, mapped to R6 / K1 / K2 / Defect-B / CM cells | **Largest unscreened input.** Candidate generation + dedup screening against IDs 001-410 |
 | `LIT_REVIEW_PRIME_FIELD_ECDLP.md` | 23-paper review, 8 field cards, dedup tags | Literature cross-check for `knowledge/literature`; names three untouched gaps: syzygies/Betti, singular loci of the Semaev ideal/variety, and Yokoyama semi-normality (flagged there as the top F_p test) |
 | `ISOGENY_SEMAEV_REVIEW.md`, `isogeny-semaev/` | Four-channel isogeny x Semaev sweep, alpha-stable factor bases, GLV/CM orbit folding, scaling study | Verdict recorded below|
@@ -46,6 +47,19 @@ discipline and have not been re-run under this harness. They are recorded here a
 a screening prior so the corpus is not re-derived, and they carry no approved
 state.
 
+- **Coordinate/orbit alternatives produced no new canonical survivor.** Seven ordinary
+  prime-order toy groups (orders 83 to 947) and two anomalous controls tested scalar-bit
+  prediction, function-field interpolation, a spectral shift decoder, carry-ranked
+  binary descent, coordinate recurrences, and a generalized p-adic lift quotient.
+  Interpolation required orbit-sized advice; recurrences had complexity `r` or `r-1`;
+  and the ordinary p-adic arm stayed at 0-3.1% while both anomalous controls recovered
+  96/96 logs. Most importantly, the spectral decoder's predeclared matched-null rule
+  passed on 0/7 curves: random relabelings and random phases needed the same 15-20%
+  mode fraction. This is external screening evidence for ECDLP-IDEA-110, not a
+  repository evidence record. The binary carry/height score is a narrow distinct
+  variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
+  did not consistently beat a scrambled control. Source:
+  `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
