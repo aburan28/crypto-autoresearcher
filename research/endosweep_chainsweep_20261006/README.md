@@ -108,16 +108,42 @@ repository reproduces every one of the 44 chain × evaluator counts in
 `chains.constants.json` exactly); the scalar-multiplication counts are
 expectations over random scalars.
 
-## Native measurement
+## Native measurement (aburan28/crypto#1423)
 
-The frozen set and the model are measured natively in the crypto repository
-(`research/cryptopro_b_chain_sweep_20261006/`): every chain and both
-evaluators as stage diagnostics, the full width × table × evaluator grid on
-the cheapest chain, every element at the predicted best configuration, the
-baseline at every width and table, an A/A control, and the configuration of
-crypto#1408 as a continuity arm, with counted operations (a counting build)
-as the primary unit and isolated wall time beside them.  Results: pending
-that run; this section is updated when it lands.
+The frozen set and the model were measured natively in the crypto
+repository (`research/cryptopro_b_chain_sweep_20261006/`), under a protocol
+committed before the runs: every chain and both evaluators as stage
+diagnostics, the width × table × evaluator grid on the cheapest chain, every
+element at the predicted best configuration, the baseline at every width and
+table, PR #1408's configuration as a continuity arm and an A/A control; one
+counting run (a counting build of the same code) and one isolated timing
+run.  Every preregistered condition was met:
+
+| | counted M_eq per `k·P` | median ns | ratio to the best baseline (counted / median / min) |
+|:--|--:|--:|:--|
+| best baseline: width-5 NAF, Jacobian table | 2 807.6 | 117 103 | 1 / 1 / 1 |
+| PR #1408's baseline: width-5 NAF, affine table | 2 916.5 | 123 945 | 0.963 / 0.945 / 0.944 |
+| **GLV-2, `4 + ω` as `7·5·5`, optimised evaluator, Jacobian tables, width 5** | **1 993.7** | **82 670** | **1.408 / 1.417 / 1.497** |
+| PR #1408's GLV configuration (`5·5·7`, generic evaluator, affine tables, width 5) | 2 205.3 | 93 486 | 1.273 / 1.253 / 1.262 |
+
+* **The model was exact where it claimed to be**: the counting build
+  reproduced all 44 chain × evaluator counts of `chains.constants.json`
+  exactly, and every total arm came within 0.26 % of `model.json`.
+* The best configuration found is the one the model predicted, and the
+  cheapest `φ(P)` stage of the 44 is `4+1w/7.5.5` with the optimised
+  evaluator (3.10 µs against 4.54 µs for the evaluator of crypto#1408); the
+  stage medians follow the counts (Spearman 0.976).
+* The chain choice moves the GLV total by at most 3.9 %; the tables (Jacobian,
+  no inversion) and the evaluator move it by 7.4 % and 2.4 %.  The chain is
+  the smaller lever, as finding 4 above predicted.
+* In this quiet run PR #1408's configuration measures 1.326 / 1.336 against
+  its own affine baseline (crypto#1408 measured 1.252 / 1.337 in a run with
+  a 6 % A/A floor; here the floor is 0.7 %).
+
+Scope of that measurement: one VM (Linux x86-64), the crate's generic
+Montgomery multiplication, a Fermat inversion (which is why Jacobian tables
+win; a much cheaper inversion would favour affine tables again), variable
+time.
 
 ## Files
 
