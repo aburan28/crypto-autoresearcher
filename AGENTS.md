@@ -179,6 +179,20 @@ budget is reported as such and never as a result, and a role whose capabilities
 that runtime cannot provide is refused outright rather than run with a reduced
 tool surface.
 
+## Endomorphism and isogeny-chain arithmetic
+
+For CM orders, GLV/GLS, endomorphism formulas, and isogeny-chain scalar
+multiplication, follow [docs/endomorphism-rules.md](docs/endomorphism-rules.md).
+Keep factored and mixed-degree isogeny loops in the candidate families where
+applicable. A well-studied ring, large composite degree, or unsuccessful bounded
+search is not proof that no faster evaluation exists. Require explicit maps,
+working-field closure, subgroup-action certificates, and paired complete-cost
+benchmarks against an optimized baseline. Rank by evaluation cost, including
+conversions and recovery; preserve failed attempts and the exact search boundary.
+Keep known-scalar multiplication gains distinct from unknown-scalar recovery
+claims. This guidance preserves the existing run entry point, standing user
+authorization, Coordinator authority, evidence review, and measured-bound rules.
+
 ## Core rules
 
 1. Separate speculation, implementation, observation, and conclusion.
