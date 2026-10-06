@@ -24,8 +24,19 @@ DEGRADED_ENV = "AUTORESEARCH_DEGRADED_ALLOWED"
 INDEPENDENT_ENV = "AUTORESEARCH_INDEPENDENT_SESSION"
 
 
-def inference_block(resolution: Resolution) -> dict[str, Any]:
-    """The `run.inference` block for a manifest driven by a model."""
+def inference_block(resolution: Resolution, *, delivery: str = "interactive",
+                    batch_id: str | None = None) -> dict[str, Any]:
+    """The `run.inference` block for a manifest driven by a model.
+
+    `delivery` says which transport answered: `interactive` (the synchronous
+    Messages API) or `batch` (a Message Batch, named by `batch_id`). A batch
+    is half the price and up to a day slower; a manifest that did not say
+    which lane it used could not explain either its cost or its timing.
+    """
+    if delivery not in ("interactive", "batch"):
+        raise ValueError(f"delivery must be 'interactive' or 'batch', not {delivery!r}")
+    if delivery == "batch" and not batch_id:
+        raise ValueError("a batch delivery names its batch_id")
     return {
         "requested_policy": resolution.requested_policy,
         "canonical_policy": resolution.policy,
@@ -42,6 +53,8 @@ def inference_block(resolution: Resolution) -> dict[str, Any]:
         "independent_session": resolution.independent_session,
         "adapter_version": resolution.adapter_version,
         "config_digest": resolution.config_digest,
+        "delivery": delivery,
+        "batch_id": batch_id,
     }
 
 
@@ -70,6 +83,8 @@ def deterministic_block(policy: str = "executor-implementation",
         "independent_session": False,
         "adapter_version": ADAPTER_VERSION,
         "config_digest": None,
+        "delivery": None,
+        "batch_id": None,
         "note": note,
     }
 
@@ -112,8 +127,15 @@ def _flag(env: dict[str, str], name: str) -> bool:
 
 def receipt(resolution: Resolution, completion: Completion | None = None, *,
             task_id: str | None = None, role: str | None = None,
-            config: Config | None = None) -> dict[str, Any]:
-    """A standalone inference receipt for a dispatched agent task."""
+            config: Config | None = None,
+            delivery: dict[str, Any] | None = None) -> dict[str, Any]:
+    """A standalone inference receipt for a dispatched agent task.
+
+    `delivery` records how the answer travelled when it was not a plain
+    synchronous call -- the router's decision, or the batch and custom_id a
+    result came back under (batch receipts are written by
+    `orchestration.adapter.batch` with the same shape).
+    """
     data: dict[str, Any] = {
         "inference_receipt": {
             "task_id": task_id,
@@ -124,6 +146,8 @@ def receipt(resolution: Resolution, completion: Completion | None = None, *,
     }
     if config is not None:
         data["inference_receipt"]["config_paths"] = config.paths
+    if delivery is not None:
+        data["inference_receipt"]["delivery"] = dict(delivery)
     if completion is not None:
         data["inference_receipt"]["response"] = {
             "reported_model": completion.model,

@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import discrete_log
 import decomposition
+import bound_frontier_prime_toy
 
 
 class DiscreteLogCheckerTests(unittest.TestCase):
@@ -119,6 +120,98 @@ class DecompositionCheckerTests(unittest.TestCase):
         ):
             ok, detail = decomposition.check(bad)
             self.assertFalse(ok, detail)
+
+
+class BoundFrontierCheckerTests(unittest.TestCase):
+    """The Stage 2 evaluator on real bound records committed in aburan28/crypto
+    (docs/bounds/records/, fitted from research/ecbench_all_candidates_20261003
+    sessions/prime): rho.negation at 1.466 x the floor and bsgs.negation at
+    1.154 x.  The fixtures are byte copies; the scores below are what the
+    records' own counts give."""
+
+    FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+    def load(self, name):
+        import json
+        with open(self.FIXTURES / name, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_real_records_score_as_parts_per_million_of_the_floor(self) -> None:
+        rho = self.load("prime-rho-neg.bound.json")
+        bsgs = self.load("prime-bsgs-neg.bound.json")
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertTrue(ok, detail)
+        self.assertIn("rho.negation", detail)
+        self.assertEqual(bound_frontier_prime_toy.score(rho),
+                         round(1_000_000 / rho["constant"]["ratio_to_floor"]["value"]))
+        self.assertEqual(bound_frontier_prime_toy.score(rho), 682064)
+        self.assertGreater(bound_frontier_prime_toy.score(bsgs),
+                           bound_frontier_prime_toy.score(rho))
+        self.assertLessEqual(bound_frontier_prime_toy.score(bsgs), 1_000_000)
+
+    def test_a_figure_that_disagrees_with_its_counts_is_refused(self) -> None:
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["sizes"][0]["mean_gae"] *= 0.9          # the stated S no longer follows
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+        self.assertIn("recomputes", detail)
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["constant"]["ratio_to_floor"]["value"] = 1.0   # a better headline
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+        self.assertIn("constant.ratio_to_floor.value", detail)
+
+    def test_the_domain_and_tier_are_bound_by_the_checker(self) -> None:
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["domain"]["family"] = "koblitz"
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+        self.assertIn("family", detail)
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["sizes"][-1]["field_bits"] = 40
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+        self.assertIn("toy tier", detail)
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["domain"]["unit"] = "wall_ns"
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+
+    def test_an_inadmissible_or_partly_verified_record_is_refused(self) -> None:
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["admissibility"]["status"] = "inadmissible"
+        self.assertFalse(bound_frontier_prime_toy.check(rho)[0])
+        rho = self.load("prime-rho-neg.bound.json")
+        rho["sizes"][1]["verified"] -= 1
+        ok, detail = bound_frontier_prime_toy.check(rho)
+        self.assertFalse(ok)
+        self.assertIn("verify", detail)
+
+    def test_hostile_input_is_refused_without_raising(self) -> None:
+        for bad in ({}, None, "not-a-dict", {"schema": "ecbench.bound/v1"},
+                    {"schema": "ecbench.bound/v1", "bound_id": "ECBND1h000000000000",
+                     "domain": {"problem": "ecdlp.single_target", "family": "prime",
+                                "target_kind": "planted", "unit": "ecbench.gae",
+                                "tier": "toy", "envelope": {"targets": 1, "precomputation": "none"}},
+                     "admissibility": {"status": "admissible"},
+                     "fit": {"size_parameter": "r"}, "sizes": [{"slug": "x", "field_bits": -3}]}):
+            ok, detail = bound_frontier_prime_toy.check(bad)
+            self.assertFalse(ok, detail)
+            self.assertTrue(detail.startswith("refused:"), detail)
+
+    def test_the_objective_pins_this_checker_by_hash(self) -> None:
+        import hashlib
+        import json
+        root = Path(__file__).resolve().parents[2]
+        with open(root / "cairn" / "objectives" / "bound-frontier-ecdlp-prime-toy.json",
+                  encoding="utf-8") as fh:
+            objective = json.load(fh)
+        verifier = objective["verifier"]
+        self.assertEqual(verifier["checker"], "cairn/checkers/bound_frontier_prime_toy.py")
+        with open(root / verifier["checker"], "rb") as fh:
+            self.assertEqual(hashlib.sha256(fh.read()).hexdigest(), verifier["checker_sha256"])
+        self.assertEqual(verifier["entrypoint"], "score")
+        self.assertEqual(objective["reward"], 0)
 
 
 if __name__ == "__main__":
