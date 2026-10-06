@@ -26,6 +26,7 @@ Screening is a Coordinator-run operation, not a file copy.
 | External source | What it holds | Relevance here |
 |---|---|---|
 | `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md` | Six coordinate/orbit alternatives with toy measurements on seven ordinary prime-order groups and two anomalous controls | **Screened external packet.** Five mechanisms map to existing records or known results; the carry-ranked binary branch score is a distinct tested variant with no stable control advantage. H3's matched-random result directly bears on ECDLP-IDEA-110. No IDs allocated. |
+| `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md` | Frozen p-adic section-cocycle and inverse-doubling beam-exponent successors to the coordinate/orbit packet | **Screened external negatives.** Cocycle arithmetic and anomalous controls passed, but all six formulas were section-dependent with 0/7 support. Height/carry beam exponents exceeded the 1/2 target and beat both controls on 0/7 curves. No IDs allocated. |
 | `ECDLP_MECHANISM_CATALOG.md` | ~111 prime-field mechanisms mined from an external corpus, mapped to R6 / K1 / K2 / Defect-B / CM cells | **Largest unscreened input.** Candidate generation + dedup screening against IDs 001-410 |
 | `LIT_REVIEW_PRIME_FIELD_ECDLP.md` | 23-paper review, 8 field cards, dedup tags | Literature cross-check for `knowledge/literature`; names three untouched gaps: syzygies/Betti, singular loci of the Semaev ideal/variety, and Yokoyama semi-normality (flagged there as the top F_p test) |
 | `ISOGENY_SEMAEV_REVIEW.md`, `isogeny-semaev/` | Four-channel isogeny x Semaev sweep, alpha-stable factor bases, GLV/CM orbit folding, scaling study | Verdict recorded below|
@@ -60,6 +61,15 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
+- **Two preregistered coordinate/orbit successors also fail their gates.**
+  Four-section p-adic cocycle arithmetic was exact and both Smart controls
+  recovered 96/96 logs, but all six signed/dyadic formulas changed with the
+  section and had 0/7 ordinary-curve support. Separately, scalar-balanced
+  inverse-doubling beams gave W90 exponent estimates 0.731 (height) and 0.621
+  (carry), with upper 99% bounds above 1/2; neither score beat both controls for
+  every generator on any curve. A stricter largest-scalar-bucket diagnostic
+  increased the estimates to 0.970 and 0.938. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
