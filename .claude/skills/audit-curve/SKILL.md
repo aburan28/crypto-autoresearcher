@@ -71,6 +71,27 @@ point count is `INDETERMINATE`, never a passing check.
    `ell | q`, mark pairing transfer `NOT_APPLICABLE` for that factor and test
    the characteristic-specific attacks separately; never write `ord_r(q)`
    blindly for a composite subgroup.
+7. When adversarial inputs, post-validation faults, or a raw scalar-
+   multiplication API are in scope, audit the formulas actually reached.
+   Record which curve coefficients the decoder, addition, doubling, ladder,
+   and output path consume. Enumerate the **formula-compatible companion
+   family** obtained by varying coefficients that the arithmetic omits; test
+   both nonsingular companions and deliberately singular controls. For a
+   singular cubic, work only with its smooth locus, prove the applicable
+   group law and order, and label the result `IMPLEMENTATION_WEAK`: a singular
+   companion is not an elliptic curve, an isogenous representative, or
+   evidence about the source ECDLP.
+
+   Price the attack from the output oracle the implementation really exposes.
+   Full point coordinates or a raw shared-coordinate target can support
+   Pohlig--Hellman/generic DLP accounting. A KDF, MAC, accept/reject, or
+   ciphertext-confirmation oracle does not expose a group element and cannot
+   inherit a square-root DLP cost automatically. In that case record exact
+   subgroup enumeration or prime-power digit-lifting queries, sign ambiguity
+   from x-only outputs, the CRT modulus, and any bounded-interval completion
+   against a legitimate public key. Require scalar reuse and the necessary
+   chosen-input, fault, or local-API capability; otherwise mark the attack
+   precondition false.
 
 Before trusting an arithmetic path, run planted positive and negative controls
 through the same code path: at minimum a singular or malformed instance, an
@@ -154,7 +175,9 @@ compatible cost units:
   logical and physical qubit counts, gate counts and depth, error-correction
   assumptions, runtime, and success probability;
 - an explicit isogeny transfer to a representative with a concrete attack;
-- protocol and implementation attacks, kept separate from plain ECDLP.
+- protocol and implementation attacks, including formula-compatible smooth
+  and singular companions when adversarial points are in scope, kept separate
+  from plain ECDLP.
 
 For source `E`, compare unlogged costs using
 

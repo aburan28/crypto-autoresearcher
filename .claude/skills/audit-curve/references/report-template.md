@@ -24,6 +24,9 @@ scope:
   isogeny_field: null
   graph_boundary: null
   implementation_in_scope: null
+  adversarial_input_capability: null
+  scalar_reuse: null
+  result_oracle: null
 
 instance:
   curve_alias: null
@@ -88,7 +91,19 @@ attack_ledger:
     evidence: []
 
 isogeny_paths: []
-implementation_checks: []
+implementation_checks:
+  formula_dependency:
+    decoder_coefficients: []
+    addition_coefficients: []
+    doubling_coefficients: []
+    ladder_coefficients: []
+    output_validation: null
+  formula_compatible_companions: []
+  singular_smooth_locus_checks: []
+  observable_and_sign_ambiguity: null
+  subgroup_query_cost: null
+  crt_modulus: null
+  interval_completion_cost: null
 
 statistics:
   purpose: null

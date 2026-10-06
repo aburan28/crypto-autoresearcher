@@ -1015,6 +1015,19 @@ Use precise claim labels:
 - **no weakness found in scope**: only the named attacks, cost model, and
   enumerated or sampled coverage were tested.
 
+When an implementation accepts adversarial points, do not stop at the named
+quadratic twist. Trace the coefficients used by decoding, addition, doubling,
+the ladder, and output validation, then audit the full formula-compatible
+companion family obtained by varying omitted coefficients. Include singular
+companions as controls: their smooth loci can have exploitable group laws, but
+they are not elliptic curves or isogenous representatives and support only an
+**implementation-weak** claim. Price from the actual observable. Full or raw
+point coordinates may permit a DLP attack; a KDF, MAC, ciphertext, or
+accept/reject oracle requires charged subgroup enumeration or adaptive digit
+queries, x-only sign handling, CRT, and any final interval search. Never assign
+square-root DLP cost to a confirmation-only oracle without a reduction that
+produces a group target.
+
 Record graph coverage by isogeny primes, component, radius/depth, conductor or
 volcano strata, stopping rule, and unique \(\mathbb F_q\)-isomorphism classes;
 do not deduplicate by \(j\)-invariant alone. A bounded-degree or bounded-radius
