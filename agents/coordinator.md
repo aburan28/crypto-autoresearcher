@@ -282,7 +282,7 @@ Before issuing a task, answer:
 
 ```yaml
 coordinator_decision:
-  id: DEC-YYYYMMDD-NNN
+  id: DEC-YYYYMMDD-<tok>
   context: concise current state
   decision: approve | revise | replicate | pause | reject | synthesize
   target_ids: []

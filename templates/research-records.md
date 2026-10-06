@@ -93,7 +93,7 @@ validator compares `resolved_model_id`. Statuses that assert no success
 
 ```yaml
 research_question:
-  id: RQ-AREA-NNN
+  id: RQ-AREA-<tok>
   title: null
   scope:
     curve_families: []
@@ -111,8 +111,8 @@ research_question:
 
 ```yaml
 hypothesis:
-  id: H-AREA-NNN
-  question_id: RQ-AREA-NNN
+  id: H-AREA-<tok>
+  question_id: RQ-AREA-<tok>
   statement: null
   mechanism: null
   assumptions: []
@@ -214,8 +214,8 @@ are deliberately cheap pre-compute audits.
 
 ```yaml
 experiment:
-  id: EXP-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  id: EXP-AREA-<tok>
+  hypothesis_id: H-AREA-<tok>
   version: 1
   title: null
   status: draft
@@ -284,7 +284,7 @@ predictions.
 ```yaml
 concrete_cost:
   id: COST-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  hypothesis_id: H-AREA-<tok>
   algorithm_ref: null           # construction being costed
   cost_unit: null               # e.g. F_{p^2}-operations
   bound_kind: lower_bound | upper_bound | heuristic_estimate
@@ -312,8 +312,8 @@ concrete_cost:
 
 ```yaml
 evidence:
-  id: EV-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  id: EV-AREA-<tok>
+  hypothesis_id: H-AREA-<tok>
   experiment_ids: []
   run_ids: []
   type: empirical | theoretical | literature
@@ -559,8 +559,8 @@ receipt with command, revision, environment, logs, and measurements.
 
 ```yaml
 run:
-  id: RUN-AREA-NNN
-  experiment_id: EXP-AREA-NNN
+  id: RUN-AREA-<tok>
+  experiment_id: EXP-AREA-<tok>
   purpose: null
   status: planned | running | completed | failed | cancelled | invalid
   depends_on_runs: []
@@ -577,7 +577,7 @@ Corrections append both values. They do not mutate or delete the prior record.
 
 ```yaml
 correction:
-  id: CORR-YYYYMMDD-NNN
+  id: CORR-YYYYMMDD-<tok>
   recorded_at: null
   record_type: candidate | claim | run
   record_id: null
@@ -592,7 +592,7 @@ correction:
 
 ```yaml
 coordinator_decision:
-  id: DEC-YYYYMMDD-NNN
+  id: DEC-YYYYMMDD-<tok>
   context: null
   decision: approve | revise | replicate | expand | support | weaken | reject_scoped | pause | supersede
   target_ids: []
@@ -611,7 +611,7 @@ coordinator_decision:
 `knowledge_promotion` makes corpus curation a checked step, not an
 afterthought: a `support` or `reject_scoped` decision backed by evidence of
 strength `replicated` or `strong` MUST either promote a finding
-(`knowledge/findings/KN-FIND-NNN.md`, see `/curate-knowledge`) or state in
+(`knowledge/findings/KN-FIND-<tok>.md`, see `/curate-knowledge`) or state in
 `not_warranted` why no durable entry results. Other decisions fill the field
 too — usually `not_warranted` with a one-line reason.
 
@@ -619,7 +619,7 @@ too — usually `not_warranted` with a one-line reason.
 
 ```yaml
 handoff:
-  id: TASK-YYYYMMDD-NNN
+  id: TASK-YYYYMMDD-<tok>
   from: coordinator
   to: coordinator | idea-generator | executor | reviewer | validator | red-team
   objective: null
@@ -628,7 +628,7 @@ handoff:
   constraints: []
   deliverables: []
   artifact_paths: []
-  archived_by: TASK-YYYYMMDD-NNN
+  archived_by: TASK-YYYYMMDD-<tok>
   inference:
     # Canonical policy ids; the pre-2.0 aliases still resolve for records
     # already committed. See docs/inference-backends.md.
