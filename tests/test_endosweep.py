@@ -290,3 +290,90 @@ def test_corpus_ingestion_and_scan(tmp_path):
     assert e.verified and e.scan_D == -619 and e.db_agreement == "agree"
     assert e.cheapest_chain["chain"] == "5^2*7" and e.explicit["found"] is True
     assert loaded[1][1].skipped.startswith("field type Binary")
+
+
+# --- chainsweep --------------------------------------------------------------
+
+from harness.endosweep import chainsweep as CS   # noqa: E402
+from harness.endosweep import explicit as EX    # noqa: E402
+
+
+def test_chain_op_model_reproduces_the_measured_evaluator_counts():
+    # crypto#1408 derived ~128 M for the projective 5*5*7 chain and ~272 M for 5*31
+    assert CS.chain_ops([5, 5, 7], "generic") == {"M": 124, "S": 4, "I": 0, "M_eq": 128}
+    assert CS.chain_ops([5, 31], "generic")["M_eq"] == 272
+    # the generic evaluator does not care about the order; the optimised one does
+    assert len({CS.chain_ops(o, "generic")["M_eq"] for o in CS.distinct_orders([5, 5, 7])}) == 1
+    assert CS.chain_ops([7, 5, 5], "optimised") == {"M": 78, "S": 2, "I": 0, "M_eq": 80}
+    assert CS.chain_ops([5, 5, 7], "optimised")["M_eq"] == 89
+    assert CS.chain_ops([31, 5], "optimised")["M_eq"] < CS.chain_ops([5, 31], "optimised")["M_eq"] / 1.9
+
+
+def test_distinct_orders_and_class_number():
+    assert CS.distinct_orders([5, 5, 7]) == [(5, 5, 7), (5, 7, 5), (7, 5, 5)]
+    assert len(CS.distinct_orders([5, 7, 7, 23])) == 12
+    assert [CS.class_number(D) for D in (-3, -4, -23, -56, -163, -619)] == [1, 1, 3, 4, 1, 5]
+
+
+def test_catalogue_of_d_minus_619_starts_with_the_known_chains():
+    cat = CS.catalogue(-619, 1000, 31)
+    els = {(e["a"], e["b"]): e["steps"] for e in cat}
+    assert els[(4, 1)] == [5, 5, 7] and els[(0, 1)] == [5, 31] and els[(9, 1)] == [5, 7, 7]
+    assert els[(15, 2)] == [5, 5, 5, 7]
+    for e in cat:
+        assert QO.norm(-619, e["a"], e["b"]) == e["norm"]
+        assert all(QO.kronecker_symbol_disc(-619, l) != -1 for l in e["steps"])
+    best = min((CS.best_order(e["steps"], "optimised") for e in cat), key=lambda t: t[1]["M_eq"])
+    assert best[0] == (7, 5, 5) and best[1]["M_eq"] == 80
+
+
+def test_outside_bound_certifies_the_catalogue():
+    ob = CS.outside_lower_bound(-619, 20000, 61, "optimised")
+    assert ob["large_step"]["ell"] == 71                 # 67 is inert in Q(sqrt(-619))
+    assert ob["bound"] > 2 * 80                          # every chain within 2x of the best is inside
+    # brute force on small bounds: nothing outside is cheaper than the bound
+    from sympy import factorint
+    small = CS.outside_lower_bound(-619, 300, 23, "optimised")
+    outside = 0
+    for N in range(2, 3000):
+        fac = factorint(N)
+        if N <= 300 and max(fac) <= 23:
+            continue                                     # inside the small catalogue
+        for el in QO.elements_of_norm(-619, N):
+            steps = sorted(sum(([l] * e for l, e in fac.items()), []))
+            assert CS.best_order(steps, "optimised")[1]["M_eq"] >= small["bound"]
+            outside += 1
+    assert outside > 20
+
+
+def test_wnaf_model_matches_reconstruction_and_counts_are_positive():
+    import random
+    rng = random.Random(3)
+    for w in range(2, 8):
+        for _ in range(20):
+            k = rng.randrange(1, 1 << 256)
+            d = CS.wnaf_digits(k, w)
+            assert sum(x << i for i, x in enumerate(d)) == k
+            nz = [i for i, x in enumerate(d) if x]
+            assert all(b - a >= w for a, b in zip(nz, nz[1:]))
+    base = CS.baseline_ops(rng.randrange(1, 1 << 256), 5, "affine")
+    assert base["I"] == 1 and base["S"] > 256
+
+
+def test_build_every_ordering_of_4_plus_omega_on_cryptopro_b():
+    T = next(t for t in TG.deployed_targets() if t.name == "GOST CryptoPro-B")
+    TG.verify(T)
+    p, a, b, n = T.p, T.coeffs["a"] % T.p, T.coeffs["b"] % T.p, T.n
+    root = QO.omega_eigenvalues(-619, n)[0]
+    lams = set()
+    for order in CS.distinct_orders([5, 5, 7]):
+        r = EX.build_chain_endomorphism(p, a, b, n, T.h, -619, (4, 1), steps=list(order),
+                                        conjugates=False, omega_root=root)
+        assert r.found and r.steps == list(order)
+        lams.add(min(r.eigenvalue, n - r.eigenvalue))
+        rec = CS.export_chain(T, -619, r, root, vectors=1, seed=5)
+        assert rec["order"] == list(order) and len(rec["steps"]) == 3
+        assert rec["model_ops"]["optimised"] == CS.chain_ops(order, "optimised")
+    assert len(lams) == 1                                # one endomorphism, three walks
+    with pytest.raises(ValueError):
+        EX.build_chain_endomorphism(p, a, b, n, T.h, -619, (4, 1), steps=[5, 7])

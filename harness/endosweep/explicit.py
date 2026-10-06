@@ -486,25 +486,54 @@ def point_of_order(E: Curve, n: int, cofactor: int, seed: int = 2):
 
 def build_chain_endomorphism(p: int, a: int, b: int, n: int, cofactor: int, D: int,
                              element: tuple[int, int], *, curve_name: str = "",
-                             seed: int = 2) -> ChainResult:
+                             seed: int = 2, steps: list[int] | None = None,
+                             conjugates: bool = True,
+                             omega_root: int | None = None) -> ChainResult:
+    """Build the endomorphism ``element`` as a closed walk of prime-degree isogenies.
+
+    ``steps`` fixes the order of the prime-degree steps; it must be an
+    ordering of the prime factors of the element's norm (default: ascending).
+    Every ordering of the same factors gives the same endomorphism (the
+    kernel ``E[(alpha)]`` factors through the prime ideals in any order) but
+    a different walk through the isogeny class, hence different constants
+    and, for an implementation, a different cost.  With ``conjugates=False``
+    only a walk acting as the element itself, up to units, is accepted;
+    otherwise the conjugate's walk is accepted too (the same cost, the other
+    eigenvalue).  "The element itself" is relative to which root of
+    omega's minimal polynomial mod n is taken as omega's eigenvalue, since
+    conjugation swaps the roots: pass ``omega_root`` to fix it (it must be
+    one of the roots), so that every ordering of one element is matched to
+    the same eigenvalue.
+    """
     E = Curve(p, a, b)
     ea, eb = element
     el = QO.RingElement(D, ea, eb)
     N = el.norm
     fac = factorint(N)
-    steps: list[int] = []
+    canonical: list[int] = []
     for ell in sorted(fac):
-        steps += [ell] * fac[ell]
-    res = ChainResult(curve_name, D, element, N, steps, False)
+        canonical += [ell] * fac[ell]
+    if steps is None:
+        steps = canonical
+    else:
+        steps = [int(s) for s in steps]
+        if sorted(steps) != canonical:
+            raise ValueError(f"steps {steps} are not an ordering of the prime factors of N = {N}")
+    res = ChainResult(curve_name, D, element, N, list(steps), False)
     P = point_of_order(E, n, cofactor, seed)
     lam_roots = QO.omega_eigenvalues(D, n)
     if not lam_roots:
         res.note = "omega has no eigenvalue mod n"
         return res
+    if omega_root is not None:
+        if omega_root % n not in lam_roots:
+            raise ValueError("omega_root is not a root of omega's minimal polynomial mod n")
+        lam_roots = [omega_root % n]
     # candidate scalars: the element's unit/conjugation orbit under each root
     cands: dict[int, tuple[tuple[int, int], int]] = {}
+    bases = ((ea, eb), QO.conjugate(D, ea, eb)) if conjugates else ((ea, eb),)
     for lam_w in lam_roots:
-        for base in ((ea, eb), QO.conjugate(D, ea, eb)):
+        for base in bases:
             for u in QO.units(D):
                 a_, b_ = QO.multiply(D, base, u)
                 cands[QO.eigenvalue(D, a_, b_, lam_w, n)] = ((a_, b_), lam_w)
