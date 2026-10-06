@@ -2,6 +2,12 @@
 
 Copy these records into experiment-specific YAML files. IDs are immutable.
 
+New cryptographic scheme proposals also attach the companion
+[scheme construction contract](scheme-construction-contract.yaml), following
+[the six obligations and security games](../docs/scheme-construction-contract.md).
+It supplements the normal hypothesis, proof-search map, and handoff; it is
+not a replacement ledger record or a security certificate.
+
 ## Persistent research goal
 
 ```yaml

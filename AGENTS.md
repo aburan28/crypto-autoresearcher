@@ -442,6 +442,26 @@ proof decomposition, validated heuristics, concrete-cost table, and
 independent `review-xhigh` plus red-team pass. This profile biases direction
 and never lowers the evidence rules above.
 
+## Cryptographic scheme construction
+
+For new signature, PKE, KEM, or authenticated key-exchange proposals and
+scheme-security claims, use the six obligations in
+[docs/scheme-construction-contract.md](docs/scheme-construction-contract.md)
+and its [companion YAML template](templates/scheme-construction-contract.yaml).
+State the exact EUF-CMA, SUF-CMA, IND-CPA, IND-CCA1/IND-CCA2, or named AKE
+game, adversary model, oracle access, and assumptions for each claim.
+An EndRing hardness claim must cover the actual key distribution and public
+auxiliary data, include efficient honest-party algorithms and actual
+message/key recovery, and give a correctly directed security reduction.
+Name missing recipient lifts or additional assumptions explicitly.
+
+Attach this companion artifact to the existing hypothesis/proof-search map
+and handoff; it does not replace ledger schemas, archival ownership, or
+independent scientific review. Open obligations remain candidates with a
+concrete next action. Template completeness and PR merge do not certify
+security or change official research state. Apply prospectively without
+rewriting immutable historical records. This adds no preflight to `run`.
+
 ## Inventor protocol
 
 The target profile above governs *what kind of result is worth having*.
