@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 27 |
-| — of those with the artifact committed | 26 |
-| Per-URL retrieval attempts | 42 |
-| — succeeded | 28 |
-| — failed or blocked | 14 |
-| Source artifacts under `inputs/` | 52 |
-| — hash recomputed and matching | 48 |
+| Frozen source packages (`SRC-*`) | 28 |
+| — of those with the artifact committed | 27 |
+| Per-URL retrieval attempts | 46 |
+| — succeeded | 29 |
+| — failed or blocked | 17 |
+| Source artifacts under `inputs/` | 54 |
+| — hash recomputed and matching | 50 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8086 |
-| — with a resolvable external identifier | 2473 |
-| — with no identifier recorded | 5613 |
+| Literature entries (`KN-LIT-*`) | 8096 |
+| — with a resolvable external identifier | 2482 |
+| — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 175, eprint 829, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 832, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7520, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 517.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7523, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -49,6 +49,7 @@ decides whether a later session can re-read what was read here.
 | SRC-EULER-PETIT-2019-QSP | New Results on Quasi-Subfield Polynomials |  | 2020 | `inputs/EULER-PETIT-2019-QSP` | yes | frozen_path |  |  |
 | SRC-FIPS186-4-BINARY-CURVES | FIPS PUB 186-4, Digital Signature Standard -- Appendix D.1.3, Curves over Binary Fields (the B- and K- curves at degrees 163, 233, 283, 409, 571) | National Institute of Standards and Technology | 2013 | `inputs/FIPS186-4-BINARY-CURVES` | yes | frozen_path |  |  |
 | SRC-GORLA-MASSIERER-2014-1403 | Point compression for the trace zero subgroup over a small degree extension field |  | 2014 | `inputs/GORLA-MASSIERER-2014-1403` | yes | frozen_path |  |  |
+| SRC-HHAN-2024-2402.11269 | A New Approach to Generic Lower Bounds: Classical/Quantum MDL, Quantum Factoring, and More |  |  | `inputs/HHAN-2024-2402.11269` | yes | declared | https://arxiv.org/pdf/2402.11269v1 | eb5df4bea59017d7 |
 | SRC-HUANG-2020-JMC-QSP | Quasi-subfield Polynomials and the Elliptic Curve Discrete Logarithm Problem |  | 2020 | `inputs/HUANG-2020-JMC-QSP` | yes | frozen_path |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
 | SRC-ICPERF-TRIMOSKA-WDSAT-2024 | WDSat -- a SAT solver dedicated to instances derived from a Weil descent | Monika Trimoska (with Sorina Ionica and Gilles Dequen, per the README) |  | `inputs/TRIMOSKA-WDSAT-2024` | yes | package_contents |  |  |
@@ -71,6 +72,7 @@ decides whether a later session can re-read what was read here.
 Declared reproducibility limitations:
 
 - **SRC-BAILEY-2009-541-ECC2K130** — The progress figures rest on 16 bytes per report (paper Appendix C) and on reading the graph's last point by eye; tallies.py re-derives every number and brackets the eye reading. No per-seed data was ever published, so nothing beyond the aggregates can be checked.
+- **SRC-HHAN-2024-2402.11269** — Preprint (arXiv v1), not a version of record. Section, theorem, page and line numbers cited against this freeze are v1's and the derived text's.
 - **SRC-NAGAO-2013-548** — ONLY THE LAST OF THREE REVISIONS IS FROZEN, and for this package that is the load-bearing limitation rather than a formality. The paper is cited in a PRIORITY dispute -- 2015/984 credits it with the disjoint factor base and says Galbraith-Gebregiyorgis 2014/806 "recently re-discovered" it -- and a priority question is a question about what a specific version contained on a specific date. ePrint serves one PDF per identifier, so the two earlier versions are not obtainable from these bytes, and nothing in this package establishes when Section 7 first appeared.
 - **SRC-NAGAO-2013-549** — Only the LAST of the paper's revisions is frozen. ePrint serves one PDF per identifier, so the earlier version recorded in the landing-page history is not obtainable from these bytes and is not vendored here. Any question of the form "which version did a later paper read" is therefore not answerable from this package alone.
 - **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
@@ -99,6 +101,10 @@ not the same as never having looked.
 | arxiv-pdf-v2 | https://arxiv.org/pdf/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` |
 | arxiv-abs | https://arxiv.org/abs/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126-abs.html` |
 | arxiv-pdf | https://arxiv.org/pdf/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` |
+| hhan-2024-abs | https://arxiv.org/abs/2402.11269 | retrieved_not_vendored | 200 | 2026-10-03T21:07:02Z |  |
+| hhan-2024-html | https://arxiv.org/html/2402.11269 | retrieved_not_vendored | 200 | 2026-10-03T21:07:44Z |  |
+| hhan-2024-pdf-unversioned | https://arxiv.org/pdf/2402.11269 | retrieved_identical_to_vendored | 200 | 2026-10-03T21:14:35Z |  |
+| hhan-2024-pdf-v1 | https://arxiv.org/pdf/2402.11269v1 | retrieved | 200 | 2026-10-03T21:07:35Z | `inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf` |
 | arxiv-search | https://export.arxiv.org/api/query?search_query=all:%22quasi-subfield%22&max_results=20 | retrieved_not_vendored | 200 | 2026-09-16T19:44:00Z |  |
 | bham-landing | https://research.birmingham.ac.uk/en/publications/quasi-subfield-polynomials-and-the-elliptic-curve-discrete-logari/ | retrieved | 200 | 2026-09-16T19:51:49Z | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` |
 | bham-pure-pdf | https://pure-oai.bham.ac.uk/ws/files/97895891/Huang_et_al_Quasi_subfield_polynomials_Journal_of_Mathematical_Cryptology_2020.pdf | retrieved | 200 | 2026-09-16T19:51:48Z | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` |
@@ -173,6 +179,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/FIPS186-4-BINARY-CURVES/fips186-4_text.md` | 236200 | match | 8355c8072618bdbb |  |
 | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` | 334485 | match | a2304df39b4c59ab |  |
 | `inputs/GORLA-MASSIERER-2014-1403/paper_fulltext.md` | 74241 | match | 9aed23dacb161831 |  |
+| `inputs/HHAN-2024-2402.11269/hhan-2024-2402.11269v1.pdf` | 421224 | match | eb5df4bea59017d7 |  |
+| `inputs/HHAN-2024-2402.11269/paper_fulltext.md` | 104358 | match | 89e82286adac6e9e |  |
 | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` | 53651 | match | b33cb5336d996c78 |  |
 | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` | 531843 | match | e1ba608354a67c1b |  |
 | `inputs/HUANG-2020-JMC-QSP/paper_fulltext.md` | 48073 | match | 558a8704783957d6 |  |
@@ -217,7 +225,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2473 of 8086 `KN-LIT-*` entries carry an
+2482 of 8096 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -340,6 +348,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-0acb8c | Probabilistic analysis on Macaulay matrices over finite fields and complexity of constructing Gröbner bases | 2020 | `eprint:2019/903` | web |
 | KN-LIT-0b3daf | CheetahKEM（NGCC 公钥第一轮候选 · 密钥封装 9） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-0c48c5 | BW-KEM（NGCC 公钥第一轮候选 · 密钥封装 8） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
+| KN-LIT-0cb87e | Elliptic curve cryptography: the serpentine course of a paradigm shift (Koblitz, Koblitz, Menezes) -- conductor-gap speculation, Sec. 11.2-11.3 | 2011 | `eprint:2008/390` | read |
 | KN-LIT-0d9d28 | On Index Calculus Algorithms for Subfield Curves | 2021 | `eprint:2020/1315` | web |
 | KN-LIT-0e36d4 | A Las Vegas algorithm to solve the elliptic curve discrete logarithm problem | 2018 | `eprint:2018/134` | web |
 | KN-LIT-0f43ad | Finding the permutation between equivalent linear codes: The support splitting algorithm | 2000 | `doi:10.1109/18.850662` | web |
@@ -1825,6 +1834,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-4c0e6f | QUBE（NGCC 公钥第一轮候选 · 密钥封装 33） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-4c1133 | Compact HQC with new (un)balance | 2026 | `eprint:2026/461` | web |
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | 2024 | `arxiv:2304.14757` | web |
+| KN-LIT-4db619 | New Public-Key Schemes Based on Elliptic Curves over the Ring Z_n | 1992 | `doi:10.1007/3-540-46766-1_20` | web |
 | KN-LIT-4e5e30 | 关于公布新一代商用密码算法全球征集活动公钥密码算法第一轮候选算法名单的通知 | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-4e8513 | Solving degree, last fall degree, and related invariants | 2021 | `eprint:2021/1611` | web |
 | KN-LIT-4f0d26 | DOVE（NGCC 公钥第一轮候选 · 数字签名 9） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
@@ -2450,6 +2460,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-907 | Online-Extractability in the Quantum Random-Oracle Model? | 2021 | `eprint:2021/280` | read |
 | KN-LIT-908 | Plectic p-adic invariants | 2021 | `arxiv:2104.12566` | read |
 | KN-LIT-909 | Post-quantum Resettably-Sound Zero Knowledge? | 2021 | `eprint:2021/349` | read |
+| KN-LIT-90e34c | Security Analysis of the Strong Diffie-Hellman Problem | 2006 | `doi:10.1007/11761679_1` | web |
 | KN-LIT-910 | PRIMITIVE DIVISORS OF SEQUENCES ASSOCIATED TO ELLIPTIC CURVES OVER FUNCTION FIELDS | 2021 | `arxiv:2103.06787` | read |
 | KN-LIT-911 | privateDH: An Enhanced Diffie-Hellman Key-Exchange Protocol using RSA and AES Algorithms | 2021 | `eprint:2021/647` | read |
 | KN-LIT-912 | Probability Distributions for Elliptic Curves in the CGL Hash Function | 2021 | `arxiv:2108.06457` | read |
@@ -2458,6 +2469,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-915 | Quadratic Fields Admitting Elliptic Curves with | 2021 | `arxiv:2103.09814` | read |
 | KN-LIT-916 | QUADRATIC POINTS ON BIELLIPTIC MODULAR CURVES | 2021 | `arxiv:2112.03226` | read |
 | KN-LIT-917 | RANK GROWTH OF ELLIPTIC CURVES OVER N -TH ROOT EXTENSIONS | 2021 | `arxiv:2112.12864` | read |
+| KN-LIT-917094 | Designing and Detecting Trapdoors for Discrete Log Cryptosystems | 1993 | `doi:10.1007/3-540-48071-4_5` | web |
 | KN-LIT-918 | REPRESENTATIONS ATTACHED TO ELLIPTIC CURVES WITH A NON-TRIVIAL ODD TORSION POINT | 2021 | `arxiv:2106.15722` | read |
 | KN-LIT-919 | Resistance of Isogeny-Based Cryptographic | 2021 | `eprint:2021/850` | read |
 | KN-LIT-920 | Revisiting Homomorphic Encryption Schemes for Finite Fields ? | 2021 | `eprint:2021/204` | read |
@@ -2555,12 +2567,14 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-99d262 | NEV-AKE（NGCC 公钥第一轮候选 · 密钥交换 7） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-99dfe4 | On the discrete logarithm problem for prime-field elliptic curves | 2018 | `eprint:2017/609` | web |
 | KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
+| KN-LIT-9d845c | Kleptography: Using Cryptography Against Cryptography | 1997 | `doi:10.1007/3-540-69053-0_6` | web |
 | KN-LIT-9e78f8 | Origami（NGCC 公钥第一轮候选 · 数字签名 18） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
 | KN-LIT-a25516 | Quantum Resource Optimization for CSIDH | 2026 | `eprint:2026/1707` | web |
 | KN-LIT-a2a423 | Rigorous Statements and Proofs of the Lemmas in Simon's Algorithm for the Dihedral Coset Problem and Their Underlying Hypothesis | 2026 | `eprint:2026/1714` | web |
 | KN-LIT-a2bc76 | NTRE Key Encapsulation Mechanism（NGCC 公钥第一轮候选 · 密钥封装 27） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a2f7b3 | Last fall degree of semi-local polynomial systems | 2023 | `arxiv:2311.02804` | web |
+| KN-LIT-a3244d | The Dark Side of "Black-Box" Cryptography, or: Should We Trust Capstone? | 1996 | `doi:10.1007/3-540-68697-5_8` | web |
 | KN-LIT-a36af1 | DKEX (Ding Key Exchange)（NGCC 公钥第一轮候选 · 密钥交换 4） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4b3d8 | RCKangaroo (SOTA/SOTA+ kangaroo with symmetry) and Kang-1/Kang-2 method write-ups | 2024 | `url:github.com/retiredc/rckangaroo` | web |
@@ -2586,11 +2600,13 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-b46f62 | Implementation of Classic McEliece key generation based on Goppa binary code | 2022 | `doi:10.1109/icsict55466.2022.9963372` | web |
 | KN-LIT-b4a89c | Cover attacks for elliptic curves with prime order | 2023 | `arxiv:2012.07173` | web |
 | KN-LIT-b5686a | McBits revisited | 2017 | `doi:10.1007/978-3-319-66787-4_11` | web |
+| KN-LIT-b58682 | A Riddle Wrapped in an Enigma | 2015 | `eprint:2015/1018` | web |
 | KN-LIT-b66899 | Statistical decoding | 2017 | `arxiv:1701.07416` | web |
 | KN-LIT-b777d1 | Algebraic approach for code equivalence | 2018 | `doi:10.70675/4409179fzb277z4e80z8334z16f39e22980c` | web |
 | KN-LIT-b8093a | Solving the Shortest Vector Problem in 2^{0.6039n} Time via Mid-point Hessian | 2026 | `eprint:2026/1597` | read |
 | KN-LIT-b8a8be | Memory-efficient quantum information set decoding algorithm | 2023 | `doi:10.1007/978-3-031-35486-1_20` | web |
 | KN-LIT-b901b9 | Optimal Bucket Set Construction for Multi-scalar Multiplication with Endomorphisms | 2026 | `eprint:2026/1902` | web |
+| KN-LIT-b95db3 | Elliptic Curve Paillier Schemes | 2002 | `doi:10.1007/s00145-001-0015-6` | web |
 | KN-LIT-b97b9f | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) — August revision | 2026 | `eprint:2026/1630` | web |
 | KN-LIT-b98c5d | AFS-KEX（NGCC 公钥第一轮候选 · 密钥交换 2） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-b9d3e0 | How to backdoor (Classic) McEliece and how to guard against backdoors | 2022 | `eprint:2022/362` | web |
@@ -2619,6 +2635,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c82c45 | Index Calculus in the Trace Zero Variety | 2014 | `eprint:2014/318` | web |
 | KN-LIT-c8e485 | On the Correct Use of the Negation Map in the Pollard rho Method | 2011 | `eprint:2011/003` | read |
 | KN-LIT-c9a235 | A New Method for Geometric Interpretation of Elliptic Curve Discrete Logarithm Problem | 2019 | `eprint:2019/1059` | web |
+| KN-LIT-ca35e0 | Climbing and descending tall isogeny volcanos (Galbraith) -- ECDLP transfer across the conductor gap; Sec. 10 'The Koblitz, Koblitz, Menezes speculation' | 2024 | `eprint:2024/924` | read |
 | KN-LIT-ca757d | BAG-Loong（NGCC 公钥第一轮候选 · 密钥封装 3） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-caaa79 | MORNING-ATLAS（NGCC 公钥第一轮候选 · 数字签名 15） | 2026 | `url:www.niccs.org.cn/symmbzyjy/tzgg/pc/content/2100859557292625920/content_2100859557292625920.html` | web |
 | KN-LIT-caabe2 | Two decoding algorithms for linear codes | 1989 | `url:www.mathnet.ru/eng/ppi635` | false |
@@ -2698,7 +2715,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5613 entries name a source this index cannot resolve to a
+5614 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -3912,6 +3929,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-3167 | Coordinate Blinding over Large Prime Fields |  |  | read |
 | KN-LIT-3168 | Correcting Errors in RSA Private Keys |  |  | read |
 | KN-LIT-3169 | Correcting Subverted Random Oracles |  |  | read |
+| KN-LIT-316c94 | Hamming ideals and Gröbner bases for ISD-like syndrome decoding | 2026 | preprint, 2026 (venue and identifier not recorded in the text read; see Not verified here) | read |
 | KN-LIT-3170 | Correlated Extra-Reductions Defeat |  |  | read |
 | KN-LIT-3171 | Correlated Product Security From Any One-Way Function |  |  | read |
 | KN-LIT-3172 | Correlated Pseudorandomness from Expand-Accumulate Codes |  |  | read |
@@ -8340,6 +8358,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
 | `doi:10.1515/jmc-2019-0029` | KN-LIT-4558, KN-LIT-d8e1b9 |
 | `eprint:2004/153` | KN-LIT-164, KN-LIT-92caf4 |
+| `eprint:2008/390` | KN-LIT-0cb87e, KN-LIT-235 |
 | `eprint:2009/466` | KN-LIT-270, KN-LIT-469ff0 |
 | `eprint:2009/541` | KN-LIT-096, KN-LIT-661e97 |
 | `eprint:2010/157` | KN-LIT-022, KN-LIT-673219 |
@@ -8357,6 +8376,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2022/1573` | KN-LIT-1037, KN-LIT-f34f74 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
+| `eprint:2024/924` | KN-LIT-1210, KN-LIT-ca35e0 |
 | `eprint:2025/1661` | KN-LIT-d82a53, KN-LIT-e37d4c |
 | `eprint:2025/248` | KN-LIT-1424, KN-LIT-d0370b |
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |

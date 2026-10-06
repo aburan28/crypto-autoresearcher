@@ -1,0 +1,160 @@
+#include "lll_test_internals.h"
+
+// functions to verify lll
+/* LLL parameters satisfied by the constant-time reducer.
+ *
+ * The CT path does not reduce a rank-4 Z-lattice: it Gauss-reduces
+ * a rank-2 Z[i] lattice, and the rank-4 Z-basis is the pair of Z[i] generators written out as
+ * (v, i*v, w, i*w). That basis satisfies:
+ *
+ *   - <v, i*v> = 0 and |v| = |i*v|, so mu[1][0] and
+ *     mu[3][2] are exactly 0 and Gram-Schmidt norms come in equal pairs. The only Lovasz index
+ *     that says anything is i = 2, the boundary between the two Z[i] blocks.
+ *   - Z[i] size reduction rounds the Hermitian coefficient to the nearest Gaussian integer, so
+ *     its real and imaginary parts -- which are exactly mu[2][0] and mu[2][1] -- are each at
+ *     most 1/2 in absolute value. Hence eta = 1/2 suffices; 51/100 is used to match the
+ *     existing convention and leave the comparison off the boundary.
+ *   - Gauss reduction leaves |w| >= |v|. Writing N_k for the Gram-Schmidt norms,
+ *     N_2 / N_1 = |w|^2/|v|^2 - (mu[2][0]^2 + mu[2][1]^2), so the Lovasz left-hand side at
+ *     i = 2 is N_2/N_1 + mu[2][1]^2 = |w|^2/|v|^2 - mu[2][0]^2 >= 1 - 1/4 = 3/4.
+ *
+ * So delta = 3/4 is exactly the provable (tight) LLL bound bound.
+ */
+void
+quat_lll_set_ct_ibq_parameters(ibq_t *delta, ibq_t *eta)
+{
+    ibz_t num, denom;
+    ibz_init(&num);
+    ibz_init(&denom);
+    ibz_set(&num, 3, 3);
+    ibz_set(&denom, 4, 4);
+    ibq_set(delta, &num, &denom);
+    ibz_set(&num, 51, 7);
+    ibz_set(&denom, 100, 8);
+    ibq_set(eta, &num, &denom);
+}
+
+void
+ibq_vec_4_copy_ibz(ibq_vec_4_t *vec, const ibz_t *coeff0, const ibz_t *coeff1, const ibz_t *coeff2, const ibz_t *coeff3)
+{
+    ibq_set(&(vec->v[0]), coeff0, &ibz_const_one);
+    ibq_set(&(vec->v[1]), coeff1, &ibz_const_one);
+    ibq_set(&(vec->v[2]), coeff2, &ibz_const_one);
+    ibq_set(&(vec->v[3]), coeff3, &ibz_const_one);
+}
+
+void
+quat_lll_bilinear(ibq_t *b, const ibq_vec_4_t *vec0, const ibq_vec_4_t *vec1, const ibz_t *q)
+{
+    ibq_t sum, prod, norm_q;
+    ibq_init(&sum);
+    ibq_init(&prod);
+    ibq_init(&norm_q);
+    ibq_set(&norm_q, q, &ibz_const_one);
+
+    ibq_mul(&sum, &(vec0->v[0]), &(vec1->v[0]));
+    ibq_mul(&prod, &(vec0->v[1]), &(vec1->v[1]));
+    ibq_add(&sum, &sum, &prod);
+    ibq_mul(&prod, &(vec0->v[2]), &(vec1->v[2]));
+    ibq_mul(&prod, &prod, &norm_q);
+    ibq_add(&sum, &sum, &prod);
+    ibq_mul(&prod, &(vec0->v[3]), &(vec1->v[3]));
+    ibq_mul(&prod, &prod, &norm_q);
+    ibq_add(b, &sum, &prod);
+}
+
+void
+quat_lll_gram_schmidt_transposed_with_ibq(ibq_mat_4x4_t *orthogonalised_transposed,
+                                          const ibz_mat_4x4_t *mat,
+                                          const ibz_t *q)
+{
+    ibq_mat_4x4_t work;
+    ibq_vec_4_t vec;
+    ibq_t norm, b, coeff, prod;
+    ibq_init(&norm);
+    ibq_init(&coeff);
+    ibq_init(&prod);
+    ibq_init(&b);
+    ibq_mat_4x4_init(&work);
+    ibq_vec_4_init(&vec);
+    // transpose the input matrix to be able to work on vectors
+    for (int i = 0; i < 4; i++) {
+        ibq_vec_4_copy_ibz(&(work.m[i]), &(mat->m[0][i]), &(mat->m[1][i]), &(mat->m[2][i]), &(mat->m[3][i]));
+    }
+
+    for (int i = 0; i < 4; i++) {
+        quat_lll_bilinear(&norm, &(work.m[i]), &(work.m[i]), q);
+        ibq_inv(&norm, &norm);
+        for (int j = i + 1; j < 4; j++) {
+            ibq_vec_4_copy_ibz(&vec, &(mat->m[0][j]), &(mat->m[1][j]), &(mat->m[2][j]), &(mat->m[3][j]));
+            quat_lll_bilinear(&b, &(work.m[i]), &vec, q);
+            ibq_mul(&coeff, &norm, &b);
+            for (int k = 0; k < 4; k++) {
+                ibq_mul(&prod, &coeff, &(work.m[i].v[k]));
+                ibq_sub(&(work.m[j].v[k]), &(work.m[j].v[k]), &prod);
+            }
+        }
+    }
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            ibq_copy(&(orthogonalised_transposed->m[i].v[j]), &(work.m[i].v[j]));
+        }
+    }
+}
+
+int
+quat_lll_verify(const ibz_mat_4x4_t *mat, const ibq_t *delta, const ibq_t *eta, const quat_alg_t *alg)
+{
+    int res = 1;
+    ibq_mat_4x4_t orthogonalised_transposed;
+    ibq_vec_4_t tmp_vec;
+    ibq_t div, tmp, mu, two, norm, b;
+    ibz_t mu2_floored, num, denom;
+    ibq_mat_4x4_init(&orthogonalised_transposed);
+    ibq_vec_4_init(&tmp_vec);
+    ibq_init(&div);
+    ibq_init(&tmp);
+    ibq_init(&norm);
+    ibq_init(&b);
+    ibq_init(&mu);
+    ibq_init(&two);
+    ibz_init(&mu2_floored);
+    ibz_init(&num);
+    ibz_init(&denom);
+    ibz_set(&num, 2, 3);
+    ibz_set(&denom, 1, 2);
+    ibq_set(&two, &num, &denom);
+
+    quat_lll_gram_schmidt_transposed_with_ibq(&orthogonalised_transposed, mat, &(alg->p));
+    // check small bilinear products/norms
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < i; j++) {
+            ibq_vec_4_copy_ibz(&tmp_vec, &(mat->m[0][i]), &(mat->m[1][i]), &(mat->m[2][i]), &(mat->m[3][i]));
+            quat_lll_bilinear(&b, &(orthogonalised_transposed.m[j]), &tmp_vec, &(alg->p));
+            quat_lll_bilinear(&norm, &(orthogonalised_transposed.m[j]), &(orthogonalised_transposed.m[j]), &(alg->p));
+            ibq_inv(&tmp, &norm);
+            ibq_mul(&mu, &b, &tmp);
+            ibq_abs(&mu, &mu);
+            // compare to eta
+            res = res && (ibq_cmp(&mu, eta) <= 0);
+        }
+    }
+    for (int i = 1; i < 4; i++) {
+        ibq_vec_4_copy_ibz(&tmp_vec, &(mat->m[0][i]), &(mat->m[1][i]), &(mat->m[2][i]), &(mat->m[3][i]));
+        quat_lll_bilinear(&b, &(orthogonalised_transposed.m[i - 1]), &tmp_vec, &(alg->p));
+        quat_lll_bilinear(
+            &norm, &(orthogonalised_transposed.m[i - 1]), &(orthogonalised_transposed.m[i - 1]), &(alg->p));
+        ibq_inv(&tmp, &norm);
+        ibq_mul(&mu, &b, &tmp);
+        // tmp is mu^2
+        ibq_mul(&tmp, &mu, &mu);
+        // mu is delta-mu^2
+        ibq_sub(&mu, delta, &tmp);
+        quat_lll_bilinear(&tmp, &(orthogonalised_transposed.m[i]), &(orthogonalised_transposed.m[i]), &(alg->p));
+        // get (delta-mu^2)norm(i-1)
+        ibq_mul(&div, &norm, &mu);
+        res = res && (ibq_cmp(&tmp, &div) >= 0);
+    }
+    return (res);
+}

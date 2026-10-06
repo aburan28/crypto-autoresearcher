@@ -1,0 +1,101 @@
+# Review plan for RUN-SDEG-3de103 (EXP-SDEG-85eefd, protocol v4).
+# Written by the coordinator 2026-09-29, BEFORE any reviewer of this round runs.
+review_plan:
+  claim_under_review: >-
+    As produced by driver.py analysis on RUN-SDEG-3de103: validity
+    completed_valid; outcome_C7 = B. B1 (A1 serial-split subresultant PRS,
+    field-form pseudo-remainder per v4 D-1) has total-work beta_work worst
+    ~0.797 on interval_x and random_x and ~0.647 on subgroup_x, 95% CIs
+    far above the 0.30 gate; B0 calibration ~0.59-0.67; beta_elim(interval_x)
+    ~0.598 (pre-registered ~3/5); W_triple beta ~1.0. Scope: L in {8,16,32},
+    3 seeds, decks interval_x/subgroup_x/random_x + progression control,
+    the Mac, one worker.
+  coordinator_prior: >-
+    I expect J1 to PASS (the implementation was audited and re-checked, and
+    the run self-reports clean agreement). I expect outcome B to stand but
+    ONLY for A1 as metered here: the red team will argue (correctly) that it
+    closes nothing beyond L<=32 and this meter, that W_triple beta ~1.0 means
+    the per-triple PRS cost tracks |T| ~ q, so the early-abort subresultant
+    route cannot beat the eliminant, and that subgroup_x's all-median 0.358
+    is an artifact of the median over mixed members/non-members. I also
+    already saw an informal validator slope ~0.80 (AMD-20260928-d3ed9e), so
+    my prior is contaminated toward B; this is disclosed, and reviewers
+    should weigh it.
+  joints:
+    - joint: >-
+        J1 run integrity: manifest/admission/plan/amendment hashes; 36/36
+        cells complete; oracle/B0/B1 decision agreement and equal hit-triple
+        sets on every query; audit accepted; B2 split and FGLM checks;
+        compressed_cells.json round-trip; the failed attempt RUN-SDEG-5484a4
+        contributes nothing; beta values reproduced from raw-result.json by
+        an independent re-computation of the frozen statistic.
+      assigned_to: TASK-20260929-6d34cd
+      attack_plan: >-
+        Decompress the three .zst cells and verify sha256. Recompute every
+        beta_work(B0/B1) worst/median point and bootstrap CI from per-query W
+        in raw-result.json with your own script from the specification's
+        definition (log W vs log q over sizes), and diff against metrics.json.
+        Grep all cells for any query with a B0/B1 disagreement, a watchdog
+        stop or a lower-bound flag. I think it breaks, if anywhere, in the
+        worst-statistic definition or the per-size log q used.
+      breaking_artifact: a query or statistic where recomputation differs from metrics.json beyond bootstrap noise, or any unrecorded disagreement/watchdog
+    - joint: >-
+        J2 interpretation and scope: does outcome B follow for A1 as
+        specified in RT-1476 (inputs/idea_generation_20260718_batch2.md lines
+        88-212), and what exactly does it close?
+      assigned_to: TASK-20260929-253523
+      attack_plan: >-
+        (a) Show whether B1's charged work is dominated by a term the A1
+        idea would not pay (e.g. W_fixed_xR, table building, non-amortized
+        per-query setup); compute beta on W_triple and on W minus W_fixed_xR
+        from raw-result.json. (b) Argue whether the field-form PRS or the
+        early-abort order could make B1 costlier than A1 needs. (c) State the
+        smallest change to A1 that the data does NOT rule out (amortized
+        table across queries, different split, index calculus over a factor
+        base) as forward guidance. (d) Check the extrapolation risk: is the
+        L-range long enough that a q^{0.3} term hidden under a larger
+        low-order term would be invisible? I expect it breaks at (a) only if
+        W_fixed dominates, which W_triple beta ~1.0 argues against.
+      breaking_artifact: a computation from the run's own data showing beta for the A1-relevant cost below 0.30, or a named cost B1 pays that A1 does not
+    - joint: >-
+        J3 blind re-derivation of B1 per-query work for L=8 (see below).
+      assigned_to: TASK-20260929-0bcd38
+      attack_plan: see blind_rederivation
+      breaking_artifact: per-query W for L8 cells that disagrees with raw-result.json
+  blindness:
+    mutual: true
+    lifted_for: []
+    rationale: null
+  proves_too_much:
+    objects:
+      - >-
+        Synthetic per-query work tables with a planted exponent 0.20 on q plus
+        the observed constant W_fixed_xR = 52,488 per query, same sizes,
+        seeds and deck counts as the run, fed through analysis.py.
+      - >-
+        B0 itself: the same pipeline must return B0 beta near the known
+        MITM ~0.5-0.67 and never below 0.30.
+    failure_signature: >-
+      analysis.py must return outcome A (or at least not B) on the planted
+      0.20 object; if it returns B, the pipeline manufactures B and the claim
+      falls.
+    assigned_to: TASK-20260929-6d34cd
+  blind_rederivation:
+    required: true
+    quantity: >-
+      W_query(B1) for each L=8 query: the charged F_p operation count of
+      the A1 per-triple subresultant PRS against F_T with early abort at the
+      first verified hit, field-form pseudo-remainder, as defined by
+      specification.yaml + AMD-20260926-3479cf + AMD-20260928-7ce387 +
+      AMD-20260928-d3ed9e charging rules.
+    parameters: >-
+      experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json (L8
+      seeds 1-3) and the L8 query lists (targets only) extracted by the
+      coordinator into the task directory.
+    blind_from:
+      - experiments/EXP-SDEG-85eefd/implementation/
+      - experiments/EXP-SDEG-85eefd/runs/
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/tasks/
+      - coordination/goals/GOAL-SDEG-001/batches/BATCH-656ba1/archives/
+    assigned_to: TASK-20260929-0bcd38
+  procedure_deviations: []

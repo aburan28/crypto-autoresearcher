@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# clang-tidy configuration for SQIsign. Run it with scripts/clang-tidy.sh, or `make clang-tidy` from a build
+# directory; the script owns the rest - which configurations to analyze, -UNDEBUG, the alpha-checker opt-in, the
+# exit code. The list lives here so clangd shows the same findings in an editor.
+#
+# The target is true defects, chiefly via the clang static analyzer. Measure the finding count before enabling
+# anything new.
+#
+# WARNING: keep commas out of the comments below. clang-tidy splits this list on commas as well as newlines, so a
+# comma inside a comment splits it into fragments, and any fragment that is a bare check name is silently ENABLED.
+
+Checks: |
+  -*,
+
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -clang-analyzer-alpha.*,
+  # Both spellings on purpose: 18 and 19 have only the alpha one and LLVM 20 promoted it. A check the running
+  # version does not know is silently ignored. The alpha spelling needs --allow-enabling-analyzer-alpha-checkers
+  # which scripts/clang-tidy.sh passes.
+  clang-analyzer-alpha.security.ArrayBoundV2,
+  clang-analyzer-security.ArrayBound,
+
+  bugprone-*,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-unchecked-string-to-number-conversion,
+  -bugprone-branch-clone,  # CONSTANT-TIME HAZARD - flags the unrolled adc/sbb chains in src/gf/sat64
+
+  # The C rules that are not aliases of a bugprone-*/misc-* check already enabled above.
+  cert-env33-c,
+  cert-flp30-c,
+  cert-msc30-c,
+  cert-msc32-c,
+
+  misc-*,
+  -misc-include-cleaner,
+  -misc-unused-parameters,
+  -misc-no-recursion,
+  # Deferred to its own branch. It cannot see cross-TU use and its fix-it hides functions that exist only
+  # in order to be tested.
+  -misc-use-internal-linkage,
+
+  concurrency-*,
+  -concurrency-mt-unsafe,
+  performance-*,
+  portability-*,
+
+  # CONSTANT-TIME HAZARDS in readability-*: simplify-boolean-expr and implicit-bool-conversion turn the
+  # masked-select idioms in src/gf src/mp and src/ec into branches. identifier-naming --fix corrupts code by
+  # rewriting through the sqisign_namespace.h macros.
+  readability-misleading-indentation,
+  readability-non-const-parameter,
+
+# Report findings in this project's own headers but not system ones. scripts/clang-tidy.sh replaces this with a
+# pattern anchored at the repository root; this looser version is the fallback for editors.
+HeaderFilterRegex: '.*/(src|include|apps|test)/.*'
+
+# scripts/clang-tidy.sh passes --warnings-as-errors='*', which is what makes CI fail; setting it here instead
+# would paint every open file red in an editor. FormatStyle: none keeps --fix diffs minimal, leaving clang-format
+# as the single authority on formatting.
+FormatStyle: none

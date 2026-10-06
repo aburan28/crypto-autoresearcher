@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-ADAPTER_VERSION = "1.1.0"
+ADAPTER_VERSION = "1.2.0"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICIES_PATH = REPO_ROOT / "orchestration" / "model-policies.yaml"
@@ -34,6 +34,17 @@ DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max", "ultra"
 REQUEST_TARGET_SELECTOR_FIELDS = frozenset({
     "model", "provider", "backend", "endpoint", "base_url", "url",
 })
+
+# Delivery routing between the synchronous Messages API and Message Batches,
+# overridable under `defaults.batch` in providers.yaml.
+DEFAULT_BATCH_DEFAULTS: dict[str, Any] = {
+    "expected_latency_seconds": 3600,
+    "max_latency_seconds": 86400,
+    "urgent_priority": 90,
+    "deadline_slack_seconds": 1800,
+    "registry_dir": "coordination/inference-batches",
+    "poll_interval_seconds": 60,
+}
 
 
 class ConfigError(ValueError):
@@ -181,6 +192,26 @@ class Config:
         return list(self.bindings.get("defaults", {}).get(
             "backend_fallback_order", []))
 
+    # -- message batches ---------------------------------------------------
+    def batch_defaults(self) -> dict[str, Any]:
+        """Delivery-routing figures from `providers.yaml` `defaults.batch`."""
+        defaults = dict(DEFAULT_BATCH_DEFAULTS)
+        defaults.update((self.providers.get("defaults") or {}).get("batch") or {})
+        return defaults
+
+    def supports_message_batches(self, backend_name: str) -> bool:
+        """Whether a backend declares the Message Batches API.
+
+        Speaking the Anthropic wire format does not imply it: the gateways
+        that re-serve open-weight models over this protocol do not batch, so
+        the capability is opt-in per backend rather than inferred from the
+        protocol.
+        """
+        backend = self.backend(backend_name)
+        if not backend.get("supports_message_batches"):
+            return False
+        return bool(self.wire_protocol(backend["wire"]).get("batches_path"))
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -306,6 +337,9 @@ def validate(config: Config) -> None:
             wire_name, context="wire protocol name")
         for field in ("path", "models_path"):
             _validate_wire_path(config, wire_name, field, protocol.get(field))
+        for field in ("batches_path", "count_tokens_path"):
+            if protocol.get(field) is not None:
+                _validate_wire_path(config, wire_name, field, protocol.get(field))
 
     backends = config.providers.get("backends")
     if not isinstance(backends, dict) or not backends:
@@ -318,7 +352,32 @@ def validate(config: Config) -> None:
         for field in ("wire", "base_url", "api_key_env"):
             if not backend.get(field):
                 raise ConfigError(f"backend {name} is missing `{field}`")
-        config.wire_protocol(backend["wire"])
+        protocol = config.wire_protocol(backend["wire"])
+        if backend.get("supports_message_batches") and not protocol.get("batches_path"):
+            raise ConfigError(
+                f"backend {name} declares supports_message_batches but its wire "
+                f"protocol {backend['wire']!r} has no `batches_path`")
+
+    batch_defaults = (config.providers.get("defaults") or {}).get("batch") or {}
+    if not isinstance(batch_defaults, dict):
+        raise ConfigError("providers.yaml defaults.batch must be a mapping")
+    for field in ("expected_latency_seconds", "max_latency_seconds",
+                  "deadline_slack_seconds", "poll_interval_seconds"):
+        value = batch_defaults.get(field, DEFAULT_BATCH_DEFAULTS[field])
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ConfigError(f"providers.yaml defaults.batch.{field} must be a "
+                              f"non-negative number, got {value!r}")
+    urgent = batch_defaults.get("urgent_priority", DEFAULT_BATCH_DEFAULTS["urgent_priority"])
+    if isinstance(urgent, bool) or not isinstance(urgent, int) or not 0 <= urgent <= 100:
+        raise ConfigError("providers.yaml defaults.batch.urgent_priority must be an "
+                          f"integer 0..100, got {urgent!r}")
+    expected = batch_defaults.get("expected_latency_seconds",
+                                  DEFAULT_BATCH_DEFAULTS["expected_latency_seconds"])
+    maximum = batch_defaults.get("max_latency_seconds",
+                                 DEFAULT_BATCH_DEFAULTS["max_latency_seconds"])
+    if expected > maximum:
+        raise ConfigError("providers.yaml defaults.batch.expected_latency_seconds "
+                          "exceeds max_latency_seconds")
 
     for name, runtime in (config.providers.get("runtimes") or {}).items():
         for backend_name in runtime.get("compatible_backends") or []:

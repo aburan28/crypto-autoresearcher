@@ -1,0 +1,259 @@
+validation_report:
+  task_id: TASK-20260929-2ec518
+  role: validator
+  kind: re-check of repaired implementation (protocol v4)
+  experiment_id: EXP-RELN-c5a377
+  hypothesis_id: H-RELN-4d092c
+  batch_id: BATCH-229ce4
+  goal_id: GOAL-RELN-001
+  validated_at: '2026-09-29'
+  worktree: /Volumes/SSD990/wt-amend-ic
+  head_checked: e6ebaeb7fc (snapshot commit 38e00ad45d is an ancestor; commits after it touch only claims/ and dispatch_queue.json)
+  snapshot_validated:
+    receipt: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-3f7b98/snapshot-receipt.json
+    commit: 38e00ad45d  # 'snapshot(TASK-20260929-3f7b98): ...'
+    parent: 0ada1462738fe28b1e327a0aef1d2fdf126e8fe3
+    binding_mode: content_at_commit
+  protocol: v4 = specification.yaml + AMD-20260926-a7d25d + AMD-20260929-988139 + AMD-20260929-cc7226 (DEC-20260929-7a62cc)
+  first_audit: coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20260929-4626a5/validation_report.yaml
+  verdict: PASS_WITH_FINDINGS
+  verdict_summary: >-
+    FX-1..FX-7 are closed as written in AMD-20260929-cc7226, 116/116 tests pass, the snapshot is exact,
+    the F-2 artifacts are untouched and the proves-too-much control gives no enrichment signal. One
+    MUST-FIX defect (R-1) was found on the FX-1 interruption path: when the driver is signalled while a
+    cell runs, the celltask child is NOT killed. It is orphaned (parent PID 1), outlives the 8 GiB watchdog
+    and can write into a run directory whose manifest is already final. The repair report's claim "child
+    process killed on interruption" is false. Execution must not be admitted until R-1 is fixed and
+    re-checked. This report makes the receipt admissible as implementation evidence only. It supports no
+    ECDLP claim and authorises no promotion or admission.
+
+  checks:
+    - id: 1
+      name: snapshot_integrity
+      result: PASS
+      evidence:
+        - "All 68 receipt path_sha256 entries match both the blobs at commit 38e00ad45d and the working tree; 0 mismatches."
+        - "Commit parent = receipt parent_sha 0ada146273. Commit changes 32 paths = 31 receipt paths + the receipt itself; the other 37 receipt entries are unchanged files pinned by content (content_at_commit)."
+        - "Every file on disk under implementation/ (excluding gitignored __pycache__) is in the receipt."
+        - "git status --porcelain --ignored experiments/EXP-RELN-c5a377: only '!! implementation/__pycache__/' (ignored). Implementation tree clean."
+        - "git diff 38e00ad45d HEAD: only claims/TASK-20260929-2ec518.1.claim.json and dispatch_queue.json."
+    - id: 2
+      name: tests
+      result: PASS
+      evidence:
+        - "PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q -> '116 passed in 15.32s' (0 failed, 0 skipped); matches expected 116 and repair_report_v4 tests.passed."
+    - id: 3
+      name: FX-1 canonical manifest, logs, failed_infrastructure, environment
+      result: PASS
+      note: "FX-1 as written is met. The interruption path has the must-fix defect R-1 and a minor gap R-2."
+      evidence:
+        - "Smoke dry run (temp copy of implementation outside the repo, --repo-root = worktree, b16-s13, budgets 400/100000, smoke namespace) with SIGTERM sent to the driver PID mid-cell: while running, manifest.yaml run.status = 'running'. Driver exit 8. Final manifest run.status = failed_infrastructure, failure_class = signal, failure_reason 'RunInterrupted: signal SIGTERM', timing.finished_at set, result.valid False. stdout.log and stderr.log (with traceback), command.txt, environment.json and raw-result.json all present."
+        - "Injected exception in run_cell (in process): exit 8, status failed_infrastructure, failure_class exception, all 7 run files present, traceback in stderr.log."
+        - "Completed smoke run: top-level run: block with id, experiment_id, hypothesis_id, protocol_version 4, status, code, inference, environment, inputs, timing, resources, result, artifacts, depends_on_runs; status completed_valid."
+        - "environment.json dependencies: pyyaml 6.0.3, scipy 1.13.1, networkx 3.2.1, psutil 7.2.2, numpy 2.0.2, pytest 8.4.2; sage_version 'SageMath version 10.10.rc0'."
+        - "DEFECT R-1: after SIGTERM the celltask child (reproduced twice, PIDs 16107 and 17868) was still running, re-parented to PID 1. I killed both myself. Cause: driver.run_cell's finally only kills when `status is None`, but os.wait4(pid, WNOHANG) returns (0, 0) for a live child (verified directly), so status is 0 after the first poll and the kill is skipped."
+        - "GAP R-2: an exception raised before RunRecord is created (injected in environment_info, which runs sage --version with a 120 s timeout) gives exit 8 and a traceback in stderr.log, but the run directory has no manifest.yaml (only cells/, command.txt, stdout.log, stderr.log)."
+    - id: 4
+      name: FX-2 protocol_version 4 and governing-record hashes
+      result: PASS
+      evidence:
+        - "driver.PROTOCOL_VERSION = 4. protocol_binding records path + sha256 for specification (45ee7969...), AMD-20260926-a7d25d (b9bdc6f4...), AMD-20260929-988139 (dc39dd92...), AMD-20260929-cc7226 (7a92fbb6...), DEC-20260929-3d166b (f59cddc3...), DEC-20260929-7a62cc (de0be156...), fixtures JSON (543f49ca...) and generator (bde44afb...)."
+        - "The pinned v4 hash equals the actual file hash and DEC-20260929-7a62cc amendment_sha256_at_decision; the v3 pin equals DEC-20260929-3d166b amendment_sha256_at_decision. check_protocol_binding(real repo) -> (True, [])."
+        - "Tampered v4 hash -> False. Missing DEC-20260929-7a62cc -> False ('missing')."
+        - "trial-plan-v2.json sha256 7fb5e40d... unchanged (same as in the 03d6bf receipt); PLAN_PROTOCOL_VERSION stays 2, as allowed by FX-2."
+    - id: 5
+      name: FX-3 F-3 and F-4 rulings in analysis.py and celltask.py
+      result: PASS
+      evidence:
+        - "Synthetic cells into analysis.verdict. Baseline -> supercritical-enriched. Zero feasible ER replicates in every cell -> inconclusive, supercritical_rule 'undetermined', er_feasible_replicates reported per cell (all 0). One size infeasible -> inconclusive, undetermined cells ['24-A1','24-A2']. Infeasible cell plus a determined cell whose ER exceeds 1/4 -> inconclusive."
+        - "celltask.planted_gate_min_v: {L=1: None, 2: 2, 6: 5, 7: 5, 10: 7, 12: 8, 14: 10}. known_positive at V=1,3,4 (L=6) -> not_exercised, no defect. V=5 -> pass, exercised."
+        - "End-to-end smoke cell (validator smoke namespace, b16-s13, budgets 3/8; far from frozen 199/574): exit 0, procedure_defects [], known_positive not_exercised (V=1 < gate_min_V 5), ER feasible 0. The run continues."
+        - "A known-positive FAIL where reachable stays a defect: code path celltask.known_positive plus test_fx3_known_positive_fail_when_reachable_is_defect, which passes."
+    - id: 6
+      name: FX-4 recovery fraction undetermined when known_false not_exercised
+      result: PASS
+      evidence:
+        - "analysis.table with known_false = not_exercised -> lp_recovery_fraction {'undetermined'}; when exercised -> the numeric value. known_false_status and known_positive_status are carried per row."
+    - id: 7
+      name: FX-5 decision supersession, snapshot receipt, dirty tree, celltask guard
+      result: PASS
+      evidence:
+        - "check_decision on synthetic decisions: status superseded -> refused; status 'Withdrawn' -> refused; coordinator_decision.superseded_by non-null -> refused; document-level status superseded -> refused; execution_admission.superseded_by -> refused; decision listed under a later decision's supersedes -> refused; superseded_by null -> accepted (OQ-23); plain admitted decision -> accepted."
+        - "Real repo: DEC-20260929-74b866 -> refused (does not exist); DEC-20260929-7a62cc and DEC-20260929-3d166b -> refused (currently_admitted False); None and malformed ids -> refused."
+        - "verify_snapshot(real repo): 3f7b98 receipt -> ok (68 checked, 0 mismatches, 0 unpinned, dirty False). Old 03d6bf receipt -> refused (8 mismatches, 1 unpinned). No receipt -> refused."
+        - "Throwaway git repo copy: clean -> ok; untracked stray file -> refused (dirty); modified rho.py -> refused (mismatch + dirty); committed but unpinned .py -> refused (unpinned)."
+        - "driver.main with C-7 and check_decision patched to pass and execute stubbed (so no frozen evaluation was possible): 03d6bf receipt -> exit 10; no receipt -> exit 10; execute not reached; runs dir not created."
+        - "celltask.py with frozen namespace 'EXP-RELN-c5a377/v2' (and '.../v2-other'), --bits 99 --seed 99999 as a safety net: no admission env -> exit 3; env naming absent DEC-20260929-74b866 -> exit 3; env naming DEC-20260929-7a62cc -> exit 3; no output written."
+        - "admission_guard in process with a synthetic admitted decision: running manifest matching decision and namespace -> accepted; manifest failed_infrastructure / other decision / other namespace -> refused; superseded decision -> refused."
+    - id: 8
+      name: FX-6 smoke refuses frozen budget pairs
+      result: PASS
+      evidence:
+        - "driver --smoke-dry-run with 199/300, 64/574 and 249/1000 -> exit 5 'equal a frozen A1/A2 budget'; no run directory created."
+        - "smoke.CONFIGS 64/256 and 400/1500 are outside the 18 frozen values. The smoke/v4 summary has no delta, giant-fraction, cycle-rank or components-with-cycle keys; 'verdict' appears only in the note text."
+        - "Exact-match only, as accepted under OQ-24; see R-3."
+    - id: 9
+      name: FX-7 command.txt argv and psutil fail-closed
+      result: PASS
+      evidence:
+        - "command.txt = '<python> <implementation>/driver.py --smoke-dry-run --runs-dir ... --repo-root ... --dry-a1 ... --dry-a2 ...', i.e. the argv passed to main."
+        - "import_psutil patched to None -> driver exit 9 'REFUSED: psutil is not importable', no run directory. run_cell(psutil=None) raises RuntimeError before launching."
+    - id: 10
+      name: F-3/F-4 rulings and OQ-21/OQ-22 as recorded
+      result: PASS
+      evidence:
+        - "F-3 case (0 feasible ER replicates) can no longer yield supercritical-enriched: see check 5; all three variants -> inconclusive."
+        - "OQ-21 (ER undetermined + subcritical rule firing, supercritical clauses otherwise holding) -> inconclusive with reason citing F-3 and 'subcritical rule also fired'."
+        - "OQ-22: one fixture not_exercised in 16-A1 -> cells_lacking_power_confirmation ['16-A1'], negative_conclusion_scope_cells = the other 5; verdict unchanged. All not_exercised -> verdict unchanged."
+        - "F-4 small-|V| -> not_exercised, run continues: see check 5 (end-to-end celltask exit 0, no defect). The planted cycle-rank construction check stays a defect regardless of the gate (code inspection)."
+        - "Edge case R-4 (informational): all-undetermined ER + subcritical firing + CI failing -> certified-subcritical, not inconclusive. Shown unreachable on real data under C-5 definitions."
+    - id: 11
+      name: OQ-24 margin for smoke/v4 budgets
+      result: PASS
+      evidence:
+        - "trial-plan-v2.json b16-s13 frozen (A1, A2) = (199, 574). Smoke budgets 64, 256, 400, 1500: closest same-fixture ratios are 3.109, 1.286 (256 vs 199), 1.435 (400 vs 574) and 2.613. None is within a factor of 1.25."
+        - "Informational: 256 is within 1.25 of other fixtures' frozen A1 values 223 and 249 (b16-s11 = 249). Those are different curves and outside the same-fixture scope of the OQ-24 ruling."
+    - id: 12
+      name: F-2 binding (smoke/dry DRYRUN-controls untouched)
+      result: PASS
+      evidence:
+        - "All 17 files under implementation/smoke/ in the TASK-20260929-03d6bf receipt re-hash equal to it on disk, and equal their entries in the 3f7b98 receipt."
+        - "git log b68075d8b2..HEAD on those 17 paths: no commits."
+        - "Code search: no implementation .py reads smoke/dry. make_report.py only hashes smoke/smoke_summary.json and lists file hashes; smoke.py summarises smoke/v4 only; test_v4.py references the 03d6bf receipt path (a receipt, not smoke data)."
+        - "The validator did not open, print or summarise any value in smoke/dry or smoke/smoke_summary.json; only sha256 was computed."
+    - id: 13
+      name: regression spot check of first-audit checks 3-6
+      result: PASS
+      evidence:
+        - "Charging (first-audit check 3): relgen.py, ecarith.py, audit.py, recovery.py, lpgraph.py, nulls.py, labels.py, rho.py, vcurve.py, fixtures.py, hostinfo.py, make_trial_plan.py, tests/test_charging.py and tests/test_controls.py are byte-identical to the 03d6bf receipt. The celltask diff touches only known_positive, the guard and a note. smoke/v4 cells: charged_total = setup + attempts True, audit accepted, 0 replay mismatches, 0 certificate failures."
+        - "Controls (check 4): smoke/v4 DRYRUN-v4-controls -> rewire 8, ER feasible 8, known positive pass, known false fails_verification; DRYRUN-v4-tiny -> known false not_exercised. Nulls go through the unchanged lpgraph.metrics."
+        - "Seed labels (check 5): labels.py unchanged (FROZEN_NS 'EXP-RELN-c5a377/v2', SMOKE_NS 'smoke|EXP-RELN-c5a377/v2'). The dry path forces SMOKE_NS; analysis.main still refuses smoke cells."
+        - "Admission fail-closed with DEC-20260929-74b866 absent (check 6): real CLI with the 3f7b98 receipt -> exit 3 (C-7 on the loaded host), no runs directory. With C-7 bypassed, check_decision refuses (does not exist). celltask guard refuses too (check 7)."
+  proves_too_much_control:
+    result: PASS
+    method: >-
+      For each size, the treatment graph was itself an ER G(n, m) graph (validator smoke namespace, 3 seeds
+      x 3 sizes x 2 budgets), measured with the same lpgraph.metrics, 32 ER null replicates at identical
+      |V|,|E| as in celltask.budget_block, and scored by analysis.verdict. Densities: sparse (m = 0.4n),
+      near-critical (0.55n), supercritical (1.5n), dense (4n), each with L = (6,10,14) and (3,4,5).
+    outcome: >-
+      8/8 configurations -> inconclusive, never supercritical-enriched. Wherever the treatment lower CI
+      exceeded 1/4 (supercritical and dense), the ER-null clause also fired (er_exceeds_any True), which is
+      the intended blocking behaviour. A ninth 'very dense' configuration was not scored because my own
+      probe chose an m above C(n,2), so the treatment ER graph was infeasible. That is a probe construction
+      error, not a code defect.
+  findings:
+    - id: R-1
+      severity: major
+      must_fix_before_admission: true
+      title: Driver interruption orphans the running celltask child
+      detail: >-
+        driver.run_cell's finally clause only calls proc.kill() when `status is None`. os.wait4(pid,
+        WNOHANG) returns (0, 0) while the child is alive, so status is 0 after the first poll and the kill
+        is skipped. On SIGTERM/SIGHUP/SIGINT or any exception during a cell, the driver correctly writes a
+        failed_infrastructure manifest and exits 8, but the child keeps running as an orphan (reproduced
+        twice). Consequences: (a) the 8 GiB RSS watchdog stops while the process keeps running, which is a
+        machine-protection gap on a heavily loaded host; (b) on the scientific path the orphan has already
+        passed the frozen-namespace guard and will still create cells/<fixture>.json and grow the
+        attempts file in a run directory whose manifest is final, which breaks the finality of that run
+        record; (c) repair_report_v4.yaml FX-1 states "child process killed on interruption", which is
+        false. The unit test does not signal while a real child is running.
+      remedy: >-
+        Track reaping explicitly (e.g. `reaped = False`; set True only when wait4 returns pid != 0) and
+        kill + wait in finally when not reaped. Consider start_new_session=True with os.killpg to cover
+        grandchildren. Add a test that SIGTERMs the driver while a real slow child runs and asserts the
+        child is gone and no cell JSON appears afterwards. Correct the repair report statement through a
+        superseding record. New snapshot and re-check before admission.
+    - id: R-2
+      severity: minor
+      must_fix_before_admission: false
+      title: Exception before the first manifest leaves a run directory without manifest.yaml
+      detail: >-
+        execute() creates the run directory, the logs and command.txt, then calls environment_info()
+        (three sage --version attempts with 120 s timeouts each) before RunRecord exists. An exception or
+        signal there is recorded only in stderr.log and the exit code; the directory has no manifest.
+        FX-1 requires the initial manifest before the first cell, which is satisfied, but an exception at
+        this point is not recorded as failed_infrastructure in a manifest.
+      remedy: >-
+        Write a minimal running manifest before environment_info(), or write a failed_infrastructure
+        stub manifest in the except branch when rec is None.
+    - id: R-3
+      severity: minor
+      must_fix_before_admission: false
+      title: The OQ-24 1.25 margin is procedural only; code enforces exact equality
+      detail: >-
+        driver --smoke-dry-run accepted budgets 198/573 on b16-s13, whose frozen pair is 199/574, and ran a
+        smoke cell. That is a nearly exchangeable replicate of scientific cells b16-s13-A1/A2 in the smoke
+        namespace, the situation F-2 describes. The coordinator ruling makes the margin a procedure rule
+        for future smoke runs, but nothing enforces it.
+      remedy: >-
+        Enforce a same-fixture ratio of at least 1.25 (or across all fixtures) in driver --smoke-dry-run and
+        smoke.check_budgets, with a test.
+    - id: R-4
+      severity: informational
+      must_fix_before_admission: false
+      title: OQ-21 literal wording versus implementation, unreachable case
+      detail: >-
+        The executor reading accepted in OQ-21 says "inconclusive, never certified-subcritical". The code
+        returns certified-subcritical when every ER cell is undetermined, the subcritical rule fires and
+        the supercritical CI fails. The combination is unreachable: a subcritical fixture needs
+        cycle_rank <= 2 * components_with_cycle, so |E| <= 2|V|; ER infeasibility needs
+        |E| > |V|(|V|-1)/2, so |V| < 5; but giant fraction < 0.05 needs |V| > 20. No code change is needed.
+        Recording the argument in the admission decision avoids a later dispute.
+      remedy: Coordinator notes the unreachability in DEC-20260929-74b866, or the code adds the extra fail-closed branch.
+    - id: R-5
+      severity: low
+      must_fix_before_admission: false
+      title: Snapshot receipt and run-manifest provenance are not authenticated
+      detail: >-
+        verify_snapshot accepts any readable JSON with path_sha256 that matches the tree. A synthetic,
+        uncommitted receipt passed in the throwaway repo. celltask.admission_guard accepts any running
+        manifest.yaml naming the admitted decision and namespace. This meets FX-5 as written but depends
+        on operator discipline.
+      remedy: >-
+        Require the receipt to be tracked and clean at HEAD, under an archives/ directory, with kind
+        'snapshot'. Optionally pin the expected receipt task id or sha256 in the admission decision.
+  procedure_deviations:
+    - "A validator probe intended only to demonstrate R-3 ran a smoke cell on b16-s13 at budgets 198/573, adjacent to that fixture's frozen 199/574, in the smoke namespace 'smoke|EXP-RELN-c5a377/v2', inside a temp copy of the implementation under /Volumes/SSD990/.tmp-agent (outside the repository). Its output was never opened, printed or summarised, and the directory was deleted immediately. Nothing from it entered the repository. The Coordinator should treat it as covered by the F-2 binding: not evidence and not to be reconstructed."
+    - "Two orphaned celltask processes from the R-1 reproduction (smoke namespace, budgets 400/100000) were killed by the validator."
+  scope_and_limits:
+    - "No scientific run; no frozen-namespace draw evaluated. Guard probes used a non-existent fixture (--bits 99) as a safety net, and main() probes stubbed execute."
+    - "All runtime probes ran in temp copies under /Volumes/SSD990/.tmp-agent/val-2ec518 (removed) with smoke or validator smoke namespaces at non-frozen budgets, except the deviation above. Peak memory was well under 8 GB (cells about 25 MB RSS)."
+    - "SIGKILL of the driver cannot be caught; the manifest then stays 'running', which is an accepted OQ-26 status. Not tested beyond code inspection."
+    - "Passing FX checks makes the implementation receipt admissible. It does not admit execution, support any hypothesis, or show any speedup."
+  commands_run:
+    - "git status --short; git log --oneline -8; git status --porcelain --ignored experiments/EXP-RELN-c5a377; git merge-base --is-ancestor 38e00ad45d HEAD; git diff --name-only 38e00ad45d HEAD"
+    - "python3 (hash 3f7b98 receipt entries vs git show 38e00ad45d:<path> and working tree; git diff-tree 38e00ad45d)"
+    - "PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -p no:cacheprovider experiments/EXP-RELN-c5a377/implementation -q"
+    - "python3 (trial-plan-v2.json frozen A1/A2 vs smoke budgets, ratio test; 03d6bf smoke-file hashes; git log b68075d8b2..HEAD -- <17 smoke paths>)"
+    - "rsync implementation (excluding smoke/, __pycache__) to $TMPDIR/val-2ec518/repo; python3 driver.py --smoke-dry-run ... (b16-s13, 64/256; 400/5000; 400/100000) with kill -TERM <driver pid> mid-cell; ps -axo pid,ppid,command"
+    - "python3 in-process probes: run_cell/environment_info exception injection, import_psutil=None, frozen-budget refusals, check_protocol_binding, verify_snapshot (real repo + throwaway git repo), check_decision (real + synthetic ledger), celltask.admission_guard, driver.main with stubbed execute"
+    - "python3 celltask.py --bits 99 --seed 99999 --ns EXP-RELN-c5a377/v2 ... (guard refusals, 4 variants)"
+    - "nice -n 10 python3 celltask.py --bits 16 --seed 13 --ns 'smoke|validator-TASK-20260929-2ec518' --a1 3 --a2 8 --replicates 2 --rho-targets 1 --out $TMPDIR/..."
+    - "python3 analysis.verdict / analysis.table on synthetic cells (F-3, F-4, FX-4, OQ-21, OQ-22) and on ER-as-treatment cells (proves-too-much)"
+    - "python3 driver.py --run-id RUN-validator-2ec518-probe --admission-decision DEC-20260929-74b866 --snapshot-receipt <3f7b98> --runs-dir $TMPDIR/... -> exit 3"
+    - "rm -rf /Volumes/SSD990/.tmp-agent/val-2ec518"
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: unknown-cursor-inherited
+    fallback_used: true
+    fallback_reason: Cursor runtime inherited model
+    independent_session: true
+    degraded_requirements:
+      - xhigh reasoning effort not verifiable under the Cursor runtime
+    read_sources:
+      - AGENTS.md (workspace rule)
+      - CLAUDE.md (workspace rule)
+      - experiments/EXP-RELN-c5a377/amendments/AMD-20260929-cc7226.yaml
+      - experiments/EXP-RELN-c5a377/implementation/repair_report_v4.yaml
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-3f7b98/snapshot-receipt.json
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/archives/TASK-20260929-03d6bf/snapshot-receipt.json (hashes only)
+      - coordination/goals/GOAL-RELN-001/batches/BATCH-229ce4/tasks/TASK-20260929-4626a5/validation_report.yaml (checks 3-6 section)
+      - experiments/EXP-RELN-c5a377/implementation/{driver,celltask,analysis,smoke}.py (full); make_report.py (lines 170-239); lpgraph.py deltas; nulls.py erdos_renyi/planted_dense; labels.py namespaces; fixtures.py paths
+      - experiments/EXP-RELN-c5a377/implementation/trial-plan-v2.json (fixture A1/A2 only)
+      - experiments/EXP-RELN-c5a377/implementation/smoke/v4/smoke_summary.json (identities and controls only)
+      - ledger/decisions/DEC-20260929-3d166b.yaml, DEC-20260929-7a62cc.yaml (amendment_sha256_at_decision, execution_admission)
+    not_read:
+      - "implementation/smoke/dry/** and implementation/smoke/smoke_summary.json contents (F-2 binding; sha256 only)"
+      - "agents/validator.md was not opened separately; the operative validator contract was taken from the subagent instructions and AGENTS.md"
+      - other agents' conversations

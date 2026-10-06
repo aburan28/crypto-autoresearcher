@@ -606,6 +606,211 @@ def load_yaml(path: str, ctx: Ctx):
         return None
 
 
+EXTERNAL_VERIFICATION_VERDICTS = ("accept", "reject", "unavailable", "invalid_spec")
+EXTERNAL_VERIFICATION_REQUIRED = ("network", "objective_id", "claim_id", "verdict", "node")
+
+
+def check_external_verification(path: str, body: dict, ctx: Ctx) -> None:
+    """An `external_verification:` block is a receipt from a network verifier
+    (docs/cairn-integration-plan.md section 7), and the one rule that makes it
+    safe to carry is invariant (b): a verdict that does not settle --
+    `unavailable`, `invalid_spec` -- says nothing about the artifact, so it may
+    back no direction and no proof. Collapsing "the node could not check" into
+    "the check failed" is the mistake cairn's own `Unavailable` exists to
+    refuse, and this check keeps the ledger from making it on the way in."""
+    blocks = body.get("external_verification")
+    if blocks is None:
+        return
+    if not isinstance(blocks, list):
+        ctx.err(path, "external_verification must be a list of receipt blocks")
+        return
+    refs = set()
+    for field in ("proof_refs", "certificate_refs"):
+        value = body.get(field)
+        if isinstance(value, list):
+            refs.update(str(item) for item in value)
+    for index, block in enumerate(blocks):
+        label = f"external_verification[{index}]"
+        if not isinstance(block, dict):
+            ctx.err(path, f"{label} must be a mapping")
+            continue
+        for field in EXTERNAL_VERIFICATION_REQUIRED:
+            if not block.get(field):
+                ctx.err(path, f"{label} missing '{field}'")
+        verdict = block.get("verdict")
+        if verdict not in EXTERNAL_VERIFICATION_VERDICTS:
+            ctx.err(path, f"{label} verdict must be one of "
+                          f"{'|'.join(EXTERNAL_VERIFICATION_VERDICTS)}")
+            continue
+        if "settled" in block and not isinstance(block["settled"], bool):
+            ctx.err(path, f"{label} settled must be true or false")
+        claim_id = str(block.get("claim_id") or "")
+        if verdict != "accept":
+            if claim_id and claim_id in refs:
+                ctx.err(path, f"{label} verdict '{verdict}' is cited in proof_refs or "
+                              f"certificate_refs; only an accepted claim backs a proof")
+            if block.get("backs_direction") is True:
+                ctx.err(path, f"{label} verdict '{verdict}' may not back a direction")
+        if verdict in ("unavailable", "invalid_spec") and body.get("proof_status") == "certificate" \
+                and not any(isinstance(other, dict) and other.get("verdict") == "accept"
+                            for other in blocks):
+            ctx.err(path, "proof_status 'certificate' with no accepted external_verification "
+                          "and a block that could not be checked: the receipt backs nothing; "
+                          "cite the local certificate or wait for a settling verdict")
+
+
+# ---- measured bounds (docs/bounds-and-frontiers.md) ------------------------
+# A `measured_bound` block carries a sealed bound record from the measuring
+# repository (aburan28/crypto docs/bounds/README.md): what a method costs, as
+# a constant and an exponent with intervals, scoped to a domain and a tier.
+# Optional-when-absent like the blocks above; a record that carries one must
+# respect the four rules that make it safe to carry.
+MEASURED_BOUND_REQUIRED = ("bound_id", "repository", "domain", "method", "level",
+                           "ops_ratio_to_floor", "verified_runs")
+MEASURED_BOUND_DOMAIN_REQUIRED = ("problem", "family", "target_kind", "unit",
+                                  "tier")
+MEASURED_BOUND_TIERS = ("toy", "medium", "crypto")
+MEASURED_BOUND_LEVELS = ("exponent", "constant")
+MEASURED_BOUND_OUTCOMES = ("advances", "trade", "matches", "regresses",
+                           "inadmissible")
+MEASURED_BOUND_IDS = {
+    "bound_id": re.compile(r"^ECBND1h[0-9a-f]{12}$"),
+    "domain_id": re.compile(r"^ECDOM1h[0-9a-f]{12}$"),
+    "verdict_id": re.compile(r"^ECVD1h[0-9a-f]{12}$"),
+    "challenge_id": re.compile(r"^ECCH1h[0-9a-f]{12}$"),
+}
+# A unit that reads a clock is not a bound's unit (cairn refuses the same
+# names as reproducible fields; this program refuses them as evidence).
+CLOCKED_UNIT = re.compile(r"wall|second|time|clock|_ns\b|^ns\b|_ms\b|^ms\b",
+                          re.IGNORECASE)
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _check_estimate(path: str, label: str, est, ctx: Ctx) -> None:
+    if not isinstance(est, dict) or not _is_number(est.get("value")):
+        ctx.err(path, f"{label}.value must be a number")
+        return
+    ci = est.get("ci95")
+    if ci is None:
+        return
+    if (not isinstance(ci, list) or len(ci) != 2
+            or not all(_is_number(x) for x in ci)):
+        ctx.err(path, f"{label}.ci95 must be [low, high]")
+        return
+    low, high = ci
+    if not low <= est["value"] <= high:
+        ctx.err(path, f"{label}.ci95 {ci} does not bracket value "
+                      f"{est['value']}")
+
+
+def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
+    """The four rules of docs/bounds-and-frontiers.md section 2: the tier is
+    the record's tier, the unit is counted and never clocked, an exponent
+    needs sizes and a scaling claim, and an inadmissible verdict is never
+    evidence for or against anything (AGENTS.md rule 3)."""
+    block = body.get("measured_bound")
+    if block is None:
+        return
+    label = "measured_bound"
+    if not isinstance(block, dict):
+        ctx.err(path, f"{label} must be a mapping")
+        return
+    for field in MEASURED_BOUND_REQUIRED:
+        if block.get(field) in (None, "", [], {}):
+            ctx.err(path, f"{label} missing '{field}'")
+    for name, pattern in MEASURED_BOUND_IDS.items():
+        value = block.get(name)
+        if value is not None and not pattern.match(str(value)):
+            ctx.err(path, f"{label}.{name} '{value}' is not a well-formed id")
+    domain = block.get("domain")
+    if isinstance(domain, dict):
+        for field in MEASURED_BOUND_DOMAIN_REQUIRED:
+            if not domain.get(field):
+                ctx.err(path, f"{label}.domain missing '{field}'")
+        tier = domain.get("tier")
+        if tier is not None and tier not in MEASURED_BOUND_TIERS:
+            ctx.err(path, f"{label}.domain.tier must be one of "
+                          f"{'|'.join(MEASURED_BOUND_TIERS)}")
+        elif tier is not None and "claim_tier" in body \
+                and body["claim_tier"] != tier:
+            ctx.err(path, f"{label}.domain.tier '{tier}' != claim_tier "
+                          f"'{body['claim_tier']}'; a bound is evidence at "
+                          f"its own tier and tiers are not fungible")
+        unit = str(domain.get("unit") or "")
+        if CLOCKED_UNIT.search(unit):
+            ctx.err(path, f"{label}.domain.unit '{unit}' reads a clock; a "
+                          f"bound is never a wall-clock figure")
+    elif domain is not None:
+        ctx.err(path, f"{label}.domain must be a mapping")
+    level = block.get("level")
+    if level is not None and level not in MEASURED_BOUND_LEVELS:
+        ctx.err(path, f"{label}.level must be exponent|constant")
+    alpha = block.get("alpha")
+    sizes = block.get("sizes_log2_r")
+    scaling = isinstance(alpha, dict) and alpha.get("scaling_claim") is True
+    if level == "exponent":
+        if not scaling:
+            ctx.err(path, f"{label}.level 'exponent' requires "
+                          f"alpha.scaling_claim: true")
+        if not (isinstance(sizes, list) and len(sizes) >= 4):
+            ctx.err(path, f"{label}.level 'exponent' requires at least four "
+                          f"sizes in sizes_log2_r")
+    if isinstance(alpha, dict) and "value" in alpha:
+        _check_estimate(path, f"{label}.alpha", alpha, ctx)
+    if block.get("ops_ratio_to_floor") is not None:
+        _check_estimate(path, f"{label}.ops_ratio_to_floor",
+                        block["ops_ratio_to_floor"], ctx)
+    runs = block.get("verified_runs")
+    if runs is not None and (not isinstance(runs, int)
+                             or isinstance(runs, bool) or runs <= 0):
+        ctx.err(path, f"{label}.verified_runs must be a positive integer")
+    verdict = block.get("verdict")
+    if verdict is None:
+        return
+    if not isinstance(verdict, dict):
+        ctx.err(path, f"{label}.verdict must be a mapping")
+        return
+    for name in ("verdict_id", "challenge_id"):
+        value = verdict.get(name)
+        if value is not None and not MEASURED_BOUND_IDS[name].match(str(value)):
+            ctx.err(path, f"{label}.verdict.{name} '{value}' is not a "
+                          f"well-formed id")
+    outcome = verdict.get("outcome")
+    if outcome not in MEASURED_BOUND_OUTCOMES:
+        ctx.err(path, f"{label}.verdict.outcome must be one of "
+                      f"{'|'.join(MEASURED_BOUND_OUTCOMES)}")
+    if outcome == "inadmissible" and body.get("direction") not in (None,
+                                                                   "neutral"):
+        ctx.err(path, f"{label}.verdict is inadmissible but direction is "
+                      f"'{body.get('direction')}'; an inadmissible verdict "
+                      f"is never evidence, so direction must be neutral "
+                      f"(AGENTS.md rule 3)")
+    for field in ("advances_on", "regresses_on", "improves_on"):
+        value = verdict.get(field)
+        if value is not None and not isinstance(value, list):
+            ctx.err(path, f"{label}.verdict.{field} must be a list")
+    for index, ref in enumerate(verdict.get("improves_on") or []):
+        if not MEASURED_BOUND_IDS["bound_id"].match(str(ref)):
+            ctx.err(path, f"{label}.verdict.improves_on[{index}] '{ref}' is "
+                          f"not a bound id")
+    moved = verdict.get("level_moved")
+    if moved is None:
+        return
+    if moved not in MEASURED_BOUND_LEVELS:
+        ctx.err(path, f"{label}.verdict.level_moved must be exponent|constant")
+    advances_on = verdict.get("advances_on") or []
+    if outcome != "advances" or "ops" not in advances_on:
+        ctx.err(path, f"{label}.verdict.level_moved is set but the verdict "
+                      f"does not advance on ops; a level is a statement "
+                      f"about operations")
+    if moved == "exponent" and not scaling:
+        ctx.err(path, f"{label}.verdict.level_moved 'exponent' requires "
+                      f"alpha.scaling_claim: true")
+
+
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
     supersession = ctx.schema_supersession(path)
     if supersession and supersession.get("redirect_id"):
@@ -657,6 +862,9 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         check_prior_art(path, body, ctx)
     if rec_type in ("evidence", "coordinator_decision"):
         check_obstruction(path, body, ctx)
+    if rec_type == "evidence":
+        check_external_verification(path, body, ctx)
+        check_measured_bound(path, body, ctx)
     if rec_type == "handoff":
         check_review_plan(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
@@ -886,10 +1094,28 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
         and isinstance(pending_certificate, dict)
         and pending_certificate.get("kind") == "none"
     )
+    # A failed_infrastructure envelope may state, in its own outcome note,
+    # that the producer never wrote raw-result.json. Creating the file to
+    # satisfy this check would fabricate a result the receipt says was not
+    # produced. The absence is the observation. A bare failed_infrastructure
+    # status, without that sentence, still owes the artifact. Terminal
+    # statuses in general are unchanged.
+    raw_result_explicitly_unwritten = (
+        isinstance(body.get("status"), str)
+        and body.get("status") == "failed_infrastructure"
+        and isinstance(pending_body, dict)
+        and pending_body.get("raw_result") is None
+        and pending_body.get("outcome") is None
+        and isinstance(pending_certificate, dict)
+        and pending_certificate.get("kind") == "none"
+        and "did not write raw-result.json"
+        in str(pending_body.get("outcome_note") or "")
+    )
     # All other companion artifacts remain required even while a run is open.
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
-        if artifact == "raw-result.json" and raw_result_pending:
+        if artifact == "raw-result.json" and (
+                raw_result_pending or raw_result_explicitly_unwritten):
             continue
         if not os.path.exists(os.path.join(run_dir, artifact)):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
@@ -2621,6 +2847,15 @@ def main() -> int:
     check_run_supersessions(ctx, run_supersessions)
     for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
                                               "*", "manifest.yaml"))):
+        check_run(path, ctx, run_supersessions)
+    # A run whose only nested envelope is manifest_v2.yaml is still a run.
+    # When manifest.yaml also exists, the flat file is the discovered record
+    # (and any supersession routes from it). Scanning v2 as well would
+    # register the same id twice.
+    for path in sorted(glob.glob(os.path.join(REPO, "experiments", "*", "runs",
+                                              "*", "manifest_v2.yaml"))):
+        if os.path.isfile(os.path.join(os.path.dirname(path), "manifest.yaml")):
+            continue
         check_run(path, ctx, run_supersessions)
     check_legacy_id_remaps(ctx)
     # Knowledge must be indexed before goal closure quorum checks so that

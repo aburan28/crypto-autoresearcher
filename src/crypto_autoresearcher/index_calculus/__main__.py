@@ -10,7 +10,11 @@
     analyze  refit and tabulate from sweep / engines JSONL files
     census   the EXP-PFDR-1b78f7 collision-harvest panels (main, rho, j0):
              every arm in both harvest modes, one JSONL row per instance,
-             plus the harvested rows and the census-rank staircases
+             plus the harvested rows and the census-rank staircases;
+             EXP-PFDR-011cd0 adds --modes table/search, --relcount, --retain,
+             --digest-classes, --encoding-budget-lambda, --budget-snapshot-only,
+             --solve-certs, --bases-out and the known_null / planted arms
+             (none of them changes a row when not passed)
 
 Costs are counts, reported in columns that are never summed: S_3 root solves
 for index calculus, group additions of the walk for rho (its fixed setup is a
@@ -78,8 +82,28 @@ def cmd_solve(args: argparse.Namespace) -> int:
 
 # -- sweep ------------------------------------------------------------------------
 
+def _point(Pt) -> list | None:
+    return None if Pt is None else [int(Pt[0]), int(Pt[1])]
+
+
+def _solve_cert(key: dict, E, P, Q, k: int) -> dict:
+    """EC-5 (NA-8): one solve certificate {key, p, a, b, N, P, Q, k}."""
+    return {"key": key, "p": E.p, "a": E.a, "b": E.b, "N": E.order,
+            "P": _point(P), "Q": _point(Q), "k": int(k)}
+
+
 def _sweep_job(job: dict) -> list[dict]:
+    return _sweep_core(job)[0]
+
+
+def _sweep_job_certs(job: dict) -> dict:
+    rows, certs = _sweep_core(job)
+    return {"rows": rows, "certs": certs}
+
+
+def _sweep_core(job: dict) -> tuple[list[dict], list[dict]]:
     bits, c = job["bits"], job["curve"]
+    certs: list[dict] = []
     pf = subgroup_prime_filter(job["ms"], job["tolerance"]) if job["subgroup"] else None
     label = pf.label if pf else "none"
     E, P, Q, k = _instance(bits, c, 0, pf)
@@ -91,6 +115,9 @@ def _sweep_job(job: dict) -> list[dict]:
                             "walk_ops": rr.walk_ops, "setup_ops": rr.setup_ops,
                             "group_ops": rr.group_ops, "walks": rr.walks,
                             "dp_bits": rr.dp_bits, "seconds": rr.seconds})
+        if rr.verified and rr.k is not None:
+            certs.append(_solve_cert({"bits": bits, "curve": c, "method": "rho", "fb": "-",
+                                      "engine": None}, E, P, Q, rr.k))
     for m in job["ic_ms"]:
         fbs = {}
         size = default_fb_size(E.order, m)
@@ -124,7 +151,10 @@ def _sweep_job(job: dict) -> list[dict]:
                     "seconds": ic.seconds_total})
                 if harvest != "off":
                     rows[-1]["harvest"] = ic.harvest
-    return rows
+                if ic.verified and ic.k is not None:
+                    certs.append(_solve_cert({"bits": bits, "curve": c, "method": f"ic_m{m}",
+                                              "fb": kind, "engine": engine}, E, P, Q, ic.k))
+    return rows, certs
 
 
 def _parse_caps(items: list[str]) -> tuple[dict[int, int], dict[str, int]]:
@@ -158,7 +188,11 @@ def cmd_sweep(args: argparse.Namespace) -> int:
                          **({"harvest": args.harvest} if args.harvest != "off" else {}),
                          "accelerate": False if args.no_accel else None})
     jobs.sort(key=lambda j: (-j["bits"] * (1 + len(j["ic_ms"])), j["curve"]))
-    rows = _run_jobs(_sweep_job, jobs, args.workers, args.out, args.quiet)
+    if args.solve_certs:
+        rows = _run_jobs(_sweep_job_certs, jobs, args.workers, args.out, args.quiet,
+                         certs_out=args.solve_certs)
+    else:
+        rows = _run_jobs(_sweep_job, jobs, args.workers, args.out, args.quiet)
     rows.sort(key=lambda r: (r["bits"], r["curve"], r["method"], r["fb"],
                              r.get("engine", "")))
     report = sweep_report(rows, args.reps)
@@ -170,12 +204,20 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     return 0 if all(r["ok"] for r in rows) else 1
 
 
-def _run_jobs(fn, jobs: list[dict], workers: int, out: str | None, quiet: bool) -> list[dict]:
+def _run_jobs(fn, jobs: list[dict], workers: int, out: str | None, quiet: bool,
+              certs_out: str | None = None) -> list[dict]:
     rows: list[dict] = []
     sink = open(out, "a") if out else None
+    csink = open(certs_out, "a") if certs_out else None
     t0 = time.perf_counter()
 
-    def emit(new: list[dict]) -> None:
+    def emit(new) -> None:
+        if isinstance(new, dict):  # {"rows", "certs"} (EC-5); rows unchanged
+            if csink:
+                for cert in new["certs"]:
+                    csink.write(json.dumps(cert) + "\n")
+                csink.flush()
+            new = new["rows"]
         rows.extend(new)
         for r in new:
             if sink:
@@ -196,6 +238,8 @@ def _run_jobs(fn, jobs: list[dict], workers: int, out: str | None, quiet: bool) 
     finally:
         if sink:
             sink.close()
+        if csink:
+            csink.close()
     return rows
 
 
@@ -514,8 +558,14 @@ def cmd_analyze(args: argparse.Namespace) -> int:
 MAIN_ARMS = ("subgroup", "dickson", "small_x", "random_sub_r0", "random_sub_r1",
              "random_sub_r2", "random_dick_r0", "random_dick_r1", "random_dick_r2",
              "known_log")
+# EXP-PFDR-011cd0 EC-6: the new arms, selectable with --arms only (the default arm
+# list stays MAIN_ARMS).  Execution order: the specification's arm_order, known_log last.
+MAIN_ARMS_ALL = ("subgroup", "dickson", "small_x", "random_sub_r0", "random_sub_r1",
+                 "random_sub_r2", "known_null_sub", "random_dick_r0", "random_dick_r1",
+                 "random_dick_r2", "known_null_dick", "planted_sub", "known_log")
 J0_ARMS = ("j0_coset", "j0_random_r0", "j0_random_r1", "j0_random_r2")
 CENSUS_MODES = ("census", "on")
+CENSUS_MODES_ALL = ("table", "search", "census", "on")  # EC-7 --modes
 CENSUS_TARGET_LABEL = "census"
 
 
@@ -537,11 +587,29 @@ def j0_prime_filter(tolerance: float = 0.15):
     return accept
 
 
-def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None):
-    """_instance with the j = 0 generator (same target-log rule)."""
+def _j0_exclude_primes(bits: int, curve_seed: int, p_filter=None) -> tuple[int, ...]:
+    """AMD-20260929-1de84f C-1 exclusion_set_rule: the primes SELECTED by the
+    amended j0 generator for curve seeds 0, 1, ..., curve_seed - 1 at the same
+    bits and filter, computed in that order from c' = 0 (curve 0: empty)."""
     from .curve import generate_prime_order_curve_j0
 
-    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter)
+    selected: list[int] = []
+    for c in range(curve_seed):
+        E, _ = generate_prime_order_curve_j0(bits, c, p_filter=p_filter,
+                                             exclude_primes=tuple(selected))
+        selected.append(E.p)
+    return tuple(selected)
+
+
+def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None,
+                 generation_log: list | None = None):
+    """_instance with the j = 0 generator (same target-log rule, AMD-20260929-1de84f
+    C-5) and the C-1 prime rule: exclude_primes by the C-1 exclusion_set_rule."""
+    from .curve import generate_prime_order_curve_j0
+
+    excl = _j0_exclude_primes(bits, curve_seed, p_filter)
+    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter,
+                                         exclude_primes=excl, generation_log=generation_log)
     k = random.Random(f"target|{bits}|{curve_seed}|{target_seed}").randrange(1, E.order)
     Q = E.mul(k, P)
     E.ops.group_ops = 0
@@ -593,6 +661,17 @@ def _base_checks(E, P, fb, arm: str) -> dict:
         Ev = Curve(E.p, E.a, E.b, E.order)
         out["G6_known_log_Fj_eq_jP"] = all(Ev.mul(j, P) == Pt
                                            for j, Pt in enumerate(fb.points, 1))
+    elif fb.kind == "planted":  # EXP-PFDR-011cd0 G7 (planted part; |F| == s_sub in _census_job)
+        Ev = Curve(E.p, E.a, E.b, E.order)
+        ok = True
+        for rel in fb.params["planted_relations"]:
+            S = None
+            for i, s in zip(rel["indices"], rel["signs"]):
+                S = Ev.add(S, fb.points[i] if s > 0 else Ev.neg(fb.points[i]))
+            ok = ok and S is None
+        out["G7_planted_relations_hold"] = ok
+        out["G7_planted_x_distinct"] = len({Pt[0] for Pt in fb.points}) == len(fb.points)
+        out["G7_planted_points_on_curve"] = all(Ev.is_on_curve(Pt) for Pt in fb.points)
     return out
 
 
@@ -635,6 +714,16 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
                    "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"}}
     tail = {"panel": extra["panel"], "arm": arm, "mode": mode,
             "target_label": CENSUS_TARGET_LABEL, "attempt_cap": cap}
+    opts = extra.get("opts") or {}
+    new_kw: dict = {}
+    if opts.get("relcount"):
+        new_kw["relcount"] = True
+    if opts.get("retain", "default") != "default":
+        new_kw["retain"] = opts["retain"]
+    if opts.get("digest_classes"):
+        new_kw["digest_classes"] = tuple(opts["digest_classes"])
+    if mode == "search" or (mode == "census" and opts.get("budget_snapshot_only")):
+        new_kw["encoding_budget"] = opts["x_fix"]
     E.ops.group_ops = 0
     t0 = time.perf_counter()
     try:
@@ -642,24 +731,43 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
         ic = solve_index_calculus(E, P, Q, m=m, fb_kind=fb.kind, seed=c, factor_base=fb,
                                   engine="mitm", la_pivot="min_fill", harvest=mode,
                                   target_label=CENSUS_TARGET_LABEL, formal_basis=formal,
-                                  attempt_budget=A_fix, max_attempts=cap, harvest_sink=sink)
+                                  attempt_budget=A_fix, max_attempts=cap, harvest_sink=sink,
+                                  **new_kw)
     except CertificateFailure as exc:
         _alarm_off()
         return head | tail | {"ok": False, "status": "invalid",
                               "status_reason": f"I-3 certificate failure: {exc}",
                               "checks": checks, "seconds": time.perf_counter() - t0}, True
-    except (_InstanceTimeout, MemoryError) as exc:
+    except _InstanceTimeout as exc:
         _alarm_off()
         return head | tail | {"ok": False, "status": "failed_infrastructure",
                               "status_reason": f"{type(exc).__name__}: {exc}",
                               "checks": checks, "seconds": time.perf_counter() - t0}, False
+    except MemoryError as exc:
+        # AMD-20260929-1de84f C-8 D-2: the stop is labelled "address-space cap" and the
+        # row records ru_maxrss, so an AS stop with RSS below the cap is visible as such.
+        _alarm_off()
+        import resource
+
+        return head | tail | {"ok": False, "status": "failed_infrastructure",
+                              "status_reason": f"address-space cap: {type(exc).__name__}: {exc}",
+                              "ru_maxrss_bytes":
+                                  resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
+                              "checks": checks, "seconds": time.perf_counter() - t0}, False
     _alarm_off()
     h = ic.harvest
     capped = h["terminated_by"] == "attempt_cap"
-    if fb.kind == "known_log":
+    if mode == "table":  # EC-4: no target; complete when the table phase returned
+        ok = h["terminated_by"] == "table_only"
+    elif mode == "search":  # EC-3: complete when X_fix was reached
+        ok = h["terminated_by"] == "encoding_budget"
+    elif fb.kind == "known_log":
         ok = (ic.k is None and capped) or (ic.verified and ic.k == k)
     else:
         ok = ic.verified and ic.k == k
+    if ic.k is not None and ic.verified and "certs" in extra:
+        extra["certs"].append(_solve_cert({"bits": base["bits"], "curve": base["curve"], "m": m,
+                                           "arm": arm, "mode": mode}, E, P, Q, ic.k))
     row = head | {
         "ok": ok, "s3_solves": ic.s3_solves, "table_arity": ic.table_arity,
         "table_s3_solves": ic.table_s3_solves, "table_entries": ic.table_entries,
@@ -670,10 +778,24 @@ def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, 
         "seconds": ic.seconds_total} | tail | {
         "search_s3": ic.s3_solves - ic.table_s3_solves, "harvest": h,
         "k_found": ic.k is not None, "k_verified": ic.verified, "checks": checks}
+    if opts.get("relcount"):
+        row["relcount_version"] = h.get("relcount_version")
+        row["P"] = _point(P)  # G-CURVE: (p, a, b, N, P) of every instance
     bad = _gate_failures(row)
     if bad:
         row["status"], row["status_reason"] = "invalid", "gate failure: " + ", ".join(bad)
         return row, True
+    if mode in ("table", "search") and not ok:
+        # e.g. a search that hit the attempt limit before X_fix: infrastructure, never evidence
+        row["status"] = "failed_infrastructure"
+        row["status_reason"] = f"{mode} mode ended with terminated_by={h['terminated_by']}"
+        return row, False
+    if not ok and h["terminated_by"] == "attempt_limit" and ic.k is None:
+        # AMD-20260929-1de84f C-3: an attempt-limit stop without k is an
+        # infrastructure / feasibility signal, never evidence; the run continues.
+        row["status"] = "failed_infrastructure"
+        row["status_reason"] = "attempt_limit_without_k (AMD-20260929-1de84f C-3)"
+        return row, False
     if not ok:
         row["status"] = "invalid"
         row["status_reason"] = "instance stopped without a verified k and without the attempt cap"
@@ -710,18 +832,29 @@ def _census_job(job: dict) -> dict:
     rows: list[dict] = []
     hrows: list[dict] = []
     stairs: list[dict] = []
+    gen_log: list[dict] = []
     if panel in ("main", "rho"):
         pf = subgroup_prime_filter([3, 4, 5], 0.15)
         E, P, Q, k = _instance(bits, c, 0, pf)
     else:
         pf = j0_prime_filter(0.15)
-        E, P, Q, k = _instance_j0(bits, c, 0, pf)
+        E, P, Q, k = _instance_j0(bits, c, 0, pf, generation_log=gen_log)
     base = _curve_fields(E, bits, c, pf.label)
+    if panel == "j0":
+        # AMD-20260929-1de84f C-1: every j0-panel row carries the generation log
+        base = base | {"j0_generation": gen_log}
     if panel == "rho":
         rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd))
         return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": False}
     m = job["m"]
+    modes = tuple(job.get("modes") or CENSUS_MODES)
+    opts = job.get("opts") or {}
     extra = {"panel": panel}
+    if opts:
+        extra["opts"] = dict(opts, x_fix=opts.get("encoding_budget_lambda", 20) * math.isqrt(E.order))
+    if job.get("solve_certs"):
+        extra["certs"] = []
+    bases_out: list[dict] = []
     stop = False
     if panel == "main":
         size0 = default_fb_size(E.order, m)
@@ -739,8 +872,12 @@ def _census_job(job: dict) -> dict:
             "random_dick_r0": lambda: FactorBase.random(E, s_dick, seed=c + 3000),
             "random_dick_r1": lambda: FactorBase.random(E, s_dick, seed=c + 4000),
             "random_dick_r2": lambda: FactorBase.random(E, s_dick, seed=c + 5000),
-            "known_log": lambda: FactorBase.known_log(E, P, s_sub)}
-        order = [a for a in MAIN_ARMS if a in job["arms"]]
+            "known_log": lambda: FactorBase.known_log(E, P, s_sub),
+            # EXP-PFDR-011cd0 EC-6
+            "known_null_sub": lambda: FactorBase.random(E, s_sub, seed=c + 6000),
+            "known_null_dick": lambda: FactorBase.random(E, s_dick, seed=c + 7000),
+            "planted_sub": lambda: FactorBase.planted(E, s_sub, seed=c + 8000)}
+        order = [a for a in MAIN_ARMS_ALL if a in job["arms"]]
         omega_lam = None
     else:
         size0 = default_fb_size(E.order, 3)
@@ -770,6 +907,12 @@ def _census_job(job: dict) -> dict:
             continue
         fb = builders[arm]()
         checks = _base_checks(E, P, fb, arm)
+        if fb.kind == "planted":
+            checks["G7_planted_size_eq_s_sub"] = len(fb) == s_sub
+        if job.get("bases_sample_mod") and c % job["bases_sample_mod"] == 0:
+            bases_out.append({"bits": bits, "curve": c, "m": m, "arm": arm, "p": E.p, "a": E.a,
+                              "b": E.b, "N": E.order, "P": _point(P), "Q": _point(Q),
+                              "fb_kind": fb.kind, "points": [_point(Pt) for Pt in fb.points]})
         if panel == "j0":
             omega, lam = omega_lam
             formal = {"kind": "automorphism_j0",
@@ -781,9 +924,9 @@ def _census_job(job: dict) -> dict:
             formal = {"kind": "known_log", "rows": formal_basis_known_log(len(fb))}
         else:
             formal = {"kind": "none", "rows": []}
-        for mode in CENSUS_MODES:
+        for mode in modes:
             cap = None
-            if arm == "known_log":
+            if arm == "known_log" and mode in CENSUS_MODES:
                 cap = census_attempts.get("random_sub_r0")
                 if cap is None:
                     rows.append(base | {"panel": panel, "arm": arm, "mode": mode, "ok": False,
@@ -814,7 +957,12 @@ def _census_job(job: dict) -> dict:
                 break
     if panel == "j0" and not stop and c < job.get("rho_curves", 0):
         rows.append(_census_rho(E, P, Q, k, base, c, "j0", wd))
-    return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": stop}
+    out = {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": stop}
+    if "certs" in extra:
+        out["certs"] = extra["certs"]
+    if bases_out:
+        out["bases"] = bases_out
+    return out
 
 
 def _census_sort_key(r: dict):
@@ -823,13 +971,44 @@ def _census_sort_key(r: dict):
             r.get("arm", ""), r.get("mode", ""), r.get("method", ""))
 
 
+def _census_opts(args: argparse.Namespace) -> tuple[dict, str | None]:
+    """EXP-PFDR-011cd0 EC-7 options: ({} when none is passed, i.e. today's behaviour), error."""
+    modes = tuple(args.modes)
+    if len(set(modes)) != len(modes):
+        return {}, f"duplicate --modes {list(modes)}"
+    if args.retain == "xfix" and not (set(modes) <= {"search", "census"} and
+                                      ("census" not in modes or args.budget_snapshot_only)):
+        return {}, "--retain xfix needs --modes search and/or census with --budget-snapshot-only"
+    if args.budget_snapshot_only and "census" not in modes:
+        return {}, "--budget-snapshot-only applies to --modes census"
+    if args.bases_out and args.bases_sample_mod < 1:
+        return {}, "--bases-sample-mod must be >= 1"
+    opts: dict = {}
+    if args.relcount:
+        opts["relcount"] = True
+    if args.retain != "default":
+        opts["retain"] = args.retain
+    if args.digest_classes:
+        opts["digest_classes"] = list(args.digest_classes)
+    if args.budget_snapshot_only:
+        opts["budget_snapshot_only"] = True
+    if "search" in modes or args.budget_snapshot_only:
+        opts["encoding_budget_lambda"] = args.encoding_budget_lambda
+    return opts, None
+
+
 def cmd_census(args: argparse.Namespace) -> int:
-    arms_all = MAIN_ARMS if args.panel == "main" else J0_ARMS if args.panel == "j0" else ()
-    arms = tuple(args.arms) if args.arms else arms_all
+    arms_all = MAIN_ARMS_ALL if args.panel == "main" else J0_ARMS if args.panel == "j0" else ()
+    arms = tuple(args.arms) if args.arms else (MAIN_ARMS if args.panel == "main" else arms_all)
     unknown = [a for a in arms if a not in arms_all]
     if unknown:
         print(f"unknown arms for panel {args.panel}: {unknown}", file=sys.stderr)
         return 2
+    opts, err = _census_opts(args)
+    if err:
+        print(err, file=sys.stderr)
+        return 2
+    modes = list(args.modes)
     jobs = []
     for bits in args.bits:
         if args.panel == "rho":
@@ -839,23 +1018,33 @@ def cmd_census(args: argparse.Namespace) -> int:
             continue
         for m in (args.m if args.panel == "main" else [3]):
             for c in range(args.curve_offset, args.curve_offset + args.curves):
-                jobs.append({"panel": args.panel, "bits": bits, "curve": c, "m": m,
-                             "arms": list(arms), "known_log_max_bits": args.known_log_max_bits,
-                             "rho_curves": args.rho_curves,
-                             "watchdog": args.instance_watchdog})
+                job = {"panel": args.panel, "bits": bits, "curve": c, "m": m,
+                       "arms": list(arms), "known_log_max_bits": args.known_log_max_bits,
+                       "rho_curves": args.rho_curves,
+                       "watchdog": args.instance_watchdog}
+                if modes != list(CENSUS_MODES):
+                    job["modes"] = modes
+                if opts:
+                    job["opts"] = opts
+                if args.solve_certs:
+                    job["solve_certs"] = True
+                if args.bases_out:
+                    job["bases_sample_mod"] = args.bases_sample_mod
+                jobs.append(job)
     jobs.sort(key=lambda j: (-j["bits"], j.get("m", 0), j["curve"]))
     sinks = {name: (open(path, "a") if path else None)
              for name, path in (("rows", args.out), ("hrows", args.rows_out),
-                                ("stairs", args.staircase_out))}
+                                ("stairs", args.staircase_out), ("certs", args.solve_certs),
+                                ("bases", args.bases_out))}
     rows: list[dict] = []
     stopped = None
     t0 = time.perf_counter()
 
     def emit(res: dict) -> None:
-        for name in ("rows", "hrows", "stairs"):
+        for name in ("rows", "hrows", "stairs", "certs", "bases"):
             fh = sinks[name]
             if fh:
-                for r in res[name]:
+                for r in res.get(name, ()):
                     fh.write(json.dumps(r) + "\n")
                 fh.flush()
         rows.extend(res["rows"])
@@ -870,7 +1059,7 @@ def cmd_census(args: argparse.Namespace) -> int:
         arms_j = [None] if job["panel"] == "rho" else job["arms"]
         out = []
         for arm in arms_j:
-            for mode in ([None] if arm is None else CENSUS_MODES):
+            for mode in ([None] if arm is None else job.get("modes", CENSUS_MODES)):
                 out.append({"bits": job["bits"], "curve": job["curve"], "m": job.get("m"),
                             "panel": job["panel"], "arm": arm, "mode": mode, "ok": False,
                             "status": "failed_infrastructure",
@@ -978,6 +1167,9 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--harvest", choices=HARVEST_MODES, default="off",
                    help="collision harvest: census (passive, counts only) or on (rows fed); "
                         "mitm engine only")
+    w.add_argument("--solve-certs", default=None, metavar="PATH",
+                   help="EXP-PFDR-011cd0 EC-5: append one certificate {key, p, a, b, N, P, Q, k} "
+                        "per instance that determines and verifies k (rows unchanged)")
     w.set_defaults(func=cmd_sweep)
 
     g = sub.add_parser("engines", help="msolve vs enumeration per target")
@@ -1027,6 +1219,25 @@ def main(argv: list[str] | None = None) -> int:
                    help="per-instance watchdog in seconds (machine protection); an expired "
                         "instance is recorded failed_infrastructure")
     c.add_argument("--quiet", action="store_true")
+    # EXP-PFDR-011cd0 EC-7 (defaults reproduce today's behaviour)
+    c.add_argument("--modes", nargs="+", choices=CENSUS_MODES_ALL, default=list(CENSUS_MODES),
+                   help="harvest modes per arm (default: census on)")
+    c.add_argument("--encoding-budget-lambda", type=int, default=20,
+                   help="X_fix = lambda * isqrt(N) formally distinct encodings (search mode, "
+                        "--budget-snapshot-only)")
+    c.add_argument("--budget-snapshot-only", action="store_true",
+                   help="census mode: also report the at_X_fix SS snapshot")
+    c.add_argument("--relcount", action="store_true",
+                   help="count distinct relations in process (EC-2)")
+    c.add_argument("--retain", choices=("default", "all", "xfix"), default="default",
+                   help="harvest rows written: default (IC-5 rule), all, or the X_fix prefix")
+    c.add_argument("--digest-classes", nargs="*", choices=("TT", "TB", "SS"), default=[],
+                   help="classes whose rows are not written but digested (rows_digest)")
+    c.add_argument("--solve-certs", default=None, metavar="PATH",
+                   help="append one solve certificate per instance that determines k (EC-5)")
+    c.add_argument("--bases-out", default=None, metavar="PATH",
+                   help="write base points, P and Q of instances with curve %% K == 0")
+    c.add_argument("--bases-sample-mod", type=int, default=10, metavar="K")
     c.set_defaults(func=cmd_census)
 
     z = sub.add_parser("analyze", help="refit from JSONL rows")

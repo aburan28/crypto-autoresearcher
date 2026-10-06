@@ -1,0 +1,152 @@
+--- a/experiments/EXP-PFDR-011cd0/analyze_relcensus.py (sha256 96d3b2df75b0e3e5a21b29a6d74c5a97190b9e1e3e2df3c5b3852b7dbcd13647)
++++ b/experiments/EXP-PFDR-011cd0/amd-280481/analyze_relcensus.py
+@@ -14,6 +14,11 @@
+ specification's CC-1..CC-3 and shares no code with harvest.py.  The same file serves R11, R15,
+ R16 and R17 (pinned before R11).
+ 
++AMD-20261002-280481 A-3 copy (protocol version 2): a byte copy of the archived 96d3b2df file
++whose only changes are the per-(class, m) P0 estimation rungs of A-1 (ss4_estimation_rungs and
++its stop, used inside p0_estimates) and the A-2 fields written into design.json and power.json.
++From R11 attempt-3 on this copy serves p0, grel, calibrate, unmask and stage-r.
++
+ Blinding (analysis.two_step_blinding).  `calibrate` reads, from every rows / harvest-rows file,
+ ONLY lines whose arm (extracted from the raw line text by a regular expression, BEFORE any JSON
+ parse) is random_*, known_null_* or known_log; every other line is skipped unparsed, and every
+@@ -781,20 +786,65 @@
+                      "relation counts only (pair counts are never compared)")}
+ 
+ 
++def ss4_estimation_rungs(rows: dict, hrows: dict) -> dict:
++    """AMD-20261002-280481 A-1 (b) and A-2 (i).  The (SS, 4) P0 estimation rungs are the TWO
++    HIGHEST even rungs b <= 32 at which the archived census-mode random-arm SS m = 4 instances
++    with status completed_valid number at least one and are ALL complete at scope A_fix under
++    I-8's completeness definition (archived_complete).  Records the per-rung completeness table
++    (instance counts only, no relation count; complete counts completed_valid instances that are
++    complete).  Stops P0 (non-zero exit, before design.json and power.json are written) if fewer
++    than two rungs qualify or the selection is not exactly {22, 24}."""
++    expected = (22, 24)
++    label = "SS m 4 P0 inputs estimated at 22-24 bits; TA-1 assumed, not verified by P0"
++    tab = {b: {"complete": 0, "completed_valid": 0, "total": 0} for b in range(12, 33, 2)}
++    for k, row in rows.items():
++        b, c, mm, arm, mode = k
++        if mm != 4 or mode != "census" or b is None or b > 32 or b % 2:
++            continue
++        t = tab.setdefault(b, {"complete": 0, "completed_valid": 0, "total": 0})
++        t["total"] += 1
++        if row.get("status") != "completed_valid":
++            continue
++        t["completed_valid"] += 1
++        if archived_complete(row, hrows[k], "SS", "A_fix"):
++            t["complete"] += 1
++    qualifying = sorted(b for b, t in tab.items() if t["completed_valid"] >= 1 and t["complete"] == t["completed_valid"])
++    selected = qualifying[-2:]
++    rec = {"rule": "AMD-20261002-280481 A-1 (b): the two highest even rungs b <= 32 whose archived "
++                   "census-mode random-arm SS m = 4 completed_valid instances number >= 1 and are all "
++                   "complete at scope A_fix (I-8 completeness)",
++           "completeness_table": {str(b): tab[b] for b in sorted(tab)},
++           "completeness_table_note": "instance counts only (complete / completed_valid / total); "
++                                      "complete counts completed_valid instances complete at A_fix",
++           "qualifying_rungs": qualifying, "selected_rungs": selected,
++           "expected_rungs": list(expected), "label": label}
++    if len(qualifying) < 2 or tuple(selected) != expected:
++        print(json.dumps({"p0_stop": "AMD-20261002-280481 A-1 (b)", "selection": rec}), file=sys.stderr)
++        raise SystemExit("P0 stop (AMD-20261002-280481 A-1 (b)): "
++                         + ("fewer than two rungs qualify" if len(qualifying) < 2 else
++                            f"selection {selected} is not exactly {list(expected)}")
++                         + "; design.json and power.json not written")
++    return rec
++
++
+ def p0_estimates(rows: dict, hrows: dict) -> dict:
+     """rho1(class, m), D_R(class, m) with its 95% upper bound, Mbar(m) from the archived random arms
+-    (census mode, 30-32 bits, complete instances), recounted under CC-1."""
++    (census mode, complete instances), recounted under CC-1.  Estimation rungs per (class, m)
++    (AMD-20261002-280481 A-1): 30-32 bits (I-8) for every (class, m) except (SS, 4), whose rungs
++    are selected by ss4_estimation_rungs."""
+     est = {}
+     rng = np.random.default_rng(np.random.SeedSequence([SEED_ROOT, 100]))
++    ss4 = ss4_estimation_rungs(rows, hrows)
+     for cls in CLASSES:
+         for m in (3, 4, 5):
++            rungs = tuple(ss4["selected_rungs"]) if (cls, m) == ("SS", 4) else BAND
+             scope = "A_fix" if cls == "SS" else "stop"
+             per = {}  # (bits, c, fam) -> [(n_rel, mu_model_pairs, pairs_rows, mean_pairs_model)]
+             sum_rel = sum_pairs = 0
+             inst = []
+             for k, row in rows.items():
+                 b, c, mm, arm, mode = k
+-                if mm != m or mode != "census" or b not in BAND or row.get("status") != "completed_valid":
++                if mm != m or mode != "census" or b not in rungs or row.get("status") != "completed_valid":
+                     continue
+                 if not archived_complete(row, hrows[k], cls, scope):
+                     continue
+@@ -811,7 +861,9 @@
+                 sum_rel += rc["relations_nonformal"]
+                 sum_pairs += rc["relation_pairs"] - rc["relation_pairs_zero"]
+             if not inst:
+-                est[f"{cls}{m}"] = {"instances": 0}
++                est[f"{cls}{m}"] = {"instances": 0, "triples": 0, "estimation_rungs": list(rungs)}
++                if (cls, m) == ("SS", 4):
++                    est[f"{cls}{m}"]["rung_selection"] = ss4
+                 continue
+             if cls == "SS":
+                 mbar = sum_pairs / sum_rel if sum_rel else None
+@@ -837,7 +889,10 @@
+                 ub = float(np.quantile(bs, 0.95))
+             est[f"{cls}{m}"] = {"instances": len(inst), "triples": len(trips), "scope": scope,
+                                 "rho1": rho1, "D_R_hat": D_hat, "D_R_ub95": ub, "Mbar": mbar,
+-                                "sum_relations": sum_rel, "sum_pairs_from_rows": sum_pairs}
++                                "sum_relations": sum_rel, "sum_pairs_from_rows": sum_pairs,
++                                "estimation_rungs": list(rungs)}
++            if (cls, m) == ("SS", 4):
++                est[f"{cls}{m}"]["rung_selection"] = ss4
+     return est
+ 
+ 
+@@ -938,6 +993,15 @@
+     p0x_rep["parsed_arms"] = sorted(log.parsed_arms())
+     dump(os.path.join(out, "p0x-report.json"), p0x_rep)
+     est = p0_estimates(rows, hrows)
++    # AMD-20261002-280481 A-2: estimation rungs, instance and triple counts for every (class, m);
++    # for (SS, 4) also the per-rung completeness table and the TA-1 label
++    ta1_label = est["SS4"]["rung_selection"]["label"]
++    p0_estimation = {"per_class_m": {cm: {"estimation_rungs": e["estimation_rungs"], "instances": e["instances"],
++                                          "triples": e["triples"]} for cm, e in est.items()},
++                     "SS4_completeness_table": est["SS4"]["rung_selection"]["completeness_table"],
++                     "SS4_rung_selection": {k: est["SS4"]["rung_selection"][k]
++                                            for k in ("rule", "qualifying_rungs", "selected_rungs", "expected_rungs")},
++                     "SS4_label": ta1_label}
+     decl = declared_n(spec)
+     reps = a.reps
+     t0 = now()
+@@ -969,6 +1033,8 @@
+                     governing = min(pr["poisson"], pr["compound"])
+                     pw[c["id"]] = {"kappa_target": kt, "poisson": pr["poisson"], "compound": pr["compound"],
+                                    "governing": governing}
++                    if (c["cls"], c["m"]) == ("SS", 4):
++                        pw[c["id"]]["label"] = ta1_label
+                     ok = ok and governing >= 0.5
+                 evals.append({"multiplier": mult, "n_b30": nb[30], "n_b32": nb[32], "all_cells_met": ok,
+                               "power": pw})
+@@ -1006,6 +1072,8 @@
+                              "X_rel": xr["X_rel"], "E_C_R_uniform": ecr,
+                              "stated_target": (xr["X_rel"] if un else kt),
+                              "target_unattainable_by_design": bool(un)}
++        if (c["cls"], c["m"]) == ("SS", 4):
++            cell_rep[c["id"]]["label"] = ta1_label
+         if ecr < 100:
+             design_stop.append({"cell": c["id"], "E_C_R_uniform": ecr, "reason": "CC-9: E[C_R] < 100"})
+     # curves, jobs, disk and CPU
+@@ -1046,9 +1114,10 @@
+                              "reps_per_seed_family": reps, "seed_families": N_SEED_FAMILIES,
+                              "power_reps_per_seed_family": POWER_REPS_PER_FAMILY,
+                              "seed_rule": "numpy SeedSequence([0x011cd0, i]), i = 0..4"},
+-              "p0x_pass": p0x_rep["pass"]}
++              "p0x_pass": p0x_rep["pass"], "p0_estimation": p0_estimation}
+     dump(os.path.join(out, "design.json"), design)
+-    dump(os.path.join(out, "power.json"), {"cells": cell_rep, "rule": rule_log, "t_star_plan": ts_final})
++    dump(os.path.join(out, "power.json"), {"cells": cell_rep, "rule": rule_log, "t_star_plan": ts_final,
++                                           "p0_estimation": p0_estimation})
+     print(json.dumps({"p0x_pass": p0x_rep["pass"], "p0x_compared": p0x_rep["compared"],
+                       "t_star_plan": ts_final["t"], "final_n": design["final_n"],
+                       "design_stop": design_stop, "unattainable": unattainable}))

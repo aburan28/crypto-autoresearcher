@@ -1,0 +1,467 @@
+# Red-team report, joint J2 of review_plan_RUN-ICEX-0ad4d8.yaml.
+# Every number below is computed from RUN-ICEX-0ad4d8's own metrics.json,
+# fxa_nonverdict.json and cells/*/result.json by the scratch scripts in this
+# directory (j2_analysis.py -> j2_analysis_output.json; j2_bsweep.py ->
+# j2_bsweep_output.json). No scientific run and no frozen-label draw was made.
+red_team_report:
+  id: RT-20261001-d367dd
+  task_id: TASK-20261001-d367dd
+  role: red-team
+  run_id: RUN-ICEX-0ad4d8
+  experiment_id: EXP-ICEX-aaccfc
+  protocol_version: 4
+  hypothesis_id: H-ICEX-d8e858
+  joint_owned: J2 (interpretation and scope of the verdict)
+  claim_under_review: >-
+    The C-5 verdict that the EXP-ICEX-aaccfc v4 frozen analysis returns on
+    RUN-ICEX-0ad4d8 for H-ICEX-d8e858, and the scope that verdict closes.
+
+  verdict_reported_by_metrics_json:
+    verdict: inconclusive
+    exponent: 0.6216
+    exponent_ci95: [0.1059, 2.3169]
+    bootstrap_resamples: 2000
+    ratio_per_fixture_frozen_rho: {b16-s21: 8063, b16-s22: 3517, b16-s23: 1739, b20-s21: 4478, b20-s22: 1903, b20-s23: 9789}
+    dominant_stage_20bit: null
+    dominant_stage_20bit_diagnostic: stage1
+    exponent_disclosure: "weak: only two field sizes (16, 20 bits)"
+
+  j2_verdict:
+    status: holds_with_scope_correction
+    does_the_verdict_follow: >-
+      Yes, mechanically. Under C-5 (AMD-20260926-ced670), a sub-rho signal
+      needs exponent upper CI < 0.5 AND ratio < 1 on every 20-bit fixture.
+      Both fail: the upper CI is 2.32 and the smallest 20-bit ratio is 1903.
+      A scoped negative needs lower CI >= 0.5, which also fails at 0.106.
+      The rule therefore returns inconclusive. No defensible alternative
+      charge or baseline flips the verdict toward a sub-rho signal (O-2,
+      O-3). The negative branch cannot be reached without changing the
+      frozen statistic (O-1).
+    what_inconclusive_means_here: >-
+      "Inconclusive" refers only to the exponent statistic. It must not be
+      read as "possibly sub-rho" or as "near 1/2". The run's data exclude a
+      sub-rho result on every fixture by 3 to 4 orders of magnitude. The
+      exponent is undetermined because the design has almost no power: the
+      run's cost is dominated by fluctuations in factor-base size, not by q
+      (O-1, O-4).
+    exact_scope_closed: >-
+      Closed: a sub-rho complete cost for the pipeline exactly as frozen in
+      v4. That means prime-field ordinary curves of prime order q ~ p, the six
+      fixtures in ic_leads_fixtures_v2.json (q from 47,059 to 909,289), m = 5,
+      interval factor base x < ceil(p^{1/5}) with L = 3 to 11 liftable
+      x-classes, the non-Groebner MITM backend B0 (2-sum forward table plus
+      a full backward 3-sum scan for each attempt), the plain uniform
+      collector, R_j by fresh double-and-add, 16 descents, the C-3 unit
+      costs, the Mac, and one worker. On these fixtures the complete cost is
+      1,739 to 9,789 times the frozen rho reference. It is at least 199 times
+      even against the most generous baseline in the run (measured rho
+      including per-target setup, with FX-A charging).
+    not_closed: >-
+      Not closed:
+      (i) the complete-cost exponent itself, which the run does not
+      determine;
+      (ii) any membership backend other than enumerative B0, including
+      Semaev summation-polynomial or Groebner membership (EXP-ICEX-fa2b37);
+      (iii) the P1385 source-scheduled low-term collector the idea names,
+      which v2 replaced with the plain uniform collector because the source
+      is absent;
+      (iv) other factor-base rules, MITM splits or arities as full
+      pipelines (m = 6 and m = 8 were stage-cost-only);
+      (v) any size beyond 20 bits;
+      (vi) the alpha2 gate, which C-4 pre-registered as non-discriminating
+      (the trivial scan gives alpha2 = 1).
+    recommended_verdict_wording_for_evidence_record: >-
+      Inconclusive on the C-5 exponent (CI [0.11, 2.32], two sizes,
+      underpowered). No sub-rho signal: the ratio to frozen matched rho is
+      1,739 to 9,789 on all six fixtures and at least 1,875 at 20 bits under
+      FX-A. B0 membership scanning (stage-1 relation search plus descent
+      search, which use the same primitive) carries at least 99.95% of the
+      charged cost on every fixture. Linear algebra is at most 0.05%.
+
+  objections:
+    - id: O-1
+      severity: high
+      title: >-
+        The exponent statistic measures factor-base-size noise, not
+        q-scaling. The negative branch was effectively unreachable by design.
+      argument: >-
+        Each B0 attempt does a full backward 3-sum scan whose cost depends
+        only on L (about 18.7 L^3 units). Relation yield per attempt tracks
+        the multiset count C(2L+4,5)/q. So the cost per successful
+        membership scales as q * L^-2, and L is the number of liftable
+        x-classes below B. That count is a small, binomial-like number: L/B
+        ranges from 0.30 to 0.73 on these fixtures. Because cost carries L
+        to roughly the -2 power, fixtures of the same size differ in cost by
+        5.3x (16 bits) and 6.2x (20 bits). A true exponent of 0.5 versus 0.6
+        would change cost by only 1.28x over the q range this run spans.
+        The log-q-only fit therefore has a residual SD of 0.78 in log units.
+        With 3 fixtures per size, that gives a slope standard error of about
+        0.26, so a two-sided 95% CI is about ±0.5 wide.
+      supporting_computation:
+        fit_ln_complete_on_ln_q: {slope: 0.622, se_ols: 0.253, resid_sd_log: 0.779}
+        residual_vs_ln_L: {corr: -0.837, slope: -1.36, se: 0.44}
+        fit_ln_complete_on_ln_q_and_ln_L: {coef_ln_q: 0.945, se: 0.037, coef_ln_L: -1.916, se_L: 0.118, resid_sd_log: 0.095, dof: 3}
+        b0_cost_model_fit: {model: "q*(L+27)*scan(L)/C(2L+4,5)", slope: 0.942, se: 0.071, resid_sd_log: 0.183, mean_observed_over_model: 1.71}
+        within_size_cost_spread: {bits16: 5.27, bits20: 6.23}
+        cost_ratio_separating_0p5_from_0p6_over_run_range: 1.28
+        planted_exponent_power_at_observed_noise:
+          note: >-
+            My own percentile bootstrap: 500 resamples of 6 points, 400
+            trials, noise SD 0.779. This is not the frozen analysis code;
+            J1 owns the frozen proves-too-much control.
+          planted_0.40: {upper_ci_below_half: 0.085, lower_ci_at_or_above_half: 0.03}
+          planted_0.50: {upper_ci_below_half: 0.053, lower_ci_at_or_above_half: 0.07}
+          planted_0.60: {upper_ci_below_half: 0.028, lower_ci_at_or_above_half: 0.085}
+        fixtures_per_size_needed_for_ci_halfwidth_0.1_at_observed_noise: 76
+        fixtures_per_size_needed_if_L_variance_removed_resid_sd_0.095: 2
+      consequence: >-
+        At this noise level, "inconclusive" is the outcome for about 85-90%
+        of plausible true exponents from 0.4 to 0.6. The coordinator's prior
+        put 0.70 on a scoped negative; the design gave that branch less than
+        a 10% chance. This is a property of the frozen design, not evidence
+        about the method. Conditioning on L is post hoc, so it cannot be a
+        verdict input. As a description, though, it is decisive: holding L
+        fixed, cost grows as q^0.95±0.04. With L at its expected value
+        (about B/2), the B0 model's local exponent is 0.72 over 16-20 bits
+        and rises toward 0.8.
+
+    - id: O-2
+      severity: medium
+      title: >-
+        Changing the baseline does not change the comparison. Measured rho
+        including setup is the wrong row for an exponent, though harmless
+        for the ratio.
+      argument: >-
+        The measured rho walk exponent is 0.510 ± 0.031, so the rho cells
+        behave as Pollard rho. The measured mean_units, which include about
+        18-24k units of per-target table and double-and-add setup, give an
+        exponent of only 0.19. That is a constant-overhead artifact, and the
+        same kind of two-size bias that the IC exponent suffers from its
+        fixed +27 successes. For the ratio the choice barely matters. Against
+        the frozen reference, the 20-bit minimum is 1,903. Against the
+        measured walk it is 1,824. Against measured rho with setup it is
+        539, and 531 with FX-A as well. Across all fixtures the floor is 199.
+        No baseline in the run brings any fixture within two orders of
+        magnitude of a ratio of 1.
+      supporting_computation:
+        rho_fit_mean_walk_units: {slope: 0.510, se: 0.031}
+        rho_fit_mean_units_incl_setup: {slope: 0.188, se: 0.009}
+        walk_over_reference_range: [1.04, 1.33]
+        min_ratio_20bit: {frozen_reference: 1903, measured_walk: 1824, measured_mean_incl_setup: 539, fxa_with_descents_vs_measured_mean: 532}
+        min_ratio_all_fixtures_most_generous: 199
+
+    - id: O-3
+      severity: low
+      title: >-
+        The flat 13-unit point-addition charge (OQ-1) and the fresh
+        double-and-add R_j charge (OQ-13) cannot flip the verdict.
+      argument: >-
+        Point additions dominate both B0 and rho. Probes make up only
+        5.3-6.4% of a B0 scan, so any rescaling of the point-addition cost
+        scales the IC and rho costs almost equally, and the ratio moves by at
+        most about 6%. FX-A, which charges R_j as one group operation,
+        lowers the ratio by 1-10% (with descents, by 1.5-19%). The
+        pre-registered disclosure that OQ-13 biases the comparison against
+        IC is correct, but the effect is small.
+      supporting_computation:
+        probe_share_of_scan_range: [0.053, 0.064]
+        fxa_ratio_with_descents_over_primary_ratio_range: [0.81, 0.99]
+
+    - id: O-4
+      severity: medium
+      title: >-
+        The dominant stage is intrinsic to enumerative B0 membership. The
+        frozen B rule and m set make it worse but are not its cause.
+      argument: >-
+        (a) Stage 1 and the descents run the same B0 full scan at the same
+        per-attempt cost (within 1-15% because of the R_j double-and-add) and
+        the same per-attempt yield. Together they account for 99.95-99.999%
+        of cost. The diagnostic label "stage1" is an accounting split of a
+        single primitive: on b16-s21 the descents are 64% of cost. Any
+        scoped-negative wording should name "B0 membership scanning"
+        (relation search plus descent search), not stage 1 alone.
+        (b) Changing B does not help. Using the run's per-attempt and yield
+        calibration (yield 0.66 of the multiset bound, without the 1.71x
+        model-to-observed factor, so the model is optimistic for IC), the
+        best L for the frozen B0 still gives 590-927x rho at q in
+        [47k, 909k]. The best L with a balanced alternative split (3-sum
+        table once, 2-sum per attempt) gives 75-78x. Its memory is 2.3k-14k
+        table points, against O(1) for rho.
+        (c) Changing m does not help. The stage-cost-only m = 6 and m = 8
+        cells cost 1.2-12x and 11-49x the m = 5 stage-1 cost at the same
+        fixture.
+        (d) Ceiling (internal derivation, not a literature citation): with
+        enumerative MITM membership at arity m, factor base L ~ q^{1/m} and
+        relation probability about 1/m!, the best split gives complete cost
+        L^{1+floor(m/2)} or L^{ceil(m/2)}. That is an exponent of
+        1/2 + 1/(2m) for odd m and 1/2 + 1/m for even m, always above 1/2,
+        with memory q^{ceil(m/2)/m}, which is at least q^{1/2}. The run's
+        data agree with the model behind this ceiling (O-1: L-coefficient
+        -1.92 ± 0.12 against a predicted -2).
+      supporting_computation:
+        per_attempt_units_stage1_vs_descent: {b16-s21: [2063, 1793], b16-s22: [5387, 5115], b16-s23: [8066, 7796], b20-s21: [11725, 11392], b20-s22: [36449, 36093], b20-s23: [5535, 5189]}
+        predicted_scan_excl_Rj: {L3: 1510, L5: 4830, L6: 7520, L7: 11046, L11: 35750}
+        pooled_yield_over_multiset_bound_range: [0.52, 0.75]
+        share_b0_membership_range: [0.99953, 0.99999]
+        share_stage3_max: 0.00047
+        best_case_B0_model_ratio_to_rho: {q_47059: {frozen_split: 590, table3_split: 78}, q_909289: {frozen_split: 927, table3_split: 76}, q_2pow32: {frozen_split: 6252, table3_split: 117}}
+        stage_cost_m6_over_m5: [1.20, 12.02]
+        stage_cost_m8_over_m5: [11.4, 49.5]
+
+    - id: O-5
+      severity: medium
+      title: The run does not test the idea's named collector or its "batched" sieve.
+      argument: >-
+        IDEA-20260909-fe3e07 names a P1385 source-scheduled low-term
+        collector. AMD-20260926-ced670 froze the plain uniform collector
+        because the P1385 source is not in the repository. "Batched" in v2
+        means only a shared forward table per fixture. Any evidence record
+        or decision that says the run closes "the Semaev stack" or "the
+        idea" inflates its scope. It closes the v4 instantiation only. Note
+        that no collector scheduling can rescue B0 here: one successful
+        membership already costs 50-306 times a full rho solve (obstruction
+        below), and any pipeline needs at least L + 1 + 16 of them.
+      supporting_computation:
+        min_successes_needed: "L+1 relations (+10 excess) + 16 descents = 30-38 per fixture"
+        units_per_successful_membership_over_rho_reference: {b16-s21: 268.8, b16-s22: 109.9, b16-s23: 52.7, b20-s21: 131.7, b20-s22: 50.1, b20-s23: 305.9}
+
+    - id: O-6
+      severity: low
+      title: >-
+        The matched null shows that B0 gains nothing from interval structure.
+        The x < B choice is an unused resource.
+      argument: >-
+        Relation yield with a random-x factor base of equal size is within a
+        factor of 0.71-1.83 of the interval factor base's yield (geometric
+        mean 1.15). Consistent with the random model, the small-x property
+        neither helps nor hurts yield. B0 also never uses small x in its
+        membership decision. So the property that motivates interval factor
+        bases in the Semaev line (bounded roots of summation polynomials)
+        plays no role anywhere in this pipeline. This feeds the
+        resource_check below.
+      supporting_computation:
+        interval_over_random_yield: {b16-s21: 1.83, b16-s22: 1.14, b16-s23: 1.51, b20-s21: 0.71, b20-s22: 1.14, b20-s23: 0.89}
+        geomean: 1.146
+
+  required_controls:
+    - >-
+      Before reading any future exponent CI from this design, run the frozen
+      exponent/CI code on a synthetic table that has the run's actual
+      L-driven noise (resid SD about 0.78) and a planted exponent of 0.40,
+      then 0.60. This is J1's proves-too-much item. My crude version
+      detects 0.40 in only 8.5% of trials.
+    - >-
+      Any successor exponent claim conditions on L, or freezes L as the
+      independent variable, so that factor-base-size fluctuation does not
+      enter the q-slope.
+
+  counterexample_or_mutation: >-
+    Hold q fixed and vary only L, using the stage-cost-only machinery at
+    m = 5 with several B values on one fixture, in a non-frozen namespace.
+    If the cost per success does not scale as about L^-2, the B0 cost model
+    behind O-1 and O-4 is wrong. This is the cheapest discriminating check,
+    and it needs a separate approved non-verdict task.
+
+  heuristic_challenges:
+    - >-
+      HEUR-ICEX-d8e858-1 is stated as a disjunction ("either CI excludes 1/2,
+      or every stage >= rho after audit"), not as a heuristic about an
+      object. The run satisfies the second arm descriptively (B0 membership
+      alone is at least 50 times rho per success), but C-5 does not test that
+      arm. The heuristic should be restated as the relation-probability
+      heuristic: yield is about C(2L+m-1,m)/q. The run supports that at toy
+      scale (observed 0.52-0.75 of the multiset bound; matches the
+      random-x null).
+
+  cost_model_challenges:
+    - >-
+      Per-attempt cost times inverse success probability is correctly
+      charged. Failed attempts are included: 260 of 282 stage-1 attempts
+      failed on b20-s22, for example. The audit replays them (J1).
+    - >-
+      Memory is not informative at this scale. Peak RSS is 33-34 MB for both
+      IC and rho cells, which is the Python interpreter floor. The B0 tables
+      hold at most 132 pairs. Asymptotic memory follows O-4(d).
+
+  baseline_comparison: >-
+    Against Pollard rho (negation map, r = 32), measured on the same fixtures
+    with a walk exponent of 0.510 ± 0.031: IC complete cost is 1,739-9,789
+    times the frozen 13*0.886*sqrt(q) reference and 210-2,994 times measured
+    rho including setup. BSGS was not run (memory-matched BSGS was optional
+    under C-6). The closest specialized baseline, Groebner membership
+    (EXP-ICEX-fa2b37), is not part of this run, so I have not checked those
+    rows.
+
+  reduction_and_scope_challenges:
+    - >-
+      Scope inflation risk (O-5): the run closes the v4 instantiation, not
+      IDEA-20260909-fe3e07's P1385 collector, and not prime-field
+      index-calculus membership in general.
+    - >-
+      The alpha2 result (alpha2 = 1) is pre-registered as non-discriminating.
+      It must not be cited as evidence about Ahmadi-Shparlinski-type
+      barriers (barrier name recalled from the idea record; not verified).
+
+  obstruction:
+    quantity: >-
+      Charged cost of one successful m = 5 B0 membership: the per-attempt
+      full-scan units divided by the pooled per-attempt yield over relation
+      and descent attempts. It is expressed as a multiple of the frozen rho
+      reference 13*0.886*sqrt(q), the cost of a whole rho solve.
+    value:
+      units_per_success: {b16-s21: 763405, b16-s22: 319436, b16-s23: 131636, b20-s21: 1137433, b20-s22: 453807, b20-s23: 3359817}
+      multiple_of_full_rho_solve: {b16-s21: 268.8, b16-s22: 109.9, b16-s23: 52.7, b20-s21: 131.7, b20-s22: 50.1, b20-s23: 305.9}
+      range: "50x to 306x a full rho solve per single successful membership"
+      uncertainty: >-
+        About ±16-18% relative (1 sigma) per fixture, from Poisson error on
+        30-38 successes per fixture. Unit costs are as declared in C-3; the
+        ratio is insensitive to the point-addition charge within about 6%
+        (O-3).
+      scaling: >-
+        Proportional to q * L^-2 (fitted q-coefficient 0.945 ± 0.037 and
+        L-coefficient -1.92 ± 0.12 for complete cost; 3 dof, post hoc).
+    runs: [RUN-ICEX-0ad4d8]
+    scope: >-
+      Enumerative non-Groebner MITM membership B0 (2-sum table plus full
+      backward 3-sum scan) at m = 5, interval factor base x < ceil(p^{1/5}),
+      the six frozen 16/20-bit fixtures and the C-3 units. It also covers
+      any collector or LA built on B0 at these sizes, because every pipeline
+      needs at least L + 17 successes. It does not cover non-enumerative
+      membership.
+    resource_check:
+      examined: true
+      reading: >-
+        The same measurement is an asset for the summation-polynomial
+        (sub-enumerative membership) lane. The run shows that, on these
+        fixtures, the entire gap to rho lies in membership cost per attempt:
+        (1) relation yield matches the random multiset model (0.52-0.75 of
+        C(2L+4,5)/q);
+        (2) a random-x factor base yields the same (geometric mean ratio
+        1.15);
+        (3) linear algebra is at most 0.05% of cost;
+        (4) descents cost the same per success as relations.
+        The structure of the method is therefore validated, and the
+        decomposition-probability heuristic holds at toy scale. Only the
+        membership decision is expensive. A backend that decides m = 5
+        membership in L^{o(1)} * polylog(q) on interval factor bases would
+        turn the same yields into about (L+27)/yield attempts at near-
+        constant cost each. That is the regime the Semaev/Gaudry/Diem
+        literature analyses (recalled; not retrieved in this session). The
+        small-x property is unused by B0 (O-6) and is exactly what such a
+        backend would exploit. Second reading: the cost is very sensitive
+        to L (about L^-2), which makes L, not q, the controllable lever for
+        any successor measurement.
+      spawned_ids: []
+      spawned_note: >-
+        These are candidates only; the red team files no ledger records. The
+        coordinator could rank: (a) a B0-versus-Groebner membership cost per
+        success at matched L on these fixtures, joining EXP-ICEX-fa2b37;
+        (b) a non-verdict L-sweep at fixed q (counterexample_or_mutation).
+
+  dominated_by: >-
+    Pollard rho, measured on the identical six fixtures, dominates on time
+    by 1,739-9,789x against the frozen reference and at least 199x against
+    measured rho with setup. Memory is tied at the interpreter floor (33-34
+    MB peak RSS for both). On data/queries, both use one public target
+    (Q, Q_t) per log. IC's amortized_units_per_target (complete cost / 17
+    targets) is 0.26M-6.32M units, against 20.7k-35.9k for rho. Checked rows:
+    the rho cells in this run on time, memory and data. Unchecked rows:
+    BSGS (not run) and EXP-ICEX-fa2b37 Groebner membership (not in this
+    run). So dominated_by is not null, and it is complete only for the rho
+    row.
+  sota_delta:
+    time_ratio_vs_frozen_rho: "+1739x to +9789x (worse)"
+    time_ratio_vs_measured_rho_with_setup: "+210x to +2994x (worse)"
+    exponent: "0.62 point, CI [0.11, 2.32] vs rho walk 0.510 +/- 0.031; no demonstrated exponent improvement; B0 model ceiling >= 3/5 at m = 5"
+    memory: "0 (tie at interpreter floor at this scale)"
+    established_gain: 0
+
+  narrowest_supported_statement: >-
+    On the six frozen 16/20-bit fixtures, the v4 pipeline (m = 5, interval
+    factor base B = ceil(p^{1/5}), B0 enumerative membership, uniform
+    collector) costs 1,739-9,789 times matched rho. Scanning by the single
+    B0 membership primitive carries at least 99.95% of that cost, and one
+    successful membership costs 50-306 times a full rho solve. The
+    complete-cost exponent is undetermined (C-5 inconclusive) because cost
+    is dominated by factor-base-size fluctuation rather than by q. The
+    run's data constrain neither non-enumerative membership nor the P1385
+    collector.
+
+  forward_guidance:
+    smallest_change_not_ruled_out: >-
+      Replace B0 with a non-enumerative membership backend, keeping every
+      other v4 choice: fixtures, B rule, units, collector, LA, descents and
+      matched rho. The run shows the yields, LA and descent logic are
+      already on model, so the membership cost per attempt is the only
+      quantity that has to move. Concretely, measure the Groebner or
+      summation-polynomial m = 5 membership cost per success at matched L
+      on these six fixtures (EXP-ICEX-fa2b37's backend). Compare it against
+      the obstruction here: 50-306 rho-solves per success, and to be
+      competitive it must fall below about sqrt(q) / (L + 27) units per
+      success.
+    design_fix_for_any_successor_exponent_claim: >-
+      Remove L variance from the slope. Either freeze L (choose B per
+      fixture to hit a target L series) or pre-register a fit conditioned
+      on ln L, and use at least 3 field sizes. With L variance removed,
+      2-5 fixtures per size reach a CI half-width of 0.1-0.05 (residual SD
+      about 0.095). At the run's actual noise this needs about 76 per size.
+    what_remains_open: >-
+      Open: the exponent of any non-enumerative membership; the P1385
+      collector; larger m with balanced MITM, whose ceiling of
+      1/2 + 1/(2m) approaches 1/2 but never reaches it, at memory of at
+      least q^{1/2}; and everything beyond 20 bits.
+    next_concrete_action: >-
+      Coordinator: record the evidence as "inconclusive on the C-5
+      exponent; no sub-rho signal; B0 membership obstruction 50-306
+      rho-solves per success". Then rank (a) above against EXP-ICEX-fa2b37's
+      current state before any further B0 runs.
+
+  literature_provenance:
+    - ref: Semaev summation polynomials (2004); Gaudry and Diem decomposition-based index calculus
+      provenance: recalled
+      use: pointer only for the resource_check regime; not load-bearing for any number here
+    - ref: Ahmadi-Shparlinski-type barriers
+      provenance: recalled (named in IDEA-20260909-fe3e07)
+      use: pointer only
+
+  artifact_paths:
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-d367dd/redteam_report.yaml
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-d367dd/j2_analysis.py
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-d367dd/j2_analysis_output.json
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-d367dd/j2_bsweep.py
+    - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/tasks/TASK-20261001-d367dd/j2_bsweep_output.json
+
+  attestation:
+    joints_owned: [J2]
+    verdict_on_joint: holds_with_scope_correction
+    files_read:
+      - AGENTS.md (rules-provided)
+      - agents/red-team.md
+      - templates/research-records.md (header and obstruction-block field locations)
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/review_plan_RUN-ICEX-0ad4d8.yaml
+      - coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/dispatch_queue.json (own card only)
+      - experiments/EXP-ICEX-aaccfc/specification.yaml
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260926-ced670.yaml
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-143d11.yaml
+      - experiments/EXP-ICEX-aaccfc/amendments/AMD-20260929-5a84eb.yaml
+      - ledger/hypotheses/H-ICEX-d8e858.yaml
+      - ledger/proposals/IDEA-20260909-fe3e07.yaml (first ~6000 chars)
+      - experiments/EXP-ICEX-aaccfc/implementation/b0.py (first 200 lines)
+      - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/metrics.json
+      - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/fxa_nonverdict.json
+      - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/audit.json (first ~5000 chars)
+      - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/cells/*__primary/result.json (programmatically)
+      - experiments/EXP-ICEX-aaccfc/runs/RUN-ICEX-0ad4d8/cells/b20-s22__rho/result.json (structure)
+      - experiments/EXP-SDEG-85eefd/amendments/ic_leads_fixtures_v2.json
+    sibling_reports_read: none
+    read_from: >-
+      Worktree /Volumes/SSD990/wt-amend-ic at HEAD b2875431e4. The paths
+      read were present in the checkout.
+    independent_session: true
+    requested_policy: review-adversarial
+    resolved_model_id: unknown (Cursor runtime)
+    fallback_used: true
+    degraded_requirements: ["xhigh reasoning effort not verifiable under the Cursor runtime (DEC-20261001-ba1026)"]
+    scientific_runs_performed: 0
+    frozen_label_draws: 0
+    commits_made: 0

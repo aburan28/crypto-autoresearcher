@@ -1,0 +1,68 @@
+name: Pedantic (ISO C) build
+
+# Compiles each SQIsign module under pedantic mode
+# (-Wpedantic -Werror (C_PEDANTIC_MODE), via -DENABLE_PEDANTIC=ON), one module per job, on a
+# self-hosted x64 runner (directly, not in Docker). Mirrors scripts/pedantic_module.sh.
+#
+# Each (build_type x module) pair is an isolated job so a failure pinpoints the offending module;
+# fail-fast is disabled so one module's errors do not mask the others.
+
+on:
+  push:
+    branches: ["**"]
+  #pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs of this workflow on the same ref to save runner time.
+concurrency:
+  group: pedantic-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pedantic:
+    name: ${{ matrix.build_type }} / ${{ matrix.module }}
+    runs-on: [self-hosted, x64]
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [ref, broadwell]
+        module:
+          - quaternion
+          - mp
+          - gf
+          - ec
+          - hd
+          - id2iso
+          - signature
+          - verification
+          - precomp
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up environment for ccache
+        run: echo "PATH=/usr/lib/ccache:$PATH" >> "$GITHUB_ENV"
+
+      - name: Configure CMake (pedantic)
+        # Tests are off: we only need the module libraries to compile.
+        run: >
+          cmake -B build -G Ninja
+          -DSQISIGN_BUILD_TYPE=${{ matrix.build_type }}
+          -DENABLE_PEDANTIC=ON
+          -DENABLE_TESTS=OFF
+
+      - name: Resolve module target(s)
+        id: targets
+        # Level-independent modules build a single target; the rest build one per parameter set.
+        run: |
+          case "${{ matrix.module }}" in
+            *) targets="sqisign_${{ matrix.module }}_p324_3 sqisign_${{ matrix.module }}_p500_27 sqisign_${{ matrix.module }}_p664_17" ;;
+          esac
+          echo "Targets: $targets"
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+      - name: Build module under pedantic
+        run: cmake --build build --target ${{ steps.targets.outputs.targets }}

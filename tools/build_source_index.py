@@ -285,6 +285,12 @@ def collect_retrievals() -> list[dict]:
 SIDECAR_SUFFIXES = (".sha256", ".FAIL")
 
 
+def _is_digest_manifest(path: str) -> bool:
+    """True for a `.sha256` file listing more than one digest: a manifest."""
+    lines = [line for line in _read(path).splitlines() if line.strip()]
+    return len(lines) > 1
+
+
 def collect_frozen_artifacts() -> list[dict]:
     """Every source artifact under `inputs/`, hashed where a sidecar allows it.
 
@@ -298,6 +304,12 @@ def collect_frozen_artifacts() -> list[dict]:
     targets: set[str] = set()
     for sidecar_glob in ("*.sha256", "*.FAIL"):
         for sidecar in glob.glob(os.path.join(REPO, "inputs", "**", sidecar_glob), recursive=True):
+            if sidecar.endswith(".sha256") and _is_digest_manifest(sidecar):
+                # A `sha256sum` listing of several files (vendored upstream as
+                # e.g. `ref_kat/KAT_DIGESTS.sha256`) is a manifest, not the
+                # sidecar of a file named by its stem; treating it as one
+                # reports that nonexistent file as missing.
+                continue
             targets.add(sidecar[: sidecar.rindex(".")])
     for path in glob.glob(os.path.join(REPO, "inputs", "**", "sources", "*"), recursive=True):
         if os.path.isfile(path) and not path.endswith(SIDECAR_SUFFIXES):

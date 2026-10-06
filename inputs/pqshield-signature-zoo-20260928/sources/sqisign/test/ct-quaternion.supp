@@ -1,0 +1,461 @@
+# Valgrind suppressions for constant-time (ctgrind) testing — quaternion module allowlist.
+#
+# The quaternion layer (src/quaternion: ideal arithmetic, big integers, LLL, HNF, qlapoty) is KNOWN to be
+# non-constant-time in its current state and is deliberately exempted from CT testing. These entries are pure report
+# filters: valgrind's definedness (taint) tracking still propagates through the suppressed code, so secret-derived
+# quaternion outputs remain tainted and the modules that DO promise constant time (hd, ec, gf) remain fully checked.
+#
+# id2iso is exempted too, for the same reason: like the quaternion layer it makes no constant-time promise.
+#
+# All entries are anchored at the innermost (leaf) frame so that they exempt only branches INSIDE the
+# big-integer/quaternion layer, never leaks in callees.
+# NOTE (reviewers): leaf-anchored ibz_* entries match regardless of caller, so a secret-dependent big-integer
+# branch in a non-quaternion module (e.g. id2iso calling ibz_*) is also silenced.
+
+# ---------------------------------------------------------------------------
+# Quaternion module proper (src/quaternion): ibz_ big-int wrappers (intbig.c, some static helpers keep
+# unprefixed names), quat_ ideal/lattice algebra, qlapoty, HNF, LLL. Public symbols carry the sqisign_gen_ prefix;
+# static/LTO-internal ones keep their plain names (with .constprop/.isra/.lto_priv suffixes), hence the pairs of
+# patterns.
+{
+   ct-quat: ibz big-integer wrappers (public symbols)
+   Memcheck:Cond
+   fun:sqisign_gen_ibz_*
+}
+{
+   ct-quat: ibz big-integer wrappers (public symbols, value uses)
+   Memcheck:Value8
+   fun:sqisign_gen_ibz_*
+}
+{
+   ct-quat: ibz big-integer wrappers (static/LTO symbols)
+   Memcheck:Cond
+   fun:ibz_*
+}
+{
+   ct-quat: ibz big-integer wrappers (static/LTO symbols, value uses)
+   Memcheck:Value8
+   fun:ibz_*
+}
+{
+   ct-quat: quaternion algebra/lattice/ideal layer (public symbols)
+   Memcheck:Cond
+   fun:sqisign_gen_quat_*
+}
+{
+   ct-quat: quaternion algebra/lattice/ideal layer (public symbols, value uses)
+   Memcheck:Value8
+   fun:sqisign_gen_quat_*
+}
+{
+   ct-quat: quaternion algebra/lattice/ideal layer (quat_new_* and statics)
+   Memcheck:Cond
+   fun:quat_*
+}
+{
+   ct-quat: quaternion algebra/lattice/ideal layer (quat_new_* and statics, value uses)
+   Memcheck:Value8
+   fun:quat_*
+}
+
+# ---------------------------------------------------------------------------
+# src/mp internals: the non-constant-time big-integer backend that replaced GMP. These are the static
+# helpers below the ibz_* entry points -- schoolbook and Burnikel-Ziegler division (mp_divmod_schoolbook,
+# mp_div_unsigned, mp_div_d3n2n, mp_clz_digit, mp_shl_words, mp_shr_words), the Lehmer gcd/xgcd/invmod
+# inner loop (mp_lehmer_inner, mp_lehmer_combine), mp_compare, mp_mul_raw and friends -- plus normalise()
+# and propagate_bit(), which sit under ibz_set and ibz_set_bound's decrease branch.
+# The wildcard is deliberate: this set churns with every mp optimisation commit, and enumerating it by
+# name is how the previous version of this file went stale.
+{
+   ct-quat: mp big-integer internals (statics below the ibz_* API)
+   Memcheck:Cond
+   fun:mp_*
+}
+{
+   ct-quat: mp big-integer internals (value uses)
+   Memcheck:Value8
+   fun:mp_*
+}
+{
+   ct-quat: mp normalise() low-limb scan
+   Memcheck:Cond
+   fun:normalise
+}
+{
+   ct-quat: mp normalise() low-limb scan (value uses)
+   Memcheck:Value8
+   fun:normalise
+}
+{
+   ct-quat: mp propagate_bit()
+   Memcheck:Value8
+   fun:propagate_bit
+}
+{
+   ct-quat: mp digit_rsqrt_seed()
+   Memcheck:Value8
+   fun:digit_rsqrt_seed
+}
+# 128/64 division helper emitted by the compiler for mp_divmod_schoolbook's ddigit_t divide. No symbol
+# for its caller in some builds, so leaf-only; it is libgcc/compiler-rt code with no application branch.
+{
+   ct-quat: __udivmodti4 under mp division
+   Memcheck:Cond
+   fun:__udivmodti4
+}
+{
+   ct-quat: __udivmodti4 under mp division (value uses)
+   Memcheck:Value8
+   fun:__udivmodti4
+}
+
+# Montgomery / primality layers reached through ibz_pow_mod, ibz_sqrt_mod_p*, ibz_probab_prime and
+# ibz_sqrt_m1_mod_verified. BPSW (probprime_*) and the sliding-window exponentiation (modxpowe_non_ct,
+# which also indexes its precomputed table by secret window bits) are inherently variable-time.
+{
+   ct-quat: modqx Montgomery layer
+   Memcheck:Cond
+   fun:*modqx_*
+}
+{
+   ct-quat: modqx Montgomery layer (value uses)
+   Memcheck:Value8
+   fun:*modqx_*
+}
+{
+   ct-quat: non-CT sliding-window modular exponentiation
+   Memcheck:Cond
+   fun:modxpowe_non_ct
+}
+{
+   ct-quat: non-CT sliding-window modular exponentiation (value uses)
+   Memcheck:Value8
+   fun:modxpowe_non_ct
+}
+{
+   ct-quat: BPSW primality test
+   Memcheck:Cond
+   fun:probprime_*
+}
+{
+   ct-quat: BPSW primality test (value uses)
+   Memcheck:Value8
+   fun:probprime_*
+}
+# modone_div is a modqx.c static that does not carry the modqx_ prefix.
+{
+   ct-quat: modqx modone_div helper
+   Memcheck:Cond
+   fun:modone_div
+}
+{
+   ct-quat: modqx modone_div helper (value uses)
+   Memcheck:Value8
+   fun:modone_div
+}
+
+# prop() (modqx.c) and qlapoty_mod_digit() (primality_test.h) are static inline helpers that carry neither the
+# modqx_ nor the probprime_ prefix. When the compiler inlines them they become the innermost frame, and the
+# wildcard entries above stop matching -- the reports are the same already-accepted Montgomery/BPSW ones, only
+# the leaf symbol differs. This surfaced when ibz_probab_prime gained its tight-bound fast path, which changed
+# the inlining tree; the underlying non-CT behaviour is unchanged. Anchored on the caller rather than leaf-only
+# because "prop" is too generic a name to silence globally, with "..." so the entries survive inlining churn.
+{
+   ct-quat: modqx prop() carry propagation, inlined into the Montgomery layer
+   Memcheck:Cond
+   fun:prop
+   ...
+   fun:*modqx_*
+}
+{
+   ct-quat: modqx prop() carry propagation, inlined into the Montgomery layer (value uses)
+   Memcheck:Value8
+   fun:prop
+   ...
+   fun:*modqx_*
+}
+{
+   ct-quat: BPSW qlapoty_mod_digit(), inlined into the primality test
+   Memcheck:Cond
+   fun:qlapoty_mod_digit
+   ...
+   fun:probprime_*
+}
+{
+   ct-quat: BPSW qlapoty_mod_digit(), inlined into the primality test (value uses)
+   Memcheck:Value8
+   fun:qlapoty_mod_digit
+   ...
+   fun:probprime_*
+}
+
+{
+   ct-quat: SHAKE squeezed with a secret-derived length from ibz_rand_interval
+   Memcheck:Cond
+   fun:keccak_*
+   ...
+   fun:sqisign_gen_ibz_rand_interval*
+}
+{
+   ct-quat: SHAKE squeezed with a secret-derived length from ibz_rand_interval (value uses)
+   Memcheck:Value8
+   fun:keccak_*
+   ...
+   fun:sqisign_gen_ibz_rand_interval*
+}
+{
+   ct-quat: libc mem* under the same secret-length squeeze
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:sqisign_gen_ibz_rand_interval*
+}
+{
+   ct-quat: libc mem* under the same secret-length squeeze (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:sqisign_gen_ibz_rand_interval*
+}
+
+{
+   ct-quat: qlapoty jacobi search helper
+   Memcheck:Cond
+   fun:qlapoty_find_jacobi_minus_one
+}
+{
+   ct-quat: qlapoty jacobi search helper (value uses)
+   Memcheck:Value8
+   fun:qlapoty_find_jacobi_minus_one
+}
+# multiple_mp_shiftl / multiple_mp_shiftr do not start with "mp_", so the wildcard above misses them.
+{
+   ct-quat: mp multi-word shifts
+   Memcheck:Cond
+   fun:multiple_mp_*
+}
+{
+   ct-quat: mp multi-word shifts (value uses)
+   Memcheck:Value8
+   fun:multiple_mp_*
+}
+{
+   ct-quat: __umodti3 under mp/modqx
+   Memcheck:Cond
+   fun:__umodti3
+}
+{
+   ct-quat: __umodti3 under mp/modqx (value uses)
+   Memcheck:Value8
+   fun:__umodti3
+}
+
+{
+   ct-quat: libc mem* from mp internals
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:mp_*
+}
+{
+   ct-quat: libc mem* from mp internals (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:mp_*
+}
+{
+   ct-quat: libc mem* from an ibz_* caller
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:sqisign_gen_ibz_*
+}
+{
+   ct-quat: libc mem* from an ibz_* caller (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:sqisign_gen_ibz_*
+}
+{
+   ct-quat: libc mem* from a quaternion caller
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:sqisign_gen_quat_*
+}
+{
+   ct-quat: libc mem* from a quaternion caller (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:sqisign_gen_quat_*
+}
+{
+   ct-quat: libc mem* from modqx / primality internals
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:*modqx_*
+}
+{
+   ct-quat: libc mem* from modqx / primality internals (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:*modqx_*
+}
+{
+   ct-quat: libc mem* from BPSW
+   Memcheck:Cond
+   fun:*mem*
+   ...
+   fun:probprime_*
+}
+{
+   ct-quat: libc mem* from BPSW (value uses)
+   Memcheck:Value8
+   fun:*mem*
+   ...
+   fun:probprime_*
+}
+
+# ---------------------------------------------------------------------------
+# Valgrind's own replacement string routines, VALUE USES ONLY.
+#
+{
+   ct-quat: valgrind replacement mem* copying tainted payload bytes (never a branch)
+   Memcheck:Value8
+   obj:*vgpreload_memcheck*
+}
+
+# ---------------------------------------------------------------------------
+# src/id2iso: ideal-to-isogeny translation. No constant-time promise, same status as the quaternion layer.
+{
+   ct-quat: id2iso ideal-to-isogeny layer
+   Memcheck:Cond
+   fun:*id2iso_*
+}
+{
+   ct-quat: id2iso ideal-to-isogeny layer (value uses)
+   Memcheck:Value8
+   fun:*id2iso_*
+}
+
+# ---------------------------------------------------------------------------
+# ibz_to_digits (src/mp/ref/lvlx/mp.c) sizes its copy by the bit length of the source:
+#
+#     memcpy(target, source->limbs, NUM_LIMBS(ibz_bitsize(source)) * sizeof(digit_t));
+#
+{
+   ct-quat: ibz_to_digits copy length -- id2iso ideal-to-isogeny layer
+   Memcheck:Cond
+   fun:mem*
+   fun:*id2iso_*
+}
+{
+   ct-quat: ibz_to_digits copy length -- id2iso ideal-to-isogeny layer, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:*id2iso_*
+}
+{
+   ct-quat: ibz_to_digits copy length -- secret-key encoding
+   Memcheck:Cond
+   fun:mem*
+   fun:sig_ibz_to_bytes*
+}
+{
+   ct-quat: ibz_to_digits copy length -- secret-key encoding, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:sig_ibz_to_bytes*
+}
+{
+   ct-quat: ibz_to_digits copy length -- Tate pairing dlog output
+   Memcheck:Cond
+   fun:mem*
+   fun:fp2_dlog_2e*
+}
+{
+   ct-quat: ibz_to_digits copy length -- Tate pairing dlog output, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:fp2_dlog_2e*
+}
+{
+   ct-quat: ibz_to_digits copy length -- signature basis-change matrix
+   Memcheck:Cond
+   fun:mem*
+   fun:compute_and_set_basis_change_matrix*
+}
+{
+   ct-quat: ibz_to_digits copy length -- signature basis-change matrix, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:compute_and_set_basis_change_matrix*
+}
+{
+   ct-quat: ibz_to_digits copy length -- dim-2 challenge scalar
+   Memcheck:Cond
+   fun:mem*
+   fun:compute_dim2_isogeny_challenge*
+}
+{
+   ct-quat: ibz_to_digits copy length -- dim-2 challenge scalar, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:compute_dim2_isogeny_challenge*
+}
+{
+   ct-quat: ibz_to_digits copy length -- not inlined
+   Memcheck:Cond
+   fun:mem*
+   fun:*ibz_to_digits*
+}
+{
+   ct-quat: ibz_to_digits copy length -- not inlined, value uses
+   Memcheck:Value8
+   fun:mem*
+   fun:*ibz_to_digits*
+}
+
+# ---------------------------------------------------------------------------
+# Rejection-sampling success flags. keygen.c:36 and sign.c:22 both read
+{
+   ct-quat: rejection-sampling success flag (keygen)
+   Memcheck:Cond
+   fun:*protocols_keygen*
+   fun:*sqisign_keypair*
+}
+{
+   ct-quat: rejection-sampling success flag (keygen, value uses)
+   Memcheck:Value8
+   fun:*protocols_keygen*
+   fun:*sqisign_keypair*
+}
+{
+   ct-quat: rejection-sampling success flag (commit)
+   Memcheck:Cond
+   fun:commit*
+   fun:*protocols_sign*
+}
+{
+   ct-quat: rejection-sampling success flag (commit, value uses)
+   Memcheck:Value8
+   fun:commit*
+   fun:*protocols_sign*
+}
+
+# ---------------------------------------------------------------------------
+# Dynamic linker: the first call into a lazily-bound library entry point goes
+# through _dl_runtime_resolve, whose register save/restore of the caller's (tainted) argument registers is a
+# well-known memcheck false positive. Leaf-only anchor, deliberately: the unwinder often cannot walk past the
+# trampoline (the caller frame records as 0xFFFFFFFFFFFFFFFF), so a caller-anchored entry does not match reliably,
+# and the trampoline is pure dynamic-linker machinery - no application branch can hide under this leaf.
+{
+   ct-quat: lazy PLT binding (register save/restore false positive)
+   Memcheck:Value8
+   fun:_dl_runtime_resolve
+}

@@ -131,8 +131,8 @@ class FactorBase:
             f = dickson_coefficients(d, c, p)
             f[0] = (f.get(0, 0) - lam) % p
             return {k: v for k, v in f.items() if v}
-        if self.kind == "known_log":
-            raise NotImplementedError("the known_log base has no membership polynomial")
+        if self.kind in ("known_log", "planted"):
+            raise NotImplementedError(f"the {self.kind} base has no membership polynomial")
         coeffs = [1]
         for P in self.points:
             xj = P[0]
@@ -261,6 +261,69 @@ class FactorBase:
             pts.append(R)
         assert len({Pt[0] for Pt in pts}) == len(pts), "known_log x-coordinates must be distinct"
         return cls("known_log", pts, {"logs": f"1..{size}", "note": "H017 small multiples"}, E.p)
+
+    @classmethod
+    def planted(cls, E: Curve, size: int, seed: int = 0) -> "FactorBase":
+        """EXP-PFDR-011cd0 EC-6: a random base carrying planted relations of known number.
+
+        Start from ``FactorBase.random(E, size, seed)``.  n_tt = max(1, round(s^4 / (6 N)))
+        TT plants: the i-th uses the next unused 4-tuple of consecutive indices
+        (a, b, c', d) and replaces F_d by F_a + F_b - F_c'.  Then one TB plant: the
+        next unused 3-tuple (a, b, e), F_e replaced by F_a + F_b.  New points are
+        computed on a separate Curve instance and stored as computed.  A tuple whose
+        new point is the identity, has y = 0, or has an x already in the base is
+        skipped (recorded) and the next tuple is used; a tuple's indices are consumed
+        whether it is planted or skipped.  |F| stays s.  Not in FACTOR_BASES; no
+        membership polynomial.
+        """
+        base = cls.random(E, size, seed)
+        pts = list(base.points)
+        s, N = len(pts), E.order
+        Ev = Curve(E.p, E.a, E.b, E.order)
+        n_tt = max(1, round(s ** 4 / (6 * N)))
+        planted_rel: list[dict] = []
+        skipped: list[dict] = []
+        cursor = 0
+
+        def new_ok(Pn) -> str | None:
+            if Pn is None:
+                return "identity"
+            if Pn[1] == 0:
+                return "y_zero"
+            if any(Pt[0] == Pn[0] for Pt in pts):
+                return "x_in_base"
+            return None
+
+        tt_done = 0
+        while tt_done < n_tt:
+            if cursor + 4 > s:
+                raise ValueError(f"planted base: no unused 4-tuple left for TT plant {tt_done + 1}")
+            a, b, c2, d = range(cursor, cursor + 4)
+            cursor += 4
+            Pn = Ev.add(Ev.add(pts[a], pts[b]), Ev.neg(pts[c2]))
+            why = new_ok(Pn)
+            if why is not None:
+                skipped.append({"class": "TT", "indices": [a, b, c2, d], "reason": why})
+                continue
+            pts[d] = Pn
+            planted_rel.append({"class": "TT", "indices": [a, b, c2, d], "signs": [1, 1, -1, -1]})
+            tt_done += 1
+        while True:
+            if cursor + 3 > s:
+                raise ValueError("planted base: no unused 3-tuple left for the TB plant")
+            a, b, e = range(cursor, cursor + 3)
+            cursor += 3
+            Pn = Ev.add(pts[a], pts[b])
+            why = new_ok(Pn)
+            if why is not None:
+                skipped.append({"class": "TB", "indices": [a, b, e], "reason": why})
+                continue
+            pts[e] = Pn
+            planted_rel.append({"class": "TB", "indices": [a, b, e], "signs": [1, 1, -1]})
+            break
+        params = {"seed": seed, "start": "FactorBase.random(E, size, seed)", "n_tt": n_tt,
+                  "n_tb": 1, "planted_relations": planted_rel, "skipped_tuples": skipped}
+        return cls("planted", pts, params, E.p)
 
 
 def build_factor_base(E: Curve, kind: str, size: int, seed: int = 0) -> FactorBase:
