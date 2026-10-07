@@ -6,12 +6,11 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261007-8116c4` | coordinator | queued | 50 | TASK-20261007-8ab26c | coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-8116c4/snapshot-receipt.json | coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-8116c4 |
+| `TASK-20261007-b6c1ec` | red-team | queued | 40 | TASK-20261007-8ab26c, TASK-20261007-8116c4 | coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/revision-review.yaml, coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/review-attestation.yaml, coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/runtime-session-receipt.json | coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec |
 
 ## Deferred or Blocked
 
 - `TASK-20261007-9c36ba`: dependency_not_completed:TASK-20261007-c47fc6:queued
-- `TASK-20261007-b6c1ec`: dependency_not_completed:TASK-20261007-8116c4:queued
 - `TASK-20261007-c47fc6`: dependency_not_completed:TASK-20261007-b6c1ec:queued
 - `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-b6c1ec:queued, dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
 
@@ -29,20 +28,4 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-## Unlanded producer output
-
-These declared artifacts exist in this working tree and are ABSENT
-from `HEAD`. They exist on one machine. When it goes away they go with
-it, which is what happened to two blind source reads and a completed
-run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
-
-A running producer legitimately appears here, so this is a report and
-not a gate. Land anything whose producer has already returned.
-
-- `TASK-20261007-8ab26c` (idea-generator, completed):
-  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revised-candidate.md`
-  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revised-scheme-contract.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revision-map.yaml`
-  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-8ab26c --push`
-
-Plan SHA-256: `f7bdd9c1e2cd7ef7af2d9dff65eb358573f7055bc7a4d119b4c7f09801b1e2b1`
+Plan SHA-256: `f1c5805008e24c3ed049c9d0c60d1a1974fac65bf4fe80a9779960178b745d29`
