@@ -63,6 +63,30 @@ role1_interface_addendum:
       - RUN_DIR
       - --out
       - RUN_DIR/independent-verification.json
+    supervisor_argv_template:
+      - SUPERVISOR_BIN
+      - --producer
+      - PRODUCER_BIN
+      - --verifier
+      - VERIFIER_BIN
+      - --producer-source
+      - PRODUCER_SOURCE
+      - --verifier-source
+      - VERIFIER_SOURCE
+      - --protocol-repository
+      - PROTOCOL_REPOSITORY
+      - --decision
+      - DECISION_PATH
+      - --run-dir
+      - RUN_DIR
+      - --protocol-commit
+      - PROTOCOL_COMMIT
+      - --source-commit
+      - SOURCE_COMMIT
+      - --verifier-commit
+      - VERIFIER_COMMIT
+      - --audit-out
+      - RUN_DIR/dependency-audit.json
     immutable_v2_required_outputs:
       - identity.json
       - maximal-order.json
@@ -78,6 +102,14 @@ role1_interface_addendum:
       - reference-box/disposition.bin
       - reference-box/certificates.bin
       - independent-agreement.json
+      - dependency-audit.json
+    canonical_v2_custody_outputs:
+      - manifest.yaml
+      - command.txt
+      - environment.json
+      - stdout.log
+      - stderr.log
+      - raw-result.json
     ownership:
       producer:
         - identity.json
@@ -95,12 +127,22 @@ role1_interface_addendum:
       non_arithmetic_supervisor:
         - independent-agreement.json
         - independent-verifier-receipt.json
+        - dependency-audit.json
+        - manifest.yaml
+        - command.txt
+        - environment.json
+        - stdout.log
+        - stderr.log
+        - raw-result.json
     location_rule: >-
       Every relative path is beneath the one resolved RUN_DIR.  A path is used
       literally with slash separators; dot segments, symlinks, alternate names,
       shell expansion, implicit defaults, and writes outside RUN_DIR are
       forbidden.  The supervisor creates a fresh RUN_DIR and refuses an
-      existing path.
+      existing path.  Its dependency audit is written only as
+      RUN_DIR/dependency-audit.json; an arbitrary or external --audit-out is
+      forbidden.  The six canonical v2 custody outputs retain their repository
+      run-record meanings and do not become scientific Role-1 results.
 
   source_commit_binding:
     protocol_commit: >-
@@ -138,10 +180,64 @@ role1_interface_addendum:
       The supervisor hashes exact executable bytes before either child starts.
       Producer and verifier binary SHA-256 values are lowercase 64-hex and are
       repeated in their verification records and the supervisor receipt.  The
-      producer build receipt records P192_WCM_PROTOCOL_COMMIT and
-      P192_WCM_SOURCE_COMMIT by name and their embedded non-secret values; the
-      verifier build receipt similarly records P192_WCM_VERIFIER_COMMIT.  The
-      runtime environment cannot override any of them.
+      three closed records at authorization.executables.{supervisor,producer,
+      verifier} in the fresh Coordinator decision are the sole build receipts;
+      no additional unnamed build-receipt path or file is required.  Each binds
+      repository URL, clean Git repository_path and exact package_path, source
+      commit, release profile, binary path, exact byte length, and exact binary
+      SHA-256.  The producer record additionally binds its embedded protocol and
+      source commits, the verifier record its embedded verifier commit, and the
+      supervisor record all six embedded build values frozen below.  These
+      minimal receipts intentionally do not claim an exact compiler/toolchain
+      identity or independently serialized locked dependency graph; executable
+      hashes bind the admitted bytes, while dependency-audit.json separately
+      binds the available Cargo manifests, verifier Cargo.lock, and Rust source
+      bytes.  Runtime environment cannot override an embedded commit.
+    supervisor_build_binding: >-
+      The supervisor release build requires P192_WCM_PROTOCOL_COMMIT,
+      P192_WCM_SOURCE_COMMIT, and P192_WCM_VERIFIER_COMMIT, validates each as a
+      nonzero lowercase 40-hex commit, and embeds them respectively as
+      P192_WCM_EMBEDDED_PROTOCOL_COMMIT,
+      P192_WCM_EMBEDDED_SUPERVISOR_COMMIT, and
+      P192_WCM_EMBEDDED_VERIFIER_COMMIT.  It also embeds
+      P192_WCM_EMBEDDED_BUILD_PROFILE=release,
+      P192_WCM_EMBEDDED_SUPERVISOR_DIRTY=false, and
+      P192_WCM_EMBEDDED_GIT_METADATA_PRESENT=true.  Release compilation fails
+      without Git metadata, on a dirty tree, or when the supervisor/source
+      commit differs from the containing repository HEAD.  The separately
+      bound verifier commit may name the clean verifier checkout rather than
+      the supervisor checkout.  The decision and environment.json repeat all
+      six embedded values exactly.
+    supervisor_invocation: >-
+      A fresh Coordinator decision resolves every placeholder in the exact
+      supervisor argv template.  SUPERVISOR_BIN, PRODUCER_BIN, VERIFIER_BIN,
+      PRODUCER_SOURCE, VERIFIER_SOURCE, PROTOCOL_REPOSITORY, DECISION_PATH, and
+      RUN_DIR become normalized absolute non-symlink paths.  PRODUCER_SOURCE and
+      VERIFIER_SOURCE are respectively
+      the exact package roots ending in tools/p192-weighted-cm and
+      tools/p192-weighted-cm-verify; they are strict descendants of separately
+      bound Git repository top levels.  PROTOCOL_REPOSITORY is the exact clean
+      checkout in which the decision is committed, and DECISION_PATH is exactly
+      PROTOCOL_REPOSITORY/ledger/decisions/<decision-id>.yaml.  The three commit placeholders become
+      exact nonzero lowercase 40-hex values matching the decision and embedded
+      binary values.  The final audit path is exactly
+      RUN_DIR/dependency-audit.json.  The supervisor refuses every other option,
+      order, path, repository/package mismatch, missing clean HEAD binding, or
+      runtime commit override.
+    decision_custody_binding: >-
+      Immediately before creating RUN_DIR, the supervisor requires the
+      protocol repository to have a clean worktree and reads its exact HEAD as
+      decision_commit.  It requires protocol_commit to be a strict ancestor,
+      the decision path to be a regular 100644 blob at decision_commit and
+      absent at protocol_commit, the working decision bytes to equal that blob,
+      and every protected protocol mode/blob to be unchanged from
+      protocol_commit through decision_commit with current bytes equal to the
+      protected blobs.  The decision deliberately does not contain its own
+      commit or byte hash, which would be self-referential.  The supervisor
+      derives them from the verified checkout and records the closed
+      independent-verifier-receipt.json decision_binding.  raw-result.json
+      hashes that exact receipt and manifest.yaml hashes both files, so retained
+      custody cannot be paired silently with another decision.
 
   offline_reference_binding:
     document: SEC2 version 2.0
@@ -174,6 +270,104 @@ role1_interface_addendum:
     enum_case: exact
     path_encoding: UTF-8 relative slash-separated path with no dot segment
     array_order: semantically binding
+
+  canonical_v2_custody:
+    command.txt:
+      bytes: >-
+        RFC8785 JSON encoding of the exact resolved twenty-three-string supervisor
+        argv array, including its normalized absolute supervisor executable as
+        argv[0], with no BOM or trailing newline.
+    environment.json:
+      schema_value: p192-wcm-role1-environment-v1
+      exact_top_level_keys:
+        - schema
+        - protocol_commit
+        - source_commit
+        - verifier_commit
+        - supervisor_binary_sha256
+        - producer_binary_sha256
+        - verifier_binary_sha256
+        - supervisor_build
+        - child_environment_policy
+        - removed_variable_names
+        - forbidden_loader_override_names_present
+        - secret_values_recorded
+      fixed_values: >-
+        child_environment_policy is
+        inherit_except_removed_commit_variables_and_forbid_loader_overrides;
+        removed_variable_names is exactly P192_WCM_PROTOCOL_COMMIT,
+        P192_WCM_SOURCE_COMMIT, P192_WCM_VERIFIER_COMMIT in that order;
+        forbidden_loader_override_names_present is empty and
+        secret_values_recorded is false.  Commit and binary-hash fields equal
+        the corresponding receipt/decision bindings.  supervisor_build has
+        exactly embedded_protocol_commit, embedded_supervisor_commit,
+        embedded_verifier_commit, embedded_build_profile,
+        embedded_supervisor_dirty, and embedded_git_metadata_present, with the
+        six values frozen by supervisor_build_binding.  The supervisor refuses
+        any LD_ or DYLD_ variable rather than recording its value.
+    stdout.log:
+      bytes: >-
+        ASCII "P192-WCM-SUPERVISOR-STDOUT-v1\0" ||
+        u64be(producer_stdout_length) || exact producer stdout bytes ||
+        u64be(verifier_stdout_length) || exact verifier stdout bytes.
+        This is an explicitly framed child-stream custody file, not a claim to
+        be an operating-system capture of the supervisor's own stdout.
+    stderr.log:
+      bytes: >-
+        ASCII "P192-WCM-SUPERVISOR-STDERR-v1\0" ||
+        u64be(producer_stderr_length) || exact producer stderr bytes ||
+        u64be(verifier_stderr_length) || exact verifier stderr bytes.
+        This is an explicitly framed child-stream custody file, not a claim to
+        be an operating-system capture of the supervisor's own stderr.
+    raw-result.json:
+      schema_value: p192-wcm-role1-raw-result-v1
+      exact_top_level_keys:
+        - schema
+        - experiment_id
+        - run_id
+        - stage
+        - protocol_commit
+        - source_commit
+        - verifier_commit
+        - run_dir
+        - agreement_sha256
+        - audit_sha256
+        - receipt_sha256
+        - scientific_result
+        - scientific_results
+        - status
+      fixed_values: >-
+        stage is P192-WCM-PREFLIGHT, scientific_result is false,
+        scientific_results is empty, and status is PASS.  The three hashes are
+        raw hashes of independent-agreement.json, dependency-audit.json, and
+        independent-verifier-receipt.json.  On success the supervisor writes
+        these canonical bytes, then writes manifest.yaml, then emits exactly
+        the same raw-result bytes plus one LF on its own stdout and emits
+        nothing on its own stderr.  No scientific timing or result is present.
+    manifest.yaml:
+      encoding: >-
+        Canonical RFC8785 JSON with no trailing newline; JSON is a YAML 1.2
+        document.  The sole top-level key is run.
+      run_exact_top_level_keys:
+        - id
+        - experiment_id
+        - status
+        - code
+        - environment
+        - inputs
+        - timing
+        - result
+        - artifacts
+      fixed_values: >-
+        id equals the allocated RUN-SCURVE-six-lower-hex directory basename;
+        experiment_id is EXP-SCURVE-1a8daf; status is completed.  code binds
+        the supervisor repository/source commit and command.txt.  environment
+        binds environment.json.  inputs name only P192-WCM-PREFLIGHT, REF-0,
+        and candidate_count 1025.  timing.status is
+        not_recorded_non_scientific_preflight.  result names raw-result.json,
+        scientific_result false, and certificate kind none.  artifacts is the
+        exact ordered common-artifact inventory of every required Role-1 and
+        custody file except manifest.yaml itself, so no self-hash occurs.
 
   common_record_types:
     verdict:
@@ -561,6 +755,154 @@ role1_interface_addendum:
         - reference_disposition_shell_sha256
       status_rule: overall_status is PASS iff all eight records exist in exact order and every equal is true
 
+    dependency-audit.json:
+      schema_value: p192-wcm-dependency-audit-v1
+      exact_top_level_keys:
+        - schema
+        - identical_source_hashes
+        - producer_cargo_toml_sha256
+        - producer_git
+        - producer_rust_sources
+        - source_clone_screen
+        - shared_implementation_components
+        - verifier_cargo_lock_sha256
+        - verifier_cargo_toml_sha256
+        - verifier_crypto_lib_found
+        - verifier_git
+        - verifier_rust_sources
+      source_record_exact_keys: [path, sha256]
+      git_record_exact_keys: [git_head, git_top_level, package_root, worktree_clean]
+      fixed_values: >-
+        identical_source_hashes and shared_implementation_components are empty;
+        verifier_crypto_lib_found is false; both git_head values equal the
+        decision-bound implementation commits and both worktree_clean values
+        are true.  Each git_top_level equals its decision-bound repository_path;
+        each package_root equals its decision-bound package_path.  Source-record
+        paths are strictly increasing in each array and relative to the
+        corresponding package root.
+        The receipt audit_output_sha256 is the raw SHA-256 of these exact
+        canonical JSON bytes.  During post-run admission the protected Role-1
+        checker independently recomputes both Cargo.toml hashes, the verifier
+        Cargo.lock hash, both ordered Rust-source hash arrays, the identical
+        source list, and source_clone_screen from the decision-bound package
+        roots, then requires exact JSON value equality.  source_clone_screen
+        uses the exact rust-structural-v1 gate below and must PASS.  This
+        high-similarity screen and the
+        import/whole-file checks do not prove zero conceptual commonality or
+        common lineage; independent human source review remains an admission
+        obligation.
+      source_clone_screen:
+        roots: >-
+          Recursively scan every regular UTF-8 *.rs beneath
+          PRODUCER_SOURCE/src and VERIFIER_SOURCE/src, where each *_SOURCE is
+          the exact package root passed in the supervisor argv, in
+          lexicographic relative-path order.  Reject symlinks.  Exclude only a
+          path having a component exactly target.
+        normalization: >-
+          rust-structural-v1 discards ASCII whitespace, // comments, and
+          correctly nested /* */ comments.  Rust keywords remain their literal
+          keyword token.  Every other identifier becomes IDENT after stripping
+          a raw-identifier r# prefix; numeric literals become NUMBER; cooked or
+          raw byte/string/character literals become LITERAL.  Punctuation and
+          operators use longest-match tokenization; any remaining character is
+          one Unicode scalar token.
+        keywords_in_order:
+          - as
+          - async
+          - await
+          - break
+          - const
+          - continue
+          - crate
+          - dyn
+          - else
+          - enum
+          - extern
+          - 'false'
+          - fn
+          - for
+          - if
+          - impl
+          - in
+          - let
+          - loop
+          - match
+          - mod
+          - move
+          - mut
+          - pub
+          - ref
+          - return
+          - self
+          - Self
+          - static
+          - struct
+          - super
+          - trait
+          - 'true'
+          - type
+          - union
+          - unsafe
+          - use
+          - where
+          - while
+          - abstract
+          - become
+          - box
+          - do
+          - final
+          - macro
+          - override
+          - priv
+          - typeof
+          - unsized
+          - virtual
+          - yield
+          - try
+        multi_character_operators_longest_first:
+          - '<<='
+          - '>>='
+          - '..='
+          - '...'
+          - '::'
+          - '->'
+          - '=>'
+          - '=='
+          - '!='
+          - '<='
+          - '>='
+          - '&&'
+          - '||'
+          - '+='
+          - '-='
+          - '*='
+          - '/='
+          - '%='
+          - '^='
+          - '&='
+          - '|='
+          - '<<'
+          - '>>'
+          - '..'
+        matching: >-
+          Seed every contiguous 64-token producer and verifier window by the
+          token digest below.  On equal digests compare the actual token slices,
+          extend equal slices in both directions to maximal runs, deduplicate
+          identical endpoint tuples, and discard a run wholly contained in a
+          longer run for the same file pair.  Report every maximal run of at
+          least 64 tokens.  Order matches by descending token_count, then
+          producer_path, producer_token_start, producer_token_end_exclusive,
+          verifier_path, verifier_token_start, verifier_token_end_exclusive.
+          PASS requires max_match_tokens less than 128; zero matches gives zero.
+        token_digest: >-
+          SHA256(ASCII "P192-WCM-RUST-TOKENS-v1\0" || for each normalized
+          token: u32be(UTF-8 byte length) || exact UTF-8 token bytes).
+        tree_digest: >-
+          SHA256(ASCII "P192-WCM-RUST-SOURCE-TREE-v1\0" || for each source in
+          lexicographic relative-path order: u32be(path UTF-8 byte length) ||
+          path UTF-8 bytes || u64be(raw file byte length) || raw file bytes).
+        claim_limit: high_similarity_screen_not_proof_of_zero_conceptual_or_common_lineage
+
     independent-verifier-receipt.json:
       schema_value: p192-wcm-independent-verifier-receipt-v1
       exact_top_level_keys:
@@ -571,6 +913,7 @@ role1_interface_addendum:
         - source_commit
         - verifier_commit
         - run_dir
+        - decision_binding
         - wrapper
         - producer
         - verifier
@@ -581,6 +924,17 @@ role1_interface_addendum:
         - agreement_sha256
         - overall_status
       wrapper_exact_keys: [binary_sha256, contains_curve_arithmetic]
+      decision_binding_exact_keys:
+        - decision_id
+        - decision_path
+        - decision_commit
+        - decision_sha256
+        - decision_git_mode
+        - protocol_repository_path
+        - protocol_checkout_head
+        - protocol_worktree_clean_before_run
+        - protocol_commit_is_strict_ancestor
+        - protected_protocol_paths_unchanged
       child_exact_keys:
         - binary_sha256
         - commit
@@ -598,7 +952,11 @@ role1_interface_addendum:
         - audit_method
         - audit_output_sha256
       fixed_values: >-
-        wrapper.contains_curve_arithmetic is false.  Each child build_profile is
+        decision_binding records the exact decision id, normalized absolute
+        path, derived checkout HEAD/decision commit, raw decision-byte SHA-256,
+        Git mode 100644, normalized absolute protocol repository path, and true
+        pre-run cleanliness, strict-ancestry, and protected-path checks.  Its
+        protocol_checkout_head equals decision_commit.  wrapper.contains_curve_arithmetic is false.  Each child build_profile is
         release and worktree_clean is true; a non-release or dirty binary cannot
         receive a PASS receipt.  Producer child commit equals
         source_commit; verifier child commit equals verifier_commit.  Producer
@@ -801,6 +1159,30 @@ role1_interface_addendum:
           - residual_L_squared_plus_one_is_rejected_by_inequality
 
   role1_control_fixtures:
+    P192-SQRT-D:
+      alpha_coordinates:
+        u: '-31607402316713927207482677199'
+        v: '2'
+      norm: '24109379060336110122544161233113975664949272517896865359515'
+      factorization:
+        primes_in_order: ['5', '11', '31']
+        residual_C: '14140398275856956083603613626459809774163796198179979683'
+      subgroup_order_n: '6277101735386680763835789423176059013767194773182842284081'
+      frobenius_scalar_mod_n: '1'
+      derived_alpha_scalar_mod_n: '6277101735386680763835789423144451611450480845975359606884'
+      scalar_derivation: (u + v*frobenius_scalar_mod_n) mod subgroup_order_n
+      scalar_square_congruence: derived_alpha_scalar_mod_n^2 == D mod subgroup_order_n
+      C_in_factor_base: false
+      C_degree_map_available: false
+      C_scalar_action_admitted: false
+      replay_rule: >-
+        Independently verify the P-192 generator is F_p-rational, derive that
+        Frobenius acts as scalar 1 on the named prime-order subgroup, derive the
+        exact nonzero alpha scalar above rather than trusting its label, verify
+        its square is D modulo n, and then reject admission because the exact C
+        factor is neither in the factor base nor covered by an available
+        C-degree map.  Merely observing C is unavailable does not satisfy the
+        separate scalar-action assertion.
     D23-ORDER3:
       D: '-23'
       t: '1'
@@ -859,6 +1241,52 @@ role1_interface_addendum:
         Each pointer identifies exactly one scalar in the frozen base fixture.
         before_value must equal the scalar at target_field_path; a mutation
         replaces only that scalar with after_value.  No other scalar changes.
+      implementation_private_hash_carrier:
+        visibility: transient_in_memory_per_implementation_not_serialized
+        encoding: RFC8785 JSON with no BOM or trailing newline
+        file_schema: p192-wcm-implementation-mutation-file-v1
+        file_exact_keys: [schema, records, file_sha256]
+        record_exact_keys:
+          - mutation_id
+          - fixture_kind
+          - target_field_path
+          - fixture
+          - record_sha256
+        records_per_file: 1
+        fixture_kinds: [D23-ORDER3, LP-BOUNDARY]
+        D23_fixture: >-
+          The exact object at D23-ORDER3.mutation_target_record, with no added,
+          omitted, or renamed field.
+        LP_fixture: >-
+          Exactly {q:2147483647,smaller_root:1109020142,
+          larger_root:2025854371,sign:1,multiplicity:1}; the field order shown is
+          descriptive because RFC8785 orders object keys.
+        record_hash: >-
+          lowercase hex SHA256(ASCII "P192-WCM-MUTATION-RECORD-v1\0" ||
+          RFC8785({fixture,fixture_kind,mutation_id,target_field_path})).  The
+          projection has exactly those four keys and excludes record_sha256.
+        file_hash: >-
+          lowercase hex SHA256(ASCII "P192-WCM-MUTATION-FILE-v1\0" ||
+          RFC8785({records,schema})).  records contains the one fully sealed
+          record including record_sha256; the projection excludes file_sha256.
+        replay_per_implementation: >-
+          Producer and isolated verifier each independently process all nine
+          mutations in mutations_in_order.  They first validate the unmodified
+          base fixture and prove the mutated fixture has the same object/array
+          shape and differs at exactly the one scalar selected by the frozen
+          target pointer.  A carrier with the mutated fixture and stale record
+          hash must fail hash validation.  After recomputing record_sha256 while
+          leaving file_sha256 stale it must again fail hash validation.  After
+          recomputing both hashes the hash-chain validation must pass and only
+          then must mathematical semantic replay reject the mutation.  A stale
+          hash rejection does not count as a semantic mutation rejection.
+        exact_internal_counts:
+          cases: 9
+          exact_single_scalar_changes: 9
+          stale_record_hash_rejections: 9
+          stale_file_hash_rejections: 9
+          recomputed_hash_chain_acceptances: 9
+          semantic_rejections_after_hash_acceptance: 9
       mutations_in_order:
         - id: root
           target_field_path: /role1_interface_addendum/role1_control_fixtures/D23-ORDER3/mutation_target_record/selected_root

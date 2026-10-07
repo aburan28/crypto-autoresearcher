@@ -5,11 +5,16 @@
   "oneOf": [
     {"$ref": "#/$defs/identity"},
     {"$ref": "#/$defs/maximalOrder"},
+    {"$ref": "#/$defs/factorBase"},
     {"$ref": "#/$defs/controls"},
     {"$ref": "#/$defs/referenceBox"},
     {"$ref": "#/$defs/producerVerification"},
     {"$ref": "#/$defs/independentVerification"},
     {"$ref": "#/$defs/independentAgreement"},
+    {"$ref": "#/$defs/dependencyAudit"},
+    {"$ref": "#/$defs/role1Environment"},
+    {"$ref": "#/$defs/role1RawResult"},
+    {"$ref": "#/$defs/runManifest"},
     {"$ref": "#/$defs/verifierReceipt"}
   ],
   "$defs": {
@@ -139,6 +144,44 @@
         {"$ref": "#/$defs/trialDivisionProof"},
         {"$ref": "#/$defs/pocklingtonProof"}
       ]
+    },
+    "factorBaseEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ell", "kind", "kronecker", "roots", "positive_root_index"],
+      "properties": {
+        "ell": {"type": "integer", "minimum": 2, "maximum": 65521},
+        "kind": {"enum": [0, 1]},
+        "kronecker": {"enum": [0, 1]},
+        "roots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "positive_root_index": {"const": 0}
+      }
+    },
+    "factorBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "curve_uid", "p", "t", "D", "algebraic_bound", "mappable_bound", "source_commit", "entry_count", "entries"],
+      "properties": {
+        "schema": {"const": "p192-wcm-factor-base-v1"},
+        "curve_uid": {"const": "urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646"},
+        "p": {"const": "6277101735386680763835789423207666416083908700390324961279"},
+        "t": {"const": "31607402316713927207482677199"},
+        "D": {"const": "-24109379060336110122544161233113975664949272517896865359515"},
+        "algebraic_bound": {"const": 65521},
+        "mappable_bound": {"const": 113},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "entry_count": {"type": "integer", "minimum": 1},
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/factorBaseEntry"}
+        }
+      }
     },
     "identity": {
       "type": "object",
@@ -511,10 +554,299 @@
         "completed_sequence": {"type": "integer", "minimum": 0}
       }
     },
+    "sourceHashRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sourceGitRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_head", "git_top_level", "package_root", "worktree_clean"],
+      "properties": {
+        "git_head": {"$ref": "#/$defs/commit"},
+        "git_top_level": {"type": "string", "minLength": 1},
+        "package_root": {"type": "string", "minLength": 1},
+        "worktree_clean": {"const": true}
+      }
+    },
+    "sourceCloneMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_path", "producer_token_start",
+        "producer_token_end_exclusive", "verifier_path",
+        "verifier_token_start", "verifier_token_end_exclusive",
+        "token_count", "normalized_tokens_sha256"
+      ],
+      "properties": {
+        "producer_path": {"$ref": "#/$defs/relativePath"},
+        "producer_token_start": {"type": "integer", "minimum": 0},
+        "producer_token_end_exclusive": {"type": "integer", "minimum": 1},
+        "verifier_path": {"$ref": "#/$defs/relativePath"},
+        "verifier_token_start": {"type": "integer", "minimum": 0},
+        "verifier_token_end_exclusive": {"type": "integer", "minimum": 1},
+        "token_count": {"type": "integer", "minimum": 64},
+        "normalized_tokens_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sourceCloneScreen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "normalization", "producer_root", "verifier_root",
+        "include", "excluded_components", "report_min_tokens",
+        "reject_at_tokens", "producer_tree_sha256", "verifier_tree_sha256",
+        "matches", "max_match_tokens", "claim_limit", "overall_status"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-source-clone-screen-v1"},
+        "normalization": {"const": "rust-structural-v1"},
+        "producer_root": {"type": "string", "minLength": 1},
+        "verifier_root": {"type": "string", "minLength": 1},
+        "include": {"const": "**/*.rs"},
+        "excluded_components": {
+          "type": "array", "minItems": 1, "maxItems": 1,
+          "prefixItems": [{"const": "target"}], "items": false
+        },
+        "report_min_tokens": {"const": 64},
+        "reject_at_tokens": {"const": 128},
+        "producer_tree_sha256": {"$ref": "#/$defs/sha256"},
+        "verifier_tree_sha256": {"$ref": "#/$defs/sha256"},
+        "matches": {"type": "array", "items": {"$ref": "#/$defs/sourceCloneMatch"}},
+        "max_match_tokens": {"type": "integer", "minimum": 0},
+        "claim_limit": {
+          "const": "high_similarity_screen_not_proof_of_zero_conceptual_or_common_lineage"
+        },
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "dependencyAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "identical_source_hashes", "producer_cargo_toml_sha256",
+        "producer_git", "producer_rust_sources", "source_clone_screen",
+        "shared_implementation_components", "verifier_cargo_lock_sha256",
+        "verifier_cargo_toml_sha256", "verifier_crypto_lib_found",
+        "verifier_git", "verifier_rust_sources"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-dependency-audit-v1"},
+        "identical_source_hashes": {"type": "array", "maxItems": 0},
+        "producer_cargo_toml_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_git": {"$ref": "#/$defs/sourceGitRecord"},
+        "producer_rust_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/sourceHashRecord"}
+        },
+        "source_clone_screen": {"$ref": "#/$defs/sourceCloneScreen"},
+        "shared_implementation_components": {"type": "array", "maxItems": 0},
+        "verifier_cargo_lock_sha256": {"$ref": "#/$defs/sha256"},
+        "verifier_cargo_toml_sha256": {"$ref": "#/$defs/sha256"},
+        "verifier_crypto_lib_found": {"const": false},
+        "verifier_git": {"$ref": "#/$defs/sourceGitRecord"},
+        "verifier_rust_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/sourceHashRecord"}
+        }
+      }
+    },
+    "role1Environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "protocol_commit", "source_commit", "verifier_commit",
+        "supervisor_binary_sha256", "producer_binary_sha256",
+        "verifier_binary_sha256", "supervisor_build", "child_environment_policy",
+        "removed_variable_names", "forbidden_loader_override_names_present",
+        "secret_values_recorded"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-role1-environment-v1"},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "verifier_commit": {"$ref": "#/$defs/commit"},
+        "supervisor_binary_sha256": {"$ref": "#/$defs/sha256"},
+        "producer_binary_sha256": {"$ref": "#/$defs/sha256"},
+        "verifier_binary_sha256": {"$ref": "#/$defs/sha256"},
+        "supervisor_build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "embedded_protocol_commit", "embedded_supervisor_commit",
+            "embedded_verifier_commit", "embedded_build_profile",
+            "embedded_supervisor_dirty", "embedded_git_metadata_present"
+          ],
+          "properties": {
+            "embedded_protocol_commit": {"$ref": "#/$defs/commit"},
+            "embedded_supervisor_commit": {"$ref": "#/$defs/commit"},
+            "embedded_verifier_commit": {"$ref": "#/$defs/commit"},
+            "embedded_build_profile": {"const": "release"},
+            "embedded_supervisor_dirty": {"const": false},
+            "embedded_git_metadata_present": {"const": true}
+          }
+        },
+        "child_environment_policy": {
+          "const": "inherit_except_removed_commit_variables_and_forbid_loader_overrides"
+        },
+        "removed_variable_names": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {"const": "P192_WCM_PROTOCOL_COMMIT"},
+            {"const": "P192_WCM_SOURCE_COMMIT"},
+            {"const": "P192_WCM_VERIFIER_COMMIT"}
+          ],
+          "items": false
+        },
+        "forbidden_loader_override_names_present": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "secret_values_recorded": {"const": false}
+      }
+    },
+    "role1RawResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema", "experiment_id", "run_id", "stage", "protocol_commit",
+        "source_commit", "verifier_commit", "run_dir", "agreement_sha256",
+        "audit_sha256", "receipt_sha256", "scientific_result",
+        "scientific_results", "status"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-role1-raw-result-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "run_id": {"type": "string", "pattern": "^RUN-SCURVE-[0-9a-f]{6}$"},
+        "stage": {"const": "P192-WCM-PREFLIGHT"},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "verifier_commit": {"$ref": "#/$defs/commit"},
+        "run_dir": {"type": "string", "minLength": 1},
+        "agreement_sha256": {"$ref": "#/$defs/sha256"},
+        "audit_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "scientific_result": {"const": false},
+        "scientific_results": {"type": "array", "maxItems": 0},
+        "status": {"const": "PASS"}
+      }
+    },
+    "runManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run"],
+      "properties": {
+        "run": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id", "experiment_id", "status", "code", "environment",
+            "inputs", "timing", "result", "artifacts"
+          ],
+          "properties": {
+            "id": {"type": "string", "pattern": "^RUN-SCURVE-[0-9a-f]{6}$"},
+            "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+            "status": {"const": "completed"},
+            "code": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["repository", "commit", "command", "supervisor_binary_sha256"],
+              "properties": {
+                "repository": {"type": "string", "minLength": 1},
+                "commit": {"$ref": "#/$defs/commit"},
+                "command": {"const": "command.txt"},
+                "supervisor_binary_sha256": {"$ref": "#/$defs/sha256"}
+              }
+            },
+            "environment": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {"const": "environment.json"},
+                "sha256": {"$ref": "#/$defs/sha256"}
+              }
+            },
+            "inputs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["parameters"],
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["stage", "reference_shell", "candidate_count"],
+                  "properties": {
+                    "stage": {"const": "P192-WCM-PREFLIGHT"},
+                    "reference_shell": {"const": "REF-0"},
+                    "candidate_count": {"const": 1025}
+                  }
+                }
+              }
+            },
+            "timing": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status"],
+              "properties": {
+                "status": {"const": "not_recorded_non_scientific_preflight"}
+              }
+            },
+            "result": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["raw_result", "scientific_result", "certificate"],
+              "properties": {
+                "raw_result": {"const": "raw-result.json"},
+                "scientific_result": {"const": false},
+                "certificate": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind"],
+                  "properties": {"kind": {"const": "none"}}
+                }
+              }
+            },
+            "artifacts": {
+              "type": "array",
+              "minItems": 19,
+              "maxItems": 19,
+              "items": {"$ref": "#/$defs/artifact"}
+            }
+          }
+        }
+      }
+    },
+    "decisionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "decision_path", "decision_commit", "decision_sha256", "decision_git_mode", "protocol_repository_path", "protocol_checkout_head", "protocol_worktree_clean_before_run", "protocol_commit_is_strict_ancestor", "protected_protocol_paths_unchanged"],
+      "properties": {
+        "decision_id": {"type": "string", "pattern": "^DEC-[0-9]{8}-[0-9a-f]{6}$"},
+        "decision_path": {"type": "string", "minLength": 1},
+        "decision_commit": {"$ref": "#/$defs/commit"},
+        "decision_sha256": {"$ref": "#/$defs/sha256"},
+        "decision_git_mode": {"const": "100644"},
+        "protocol_repository_path": {"type": "string", "minLength": 1},
+        "protocol_checkout_head": {"$ref": "#/$defs/commit"},
+        "protocol_worktree_clean_before_run": {"const": true},
+        "protocol_commit_is_strict_ancestor": {"const": true},
+        "protected_protocol_paths_unchanged": {"const": true}
+      }
+    },
     "verifierReceipt": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "verifier_commit", "run_dir", "wrapper", "producer", "verifier", "producer_artifacts_before", "producer_artifacts_after", "dependency_audit", "agreement_path", "agreement_sha256", "overall_status"],
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "verifier_commit", "run_dir", "decision_binding", "wrapper", "producer", "verifier", "producer_artifacts_before", "producer_artifacts_after", "dependency_audit", "agreement_path", "agreement_sha256", "overall_status"],
       "properties": {
         "schema": {"const": "p192-wcm-independent-verifier-receipt-v1"},
         "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
@@ -523,6 +855,7 @@
         "source_commit": {"$ref": "#/$defs/commit"},
         "verifier_commit": {"$ref": "#/$defs/commit"},
         "run_dir": {"type": "string", "minLength": 1},
+        "decision_binding": {"$ref": "#/$defs/decisionBinding"},
         "wrapper": {
           "type": "object",
           "additionalProperties": false,
