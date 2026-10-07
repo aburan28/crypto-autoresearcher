@@ -48,6 +48,23 @@ CURVE_MODELS: dict[str, dict] = {
         "note": "EFD dbl-2008-hwcd 4M+4S, add-2008-hwcd-3 8M (a=-1), madd 7M",
         "DBL": (4, 4), "ADD": (8, 0), "mADD": (7, 0),
     },
+    "twisted_edwards_a=-1_extended_fp2": {
+        "note": "the a=-1 extended counts over F_{p^2}, converted to F_p multiplications with M2 = 3M, S2 = 2M "
+                "(DBL 4M2+4S2 = 20M, ADD 8M2 = 24M, mADD 7M2 = 21M)",
+        "DBL": (20, 0), "ADD": (24, 0), "mADD": (21, 0),
+    },
+    "genus2_affine_cantor_counted": {
+        "note": "generic Cantor composition+reduction in affine Mumford form as implemented in genus2.py, "
+                "operation counts measured there (M, S, I per op; I charged at I_PER_M); an upper bound on "
+                "what explicit formulas cost",
+        "DBL": (0, 0), "ADD": (0, 0), "mADD": (0, 0),   # filled at import by genus2.install_counted_model()
+    },
+    "genus2_projective_assumed": {
+        "note": "ASSUMPTION: order-of-magnitude projective genus-2 Jacobian counts (DBL 30M+6S, ADD 40M+4S, "
+                "mADD 36M+4S) in the range of Lange 2005 / Costello-Lauter 2011 explicit formulas; not verified "
+                "in this session -- replace with cited or measured values before relying on absolute numbers",
+        "DBL": (30, 6), "ADD": (40, 4), "mADD": (36, 4),
+    },
 }
 
 # endomorphism evaluation costs in M (base field of the curve)
