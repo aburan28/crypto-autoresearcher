@@ -77,7 +77,7 @@ python -m harness.endosweep.nist --std-curves STD_CURVES_CHECKOUT \
 | B-233 | −(71 digits) | 232.85 | 1 | 2^230.9 | none |
 | B-283 | −(86 digits) | 284.80 | 1 | 2^282.8 | none |
 | B-409 | −(124 digits) | 410.99 | 1 | 2^409.0 | none |
-| B-571 | \|D_K\| ≥ 2.06·10^15 (proven bound) | ≥ 50.87 | | 5.1·10^14 | none below that degree |
+| B-571 | \|D_K\| ≥ 4.11·10^49 (proven bound) | ≥ 164.82 | | 2^162.8 | none below that degree |
 | Curve25519 = Ed25519 | −(77 digits) | 254.65 | 2 | 2^252.7 | none |
 | Curve448 = Ed448, Ed448-Goldilocks | −(135 digits) | 447.53 | 2 | 2^445.5 | none |
 
@@ -136,14 +136,19 @@ multiplication, so a real implementation sits between the two columns.
    * The B-curves have no `τ`: `(x, y) ↦ (x², y²)` maps the curve to the one
      with `b²` in place of `b`, which is a different curve since `b ∉ F_2`.
 4. **B-571 is bounded, not settled.**
-   * `4q − t² = 137 · 1 502 689 · C`.  `C` is a 165-digit composite that is
-     not a perfect square and has no prime factor below 10^7.
-   * Its squarefree part is therefore at least 10^7, so
-     `|D_K| ≥ 137 · 1 502 689 · 10^7 ≈ 2^50.9`.  That is far beyond any
-     useful endomorphism, and about a billion times what the scan alone
-     certifies.
-   * PARI found no factor of `C` in 30 minutes; a complete factorisation
-     needs the number field sieve.
+   * `4q − t² = 137 · 1 502 689 · 5 608 493 523 058 319 ·
+     3 563 521 804 312 876 303 · C`, all four proven prime.  `C` is a
+     130-digit composite that is not a perfect square and has no prime
+     factor below 10^7.
+   * Its squarefree part is therefore at least 10^7, so `|D_K|` is at least
+     the product of the four primes times 10^7, about 2^164.8.  Every
+     non-scalar endomorphism has degree above 2^162.
+   * The first version of this report stopped at 137 · 1 502 689 and a
+     165-digit cofactor, after PARI found nothing in 30 minutes, and claimed
+     a complete factorisation needed the number field sieve.  That was
+     wrong.  GMP-ECM (B1 = 3·10^6, three workers) found the 16- and 19-digit
+     primes in its first batches of curves.  The search continues on the
+     130-digit cofactor.
 5. **Cross-check.**  std-curves records its own `cm_disc` and `conductor`
    for P-192, P-224 and P-256, and they agree exactly with the factorisations
    here (P-224: `f = 3`).  Its binary-curve entries do not satisfy
@@ -173,5 +178,5 @@ multiplication, so a real implementation sits between the two columns.
 |:--|:--|
 | `nist.md` | the report: every curve's discriminant, conductor, degree bound and cheapest endomorphism; the counted scalar multiplications at every width |
 | `nist.json` | the same, machine-readable, including every `D_K` and `f` in full, the factorisation used, the Koblitz checks and the per-configuration counts with their standard deviations |
-| `factorizations.jsonl` | the factorisation certificates of `4q − t²` (11 numbers; Ed25519, Ed448 and Ed448-Goldilocks share theirs with Curve25519 and Curve448) |
+| `factorizations.jsonl` | the factorisation certificates of `4q − t²` (11 complete; Ed25519, Ed448 and Ed448-Goldilocks share theirs with Curve25519 and Curve448), and B-571's partial certificate: its proven prime factors and the composite cofactor they leave, re-checked on reading |
 | `SHA256SUMS` | hashes of the JSON files |
