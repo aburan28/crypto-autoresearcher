@@ -43,17 +43,17 @@ promote it.
 ## Steps
 
 1. Classify the entry:
-   - `literature` → `knowledge/literature/KN-LIT-NNN.md` — external paper,
+   - `literature` → `knowledge/literature/KN-LIT-<tok>.md` — external paper,
      book, or preprint note. Requires a precise citation; mark every claim
      you did not verify.
-   - `technique` → `knowledge/techniques/KN-TECH-NNN.md` — established
+   - `technique` → `knowledge/techniques/KN-TECH-<tok>.md` — established
      algorithm or method: complexity, applicability, known limits, key
      references.
-   - `internal_finding` → `knowledge/findings/KN-FIND-NNN.md` — distilled
+   - `internal_finding` → `knowledge/findings/KN-FIND-<tok>.md` — distilled
      from this program's own evidence. ONLY promoted from an existing
      evidence record with strength `replicated` or `strong`, and only with
      a Coordinator decision; must cite the EV-/DEC-/EXP- IDs.
-   - `open_problem` → `knowledge/open-problems/KN-OPEN-NNN.md` — precisely
+   - `open_problem` → `knowledge/open-problems/KN-OPEN-<tok>.md` — precisely
      stated unknown worth future work.
    Before curating, merge `origin/main` into the working branch (merge,
    never rebase) so the entry and index are built against current knowledge —
@@ -103,9 +103,14 @@ pulls in `main` and surfaces the entry as a PR:
   conflict by editing a record. Re-run `tools/validate_ledger.py`,
   `tools/build_knowledge_index.py --check` and
   `tools/build_source_index.py --check` after the merge.
-- **After the archive commit:** `git push -u origin <branch>` then
-  `gh pr create --base main --head <branch> --title "knowledge: <KN-ID>" --body "<KN-* IDs>"`
-  (or `gh pr edit <number>` when a PR for the branch already exists).
+- **After the archive commit:** `git push -u origin <branch>`, then open or
+  refresh a PR against `main` with the runtime's PR tool, titled
+  `knowledge: <KN-ID>` and naming the `KN-*` ids. Use `gh pr create` only
+  where `gh auth status` succeeds; a session with no PR tool reports the
+  pushed branch.
+- **Receipt:** end with `python3 tools/session_receipt.py --skill
+  curate-knowledge --role coordinator --outcome archived --created <KN ids>`
+  (`docs/session-receipts.md`).
 
 ## Rules
 
