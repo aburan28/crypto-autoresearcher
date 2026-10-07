@@ -10,11 +10,8 @@ description: >-
 
 # Coordinate
 
-Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
-run-count and batch estimates are advisory and may be null; do not demand
-repeated user budget approval. Only a documented 90-day stagnation review can
-activate research caps. Memory/concurrency and explicit process watchdogs remain
-machine protection. Preserve scientific trial counts and frozen artifacts.
+Budget estimates are advisory (`docs/research-budget-policy.md`); approval
+capacity is not (`AGENTS.md`, "Approval is bounded by execution").
 
 Public **coordination** entry point. The session drives the Coordinator role
 (`agents/coordinator.md`, `.claude/agents/coordinator.md`). Detailed procedure:
@@ -58,11 +55,23 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    `tools/validate_ledger.py` and branch-scoped `check_merge_hygiene.py` after
    the merge. Register a lane with `tools/goal_lanes.py` before opening a
    second batch on a goal another session already holds.
-3. **Orient.** Run `python3 tools/goal_portfolio_health.py` once (add
-   `--no-deepen` in **status**). Read the bound goal head, queue, open lanes
-   (`goal_lanes.py lanes <GOAL-ID>`), and `python3 tools/ecc_priority.py`
-   (`--classify`, `--open-ideas`) at every selection point. ECC first; unlimited
-   ECC budget is not a license to dispatch unranked work.
+3. **Orient.** Read the cached portfolio health first
+   (`coordination/portfolio_health/latest.json`, refreshed by
+   `main-health.yml` with its `generated_at` and commit); run
+   `python3 tools/goal_portfolio_health.py` yourself only when the cache is
+   older than the merge digest you just read, or when the task is a goal's
+   own deepening (add `--no-deepen` in **status**). Read the KPI block of
+   `python3 tools/ledger_summary.py` (approved-unrun, approvals per evidence
+   record, aged handoffs); a session that raises approved-unrun says why in
+   its checkpoint. Read the bound goal head, the Ready Tasks only
+   (`python3 tools/research_dispatch.py <queue.json> --ready-only`, not the
+   whole plan),
+   open lanes (`goal_lanes.py lanes <GOAL-ID>`), and `python3
+   tools/ecc_priority.py` (`--classify`, `--open-ideas`) at every selection
+   point. ECC first; unlimited ECC budget is not a license to dispatch
+   unranked work, and an open ECC idea is designed only when it can be
+   approved under the capacity and runnable rules below — otherwise it stays
+   `proposed` with the reason recorded, which is not shelving.
 4. **Dispatch the coordinator subagent** for any act that ranks, approves,
    changes official status, writes a `DEC-*`/`TASK-*`, or opens a batch. The
    top-level session may do git, PR, and tool invocations; it must not change
@@ -71,7 +80,13 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    `python3 -m orchestration.adapter resolve --role coordinator`. Refuse
    Bedrock before any inference call.
 5. **Do the ranked Coordinator act**, then stop or continue by mode:
-   - complete a protocol and record approval (`/design-experiment`);
+   - complete a protocol and record approval (`/design-experiment`) — only
+     when `python3 tools/portfolio_kpis.py --capacity <goal>` shows headroom
+     (or the decision names the `supersedes_experiments` it replaces) **and**
+     `python3 tools/newest_experiments.py --experiment <EXP-ID> --json`
+     reports `execution_state: ready`. An approval over capacity is refused
+     by `tools/validate_ledger.py`; an approval of an unready contract is the
+     backlog the program pays for. Write neither;
    - open a bounded batch and write handoffs with exclusive `write_scope`,
      budget, and completion gate (`tools/research_dispatch.py`);
    - freeze a `review_plan` **before** reviewers run, then dispatch
@@ -86,9 +101,13 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    commit is unpublished.
 7. **Checkpoint** (goal / portfolio): goal, lane, queue, branch/PR, verified
    archive SHAs, completed task IDs, evidence/decision IDs, owners, exactly one
-   `next_action` with its role, and any impediment plus `recheck`. Then continue
+   `next_action` with its role (under 1,000 characters — point to a file for
+   anything longer), and any impediment plus `recheck`. Then continue
    authorized Coordinator work in-mode. If the next action is a scientific
    trial, name the `/run` invocation and do not launch it here.
+8. **Receipt.** End every mode with `python3 tools/session_receipt.py --skill
+   coordinate --role coordinator --outcome <...> --created <ids>` (see
+   `docs/session-receipts.md`).
 
 ## What this skill never does
 

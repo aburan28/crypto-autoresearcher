@@ -1,0 +1,83 @@
+task_id: TASK-20261005-6c6fd2
+route: P2_EndpointLift
+selected_finalist: null
+common_definition: keygen-hardening.yaml
+relation:
+  input: '(O=End(E),E,C,Z1,Z2,U,V,P,Q,D,N,k), or equivalently the declared masked SL_2 orbit and parameters'
+  O_representation: exactly the evaluable source order representation from KeyGen
+  valid_support: 'ct=Normalize(C_s,(phi_s(P),phi_s(Q))*A), A uniform in SL_2(Z/NZ)'
+  output: 'an evaluated cyclic degree-D map phi_t:E->C, with K_t=<U+tV>, compatible basis mask B in SL_2(Z/NZ), and a proved common low-k residue of the full compatible fiber'
+  output_equivalence: target automorphism/model transport and all permitted source-label/mask encodings
+  original_map_uniqueness_required: false
+  fresh_mask_recovery_required: false
+  forbidden_extra_inputs: [connecting_path, connecting_ideal, orientation, retained_tau, target_ring_oracle, extra_secret]
+public_algorithms:
+  Setup: procedure in keygen-hardening.yaml
+  KeyGen: procedure and exact conditional distribution in keygen-hardening.yaml
+  Encrypt:
+    input: 'pk,m in [0,2^k),r uniform in [0,2^(a-k)),A uniform in SL_2(Z/NZ)'
+    steps:
+      - Validate parameters, message, coins and matrix determinant; bottom on invalid.
+      - 'Set s=m+2^k*r; evaluate phi_s with kernel <U+sV> as a steps of degree two.'
+      - 'Set Ys=(phi_s(P),phi_s(Q)) and Z=Ys*A.'
+      - Canonicalize curve and both retained points simultaneously; return '(C_s,Z1,Z2)'.
+    exact_uniform_mask_sampler: draw four uniform residues independently; reject until determinant=1 modulo N
+    mask_acceptance: '|SL_2(Z/5^bZ)|/N^4=(1-1/25)/N; inverse rate Theta(N), exponential in lambda'
+    efficient_mask_sampler:
+      - Draw a uniform primitive first column v in '(Z/NZ)^2', rejecting both entries divisible by 5; acceptance 24/25.
+      - Find one w0 with determinant(v,w0)=1 using a unit coordinate.
+      - Draw h uniform modulo N and set second column 'w=w0+h*v'.
+      - Return A with columns v,w; this is exact uniform SL_2 because every primitive first column has exactly N complements.
+    adopted_sampler: efficient_mask_sampler; naive four-residue sampler is an explicit rejected exponential implementation
+    costs: polynomial small-degree quotient and smooth field/scalar operations; two points plus one curve output
+    failure: malformed inputs or represented arithmetic failure -> bottom
+  Decode_if_EndpointLift_exists:
+    steps:
+      - Validate ct as a canonical N-torsion basis with pairing e_N(P,Q)^D; bottom otherwise.
+      - Run fixed EndpointLift; bottom on failure.
+      - Verify returned evaluated map, its cyclic kernel slope t, endpoint and compatible determinant-one mask.
+      - Return common low-k value only with the full-fiber separation theorem; membership of one t alone is insufficient.
+    status: conditional only; no EndpointLift or endpoint-fiber theorem supplied
+M3_ideal_class_realization:
+  class: representation
+  pseudocode:
+    - Validate the source order and ciphertext endpoint/basis.
+    - Enumerate norm-D cyclic source left ideals with fixed sidedness and exact order coordinates.
+    - 'Attempt to match their evaluated Deuring realizations to the represented C; stop with MISSING_ENDPOINT_REALIZATION because no uniform polynomial matching/realization operation is supplied.'
+    - 'If an evaluated compatible map were supplied, compute its D-torsion kernel slope t.'
+    - Compute its ordered images Yt and the basis transition B to the observed pair by smooth finite algebra.
+    - 'Check determinant(B)=1 and exact normalized ciphertext; return t mod 2^k only after proving all endpoint-compatible t share it.'
+  exact_missing_arrows:
+    - 'source evaluated End(E),C -> polynomial evaluated endpoint-compatible ideal/map realization'
+    - 'one endpoint-compatible coefficient t -> common residue for all endpoint-compatible coefficients'
+  sidedness: 'I_phi={alpha in End(E): alpha annihilates K_phi} is a left ideal under composition; fix this convention, no right/left switching'
+  oracle_charge: ideal-to-curve matching and evaluation is a connecting-ideal/path operation unless its actual polynomial realization from the supplied source order is proved
+  EndE_operations: integral ideal arithmetic, norm and multiplication using the source table
+  time: norm-D ideal enumeration can involve Theta(D) slopes; no polynomial bound established
+  memory_output: coordinates, Deuring conversion, field/model transport and evaluated chain all charged; no polynomial realization/output bound supplied
+  failure: missing realization, no match, or any cross-message endpoint fiber -> bottom
+  correctness_status: inclusion of the sender ideal/map does not establish common residue or actual-message correctness
+  public_control: given the evaluated connecting map, t,Yt,B are public smooth finite computations
+  fresh_mask: 'given t and an endpoint-compatible evaluated map, B is recoverable publicly; no need to reconstruct sender A'
+  heuristic_assumptions: none adopted; missing realization is not called a distribution theorem
+complete_fiber:
+  coefficients: 'H_C={t in Z/DZ: C_t is F-isomorphic to C}'
+  reason: every ordered target N-basis with pairing e_N(P,Q)^D differs from transported Yt by a determinant-one basis matrix
+  equality: projection of compatible '(t,B,target-isomorphism)' triples to t equals H_C
+  message_requirement: 'forall t,tprime in H_C: t=tprime modulo 2^k'
+  status: unproved; no universal cross-message collision is claimed
+  automorphisms: all permitted target transports and masks are included; pairing is unchanged by degree-one target isomorphisms
+fallback:
+  name: PublicEnum_P2_endpoint
+  pseudocode:
+    - For every t in '[0,D)', compute C_t and its quotient map.
+    - If endpoint is isomorphic to C, compute Yt and the compatible mask B by smooth basis conversion.
+    - Record t modulo 2^k; return a value iff all compatible coefficients have the same residue, otherwise bottom.
+  time: 'D public quotient reenactments plus polynomial basis transport per match; no |SL_2| loop needed'
+  delta_from_prior_fallback: 'removes the unnecessary mask-enumeration factor |SL_2|=24*5^(3b-2), but D=2^lambda remains exponential'
+  memory: streaming one chain/mask and residue, polynomial represented field storage
+  secret_used: false
+quantifiers:
+  desired: 'exists one fixed uniform EndpointLift; forall accepted keys,m,r,A: compatible lift has common actual-message residue, except declared recipient-coin failure'
+  actual: public endpoint enumeration is finite; neither recipient polynomial realization nor all-message separation is proved
+security_result: no adversary-to-EndRing arrow supplied
