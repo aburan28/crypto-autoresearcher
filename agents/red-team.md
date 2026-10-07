@@ -160,7 +160,7 @@ The Red Team must not:
 ```yaml
 red_team_report:
   id: RT-YYYYMMDD-NNN
-  task_id: TASK-YYYYMMDD-NNN
+  task_id: TASK-YYYYMMDD-<tok>
   claim_under_review: null
   objections: []
   required_controls: []

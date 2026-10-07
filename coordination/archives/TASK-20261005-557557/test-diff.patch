@@ -1,0 +1,31 @@
+--- /Volumes/SSD990/.tmp-agent/tmp/557557/pre.py	2026-10-05 13:10:34
++++ tools/test_ecc_priority_dispositions.py	2026-10-05 13:10:40
+@@ -166,14 +166,24 @@
+     assert "IDEA-20261001-aaaaaa" in out.err
+ 
+ 
+-def test_real_corpus_keeps_ssi_ideas_open_and_disposes_the_listed_sixteen():
++def test_real_corpus_never_disposes_ssi_ideas_and_disposes_the_listed_sixteen():
++    """DEC-20261005-2ee2e2 PD-1: an SSI idea is never disposed by 138b51; it is
++    open unless a hypothesis or experiment references it, then neither."""
+     doc = yaml.safe_load((ROOT / "ledger/decisions/DEC-20261005-138b51.yaml").read_text())
+     sixteen = {e["id"] for e in doc["coordinator_decision"]["idea_dispositions"]["applies_to_exactly"]}
+     assert len(sixteen) == 16
++    taken = EP._taken_idea_ids()
+     disposed: list = []
+     open_ids = {r["id"] for r in EP.open_ecc_ideas(disposed_out=disposed)}
++    by_decision = {r["id"]: r["decision_id"] for r in disposed}
+     for iid in SSI_IDEAS:
+-        assert iid in open_ids, iid
++        assert iid not in by_decision, iid
++        if iid in taken:
++            assert iid not in open_ids, iid
++        else:
++            assert iid in open_ids, iid
+     assert not (sixteen & open_ids)
+-    by_decision = {r["id"]: r["decision_id"] for r in disposed}
+-    assert all(by_decision[i] == "DEC-20261005-138b51" for i in sixteen if i in by_decision)
++    for iid in sixteen - taken:
++        assert by_decision.get(iid) == "DEC-20261005-138b51", iid
++    attributed = [i for i, d in by_decision.items() if d == "DEC-20261005-138b51"]
++    assert len(attributed) >= 16 - len(sixteen & taken)
