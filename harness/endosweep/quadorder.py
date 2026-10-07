@@ -235,12 +235,7 @@ def min_nonscalar_degree(D: int) -> int:
     """
     if not is_discriminant(D):
         raise ValueError(D)
-    best = None
-    for a in range(-abs(D) // 2 - 2, abs(D) // 2 + 3):
-        nv = norm(D, a, 1)
-        if best is None or nv < best:
-            best = nv
-    return best
+    return (abs(D) + D % 2) // 4
 
 
 @dataclass(frozen=True)
