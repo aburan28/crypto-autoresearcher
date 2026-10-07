@@ -189,7 +189,7 @@ def test_happy_path_writes_exact_session_receipt(tmp_path):
     assert body["requested"]["canonical_policy"] == "review-adversarial"
     assert body["runtime"]["provider"] == "openai"
     assert body["runtime"]["cli_version"] == "0.144.6"
-    assert body["runtime"]["adapter_version"] == "1.1.0"
+    assert body["runtime"]["adapter_version"] == "1.2.0"
     verification = body["verification"]
     assert verification["status"] == "verified"
     assert verification["runtime_resolution_verified"] is True

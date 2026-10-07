@@ -12,12 +12,21 @@ decision restores them. --experiment still returns a named withheld row. Every
 run prints one stderr count line naming each honouring decision, and
 --show-withheld lists every held id with its decision (stderr under --json,
 stdout after the rows otherwise). --json stdout keeps its row shape.
+
+Ordering is ECC first, then READINESS first (`ready` before
+`needs_implementation_or_plan`), then newest. The earlier newest-first order
+put 82 unimplemented contracts ahead of the 2 that could run, so every /run
+wake read the queue and stopped (docs/track-record-review-20261006.md, P0.3).
+Each row also carries `off_main_runs`: remote branches holding unmerged
+commits under the experiment's runs/, so a session sees work in flight on
+another branch before it starts the same contract.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -63,6 +72,36 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
                 "reason": "legacy attempts/reports exist without explicit trial coverage; do not rerun blindly"}
     return {"execution_state": "needs_implementation_or_plan",
             "reason": "no trial plan; arrange scoped implementation/contract preparation before execution"}
+
+
+_READINESS_RANK = {"ready": 0, "needs_implementation_or_plan": 1,
+                   "needs_reconciliation": 2, "needs_plan_repair": 3}
+
+
+def off_main_runs(repo: Path = REPO, *, base: str = "origin/main") -> dict[str, list[str]]:
+    """Experiment id -> remote refs with unmerged commits under its runs/.
+
+    One `git log` over every remote ref not reachable from `base`, restricted
+    to runs/ paths. Empty when git or the base ref is unavailable; never
+    raises, because selection must work in a checkout with no remote.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "log", "--remotes=origin", "--not", base, "--name-only",
+             "--format=@@%D", "--", "experiments/*/runs"],
+            cwd=repo, capture_output=True, text=True, timeout=60, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    found: dict[str, set[str]] = {}
+    refs: list[str] = []
+    for line in out.splitlines():
+        if line.startswith("@@"):
+            refs = [r.strip() for r in line[2:].split(",") if r.strip()]
+            continue
+        parts = line.split("/")
+        if len(parts) >= 3 and parts[0] == "experiments" and parts[2] == "runs":
+            found.setdefault(parts[1], set()).update(refs or ["(unnamed commit)"])
+    return {eid: sorted(r) for eid, r in sorted(found.items())}
 
 
 def _completed(exp_dir: Path) -> bool:
@@ -123,12 +162,16 @@ def withheld_state(repo: Path = REPO, *, warn=ecc_priority.warn) -> dict[str, st
 def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
                     goal: str | None = None, experiment_ids: set[str] | None = None,
                     honour_holds: bool = True,
-                    hold_report: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Selectable rows, ECC first and newest first.
+                    hold_report: dict[str, Any] | None = None,
+                    off_main: dict[str, list[str]] | None = None) -> list[dict[str, Any]]:
+    """Selectable rows: ECC first, then ready before unimplemented, then newest.
 
     Withheld ids (withheld_state) are dropped unless `experiment_ids` names
-    them. Pass a dict as `hold_report` to receive what the holds did.
+    them. Pass a dict as `hold_report` to receive what the holds did. Pass
+    `off_main` (see off_main_runs) to annotate rows; None computes it.
     """
+    if off_main is None:
+        off_main = off_main_runs(repo)
     repo = repo.resolve()
     policy = ecc_priority.load_policy(repo / "orchestration" / "research-priority.yaml")
     specs = [(spec, exp) for spec in sorted((repo / "experiments").glob("EXP-*/specification.yaml"))
@@ -162,11 +205,13 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
         rows.append({"id": exp_id, "designed_at": str(exp.get("designed_at") or ""),
                      "goal_id": exp.get("goal_id"), "hypothesis_id": exp.get("hypothesis_id"),
                      "specification": str(spec.relative_to(repo)),
-                     "ecc": ecc_priority.is_ecc(exp_id, policy), **progress})
+                     "ecc": ecc_priority.is_ecc(exp_id, policy),
+                     "off_main_runs": off_main.get(exp_id, []), **progress})
     ecc = [r for r in rows if r["ecc"]]
     non = [r for r in rows if not r["ecc"]]
     for group in (ecc, non):
         group.sort(key=lambda r: (r["designed_at"], r["id"]), reverse=True)
+        group.sort(key=lambda r: _READINESS_RANK.get(r["execution_state"], 9))
     if hold_report is not None:
         decisions: dict[str, dict[str, Any]] = {}
         for eid, did in sorted(held.items()):
@@ -215,8 +260,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(shown, indent=2))
     else:
         for row in shown:
+            flight = f"\toff-main: {','.join(row['off_main_runs'])}" if row["off_main_runs"] else ""
             print(f"{row['id']}\t{row['designed_at']}\t{'ECC' if row['ecc'] else 'non-ECC'}"
-                  f"\t{row['execution_state']}\t{row['specification']}")
+                  f"\t{row['execution_state']}\t{row['specification']}{flight}")
+    ready = sum(1 for r in rows if r["execution_state"] == "ready")
+    print(f"newest_experiments: {len(rows)} selectable row(s): {ready} ready, "
+          f"{len(rows) - ready} need implementation/plan; ready rows sort first",
+          file=sys.stderr)
     for hold in report.get("explicit") or []:
         print(f"newest_experiments: {hold['id']} is withheld from dispatch by "
               f"{hold['decision_id']}; returned because --experiment named it "
