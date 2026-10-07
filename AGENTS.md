@@ -121,6 +121,10 @@ search is not proof that no faster evaluation exists. Require explicit maps,
 working-field closure, subgroup-action certificates, and paired complete-cost
 benchmarks against an optimized baseline. Rank by evaluation cost, including
 conversions and recovery; preserve failed attempts and the exact search boundary.
+Audit exact trace and anomalous-order claims, CM conductor gaps, bounded
+extension-field torsion, twists, and isogenous representatives with the typed
+checks in that document. Identify the original subgroup and the working field
+for every proposed route; a structural signal alone is not a speedup.
 Keep known-scalar multiplication gains distinct from unknown-scalar recovery
 claims. This guidance preserves the existing run entry point, standing user
 authorization, Coordinator authority, evidence review, and measured-bound rules.
