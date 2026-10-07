@@ -1,0 +1,75 @@
+task_id: TASK-20261006-fa5bac
+route_id: A
+mechanism: unique_calibrated_map_reconstruction
+formulation: orbit_rational_pade_interpolation
+status: finite_exponential_reconstruction_not_bit_polynomial
+selected_finalist: false
+input:
+  exact: [O, E, C, P, X, D, N, U, V, k, frozen_encodings]
+  used_by_reconstruction: [E, C, P, X, D, N]
+  excluded: [Hom_E_C, connecting_isogeny, target_order, target_action, orientation, sender_map, sender_dual, per_instance_advice, exponential_preprocessing]
+preconditions:
+  field: represented F_p2 of odd characteristic
+  points: "ord(P)=ord(X)=N, with N>4D and X=f(P) for an honest separable degree-D homomorphism"
+  models: exact labelled short-Weierstrass E and C
+orbit_equations:
+  sample_count: 2D
+  samples: "u_i=x([i]P), v_i=x([i]X), 1<=i<=2D"
+  distinctness: "N>4D implies u_i are pairwise distinct because i is not congruent to +/-j modulo N"
+  pade_system: "A(u_i)-v_i*B(u_i)=0, deg(A)<=D, deg(B)<=D-1"
+  normalization: canonical projective scaling followed by gcd(A,B)=1
+  x_map: "R=A/B"
+  y_map:
+    differential_scalar: "c=R'(x(P))*y(P)/y(X)"
+    formula: "S=R'/c; f(x,y)=(R(x),y*S(x))"
+    sign_binding: full signed X, not x(X), fixes c
+  uniqueness_check: "A1*B2-A2*B1 has degree <=2D-1 and 2D distinct roots"
+program: |
+  Parse and validate exact encodings and domain labels.
+  Generate the 2D orbit samples by exact group arithmetic.
+  Solve the Padé kernel and choose canonical scale.
+  Reject non-coprime, wrong-degree, rank-degenerate, sample-pole or inseparable output.
+  Recover c from the signed P/X sample.
+  Verify the cleared E-to-C curve identity, exact degree, f(P)=X and certificates.
+  Evaluate f(U),f(V) and run the checked low-k slope decoder.
+  Return (f,f(U),f(V),m,certificate).
+degeneracies:
+  - {condition: duplicate_u_i, response: bottom(ORBIT_SAMPLE_COLLISION)}
+  - {condition: pade_kernel_not_one_projective_dimension, response: bottom(PADE_DEGENERACY)}
+  - {condition: B_has_sample_root_or_gcd_nontrivial, response: bottom(NONREDUCED_RATIONAL_MAP)}
+  - {condition: c_zero_or_curve_identity_fails, response: bottom(NONSEPARABLE_OR_INCONSISTENT_MAP)}
+  - {condition: wrong_degree_or_fP_not_X, response: bottom(UNCALIBRATED_MAP)}
+cost:
+  field_arithmetic: "Theta(D) group/sample work plus structured rational interpolation ~O(M(D)) field operations; dense fallback polynomial in D"
+  bit_time: "~O(M(D)*FieldBitCost(log p)) plus Theta(D) point arithmetic and certificate work"
+  memory: "Omega(D log p) bits for dense coefficients or equivalent reusable structured data"
+  output: "Theta(D log p) bits: 2D+1 field coefficients up to scale, c, labels and certificate"
+  preprocessing: "the 2D orbit samples and Padé solve; this is exponential in a because D=2^a"
+  evaluation: "two dense rational-map calls on U,V, each representation-scoped O(D) field work absent a stronger evaluator"
+  normalization: exact projective coefficient scale, model tags and all isomorphism transports charged
+  amplification: none; deterministic on valid honest input after admission
+complexity_boundary:
+  input_length: "B plus O(log D+log N+log p)"
+  representation_scoped_statement: "O(D) or ~O(M(D)) is not polynomial in encoded input length"
+  bit_polynomial: false
+decoder:
+  A0: f(U)
+  B0: f(V)
+  equations: "H=[2^(a-k)]B0; G=-[2^(a-k)]A0=[m]H"
+  output: "m=s mod 2^k after checked k-step binary digit extraction"
+  cost: "two f evaluations plus O(k^2+a) group operations and all verification"
+failure_partition:
+  admission: inherited Setup/key-law failures remain separate
+  evaluator: any tagged interpolation/map verification failure
+  decoder: SLOPE_SHAPE or SLOPE_CHECK
+  malformed: reject invalid encoding/domain/order/degree/certificate
+  wrong_key: reject detected inconsistencies; no universal authenticated rejection guarantee
+claims:
+  positive: finite uniform dense reconstruction under exact honest preconditions
+  negative_scope: this representation does not meet the bit-polynomial/no-exponential-preprocessing contract
+  universal_impossibility: false
+citations:
+  - {ref: KN-LIT-209, provenance: kb, claim: abstract-level report of quasi-linear-in-degree isogeny computation with additional defining data, verified_by: knowledge entry}
+  - {ref: KN-LIT-527, provenance: kb, claim: abstract-level report of degree-polynomial interpolation/torsion isogeny computation in a different ordinary-curve interface, verified_by: knowledge entry}
+novelty_status: unverified
+
