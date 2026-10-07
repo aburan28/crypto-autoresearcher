@@ -343,6 +343,36 @@ Declared capabilities are assertions too. The resolver can catch a binding that
 `max_reasoning_effort` to make a review gate pass is an evidence-integrity
 failure, in the same class as overstating a claim tier.
 
+### Operator-local bindings: `model-bindings.local.yaml`
+
+Some backends are committed unbound on purpose -- `openrouter`, because no one
+has probed an id there; `local`, whenever a machine serves a different weight
+set than the committed one. An operator who wants to run the program through
+such a backend needs an id on *that machine* without asserting it for
+everyone. `orchestration/model-bindings.local.yaml` (gitignored; copy
+`model-bindings.local.example.yaml`) is merged over the committed bindings by
+`orchestration.adapter.config.load`:
+
+* an entry replaces the committed entry for the same backend and policy
+  whole, so a partial overlay cannot leave a committed `request:` block under
+  an overlay `model:`;
+* only `bindings`, `schema_version` and `notes` are allowed -- fallback order
+  and the other defaults stay committed;
+* `provenance: runtime-verified` is refused; only `doctor --probe` may write
+  that, and an overlay saying it is the forgery this field exists to prevent;
+* the merged file is validated exactly like the committed one (unknown
+  backends, unknown policies, the Bedrock prohibition);
+* the configuration digest covers the merged result, so every manifest a run
+  writes is distinguishable from one produced without the overlay, and
+  `autoresearch status` and `autoresearch backends` print the overlay path.
+
+`AUTORESEARCH_BINDINGS_OVERLAY=/path` selects another file;
+`AUTORESEARCH_BINDINGS_OVERLAY=` (empty) disables the overlay, which the test
+suite does so a developer's overlay never reaches a test. The autopilot's
+`--model ID --model-caps …` writes a one-run overlay of the same shape under
+its state directory and layers it over the standing one
+(`docs/research-throughput-autopilot.md`).
+
 ### Verifying one Codex CLI session
 
 Backend catalog verification and session runtime verification answer different
