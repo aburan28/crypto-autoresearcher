@@ -310,6 +310,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"repository  {REPO}")
     print(f"backend     {cfg.default_backend()} (AUTORESEARCH_BACKEND overrides)")
     print(f"config      {cfg.digest}")
+    if cfg.paths.get("bindings_overlay"):
+        print(f"overlay     {cfg.paths['bindings_overlay']} (operator-local bindings in effect)")
     from .eval import fingerprint as fingerprint_module
     print(f"harness     {fingerprint_module.describe(fingerprint_module.harness_fingerprint())}")
     results = sorted(RESULTS.glob("*")) if RESULTS.is_dir() else []
@@ -326,6 +328,8 @@ def cmd_backends(args: argparse.Namespace) -> int:
     from .adapter import resolver as resolver_module
     cfg = config_module.load()
     default = cfg.default_backend()
+    if cfg.paths.get("bindings_overlay"):
+        print(f"operator-local bindings overlay in effect: {cfg.paths['bindings_overlay']}")
 
     for name in sorted(cfg.backend_table):
         backend = cfg.backend(name)
