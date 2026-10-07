@@ -213,7 +213,7 @@ The Idea Generator must not:
 
 ```yaml
 idea:
-  id: IDEA-YYYYMMDD-NNN
+  id: IDEA-YYYYMMDD-<tok>
   title: concise name
   class: mechanism | algorithm | representation | measurement | composition | control | tooling
   claim: falsifiable statement
