@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:crypto-autoresearcher:p192-wcm:role1-artifacts:v1",
+  "title": "P-192 weighted-CM role-1 artifacts",
+  "oneOf": [
+    {"$ref": "#/$defs/identity"},
+    {"$ref": "#/$defs/maximalOrder"},
+    {"$ref": "#/$defs/controls"},
+    {"$ref": "#/$defs/referenceBox"},
+    {"$ref": "#/$defs/producerVerification"},
+    {"$ref": "#/$defs/independentVerification"},
+    {"$ref": "#/$defs/independentAgreement"},
+    {"$ref": "#/$defs/verifierReceipt"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "decimal": {"type": "string", "pattern": "^(0|-?[1-9][0-9]*)$"},
+    "positiveDecimal": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+    "relativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._/-]+$"
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "status"],
+      "properties": {
+        "check_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "byte_length", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/relativePath"},
+        "byte_length": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curve_tuple_sha256",
+        "cm_order_tuple_sha256",
+        "factor_base_sha256",
+        "control_results_sha256",
+        "reference_candidate_shard_sha256",
+        "reference_candidate_shell_sha256",
+        "reference_disposition_shard_sha256",
+        "reference_disposition_shell_sha256"
+      ],
+      "properties": {
+        "curve_tuple_sha256": {"$ref": "#/$defs/sha256"},
+        "cm_order_tuple_sha256": {"$ref": "#/$defs/sha256"},
+        "factor_base_sha256": {"$ref": "#/$defs/sha256"},
+        "control_results_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_candidate_shard_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_candidate_shell_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_disposition_shard_sha256": {"$ref": "#/$defs/sha256"},
+        "reference_disposition_shell_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "trialDivisionProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "value"],
+      "properties": {
+        "method": {"const": "trial_division_u32"},
+        "value": {"$ref": "#/$defs/positiveDecimal"}
+      }
+    },
+    "authoritativeStandardProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "value", "standard_id", "edition", "section", "document_url", "document_sha256", "document_byte_length", "parameter_name"],
+      "properties": {
+        "method": {"const": "authoritative_standard"},
+        "value": {"$ref": "#/$defs/positiveDecimal"},
+        "standard_id": {"const": "SEC2"},
+        "edition": {"const": "2.0"},
+        "section": {"const": "2.2.2"},
+        "document_url": {"const": "https://www.secg.org/sec2-v2.pdf"},
+        "document_sha256": {"const": "87b8f3703364ed5b21ba8582e411cc0cbf477bcaa3f4f45e0d6580d1c00d9952"},
+        "document_byte_length": {"const": 306784},
+        "parameter_name": {"const": "secp192r1"}
+      }
+    },
+    "pocklingtonFactor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prime", "exponent", "proof"],
+      "properties": {
+        "prime": {"$ref": "#/$defs/positiveDecimal"},
+        "exponent": {"type": "integer", "minimum": 1},
+        "proof": {"$ref": "#/$defs/recursivePrimalityProof"}
+      }
+    },
+    "pocklingtonWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prime", "base"],
+      "properties": {
+        "prime": {"$ref": "#/$defs/positiveDecimal"},
+        "base": {"$ref": "#/$defs/positiveDecimal"}
+      }
+    },
+    "pocklingtonProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "value", "cofactor", "factors", "witnesses"],
+      "properties": {
+        "method": {"const": "pocklington_v1"},
+        "value": {"$ref": "#/$defs/positiveDecimal"},
+        "cofactor": {"$ref": "#/$defs/positiveDecimal"},
+        "factors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/pocklingtonFactor"}
+        },
+        "witnesses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/pocklingtonWitness"}
+        }
+      }
+    },
+    "primalityProof": {
+      "oneOf": [
+        {"$ref": "#/$defs/authoritativeStandardProof"},
+        {"$ref": "#/$defs/recursivePrimalityProof"}
+      ]
+    },
+    "recursivePrimalityProof": {
+      "oneOf": [
+        {"$ref": "#/$defs/trialDivisionProof"},
+        {"$ref": "#/$defs/pocklingtonProof"}
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "curve", "derived", "checks", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-identity-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "curve": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "model", "p", "a", "b", "generator_x_hex", "generator_y_hex", "n", "cofactor", "trace_t", "icv1", "ec1", "curve_uid"],
+          "properties": {
+            "name": {"const": "NIST P-192 / secp192r1"},
+            "model": {"const": "short Weierstrass y^2 = x^3 + a*x + b over F_p"},
+            "p": {"const": "6277101735386680763835789423207666416083908700390324961279"},
+            "a": {"const": "6277101735386680763835789423207666416083908700390324961276"},
+            "b": {"const": "2455155546008943817740293915197451784769108058161191238065"},
+            "generator_x_hex": {"const": "188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012"},
+            "generator_y_hex": {"const": "07192B95FFC8DA78631011ED6B24CDD573F977A11E794811"},
+            "n": {"const": "6277101735386680763835789423176059013767194773182842284081"},
+            "cofactor": {"const": 1},
+            "trace_t": {"const": "31607402316713927207482677199"},
+            "icv1": {"const": "icv1-fp192-t31607402316713927207482677199-52e4af59"},
+            "ec1": {"const": "EC1P192Cp192h5531c4a08bdb"},
+            "curve_uid": {"const": "urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646"}
+          }
+        },
+        "derived": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["group_order", "frobenius_discriminant"],
+          "properties": {
+            "group_order": {"$ref": "#/$defs/positiveDecimal"},
+            "frobenius_discriminant": {"$ref": "#/$defs/decimal"}
+          }
+        },
+        "checks": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"$ref": "#/$defs/verdict"}},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "primalityRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "value", "proof"],
+      "properties": {
+        "subject": {"enum": ["p", "n", "C"]},
+        "value": {"$ref": "#/$defs/positiveDecimal"},
+        "proof": {"$ref": "#/$defs/primalityProof"}
+      }
+    },
+    "maximalOrder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "curve_uid", "order", "primality", "checks", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-maximal-order-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "curve_uid": {"const": "urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646"},
+        "order": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["p", "n", "t", "D_pi", "D_K", "D_End", "D", "C", "factorization"],
+          "properties": {
+            "p": {"$ref": "#/$defs/positiveDecimal"},
+            "n": {"$ref": "#/$defs/positiveDecimal"},
+            "t": {"$ref": "#/$defs/positiveDecimal"},
+            "D_pi": {"$ref": "#/$defs/decimal"},
+            "D_K": {"$ref": "#/$defs/decimal"},
+            "D_End": {"$ref": "#/$defs/decimal"},
+            "D": {"$ref": "#/$defs/decimal"},
+            "C": {"$ref": "#/$defs/positiveDecimal"},
+            "factorization": {"const": "-5 * 11 * 31 * C"}
+          }
+        },
+        "primality": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {
+              "allOf": [
+                {"$ref": "#/$defs/primalityRecord"},
+                {"type": "object", "properties": {"subject": {"const": "p"}, "proof": {"$ref": "#/$defs/authoritativeStandardProof"}}}
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/primalityRecord"},
+                {"type": "object", "properties": {"subject": {"const": "n"}, "proof": {"$ref": "#/$defs/authoritativeStandardProof"}}}
+              ]
+            },
+            {
+              "allOf": [
+                {"$ref": "#/$defs/primalityRecord"},
+                {"type": "object", "properties": {"subject": {"const": "C"}, "proof": {"$ref": "#/$defs/pocklingtonProof"}}}
+              ]
+            }
+          ],
+          "items": false
+        },
+        "checks": {"type": "array", "minItems": 17, "maxItems": 17, "items": {"$ref": "#/$defs/verdict"}},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assertion_id", "passed"],
+      "properties": {
+        "assertion_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+        "passed": {"type": "boolean"}
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_id", "status", "assertions"],
+      "properties": {
+        "control_id": {"type": "string", "pattern": "^[A-Z0-9-]+$"},
+        "status": {"enum": ["PASS", "FAIL"]},
+        "assertions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/assertion"}}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "curve_uid", "factor_base_sha256", "controls", "control_results_sha256", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-controls-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "curve_uid": {"const": "urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646"},
+        "factor_base_sha256": {"$ref": "#/$defs/sha256"},
+        "controls": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "prefixItems": [
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "D23-ORDER3"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "P192-SQRT-D"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "P192-RAMIFIED-SQUARES"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "INERT-FACTOR-REJECTION"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "MUTATION-REJECTION"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "LP-CANCELLATION"}}}]},
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "REF0-SCALAR-SEGMENTED"}}}]},
+            {
+              "allOf": [
+                {"$ref": "#/$defs/control"},
+                {
+                  "type": "object",
+                  "properties": {
+                    "control_id": {"const": "REF0-DIRECTION-WORKERS"},
+                    "assertions": {
+                      "type": "array",
+                      "minItems": 5,
+                      "maxItems": 5,
+                      "prefixItems": [
+                        {"allOf": [{"$ref": "#/$defs/assertion"}, {"type": "object", "properties": {"assertion_id": {"const": "forward_reverse_candidate_root_equal"}}}]},
+                        {"allOf": [{"$ref": "#/$defs/assertion"}, {"type": "object", "properties": {"assertion_id": {"const": "forward_reverse_disposition_root_equal"}}}]},
+                        {"allOf": [{"$ref": "#/$defs/assertion"}, {"type": "object", "properties": {"assertion_id": {"const": "one_eight_worker_candidate_root_equal"}}}]},
+                        {"allOf": [{"$ref": "#/$defs/assertion"}, {"type": "object", "properties": {"assertion_id": {"const": "one_eight_worker_disposition_root_equal"}}}]},
+                        {"allOf": [{"$ref": "#/$defs/assertion"}, {"type": "object", "properties": {"assertion_id": {"const": "independent_in_memory_ref0_regenerations_streams_roots_counters_equal"}}}]}
+                      ],
+                      "items": false
+                    }
+                  }
+                }
+              ]
+            },
+            {"allOf": [{"$ref": "#/$defs/control"}, {"type": "object", "properties": {"control_id": {"const": "LP-BOUNDARY"}}}]}
+          ],
+          "items": false
+        },
+        "control_results_sha256": {"$ref": "#/$defs/sha256"},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "candidateShard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shard_index", "first_candidate_index", "record_count", "records_sha256", "candidate_shard_sha256"],
+      "properties": {
+        "shard_index": {"const": 0},
+        "first_candidate_index": {"const": 0},
+        "record_count": {"const": 1025},
+        "records_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_shard_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "dispositionShard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shard_index", "first_candidate_index", "record_count", "byte_offset", "byte_length", "records_sha256", "disposition_shard_sha256"],
+      "properties": {
+        "shard_index": {"const": 0},
+        "first_candidate_index": {"const": 0},
+        "record_count": {"const": 1025},
+        "byte_offset": {"const": 0},
+        "byte_length": {"type": "integer", "minimum": 10250},
+        "records_sha256": {"$ref": "#/$defs/sha256"},
+        "disposition_shard_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "certificateStore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "byte_length", "sha256", "record_count"],
+      "properties": {
+        "path": {"const": "reference-box/certificates.bin"},
+        "byte_length": {"type": "integer", "minimum": 35},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "record_count": {"type": "integer", "minimum": 0, "maximum": 1025}
+      }
+    },
+    "referenceBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "curve_uid", "factor_base_sha256", "shell_id", "bounds", "candidate_count", "shard_count", "candidate_records", "candidate_shards", "candidate_shell_sha256", "disposition_records", "disposition_shards", "disposition_shell_sha256", "certificates", "status_counts", "complete"],
+      "properties": {
+        "schema": {"const": "p192-wcm-reference-box-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "curve_uid": {"const": "urn:ec-record:1:sha256:5531c4a08bdb64b6e86a6e30e9a08aa57edef7af15ac5f6d4d2a83a53bf2f646"},
+        "factor_base_sha256": {"$ref": "#/$defs/sha256"},
+        "shell_id": {"const": "REF-0"},
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["v_min", "v_max", "x_min", "x_max_inclusive"],
+          "properties": {"v_min": {"const": 1}, "v_max": {"const": 2}, "x_min": {"const": 0}, "x_max_inclusive": {"const": 1024}}
+        },
+        "candidate_count": {"const": 1025},
+        "shard_count": {"const": 1},
+        "candidate_records": {
+          "allOf": [
+            {"$ref": "#/$defs/artifact"},
+            {"type": "object", "properties": {"path": {"const": "reference-box/candidate-records.bin"}, "byte_length": {"const": 16400}}}
+          ]
+        },
+        "candidate_shards": {"type": "array", "prefixItems": [{"$ref": "#/$defs/candidateShard"}], "items": false, "minItems": 1},
+        "candidate_shell_sha256": {"$ref": "#/$defs/sha256"},
+        "disposition_records": {
+          "allOf": [
+            {"$ref": "#/$defs/artifact"},
+            {"type": "object", "properties": {"path": {"const": "reference-box/disposition.bin"}}}
+          ]
+        },
+        "disposition_shards": {"type": "array", "prefixItems": [{"$ref": "#/$defs/dispositionShard"}], "items": false, "minItems": 1},
+        "disposition_shell_sha256": {"$ref": "#/$defs/sha256"},
+        "certificates": {"$ref": "#/$defs/certificateStore"},
+        "status_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nonprimitive_duplicate", "complete", "one_large_prime", "two_large_prime", "rejected", "invalid", "unresolved"],
+          "properties": {
+            "nonprimitive_duplicate": {"type": "integer", "minimum": 0},
+            "complete": {"type": "integer", "minimum": 0},
+            "one_large_prime": {"type": "integer", "minimum": 0},
+            "two_large_prime": {"type": "integer", "minimum": 0},
+            "rejected": {"type": "integer", "minimum": 0},
+            "invalid": {"type": "integer", "minimum": 0},
+            "unresolved": {"type": "integer", "minimum": 0}
+          }
+        },
+        "complete": {"type": "boolean"}
+      }
+    },
+    "producerVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "role", "producer_binary_sha256", "artifacts", "bindings", "checks", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-verification-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "role": {"const": "producer_self_check"},
+        "producer_binary_sha256": {"$ref": "#/$defs/sha256"},
+        "artifacts": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"$ref": "#/$defs/artifact"}},
+        "bindings": {"$ref": "#/$defs/bindings"},
+        "checks": {"type": "array", "minItems": 11, "maxItems": 11, "items": {"$ref": "#/$defs/verdict"}},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["separate_process", "producer_outputs_closed_before_start", "no_in_memory_producer_state", "crypto_lib_dependency", "shared_implementation_components"],
+      "properties": {
+        "separate_process": {"const": true},
+        "producer_outputs_closed_before_start": {"const": true},
+        "no_in_memory_producer_state": {"const": true},
+        "crypto_lib_dependency": {"const": false},
+        "shared_implementation_components": {"type": "array", "maxItems": 0}
+      }
+    },
+    "independentVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "verifier_commit", "role", "verifier_binary_sha256", "source_artifacts", "bindings", "independence", "checks", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-independent-verification-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "verifier_commit": {"$ref": "#/$defs/commit"},
+        "role": {"const": "isolated_independent_verifier"},
+        "verifier_binary_sha256": {"$ref": "#/$defs/sha256"},
+        "source_artifacts": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/artifact"}},
+        "bindings": {"$ref": "#/$defs/bindings"},
+        "independence": {"$ref": "#/$defs/independence"},
+        "checks": {"type": "array", "minItems": 15, "maxItems": 15, "items": {"$ref": "#/$defs/verdict"}},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "producer", "verifier", "equal"],
+      "properties": {
+        "field": {"type": "string"},
+        "producer": {"$ref": "#/$defs/sha256"},
+        "verifier": {"$ref": "#/$defs/sha256"},
+        "equal": {"type": "boolean"}
+      }
+    },
+    "independentAgreement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "producer_verification_sha256", "independent_verification_sha256", "comparisons", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-independent-agreement-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "producer_verification_sha256": {"$ref": "#/$defs/sha256"},
+        "independent_verification_sha256": {"$ref": "#/$defs/sha256"},
+        "comparisons": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"$ref": "#/$defs/comparison"}},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    },
+    "childReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary_sha256", "commit", "build_profile", "worktree_clean", "argv", "exit_code", "stdout_sha256", "stderr_sha256", "started_sequence", "completed_sequence"],
+      "properties": {
+        "binary_sha256": {"$ref": "#/$defs/sha256"},
+        "commit": {"$ref": "#/$defs/commit"},
+        "build_profile": {"const": "release"},
+        "worktree_clean": {"const": true},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "exit_code": {"type": "integer"},
+        "stdout_sha256": {"$ref": "#/$defs/sha256"},
+        "stderr_sha256": {"$ref": "#/$defs/sha256"},
+        "started_sequence": {"type": "integer", "minimum": 0},
+        "completed_sequence": {"type": "integer", "minimum": 0}
+      }
+    },
+    "verifierReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "experiment_id", "protocol_version", "protocol_commit", "source_commit", "verifier_commit", "run_dir", "wrapper", "producer", "verifier", "producer_artifacts_before", "producer_artifacts_after", "dependency_audit", "agreement_path", "agreement_sha256", "overall_status"],
+      "properties": {
+        "schema": {"const": "p192-wcm-independent-verifier-receipt-v1"},
+        "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
+        "protocol_version": {"const": 2},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "verifier_commit": {"$ref": "#/$defs/commit"},
+        "run_dir": {"type": "string", "minLength": 1},
+        "wrapper": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binary_sha256", "contains_curve_arithmetic"],
+          "properties": {"binary_sha256": {"$ref": "#/$defs/sha256"}, "contains_curve_arithmetic": {"const": false}}
+        },
+        "producer": {"$ref": "#/$defs/childReceipt"},
+        "verifier": {"$ref": "#/$defs/childReceipt"},
+        "producer_artifacts_before": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/artifact"}},
+        "producer_artifacts_after": {"type": "array", "minItems": 10, "maxItems": 10, "items": {"$ref": "#/$defs/artifact"}},
+        "dependency_audit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["verifier_crypto_lib_found", "shared_implementation_components", "audit_method", "audit_output_sha256"],
+          "properties": {
+            "verifier_crypto_lib_found": {"const": false},
+            "shared_implementation_components": {"type": "array", "maxItems": 0},
+            "audit_method": {"type": "string", "minLength": 1},
+            "audit_output_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        "agreement_path": {"const": "independent-agreement.json"},
+        "agreement_sha256": {"$ref": "#/$defs/sha256"},
+        "overall_status": {"enum": ["PASS", "FAIL"]}
+      }
+    }
+  }
+}
