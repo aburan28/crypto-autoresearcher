@@ -12,6 +12,13 @@ no trial and assigns no RUN id. It is an engine regression and benchmark, not
 evidence about any hypothesis.
 
     python3 tools/gf2_replay_rc1.py [--threads N] [--limit K] [--json OUT]
+                                    [--solver exact|rankprofile]
+
+--solver rankprofile replays every record with
+``crypto_autoresearcher.gf2.rankprofile`` (macaulay_profile for M_D,
+w_profile for W_D) instead. That solver does not reproduce the declared op
+log, so its certificates differ from the archived ones; they are checked by
+evaluation (sum mu*f_k = 1) instead of by equality.
 """
 from __future__ import annotations
 
@@ -30,7 +37,7 @@ RUN = ROOT / "experiments/EXP-CERTBIN-e94b27/runs/RUN-CERTBIN-c417e0"
 IMPL = ROOT / "experiments/EXP-CERTBIN-e94b27/impl"
 
 from crypto_autoresearcher.gf2 import closure as fc  # noqa: E402
-from crypto_autoresearcher.gf2 import kernels  # noqa: E402
+from crypto_autoresearcher.gf2 import kernels, rankprofile  # noqa: E402
 
 # Fields the archived driver added around the engine's own record.
 DRIVER_FIELDS = {"wall_seconds", "label", "role", "certificate", "key", "set", "idx", "closure",
@@ -57,11 +64,22 @@ def load_eqs():
     return out
 
 
-def run_one(job, eqs, closures):
+def run_one(job, eqs, closures, solver="exact"):
     rec, cert_ref = job
     kind, D = rec["closure"][0], int(rec["closure"][2])
     cl = closures[D]
     t = time.perf_counter()
+    if solver == "rankprofile":
+        run = rankprofile.macaulay_profile if kind == "M" else rankprofile.w_profile
+        got, cert, _ = run(eqs[rec["key"]], NV, D, want_cert=cert_ref is not None)
+        wall = time.perf_counter() - t
+        want = {k: v for k, v in rec.items() if k not in DRIVER_FIELDS}
+        diffs = [k for k in want if got.get(k) != want[k]]
+        cert_ok = None
+        if cert_ref is not None:  # a different but valid refutation: check it, do not compare
+            cert_ok = cert is not None and fc.eval_cert(cert, eqs[rec["key"]]) == [0]
+        return {"key": rec["key"], "closure": rec["closure"], "field_diffs": diffs, "cert_ok": cert_ok,
+                "wall_new": wall, "wall_archived": rec.get("wall_seconds")}
     if kind == "M":
         got, cert = cl.macaulay_closure(eqs[rec["key"]], want_cert=cert_ref is not None)
     else:
@@ -83,6 +101,8 @@ def main():
     ap.add_argument("--threads", type=int, default=None)
     ap.add_argument("--limit", type=int, default=None, help="first K records only")
     ap.add_argument("--json", help="write the per-record results here")
+    ap.add_argument("--solver", choices=("exact", "rankprofile"), default="exact",
+                    help="rankprofile: certificates checked by evaluation, not compared")
     a = ap.parse_args()
 
     rows = [json.loads(line) for line in gzip.open(RUN / "closures.jsonl.gz", "rt")]
@@ -95,7 +115,7 @@ def main():
     # big jobs first so the pool drains evenly
     jobs.sort(key=lambda j: -(j[0].get("wall_seconds") or 0))
     t0 = time.perf_counter()
-    res = kernels.map_threads(lambda j: run_one(j, eqs, closures), jobs, a.threads)
+    res = kernels.map_threads(lambda j: run_one(j, eqs, closures, a.solver), jobs, a.threads)
     elapsed = time.perf_counter() - t0
 
     bad = [r for r in res if r["field_diffs"] or r["cert_ok"] is False]
@@ -108,7 +128,7 @@ def main():
         b[0] += 1
         b[1] += r["wall_archived"] or 0
         b[2] += r["wall_new"]
-    print(f"backend: {kernels.backend()}  threads: {a.threads or kernels.default_threads()}")
+    print(f"backend: {kernels.backend()}  threads: {a.threads or kernels.default_threads()}  solver: {a.solver}")
     print(f"records: {len(res)}  certificates checked: {ncert}  mismatches: {len(bad)}")
     print(f"{'closure':8} {'n':>4} {'archived s':>11} {'new s':>8} {'speedup':>8}")
     for k in sorted(by):

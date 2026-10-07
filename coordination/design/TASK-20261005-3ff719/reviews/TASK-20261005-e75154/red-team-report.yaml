@@ -1,0 +1,380 @@
+red_team_report:
+  id: RT-20261005-e75154
+  task_id: TASK-20261005-e75154
+  review_plan_id: REVIEW-CSTAR-CORR-20261005-9cc4c3
+  role: red-team
+  claim_under_review: >-
+    Only joints J3, J4, and J5 of the immutable C-star packet archived by
+    TASK-20261005-3a667c. This report does not give a whole-claim verdict and
+    makes no statement about J1 or J2.
+  snapshot_binding:
+    commit_sha: c405c869deb51d21b1b1569c2fbc22e623ac46d8
+    parent_sha: dc8842a68abce1ac67b5a5e9400ec68f2d040cad
+    pushed_remote_ref: origin/goal/pke-supersingular-endomorphism-ring
+    exact_changed_paths_verified: true
+    receipt_self_neutral: true
+    non_self_hashes_verified: 6
+    producer_bytes_read_only_after_verification: true
+  joint_reviews:
+    J3:
+      verdict: breaks
+      joint: >-
+        Public syntax and a typed ciphertext-to-actual-message correctness
+        chain for every attempted projection.
+      common_scaffold:
+        public_sender_attack: >-
+          Replacing the recipient secret by an opaque token does not stop any
+          of the three Encrypt algorithms: each uses only pk, m, and its
+          declared coins. Public-sender syntax therefore passes.
+        domains_and_encodings: >-
+          M, R, D, N, the quotient kernel, canonical transport, ciphertext
+          domains, bottom, and the principal validation checks are stated.
+          However L has no lower bound or security-parameter relation, and the
+          P2 text names a uniform declared SL_2 sampler without giving its
+          concrete sampling algorithm. These omissions are not needed for the
+          decisive correctness failures below.
+        correctness_quantifier: >-
+          The packet correctly states the universal quantifier over certified
+          setups, keys, messages, and coins, but P1 and P2 do not prove it and
+          P3 explicitly violates it.
+      routes:
+        - family: P1_one_column
+          producer_quote: 'Pi_1(phi_s) = (C_s, phi_s(P)).'
+          value_flow: >-
+            (pk,m,r) -> s=m+2^k r -> K_s -> phi_s ->
+            (C_s,phi_s(P)) -> public D-term compatible-t list -> common
+            residue mod 2^k if one exists.
+          sender_secret_dependency: none
+          actual_message_result: >-
+            The true s is in the list, but equality on one cyclic N-subgroup
+            yields only N dividing deg(phi_s-phi_t), not the N^2 divisibility
+            supplied by equality on a full torsion basis. N^2>4D therefore
+            does not prove that all compatible t have the same low-k residue.
+            The decoder can return bottom on a valid encryption, so the
+            required all-message equation is unproved.
+          endpoint_projection_collision: >-
+            No universal cross-message collision was established, but no
+            separation theorem was established either. Missing the required
+            implication is itself a J3 breaking artifact under the plan.
+          terminal_output_check: >-
+            LiftEnum_1 ends at a candidate set of coefficients/maps and Decode
+            returns an actual message only under the unproved common-residue
+            condition.
+          route_verdict: breaks
+        - family: P2_fresh_mask_orbit
+          producer_quote: 'Pi_mask(phi_s,A) = (C_s, Y_s A).'
+          value_flow: >-
+            (pk,m,r,A) -> s -> phi_s -> labeled action Y_s -> masked basis
+            Y_s A -> public enumeration of every (t,B) -> common residue mod
+            2^k if one exists.
+          sender_secret_dependency: none
+          actual_message_result: >-
+            The actual (s,A) is compatible, but the SL_2 mask deliberately
+            quotients the public source labeling. Whenever another t has the
+            same normalized endpoint, its full action basis has the same Weil
+            determinant and a compatible SL_2 change of basis exists; no
+            theorem excludes cross-message t. The decoder may therefore
+            return bottom on a valid encryption.
+          endpoint_lift_attack: >-
+            The masked pair does not identify the sender's unmasked Y_s. If s
+            were recovered, smooth-torsion linear algebra would recover A
+            publicly; the packet gives no recipient-only way to obtain s or
+            Y_s first.
+          terminal_output_check: >-
+            LiftEnum_mask ends at a list of (t,B,map) values and returns the
+            plaintext only under an unproved common-residue condition.
+          route_verdict: breaks
+        - family: P3_pairing_determinant
+          producer_quote: 'Pi_det(phi_s) = e_N(phi_s(P),phi_s(Q)).'
+          value_flow: >-
+            (pk,m,r) -> phi_s -> e_N(phi_s(P),phi_s(Q)) =
+            e_N(P,Q)^D -> ValidateInvariant -> bottom.
+          sender_secret_dependency: none
+          exact_collision: >-
+            Weil-pairing functoriality makes every admitted message and coin
+            produce the same ciphertext. Two distinct messages therefore have
+            identical full decoder input even when End(E) is disclosed.
+          actual_message_result: >-
+            Dec_det returns bottom on every valid ciphertext, so
+            Dec_det(sk,Enc_det(pk,m;r)) is not m.
+          route_verdict: breaks
+      scoped_conclusion: >-
+        Public encryption syntax is present, but none of P1, P2, or P3 has the
+        required typed chain to the actual message: P1 and P2 lack separation,
+        while P3 has an exact total collision.
+    J4:
+      verdict: breaks
+      joint: >-
+        A concrete, uniform polynomial-time, End(E)-only SecretLift with no
+        public duplicate, hidden extra secret, or reversed hardness arrow.
+      finalist_status: none_selected
+      route_attacks:
+        - family: P1_one_column
+          secretlift_lines:
+            - 'Parse and validate ct=(C,X); otherwise return bottom.'
+            - 'For each t in [0,D), compute the public quotient phi_t.'
+            - 'Emit every exact normalized match.'
+          result: >-
+            This is Theta(D)=Theta(2^a) public reencryption, uses no End(E),
+            and is exponential in the encoded parameter. The proposed
+            Complete_2 replacement is only an obligation: no algorithm is
+            supplied that derives phi_s(Q), an evaluated map, or a connecting
+            Hom(E,C) element from the stated secret and ciphertext.
+          Hom_and_fixed_rank_attack: >-
+            End(E) can act on Hom(E,C) only after a connecting element or
+            evaluated Hom basis is available. The ciphertext supplies neither.
+            If an evaluated Hom basis were published, fixed-rank lifting and
+            every continuation would be public, so it would not establish a
+            recipient-only advantage.
+          route_verdict: breaks
+        - family: P2_fresh_mask_orbit
+          secretlift_lines:
+            - 'For each t in [0,D), compute Y_t.'
+            - 'For each B in SL_2(Z/NZ), compare (C_t,Y_t B) with ct.'
+          result: >-
+            The submitted lift is public, costs D times |SL_2(Z/NZ)|, and uses
+            no End(E). Freshness of A alone is not a proof that A cannot be
+            inferred from the ciphertext, but the packet supplies no such
+            inference algorithm; after s or Y_s is known, A is publicly
+            recoverable by smooth-torsion linear algebra.
+          extra_secret_attack: >-
+            Publishing A makes unmasking public and restores the full-action
+            Robert route. Giving A privately is a per-ciphertext secret outside
+            KeyGen. A retained long-term mask, connecting isogeny, ideal,
+            orientation, tau, or setup trapdoor changes both the secret and the
+            assumption and is not bare End(E).
+          route_verdict: breaks
+        - family: P3_pairing_determinant
+          secretlift_lines:
+            - 'Validate c=e_N(P,Q)^D.'
+            - 'Return the public constant or bottom.'
+          result: >-
+            Validation is polynomial and public, but it cannot select the
+            sampled preimage or output a message. End(E), Hom data, or a path
+            cannot restore information absent from a constant observation.
+          route_verdict: breaks
+      required_attacks:
+        L_parameter_short_walk: >-
+          L is not related to the security parameter. For a short enumerable
+          walk, the public can enumerate degree-3 paths to E and recover a
+          connecting tau candidate, after which the known End(E_star) data can
+          be transported. This independently prevents any recipient-only claim
+          over all admitted parameters; the packet makes no security claim and
+          does not conceal this missing obligation.
+        P2_endpoint_lift: >-
+          End(E) plus a masked target basis does not by itself supply the
+          source labeling. Conversely, once an endpoint path or the coefficient
+          s is supplied, Y_s and A are public computations. No middle private
+          arrow is defined.
+        torsion_and_Robert: >-
+          P1 lacks one basis image; P2 lacks the mask inverse; P3 lacks a
+          codomain and action values. Thus Robert is not directly admitted by
+          the projected interfaces. Restoring P1's second image or revealing
+          P2's A gives the full rational smooth action with N^2>4D and makes
+          recovery public, not secret.
+        finite_torsion_linear_algebra: >-
+          It computes masks after the labeled action is known and does not
+          manufacture the absent connecting map or label. It supplies no
+          private advantage from the stated sk.
+        public_Hom: >-
+          Supplying evaluated Hom(E,C), a path, or a connecting ideal is an
+          added object. If public, the continuation is public; if secret, it is
+          an undeclared extra secret.
+        public_reencryption: >-
+          Exact reencryption exists for P1 and P2 but is exponential and public.
+          P3 reencryption confirms the total collision.
+        reduction_direction: >-
+          The only stated arrow is EndRingEval solver -> evaluable sk ->
+          SecretLift/Decode -> PKE break, conditional on a decoder existing.
+          That is an attack/upper-bound direction. No IND-CPA adversary ->
+          EndRingEval solver reduction or separately reduced intermediate
+          assumption is supplied.
+      scoped_conclusion: >-
+        Every submitted lift is either public exponential enumeration or a
+        public nondecoding validation. No attempted route supplies the required
+        polynomial End(E)-only recipient algorithm, and no security reduction
+        is claimed.
+    J5:
+      verdict: holds
+      joint: >-
+        Primary-source comparison and nonduplication/scope boundary for the
+        three attempted projections.
+      normalized_comparisons:
+        SETA: >-
+          SÉTA Section 3 maps a message to a degree-D isogeny and publishes the
+          endpoint plus both N-torsion basis images; Lemma 3.1 uses N^2>4D for
+          injectivity, while its trapdoor contains explicit endomorphism-action
+          data. P1 deletes one image, P2 hides both source labels behind fresh
+          randomness, and P3 keeps only a constant. The producer correctly
+          claims no novelty delta from the full-action uniqueness lemma.
+        FESTA: >-
+          FESTA Algorithms 1-2 use a secret connecting isogeny and secret
+          commuting matrix to remove correlated torsion masks before a torsion
+          attack. Section 3 explicitly notes circulant matrices as an alternative
+          and Section 4 states DIST/CIST/CIST2 assumptions. A long-term P2 mask
+          would enter this boundary and could not be relabeled bare EndRing.
+        POKE: >-
+          POKE Section 4 uses masked higher-dimensional representations,
+          parallel sender isogenies, secret unmasking, shared-point recovery,
+          and the C-POKE problem in the random-oracle proof. The front-page
+          correction invalidates the Section 5/6 split-KEM and OPRF validation
+          assumption but expressly leaves the Section 4 PKE unaffected. The
+          producer preserves this correction boundary.
+        PIKE: >-
+          PIKE Sections 3-4 reveal masked individual torsion images and derive
+          a nonconstant shared pairing value under C-PIKE. Section 5.1 states
+          that no one-sided PIKE/POKE reduction is available and that the
+          PIKE/LIT relationship is heuristic rather than a proved reduction.
+          P1's one-point shape and P3's pairing syntax are comparison boundaries,
+          not exact duplicates or borrowed message arrows.
+        Maino_et_al: >-
+          The introduction defines SSI-T using the full B-torsion restriction,
+          explicitly names SÉTA in the affected scope, and Section 4/Theorem 2
+          gives the known-EndRing route under GRH. This supports the public
+          full-action control but does not automatically cover one-column,
+          masked, or invariant-only projections.
+        SiGamal_and_C_SiGamal: >-
+          SiGamal Section 3 and C-SiGamal Section 4 use a commutative class/ideal
+          action, an auxiliary point, explicit point-to-message discrete-log
+          decoding with sign handling, and P-CSSCDH/P-CSSDDH assumptions.
+          None of P1-P3 instantiates or may borrow that action or assumption.
+        LIT_SiGamal: >-
+          LIT-SiGamal Section 4 uses a long horizontal isogeny, parallel public
+          vertical isogenies, secret matrix/scalar data, unmasking, Kani-based
+          reconstruction, and a final plaintext discrete log. Section 5 uses
+          LIT-specific assumptions. Adding its reconstruction datum to P2 would
+          change the secret and assumption rather than complete an End(E)-only
+          lift.
+        Robert: >-
+          Robert Theorem 1.1 requires a known full rational torsion-basis action
+          and known factorization; Remark 1.2 and Section 6.4 extend recovery to
+          the squared-order regime with kernel-rank and target-basis conditions.
+          The full-action baseline satisfies the advertised N^2>4D relation,
+          rationality, smoothness, and rank conditions, but the three projections
+          do not automatically inherit this interface.
+      nonduplication_by_route:
+        P1_one_column: >-
+          An incomplete projection of SÉTA/full-action syntax and within the
+          PIKE one-point comparison boundary; no exact complete PKE overlap and
+          no novelty claim.
+        P2_fresh_mask_orbit: >-
+          Mask syntax overlaps FESTA/LIT/POKE design territory, but this route
+          omits their secret reconstruction structures and assumptions; it is a
+          failed definition, not a new construction.
+        P3_pairing_determinant: >-
+          A constant-invariant control, not PIKE's shared-pairing mechanism and
+          not a construction claim.
+      scope_audit: >-
+        The packet limits itself to exactly three failed definitions and the
+        Complete_2 obligation. It claims neither novelty, security, practicality,
+        EndRing hardness/easiness, nor universal impossibility; projections
+        outside P1-P3 remain open. Fresh source reading found no contradiction
+        to that narrow boundary.
+      scoped_conclusion: >-
+        The source and nonduplication statements hold at their declared narrow
+        scope. This is only a J5 verdict, not a verdict on any other joint or on
+        the claim as a whole.
+  proves_too_much_control:
+    constant_projection: >-
+      P3 correctly fails actual-message correctness even with End(E); the
+      argument does not manufacture separation from a constant.
+    identity_or_full_public_inverse: >-
+      Restoring P1's missing image or publishing P2's mask makes inversion and
+      Robert recovery public; the report does not call that recipient-only.
+    EndRing_derived_ElGamal_wrapper: >-
+      The packet excludes generic wrappers and does not relabel their syntax or
+      assumptions as a novel EndRing construction.
+    solver_to_decrypt_direction: >-
+      The packet labels this as an attack direction and does not infer semantic
+      security from it.
+    control_result: pass
+  objections:
+    - id: OBJ-J3-P1-SEPARATION
+      joint: J3
+      finding: >-
+        True-preimage inclusion is not all-message correctness; equality on one
+        N-torsion point does not import the full-basis N^2 degree argument.
+    - id: OBJ-J3-P2-MASKED-FIBER
+      joint: J3
+      finding: >-
+        The actual masked pair is included, but message separation across the
+        masked observation fiber is unproved.
+    - id: OBJ-J3-P3-CONSTANT
+      joint: J3
+      finding: >-
+        Every message/coin pair has the same pairing ciphertext and Dec returns
+        bottom.
+    - id: OBJ-J4-NO-SECRET-LIFT
+      joint: J4
+      finding: >-
+        The only supplied algorithms are public exponential enumerators or a
+        public nondecoding validator; Complete_2 is not an algorithm.
+    - id: OBJ-J4-SHORT-WALK
+      joint: J4
+      finding: >-
+        The unrestricted L parameter admits publicly enumerable walk instances,
+        preventing a uniform recipient-only claim over the declared setup set.
+  required_controls:
+    - >-
+      For any successor P1 candidate, prove low-k separation for the complete
+      observation fiber, not merely inclusion of the true coefficient.
+    - >-
+      Supply and analyze a uniform polynomial Complete_2 algorithm using only
+      the exact secret-key representation, then run Robert, smooth-torsion,
+      fixed-rank Hom, public reencryption, short-walk, and public-inverse attacks.
+    - >-
+      State a security-parameter lower bound/distribution for L and charge public
+      path enumeration before making any recipient-only or security statement.
+  counterexample_or_mutation: >-
+    The cheapest exact counterexample is P3 itself: choose any two distinct
+    messages and any legal coins; both encrypt to e_N(P,Q)^D. The cheapest P2
+    mutation is to publish A, which makes unmasking and full-action recovery
+    public. The cheapest P1 mutation is to restore phi_s(Q), which likewise
+    activates public Robert recovery.
+  baseline_comparison: >-
+    No finalist or security claim exists, so an end-to-end Pollard-rho/BSGS
+    speedup comparison is inapplicable. P1 costs D public reenactments and P2
+    costs D times |SL_2(Z/NZ)|; both are public exponential fallbacks rather
+    than cryptanalytic gains. P3 is constant-size but incorrect.
+  heuristic_challenges: []
+  cost_model_challenges:
+    - >-
+      K0 remains unresolved: finite saturation, represented-field degree,
+      torsion construction, canonicalization, preprocessing, and evaluated-map
+      output have no uniform polynomial bound.
+    - >-
+      L is unbounded by the security parameter, so short-walk public recovery
+      is not charged or excluded.
+  reduction_and_scope_challenges:
+    - >-
+      No adversary-to-EndRing reduction exists; solver-to-decrypt is only an
+      attack direction.
+    - >-
+      Robert and Maino et al. support the full-action control only after their
+      exact interface hypotheses are met; they do not prove partial/masked
+      projection secrecy or impossibility.
+  proof_architecture_challenges:
+    - >-
+      Observation fibers are decisive: P3 is one total fiber; P2 quotients
+      source labels; P1 lacks a fiber-separation theorem.
+    - >-
+      The method ceiling reaches only public finite preimage inclusion for P1
+      and P2 and exact scoped failure for P3, matching the producer's narrow
+      ceiling.
+  narrowest_supported_statement: >-
+    For the exact immutable definitions, P3 fails correctness by an exact
+    constant collision; P1 and P2 do not establish actual-message correctness
+    and provide no uniform polynomial End(E)-only SecretLift. The freshly read
+    primary sources support the packet's narrow comparison boundaries. This
+    says nothing about projections outside P1-P3 or EndRing-based PKE in
+    general.
+  next_concrete_action: >-
+    Do not promote any P1-P3 definition. If work continues, require one typed
+    Complete_2 algorithm for P1, a proof of its full observation-fiber message
+    separation, a security-parameter treatment of L, and a public-recovery
+    separation proof before any new claim-changing review.
+  artifact_paths:
+    - coordination/design/TASK-20261005-3ff719/reviews/TASK-20261005-e75154/red-team-report.yaml
+    - coordination/design/TASK-20261005-3ff719/reviews/TASK-20261005-e75154/source-verification.yaml
+    - coordination/design/TASK-20261005-3ff719/reviews/TASK-20261005-e75154/review-attestation.yaml
+
