@@ -281,12 +281,73 @@ class CheckTests(unittest.TestCase):
         self.assertTrue(any("timeout_seconds" in p for p in problems), problems)
         self.assertTrue(any("inside the root" in p for p in problems), problems)
         self.assertEqual(e2o.check({"verifier": {"kind": "lean"}}, None)[-1],
-                         "verifier.kind 'lean': this tool renders certificate and replay only")
+                         "verifier.kind 'lean': this tool holds certificate, replay and evaluator objectives only")
 
     def test_the_committed_stage0_objectives_clear_the_check_against_the_real_tree(self) -> None:
         for name in ("discrete-log-reverification.json", "decomposition-reverification.json"):
             objective = json.loads((REAL_REPO / "cairn/objectives" / name).read_text())
             self.assertEqual(e2o.check(objective, REAL_REPO), [], name)
+
+    def test_the_committed_stage2_evaluator_objective_clears_the_check_against_the_real_tree(self) -> None:
+        objective = json.loads((REAL_REPO / "cairn/objectives/bound-frontier-ecdlp-prime-toy.json").read_text())
+        self.assertEqual(e2o.check(objective, REAL_REPO), [])
+
+    def test_check_holds_an_evaluator_objective_to_cairns_evaluator_and_ratchet_rules(self) -> None:
+        repo = Repo()
+        self.addCleanup(repo.cleanup)
+        evaluator = "def score(artifact):\n    return 5\n"
+        write(repo.root / "cairn/checkers/eval.py", evaluator)
+        digest = hashlib.sha256(evaluator.encode()).hexdigest()
+        good = {
+            "created_at": "2026-10-05T00:00:00+00:00", "funder": "f", "goal": "GOAL-x/y",
+            "statement": "s", "reward": 0,
+            "ratchet": {"baseline": 500000, "target": 1000000, "reward": 0,
+                        "direction": "maximize", "min_improvement": 10000},
+            "verifier": {"kind": "evaluator", "evaluator": "cairn/checkers/eval.py",
+                         "evaluator_sha256": digest, "entrypoint": "score",
+                         "threshold": 1, "direction": "maximize"},
+        }
+        self.assertEqual(e2o.check(good, repo.root), [])
+
+        # The spelling this program's first evaluator objective shipped with.
+        wrong_pin = json.loads(json.dumps(good))
+        wrong_pin["verifier"] = {"kind": "evaluator", "checker": "cairn/checkers/eval.py",
+                                 "checker_sha256": digest, "entrypoint": "score",
+                                 "ratchet": {"higher_is_better": True}, "shape_note": "n"}
+        problems = e2o.check(wrong_pin, repo.root)
+        self.assertTrue(any(p == "evaluator.evaluator missing" for p in problems), problems)
+        self.assertTrue(any(p == "evaluator.threshold missing" for p in problems), problems)
+        self.assertTrue(any("pins `evaluator`/`evaluator_sha256`" in p for p in problems), problems)
+
+        bad = json.loads(json.dumps(good))
+        bad["verifier"]["evaluator_sha256"] = "0" * 64
+        bad["verifier"]["threshold"] = True
+        bad["verifier"]["direction"] = "up"
+        bad["verifier"]["timeout_seconds"] = 0
+        bad["shape_note"] = "not a field the schema admits"
+        bad["ratchet"] = {"baseline": 20, "target": 10, "reward": 5, "direction": "maximize",
+                          "min_improvement": 0}
+        problems = e2o.check(bad, repo.root)
+        for needle in ("does not match evaluator_sha256", "threshold must be an integer",
+                       "direction must be one of", "timeout_seconds must be 1..",
+                       "unknown top-level field 'shape_note'", "must exceed baseline",
+                       "min_improvement must be an integer of at least 1",
+                       "ratchet.reward (5) and reward (0) must be one pool"):
+            self.assertTrue(any(needle in p for p in problems), (needle, problems))
+
+        # A ratchet needs a score; a certificate produces a bool.
+        ratcheted_certificate = {
+            **good, "reward": 0,
+            "verifier": {"kind": "certificate", "checker": "cairn/checkers/discrete_log.py",
+                         "checker_sha256": hashlib.sha256(CHECKER.encode()).hexdigest(),
+                         "entrypoint": "check"},
+        }
+        problems = e2o.check(ratcheted_certificate, repo.root)
+        self.assertTrue(any("score-producing verifier" in p for p in problems), problems)
+        # A gate wider than the span: cairn posts it and warns; nothing could pay.
+        unwinnable = json.loads(json.dumps(good))
+        unwinnable["ratchet"]["min_improvement"] = 600000
+        self.assertTrue(any("nothing could ever pay" in p for p in e2o.check(unwinnable, repo.root)))
 
 
 class CliTests(unittest.TestCase):
