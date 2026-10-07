@@ -6,13 +6,12 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261007-b6c1ec` | red-team | queued | 40 | TASK-20261007-8ab26c, TASK-20261007-8116c4 | coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/revision-review.yaml, coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/review-attestation.yaml, coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/runtime-session-receipt.json | coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec |
+| `TASK-20261007-c47fc6` | coordinator | queued | 30 | TASK-20261007-b6c1ec | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6/final-composition.yaml | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6 |
 
 ## Deferred or Blocked
 
 - `TASK-20261007-9c36ba`: dependency_not_completed:TASK-20261007-c47fc6:queued
-- `TASK-20261007-c47fc6`: dependency_not_completed:TASK-20261007-b6c1ec:queued
-- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-b6c1ec:queued, dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
+- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
 
 ## Dispatch Gates
 
@@ -28,4 +27,20 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `f1c5805008e24c3ed049c9d0c60d1a1974fac65bf4fe80a9779960178b745d29`
+## Unlanded producer output
+
+These declared artifacts exist in this working tree and are ABSENT
+from `HEAD`. They exist on one machine. When it goes away they go with
+it, which is what happened to two blind source reads and a completed
+run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
+
+A running producer legitimately appears here, so this is a report and
+not a gate. Land anything whose producer has already returned.
+
+- `TASK-20261007-b6c1ec` (red-team, completed):
+  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/review-attestation.yaml`
+  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/revision-review.yaml`
+  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/runtime-session-receipt.json`
+  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-b6c1ec --push`
+
+Plan SHA-256: `9b21cd48ecc77dcfc5e2f866ba99d17806cf6d48fce1258ba6b56d6fd4b88f1b`
