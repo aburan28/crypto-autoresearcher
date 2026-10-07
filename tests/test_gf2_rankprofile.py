@@ -304,6 +304,91 @@ def test_map_processes_matches_map():
         [(x * x + offset, 1) for x in data]
 
 
+def _mk_dense(rng, R, C, dens):
+    W = (C + 63) // 64
+    d = (rng.random((R, C)) < dens).astype(np.uint8)
+    d = np.concatenate([d, np.zeros((R, W * 64 - C), np.uint8)], 1)
+    return np.ascontiguousarray(np.packbits(d, axis=1, bitorder="little")).view(np.uint64).reshape(R, W).copy()
+
+
+@native
+def test_gpu_pass_algorithm_matches_blocked_pass_on_cpu():
+    """gpu/rankpass.py run with numpy as its array module: same pivots, same
+    order and same final matrix as the blocked CPU pass."""
+    from crypto_autoresearcher.gf2.gpu import rankpass
+    rng = np.random.default_rng(1)
+    for t in range(80):
+        R, C = int(rng.integers(0, 250)), int(rng.integers(1, 600))
+        M = _mk_dense(rng, R, C, float(rng.choice([0.005, 0.03, 0.2, 0.5])))
+        if R > 3 and t % 3 == 0:
+            M[1] = M[0] ^ M[2]
+        A = M.copy()
+        log = kernels.column_pass(A, C, keep_ops=False, algorithm="blocked")
+        B = M.copy()
+        ps, cs = rankpass.column_pass(B, C, xp=np)
+        assert np.array_equal(ps, log.ps) and np.array_equal(cs, log.cs) and np.array_equal(A, B)
+    for t in range(100):
+        v = rng.integers(1, 2 ** 63, size=int(rng.integers(1, 150)), dtype=np.uint64)
+        nb = int(rng.integers(1, 65))
+        got, want = rankpass.block_elim(v, nb), rankpass._block_elim_py(v.copy(), nb)
+        assert all(np.array_equal(a, b) for a, b in zip(got, want))
+
+
+@native
+def test_solver_gpu_path_on_cpu_matches_exact_engine(monkeypatch):
+    """The solver's GPU route (no op log; CPU rerun when a certificate is
+    needed), with the GPU pass run through numpy and forced on every pass."""
+    from crypto_autoresearcher.gf2.gpu import rankpass
+    monkeypatch.setattr(rankpass, "XP", np)
+    monkeypatch.setattr(rankprofile, "_gpu_ok", True)
+    monkeypatch.setattr(rankprofile, "GPU_MIN_WORDS", 0)
+    refuted = 0
+    for nv, D, eqs, planted in _systems(seed=11, n=60):
+        want, _ = fc.Closure(nv, D, len(eqs)).macaulay_closure(eqs, want_cert=False)
+        got, cert, info = rankprofile.macaulay_profile(eqs, nv, D)
+        assert got == want
+        assert bool(info.get("gpu")) == (not got["one"])
+        if got["one"]:
+            refuted += 1
+            assert fc.eval_cert(cert, eqs) == [0]
+        wwant, _ = fc.Closure(nv, D, len(eqs)).w_closure(eqs, want_cert=False)
+        wgot, wcert, _ = rankprofile.w_profile(eqs, nv, D)
+        assert wgot == wwant
+        if wgot["one"]:
+            assert fc.eval_cert(wcert, eqs) == [0]
+        nocert, c2, _ = rankprofile.macaulay_profile(eqs, nv, D, want_cert=False)
+        assert nocert == want and c2 is None
+    assert refuted > 5
+
+
+def test_gpu_pass_on_device_matches_blocked_pass():
+    """On a CUDA host: the CuPy pass gives the CPU pass's pivots and matrix,
+    and the solver's GPU route gives the exact engine's records."""
+    from crypto_autoresearcher.gf2 import gpu
+    from crypto_autoresearcher.gf2.gpu import rankpass
+    ok, why = gpu.available()
+    if not ok:
+        pytest.skip(why)
+    import cupy as cp
+    rng = np.random.default_rng(7)
+    for t in range(40):
+        R, C = int(rng.integers(1, 400)), int(rng.integers(1, 900))
+        M = _mk_dense(rng, R, C, float(rng.choice([0.01, 0.1, 0.5])))
+        A = M.copy()
+        log = kernels.column_pass(A, C, keep_ops=False, algorithm="blocked")
+        B = M.copy()
+        ps, cs = rankpass.column_pass(B, C, xp=cp)
+        assert np.array_equal(ps, log.ps) and np.array_equal(cs, log.cs) and np.array_equal(A, B)
+    old = rankprofile.GPU_MIN_WORDS
+    rankprofile.GPU_MIN_WORDS = 0
+    try:
+        for nv, D, eqs, _ in _systems(seed=13, n=30):
+            want, _ = fc.Closure(nv, D, len(eqs)).macaulay_closure(eqs, want_cert=False)
+            assert rankprofile.macaulay_profile(eqs, nv, D, gpu=True)[0] == want
+    finally:
+        rankprofile.GPU_MIN_WORDS = old
+
+
 def test_profile_runs_on_the_reference_backend():
     code = (
         "import sys; sys.path.insert(0, %r)\n"

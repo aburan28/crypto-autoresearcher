@@ -87,6 +87,8 @@ def _declare(lib):
     lib.gf2_build_rows.restype = ctypes.c_int
     lib.gf2_build_rows.argtypes = [P, P, ctypes.c_int, ctypes.c_int, i64, P, P, i64, P, P, P,
                                    ctypes.c_int]
+    lib.gf2_block_elim.restype = ctypes.c_int
+    lib.gf2_block_elim.argtypes = [P, i64, ctypes.c_int, P, P, P]
     lib.gf2_rows_sum.restype = ctypes.c_int
     lib.gf2_rows_sum.argtypes = [P, P, ctypes.c_int, ctypes.c_int, i64, P, P, i64, P]
     lib.gf2_row_lead_weight.restype = None

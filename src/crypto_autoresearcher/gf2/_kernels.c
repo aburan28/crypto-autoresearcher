@@ -1009,6 +1009,63 @@ int gf2_rows_sum(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const u
     return err ? -1 : 0;
 }
 
+/*
+ * One 64-column step of the blocked column pass on the active rows' words
+ * alone (the trailing update is left to the caller, e.g. a GPU). val[a] is
+ * word w of active row a (rows ascending; every val[a] is nonzero and has
+ * its lowest bit at its lead). For each column b < nbits, the smallest active
+ * row whose current lowest bit is b becomes pivot slot s (piv_a[s] = a,
+ * piv_b[s] = b) and is XORed into every other active row with bit b, exactly
+ * as gf2_column_pass_blocked_mt does. On return val holds the reduced words
+ * and coef[a] the set of pivot slots whose pre-step rows were added to row a
+ * (for a pivot, those added before it became one). Returns the pivot count.
+ */
+int gf2_block_elim(u64 *val, i64 na, int nbits, u64 *coef, i32 *piv_a, i32 *piv_b)
+{
+    size_t nwa = ((size_t)na + 63) / 64;
+    u64 *bm = (u64 *)calloc(64 * (nwa ? nwa : 1), sizeof(u64));
+    if (!bm)
+        return -1;
+    for (i64 a = 0; a < na; a++) {
+        coef[a] = 0;
+        if (!val[a])
+            continue;
+        int b = __builtin_ctzll(val[a]);
+        bm[(size_t)b * nwa + (a >> 6)] |= 1ULL << (a & 63);
+    }
+    int npiv = 0;
+    for (int b = 0; b < nbits; b++) {
+        u64 *bb = bm + (size_t)b * nwa;
+        size_t q = 0;
+        while (q < nwa && !bb[q])
+            q++;
+        if (q == nwa)
+            continue;
+        i64 p = (i64)(q * 64 + __builtin_ctzll(bb[q]));
+        bb[q] &= bb[q] - 1;
+        int slot = npiv++;
+        piv_a[slot] = (i32)p;
+        piv_b[slot] = b;
+        u64 pv = val[p], pc = coef[p] ^ (1ULL << slot);
+        for (; q < nwa; q++) {
+            u64 word = bb[q];
+            bb[q] = 0;
+            while (word) {
+                i64 x = (i64)(q * 64 + __builtin_ctzll(word));
+                word &= word - 1;
+                val[x] ^= pv;
+                coef[x] ^= pc;
+                if (val[x]) {
+                    int nb = __builtin_ctzll(val[x]);
+                    bm[(size_t)nb * nwa + (x >> 6)] |= 1ULL << (x & 63);
+                }
+            }
+        }
+    }
+    free(bm);
+    return npiv;
+}
+
 /* lead[i] = lowest set column of row i (-1 if none), weight[i] = popcount. */
 HOT void gf2_row_lead_weight(const u64 *M, i64 R, i64 W, i64 *lead, i64 *weight)
 {
