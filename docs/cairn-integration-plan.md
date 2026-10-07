@@ -324,6 +324,23 @@ reads as the plan and this reads as the ledger of it.
   standing up), both optional capabilities as `send_messages` is, and the
   Claude Code bindings carry the tools; `tools/check_runtime_bindings.py`
   holds them to it.
+- **Stage 2, the shape (2026-10-06).** The first ratchet objective,
+  `cairn/objectives/bound-frontier-ecdlp-prime-toy.json`, is in cairn's own
+  evaluator shape, confirmed against cairn at commit
+  `b93dd9aa7d2840e46b7b7136afb8fc7c1fec3b6a` with the built binary rather
+  than against §1's table: `verifier.evaluator`/`evaluator_sha256`,
+  `entrypoint: score`, an integer `threshold`, a `direction`, and a
+  `ratchet` of `{baseline, target, reward, direction, min_improvement}` whose
+  pool equals the objective's reward. Two rules the table did not carry:
+  the evaluator never raises (a raise is `unavailable`, so a refused record
+  scores a sentinel the threshold rejects), and the canonical encoding has no
+  floats, so a bound record is submitted as a rendering with every
+  non-integer number as a decimal string (`tools/bound_artifact.py`).
+  `post` took the objective; the two committed records scored `accept` at
+  682064 and 866743 and an altered copy `reject score 0`
+  (`docs/bounds-and-frontiers.md` §5). Shaped and scored, not yet posted on
+  the program's node: Stage 2's exit -- three claims from two sessions and a
+  rerank reading `frontier_status` -- is not met.
 - **On the network side** (cairn `v1.16`): a node runs the validator loop
   (`cairn run --attest-identity`, `cairn attest serve`) that re-verifies every
   claim and stands behind what it finds under bond; `GET /knowledge/{claim}`
@@ -350,7 +367,9 @@ reads as the plan and this reads as the ledger of it.
 - Relations (`replicates`, `refutes`, ...) are not exposed to agents over
   MCP on cairn's side, so the Validator's "author relations" half of Stage 1
   is still CLI-only.
-- Stages 2 to 4 are as the sections above say.
+- Stage 2 is shaped (above) and not exercised: no claim has been committed
+  against the bound-frontier objective on any node of this program. Stages 3
+  to 4 are as the sections above say.
 
 ## 7. Work items, by file
 
