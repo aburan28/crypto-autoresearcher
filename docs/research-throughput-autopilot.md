@@ -12,6 +12,18 @@ does not change an experiment's approval, scientific scope, or claim tier.
 ## Try it
 
 ```sh
+scripts/research.sh --list                 # presets and what each needs
+scripts/research.sh anthropic-batch --dry-run
+scripts/research.sh openrouter --once
+scripts/research.sh abliterated            # keeps running
+scripts/research.sh local --report
+```
+
+`scripts/research.sh <preset> [flags]` is `autoresearch campaign autopilot
+--preset <preset> [flags]` with the pinned interpreter chosen for you. The
+long form is still there:
+
+```sh
 autoresearch campaign autopilot --dry-run
 autoresearch campaign autopilot --once --backend local --backend zai
 autoresearch campaign autopilot --backend local --backend zai --backend openai
@@ -19,6 +31,89 @@ autoresearch campaign autopilot --report
 # If `opencode serve` is already running locally:
 autoresearch campaign autopilot --attach http://127.0.0.1:4096
 ```
+
+### Presets: one name for runtime, backends and delivery
+
+A preset fixes three things and nothing else: which agent CLI runs each
+action (`--runtime opencode | claude_code | codex_cli`), which backends it
+may fail over across (`--backend`, in order), and whether draftable actions
+go through the Message Batches API first (`--delivery`). Explicit flags
+override the preset. A preset never names a model: models come from
+`orchestration/model-bindings.yaml`, from the operator overlay
+`orchestration/model-bindings.local.yaml` (gitignored; start from
+`model-bindings.local.example.yaml`), or from `--model ID --model-caps
+effort=…,context=…,output=…` for one run, which writes an
+`operator-supplied` overlay under the state directory and layers it over the
+standing one. The resolver still applies the role policy floors to whatever
+is bound, so a model whose declared capabilities fall short of the
+Coordinator policy is skipped, not downgraded.
+
+| preset | runtime | backends | delivery |
+|:--|:--|:--|:--|
+| `anthropic` | Claude Code | anthropic | interactive |
+| `anthropic-batch` | Claude Code | anthropic | auto (drafts batched) |
+| `anthropic-opencode` | OpenCode | anthropic | interactive |
+| `openrouter`, `openrouter-batch`, `openrouter-codex` | OpenCode / OpenCode / Codex | openrouter | interactive / auto / interactive |
+| `abliterated`, `abliterated-claude`, `abliterated-codex` | OpenCode / Claude Code / Codex | abliteration, abliteration-anthropic, abliteration | interactive |
+| `local`, `local-codex` | OpenCode / Codex | local | interactive |
+| `zai`, `zai-claude` | OpenCode / Claude Code | zai, zai-anthropic | interactive |
+| `fireworks`, `fireworks-claude` | OpenCode / Claude Code | fireworks, fireworks-anthropic | interactive |
+| `openai`, `codex` | OpenCode / Codex | openai | interactive |
+| `failover` (default) | OpenCode | local, zai, fireworks, openai, anthropic | interactive |
+
+`--list-presets` prints the same table with each preset's prerequisites
+(the credential variable and the CLI binary). The repository ships
+`openrouter` unbound on purpose: a committed model id is an assertion that
+somebody probed it. The `openrouter*` presets therefore refuse to start
+until the overlay or `--model` binds one, and say so.
+
+A runtime and a backend must speak the same wire: Claude Code takes the
+Anthropic-compatible backends (`anthropic`, `zai-anthropic`,
+`fireworks-anthropic`, `abliteration-anthropic`), Codex the OpenAI-compatible
+ones, OpenCode both through its own provider catalogue. `providers.yaml`
+`runtimes.*.compatible_backends` is the source, and a mismatch is refused
+before the first action rather than failing on every model in turn.
+
+For Claude Code and Codex the supervisor exports the backend's endpoint,
+credential and model into the worker's environment (`ANTHROPIC_BASE_URL`,
+`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`; `OPENAI_BASE_URL`,
+`OPENAI_API_KEY`, `OPENAI_MODEL`), except that a runtime talking to its own
+vendor keeps its own login. Non-interactive Claude Code cannot answer a
+permission prompt, so it starts with `--permission-mode acceptEdits`; widen
+or replace that with `AUTORESEARCH_CLAUDE_ARGS` (for example
+`--allowedTools 'Bash(git:*)'`). Codex starts with `--sandbox
+workspace-write`; `AUTORESEARCH_CODEX_ARGS` replaces it. Both choices are
+the operator's, recorded in the attempt's command, not the supervisor's.
+
+### The Message Batches lane
+
+With `--delivery auto` or `batch`, a `design` or `portfolio` action is first
+submitted to the Anthropic Message Batches API as one tool-less turn: the
+role contract as the system prompt, the action prompt plus the proposal and
+the record templates as the user turn, and standing instructions to produce
+a *draft* -- no approval language, `ID-TBD` for every identifier, provenance
+on every citation. The supervisor records the submission in
+`coordination/inference-batches/<batch id>/` through the adapter's
+write-once registry, excludes the action while the batch runs, and polls
+every `--batch-poll-seconds` (default 300). When the batch ends, the draft
+is written to the attempt directory as `draft.md` and the *same* action runs
+interactively with the path appended and a note that the text is untrusted:
+the filing agent verifies every statement against the repository, mints
+identifiers with the repository tools, and discards what does not survive.
+An errored or expired batch cools the action down for `--retry-seconds` and
+is counted in the report's `batch_drafts_failed`.
+
+`run`, `prepare`, `repair` and `review` act on the checkout from their first
+tool call, so they are always interactive whatever `--delivery` says. The
+lane's backend is `--batch-backend` (default `anthropic`, the only backend
+declaring the API); the tool-using half may run on any preset, which is what
+`openrouter-batch` does. With `--once` or `--max-actions`, a submitted draft
+counts as an action and the process returns with it listed under
+`pending_batches`; `--wait-batches SECONDS` keeps polling that long instead.
+A batch that is still running when the process exits is collected by the
+next invocation with the same state directory, or by `autoresearch adapter
+batch collect` by hand. Nothing in the lane writes under `ledger/` or
+`experiments/`.
 
 The last command with no action limit keeps running. Run it under a service
 manager that restarts the process after host reboot. The local, private
