@@ -6,11 +6,11 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261007-9c36ba` | coordinator | queued | 20 | TASK-20261007-c47fc6 | research/ssi-endring-pke/2026-10-07-candidate-funnel/report.md, research/ssi-endring-pke/2026-10-07-candidate-funnel/funnel-flow.svg, research/ssi-endring-pke/2026-10-07-candidate-funnel/report.pdf | research/ssi-endring-pke/2026-10-07-candidate-funnel |
+| `TASK-20261007-e9b59b` | coordinator | queued | 10 | TASK-20261007-bc6c0f, TASK-20261007-385334, TASK-20261007-79e571, TASK-20261007-b6c1ec, TASK-20261007-c47fc6, TASK-20261007-9c36ba | coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-e9b59b/ledger-receipt.json, ledger/evidence/EV-SSI-e454e0.yaml, ledger/decisions/DEC-20261007-43afbd.yaml, ledger/goals/GOAL-SSI-2fa82a/checkpoints/BATCH-65c2dd.yaml | coordination/design/TASK-20261007-9c36ba/archives/TASK-20261007-e9b59b, ledger/evidence/EV-SSI-e454e0.yaml, ledger/decisions/DEC-20261007-43afbd.yaml, ledger/goals/GOAL-SSI-2fa82a/checkpoints/BATCH-65c2dd.yaml |
 
 ## Deferred or Blocked
 
-- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-9c36ba:queued
+None.
 
 ## Dispatch Gates
 
@@ -36,8 +36,10 @@ run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
 A running producer legitimately appears here, so this is a report and
 not a gate. Land anything whose producer has already returned.
 
-- `TASK-20261007-c47fc6` (coordinator, completed):
-  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6/final-composition.yaml`
-  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-c47fc6 --push`
+- `TASK-20261007-9c36ba` (coordinator, completed):
+  - `research/ssi-endring-pke/2026-10-07-candidate-funnel/funnel-flow.svg`
+  - `research/ssi-endring-pke/2026-10-07-candidate-funnel/report.md`
+  - `research/ssi-endring-pke/2026-10-07-candidate-funnel/report.pdf`
+  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-9c36ba --push`
 
-Plan SHA-256: `30c24d9c3ad828baf28a6374d1768a086a45806e7ebf6608c3dbc96f3463275f`
+Plan SHA-256: `3f0491a984a02ee3da3c82885225659876972b63d8d53deb8d5de3956fdda4ae`
