@@ -74,8 +74,18 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `target_translation_lab.py` | `bc51cb42e2adad6da9c6d958d37e1f602283886c5e675b20f0d798451305f2ea` |
 | `tests/test_target_translation_lab.py` | `eb40cc33b23e67a028e60782bdaed3841ff645d9038cad29e9e2ea8989b10fbc` |
 | `results/target-translated-collision-decoder.json` | `9b52c7ef77f5b01806fcf68ca5cf820aa646528c43e1ef4351a83f5c5760e3ef` |
+| streaming-resultant freeze/audit commits | `18f0d70`, `67a90f3` |
+| streaming-resultant implementation/audit commits | `275c0ce`, `1b5991f` |
+| `streaming_resultant_lab.py` | `612eb4613a4284cbc75bc6dc0b97616f2ea73f41c9517dab2ffe2ec54c313eb8` |
+| `tests/test_streaming_resultant_lab.py` | `64385af442cca70c34d0e54813ab85138ce2f23c81fab201f3603dc92093ae01` |
+| `results/streaming-resultant-decoder.json` | `281d5002a9dd7a6a3c8ba99e1d147ec5f7690b1d6ddb1a808f667562caf3d8b7` |
+| hashed-moment freeze commit | `3a8699c` |
+| hashed-moment implementation commit | `779cd75` |
+| `hashed_moment_lab.py` | `e95429d25b20daf0fd77d2d7139d5378690c82b0a25002e6ddd9b331643a3386` |
+| `tests/test_hashed_moment_lab.py` | `e79bc65a4db1335c60ff570b0ac0de3add1b28a3ead87d4b19b8928565e5b4c0` |
+| `results/hashed-moment-sketch.json` | `49c2a83cc049821f3ccbdae47e05b8174d2e30c3a485456aec7a812349bb24ff` |
 
-All twelve result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 56/56 tests. These are provenance statements, not repository run receipts.
+All fourteen result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 62/62 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -370,11 +380,32 @@ systems were exact. This positive decoder is the standard signed, shifted
 baby-step/giant-step meet-in-the-middle mechanism and is retained as a control,
 not claimed as novel.
 
+## H21 — streaming resultant decoder
+
+An injective `F_(p^2)` point encoding supports a streaming characteristic
+product, derivative, and label numerator. Their quotient at a root recovers the
+giant label without a point-equality table. After a cross-ring audit added every
+integer lift `g0+j*p<r`, all 9,096 targets still recovered with zero derivative
+or subfield failures. The decoder used a 12-field-element working set and
+10,636,080 total factor updates. It emitted 936 extra lifts, including 344
+validated high-label roots. This is a constant-memory, linear-work
+reformulation of the collision control, not an exponent improvement.
+
+## H22 — hashed moment sketches
+
+Exact singleton and two-item `F_(p^2)` moment buckets replaced pair streaming
+with sketch inserts and baby probes. One full-size capacity-two sketch recovered
+92.6% overall; two recovered 99.7% and missed 27 targets. Their median storage
+was 146 and 292 field elements, versus 60 coordinate elements for the full H20
+point table. The only configuration below that table size recovered 3.6%.
+Complete recovery therefore did not accompany a storage reduction in the frozen
+sweep; coupled peeling and seed search remain queued.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- aggregate translated-factor localization without explicit baby/giant point
-  equality matching or its labelled square-root table.
+- coupled-bucket peeling and seed search under the original point-coordinate
+  storage cap.
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

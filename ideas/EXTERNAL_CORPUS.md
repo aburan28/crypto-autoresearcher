@@ -107,6 +107,15 @@ state.
   control and exact representation, but its decoder is Shanks
   baby-step/giant-step prior art rather than a new ECDLP method. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Table-free collision aggregates trade memory for work but do not yet improve
+  both.** An exact `F_(p^2)` resultant stream recovered all 9,096 targets with
+  12 working field elements but linear pair work. Hashed two-moment buckets cut
+  query work and reached 99.7%, but required substantially more storage than
+  the original labelled point table; the only sub-table row recovered 3.6%.
+  The label quotient was audited across `F_p` versus scalar order `r` and now
+  emits every integer lift. These are time-memory measurements of the same
+  collision mechanism, not a new generic ECDLP exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
