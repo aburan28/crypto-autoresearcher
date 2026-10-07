@@ -21,12 +21,17 @@ For an unqualified request, inspect the existing experiment worklist once:
 python3 tools/newest_experiments.py --limit 3 --json
 ```
 
-Use `--experiment <ID>` or `--goal <ID>` for named scope. The selector's
-`needs_implementation_or_plan` label is a preparation hint: look for the existing
-documented launcher before declaring that experiment unavailable. Select runnable
-work in the repository's existing priority order. Do not invent a new experiment,
-recover private keys, or turn this skill into an autonomous attack workflow;
-mathematical experiments use public synthetic inputs.
+Use `--experiment <ID>` or `--goal <ID>` for named scope. The list is
+decision-aware and readiness-first: committed `DEC-*` holds are already applied,
+and within each priority group `ready` rows (a committed launcher or trial plan)
+sort above `needs_implementation_or_plan`, so the top rows are the ones that can
+start now. Each row carries `off_main_runs`: branches not yet on `main` that
+already hold run records for that experiment. A non-empty value means someone
+executed it elsewhere; name it in the report and do not run the same trials
+again. The `needs_implementation_or_plan` label is a preparation hint: look for
+the existing documented launcher before declaring that experiment unavailable.
+Do not invent a new experiment, recover private keys, or turn this skill into an
+autonomous attack workflow; mathematical experiments use public synthetic inputs.
 
 For `$run GOAL-...`, select only that goal's experiments:
 
@@ -61,8 +66,20 @@ Show real progress while they run.
 Do not run preflight, whole-ledger/schema validation, portfolio-health sweeps,
 protocol review, or merge-hygiene checks as prerequisites to this skill. Do not
 author protocols, approval records, migrations, repair queues, or review plans
-just to satisfy a run request. Do not fetch/merge branches, open a PR, or start
-independent review as an automatic part of execution. Those are separate tasks.
+just to satisfy a run request. Do not fetch/merge branches or start independent
+review as an automatic part of execution. Those are separate tasks.
+
+## Publish the run records
+
+Run records left only in a working tree are not evidence and are invisible to
+the next session, which then runs the same trials again. When trials finish,
+commit the run directories this session wrote (`experiments/<EXP-ID>/runs/...`
+and nothing else) on the session's own branch and push it, so the selector's
+`off_main_runs` column shows them to every later `run` session. Open or refresh
+a PR for that branch with the runtime's PR tool when one is available; this is
+publication of observations, not review, archival, or a research-state change.
+Never amend or rewrite a pushed run commit, and never commit ledger records,
+specification edits, or generated indexes from this skill.
 
 If a launcher, necessary input, ownership, or runtime admission is unavailable,
 report the exact impediment once. For an unqualified run, continue other runnable
@@ -80,4 +97,6 @@ refutation, and a successful run alone does not promote a scientific claim.
 
 Continue existing runnable work within the user's requested scope. Stop at the
 named boundary, user stop, or when no selected work can execute. Reporting results
-does not require publication, ledger repair, or completion of a review cycle.
+does not require ledger repair or completion of a review cycle; it does include
+the branch the run records were pushed to. End with a session receipt
+(`python3 tools/session_receipt.py --skill run ...`, see `docs/session-receipts.md`).
