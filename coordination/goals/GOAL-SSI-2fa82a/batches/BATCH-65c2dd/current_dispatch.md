@@ -6,16 +6,15 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261007-79e571` | coordinator | queued | 70 | TASK-20261007-bc6c0f, TASK-20261007-385334 | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571/composition.yaml, coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571/gap-packet.yaml | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571 |
+| `TASK-20261007-8ab26c` | idea-generator | queued | 60 | TASK-20261007-79e571 | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revised-candidate.md, coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revised-scheme-contract.yaml, coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c/revision-map.yaml | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-8ab26c |
 
 ## Deferred or Blocked
 
 - `TASK-20261007-8116c4`: dependency_not_completed:TASK-20261007-8ab26c:queued
-- `TASK-20261007-8ab26c`: dependency_not_completed:TASK-20261007-79e571:queued
 - `TASK-20261007-9c36ba`: dependency_not_completed:TASK-20261007-c47fc6:queued
 - `TASK-20261007-b6c1ec`: dependency_not_completed:TASK-20261007-8ab26c:queued, dependency_not_completed:TASK-20261007-8116c4:queued
 - `TASK-20261007-c47fc6`: dependency_not_completed:TASK-20261007-b6c1ec:queued
-- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-79e571:queued, dependency_not_completed:TASK-20261007-b6c1ec:queued, dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
+- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-b6c1ec:queued, dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
 
 ## Dispatch Gates
 
@@ -41,15 +40,9 @@ run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
 A running producer legitimately appears here, so this is a report and
 not a gate. Land anything whose producer has already returned.
 
-- `TASK-20261007-bc6c0f` (validator, completed):
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/review-attestation.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/runtime-session-receipt.json`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-bc6c0f/validation-report.yaml`
-  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-bc6c0f --push`
-- `TASK-20261007-385334` (red-team, completed):
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/red-team-report.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/review-attestation.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-385334/runtime-session-receipt.json`
-  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-385334 --push`
+- `TASK-20261007-79e571` (coordinator, completed):
+  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571/composition.yaml`
+  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-79e571/gap-packet.yaml`
+  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-79e571 --push`
 
-Plan SHA-256: `fcad5018b9fd84837a1ff65e3e062207ff43144fa333c07082f3f5e053765899`
+Plan SHA-256: `d888e78309220894e46b5433cacab06d50f61ad102dcb979980486ffa4516536`
