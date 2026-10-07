@@ -1,0 +1,119 @@
+task_id: TASK-20261005-6c6fd2
+archive_owner: TASK-20261005-85b4c6
+status: specified_finite_sampler_with_unproved_admission
+selected_finalist: null
+parameters:
+  lambda: integer at least 8, supplied in unary
+  a: lambda
+  k: floor(lambda/2)
+  D: '2^a'
+  b: 'min {j>=1 : 5^j>4D}'
+  N: '5^b; 4D<N<=20D'
+  L: 'lambda^2'
+  M0: '3*2^(a+2)*5^b'
+  p: 'least prime in [2^lambda,2^(lambda^2)) congruent to -1 modulo M0; bottom if none'
+  F: 'F_p[z]/(z^2+1), canonical two-residue coefficient encoding'
+  field_degree: 2
+  E_star: 'short Weierstrass y^2=x^3+x over F_p, represented over F'
+  rationality: 'p=-1 modulo 3DN; E_star has F_p^2 Frobenius [-p], preserved by F-rational isogenies'
+  setup_input: 'unary lambda and certified evaluable full integral End(E_star) basis/table; all input bits charged'
+  source_size_limit: 'lambda^4 encoded bits, including evaluation representations and certificates'
+  Setup:
+    - Find p by the defined finite ordered search, certify primality, or return bottom.
+    - Verify field/model and supplied integral order/map certificates with trace discriminant p^2, or return bottom.
+    - Publish source curve/ring, field, parameters, known smooth factorizations and arithmetic conventions.
+  secret_setup: none
+  Setup_cost: prime search and source certification charged separately; polynomial bound unproved
+encodings:
+  field: 'two padded residues in [0,p); O(lambda^2) bits each'
+  curve: nonsingular short Weierstrass coefficients over F
+  point: infinity tag or canonical coordinate pair, exact membership/order checks
+  ring: four integral evaluable maps, rational quaternion coordinates, multiplication table and exact algebraic/map certificates
+  map: domain-labelled arithmetic circuit or composition DAG; all nodes/bits, evaluation and expansion counted
+  model_normalization: least coefficient pair under F-isomorphisms; then simultaneous least retained-point tuple over at most six residual automorphisms
+  isomorphism_computation: exact constant-degree u-equations over F; root-finding work/coins charged
+  basis_choice: sampled and published U,V and P,Q; not a globally least basis among all field points
+  ring_equivalence: integral GL_4(Z) basis change and simultaneous model conjugation
+walk:
+  state: normalized curve plus preceding normalized degree-3 map during KeyGen only
+  first_step: each of four cyclic order-3 subgroup schemes has probability 1/4
+  later_steps: exclude exactly the previous map's dual subgroup; each of three remaining subgroups has probability 1/3
+  ordering: four subgroup encodings sorted by coordinates modulo generator sign
+  backtracking: immediate backtracking excluded; longer cycles allowed
+  automorphism_weights: weight subgroup choices first, normalize afterward; isomorphic endpoint multiplicities are summed without inverse-automorphism weighting
+  word_count: '4*3^(L-1) before identifications'
+  tau_degree: '3^L'
+  mixing_claim: none
+  coins: exact uniform finite-range rejection from fair bits; hitting trial cap returns bottom
+trial:
+  work_cap: 'lambda^12 bit operations and random-bit reads, including all checks'
+  output_cap: 'lambda^12 total encoded bits/nodes of pk,sk and certificates'
+  steps:
+    - Sample the L-step rational degree-3 walk and keep tau as a domain-labelled DAG.
+    - 'Form R=Z*1+tau End(E_star) dual(tau) in transported rational quaternion coordinates.'
+    - Compute trace-dual Rsharp and enumerate subgroups of Rsharp/R in lexicographic Hermite-normal-form order.
+    - Keep multiplicatively closed integral overorders of trace discriminant p^2.
+    - Realize basis maps by denominator-kernel checks and rational division.
+    - 'Division is a finite search over rational-map coefficient tuples in increasing encoding length, testing [n] composed with f equals the numerator by exact polynomial identities; no polynomial realization theorem is assumed.'
+    - Retain the first certified evaluable maximal order, or reject when cap is reached.
+    - 'Sample U,V in E[D] and P,Q in E[N] by rational point sampling and projection [(p+1)/D] or [(p+1)/N]; verify exact orders and primitive pairings.'
+    - 'Point sampling uses uniform slots in {infinity} union (F x {0,1}); reject nonexistent roots and the duplicate zero-root slot, otherwise select the root by its lexicographic slot.'
+    - Normalize and simultaneously transport ring maps and all four public points.
+    - Apply bad-key predicate; accept only if every test passes.
+    - Erase tau, kernels, transcript, connecting ideals, orientations and temporary witnesses.
+  equality_checks: exact polynomial identities; all expansions and denominator/root work count against cap
+bad_key:
+  true_if:
+    - trial work/output cap exceeded
+    - any field/model, scalar-Frobenius, order/pairing, integral-order, map/table or discriminant certificate fails
+    - 'E occurs in the public degree-3 nonbacktracking enumeration from E_star of length <=h=floor(log_3(lambda^2)), modulo model isomorphisms'
+  testability: public data and ephemeral exact algebraic witnesses suffice; no unavailable EndRing/hardness oracle
+  screen_size: 'O(lambda^2) words, each of length O(log lambda)'
+  meaning: syntactic/algebraic and explicit short-path screening, not a complete weak-key/security test
+rejection:
+  trials: 'lambda^3 independent capped trials; bottom if all reject'
+  q: exact single-trial acceptance probability conditioned on successful Setup
+  accepted_distribution: exact joint trial law conditioned on acceptance; repetition preserves this law conditioned on success
+  curve_distribution: marginal of that law under canonical E projection
+  pk: '(E,U,V,P,Q,p,F,D,N,k,encodings,public certificates)'
+  sk: evaluable integral End(E) basis/table/coordinates/evaluation certificates only
+  failure_probability: '(1-q)^(lambda^3), conditioned on successful Setup'
+  target_failure: 'if q>=lambda^-2 then failure<=exp(-lambda); the antecedent is unproved'
+  K0_capped: 'O(lambda^15) work, O(lambda^12) memory/output plus counted Setup inputs'
+  K0_successful: successful uniform polynomial KeyGen with stated failure unproved; a fast all-bottom routine is insufficient
+  inverse_acceptance: expected uncapped successful work scales as trial cost/q; neither factor is silently dropped
+public_recovery:
+  old_slice: 'L=1 has four choices; any O(log lambda) path-length slice has polynomial word enumeration'
+  present_slice: 'L=lambda^2; full word enumeration <=4*3^(lambda^2-1) plus chain/normalization costs'
+  endpoint_concentration: not bounded by that word count
+  after_path: source ring transport and the same saturation/realization cost remain charged
+  other_finite_bound: enumerate all supersingular endpoint models and labeled neighbor chains; no polynomial-in-lambda bound claimed
+  support_gate: polynomial effective-support enumeration under accepted distribution remains unresolved
+  lower_bound: none on all public algorithms
+unproved_requirements:
+  - id: A-PRIME-SOURCE
+    statement: successful Setup has polynomial prime-search/source-certification cost on this family
+    scope: exact congruence, finite interval, source and representations above
+    falsifier: empty interval or superpolynomial search/certification
+    validation_route: exact existence/cost theorem; finite observations would not establish asymptotic bound
+  - id: A-K0-ACCEPT
+    statement: 'q>=lambda^-2 for all sufficiently large admissible lambda'
+    scope: complete capped trial including saturation, rational division, output size and level selection
+    falsifier: zero acceptance or a subsequence below that bound
+    validation_route: prove per-stage rejection masses and map/certificate complexity separately
+  - id: A-SUPPORT
+    statement: every polynomial-size publicly enumerable normalized endpoint set has negligible accepted-curve mass
+    scope: rejection-conditioned law with automorphism and serialization weights
+    falsifier: one such set of nonnegligible accepted mass
+    validation_route: analytic support/concentration theorem; finite exact distributions only in later separately authorized work
+    limitation: excludes that shortcut only; not a hardness theorem for all public algorithms
+cost_items:
+  prime_and_source: finite, polynomial work unproved
+  field_and_coordinates: degree 2, O(lambda^2) coordinate bits
+  walk: O(lambda^2) small-degree DAG nodes
+  transport: expanding degree 3^L is exponential; no free expansion
+  saturation: trace-dual quotient/index enumeration can be exponential
+  division: denominator kernels, field extensions and map realization are charged, never assumed polynomial
+  evaluation: certificate/table correctness and circuit evaluation charged
+  preprocessing: field/source certificates, factorizations, model transport and public level selection charged
+admission: no retained route; A-PRIME-SOURCE, A-K0-ACCEPT and A-SUPPORT are not established
