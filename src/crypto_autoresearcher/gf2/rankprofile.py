@@ -194,9 +194,9 @@ def f5_keep(nv, D, eqs, threads=None):
 
 def cert_sums_to_one(cert, eqs, nv, threads=None):
     """Does sum over (mu, k) in cert of mu*f_k equal 1 in B? Same parity
-    computation as closure.eval_cert(cert, eqs) == [0], done natively: build
-    every certificate row, XOR them together, and require that only the
-    constant column remains."""
+    computation as closure.eval_cert(cert, eqs) == [0], done natively: XOR
+    every certificate row into one accumulator (kernels.rows_sum, no row is
+    materialised) and require that only the constant column remains."""
     if not cert:
         return False
     mu = np.array([m for m, _ in cert], dtype=np.uint64)
@@ -204,8 +204,7 @@ def cert_sums_to_one(cert, eqs, nv, threads=None):
     Dp = min(nv, int(_popcount(mu).max()) + 2)
     sh = shape(nv, Dp)
     eoff, emon = kernels.pack_eqs(eqs)
-    rows, _, _ = kernels.build_rows(eoff, emon, nv, Dp, mu, k, W=sh.W, threads=threads)
-    acc = np.bitwise_xor.reduce(rows, axis=0)
+    acc = kernels.rows_sum(eoff, emon, nv, Dp, mu, k, sh.W)
     want = np.zeros(sh.W, dtype=np.uint64)
     want[sh.const_col >> 6] = np.uint64(1 << (sh.const_col & 63))
     return bool(np.array_equal(acc, want))

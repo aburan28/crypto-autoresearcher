@@ -958,6 +958,57 @@ int gf2_build_rows(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const
     return err ? -1 : 0;
 }
 
+/*
+ * acc (W words, zeroed by the caller) ^= every Macaulay row mu[i] * f_{k[i]},
+ * i < n, in the same column order as gf2_build_rows; no row is materialised.
+ * Used to check that a certificate sums to 1.
+ */
+int gf2_rows_sum(const i64 *eoff, const u64 *emon, int nv, int D, i64 n, const u64 *mu,
+                 const i32 *k, i64 W, u64 *acc)
+{
+    if (nv < 1 || nv > 64 || D < 0)
+        return -1;
+    i64 *B = (i64 *)malloc((size_t)(nv + 1) * (D + 1) * sizeof(i64));
+    i64 *off = (i64 *)malloc((size_t)(D + 2) * sizeof(i64));
+    if (!B || !off) {
+        free(B); free(off);
+        return -1;
+    }
+    binom_table(nv, D, B);
+    off[D] = 0;
+    for (int d = D - 1; d >= 0; d--)
+        off[d] = off[d + 1] + B[(size_t)nv * (D + 1) + d + 1];
+    int err = 0;
+    for (i64 i = 0; i < n && !err; i++) {
+        const u64 *f = emon + eoff[k[i]];
+        i64 len = eoff[k[i] + 1] - eoff[k[i]];
+        for (i64 t = 0; t < len; t++) {
+            u64 x = mu[i] | f[t];
+            int d = __builtin_popcountll(x);
+            if (d > D) {
+                err = 1;
+                break;
+            }
+            i64 r = 0;
+            int idx = 1;
+            while (x) {
+                int b = __builtin_ctzll(x);
+                x &= x - 1;
+                r += B[(size_t)b * (D + 1) + idx];
+                idx++;
+            }
+            i64 c = off[d] + r;
+            if ((c >> 6) >= W) {
+                err = 1;
+                break;
+            }
+            acc[c >> 6] ^= 1ULL << (c & 63);
+        }
+    }
+    free(B); free(off);
+    return err ? -1 : 0;
+}
+
 /* lead[i] = lowest set column of row i (-1 if none), weight[i] = popcount. */
 HOT void gf2_row_lead_weight(const u64 *M, i64 R, i64 W, i64 *lead, i64 *weight)
 {

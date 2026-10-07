@@ -7,7 +7,10 @@ exact engine's M_D record, and every certificate it returns sums to 1.
     sparse, dense, planted-solution), with and without the F5/Frobenius
     filter and the row reordering; planted-solution systems are never refuted;
   * the native row builder equals Closure.build_M, Shape equals Closure's
-    tables, and the native certificate check equals closure.eval_cert;
+    tables, the native certificate check equals closure.eval_cert, and
+    kernels.rows_sum equals the XOR of the built rows;
+  * kernels.map_processes returns map's results in order, with closures, and
+    runs its workers single-threaded;
   * w_profile == Closure.w_closure field for field;
   * both hold with the syndrome test on, forced onto most rows, switched off,
     with every new block reduced row by row or stacked under the basis, and
@@ -241,6 +244,12 @@ def test_build_rows_shape_and_cert_check_match_closure():
         if t % 3 == 0:
             cert, eqs[0] = [(0, 0)], [0]
         assert rankprofile.cert_sums_to_one(cert, eqs, nv) == (fc.eval_cert(cert, eqs) == [0])
+        if len(rows):
+            pick = rng.integers(0, cl.R, size=int(rng.integers(1, 30)))
+            mu_p = cl.mu_mask[pick // neq].astype(np.uint64)
+            k_p = (pick % neq).astype(np.int32)
+            assert np.array_equal(kernels.rows_sum(eoff, emon, nv, D, mu_p, k_p, cl.W),
+                                  np.bitwise_xor.reduce(want[pick], axis=0))
 
 
 @pytest.mark.parametrize("split,synw,restack,dual", KNOBS)
@@ -285,6 +294,14 @@ def test_profile_reproduces_archived_rc1_records():
             assert cert is not None and fc.eval_cert(cert, eqs[rec["key"]]) == [0]
         checked += 1
     assert checked >= 8                                 # M_3, M_4, M_5 and W_4 per key
+
+
+@native
+def test_map_processes_matches_map():
+    data = list(range(37))
+    offset = 5                                           # a closure over local state
+    assert kernels.map_processes(lambda x: (x * x + offset, kernels.inner_threads()), data, 3) == \
+        [(x * x + offset, 1) for x in data]
 
 
 def test_profile_runs_on_the_reference_backend():

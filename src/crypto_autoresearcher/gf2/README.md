@@ -243,6 +243,15 @@ refutation certificates are checked by evaluation instead of compared,
 because they differ from the archived ones. Wall clock with 4 workers: 14.9 s
 (v1: 22.4 s on the same machine and day; the exact engine: 48.7 s).
 
+**Batch runs use processes.** The replay's workers are forked processes
+(`kernels.map_processes`, `--pool process`, the default) rather than threads.
+The Python glue of each solve, and native calls too small to release the GIL,
+serialize a thread pool: on a later, slower 4-core VM the same replay took
+25.6 to 26.4 s with 4 threads and 19.2 to 19.3 s with 4 processes (summed
+per-record time 93 s vs 64 s). Certificates are also checked without building
+their rows (`kernels.rows_sum`), which brought the process-pool replay to 18.1
+to 18.8 s; 0 mismatches and 268 valid certificates in every run.
+
 What was evaluated and not built:
 
 - **Degree-block elimination.** The trailing update already works on
