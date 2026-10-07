@@ -6,12 +6,17 @@
   "additionalProperties": false,
   "required": [
     "schema", "decision_id", "approved_by", "created_at_utc",
-    "execution_authorized", "experiment_id", "protocol_version",
+    "execution_authorized", "experiment_id", "protocol_version", "interface_revision",
     "planned_run_label", "run_id", "protocol_repository",
     "protocol_commit", "factor_base_source_commit", "producer_commit",
     "verifier_commit", "supervisor_commit", "producer_binary_sha256",
     "verifier_binary_sha256", "supervisor_binary_sha256",
-    "predecessor_run_id", "predecessor_artifacts",
+    "producer_binary_byte_length", "verifier_binary_byte_length",
+    "supervisor_binary_byte_length", "execution_controls",
+    "selective_worktree_profiles",
+    "verifier_build_admission",
+    "predecessor_run_id", "predecessor_artifacts", "predecessor_role1",
+    "predecessor_repository_custody",
     "protected_protocol_blobs", "paths", "producer_fresh_argv",
     "producer_fault_argv", "producer_resume_argv",
     "independent_verifier_argv", "supervisor_argv"
@@ -24,6 +29,7 @@
     "execution_authorized": {"const": true},
     "experiment_id": {"const": "EXP-SCURVE-1a8daf"},
     "protocol_version": {"const": 2},
+    "interface_revision": {"const": 3},
     "planned_run_label": {"const": "P192-WCM-BOX0"},
     "run_id": {"type": "string", "pattern": "^RUN-SCURVE-[0-9a-f]{6}$"},
     "protocol_repository": {"const": "https://github.com/aburan28/crypto-autoresearcher"},
@@ -35,8 +41,16 @@
     "producer_binary_sha256": {"$ref": "#/$defs/sha256"},
     "verifier_binary_sha256": {"$ref": "#/$defs/sha256"},
     "supervisor_binary_sha256": {"$ref": "#/$defs/sha256"},
+    "producer_binary_byte_length": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "verifier_binary_byte_length": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "supervisor_binary_byte_length": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "execution_controls": {"$ref": "#/$defs/executionControls"},
+    "selective_worktree_profiles": {"$ref": "#/$defs/selectiveWorktreeProfiles"},
+    "verifier_build_admission": {"$ref": "#/$defs/verifierBuildAdmission"},
     "predecessor_run_id": {"type": "string", "pattern": "^RUN-SCURVE-[0-9a-f]{6}$"},
     "predecessor_artifacts": {"$ref": "#/$defs/predecessorArtifacts"},
+    "predecessor_role1": {"$ref": "#/$defs/predecessorRole1"},
+    "predecessor_repository_custody": {"$ref": "#/$defs/predecessorRepositoryCustody"},
     "protected_protocol_blobs": {"$ref": "#/$defs/protectedProtocolBlobs"},
     "paths": {"$ref": "#/$defs/paths"},
     "producer_fresh_argv": {"$ref": "#/$defs/producerFreshArgv"},
@@ -54,7 +68,225 @@
     },
     "absolutePath": {
       "type": "string",
-      "pattern": "^/(?!/)(?!\\.{1,2}(?:/|$))(?!.*(?:/)\\.{1,2}(?:/|$))(?!.*//)(?!.*(?:/)$)[^\\u0000-\\u001f<>]+$"
+      "pattern": "^(?:/|/(?!/)(?!\\.{1,2}(?:/|$))(?!.*(?:/)\\.{1,2}(?:/|$))(?!.*//)(?!.*(?:/)$)[^\\u0000-\\u001f<>]+)$"
+    },
+    "fileIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "device", "inode", "mode", "link_count", "byte_length", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/absolutePath"},
+        "device": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "inode": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "mode": {"enum": ["100644", "100755"]},
+        "link_count": {"const": 1},
+        "byte_length": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "directoryIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "device", "inode"],
+      "properties": {
+        "path": {"$ref": "#/$defs/absolutePath"},
+        "device": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "inode": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"}
+      }
+    },
+    "ownedPrivateDirectoryIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "device", "inode", "uid", "mode"],
+      "properties": {
+        "path": {"$ref": "#/$defs/absolutePath"},
+        "device": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "inode": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "uid": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "mode": {"const": "0700"}
+      }
+    },
+    "selectiveWorktreeProfile": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema", "profile_id", "mode", "materialized_exact_paths",
+        "materialized_subtree_prefixes", "required_existing_subtree_prefixes",
+        "mutable_output_subtree_prefixes", "mutable_output_exact_paths", "index_policy",
+        "omitted_special_entry_policy", "preparation_metadata_terminal_state"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-sealed-selective-worktree-profile-v1"},
+        "profile_id": {"enum": ["protocol_protected_decision_outputs_v1", "native_three_packages_and_root_build_inputs_v1", "role1_pre_execution_decision_v1", "role1_archive_predecessor_v1"]},
+        "mode": {"const": "sealed_full_index_skip_worktree_v1"},
+        "materialized_exact_paths": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "materialized_subtree_prefixes": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "required_existing_subtree_prefixes": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "mutable_output_subtree_prefixes": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "mutable_output_exact_paths": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "index_policy": {"const": "uppercase_H_materialized_uppercase_S_omitted_stage0_full_index"},
+        "omitted_special_entry_policy": {"const": "mode120000_and_160000_inert_absent_S_only"},
+        "preparation_metadata_terminal_state": {"const": "absent"}
+      }
+    },
+    "selectiveWorktreeProfiles": {
+      "type": "object", "additionalProperties": false,
+      "required": ["protocol", "source", "predecessor_pre_execution", "predecessor"],
+      "properties": {
+        "protocol": {"$ref": "#/$defs/selectiveWorktreeProfile"},
+        "source": {"$ref": "#/$defs/selectiveWorktreeProfile"},
+        "predecessor_pre_execution": {"$ref": "#/$defs/selectiveWorktreeProfile"},
+        "predecessor": {"$ref": "#/$defs/selectiveWorktreeProfile"}
+      }
+    },
+    "verifierBuildAdmission": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema", "trust_model", "cargo_identity", "rustc_identity",
+        "cwd", "cargo_home", "target_dir", "build_argv", "metadata_argv",
+        "metadata_execution_policy",
+        "environment", "forbidden_environment_prefixes_absent",
+        "selected_target", "config_candidate_paths",
+        "config_search_directory_identities", "cargo_metadata_byte_length",
+        "cargo_metadata_sha256", "cargo_metadata_root_package_id",
+        "cargo_metadata_root_targets", "cargo_metadata_resolve_sha256",
+        "selected_bin_dep_info", "build_script"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-verifier-build-admission-v1"},
+        "trust_model": {"const": "trusted_hash_bound_cargo_rustc_and_checksum_locked_crates_io_sources"},
+        "cargo_identity": {"$ref": "#/$defs/fileIdentity"},
+        "rustc_identity": {"$ref": "#/$defs/fileIdentity"},
+        "cwd": {"$ref": "#/$defs/absolutePath"},
+        "cargo_home": {"$ref": "#/$defs/absolutePath"},
+        "target_dir": {"$ref": "#/$defs/absolutePath"},
+        "build_argv": {"type": "array", "minItems": 12, "maxItems": 12, "items": {"type": "string"}},
+        "metadata_argv": {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "string"}},
+        "metadata_execution_policy": {"const": {
+          "timeout_seconds": 60,
+          "stdout_byte_cap": 67108864,
+          "stderr_byte_cap": 67108864,
+          "stdin": "DEVNULL",
+          "environment": "exact_allowlist_only",
+          "start_new_session": true,
+          "kill_process_group_on_timeout_or_cap": true
+        }},
+        "environment": {
+          "type": "object", "additionalProperties": false,
+          "required": ["CARGO_HOME", "CARGO_INCREMENTAL", "CARGO_NET_OFFLINE", "CARGO_TARGET_DIR", "LC_ALL", "P192_WCM_PROTOCOL_COMMIT", "P192_WCM_VERIFIER_COMMIT", "RUSTC"],
+          "properties": {
+            "CARGO_HOME": {"$ref": "#/$defs/absolutePath"},
+            "CARGO_INCREMENTAL": {"const": "0"},
+            "CARGO_NET_OFFLINE": {"const": "true"},
+            "CARGO_TARGET_DIR": {"$ref": "#/$defs/absolutePath"},
+            "LC_ALL": {"const": "C"},
+            "P192_WCM_PROTOCOL_COMMIT": {"$ref": "#/$defs/commit"},
+            "P192_WCM_VERIFIER_COMMIT": {"$ref": "#/$defs/commit"},
+            "RUSTC": {"$ref": "#/$defs/absolutePath"}
+          }
+        },
+        "forbidden_environment_prefixes_absent": {"const": ["RUSTC_", "RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_BUILD_", "CARGO_TARGET_", "CARGO_PROFILE_", "CARGO_REGISTRIES_", "CARGO_REGISTRY_", "CARGO_SOURCE_", "CC", "CFLAGS", "CXX", "CXXFLAGS", "AR", "LDFLAGS"]},
+        "selected_target": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "name", "src_path", "features"],
+          "properties": {
+            "kind": {"const": "bin"}, "name": {"const": "p192_weighted_cm_verify"},
+            "src_path": {"$ref": "#/$defs/absolutePath"}, "features": {"const": []}
+          }
+        },
+        "config_candidate_paths": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/absolutePath"}},
+        "config_search_directory_identities": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/directoryIdentity"}},
+        "cargo_metadata_byte_length": {"type": "integer", "minimum": 2, "maximum": 9007199254740991},
+        "cargo_metadata_sha256": {"$ref": "#/$defs/sha256"},
+        "cargo_metadata_root_package_id": {"type": "string", "minLength": 1},
+        "cargo_metadata_root_targets": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "cargo_metadata_resolve_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_bin_dep_info": {
+          "type": "object", "additionalProperties": false,
+          "required": ["identity", "local_inputs"],
+          "properties": {
+            "identity": {"$ref": "#/$defs/fileIdentity"},
+            "local_inputs": {
+              "type": "array", "minItems": 1,
+              "items": {"$ref": "#/$defs/fileIdentity"}
+            }
+          }
+        },
+        "build_script": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "path", "sha256", "allowed_directive_prefixes", "observed_directives"],
+          "properties": {
+            "mode": {"enum": ["absent", "committed_in_package"]},
+            "path": {"type": ["string", "null"]},
+            "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+            "allowed_directive_prefixes": {"type": "array", "items": {"type": "string"}},
+            "observed_directives": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "executionControls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform", "host_trust_model", "workspace_custody",
+        "supervisor_raw_argv0_equals_decision_path",
+        "supervisor_current_exe_equals_decision_path",
+        "supervisor_proc_self_exe_hash_required", "child_open_flags",
+        "child_memfd_flags", "child_memfd_seals", "child_launch_path",
+        "sealed_exec_fd_paths", "predecessor_snapshot_fd_paths",
+        "directory_fd_paths", "retained_source_descriptors_cloexec",
+        "child_target_fd_cloexec_cleared", "child_fd_handoff_order",
+        "child_directory_access", "logical_path_argv_use",
+        "source_path_recheck", "directory_io", "control_cleanup"
+      ],
+      "properties": {
+        "platform": {"const": "linux"},
+        "host_trust_model": {"const": "trusted_local_host"},
+        "workspace_custody": {"const": "exclusive"},
+        "supervisor_raw_argv0_equals_decision_path": {"const": true},
+        "supervisor_current_exe_equals_decision_path": {"const": true},
+        "supervisor_proc_self_exe_hash_required": {"const": true},
+        "child_open_flags": {"const": ["O_RDONLY", "O_CLOEXEC", "O_NOFOLLOW"]},
+        "child_memfd_flags": {"const": ["MFD_CLOEXEC", "MFD_ALLOW_SEALING"]},
+        "child_memfd_seals": {"const": ["F_SEAL_WRITE", "F_SEAL_GROW", "F_SEAL_SHRINK", "F_SEAL_SEAL"]},
+        "child_launch_path": {"const": "/proc/self/fd/<retained-exec-fd>"},
+        "sealed_exec_fd_paths": {"const": {"producer": "/proc/self/fd/40", "verifier": "/proc/self/fd/41"}},
+        "predecessor_snapshot_fd_paths": {"const": {
+          "factor-base.json": "/proc/self/fd/50",
+          "factor-base.sha256": "/proc/self/fd/51",
+          "verification.json": "/proc/self/fd/52",
+          "independent-verification.json": "/proc/self/fd/53",
+          "independent-agreement.json": "/proc/self/fd/54",
+          "independent-verifier-receipt.json": "/proc/self/fd/55"
+        }},
+        "directory_fd_paths": {"const": {
+          "experiment_parent": "/proc/self/fd/60",
+          "runs_parent": "/proc/self/fd/61",
+          "controls_parent": "/proc/self/fd/62",
+          "run_dir": "/proc/self/fd/63",
+          "control_dir": "/proc/self/fd/64"
+        }},
+        "retained_source_descriptors_cloexec": {"const": true},
+        "child_target_fd_cloexec_cleared": {"const": true},
+        "child_fd_handoff_order": {"const": ["sealed_executable", "predecessor_snapshots", "directory_descriptors", "clear_target_FD_CLOEXEC", "execve_retained_proc_self_fd_path"]},
+        "child_directory_access": {"const": "inherited_fixed_fds_and_openat_only"},
+        "logical_path_argv_use": {"const": "identity_labels_only_no_child_path_open"},
+        "source_path_recheck": {"const": "before_each_launch_and_terminal"},
+        "directory_io": {"const": "retained_O_DIRECTORY_O_NOFOLLOW_fds_and_fd_relative_leaves"},
+        "control_cleanup": {"const": "out_of_band_after_terminal_validation_and_archival_only"}
+      }
     },
     "predecessorArtifacts": {
       "type": "object",
@@ -73,6 +305,131 @@
         "independent-verifier-receipt.json": {"$ref": "#/$defs/sha256"}
       }
     },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "byte_length", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "byte_length": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "predecessorRole1": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "run_id", "run_dir", "decision_path", "decision_commit", "archive_commit", "decision_sha256", "protocol_commit", "source_commit", "verifier_commit", "receipt_sha256", "receipt", "artifact_inventory", "artifact_tree_sha256"],
+      "properties": {
+        "schema": {"const": "p192-wcm-role1-predecessor-binding-v1"},
+        "run_id": {"type": "string", "pattern": "^RUN-SCURVE-[0-9a-f]{6}$"},
+        "run_dir": {"$ref": "#/$defs/absolutePath"},
+        "decision_path": {"$ref": "#/$defs/absolutePath"},
+        "decision_commit": {"$ref": "#/$defs/commit"},
+        "archive_commit": {"$ref": "#/$defs/commit"},
+        "decision_sha256": {"$ref": "#/$defs/sha256"},
+        "protocol_commit": {"$ref": "#/$defs/commit"},
+        "source_commit": {"$ref": "#/$defs/commit"},
+        "verifier_commit": {"$ref": "#/$defs/commit"},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt": {"type": "object", "minProperties": 16},
+        "artifact_inventory": {"type": "array", "minItems": 20, "maxItems": 20, "items": {"$ref": "#/$defs/artifact"}},
+        "artifact_tree_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "selectedFileIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "device", "inode", "mode", "link_count", "byte_length", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[^\\u0000-\\u001f]+$"},
+        "device": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "inode": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "mode": {"enum": ["100644", "100755"]},
+        "link_count": {"const": 1},
+        "byte_length": {"type": "integer", "minimum": 0, "maximum": 536870912},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "gitObjectIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["object_id", "kind", "byte_length", "sha256"],
+      "properties": {
+        "object_id": {"$ref": "#/$defs/commit"},
+        "kind": {"enum": ["commit", "tree", "blob"]},
+        "byte_length": {"type": "integer", "minimum": 0, "maximum": 1073741824},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "sealedRepositoryCustodyReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema", "phase", "repository_path", "repository_identity",
+        "head_commit", "profile", "profile_sha256",
+        "custody_checker_relative_path", "custody_checker_object_id",
+        "custody_checker_sha256", "git_index_identity",
+        "git_config_identity", "git_objects_directory_identity",
+        "head_entry_map_sha256", "index_entry_map_sha256",
+        "selected_worktree_identities", "selected_worktree_sha256",
+        "admitted_git_objects", "admitted_git_objects_sha256",
+        "omitted_leaf_payload_scope", "inode_custody_scope",
+        "exclusive_workspace_boundary", "role1_launch_performed",
+        "overall_status"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-sealed-repository-custody-v1"},
+        "phase": {"enum": ["pre_role1_execution", "terminal_role1_archive"]},
+        "repository_path": {"$ref": "#/$defs/absolutePath"},
+        "repository_identity": {"$ref": "#/$defs/directoryIdentity"},
+        "head_commit": {"$ref": "#/$defs/commit"},
+        "profile": {"$ref": "#/$defs/selectiveWorktreeProfile"},
+        "profile_sha256": {"$ref": "#/$defs/sha256"},
+        "custody_checker_relative_path": {"const": "research/p192-weighted-cm-20261007-v2-role2-box0-interface/check_role2_box0_interface.py"},
+        "custody_checker_object_id": {"$ref": "#/$defs/commit"},
+        "custody_checker_sha256": {"$ref": "#/$defs/sha256"},
+        "git_index_identity": {"$ref": "#/$defs/fileIdentity"},
+        "git_config_identity": {"$ref": "#/$defs/fileIdentity"},
+        "git_objects_directory_identity": {"$ref": "#/$defs/directoryIdentity"},
+        "head_entry_map_sha256": {"$ref": "#/$defs/sha256"},
+        "index_entry_map_sha256": {"$ref": "#/$defs/sha256"},
+        "selected_worktree_identities": {
+          "type": "array", "minItems": 1, "maxItems": 4096,
+          "items": {"$ref": "#/$defs/selectedFileIdentity"}
+        },
+        "selected_worktree_sha256": {"$ref": "#/$defs/sha256"},
+        "admitted_git_objects": {
+          "type": "array", "minItems": 2, "maxItems": 200000,
+          "items": {"$ref": "#/$defs/gitObjectIdentity"}
+        },
+        "admitted_git_objects_sha256": {"$ref": "#/$defs/sha256"},
+        "omitted_leaf_payload_scope": {"const": "ordinary_omitted_blobs_and_gitlink_targets_not_consulted"},
+        "inode_custody_scope": {"const": "original_supervised_workspace_only"},
+        "exclusive_workspace_boundary": {"const": "trusted_local_host_exclusive_workspace_no_concurrent_mutator"},
+        "role1_launch_performed": {"type": "boolean"},
+        "overall_status": {"const": "PASS"}
+      }
+    },
+    "predecessorRepositoryCustody": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema", "pre_execution_receipt_path",
+        "pre_execution_retained_path", "pre_execution_retained_identity",
+        "pre_execution_staging_parent_identity",
+        "pre_execution_receipt_sha256", "pre_execution_receipt",
+        "terminal_archive_receipt_sha256", "terminal_archive_receipt",
+        "chronology", "launch_handoff_trust_boundary", "overall_status"
+      ],
+      "properties": {
+        "schema": {"const": "p192-wcm-role1-predecessor-repository-custody-v1"},
+        "pre_execution_receipt_path": {"$ref": "#/$defs/absolutePath"},
+        "pre_execution_retained_path": {"$ref": "#/$defs/absolutePath"},
+        "pre_execution_retained_identity": {"$ref": "#/$defs/fileIdentity"},
+        "pre_execution_staging_parent_identity": {"$ref": "#/$defs/ownedPrivateDirectoryIdentity"},
+        "pre_execution_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "pre_execution_receipt": {"$ref": "#/$defs/sealedRepositoryCustodyReceipt"},
+        "terminal_archive_receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "terminal_archive_receipt": {"$ref": "#/$defs/sealedRepositoryCustodyReceipt"},
+        "chronology": {"const": "sealed_D1_then_pre_receipt_then_Role1_then_direct_A1_then_terminal_receipt_then_D2"},
+        "launch_handoff_trust_boundary": {"const": "trusted_local_host_exclusive_workspace_between_pre_receipt_and_Role1_launch"},
+        "overall_status": {"const": "PASS"}
+      }
+    },
     "protectedProtocolBlobs": {
       "type": "object",
       "additionalProperties": false,
@@ -84,7 +441,13 @@
         "run-family.role2-box0-interface.yaml",
         "role2-artifacts.schema.json",
         "role2-dispatch-decision.schema.json", "SHA256SUMS",
-        "test_p192_wcm_role2_interface.py"
+        "test_p192_wcm_role2_interface.py", ".gitkeep", "runs/.gitkeep",
+        "role1-interface/README.md", "role1-interface/SHA256SUMS",
+        "role1-interface/check_role1_interface.py",
+        "role1-interface/run-family.role1-interface.yaml",
+        "role1-interface/role1-artifacts.schema.json",
+        "role1-interface/role1-dispatch-decision.schema.json",
+        "role1-interface/test_p192_wcm_role1_interface.py"
       ],
       "properties": {
         "specification.v2.yaml": {"$ref": "#/$defs/sha256"},
@@ -98,7 +461,16 @@
         "role2-artifacts.schema.json": {"$ref": "#/$defs/sha256"},
         "role2-dispatch-decision.schema.json": {"$ref": "#/$defs/sha256"},
         "SHA256SUMS": {"$ref": "#/$defs/sha256"},
-        "test_p192_wcm_role2_interface.py": {"$ref": "#/$defs/sha256"}
+        "test_p192_wcm_role2_interface.py": {"$ref": "#/$defs/sha256"},
+        ".gitkeep": {"$ref": "#/$defs/sha256"},
+        "runs/.gitkeep": {"$ref": "#/$defs/sha256"},
+        "role1-interface/README.md": {"$ref": "#/$defs/sha256"},
+        "role1-interface/SHA256SUMS": {"$ref": "#/$defs/sha256"},
+        "role1-interface/check_role1_interface.py": {"$ref": "#/$defs/sha256"},
+        "role1-interface/run-family.role1-interface.yaml": {"$ref": "#/$defs/sha256"},
+        "role1-interface/role1-artifacts.schema.json": {"$ref": "#/$defs/sha256"},
+        "role1-interface/role1-dispatch-decision.schema.json": {"$ref": "#/$defs/sha256"},
+        "role1-interface/test_p192_wcm_role1_interface.py": {"$ref": "#/$defs/sha256"}
       }
     },
     "paths": {
@@ -110,7 +482,7 @@
         "producer_repository_path", "producer_package_path",
         "verifier_repository_path", "verifier_package_path",
         "supervisor_repository_path", "supervisor_package_path",
-        "predecessor_dir", "factor_base_json", "run_dir", "control_dir",
+        "predecessor_repository_path", "predecessor_dir", "factor_base_json", "run_dir", "control_dir",
         "audit_file"
       ],
       "properties": {
@@ -126,6 +498,7 @@
         "verifier_package_path": {"$ref": "#/$defs/absolutePath"},
         "supervisor_repository_path": {"$ref": "#/$defs/absolutePath"},
         "supervisor_package_path": {"$ref": "#/$defs/absolutePath"},
+        "predecessor_repository_path": {"$ref": "#/$defs/absolutePath"},
         "predecessor_dir": {"$ref": "#/$defs/absolutePath"},
         "factor_base_json": {"$ref": "#/$defs/absolutePath"},
         "run_dir": {"$ref": "#/$defs/absolutePath"},
