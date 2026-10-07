@@ -446,6 +446,34 @@ challenge verdict; `inadmissible` is never negative evidence; the
 Coordinator's decision, not the verdict, changes state. Wall time is never a
 bound. `docs/bounds-and-frontiers.md`.
 
+## Weak-curve and isogenous-representative audits
+
+Before a weak-curve claim, use
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md) and
+[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). Trials still use the
+canonical `run` entry point; audits are evidence, not state transitions.
+
+Freeze the curve/subgroup/protocol, attacker, threshold, costs, path-knowledge
+model, budgets, population, and stopping rule. Require certified arithmetic and
+planted controls. Separate base-field isogeny-class invariants from
+representative-dependent structure; unusual structure is only a lead.
+
+An isogeny transfer claim requires explicit maps and subgroup preservation,
+with path discovery, construction, evaluation, attack, memory, data, and
+precomputation charged. Advice supports only an advice-holder claim. Singular
+or invalid
+formula-compatible companions can establish **implementation-weak**, never
+elliptic-curve or isogeny-class weakness. A confirmation-only oracle needs an
+explicit reduction; it does not inherit the companion group's DLP cost.
+
+Use only the claim labels **class-weak**, **weak representative exists**,
+**source-transfer-weak**, **implementation-weak**, or **no weakness found in
+scope**, with the exact certified scope. Algebraic claims require proof or
+certificates. Statistics address only a preregistered sampling law and detector:
+report exclusions and indeterminate cases, dependence/effective sample size,
+multiple-testing correction, and design-appropriate intervals. A bounded search
+or zero-hit prevalence bound is not evidence that no weak representative exists.
+
 ## Cursor Cloud specific instructions
 
 The Cloud Agent image's Ubuntu `python3` is not the interpreter this
