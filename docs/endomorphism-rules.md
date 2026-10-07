@@ -35,6 +35,64 @@ Cache reusable formulas, certificates, curve identities, and measured map costs 
 
 Do not treat anomalous trace, extension-field torsion, or twist checks as universal proxies for efficient endomorphism evaluation. Record each signal with the construction family it actually informs.
 
+## Curve-structure signals and extension torsion
+
+For a supplied curve or an explicitly authorized bounded family, maintain a typed
+signal record: exact field and model, characteristic, q, subgroup (order r and
+generator or definition), extension degree m, candidate prime ell, source of
+each parameter, construction family informed, computation or certificate,
+status, and the next test. Use exact arithmetic for algebraic claims; label
+unfactored orders, unproved endomorphism orders, and untested extensions.
+
+1. **Trace and anomalous patterns.** Verify N_1 = #E(F_q) = q + 1 - t and
+   |t| <= 2 sqrt(q) before classifying a trace. Exact anomalous order means
+   N_1 = q, equivalently t = 1; a near-anomalous trace is a separately
+   quantified observation, not an anomalous-curve result. Record whether a
+   proposed method requires a prime base field, an extension field, ordinary
+   reduction, or another hypothesis. Neither a small trace nor a distinctive
+   trace pattern alone proves a faster arithmetic map or logarithm method.
+2. **CM and conductor.** For an ordinary curve, factor t^2 - 4q = c^2 D_K
+   when certified and record the distinction among Z[pi], End(E), and O_K.
+   The endomorphism conductor divides c; determining it needs separate
+   evidence. A small class number, reduced form, or possible low-degree
+   isogeny gives a candidate construction, not an executable working-field
+   route or an automatic improvement on the chosen subgroup.
+3. **Extension point counts.** Compute t_0 = 2, t_1 = t, and
+   t_m = t t_(m-1) - q t_(m-2), so N_m = #E(F_(q^m)) = q^m + 1 - t_m.
+   State the exact extension and a bounded range of m. A prime ell dividing
+   N_m proves the existence of a point of order ell; it does not prove that
+   all of E[ell] is rational over F_(q^m). For ell distinct from the
+   characteristic, full rational ell-torsion requires Frobenius^m to act as
+   the identity on E[ell]. A repeated root of its characteristic polynomial
+   modulo ell is insufficient by itself. Treat characteristic-ell torsion
+   separately. Identify the original large-order subgroup inside the
+   extension instead of replacing it with newly visible small torsion.
+4. **Twists and isogeny classes.** Record each twist's defining field, degree,
+   model, point count, and subgroup separately. For a quadratic twist in odd
+   characteristic, t_twist = -t, but a shared j-invariant does not supply an
+   F_q-isomorphism. Curves F_q-isogenous to E have the same trace and point
+   count over F_q; their group structures and endomorphism orders can differ.
+   Compare a proposed representative through a field-defined, explicit map
+   and its action on the named subgroup, including kernel intersection and
+   return map. Do not attribute a different base-field trace to a member of
+   the same F_q-isogeny class.
+5. **Embedding and transfer.** For a prime r coprime to q, record
+   ord_r(q) when relevant to a proposed pairing transfer, alongside the
+   actual pairing, its nondegeneracy on the subgroup, field of definition,
+   extension-field arithmetic, destination problem, conversion, and
+   recovery costs. A small embedding degree, a small torsion factor, a cover,
+   or a geometric Jacobian correspondence is only a signal until the
+   working-field map, subgroup preservation, and complete-cost claim are
+   established. Distinguish the morphism of curves from induced maps on
+   divisor classes and unpolarized from principally polarized Jacobians.
+
+For every signal, state whether it is an exact invariant, a proposed route, an
+implemented map, a verified subgroup action, or a measured advantage.
+Preserve null/unknown values and failed checks; neither absence in a finite
+range nor a matching numerical pattern settles a global claim. Do not promote
+an arithmetic speedup to unknown-scalar recovery without a separate
+reduction and end-to-end evidence.
+
 ## Required benchmark accounting
 
 Compare against the fastest available validated baseline appropriate to the same workload, rather than only textbook double-and-add. Separate variable-base, fixed-base, batch, and multi-scalar multiplication. Separate constant-time secret-scalar implementations from variable-time public-scalar implementations.
