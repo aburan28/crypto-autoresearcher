@@ -18,7 +18,7 @@ FIPS 186-4's fifteen curves and the Montgomery and Edwards curves of SP 800-186 
 | nist/B-233 | F_2^233, x^233 + x^74 + 1 | True | −(71 digits) | 232.85 | 1 | 2^230.85 | none (every non-scalar endomorphism has at least the degree shown) |
 | nist/B-283 | F_2^283, x^283 + x^12 + x^7 + x^5 + 1 | True | −(86 digits) | 284.8 | 1 | 2^282.8 | none (every non-scalar endomorphism has at least the degree shown) |
 | nist/B-409 | F_2^409, x^409 + x^87 + 1 | True | −(124 digits) | 410.99 | 1 | 2^408.99 | none (every non-scalar endomorphism has at least the degree shown) |
-| nist/B-571 | F_2^571, x^571 + x^10 + x^5 + x^2 + 1 | True | abs(D_K) ≥ 2058683930000000 | ≥ 50.87 | | ≥ 514670982500000 | none below degree 514670982500000 (partial factorisation) |
+| nist/B-571 | F_2^571, x^571 + x^10 + x^5 + x^2 + 1 | True | abs(D_K) ≥ 41144834294568711165300914428595243383362010000000 | ≥ 164.82 | | ≥ 10286208573642177791325228607148810845840502500000 | none below degree 10286208573642177791325228607148810845840502500000 (partial factorisation) |
 | other/Curve25519 | F_p, p of 255 bits | True | −(77 digits) | 254.65 | 2 | 2^252.65 | none (every non-scalar endomorphism has at least the degree shown) |
 | other/Ed25519 (same curve as other/Curve25519) | F_p, p of 255 bits | True | −(77 digits) | 254.65 | 2 | 2^252.65 | none (every non-scalar endomorphism has at least the degree shown) |
 | other/Curve448 | F_p, p of 448 bits | True | −(135 digits) | 447.53 | 2 | 2^445.53 | none (every non-scalar endomorphism has at least the degree shown) |
