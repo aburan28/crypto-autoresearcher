@@ -519,3 +519,127 @@ def test_scalar_frobenius_kernels_are_grouped_by_subgroup():
     cr = EX.build_chain_endomorphism(p, a, b, T.n, T.h, -915, (8, 1), curve_name=T.name, steps=(43, 7),
                                      conjugates=False, omega_root=QO.omega_eigenvalues(-915, T.n)[0])
     assert cr.found
+
+
+# --- NIST: binary curves --------------------------------------------------------
+
+from harness.endosweep import binary as BI    # noqa: E402
+from harness.endosweep import nist as NI      # noqa: E402
+
+_F163 = (163, (7, 6, 3, 0))
+_K163 = dict(a=1, b=1, n=0x04000000000000000000020108A2E0CC0D99F8A5EF, h=2,
+             G=(0x02FE13C0537BBC11ACAA07D793DE4E6D5E5C94EEE8, 0x0289070FB05D38FF58321F2E800536D538CCDAA3D9))
+_B163 = dict(a=1, b=0x020A601907B8C953CA1481EB10512F78744A3205FD, n=0x040000000000000000000292FE77E70C12A4234C33, h=2,
+             G=(0x03F0EBA16286A2D57EA0991168D4994637E8343E36, 0x00D51FBC6C71A0094FA2CDD545B11C5C0C797324F1))
+
+
+def _bcurve(c):
+    return BI.BinaryCurve(BI.Field(*_F163), c["a"], c["b"])
+
+
+def test_binary_field_and_lopez_dahab_formulas_agree_with_affine():
+    import random
+    rng = random.Random(3)
+    for c in (_K163, _B163):
+        E = _bcurve(c)
+        F = E.F
+        x = rng.getrandbits(163)
+        assert F.mul(x, F.inv(x)) == 1 and F.sqr(x) == F.mul(x, x) and F.sqr(F.sqrt(x)) == x
+        for _ in range(4):
+            P, Q = E.random_point(rng), E.random_point(rng)
+            assert E.on_curve(P) and E.on_curve(Q)
+            D = E.ld_dbl(E.ld(P))
+            assert E.ld_to_affine(D) == E.dbl(P)
+            assert E.ld_to_affine(E.ld_madd(E.ld(P), Q)) == E.add(P, Q)
+            assert E.ld_to_affine(E.ld_madd(D, Q)) == E.add(E.dbl(P), Q)
+            assert E.batch_to_affine([D, E.ld_frobenius(D)]) == [E.dbl(P), E.frobenius(E.dbl(P))]
+        assert E.ld_madd(E.ld(P), E.neg(P)) is BI.INF
+
+
+def test_binary_curves_verify_and_koblitz_tau_is_an_endomorphism():
+    for c in (_K163, _B163):
+        E = _bcurve(c)
+        v = BI.verify(E, c["n"], c["h"], c["G"])
+        assert v.ok, v.note
+        scan = QO.small_discriminant_scan(QO.frobenius_discriminant(E.F.q, v.trace), 10_000)
+        assert (scan.found == -7) == BI.is_koblitz(E)
+    E = _bcurve(_K163)
+    kob, checks = BI.koblitz(E, _K163["n"], _K163["h"], _K163["G"])
+    assert all(checks.values()), checks
+    assert kob.mu == 1 and (kob.lam ** 2 - kob.lam + 2) % kob.n == 0
+    bad = BI.verify(_bcurve(_K163), _K163["n"], _K163["h"] + 2, _K163["G"])
+    assert not bad.ok
+
+
+def test_tnaf_and_wnaf_agree_and_count_what_they_execute():
+    import random
+    E = _bcurve(_K163)
+    n, G = _K163["n"], _K163["G"]
+    kob, _ = BI.koblitz(E, n, _K163["h"], G)
+    rng = random.Random(5)
+    for k in [rng.randrange(1, n) for _ in range(3)]:
+        ref = E.mul_affine(k, G)
+        for w in (2, 4, 5):
+            tw, alpha = BI.tnaf_constants(kob, w)
+            assert alpha[1] == (1, 0)
+            R, c = BI.mul_tnaf_counted(E, kob, k, G, w, (tw, alpha))
+            assert R == ref
+            d = BI.tnaf(tuple(c["rho"]), kob, w, tw, alpha)
+            nz = sum(1 for x in d if x)
+            assert c["main"] == {"M": 8 * (nz - 1), "S": 3 * (len(d) - 1) + 5 * (nz - 1), "I": 0}
+            R2, c2 = BI.mul_wnaf_counted(E, k, G, w)
+            assert R2 == ref
+            d2 = BI.wnaf(k, w)
+            nz2 = sum(1 for x in d2 if x)
+            assert c2["main"] == {"M": 3 * (len(d2) - 1) + 8 * (nz2 - 1), "S": 5 * (len(d2) - 1) + 5 * (nz2 - 1), "I": 0}
+            assert len(d) <= 163 + 4                     # partial reduction keeps the expansion about m long
+
+
+def test_exact_discriminant_from_a_checked_factorization():
+    # P-224: 4q - t^2 = 3^3 * 29 * 79 * 7523 * 40927 * 11549194661 * p45
+    N = 85437550031088170535288062946642707984656696913911429425696631461483
+    fac = [[3, 3], [29, 1], [79, 1], [7523, 1], [40927, 1], [11549194661, 1],
+           [388425074903852603481408727235725774844022299, 1]]
+    checked = NI.check_factorization(N, fac)
+    DK, f = NI.exact_discriminant(-N, checked)
+    assert f == 3 and DK * f * f == -N and QO.is_fundamental(DK)
+    with pytest.raises(ValueError):
+        NI.check_factorization(N, fac[:-1])
+    with pytest.raises(ValueError):
+        NI.check_factorization(N * 4, fac + [[4, 1]])
+
+
+def test_min_nonscalar_degree_closed_form_matches_brute_force():
+    for D in range(-3, -3000, -1):
+        if not QO.is_discriminant(D):
+            continue
+        brute = min(QO.norm(D, a, 1) for a in range(-abs(D) // 2 - 2, abs(D) // 2 + 3))
+        assert QO.min_nonscalar_degree(D) == brute, D
+    assert QO.min_nonscalar_degree(-(2 ** 255)) == 2 ** 253 and QO.min_nonscalar_degree(-(2 ** 255 + 3)) == 2 ** 253 + 1
+
+
+def test_nist_results_rest_on_checked_certificates():
+    base = _os.path.join(_os.path.dirname(__file__), "..", "research", "endosweep_nist_20261006")
+    certs = NI.load_factorizations(_os.path.join(base, "factorizations.jsonl"))     # re-multiplied, primes re-tested
+    assert len(certs) == 11
+    doc = _json.load(open(_os.path.join(base, "nist.json")))
+    assert len(doc["curves"]) == 20 and all(r["verified"] for r in doc["curves"].values())
+    for name, r in doc["curves"].items():
+        q, t = int(r["q"]), int(r["t"])
+        if r["exact"]:
+            DK, f = int(r["exact"]["D_K"]), int(r["exact"]["f"])
+            assert DK * f * f == t * t - 4 * q, name
+            if "factorization" in r["exact"]:
+                fac = certs[4 * q - t * t]
+                core = 1
+                for p, e in fac:
+                    core *= p ** (e % 2)
+                # fundamental: the squarefree core itself (= 3 mod 4) or four times it (core = 1, 2 mod 4)
+                assert DK == -core if core % 4 == 3 else DK == -4 * core, name
+            else:
+                assert QO.is_fundamental(DK), name
+        else:
+            assert name == "nist/B-571" and r["bound"]["abs_D_K_at_least"] > 10 ** 15
+        if name.startswith("nist/K-"):
+            assert r["exact"]["D_K"] == -7 and r["tau"]["all_checks_pass"]
+            assert r["summary"]["S_free"]["ratio"] > 2 and r["summary"]["S_equals_M"]["ratio"] > 1.5

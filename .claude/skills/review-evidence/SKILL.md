@@ -62,7 +62,8 @@ review, and synthesis.
      not inflated. A heuristic-conditional result keeps `claim_tier` capped
      at conditional, with the heuristic and its validation experiment IDs
      named in the evidence record;
-   - create the `evidence` record in `ledger/evidence/EV-<AREA>-<NNN>.yaml`
+   - create the `evidence` record in `ledger/evidence/<EV-ID>.yaml`
+     (`python3 tools/allocate_id.py --next evidence --area <AREA>`, then `--check`)
      with direction, strength (per the hierarchy in
      `docs/evidence-and-reproducibility.md`), `claim_tier` (never exceeding
      what the runs' parameters allow), `certificate_refs`,
@@ -86,7 +87,7 @@ review, and synthesis.
    (schema in `templates/research-records.md`):
    - Promotion is REQUIRED when the decision is `support` or `reject_scoped`
      and the evidence strength is `replicated` or `strong`: create a
-     `knowledge/findings/KN-FIND-NNN.md` entry via the `/curate-knowledge`
+     `knowledge/findings/KN-FIND-<tok>.md` entry via the `/curate-knowledge`
      conventions, citing the EV-/DEC-/EXP- IDs. A proven scoped negative
      (`reject_scoped`) is a durable boundary and is promoted like a positive.
    - Promotion is CONSIDERED when an `inconclusive` or `pause` decision
@@ -117,9 +118,14 @@ pulls in `main` and surfaces the decision as a PR:
   never rebase. If the merge conflicts, stop and report; never resolve a
   conflict by editing a record. Re-run `tools/validate_ledger.py` after the
   merge.
-- **After the ledger archive:** `git push -u origin <branch>` then
-  `gh pr create --base main --head <branch> --title "evidence: <EV-ID>/<DEC-ID>" --body "<EV-*/DEC-*/KN-* IDs>"`
-  (or `gh pr edit <number>` when a PR for the branch already exists).
+- **After the ledger archive:** `git push -u origin <branch>`, then open or
+  refresh a PR against `main` with the runtime's PR tool, titled
+  `evidence: <EV-ID>/<DEC-ID>` and naming the `EV-*`/`DEC-*`/`KN-*` ids. Use
+  `gh pr create` only where `gh auth status` succeeds; a session with no PR
+  tool reports the pushed branch.
+- **Receipt:** end with `python3 tools/session_receipt.py --skill
+  review-evidence --role coordinator --outcome reviewed --created <ids>`
+  (`docs/session-receipts.md`).
 
 ## Rules
 

@@ -163,3 +163,140 @@ def products(rows, maps, nv, C, W):
             o[:, Bc] ^= d[:, Bc]
             out[j * n + s:j * n + s + m] = pack(o)
     return out
+
+
+def row_leads(M0, C):
+    """Per-row leads in row order (see gf2_row_leads): lead column each row adds
+    to the span of the rows before it, or -1."""
+    R, W = M0.shape
+    basis = {}
+    out = np.full(R, -1, dtype=np.int32)
+    for i in range(R):
+        v = M0[i].copy()
+        while True:
+            nzw = np.flatnonzero(v)
+            if not len(nzw):
+                break
+            w = int(nzw[0])
+            x = int(v[w])
+            lc = w * 64 + ((x & -x).bit_length() - 1)
+            if lc >= C:
+                break
+            if lc not in basis:
+                basis[lc] = v
+                out[i] = lc
+                break
+            v = v ^ basis[lc]
+    return out
+
+
+def build_rows(eoff, emon, nv, D, mu, k, M, lead, weight):
+    """Numpy/Python twin of gf2_build_rows (colex column ranks, pairwise
+    cancellation); fills M (if given), lead and weight in place."""
+    from math import comb
+    off = [0] * (D + 2)
+    for d in range(D - 1, -1, -1):
+        off[d] = off[d + 1] + comb(nv, d + 1)
+
+    def col(x):
+        d, r, i = bin(x).count("1"), 0, 1
+        while x:
+            b = (x & -x).bit_length() - 1
+            x &= x - 1
+            r += comb(b, i)
+            i += 1
+        return off[d] + r
+
+    for i in range(len(mu)):
+        par = {}
+        for m in emon[eoff[k[i]]:eoff[k[i] + 1]].tolist():
+            c = col(int(mu[i]) | int(m))
+            par[c] = par.get(c, 0) ^ 1
+        cs = sorted(c for c, p in par.items() if p)
+        lead[i] = cs[0] if cs else -1
+        weight[i] = len(cs)
+        if M is not None:
+            for c in cs:
+                M[i, c >> 6] |= np.uint64(1 << (c & 63))
+    return M, lead, weight
+
+
+def _bits(row):
+    return np.flatnonzero(np.unpackbits(row.view(np.uint8), bitorder="little"))
+
+
+def annihilator(Es, ls, C, K):
+    """Reference of kernels.annihilator (rows already in descending lead order)."""
+    isp = np.zeros(C, dtype=bool)
+    isp[ls] = True
+    for t, c in enumerate(np.flatnonzero(~isp)):
+        K[c, t >> 6] |= np.uint64(1 << (t & 63))
+    for row, p in zip(Es, ls):
+        cols = _bits(row)
+        cols = cols[cols > p]
+        if len(cols):
+            K[p] = np.bitwise_xor.reduce(K[cols], axis=0)
+    return K
+
+
+def syndromes(A, K):
+    S = np.zeros((len(A), K.shape[1]), dtype=np.uint64)
+    for i, row in enumerate(A):
+        cols = _bits(row)
+        if len(cols):
+            S[i] = np.bitwise_xor.reduce(K[cols], axis=0)
+    return S
+
+
+def _colmap_product(row, j, colmap, C, W):
+    out = np.zeros(W, dtype=np.uint64)
+    for c in _bits(row).tolist():
+        if c < C and colmap[j, c] >= 0:
+            t = int(colmap[j, c])
+            out[t >> 6] ^= np.uint64(1 << (t & 63))
+    return out
+
+
+def product_syndromes(rows, colmap, nv, C, K):
+    n, W = rows.shape
+    P = np.zeros((nv * n, W), dtype=np.uint64)
+    for j in range(nv):
+        for f in range(n):
+            P[j * n + f] = _colmap_product(rows[f], j, colmap, C, W)
+    return syndromes(P, K)
+
+
+def product_pairs(rows, js, colmap, C, W):
+    out = np.zeros((len(rows), W), dtype=np.uint64)
+    for p in range(len(rows)):
+        out[p] = _colmap_product(rows[p], int(js[p]), colmap, C, W)
+    return out
+
+
+def reduce_rows(Q, C, blocks, keep_ops, full=False):
+    """Reference of kernels.reduce_rows."""
+    slot = {}
+    for M, rows, leads, gids in blocks:
+        for r, c, g in zip(np.asarray(rows).tolist(), np.asarray(leads).tolist(), np.asarray(gids).tolist()):
+            slot[c] = (M[r], g)
+    out = np.full(len(Q), -1, dtype=np.int64)
+    X = [] if keep_ops else None
+    for i in range(len(Q)):
+        used = []
+        while True:
+            cols = _bits(Q[i])
+            cols = cols[cols < C]
+            hit = [c for c in cols.tolist() if c in slot] if full else cols[:1].tolist()
+            if not hit or hit[0] not in slot:
+                break
+            b, g = slot[hit[0]]
+            Q[i] ^= b
+            used.append(g)
+        out[i] = int(cols[0]) if len(cols) else -1
+        if keep_ops:
+            X.append(np.array(used, dtype=np.int64))
+    if keep_ops:
+        xoff = np.zeros(len(Q) + 1, dtype=np.int64)
+        xoff[1:] = np.cumsum([len(x) for x in X])
+        X = (xoff, np.concatenate(X) if X else np.zeros(0, np.int64))
+    return out, X
