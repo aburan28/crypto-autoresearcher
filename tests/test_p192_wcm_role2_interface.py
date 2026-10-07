@@ -1613,6 +1613,50 @@ def test_static_contract_rejects_authorization_or_verifier_path_regression() -> 
     assert any("protected protocol paths" in error for error in checker.collect_contract_errors(mutated, overlay))
 
 
+def test_restart_receipt_precedes_verifier_and_setup_failures_are_representable() -> None:
+    addendum_document = yaml.safe_load(checker.ADDENDUM.read_text())
+    overlay = yaml.safe_load(checker.OVERLAY.read_text())
+    addendum = addendum_document["role2_box0_interface_addendum"]
+    sequence = addendum["supervisor_custody"]["launch_sequence"]
+    assert sequence == checker.SUPERVISOR_LAUNCH_SEQUENCE
+    assert sequence.index("compare_all_producer_outputs_roots_counters_prefixes") < sequence.index(
+        "write_checkpoint_resume_control"
+    ) < sequence.index("launch_isolated_independent_verifier")
+
+    resource = addendum["resource_admission"]
+    admitted = resource["admitted_failure_mapping"]
+    assert "status INCOMPLETE" in admitted
+    assert "failure_reason incomplete_child_artifact" in admitted
+    assert "both directories remain retained" in admitted.lower()
+    setup = resource["paired_directory_setup_boundary"]
+    assert "pre-evidence setup operation" in setup
+    assert "freshly-created empty half-directory" in setup
+    assert "reverse creation order" in setup
+    assert "fsyncs each affected parent" in setup
+    assert "hard custody violation requiring operator remediation" in setup
+    assert "never a schema failure record" in setup
+    assert "no raw result or PASS claim" in setup
+    failure_prefix = addendum["terminal_status_semantics"][
+        "failure_precedence_and_reason"
+    ]
+    assert (
+        "all producer paths plus checkpoint-resume-control and "
+        "independent-verification"
+    ) in failure_prefix
+
+    mutated = copy.deepcopy(addendum_document)
+    mutated_sequence = mutated["role2_box0_interface_addendum"]["supervisor_custody"]["launch_sequence"]
+    mutated_sequence.remove("write_checkpoint_resume_control")
+    mutated_sequence.insert(
+        mutated_sequence.index("prove_producer_sources_stable"),
+        "write_checkpoint_resume_control",
+    )
+    assert any(
+        "supervisor launch sequence" in error
+        for error in checker.collect_contract_errors(mutated, overlay)
+    )
+
+
 def test_yaml_loader_rejects_duplicate_contract_keys() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         path = Path(temporary) / "duplicate.yaml"

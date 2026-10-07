@@ -382,6 +382,29 @@ FAILURE_COMPLETION_ORDER = [
     for phase_paths in FAILURE_PHASE_ARTIFACTS.values()
     for path in phase_paths
 ]
+SUPERVISOR_LAUNCH_SEQUENCE = [
+    "validate_dispatch_decision_and_clean_sources",
+    "retain_parent_run_control_directory_fds",
+    "snapshot_and_seal_six_predecessor_files",
+    "open_copy_seal_distinct_producer_and_verifier_images",
+    "launch_canonical_producer",
+    "close_and_snapshot_all_producer_outputs",
+    "launch_fault_control_expect_75",
+    "inject_and_fsync_exact_uncommitted_suffixes",
+    "launch_resume_control",
+    "compare_all_producer_outputs_roots_counters_prefixes",
+    "write_checkpoint_resume_control",
+    "launch_isolated_independent_verifier",
+    "prove_producer_sources_stable",
+    "rehash_predecessor_sources_and_binaries",
+    "write_independent_agreement",
+    "write_dependency_audit",
+    "write_supervisor_receipt_after_all_stage_artifacts",
+    "write_command_environment_framed_streams_raw_result_and_manifest",
+    "fsync_manifest_and_run_directory",
+    "terminally_recheck_self_children_source_build_inputs_predecessor_snapshots_decision_protocol_run_and_control",
+    "write_and_fsync_outer_terminal_custody_seal",
+]
 EXPECTED_JSON_SCHEMAS = {
     "candidate-stream.json": "p192-wcm-candidate-stream-v1",
     "disposition-schema.json": "p192-wcm-disposition-schema-v1",
@@ -10310,6 +10333,36 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
     terminal = addendum.get("terminal_status_semantics", {})
     if "failure_precedence_and_reason" not in terminal:
         errors.append("deterministic terminal failure precedence is missing")
+    supervisor_custody = addendum.get("supervisor_custody", {})
+    _exact(
+        supervisor_custody.get("launch_sequence"),
+        SUPERVISOR_LAUNCH_SEQUENCE,
+        "supervisor launch sequence",
+        errors,
+    )
+    resource = addendum.get("resource_admission", {})
+    admitted_failure_mapping = resource.get("admitted_failure_mapping")
+    _require(
+        isinstance(admitted_failure_mapping, str)
+        and "status INCOMPLETE" in admitted_failure_mapping
+        and "failure_reason incomplete_child_artifact" in admitted_failure_mapping
+        and "both directories remain retained" in admitted_failure_mapping.lower(),
+        "post-directory resource failure mapping is not frozen",
+        errors,
+    )
+    paired_setup = resource.get("paired_directory_setup_boundary")
+    _require(
+        isinstance(paired_setup, str)
+        and "pre-evidence setup operation" in paired_setup
+        and "freshly-created empty half-directory" in paired_setup
+        and "reverse creation order" in paired_setup
+        and "fsyncs each affected parent" in paired_setup
+        and "hard custody violation requiring operator remediation" in paired_setup
+        and "never a schema failure record" in paired_setup
+        and "no raw result or PASS claim" in paired_setup,
+        "half-directory pre-evidence rollback/refusal boundary is not frozen",
+        errors,
+    )
 
     _exact(overlay.get("interface_revision"), 3, "overlay interface revision", errors)
     _exact(overlay.get("supersedes_unexecuted_revision"), 2, "superseded overlay interface revision", errors)
