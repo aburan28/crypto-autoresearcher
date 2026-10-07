@@ -18,7 +18,8 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # 30 min batch wait + room to run unfinished papers synchronously.
+    timeout-minutes: 80
     env:
       LITERATURE_BUCKET: ${{ vars.LITERATURE_S3_BUCKET }}
       LITERATURE_ROLE: ${{ vars.LITERATURE_S3_ROLE_ARN }}
@@ -93,6 +94,8 @@ jobs:
         run: |
           python3 tools/daily_literature_ingest.py \
             --days 7 --max-new 20 --bucket "$LITERATURE_BUCKET" \
+            --delivery batch --batch-wait-seconds 1800 \
+            --batch-registry "$RUNNER_TEMP/literature-batches" \
             --report "$RUNNER_TEMP/daily-literature.json"
 
       - name: Rebuild and validate derived knowledge

@@ -90,6 +90,15 @@ draft's substantive assertions or promote it to a verified finding.
    PDF to the model. It fails when the key is absent, extraction yields too
    little text, a response is incomplete, or a quote fails the page check;
    this is safer than issuing a claim with no check. API use is billable.
+
+   Distillation runs on the Message Batches lane by default (`--delivery
+   batch`): every new paper goes into one batch at half the token price. The
+   job waits up to `--batch-wait-seconds` (1800 in the workflow); a batch
+   still running then is cancelled, finished results are kept, and only the
+   papers that never ran are sent synchronously, so nothing is paid twice.
+   Each entry's `distillation.delivery` names the lane and batch id. Batch
+   records go to the runner's temporary directory, never the repository.
+   `--delivery interactive` restores one synchronous call per paper.
 5. Merge the workflow PR into `main`, then run **Actions → daily-literature →
    Run workflow** once and inspect the log, S3 receipt, and review PR. Scheduled
    workflows only execute from the default branch. Do not configure untrusted
