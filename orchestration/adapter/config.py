@@ -25,6 +25,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICIES_PATH = REPO_ROOT / "orchestration" / "model-policies.yaml"
 PROVIDERS_PATH = REPO_ROOT / "orchestration" / "providers.yaml"
 BINDINGS_PATH = REPO_ROOT / "orchestration" / "model-bindings.yaml"
+# Operator-local bindings, merged over the committed file at load time. This
+# is how a backend the repository ships unbound (openrouter) gets model ids on
+# one machine without anyone committing an assertion nobody probed: the file
+# is gitignored, its entries must say `provenance: operator-supplied`, and
+# the merged digest changes so every manifest shows it was in effect.
+BINDINGS_OVERLAY_PATH = REPO_ROOT / "orchestration" / "model-bindings.local.yaml"
+BINDINGS_OVERLAY_ENV = "AUTORESEARCH_BINDINGS_OVERLAY"
 
 DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max", "ultra"]
 
@@ -223,16 +230,83 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def overlay_path(env: dict[str, str] | None = None,
+                 override: Path | None = None) -> Path | None:
+    """The bindings overlay in effect, or None.
+
+    `AUTORESEARCH_BINDINGS_OVERLAY` wins (an empty value disables the overlay
+    outright, which is what a test or a CI job wants); otherwise the local
+    file beside the committed bindings is used when it exists.
+    """
+    if override is not None:
+        return override
+    env = os.environ if env is None else env
+    if BINDINGS_OVERLAY_ENV in env:
+        value = env[BINDINGS_OVERLAY_ENV].strip()
+        return Path(value).expanduser() if value else None
+    return BINDINGS_OVERLAY_PATH if BINDINGS_OVERLAY_PATH.exists() else None
+
+
+def merge_bindings(base: dict[str, Any], overlay: dict[str, Any],
+                   source: str = "overlay") -> dict[str, Any]:
+    """Merge an overlay's binding tables over the committed ones.
+
+    One policy entry replaces the committed entry whole -- a half-merged
+    binding (the overlay's model with the committed capabilities) would be a
+    claim neither file made. An overlay may not relabel what it supplies as
+    `runtime-verified`: that word means `doctor --probe` listed the id, and
+    a local file cannot attest it. `defaults` are not overridable; the
+    fallback order is the repository's contract.
+    """
+    tables = overlay.get("bindings")
+    if not isinstance(tables, dict):
+        raise ConfigError(f"{source}: overlay must contain a `bindings` mapping")
+    for key in overlay:
+        if key not in ("bindings", "schema_version", "notes"):
+            raise ConfigError(f"{source}: overlay may set only `bindings` "
+                              f"(and `notes`), not {key!r}")
+    merged = json.loads(json.dumps(base))
+    merged.setdefault("bindings", {})
+    for backend_name, table in tables.items():
+        if not isinstance(table, dict):
+            raise ConfigError(f"{source}: bindings.{backend_name} must be a mapping")
+        target = merged["bindings"].setdefault(backend_name, {})
+        for policy_id, binding in table.items():
+            if not isinstance(binding, dict):
+                raise ConfigError(f"{source}: bindings.{backend_name}.{policy_id} "
+                                  f"must be a mapping")
+            if binding.get("provenance") == "runtime-verified":
+                raise ConfigError(
+                    f"{source}: bindings.{backend_name}.{policy_id} claims "
+                    f"runtime-verified; an overlay can only be operator-supplied "
+                    f"(run `adapter doctor --probe` and commit a verified binding "
+                    f"instead)")
+            target[policy_id] = dict(binding, overlay_source=source)
+    return merged
+
+
 def load(policies_path: Path | None = None,
          providers_path: Path | None = None,
-         bindings_path: Path | None = None) -> Config:
-    """Load, cross-validate, and digest the configuration."""
+         bindings_path: Path | None = None,
+         bindings_overlay: Path | None = None,
+         env: dict[str, str] | None = None) -> Config:
+    """Load, cross-validate, and digest the configuration.
+
+    `bindings_overlay` (or the file `overlay_path` finds) is merged over the
+    committed bindings before validation, and recorded in `paths` so a
+    manifest can say which local file shaped the resolution.
+    """
     paths = {
         "policies": policies_path or POLICIES_PATH,
         "providers": providers_path or PROVIDERS_PATH,
         "bindings": bindings_path or BINDINGS_PATH,
     }
     docs = {name: _load_yaml(path) for name, path in paths.items()}
+    overlay = overlay_path(env, bindings_overlay)
+    if overlay is not None:
+        docs["bindings"] = merge_bindings(docs["bindings"], _load_yaml(overlay),
+                                          source=str(overlay))
+        paths["bindings_overlay"] = overlay
     config = Config(
         policies=docs["policies"],
         providers=docs["providers"],
