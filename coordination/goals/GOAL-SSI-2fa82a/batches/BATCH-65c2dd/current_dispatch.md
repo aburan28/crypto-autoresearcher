@@ -6,12 +6,11 @@ Run one zero-experiment alternating EndRing-PKE candidate funnel: two independen
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261007-c47fc6` | coordinator | queued | 30 | TASK-20261007-b6c1ec | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6/final-composition.yaml | coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6 |
+| `TASK-20261007-9c36ba` | coordinator | queued | 20 | TASK-20261007-c47fc6 | research/ssi-endring-pke/2026-10-07-candidate-funnel/report.md, research/ssi-endring-pke/2026-10-07-candidate-funnel/funnel-flow.svg, research/ssi-endring-pke/2026-10-07-candidate-funnel/report.pdf | research/ssi-endring-pke/2026-10-07-candidate-funnel |
 
 ## Deferred or Blocked
 
-- `TASK-20261007-9c36ba`: dependency_not_completed:TASK-20261007-c47fc6:queued
-- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-c47fc6:queued, dependency_not_completed:TASK-20261007-9c36ba:queued
+- `TASK-20261007-e9b59b`: dependency_not_completed:TASK-20261007-9c36ba:queued
 
 ## Dispatch Gates
 
@@ -37,10 +36,8 @@ run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
 A running producer legitimately appears here, so this is a report and
 not a gate. Land anything whose producer has already returned.
 
-- `TASK-20261007-b6c1ec` (red-team, completed):
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/review-attestation.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/revision-review.yaml`
-  - `coordination/design/TASK-20261007-9c36ba/reviews/TASK-20261007-b6c1ec/runtime-session-receipt.json`
-  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-b6c1ec --push`
+- `TASK-20261007-c47fc6` (coordinator, completed):
+  - `coordination/design/TASK-20261007-9c36ba/tasks/TASK-20261007-c47fc6/final-composition.yaml`
+  - remedy: `python3 tools/producer_landing.py <queue> TASK-20261007-c47fc6 --push`
 
-Plan SHA-256: `9b21cd48ecc77dcfc5e2f866ba99d17806cf6d48fce1258ba6b56d6fd4b88f1b`
+Plan SHA-256: `30c24d9c3ad828baf28a6374d1768a086a45806e7ebf6608c3dbc96f3463275f`
