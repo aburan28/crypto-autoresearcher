@@ -448,139 +448,31 @@ bound. `docs/bounds-and-frontiers.md`.
 
 ## Weak-curve and isogenous-representative audits
 
-Use [`audit-curve`](.claude/skills/audit-curve/SKILL.md) (also exposed under
-`.agents/skills/audit-curve/`) before claiming that a curve, its twist, or an
-isogenous representative is weak. Any scientific trial launched by this
-workflow still uses the canonical `run` entry point. Audit output is evidence,
-not certification or a research-state transition.
+Before a weak-curve claim, use
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md) and
+[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). Trials still use the
+canonical `run` entry point; audits are evidence, not state transitions.
 
-A special model, small coefficient, unusual \(j\)-invariant, endomorphism, CM
-discriminant, or short isogeny is a lead, not a weakness. Freeze before testing:
+Freeze the curve/subgroup/protocol, attacker, threshold, costs, path-knowledge
+model, budgets, population, and stopping rule. Require certified arithmetic and
+planted controls. Separate base-field isogeny-class invariants from
+representative-dependent structure; unusual structure is only a lead.
 
-- the base field and field of definition of every isogeny;
-- the exact curve identity, subgroup, generator, protocol use, and validation
-  rules;
-- whether an isogeny path is public, supplied as private advice, or must be
-  discovered by the attacker;
-- the classical or quantum attacker, target security level, success
-  probability, and common cost units;
-- time, memory, data/query, parallelism, and reusable-precomputation budgets.
+An isogeny transfer claim requires explicit maps and subgroup preservation,
+with path discovery, construction, evaluation, attack, memory, data, and
+precomputation charged. Advice supports only an advice-holder claim. Singular
+or invalid
+formula-compatible companions can establish **implementation-weak**, never
+elliptic-curve or isogeny-class weakness. A confirmation-only oracle needs an
+explicit reduction; it does not inherit the companion group's DLP cost.
 
-For an isogeny defined over \(\mathbb F_q\), correctly separate class invariants
-from representative-dependent properties. The Frobenius trace, characteristic
-polynomial, and point counts over every extension are class invariants.
-Consequently the base-field order and its factorization, anomalous status,
-ordinary/supersingular status, embedding degree for each fixed prime subgroup
-factor coprime to \(q\), its cofactor, and—in odd characteristic—the
-quadratic-twist order cannot improve by moving to another
-\(\mathbb F_q\)-isogenous representative. Group invariant
-factors, exact endomorphism ring and conductor, \(j\)-invariant, automorphisms,
-models, explicit path cost, and implementation behavior may vary. Do not apply
-the \(\mathbb F_q\)-isogeny conclusions to a geometric or extension-field
-isogeny without a separate argument.
-
-For composite subgroup order \(r\), the divisibility \(r\mid N\) and numerical
-cofactor \(N/r\) are invariant, but the existence of a cyclic point of exact
-order \(r\) can vary with the group decomposition. Make class-wide attack
-claims factor-wise, or condition them on a certified subgroup and its
-preservation along the path.
-
-Every audit record must contain:
-
-- exact nonsingularity, trace/order, certified factors and unfactored
-  cofactors, subgroup/cofactor, twist, embedding-degree, group-structure, and
-  relevant endomorphism certificates;
-- a best-attack table covering generic rho, Pohlig–Hellman, pairing transfers
-  with the actual target-field DLP cost, anomalous/supersingular and applicable
-  descent attacks, the selected quantum baseline when in scope, and only
-  demonstrably usable automorphism or endomorphism speedups;
-- attack success probability and separate time, memory, data/query, online,
-  and amortized precomputation costs;
-- for an isogeny transfer, explicit maps, degrees, kernels, fields of
-  definition, and path-finding/build/evaluation costs.
-
-Run planted positive and negative controls through the same arithmetic and
-reporting path before trusting it, including malformed or singular instances,
-false order claims, and small known anomalous, pairing-exposed, and weak-twist
-examples. A failed or skipped material control makes dependent conclusions
-indeterminate. The relation \([N]P=O\) alone does not certify a point count; a
-fully checked Hasse-interval unique-multiple proof is an allowed certificate.
-
-Measure source-curve transfer security under one declared cost model as
-
-\[
-C^*(E)=\min_{E'}\bigl(
-C_{\rm find/build\ path}+C_{\rm transfer}+C_{\rm best\ attack}(E')
-\bigr).
-\]
-
-The candidate set includes \(E\) itself through the zero-cost identity path.
-Existence of an isogeny is not a transfer attack. For a target subgroup of order
-\(r\), certify that its image retains order \(r\); coprimality of the isogeny
-degree and \(r\) is sufficient, otherwise verify the image order explicitly.
-A path supplied as private advice supports only an advice-holder claim; do not
-price its discovery at zero for the public attacker.
-
-Use precise claim labels:
-
-- **class-weak**: a certified class invariant yields an attack below the frozen
-  threshold;
-- **weak representative exists**: an explicit representative has a certified
-  condition or reproducible attack below the threshold;
-- **source-transfer-weak**: an explicit subgroup-preserving path and its total
-  transfer-and-attack cost fall below the threshold;
-- **implementation-weak**: protocol or implementation behavior is exploitable;
-  this does not establish mathematical curve weakness, and invalid-curve inputs
-  may lie outside the isogeny class;
-- **no weakness found in scope**: only the named attacks, cost model, and
-  enumerated or sampled coverage were tested.
-
-When an implementation accepts adversarial points, do not stop at the named
-quadratic twist. Trace the coefficients used by decoding, addition, doubling,
-the ladder, and output validation, then audit the full formula-compatible
-companion family obtained by varying omitted coefficients. Include singular
-companions as controls: their smooth loci can have exploitable group laws, but
-they are not elliptic curves or isogenous representatives and support only an
-**implementation-weak** claim. Price from the actual observable. Full or raw
-point coordinates may permit a DLP attack; a KDF, MAC, ciphertext, or
-accept/reject oracle requires charged subgroup enumeration or adaptive digit
-queries, x-only sign handling, CRT, and any final interval search. Never assign
-square-root DLP cost to a confirmation-only oracle without a reduction that
-produces a group target.
-
-Record graph coverage by isogeny primes, component, radius/depth, conductor or
-volcano strata, stopping rule, and unique \(\mathbb F_q\)-isomorphism classes;
-do not deduplicate by \(j\)-invariant alone. A bounded-degree or bounded-radius
-search says nothing beyond that boundary.
-
-Algebraic properties require proof or certificates, not statistical
-confidence. Statistics may support only prevalence, search-performance, or
-runtime claims. Pre-register the sampled population and distribution—uniform
-isomorphism classes, a curve generator, and a graph walk are different
-populations. Account for degree-biased stationary distributions,
-autocorrelation and effective sample size, use independent restarts and
-conductor strata, correct multiple testing, and confirm adaptive discoveries
-on fresh samples.
-
-Report hits \(x/n\) with an interval matched to the declared design. Under
-i.i.d. Bernoulli sampling from one fixed law with a predeclared fixed weakness
-predicate, use an exact binomial interval; stratified, unequal-probability, or
-dependent designs require stratum- or design-aware inference. In the i.i.d.
-zero-hit case, the one-sided \(1-\alpha\) prevalence bound is
-
-\[
-p_U=1-\alpha^{1/n}\approx-\log(\alpha)/n,
-\]
-
-with \(3/n\) only a large-\(n\) 95% approximation. Count in \(n\) only samples
-on which the frozen weakness predicate is determinate; report exclusions and
-indeterminate results separately. Without a quantified false-negative and
-missingness model, the interval bounds validated detector hits, not the true
-prevalence of weak curves. It is not evidence of absence. “No weak
-representative exists” requires exhaustive coverage or a mathematical
-exclusion proof, and a prevalence bound does not address a generator that
-deliberately selects a rare representative. “Safe” must be replaced by the
-narrower supported claim.
+Use only the claim labels **class-weak**, **weak representative exists**,
+**source-transfer-weak**, **implementation-weak**, or **no weakness found in
+scope**, with the exact certified scope. Algebraic claims require proof or
+certificates. Statistics address only a preregistered sampling law and detector:
+report exclusions and indeterminate cases, dependence/effective sample size,
+multiple-testing correction, and design-appropriate intervals. A bounded search
+or zero-hit prevalence bound is not evidence that no weak representative exists.
 
 ## Cursor Cloud specific instructions
 
