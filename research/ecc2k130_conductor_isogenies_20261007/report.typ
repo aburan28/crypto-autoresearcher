@@ -60,6 +60,21 @@ All $ell + 1 = 146505763881528722$ of them exist and descend. #D Every route to 
 
 Every route costs at least about $2^56$. Pollard rho on ECC2K-130 with Frobenius costs about $2^60.8$, so just writing one of these isogenies down costs about as much as solving the discrete logarithm. The same barrier holds for the $ell$-isogenies from the 263-floor and for every curve at the bottom: a random $b$ lies in the class at all with probability $2^(-66)$, and every route from a known curve passes through an $ell$-isogeny. #D
 
+= Analogues: m = 83, m = 109, NIST K-163 (`analogues/`)
+
+For each conductor prime $ell'$, $pi equiv c$ on $E[ell']$, and the kernel lives in $FF_(2^(m k))$, where $k$ is the least integer with $c^k = plus.minus 1$. #D
+
+#table(columns: (auto, auto, 1fr), inset: 5pt, stroke: 0.5pt + luma(180),
+  [*Curve*], [*Prime, k*], [*Result*],
+  [ECC2K-130 ($m = 131$)], [263, $k = 1$], [All 262 computed (this report). #M],
+  [$m = 83$, $a = 0$], [6473, $k = 3236$], [Kernel field $FF_(2^268588)$; PARI cannot build it in 4 GB #M; about 7 weeks extrapolated #P. *Not computed.*],
+  [$m = 109$, $a = 1$], [3271, $k = 5$], [6 computed in under 1 s each, 6 distinct orbits, $\#E' = N$; 23-cycle 545. #M #V],
+  [NIST K-163], [45641, $k = 20$], [6 computed, about 1 min each; $\#E' = N$; 11-cycle 9128. #M #V],
+  [NIST K-163], [82153, $k = 63$], [6 computed, about 15 min each; $\#E' = N$; 11-cycle 10269. #M #V],
+)
+
+ECC2K-130's 263 is unusually cheap: $k = 1$. $m = 83$ has no such prime, while K-163 has two computable ones. #D
+
 = ECDLP consequence (scoped) and limitations
 
 - The 263-isogenies make transferring a discrete logarithm to the 263-floor essentially free. #D

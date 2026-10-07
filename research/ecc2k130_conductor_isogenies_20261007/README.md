@@ -131,6 +131,28 @@ probability 2^−66, and every route from a known curve passes through an
 - **The large-degree side is not even reachable.** No level below the crater
   is reachable except the 263-floor. *Derived.*
 
+## 6. Analogues: m = 83, m = 109 and NIST K-163 ([`analogues/`](analogues/README.md))
+
+The same analysis was run on ECC2K-130-like Koblitz curves: prime m,
+cofactor ≤ 4, End = Z[(1+√−7)/2]. The cost driver is k, the least integer
+with c^k = ±1, where π ≡ c on E[ℓ′]; the kernel then lives in F_2^(m·k).
+ECC2K-130's 263 has k = 1.
+
+- **m = 83 has no cheap conductor prime.** Its best one is 6473, with kernel
+  field F_2^268588. PARI cannot build that field in 4 GB (*measured*), and the
+  isogeny would take about 7 weeks extrapolated (*extrapolated*). So m = 83
+  isogenies are out of practical reach.
+- **m = 109 (a = 1) has a cheap one.** For the degree-3271 isogenies, k = 5
+  (F_2^545). 6 were computed, each in under a second, reaching 6 distinct
+  orbits, all with #E′ = N; 23-cycle 545 on all 6. *Measured, independently
+  verified.*
+- **NIST K-163 has two computable conductor primes.**
+  - Degree 45641 (k = 20): 6 computed, about 1 min each; 11-cycle 9128.
+  - Degree 82153 (k = 63): 6 computed, about 15 min each; 11-cycle 10269.
+
+  All have #E′ = N and match ord[𝔩₁₁] in Cl(−7ℓ′²). *Measured, independently
+  verified.*
+
 ## Files
 
 | file | role |
@@ -143,6 +165,7 @@ probability 2^−66, and every route from a known curve passes through an
 | `volcano_ecc2k130.dot` → `.svg` / `.png` | diagram |
 | `report.typ` → `report.pdf` | status-labelled report |
 | `SHA256SUMS` | hashes of the scripts |
+| `analogues/` | m = 83 survey verdict; computed conductor isogenies for m = 109 and NIST K-163 (scripts, outputs, curve lists, level checks) |
 
 Reproduce with PARI/GP ≥ 2.15: `gp -q -s 2G structure.gp`, then `iso263.gp`,
 `check_levels.gp`, `bigl.gp`, then `python3 orbits.py`. The whole run takes
