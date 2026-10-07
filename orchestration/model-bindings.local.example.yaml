@@ -1,0 +1,70 @@
+# Operator-local model bindings -- copy to orchestration/model-bindings.local.yaml
+# (gitignored) and fill in the ids. `orchestration.adapter.config.load` merges
+# this file over model-bindings.yaml on this machine only; the merged digest
+# appears in every manifest, so a run shaped by it is distinguishable from one
+# that was not. AUTORESEARCH_BINDINGS_OVERLAY=/path/to/file points at another
+# file; AUTORESEARCH_BINDINGS_OVERLAY="" disables the overlay.
+#
+# Why this exists: the repository ships `openrouter` unbound on purpose. A
+# model id committed to model-bindings.yaml is an assertion that somebody
+# probed it, and nobody has. This file lets one operator run the harness
+# through OpenRouter (or re-point `local` at an Ollama / LM Studio / vLLM
+# server serving an abliterated model) without making that assertion for
+# everyone. Entries here must say `provenance: operator-supplied`; the loader
+# refuses `runtime-verified`, which only `adapter doctor --probe` may write.
+#
+# Fill `model:` with an id the provider actually serves (`autoresearch adapter
+# models --backend openrouter` lists them once OPENROUTER_API_KEY is set) and
+# `capabilities:` with the figures from the provider's model page. The policy
+# floors in model-policies.yaml are what the capabilities are checked against:
+#   coordinator-*:          effort >= high, context >= 180k/120k, output >= 16k
+#   research-deep:          effort >= low,  context >= 120k, output >= 16k
+#   review-adversarial:     effort >= low,  context >= 180k, output >= 16k
+#   review-breakthrough:    effort >= max,  context >= 180k, output >= 24k  (not degradable)
+#   consolidation-routing:  effort >= low,  context >= 180k, output >= 4k
+#   executor-implementation: effort >= medium, context >= 120k, output >= 24k
+#   executor-mechanical:    effort >= low
+# Declaring a capability the model lacks is how a review lands on a model that
+# cannot do it; copy the provider's numbers, do not round them up.
+schema_version: "2.0"
+notes: operator-local overlay; see the header comment
+
+bindings:
+  openrouter:
+    coordinator-orchestration-code: &openrouter_strong
+      model: REPLACE-WITH-AN-OPENROUTER-MODEL-ID      # e.g. vendor/model-name
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: high
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 32000
+      request:
+        max_tokens: 16000
+        reasoning:
+          mode: openai_effort
+          effort_map: {low: low, medium: medium, high: high}
+    coordinator-orchestration: *openrouter_strong
+    research-deep: *openrouter_strong
+    review-adversarial: *openrouter_strong
+    consolidation-routing: *openrouter_strong
+    executor-implementation: *openrouter_strong
+    executor-mechanical: *openrouter_strong
+    # review-breakthrough is left unbound on purpose: it requires `max` effort
+    # and may not be degraded. Bind it only to a model whose provider page
+    # says it reaches that tier.
+    review-breakthrough: {model: null, provenance: unbound}
+
+  # Re-pointing `local` at another OpenAI-compatible server (Ollama, LM Studio,
+  # vLLM, SGLang) serving an abliterated or other open-weight model: set
+  # LOCAL_LLM_BASE_URL in .env and bind the served id here. Capabilities are
+  # what the server advertises for that model, not the model card's maximum.
+  # local:
+  #   executor-mechanical:
+  #     model: hf.co/some-org/some-model-abliterated-GGUF:Q4_K_M
+  #     provenance: operator-supplied
+  #     capabilities: {max_reasoning_effort: low, tool_use: true,
+  #                    structured_output: true, context_tokens: 32768,
+  #                    max_output_tokens: 8192}
