@@ -215,3 +215,43 @@ def test_real_corpus_withholds_at_least_the_151_ids_and_none_excluded_by_98a823(
     excluded = {row["id"] for row in second["excluded_from_hold"]["rows"]}
     assert len(excluded) == 22
     assert not any(state.get(eid) == "DEC-20261005-98a823" for eid in excluded)
+
+
+def test_ready_rows_sort_before_unimplemented_within_a_priority_group(tmp_path, monkeypatch):
+    """P0.3: an older contract with a trial plan outranks a newer one without."""
+    root = tmp_path
+    _write(root / "orchestration/research-priority.yaml", {"ecc_areas": ["ECDLP"]})
+    _exp(root, "EXP-ECDLP-aaaaaa", "2026-10-01")
+    _exp(root, "EXP-ECDLP-bbbbbb", "2026-10-05")
+    (root / "ledger/decisions").mkdir(parents=True)
+    _commit(root)
+    monkeypatch.setattr(NE, "execution_progress",
+                        lambda exp_dir, repo: {"execution_state": "ready"}
+                        if exp_dir.name == "EXP-ECDLP-aaaaaa"
+                        else {"execution_state": "needs_implementation_or_plan"})
+    assert _ids(root, off_main={}) == ["EXP-ECDLP-aaaaaa", "EXP-ECDLP-bbbbbb"]
+
+
+def test_off_main_runs_parses_refs_and_experiment_ids(monkeypatch):
+    log = ("@@origin/cursor/run-a, origin/other\n"
+           "experiments/EXP-ECDLP-aaaaaa/runs/RUN-1/manifest.yaml\n"
+           "\n@@origin/cursor/run-b\n"
+           "experiments/EXP-ECDLP-aaaaaa/runs/RUN-2/manifest.yaml\n"
+           "experiments/EXP-SSI-bbbbbb/runs/RUN-9/stdout.txt\n"
+           "experiments/EXP-SSI-bbbbbb/specification.yaml\n")
+
+    class Done:
+        stdout = log
+
+    monkeypatch.setattr(NE.subprocess, "run", lambda *a, **k: Done())
+    assert NE.off_main_runs(Path("/nowhere")) == {
+        "EXP-ECDLP-aaaaaa": ["origin/cursor/run-a", "origin/cursor/run-b", "origin/other"],
+        "EXP-SSI-bbbbbb": ["origin/cursor/run-b"],
+    }
+
+
+def test_off_main_runs_is_empty_without_git(monkeypatch):
+    def boom(*a, **k):
+        raise OSError("no git")
+    monkeypatch.setattr(NE.subprocess, "run", boom)
+    assert NE.off_main_runs(Path("/nowhere")) == {}
