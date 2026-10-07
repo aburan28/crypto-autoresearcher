@@ -342,7 +342,7 @@ def _decision() -> dict:
         "execution_authorized": True,
         "experiment_id": "EXP-SCURVE-1a8daf",
         "protocol_version": 2,
-        "interface_revision": 3,
+        "interface_revision": 4,
         "planned_run_label": "P192-WCM-BOX0",
         "run_id": "RUN-SCURVE-222222",
         "protocol_repository": checker.PROTOCOL_REPOSITORY,
@@ -1642,7 +1642,7 @@ def test_static_contract_rejects_authorization_or_verifier_path_regression() -> 
     assert any("protected protocol paths" in error for error in checker.collect_contract_errors(mutated, overlay))
 
 
-def test_restart_receipt_precedes_verifier_and_setup_failures_are_representable() -> None:
+def test_restart_receipt_precedes_verifier_and_resource_boundaries_are_frozen() -> None:
     addendum_document = yaml.safe_load(checker.ADDENDUM.read_text())
     overlay = yaml.safe_load(checker.OVERLAY.read_text())
     addendum = addendum_document["role2_box0_interface_addendum"]
@@ -1653,10 +1653,27 @@ def test_restart_receipt_precedes_verifier_and_setup_failures_are_representable(
     ) < sequence.index("launch_isolated_independent_verifier")
 
     resource = addendum["resource_admission"]
-    admitted = resource["admitted_failure_mapping"]
-    assert "status INCOMPLETE" in admitted
-    assert "failure_reason incomplete_child_artifact" in admitted
-    assert "both directories remain retained" in admitted.lower()
+    terminalizable = resource["terminalizable_resource_failure_mapping"]
+    assert "status INCOMPLETE" in terminalizable
+    assert "failure_reason incomplete_child_artifact" in terminalizable
+    assert "both directories remain retained" in terminalizable.lower()
+    assert "every frozen post-run size" in terminalizable
+    assert "checker-visible completed" in terminalizable
+    assert "required fsyncs" in terminalizable
+    nonterminalizable = resource["nonterminalizable_resource_boundary"]
+    assert "cannot be represented as a checker-valid terminal failure" in nonterminalizable
+    assert "retains both directories as-is" in nonterminalizable
+    assert "no in-transaction cleanup" in nonterminalizable
+    assert "no PASS terminal seal" in nonterminalizable
+    assert "hard resource-custody" in nonterminalizable
+    assert "operator remediation" in nonterminalizable
+    assert "asserts nothing mathematical" in nonterminalizable
+    assert "admitted_failure_mapping" not in resource
+    overlay_boundary = overlay["resource_failure_boundary"]
+    assert "schema-valid INCOMPLETE" in overlay_boundary
+    assert "hard resource custody" in overlay_boundary
+    assert "retain both directories" in overlay_boundary
+    assert "no PASS terminal seal or scientific result" in overlay_boundary
     setup = resource["paired_directory_setup_boundary"]
     assert "pre-evidence setup operation" in setup
     assert "freshly-created empty half-directory" in setup
@@ -1683,6 +1700,36 @@ def test_restart_receipt_precedes_verifier_and_setup_failures_are_representable(
     assert any(
         "supervisor launch sequence" in error
         for error in checker.collect_contract_errors(mutated, overlay)
+    )
+    for key, expected_error in (
+        (
+            "terminalizable_resource_failure_mapping",
+            "terminalizable post-directory resource failure mapping",
+        ),
+        (
+            "nonterminalizable_resource_boundary",
+            "nonterminalizable resource boundary",
+        ),
+    ):
+        mutated = copy.deepcopy(addendum_document)
+        del mutated["role2_box0_interface_addendum"]["resource_admission"][key]
+        assert any(
+            expected_error in error
+            for error in checker.collect_contract_errors(mutated, overlay)
+        )
+    mutated = copy.deepcopy(addendum_document)
+    mutated["role2_box0_interface_addendum"]["resource_admission"][
+        "admitted_failure_mapping"
+    ] = terminalizable
+    assert any(
+        "obsolete unconditional" in error
+        for error in checker.collect_contract_errors(mutated, overlay)
+    )
+    mutated_overlay = copy.deepcopy(overlay)
+    del mutated_overlay["resource_failure_boundary"]
+    assert any(
+        "overlay resource failure boundary" in error
+        for error in checker.collect_contract_errors(addendum_document, mutated_overlay)
     )
 
 
@@ -3691,13 +3738,13 @@ def test_failure_phase_chronology_requires_semantic_pass_not_schema_only() -> No
 def test_interface_files_do_not_contain_result_or_authorization_state() -> None:
     addendum = yaml.safe_load(checker.ADDENDUM.read_text())["role2_box0_interface_addendum"]
     overlay = yaml.safe_load(checker.OVERLAY.read_text())
-    assert addendum["interface_revision"] == 3
-    assert addendum["supersedes_unexecuted_revision"] == 2
+    assert addendum["interface_revision"] == 4
+    assert addendum["supersedes_unexecuted_revision"] == 3
     assert addendum["execution_authorized"] is False
     assert addendum["scientific_status"] == "not_started"
     assert addendum["scientific_results"] == []
-    assert overlay["interface_revision"] == 3
-    assert overlay["supersedes_unexecuted_revision"] == 2
+    assert overlay["interface_revision"] == 4
+    assert overlay["supersedes_unexecuted_revision"] == 3
     assert overlay["execution_authorized"] is False
     assert overlay["scientific_results"] == []
 
@@ -4051,6 +4098,70 @@ def test_sealed_repository_receipt_rechecks_selected_and_rogue_worktree_state() 
             assert calls >= 2
             assert receipt is None
             assert errors, mutation
+
+
+def test_nonterminalizable_size_gate_precedes_claimed_failure_raw() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        base = Path(temporary)
+        run_dir = base / "run"
+        control_dir = base / "control"
+        run_dir.mkdir()
+        control_dir.mkdir()
+        _write_bytes(run_dir / "raw-result.json", b"{}")
+        descriptor = os.open(
+            run_dir / "verification.json",
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        try:
+            os.ftruncate(descriptor, checker.SMALL_PRODUCER_ARTIFACT_BYTE_CAP + 1)
+        finally:
+            os.close(descriptor)
+
+        original_loader = checker._load_json_artifact
+        raw_loader_called = False
+
+        def forbidden_raw_loader(*args: object, **kwargs: object) -> None:
+            nonlocal raw_loader_called
+            raw_loader_called = True
+            raise AssertionError("over-cap custody must be rejected before raw-result parsing")
+
+        checker._load_json_artifact = forbidden_raw_loader
+        try:
+            errors = checker._validate_post_run_impl(
+                run_dir,
+                {"paths": {"control_dir": str(control_dir)}},
+                {},
+            )
+        finally:
+            checker._load_json_artifact = original_loader
+        assert raw_loader_called is False
+        assert errors == [
+            "RUN_DIR small producer artifact exceeds 64 KiB cap: verification.json"
+        ]
+
+
+def test_non_small_documents_do_not_inherit_the_small_producer_cap() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        base = Path(temporary)
+        run_dir = base / "run"
+        control_dir = base / "control"
+        run_dir.mkdir()
+        control_dir.mkdir()
+        cases = (
+            ("checkpoint-resume-control.json", checker.SMALL_PRODUCER_ARTIFACT_BYTE_CAP + 1),
+            ("independent-verification.json", checker.SMALL_PRODUCER_ARTIFACT_BYTE_CAP + 1),
+            ("disposition.bin", 13_436_841),
+        )
+        for name, size in cases:
+            path = run_dir / name
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.ftruncate(descriptor, size)
+            finally:
+                os.close(descriptor)
+            assert checker._evidence_size_errors(run_dir, control_dir) == [], name
+            path.unlink()
 
 
 def test_evidence_size_gates_are_inclusive_and_path_weighted() -> None:

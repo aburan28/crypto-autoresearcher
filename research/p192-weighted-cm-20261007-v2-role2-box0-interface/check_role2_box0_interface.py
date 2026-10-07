@@ -10362,11 +10362,11 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
     errors: list[str] = []
     addendum = addendum_doc.get("role2_box0_interface_addendum", {})
     _exact(addendum.get("schema"), "p192-wcm-role2-box0-interface-addendum-v1", "addendum schema", errors)
-    _exact(addendum.get("interface_revision"), 3, "addendum interface revision", errors)
-    _exact(addendum.get("supersedes_unexecuted_revision"), 2, "superseded addendum interface revision", errors)
+    _exact(addendum.get("interface_revision"), 4, "addendum interface revision", errors)
+    _exact(addendum.get("supersedes_unexecuted_revision"), 3, "superseded addendum interface revision", errors)
     _require(
         isinstance(addendum.get("revision_note"), str)
-        and "supersedes the unexecuted revision 2" in addendum["revision_note"],
+        and "supersedes the unexecuted revision 3" in addendum["revision_note"],
         "addendum revision note does not identify the unexecuted superseded revision",
         errors,
     )
@@ -10440,13 +10440,34 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
         errors,
     )
     resource = addendum.get("resource_admission", {})
-    admitted_failure_mapping = resource.get("admitted_failure_mapping")
+    terminalizable_mapping = resource.get("terminalizable_resource_failure_mapping")
     _require(
-        isinstance(admitted_failure_mapping, str)
-        and "status INCOMPLETE" in admitted_failure_mapping
-        and "failure_reason incomplete_child_artifact" in admitted_failure_mapping
-        and "both directories remain retained" in admitted_failure_mapping.lower(),
-        "post-directory resource failure mapping is not frozen",
+        isinstance(terminalizable_mapping, str)
+        and "status INCOMPLETE" in terminalizable_mapping
+        and "failure_reason incomplete_child_artifact" in terminalizable_mapping
+        and "both directories remain retained" in terminalizable_mapping.lower()
+        and "every frozen post-run size" in terminalizable_mapping
+        and "checker-visible completed" in terminalizable_mapping
+        and "required fsyncs" in terminalizable_mapping,
+        "terminalizable post-directory resource failure mapping is not frozen",
+        errors,
+    )
+    nonterminalizable_boundary = resource.get("nonterminalizable_resource_boundary")
+    _require(
+        isinstance(nonterminalizable_boundary, str)
+        and "cannot be represented as a checker-valid terminal failure" in nonterminalizable_boundary
+        and "retains both directories as-is" in nonterminalizable_boundary
+        and "no in-transaction cleanup" in nonterminalizable_boundary
+        and "no PASS terminal seal" in nonterminalizable_boundary
+        and "hard resource-custody" in nonterminalizable_boundary
+        and "operator remediation" in nonterminalizable_boundary
+        and "asserts nothing mathematical" in nonterminalizable_boundary,
+        "nonterminalizable resource boundary is not frozen",
+        errors,
+    )
+    _require(
+        "admitted_failure_mapping" not in resource,
+        "obsolete unconditional admitted resource-failure mapping remains present",
         errors,
     )
     paired_setup = resource.get("paired_directory_setup_boundary")
@@ -10463,11 +10484,11 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
         errors,
     )
 
-    _exact(overlay.get("interface_revision"), 3, "overlay interface revision", errors)
-    _exact(overlay.get("supersedes_unexecuted_revision"), 2, "superseded overlay interface revision", errors)
+    _exact(overlay.get("interface_revision"), 4, "overlay interface revision", errors)
+    _exact(overlay.get("supersedes_unexecuted_revision"), 3, "superseded overlay interface revision", errors)
     _require(
         isinstance(overlay.get("revision_note"), str)
-        and "supersedes the unexecuted revision 2" in overlay["revision_note"],
+        and "supersedes the unexecuted revision 3" in overlay["revision_note"],
         "overlay revision note does not identify the unexecuted superseded revision",
         errors,
     )
@@ -10478,6 +10499,16 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
     _exact(overlay.get("checkpoint_fault_argv_template"), FAULT_TEMPLATE, "overlay fault argv", errors)
     _exact(overlay.get("checkpoint_resume_argv_template"), RESUME_TEMPLATE, "overlay resume argv", errors)
     _exact(overlay.get("supervisor_argv_template"), SUPERVISOR_TEMPLATE, "overlay supervisor argv", errors)
+    overlay_resource_boundary = overlay.get("resource_failure_boundary")
+    _require(
+        isinstance(overlay_resource_boundary, str)
+        and "schema-valid INCOMPLETE" in overlay_resource_boundary
+        and "hard resource custody" in overlay_resource_boundary
+        and "retain both directories" in overlay_resource_boundary
+        and "no PASS terminal seal or scientific result" in overlay_resource_boundary,
+        "overlay resource failure boundary is not frozen",
+        errors,
+    )
     _exact(overlay.get("base_required_outputs"), BASE_REQUIRED_OUTPUTS, "overlay base outputs", errors)
     _exact(overlay.get("addendum_required_children"), ADDENDUM_CHILDREN, "overlay addendum outputs", errors)
     _exact(overlay.get("canonical_v2_custody_outputs"), CUSTODY_PATHS, "overlay custody paths", errors)

@@ -1,10 +1,11 @@
 # P-192 weighted-CM Role-2 BOX-0 interface
 
 This package is an additive, non-executing interface amendment for Role 2 of
-`EXP-SCURVE-1a8daf`. Interface revision 3 supersedes the unexecuted interface
-revision 2 before any Role-2 dispatch; the historical filename retains the v2
-protocol-version label. Revision 3 closes independently audited custody gaps
-without changing the immutable scientific protocol. It closes the native producer, isolated verifier,
+`EXP-SCURVE-1a8daf`. Interface revision 4 supersedes the unexecuted interface
+revision 3 before any Role-2 dispatch; the historical filename retains the v2
+protocol-version label. Revision 4 preserves the independently audited custody
+closure while making the resource-terminalization boundary explicit, without
+changing the immutable scientific protocol. It closes the native producer, isolated verifier,
 checkpoint/restart control, predecessor provenance, and supervisor custody
 boundaries that the immutable v2 protocol left open.
 
@@ -189,7 +190,7 @@ file in the verifier package inventory. A committed in-package `build.rs` is sou
 and its observed directives are allowlisted and must embed the exact clean
 release/protocol/verifier tuple. The identical build-custody object appears in
 the dependency audit, supervisor receipt, and terminal seal.
-Failure custody carries both invalid and unresolved counts. Its claimed phase
+Checker-valid failure custody carries both invalid and unresolved counts. Its claimed phase
 must match the exact completed-artifact prefix, and every completed filename is
 bound to its own schema and cardinality (including the one-row BOX-0 checkpoint
 chain). Wrong-schema, empty, malformed, or partial files are excluded while a
@@ -200,8 +201,8 @@ cannot be shifted to a later claimed phase. Failure inventories are flat and
 hash every top-level regular leaf; directories, symlinks, special or multi-link
 leaves, duplicate inodes, and immutable-input aliases are rejected, closing
 mutable nested state. `RUN_DIR` and `CONTROL_DIR` are created before the first
-child; every terminal failure retains and identity-binds `CONTROL_DIR`.
-Every post-directory failure also retains `stdout.log` and `stderr.log` under
+child; every checker-valid terminal failure retains and identity-binds `CONTROL_DIR`.
+Every checker-valid post-directory failure also retains `stdout.log` and `stderr.log` under
 failure-specific domain prefixes with zero through four chronological role
 frames. The two logs carry the same role prefix and exact captured bytes; they
 are custody-only and never count as completed artifacts, so a failure after
@@ -335,10 +336,17 @@ Independent logical evidence gates apply before whole-file reads and writes:
 The virtual candidate stream is exactly 4,194,368 bytes and
 `disposition.bin` is exactly `2,621,480 + 64 * retained_count` bytes
 (2.62--13.44 MB). Data-dependent JSONL files remain subject to the per-file and
-aggregate gates. A cap, allocation, quota, disk, or time failure is
-`INCOMPLETE` infrastructure evidence: it never becomes a weak/no-weak result,
-and truncation or sampling is forbidden. No wall-clock estimate is an evidence
-claim until a release-build pre-dispatch benchmark records it.
+aggregate gates. A cap, allocation, quota, disk, or time failure is schema-valid
+`INCOMPLETE` only when both retained trees remain within every frozen checker
+size, topology, and schema-custody bound, their exact completed-artifact and
+terminal custody can still be established, and the failure streams, raw result,
+and required fsyncs can finish durably. If any of those conditions fails, the
+directories remain retained without in-transaction cleanup, but the outcome is
+hard resource custody requiring operator remediation rather than a claimed
+terminal record. It emits no PASS terminal seal or scientific result. Both
+outcomes are infrastructure only, never weak/no-weak evidence; truncation and
+sampling remain forbidden. No wall-clock estimate is an evidence claim until a
+release-build pre-dispatch benchmark records it.
 
 ## Native implementation sequence (not performed here)
 

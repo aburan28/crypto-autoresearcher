@@ -2,14 +2,15 @@ role2_box0_interface_addendum:
   schema: p192-wcm-role2-box0-interface-addendum-v1
   experiment_id: EXP-SCURVE-1a8daf
   protocol_version: 2
-  interface_revision: 3
-  supersedes_unexecuted_revision: 2
+  interface_revision: 4
+  supersedes_unexecuted_revision: 3
   revision_note: >-
-    Interface revision 3 supersedes the unexecuted revision 2 before any
-    Role-2 dispatch.  It closes the independently audited predecessor-replay,
-    inherited-directory-FD, active-lockfile, whole-tree Git custody, failure
-    chronology, and archival-replay gaps without authorizing execution or
-    changing the immutable scientific protocol.
+    Interface revision 4 supersedes the unexecuted revision 3 before any
+    Role-2 dispatch.  It preserves the independently audited execution and
+    custody closure while distinguishing resource failures that can produce a
+    checker-valid terminal record from failures that make such a record
+    impossible.  It does not authorize execution or change the immutable
+    scientific protocol.
   created_at: '2026-10-07'
   status: specified_pending_implementation_and_fresh_decision
   execution_authorized: false
@@ -422,16 +423,34 @@ role2_box0_interface_addendum:
     session_disk_boundary: >-
       The separate 512 GiB (549755813888-byte) dispatch ceiling is enforced by
       a quota-backed host or bounded filesystem image; evidence gates are not a
-      hostile-child disk sandbox. Resource or allocation failure is
-      infrastructure INCOMPLETE, never weak/no-weak evidence, and neither
-      truncation nor sampling is permitted.
-    admitted_failure_mapping: >-
+      hostile-child disk sandbox. A terminalizable resource or allocation
+      failure is infrastructure INCOMPLETE. A nonterminalizable resource
+      failure is hard resource custody requiring operator remediation. Neither
+      outcome is weak/no-weak evidence, and neither truncation nor sampling is
+      permitted.
+    terminalizable_resource_failure_mapping: >-
       After both RUN_DIR and CONTROL_DIR have been exclusively created, opened
-      nofollow, identity-checked, and retained, any cap, allocation, quota,
-      disk, or time failure is finalized as schema-valid status INCOMPLETE with
-      failure_reason incomplete_child_artifact at the earliest active frozen
-      phase. Both directories remain retained through terminal failure custody;
-      no new failure reason and no mathematical result is emitted.
+      nofollow, identity-checked, and retained, a cap, allocation, quota, disk,
+      or time failure is terminalizable only if every retained RUN_DIR and
+      CONTROL_DIR leaf and tree remains within every frozen post-run size,
+      topology, and schema-custody bound; the exact checker-visible completed
+      subset and terminal custody can still be established; and the failure
+      streams, failure raw result, and required fsyncs can still be durably
+      completed. Such a failure is finalized as schema-valid status INCOMPLETE
+      with failure_reason incomplete_child_artifact at the earliest active
+      frozen phase. Both directories remain retained through terminal failure
+      custody; no new failure reason and no mathematical result is emitted.
+    nonterminalizable_resource_boundary: >-
+      A retained leaf or tree that exceeds any frozen post-run size, topology,
+      or schema-custody bound; inability to establish the exact checker-visible
+      completed subset or terminal custody; or inability to durably publish and
+      fsync the failure streams and failure raw result cannot be represented as
+      a checker-valid terminal failure. The supervisor retains both directories
+      as-is, performs no in-transaction cleanup, emits no PASS terminal seal or
+      scientific result, and reports a distinct hard resource-custody outcome
+      requiring operator remediation outside the scientific record. Any
+      provisional artifact remains unadmitted custody, not evidence. This
+      outcome is infrastructure only and asserts nothing mathematical.
     paired_directory_setup_boundary: >-
       Creating and admitting RUN_DIR and CONTROL_DIR is one pre-evidence setup
       operation. If creation, nofollow open, or identity validation fails
@@ -446,7 +465,8 @@ role2_box0_interface_addendum:
       a hard custody violation requiring operator remediation, never a schema
       failure record. Pre-evidence refusal emits no raw result or PASS claim.
       Once both directories are admitted, rollback or in-transaction cleanup
-      is forbidden and admitted_failure_mapping applies.
+      is forbidden and either terminalizable_resource_failure_mapping or
+      nonterminalizable_resource_boundary applies.
 
   canonical_path_contract:
     run_dir: PROTOCOL_REPOSITORY_PATH/experiments/EXP-SCURVE-1a8daf/runs/RUN_ID
@@ -733,9 +753,12 @@ role2_box0_interface_addendum:
     incomplete_rule: >-
       INCOMPLETE is custody state, not an artifact status.  If invalid=0 and
       unresolved>0, or if a child cannot emit a schema-valid completed artifact,
-      the supervisor preserves its partial directory and child streams, records
-      INCOMPLETE in canonical v2 raw-result custody, emits no PASS receipt, and
-      refuses advancement.  On every post-directory-creation FAIL or
+      and the terminalizable resource boundary remains satisfied, the supervisor
+      preserves its partial directory and child streams, records INCOMPLETE in
+      canonical v2 raw-result custody, emits no PASS receipt, and refuses
+      advancement. A failure that cannot satisfy that boundary follows
+      resource_admission.nonterminalizable_resource_boundary and makes no
+      terminal-record claim. On every checker-valid post-directory-creation FAIL or
       INCOMPLETE, stdout.log and stderr.log use the failure-specific framing
       below and preserve every captured child outcome, including all four
       outcomes when failure is detected only after the independent verifier.
@@ -750,10 +773,12 @@ role2_box0_interface_addendum:
       disposition outcome and yields status FAIL, failed_phase
       canonical_producer, failure_reason invalid_disposition.  Otherwise
       unresolved>0 yields status INCOMPLETE, failed_phase canonical_producer,
-      failure_reason unresolved_disposition.  Otherwise inability of the
-      active child to emit its required schema-valid completed artifact yields
-      INCOMPLETE with that frozen failed_phase and failure_reason
-      incomplete_child_artifact.  All other completed refusals yield FAIL with
+      failure_reason unresolved_disposition. Otherwise terminalizable inability
+      of the active child to emit its required schema-valid completed artifact
+      yields INCOMPLETE with that frozen failed_phase and failure_reason
+      incomplete_child_artifact. A nonterminalizable resource failure follows
+      the resource boundary above and makes no schema-valid terminal-record
+      claim. All other completed refusals yield FAIL with
       one of child_exit_mismatch, restart_mismatch, verification_failure, or
       custody_failure and the earliest applicable frozen phase.  When invalid
       and unresolved are both nonzero, invalid_disposition wins.  The
@@ -1060,7 +1085,7 @@ role2_box0_interface_addendum:
       restart, agreement, dependency-audit, and receipt hashes and names
       candidate-stream.json as the sole scientific result.  It also binds the
       exact decision id/path/commit/raw SHA-256 and protocol checkout.  After
-      RUN_DIR creation, a terminal failure instead writes
+      RUN_DIR creation, a terminalizable terminal failure instead writes
       p192-wcm-role2-box0-failure-v1 with FAIL or INCOMPLETE, the failed phase,
       both replayed terminal counts, deterministic failure_reason, the same
       decision custody, and the strictly
@@ -1069,8 +1094,11 @@ role2_box0_interface_addendum:
       Its terminal custody binds the retained CONTROL_DIR identity and exact
       inventory; canonical_producer failure requires that inventory to be
       empty because no control child has yet run.  Its inode_custody_scope is
-      original_supervised_workspace_only.
-      Pre-dispatch refusal creates no RUN_DIR and therefore no raw result.
+      original_supervised_workspace_only. A nonterminalizable hard
+      resource-custody outcome retains the directories but makes no
+      checker-valid raw-result claim and emits no PASS terminal seal or
+      scientific result. Pre-dispatch refusal creates no RUN_DIR and therefore
+      no raw result.
     manifest.yaml: >-
       On PASS only, canonical RFC-8785 JSON (also valid YAML 1.2) with no
       trailing newline and sole top-level key run.  It binds the supervisor
@@ -1240,7 +1268,7 @@ role2_box0_interface_addendum:
   dispatch_decision:
     schema: p192-wcm-role2-box0-dispatch-authorization-v1
     requirements:
-      - The decision states interface_revision 3; revision 2 was never executed and cannot authorize Role 2.
+      - The decision states interface_revision 4; revision 3 was never executed and cannot authorize Role 2.
       - Fresh Coordinator decision under standing user authorization.
       - Exact admitted protocol, producer, verifier, and supervisor commits or binary hashes.
       - Exact pairwise-distinct binary paths, byte lengths, hashes, five pairwise-distinct non-nested repository roots, and the frozen Linux trusted-local-host/exclusive-workspace execution controls.
