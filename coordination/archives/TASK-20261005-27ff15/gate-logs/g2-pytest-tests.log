@@ -1,0 +1,343 @@
+......F.....F..F...F......FF.....F........F.........                                            [100%]
+=================================== FAILURES ===================================
+________ ExecutionTests.test_artifact_tampering_requires_reconciliation ________
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_artifact_tampering_requires_reconciliation>
+
+    def test_artifact_tampering_requires_reconciliation(self):
+        self.run_plan()
+        (self.directory() / "raw-result.json").write_text('{"effect": 100}')
+        report = self.run_plan()
+>       self.assertEqual(report["needs_reconciliation"], 1)
+E       AssertionError: 2 != 1
+
+tests/test_experiment_execution.py:321: AssertionError
+______________ ExecutionTests.test_claim_rechecked_between_trials ______________
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_claim_rechecked_between_trials>
+
+    def test_claim_rechecked_between_trials(self):
+        count = 0
+        def gate(*args):
+            nonlocal count
+            count += 1
+            if count > 1: raise execution.ExecutionError("claim changed")
+            return execution.authorize(*args)
+        with self.assertRaisesRegex(execution.ExecutionError, "claim changed"):
+            execution.run_plan(self.root, self.path, "test-owner", 1, gate=gate)
+>       self.assertEqual(execution.coverage(self.root, self.path)["output_validated"], 1)
+E       AssertionError: 0 != 1
+
+tests/test_experiment_execution.py:380: AssertionError
+_____________ ExecutionTests.test_corrupt_receipt_never_relaunches _____________
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_corrupt_receipt_never_relaunches>
+
+    def test_corrupt_receipt_never_relaunches(self):
+        self.directory().mkdir(parents=True)
+        (self.directory() / "execution-receipt.json").write_text("not json")
+>       self.assertEqual(self.run_plan()["needs_reconciliation"], 1)
+E       AssertionError: 2 != 1
+
+tests/test_experiment_execution.py:327: AssertionError
+_ ExecutionTests.test_declared_empty_file_is_hashed_and_nonempty_remains_valid (mode='empty') _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_declared_empty_file_is_hashed_and_nonempty_remains_valid>
+
+    def test_declared_empty_file_is_hashed_and_nonempty_remains_valid(self):
+        for index, mode in enumerate(("empty", "nonempty"), 21):
+            with self.subTest(mode=mode):
+                self.plan["trials"] = [self.empty_trial(index, mode)]
+                self.write_plan_queue(); self.commit()
+>               self.assertTrue(self.run_plan()["measurement_complete"])
+E               AssertionError: False is not true
+
+tests/test_experiment_execution.py:217: AssertionError
+_ ExecutionTests.test_declared_empty_file_is_hashed_and_nonempty_remains_valid (mode='nonempty') _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_declared_empty_file_is_hashed_and_nonempty_remains_valid>
+
+    def test_declared_empty_file_is_hashed_and_nonempty_remains_valid(self):
+        for index, mode in enumerate(("empty", "nonempty"), 21):
+            with self.subTest(mode=mode):
+                self.plan["trials"] = [self.empty_trial(index, mode)]
+                self.write_plan_queue(); self.commit()
+>               self.assertTrue(self.run_plan()["measurement_complete"])
+E               AssertionError: False is not true
+
+tests/test_experiment_execution.py:217: AssertionError
+_ ExecutionTests.test_empty_artifact_change_or_deletion_requires_reconciliation (mutation='change') _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_artifact_change_or_deletion_requires_reconciliation>
+
+    def test_empty_artifact_change_or_deletion_requires_reconciliation(self):
+        for index, mutation in enumerate(("change", "delete"), 41):
+            with self.subTest(mutation=mutation):
+                self.plan["trials"] = [self.empty_trial(index, "empty")]
+                self.write_plan_queue(); self.commit()
+>               self.assertTrue(self.run_plan()["measurement_complete"])
+E               AssertionError: False is not true
+
+tests/test_experiment_execution.py:246: AssertionError
+_ ExecutionTests.test_empty_artifact_change_or_deletion_requires_reconciliation (mutation='delete') _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_artifact_change_or_deletion_requires_reconciliation>
+
+    def test_empty_artifact_change_or_deletion_requires_reconciliation(self):
+        for index, mutation in enumerate(("change", "delete"), 41):
+            with self.subTest(mutation=mutation):
+                self.plan["trials"] = [self.empty_trial(index, "empty")]
+                self.write_plan_queue(); self.commit()
+>               self.assertTrue(self.run_plan()["measurement_complete"])
+E               AssertionError: False is not true
+
+tests/test_experiment_execution.py:246: AssertionError
+__ ExecutionTests.test_empty_attempt_not_complete_not_reused_other_trial_runs __
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_attempt_not_complete_not_reused_other_trial_runs>
+
+    def test_empty_attempt_not_complete_not_reused_other_trial_runs(self):
+        self.directory().mkdir(parents=True)
+        report = self.run_plan()
+>       self.assertEqual(report["needs_reconciliation"], 1)
+E       AssertionError: 2 != 1
+
+tests/test_experiment_execution.py:164: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='empty', allowed=False) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+>               self.assertEqual(receipt["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:237: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='ok', allowed=True) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+>               self.assertEqual(receipt["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:237: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='empty_bad', allowed=True) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+>               self.assertEqual(receipt["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:237: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='empty_manifest', allowed=True) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+>               self.assertEqual(receipt["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:237: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='directory', allowed=True) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+>               self.assertEqual(receipt["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:237: AssertionError
+_ ExecutionTests.test_empty_permission_does_not_bypass_output_or_checker_requirements (mode='symlink', allowed=True) _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_empty_permission_does_not_bypass_output_or_checker_requirements>
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+>                   with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                   AssertionError: ExecutionError not raised
+
+tests/test_experiment_execution.py:232: AssertionError
+____ ExecutionTests.test_failed_trial_preserved_and_independent_trial_runs _____
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_failed_trial_preserved_and_independent_trial_runs>
+
+    def test_failed_trial_preserved_and_independent_trial_runs(self):
+        self.plan["trials"][0] = self.trial(1, "fail")
+        self.write_plan_queue(); self.commit()
+        report = self.run_plan()
+>       self.assertEqual(report["output_validated"], 1)
+E       AssertionError: 0 != 1
+
+tests/test_experiment_execution.py:179: AssertionError
+_ ExecutionTests.test_full_protocol_runs_and_does_not_rerun_negative_observations _
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_full_protocol_runs_and_does_not_rerun_negative_observations>
+
+    def test_full_protocol_runs_and_does_not_rerun_negative_observations(self):
+        report = self.run_plan()
+>       self.assertTrue(report["measurement_complete"])
+E       AssertionError: False is not true
+
+tests/test_experiment_execution.py:153: AssertionError
+______ ExecutionTests.test_invalid_output_is_not_completion (mode='bad') _______
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_invalid_output_is_not_completion>
+
+    def test_invalid_output_is_not_completion(self):
+        for mode in ("bad", "missing"):
+            with self.subTest(mode=mode):
+                trial = self.trial(10 if mode == "bad" else 11, mode)
+                self.plan["trials"] = [trial]
+                self.write_plan_queue(); self.commit()
+                report = self.run_plan()
+                self.assertEqual(report["output_validated"], 0)
+>               self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:203: AssertionError
+____ ExecutionTests.test_invalid_output_is_not_completion (mode='missing') _____
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_invalid_output_is_not_completion>
+
+    def test_invalid_output_is_not_completion(self):
+        for mode in ("bad", "missing"):
+            with self.subTest(mode=mode):
+                trial = self.trial(10 if mode == "bad" else 11, mode)
+                self.plan["trials"] = [trial]
+                self.write_plan_queue(); self.commit()
+                report = self.run_plan()
+                self.assertEqual(report["output_validated"], 0)
+>               self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "invalid_output")
+E               AssertionError: 'infrastructure_error' != 'invalid_output'
+E               - infrastructure_error
+E               + invalid_output
+
+tests/test_experiment_execution.py:203: AssertionError
+_________ ExecutionTests.test_partial_success_resumes_remaining_trial __________
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_partial_success_resumes_remaining_trial>
+
+    def test_partial_success_resumes_remaining_trial(self):
+        with execution.task_lock(self.root, self.plan["task_id"]) as fd:
+            execution.execute_trial(self.root, self.path, self.plan, self.plan["trials"][0], self.authorize(), fd)
+>       self.assertEqual(execution.coverage(self.root, self.path)["remaining"], 1)
+E       AssertionError: 2 != 1
+
+tests/test_experiment_execution.py:172: AssertionError
+___ ExecutionTests.test_watchdog_preserves_failure_not_scientific_conclusion ___
+
+self = <test_experiment_execution.ExecutionTests testMethod=test_watchdog_preserves_failure_not_scientific_conclusion>
+
+    def test_watchdog_preserves_failure_not_scientific_conclusion(self):
+        self.plan["trials"] = [self.trial(1, "sleep")]
+        self.plan["trials"][0]["watchdog_seconds"] = 0.15
+        self.write_plan_queue(); self.commit()
+        self.assertFalse(self.run_plan()["measurement_complete"])
+>       self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "watchdog_expired")
+E       AssertionError: 'infrastructure_error' != 'watchdog_expired'
+E       - infrastructure_error
+E       + watchdog_expired
+
+tests/test_experiment_execution.py:315: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_artifact_tampering_requires_reconciliation
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_claim_rechecked_between_trials
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_corrupt_receipt_never_relaunches
+SUBFAILED(mode='empty') tests/test_experiment_execution.py::ExecutionTests::test_declared_empty_file_is_hashed_and_nonempty_remains_valid
+SUBFAILED(mode='nonempty') tests/test_experiment_execution.py::ExecutionTests::test_declared_empty_file_is_hashed_and_nonempty_remains_valid
+SUBFAILED(mutation='change') tests/test_experiment_execution.py::ExecutionTests::test_empty_artifact_change_or_deletion_requires_reconciliation
+SUBFAILED(mutation='delete') tests/test_experiment_execution.py::ExecutionTests::test_empty_artifact_change_or_deletion_requires_reconciliation
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_empty_attempt_not_complete_not_reused_other_trial_runs
+SUBFAILED(mode='empty', allowed=False) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+SUBFAILED(mode='ok', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+SUBFAILED(mode='empty_bad', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+SUBFAILED(mode='empty_manifest', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+SUBFAILED(mode='directory', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+SUBFAILED(mode='symlink', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_failed_trial_preserved_and_independent_trial_runs
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_full_protocol_runs_and_does_not_rerun_negative_observations
+SUBFAILED(mode='bad') tests/test_experiment_execution.py::ExecutionTests::test_invalid_output_is_not_completion
+SUBFAILED(mode='missing') tests/test_experiment_execution.py::ExecutionTests::test_invalid_output_is_not_completion
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_partial_success_resumes_remaining_trial
+FAILED tests/test_experiment_execution.py::ExecutionTests::test_watchdog_preserves_failure_not_scientific_conclusion
+20 failed, 44 passed, 37 subtests passed in 45.18s

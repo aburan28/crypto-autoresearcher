@@ -1,0 +1,87 @@
+name: weekly-evals
+
+# docs/track-record-review-20261006.md item P2.12: run the harness's own eval
+# suites once a week so its token cost per task class is a measured number.
+# Results are evidence about the harness and the backend, never about ECDLP
+# (evals/README.md); they are uploaded as a workflow artifact and never
+# committed (evals/results/ is gitignored). The run step is skipped, loudly,
+# when no backend credential is configured: a suite that ran with no key
+# produces trial_error rows with zero tokens, which is an infrastructure stop
+# and not a result (AGENTS.md rule 5).
+
+on:
+  schedule:
+    # Off the hour; GitHub schedules are best effort and run on main.
+    - cron: "19 05 * * 1"
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: repeats per task (one trial is an anecdote)
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EVAL_BACKEND: ${{ vars.EVAL_BACKEND || 'anthropic' }}
+      EVAL_TRIALS: ${{ inputs.trials || vars.EVAL_TRIALS || '3' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: python3 -m pip install -q -e ".[dev,agent,gf2]"
+
+      # Offline. Fails the job when a suite stops being well-formed, whether
+      # or not a backend is available.
+      - name: Validate suites
+        run: |
+          for suite in evals/suites/*.yaml; do
+            python3 -m orchestration.eval validate --suite "$suite"
+          done
+
+      - name: Check for a usable backend
+        id: backend
+        run: |
+          if python3 -m orchestration.adapter doctor 2>&1 | grep -q "^OK *${EVAL_BACKEND}:"; then
+            echo "usable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "usable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::backend ${EVAL_BACKEND} has no credentials; suites validated, not run"
+          fi
+
+      - name: Run suites
+        if: steps.backend.outputs.usable == 'true'
+        run: |
+          stamp="$(date -u +%Y%m%d)"
+          for suite in evals/suites/*.yaml; do
+            name="$(basename "$suite" .yaml)"
+            python3 -m orchestration.eval run --suite "$suite" \
+              --backend "$EVAL_BACKEND" --trials "$EVAL_TRIALS" \
+              --out "evals/results/${stamp}/${name}" \
+              $( [ -f "evals/baselines/${name}.json" ] && echo "--baseline evals/baselines/${name}.json" )
+          done
+
+      - name: Upload results
+        if: steps.backend.outputs.usable == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: evals/results/
+          retention-days: 90
