@@ -1,0 +1,214 @@
+idea:
+  id: IDEA-20261006-237ce0
+  question_id: RQ-PAIR-21313f
+  added: '2026-10-06'
+  status: proposed
+  approved_by: null
+  proposed_by: coordinator
+  title: >-
+    The Weil pairing of one order-5 point with itself is 1 on
+    y^2 = x^3 + 2x + 3
+  class: control
+  claim: >-
+    Let E be y^2 = x^3 + 2x + 3. Let p be the smallest prime with
+    p > 20 and p < 120 such that E is nonsingular over F_p, p is
+    not 5, and 5 divides #E(F_p). Let P be the lexicographically
+    least affine point of E(F_p) of order 5. The claim is that the
+    Weil pairing e_5(P, P) equals 1. No discrete logarithm is
+    transferred, and no embedding degree is claimed. If no such
+    prime exists, or the value is not 1, the claim is false.
+  mechanism: >-
+    The tracked object is one pairing value. The representation is
+    the short-Weierstrass model and Miller's algorithm for the Weil
+    pairing. The operation is evaluation on the diagonal, not a
+    transfer of a discrete logarithm. Lossy-projection test: the
+    projection keeps the value e_5(P, P) and discards the Miller
+    lines. One-line reason: the Weil pairing is alternating, so the
+    diagonal value is 1 whenever it is defined. This record asks
+    whether a frozen implementation returns that 1 on one point.
+    It does not ask whether a self-pairing is non-degenerate.
+  novelty_status: unverified
+  citations:
+    - ref: KR-RHO-53c89f
+      provenance: internal
+      claim: >-
+        MOV and Frey-Rück reduce ECDLP to a finite-field
+        discrete logarithm when the embedding degree is small.
+        This record does not run that reduction and does not
+        state an embedding degree.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-53c89f.yaml
+    - ref: KR-RHO-13bf67
+      provenance: internal
+      claim: >-
+        A generic algorithm needs Omega of the square root of the
+        group order. A diagonal pairing value is not that
+        algorithm.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml
+    - ref: KR-IC-5ea2f8
+      provenance: internal
+      claim: >-
+        GHS Weil descent maps some elliptic discrete logarithms
+        to a hyperelliptic Jacobian. No cover is built here.
+      verified_by: knowledge/frontiers/ecdlp/index-calculus/KR-IC-5ea2f8.yaml
+  assumptions:
+    - The Weil pairing is the alternating pairing produced by Miller's algorithm, normalised so e_5(P, P) is the diagonal value.
+    - A point has order 5 when 5P is infinity and P is not infinity.
+    - The same prime is used to point-count and to evaluate the pairing.
+  predictions:
+    - metric: e_5(P, P)
+      direction: lower
+      minimum_effect: equal to 1
+  minimal_test:
+    design: >-
+      Search primes from 23 up to 119, skipping 5. Skip a prime if
+      the curve is singular or 5 does not divide the group order.
+      At the least remaining prime, take the least affine point P
+      of order 5 in dictionary order of (x, y). Compute the Weil
+      pairing e_5(P, P) and the check value e_5(P, 2P), and test
+      whether e_5(P, 2P) equals e_5(P, P) squared. The claim holds
+      if the instrument check passes and e_5(P, P) = 1. Record p,
+      P, both pairing values, and the check boolean.
+    controls:
+      - >-
+        5P must be infinity and P must not be infinity. A point
+        that fails this is not order 5 and voids the run.
+      - >-
+        e_5(P, 2P) must equal e_5(P, P) squared. Inequality voids
+        the pairing code and the diagonal value is not scored.
+      - >-
+        The point at infinity is not eligible. Reporting a pairing
+        at infinity voids the run.
+    required_metrics:
+      - p or the statement that none exists
+      - P
+      - e_5(P, P)
+      - whether e_5(P, 2P) equals e_5(P, P) squared
+  falsification_conditions:
+    - >-
+      The least eligible prime exists, the instrument checks pass,
+      and e_5(P, P) is not 1.
+    - No prime in the window is eligible.
+    - e_5(P, 2P) is not equal to e_5(P, P) squared.
+  confounders:
+    - >-
+      Omitting the final exponentiation can make a trivial pairing
+      look non-trivial. The linearity check is the instrument for
+      that failure, and a failed check is not a diagonal value.
+    - >-
+      A constant-1 function passes the diagonal and the linearity
+      check when the true diagonal is 1. This record does not claim
+      to detect that bug. A non-1 diagonal still falsifies the
+      claim.
+    - >-
+      An embedding degree is not this claim. Reporting one would be
+      a different experiment.
+  interpretation_limits:
+    - >-
+      e_5(P, P) = 1 does not yield a discrete logarithm and does
+      not say that a self-pairing is non-degenerate.
+    - >-
+      One prime below 120 and one point of order 5 are not a
+      statement about every CM family.
+    - >-
+      The rho exponent stays 1/2. A pairing value is not a walk
+      and not a finite-field discrete logarithm.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The Weil pairing is alternating, so e_5(P, P) = 1 whenever
+        P has order 5 and the value is defined. The quantity
+        sampled is that one value at the least eligible prime. No
+        distribution of pairing values is sampled.
+      rigorous_support: >-
+        KR-RHO-53c89f, opened in this session, states that MOV and
+        Frey-Rück apply when the embedding degree is small and does
+        not evaluate this diagonal. No file opened here computes a
+        Weil pairing. The alternating property is the prediction,
+        checked by the value, not a theorem this session derived.
+      validation_plan:
+        sampling: >-
+          One point of order 5 at the least eligible prime. Not a
+          sample of primes beyond that prime.
+        comparison: >-
+          e_5(P, P) against 1, after the linearity check passes.
+        tail_check: >-
+          An empty window is kept and falsifies the existence
+          clause. A non-1 value is kept and falsifies the diagonal.
+          Neither is dropped.
+        parameters: >-
+          20 < p < 120, p not equal to 5, curve y^2 = x^3 + 2x + 3,
+          order 5. No transfer to a cryptographic pairing-friendly
+          prime.
+  target_complexity:
+    time_exponent: >-
+      unchanged at 1/2, from KR-RHO-13bf67. A diagonal Weil value
+      does not change the cost of a discrete logarithm.
+    memory_exponent: >-
+      unchanged. The test stores one pairing value at one prime
+      below 120.
+    best_known: >-
+      KR-RHO-53c89f for the scope of transfer attacks and
+      KR-RHO-13bf67 for the generic exponent. Neither row is
+      improved.
+    hidden_overhead: >-
+      None. No o(1) in an exponent is claimed. A pairing value is
+      one field element.
+    tradeoff_note: >-
+      No time-memory tradeoff. One stored field element does not
+      replace a distinguished-point table.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+      - KR-RHO-53c89f
+      - KR-RHO-13bf67
+      - KR-IC-5ea2f8
+    nearest:
+      - ref: KR-RHO-53c89f
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row says MOV and Frey-Rück apply when the embedding
+          degree is small, and that they are curve checks. This
+          record's output is one diagonal Weil value, predicted
+          equal to 1, at one prime below 120. Shared transfers
+          executed: 0. The exponent delta is zero.
+      - ref: KR-IC-5ea2f8
+        provenance: internal
+        relation: orthogonal
+        delta: >-
+          Cover-attack Jacobians constructed: 0. The row maps some
+          extension curves to a hyperelliptic Jacobian. This record
+          evaluates one pairing on a prime-field curve.
+      - ref: KR-RHO-13bf67
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          The row's exponent is 1/2. This record changes that
+          exponent by 0.
+    searched:
+      corpus_grep:
+        - question_id RQ-PAIR-21313f in ledger/proposals
+        - e_5(P, P)
+        - y^2 = x^3 + 2x + 3
+      web: []
+      blocked:
+        - No web fetch in this session.
+  dominated_by: >-
+    Checked KR-RHO-53c89f, KR-RHO-13bf67, and KR-IC-5ea2f8, all
+    opened. Pollard rho at exponent 1/2 dominates any reading of
+    this value as a discrete-logarithm algorithm. The MOV and
+    Frey-Rück scope statement dominates any reading of it as a
+    transfer. A diagonal 1 does not beat those rows.
+  sota_delta: >-
+    Zero change to the 1/2 exponent and zero transfers executed.
+    The predicted gap is a Weil value equal to 1 against a value
+    other than 1, on one point of order 5 at one prime below 120.
+  proof_search_map:
+    not_applicable_reason: >-
+      This is one pairing value at one prime. It does not propose
+      a theorem on self-pairings, a complexity bound, or a closure
+      of CM embedding degrees.
