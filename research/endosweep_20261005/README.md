@@ -1,40 +1,50 @@
 # Endomorphism-ring sweep for scalar-multiplication speed-ups
 
-Exploratory tooling and a first sweep, 5 October 2026. Repository
+Exploratory tooling and sweeps, 5 October 2026. Repository
 `aburan28/crypto-autoresearcher`. **Status: a sweeper with certificates, a
-modelled ranking, and one deployed-curve endomorphism constructed and verified
-on points. No ledger record is created or changed, no hypothesis moves, and no
-number below is a measured timing.**
+modelled ranking, an explicit builder that constructs and verifies the
+endomorphisms it predicts, a pass over the whole standardized-curve corpus,
+FourQ verified with its real maps, the genus-2 route modelled, and the
+CryptoPro-B chain measured natively (1.25× median / 1.34× min, §9). No
+ledger record is created or changed and no hypothesis moves; every number
+here is an operation count under the stated model except the timings quoted
+in §9 from the `crypto` repository's benchmark record.**
 
 **Question (user, 2026-10-05).** Beyond the obvious constructions (Frobenius
 expansions, GLV, GLS), are there algorithmically discoverable endomorphism-based
 scalar-multiplication speed-ups — "complex, high-order" endomorphisms that
-nobody has written down — and can a sweeper find them? Follow-up: a speed-up was
-found by hand on the Russian GOST CryptoPro-B curve (CM discriminant −619,
+nobody has written down — and can a sweeper find them? Follow-up: a speed-up
+was found by hand on the Russian GOST CryptoPro-B curve (CM discriminant −619,
 minimum endomorphism degree 155); how is finding things like that automated?
+Second follow-up: do every item on the follow-up list, end to end.
 
-**Answer in one paragraph.** The sweeper (`harness/endosweep/`) enumerates every
-way an endomorphism ring can shorten a variable-base scalar multiplication on
-35 target groups, reduces each candidate's relation lattice exactly, costs it
-under one explicit operation-count table, and — new in the second pass —
-constructs the winning endomorphism on the real curve and verifies it on points.
-Thirteen of the eighteen deployed curves carry a certificate that no non-scalar
-endomorphism of degree below 500 000 exists. Three (secp256k1, BN254 G1,
-BLS12-381 G1) have the textbook ζ₃ GLV. **Two have a small CM discriminant with
-class number above one: GOST CryptoPro-B (D_K = −619, h = 5) and the GOST 2001
-test curve (D_K = −915, h = 8).** On CryptoPro-B the sweep finds, unaided, that
-the cheapest endomorphism is not the degree-155 element ω but 4+ω of degree
-5²·7 = 175, evaluated as a chain of two 5-isogenies and one 7-isogeny through
-the class group at about 53 M, worth a modelled 1.45× over width-w NAF; the
-chain is then built explicitly (division polynomials, Kohel-form Vélu, closed
-walk back to j(E)), acts on a point of prime order as the predicted scalar, and
-reconstructs kP with 127-bit coefficients, all in 1.3 s. Everything else the
-sweep generated — isogeny-cycle pumps up to dimension 8, Frobenius-power boxes
-up to dimension 8 — reproduces the literature or loses to it, because the
-coefficient size of any decomposition is bounded below by
-`(log2 n)/rank − log2 height − log2 dimension`, height is paid for in isogeny
-degree at parity with the doublings it removes, and Frobenius is the only free
-height.
+**Answer in one paragraph.** The sweeper (`harness/endosweep/`, 2 500 lines,
+25 tests) enumerates every way an endomorphism ring can shorten a
+variable-base scalar multiplication, reduces each candidate's relation lattice
+exactly, costs it under one explicit operation-count table, labels what it
+reproduces from the literature, and then constructs the winning endomorphism
+on the real curve and verifies it on points. Run over the **248-curve
+std-curves corpus** it verifies all 171 prime-field curves from their constants
+(zero failures), certifies 113 of them free of any endomorphism of degree below
+500 000, finds 58 with a small CM discriminant, agrees with the database's
+independently computed CM data in all 117 cases where it exists, and **builds
+and verifies on points the cheapest chain endomorphism of every one of the
+58** — among them the user's CryptoPro-B result (`4+ω`, degree `5²·7`, 1.45×
+modelled), its 384-bit sibling Tom-384 (same field, 1.50×), Tom-256 (class
+number 12, a `5·11³` chain, 1.42×), Tom-521 (class number 24, a `7·11³` chain,
+1.52×), the five MNT families (class numbers 1–3, chains of 5, 7, 11), and the
+GOST 2001 test set (class number 8, `3·7·11`). FourQ is verified with the
+authors' actual endomorphism formulas (CM discriminant −40 derived from the
+trace; `ψ² = 32`, `φ² = −80` on the subgroup; 61-bit four-dimensional
+coefficients; 1.84× modelled). The genus-2 route is modelled with counted
+Cantor arithmetic and proved at toy scale: the ζ₅ power basis gives 2.46× and
+the ζ₅ × Frobenius box over `F_{p²}` reproduces the 8-dimensional
+Bos–Costello–Hisil–Lauter decomposition at 3.03×, while the sweep correctly
+refuses the same box on the ζ₈ family because `i ∈ Z[ζ₈]`. Nothing the sweep
+generated beats the literature's constructions on the targets where those
+apply; what it adds is the certificate on the clean curves and the
+construction on the class-number-above-one curves, where the cheapest
+endomorphism is a chain through the class group and is not the obvious one.
 
 ## 1. What was built
 
@@ -42,205 +52,223 @@ height.
 |---|---|
 | `harness/endosweep/quadorder.py` | exact arithmetic in imaginary quadratic orders; discriminant certificate without factoring; elements of a given norm; class order of a prime ideal by form composition; Cornacchia for the generator of its first principal power |
 | `harness/endosweep/lattice.py` | exact LLL over rationals, relation lattice, Babai decomposition with a provable coefficient bound |
-| `harness/endosweep/costmodel.py` | one table of constants (EFD curve-operation counts, SIDH x-only isogeny-step counts, marked assumptions), interleaved width-w NAF multi-scalar cost |
-| `harness/endosweep/targets.py` | 18 deployed curves verified from their constants alone; structural G2 entries; synthetic GLS and CM families |
-| `harness/endosweep/sweep.py` | catalogue (inventory reaches 8× the minimum non-scalar degree, composite degrees priced as isogeny chains) → configurations → exact reduction → cost → ranking → report |
-| `harness/endosweep/explicit.py` | **builds a predicted chain endomorphism on the real curve**: division polynomials, rational kernel polynomials by factoring over F_p, Vélu in Kohel's kernel-polynomial form (no kernel point needed), closed-walk search through the isogeny class, eigenvalue check on a point of prime order, end-to-end GLV-2 check |
-| `harness/endosweep/toyverify.py` | the same objects built with explicit kernel points on toy curves |
-| `tests/test_endosweep.py` | 19 tests (~2 s), including the CryptoPro-B chain |
-| `sweep/sweep.md`, `sweep/sweep.json` | the full sweep output (35 targets, every configuration) |
-| `TABLES.md` | the four headline tables, generated from the JSON by `make_tables.py` |
-| `cryptopro_b_chain_5_5_7.json` | the CryptoPro-B endomorphism: intermediate curves, j-walk, eigenvalue, GLV check |
+| `harness/endosweep/costmodel.py` | one table of constants (EFD curve-operation counts, the same over `F_{p²}`, SIDH-literature x-only isogeny-step counts, two genus-2 Jacobian models — one measured, one marked as an assumption), interleaved width-w NAF multi-scalar cost |
+| `harness/endosweep/targets.py` | 18 deployed curves verified from their constants alone; structural G2 entries; synthetic GLS and CM families; FourQ and synthetic genus-2 targets |
+| `harness/endosweep/sweep.py` | catalogue (inventory to 8× the minimum non-scalar degree, composite degrees priced as chains) → configurations (GLV pairs, pump boxes, Frobenius boxes, ζ₅/ζ₈ power bases, ζ-powers × Frobenius boxes) → exact reduction → cost → ranking → report |
+| `harness/endosweep/explicit.py` | builds a predicted chain endomorphism on the real curve: division polynomials (python-flint or pure Python), kernel polynomials by factoring (`ℓ ≤ 7`), by the Frobenius-eigenvalue gcd (larger `ℓ`) or as rational 2-torsion roots (`ℓ = 2`), Kohel-form Vélu, dual-aware closed-walk search, AMM roots for the isomorphism back, eigenvalue acceptance on a point of prime order, end-to-end GLV-2 check |
+| `harness/endosweep/corpus.py` | the std-curves corpus: verification, certificate, cross-check against the database's `cm_disc`/`conductor`, inventory, ranking and explicit construction for every small-discriminant curve |
+| `harness/endosweep/fourq.py` | FourQ: `F_{p²}` arithmetic, the twisted Edwards curve, the maps `τ, τ̂, δ, δ⁻¹, φ_W, ψ_W` from the authors' Magma script, parameter and generator verification, relations and eigenvalues found by search, 4-dim decomposition on points |
+| `harness/endosweep/genus2.py` | genus-2 Jacobians: counted affine Cantor arithmetic, ζ₅/ζ₈ on Mumford divisors, zeta-function group order at toy size, toy proof of the rank-4 decomposition, measured counts into the cost table, synthetic 128-bit targets |
+| `harness/endosweep/toyverify.py` | the same objects with explicit kernel points on toy curves; `cm_curve_from_class_polynomial` for any-size CM curves from a Hilbert class polynomial |
+| `tests/test_endosweep.py` | 25 tests (~14 s): algebra against brute force, lattice bounds, registry typo rejection, sweep regressions, toy maps, flint/pure-Python parity, the CryptoPro-B `5²·7` and `5·31` chains, 2-isogeny chains on a 256-bit class-number-3 curve, FourQ, genus 2, corpus ingestion |
+| `sweep/sweep.md`, `sweep/sweep.json`, `TABLES.md` | the full sweep (42 targets, every configuration) and its five headline tables, generated from the JSON by `make_tables.py` |
+| `corpus/corpus.md`, `corpus/corpus.json` | the 248-curve corpus pass |
+| `cryptopro_b_chain_5_5_7.json`, `cryptopro_b_chain_5_5_7.constants.json`, `cryptopro_b_chain_5_31.constants.json` | the two CryptoPro-B chains with kernel polynomials, rational-map polynomials, isomorphism, eigenvalue, GLV basis and test vectors (frozen input of the native experiment); `emit_rust_constants.py` renders them as a Rust module |
 | `toyverify_26bit.json` | the toy explicit-map verification record |
 
-The theory the sweep is built on, and the enumeration it performs, are written
-out in `harness/endosweep/README.md`.
+The theory the sweep is built on, the enumeration it performs, and the
+reason √élu was not implemented are in `harness/endosweep/README.md`.
 
-## 2. Certificates (Table 1 of `TABLES.md`)
+## 2. Certificates on the registry targets (Table 1 of `TABLES.md`)
 
 * **Thirteen deployed prime-field curves** (P-256, P-384, P-521,
   brainpoolP256r1, SM2, GOST CryptoPro-A, GOST CryptoPro-C, Curve25519, Ed448,
   Curve1174, Curve41417, E-521, M-511) have `|D_K| > 2 000 000`, certified by
   one exact perfect-square test per fundamental discriminant below the bound,
-  with no factoring of `t² − 4q`. Every non-scalar endomorphism of an order of
-  discriminant `D_K` has degree at least `|D_K|/4`, so none of these curves has
-  an endomorphism of degree below 500 000, hence no cheap one; their only
-  decomposition is the generic one.
-* **secp256k1, BN254 G1, BLS12-381 G1** have `D_K = −3`; every primitive
-  endomorphism up to the inventory bound produces the same 128-bit
-  two-dimensional lattice as ζ₃ (rank 2 cannot do better), so ζ₃ wins on cost:
-  1.50× under the model.
-* **GOST CryptoPro-B** has `t² − 4q = −619 · f²` with
-  `f = 4646402506017662432554672533504826433`, class number 5; **the GOST 2001
-  test curve** has `D_K = −915`, class number 8. Both are treated in §3.
-* All 18 deployed parameter sets were re-verified from their constants (prime
-  `n`, Hasse interval, a point of order divisible by `n` killed by `h·n`), so a
-  typo would have excluded a curve rather than coloured a conclusion.
+  with no factoring of `t² − 4q`: no endomorphism of degree below 500 000, so
+  no cheap one, so the generic decomposition only.
+* **secp256k1, BN254 G1, BLS12-381 G1** have `D_K = −3`; ζ₃ wins at 1.50×.
+* **GOST CryptoPro-B** (`D_K = −619`, `h = 5`) and the **GOST 2001 test set**
+  (`D_K = −915`, `h = 8`): §3.
+* All 18 deployed parameter sets re-verified from their constants.
 
-## 3. A real one: GOST CryptoPro-B, found and built automatically
+## 3. CryptoPro-B, found and built automatically
 
-This is the finding the user made by hand, reproduced by the pipeline with
-nothing curve-specific typed in beyond the RFC 4357 constants. The repository's
-earlier audit notes (`research/cm_isogeny_ecdlp_ideas_200.md`, items 20 and
-40) recorded `D_K = −619, h = 5` with "explicit maps and the maximal-order claim
-unfinished"; both are now finished constructively.
+The user's hand-found result, reproduced by the pipeline with nothing
+curve-specific typed in beyond the RFC 4357 constants; it also closes the
+repository's earlier audit notes (`research/cm_isogeny_ecdlp_ideas_200.md`,
+items 20 and 40: "explicit maps and the maximal-order claim unfinished").
 
-1. **Certificate.** `small_discriminant_scan` finds `−619` at once (one
-   perfect-square test per fundamental discriminant; no factoring). Minimum
-   non-scalar degree `(619+1)/4 = 155 = 5·31`, which is `N(ω)` for
-   `ω = (1+√−619)/2`.
-2. **Inventory, priced as chains.** Because `h(−619) = 5`, the prime ideals
-   above 5, 7, 23, 31, … are not principal and no endomorphism of degree 5 or 7
-   exists; but a primitive element of composite norm `∏ ℓ^e` generates
-   `∏ 𝔭_ℓ^e`, i.e. a chain of `ℓ`-isogenies through neighbouring curves that
-   ends back at `E`. Its cost is the sum of the step costs, so the ranking is
-   not by degree: `4+ω` of norm `175 = 5²·7` costs `2·(8M+2S) + (12M+2S) + 20M
-   ≈ 53 M`, ahead of `9+ω` (`5·7²`, 57 M) and far ahead of `ω` itself
-   (`5·31`, 91 M) or the prime-norm element `1+ω` (157, 333 M as one Vélu map).
+1. **Certificate.** `t² − 4q = −619 · f²`, `f = 4646402506017662432554672533504826433`,
+   class number 5, minimum non-scalar degree `(619+1)/4 = 155 = 5·31` (that is
+   `N(ω)`, `ω = (1+√−619)/2`).
+2. **Inventory, priced as chains.** No endomorphism of degree 5 or 7 exists
+   (the prime ideals are not principal), but a primitive element of composite
+   norm is a chain through the class group costing the sum of its steps:
+   `4+ω` of norm `175 = 5²·7` costs `2·(8M+2S) + (12M+2S) + 20M ≈ 53 M`, ahead
+   of `ω` itself (`5·31`, 91 M) and of any prime-norm element as one map.
 3. **Modelled speed-up.** GLV-2 with `4+ω`: 1681 M against 2439 M generic,
-   **1.45×** (Table 1) — the same shape as the 1.50× of secp256k1 minus the
-   chain cost. The isogeny-cycle pump box on top of it loses by 16.6 %
-   (Table 2), as on every other target.
-4. **Explicit construction** (`explicit.py`, 1.3 s). The 5-division
-   polynomial factors over `F_p` with degrees `1,1,2,4,4` and the 7-division
-   polynomial with degrees `3,3,6,6,6`: exactly two rational cyclic subgroups
-   of each order, the `𝔭` and `𝔭̄` directions (the two linear factors together
-   form one order-5 kernel whose x-coordinates are rational although the points
-   are not). Vélu in Kohel's form needs only those kernel polynomials. Of the
-   closed walks of shape 5·5·7 with no immediate backtracking, two return to
-   `j(E)` through three distinct neighbouring j-invariants; composed with the
-   isomorphism back to `E`, one of them acts on a point of prime order `n` as
-   the scalar predicted for `−5+ω` (the unit-conjugate of `4+ω`, as it must be
-   up to the choice of root), and `kP = k₁P + k₂φ(P)` holds for random `k` with
-   both coefficients at most 127 bits (Babai bound 128).
-5. **Maximal order.** A chain realising `ω` exists, so `ω ∈ End(E)` and
-   `End(E)` is the maximal order of `Q(√−619)`: the earlier "maximal-order
-   claim" is settled by construction, not by Kohel's algorithm on the 121-bit
-   conductor.
+   **1.45×**. The pump box on top loses by 16.6 % (Table 2), as everywhere.
+4. **Explicit construction, 1.3 s.** The 5- and 7-division polynomials have
+   exactly two rational cyclic subgroups each (the `𝔭` and `𝔭̄` directions);
+   of the closed walks of shape 5·5·7, two return to `j(E)` through three
+   distinct neighbours; composed with the isomorphism back to `E`, one acts on
+   a point of prime order as the scalar predicted for `−5+ω` (the unit-
+   conjugate of `4+ω`), and `kP = k₁P + k₂φ(P)` holds with 127-bit
+   coefficients. **The degree-155 element `ω` itself** is built the same way as
+   a 5-isogeny followed by a 31-isogeny (the order-31 kernels come from the
+   Frobenius-eigenvalue method in 0.5 s; no rational 31-torsion point exists).
+5. **Maximal order.** A chain realising `ω` exists, so `End(E)` is the maximal
+   order of `Q(√−619)` — settled by construction.
 
-The GOST 2001 test parameter set (`D_K = −915`, `h = 8`) goes the same way on
-paper (`1+ω`, degree `3·7·11`, 1.46×); it is a test vector, not a deployed
-curve, and its chain was not built.
+Both chains are exported with their rational-map polynomials as frozen
+constants for the native experiment (§9).
 
-Security remark, because the question will be asked: a cheap endomorphism of
-`E` acts on the prime-order subgroup as a scalar and adds no congruence an
-attacker can use beyond the automorphism group, which is `±1` here (this is
-H-ENDO-001's standing argument in the ENDO campaign). Nothing in this
-directory changes that assessment.
+## 4. The whole standardized corpus (`corpus/corpus.md`)
 
-## 4. Free pumps reproduce the literature and saturate at dimension 4 (Table 3)
+| | |
+|---|---|
+| curves in the std-curves database | 248 |
+| prime-field curves in Weierstrass/Montgomery/Edwards form, verified from their constants | 171 (0 failures) |
+| skipped (binary, extension or tower fields) | 77 |
+| certified `|D_K| > 2 000 000` (no endomorphism of degree below 500 000) | 113 |
+| small CM discriminant | 58 |
+| cross-check against the database's own `cm_disc`/`conductor` | 117 agree, 0 disagree, 54 without database data |
+| cheapest chain **built and verified on points** | 58 of 58 |
 
-On BLS12-381 G2 and BN254 G2 the Galbraith–Scott basis `{1, ψ, ψ², ψ³}` gives
-64-bit coefficients (ideal 63.5) and 1.89×; the box `{1, ζ₃} × {1, ψ}` is the same
-lattice with one fewer ψ to apply, 1.96×. Adding more Frobenius powers
-(dimensions 5–8) does not reduce a single coefficient bit — the reduced basis
-acquires vectors of ∞-norm 1, i.e. the extra generator is a small integer
-combination of the others — while the additions grow, so dimension 8 is back
-at 1.20×. `{1, ψ}` alone on BLS12-381 G2 is nearly useless (191-bit coefficient,
-1.04×) because `λ_ψ = x` is a 64-bit seed. The synthetic GLS group over
-`F_{p²}`, `p ≈ 2^127`, reproduces Longa–Sica 4-GLV at 2.26×. All of this is
-known; it is the calibration that makes the negative results credible.
+The 58 split as: 44 curves with `D_K = −3` (BN, BLS, Pallas/Vesta/Tweedle,
+the SECG/X9.63/WTLS Koblitz-style `k1` curves, the `FpXXXBN` family) where ζ₃
+is the answer and the sweep merely confirms it; and **14 curves with class
+number above one or a non-unit minimum**, where the cheapest endomorphism is
+a chain the sweep had to find:
 
-## 5. Paid pumps: parity by construction, loss in practice (Table 2)
+| curve | bits | `D_K` | `h` | min degree | cheapest chain | chain M | modelled speed-up |
+|---|---|---|---|---|---|---|---|
+| gost/CryptoPro-B | 256 | −619 | 5 | 155 | `5²·7` | 53 | 1.45× |
+| gost/gost256 (2001 test set) | 256 | −915 | 8 | 229 | `3·7·11` | 61 | 1.46× |
+| other/Tom-256 | 256 | −4155 | 12 | 1039 | `5·11³` | 89 | 1.42× |
+| other/Tom-384 | 384 | −619 | 5 | 155 | `5²·7` | 53 | 1.50× |
+| other/Tom-521 | 521 | −28243 | 24 | 7061 | `7·11³` | 98 | 1.52× |
+| mnt/mnt1 | 170 | −19 | 1 | 5 | `5` | 30 | 1.43× |
+| mnt/mnt2 (×2) | 159 | −91 | 2 | 23 | `5·7` | 43 | 1.41× |
+| mnt/mnt3 (×3) | 160 | −139 | 3 | 35 | `5·11` | 43 | 1.41× |
+| mnt/mnt4 | 240 | −163 | 1 | 41 | `41` | 102 | 1.40× |
+| mnt/mnt5 (×3) | 240 | −211 | 3 | 53 | `5³` | 49 | 1.45× |
 
-An **isogeny-cycle pump** is the generator of the first principal power of a
-split prime `ℓ` (a closed walk of `k = ord[𝔩]` steps on the `ℓ`-isogeny graph)
-raised to a power so that its height is about `n^{1/4}`; with a free or cheap
-generator `u` the box `{1, u, α, uα}` is a genuine four-dimensional
-decomposition (verified on toy curves, §6) with 63–64-bit coefficients on a
-256-bit group. The price per bit of height, from the step counts in
-`costmodel.py`:
+Every one of these chains was constructed and checked on points (the
+Tom-521 chain `7·11³` has degree 9317; the `11`-steps use the
+Frobenius-eigenvalue kernels). The MNT curves were CM-generated with small
+discriminants by construction and the literature knows they admit GLV; the
+Tom curves and the two GOST sets are the ones where the sweep's chain
+pricing is the difference between "a degree-7061 endomorphism, useless" and
+"a 98 M chain, 1.52×". These are modelled speed-ups under `costmodel.py`;
+none is a timing.
 
-| step | count | M per bit of height |
-|---|---|---|
-| 2-isogeny | 4M | 8.0 |
-| 3-isogeny | 4M + 2S | 7.1 |
-| 4-isogeny | 6M + 2S | 7.6 |
-| 5-isogeny | 8M + 2S | 8.3 |
-| 7-isogeny | 12M + 2S | 9.7 |
-| doubling (a = 0 / a = −3 / generic a) | — | 6.0 / 7.0 / 7.4 |
+## 5. FourQ with its real maps (`fourq.py`)
 
-The best possible pump, a 3-isogeny chain where 3 splits, is at parity with the
-doublings it removes: on the synthetic `D = −8` curve the pump costs 462 M and
-removes 62 doublings worth 459 M, and the configuration still loses by 8.6 %
-because four scalars need more additions and tables than two. Across all 20
-targets that have a pump the loss runs from 8.0 % to 95 %; for a 3-isogeny pump
-to break even on a generic-a curve a step would have to cost about 3.7 M
-instead of 5.6 M. The sweep labels these boxes "no literature match found";
-the author did not find the construction in print, and the result is negative
-in any case.
+Parameters and the FourQlib generator verified; `D_K = −40` from the trace by
+the exact scan (`t² − 4p² = −40·f²`); the transcribed `φ` and `ψ` are
+homomorphisms of `E(F_{p²})` (on-curve, additive on random points); their
+quadratic relations on the prime-order subgroup, found by search, are
+`ψ² = 32` and `φ² = −80` — scaled forms of `√2` and `√−5` whose product
+generates `Q(√−10)`, consistent with `D_K`; the realised eigenvalues give a
+four-dimensional lattice with 61-bit coefficients (ideal 61.25) that
+reconstructs `kP` from explicit images. Under the model, with the maps'
+affine operation counts charged as projective-equivalent (an assumption,
+stated in the table), FourQ's `{1, φ, ψ, φψ}` box is 1.84× over width-w NAF
+on the same curve; the FourQ paper's optimised formulas are cheaper than the
+charged counts, so the real ratio is higher.
 
-## 6. Explicit verification at toy scale (`toyverify_26bit.json`)
+## 6. Genus 2: the rank-4 route (`genus2.py`)
 
-On a j = 0 curve over a 26-bit prime with rational 7-torsion, and on a curve with
-CM by the class-number-3 order of `Q(√−23)` from its Hilbert class polynomial
-(checked by naive point counting at four primes): ζ₃ acts as a predicted root;
-the degree-7 endomorphism `2+ω` from Vélu and an isomorphism acts as
-`a + bλ_ω`; its powers act as predicted with the predicted height; the box
-`{1, ζ, α^j, ζα^j}` reconstructs kP for 8 random k within the Babai bound; the
-closed 3-walk of 2-isogenies on the `D = −23` curve is an endomorphism of degree
-8 with the eigenvalue of `1+ω`, and its cube acts as predicted. The
-kernel-polynomial Vélu of `explicit.py` agrees with the point-based Vélu on the
-same toy curve (test).
+Toy proof (9-bit primes): on a Buhler–Koblitz Jacobian the zeta-function
+order kills random divisors, ζ₅ acts on a divisor of prime order as a
+primitive 5th root of unity, and the 4-dimensional decomposition
+`{1, ζ, ζ², ζ³}` reconstructs `kD` within the Babai bound; the same for ζ₈ on
+a Furukawa–Kawazoe–Takahashi Jacobian. Generic affine Cantor arithmetic
+measures ADD = 125 M + 5 I and DBL = 112 M + 4 I. In the sweep (128-bit `p`,
+`n ≈ 2^254`): the ζ₅ power basis gives **2.46×** under the assumed projective
+model (and 2.54× under the counted affine one); over `F_{p²}` with a GLS-type
+`ψ` (`ψ² = −1`) the box `{ζ₅^j ψ^i}` is 8-dimensional with 32-bit coefficients,
+**3.03×**, the Bos–Costello–Hisil–Lauter setting; for ζ₈ the same box is
+rejected because `i = ζ₈²` makes the generators dependent (the lattice shows
+unit vectors), so 4 dimensions is that pairing's ceiling. Table 5 puts the
+families side by side in 64-bit word multiplications under schoolbook scaling
+(an assumption, stated there): genus-2 over 128-bit `p` at 0.45× of P-256
+generic, FourQ at 0.34×, the 8-dimensional genus-2 `F_{p²}` box at 0.28×, the
+CryptoPro-B chain at 0.69×, secp256k1 at 0.60×. The genus-2 rows rest on
+assumed Jacobian counts and are indicative only.
 
-## 7. What this says about the original question, and how the finding is automated
+## 7. Free pumps and paid pumps (Tables 2–3)
 
-* The lever that creates new dimensions on an elliptic curve is **free
-  height**, and the only free height is Frobenius over an extension field;
-  everything in that direction is known and reproduced here.
-* **Paid height is at parity with doublings** per bit, so no isogeny-built
-  endomorphism of high degree or order beats GLV by more than the constant
-  factor of the step formulas, which is currently negative.
-* **What is automatable is the CryptoPro-B kind of result**, and it is now
-  automated end to end: registry constants → discriminant certificate
-  (`|D_K|` small or provably not) → inventory of primitive elements up to a
-  multiple of the minimum degree, priced as chains through the class group →
-  exact lattice and cost ranking → explicit construction by factoring
-  division polynomials and walking the isogeny class → eigenvalue and
-  decomposition verified on points. One command per curve
-  (`python -m harness.endosweep.explicit --target NAME`), ~1 s at 256 bits for
-  chains of small primes. The two curves the sweep flags among the eighteen
-  standardized ones are exactly the two that were CM-generated with a small
-  class-number field.
-* **Higher rank** (genus-2 Jacobians with quartic CM) remains the only route
-  to higher-dimensional decompositions with free generators; it is outside
-  this sweep.
+Unchanged from the first pass and now confirmed on 42 targets: Frobenius
+powers saturate at dimension 4 on G2 and GLS (extra generators add unit
+vectors and additions); isogeny-cycle pumps buy height at
+`2·cost(step)/log2 ℓ` M per bit, parity with the doublings they remove, and
+lose by 8–95 % once tables and additions are charged (CryptoPro-B: 16.6 %).
 
-## 8. Limits of this work
+## 8. Explicit verification (`toyverify_26bit.json`, tests)
 
-* Costs are operation counts under `costmodel.py`; the 1.45× for CryptoPro-B is
-  modelled, and the chain is evaluated here in affine Kohel form in Python,
-  not as an optimised implementation. A projective evaluation of the 5-5-7
-  chain in a real library is the measurement that would settle the number.
-* `explicit.py` handles odd-prime steps; degree-2 steps in kernel-polynomial
-  form and √élu-style evaluation of large prime steps are not implemented.
-* The synthetic CM and GLS targets are structural (no curve equation); their
-  security is not assessed. FourQ is not included (its eigenvalue relations
-  were not re-derived). Genus 2 is not swept.
-* 32 random scalars per lattice for the empirical coefficient size; the Babai
-  bound is provable and reported alongside.
+Toy scale: ζ₃, the degree-7 endomorphism `2+ω` and its powers on j = 0; the
+closed 3-walk of 2-isogenies on the `D = −23` curve (from its Hilbert class
+polynomial, checked by point counting); the 4-dimensional pump box. Real
+scale: the CryptoPro-B `5²·7` and `5·31` chains; on a 255-bit curve with
+`D = −23` the `2³` cycle, the `2·3` element `ω` and the `2²·3²` element
+`5+ω`, each built and verified in under a second (degree-2 steps use the
+rational 2-torsion kernel; the dual is excluded by the `±[2]` test, not by
+j-invariant, which is what lets a two-step walk legitimately return to `E`).
 
-## 9. Reproduce
+## 9. Native timing experiment (separate repository): measured
+
+The 5·5·7 and 5·31 chains are implemented natively in Rust in the `crypto`
+repository, pull request aburan28/crypto#1408 (branch
+`cryptopro-b-glv-chain-20261005`, `research/cryptopro_b_glv_chain_20261005/`
+there): Montgomery-form field for `p = 2^255 + 3225`, variable-time Jacobian
+`a = −3` arithmetic shared by every arm, width-5 NAF baseline, the chain
+evaluator as `x ↦ N(x)/ψ(x)²`, `y ↦ y·M(x)/ψ(x)³` in projective coordinates,
+exact-rational Babai decomposition, interleaved 2-dimensional wNAF, 32 tests
+against the exported vectors and the eigenvalue (and the full 3492-test
+library suite), and a seeded, interleaved, CPU-pinned benchmark (256 pairs ×
+20 rounds, alternating arm order, an A/A control arm). Its table, in
+nanoseconds per scalar multiplication, median / minimum of 20 rounds, on an
+Intel Xeon 2.10 GHz cloud VM:
+
+| arm | median ns | min ns | ratio baseline/arm (median / min) | correct |
+|---|---|---|---|---|
+| width-5 NAF baseline | 111 158 | 107 220 | 1.000 / 1.000 | == textbook reference on all 256 pairs |
+| GLV-2 via the `5·5·7` chain (`4+ω`, degree 175) | 88 759 | 80 199 | **1.252 / 1.337** | == baseline on all 256 pairs |
+| GLV-2 via the `5·31` chain (`ω`, degree 155) | 91 799 | 84 544 | 1.211 / 1.268 | == baseline on all 256 pairs |
+| A/A control (baseline timed again) | 118 769 | 108 890 | 0.936 / 0.985 | noise floor |
+
+Stage diagnostics: decomposition ≈ 1.0 µs (about 1 % of the GLV total,
+num-bigint), `φ(P)` ≈ 4.3 µs for the `5·5·7` chain and ≈ 9.5 µs for `5·31`.
+The declared success condition (ratio above 1 on both medians and minima
+with every correctness check passing) is met; the result is classed
+**engineering** (same problem, constant factor) per that repository's rules.
+It is **short of the modelled 1.45×**: the record reconciles the gap with a
+formula-derived count for that implementation — the projective chain costs
+about 128 M against the model's 53 M affine form, the Fermat inversion is
+shared, and the GLV arm pays a second table and a larger batch — which puts
+the implementation's own expected ratio near 1.30, where the measurement
+sits. One host, one hardware class, variable-time code: a measurement of
+this implementation, not a bound on what an optimised one would reach.
+
+## 10. Limits
+
+* Costs are operation counts under `costmodel.py`; the genus-2 projective
+  counts and the FourQ endomorphism charges are assumptions marked as such.
+* The corpus's binary-field, extension-field and tower-field curves (77) are
+  outside the prime-field pipeline.
+* 32 random scalars per lattice for the empirical coefficient size; the
+  Babai bound is provable and reported alongside.
+* Security is not assessed anywhere here; a cheap endomorphism acts on the
+  prime-order subgroup as a scalar and adds nothing beyond the automorphism
+  group to an attacker (H-ENDO-001's standing argument).
+
+## 11. Reproduce
 
 ```sh
+pip install python-flint                      # optional, used when present
 python -m pytest -q tests/test_endosweep.py
-python -m harness.endosweep --out-dir research/endosweep_20261005/sweep         # ~5 min
+python -m harness.endosweep --out-dir research/endosweep_20261005/sweep
 python3 research/endosweep_20261005/make_tables.py > research/endosweep_20261005/TABLES.md
+git clone --depth 1 https://github.com/J08nY/std-curves /tmp/std-curves
+python -m harness.endosweep.corpus --std-curves /tmp/std-curves --out-dir research/endosweep_20261005/corpus --explicit-max-prime 47
 python -m harness.endosweep.explicit --target "GOST CryptoPro-B" --out research/endosweep_20261005/cryptopro_b_chain_5_5_7.json
+python3 research/endosweep_20261005/export_chain_constants.py --element 4,1 --out research/endosweep_20261005/cryptopro_b_chain_5_5_7.constants.json
+python3 research/endosweep_20261005/export_chain_constants.py --element 0,1 --out research/endosweep_20261005/cryptopro_b_chain_5_31.constants.json
+python3 research/endosweep_20261005/emit_rust_constants.py research/endosweep_20261005/cryptopro_b_chain_5_5_7.constants.json research/endosweep_20261005/cryptopro_b_chain_5_31.constants.json > cryptopro_b_chain_consts.rs
+python -m harness.endosweep.fourq
+python -m harness.endosweep.genus2 --bits 9
 python -m harness.endosweep.toyverify --bits 26 --out research/endosweep_20261005/toyverify_26bit.json
 ```
-
-## 10. Possible follow-ups (not started; would enter the ledger via /propose-ideas)
-
-1. Feed every standardized curve corpus the program knows into the registry
-   (the `crypto` repository's curve registry scripts, the SafeCurves and
-   std-curves lists) and run the certificate over all of them; the scan is
-   0.2 s per curve.
-2. A native (Rust) projective implementation of the CryptoPro-B 5-5-7 chain,
-   timed against width-w NAF and against the degree-155 single map, as the
-   first measured experiment of this line.
-3. Degree-2 steps and √élu in `explicit.py`, so chains like `2²·3²` on
-   class-number-3 curves and single large-prime steps are also buildable.
-4. A genus-2 Jacobian cost model and the BK/FKT families, to put the rank-4
-   route on the same footing as the elliptic results.
-5. FourQ as a verified target.

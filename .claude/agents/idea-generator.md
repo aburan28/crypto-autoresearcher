@@ -110,7 +110,10 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   `known | adaptation | speculative | unverified`. If you did not check
   literature (corpus + web), write `novelty_status: unverified`. Never claim
   novelty from memory alone.
-- Write accepted proposals to `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
+- Write accepted proposals to `ledger/proposals/IDEA-YYYYMMDD-<tok>.yaml`
+  (id from `python3 tools/allocate_id.py --next idea --date YYYYMMDD`,
+  confirmed with `--check`; never the next free number). Keep a proposal
+  under 8 KB; derivations go to a sibling `<IDEA-ID>.notes.md`.
   Never edit an existing proposal file — supersede with a new ID.
 - You may add literature notes to `knowledge/literature/` when you verify a
   source during novelty checking (cite precisely; mark unverified claims).
