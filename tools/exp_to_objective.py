@@ -22,7 +22,12 @@ Four commands, none of which posts anything or writes to the ledger:
     check    FILE
              hold an objective file to cairn's shape rules without a cairn
              binary: a non-empty command, a time-like field name refused in
-             `reproducible_fields`, pins present on a certificate.
+             `reproducible_fields`, pins present and matching on a certificate
+             or an evaluator, an integer threshold and a known direction on an
+             evaluator, and a ratchet block cairn's Ratchet::from_value and
+             post_objective would take. `render` writes certificate and replay
+             objectives; `check` also holds the hand-written evaluator ones
+             (`cairn/objectives/bound-frontier-*.json`).
 
 Two objective kinds, because experiments come in two shapes:
 
@@ -591,16 +596,111 @@ def check(objective: dict[str, Any], repo: Path | None) -> list[str]:
         for field in ("checker", "checker_sha256", "entrypoint"):
             if field not in verifier:
                 problems.append(f"certificate.{field} missing")
-        if repo is not None and "checker" in verifier and "checker_sha256" in verifier:
-            pinned = repo / str(verifier["checker"])
-            if not pinned.is_file():
-                problems.append(f"pinned checker {verifier['checker']} is not in the tree")
-            elif sha256_of(pinned) != verifier["checker_sha256"]:
-                problems.append(f"pinned checker {verifier['checker']} does not match checker_sha256")
+        problems.extend(_pin_problems(repo, verifier, "checker", "checker_sha256"))
+    elif kind == "evaluator":
+        # cairn `verify_evaluator`: the pinned file is `evaluator`, its hash
+        # `evaluator_sha256`, the entrypoint returns an int, and `threshold`
+        # is a (non-bool) integer; `direction` defaults to maximize and is
+        # otherwise one of two words; `timeout_seconds` is bounded like a
+        # replay's. The same spelling drift that cost this program its first
+        # evaluator objective -- `checker_sha256` on an evaluator -- is
+        # `invalid_spec` on the node, so it is named here.
+        for field in ("evaluator", "evaluator_sha256", "entrypoint", "threshold"):
+            if field not in verifier:
+                problems.append(f"evaluator.{field} missing")
+        for stray in ("checker", "checker_sha256"):
+            if stray in verifier:
+                problems.append(f"evaluator.{stray}: an evaluator pins `evaluator`/`evaluator_sha256`")
+        threshold = verifier.get("threshold")
+        if "threshold" in verifier and (isinstance(threshold, bool) or not isinstance(threshold, int)):
+            problems.append("evaluator.threshold must be an integer (scale fractional scores)")
+        if "direction" in verifier and verifier["direction"] not in DIRECTIONS:
+            problems.append("evaluator.direction must be one of (\"maximize\", \"minimize\")")
+        if "timeout_seconds" in verifier:
+            timeout = verifier["timeout_seconds"]
+            if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 1 or timeout > MAX_TIMEOUT_SECONDS:
+                problems.append(f"evaluator.timeout_seconds must be 1..{MAX_TIMEOUT_SECONDS}")
+        problems.extend(_pin_problems(repo, verifier, "evaluator", "evaluator_sha256"))
     elif kind is None:
         problems.append("verifier.kind missing")
     else:
-        problems.append(f"verifier.kind {kind!r}: this tool renders certificate and replay only")
+        problems.append(f"verifier.kind {kind!r}: this tool holds certificate, replay and evaluator objectives only")
+    problems.extend(_ratchet_problems(objective, kind))
+    return problems
+
+
+DIRECTIONS = ("maximize", "minimize")
+# Every top-level key spec/objective.schema.json admits. The schema says
+# `additionalProperties: false`, so a note in any other key is refused at
+# `post` -- which is where a `shape_note` on this program's first evaluator
+# objective would have been found had it been inside the record rather than
+# inside the verifier block, where the schema is silent and the node ignores
+# what it does not read while the id covers it all the same.
+OBJECTIVE_KEYS = frozenset((
+    "type", "goal", "statement", "verifier", "reward", "funder", "funding_signature",
+    "created_at", "deadline", "ratchet", "piecework", "confidentiality", "embargo_epochs",
+    "artifact_schema", "require_signed_submitter",
+))
+
+
+def _pin_problems(repo: Path | None, verifier: dict[str, Any], path_key: str, sha_key: str) -> list[str]:
+    """The pinned file is in the tree and hashes to its pin."""
+    if repo is None or path_key not in verifier or sha_key not in verifier:
+        return []
+    pinned = repo / str(verifier[path_key])
+    if not pinned.is_file():
+        return [f"pinned {path_key} {verifier[path_key]} is not in the tree"]
+    if sha256_of(pinned) != verifier[sha_key]:
+        return [f"pinned {path_key} {verifier[path_key]} does not match {sha_key}"]
+    return []
+
+
+def _int_field(block: dict[str, Any], name: str) -> int | None:
+    value = block.get(name)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+def _ratchet_problems(objective: dict[str, Any], kind: Any) -> list[str]:
+    """What cairn's Ratchet::from_value, Ratchet::validate and
+    Node::post_objective refuse: missing or non-integer endpoints and pool, a
+    gate below one, a target on the wrong side of the baseline for the
+    direction, a pool unequal to the objective's reward, and a ratchet on a
+    verifier that produces no score. Plus the schema's own gate on the
+    record's keys, which every objective meets whether or not it ratchets."""
+    problems = [f"unknown top-level field {key!r}: the objective schema admits no others"
+                for key in objective if key not in OBJECTIVE_KEYS]
+    if "ratchet" not in objective or objective["ratchet"] is None:
+        return problems
+    ratchet = objective["ratchet"]
+    if not isinstance(ratchet, dict):
+        return problems + ["ratchet must be an object"]
+    if kind not in ("evaluator", "workspace"):
+        problems.append(f"ratchet on a {kind!r} verifier: a ratchet needs a score-producing verifier")
+    baseline = _int_field(ratchet, "baseline")
+    target = _int_field(ratchet, "target")
+    pool = _int_field(ratchet, "reward")
+    for name, value in (("baseline", baseline), ("target", target), ("reward", pool)):
+        if value is None:
+            problems.append(f"ratchet.{name} must be an integer")
+    if pool is not None and pool < 0:
+        problems.append("ratchet.reward must be non-negative")
+    if pool is not None and pool != objective.get("reward"):
+        problems.append(f"ratchet.reward ({pool}) and reward ({objective.get('reward')!r}) must be one pool")
+    direction = ratchet.get("direction", "maximize")
+    if direction not in DIRECTIONS:
+        problems.append("ratchet.direction must be one of (\"maximize\", \"minimize\")")
+    gate = ratchet.get("min_improvement", 1)
+    if isinstance(gate, bool) or not isinstance(gate, int) or gate < 1:
+        problems.append("ratchet.min_improvement must be an integer of at least 1")
+    if baseline is not None and target is not None and direction in DIRECTIONS:
+        if direction == "maximize" and target <= baseline:
+            problems.append(f"ratchet.target ({target}) must exceed baseline ({baseline}) when maximizing")
+        if direction == "minimize" and target >= baseline:
+            problems.append(f"ratchet.target ({target}) must be below baseline ({baseline}) when minimizing")
+        if isinstance(gate, int) and not isinstance(gate, bool) and gate > abs(target - baseline):
+            problems.append(f"ratchet.min_improvement ({gate}) exceeds the span ({abs(target - baseline)}); nothing could ever pay")
     return problems
 
 
