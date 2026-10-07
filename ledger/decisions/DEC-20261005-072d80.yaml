@@ -1,0 +1,372 @@
+# =============================================================================
+# DEC-20261005-072d80 -- GATE-READING AMENDMENT, ADDITIVE, for exactly two
+# checks: TASK-20261005-27ff15 completion-gate item 2, and
+# TASK-20261005-d59b5a's stopping check "RE-RUN THE GATE ON THE MERGED TREE".
+# On a host where RLIMIT_AS cannot be set, those two checks read "the set of
+# failing test ids is identical to the base's, with the failure classified
+# host_limitation". The full pass is still required on a host that supports
+# RLIMIT_AS (Linux CI on the PR) before merge, and a CI failure in those tests
+# blocks the merge. Neither card is edited. No claim, status, hypothesis, goal
+# or experiment record changes.
+#
+# NOT EFFECTIVE until TASK-20261005-b3ec12 commits it.
+# =============================================================================
+coordinator_decision:
+  id: DEC-20261005-072d80
+  id_provenance: >-
+    Pre-minted by the dispatching session and relayed. Re-checked by this
+    Coordinator session before authoring: `python3 tools/allocate_id.py
+    --check DEC-20261005-072d80` and `--check TASK-20261005-b3ec12` each
+    printed "OK: well-formed and free across the union" (40711
+    identifier-bearing paths scanned, 0 occurrences), exit 0. `git grep -n -E
+    "072d80|b3ec12" HEAD` matched only substrings inside sha256 strings, and
+    neither is an identifier definition.
+  recorded_at: '2026-10-05'
+  decided_at: '2026-10-05T19:01:06Z'
+  decided_by: coordinator
+  archived_by: TASK-20261005-b3ec12
+  mode: procedural_gate_reading
+  question_ids: []
+  base_checked: >-
+    Checkout /Volumes/SSD990/tooling-27ff15, branch
+    cursor/tooling-27ff15-dispositions. HEAD is
+    a87c273ab02d3a35c95280a5982cd94e99bd5fb1, which equals origin/main as
+    stated by the dispatching session. TASK-20261005-d59b5a performs its own
+    fetch and merge after this decision is committed.
+  user_context: >-
+    Reported by the dispatching session. The user asked for /coordinate. The
+    work proceeds under the standing user authorization of 2026-09-06
+    (AGENTS.md "Standing user authorization for ideas and experiments").
+    Amazon Bedrock was not used.
+  standing_authorization: >-
+    Not relied on for any approval, because this decision approves no
+    experiment. It is a Coordinator procedural ruling on how two
+    tooling-gate checks are read on a host that cannot run part of the test
+    file. Under AGENTS.md "Dispatch preconditions bind the DISPATCHER", a
+    precondition is not waived because the work turned out fine. This record
+    therefore states the amended reading before the snapshot relies on it,
+    instead of letting the snapshot absorb the failure silently.
+
+  decision: revise
+  decision_label: >-
+    GATE-READING AMENDMENT (procedural, additive, two checks only). The
+    reading of TASK-20261005-27ff15 completion-gate item 2 and of
+    TASK-20261005-d59b5a's re-run-gate stopping check is amended for hosts on
+    which RLIMIT_AS cannot be set. Every other gate item and stopping check
+    of both cards is unchanged. Both cards remain immutable and are not
+    edited.
+
+  context: >-
+    TASK-20261005-27ff15 (T-1 and T-2 selector tooling, zero scientific runs)
+    returned with its output uncommitted in the working tree. Its task report
+    (coordination/archives/TASK-20261005-27ff15/task-report.yaml) records 7 of
+    8 completion-gate items PASS. Gate item 2, "`python3 -m pytest
+    tests/test_newest_experiments.py tests/test_experiment_execution.py -q`
+    passes unchanged", is recorded as FAIL with 20 failures, all in
+    tests/test_experiment_execution.py::ExecutionTests. The executor recorded
+    that an untouched export of base a87c273ab0, run with the same
+    interpreter, gives the identical failing set. It did not diagnose the
+    cause. TASK-20261005-d59b5a's stopping checks then forbid the snapshot:
+    "a producer that ... reports a failing gate item is not snapshotted", and
+    the gate re-run on the merged tree must "pass". This Coordinator verified
+    the cause and the identity of the failing sets independently (see
+    verification) before ruling.
+
+  # ---------------------------------------------------------------------------
+  # Verification performed by this Coordinator session (all exact; exit codes
+  # recorded). TMPDIR=/Volumes/SSD990/.tmp-agent/tmp; interpreter
+  # /Users/adamburan/.pyenv/versions/3.12.8 (Python 3.12.8), host
+  # macOS-26.6-arm64-arm-64bit.
+  # ---------------------------------------------------------------------------
+  verification:
+    V-a_repro:
+      command: >-
+        python3 -c "import resource,subprocess,sys;
+        subprocess.run([sys.executable,'-S','-c','print(1)'],preexec_fn=lambda:
+        resource.setrlimit(resource.RLIMIT_AS,(256*1024*1024,)*2))"
+      exit: 1
+      output_last_line: 'subprocess.SubprocessError: Exception occurred in preexec_fn.'
+      direct_call:
+        command: >-
+          python3 -c "import resource;
+          print(resource.getrlimit(resource.RLIMIT_AS));
+          resource.setrlimit(resource.RLIMIT_AS,(256*1024*1024,)*2)"
+        exit: 1
+        output: |
+          (9223372036854775807, 9223372036854775807)
+          ValueError: current limit exceeds maximum limit
+      source_site: >-
+        tools/experiment_execution.py line 347 calls
+        `resource.setrlimit(resource.RLIMIT_AS, (ceiling, ceiling))` inside the
+        `limits` function, which line 355 passes to subprocess.Popen as
+        `preexec_fn=limits`. When it raises, the trial child is never spawned,
+        and the supervisor classifies the trial as infrastructure_error. The
+        re-run log shows that classification, e.g. "AssertionError:
+        'infrastructure_error' != 'invalid_output'".
+      causal_control:
+        command: >-
+          python3 -c "<stub resource.setrlimit to return None for RLIMIT_AS
+          only, delegating every other resource to the real function>; import
+          pytest; sys.exit(pytest.main(['-p','no:cacheprovider','-q',
+          'tests/test_experiment_execution.py']))"
+        exit: 0
+        summary: 47 passed, 49 subtests passed in 36.92s
+        note: >-
+          In-process monkeypatch only. No file was edited. With only the
+          RLIMIT_AS call neutralised, every test in the file passes, including
+          the 20 that otherwise fail. This isolates the cause to the
+          RLIMIT_AS call on this host.
+    V-b_failing_sets:
+      change_log: coordination/archives/TASK-20261005-27ff15/gate-logs/g2-pytest-tests.log
+      change_log_sha256: f63449294ef7f6941b1f5d2d741eba117469fccd7559c47b84e9cf98776c6e07
+      change_summary: 20 failed, 44 passed, 37 subtests passed in 45.18s
+      base_log: coordination/archives/TASK-20261005-27ff15/gate-logs/base/g2-base.log
+      base_log_sha256: 6af644e6cdf8c259f19ff39028ae1aa0af9be8893f59b9aa761a8ad884e66116
+      base_summary: 20 failed, 44 passed, 37 subtests passed in 46.85s
+      method: >-
+        grep -E '^(FAILED|SUBFAILED|ERROR)' <log> | sed 's/ - .*//' | sort,
+        applied to each log, then diff. Both sets have 20 lines, and the diff
+        is empty.
+      rerun_on_current_tree:
+        command: python3 -m pytest -p no:cacheprovider tests/test_newest_experiments.py tests/test_experiment_execution.py -q
+        exit: 1
+        summary: 20 failed, 44 passed, 37 subtests passed in 31.35s
+        comparison: failing-id set identical to the base set (diff empty)
+      failing_ids: |
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_artifact_tampering_requires_reconciliation
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_claim_rechecked_between_trials
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_corrupt_receipt_never_relaunches
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_empty_attempt_not_complete_not_reused_other_trial_runs
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_failed_trial_preserved_and_independent_trial_runs
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_full_protocol_runs_and_does_not_rerun_negative_observations
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_partial_success_resumes_remaining_trial
+        FAILED tests/test_experiment_execution.py::ExecutionTests::test_watchdog_preserves_failure_not_scientific_conclusion
+        SUBFAILED(mode='bad') tests/test_experiment_execution.py::ExecutionTests::test_invalid_output_is_not_completion
+        SUBFAILED(mode='directory', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mode='empty') tests/test_experiment_execution.py::ExecutionTests::test_declared_empty_file_is_hashed_and_nonempty_remains_valid
+        SUBFAILED(mode='empty', allowed=False) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mode='empty_bad', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mode='empty_manifest', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mode='missing') tests/test_experiment_execution.py::ExecutionTests::test_invalid_output_is_not_completion
+        SUBFAILED(mode='nonempty') tests/test_experiment_execution.py::ExecutionTests::test_declared_empty_file_is_hashed_and_nonempty_remains_valid
+        SUBFAILED(mode='ok', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mode='symlink', allowed=True) tests/test_experiment_execution.py::ExecutionTests::test_empty_permission_does_not_bypass_output_or_checker_requirements
+        SUBFAILED(mutation='change') tests/test_experiment_execution.py::ExecutionTests::test_empty_artifact_change_or_deletion_requires_reconciliation
+        SUBFAILED(mutation='delete') tests/test_experiment_execution.py::ExecutionTests::test_empty_artifact_change_or_deletion_requires_reconciliation
+      scope_note: >-
+        No failure is in tests/test_newest_experiments.py or in the
+        SelectorTests of tests/test_experiment_execution.py, which are the
+        tests that exercise the changed code. `git diff --stat HEAD -- tests
+        tools/experiment_execution.py` is empty, so neither test file nor
+        the supervisor was changed.
+    V-c_other_gate_items:
+      gate_1:
+        command: python3 -m pytest -p no:cacheprovider tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py -q
+        exit: 0
+        summary: 35 passed in 267.85s (0:04:27)
+      gate_3:
+        - command: python3 tools/newest_experiments.py --limit 3 --json
+          exit: 0
+          stdout: JSON list of 3 rows (EXP-BINSTD-fdd2d9, EXP-SEMBIN-eabd37, EXP-SEMBIN-0ce931)
+          stderr: 'newest_experiments: holds: DEC-20261005-138b51 dropped 47 row(s) of 47 held id(s); DEC-20261005-98a823 dropped 104 row(s) of 104 held id(s); explicit --experiment overrides 0'
+        - command: python3 tools/newest_experiments.py --goal GOAL-ECDLP-001 --limit 0 --json
+          exit: 0
+          stdout: JSON list of 0 rows ([])
+          stderr: 'newest_experiments: holds: DEC-20261005-138b51 dropped 0 row(s) of 47 held id(s); DEC-20261005-98a823 dropped 0 row(s) of 104 held id(s); explicit --experiment overrides 0'
+      gate_4:
+        command: python3 tools/newest_experiments.py --limit 0 --json
+        exit: 0
+        result: 82 rows. 0 of the 151 withheld ids of DEC-20261005-138b51 and DEC-20261005-98a823 are present.
+      gate_5:
+        command: python3 tools/ecc_priority.py --open-ideas
+        exit: 0
+        result: >-
+          None of the 16 ids in DEC-20261005-138b51 idea_dispositions appears
+          before the "# Disposed by decision" header, and all 16 appear after
+          it. IDEA-20261004-e4c461, -edbd24 and -a09dd4 are listed as open.
+      gate_6: >-
+        Not re-run by this session before ruling. The executor's report
+        records check_runtime_bindings exit 0 and validate_ledger exit 1 with
+        the same 122 errors before and after the change, from logs under
+        gate-logs/. TASK-20261005-d59b5a re-runs validate_ledger before and
+        after staging as its own stopping check.
+      gate_7:
+        command: git status --porcelain
+        output_lines:
+          - ' M tools/ecc_priority.py'
+          - ' M tools/newest_experiments.py'
+          - '?? coordination/archives/TASK-20261005-27ff15/'
+          - '?? tools/test_ecc_priority_dispositions.py'
+          - '?? tools/test_newest_experiments_withheld.py'
+        result: Only TASK-20261005-27ff15 write_scope paths.
+      gate_8: The task report exists and records commands and exit codes (read in full).
+    logs_retention: >-
+      This session's re-run logs were written under TMPDIR, outside the
+      repository, and are not archived. Their summary lines are quoted above
+      verbatim. The executor's logs cited in V-b are inside the repository
+      under coordination/archives/TASK-20261005-27ff15/gate-logs/.
+
+  # ---------------------------------------------------------------------------
+  # The amendment. Recorded as procedure_deviations, following the shape of
+  # DEC-20260929-54dcd8. ADDITIVE: the card text is not edited, and nothing
+  # outside the two named checks is touched.
+  # ---------------------------------------------------------------------------
+  procedure_deviations:
+    - id: PD-1
+      applies_to: TASK-20261005-27ff15 completion_gate item 2
+      card_text: "`python3 -m pytest tests/test_newest_experiments.py tests/test_experiment_execution.py -q` passes unchanged"
+      amended_reading: >-
+        On a host where RLIMIT_AS cannot be set (the V-a repro raises), this
+        item reads: "the set of failing test ids is identical to the base's,
+        with the failure classified host_limitation". The comparison is the
+        sorted FAILED/SUBFAILED/ERROR id set of the run on the change against
+        the same command on the unmodified base under the same interpreter.
+        Any id that fails only on the change, any failure outside
+        tests/test_experiment_execution.py::ExecutionTests, or any change to
+        either test file makes the item FAIL as written.
+      status_under_reading: PASS (host_limitation), on the evidence in V-a and V-b.
+    - id: PD-2
+      applies_to: TASK-20261005-d59b5a constraint "RE-RUN THE GATE ON THE MERGED TREE (stopping)"
+      card_text: >-
+        `python3 -m pytest tools/test_ecc_priority_dispositions.py
+        tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py
+        tests/test_newest_experiments.py tests/test_experiment_execution.py -q`
+        passes.
+      amended_reading: >-
+        On a host where RLIMIT_AS cannot be set, the pytest clause reads: "the
+        set of failing test ids is identical to the base's, with the failure
+        classified host_limitation". Base means the 20-id set in V-b, re-checked
+        on the merged tree if the merge brings in changes to
+        tests/test_experiment_execution.py or tools/experiment_execution.py.
+        Every test in tools/test_ecc_priority_dispositions.py,
+        tools/test_newest_experiments_withheld.py, tools/test_ecc_priority.py
+        and tests/test_newest_experiments.py must still pass outright, and so
+        must every test of tests/test_experiment_execution.py outside the base
+        failing set. The newest_experiments clauses (JSON list on stdout, the
+        stderr count lines recorded verbatim) are unchanged.
+      status_under_reading: Evaluated by TASK-20261005-d59b5a on the merged tree and recorded in its receipt.
+    - id: PD-3
+      applies_to: TASK-20261005-d59b5a constraint "PRODUCER RETURNED (stopping)"
+      text: >-
+        NOT amended. It is evaluated against gate item 2 as read under PD-1.
+        Under that reading the producer reports no failing gate item. The
+        report's own "FAIL" text is historically accurate under the card as
+        written and is not edited.
+  merge_condition:
+    rule: >-
+      The full pass is still required. The host_limitation reading licenses
+      the snapshot archive only. Before the PR carrying this change merges,
+      tests/test_experiment_execution.py (with tests/test_newest_experiments.py
+      and the tools/ tests) must pass on a host that supports RLIMIT_AS. That
+      host is the Linux CI on the PR: .github/workflows/validate.yml, job
+      ledger-and-harness, step "Run harness tests" (`python3 -m pytest -q`
+      over testpaths tests and tools, ubuntu-latest). A CI failure in any of
+      those tests blocks the merge. It is not re-read as host_limitation,
+      because Linux supports RLIMIT_AS.
+    scope: >-
+      The reading applies only to the macOS host on which V-a raises, and
+      only to the two checks named. It is not a general relaxation of any
+      gate, and it does not apply to any other card.
+
+  host_limitation_classification: >-
+    This is an infrastructure fact about the test host: macOS arm64 does not
+    accept setrlimit(RLIMIT_AS, ...) at this ceiling. Under AGENTS.md core
+    rule 5 and rule 3 of "Goals are never paused", it is never evidence about
+    the tooling change, about tools/experiment_execution.py's behaviour on
+    Linux, or about any mathematical question.
+
+  no_state_change: >-
+    No claim, hypothesis status, experiment status, goal, question, proposal
+    or approval changes. No handoff card is edited: TASK-20261005-27ff15 and
+    TASK-20261005-d59b5a remain as committed in 9afe83190d. The executor's
+    task report is not edited. tools/experiment_execution.py and its tests
+    are not edited.
+
+  target_ids:
+    - TASK-20261005-27ff15
+    - TASK-20261005-d59b5a
+    - TASK-20261005-b3ec12
+
+  rationale:
+    - >-
+      THE GATE MEASURES THE CHANGE, AND THE CHANGE IS CLEAN ON THE FAILING
+      TESTS. Gate item 2 exists to show that T-2 does not break the selector
+      and the trial supervisor. The 20 failures are identical on the
+      unmodified base and are all in the supervisor's trial-spawning tests,
+      which T-2 does not touch. Neutralising only the RLIMIT_AS call makes the
+      whole file pass. So the failure is a property of the host, and the item
+      as written cannot be satisfied on this host by any change.
+    - >-
+      STOPPING THE SNAPSHOT WOULD LEAVE THE OUTPUT UNOWNED. Under AGENTS.md
+      "Durable research commits", the producer's output is working-tree state
+      until a snapshot commits it. Holding it uncommitted protects nothing and
+      risks losing it. The snapshot is not a merge and is not a state
+      transition.
+    - >-
+      THE STRONGER CHECK IS KEPT, ONLY MOVED TO THE RIGHT HOST. The merge
+      condition requires the full pass on Linux CI. The amended reading cannot
+      let a real regression in the supervisor reach main.
+    - >-
+      RECORDED BEFORE RELIANCE, NOT ABSORBED. The precondition is not waived
+      because things turned out fine (AGENTS.md "Dispatch preconditions bind
+      the DISPATCHER"). The amendment is a committed record that precedes the
+      snapshot that relies on it, and both cards stay as written.
+
+  evidence_refs:
+    - ledger/handoffs/TASK-20261005-27ff15.yaml
+    - ledger/handoffs/TASK-20261005-d59b5a.yaml
+    - coordination/archives/TASK-20261005-27ff15/task-report.yaml
+    - coordination/archives/TASK-20261005-27ff15/gate-logs/g2-pytest-tests.log
+    - coordination/archives/TASK-20261005-27ff15/gate-logs/base/g2-base.log
+    - tools/experiment_execution.py
+    - tests/test_experiment_execution.py
+    - .github/workflows/validate.yml
+    - pyproject.toml
+    - ledger/decisions/DEC-20261005-98a823.yaml
+    - ledger/decisions/DEC-20261005-138b51.yaml
+    - ledger/decisions/DEC-20260929-54dcd8.yaml
+    - AGENTS.md
+
+  limitations:
+    - >-
+      The two gate-logs cited in V-b are uncommitted when this decision is
+      written. Whether they become committed artifacts is decided by
+      TASK-20261005-d59b5a and recorded in its receipt. Their sha256 values are
+      recorded above so that either outcome can be checked.
+    - >-
+      This session did not run tests/test_experiment_execution.py on Linux.
+      The merge condition exists to cover that.
+    - >-
+      The root cause was not traced inside CPython's _posixsubprocess. It was
+      isolated by the direct-call repro and the causal control.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Not an evidence-review decision. It is a procedural gate reading for a
+      tooling change. Nothing about ECDLP or any other research question is
+      claimed.
+
+  goal_checkpoint:
+    shard: none
+    head_edit: none
+    reason: Procedural tooling decision. No goal's next_action, batch or impediment changes.
+
+  next_actions:
+    - >-
+      NA-1. TASK-20261005-b3ec12, ALONE: ledger archive of this decision only
+      (plus its receipt), in one isolated commit naming TASK-20261005-b3ec12
+      and DEC-20261005-072d80. No executor file is staged.
+    - >-
+      NA-2. Then TASK-20261005-d59b5a, exactly per its card, with PD-1 to PD-3
+      applied: fetch, merge origin/main, identifier checks, parse, validate
+      before and after, re-run the gate on the merged tree, merge hygiene, and
+      one isolated snapshot commit with its receipt.
+    - >-
+      NA-3. Push cursor/tooling-27ff15-dispositions and open a PR against main
+      naming TASK-20261005-27ff15, TASK-20261005-d59b5a, TASK-20261005-b3ec12,
+      DEC-20261005-072d80, DEC-20261005-138b51 and DEC-20261005-98a823. The PR
+      states that tests/test_experiment_execution.py must pass in Linux CI.
+      Do not enable auto-merge in this session. Merge only on a green
+      ledger-and-harness job (merge_condition).
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
