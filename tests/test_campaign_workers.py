@@ -71,7 +71,10 @@ def test_compatibility_refuses_a_wire_mismatch(cfg) -> None:
     with pytest.raises(workers.WorkerError, match="openrouter"):
         workers.check_compatibility(cfg, "claude_code", ["anthropic", "openrouter"])
     with pytest.raises(workers.WorkerError, match="anthropic"):
-        workers.check_compatibility(cfg, "opencode", ["anthropic"])
+        workers.check_compatibility(cfg, "codex_cli", ["anthropic"])
+    # OpenCode ships its own Anthropic provider, so it is the one CLI that
+    # speaks both wires.
+    assert workers.check_compatibility(cfg, "opencode", ["anthropic", "openrouter"])
     assert "abliteration" in workers.compatible_backends(cfg, "codex_cli")
     assert "abliteration-anthropic" in workers.compatible_backends(cfg, "claude_code")
 
