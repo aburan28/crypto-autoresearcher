@@ -10,9 +10,13 @@ permissions:
 
 # Keep the newest PR check instead of paying for obsolete queued revisions.
 # Main runs retain independent groups so every merged revision is checked.
+# One run per pull request, and one for main: a newer push cancels the run it supersedes.
+# Main used to key on run_id, so every merge queued its own full validation and a busy
+# day of merges held the account's runners for hours; only the newest main needs checking,
+# and main-health sweeps it hourly regardless.
 concurrency:
-  group: validate-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -226,6 +230,13 @@ jobs:
         run: |
           python3 tools/generate_runtime_agents.py --check
           python3 tools/check_runtime_bindings.py
+
+      # Always-loaded instruction (AGENTS.md + CLAUDE.md) stays under 4,000
+      # words and no skill or agent wake exceeds 7,000; the budgets and their
+      # reason are in the tool. Move narrative to docs/, never raise the budget
+      # to fit.
+      - name: Check instruction word budgets
+        run: python3 tools/check_instruction_budget.py
 
       # Offline: fixtures build and every task's policy resolves. Running the
       # suites costs tokens, so CI checks they are well-formed, not that they pass.
