@@ -93,7 +93,7 @@ validator compares `resolved_model_id`. Statuses that assert no success
 
 ```yaml
 research_question:
-  id: RQ-AREA-NNN
+  id: RQ-AREA-<tok>
   title: null
   scope:
     curve_families: []
@@ -111,8 +111,8 @@ research_question:
 
 ```yaml
 hypothesis:
-  id: H-AREA-NNN
-  question_id: RQ-AREA-NNN
+  id: H-AREA-<tok>
+  question_id: RQ-AREA-<tok>
   statement: null
   mechanism: null
   assumptions: []
@@ -214,8 +214,8 @@ are deliberately cheap pre-compute audits.
 
 ```yaml
 experiment:
-  id: EXP-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  id: EXP-AREA-<tok>
+  hypothesis_id: H-AREA-<tok>
   version: 1
   title: null
   status: draft
@@ -284,7 +284,7 @@ predictions.
 ```yaml
 concrete_cost:
   id: COST-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  hypothesis_id: H-AREA-<tok>
   algorithm_ref: null           # construction being costed
   cost_unit: null               # e.g. F_{p^2}-operations
   bound_kind: lower_bound | upper_bound | heuristic_estimate
@@ -312,8 +312,8 @@ concrete_cost:
 
 ```yaml
 evidence:
-  id: EV-AREA-NNN
-  hypothesis_id: H-AREA-NNN
+  id: EV-AREA-<tok>
+  hypothesis_id: H-AREA-<tok>
   experiment_ids: []
   run_ids: []
   type: empirical | theoretical | literature
@@ -371,6 +371,40 @@ evidence:
                                 # RESOURCE, or an explicit statement that the
                                 # check ran and found none
       spawned_ids: []           # IDEA-*/H-* records that took it as a resource
+  measured_bound:               # optional; present when the evidence is a
+                                # measured performance bound or a challenge
+                                # verdict (docs/bounds-and-frontiers.md; the
+                                # record itself: aburan28/crypto
+                                # docs/bounds/README.md)
+    bound_id: ECBND1h7b69b9787056       # the sealed record's id
+    repository: aburan28/crypto
+    commit: null                        # commit the record is committed at
+    record_path: docs/bounds/records/prime-rho-neg.json
+    domain_id: ECDOM1ha1f283af3a5d
+    domain:                             # copied from the record
+      problem: ecdlp.single_target
+      family: prime | koblitz | binary
+      target_kind: planted | public
+      unit: ecbench.gae                 # counted, never a clock
+      tier: toy | medium | crypto       # MUST equal claim_tier above
+    method_id: ECM1hefea4e0ebe79
+    method: rho.negation
+    level: exponent | constant          # exponent only with >= 4 sizes and
+                                        # alpha.scaling_claim true
+    ops_ratio_to_floor: {value: 1.466, ci95: [1.278, 1.653]}
+    alpha: {value: 0.454, ci95: [0.273, 0.607], declared: 0.5, scaling_claim: true}
+    sizes_log2_r: [17.7, 19.1, 21.2, 24.0]
+    verified_runs: 96
+    bounded: true                       # unpriced work counted beside the figure
+    verdict:                            # optional; present when a challenge ran
+      verdict_id: ECVD1h9c8f1f49a76c
+      challenge_id: ECCH1h9b3b00f6ac6e
+      epoch: 1
+      outcome: advances | trade | matches | regresses | inadmissible
+      advances_on: [ops]                # deciding axes clearly better
+      regresses_on: []                  # deciding axes clearly worse
+      level_moved: constant | exponent | null   # only on an advance on ops
+      improves_on: []                   # bound ids the new bound replaces
   reviewed_by: coordinator
 ```
 
@@ -388,6 +422,15 @@ program can act on — including by reading it the other way round.
 is lowest, and `tools/obstruction_registry.py` re-poses the question to every
 open obstruction at each rerank. Neither is a claim: `examined: true` with
 `reading` recording that no resource was found is a complete, honest answer.
+
+`measured_bound` carries a cost measurement in the form the measuring harness
+seals it: a constant and an exponent with intervals, one domain, one tier. The
+validator holds it to four rules (`docs/bounds-and-frontiers.md`): the tier is
+the record's tier (`claim_tier` must equal it), the unit is counted and never a
+clock, an exponent needs four sizes and a scaling claim, and a verdict of
+`inadmissible` is never evidence for or against anything (`direction: neutral`,
+AGENTS.md rule 3). A verdict is evidence; the Coordinator's decision moves
+research state.
 
 ## Prior art on ideas
 
@@ -516,8 +559,8 @@ receipt with command, revision, environment, logs, and measurements.
 
 ```yaml
 run:
-  id: RUN-AREA-NNN
-  experiment_id: EXP-AREA-NNN
+  id: RUN-AREA-<tok>
+  experiment_id: EXP-AREA-<tok>
   purpose: null
   status: planned | running | completed | failed | cancelled | invalid
   depends_on_runs: []
@@ -534,7 +577,7 @@ Corrections append both values. They do not mutate or delete the prior record.
 
 ```yaml
 correction:
-  id: CORR-YYYYMMDD-NNN
+  id: CORR-YYYYMMDD-<tok>
   recorded_at: null
   record_type: candidate | claim | run
   record_id: null
@@ -549,7 +592,7 @@ correction:
 
 ```yaml
 coordinator_decision:
-  id: DEC-YYYYMMDD-NNN
+  id: DEC-YYYYMMDD-<tok>
   context: null
   decision: approve | revise | replicate | expand | support | weaken | reject_scoped | pause | supersede
   target_ids: []
@@ -568,15 +611,23 @@ coordinator_decision:
 `knowledge_promotion` makes corpus curation a checked step, not an
 afterthought: a `support` or `reject_scoped` decision backed by evidence of
 strength `replicated` or `strong` MUST either promote a finding
-(`knowledge/findings/KN-FIND-NNN.md`, see `/curate-knowledge`) or state in
+(`knowledge/findings/KN-FIND-<tok>.md`, see `/curate-knowledge`) or state in
 `not_warranted` why no durable entry results. Other decisions fill the field
 too — usually `not_warranted` with a one-line reason.
 
 ## Agent handoff
 
+A handoff carries the fields below and nothing ceremonial. In particular, no
+record carries an `amazon_bedrock:` attestation: core rule 16 is enforced by
+the adapter's offline guard before any request, and a field that says "NOT
+USED" is a claim nothing can verify. 2,708 records copied one forward from
+each other before this note existed; `validate_ledger.py` now flags the
+field, a `budget` block of nulls, and shouted `next_action` prose on new
+records (review item P1.9).
+
 ```yaml
 handoff:
-  id: TASK-YYYYMMDD-NNN
+  id: TASK-YYYYMMDD-<tok>
   from: coordinator
   to: coordinator | idea-generator | executor | reviewer | validator | red-team
   objective: null
@@ -585,7 +636,7 @@ handoff:
   constraints: []
   deliverables: []
   artifact_paths: []
-  archived_by: TASK-YYYYMMDD-NNN
+  archived_by: TASK-YYYYMMDD-<tok>
   inference:
     # Canonical policy ids; the pre-2.0 aliases still resolve for records
     # already committed. See docs/inference-backends.md.
@@ -609,10 +660,9 @@ handoff:
                                    # `auto` batches only when deadline_seconds
                                    # leaves room. See docs/batch-inference.md.
     deadline_seconds: null         # when the result is needed; drives `auto`
-  budget:
-    wall_clock_seconds: null
-    memory_gb: null
-    maximum_runs: null
+  budget: {}                     # add a key only for a limit you actually set
+                                 # (wall_clock_seconds, memory_gb, maximum_runs);
+                                 # a block of nulls is noise the validator flags
   completion_gate: []
   return_format: null
   review_plan: null              # required on the handoff that OPENS a

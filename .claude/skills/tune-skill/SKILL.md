@@ -57,8 +57,28 @@ covers the four skills above.
    (`since`, and `until` = `origin/main` HEAD sha) — this is what makes
    rounds composable instead of re-scoring the same records twice.
 
-3. **Collect the batch.** Per the table above, find every output record of
-   the target skill dated inside the window, then walk the chain forward.
+3. **Collect the batch.** For `propose-ideas` and `design-experiment` the
+   walk below is a tool, so a second session reproduces the first one's
+   batch instead of re-deriving it by hand:
+
+   ```sh
+   python3 tools/tune_skill_batch.py propose-ideas [--since DATE] [--until DATE]
+   python3 tools/tune_skill_batch.py design-experiment --json
+   ```
+
+   It reads the generated indexes (`python3 tools/build_ledger_index.py`
+   writes `ledger/.index/{proposals,hypotheses,experiments}.jsonl`), parses
+   `ledger/evidence/` and `ledger/decisions/` as the terminal records, runs
+   the structured pass then the free-text pass described below, applies
+   step 4's reward table, and reports coverage, the thin-data test, and the
+   receipts (`tools/session_receipt.py`) that cover the window, including
+   the summed `bounced` counts. Where no receipts exist for the window it
+   says so and the round record carries that caveat; nothing is estimated.
+   Round 1 (`coordination/skill-tuning/*/round-*.yaml`, window closed 2026-10-07) is the
+   reference run: full history, both skills above the thin threshold, and
+   for `propose-ideas` three terminal items in four found only by free
+   text. For `run` and `review-evidence` the walk is still manual, in the
+   same two passes. Open a YAML file only to verify a hit.
    **Structured fields alone under-count badly** — a dry run against
    `propose-ideas`'s full history (799 ideas) found only 2 terminal outcomes
    via fields alone, versus at least 5 once free-text matching was added
@@ -126,10 +146,13 @@ covers the four skills above.
    `heuristic_assumptions` — these are evidence for the diff, not points
    against the score.
 
-   **Known gap:** whether an idea was bounced back for schema incompleteness
-   (`propose-ideas` step 4) leaves no ledger trace, so this signal cannot be
-   reconstructed for historical batches — only noted here as future work
-   (e.g. the skill could log bounce counts itself going forward).
+   **Bounces.** Whether an idea was sent back for schema incompleteness
+   (`propose-ideas` step 4) leaves no ledger trace, so for batches before
+   2026-10-07 this signal cannot be reconstructed. From that date the
+   skill's session receipt carries `--bounced <n>`, and
+   `tune_skill_batch.py` sums it per window as a diagnostic (never a reward
+   input): a rising bounce rate with flat decisiveness says the schema
+   check is doing the generator's work.
 
 5. **Build the tuner prompt.** Assemble: the full current text of the
    skill file (and agent contract, if applicable); the scored batch as a
@@ -162,11 +185,20 @@ covers the four skills above.
    approval of a different round as standing approval for this one.
 
 8. **On approval, apply and record.** Edit the skill/agent file(s) with the
-   approved diff. Mint a round id with
-   `python3 -c "import secrets; print('round-' + secrets.token_hex(3))"` —
-   a minted token, not a scanned "next free number" (`CLAUDE.md`
-   "Concurrency"): two worktrees tuning the same skill must not collide.
-   Write `coordination/skill-tuning/<skill-name>/<round-id>.yaml`:
+   approved diff. Write the round record with the same tool that built the
+   batch, so the record and the batch cannot disagree:
+
+   ```sh
+   python3 tools/tune_skill_batch.py <skill-name> --write-round coordination/skill-tuning \
+       --decision applied|rejected|deferred --rationale "..." --caveat "..."
+   ```
+
+   It mints `round-<6hex>` with `secrets.token_hex(3)` — a minted token,
+   not a scanned "next free number" (`AGENTS.md`, "Concurrency"): two
+   worktrees tuning the same skill must not collide. Then add
+   `files_changed` and `diff_summary` by hand (the only two fields the tool
+   cannot know). The record at
+   `coordination/skill-tuning/<skill-name>/<round-id>.yaml` has this shape:
 
    ```yaml
    round:
@@ -195,8 +227,13 @@ covers the four skills above.
 9. **Commit and push as a normal code change.** One commit covering the
    skill/agent file edit(s) and the round record, message referencing the
    round id. No ledger snapshot/archive step applies — this isn't a ledger
-   record — but open a PR as usual so the diff gets the same review any other
-   instruction change would.
+   record — but open or refresh a PR with the runtime's PR tool as usual so
+   the diff gets the same review any other instruction change would.
+
+10. **Receipt.** `python3 tools/session_receipt.py --skill tune-skill
+    --role <role> --outcome <published|no_change|impeded> --files-read <n>`
+    (`docs/session-receipts.md`). A round with a thin batch is
+    `no_change`; it is still a round.
 
 ## If this proves out
 
