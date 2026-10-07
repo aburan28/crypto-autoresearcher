@@ -1518,6 +1518,26 @@ def unlanded_producer_output(
     return rows
 
 
+def ready_only(plan: dict[str, Any]) -> str:
+    """The Ready Tasks alone, one line each, for a session deciding what to start.
+
+    The full plan runs to tens of kilobytes because it carries every deferred
+    task's reasons and every archive's verification; a session that only needs
+    to know what it may claim reads this. `claim` is the write-once hold
+    (tools/goal_lanes.py) when another session already holds the task.
+    """
+    claims = plan.get("claims") or {}
+    lines = [f"ready: {len(plan['dispatches'])} task(s); deferred: {len(plan['deferred'])}"]
+    for task in plan["dispatches"]:
+        claim = claims.get(task["id"])
+        held = f"claim={claim.get('owner')}" if claim and claim.get("status") == "live" else "claim=null"
+        lines.append(
+            f"{task['id']}\t{task['role']}\t{task['state']}\tp{task['priority']}\t{held}\t"
+            f"{', '.join(task['write_scope'])}"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def markdown(plan: dict[str, Any]) -> str:
     lines = [
         "# Dynamic Subagent Dispatch Plan",
@@ -2136,8 +2156,15 @@ def resolve_forward_queue(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("queue", type=Path, help="dispatch queue JSON")
-    parser.add_argument("--output", type=Path, required=True, help="dispatch plan JSON")
-    parser.add_argument("--report", type=Path, required=True, help="dispatch plan Markdown")
+    parser.add_argument("--output", type=Path, help="dispatch plan JSON (required unless --ready-only)")
+    parser.add_argument("--report", type=Path, help="dispatch plan Markdown (required unless --ready-only)")
+    parser.add_argument(
+        "--ready-only",
+        action="store_true",
+        help="print only the Ready Tasks (id, role, state, priority, claim, write scope) to "
+             "stdout and write nothing. A session that needs to know what it may start reads "
+             "this instead of the whole plan.",
+    )
     parser.add_argument(
         "--repo-root",
         type=Path,
@@ -2160,6 +2187,8 @@ def main() -> int:
              "(or the wall clock when --now is omitted).",
     )
     args = parser.parse_args()
+    if not args.ready_only and (args.output is None or args.report is None):
+        parser.error("--output and --report are required unless --ready-only is given")
     try:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
         enforce_reconciliation_queue_authority(args.queue, repo_root)
@@ -2190,6 +2219,9 @@ def main() -> int:
     except (OSError, ValueError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2
+    if args.ready_only:
+        print(ready_only(plan), end="")
+        return 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
