@@ -84,8 +84,24 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `hashed_moment_lab.py` | `e95429d25b20daf0fd77d2d7139d5378690c82b0a25002e6ddd9b331643a3386` |
 | `tests/test_hashed_moment_lab.py` | `e79bc65a4db1335c60ff570b0ac0de3add1b28a3ead87d4b19b8928565e5b4c0` |
 | `results/hashed-moment-sketch.json` | `49c2a83cc049821f3ccbdae47e05b8174d2e30c3a485456aec7a812349bb24ff` |
+| capped-peeling freeze/implementation/result commits | `e5dda77`, `88c074e`, `59cb4e4` |
+| `coupled_peeling_lab.py` | `80dc34403e803cc5f8bb63e34c5a66eac3d0da11d7a2ea04c1ab40781f7f16d3` |
+| `tests/test_coupled_peeling_lab.py` | `b55f8d429401d6d8727eca415930deea312fc36a5be74acdc26aa88fc9ca2d82` |
+| `results/coupled-peeling-seed-search.json` | `52d81064c6c5de40b2f5d52d828b65195d74769fa8aeb386c1ac1520bef2c25c` |
+| singleton-scaling freeze/implementation/result commits | `1667b53`, `d54969f`, `2b64007` |
+| `singleton_scaling_lab.py` | `8018ff29b9626d672e32e157fceb81dcd2d5e4b6cdc2dc5e12c82fe2e5f794c0` |
+| `tests/test_singleton_scaling_lab.py` | `3e2ea8082a6e088b40e7593481ce406a1f3fe6f1db1a5015b19bbe96250db408` |
+| `results/singleton-sketch-scaling.json` | `0342e27f86f03d37003d0e7650aca21310040fb6d7e5fd721fb6abfabc68ef6b` |
+| sub-cap freeze/implementation/result commits | `a442759`, `95a2fed`, `58c35fc` |
+| `subcap_sketch_lab.py` | `7674346450e535e4f5999f42372a5b9ae669c050a5baea3076bf42e601eb4ac2` |
+| `tests/test_subcap_sketch_lab.py` | `39a8b6893c55f515f3c09e5468a2190dba480faf64fbc76955af0bc28b92301b` |
+| `results/subcap-sequential-sketch.json` | `9ec7375d21cb082adf82cb9e4a2c95feaeee3d43ce626f2f6fb0862d2c076320` |
+| x-quotient freeze/implementation/result commits | `18133d6`, `0deb150`, `a6255b1` |
+| `x_quotient_sketch_lab.py` | `d59b1fe654819f4968c9ade0fd8978f8c013eb8409d4415add0830dea83eb80e` |
+| `tests/test_x_quotient_sketch_lab.py` | `00309dfa9d1ee5e86a8e08ec782b6383183eac236ca99bbc644802f47613e4c7` |
+| `results/x-quotient-sketch.json` | `d25bff18bce72b9ba43aa3613f17b01e5e0d5595b36e17b71c22275093266f92` |
 
-All fourteen result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 62/62 tests. These are provenance statements, not repository run receipts.
+All eighteen result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 74/74 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -401,11 +417,46 @@ point table. The only configuration below that table size recovered 3.6%.
 Complete recovery therefore did not accompany a storage reduction in the frozen
 sweep; coupled peeling and seed search remain queued.
 
+## H23 — capped coupled peeling and seed search
+
+Four-element count/point-sum/label-sum cells were fitted under H20's exact
+point-coordinate cap. Sequential degree-one sketches recovered all 9,096
+targets by the 16-seed prefix; degree two recovered 9,093 there and all targets
+by 64. Degree three still missed 10 at 256. All 27 H22 full-x2 misses recovered
+by four degree-one/two seeds. Every initial and compacted storage invariant
+passed. This is a repeated-hash time-memory variant of the H20 collision
+decoder, not a new exponent.
+
+## H24 — larger-order seed-success scaling
+
+Six independently point-counted prime-order curves of order 2,083--63,799 and
+12,288 sampled targets measured 59.64%, 83.45%, 97.45%, 99.935%, and 100%
+recovery at 1, 2, 4, 8, and 16 seeds. One-seed recovery slope was +0.0020 per
+order doubling. Exact ideal one-seed occupancy was 59.47%, close in aggregate,
+while a strict per-row random-control gate held on only 9/24 rows.
+
+## H25 — sub-cap sequential sketches
+
+On 3,072 larger-curve targets, fixed memory fractions traded additional passes
+for recovery. Full and three-quarter cap were complete by 16 seeds, half by 64,
+and one-third by 256. Quarter cap recovered 3,065/3,072 at 256 seeds. All five
+fractions exceeded 99%, every aggregate observed-minus-occupancy-prediction
+residual was below 0.013, and no cap invariant failed.
+
+## H26 — negation-quotient x sketches
+
+A three-element x singleton improved early recovery but ended behind the point
+baseline. A four-element x/x-square moment bucket verified the exact EC
+inverse-pair identity `k=-(g1+g2)/2 mod r`: 171/171 true pair decodes validated
+with zero failures. It recovered 3,069/3,072 targets, all seven point-baseline
+misses, and used half the baby probes. The sequential point/x-pair union covered
+all 3,072 targets at quarter-cap peak memory, but uses twice the passes.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- coupled-bucket peeling and seed search under the original point-coordinate
-  storage cap.
+- equal-total-pass point-only, x-pair-only, and alternating schedules at
+  quarter-cap peak memory (H27, frozen in `a6255b1`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

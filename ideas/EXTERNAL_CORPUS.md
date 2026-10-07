@@ -116,6 +116,16 @@ state.
   emits every integer lift. These are time-memory measurements of the same
   collision mechanism, not a new generic ECDLP exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Sequential sketches buy collision-table memory with repeated square-root
+  passes.** Capped singleton sketches recovered all 9,096 original targets by
+  16 seeds and all 12,288 larger-order samples by 16 seeds. At fixed sub-cap
+  memory, one-third of H20's coordinate cap reached complete recovery by 256
+  seeds; one-quarter reached 3,065/3,072. An x-coordinate negation quotient
+  validated 171/171 inverse-pair label-sum decodes, recovered 3,069/3,072, and
+  complemented every point-sketch miss. Exact occupancy predictions, controls,
+  and peak-memory accounting are retained. This remains a time-memory variant
+  of signed/shifted BSGS, not a non-generic exponent improvement. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a
