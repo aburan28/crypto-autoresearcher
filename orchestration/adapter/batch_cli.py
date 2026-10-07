@@ -29,6 +29,7 @@ import yaml
 from . import batch as batch_module
 from . import config as config_module
 from . import manifest as manifest_module
+from . import prompt_cache as prompt_cache_module
 from . import resolver as resolve_module
 from . import transport as transport_module
 
@@ -201,8 +202,11 @@ def cmd_submit(args: argparse.Namespace) -> int:
     if decision.delivery == "interactive":
         # The router decided this cannot wait: run each prompt now, through
         # the same request builder, and say so in every receipt.
+        # Every prompt in the set shares the system prompt, so cache it: the
+        # first call writes it and each later one reads it at a tenth of the
+        # input price.
         for item in items:
-            completion = transport_module.complete(
+            completion = prompt_cache_module.cached_complete(
                 cfg, resolution, system=item.get("system") or system,
                 messages=[transport_module.Message("user", item["prompt"])],
                 max_tokens=args.max_tokens)

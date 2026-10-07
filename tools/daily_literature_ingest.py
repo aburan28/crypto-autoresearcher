@@ -568,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not args.abstract_only and not api_key:
         parser.error("ANTHROPIC_API_KEY is required for full-PDF distillation; use --abstract-only for limited drafts")
-    model = os.environ.get("LITERATURE_MODEL", "claude-opus-5")
+    model = os.environ.get("LITERATURE_MODEL", "claude-opus-5-5")
     distill = (lambda p, pdf: distill_pdf(p, pdf, api_key, model)) if not args.abstract_only else None
     papers = recent_papers(datetime.now(timezone.utc), args.days)
     result = ingest(papers, ROOT, args.bucket, boto3.client("s3"),

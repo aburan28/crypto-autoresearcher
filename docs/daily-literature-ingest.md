@@ -84,7 +84,7 @@ draft's substantive assertions or promote it to a verified finding.
    default `GITHUB_TOKEN` do not trigger other workflows.
 4. Set GitHub secret `ANTHROPIC_API_KEY` for PDF text distillation. The repo's
    Claude workflows use the same secret. The optional repository variable
-   `LITERATURE_MODEL` defaults to `claude-opus-5` from the repo's current
+   `LITERATURE_MODEL` defaults to `claude-opus-5-5` from the repo's current
    research binding; choose a model with structured JSON support if that
    binding changes. The job sends bounded, untrusted text extracted from each
    PDF to the model. It fails when the key is absent, extraction yields too
