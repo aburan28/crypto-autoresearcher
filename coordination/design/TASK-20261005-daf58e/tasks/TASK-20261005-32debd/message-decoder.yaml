@@ -1,0 +1,70 @@
+task_id: TASK-20261005-32debd
+archive_owner: TASK-20261005-ed2c6a
+message:
+  m: 'integer in [0,2^k)'
+  r: 'uniform integer in [0,2^(a-k))'
+  s: 'm+2^k*r modulo D, D=2^a'
+  public_data: ordered U,V in E[D], ordered P,Q in E[N], k,D,N,field and exact model labels
+  kernel: '<U+sV>'
+  P1_ciphertext: 'normalized (C_s,X=phi_s(P))'
+  goal: actual m, not a compatible point/map name or secret representation
+actual_output_paths:
+  F1:
+    output_type: tagged bottom(MISSING_TARGET_FRAME) or earlier bottom
+    decoder: return bottom(TRANSPORT_FAILED)
+    message_failure: 1 on all admitted honest inputs
+    time_memory_output: constant propagation after charged partial transport; no plaintext output
+  F2:
+    output_type: tagged bottom(MISSING_TARGET_EVALUATOR) or earlier bottom
+    decoder: return bottom(TRANSPORT_FAILED); do not decode formal sandwich syntax
+    message_failure: 1 on all admitted honest inputs
+    time_memory_output: constant propagation after charged partial transport; no plaintext output
+  F3:
+    output_type: evaluated f:E->C, Y=f(Q), slope t and optionally W
+    decoder_choice: verify t by the evaluated-map slope decoder below and return the resulting residue
+    message_failure: 0 mathematically on admitted honest inputs under exact total arithmetic
+    cost_limit: complete message path inherits exponential transport lookup and unresolved normalization costs
+evaluated_map_decoder:
+  fixed_program: |
+    Parse f,U,V,k,D and all model labels; require degree D, f(P)=X and certified cyclic kernel.
+    Evaluate A=f(U) and B=f(V), both points of C.
+    Check B has exact order D and all claimed map/point/field certificates; otherwise bottom(INVALID_MAP).
+    Set H=[2^(a-k)]B and G=-[2^(a-k)]A in C[2^k].
+    Check H has order 2^k; set t0=0 and J=[2^(k-1)]H.
+    For j=0,...,k-1:
+      Set Z=[2^(k-1-j)](G-[t0]H).
+      If Z=0 set d=0; if Z=J set d=1; otherwise return bottom(SLOPE_SHAPE).
+      Set t0=t0+d*2^j.
+    Check [t0]H=G; return t0 in [0,2^k), otherwise bottom(SLOPE_CHECK).
+  types: A,B in C[D]; H,G in C[2^k]; t0 integer residue; all evaluations are E-to-C
+  correctness: 'for kernel <U+sV>, f(U)=-[s]f(V), ord(f(V))=D; hence G=[m]H and unique t0=m'
+  quantifiers: 'forall successful Setup,accepted keys,m,r,exact returned f with sender kernel and observation labels: Decode_f(f,U,V,k)=m'
+  recipient_coins: none after a verified returned map
+  bit_time: two complete f-chain evaluations, certificate/kernel validation, O(k^2+a) group scalar/doubling/addition work plus counted field/model overhead
+  memory: represented f and field plus O(ell+a+k) point/scalar workspace, and each validation/evaluator intermediate workspace
+  output_length: k bits with public tags
+  preprocessing: factorizations D=2^a,N=5^b, pairing/order checks, exact labels and model conversion already charged and never omitted
+point_only_decoder_obligation:
+  input_type: genuine Y=phi_s(Q) in C[N], together with X and declared public data
+  not_plaintext: Y completes full labelled action on E[N]; it does not directly give a D-torsion slope
+  required_chain: '(E,C,P,Q,X,Y,D,N,U,V) -> evaluated f or D-kernel -> smooth slope residue'
+  condition_slice: smooth known coprime D,N; N>4D>D; rational full N-bases on both curves, rational D-torsion bases, required kernel rank, exact curve/product models and output preprocessing
+  source_status: internal source notes report a full-action recovery interface in this slice, not an implementation supplied by this task
+  missing_program: no frozen uniform recovery/evaluation implementation and bit-cost theorem is provided here
+  cost_symbol: T_full_action,M_full_action,B_full_action plus model/embedding/normalization/rank verification and Decode_f cost
+  failure_symbol: epsilon_full_action+epsilon_conversion+epsilon_Decode_f by union bound; unassigned until program and premises fixed
+  decoder_from_Y_now: bottom(MISSING_FULL_ACTION_DECODER) rather than inventing m
+  recipient_public_control: the same completed labelled (X,Y) data admits the same downstream public recovery slice; this is a supplied-data control
+non_point_objects:
+  abstract_ideal_class_kernel_name: require evaluated map/kernel realization and model calibration before slope extraction; no zero-cost plaintext inference
+  formal_gamma: require actual W evaluation before inverse D and then the full point-only path
+  incomplete_source_frame: finite matrices without calibrated target u return no Y and no m
+uniform_cost_and_failure:
+  polynomial_recipient: absent for every formulation in this packet
+  F1_F2: no successful actual-message equation asserted
+  F3_equation: 'Dec_F3(pk,Enc_P1(pk,m;r))=m for every admitted key,m,r, using finite public replay and exact arithmetic'
+  scope: finite mathematical correctness, exponential time; not a polynomial PKE decoder or EndRing-dependent inversion advantage
+  key_failures: Setup and first-acceptance failures recorded separately in admission-encodings.yaml
+  source_evaluation_failures: prefix cap/certification not hidden in a message fiber probability
+  fiber_failure: 0 on admitted honest P1 inputs; distinct from decoder/transport/evaluation failure
+  malformed_ciphertexts: public validation bottom; any extra secret-dependent validation must be added to the reachable-call quotient
