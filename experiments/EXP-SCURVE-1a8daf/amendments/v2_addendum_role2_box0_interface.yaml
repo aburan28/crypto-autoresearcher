@@ -735,7 +735,10 @@ role2_box0_interface_addendum:
       unresolved>0, or if a child cannot emit a schema-valid completed artifact,
       the supervisor preserves its partial directory and child streams, records
       INCOMPLETE in canonical v2 raw-result custody, emits no PASS receipt, and
-      refuses advancement.
+      refuses advancement.  On every post-directory-creation FAIL or
+      INCOMPLETE, stdout.log and stderr.log use the failure-specific framing
+      below and preserve every captured child outcome, including all four
+      outcomes when failure is detected only after the independent verifier.
     status_5_6_rule: >-
       Status 5 or 6 remains a counted disposition.  Enumeration continues
       through index 262147 so the independent verifier can replay it.  The
@@ -767,12 +770,19 @@ role2_box0_interface_addendum:
       paths; all producer paths plus checkpoint-resume-control; all producer
       paths plus checkpoint-resume-control and independent-verification; those
       producer/verifier/control paths plus independent-agreement; or every
-      manifest artifact preceding raw-result.json.  A missing or malformed member forces
+      stage path plus command.txt and environment.json preceding raw-result.json.
+      Failure-framed stdout.log and stderr.log are required custody evidence
+      but are not completed artifacts.  A missing or malformed member forces
       incomplete_child_artifact regardless of a later claimed refusal.  The
       completed_artifacts array is in frozen execution order and includes only
       closed regular files with the exact schema assigned to that filename;
+      it contains at most the fifteen non-stream paths in that order, and
       checkpoint-chain.jsonl has exactly one BOX-0 row.  Empty checkpoint,
       wrong-schema, partial, malformed, unknown, and symlink paths are excluded.
+      Failure-framed stdout.log and stderr.log are custody-only evidence and
+      are always excluded from completed_artifacts, including for
+      failed_phase final_custody; their presence cannot move a failure to a
+      later phase.
       Schema-valid is not sufficient: every phase preceding failed_phase must
       pass the same semantic and cross-document gates used for PASS admission.
       Producer checks/bindings/artifact hashes, restart roots/counters/prefixes
@@ -1029,6 +1039,22 @@ role2_box0_interface_addendum:
         ASCII "P192-WCM-BOX0-SUPERVISOR-STDERR-v1\0" || u32be(4) || for each
         ordered role u32be(role UTF-8 length) || role UTF-8 ||
         u64be(stream byte length) || exact stderr bytes.
+      terminal_failure_stdout.log: >-
+        The filename remains stdout.log, but its bytes are ASCII
+        "P192-WCM-BOX0-SUPERVISOR-FAILURE-STDOUT-v1\0" || u32be(k) ||
+        the same frame grammar for exactly the first k roles in roles_in_order,
+        where 0 <= k <= 4 and k is the number of captured child outcomes.
+      terminal_failure_stderr.log: >-
+        The filename remains stderr.log, but its bytes are ASCII
+        "P192-WCM-BOX0-SUPERVISOR-FAILURE-STDERR-v1\0" || u32be(k) ||
+        the same frame grammar for exactly the first k roles in roles_in_order.
+        Failure stdout.log and stderr.log have the same k and role prefix,
+        retain exact captured bytes, are required in every post-directory
+        terminal failure, and are custody-only rather than completed artifacts.
+        The failed-phase bounds on k are canonical_producer 0..1,
+        restart_control 1..3, independent_verifier 3..4, agreement exactly 4,
+        and final_custody exactly 4.  These lower bounds prevent omission of
+        streams from children necessarily completed before the named phase.
     raw-result.json: >-
       On PASS, p192-wcm-role2-box0-raw-result-v1 binds candidate-stream,
       restart, agreement, dependency-audit, and receipt hashes and names

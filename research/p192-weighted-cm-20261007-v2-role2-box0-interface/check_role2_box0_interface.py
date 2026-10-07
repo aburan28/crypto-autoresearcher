@@ -364,7 +364,7 @@ FAILURE_PHASE_REQUIRED_PATHS = {
         *PRODUCER_PATHS, "checkpoint-resume-control.json",
         "independent-verification.json", "independent-agreement.json",
         "dependency-audit.json", "independent-verifier-receipt.json",
-        "command.txt", "environment.json", "stdout.log", "stderr.log",
+        "command.txt", "environment.json",
     ],
 }
 FAILURE_PHASE_ARTIFACTS = {
@@ -374,7 +374,7 @@ FAILURE_PHASE_ARTIFACTS = {
     "agreement": ["independent-agreement.json"],
     "final_custody": [
         "dependency-audit.json", "independent-verifier-receipt.json",
-        "command.txt", "environment.json", "stdout.log", "stderr.log",
+        "command.txt", "environment.json",
     ],
 }
 FAILURE_COMPLETION_ORDER = [
@@ -464,6 +464,13 @@ SUPERVISOR_CHILDREN = [
     {"role": "checkpoint_resume_control", "expected_exit_code": 0},
     {"role": "isolated_independent_verifier", "expected_exit_code": 0},
 ]
+FAILURE_FRAME_COUNT_BOUNDS = {
+    "canonical_producer": (0, 1),
+    "restart_control": (1, 3),
+    "independent_verifier": (3, 4),
+    "agreement": (4, 4),
+    "final_custody": (4, 4),
+}
 RUST_KEYWORDS = [
     "as", "async", "await", "break", "const", "continue", "crate", "dyn",
     "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in",
@@ -8246,6 +8253,62 @@ def _parse_framed_stream(
     return hashes
 
 
+def _parse_failure_framed_stream(
+    data: bytes, stream_name: str, errors: list[str],
+) -> list[str]:
+    domain = (
+        f"P192-WCM-BOX0-SUPERVISOR-FAILURE-{stream_name.upper()}-v1"
+        .encode("ascii") + b"\0"
+    )
+    if not data.startswith(domain):
+        errors.append(f"failure {stream_name}.log: domain prefix differs")
+        return []
+    offset = len(domain)
+    if len(data) - offset < 4:
+        errors.append(f"failure {stream_name}.log: missing frame count")
+        return []
+    count = int.from_bytes(data[offset:offset + 4], "big")
+    offset += 4
+    if count > len(SUPERVISOR_CHILDREN):
+        errors.append(f"failure {stream_name}.log: frame count exceeds four")
+        return []
+    roles: list[str] = []
+    for child in SUPERVISOR_CHILDREN[:count]:
+        if len(data) - offset < 4:
+            errors.append(f"failure {stream_name}.log: truncated role length")
+            return roles
+        role_length = int.from_bytes(data[offset:offset + 4], "big")
+        offset += 4
+        if len(data) - offset < role_length + 8:
+            errors.append(f"failure {stream_name}.log: truncated role frame")
+            return roles
+        try:
+            role = data[offset:offset + role_length].decode("utf-8")
+        except UnicodeDecodeError:
+            errors.append(f"failure {stream_name}.log: role is not UTF-8")
+            return roles
+        offset += role_length
+        length = int.from_bytes(data[offset:offset + 8], "big")
+        offset += 8
+        if len(data) - offset < length:
+            errors.append(f"failure {stream_name}.log: truncated stream bytes")
+            return roles
+        offset += length
+        _exact(
+            role, child["role"],
+            f"failure {stream_name}.log role order", errors,
+        )
+        roles.append(role)
+    if offset != len(data):
+        errors.append(f"failure {stream_name}.log: trailing bytes")
+    return roles
+
+
+def _failure_frame_count_is_admissible(failed_phase: Any, count: int) -> bool:
+    bounds = FAILURE_FRAME_COUNT_BOUNDS.get(failed_phase)
+    return bounds is not None and bounds[0] <= count <= bounds[1]
+
+
 def _binding_values_from_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     return {
         "protocol_commit": candidate["protocol_commit"],
@@ -9071,6 +9134,43 @@ def _validate_post_run_impl(
     if raw_result.get("schema") == "p192-wcm-role2-box0-failure-v1":
         _require(not (run_dir / "manifest.yaml").exists(), "failure directory must not contain manifest.yaml", errors)
         _require(not (run_dir / TERMINAL_CUSTODY_PATH).exists(), "failure directory must not contain a PASS terminal seal", errors)
+        failed_phase = raw_result.get("failed_phase")
+        failure_stream_roles: dict[str, list[str]] = {}
+        for stream_name in ("stdout", "stderr"):
+            stream_path = run_dir / f"{stream_name}.log"
+            try:
+                stream_metadata = os.lstat(stream_path)
+                if (
+                    not stat.S_ISREG(stream_metadata.st_mode)
+                    or stat.S_ISLNK(stream_metadata.st_mode)
+                ):
+                    raise ValueError("not a nofollow regular file")
+                stream_bytes = _read_regular_file_bytes(
+                    stream_path, f"failure {stream_name}.log",
+                )
+            except (OSError, ValueError) as exc:
+                errors.append(
+                    f"failure {stream_name}.log unavailable or nonregular: {exc}"
+                )
+                failure_stream_roles[stream_name] = []
+            else:
+                failure_stream_roles[stream_name] = _parse_failure_framed_stream(
+                    stream_bytes, stream_name, errors,
+                )
+        _exact(
+            failure_stream_roles["stdout"], failure_stream_roles["stderr"],
+            "failure stdout/stderr captured role prefix", errors,
+        )
+        frame_count_bounds = FAILURE_FRAME_COUNT_BOUNDS.get(failed_phase)
+        if frame_count_bounds is not None:
+            minimum, maximum = frame_count_bounds
+            for stream_name, roles in failure_stream_roles.items():
+                _require(
+                    _failure_frame_count_is_admissible(failed_phase, len(roles)),
+                    f"failure {stream_name}.log frame count outside "
+                    f"{failed_phase} bounds {minimum}..{maximum}",
+                    errors,
+                )
         _exact(raw_result.get("decision_custody"), custody, "failure decision custody", errors)
         for field in (
             "protocol_commit", "factor_base_source_commit", "producer_commit",
@@ -9084,7 +9184,6 @@ def _validate_post_run_impl(
         _exact(raw_result.get("control_retained"), True, "failure control retained", errors)
         _exact(raw_result.get("control_created_before_failure"), True, "failure control created/retained", errors)
         _exact(control_exists, True, "terminal failure CONTROL_DIR retention", errors)
-        failed_phase = raw_result.get("failed_phase")
         control_is_nofollow_directory = False
         if control_exists:
             try:

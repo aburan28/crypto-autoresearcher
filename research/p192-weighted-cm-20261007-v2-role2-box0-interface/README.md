@@ -201,6 +201,15 @@ hash every top-level regular leaf; directories, symlinks, special or multi-link
 leaves, duplicate inodes, and immutable-input aliases are rejected, closing
 mutable nested state. `RUN_DIR` and `CONTROL_DIR` are created before the first
 child; every terminal failure retains and identity-binds `CONTROL_DIR`.
+Every post-directory failure also retains `stdout.log` and `stderr.log` under
+failure-specific domain prefixes with zero through four chronological role
+frames. The two logs carry the same role prefix and exact captured bytes; they
+are custody-only and never count as completed artifacts, so a failure after
+the fourth child cannot be misclassified as completed final custody. Frame
+counts are phase-bound: canonical producer 0--1, restart control 1--3,
+independent verifier 3--4, and agreement or final custody exactly 4. Thus a
+failure record cannot discard streams from children that necessarily finished
+before its claimed phase.
 Canonical-producer failure requires its retained control inventory to be
 exactly empty. Stale PASS-manifest fields record `not_reached` with null/false state
 for every pre-manifest failure. Only a bound final-custody post-manifest

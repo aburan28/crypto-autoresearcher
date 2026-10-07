@@ -871,6 +871,14 @@ def _replace_success_with_failure(
         path = run_dir / relative
         if os.path.lexists(path):
             path.unlink()
+    captured_count = {
+        "canonical_producer": 1,
+        "restart_control": 3,
+        "independent_verifier": 4,
+        "agreement": 4,
+        "final_custody": 4,
+    }[failed_phase]
+    _write_failure_logs(run_dir, captured_count)
     completed = [
         _artifact_for(run_dir, relative)
         for relative in checker.FAILURE_COMPLETION_ORDER
@@ -925,6 +933,27 @@ def _framed_log(stream: str, payloads: dict[str, bytes]) -> bytes:
         payload = payloads[child["role"]]
         result += len(role).to_bytes(4, "big") + role + len(payload).to_bytes(8, "big") + payload
     return result
+
+
+def _failure_framed_log(stream: str, count: int) -> bytes:
+    domain = (
+        f"P192-WCM-BOX0-SUPERVISOR-FAILURE-{stream.upper()}-v1".encode()
+        + b"\0"
+    )
+    result = domain + count.to_bytes(4, "big")
+    for child in checker.SUPERVISOR_CHILDREN[:count]:
+        role = child["role"].encode()
+        payload = f"failure-{stream}-{child['role']}".encode()
+        result += (
+            len(role).to_bytes(4, "big") + role
+            + len(payload).to_bytes(8, "big") + payload
+        )
+    return result
+
+
+def _write_failure_logs(run_dir: Path, count: int) -> None:
+    _write_bytes(run_dir / "stdout.log", _failure_framed_log("stdout", count))
+    _write_bytes(run_dir / "stderr.log", _failure_framed_log("stderr", count))
 
 
 def _build_valid_run(decision: dict, custody: dict) -> Path:
@@ -1991,6 +2020,7 @@ def test_failure_raw_counts_and_completed_inventory_are_replayed() -> None:
             "status": "INCOMPLETE",
         }
         _write_bytes(run_dir / "candidate-stream.json", b"{malformed")
+        _write_failure_logs(run_dir, 0)
         raw["terminal_failure_custody"] = {
             "custody_check_id": "post_directory_creation_terminal_failure_v1",
             "inode_custody_scope": "original_supervised_workspace_only",
@@ -2037,6 +2067,105 @@ def test_failure_raw_counts_and_completed_inventory_are_replayed() -> None:
         assert any("failure completed artifacts" in error for error in errors)
 
 
+def test_four_outcome_verifier_failure_streams_remain_custody_only() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        _, decision, custody = _committed_decision_fixture(Path(temporary))
+        run_dir = _build_valid_run(decision, custody)
+        raw = _replace_success_with_failure(
+            run_dir, decision, custody,
+            "independent_verifier", "verification_failure",
+        )
+        assert checker.validate_post_run(run_dir, decision, custody) == []
+        assert {
+            record["path"] for record in raw["completed_artifacts"]
+        }.isdisjoint({"stdout.log", "stderr.log"})
+        assert checker._parse_failure_framed_stream(
+            (run_dir / "stdout.log").read_bytes(), "stdout", [],
+        ) == [child["role"] for child in checker.SUPERVISOR_CHILDREN]
+
+        raw["completed_artifacts"].append(_artifact_for(run_dir, "stdout.log"))
+        _canonical(run_dir / "raw-result.json", raw)
+        errors = checker.validate_post_run(run_dir, decision, custody)
+        assert any(
+            "failure completed-artifact inventory is not an ordered unique subset"
+            in error
+            for error in errors
+        )
+        raw["completed_artifacts"].pop()
+        _canonical(run_dir / "raw-result.json", raw)
+
+        _write_failure_logs(run_dir, 2)
+        errors = checker.validate_post_run(run_dir, decision, custody)
+        assert any(
+            "independent_verifier bounds 3..4" in error
+            for error in errors
+        )
+
+        _write_failure_logs(run_dir, 4)
+        stderr_path = run_dir / "stderr.log"
+        stderr_path.write_bytes(_failure_framed_log("stderr", 3))
+        errors = checker.validate_post_run(run_dir, decision, custody)
+        assert any(
+            "failure stdout/stderr captured role prefix" in error
+            for error in errors
+        )
+        stderr_path.unlink()
+        errors = checker.validate_post_run(run_dir, decision, custody)
+        assert any(
+            "failure stderr.log unavailable or nonregular" in error
+            for error in errors
+        )
+
+
+def test_failure_stream_phase_bounds_and_malformed_frames_are_rejected() -> None:
+    artifact_schema = json.loads(checker.ARTIFACT_SCHEMA.read_text())
+    assert artifact_schema["$defs"]["role2FailureRawResult"]["properties"][
+        "completed_artifacts"
+    ]["maxItems"] == len(checker.FAILURE_COMPLETION_ORDER) == 15
+
+    admitted = {
+        "canonical_producer": (0, 1),
+        "restart_control": (1, 3),
+        "independent_verifier": (3, 4),
+        "agreement": (4,),
+        "final_custody": (4,),
+    }
+    refused = {
+        "canonical_producer": (2,),
+        "restart_control": (0, 4),
+        "independent_verifier": (2,),
+        "agreement": (3,),
+        "final_custody": (3,),
+    }
+    for phase, counts in admitted.items():
+        assert all(
+            checker._failure_frame_count_is_admissible(phase, count)
+            for count in counts
+        )
+    for phase, counts in refused.items():
+        assert all(
+            not checker._failure_frame_count_is_admissible(phase, count)
+            for count in counts
+        )
+
+    domain = b"P192-WCM-BOX0-SUPERVISOR-FAILURE-STDOUT-v1\0"
+    valid = _failure_framed_log("stdout", 1)
+    malformed = [
+        b"",
+        domain,
+        domain + (5).to_bytes(4, "big"),
+        domain + (1).to_bytes(4, "big") + (1).to_bytes(4, "big"),
+        domain + (1).to_bytes(4, "big") + (1).to_bytes(4, "big")
+        + b"\xff" + (0).to_bytes(8, "big"),
+        valid[:-1],
+        valid + b"trailing",
+    ]
+    for encoded in malformed:
+        errors: list[str] = []
+        checker._parse_failure_framed_stream(encoded, "stdout", errors)
+        assert errors, encoded
+
+
 def test_every_failure_phase_passes_dispatch_and_artifact_validation_together() -> None:
     failed_artifact = {
         "restart_control": "checkpoint-resume-control.json",
@@ -2052,6 +2181,7 @@ def test_every_failure_phase_passes_dispatch_and_artifact_validation_together() 
             if phase == "canonical_producer":
                 run_dir.mkdir()
                 control_dir.mkdir()
+                _write_failure_logs(run_dir, 0)
                 raw = {
                     "schema": "p192-wcm-role2-box0-failure-v1",
                     "experiment_id": "EXP-SCURVE-1a8daf", "run_id": decision["run_id"],
@@ -2072,7 +2202,7 @@ def test_every_failure_phase_passes_dispatch_and_artifact_validation_together() 
                     "terminal_failure_custody": {
                         "custody_check_id": "post_directory_creation_terminal_failure_v1",
                         "inode_custody_scope": "original_supervised_workspace_only",
-                        "run_entries_before_failure_record": [],
+                        "run_entries_before_failure_record": checker._directory_custody_entries(run_dir),
                         "control_directory_before_children": checker._directory_identity(control_dir),
                         "control_directory_terminal": checker._directory_identity(control_dir),
                         "control_entries": [],
@@ -3179,6 +3309,7 @@ def test_failure_manifest_transition_is_phase_bound_and_hashes_provisional_state
         provisional_success_raw = _artifact_for(run_dir, "raw-result.json")
         (run_dir / checker.TERMINAL_CUSTODY_PATH).unlink()
         (run_dir / "manifest.yaml").unlink()
+        _write_failure_logs(run_dir, 4)
         completed = [
             _artifact_for(run_dir, relative)
             for relative in checker.FAILURE_COMPLETION_ORDER
