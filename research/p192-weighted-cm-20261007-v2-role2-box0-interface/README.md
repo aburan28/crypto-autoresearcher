@@ -336,17 +336,27 @@ Independent logical evidence gates apply before whole-file reads and writes:
 The virtual candidate stream is exactly 4,194,368 bytes and
 `disposition.bin` is exactly `2,621,480 + 64 * retained_count` bytes
 (2.62--13.44 MB). Data-dependent JSONL files remain subject to the per-file and
-aggregate gates. A cap, allocation, quota, disk, or time failure is schema-valid
-`INCOMPLETE` only when both retained trees remain within every frozen checker
-size, topology, and schema-custody bound, their exact completed-artifact and
-terminal custody can still be established, and the failure streams, raw result,
-and required fsyncs can finish durably. If any of those conditions fails, the
-directories remain retained without in-transaction cleanup, but the outcome is
-hard resource custody requiring operator remediation rather than a claimed
-terminal record. It emits no PASS terminal seal or scientific result. Both
-outcomes are infrastructure only, never weak/no-weak evidence; truncation and
-sampling remain forbidden. No wall-clock estimate is an evidence claim until a
-release-build pre-dispatch benchmark records it.
+aggregate gates. A cap, allocation, quota, disk, or time failure can produce a
+checker-valid terminal record only when both retained trees remain within every
+frozen checker size, topology, and schema-custody bound, their exact
+completed-artifact and terminal custody can still be established, and the
+failure streams, raw result, and required fsyncs can finish durably.
+Terminalizability is only an infrastructure representability decision. It does
+not override frozen disposition precedence: `invalid>0` yields
+`FAIL`/`invalid_disposition`; otherwise `unresolved>0` yields
+`INCOMPLETE`/`unresolved_disposition`; only `invalid=0` and `unresolved=0` maps
+the resource failure to `INCOMPLETE`/`incomplete_child_artifact`. In every case,
+the retained completed-artifact set must satisfy the frozen required-prior and
+forbidden-later chronology for the precedence-selected failed phase without
+deletion or truncation. Thus a later-phase resource failure with an invalid or
+unresolved disposition is nonterminalizable once later-phase completed
+artifacts exist. If any representability condition fails, the directories
+remain retained without in-transaction cleanup, but the outcome is hard
+resource custody requiring operator remediation rather than a claimed terminal
+record. It emits no PASS terminal seal or scientific result. Both
+resource-boundary classifications are infrastructure only, never weak/no-weak
+evidence; truncation and sampling remain forbidden. No wall-clock estimate is
+an evidence claim until a release-build pre-dispatch benchmark records it.
 
 ## Native implementation sequence (not performed here)
 

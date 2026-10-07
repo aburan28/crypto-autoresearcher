@@ -10430,8 +10430,18 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
     if "Role-2 producer provenance, and Role-2 verifier provenance are separately hash-bound and may name distinct clean commits" in admission_text:
         errors.append("admission gate permits forbidden producer/factor-base commit separation")
     terminal = addendum.get("terminal_status_semantics", {})
-    if "failure_precedence_and_reason" not in terminal:
+    failure_precedence = terminal.get("failure_precedence_and_reason")
+    if not isinstance(failure_precedence, str):
         errors.append("deterministic terminal failure precedence is missing")
+    else:
+        _require(
+            "Terminalizability determines only record representability" in failure_precedence
+            and "never overrides this invalid/unresolved precedence" in failure_precedence
+            and "only when invalid=0 and unresolved=0" in failure_precedence
+            and "required-prior and forbidden-later chronology" in failure_precedence,
+            "resource terminalizability does not preserve disposition precedence",
+            errors,
+        )
     supervisor_custody = addendum.get("supervisor_custody", {})
     _exact(
         supervisor_custody.get("launch_sequence"),
@@ -10440,6 +10450,17 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
         errors,
     )
     resource = addendum.get("resource_admission", {})
+    session_disk_boundary = resource.get("session_disk_boundary")
+    _require(
+        isinstance(session_disk_boundary, str)
+        and "Terminalizability is an infrastructure-only representability decision" in session_disk_boundary
+        and "does not determine terminal status or failure reason" in session_disk_boundary
+        and "invalid/unresolved disposition precedence still applies" in session_disk_boundary
+        and "prior/later chronology" in session_disk_boundary
+        and "precedence-selected failed phase" in session_disk_boundary,
+        "session resource boundary does not preserve disposition precedence",
+        errors,
+    )
     terminalizable_mapping = resource.get("terminalizable_resource_failure_mapping")
     _require(
         isinstance(terminalizable_mapping, str)
@@ -10448,7 +10469,16 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
         and "both directories remain retained" in terminalizable_mapping.lower()
         and "every frozen post-run size" in terminalizable_mapping
         and "checker-visible completed" in terminalizable_mapping
-        and "required fsyncs" in terminalizable_mapping,
+        and "required fsyncs" in terminalizable_mapping
+        and "terminalizability determines only representability" in terminalizable_mapping
+        and "invalid>0 yields status FAIL" in terminalizable_mapping
+        and "failure_reason invalid_disposition" in terminalizable_mapping
+        and "unresolved>0 yields status INCOMPLETE" in terminalizable_mapping
+        and "failure_reason unresolved_disposition" in terminalizable_mapping
+        and "only when invalid=0 and unresolved=0" in terminalizable_mapping
+        and "required-prior and forbidden-later completion chronology" in terminalizable_mapping
+        and "precedence-selected failed phase" in terminalizable_mapping
+        and "without deleting or truncating retained artifacts" in terminalizable_mapping,
         "terminalizable post-directory resource failure mapping is not frozen",
         errors,
     )
@@ -10461,7 +10491,9 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
         and "no PASS terminal seal" in nonterminalizable_boundary
         and "hard resource-custody" in nonterminalizable_boundary
         and "operator remediation" in nonterminalizable_boundary
-        and "asserts nothing mathematical" in nonterminalizable_boundary,
+        and "asserts nothing mathematical" in nonterminalizable_boundary
+        and "required-prior or forbidden-later chronology" in nonterminalizable_boundary
+        and "precedence-selected failed phase" in nonterminalizable_boundary,
         "nonterminalizable resource boundary is not frozen",
         errors,
     )
@@ -10502,10 +10534,17 @@ def collect_contract_errors(addendum_doc: Any, overlay: Any) -> list[str]:
     overlay_resource_boundary = overlay.get("resource_failure_boundary")
     _require(
         isinstance(overlay_resource_boundary, str)
-        and "schema-valid INCOMPLETE" in overlay_resource_boundary
+        and "Terminalizability determines only record representability" in overlay_resource_boundary
+        and "invalid>0 yields FAIL/invalid_disposition" in overlay_resource_boundary
+        and "unresolved>0 yields INCOMPLETE/unresolved_disposition" in overlay_resource_boundary
+        and "only invalid=0 and unresolved=0 yields INCOMPLETE/incomplete_child_artifact" in overlay_resource_boundary
+        and "required-prior and forbidden-later chronology" in overlay_resource_boundary
+        and "precedence-selected failed phase" in overlay_resource_boundary
+        and "chronology conflict" in overlay_resource_boundary
         and "hard resource custody" in overlay_resource_boundary
         and "retain both directories" in overlay_resource_boundary
-        and "no PASS terminal seal or scientific result" in overlay_resource_boundary,
+        and "no PASS terminal seal or scientific result" in overlay_resource_boundary
+        and "infrastructure only and asserts nothing mathematical" in overlay_resource_boundary,
         "overlay resource failure boundary is not frozen",
         errors,
     )

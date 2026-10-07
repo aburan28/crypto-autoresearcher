@@ -1660,6 +1660,21 @@ def test_restart_receipt_precedes_verifier_and_resource_boundaries_are_frozen() 
     assert "every frozen post-run size" in terminalizable
     assert "checker-visible completed" in terminalizable
     assert "required fsyncs" in terminalizable
+    assert "terminalizability determines only representability" in terminalizable
+    assert "invalid>0 yields status FAIL" in terminalizable
+    assert "failure_reason invalid_disposition" in terminalizable
+    assert "unresolved>0 yields status INCOMPLETE" in terminalizable
+    assert "failure_reason unresolved_disposition" in terminalizable
+    assert "only when invalid=0 and unresolved=0" in terminalizable
+    assert "required-prior and forbidden-later completion chronology" in terminalizable
+    assert "precedence-selected failed phase" in terminalizable
+    assert "without deleting or truncating retained artifacts" in terminalizable
+    session_boundary = resource["session_disk_boundary"]
+    assert "Terminalizability is an infrastructure-only representability decision" in session_boundary
+    assert "does not determine terminal status or failure reason" in session_boundary
+    assert "invalid/unresolved disposition precedence still applies" in session_boundary
+    assert "prior/later chronology" in session_boundary
+    assert "precedence-selected failed phase" in session_boundary
     nonterminalizable = resource["nonterminalizable_resource_boundary"]
     assert "cannot be represented as a checker-valid terminal failure" in nonterminalizable
     assert "retains both directories as-is" in nonterminalizable
@@ -1668,12 +1683,21 @@ def test_restart_receipt_precedes_verifier_and_resource_boundaries_are_frozen() 
     assert "hard resource-custody" in nonterminalizable
     assert "operator remediation" in nonterminalizable
     assert "asserts nothing mathematical" in nonterminalizable
+    assert "required-prior or forbidden-later chronology" in nonterminalizable
+    assert "precedence-selected failed phase" in nonterminalizable
     assert "admitted_failure_mapping" not in resource
     overlay_boundary = overlay["resource_failure_boundary"]
-    assert "schema-valid INCOMPLETE" in overlay_boundary
+    assert "Terminalizability determines only record representability" in overlay_boundary
+    assert "invalid>0 yields FAIL/invalid_disposition" in overlay_boundary
+    assert "unresolved>0 yields INCOMPLETE/unresolved_disposition" in overlay_boundary
+    assert "only invalid=0 and unresolved=0 yields INCOMPLETE/incomplete_child_artifact" in overlay_boundary
+    assert "required-prior and forbidden-later chronology" in overlay_boundary
+    assert "precedence-selected failed phase" in overlay_boundary
+    assert "chronology conflict" in overlay_boundary
     assert "hard resource custody" in overlay_boundary
     assert "retain both directories" in overlay_boundary
     assert "no PASS terminal seal or scientific result" in overlay_boundary
+    assert "infrastructure only and asserts nothing mathematical" in overlay_boundary
     setup = resource["paired_directory_setup_boundary"]
     assert "pre-evidence setup operation" in setup
     assert "freshly-created empty half-directory" in setup
@@ -1730,6 +1754,17 @@ def test_restart_receipt_precedes_verifier_and_resource_boundaries_are_frozen() 
     assert any(
         "overlay resource failure boundary" in error
         for error in checker.collect_contract_errors(addendum_document, mutated_overlay)
+    )
+    mutated = copy.deepcopy(addendum_document)
+    mapping = mutated["role2_box0_interface_addendum"]["resource_admission"][
+        "terminalizable_resource_failure_mapping"
+    ]
+    mutated["role2_box0_interface_addendum"]["resource_admission"][
+        "terminalizable_resource_failure_mapping"
+    ] = mapping.replace("invalid>0 yields status FAIL", "invalid>=0 yields status FAIL")
+    assert any(
+        "terminalizable post-directory resource failure mapping" in error
+        for error in checker.collect_contract_errors(mutated, overlay)
     )
 
 
@@ -1925,17 +1960,118 @@ def test_checkpoint_conservation_is_checked() -> None:
 
 
 def test_terminal_status_precedence_is_deterministic() -> None:
-    raw = {"failed_phase": "canonical_producer", "failure_reason": "invalid_disposition"}
-    assert checker._terminal_failure_expectation(raw, 1, 1) == (
+    resource_raw = {
+        "failed_phase": "independent_verifier",
+        "failure_reason": "incomplete_child_artifact",
+    }
+    assert checker._terminal_failure_expectation(
+        resource_raw, 1, 1, incomplete_artifact=True,
+    ) == (
         "FAIL", "canonical_producer", "invalid_disposition",
     )
-    assert checker._terminal_failure_expectation(raw, 0, 1) == (
+    assert checker._terminal_failure_expectation(
+        resource_raw, 0, 1, incomplete_artifact=True,
+    ) == (
         "INCOMPLETE", "canonical_producer", "unresolved_disposition",
     )
-    raw = {"failed_phase": "independent_verifier", "failure_reason": "incomplete_child_artifact"}
-    assert checker._terminal_failure_expectation(raw, 0, 0) == (
+    assert checker._terminal_failure_expectation(
+        resource_raw, 0, 0, incomplete_artifact=True,
+    ) == (
         "INCOMPLETE", "independent_verifier", "incomplete_child_artifact",
     )
+
+    def set_terminal_count(run_dir: Path, status: int) -> None:
+        disposition_path = run_dir / "disposition.bin"
+        disposition = bytearray(disposition_path.read_bytes())
+        offset = next(
+            offset
+            for offset in range(0, len(disposition), 10)
+            if disposition[offset] in {4, 5, 6}
+        )
+        disposition[offset] = status
+        _write_bytes(disposition_path, bytes(disposition))
+        candidate_path = run_dir / "candidate-stream.json"
+        candidate = checker.decode_canonical_json(candidate_path.read_bytes())
+        candidate["status_counts"]["rejected"] = 168990 - (status in {5, 6})
+        candidate["status_counts"]["invalid"] = int(status == 5)
+        candidate["status_counts"]["unresolved"] = int(status == 6)
+        _canonical(candidate_path, candidate)
+
+    def write_selected_failure(
+        run_dir: Path,
+        decision: dict,
+        custody: dict,
+        invalid: int,
+        unresolved: int,
+    ) -> dict:
+        reason = (
+            "invalid_disposition" if invalid
+            else "unresolved_disposition" if unresolved
+            else "incomplete_child_artifact"
+        )
+        raw = _replace_success_with_failure(
+            run_dir, decision, custody,
+            "canonical_producer", "incomplete_child_artifact",
+        )
+        raw["invalid_count"] = invalid
+        raw["unresolved_count"] = unresolved
+        raw["failure_reason"] = reason
+        raw["status"] = "FAIL" if invalid else "INCOMPLETE"
+        _canonical(run_dir / "raw-result.json", raw)
+        return raw
+
+    # Canonical-phase resource failure remains representable under each frozen
+    # count-precedence branch when its retained completion chronology fits.
+    with tempfile.TemporaryDirectory() as temporary:
+        _, decision, custody = _committed_decision_fixture(Path(temporary))
+        run_dir = _build_valid_run(decision, custody)
+        control_dir = Path(decision["paths"]["control_dir"])
+        for path in control_dir.iterdir():
+            path.unlink()
+        for status, invalid, unresolved, expected_reason in (
+            (5, 1, 0, "invalid_disposition"),
+            (6, 0, 1, "unresolved_disposition"),
+            (4, 0, 0, "incomplete_child_artifact"),
+        ):
+            set_terminal_count(run_dir, status)
+            raw = write_selected_failure(
+                run_dir, decision, custody, invalid, unresolved,
+            )
+            assert raw["failure_reason"] == expected_reason
+            assert checker.validate_post_run(run_dir, decision, custody) == []
+
+    # A later physical resource failure with invalid disposition state selects
+    # canonical_producer, but retained later completions make that record
+    # impossible; the checker must reject the frozen chronology rather than
+    # erase or relabel those artifacts.
+    with tempfile.TemporaryDirectory() as temporary:
+        _, decision, custody = _committed_decision_fixture(Path(temporary))
+        run_dir = _build_valid_run(decision, custody)
+        set_terminal_count(run_dir, 5)
+        raw = _replace_success_with_failure(
+            run_dir, decision, custody,
+            "independent_verifier", "incomplete_child_artifact",
+        )
+        raw["invalid_count"] = 1
+        raw["failed_phase"] = "canonical_producer"
+        raw["failure_reason"] = "invalid_disposition"
+        raw["status"] = "FAIL"
+        raw["completed_artifacts"] = [
+            record for record in raw["completed_artifacts"]
+            if record["path"] in checker.PRODUCER_PATHS
+        ]
+        raw["terminal_failure_custody"]["control_entries"] = []
+        _write_failure_logs(run_dir, 1)
+        raw["terminal_failure_custody"]["run_entries_before_failure_record"] = [
+            record for record in checker._directory_custody_entries(run_dir)
+            if record["path"] != "raw-result.json"
+        ]
+        _canonical(run_dir / "raw-result.json", raw)
+        errors = checker.validate_post_run(run_dir, decision, custody)
+        assert any(
+            "failure chronology contains later phase" in error
+            for error in errors
+        ), errors
 
 
 def test_post_run_cross_document_validation_and_receipt_attack() -> None:
