@@ -12,6 +12,9 @@ are runtimes and backends declared in `orchestration/providers.yaml`.
     r = resolve(cfg, "research-sol-max", backend="zai")   # legacy alias still resolves
     r.resolved_model_id, r.fallback_used
 """
+from .batch import (BatchEntry, BatchError, BatchResult, DeliveryDecision,
+                    MessageBatch, build_batch_entry, choose_delivery,
+                    delivery_from_handoff)
 from .config import ADAPTER_VERSION, Config, ConfigError, load, validate
 from .manifest import (block_from_env, deterministic_block, inference_block,
                        receipt, write_receipt)
@@ -26,12 +29,14 @@ from .transport import (Completion, Message, Tool, ToolCall, ToolResult,
                         parse_response, render_messages, translate_tools)
 
 __all__ = [
-    "ADAPTER_VERSION", "Attempt", "Completion", "Config", "ConfigError",
+    "ADAPTER_VERSION", "Attempt", "BatchEntry", "BatchError", "BatchResult",
+    "Completion", "Config", "ConfigError", "DeliveryDecision", "MessageBatch",
     "GovernanceError", "Message", "PromptCachePolicy", "Resolution",
     "ResolutionError", "Tool", "ToolCall", "ToolResult", "TransportError",
-    "apply_prompt_cache", "block_from_env", "build_cached_request",
-    "build_request", "cache_efficiency", "cache_write_without_read",
-    "canonical_json", "complete", "deterministic_block", "inference_block",
+    "apply_prompt_cache", "block_from_env", "build_batch_entry",
+    "build_cached_request", "build_request", "cache_efficiency",
+    "cache_write_without_read", "canonical_json", "choose_delivery", "complete",
+    "delivery_from_handoff", "deterministic_block", "inference_block",
     "list_models", "load", "normalize_usage", "parse_response",
     "prompt_cache_key", "receipt", "render_messages", "resolve",
     "resolve_handoff", "translate_tools", "validate", "write_receipt",
