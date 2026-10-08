@@ -233,6 +233,11 @@ Present, in this order:
    changed; every recommendation still needs its normal lifecycle skill and,
    where applicable, Coordinator approval and a ledger archive commit before
    it is official.
+6. **Receipt.** `python3 tools/session_receipt.py --skill deep-research
+   --role <role> --outcome no_change --files-read <n>`
+   (`docs/session-receipts.md`). A synthesis pass is the most expensive
+   read-only wake the program runs; it is the one whose cost most needs a
+   record.
 
 ## Rules
 
