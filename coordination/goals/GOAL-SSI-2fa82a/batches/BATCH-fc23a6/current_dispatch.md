@@ -6,13 +6,11 @@ Run one zero-run public-binding EndRing interface funnel: propose two distinct c
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261008-2464ec` | coordinator | queued | 30 | TASK-20261008-4f85ee | coordination/design/TASK-20261008-46d7e4/composition/TASK-20261008-2464ec/final-composition.yaml | coordination/design/TASK-20261008-46d7e4/composition/TASK-20261008-2464ec |
+| none | - | - | - | - | - | - |
 
 ## Deferred or Blocked
 
-- `TASK-20261008-46d7e4`: dependency_not_completed:TASK-20261008-2464ec:queued
-- `TASK-20261008-cdfe7f`: dependency_not_completed:TASK-20261008-46d7e4:queued
-- `TASK-20261008-fc652a`: dependency_not_completed:TASK-20261008-0eba4e:cancelled, dependency_not_completed:TASK-20261008-a6a7bb:cancelled, dependency_not_completed:TASK-20261008-dd1990:cancelled, dependency_not_completed:TASK-20261008-2464ec:queued, dependency_not_completed:TASK-20261008-46d7e4:queued, dependency_not_completed:TASK-20261008-cdfe7f:queued
+None.
 
 ## Archives verified on CONTENT
 
@@ -27,6 +25,7 @@ contains a record allowed to change after the archive.
 
 - `TASK-20261008-eb1230`: declared content_first binding mode (13 path hashes verified)
 - `TASK-20261008-4f85ee`: declared content_first binding mode (10 path hashes verified)
+- `TASK-20261008-fc652a`: declared content_first binding mode (11 path hashes verified)
 
 ## Dispatch Gates
 
@@ -42,4 +41,4 @@ contains a record allowed to change after the archive.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `28256cf9310fd92809dfd4a5668f973eb64110e16fa069ff74112e3ee018a542`
+Plan SHA-256: `0fad358aa8ea4082b8bc5ac0167500bc8811316fa26519076628862779cf5203`
