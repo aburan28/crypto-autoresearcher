@@ -30,10 +30,16 @@ from .config import Config
 from .resolver import Resolution
 
 
-# Cache controls are provider-specific, not wire-format capabilities. An
-# OpenAI-compatible gateway or local server must not receive first-party cache
-# parameters merely because it speaks the same protocol.
-_CACHE_CAPABLE_BACKENDS = {"anthropic", "openai"}
+# Kept as an alias; the set now lives with the cache policy it gates.
+_CACHE_CAPABLE_BACKENDS = prompt_cache_module.CACHE_CAPABLE_BACKENDS
+
+# Where an AIMessage carries the provider's exact content blocks, so the next
+# turn can replay them unchanged (see `transport.Message.blocks`).
+ANTHROPIC_CONTENT_KEY = "anthropic_content"
+# ...and which backend produced them. Blocks go back only to that backend: a
+# checkpointed run resumed elsewhere must not hand one provider's signed
+# thinking blocks to another, so it falls back to text and tool calls.
+ANTHROPIC_CONTENT_BACKEND_KEY = "anthropic_content_backend"
 
 
 def _text(content: Any) -> str:
@@ -47,7 +53,7 @@ def _text(content: Any) -> str:
     return "" if content is None else str(content)
 
 
-def to_canonical(messages: Sequence[BaseMessage]
+def to_canonical(messages: Sequence[BaseMessage], backend: str | None = None
                  ) -> tuple[str | None, list[transport_module.Message]]:
     """LangChain messages -> (system, canonical turns).
 
@@ -63,12 +69,17 @@ def to_canonical(messages: Sequence[BaseMessage]
         elif isinstance(message, HumanMessage):
             turns.append(transport_module.Message("user", _text(message.content)))
         elif isinstance(message, AIMessage):
+            extra = message.additional_kwargs or {}
+            blocks = extra.get(ANTHROPIC_CONTENT_KEY)
+            if backend is not None and extra.get(ANTHROPIC_CONTENT_BACKEND_KEY) != backend:
+                blocks = None
             turns.append(transport_module.Message(
                 "assistant", _text(message.content),
                 tool_calls=[transport_module.ToolCall(
                     id=call.get("id") or "", name=call.get("name") or "",
                     arguments=call.get("args") or {})
-                    for call in (message.tool_calls or [])]))
+                    for call in (message.tool_calls or [])],
+                blocks=list(blocks) if blocks else None))
         elif isinstance(message, ToolMessage):
             result = transport_module.ToolResult(
                 id=message.tool_call_id, name=getattr(message, "name", "") or "",
@@ -135,35 +146,18 @@ class ResolvedChatModel(BaseChatModel):
                   stop: list[str] | None = None,
                   run_manager: CallbackManagerForLLMRun | None = None,
                   **kwargs: Any) -> ChatResult:
-        system, turns = to_canonical(messages)
+        system, turns = to_canonical(messages, backend=self.resolution.backend)
         tools = kwargs.get("tools")
         max_tokens = kwargs.get("max_tokens", self.max_tokens)
 
-        if self.resolution.backend in _CACHE_CAPABLE_BACKENDS:
-            # Use the shared transport primitives, but attach first-party cache
-            # controls before POSTing. The key is content-addressed over the
-            # stable system/tool prefix, so task-specific messages do not bust it.
-            url, headers, body = prompt_cache_module.build_cached_request(
-                self.adapter_config, self.resolution,
-                system=system, messages=turns, max_tokens=max_tokens,
-                tools=tools, cache_policy=prompt_cache_module.PromptCachePolicy(),
-                env=self.request_env)
-            defaults = self.adapter_config.providers.get("defaults", {})
-            started = transport_module.time.time()
-            payload = transport_module.post_json(
-                self.adapter_config, url, headers, body,
-                timeout=float(defaults.get("request_timeout_seconds", 600)),
-                max_retries=int(defaults.get("max_retries", 3)),
-                opener=self.opener)
-            completion = transport_module.parse_response(self.resolution.wire, payload)
-            completion = prompt_cache_module.attach_cache_usage(
-                completion, self.resolution.wire, payload)
-            completion.latency_seconds = round(transport_module.time.time() - started, 3)
-        else:
-            completion = transport_module.complete(
-                self.adapter_config, self.resolution,
-                system=system, messages=turns, max_tokens=max_tokens,
-                tools=tools, env=self.request_env, opener=self.opener)
+        # The stable prefix holds a 1-hour entry and the transcript is cached
+        # turn by turn, so a long tool loop pays full price only for what each
+        # turn adds. Backends outside CACHE_CAPABLE_BACKENDS get a plain call.
+        completion = prompt_cache_module.cached_complete(
+            self.adapter_config, self.resolution,
+            system=system, messages=turns, max_tokens=max_tokens, tools=tools,
+            cache_policy=prompt_cache_module.AGENT_LOOP_CACHE,
+            env=self.request_env, opener=self.opener)
 
         self.completions.append(completion)
         if self.on_completion is not None:
@@ -173,8 +167,13 @@ class ResolvedChatModel(BaseChatModel):
 
     def _to_ai_message(self, completion: transport_module.Completion) -> AIMessage:
         usage = completion.usage or {}
+        extra = ({ANTHROPIC_CONTENT_KEY: completion.content_blocks,
+                  ANTHROPIC_CONTENT_BACKEND_KEY: self.resolution.backend}
+                 if self.resolution.wire == "anthropic_messages"
+                 and completion.content_blocks else {})
         return AIMessage(
             content=completion.text,
+            additional_kwargs=extra,
             tool_calls=[{"name": call.name, "args": call.arguments,
                          "id": call.id, "type": "tool_call"}
                         for call in completion.tool_calls],
