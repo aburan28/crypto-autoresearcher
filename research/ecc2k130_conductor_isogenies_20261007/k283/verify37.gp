@@ -21,6 +21,9 @@ must(ok, msg) =
 };
 
 must(D == -20158663, Str("wrong order discriminant: ", D));
+must(isprime(F), "1697 is not prime");
+must(kronecker(-7, F) == -1,
+  "1697 is not inert in the maximal order of Q(sqrt(-7))");
 must(polisirreducible(Mod(1,2)*MOD),
   "the NIST degree-283 field polynomial is not irreducible");
 
@@ -141,7 +144,7 @@ must(#EXPECTED_B == EXPECTED_FLOOR,
 must(#Set(EXPECTED_B) == EXPECTED_FLOOR,
   "reconstructed CM roots are not distinct");
 must(Set(EXPECTED_B) == ALL,
-  "census b-values differ from the independently reconstructed CM root set");
+  "census b-values differ from the separately reconstructed CM root set");
 
 \\ Check every model against the standardized group order.
 BAD_ORDERS = 0;
