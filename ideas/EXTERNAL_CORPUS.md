@@ -164,9 +164,14 @@ state.
   transient storage, sentinel checks, and all failed gates are retained. An
   audit then replaced inherited harness-only target-scalar seeding with one
   canonical public target-point derivation; all gates passed, with 3.66% more
-  validations. An eight-salt robustness ensemble remains frozen and unrun.
-  These are compact-hash representation measurements of signed/shifted BSGS,
-  not a new ECDLP exponent. Source:
+  validations. All eight preregistered public salts completed by seed 6, and a
+  six-equation held-out rerun completed by seed 8. At orders through 524,053,
+  recovery and exposure-normalized reads retained their gates, but absolute
+  validations rose to 314,428--331,137 and failed the frozen bound. A sealed
+  nine-curve decomposition measured validation slopes 0.4365--0.4632 and read
+  slopes 0.4658--0.4961. A three-bit octal sentinel follow-up is frozen and
+  unrun. These are compact-hash representation measurements of signed/shifted
+  BSGS, not a new ECDLP exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested

@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then thirty-one structured addition, collision-sketch, validation-cost, representative-table, state-reuse, and data-flow measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed audit removed inherited harness-only target-scalar metadata and passed for one frozen derivation; an eight-salt robustness run remains queued.
+- Bottom line: five earlier frozen successors failed their gates, then thirty-five structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed audit removed inherited harness-only target-scalar metadata; eight-salt and held-out-equation runs passed their frozen gates. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -173,9 +173,25 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `public_target_seed_audit_lab.py` | `9c7c97e2bde3857ad8fb157385b01fefe952fb827a69ef44f2ccb8844a035719` |
 | `tests/test_public_target_seed_audit_lab.py` | `12eb5df399d5e450d3895a7c7b11ce131db6bd8c61a8f1b7194feb3c1a24585e` |
 | `results/public-target-seed-audit.json` | `fe0531d3c618d9a54d525b91daf2c7760d03fed2d9cb347d2d8acaf4ba56ff68` |
-| public-seed salt-robustness freeze commit | `ea1e699` |
+| public-seed salt-robustness freeze/implementation/result commits | `ea1e699`, `2f74750`, `b501f32` |
+| `public_seed_salt_robustness_lab.py` | `f471fb4bfa56c52889e818560db56d405744cc235df8aae3e0e0e1bae844765b` |
+| `tests/test_public_seed_salt_robustness_lab.py` | `ae11d4ea1b1341f459dee8f28eec90f38162b66512077c0ffa85a017ff81ef75` |
+| `results/public-seed-salt-robustness.json` | `1e83c74f9bfa134e5065ff6ed5427e43fb7d308d6d47f6adda679d898e3fd060` |
+| held-out transfer freeze/implementation/result commits | `b501f32`, `f6598c1`, `0e4588a` |
+| `heldout_curve_salt_transfer_lab.py` | `e0f052d0924df811b3ddfded1c1fbe3a63afb644ceae44fa90e84fd619f67685` |
+| `tests/test_heldout_curve_salt_transfer_lab.py` | `de3ae8990b6e2040d03898eaa665a6ef49b61083c2b43acceb6742b115d3063d` |
+| `results/heldout-curve-salt-transfer.json` | `9dc60bb06c9d79859c48154d016f6105274fd30e673854df1bd2dc9d1cb96713` |
+| larger-order scaling freeze/implementation/result commits | `0e4588a`, `357d191`, `4b3a2c8` |
+| `larger_order_public_salt_scaling_lab.py` | `d0df75995964a8733cd8285bb433ee3a02eabaf97c6bb618dc3a327fae9fa900` |
+| `tests/test_larger_order_public_salt_scaling_lab.py` | `fb6112e7a389b67be3d96a4baa4c18406a0f53f5577684b8e2613ca70cf3b3a9` |
+| `results/larger-order-public-salt-scaling.json` | `a67d6aeda48667602ac236813a29a438cc4cd3c509b7c0be7c013f10f06b83d0` |
+| scaling-decomposition freeze/implementation/result commits | `4b3a2c8`, `6608b09`, `36d3762` |
+| `public_salt_scaling_decomposition_lab.py` | `2bbeac0332c0d8593f79d275281981567304933e013fbe3f6902aa2f0fd5956b` |
+| `tests/test_public_salt_scaling_decomposition_lab.py` | `c11b599dcbbc8bd5e97eea45a63028e3a64c21241d66fe213e62a7f62255fd67` |
+| `results/public-salt-scaling-decomposition.json` | `0c766b526095a24d02344006cf66a2ef677f08cce9ba93f5f773475c30d88e28` |
+| octal-sentinel fingerprint freeze commit | `36d3762` |
 
-All thirty-seven result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 148/148 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
+All forty-one result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 163/163 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -715,12 +731,40 @@ inversion-bearing operations. Combined query reads remained 1.76% below H39.
 This establishes one frozen public deterministic instance, not seed-family
 robustness or a new ECDLP exponent.
 
+## H45--H48 — public-seed robustness and scaling
+
+H45 ran all eight preregistered public domain salts over the 3,072-target H44
+workload. Every gate passed: prefix-1 recovery ranged 2,519--2,558, prefix-2
+recovery 2,970--2,990, and every salt completed by seed 6. Completed
+validations ranged 80,658--86,755 and combined reads 278,015--299,526, with
+zero scalar reads or safety failures.
+
+H46 replaced the repeatedly optimized equations with six deterministically
+selected held-out prime-order equations over the same fields. Every gate again
+passed. Six salts completed by seed 6 and two by seed 8; completed validations
+ranged 82,451--87,228 and reads 282,379--300,719. Independent point counts and
+full-orbit certificates matched every declared order.
+
+H47 raised the orders to 131,113, 262,111, and 524,053 while preserving 3,072
+targets per salt. All salts completed by seed 6; public, safety, seed-count,
+and exposure-normalized-read gates passed. The primary gate failed because
+absolute validations rose to 314,428--331,137 versus the frozen 104,673 bound.
+Raw reads rose to 1,157,915--1,221,100 as giant-step exposure increased
+4.2021-fold, while normalized reads stayed below the frozen ceiling.
+
+H48 retained that failed gate and analyzed all 72 salt/curve rows from H46 and
+H47. Validation-per-target slopes were 0.4365--0.4632 with `R^2` at least
+0.9963 and exposure-normalized CV 0.069--0.130. Combined-read slopes were
+0.4658--0.4961 with CV 0.027--0.077. All frozen H48 gates passed. These are
+finite-range measurements of the same square-root decoder, not an exponent
+improvement.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- an eight-salt public seed-robustness ensemble that preserves H44's data-flow
-  audit and measures recovery/work variation without choosing a salt after
-  inspection (H45, frozen in `ea1e699`).
+- a same-cap three-bit octal sentinel fingerprint on H47's workload, comparing
+  each salt with its sealed quaternary reference while charging the smaller
+  table and all reads/construction (H49, frozen in `36d3762`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
