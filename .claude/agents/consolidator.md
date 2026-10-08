@@ -7,7 +7,10 @@ description: >-
   budget another lane already spent. Carries pointers, never findings. Changes
   no research state and assigns no work.
 tools: Read, Grep, Glob, Bash, SendMessage
-model: inherit
+model: claude-sonnet-5-5
+# Pinned, not inherited: roles.yaml runtime_model_pins -> consolidator
+# -> model-bindings.yaml anthropic binding of consolidation-routing. Edit the binding, never
+# this line; tools/check_runtime_bindings.py fails the build when they disagree.
 # Derived from roles.yaml -> default_policy: consolidation-routing ->
 # reasoning_effort. Deciding WHICH of two hundred messages a peer actually
 # needs is selection, not transcription, and a pass that carries everything is
