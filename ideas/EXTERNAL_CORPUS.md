@@ -26,7 +26,7 @@ Screening is a Coordinator-run operation, not a file copy.
 | External source | What it holds | Relevance here |
 |---|---|---|
 | `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md` | Six coordinate/orbit alternatives with toy measurements on seven ordinary prime-order groups and two anomalous controls | **Screened external packet.** Five mechanisms map to existing records or known results; the carry-ranked binary branch score is a distinct tested variant with no stable control advantage. H3's matched-random result directly bears on ECDLP-IDEA-110. No IDs allocated. |
-| `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md` | Frozen ECDLP mechanism follow-ups from p-adic cocycles through validation-backed x-coordinate sketches | **Screened external mixed results.** Early cocycle/beam/coordinate successors failed their gates; exact rational-addition structure led back to signed/shifted BSGS. Later capped sketches and nonlinear x fingerprints measured time-memory-validation frontiers on toy curves, including complete recovery, but no new exponent. No IDs allocated. |
+| `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md` | Frozen ECDLP mechanism follow-ups from p-adic cocycles through compact representative tables | **Screened external mixed results.** Early cocycle/beam/coordinate successors failed their gates; exact rational-addition structure led back to signed/shifted BSGS. Later capped sketches, nonlinear fingerprints, stopping rules, and minimum-ticket representatives measured time-memory-validation frontiers on toy curves, including complete recovery, but no new exponent. No IDs allocated. |
 | `ECDLP_MECHANISM_CATALOG.md` | ~111 prime-field mechanisms mined from an external corpus, mapped to R6 / K1 / K2 / Defect-B / CM cells | **Largest unscreened input.** Candidate generation + dedup screening against IDs 001-410 |
 | `LIT_REVIEW_PRIME_FIELD_ECDLP.md` | 23-paper review, 8 field cards, dedup tags | Literature cross-check for `knowledge/literature`; names three untouched gaps: syzygies/Betti, singular loci of the Semaev ideal/variety, and Yokoyama semi-normality (flagged there as the top F_p test) |
 | `ISOGENY_SEMAEV_REVIEW.md`, `isogeny-semaev/` | Four-channel isogeny x Semaev sweep, alpha-stable factor bases, GLV/CM orbit folding, scaling study | Verdict recorded below|
@@ -138,6 +138,19 @@ state.
   nonmonotone across prefixes and failed its strict every-prefix gate. These
   are toy time-memory-arithmetic frontiers of the same signed/shifted collision
   mechanism, not evidence of a new ECDLP exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Early stopping and compact representatives improve the measured constants,
+  not the collision exponent.** First-success stopping cut the prior full-scan
+  charges to 3.46%--4.46%. Deliberately nonuniform occupancy then reduced
+  average constructed seeds from 12.21 to 4.70. Minimum-ticket representatives
+  reduced this to 1.95, and a two-field selected-x/label layout to 1.49 while
+  completing all 3,072 targets by eight seeds under the quarter-H20 cap. A
+  two-choice cuckoo layout raised retention to 47.98% and improved early
+  recovery, but did not improve the eight-seed completion prefix; bucket reads
+  rose 76.22% and its strict gate failed. One invalid shuffled-control run is
+  retained alongside the corrected reproduction. These are min-wise/cuckoo
+  time-memory variants of signed/shifted BSGS, with no claimed new primitive or
+  ECDLP exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested

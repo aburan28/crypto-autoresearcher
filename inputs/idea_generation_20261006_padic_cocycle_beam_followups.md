@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then nineteen structured addition, collision-sketch, and validation-cost measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later three-element x-coordinate fingerprints reached complete recovery under the frozen toy workload and reduced charged validation work, but retained repeated square-root passes and large field-arithmetic costs rather than establishing a new exponent.
+- Bottom line: five earlier frozen successors failed their gates, then twenty-four structured addition, collision-sketch, validation-cost, and representative-table measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping and compact minimum-ticket representatives substantially reduced repeated toy construction/query work, but remained square-root collision-table time-memory variants rather than establishing a new exponent.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -124,8 +124,29 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `validation_scalar_paths_lab.py` | `d6538ae7677b65d48bdccf2043d9a4caf0b63608de4339fd3c0812a69ed02b05` |
 | `tests/test_validation_scalar_paths_lab.py` | `7e11ac12f7ba1395131837c1f20271e9875f5528fa397a91a9b3bec3689596f4` |
 | `results/validation-scalar-operation-paths.json` | `388d6027e73382cf6010c7c86e4f0088fd6bf02e9294d2cc5a3f69cdad3f13ed` |
+| first-success freeze/implementation/result commits | `ee20e7c`, `cb68727`, `b02cc11` |
+| `first_success_stopping_lab.py` | `a90bb4e575182a5477f85224a40f5e7a7b5f782eeb04319bf44a525a209ea6bb` |
+| `tests/test_first_success_stopping_lab.py` | `016d4e9cb9d6abe96aca505361f315541f50efc7ab624749f454f7a3e503847a` |
+| `results/first-success-sequential-stopping.json` | `2b8183bba1ed52fe599b5ed392c0f25010202911c3e93bf2aa144abb5120f252` |
+| sacrificial-occupancy freeze/implementation/control-fix/result commits | `b02cc11`, `a9ab751`, `51316c7`, `819d83a` |
+| `sacrificial_bucket_lab.py` | `5799d34bc640ec96a68da3fa4ee47bc9747de4eae81eeab36e0be9754e5e68dc` |
+| `tests/test_sacrificial_bucket_lab.py` | `f58b09a33aaf6e2f6a02fde1c88407af1e28183914f2e82f542f55b8f8b48b50` |
+| `results/sacrificial-bucket-occupancy-invalid-control-seed.json` | `a2feac33ec20bf15f4bf736760861687e2998d049e0aacdcb1234c97ceb07b7f` |
+| `results/sacrificial-bucket-occupancy.json` | `638735702726ac9ac26c67a1d4fd0e9a3066b1b84dc79e3610ad02aa77ae0e39` |
+| minimum-ticket freeze/implementation/result commits | `819d83a`, `a09ecd1`, `182076e` |
+| `minimum_ticket_representative_lab.py` | `c7b093d55b55c71d7612f953305b9b28caf25e94da2436608381332bf00dbf0a` |
+| `tests/test_minimum_ticket_representative_lab.py` | `844d5fa01556edaacc9335656ff9507c017d924c987fb6debec592025a34e9b0` |
+| `results/minimum-ticket-representatives.json` | `7f42ce8a0ddf43fd2e7f72039e51c1feefe73f48219b0f9d91cf694ba371e4ec` |
+| two-element freeze/implementation/result commits | `182076e`, `037946e`, `2870603` |
+| `two_element_representative_lab.py` | `2c4ebd18750facd7a21cd97df06e754802a67961b6a103e0ba197cdf1484afbd` |
+| `tests/test_two_element_representative_lab.py` | `ee622f8ec853b9d8701ae5bf7816582debe27a4725ee5e6a2663272183e35c18` |
+| `results/two-element-representatives.json` | `8d38e3891937cce7daee731d25346a940e7298bafe332f8eba2f277a9904a1f8` |
+| two-choice freeze/implementation/result commits | `2870603`, `1642256`, `3db1087` |
+| `two_choice_cuckoo_lab.py` | `c0253165fe1fea2eb6fbb0f68bf8ceb423bc1da09260086a5aac4e95710f88a8` |
+| `tests/test_two_choice_cuckoo_lab.py` | `3963092bd671b436c7822044c68b539a07b44c415efaa5f2447d5e263d4ab8c6` |
+| `results/two-choice-cuckoo-representatives.json` | `2d5ac59174cb076d1a56191008f3b5ff14e137534cf2e51fd415f3115575fef9` |
 
-All twenty-four result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 94/94 tests. These are provenance statements, not repository run receipts.
+All thirty result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 115/115 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -531,11 +552,72 @@ four-seed prefix, so the frozen every-prefix gate failed. This is exact
 operation accounting for the originating implementation, not a universal
 scalar-multiplication cost model.
 
+## H33 — first-success sequential stopping
+
+The H32 construction was rerun with target-level and within-seed stopping at
+the first publicly validated candidate. Both coefficient arms exactly
+reproduced every recovery row. At 256 seeds, `x^2+2x` used 4,456,462 inserts,
+4,191,667 probes, 4,969 validations, and 88,190 inversion-bearing operations:
+3.46%--4.46% of the prior full-scan charges. Average construction was 12.21
+seeds per target. The `d=2` every-prefix comparison with `d=1` still failed at
+four seeds, so the nonmonotone coefficient outcome is retained.
+
+## H34 — sacrificial-bucket occupancy
+
+A public nonuniform map routed most translated points to one heavy bucket while
+holding the remaining buckets near expected load one. The corrected uniform
+arm reproduced H33 exactly. Useful-singleton opportunity rose from 4.33% to
+11.50%, close to its 11.57% prediction. Recovery was 648 versus 252 at one
+seed and 1,884 versus 882 at four; complete recovery moved from 256 to 64
+seeds. Final inserts/probes fell 59.56%/62.52% and average seeds fell from
+12.21 to 4.70.
+
+The first full payload is preserved separately because the harness duplicated
+the second shuffled-control seed offset. Attack outcomes were unchanged, but
+the frozen reproduction gate failed. The corrected code expanded the baseline
+test to both controls, passed 101 tests, and reproduced byte-for-byte. This is
+an externally preserved harness failure, not evidence to discard an
+unfavorable control.
+
+## H35 — minimum-ticket representatives
+
+Each bucket retained the minimum-ticket x coordinate, its multiplicity, and
+label sum in the same three stored elements. Exact x comparison made the
+representative publicly queryable. Observed distinct-x retention was 30.80%,
+matching the 30.82% prediction. Recovery rose from 648 to 1,577 at one seed
+and from 1,884 to 2,896 at four; completion moved from 64 to 16 seeds. At
+complete recovery, examinations/probes fell 58.17%/66.14%, average seeds fell
+from 4.70 to 1.95, and false fingerprint passes plus fingerprint field
+arithmetic disappeared.
+
+## H36 — two-element packed representatives
+
+Dropping multiplicity and retaining only selected x plus one label expanded
+the cell count under the same quarter-H20 peak allocation. Equal-ticket
+arrivals kept the existing label; complete lifts and both signs recovered all
+13 former pair-path successes as singleton validations. Observed retention
+rose to 42.63%, close to its 42.59% prediction. Recovery was 2,084/3,072 after
+one seed and complete by eight rather than 16. Examinations/probes fell another
+23.97%/35.52%, while validations and inversion-bearing operations rose
+0.56%/0.58%; the regression is retained as part of the cost frontier.
+
+## H37 — two-choice cuckoo representatives
+
+Two candidate cells and deterministic augmenting-path placement raised
+retention from 42.63% to 47.98%, near the 48.79% cell-capacity upper bound.
+Recovery improved at one, two, and four seeds, and complete-recovery
+examinations fell 5.92%. However, both one- and two-choice arms first completed
+at eight seeds, so the strict primary gate failed. Bucket reads increased
+76.22%; construction used 4.33 million edge visits and 4.07 million occupied-
+cell displacement attempts. This is a mixed time-memory-lookup trade, not a
+new ECDLP algorithm or exponent.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- first-success sequential stopping for `d=1` and `d=2`, with work charged
-  only until the first accepted candidate (H33, frozen in `ee20e7c`).
+- a one-field label-only table with an exactly charged two-bit construction
+  state map, two-pass x-to-label transition, sign-complete lifts, and public
+  validation of every emitted scalar (H38, frozen in `3db1087`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
