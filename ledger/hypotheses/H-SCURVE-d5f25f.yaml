@@ -1,0 +1,112 @@
+hypothesis:
+  id: H-SCURVE-d5f25f
+  question_id: RQ-SCURVE-df94be
+  source_idea: IDEA-20261006-c5b972
+  experiment_id: EXP-SCURVE-29040c
+  specified_at: '2026-10-06'
+  status: approved
+  proposed_by: coordinator
+  approved_by_decision: DEC-20261006-af8214
+  title: An unchecked P-192 low-level multiplier permits x-only singular-companion planted-key recovery
+  statement: >-
+    For the fixed public synthetic scalar derived by the frozen KDF, a native
+    low-level P-192 scalar_mul_secret path that accepts R=(66,536) and related
+    unchecked points from y^2=x^3-3x-2 will produce x-derived confirmation tags
+    sufficient to recover the coherent class plus-or-minus d modulo
+    M=93297598515282145091939986791922449178951680. The legitimate public key
+    Q=[d]G then permits a two-orientation interval BSGS of width at most
+    qmax=67280421310721, and the recovered d will satisfy [d]G=Q exactly.
+  mechanism: >-
+    The companion factors as (x+1)^2(x-2) and has a nonsplit nodal smooth locus
+    of order p+1. The multiplier's formulas depend on a=-3 but not b. X-only
+    tags identify sign pairs, so adaptive composite probes link the 64 binary
+    lifts and eight smaller odd factors into one global plus-or-minus class.
+    The omitted qmax component is solved only from the legitimate P-192 key.
+  assumptions:
+    - The tested low-level path performs no on-curve validation before scalar multiplication.
+    - The confirmation surface depends deterministically only on the 32-byte big-endian padded output x-coordinate.
+    - The planted scalar lies in [1,n-1] and Q is the corresponding legitimate P-192 public key.
+    - Native exact arithmetic verifies every factor, point order, and replay.
+  proof_search_map:
+    bottleneck: Reconcile x-coordinate sign ambiguity without granting a full-point oracle, then solve the one omitted factor from Q.
+    baseline_embedding:
+      parameter_slice: Raw/full-point Pohlig-Hellman on the same singular smooth locus.
+      reproduction_check: Run it only as a labeled stronger positive model and compare its residues with the x-only class.
+    observation_collision:
+      observable: Confirmation tag of the 32-byte padded x-coordinate.
+      distinct_preimage_search: P and -P collide by construction; composite probes must rule out independently chosen factor signs.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: One coherent plus-or-minus residue class modulo M.
+        predicted_gain: Reduces the legitimate-curve residual interval to at most qmax for two orientations.
+    quantifier_order: >-
+      Fix curve parameters, seed/KDF, oracle/tag format, points, factors, and
+      query schedule first; derive d and Q; recover residues; then test exactly
+      the two global orientations and accept only an exact legitimate replay.
+    method_ceiling:
+      strongest_certifiable_claim: One fixed native implementation exposes an implementation-level planted-key recovery.
+      nearby_object_control: The validated high-level ECDH API must reject the same invalid input.
+    proof_obligations:
+      - claim: R is off P-192 and has exact order p+1 on the singular smooth locus.
+        responsibility: correctness
+      - claim: X-only adaptive probes recover only the coherent class plus-or-minus d modulo M.
+        responsibility: interface
+      - claim: The BSGS interval bound is at most qmax and all work/memory is counted.
+        responsibility: runtime
+      - claim: The final scalar is unique in [1,n-1] and satisfies [d]G=Q.
+        responsibility: correctness
+      - claim: The conclusion is implementation weakness, not isogeny weakness.
+        responsibility: scope
+    not_applicable_reason: null
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients:
+    - description: Degenerate invalid-curve attacks can use singular group structures.
+      citation: KN-LIT-3372
+      provenance: kb
+      verified_by: coordinator read internal literature note 2026-10-06
+      role: mechanism precedent
+  reduction_chain:
+    core_problem: Fixed synthetic scalar recovery from the tested unchecked interface.
+    corollaries: []
+  predictions:
+    - metric: coherent_residue_modulus
+      direction: different
+      minimum_effect: M=93297598515282145091939986791922449178951680, with only global sign ambiguity.
+    - metric: bsgs_baby_table_entries
+      direction: lower
+      minimum_effect: At most 5,800,018 finite entries plus the Infinity special case, shared across both orientations.
+    - metric: final_replay
+      direction: different
+      minimum_effect: One exact equality [d]G=Q for the KDF-derived d.
+  test_boundary:
+    instances:
+      - one fixed public P-192 synthetic key
+      - p=59 exhaustive singular toy
+      - raw/full-point model control
+    parameters:
+      qmax: '67280421310721'
+      M: '93297598515282145091939986791922449178951680'
+      binary_lifts: 64
+      smaller_odd_factors: [3, 5, 17, 257, 641, 65537, 274177, 6700417]
+      global_orientations: 2
+    implementation: Native Rust only, using the actual low-level scalar multiplication path for the primary oracle.
+    budget:
+      maximum_runs: 1
+      maximum_memory_gb: 16
+      maximum_workers: 1
+  falsification_conditions:
+    - Exact order or factor certificates fail.
+    - The primary x-only transcript does not recover one coherent plus-or-minus class modulo M.
+    - Both legitimate-key residual searches fail exact replay.
+    - The high-level rejection negative control accepts the singular input.
+  interpretation_limits:
+    - Maximum label IMPLEMENTATION_WEAK; no valid-isogeny conclusion.
+    - Fixed public synthetic key only.
+    - Wall time and this BSGS engineering point are not universal exploit estimates.
+  dominated_by: No valid-curve algorithm is claimed; ordinary generic attacks dominate when validation is enforced.
+  sota_delta:
+    time: No valid-curve ECDLP exponent change.
+    memory: One measured shared BSGS table of at most 8,202,465 entries.
+    data_queries: Exact primary confirmation-query count must be reported.
