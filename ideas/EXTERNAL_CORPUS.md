@@ -178,7 +178,13 @@ state.
   read gates. Jointly selecting the existing sentinel as the public stream
   offset removed that loss: all eight salts completed by seed 6, validations
   and operations were 56.55%--59.17% and 56.37%--58.96% of the matched six-bit
-  arm, and reads were exactly unchanged. A held-out paired transfer is frozen
+  arm, and reads were exactly unchanged. Its held-out transfer preserved
+  correctness, recovery, layout, and reads but missed completion, validation,
+  and operation gates. Packing the label field's full unused radix with an
+  independently mixed public tag then passed every held-out and scaling gate.
+  On six 2K--64K curves it used 41.08%--43.16% of paired six-bit validations;
+  on 128K--512K curves that fell to 15.60%--16.88%, with exact reads and
+  recovery and 361--723 tag states. A cheaper coordinate-residue tag is frozen
   and unrun. These are compact-hash representation measurements of
   signed/shifted BSGS, not a new ECDLP exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
