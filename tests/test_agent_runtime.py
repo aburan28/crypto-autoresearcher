@@ -544,3 +544,51 @@ def test_model_supplied_string_json_array_command_is_coerced(scope, journal):
     journal.entries.clear()
     assert "ERROR" not in runner.invoke({"command": ["ls"]})
     assert not any(e.get("coerced_from") for e in journal.entries)
+
+
+def test_tool_loop_replays_thinking_verbatim_and_caches_the_transcript(cfg, scope,
+                                                                       journal):
+    """Claude 5 thinks on every turn; its blocks must go back unchanged.
+
+    Stripping them can 400 a tool turn and makes the model re-plan, and a
+    replay that differs from what the model produced can never hit the cache.
+    """
+    thinking = {"type": "thinking", "thinking": "", "signature": "sig-abc"}
+    first = anthropic_tool_use("write_file",
+                               {"path": "coordination/tasks/TASK-1/out.md",
+                                "content": "done"})
+    first["content"].insert(0, thinking)
+    model = _model(cfg, [first, anthropic_text("wrote it")])
+    tools = build_tools(scope, journal, ["write_file"])
+    agent = graph_module.build_agent(model, tools, max_steps=5)
+    from langchain_core.messages import SystemMessage
+    state = agent.invoke({"messages": [SystemMessage("ROLE CONTRACT"),
+                                       HumanMessage("go")],
+                          "steps": 0, "stop_reason": None})
+    assert graph_module.final_stop_reason(state) == "completed"
+
+    sent = model.opener.sent
+    assert len(sent) == 2
+    replayed = sent[1]["messages"][1]
+    assert replayed == {"role": "assistant", "content": first["content"]}
+    # the stable prefix holds a 1-hour entry; the transcript is cached per turn
+    for body in sent:
+        assert body["system"][0]["cache_control"]["ttl"] == "1h"
+        assert body["cache_control"] == {"type": "ephemeral", "ttl": "5m"}
+    # the second request's prefix is the first request plus what was appended
+    assert sent[1]["messages"][:1] == sent[0]["messages"]
+
+
+def test_signed_blocks_are_not_replayed_to_a_different_backend():
+    blocks = [{"type": "thinking", "thinking": "", "signature": "sig"},
+              {"type": "text", "text": "hi"}]
+    ai = AIMessage(content="hi", additional_kwargs={
+        langchain_model.ANTHROPIC_CONTENT_KEY: blocks,
+        langchain_model.ANTHROPIC_CONTENT_BACKEND_KEY: "anthropic"})
+    _, same = langchain_model.to_canonical([HumanMessage("q"), ai], backend="anthropic")
+    _, other = langchain_model.to_canonical([HumanMessage("q"), ai],
+                                            backend="zai-anthropic")
+    assert same[1].blocks == blocks
+    assert other[1].blocks is None and other[1].content == "hi"
+    rendered = transport.render_messages(other, "anthropic_messages")
+    assert rendered[1] == {"role": "assistant", "content": "hi"}
