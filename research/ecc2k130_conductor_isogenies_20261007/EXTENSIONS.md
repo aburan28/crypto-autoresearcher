@@ -207,7 +207,20 @@ different Galois orbit from b″ (835 s). Both level checks repeat: its 45641-pa
 cyclic, 4/4 samples each (`lvl163_c.out`), and its 11-cycle has length **82152** (`cyc163_level2c.out`).
 *Measured; independently verified.*
 
-**Status.** b″ and b‴ are on the level of conductor 45641·82153, two steps below the
+**Four more level-2 curves (`run_four.sh`, `down163_s1..4`).** Each starts from a *different* 45641-floor curve
+(representatives #2–#5 of `analogues/iso163_45641.txt`) with its own PARI seed, and makes one 82153-descent
+(828–1019 s each). Every image has a₂ = 1, #E = N and a Galois orbit of 163, and passes both level checks.
+
+| run | start b′ (45641-floor) | seed | image b (level 45641·82153) | 11-cycle | 45641-, 82153-part |
+|---|---|---|---|---|---|
+| 1 | #2: 1699056145793825809974781818934579013935268431 | 11 | 58695590472440980675481896156556688905461755377 | 82152 | ℓ′², ℓ′² (4/4 each) |
+| 2 | #3: 71177121262957429327531167482112665894165601519 | 12 | 7694002023826588667080886127544181075275864551 | 82152 | ℓ′², ℓ′² (4/4 each) |
+| 3 | #4: 86418753047285346854356540661746105839786105877 | 13 | 66149347506823131946397494488931842230026067575 | 82152 | ℓ′², ℓ′² (4/4 each) |
+| 4 | #5: 41105051057298702718687969060611106606052833369 | 14 | 135951262621428062693975966375761026409223543597 | 82152 | ℓ′², ℓ′² (4/4 each) |
+
+All six level-2 curves found (b″, b‴ and these four) are in distinct Galois orbits. *Measured; independently verified.*
+
+**Status.** All six curves are on the level of conductor 45641·82153, two steps below the
 NIST K-163 crater, with h = 45640·82152 ≈ 3.7·10⁹ curves (23,002,560 Galois orbits). The two
 level checks are independent of each other (torsion structure over F_2^3260 and F_2^10269; the
 horizontal 11-cycle over F_2^163) and agree. *Measured; independently verified.*
