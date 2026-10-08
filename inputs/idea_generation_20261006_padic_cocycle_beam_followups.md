@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then thirty-six structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. A three-bit same-cap fingerprint then halved validations and group operations while retaining completion by seed 6.
+- Bottom line: five earlier frozen successors failed their gates, then forty-three structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. Fingerprint widening through six bits repeatedly cut validation and operation work. A joint sentinel/stream-offset construction then carried one more bit in the stored label rank without changing the six-bit table layout or reads; its held-out paired transfer remains unrun.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -193,9 +193,37 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `octal_sentinel_fingerprint_lab.py` | `e144171153302467ba6e11afc2c5d93a22c1a4c5e1ad1623a32abb7576b59452` |
 | `tests/test_octal_sentinel_fingerprint_lab.py` | `aeb1d2b1240e4f7e48c4531fa9dbf7927ab394ed30218e8dc72639b1f1c4726d` |
 | `results/octal-sentinel-fingerprint.json` | `3cddb41e91769d2cdb973dcdb9b1da10ee340e3ab53293eff89de9117ad9d3c3` |
-| four-bit sentinel fingerprint freeze commit | `404a18c` |
+| four-bit sentinel fingerprint freeze/implementation/result commits | `404a18c`, `77e09a3`, `1492b05` |
+| `hex_sentinel_fingerprint_lab.py` | `2205c06c150cfe60b6e23b43d707a78adbf3caed0cdaffa6ea530612d60bf858` |
+| `tests/test_hex_sentinel_fingerprint_lab.py` | `ca2e211fb619385753775a3040aaf9add278e93426416ce2a0237131d5468095` |
+| `results/hex-sentinel-fingerprint.json` | `4f902df7d70e2f137edc2070514f6de28a2cb0549c6ae1a767010d8805d9d4ca` |
+| five-bit sentinel fingerprint freeze/implementation/result commits | `1492b05`, `6bf6e82`, `8265795` |
+| `five_bit_sentinel_fingerprint_lab.py` | `8b5fb00a35a895de5e298a8609c379c4c34ae36b5533de85ece2d01c203f8ee3` |
+| `tests/test_five_bit_sentinel_fingerprint_lab.py` | `bc44cc9c017eafe0ebbb32b626ffcf4d431419f8b08220bf423614567cf6e732` |
+| `results/five-bit-sentinel-fingerprint.json` | `23b775db6fd5447dd4a3a838d8670a22c14319e1c8955fb461b8d7c829630dd6` |
+| six-bit sentinel fingerprint freeze/implementation/result commits | `8265795`, `ea2891c`, `a604268` |
+| `six_bit_sentinel_fingerprint_lab.py` | `cabcef9361ea0ce99ac04d86b2048c261630e8b658e6e4c96602f795fbdc98ee` |
+| `tests/test_six_bit_sentinel_fingerprint_lab.py` | `82fb1a30cc3073bda5cb7f08f0d1ac808b959a7e04335a0c43a915c6e7d3d4e6` |
+| `results/six-bit-sentinel-fingerprint.json` | `f6c191e0d8ea931a8d733cd2d41ef81168f5f5bfb9d54e3220164b8ba752fdf6` |
+| seven-bit sentinel fingerprint freeze/implementation/result commits | `a604268`, `1291881`, `49ef4cc` |
+| `seven_bit_sentinel_fingerprint_lab.py` | `e8fdd2e63f308b63b564ea11affe2d02f77d6bad202869eea3a5d5f2bca3c8f8` |
+| `tests/test_seven_bit_sentinel_fingerprint_lab.py` | `aa5dd6a7ec1abc1c812aaf4d915fe6b6e61a80229b9f376b84c4ee642830f229` |
+| `results/seven-bit-sentinel-fingerprint.json` | `d512a85ba14a5a7f823cdc6ce520ec717ecdb43917b9f9a12cfdc02da677c1b7` |
+| rank-coded label-bit freeze/implementation/result commits | `49ef4cc`, `8a55e35`, `6169470` |
+| `rank_coded_label_bit_lab.py` | `a23fd3784380bb985189a69a71ea765b908180d3b5143ebae7836bb92c5a0bf7` |
+| `tests/test_rank_coded_label_bit_lab.py` | `19052993cf2b89b22dc7d8bef6b4986366d3cf95dc04a521b89b29874bddca47` |
+| `results/rank-coded-label-bit.json` | `3b92377050166120437f8cd8f1b384e2892ec42d2b478aef8be72148b3d13e30` |
+| offset-fused rank-bit freeze/implementation/result commits | `6169470`, `83f9e72`, `5e6f157` |
+| `offset_fused_rank_bit_lab.py` | `b1d42a85167c713aefec8254accbad50a859f990efc54e44ac58d4bceaa5023f` |
+| `tests/test_offset_fused_rank_bit_lab.py` | `d362aa5a529de2340b128159da4aa0f6663c07f6e10e7f4002a65ce41babb70f` |
+| `results/offset-fused-rank-bit.json` | `51898f74c27614b3a93e06db8dd47e029f1a14f5b65015d4286f6b0d9739aef8` |
+| sentinel-offset rank-bit freeze/implementation/result commits | `5e6f157`, `e8918bf`, `82f39f1` |
+| `sentinel_offset_rank_bit_lab.py` | `3d43f74e53e721780546cb417db4dbe7a2ef96c917108ed4c852f9d85b5f28e3` |
+| `tests/test_sentinel_offset_rank_bit_lab.py` | `2dbee2d8f53befefc64708193394f34f94f168b0c1c0c97222aa736ae06fe34c` |
+| `results/sentinel-offset-rank-bit.json` | `cf1af00dafbd9adcc30cb9c9146c8dbc00ff74a364b8fea0778bde0f2cad6ca6` |
+| sentinel-offset held-out transfer freeze commit | `82f39f1` |
 
-All forty-two result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 168/168 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
+All forty-nine result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 207/207 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -772,12 +800,64 @@ validations and inversion-bearing operations fell to 52.74%--54.53% of matched
 H47 salts. Combined reads fell to 91.46%--94.71%. This is a constant-factor
 fingerprint-width result inside the same square-root collision decoder.
 
+## H50--H52 — wider same-cap sentinel fingerprints
+
+H50, H51, and H52 widened the stored state code to 16, 32, and 64 states
+without changing the frozen quarter-H20 cap or public target sampler. Each arm
+passed every frozen gate. H50 used 52.39%--55.39% of H49 validations and
+52.43%--55.44% of its inversion-bearing operations; seven salts completed by
+seed 6 and one by seed 8. H51 used 53.00%--56.37% of H50 validations and
+52.85%--56.43% of its operations; seven salts completed by seed 6 and one by
+seed 8. H52 used 55.02%--58.10% of H51 validations and 54.91%--58.06% of its
+operations; all eight salts completed by seed 6. H52 retained 266, 382, and
+548 buckets on its three curves and used 94, 128, and 174 stored state
+records. These are finite constant-factor measurements, not an asymptotic
+claim.
+
+## H53 — direct seven-bit boundary
+
+H53 doubled the state alphabet once more. All structural, correctness,
+recovery, and operation gates passed, and every salt completed by seed 6, but
+the primary gate failed: salt 5 used 63.82% of H52 validations against the
+frozen 62% ceiling and 106.14% of its reads against the 105% ceiling. The
+other seven salts passed those bounds. This is a measured same-cap boundary,
+not evidence that seven useful bits are unavailable by another encoding.
+
+## H54--H55 — carrying one bit in the stored label rank
+
+H54 retained H52's six-bit state and encoded a seventh ticket bit with the
+canonical giant-label rank. Exact label reconstruction passed, but separately
+charging a public stream offset removed one bucket on each curve. Only five
+salts completed by seed 6, and two salts exceeded the read ceiling. H55 fused
+the offset into an affine hash parameter and restored H52's exact bucket
+layout, but constrained the hash family: only four salts completed by seed 6,
+and two exceeded the read ceiling. Both arms passed correctness, validation,
+and operation gates while failing their frozen primary gates.
+
+## H56 — sentinel-offset rank bit
+
+H56 jointly selected the public giant-stream offset to equal the already
+reserved sentinel, leaving both salted affine hash parameters unconstrained.
+Occupied rank codes skipped the sentinel, and the raw label was reconstructed
+only after a cell read. Every frozen structural, accounting, public-dataflow,
+safety, recovery, completion, validation, operation, and read gate passed.
+All eight salts completed by seed 6. Against matched H52 salts, validations
+were 56.55%--59.17%, inversion-bearing operations 56.37%--58.96%, and reads
+exactly 100%; the bucket/state layout remained exactly 266/94, 382/128, and
+548/174. Across salts, 24,736 joint candidates yielded 160 identity rejections
+and no x-coordinate conflicts. This is a reproducible representation-level
+constant improvement inside the same signed square-root collision decoder; it
+does not establish a new ECDLP primitive or exponent.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a same-cap four-bit sentinel fingerprint on H49's workload, comparing each
-  salt with its sealed octal reference while charging the smaller table and all
-  reads/construction (H50, frozen in `404a18c`).
+- a paired held-out transfer of H52 and H56 to H46's six V-series curves, four
+  multipliers, 128 public targets per generator, two controls, eight salts, and
+  frozen prefixes. It requires both arms to complete every salt by seed 8, at
+  least six salts per arm by seed 6, H56 prefix-1 and prefix-2 recovery no more
+  than 3% below H52, H56 validations at most 62%, operations at most 67%, and
+  reads at most 102% of paired H52 (H57, frozen in `82f39f1`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
