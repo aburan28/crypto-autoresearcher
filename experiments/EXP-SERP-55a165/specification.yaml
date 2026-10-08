@@ -1,0 +1,372 @@
+# =============================================================================
+# EXP-SERP-55a165 — version 1, approved by DEC-20261006-702c50.
+# Frozen measurement: active S-boxes in the image of one Serpent linear
+# layer on the 480 nonzero differences supported in a single S-box.
+# The prediction is that every image has at least 2 active S-boxes.
+# The identity linear layer on the same 480 differences has minimum 1.
+# A single image with fewer than 2 active S-boxes is a negative.
+# This design session did not apply the linear transformation.
+# No Serpent break is authorized. Source idea IDEA-20261005-1cb745 is
+# already on origin/main and is not rewritten.
+# =============================================================================
+experiment:
+  id: EXP-SERP-55a165
+  hypothesis_id: H-SERP-0f9ec0
+  question_id: RQ-SERP-722a09
+  source_idea: IDEA-20261005-1cb745
+  goal_id: GOAL-SERP-5ecff7
+  version: 1
+  title: >-
+    Active-S-box minimum of one Serpent linear layer on 480
+    single-S-box differences, against the identity minimum of 1
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    composing_decision: DEC-20261006-702c50
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06:
+      "all is approved. ideas/experiments should be always approved")
+      because every field the design protocol requires is non-null.
+      Approval does not assert that the minimum is at least 2 and does
+      not assert a Serpent break.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    scientific_execution_scope: >-
+      Pin one published full-round test vector, apply one linear
+      transformation to 480 single-S-box differences, and compare the
+      minimum with the identity map on the same inputs. Do not claim a
+      distinguisher, a key recovery, or a Serpent break.
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether every one of the 480 images under the pinned Serpent
+    linear transformation has at least 2 active 4-bit S-boxes. A single
+    image with fewer than 2 is a negative. The identity linear layer is
+    the control that achieves the minimum 1. No Serpent break is in scope.
+
+  inputs:
+    block_bits: 128
+    windows: 32
+    window_bits: 4
+    nonzero_patterns_per_window: 15
+    input_count: 480
+    input_class: >-
+      For each window index i from 0 through 31, and each nonzero nibble
+      v from 1 through 15, one difference whose bits in window i equal v
+      and whose other 31 windows are zero. The zero difference is not a
+      member of this class.
+    map_under_test: >-
+      The published Serpent linear transformation, applied once. Not an
+      S-box. Not a full round. Key whitening is omitted because an XOR
+      difference cancels key addition.
+    predicted_minimum: 2
+    identity_minimum: 1
+    test_vector: >-
+      One published full-round Serpent test vector (plaintext, key,
+      ciphertext). Copy the expected ciphertext from the published
+      source into reading.yaml before encryption is run. The source
+      path or citation is recorded. The vector pins the S-boxes, the
+      linear transformation, and the windowing. It is not an input to
+      the 480-count.
+    windowing: >-
+      The 32 windows are the 4-bit S-box positions of the implementation
+      that matched the test vector. A transposed or byte-wise windowing
+      is a different pin.
+    heur1:
+      dimension: 16
+      windows: 4
+      draws: 200
+      fixed_input: >-
+        The weight-1 vector with a 1 in bit 0 and zeros elsewhere.
+      predicted_single_window_probability: 60/65535
+      tail_reject_at: 8
+      transfer: >-
+        None. A result in GL(16, F_2) is not a result about the 128-bit
+        Serpent map.
+    forbidden:
+      - Do not claim a distinguisher, a key recovery, or a Serpent break.
+      - Do not score differences that start in two or more S-boxes.
+      - Do not include the zero difference in the minimum.
+      - Do not treat a failed test vector as a branch result.
+      - Do not adjust the predicted minimum after seeing the images.
+
+  controls:
+    - id: identity-minimum
+      statement: >-
+        The identity linear layer on the same 480 differences achieves
+        minimum 1. Each nonzero single-window input stays in one window.
+      pass_condition: the identity minimum is 1
+      on_fail: >-
+        A minimum other than 1 means the activity counter or the input
+        class is wrong. The run is invalid. It is not evidence about
+        Serpent.
+    - id: zero-excluded
+      statement: >-
+        The zero difference has 0 active S-boxes and is not included in
+        the minimum.
+      pass_condition: >-
+        the zero difference scores 0 and the minimum is taken over 480
+        nonzero inputs
+      on_fail: >-
+        Scoring the zero difference inside the minimum, or scoring it as
+        nonzero, invalidates the run.
+    - id: two-counters
+      statement: >-
+        One counter counts windows whose 4-bit integer is nonzero. A
+        second counter counts windows whose four bits have bitwise OR
+        equal to 1. They must agree on every image, on every identity
+        image, and on the zero difference.
+      pass_condition: the two counters agree on all scored vectors
+      on_fail: >-
+        Disagreement is an implementation split. The run is invalid, not
+        a negative on the linear layer.
+    - id: matrix-agrees
+      statement: >-
+        Build the 128 by 128 matrix over F_2 by applying the bitsliced
+        linear routine to the 128 standard basis vectors. Apply that
+        matrix to each of the 480 inputs. The active-window count of
+        each matrix image must equal the bitsliced image's count.
+      pass_condition: the two maps agree on all 480 active-window counts
+      on_fail: >-
+        Disagreement means the bitsliced routine and the matrix are not
+        the same map. The run is invalid.
+    - id: test-vector-pin
+      statement: >-
+        Two routines encrypt the published plaintext under the published
+        key. One is bitsliced. The other walks the 32 nibbles in window
+        order using the same S-boxes and the same linear transformation.
+        Both ciphertexts must equal the published ciphertext that was
+        copied down before encryption.
+      pass_condition: both routines match the published ciphertext
+      on_fail: >-
+        A mismatch means the pin is wrong. The run is invalid. It is not
+        a branch result.
+    - id: nearby-identity
+      statement: >-
+        The conclusion "minimum at least 2" is predicted false for the
+        identity, which is the same-shape nearby object. The identity
+        row is scored and must be 1.
+      pass_condition: identity minimum is 1 and is recorded separately from the Serpent minimum
+      on_fail: >-
+        Using the identity minimum as the Serpent minimum, or omitting
+        the identity row, invalidates the run.
+
+  independent_variables:
+    - which of the 480 single-window differences is the input
+    - whether the map is the pinned linear transformation or the identity
+    - which activity counter is used
+    - whether the image is computed by the bitsliced routine or by the induced matrix
+
+  metrics:
+    primary:
+      - id: min_active_sboxes
+        statement: >-
+          The minimum number of active 4-bit windows among the 480
+          images under the pinned linear transformation. The predicted
+          value is at least 2.
+      - id: images_below_2
+        statement: >-
+          The number of the 480 images whose active-window count is 0
+          or 1. The predicted value is 0. A value of 1 or more is a
+          negative.
+    secondary:
+      - id: identity_minimum
+        statement: The minimum active-window count of the identity map on the same 480 inputs. Required value 1.
+      - id: zero_active
+        statement: Active-window count of the zero difference. Required value 0.
+      - id: counters_agree
+        statement: 1 if the two activity counters agree on every scored vector, else 0.
+      - id: matrix_agrees
+        statement: 1 if the matrix and the bitsliced routine agree on all 480 counts, else 0.
+      - id: test_vector_pass
+        statement: 1 if both encryption routines match the published ciphertext, else 0.
+      - id: witness
+        statement: >-
+          When images_below_2 is positive, one input (window index and
+          nibble) whose image has fewer than 2 active windows, and that
+          image's active count. Absent when images_below_2 is 0.
+      - id: heur1_single_window_hits
+        statement: >-
+          How many of 200 uniform elements of GL(16, F_2) send the fixed
+          weight-1 vector into a single 4-bit window. Eight or more
+          rejects HEUR-1's counting implementation. This metric does not
+          change the Serpent assignment.
+      - id: attack_claimed
+        statement: Boolean. The design-session value is false. The run value must stay false.
+
+  heuristic_under_test: HEUR-1
+  heuristic_under_test_note: >-
+    HEUR-1 is the 16-bit counting check. The Serpent prediction is an
+    exhaustive count, not a random model. A Serpent negative is
+    images_below_2 at least 1 under a valid pin. Eight or more
+    single-window hits reject only the 16-bit counting implementation.
+    No transfer from 16 bits to 128 bits is claimed.
+
+  preregistered_prediction:
+    quantity: >-
+      The minimum number of active 4-bit S-boxes among the 480 images
+      of the pinned Serpent linear transformation, and the number of
+      those images with fewer than 2 active S-boxes.
+    formula: >-
+      min_active_sboxes >= 2 and images_below_2 = 0. The identity
+      minimum is 1. A single image with fewer than 2 active S-boxes is
+      a negative. No attack term enters the formula.
+    source: >-
+      IDEA-20261005-1cb745, copied before any run of EXP-SERP-55a165.
+      The design session on 2026-10-06 did not apply the linear
+      transformation. KN-LIT-3430 was opened as markdown and does not
+      state this minimum.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested object is one 128-bit linear map on 480 differences.
+      A result here is not an 11-round attack and not a transfer to any
+      later round. No extrapolation is authorized.
+    correspondence: >-
+      Direct evaluation of one linear map and of the identity. No
+      sampling equivalence is used for the 480-count. The 200 draws in
+      GL(16, F_2) are a separate counting check and are not a
+      correspondence for the Serpent map.
+
+  tail_checks:
+    - >-
+      There is no sampled tail on the 480-count. The extreme check is
+      a single image with 0 or 1 active S-box. One such image is a
+      negative. The identity control is the same-shape object on which
+      the minimum 2 is predicted false. For HEUR-1, eight or more
+      single-window hits in 200 draws rejects the 16-bit counting
+      implementation. The expected count at probability 60/65535 is
+      below 1.
+
+  replication:
+    seeds:
+      - name: census
+        algorithm: deterministic enumeration of 32 windows and 15 nibbles
+        seed: 480
+        note: >-
+          No random generator is consulted for the 480-count. seed 480
+          records the input-class size. Substituting a random difference
+          is forbidden.
+      - name: heur1
+        algorithm: rejection sampling of invertible 16 by 16 matrices over F_2
+        seed: 16
+        note: >-
+          Seed 16 is the only random stream, and it is used only for the
+          200 draws. It is not used to choose Serpent inputs.
+    independent_instances: 480
+    independent_instances_note: >-
+      The 480 differences are the exhaustive class. They are not draws
+      from a distribution. The 200 matrix draws are a separate check
+      and are not additional Serpent instances.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). maximum_runs is 1. The
+      scientific work is 480 applications of one 128-bit linear map,
+      the same 480 under the identity, one test-vector encryption, and
+      200 invertible 16 by 16 matrices. Watch expiry is
+      failed_infrastructure, never a negative mathematical result.
+
+  procedure:
+    pin: >-
+      Copy one published full-round test vector before encryption.
+      Encrypt with both routines. On a mismatch, stop as invalid.
+    enumerate: >-
+      Build the 480 differences. Apply the bitsliced linear
+      transformation and the induced matrix. Score both activity
+      counters. Record the minimum, the number of images below 2, and
+      one witness if that number is positive.
+    identity: >-
+      Repeat the 480-count with the identity map. Record its minimum.
+      Score the zero difference separately.
+    heur1: >-
+      Draw 200 uniform elements of GL(16, F_2) by rejection sampling
+      from seed 16. Apply each to the fixed weight-1 vector. Count how
+      many images lie in a single 4-bit window.
+    forbidden: >-
+      Do not claim a Serpent break. Do not score a multi-window input.
+      Do not change the predicted minimum. Do not add a second round.
+    mechanism_assignment:
+      - observation: >-
+          test_vector_pass is 1, identity_minimum is 1, zero_active is
+          0, counters_agree is 1, matrix_agrees is 1,
+          min_active_sboxes is at least 2, images_below_2 is 0, and
+          attack_claimed is false.
+        assigns_to: >-
+          The branch claim holds on this input class. This is not a
+          distinguisher, not a key recovery, and not a Serpent break.
+      - observation: >-
+          test_vector_pass is 1, identity_minimum is 1, zero_active is
+          0, counters_agree is 1, matrix_agrees is 1, and
+          images_below_2 is at least 1.
+        assigns_to: >-
+          The prediction fails. This is a negative. Quote the witness
+          and the image's active count.
+      - observation: >-
+          The test vector fails, the identity minimum is not 1, the
+          zero difference is not 0, the counters disagree, the matrix
+          disagrees, or attack_claimed is true.
+        assigns_to: >-
+          Invalid. Not evidence for the branch claim, and not evidence
+          against it.
+      - observation: >-
+          The watch expires, or the process crashes, or a dependency is
+          missing.
+        assigns_to: >-
+          failed_infrastructure. Not a negative mathematical result.
+
+  stopping_rules:
+    - Stop when the 480-count, the identity row, the zero row, the test vector, and the 200 draws each have a recorded value, or an invalidation has fired.
+    - Do not add a second linear layer. Do not score a multi-window input. Do not emit an attack.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing arithmetic library is failed_infrastructure and is not evidence against the hypothesis.
+    - A failed test vector, an identity minimum other than 1, a zero difference that is not scored 0, disagreement of the two counters, or disagreement of the matrix with the bitsliced routine invalidates the run.
+    - Including the zero difference in the minimum, or scoring a difference that starts in two or more windows, invalidates the run.
+    - Emitting a distinguisher, a key recovery, or a Serpent break invalidates the run.
+    - Changing the pre-registered prediction after seeing an image is forbidden. A correction is a new amendment record, and an existing run is not re-scored against it.
+    - Eight or more HEUR-1 hits reject the 16-bit counting implementation only. They do not invalidate the Serpent assignment and they are not a Serpent negative.
+
+  success_criterion: >-
+    The run is a success for this reading exactly when the first row of
+    mechanism_assignment holds: the pin is valid and every one of the
+    480 images has at least 2 active S-boxes. Any other completed
+    assignment is not this success. In particular, a single image with
+    fewer than 2 active S-boxes is not a success.
+
+  falsification_criterion: >-
+    The prediction fails when the pin is valid and at least one of the
+    480 images has fewer than 2 active S-boxes. That is a negative. The
+    third row of mechanism_assignment falsifies nothing about the linear
+    layer. The fourth row falsifies nothing about the linear layer.
+
+  required_artifacts:
+    - experiments/EXP-SERP-55a165/runs/RUN-*/manifest.yaml
+    - experiments/EXP-SERP-55a165/runs/RUN-*/stdout.txt
+    - experiments/EXP-SERP-55a165/runs/RUN-*/stderr.txt
+    - experiments/EXP-SERP-55a165/runs/RUN-*/reading.yaml
+  artifact_contents:
+    reading.yaml: >-
+      The published test-vector triple and its source. Both ciphertext
+      bits. The identity minimum. The zero-difference score. The
+      Serpent minimum, images_below_2, and one witness when that count
+      is positive. counters_agree, matrix_agrees, and
+      heur1_single_window_hits. Then exactly one mechanism_assignment
+      row. attack_claimed is false.
+  assigned_to: executor
