@@ -56,8 +56,8 @@ must(T0 == EXPECTED_TRACE,
   Str("wrong K-283 trace: ", T0));
 must(DELTA0 == -7*EXPECTED_FPI^2,
   Str("wrong Frobenius discriminant: ", DELTA0));
-must(EXPECTED_FPI % F == 0,
-  "1697 does not divide the pinned Frobenius conductor");
+must(valuation(EXPECTED_FPI, F) == 1,
+  "the pinned Frobenius conductor does not have 1697-adic valuation one");
 
 \\ Fail closed on a stale write()-appended census or malformed rows.
 RAW = readvec("floor_k283_f1697.txt");
@@ -94,8 +94,9 @@ must(#ALL == EXPECTED_FLOOR,
   Str("floor b-values are not distinct: ", #ALL, " != ", EXPECTED_FLOOR));
 must(!setsearch(ALL, 1), "the crater b=1 leaked into the floor census");
 
-\\ Recompute the Weber class polynomial and the complete root set, rather than
-\\ trusting the producer's row count.
+\\ Separately recompute the Weber class polynomial and the complete root set,
+\\ rather than trusting the producer's row count. This uses the same PARI
+\\ class-polynomial route; the degree-37 walk below is the orthogonal check.
 CLASS_NUMBER = qfbclassno(D);
 must(CLASS_NUMBER == EXPECTED_FLOOR,
   Str("wrong class number: ", CLASS_NUMBER, " != ", EXPECTED_FLOOR));
@@ -168,15 +169,18 @@ ORBIT_SIZES = Set(apply(b -> orbit_size(fromint(b)), ALL));
 must(ORBIT_SIZES == Set([m]),
   Str("unexpected Frobenius orbit sizes: ", ORBIT_SIZES));
 
+orbit_min(z) =
+{
+  my(c = z^2, least = toint(z));
+  while(c != z,
+    least = min(least, toint(c));
+    c = c^2;
+  );
+  return(least);
+};
+
 ORBIT_REPRESENTATIVES =
-  Set(apply(b -> {
-    my(z = fromint(b), c = z^2, least = b);
-    while(c != z,
-      least = min(least, toint(c));
-      c = c^2;
-    );
-    least;
-  }, ALL));
+  Set(apply(b -> orbit_min(fromint(b)), ALL));
 must(#ORBIT_REPRESENTATIVES == EXPECTED_ORBITS,
   Str("unexpected Frobenius orbit count: ",
       #ORBIT_REPRESENTATIVES, " != ", EXPECTED_ORBITS));
