@@ -10,9 +10,13 @@ permissions:
 
 # Keep the newest PR check instead of paying for obsolete queued revisions.
 # Main runs retain independent groups so every merged revision is checked.
+# One run per pull request, and one for main: a newer push cancels the run it supersedes.
+# Main used to key on run_id, so every merge queued its own full validation and a busy
+# day of merges held the account's runners for hours; only the newest main needs checking,
+# and main-health sweeps it hourly regardless.
 concurrency:
-  group: validate-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -95,6 +99,24 @@ jobs:
       - name: Build generated artifacts
         run: python3 tools/build_knowledge_index.py
 
+      # github.event.pull_request.base.sha is frozen when the PR is opened and
+      # is not refreshed by later pushes, while actions/checkout gives a PR job
+      # the merge of the CURRENT base tip and the PR head. Diffing that frozen
+      # base against the merge commit counts everything the base branch changed
+      # since the PR opened as this PR's change, so a branch that touches no
+      # queue and no record fails on other lanes' breakage. The hygiene and
+      # knowledge-index steps below already use the live base; this resolves
+      # the same thing for the two steps that diff against a SHA: the merge
+      # commit's first parent, which is exactly the tip this PR merges into.
+      - name: Resolve the PR's effective base
+        if: github.event_name == 'pull_request'
+        run: |
+          if git rev-parse -q --verify HEAD^2 >/dev/null 2>&1; then
+            echo "PR_BASE_SHA=$(git rev-parse HEAD^1)" >> "$GITHUB_ENV"
+          else
+            echo "PR_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+          fi
+
       # Check what this PR adds/changes, including non-batch proposal queues.
       # The historical all-queue census remains in main-health; repeating that
       # warning-only sweep on every PR costs time without gating regressions.
@@ -102,7 +124,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           mkdir -p "$RUNNER_TEMP/harness-ci/queues"
-          git diff --name-only --diff-filter=ACMR -z "$BASE_SHA" HEAD -- \
+          git diff --name-only --diff-filter=ACMR -z "${PR_BASE_SHA:-$BASE_SHA}" HEAD -- \
             'coordination/**/dispatch_queue.json' 'coordination/dispatch_queue.json' |
           while IFS= read -r -d '' q; do
             d=$(mktemp -d "$RUNNER_TEMP/harness-ci/queues/queue.XXXXXX")
@@ -129,7 +151,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_WORKTREE="$RUNNER_TEMP/validate-base-ledger"
             trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
-            git worktree add --detach "$BASE_WORKTREE" "$BASE_SHA"
+            git worktree add --detach "$BASE_WORKTREE" "${PR_BASE_SHA:-$BASE_SHA}"
             LOG_DIR="$RUNNER_TEMP/harness-ci"
             mkdir -p "$LOG_DIR"
             HEAD_STATUS=0
@@ -140,7 +162,7 @@ jobs:
               python3 tools/validate_ledger.py > "$LOG_DIR/ledger-base.log" 2>&1
             ) || BASE_STATUS=$?
             printf 'head=%s\nbase=%s\nbase_sha=%s\n' \
-              "$HEAD_STATUS" "$BASE_STATUS" "$BASE_SHA" > "$LOG_DIR/ledger-status.txt"
+              "$HEAD_STATUS" "$BASE_STATUS" "${PR_BASE_SHA:-$BASE_SHA}" > "$LOG_DIR/ledger-status.txt"
             python3 tools/ci_ledger_gate.py \
               --head-log "$LOG_DIR/ledger-head.log" --head-status "$HEAD_STATUS" \
               --base-log "$LOG_DIR/ledger-base.log" --base-status "$BASE_STATUS"
@@ -208,6 +230,13 @@ jobs:
         run: |
           python3 tools/generate_runtime_agents.py --check
           python3 tools/check_runtime_bindings.py
+
+      # Always-loaded instruction (AGENTS.md + CLAUDE.md) stays under 4,000
+      # words and no skill or agent wake exceeds 7,000; the budgets and their
+      # reason are in the tool. Move narrative to docs/, never raise the budget
+      # to fit.
+      - name: Check instruction word budgets
+        run: python3 tools/check_instruction_budget.py
 
       # Offline: fixtures build and every task's policy resolves. Running the
       # suites costs tokens, so CI checks they are well-formed, not that they pass.

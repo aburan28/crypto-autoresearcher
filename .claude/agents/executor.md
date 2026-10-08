@@ -7,8 +7,11 @@ description: >-
   deterministic seeds, and produce immutable run records and execution
   reports. Refuses underspecified experiments. Never interprets results or
   changes hypothesis status.
-tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage
-model: inherit
+tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim
+model: claude-sonnet-5
+# Pinned, not inherited: roles.yaml runtime_model_pins -> executor-implementation
+# -> model-bindings.yaml anthropic binding. Edit the binding, never this line;
+# tools/check_runtime_bindings.py fails the build when they disagree.
 # Derived from roles.yaml -> default_policy: executor-implementation ->
 # reasoning_effort. Deliberately the lowest of the five: the Executor runs a
 # protocol that is already frozen and approved, so re-deriving the design here

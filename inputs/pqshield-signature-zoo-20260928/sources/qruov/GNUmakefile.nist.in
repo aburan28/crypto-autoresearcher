@@ -1,0 +1,66 @@
+CC ?= cc
+CFLAGS ?= -O3 -Wall -Wextra -Wpedantic
+PARAM ?= @DEFAULT_PARAM@
+PRG ?= @DEFAULT_PRG@
+
+PARAM_CHOICES := @PARAM_CHOICES@
+PRG_CHOICES := @PRG_CHOICES@
+
+ifeq ($(filter $(PARAM),$(PARAM_CHOICES)),)
+$(error Unsupported PARAM='$(PARAM)' (supported: $(PARAM_CHOICES)))
+endif
+ifeq ($(filter $(PRG),$(PRG_CHOICES)),)
+$(error Unsupported PRG='$(PRG)' (supported: $(PRG_CHOICES)))
+endif
+
+PRG_CFLAGS_aes := -DPRG_IS_AES=1
+PRG_CFLAGS_shake := -DPRG_IS_AES=0
+PRG_CFLAGS := $(PRG_CFLAGS_$(PRG))
+PARAM_CFLAGS := -DQRUOV_PARAM_$(PARAM)
+IMPL_CFLAGS := @IMPL_CFLAGS@
+SRCS := @SRCS@
+BUILD_DIR := build/$(PARAM)-$(PRG)
+
+OPENSSL_PREFIX ?=
+OPENSSL_LIBDIR ?=
+OPENSSL_CFLAGS ?=
+OPENSSL_LIBS ?= -lcrypto
+ifneq ($(strip $(OPENSSL_PREFIX)),)
+OPENSSL_CFLAGS += -I$(OPENSSL_PREFIX)/include
+ifeq ($(strip $(OPENSSL_LIBDIR)),)
+ifneq ($(wildcard $(OPENSSL_PREFIX)/lib64),)
+OPENSSL_LIBDIR := $(OPENSSL_PREFIX)/lib64
+else
+OPENSSL_LIBDIR := $(OPENSSL_PREFIX)/lib
+endif
+endif
+OPENSSL_LIBS := -L$(OPENSSL_LIBDIR) $(OPENSSL_LIBS)
+endif
+
+BASE_CFLAGS := $(CFLAGS) $(IMPL_CFLAGS) $(PRG_CFLAGS) $(PARAM_CFLAGS) -I. $(OPENSSL_CFLAGS)
+
+.PHONY: all clean print-config help
+all: print-config $(BUILD_DIR)/PQCgenKAT_sign
+
+help:
+	@echo "Targets:"
+	@echo "  make [all]           Build PQCgenKAT_sign in $(BUILD_DIR)"
+	@echo "  make clean           Remove build/"
+	@echo
+	@echo "Variables (override with VAR=value):"
+	@printf "  PARAM=%s\tchoices: %s\n" "$(PARAM)" "$(PARAM_CHOICES)"
+	@printf "  PRG=%s\tchoices: %s\n" "$(PRG)" "$(PRG_CHOICES)"
+	@echo "  OPENSSL_PREFIX=$(OPENSSL_PREFIX)"
+	@echo "  OPENSSL_LIBDIR=$(OPENSSL_LIBDIR)"
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+$(BUILD_DIR)/PQCgenKAT_sign: $(SRCS) | $(BUILD_DIR)
+	$(CC) $(BASE_CFLAGS) $^ $(OPENSSL_LIBS) -o $@
+
+print-config:
+	@echo "IMPL=@IMPL@ PARAM=$(PARAM) PRG=$(PRG)"
+
+clean:
+	rm -rf build

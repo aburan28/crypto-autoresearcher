@@ -1,0 +1,178 @@
+#include <array>
+#include <bitset>
+
+#include "test.hpp"
+#include "transpose.hpp"
+#include "transpose_secpar.hpp"
+
+#include <catch2/catch_template_test_macros.hpp>
+#include <catch2/catch_test_macros.hpp>
+
+// clang-format off
+
+const std::array<uint32_t, 16> transpose4x4_32_in = {
+    0x00000000, 0x11111111, 0x22222222, 0x33333333,
+    0x44444444, 0x55555555, 0x66666666, 0x77777777,
+    0x88888888, 0x99999999, 0xaaaaaaaa, 0xbbbbbbbb,
+    0xcccccccc, 0xdddddddd, 0xeeeeeeee, 0xffffffff,
+};
+const std::array<uint32_t, 16> transpose4x4_32_out = {
+    0x00000000, 0x44444444, 0x88888888, 0xcccccccc,
+    0x11111111, 0x55555555, 0x99999999, 0xdddddddd,
+    0x22222222, 0x66666666, 0xaaaaaaaa, 0xeeeeeeee,
+    0x33333333, 0x77777777, 0xbbbbbbbb, 0xffffffff,
+};
+
+const std::array<uint32_t, 8> transpose4x2_32_in = {
+    0x00000000, 0x11111111,
+    0x22222222, 0x33333333,
+    0x44444444, 0x55555555,
+    0x66666666, 0x77777777,
+};
+const std::array<uint32_t, 8> transpose4x2_32_out = {
+    0x00000000, 0x22222222, 0x44444444, 0x66666666,
+    0x11111111, 0x33333333, 0x55555555, 0x77777777,
+};
+
+const std::array<uint64_t, 4> transpose2x2_64_in = {
+    0x0000000000000000, 0x1111111111111111,
+    0x2222222222222222, 0x3333333333333333,
+};
+const std::array<uint64_t, 4> transpose2x2_64_out = {
+    0x0000000000000000, 0x2222222222222222,
+    0x1111111111111111, 0x3333333333333333,
+};
+
+const std::array<block128, 4> transpose2x2_128_in = {
+    block128::set_64(0x0000000000000000, 0x0000000000000000),
+    block128::set_64(0x1111111111111111, 0x1111111111111111),
+    block128::set_64(0x2222222222222222, 0x2222222222222222),
+    block128::set_64(0x3333333333333333, 0x3333333333333333),
+};
+const std::array<block128, 4> transpose2x2_128_out = {
+    block128::set_64(0x0000000000000000, 0x0000000000000000),
+    block128::set_64(0x2222222222222222, 0x2222222222222222),
+    block128::set_64(0x1111111111111111, 0x1111111111111111),
+    block128::set_64(0x3333333333333333, 0x3333333333333333),
+};
+
+// clang-format on
+
+TEST_CASE("transpose 4x4 32", "[transpose]")
+{
+    std::array<block128, 4> in;
+    std::array<block128, 4> out;
+    std::array<uint32_t, 16> out_32;
+    memcpy(in.data(), transpose4x4_32_in.data(), sizeof(in));
+    transpose4x4_32(out.data(), in.data());
+    memcpy(out_32.data(), out.data(), sizeof(out_32));
+    REQUIRE(out_32 == transpose4x4_32_out);
+}
+
+TEST_CASE("transpose 4x2 32", "[transpose]")
+{
+    std::array<block128, 2> in;
+    std::array<block128, 2> out;
+    std::array<uint32_t, 8> out_32;
+    memcpy(in.data(), transpose4x2_32_in.data(), sizeof(in));
+    transpose4x2_32(out.data(), in[0], in[1]);
+    memcpy(out_32.data(), out.data(), sizeof(out_32));
+    REQUIRE(out_32 == transpose4x2_32_out);
+}
+
+TEST_CASE("transpose 2x2 64", "[transpose]")
+{
+    block256 in;
+    std::array<uint64_t, 4> out_64;
+    memcpy(&in, transpose2x2_64_in.data(), sizeof(in));
+    block256 out = transpose2x2_64(in);
+    memcpy(out_64.data(), &out, sizeof(out_64));
+    REQUIRE(out_64 == transpose2x2_64_out);
+}
+
+TEST_CASE("transpose 2x2 128", "[transpose]")
+{
+    std::array<block256, 2> in;
+    std::array<block256, 2> out;
+    memcpy(in.data(), transpose2x2_128_in.data(), sizeof(in));
+    transpose2x2_128(out.data(), in[0], in[1]);
+    REQUIRE(memcmp(&out, &transpose2x2_128_out, sizeof(transpose2x2_128_out)) == 0);
+}
+
+void print_bit_matrix(const uint8_t* mat, size_t stride, size_t rows, size_t cols)
+{
+    for (size_t i = 0; i < rows; ++i)
+    {
+        for (size_t j = 0; j < cols / 8; ++j)
+        {
+            std::bitset<8> byte = mat[i * stride + j];
+            std::string str = byte.to_string();
+            std::reverse(str.begin(), str.end());
+            std::cout << str;
+        }
+        std::cout << '\n';
+    }
+}
+
+TEMPLATE_TEST_CASE("transpose 1536x", "[transpose]", secpar128_t, secpar192_t, secpar256_t)
+{
+    constexpr auto S = TestType::value;
+    size_t rows = 1536;
+    auto in = random_vector<uint8_t>(1536 * secpar_to_bytes(TestType::value));
+    std::vector<uint8_t> out1(in.size(), 0);
+    std::vector<uint8_t> out2(in.size(), 0);
+
+    for (size_t i = 0; i < rows; ++i)
+        for (size_t j = 0; j < secpar_to_bits(S); ++j)
+            out1[(i * secpar_to_bits(S) + j) / 8] |=
+                ((in[(j * rows + i) / 8] >> i % 8) & 1) << j % 8;
+
+    transpose_secpar<S>(in.data(), out2.data(), rows / 8, rows);
+
+    // print_bit_matrix(in.data(), rows / 8, 64, 64);
+    // std::cout << '\n';
+    // print_bit_matrix(out1.data(), secpar_to_bytes(S), 64, 128);
+    // std::cout << '\n';
+    // print_bit_matrix(out2.data(), secpar_to_bytes(S), 64, 128);
+    // std::cout << '\n';
+
+    REQUIRE(memcmp(out1.data(), out2.data(), out2.size()) == 0);
+}
+
+TEST_CASE("transpose 16Nx16", "[transpose]")
+{
+    constexpr size_t n_blocks = 5;
+
+    // const auto naive_transpose = [](auto& out, const auto& in) {
+    //     //
+    // };
+    const auto input = random_vector<uint8_t>(2 * 16 * n_blocks);
+    auto output = std::vector<uint8_t>(input.size(), 0);
+    auto output2 = std::vector<uint8_t>(input.size(), 0);
+    // auto expected_output = std::vector<uint16_t>(0, input.size());
+    // naive_transpose(output, input);
+    transpose_16Nx16(output.data(), input.data(), n_blocks);
+    transpose_16x16N(output2.data(), output.data(), n_blocks);
+
+    const auto rd_input_bit = [=] (auto row, auto col) {
+        assert(row < 16 * n_blocks);
+        assert(col < 16);
+        return (input[row * 2 + (col / 8)] >> (col % 8)) & 1;
+    };
+    const auto rd_output_bit = [=] (auto row, auto col) {
+        assert(col < 16 * n_blocks);
+        assert(row < 16);
+        return (output[row * 2 * n_blocks + (col / 8)] >> (col % 8)) & 1;
+    };
+
+    REQUIRE(output2 == input);
+    for (size_t r = 0; r < 16; ++r) {
+        INFO("r = " << r);
+        for (size_t c = 0; c < 16 * n_blocks; ++c) {
+            INFO("c = " << c);
+            const auto out = rd_output_bit(r, c);
+            const auto in = rd_input_bit(c, r);
+            REQUIRE(out == in);
+        }
+    }
+}

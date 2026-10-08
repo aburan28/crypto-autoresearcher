@@ -1,0 +1,71 @@
+name: Code coverage
+
+# Nightly rather than on every push: a coverage run compiles the whole tree at -O0 and then runs the test suite,
+# which can be fairly expensive.
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        type: string
+  schedule:
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: ${{ matrix.config }} (${{ matrix.platform }})
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            config: ref
+          - platform: x64
+            config: broadwell
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. A SHA
+          # here must be the full 40 characters.
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Report the gcovr version in use
+        # Recorded explicitly because it is not pinned. gcov must come from the same toolchain as the compiler, so it
+        # is worth seeing both when a number moves without a code change.
+        run: |
+          gcovr --version
+          gcov --version | head -1
+          . /etc/os-release && echo "runner: $PRETTY_NAME ($(uname -m))"
+
+      # Deliberately no ccache on PATH, unlike the cmake workflow: the .gcno files are part of the compiler output.
+      - name: Measure coverage
+        # --summary writes the markdown table onto the run page. No --fail-under: coverage is reported, not gated.
+        run: scripts/coverage.sh --config=${{ matrix.config }} --summary="$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the HTML report
+        # Always upload: when the run fails, the logs are exactly what is needed to tell a broken runner from a
+        # broken tree, and a report from a partly failing suite is still worth reading.
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-${{ matrix.platform }}-${{ matrix.config }}
+          path: |
+            build-coverage-${{ matrix.config }}/coverage.html
+            build-coverage-${{ matrix.config }}/coverage-html
+            build-coverage-${{ matrix.config }}/summary.json
+            build-coverage-${{ matrix.config }}/configure.log
+            build-coverage-${{ matrix.config }}/build.log
+            build-coverage-${{ matrix.config }}/ctest.log
+            build-coverage-${{ matrix.config }}/gcovr.log
+          if-no-files-found: warn
+          retention-days: 14

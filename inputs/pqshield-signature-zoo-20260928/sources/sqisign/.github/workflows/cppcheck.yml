@@ -1,0 +1,72 @@
+name: Static analysis (cppcheck)
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the caller ref)'
+        required: false
+        default: ''
+        type: string
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-cppcheck-${{ github.ref }}-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cppcheck:
+    name: ${{ matrix.config }} (${{ matrix.platform }})
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x64
+            config: ref
+          - platform: x64
+            config: broadwell
+          - platform: arm64
+            config: arm64
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. The
+          # `inputs` context, not `github.event.inputs`: the latter is empty when this workflow is called rather than
+          # dispatched. A SHA here must be the full 40 characters.
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Report the cppcheck version in use
+        # Recorded explicitly because it is not pinned: when a finding appears or disappears without a code change, this
+        # line is the first thing to check.
+        run: |
+          cppcheck --version
+          . /etc/os-release && echo "runner: $PRETTY_NAME ($(uname -m))"
+
+      - name: Run cppcheck
+        # --github additionally emits workflow-command annotations, so findings appear inline on the commit as well as
+        # in this log.
+        run: scripts/cppcheck.sh --config=${{ matrix.config }} --github
+
+      - name: Upload raw findings
+        # Always upload: an empty findings file is the evidence that the run was clean, and configure.log is what you
+        # need when a configure fails on a runner you cannot log into.
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: cppcheck-${{ matrix.platform }}-${{ matrix.config }}
+          path: |
+            build-cppcheck-${{ matrix.config }}/findings.txt
+            build-cppcheck-${{ matrix.config }}/configure.log
+          if-no-files-found: warn
+          retention-days: 14

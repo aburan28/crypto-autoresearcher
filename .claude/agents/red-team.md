@@ -5,7 +5,7 @@ description: >-
   autoresearch program. Use after a Coordinator snapshot commit to identify
   hidden assumptions, omitted end-to-end costs, and the cheapest falsification
   control. Never changes research status or raw artifacts.
-tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage
+tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: inherit
 # Derived from roles.yaml -> default_policy: review-adversarial ->
 # reasoning_effort. Same tier as the Validator by design: both are the

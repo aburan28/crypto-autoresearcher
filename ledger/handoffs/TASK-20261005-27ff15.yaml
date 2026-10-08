@@ -1,0 +1,201 @@
+# =============================================================================
+# TASK-20261005-27ff15 -- TOOLING: T-1 (owed by DEC-20261005-138b51) and T-2
+# (DEC-20261005-98a823). Make the open-ECC-idea list read committed
+# idea_dispositions, and make the /run selector read committed
+# withheld_contracts, BY EXPLICIT ID ONLY, guarded, reversible, and always
+# reported. Zero scientific runs. No ledger, experiment or goal record is
+# edited. WRITTEN, NOT DISPATCHED.
+# =============================================================================
+handoff:
+  id: TASK-20261005-27ff15
+  id_provenance: >-
+    Pre-minted and collision-checked by the dispatching session, relayed.
+    TASK-20261005-2af213 re-checks it on the merged tree (stopping gate).
+  from: coordinator
+  to: executor
+  created_at: '2026-10-05'
+  recorded_under: DEC-20261005-98a823
+  objective: >-
+    Two Coordinator decisions now carry explicit-ID dispositions that the
+    selection tools do not read. DEC-20261005-138b51 has idea_dispositions and
+    withheld_contracts, and DEC-20261005-98a823 has withheld_contracts. This
+    task makes tools/ecc_priority.py (open ECC ideas) and
+    tools/newest_experiments.py (the /run worklist) honour those blocks. It
+    must stay backward compatible, and every disposed or withheld row must
+    remain visible with the decision that disposed of it. The uncertainty
+    reduced is whether a committed Coordinator hold actually governs the two
+    selection points that AGENTS.md rule 11 and the run skill consult.
+  uncertainty_reduced: >-
+    Today a hold recorded by explicit ID in a committed decision does not
+    change what /run or --open-ideas lists. That is measured by the
+    dispatching session on f2da001b72: three template contracts topped the
+    /run worklist. After this task, whether a row is listed follows from
+    committed decisions and can be audited from the tool's own output.
+  inputs:
+    - ledger/decisions/DEC-20261005-138b51.yaml
+    - ledger/decisions/DEC-20261005-98a823.yaml
+    - coordination/archives/TASK-20261005-2af213/template-census.json
+    - tools/ecc_priority.py
+    - tools/test_ecc_priority.py
+    - tools/newest_experiments.py
+    - tests/test_newest_experiments.py
+    - tests/test_experiment_execution.py
+    - orchestration/campaign/autopilot.py
+    - plugins/crypto-autoresearcher-harness/skills/run/SKILL.md
+  constraints:
+    - >-
+      T-1, EXACTLY AS DEC-20261005-138b51 tooling_change_T1 SPECIFIES.
+      tools/ecc_priority.py open_ecc_ideas() reads committed decisions under
+      ledger/decisions/ that carry `coordinator_decision.idea_dispositions`,
+      and excludes their `applies_to_exactly[*].id` from the open list. It
+      lists them instead in a separate, always-printed "disposed by
+      decision" section, giving the idea id, the decision id and the
+      disposition. Guards: membership only by explicit ID in
+      applies_to_exactly, never by title, regex or area. The block is honoured
+      only if its rule_9_fields carries non-empty evidence, budget,
+      test_boundary, remaining_uncertainty and successor_or_revisit.
+      Otherwise the tool warns on stderr and keeps the ideas open. A later
+      decision whose idea_dispositions names the same ID with disposition
+      `reopened` restores it ("later" means a later decided_at, with the
+      decision id as a tie-break; record the ordering rule in the task
+      report). In --json mode, keep stdout's existing shape and put the
+      disposed section on stderr, or add a documented key ONLY if the
+      existing --json consumers in the repository accept it. Choose one, and
+      justify it in the report.
+    - >-
+      T-1 CENSUS. 138b51's T-1 census is NOT regenerated. It already exists,
+      and the task cites
+      coordination/archives/TASK-20261005-2af213/template-census.json. The
+      task report states, report-only, whether each of the 47 ids in
+      138b51's withheld_contracts.ids and the 104 in 98a823's appear in that
+      census with status approved and empty run_dirs. It edits nothing.
+    - >-
+      T-2. tools/newest_experiments.py reads committed decisions under
+      ledger/decisions/ that carry `coordinator_decision.withheld_contracts`,
+      and drops their explicit `ids` from the selectable list returned by
+      newest_runnable(). The guards mirror T-1. (i) Membership is by
+      explicit ID in withheld_contracts.ids only, never by title, template,
+      signature or area. (ii) The block is honoured only if
+      withheld_contracts.rule_9_fields carries non-empty evidence, budget,
+      test_boundary, remaining_uncertainty and successor_or_revisit.
+      Otherwise warn on stderr, naming the decision, and keep its ids
+      selectable. (iii) A later decision naming the ID under
+      `released_contracts.ids` restores it, using the same ordering rule as
+      T-1. (iv) Nothing becomes invisible: every run prints to stderr, in
+      both text and --json modes, one count line naming each honouring
+      decision and how many rows it dropped. A new flag `--show-withheld`
+      prints the full list (id, deciding DEC id) to stderr in --json mode and
+      to stdout after the selectable rows in text mode.
+    - >-
+      T-2 EXPLICIT REQUESTS. When --experiment names a withheld id, the row is
+      still returned, with its shape unchanged. stderr names the hold and its
+      DEC. The hold governs unqualified and goal-scoped selection, not an
+      operator's explicit request (AGENTS.md "Harness entry point").
+      --goal selection applies the hold.
+    - >-
+      BACKWARD COMPATIBILITY IS A HARD CONSTRAINT. `--json` stdout stays a
+      JSON list of row objects with exactly the current keys (id,
+      designed_at, goal_id, hypothesis_id, specification, ecc, plus the
+      execution_progress keys). No key is added, removed or renamed. The run
+      skill's documented commands, `python3 tools/newest_experiments.py
+      --limit 3 --json` and `python3 tools/newest_experiments.py --goal
+      <GOAL-ID> --limit 0 --json`, must still emit a parseable JSON list on
+      stdout. newest_runnable()'s signature stays call-compatible for
+      orchestration/campaign/autopilot.py. Any new parameter is keyword-only
+      with a default that honours holds. execution_progress() is unchanged.
+    - >-
+      A decision file that fails to parse is skipped with a stderr warning.
+      It never crashes selection and never silently withholds anything.
+    - >-
+      TESTS. tools/test_ecc_priority_dispositions.py pins T-1: a disposition
+      is honoured; a guard failure (an empty rule_9 field) keeps the idea
+      open; `reopened` restores it; the disposed section is always printed;
+      and, on the real corpus, the three SSI ideas IDEA-20261004-e4c461,
+      -edbd24 and -a09dd4 stay open. tools/test_newest_experiments_withheld.py
+      pins T-2 on a temporary fixture repo: the hold is honoured; a guard
+      failure keeps the rows; a release restores them; --experiment still
+      returns a named withheld row; the --json row shape is byte-identical in
+      keys to a no-hold baseline; and the stderr count line is present. Its
+      real-corpus test asserts a FLOOR, never an exact number (CLAUDE.md
+      "A test that counts the whole corpus asserts a floor"): at least the
+      151 ids of the two decisions are withheld, and none of the 22 ids in
+      98a823's excluded_from_hold is withheld by 98a823.
+    - >-
+      Edit only write_scope paths. Do not edit any decision, specification,
+      handoff, proposal, goal or bus file. Do not run any experiment and do
+      not create any runs/ or implementation/ directory. Do not commit. The
+      Coordinator snapshot TASK-20261005-d59b5a commits the output.
+    - Amazon Bedrock is prohibited. It is not selected, configured, probed or contacted.
+  deliverables:
+    - T-1 change in tools/ecc_priority.py, with tests in tools/test_ecc_priority_dispositions.py
+    - T-2 change in tools/newest_experiments.py, with tests in tools/test_newest_experiments_withheld.py
+    - >-
+      coordination/archives/TASK-20261005-27ff15/task-report.yaml. It records
+      the changed functions, the ordering rule, the --json choice for T-1, the
+      exact commands run and their exit codes, the stderr count lines observed
+      on the real corpus, and the report-only census confirmation for the 151
+      ids. Any id that is not confirmed is listed, and nothing is fixed.
+  artifact_paths:
+    - tools/ecc_priority.py
+    - tools/test_ecc_priority_dispositions.py
+    - tools/newest_experiments.py
+    - tools/test_newest_experiments_withheld.py
+    - coordination/archives/TASK-20261005-27ff15/task-report.yaml
+  write_scope:
+    - tools/ecc_priority.py
+    - tools/test_ecc_priority_dispositions.py
+    - tools/newest_experiments.py
+    - tools/test_newest_experiments_withheld.py
+    - coordination/archives/TASK-20261005-27ff15/
+  archived_by: TASK-20261005-d59b5a
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 7200
+    memory_gb: 2
+    maximum_runs: 0
+  budget_note: >-
+    Advisory machine protection (CLAUDE.md "Research budgets: progress
+    first"). Zero scientific runs. A watchdog expiry checkpoints the task and
+    is never evidence.
+  dispatch_preconditions:
+    - >-
+      DP-1. TASK-20261005-2af213 has committed this card and
+      DEC-20261005-98a823, its receipt verifies, and the branch is pushed. A
+      card that exists only in a working tree is not dispatched.
+    - >-
+      DP-2. If a dispatch queue is used, the dispatcher claims this task first
+      (`tools/goal_lanes.py claim <queue> TASK-20261005-27ff15 --as <addr>
+      --ttl-minutes 150 --publish`) and releases it on return.
+    - >-
+      DP-3. No other session holds a write on any write_scope path. The
+      dispatcher checks open PR branches for changes to tools/ecc_priority.py
+      and tools/newest_experiments.py and records what it finds.
+  completion_gate:
+    - "`python3 -m pytest tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py -q` passes"
+    - "`python3 -m pytest tests/test_newest_experiments.py tests/test_experiment_execution.py -q` passes unchanged"
+    - "`python3 tools/newest_experiments.py --limit 3 --json` and `python3 tools/newest_experiments.py --goal GOAL-ECDLP-001 --limit 0 --json` each exit 0 and emit a JSON list on stdout (verified by json.loads), with the stderr count line present"
+    - none of the 151 ids in the two decisions' withheld_contracts.ids appears in `python3 tools/newest_experiments.py --limit 0 --json` stdout
+    - "`python3 tools/ecc_priority.py --open-ideas` lists none of the sixteen ids in DEC-20261005-138b51 idea_dispositions as open, prints them under the disposed section, and still lists IDEA-20261004-e4c461, -edbd24 and -a09dd4 as open"
+    - "`python3 tools/check_runtime_bindings.py` and `python3 tools/validate_ledger.py` show no new error attributable to this change"
+    - only write_scope paths are modified (the task report lists `git status --porcelain` output)
+    - the task report exists and records every command and exit code
+  return_format: >-
+    The changed paths, the test command outputs (pass counts), the stderr count
+    lines from the two run-skill commands, the T-1 --json choice and why, the
+    ordering rule, and the census confirmation table for the 151 ids. List any
+    deviation from this card explicitly.
+  review_plan: null
+  review_plan_note: >-
+    Tooling with no claim-changing content, so no review round is opened. If
+    any reviewer is later asked to read this output, the snapshot
+    TASK-20261005-d59b5a must have committed and verified it first.
+  archive:
+    kind: snapshot
+    archived_by: TASK-20261005-d59b5a
+  state: written_not_dispatched
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
