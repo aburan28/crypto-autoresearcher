@@ -153,6 +153,24 @@ ECC2K-130's 263 has k = 1.
   All have #E′ = N and match ord[𝔩₁₁] in Cl(−7ℓ′²). *Measured, independently
   verified.*
 
+## 6. Analogues and extensions
+
+- [`analogues/`](analogues/README.md): the same question on other Koblitz
+  curves with ECC2K-130's traits, by the kernel route. It covers m = 83
+  (out of reach by that route), m = 109 and K-163 (computed).
+- [`EXTENSIONS.md`](EXTENSIONS.md), dated 2026-10-08, adds three things:
+  - **The CM route.** A conductor floor is read off as the roots mod 2 of a
+    Weber class polynomial. It is validated against the fully enumerated
+    floors at m = 37 and m = 41, and it computes the whole m = 83 6473-floor
+    (6474 curves) plus the remaining floors of the survey.
+  - **m = 51 / m = 53.** At m = 51 the 271-floor was computed by both routes,
+    and they agree. The m = 51 120871-floor was estimated (not completed), and
+    m = 53 is out of reach.
+  - **A descent from a non-crater curve.** It is validated at m = 41 and
+    reaches the second level of NIST K-163 (conductor 45641·82153).
+
+  The diagram is [`reachability.svg`](reachability.svg).
+
 ## Files
 
 | file | role |
@@ -165,6 +183,12 @@ ECC2K-130's 263 has k = 1.
 | `volcano_ecc2k130.dot` → `.svg` / `.png` | diagram |
 | `report.typ` → `report.pdf` | status-labelled report |
 | `SHA256SUMS` | hashes of the scripts |
+| `EXTENSIONS.md` | 2026-10-08 report: CM route, m = 51/53, second level on K-163 |
+| `reachability.dot` → `.svg` / `.png` | which levels were reached, by which route |
+| `cm_route/` | CM validation (m = 37, 41), the m = 83 6473-floor, `polclass` scaling and its graph |
+| `survey/` | CM-route floors for m = 101, 103, 107 (`cm_floor.gp`) |
+| `m51_m53/` | m = 51/53 structure; the m = 51 271-floor by both routes and the cross-check |
+| `second_level/` | descent from a floor curve (`vert_down.gp`): m = 41 validation, K-163 level 2 and its level checks |
 | `analogues/` | m = 83 survey verdict; computed conductor isogenies for m = 109 and NIST K-163 (scripts, outputs, curve lists, level checks) |
 
 Reproduce with PARI/GP ≥ 2.15: `gp -q -s 2G structure.gp`, then `iso263.gp`,

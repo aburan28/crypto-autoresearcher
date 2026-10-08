@@ -23,11 +23,11 @@ all.
 
 | curve | conductor primes, with k and kernel-field size | verdict |
 |---|---|---|
-| m = 83, a = 0, cofactor 4 | 6473 (k = 3236, F_2^268588); 53676929 (k = 6.7·10⁶) | **not computable here** (below) |
+| m = 83, a = 0, cofactor 4 | 6473 (k = 3236, F_2^268588); 53676929 (k = 6.7·10⁶) | kernel route: **not computable here** (below); the 6473-floor was later computed by the CM route ([`../EXTENSIONS.md`](../EXTENSIONS.md)) |
 | m = 97, a = 0, cofactor 4 | 751943 (F_2^3.6e7); 352124743 | no |
-| m = 101, a = 1, cofactor 2 | 5857 (F_2^295728); 18583 (F_2^312797); 3996569 | no |
-| m = 103, a = 0, cofactor 4 | **11329 (k = 472, F_2^48616)**; 188642399417 | feasible but heavy (not run) |
-| m = 107, a = 0 or 1 | 3209 (F_2^171628); 1703265694433 | no |
+| m = 101, a = 1, cofactor 2 | 5857 (F_2^295728); 18583 (F_2^312797); 3996569 | kernel route: no; 5857- and 18583-floors by the CM route ([`../EXTENSIONS.md`](../EXTENSIONS.md)) |
+| m = 103, a = 0, cofactor 4 | **11329 (k = 472, F_2^48616)**; 188642399417 | kernel route feasible but heavy (not run); 11329-floor computed by the CM route ([`../EXTENSIONS.md`](../EXTENSIONS.md)) |
+| m = 107, a = 0 or 1 | 3209 (F_2^171628); 1703265694433 | kernel route: no; 3209-floor by the CM route ([`../EXTENSIONS.md`](../EXTENSIONS.md)) |
 | **m = 109, a = 1, cofactor 2** | **3271 (k = 5, F_2^545)**; 699600307831 | **computed** |
 | m = 113, a = 1, cofactor 2 | 77031318395801969 (F_2^4.4e18) | no |
 | **m = 131, a = 0, cofactor 4 (ECC2K-130)** | **263 (k = 1, F_2^131)**; 146505763881528721 | computed (main study) |
@@ -36,7 +36,11 @@ all.
 *Derived.* (Kronecker symbols, k values and class numbers are in `survey.out`
 and `details.out`.)
 
-## m = 83: why it can't be done here
+## m = 83: why the kernel route can't do it here
+
+*Update 2026-10-08:* everything below is about the kernel route and still holds. The CM route, which reads the
+floor off a class polynomial mod 2, computes the whole 6473-floor in under a minute; see
+[`../EXTENSIONS.md`](../EXTENSIONS.md).
 
 - **Cheapest prime.** Its cheapest conductor prime is 6473 (inert, so all 6474
   isogenies from the crater descend). The kernel x-coordinates need
@@ -81,7 +85,7 @@ primes, so both its 45641-floor and its 82153-floor are reachable explicitly.
 From a 45641-floor curve, an 82153-isogeny would reach the next level down,
 conductor 45641·82153 ≈ 3.7·10⁹, with the same k = 63. That step needs the
 floor curve's b′ embedded in the big field, which the b = 1 shortcut used
-here avoids. *Proposed, not run.*
+here avoids. *Proposed, not run here;* run on 2026-10-08, see [`../EXTENSIONS.md`](../EXTENSIONS.md) §3.
 
 ## Scope
 
