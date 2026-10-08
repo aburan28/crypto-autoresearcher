@@ -1,0 +1,128 @@
+# =============================================================================
+# TASK-20261003-582b6c -- Executor handoff for EXP-VOLC-3fee23 v1 (Problem B
+# toy cost map), approved by DEC-20261003-d35016. Observations only.
+# archived_by bound to run-snapshot archive TASK-20261003-934b84 before first
+# commit. Amazon Bedrock
+# prohibited.
+# =============================================================================
+handoff:
+  id: TASK-20261003-582b6c
+  id_provenance: >-
+    Pre-minted by the session driving the Coordinator and reported verified
+    free (tools/allocate_id.py) on 2026-10-03.
+  from: coordinator
+  to: executor
+  objective: >-
+    Implement and execute experiments/EXP-VOLC-3fee23/specification.yaml v1
+    exactly: Stage 0 (instance generation, independent instance verification,
+    K-census), Stage 1 (calibration, c1 and c2 frozen to calibration.json),
+    Stage 2 (PLANT, S1, S2, C5_A1, SEC_D3, C1, C1b), Stage 3 (C3, C3b, S3,
+    S3k, C2, S4, S4_null), Stage 4 (independent verifier over every
+    certificate, analysis, RESULTS.md naming exactly one outcome label plus
+    the T4 and T5 outcomes). Record observations only.
+  uncertainty_reduced: >-
+    Whether, at toy scale, the direct Problem-B descent costs
+    c1 k log2 p + c2 N F_{p^k}-multiplications (k = ord_N(t/2)) rather than a
+    uniform ~N^2; whether blind guessing reaches the N-floor after
+    p^2/((p-1) #S2) draws independent of N and k; how much X_1(m) biasing buys;
+    and how often unsteered instances have small k.
+  inputs:
+    - experiments/EXP-VOLC-3fee23/specification.yaml
+    - ledger/hypotheses/H-VOLC-5f03b6.yaml
+    - ledger/proposals/IDEA-20261003-e3ce5b.yaml
+    - ledger/decisions/DEC-20261003-d35016.yaml
+    - ledger/questions/RQ-VOLC-f6253b.yaml
+    - knowledge/open-problems/KN-OPEN-f2f6dc.md
+    - knowledge/literature/KN-LIT-ca35e0.md
+    - harness/runner.py
+    - harness/isogeny_class.py
+    - docs/claims-and-verification.md
+  constraints:
+    - Do not edit the specification, hypothesis, proposal, decision, question, or goal records. A needed protocol change is reported back for a Coordinator protocol_amendment; never self-amend.
+    - Write only inside write_scope. harness/isogeny_class.py is read-only and may be imported only by the verifier.
+    - Use the frozen seed derivation and sample counts exactly; do not add or redraw instances, searches, or cells.
+    - Route every F_{p^k} multiplication, squaring and inversion of A1 and of the A2/A3 certification and evaluation steps through the counted wrapper; exponentiations are square-and-multiply on the counted product.
+    - The verifier module may not import any solver module; store the import-graph check output with the run.
+    - "Implement the A1 basis routine to handle non-homocyclic Sylow subgroups (spec DC-6); the PLANT control must pass before S1."
+    - Follow the stage order and stop rules of the specification; blocking-control failures stop the dependent stages and are reported as O-INSTRUMENT-INVALID, never as a negative result.
+    - Timeouts, crashes, memory exhaustion and watchdog stops are failed_infrastructure, resumable with identical seeds, and never negative evidence (AGENTS.md rule 5).
+    - "BREAKTHROUGH FLAG (spec stopping_rules): halt the stratum, preserve artifacts, and report; claim nothing."
+    - Mint run ids with python3 tools/allocate_id.py --next run --area VOLC and confirm with --check; never overwrite a run directory.
+    - Wrap runs per harness/runner.py conventions; certificate kind none in the runner manifest; record python-flint version, requested_policy, resolved model and fallback_used in each manifest.
+    - Measured and modeled numbers never share a column.
+    - No Sage, no Magma, no network access during runs. Amazon Bedrock is prohibited.
+    - Do not change any hypothesis, experiment, or goal status field; do not run /curate-knowledge.
+  deliverables:
+    - experiments/EXP-VOLC-3fee23/implementation/ (generator, counted F_{p^k} wrapper, A1, A2/A2s, A3, verifier, analysis, run entry point, import-graph check, unit tests including PLANT)
+    - experiments/EXP-VOLC-3fee23/runs/<RUN-ID>/ for every stage or shard, each with manifest.yaml, command.txt, environment.json, stdout.log, stderr.log, raw-result.json
+    - instances.json and kc_census.json (Stage 0), calibration.json (Stage 1), raw_counts.jsonl, certificates.jsonl, verifier_log.jsonl, controls.json, metrics.json inside the producing runs
+    - experiments/EXP-VOLC-3fee23/RESULTS.md
+  artifact_paths:
+    - experiments/EXP-VOLC-3fee23/implementation/
+    - experiments/EXP-VOLC-3fee23/runs/
+    - experiments/EXP-VOLC-3fee23/RESULTS.md
+  write_scope:
+    - experiments/EXP-VOLC-3fee23/implementation/
+    - experiments/EXP-VOLC-3fee23/runs/
+    - experiments/EXP-VOLC-3fee23/RESULTS.md
+  archived_by: TASK-20261003-934b84
+  archived_by_note: >-
+    Bound by the dispatching session on 2026-10-03, before this card's first
+    commit, to run-snapshot archive task TASK-20261003-934b84 (minted with
+    tools/allocate_id.py --next handoff and confirmed free with --check).
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 288000
+    memory_gb: 8
+    maximum_runs: 16
+    enforcement: advisory
+    note: >-
+      wall_clock_seconds and maximum_runs are advisory estimates
+      (docs/research-budget-policy.md; about 80 CPU-hours estimated, dominated
+      by S3/S4 draws at 32-36 bits), not caps. memory_gb is machine
+      protection.
+  runtime_limits:
+    memory_gb: 8
+    per_A1_instance_wall_seconds: 3600
+    per_search_wall_seconds: 7200
+    reason: >-
+      Checkpoint watchdogs for machine protection. Expiry censors the instance
+      or search as failed_infrastructure and is resumed with identical seeds;
+      it does not exhaust the task or the campaign.
+  completion_gate:
+    - Stage-0 instances.json exists, every instance passed independent verification, and its sha256 appears in every later manifest.
+    - calibration.json exists and its sha256 is recorded in the S1 manifest with a timestamp earlier than the first S1 instance.
+    - PLANT, C1, C1b, C3 and C3b results are present in controls.json with PASS/FAIL; any FAIL is reported with the dependent stages stopped.
+    - raw_counts.jsonl holds one row per A1 instance and per search, including censored and failed ones.
+    - Every certificate in certificates.jsonl has a verifier_log.jsonl entry; the verifier import-graph check shows no solver import.
+    - metrics.json reports T1, T1b, T2, T3, T3b, T3c, T4, T5 with point estimates, bootstrap CIs (10000 resamples, seed 20261004), and PASS/FAIL/INDETERMINATE by the frozen decision rule; modeled columns are labelled modeled.
+    - RESULTS.md names exactly one outcome label from the specification, the T4 and T5 outcomes, every censored or failed item, and makes no asymptotic, novelty, or attack claim.
+    - Each run directory carries the six harness/runner.py files and the inference block.
+    - No file outside write_scope was modified; no ledger or status field was edited.
+  return_format: >-
+    The outcome label, the T1-T5 table (point estimates, CIs, verdicts), the
+    calibration constants, the blocking-control verdicts, counts of censored
+    and failed items, and every artifact path.
+  review_plan: null
+  review_plan_note: >-
+    This handoff opens no review round. The Coordinator writes the
+    review_plan (prior, owned joints, proves-too-much objects, blind
+    re-derivation of the guessing law and #S2) on the reviewer handoffs after
+    the run snapshot and before any reviewer runs.
+  dispatch_preconditions:
+    - archived_by bound to a minted run-snapshot archival task before this card's first commit (standing precondition 1).
+    - The design snapshot containing this card, EXP-VOLC-3fee23/specification.yaml, H-VOLC-5f03b6, IDEA-20261003-e3ce5b and DEC-20261003-d35016 is committed, verified by the post-commit verifier, and pushed (standing precondition 2).
+    - A lane is claimed with tools/goal_lanes.py claim when GOAL-ENDO-001 is being worked by another session, within its max_concurrent (standing precondition 3).
+    - "python-flint >= 0.7 importable in the run environment (pip install -e '.[fast]'); a missing dependency is an infrastructure stop, not a result."
+  execution:
+    mode: experiments
+    kind: run
+    experiment_id: EXP-VOLC-3fee23
+    specification: experiments/EXP-VOLC-3fee23/specification.yaml
+    approved_by: DEC-20261003-d35016
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.

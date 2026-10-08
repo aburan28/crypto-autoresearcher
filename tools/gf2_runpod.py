@@ -7,6 +7,9 @@ trailing-update path needs a device to compile and time.
 
 Usage:
   python3 tools/gf2_runpod.py probe          # API key + list GPU offers
+  python3 tools/gf2_runpod.py run --ref BRANCH [--gpu-type ...]
+      # create a pod that runs tools/gf2_pod_bench.sh for BRANCH, wait for its
+      # result over the RunPod HTTP proxy, print it, terminate the pod
   python3 tools/gf2_runpod.py bench \\
       --gpu-type "NVIDIA GeForce RTX 4090" --image runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
   python3 tools/gf2_runpod.py --help
@@ -173,6 +176,71 @@ echo DONE > /workspace/gf2_bench.done
     return 0
 
 
+def _terminate(pod_id: str) -> None:
+    _gql("""
+        mutation ($input: PodTerminateInput!) { podTerminate(input: $input) }
+        """, {"input": {"podId": pod_id}})
+
+
+def _fetch(url: str, timeout: int = 30):
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.status, resp.read().decode(errors="replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, ""
+    except (urllib.error.URLError, OSError, TimeoutError):
+        return None, ""
+
+
+def cmd_run(args) -> int:
+    """Create a pod running tools/gf2_pod_bench.sh, wait, report, terminate.
+
+    The pod serves /workspace/out on port 8000; RunPod exposes it at
+    https://<pod>-8000.proxy.runpod.net/. The pod is terminated in every case
+    (success, failure, timeout, Ctrl-C) unless --keep is given."""
+    raw = (f"https://raw.githubusercontent.com/aburan28/crypto-autoresearcher/"
+           f"{args.ref}/tools/gf2_pod_bench.sh")
+    cmd = f"bash -c 'curl -fsSL {raw} -o /tmp/b.sh && REF={args.ref} REPS={args.reps} bash /tmp/b.sh'"
+    data = _gql(
+        """
+        mutation ($input: PodFindAndDeployOnDemandInput!) {
+          podFindAndDeployOnDemand(input: $input) { id machineId desiredStatus }
+        }
+        """,
+        {"input": {
+            "cloudType": args.cloud, "gpuCount": 1, "volumeInGb": 20, "containerDiskInGb": 40,
+            "minVcpuCount": args.min_vcpu, "minMemoryInGb": 32, "gpuTypeId": args.gpu_type,
+            "name": f"gf2-bench-{int(time.time())}", "imageName": args.image,
+            "dockerArgs": cmd, "ports": "8000/http", "volumeMountPath": "/workspace",
+        }},
+    )
+    pod = data.get("podFindAndDeployOnDemand") or {}
+    if not pod.get("id"):
+        sys.stderr.write(f"no pod created (GPU type out of stock or no credit?): {json.dumps(data)[:400]}\n")
+        return 1
+    pod_id = pod["id"]
+    base = f"https://{pod_id}-8000.proxy.runpod.net"
+    print(f"# pod {pod_id} ({args.gpu_type}); waiting for {base}/done", flush=True)
+    try:
+        t0 = time.time()
+        while time.time() - t0 < args.timeout:
+            code, _ = _fetch(f"{base}/done")
+            if code == 200:
+                break
+            time.sleep(20)
+        else:
+            sys.stderr.write("timed out waiting for the pod\n")
+        for name in ("log.txt", "pytest.txt", "result.json"):
+            code, body = _fetch(f"{base}/{name}")
+            print(f"===== {name} (HTTP {code})")
+            print(body[-20000:] if name == "log.txt" else body)
+        return 0
+    finally:
+        if not args.keep:
+            _terminate(pod_id)
+            print(f"# pod {pod_id} terminated", flush=True)
+
+
 def cmd_stop(args) -> int:
     data = _gql(
         """
@@ -213,6 +281,17 @@ def main(argv: list[str] | None = None) -> int:
     sb.add_argument("--ref", default=None, help="git branch/ref to check out on the pod")
     sb.add_argument("--keep", action="store_true", help="do not remind about teardown")
     sb.set_defaults(func=cmd_bench)
+
+    sr = sub.add_parser("run", help="Run tools/gf2_pod_bench.sh on a fresh GPU pod and report")
+    sr.add_argument("--ref", required=True, help="branch of this repo the pod checks out")
+    sr.add_argument("--gpu-type", default="NVIDIA GeForce RTX 4090")
+    sr.add_argument("--image", default="runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04")
+    sr.add_argument("--cloud", default="SECURE", choices=["SECURE", "COMMUNITY", "ALL"])
+    sr.add_argument("--min-vcpu", type=int, default=8)
+    sr.add_argument("--reps", type=int, default=3)
+    sr.add_argument("--timeout", type=int, default=3600, help="seconds to wait for the pod")
+    sr.add_argument("--keep", action="store_true", help="do not terminate the pod")
+    sr.set_defaults(func=cmd_run)
 
     ss = sub.add_parser("stop", help="Stop (and optionally terminate) a pod")
     ss.add_argument("--pod-id", required=True)

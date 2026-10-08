@@ -29,6 +29,15 @@ wire_protocols:
     static_headers:
       anthropic-version: "2023-06-01"
     models_path: /v1/models
+    # Message Batches: the same request bodies, submitted asynchronously and
+    # processed within 24 hours at half price. Only a backend that declares
+    # `supports_message_batches: true` is sent here; a gateway that merely
+    # speaks the wire format is not assumed to implement it.
+    batches_path: /v1/messages/batches
+    # Shape validation without generation. A batch validates its requests
+    # asynchronously and reports a malformed one only when the whole batch has
+    # ended, so `batch submit` preflights one request here first.
+    count_tokens_path: /v1/messages/count_tokens
     system_field: system                 # top-level, not a message
     max_tokens_field: max_tokens
 
@@ -57,6 +66,8 @@ backends:
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_API_KEY
     supports_models_probe: true
+    # The only backend with the Message Batches API. See docs/batch-inference.md.
+    supports_message_batches: true
 
   zai:
     display_name: Z.ai open platform (GLM), OpenAI-compatible
@@ -138,6 +149,40 @@ backends:
       namespaced (`vendor/model`), so its binding table differs from a direct
       vendor backend even when the underlying model is identical.
 
+  abliteration:
+    display_name: Abliteration.ai (OpenAI-compatible)
+    wire: openai_chat
+    base_url: https://api.abliteration.ai/v1
+    base_url_env: ABLIT_BASE_URL
+    api_key_env: ABLIT_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Serves the vendor's published ids (`abliterated-model`,
+      `abliterated-model-large`, `abliterated-model-large-v2`). These are
+      refusal-reduced open-weight derivatives, not Anthropic or OpenAI
+      proprietary models. Chat Completions takes `reasoning_effort`.
+      `abliterated-model-large-v2` collapses that ladder to three modes
+      (low, high, max): xhigh and max are the same mode. Select this backend
+      with AUTORESEARCH_BACKEND; it is not in the fallback order.
+
+  abliteration-anthropic:
+    display_name: Abliteration.ai via its Anthropic-compatible endpoint
+    wire: anthropic_messages
+    # The wire protocol appends /v1/messages, so the composed endpoint is
+    # https://api.abliteration.ai/v1/messages. Claude Code wants the same host
+    # in ANTHROPIC_BASE_URL.
+    base_url: https://api.abliteration.ai
+    base_url_env: ABLIT_ANTHROPIC_BASE_URL
+    api_key_env: ABLIT_API_KEY
+    supports_models_probe: true
+    notes: >-
+      Same models as `abliteration`, spoken as Anthropic Messages. Effort is
+      sent as `output_config.effort` (the vendor's native control). A thinking
+      budget would be remapped by the provider to an undisclosed effort, so
+      bindings on this backend do not use `anthropic_thinking`. This does NOT
+      provide Claude. The endpoint accepts `x-api-key`, which is this wire's
+      default, so a separate auth override is unnecessary.
+
   local:
     display_name: Self-hosted OpenAI-compatible server (vLLM, SGLang, Ollama)
     wire: openai_chat
@@ -171,11 +216,13 @@ runtimes:
       api_key: ANTHROPIC_AUTH_TOKEN
       model: ANTHROPIC_MODEL
       small_model: ANTHROPIC_SMALL_FAST_MODEL
-    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic]
+    compatible_backends: [anthropic, zai-anthropic, fireworks-anthropic,
+                          abliteration-anthropic]
     notes: >-
-      Subagent frontmatter accepts only the runtime's own model names, so
-      per-role model selection here is process-level: launch one runtime per
-      policy with the env below, rather than mixing policies in one session.
+      The session model is the project default in .claude/settings.json, or
+      the env below for a per-policy launch. Subagents inherit it, except the
+      roles in roles.yaml runtime_model_pins, whose files name their policy's
+      binding on this backend (checked by tools/check_runtime_bindings.py).
 
   codex_cli:
     display_name: OpenAI Codex CLI / any OpenAI-protocol agent CLI
@@ -186,7 +233,7 @@ runtimes:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
-    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    compatible_backends: [openai, zai, fireworks, openrouter, abliteration, local]
     notes: >-
       This runtime previously bound roles by convention — a session read
       AGENTS.md and agents/<role>.md and was trusted to behave. Nothing checked
@@ -208,7 +255,8 @@ runtimes:
       base_url: OPENAI_BASE_URL
       api_key: OPENAI_API_KEY
       model: OPENAI_MODEL
-    compatible_backends: [openai, zai, fireworks, openrouter, local]
+    compatible_backends: [openai, zai, fireworks, openrouter, abliteration, local,
+                          anthropic]
     notes: >-
       Of the CLI runtimes this is the one with real per-role enforcement: its
       `permission` block denies a tool outright rather than asking the model
@@ -218,7 +266,9 @@ runtimes:
       runtimes take it: OpenCode resolves providers through its own
       `opencode.json` `provider:` block, so point that at the backend and
       record the resolved model in the run manifest as usual. The env names
-      are listed for the OpenAI-compatible case only.
+      are listed for the OpenAI-compatible case only. `anthropic` is listed
+      because OpenCode ships a native Anthropic provider of its own, so the
+      wire mismatch the other two CLI runtimes would hit does not arise.
 
   api_direct:
     display_name: This repository's own runtime (orchestration.agent, LangGraph)
@@ -227,7 +277,8 @@ runtimes:
     tool_loop: langgraph
     env: {}
     compatible_backends: [anthropic, zai, zai-anthropic, fireworks,
-                          fireworks-anthropic, openai, openrouter, local]
+                          fireworks-anthropic, openai, openrouter, abliteration,
+                          abliteration-anthropic, local]
     notes: >-
       Executes a role against any backend above, with the tool surface derived
       from orchestration/roles.yaml and the task's write_scope enforced by the
@@ -245,3 +296,23 @@ defaults:
   runtime_env: AUTORESEARCH_RUNTIME
   request_timeout_seconds: 600
   max_retries: 3
+  # Delivery routing between the synchronous Messages API and Message Batches.
+  # `delivery: auto` on a request compares its deadline with these figures;
+  # see docs/batch-inference.md. Latencies are the provider's published
+  # envelope (most batches finish within an hour; a request not served within
+  # 24 hours expires unbilled), not a guarantee: `batch escalate` exists for
+  # the case where a result became urgent after submission.
+  batch:
+    expected_latency_seconds: 3600
+    max_latency_seconds: 86400
+    # A task at or above this dispatch priority (0..100) is never batched
+    # under `auto`: the queue already says it is wanted now.
+    urgent_priority: 90
+    # A deadline must leave this much slack beyond the expected latency
+    # before `auto` chooses the batch; shorter and the request runs now.
+    deadline_slack_seconds: 1800
+    # Write-once submission, result, and escalation records, one directory
+    # per provider batch id. Overridable with AUTORESEARCH_BATCH_DIR.
+    registry_dir: coordination/inference-batches
+    # Poll cadence for `batch wait`; the API asks for minutes, not seconds.
+    poll_interval_seconds: 60

@@ -1,0 +1,152 @@
+experiment:
+  id: EXP-SCURVE-29040c
+  hypothesis_id: H-SCURVE-d5f25f
+  proposal_id: IDEA-20261006-c5b972
+  version: 1
+  title: Native x-only P-192 singular-companion planted-key recovery
+  status: approved
+  objective: >-
+    Demonstrate or falsify end-to-end recovery of one fixed public synthetic
+    P-192 scalar through the actual unchecked low-level scalar multiplication
+    surface, using only x-derived confirmation tags for invalid inputs and the
+    legitimate P-192 public key for the final residual solve.
+  inputs:
+    p192:
+      p_hex: fffffffffffffffffffffffffffffffeffffffffffffffff
+      a: -3
+      b_hex: 64210519e59c80e70fa7e9ab72243049feb8deecc146b9b1
+      gx_hex: 188da80eb03090f67cbf20eb43a18800f4ff0afd82ff1012
+      gy_hex: 07192b95ffc8da78631011ed6b24cdd573f977a11e794811
+      n_hex: ffffffffffffffffffffffff99def836146bc9b1b4d22831
+      n_decimal: '6277101735386680763835789423176059013767194773182842284081'
+      cofactor: 1
+    singular_companion:
+      equation: y^2=x^3-3x-2=(x+1)^2(x-2)
+      node: [-1, 0]
+      full_order_point: [66, 536]
+      smooth_locus_order: '6277101735386680763835789423207666416083908700390324961280'
+      factorization: 2^64 * 3 * 5 * 17 * 257 * 641 * 65537 * 274177 * 6700417 * 67280421310721
+      qmax: '67280421310721'
+      M: '93297598515282145091939986791922449178951680'
+    planted_key:
+      seed_hex: 503139322d53494e47554c41522d5631
+      seed_ascii: P192-SINGULAR-V1
+      mapping: 'd=1+OS2IP_BE(SHA256("crypto/p192-singular-recovery/seed/v1\0" || seed_bytes)) mod (n-1)'
+      expected_digest_hex: f16fdbf87ede32e18b70f853c97659bb0cf20658693385892c918c91970c03af
+      expected_d_decimal: '3419090462492416794041408622244871729251768983841006244224'
+      expected_d_hex: 8b70f85429c81223e88be1a60590627a3c8e558a24dd5180
+    primary_oracle:
+      victim_call: scalar_mul_secret(P,d,&CurveParams::p192()) without input validation
+      zx: 'Infinity -> 0x00||00^24; finite S -> 0x01||I2OSP_24(S.x)'
+      key: 'SHA256("crypto/p192-singular/x-only-kdf/v1\0" || zx(S))'
+      message: '"crypto/p192-singular/confirm/v1\0" || u32_be(stage) || SEC1_24_uncompressed(P)'
+      tag: HMAC-SHA256(key,message)
+      restriction: y(S) is never exposed or included; tag(S)=tag(-S)
+  method:
+    certification:
+      - Verify the exact P-192 tuple, primality/order assumptions used, and [n]G=O.
+      - Verify b=-2 is singular, R is finite/smooth/off-P-192, [N]R=O, and [N/q]R!=O for every distinct q dividing N.
+      - Independently verify the nodal-torus parameterization and native low-level results for every query.
+    residue_recovery: >-
+      Start (m,r)=(1,0). Extend in order by 2 repeated 64 times, then
+      3,5,17,257,641,65537,274177,6700417. At each q set m'=mq,
+      certify P_m'=[N/m']R has exact order m', make exactly one primary oracle
+      query, scan lifts r+jm for 0<=j<q against the tag, take the least matching
+      lift, and retain exactly {r,-r mod m'}. End at m=M. The expected primary
+      oracle count is 72; report actual candidate comparisons rather than
+      treating them as oracle calls.
+    residual_bsgs: >-
+      Let r_plus=r and r_minus=-r mod M, H=[M]G, and
+      T_s=Q-[r_s]G. Search k in 0<=k<1+floor((n-1-r_s)/M) for both orientations
+      in inclusive lockstep using one negation-BSGS baby table. Freeze
+      table_bits=24, m=5,800,019, stride=11,600,037, at most 5,800,018 finite
+      baby entries plus the Infinity special case, and at most 5,800,018 giant
+      positions per orientation. Verify every fingerprint hit and accept only
+      d=r_s+kM in [1,n-1] with [d]G=Q.
+  controls:
+    - Exhaustive p=59 singular-companion recovery with every scalar and sign collision accounted.
+    - Existing challenge59 invalid-curve recovery remains a separate regression control.
+    - Raw/full-point Pohlig-Hellman on the P-192 singular locus is a stronger positive model only.
+    - The safe high-level ecdh_raw path must reject every singular probe before multiplication.
+    - Wrong-a, mutated N/factor, mutated target, and one-bit tag mutations must be rejected.
+    - Generic low-level results must equal independent torus arithmetic on every primary query.
+  independent_variables:
+    - oracle surface: primary x-only versus full-point model control
+    - validated high-level versus unchecked low-level entry point
+    - correct versus mutated arithmetic/transcript fixtures
+  metrics:
+    primary:
+      - exact final replay [d]G=Q and equality with the frozen planted d
+      - coherent recovered set {d,-d} modulo M after exactly 72 x-only oracle queries
+      - primary confirmation queries, candidate comparisons, BSGS baby entries, and giant visits
+      - native field/group operations by certification, residue, table-build, giant-walk, and replay phase
+    secondary:
+      - peak resident bytes and table bytes
+      - wall time and CPU time by phase, reported as engineering measurements only
+      - every control verdict and certificate digest
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: exact fixed-seed recovery outcome
+    formula: d=1+SHA256-domain-separated-seed mod (n-1), then nested residues and interval BSGS
+    source: IDEA-20261006-c5b972 and H-SCURVE-d5f25f
+  scale_relevance:
+    tier: crypto
+    justification: Exact P-192 field, group, low-level implementation, and legitimate public key; the key is synthetic.
+    correspondence: Direct execution, with p=59 only as a control.
+  tail_checks:
+    - Report the two final residue orientations and both interval widths before BSGS.
+    - For the frozen seed, check the expected unordered residues 78222222987683236539393919745863586265518464 and 15075375527598908552546067046058862913433216.
+    - Check the true residual k=36647143301682 only after recovery; never use it to prune the search.
+  replication:
+    seeds:
+      - 503139322d53494e47554c41522d5631
+    independent_instances: 1
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 16
+    maximum_runs: 1
+    maximum_workers: 4
+  stopping_rules:
+    - Stop invalid if any exact certificate or mandatory control fails.
+    - Stop success only after recovered d equals the planted d and [d]G=Q.
+    - Resource exhaustion is operational and yields incomplete, never evidence of strength.
+  invalidation_rules:
+    - Any y-coordinate or raw full point from the victim is used in the primary lane.
+    - The primary lane substitutes torus arithmetic for the actual low-level multiplier.
+    - Per-factor sign choices are brute-forced instead of linked by the nested composite probes.
+    - The residual qmax factor is recovered from an oracle stronger than Q=[d]G.
+    - A fingerprint/table collision is accepted without exact replay.
+  success_criterion: >-
+    All certifications and controls pass; the primary transcript uses only the
+    frozen x-only tags and exactly 72 oracle calls; it recovers one coherent
+    plus-or-minus class modulo M; the two-orientation shared-table BSGS returns
+    the frozen d; and independent final replay gives [d]G=Q.
+  falsification_criterion: >-
+    With all instrument controls passing, the primary x-only transcript cannot
+    recover the coherent class or neither legitimate residual orientation
+    replays to Q within the frozen exhaustive interval.
+  commands:
+    build: cargo build --release --bin p192_singular_recovery --target-dir /workspace/crypto-target
+    run: >-
+      RAYON_NUM_THREADS=4 /workspace/crypto-target/release/isolated_bench run
+      --cpus 1-4 --out <fresh-run-dir>/isolation.jsonl --
+      /workspace/crypto-target/release/p192_singular_recovery run
+      --seed-hex 503139322d53494e47554c41522d5631
+      --oracle x-only-hmac-sha256 --residue-mode nested-composite
+      --orientation-search interleaved --threads 4 --batch-lanes 256
+      --table-bits 24 --output <fresh-run-dir>/recovery.json
+    verify: /workspace/crypto-target/release/p192_singular_recovery verify --input <fresh-run-dir>/recovery.json
+  required_artifacts:
+    - run.yaml with fresh RUN id, code commit, exact argv, environment, and timestamps
+    - recovery.json with transcript digests, residue stages, BSGS certificate, and final replay
+    - order-and-point-certificates.json
+    - controls.json
+    - isolation.jsonl and phase-metrics.json
+    - stdout.log and stderr.log
+    - SHA-256 manifest covering every artifact
+  assigned_to: executor
+  approved_by: coordinator
+  approval_decision: DEC-20261006-af8214
+  claim_ceiling: IMPLEMENTATION_WEAK
