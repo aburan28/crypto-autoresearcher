@@ -196,3 +196,97 @@ def cycle_pump_cost(ell: int, steps: int) -> float:
 def pump_cost_per_height_bit(ell: int) -> float:
     """M per bit of height for a chain of ell-isogenies (height sqrt(ell)/step)."""
     return isogeny_step_cost(ell) / (log2(ell) / 2)
+
+
+# ---------------------------------------------------------------------------
+# x-only (XZ) short Weierstrass arithmetic: the cost row used by xonly.py
+# ---------------------------------------------------------------------------
+
+# EFD, "XZ coordinates for short Weierstrass curves" (g1p/auto-shortw-xz):
+# (M, S, constant multiplications by name).  A constant multiplication is
+# charged 1 M when the constant is full-size and 0 when |c| < 2^16 (EFD's
+# own convention charges *param and *const at 0M; this table keeps them).
+XONLY_MODELS: dict[str, dict] = {
+    "weierstrass_xz": {
+        "note": "EFD dbl-2002-bj-3 2M+5S+1*a+1*b2+1*b4; dadd-2002-it-3 7M+2S+1*a+1*b; "
+                "mdadd-2002-it-3 (difference with Z=1) 6M+2S+1*a+1*b",
+        "xDBL": (2, 5, ("a", "b2", "b4")),
+        "xADD": (7, 2, ("a", "b")),
+        "mxADD": (6, 2, ("a", "b")),
+    },
+}
+XONLY_SMALL_CONSTANT = 1 << 16
+
+
+def _xonly_const_full(c: int, p: int) -> int:
+    c %= p
+    return 0 if min(c, p - c) < XONLY_SMALL_CONSTANT else 1
+
+
+def xonly_op(op: str, a: int, b: int, p: int) -> dict:
+    """One x-only operation on y^2 = x^3 + a x + b over F_p as {M, S, Mc_full, M_eq}."""
+    m, s, consts = XONLY_MODELS["weierstrass_xz"][op]
+    vals = {"a": a, "b": b, "b2": 2 * b, "b4": 4 * b}
+    mc = sum(_xonly_const_full(vals[c], p) for c in consts)
+    return {"M": m, "S": s, "Mc_full": mc, "M_eq": m + s + mc}
+
+
+def _sum_ops(*parts: tuple[dict, int]) -> dict:
+    out = {"M": 0, "S": 0, "Mc_full": 0}
+    for d, k in parts:
+        for key in out:
+            out[key] += k * d[key]
+    out["M_eq"] = out["M"] + out["S"] + out["Mc_full"]
+    return out
+
+
+def fermat_inversion_ops(p: int) -> dict:
+    """x^(p-2) by left-to-right square-and-multiply."""
+    e = p - 2
+    return {"M": bin(e).count("1") - 1, "S": e.bit_length() - 1, "Mc_full": 0,
+            "M_eq": bin(e).count("1") - 1 + e.bit_length() - 1}
+
+
+def xonly_chain_cost(steps) -> dict:
+    """x-only evaluation of a chain endomorphism, steps in evaluation order.
+
+    First step on the affine x(P): monic Horner for N (degree ell) and psi
+    (degree s = (ell-1)/2): ell + s - 2 M, and psi^2: 1 S.  Later steps on
+    (X : Z): Z^2 .. Z^ell (1 S + ell - 2 M), homogeneous monic Horner
+    (ell - 1 + s - 1 M and ell + s constant multiplications), psi_h^2 (1 S),
+    Z * psi_h^2 (1 M).  Then X -> u^2 X (1 constant multiplication).  Map
+    constants are counted as full-size.  Odd prime steps only.
+    """
+    M = S = Mc = 0
+    for i, ell in enumerate(steps):
+        if ell < 3 or ell % 2 == 0:
+            raise ValueError("odd prime steps only")
+        s = (ell - 1) // 2
+        if i == 0:
+            M += ell + s - 2
+            S += 1
+        else:
+            M += 2 * ell + s - 3
+            S += 2
+            Mc += ell + s
+    Mc += 1
+    return {"M": M, "S": S, "Mc_full": Mc, "M_eq": M + S + Mc}
+
+
+def xonly_ladder_cost(bits: int, a: int, b: int, p: int) -> dict:
+    """Montgomery ladder with a fixed number of iterations: xDBL + mdadd each."""
+    return _sum_ops((xonly_op("xDBL", a, b, p), bits), (xonly_op("mxADD", a, b, p), bits))
+
+
+def xonly_2d_cost(levels: int, a: int, b: int, p: int, endo_M_eq: float, *,
+                  affine_differences: bool) -> dict:
+    """Bernstein's binary chain with a fixed number of levels (xADD, xDBL, xADD
+    each), plus one xADD for x(P + Q), the endomorphism images (``endo_M_eq``,
+    charged as M) and, for affine differences, one shared Fermat inversion
+    and 9 M (Montgomery's trick on three denominators, three products)."""
+    add = xonly_op("mxADD" if affine_differences else "xADD", a, b, p)
+    parts = [(xonly_op("xDBL", a, b, p), levels), (add, 2 * levels), (xonly_op("xADD", a, b, p), 1),
+             ({"M": endo_M_eq, "S": 0, "Mc_full": 0}, 1)]
+    if affine_differences:
+        parts += [(fermat_inversion_ops(p), 1), ({"M": 9, "S": 0, "Mc_full": 0}, 1)]
+    return _sum_ops(*parts)
