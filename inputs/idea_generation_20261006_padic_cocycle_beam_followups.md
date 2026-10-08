@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then twenty-four structured addition, collision-sketch, validation-cost, and representative-table measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping and compact minimum-ticket representatives substantially reduced repeated toy construction/query work, but remained square-root collision-table time-memory variants rather than establishing a new exponent.
+- Bottom line: five earlier frozen successors failed their gates, then thirty structured addition, collision-sketch, validation-cost, representative-table, and state-reuse measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed-derivation audit is frozen because the inherited deterministic hash helper includes harness-only target-scalar metadata.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -145,8 +145,33 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `two_choice_cuckoo_lab.py` | `c0253165fe1fea2eb6fbb0f68bf8ceb423bc1da09260086a5aac4e95710f88a8` |
 | `tests/test_two_choice_cuckoo_lab.py` | `3963092bd671b436c7822044c68b539a07b44c415efaa5f2447d5e263d4ab8c6` |
 | `results/two-choice-cuckoo-representatives.json` | `2d5ac59174cb076d1a56191008f3b5ff14e137534cf2e51fd415f3115575fef9` |
+| label-only freeze/implementation/result commits | `3db1087`, `db00d69`, `cd394d2` |
+| `label_only_validation_lab.py` | `3979b7577df277453cde79d2049c243e92dcae18e84b7170e9494dcc1d0bda02` |
+| `tests/test_label_only_validation_lab.py` | `2a5337cb88c7766349b93bbe8d6939a63ee824b7c2272e0f1dbdce8e85133ea7` |
+| `results/label-only-validation-table.json` | `5011b6478bf2994582e5c95dfb9ab23523daccc22c1c3f42588d555e5d614e5a` |
+| one-bit state freeze/implementation/result commits | `cd394d2`, `2eea9b4`, `40ab7ec` |
+| `state_bit_fingerprint_lab.py` | `a654dd044e7b14d5ee3fbdb7abb667a28c115a29332fbb6383506af585dd74e0` |
+| `tests/test_state_bit_fingerprint_lab.py` | `1d59812ae21d4bcbe595f9de91768a902af94814275cd0e9ebea8ea11679b158` |
+| `results/state-bit-label-fingerprint.json` | `0baeee422cf471060f76c99221a37192352f45c5cf767f188fe9f3a280ffbf23` |
+| two-bit state freeze/implementation/result commits | `40ab7ec`, `17b6009`, `80c8f6c` |
+| `two_bit_state_fingerprint_lab.py` | `c977d949065d21d9fe2a8df8a92ed2ed4ee31ed53d93875a94b6cf5eae121298` |
+| `tests/test_two_bit_state_fingerprint_lab.py` | `b5e96a4420cff917bd23d94b0d1c67bb8749484bdf6082ad01c9f453b8a7e50a` |
+| `results/two-bit-state-fingerprint.json` | `dabb07c1af498637796bc640061225ea5dbad228744192d5f7155039de37ab78` |
+| ternary reuse freeze/implementation/result commits | `80c8f6c`, `66c8938`, `5c6a66f` |
+| `ternary_state_reuse_lab.py` | `a513b01645eb4042b3a9ed84279d9efda742acef6a60d77ca0fdac75074c62e0` |
+| `tests/test_ternary_state_reuse_lab.py` | `92e824c725bebdbbb3ec8163c504edeaeb750dd06a69d4560d45caa682143bd8` |
+| `results/ternary-state-reuse.json` | `cb14ba44b9f63690bee2894d46d29faa8e58081aefd192a9a47cf52175983b4b` |
+| sentinel state freeze/implementation/result commits | `5c6a66f`, `50c7ce3`, `19ded37` |
+| `sentinel_quaternary_state_lab.py` | `4dae069289443fddc881023e4a7f246f122295983c6a6bb628b7e117786496a4` |
+| `tests/test_sentinel_quaternary_state_lab.py` | `e39e580ee6433dadce2554c9453fd265176fb01b3c75e74fc0fd802be4a3f318` |
+| `results/sentinel-quaternary-state.json` | `bec2504a962752152a8996aee639c2cdc53049df0dab64515381a8a3fd7d6466` |
+| decoy-first freeze/implementation/result commits | `19ded37`, `1068255`, `8ecdfe1` |
+| `decoy_first_sentinel_lab.py` | `a81d760fcd6f30122b9471490b587632965bdf6fc65f28ea354a7e89ab855677` |
+| `tests/test_decoy_first_sentinel_lab.py` | `5ed99769d48cd7fb4ac8dfa0cc482513d5f98a2995dba1124f56faf3a89a0142` |
+| `results/decoy-first-sentinel.json` | `d67949d57d156131756e35b57830e40f62f02878c22274f3c57c93a9860649fc` |
+| public-target seed-audit freeze commit | `8ecdfe1` |
 
-All thirty result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 115/115 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
+All thirty-six result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 144/144 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -612,12 +637,71 @@ at eight seeds, so the strict primary gate failed. Bucket reads increased
 cell displacement attempts. This is a mixed time-memory-lookup trade, not a
 new ECDLP algorithm or exponent.
 
+## H38 — label-only validation table
+
+One-field label cells plus a charged two-bit construction-state map increased
+representative retention to 58.86%. The two-pass selected-x-to-label transition
+completed all 3,072 targets by six seeds rather than H36's eight. Removing the
+x certificate made every emitted label require public scalar validation:
+two-pass examinations rose 60.98%, validations rose 64.58-fold, and
+inversion-bearing validation operations rose 69.87-fold. The mixed result is
+retained; it motivates state fingerprints rather than a speed claim.
+
+## H39 — one-bit final-state fingerprint
+
+Reusing the already charged two-bit state map for empty/final-zero/final-one
+states preserved H38 recovery, occupancy, construction, and storage exactly.
+The bit rejected 48.96% of occupied queries. Label emissions fell 48.96%,
+scalar validations 49.23%, and inversion-bearing operations 49.25%. All frozen
+gates passed, but the decoder remains the same validation-backed signed
+collision table.
+
+## H40 — two-bit fingerprint with a three-bit state map
+
+A wider state map encoded four final ticket classes but reduced the number of
+label cells under the same peak cap. It cut validations and inversion-bearing
+operations 43.08% and 43.12% relative to H39 and still completed all targets
+at seed 6. It trailed H39 by 46, 19, and 2 recoveries at prefixes 1, 2, and 4,
+so the frozen early-recovery and primary gates failed. Insertions rose 1.98%
+and probes 7.65% by completion.
+
+## H41 — ordered ternary construction-state reuse
+
+H41 kept H39's table size and used all three nonempty two-bit state values as
+final fingerprints. A descending-ticket, duplicate-grouped second pass made
+reuse of the selected-x state unambiguous. Recovery, insertions, probes, and
+persistent layout matched H39 exactly; validations fell 32.10% and
+inversion-bearing operations 32.23%. The payload explicitly charges 2.75
+million merge comparisons, transient sort records, and 17.04% more
+construction cell reads. Every safety and primary gate passed.
+
+## H42 — sentinel-empty quaternary state
+
+An absent label sentinel moved emptiness out of the state map, freeing all four
+two-bit codes for ticket fingerprints at H39's exact cell count. Recovery and
+layout again matched H39. Label emissions fell 47.64%, validations 48.09%, and
+inversion-bearing operations 48.25%; all sentinel and ordering safety counters
+were zero. Reading the sentinel first forced a cell read on every query, so
+combined query cell-plus-state reads rose about 25.3%. The result is a
+multi-resource frontier, not an unconditional speedup.
+
+## H43 — decoy-first sentinel lookup
+
+Empty slots received deterministic `position mod 4` state decoys and queries
+tested state before the label sentinel. Occupied behavior, recovery, controls,
+emissions, validations, and scalar paths were identical to H42. Decoys rejected
+48,132/64,262 empty probes before a cell read; final cell reads fell 73.76% to
+56,328 and combined query reads were 271,007, 7.01% below H39. Logical and
+packed decoy initialization remain charged. This optimizes lookup constants
+inside the same square-root collision decoder.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a one-field label-only table with an exactly charged two-bit construction
-  state map, two-pass x-to-label transition, sign-complete lifts, and public
-  validation of every emitted scalar (H38, frozen in `3db1087`).
+- a public target-point seed-derivation audit that removes the harness-only
+  target scalar from the attack-side hash-selection call graph, adds a
+  metadata-perturbation test, and reruns the H43 frontier (H44, frozen in
+  `8ecdfe1`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
