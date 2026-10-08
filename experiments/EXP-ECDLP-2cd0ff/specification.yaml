@@ -1,0 +1,331 @@
+# =============================================================================
+# EXP-ECDLP-2cd0ff — version 1, approved by DEC-20261006-823a54.
+# Frozen measurement of the y-half-bit doubling agreement in
+# IDEA-20261006-b87de8. Success is the idea's prediction: |f-1/2|
+# strictly exceeds rank 1980 of 2000 size-matched relabelings. A
+# finished numerator at most that rank is the concrete negative.
+# This design session did not enumerate a point and did not compute f.
+# No discrete logarithm is authorized.
+# Source idea bytes are copied unchanged from
+# origin/design/frob-1e54b5-theta.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-2cd0ff
+  hypothesis_id: H-ECDLP-cf55ba
+  question_id: RQ-ECDLP-623a32
+  source_idea: IDEA-20261006-b87de8
+  version: 1
+  title: >-
+    Doubling agreement of the least-residue y-half bit on one ordinary
+    curve over F_37
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    composing_decision: DEC-20261006-823a54
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06:
+      "all is approved. ideas/experiments should be always approved")
+      because every field the design protocol requires is non-null.
+      Approval does not assert that the bit is biased, and it does not
+      assert that the gap beats a fair coin.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    scientific_execution_scope: >-
+      Scan B from 1 through 18, keep the first nonsingular curve whose
+      trace is not divisible by 37, enumerate S, score f, draw 2000
+      relabelings and a second stream of 2000, compute the exact
+      binomial quantile, and name exactly one reading row. Do not
+      change the rank 1980 or the cut at 18. Do not search for a
+      discrete logarithm.
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether, on the first eligible curve over F_37, the
+    agreement numerator |2a - n| of the least-nonnegative y-half bit
+    under affine doubling is strictly greater than rank 1980 of 2000
+    size-matched relabelings. A finished numerator at most that rank,
+    with the controls passing, is the concrete negative. No faster
+    discrete logarithm is in scope.
+
+  inputs:
+    prime: 37
+    model: y^2 = x^3 + x + B
+    A: 1
+    B_scan_first: 1
+    B_scan_last: 18
+    half_cut: 18
+    relabelings: 2000
+    percentile_rank: 1980
+    second_stream: 2000
+    curve_search: >-
+      For B from 1 through 18 in that order, with A fixed at 1, skip
+      the model when (4 + 27 * B * B) mod 37 is 0. Count points by
+      summing, over x in {0, 1, ..., 36}, one plus the Legendre symbol
+      of (x^3 + x + B) mod 37, then add the point at infinity. The
+      Legendre symbol is a^18 mod 37, sent to 0 when the power is 0,
+      to 1 when the power is 1, and to -1 when the power is 36. The
+      trace is t = 38 - #E. Skip the model when t mod 37 is 0. Keep
+      the first B that remains. Record B, #E, and t before any
+      agreement is counted. Do not score a second B.
+    point_set: >-
+      S is every affine point (x, y) with x, y in {0, 1, ..., 36},
+      y not 0, and (y * y - (x * x * x + x + B)) mod 37 = 0. Sort S
+      by x ascending, then y ascending. Let n = |S|. Index the sorted
+      list from 0.
+    beta: >-
+      For y in {1, ..., 36}, β is 0 when y is at most 18 and 1
+      otherwise. The point at infinity is not in S. A point with y = 0
+      is not in S and has no β.
+    doubling: >-
+      For P = (x, y) in S, the slope λ is (3 * x * x + 1) times the
+      modular inverse of (2 * y) mod 37. Then x3 = (λ * λ - 2 * x) mod
+      37 and y3 = (λ * (x - x3) - y) mod 37, with both residues in
+      {0, 1, ..., 36}. 2P lies in S when y3 is not 0 and (x3, y3)
+      satisfies the curve equation. Otherwise 2P does not contribute
+      an agreement.
+    agreement: >-
+      Let a be the number of P in S such that 2P lies in S and
+      β(2P) = β(P). The numerator of |f - 1/2| is |2 * a - n|. The
+      denominator is 2 * n. Comparisons use the numerator only.
+    relabel: >-
+      The observed bit vector is β on the sorted list S. A
+      size-matched relabeling is a Fisher-Yates shuffle of that
+      vector. For stream relabel and index r from 0 through 1999, and
+      for k from n - 1 down to 1, let j be the integer formed by the
+      first 8 bytes of SHA-256 of the UTF-8 string
+      EXP-ECDLP-2cd0ff|relabel|{r}|{k}, big-endian, reduced modulo
+      (k + 1). Swap positions k and j. The string has no trailing
+      newline. The second stream uses the prefix relabel2 in place of
+      relabel and is not an input to the primary rank. Agreement of a
+      shuffled vector is counted by the same rule as a, using the
+      shuffled label in place of β.
+    percentile: >-
+      Sort the 2000 numerators of the first stream into nondecreasing
+      order v_1 through v_2000, one-based. M is v_1980. Do not call a
+      library percentile helper. The curve numerator C strictly
+      exceeds M when C > M. Equality does not exceed.
+    exact_law: >-
+      Let n0 be the number of points in S with β = 0, and n1 = n - n0.
+      When |n0 - n1| is at most 1, the exact law is binomial. Let T be
+      the smallest integer t >= 0 such that the sum of C(n, k) over all
+      k with |2 * k - n| <= t, times 100, is at least 99 times 2^n.
+      The sum uses arbitrary-precision integers. A floating-point CDF
+      voids the run. When |n0 - n1| is greater than 1, the exact law
+      is hypergeometric with population n * (n - 1), success states
+      n0 * (n0 - 1) + n1 * (n1 - 1), and draw size n. T is then the
+      smallest t >= 0 such that the sum of the hypergeometric weights
+      of those k with |2 * k - n| <= t, times 100, is at least 99 times
+      the total weight. HEUR-1 passes when |M - T| <= 2. A larger gap
+      means the null is mis-specified and the claim is not scored.
+    negation_control: >-
+      For every (x, y) in S, the point (x, (37 - y) mod 37) lies in S
+      and its β is 1 - β(x, y). Any failure invalidates the bit. The
+      claim is not scored. A negation failure is not a numerator at
+      most M.
+    identity_control: >-
+      For every P in S, the doubled point (x3, y3) satisfies the curve
+      equation, including when y3 is 0. A failure voids the run as an
+      instrument failure. It is not a numerator at most M.
+    branching: >-
+      A branching pair is two points in S with the same β, both doubles
+      in S, and different values of β on those doubles. If no such pair
+      exists, β∘doubling is a function of β and the percentile is the
+      wrong statistic.
+    loss: >-
+      L = (n - 2) / n. The prediction L > 0 requires n > 2. When n is
+      at most 2 the cell is degenerate and the claim is not scored.
+
+  controls:
+    - id: negation
+      statement: >-
+        β(-P) = 1 - β(P) for every P in S, with -P in S. A failure
+        invalidates the bit and the claim is not scored.
+    - id: size-matched-relabeling
+      statement: >-
+        2000 Fisher-Yates shuffles of the observed bit vector on the
+        same set S and the same doubling map. The primary separator is
+        the curve numerator against rank 1980 of this stream.
+    - id: curve-identity
+      statement: >-
+        Every doubled point satisfies the curve equation. A failure
+        voids the run and is not a percentile miss.
+    - id: exact-law
+      statement: >-
+        The binomial or hypergeometric 99th percentile numerator lies
+        within 2 of M. A larger gap means the null is mis-specified
+        and the claim is not scored.
+
+  independent_variables:
+    - B in the scan from 1 through 18, stopping at the first eligible model
+    - relabel index r in {0, ..., 1999}
+    - stream in {curve, relabel, relabel2, exact}
+
+  metrics:
+    primary:
+      - id: numerator_versus_rank
+        statement: >-
+          The integer comparison of the curve numerator |2 * a - n|
+          with M = v_1980 from the first 2000 relabelings.
+    secondary:
+      - id: selected_curve
+        statement: selected B, n, #E, and t
+      - id: fibres
+        statement: n0 and n1
+      - id: exact_gap
+        statement: the law name, T, and |M - T|
+      - id: branching_pair
+        statement: one witness pair, or none
+      - id: second_stream
+        statement: >-
+          M2, the same rank on the relabel2 stream, and whether
+          M2 <= M + 2. This flag does not change the reading row.
+      - id: loss
+        statement: whether n > 2
+
+  heuristic_under_test: HEUR-1
+  heuristic_under_test_note: >-
+    HEUR-1 says the Monte Carlo rank and the exact-law rank differ by
+    at most 2. If they differ by more, the frequency claim is not
+    scored. Do not relabel a null mismatch as a percentile miss.
+
+  preregistered_prediction:
+    quantity: >-
+      |f - 1/2| for the least-nonnegative y-half bit under affine
+      doubling on the first eligible curve over F_37.
+    formula: >-
+      The curve numerator |2 * a - n| is strictly greater than v_1980
+      of 2000 size-matched relabelings, n > 2, negation passes, a
+      branching pair exists, and |M - T| <= 2. The concrete negative
+      is a finished numerator at most v_1980 under those same gates.
+      Source idea IDEA-20261006-b87de8, prediction minimum_effect.
+    source: >-
+      IDEA-20261006-b87de8. The binomial comparison is the finite
+      uniform model named in that idea's H1. KR-RHO-13bf67, opened in
+      this session, is the complexity baseline and does not predict
+      the percentile.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The single prime 37 and one curve only. No transfer to a larger
+      prime, to another bit, or to a walk is assumed. A frequency gap
+      here is a toy branching coordinate. The upper one percent of
+      2000 null draws is 20 samples, so the rank is an order statistic
+      with an expected tail count above 1. The curve contributes one
+      numerator.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Record the maximum of the 2000 first-stream numerators beside M.
+    - >-
+      Record |M - T|. A gap above 2 is the HEUR-1 tail failure and
+      blocks scoring.
+
+  replication:
+    seeds:
+      - EXP-ECDLP-2cd0ff|relabel|{r}|{k}
+      - EXP-ECDLP-2cd0ff|relabel2|{r}|{k}
+    independent_instances: 1
+    null_draws: 2000
+    second_stream_draws: 2000
+    note: >-
+      One is the number of curves. Two thousand is the frozen null
+      sample from the source idea. The second two thousand is the
+      nearby-object stream and does not change the row.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    maximum_workers: 1
+    scientific_relabelings: 4000
+    budget_note: >-
+      One run manifest covers one curve, 2000 primary shuffles, 2000
+      secondary shuffles, and one exact quantile. Wall-clock and CPU
+      figures are advisory and null. The 2 GB memory figure is machine
+      protection. A watchdog expiry is failed_infrastructure, not a
+      numerator at most M.
+
+  stopping_rules:
+    - Stop the B scan at the first eligible curve.
+    - Stop after that curve's controls, both streams, and the exact quantile are recorded.
+    - Do not scan a later B once a row has been named.
+    - A timeout voids the run. It does not fill a numerator of 0.
+
+  invalidation_rules:
+    - A timeout, crash, or memory abort is failed_infrastructure, never a mathematical negative.
+    - A model with A other than 1 voids the run.
+    - A signed residue in place of the least nonnegative residue voids the run.
+    - A floating-point percentile or a floating-point CDF voids the run.
+    - Scoring more than one B voids the run.
+    - A negation failure invalidates the bit and the claim is not scored. It is not a numerator at most M.
+    - An identity failure voids the run and is not a numerator at most M.
+    - "|M - T| greater than 2 means the null is mis-specified and the claim is not scored."
+    - n at most 2 makes the loss statement inapplicable and the claim is not scored.
+
+  success_criterion: >-
+    An eligible B exists, n is greater than 2, negation passes, every
+    double lies on the curve, a branching pair exists, |M - T| is at
+    most 2, and the curve numerator is strictly greater than M. This
+    is the prediction of IDEA-20261006-b87de8. It is reachable as a
+    failure when the numerator is at most M under those same gates.
+
+  falsification_criterion: >-
+    The eligible curve is fully scored, negation passes, a branching
+    pair exists, |M - T| is at most 2, n is greater than 2, and the
+    curve numerator is less than or equal to M. That finished
+    comparison is the concrete negative. No eligible B, and a
+    branching collapse, are the other negatives named by the source
+    idea. None of these three is an infrastructure event.
+
+  required_artifacts:
+    - experiments/EXP-ECDLP-2cd0ff/runs/RUN-*/manifest.yaml
+    - experiments/EXP-ECDLP-2cd0ff/runs/RUN-*/stdout.txt
+    - experiments/EXP-ECDLP-2cd0ff/runs/RUN-*/stderr.txt
+    - experiments/EXP-ECDLP-2cd0ff/runs/RUN-*/agreements.csv
+    - experiments/EXP-ECDLP-2cd0ff/runs/RUN-*/reading.yaml
+
+  assigned_to: executor
+
+  reading_rows:
+    - id: no_eligible_curve
+      when: no B in {1,...,18} is nonsingular with trace not divisible by 37
+    - id: degenerate_domain
+      when: an eligible curve has n at most 2
+    - id: negation_failed
+      when: negation fails for some point of S
+    - id: identity_failed
+      when: some doubled point fails the curve equation
+    - id: branching_collapsed
+      when: >-
+        the earlier gates pass and no branching pair exists
+    - id: null_misspecified
+      when: >-
+        the earlier gates pass and |M - T| is greater than 2
+    - id: exceeds
+      when: >-
+        the earlier gates pass and the curve numerator is strictly
+        greater than M
+    - id: within_null
+      when: >-
+        the earlier gates pass and the curve numerator is at most M
+  reading_rule: >-
+    Name exactly one row, the first whose condition holds in the order
+    listed. exceeds is the only success row. within_null is the
+    concrete negative. no_eligible_curve and branching_collapsed are
+    the other negatives named by the source idea.
+    degenerate_domain, negation_failed, identity_failed, and
+    null_misspecified are not percentile evidence. Record B or none,
+    n, a, the curve numerator, M, T, the law name, M2, and
+    attack_claimed false beside the row. Those fields do not change
+    the row.
