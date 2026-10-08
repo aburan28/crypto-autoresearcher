@@ -162,8 +162,9 @@ state.
   one-bit arm. A decoy-first lookup preserved recovery and validation while
   bringing combined logical query reads 7.01% below that arm. Sorting,
   transient storage, sentinel checks, and all failed gates are retained. An
-  audit is now frozen because the inherited deterministic hash helper mixes
-  harness-only target-scalar metadata; no public-input result is claimed yet.
+  audit then replaced inherited harness-only target-scalar seeding with one
+  canonical public target-point derivation; all gates passed, with 3.66% more
+  validations. An eight-salt robustness ensemble remains frozen and unrun.
   These are compact-hash representation measurements of signed/shifted BSGS,
   not a new ECDLP exponent. Source:
   `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.

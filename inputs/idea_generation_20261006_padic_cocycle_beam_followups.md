@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then thirty structured addition, collision-sketch, validation-cost, representative-table, and state-reuse measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed-derivation audit is frozen because the inherited deterministic hash helper includes harness-only target-scalar metadata.
+- Bottom line: five earlier frozen successors failed their gates, then thirty-one structured addition, collision-sketch, validation-cost, representative-table, state-reuse, and data-flow measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed audit removed inherited harness-only target-scalar metadata and passed for one frozen derivation; an eight-salt robustness run remains queued.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -169,9 +169,13 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `decoy_first_sentinel_lab.py` | `a81d760fcd6f30122b9471490b587632965bdf6fc65f28ea354a7e89ab855677` |
 | `tests/test_decoy_first_sentinel_lab.py` | `5ed99769d48cd7fb4ac8dfa0cc482513d5f98a2995dba1124f56faf3a89a0142` |
 | `results/decoy-first-sentinel.json` | `d67949d57d156131756e35b57830e40f62f02878c22274f3c57c93a9860649fc` |
-| public-target seed-audit freeze commit | `8ecdfe1` |
+| public-target seed-audit freeze/implementation/result commits | `8ecdfe1`, `e467418`, `ea1e699` |
+| `public_target_seed_audit_lab.py` | `9c7c97e2bde3857ad8fb157385b01fefe952fb827a69ef44f2ccb8844a035719` |
+| `tests/test_public_target_seed_audit_lab.py` | `12eb5df399d5e450d3895a7c7b11ce131db6bd8c61a8f1b7194feb3c1a24585e` |
+| `results/public-target-seed-audit.json` | `fe0531d3c618d9a54d525b91daf2c7760d03fed2d9cb347d2d8acaf4ba56ff68` |
+| public-seed salt-robustness freeze commit | `ea1e699` |
 
-All thirty-six result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 144/144 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
+All thirty-seven result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 148/148 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -695,13 +699,28 @@ emissions, validations, and scalar paths were identical to H42. Decoys rejected
 packed decoy initialization remain charged. This optimizes lookup constants
 inside the same square-root collision decoder.
 
+## H44 — public target-point seed audit
+
+The inherited seed helper mixed the harness's known target scalar into each
+deterministic hash instance. H44 retained H43 as an exact reference but removed
+`target_scalar` from public construction, seed, and lookup signatures. Hash
+parameters were derived from canonical public curve, generator, target-point,
+degree, and seed-index data. Metadata-invariance tests passed and the attack-
+side scalar-read counter stayed zero.
+
+The public arm recovered 2,535, 2,987, 3,054, 3,070, and 3,072 targets at
+prefixes 1, 2, 3, 4, and 6, passing every frozen gate. Relative to H43 it used
+1.28% more seeds, 6.00% more probes, 3.66% more validations, and 4.39% more
+inversion-bearing operations. Combined query reads remained 1.76% below H39.
+This establishes one frozen public deterministic instance, not seed-family
+robustness or a new ECDLP exponent.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a public target-point seed-derivation audit that removes the harness-only
-  target scalar from the attack-side hash-selection call graph, adds a
-  metadata-perturbation test, and reruns the H43 frontier (H44, frozen in
-  `8ecdfe1`).
+- an eight-salt public seed-robustness ensemble that preserves H44's data-flow
+  audit and measures recovery/work variation without choosing a salt after
+  inspection (H45, frozen in `ea1e699`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
