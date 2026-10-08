@@ -41,6 +41,13 @@ Options: discriminant scan bound 2000000, single-isogeny degree <= 64, pump prim
 | synthetic CM D=-31, p~2^253 | synthetic | 251 | -31 | 3 | 8 | GLV-2 [endo[0+1w] deg 2^3] | 1688 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
 | synthetic CM D=-47, p~2^253 | synthetic | 251 | -47 | 5 | 12 | GLV-2 [endo[0+1w] deg 2^2*3] | 1690 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
 | synthetic CM D=-71, p~2^253 | synthetic | 251 | -71 | 7 | 18 | GLV-2 [endo[0+1w] deg 2*3^2] | 1692 | 2504 | 1.48x | GLV 2001 with a degree-N endomorphism evaluated as a chain of prime-degree isogenies (cf. Guillevic-Masson-Thome 2020 for single maps of degree in the hundreds) |
+| FourQ (verified maps) | deployed | 246 | n/a (declared generators) |  |  | frob-4 [phi (CM-type, phi^2 = 0 phi + -80 on the subgroup) x psi (Q-curve, psi^2 = 0 psi + 32 on the subgroup)^(0..1)] | 3290 | 6050 | 1.84x | Longa-Sica 2012 4-GLV (GLV x GLS) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p, p~2^127 [genus2_projective_assumed] | synthetic | 255 | n/a (declared generators) |  |  | auto-4 [zeta_5 automorphism^(0..3)] | 4433 | 10884 | 2.46x | Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian (Bos-Costello-Hisil-Lauter 2013) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p, p~2^127 [genus2_affine_cantor_counted] | synthetic | 255 | n/a (declared generators) |  |  | auto-4 [zeta_5 automorphism^(0..3)] | 63173 | 160389 | 2.54x | Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian (Bos-Costello-Hisil-Lauter 2013) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | synthetic | 255 | n/a (declared generators) |  |  | frob-8 [zeta_5 automorphism^(0..3) x psi (GLS twist Frobenius), psi^2=-1^(0..1)] | 3590 | 10884 | 3.03x | Bos-Costello-Hisil-Lauter 2013 8-dimensional (zeta x GLS on a genus-2 Jacobian) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p, p~2^127 [genus2_projective_assumed] | synthetic | 255 | n/a (declared generators) |  |  | auto-4 [zeta_8 automorphism^(0..3)] | 4494 | 10884 | 2.42x | Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian (Bos-Costello-Hisil-Lauter 2013) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p, p~2^127 [genus2_affine_cantor_counted] | synthetic | 255 | n/a (declared generators) |  |  | auto-4 [zeta_8 automorphism^(0..3)] | 64102 | 160389 | 2.50x | Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian (Bos-Costello-Hisil-Lauter 2013) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | synthetic | 255 | n/a (declared generators) |  |  | auto-4 [zeta_8 automorphism^(0..3)] | 4494 | 10884 | 2.42x | Buhler-Koblitz / Furukawa-Kawazoe-Takahashi 4-dim GLV on a genus-2 Jacobian (Bos-Costello-Hisil-Lauter 2013) |
 
 ## 2. Isogeny-cycle pumps against the best pump-free configuration
 
@@ -102,6 +109,27 @@ The pump's price per bit of height is 2*cost(ell-step)/log2(ell) field multiplic
 | synthetic GLS over F_p^2, p~2^127 | frob-3 [psi (GLS twist Frobenius), psi^2=-1^(0..2)] | 3 | 127/127/84.3 | [1, 126, 127] | 1640 | 1.40x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
 | synthetic GLS over F_p^2, p~2^127 | frob-4 [psi (GLS twist Frobenius), psi^2=-1^(0..3)] | 4 | 126/126/63.2 | [1, 1, 126, 126] | 1833 | 1.25x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
 | synthetic GLS over F_p^2, p~2^127 | generic | 1 | 253/253/253.0 | [254] | 2297 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| FourQ (verified maps) | frob-4 [phi (CM-type, phi^2 = 0 phi + -80 on the subgroup) x psi (Q-curve, psi^2 = 0 psi + 32 on the subgroup)^(0..1)] | 4 | 63/61/61.2 | [61, 62, 62, 62] | 3290 | 1.84x | Longa-Sica 2012 4-GLV (GLV x GLS) |
+| FourQ (verified maps) | 2-dim [psi (Q-curve, psi^2 = 0 psi + 32 on the subgroup)] | 2 | 123/123/122.5 | [123, 124] | 3950 | 1.53x | GLS 2009 (Galbraith-Lin-Scott) / Galbraith-Scott 2008 G2 |
+| FourQ (verified maps) | GLV-2 [phi (CM-type, phi^2 = 0 phi + -80 on the subgroup)] | 2 | 123/123/122.5 | [123, 123] | 3992 | 1.52x | GLV 2001 (Gallant-Lambert-Vanstone), unit automorphism |
+| FourQ (verified maps) | generic | 1 | 245/245/245.0 | [246] | 6050 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-8 [zeta_5 automorphism^(0..3) x psi (GLS twist Frobenius), psi^2=-1^(0..1)] | 8 | 34/32/31.8 | [32, 32, 32, 32, 32, 32, 32, 32] | 3590 | 3.03x | Bos-Costello-Hisil-Lauter 2013 8-dimensional (zeta x GLS on a genus-2 Jacobian) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-4 [zeta_5 automorphism x psi (GLS twist Frobenius), psi^2=-1^(0..1)] | 4 | 65/64/63.5 | [62, 62, 65, 65] | 4558 | 2.39x | Longa-Sica 2012 4-GLV (GLV x GLS) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-6 [zeta_5 automorphism x psi (GLS twist Frobenius), psi^2=-1^(0..2)] | 6 | 65/64/42.3 | [1, 1, 62, 62, 64, 65] | 5570 | 1.95x | unit x Frobenius-power box |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-8 [zeta_5 automorphism x psi (GLS twist Frobenius), psi^2=-1^(0..3)] | 8 | 64/63/31.8 | [1, 1, 1, 1, 61, 61, 64, 64] | 6496 | 1.68x | unit x Frobenius-power box |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | GLV-2 [zeta_5 automorphism] | 2 | 128/127/127.0 | [127, 128] | 6561 | 1.66x | GLV 2001 (Gallant-Lambert-Vanstone), unit automorphism |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | 2-dim [psi (GLS twist Frobenius), psi^2=-1] | 2 | 127/126/127.0 | [127, 127] | 6578 | 1.65x | GLS 2009 (Galbraith-Lin-Scott) / Galbraith-Scott 2008 G2 |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-3 [psi (GLS twist Frobenius), psi^2=-1^(0..2)] | 3 | 127/126/84.7 | [1, 126, 127] | 7521 | 1.45x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-4 [psi (GLS twist Frobenius), psi^2=-1^(0..3)] | 4 | 126/125/63.5 | [1, 1, 126, 126] | 8403 | 1.30x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | generic | 1 | 254/253/254.0 | [255] | 10884 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-6 [zeta_8 automorphism x psi (GLS twist Frobenius), psi^2=-1^(0..2)] | 6 | 64/63/42.3 | [1, 1, 63, 63, 63, 64] | 5496 | 1.98x | unit x Frobenius-power box |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-8 [zeta_8 automorphism x psi (GLS twist Frobenius), psi^2=-1^(0..3)] | 8 | 64/63/31.8 | [1, 1, 1, 1, 63, 63, 63, 63] | 6496 | 1.68x | unit x Frobenius-power box |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | GLV-2 [zeta_8 automorphism] | 2 | 128/127/127.0 | [127, 128] | 6561 | 1.66x | GLV 2001 (Gallant-Lambert-Vanstone), unit automorphism |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | 2-dim [psi (GLS twist Frobenius), psi^2=-1] | 2 | 127/127/127.0 | [127, 127] | 6625 | 1.64x | GLS 2009 (Galbraith-Lin-Scott) / Galbraith-Scott 2008 G2 |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-3 [psi (GLS twist Frobenius), psi^2=-1^(0..2)] | 3 | 127/127/84.7 | [1, 126, 127] | 7575 | 1.44x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-4 [psi (GLS twist Frobenius), psi^2=-1^(0..3)] | 4 | 126/126/63.5 | [1, 1, 126, 126] | 8464 | 1.29x | Frobenius-power basis (Kobayashi et al. 1999 / GLS 2009 F_{p^m}) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | generic | 1 | 254/253/254.0 | [255] | 10884 | 1.00x | double-and-add / wNAF (no endomorphism) |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zeta_8 over F_p^2 with GLS psi, p~2^63 [genus2_projective_assumed] | frob-8 [zeta_8 automorphism^(0..3) x psi (GLS twist Frobenius), psi^2=-1^(0..1)] | 8 | 0/0/0.0 | [] | inf | 0.00x | Bos-Costello-Hisil-Lauter 2013 8-dimensional (zeta x GLS on a genus-2 Jacobian) |
 
 ## 4. Configurations with no literature match, best instance per target
 
@@ -126,3 +154,22 @@ The pump's price per bit of height is 2*cost(ell-step)/log2(ell) field multiplic
 | synthetic CM D=-31, p~2^253 | pump-4 [endo[0+1w] deg 2^3 x cycle[2^126]] | 4 | 64/63 | 1903 | GLV-2 [endo[0+1w] deg 2^3] | 1688 | +12.7% |
 | synthetic CM D=-47, p~2^253 | pump-4 [endo[0+1w] deg 2^2*3 x cycle[3^80]] | 4 | 64/63 | 1850 | GLV-2 [endo[0+1w] deg 2^2*3] | 1690 | +9.5% |
 | synthetic CM D=-71, p~2^253 | pump-4 [endo[0+1w] deg 2*3^2 x cycle[3^77]] | 4 | 65/64 | 1854 | GLV-2 [endo[0+1w] deg 2*3^2] | 1692 | +9.6% |
+
+## 5. Cross-family comparison at ~128-bit security, in 64-bit word multiplications
+
+Each target's best configuration, converted from its own base-field multiplication to 64-bit word multiplications with SCHOOLBOOK scaling (a k-word field multiplication = k^2 word multiplications): 256-bit fields x16, 128-bit fields x4, F_{p^2} over a 64-bit p x3 (Karatsuba: 3 word multiplications per F_{p^2} multiplication). FourQ and the synthetic GLS group are already expressed in F_p (127-bit) multiplications, so x4. This is an ASSUMPTION about field arithmetic cost, stated so it can be replaced; the genus-2 rows additionally rest on the assumed Jacobian counts of `genus2_projective_assumed` (the `genus2_affine_cantor_counted` rows are an upper bound from unoptimised affine Cantor arithmetic).
+
+| target | family | field | best config | M in own unit | weight | 64-bit word mults | relative to P-256 generic |
+|---|---|---|---|---|---|---|---|
+| secp256k1 | deployed | F_p 256-bit | GLV-2 [zeta_3] | 1463 | x16 | 23412 | 0.60x |
+| NIST P-256 | deployed | F_p 256-bit | generic | 2448 | x16 | 39160 | 1.00x |
+| GOST CryptoPro-B | deployed | F_p 256-bit | GLV-2 [endo[4+1w] deg 5^2*7] | 1681 | x16 | 26895 | 0.69x |
+| Curve25519 | deployed | F_p 255-bit | generic | 2280 | x16 | 36481 | 0.93x |
+| BLS12-381 G1 | deployed | F_p 381-bit | GLV-2 [zeta_3] | 1453 | x36 | 52314 | 1.34x |
+| BLS12-381 G2 | structural | F_{p^2}, 254-381-bit p (x3 per F_{p^2} mult) | frob-4 [zeta_3 automorphism x psi (untwist-Frobeni | 1117 | x48 | 53620 | 1.37x |
+| synthetic GLS over F_p^2, p~2^127 | synthetic | F_p 127-bit units (F_{p^2} ops counted as 3M/2S) | frob-4 [zeta_3 automorphism (j=0 variant) x psi (G | 1015 | x4 | 4061 | 0.10x |
+| FourQ (verified maps) | deployed | F_p 127-bit units (F_{p^2} ops counted as 3M/2S) | frob-4 [phi (CM-type, phi^2 = 0 phi + -80 on the s | 3290 | x4 | 13159 | 0.34x |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p, | synthetic | F_p 128-bit | auto-4 [zeta_5 automorphism^(0..3)] | 4433 | x4 | 17733 | 0.45x |
+| synthetic genus-2 Buhler-Koblitz y^2=x^5+b, zeta_5 over F_p^ | synthetic | F_{p^2}, 64-bit p | frob-8 [zeta_5 automorphism^(0..3) x psi (GLS twis | 3590 | x3 | 10771 | 0.28x |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zet | synthetic | F_p 128-bit | auto-4 [zeta_8 automorphism^(0..3)] | 4494 | x4 | 17977 | 0.46x |
+| synthetic genus-2 Furukawa-Kawazoe-Takahashi y^2=x^5+ax, zet | synthetic | F_{p^2}, 64-bit p | auto-4 [zeta_8 automorphism^(0..3)] | 4494 | x3 | 13482 | 0.34x |
