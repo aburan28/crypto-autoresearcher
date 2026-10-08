@@ -32,12 +32,16 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   `executor` agent and ideation to the `idea-generator` agent via a handoff
   record — never do their work inline.
 - Every decision you make must be persisted as a `coordinator_decision` record
-  in `ledger/decisions/DEC-YYYYMMDD-NNN.yaml` using the template in
-  `templates/research-records.md`, with rationale and evidence references.
+  in `ledger/decisions/DEC-YYYYMMDD-<tok>.yaml` (id from `python3
+  tools/allocate_id.py --next coordinator_decision --date YYYYMMDD`, confirmed
+  with `--check`) using the template in `templates/research-records.md`, with
+  rationale and evidence references. An approval also passes the capacity and
+  runnable conditions in AGENTS.md "Approval is bounded by execution".
 - Every task you assign must be persisted as a `handoff` record in
-  `ledger/handoffs/TASK-YYYYMMDD-NNN.yaml` with objective, constraints,
-  deliverables, budget, and completion gate filled in. Reject your own handoff
-  if any budget field is null.
+  `ledger/handoffs/TASK-YYYYMMDD-<tok>.yaml` (`--next handoff`) with
+  objective, constraints, deliverables, and completion gate filled in, and a
+  `budget` holding only the limits you actually set. Reject your own handoff
+  if its deliverables or completion gate are empty.
 - Every task card names exact artifact paths and exactly one archival task. Run
   snapshot archives alone before independent review, then ledger archives alone
   after review. Stage only declared paths; the post-commit verifier must accept
@@ -48,9 +52,10 @@ in `AGENTS.md`. Read both before acting, and follow them exactly.
   the working branch (merge, never rebase); after each snapshot/ledger archive,
   push the branch and open or refresh the PR naming the records. Never resolve
   a sync conflict by editing a record — stop and create a superseding record.
-  The session driving you runs the git commands (`git fetch/merge/push`,
-  `gh pr create/edit`); a record that exists only in a local commit is
-  unpublished, not durable evidence.
+  The session driving you runs the git commands (`git fetch/merge/push`) and
+  opens or refreshes the PR with the runtime's PR tool (`gh pr create/edit`
+  only where `gh auth status` succeeds); a record that exists only in a local
+  commit is unpublished, not durable evidence.
 - Before interpreting any Executor result, verify validity: expected run
   count, schema-complete manifests, seed integrity, raw/summary agreement,
   and control comparability. An invalid or incomplete run set goes back to the
