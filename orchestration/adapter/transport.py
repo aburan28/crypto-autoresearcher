@@ -77,6 +77,13 @@ class Message:
     content: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
     tool_results: list[ToolResult] = field(default_factory=list)
+    # The provider's exact assistant content blocks (Anthropic wire), kept so
+    # a tool loop replays its own turns verbatim. Two reasons, both binding:
+    # Claude 5 models think on every turn and their `thinking` blocks must go
+    # back unchanged (stripping them can 400 a tool turn and makes the model
+    # re-plan), and the prompt cache only hits on a byte-identical prefix.
+    # Ignored by every other wire protocol.
+    blocks: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -96,6 +103,9 @@ class Completion:
     tool_calls: list[ToolCall] = field(default_factory=list)
     latency_seconds: float = 0.0
     raw: dict[str, Any] = field(default_factory=dict)
+    # Anthropic wire only: the response's content blocks as returned, for
+    # verbatim replay as the next request's assistant turn.
+    content_blocks: list[dict[str, Any]] = field(default_factory=list)
 
 
 def translate_tools(tools: list[Tool], wire: str) -> list[dict[str, Any]]:
@@ -145,6 +155,9 @@ def render_messages(messages: list[Message], wire: str,
                     {"type": "tool_result", "tool_use_id": r.id,
                      "content": r.content, "is_error": r.is_error}
                     for r in message.tool_results]})
+            elif message.role == "assistant" and message.blocks:
+                rendered.append({"role": "assistant",
+                                 "content": [dict(b) for b in message.blocks]})
             elif message.tool_calls:
                 blocks: list[dict[str, Any]] = []
                 if message.content:
@@ -348,7 +361,8 @@ def parse_response(wire: str, payload: dict[str, Any]) -> Completion:
             stop_reason=payload.get("stop_reason"),
             usage={"input_tokens": usage.get("input_tokens", 0),
                    "output_tokens": usage.get("output_tokens", 0)},
-            tool_calls=calls, raw=payload)
+            tool_calls=calls, raw=payload,
+            content_blocks=[dict(b) for b in blocks if isinstance(b, dict)])
     if wire == "openai_chat":
         choices = payload.get("choices") or [{}]
         message = choices[0].get("message") or {}
