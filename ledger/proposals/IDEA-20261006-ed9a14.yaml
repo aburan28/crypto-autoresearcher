@@ -1,0 +1,196 @@
+idea:
+  id: IDEA-20261006-ed9a14
+  question_id: RQ-TORS-8c7b79
+  added: '2026-10-06'
+  status: proposed
+  approved_by: null
+  title: >-
+    Legendre symbol of the 5-division polynomial at x(kP), resampled in k,
+    on one toy ordinary curve
+  class: measurement
+  claim: >-
+    On one frozen ordinary prime-field curve whose prime subgroup order N
+    is not divisible by 5, the Legendre symbol of the 5-division polynomial
+    at x(kP), over 200 uniform nonzero scalars k, agrees with the bit
+    k mod 2 at a rate within 0.06 of 1/2, takes both values +1 and -1 at
+    least 20 times, and the number of irreducible factors of that same
+    polynomial over F_p does not change when k is resampled.
+  mechanism: >-
+    The tracked object is chi(Q) = (psi_5(x(Q)) / p) in {+1, -1} for
+    Q = kP nonzero in the prime-order subgroup. The representation is the
+    affine x-coordinate in F_p. The value is computed from the curve
+    equation and x(Q) by evaluating a degree-12 division polynomial and
+    one Legendre symbol. No pairing is evaluated and no discrete logarithm
+    is solved. The operation set for the lossy-projection test is
+    translation on the subgroup. A map into a 2-element set cannot be
+    injective on a subgroup of order N > 2, so deterministic propagation
+    under every translation would force chi to be constant. Both signs
+    appearing is the observation that chi is not that constant quotient.
+    Failure to agree with k mod 2 is the observation that the lost
+    information is not the public bit of the scalar. The curve-only
+    control, the irreducible-factor count of psi_5 over F_p, is invariant
+    under resampling k because it does not read Q. Frobenius fixes every
+    F_p-point, so chi is automatically Frobenius-invariant and that
+    invariance adds no scalar bit. The non-generic resource named here is
+    the division polynomial at a public point, not an endomorphism acting
+    as a scalar on the subgroup.
+  assumptions:
+    - The curve is ordinary, p > 5, and 5 does not divide N.
+    - psi_5 is the standard odd division polynomial of degree (25-1)/2 = 12, frozen before the sample.
+    - For nonzero Q in the subgroup, psi_5(x(Q)) is nonzero, so the Legendre symbol is +1 or -1.
+    - The 200 scalars are drawn uniformly from 1..N-1 with the curve and the base point held fixed.
+  predictions:
+    - metric: agreement_with_k_mod_2
+      direction: lower
+      minimum_effect: >-
+        The absolute deviation of the agreement rate from 1/2 is at most
+        0.06 on 200 scalars.
+    - metric: sign_support
+      direction: different
+      minimum_effect: >-
+        Each of +1 and -1 occurs at least 20 times in the 200 evaluations,
+        so the symbol is not a curve constant.
+  minimal_test:
+    design: >-
+      Freeze one ordinary curve over a prime p in (200, 800) with a
+      prime-order subgroup of order N > 40 and 5 not dividing N. Compute
+      the irreducible-factor degree multiset of psi_5 over F_p once.
+      Draw 200 uniform nonzero scalars, set Q = kP, and record
+      (psi_5(x(Q)) / p) and k mod 2. Compare the agreement rate with 1/2
+      and with a planted carrier that outputs k mod 2 and therefore agrees
+      with itself at rate 1. Run distinguished-point rho and BSGS on ten
+      of the same logs as matched cost controls; those counts are not the
+      primary metric.
+    controls:
+      - A planted carrier equal to k mod 2, which must agree with the scalar bit at rate 1. If it does not, the comparison code is wrong.
+      - The irreducible-factor count of psi_5 over F_p, recomputed symbolically once and checked unchanged across the 200 scalars.
+      - A second sample of 200 scalars on the same curve. The agreement deviation must stay within 0.06 on both samples.
+      - Distinguished-point rho and BSGS on ten planted logs, recorded as attack-cost controls and not as predictors of the Legendre symbol.
+    required_metrics:
+      - agreement rate between the sign bit (1 - chi)/2 and k mod 2
+      - counts of chi = +1 and chi = -1
+      - irreducible-factor degree multiset of psi_5, once
+      - rho step counts and BSGS operation counts on the ten shared logs
+  falsification_conditions:
+    - The agreement rate with k mod 2 is at least 0.70 on a sample of 200 scalars, and the same holds on the second sample.
+    - Either sign occurs fewer than 20 times in a sample of 200, so the symbol is not shown to be point-dependent.
+    - The irreducible-factor multiset of psi_5 changes when k is resampled.
+    - psi_5(x(Q)) = 0 for a nonzero subgroup point, contradicting 5 not dividing N, in which case the sample is invalid rather than a positive correlation.
+  confounders:
+    - A base point of order dividing 5 would make the symbol vanish. The design requires N not divisible by 5 and checks vanishing separately.
+    - The bit k mod 2 is an arbitrary planted function. Agreement with a different public function of k is not claimed.
+    - Legendre-symbol implementations that reduce the representative into 0..p-1 differently do not change the symbol; a bug that uses a lift to Z with the wrong sign would.
+  interpretation_limits:
+    - An agreement rate near 1/2 on 200 scalars does not prove independence. It rules out a 0.70 agreement with this one bit on this curve.
+    - The symbol is not a Weil or Tate pairing, and the test does not reduce the discrete logarithm to a finite-field logarithm.
+    - No statement is made about ell-torsion for ell dividing N, about the embedding degree, or about any curve with a small embedding degree.
+    - Evidence from this design is toy-scale and closes only psi_5 and the bit k mod 2 on the frozen curve.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For Q uniform in the subgroup, the Legendre symbol of psi_5(x(Q))
+        agrees with an independent fair bit at rate 1/2, up to a bias no
+        larger than the sampling band 0.06 on 200 draws.
+      rigorous_support: >-
+        A nontrivial multiplicative character summed along rational points
+        of an elliptic curve is bounded by a Weil-type estimate of size
+        about deg(psi_5) times sqrt(p). That bound is recalled, not
+        re-proved in this session. The comparison used here is empirical:
+        the fair-coin rate 1/2 on the planted bit, against a carrier that
+        matches the bit at rate 1.
+      validation_plan: >-
+        On the frozen curve, compare the 200-scalar agreement rate with
+        1/2, and compare the frequency of chi = +1 with 1/2. Repeat the
+        comparison on a second ordinary curve over the same prime with a
+        different trace and the same sample size. The band 0.06 is the
+        pre-registered comparison, not a fitted tolerance.
+  target_complexity:
+    time_exponent: >-
+      Unchanged at 1/2. The symbol is a single polynomial evaluation. It
+      is not an algorithm for the subgroup discrete logarithm, and it does
+      not beat generic rho.
+    memory_exponent: >-
+      Unchanged. The evaluation stores O(1) field elements relative to N.
+      BSGS memory of order sqrt(N) is the matched control and is not improved.
+    best_known: >-
+      Generic rho at exponent 1/2 (KR-RHO-13bf67). Pairing transfer applies
+      only for small embedding degree (KR-RHO-53c89f) and is not invoked.
+      This measurement does not beat rho.
+    hidden_overhead: >-
+      None. Degree 12 and one Legendre symbol are explicit. No o(1) saving
+      is claimed.
+    tradeoff_note: >-
+      There is no time-memory tradeoff in the measurement. Recording rho
+      and BSGS on ten logs only prices the matched controls.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  novelty_status: unverified
+  citations:
+    - ref: ledger/questions/RQ-TORS-8c7b79.yaml
+      provenance: internal
+      claim: >-
+        A curve-only statistic is independent of k by construction. A
+        proposal is in scope only if it names point-dependent torsion data
+        computed without solving a discrete logarithm.
+      verified_by: ledger/questions/RQ-TORS-8c7b79.yaml
+    - ref: KR-RHO-53c89f
+      provenance: internal
+      claim: >-
+        MOV and Frey-Rück reduce ECDLP to a finite-field discrete logarithm
+        only when the embedding degree is small. Generic curves are not
+        handled by that reduction.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-53c89f.yaml
+    - ref: KR-IC-955fd6
+      provenance: internal
+      claim: >-
+        Small-order torsion and S_m symmetry are used in the literature to
+        shrink point-decomposition systems on extension fields.
+      verified_by: knowledge/frontiers/ecdlp/index-calculus/KR-IC-955fd6.yaml
+    - ref: KR-RHO-13bf67
+      provenance: internal
+      claim: >-
+        Generic algorithms for a prime-order discrete logarithm need
+        Omega(sqrt(p)) group operations.
+      verified_by: knowledge/frontiers/ecdlp/generic-rho/KR-RHO-13bf67.yaml
+    - ref: Weil character-sum bound for elliptic curves
+      provenance: recalled
+      claim: >-
+        A nontrivial character sum along E(F_p) is recalled to be O(deg sqrt(p)).
+        This session did not open a source for that bound.
+      verified_by: null
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked:
+      - KR-RHO-53c89f
+      - KR-IC-955fd6
+      - KR-RHO-13bf67
+    nearest:
+      - ref: KR-RHO-53c89f
+        provenance: internal
+        relation: orthogonal
+        delta: >-
+          That row is a pairing reduction to a field discrete logarithm,
+          available only for small embedding degree. This idea never
+          evaluates a pairing. The separator is an agreement band of 0.06
+          on 200 scalars against the single bit k mod 2, and the exponent
+          movement is 0.
+      - ref: KR-IC-955fd6
+        provenance: internal
+        relation: adjacent
+        delta: >-
+          That row estimates a decomposition saving of about 2 to the
+          omega(n-1) from 2-torsion and 4-torsion on extension-field models.
+          This idea evaluates psi_5 at prime-field points and claims no
+          decomposition saving. The reported quantities are a sign count
+          of at least 20 and an agreement gap of at most 0.06.
+  dominated_by: >-
+    Generic rho at exponent 1/2 dominates any reading of this symbol as an
+    attack. The symbol does not reduce the number of group operations, the
+    memory, or the number of queries below that baseline.
+  sota_delta: >-
+    The separator is 0.06 absolute agreement around 1/2 on 200 scalars,
+    against a planted bit that matches at rate 1. The gap to a
+    sub-square-root discrete logarithm is the full exponent 1/2, and this
+    idea moves that exponent by 0.
