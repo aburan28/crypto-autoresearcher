@@ -1,0 +1,331 @@
+# TASK-20261005-27ff15 -- Executor task report. TOOLING, zero scientific runs.
+# Not official until the Coordinator snapshot TASK-20261005-d59b5a commits and
+# verifies it.
+task_report:
+  task_id: TASK-20261005-27ff15
+  role: executor
+  archived_by: TASK-20261005-d59b5a
+  recorded_at: '2026-10-05'
+  checkout: /Volumes/SSD990/tooling-27ff15
+  branch: cursor/tooling-27ff15-dispositions
+  base_commit: a87c273ab02d3a35c95280a5982cd94e99bd5fb1
+  base_state: clean at start (git status --porcelain empty), equal to origin/main a87c273ab0 as stated by the dispatcher
+  inference:
+    requested_policy: executor-implementation
+    fallback_used: false
+    degraded_requirements: []
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
+  scientific_runs: 0
+  runs_or_implementation_dirs_created: none
+
+  dispatch_facts_as_reported_by_dispatcher:
+    DP-1: >-
+      Satisfied. The card and DEC-20261005-98a823 are on origin/main, archived by
+      TASK-20261005-2af213 (commit 9afe83190d, receipt 5dbd6f56bd, merged via PR #1830).
+    DP-2: No dispatch queue contains this task, so no lane claim was made.
+    DP-3: >-
+      The dispatcher checked all 96 open PR branches with
+      `git diff --name-only origin/main...origin/<branch>` on the four tool paths;
+      none touches them.
+    note: Recorded as reported. This Executor did not re-verify DP-1 to DP-3.
+
+  environment:
+    python: /Users/adamburan/.pyenv/versions/3.12.8/bin/python3 (Python 3.12.8, selected by the checkout's .python-version)
+    TMPDIR: /Volumes/SSD990/.tmp-agent/tmp
+    pytest_flags: -p no:cacheprovider
+    disk_note: system disk had 924 MiB free at start; nothing was written outside the checkout except under TMPDIR
+
+  # -------------------------------------------------------------------------
+  # Changes
+  # -------------------------------------------------------------------------
+  changed_paths:
+    - path: tools/ecc_priority.py
+      sha256: 704bece304edbf29fd30fe34e1f2bc6f646794061aca2cbc2563dce0ac9dae24
+      added:
+        - DECISIONS_DIR, RULE_9_FIELDS, REOPENED, ORDERING_RULE (constants)
+        - warn(message) -- stderr warning
+        - _git, _is_git_toplevel, _is_yaml, _warn_uncommitted (helpers)
+        - committed_decision_blocks(keys, repo, *, warn) -- shared reader used by T-1 and T-2
+        - decision_order_key(decision)
+        - blocks_of(decision, key, *, warn)
+        - rule_9_missing(block)
+        - idea_disposition_state(repo, *, warn)
+        - disposed_section(disposed)
+      changed:
+        - >-
+          open_ecc_ideas(policy, area, *, repo, honour_dispositions=True,
+          disposed_out=None). New parameters are keyword-only. The default honours
+          dispositions. The returned row shape is unchanged.
+        - main() --open-ideas prints the disposed section (on stdout after the open list in text mode, on stderr in --json mode).
+    - path: tools/newest_experiments.py
+      sha256: 4881339b93cad52dd44dc7cdc386cfb2545ab53baa1421a32540da4963cd5e56
+      added:
+        - withheld_state(repo, *, warn)
+        - hold_count_line(report)
+        - --show-withheld CLI flag
+      changed:
+        - >-
+          newest_runnable(repo=REPO, *, include_blocked=False, goal=None,
+          experiment_ids=None, honour_holds=True, hold_report=None). The two new
+          parameters are keyword-only, and the default honours holds. The first
+          four parameters and their kinds are unchanged, so
+          orchestration/campaign/autopilot.py `newest_runnable(repo, include_blocked=True)`
+          is call-compatible and now honours holds. The row shape is unchanged.
+        - main() prints the stderr count line on every run, a stderr notice per explicitly requested withheld row, and --show-withheld output.
+      unchanged: execution_progress(), _completed(), _superseded_ids(), _load()
+    - path: tools/test_ecc_priority_dispositions.py
+      sha256: 713c50f02132baf36c4c2ee76c901ed2ec6febcd07dc9f6e495563bfde791b65
+      tests: 6 (5 fixture-repo, 1 real-corpus)
+    - path: tools/test_newest_experiments_withheld.py
+      sha256: 745c1c857f3bdad998928363663cd4079cd435b9e92e01ad31bfd723e1bec911
+      tests: 8 (7 fixture-repo or signature, 1 real-corpus floor)
+    - path: coordination/archives/TASK-20261005-27ff15/
+      contents:
+        - task-report.yaml (this file)
+        - census_confirm.py (report-only census reader; sha256 8633a3e20d6187713484f44e98052ca4fe338375ab97bd7c7f2b6316882654af)
+        - census-confirmation.json (its output; sha256 d73cc1eca222fe3984146b5b654c15dc4bd6e8d3887796948bf025e2825b69ff)
+        - gate-logs/ (stdout, stderr and exit code of every completion-gate command)
+        - gate-logs/base/ (pre-change outputs used for the base comparisons)
+
+  # -------------------------------------------------------------------------
+  # Semantics implemented
+  # -------------------------------------------------------------------------
+  committed_reading: >-
+    "Committed" is taken literally. In a git checkout whose top level is the repo
+    argument, decisions are found with `git grep -l -F -e <key>... HEAD --
+    ledger/decisions` and read with `git show HEAD:<path>`, restricted to .yaml and
+    .yml files. Only HEAD's blob counts. A working-tree decision that is untracked
+    or differs from HEAD and carries a block key is named in a stderr warning and
+    is not honoured beyond its committed version. Outside a git checkout (a test
+    fixture tree) the working tree is read as the record, with a stderr warning
+    saying so.
+  parse_failure_handling: >-
+    Any exception while parsing a candidate decision produces the stderr warning
+    "<path> does not parse (<ExceptionType>); skipped, nothing in it is honoured",
+    and the file contributes nothing. A non-mapping document and a block key placed
+    at top level instead of under coordinator_decision also warn and contribute
+    nothing. Only files whose committed text contains one of the block keys are
+    parsed. A file without the key cannot carry the block, so a parse failure
+    elsewhere in ledger/decisions/ is not reported by these tools.
+  ordering_rule: >-
+    Blocks are applied in ascending (decided_at, decision id) order. decided_at is
+    compared as an ISO-8601 string: YAML dates are str()-ed and a space separator is
+    normalised to "T". A missing decided_at sorts first. The decision id
+    (coordinator_decision.id, or the file stem if absent) breaks ties. The last
+    applied block that names an ID decides whether it is held. A block that fails
+    its guards applies nothing. Within one decision, T-2 applies withheld_contracts
+    before released_contracts, so a decision that both holds and releases an id
+    releases it. The constant is ecc_priority.ORDERING_RULE.
+  T1_guards:
+    - Membership is idea_dispositions.applies_to_exactly[*].id only (string, non-empty). Entries without an id warn and are ignored. Titles are never read.
+    - A block whose disposition is not `reopened` is honoured only if rule_9_fields carries non-empty evidence, budget, test_boundary, remaining_uncertainty and successor_or_revisit. Otherwise it warns, names the decision and the missing fields, and the ideas stay open.
+    - A guarded block with an empty disposition warns and is not honoured.
+    - >-
+      `reopened` (block-level disposition) restores its ids and is not
+      rule_9-guarded, because restoring is the same effect a failed guard has.
+      This is an interpretation; the card does not state whether a reopen needs
+      the guard.
+    - idea_dispositions may be one mapping (as in DEC-20261005-138b51) or a list of mappings.
+    - The --area filter applies to the disposed section as well as the open list.
+  T1_json_choice:
+    choice: keep the --json stdout shape (a JSON list of open-idea rows, keys unchanged) and print the disposed section on stderr
+    why: >-
+      The existing --open-ideas --json output is a bare JSON list, so a documented
+      key cannot be added without changing the top-level type to an object, which
+      would break every list consumer. The repository has no code that parses it.
+      The recorded consumers are sessions that read it as a list:
+      DEC-20261005-7a74e9 context ("--open-ideas --json (19 open ECC ideas)"),
+      DEC-20261005-138b51 evidence_refs (a scratch open_ideas.json), and
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-33cdc3/archive-manifest.yaml
+      ("all three IDs occur in ecc_priority.py --open-ideas --area ECDLP --json").
+      The only in-repo programmatic consumer, orchestration/campaign/autopilot.py,
+      calls open_ecc_ideas() directly and is unaffected. stderr therefore keeps
+      every consumer working and still always prints the section.
+    verified: gate-logs/g5json.stdout.json parses as a list of 3 rows, each equal (keys and key order) to the corresponding pre-change row; gate-logs/g5json.stderr carries the 16-row disposed section.
+  T2_guards:
+    - Membership is withheld_contracts.ids only (string entries, or mappings with an id). Titles, templates, signatures and areas are never read.
+    - The block is honoured only if withheld_contracts.rule_9_fields carries all five non-empty fields. Otherwise it warns, naming the decision and the missing fields, and its ids stay selectable.
+    - released_contracts.ids in a later decision (ORDERING_RULE) restores ids. It is not rule_9-guarded, for the same reason as `reopened`.
+    - The hold is checked after every existing filter (approval, frozen, execution_authorized, superseded, goal, experiment, completion, blocked), so "dropped" counts only rows that would otherwise have been listed.
+    - --goal selection applies the hold. --include-blocked selection applies the hold.
+    - >-
+      --experiment: a named withheld row is returned with its shape unchanged, and
+      stderr reads "newest_experiments: <id> is withheld from dispatch by <DEC>;
+      returned because --experiment named it (the hold governs unqualified and
+      --goal selection only)".
+    - The count line is printed to stderr on every CLI run, in text and --json modes, including when no decision is honoured ("holds: no honouring decision; 0 row(s) dropped").
+    - --show-withheld lists every held id with its DEC ("# withheld by decision: N" then "<id>\t<DEC>"), to stderr under --json and to stdout after the selectable rows in text mode.
+
+  # -------------------------------------------------------------------------
+  # Commands run (exact), exit codes
+  # -------------------------------------------------------------------------
+  commands:
+    baseline_before_change:
+      - {cmd: python3 tools/validate_ledger.py, exit: 1, result: "FAIL: 122 new validation error(s) (pre-existing on base)", log: gate-logs/base/validate_ledger.err}
+      - {cmd: python3 tools/check_runtime_bindings.py, exit: 0, result: "OK: 9 roles consistent with every runtime binding", log: gate-logs/base/crb.out}
+      - {cmd: python3 tools/newest_experiments.py --limit 0 --json, exit: 0, result: "233 rows; top three EXP-GFPN-3d834b, EXP-ECDLP-ffae95, EXP-ECDLP-f33d1f; all 151 held ids present; stderr empty", log: gate-logs/base/ne_all.stderr}
+      - {cmd: python3 tools/ecc_priority.py --open-ideas, exit: 0, result: 19 open ECC ideas (ECDLP 16, SSI 3)}
+      - {cmd: python3 tools/ecc_priority.py --open-ideas --json, exit: 0, result: list of 19 rows}
+    development:
+      - cmd: python3 tools/ecc_priority.py --open-ideas --limit 3
+        exit: 0
+        note: smoke test after T-1; 3 open (SSI), 16 under the disposed section; 62 s wall
+      - cmd: python3 -m pytest -p no:cacheprovider tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py -q -k "not real_corpus"
+        exit: 1
+        result: 3 failed, 9 passed
+        note: >-
+          Test-harness bug in the new tests. Their CLI helper re-wrapped an
+          already-monkeypatched function on its second call. Fixed by binding the
+          real function once at import time. No product code changed in response.
+      - cmd: python3 -m pytest -p no:cacheprovider tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py -q -k "not real_corpus"
+        exit: 0
+        result: 12 passed, 2 deselected
+    base_comparison_for_gate_2:
+      - cmd: git archive HEAD tools tests orchestration | tar -x -C $TMPDIR/27ff15-base-export
+        exit: 0
+      - cmd: (cd $TMPDIR/27ff15-base-export && python3 -m pytest -p no:cacheprovider tests/test_newest_experiments.py tests/test_experiment_execution.py -q)
+        exit: 1
+        result: 40 failed, 12 passed
+        validity: >-
+          INVALID COMPARISON, discarded. Outside the checkout, pyenv resolved
+          `python3` to a different interpreter with no hashlib.file_digest
+          (AttributeError). This is an infrastructure artifact. It is recorded and
+          not used.
+      - cmd: (cd $TMPDIR/27ff15-base-export && /Users/adamburan/.pyenv/versions/3.12.8/bin/python3 -m pytest -p no:cacheprovider tests/test_newest_experiments.py tests/test_experiment_execution.py -q)
+        exit: 1
+        result: 20 failed, 44 passed, 37 subtests passed
+        log: gate-logs/base/g2-base.log
+        comparison: the FAILED/SUBFAILED line set is identical to gate 2's post-change set (diff empty)
+    completion_gate:
+      - {id: g1, cmd: python3 -m pytest -p no:cacheprovider tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py -q, exit: 0, result: 35 passed in 248.50s, log: gate-logs/g1-pytest-tools.log}
+      - {id: g2, cmd: python3 -m pytest -p no:cacheprovider tests/test_newest_experiments.py tests/test_experiment_execution.py -q, exit: 1, result: "20 failed, 44 passed, 37 subtests passed in 45.18s", log: gate-logs/g2-pytest-tests.log}
+      - {id: g3a, cmd: python3 tools/newest_experiments.py --limit 3 --json, exit: 0, result: JSON list of 3 rows, stdout: gate-logs/g3a.stdout.json, stderr: gate-logs/g3a.stderr}
+      - {id: g3b, cmd: python3 tools/newest_experiments.py --goal GOAL-ECDLP-001 --limit 0 --json, exit: 0, result: "JSON list of 0 rows ([])", stdout: gate-logs/g3b.stdout.json, stderr: gate-logs/g3b.stderr}
+      - {id: g4, cmd: python3 tools/newest_experiments.py --limit 0 --json, exit: 0, result: JSON list of 82 rows, stdout: gate-logs/g4.stdout.json, stderr: gate-logs/g4.stderr}
+      - {id: g5, cmd: python3 tools/ecc_priority.py --open-ideas, exit: 0, stdout: gate-logs/g5.stdout, stderr: gate-logs/g5.stderr (empty)}
+      - {id: g5json, cmd: python3 tools/ecc_priority.py --open-ideas --json, exit: 0, stdout: gate-logs/g5json.stdout.json, stderr: gate-logs/g5json.stderr}
+      - {id: g6a, cmd: python3 tools/validate_ledger.py, exit: 1, result: "FAIL: 122 new validation error(s)", log: gate-logs/g6-validate_ledger.err}
+      - {id: g6b, cmd: python3 tools/check_runtime_bindings.py, exit: 0, result: "OK: 9 roles consistent with every runtime binding", log: gate-logs/g6-crb.out}
+      - {id: census, cmd: python3 coordination/archives/TASK-20261005-27ff15/census_confirm.py, exit: 0, output: census-confirmation.json}
+      - {id: status, cmd: git status --porcelain, exit: 0}
+    verification_scripts: >-
+      Inline python3 checks (json.loads of each gate stdout, set intersection with
+      the 151 ids, row-equality against the pre-change rows, and text checks on
+      g5.stdout) were run from the shell with exit 0. Their results are under
+      gate_results.
+
+  stderr_count_lines_real_corpus:
+    "python3 tools/newest_experiments.py --limit 3 --json": "newest_experiments: holds: DEC-20261005-138b51 dropped 47 row(s) of 47 held id(s); DEC-20261005-98a823 dropped 104 row(s) of 104 held id(s); explicit --experiment overrides 0"
+    "python3 tools/newest_experiments.py --goal GOAL-ECDLP-001 --limit 0 --json": "newest_experiments: holds: DEC-20261005-138b51 dropped 0 row(s) of 47 held id(s); DEC-20261005-98a823 dropped 0 row(s) of 104 held id(s); explicit --experiment overrides 0"
+    "python3 tools/newest_experiments.py --limit 0 --json": "newest_experiments: holds: DEC-20261005-138b51 dropped 47 row(s) of 47 held id(s); DEC-20261005-98a823 dropped 104 row(s) of 104 held id(s); explicit --experiment overrides 0"
+    note: >-
+      "dropped" counts rows removed from the full selection, before --limit. For
+      --goal GOAL-ECDLP-001 it is 0 because every held id has goal_id null in the
+      census. The goal-scoped list is empty after the change; this report did not
+      measure it before the change.
+
+  # -------------------------------------------------------------------------
+  # T-1 census confirmation (report-only; edits nothing)
+  # -------------------------------------------------------------------------
+  census_confirmation:
+    census: coordination/archives/TASK-20261005-2af213/template-census.json (schema two-route-template-census.v1, 173 rows)
+    criterion: id appears as a row experiment_id with status `approved` and run_dirs == []
+    DEC-20261005-138b51: {ids: 47, confirmed: 47}
+    DEC-20261005-98a823: {ids: 104, confirmed: 104}
+    total: {ids: 151, distinct: 151, confirmed: 151}
+    unconfirmed: []
+    per_id_table: census-confirmation.json (rows[], one entry per id with in_census, status, run_dirs, confirmed)
+
+  # -------------------------------------------------------------------------
+  # Completion gate
+  # -------------------------------------------------------------------------
+  gate_results:
+    - item: "`python3 -m pytest tools/test_ecc_priority_dispositions.py tools/test_newest_experiments_withheld.py tools/test_ecc_priority.py -q` passes"
+      result: PASS
+      evidence: g1, 35 passed, exit 0
+    - item: "`python3 -m pytest tests/test_newest_experiments.py tests/test_experiment_execution.py -q` passes unchanged"
+      result: FAIL (pre-existing on base, not attributable to this change)
+      evidence: >-
+        g2 exit 1: 20 failed, 44 passed, 37 subtests passed. The pristine-base
+        export under the same interpreter gives the identical FAILED/SUBFAILED set
+        (gate-logs/base/g2-base.log). Every failure is in ExecutionTests (the
+        tools/experiment_execution.py trial supervisor). Their assertions see
+        'infrastructure_error' where 'invalid_output', 'watchdog_expired' or
+        completion was expected. No failure is in tests/test_newest_experiments.py
+        or the selector tests of tests/test_experiment_execution.py. Both test
+        files are unchanged (git diff HEAD -- tests is empty). The cause of the
+        base failures was not diagnosed. It is outside this card's write_scope
+        and was not touched.
+    - item: "--limit 3 --json and --goal GOAL-ECDLP-001 --limit 0 --json each exit 0 and emit a JSON list on stdout (json.loads), with the stderr count line present"
+      result: PASS
+      evidence: g3a (3-row list) and g3b ([]), both exit 0, count line in each stderr; row keys are a subset of the documented keys, and no row has a new key
+    - item: none of the 151 ids appears in `python3 tools/newest_experiments.py --limit 0 --json` stdout
+      result: PASS
+      evidence: >-
+        g4: 82 rows, 0 of the 151 present. The pre-change output had 233 rows with
+        all 151 present. The 82 rows are exactly the pre-change list minus the 151
+        ids, in the same order, each row equal in keys, key order and values.
+    - item: "`python3 tools/ecc_priority.py --open-ideas` lists none of the sixteen as open, prints them under the disposed section, and still lists IDEA-20261004-e4c461, -edbd24 and -a09dd4 as open"
+      result: PASS
+      evidence: >-
+        g5 -- the open list holds the 3 SSI ideas only, and the section headed
+        "# Disposed by decision: 16" lists all 16 as
+        "[ECDLP]  DEC-20261005-138b51  declined_out_of_question".
+    - item: "`python3 tools/check_runtime_bindings.py` and `python3 tools/validate_ledger.py` show no new error attributable to this change"
+      result: PASS
+      evidence: >-
+        check_runtime_bindings is OK before and after (exit 0, identical stdout).
+        validate_ledger has exit 1 before and after with the same 122 errors (the
+        sorted stderr diff is empty, and stdout is identical).
+    - item: only write_scope paths are modified
+      result: PASS
+      evidence: git_status_porcelain below
+    - item: the task report exists and records every command and exit code
+      result: PASS
+      evidence: this file, commands section
+
+  git_status_porcelain: |2
+     M tools/ecc_priority.py
+     M tools/newest_experiments.py
+    ?? coordination/archives/TASK-20261005-27ff15/
+    ?? tools/test_ecc_priority_dispositions.py
+    ?? tools/test_newest_experiments_withheld.py
+
+  # -------------------------------------------------------------------------
+  # Deviations and observations
+  # -------------------------------------------------------------------------
+  deviations_from_card:
+    - >-
+      Completion-gate item 2 does not pass. The failure is pre-existing on base
+      a87c273ab0 with an identical failure set, and is reported as FAIL rather
+      than weakened.
+    - >-
+      Interpretations the card leaves open, chosen conservatively. (a) "Committed"
+      means the HEAD blob. A non-git fixture tree reads the working tree with a
+      warning. (b) `reopened` and released_contracts are not rule_9-guarded, since
+      they only restore visibility. (c) A decision that holds and releases the
+      same id releases it. (d) open_ecc_ideas gained keyword-only parameters
+      honour_dispositions=True and disposed_out=None. Their defaults honour
+      dispositions, mirroring the newest_runnable constraint.
+    - >-
+      The archive directory carries extras inside write_scope, beyond
+      task-report.yaml: census_confirm.py, census-confirmation.json and gate-logs/.
+      They were added so that the census and the gate claims can be reproduced.
+    - No commit, push or branch change was made. No decision, specification, handoff, proposal, goal or bus file was edited.
+  observations:
+    - >-
+      After the change, the head of unqualified /run selection is
+      EXP-BINSTD-fdd2d9, EXP-SEMBIN-eabd37, EXP-SEMBIN-0ce931. DEC-20261005-98a823
+      records that EXP-BINSTD-fdd2d9 was executed off main, and assigns its
+      duplicate-run exposure to DEC-20261005-040d37 / TASK-20261005-b73fd8. This
+      task does not remedy it and does not rank it.
+    - >-
+      Fixture-based callers that are not git checkouts now print one stderr
+      warning per call ("... is not the top level of a git checkout ..."). This
+      includes tests/test_newest_experiments.py and the SelectorTests in
+      tests/test_experiment_execution.py. Their assertions are unaffected.
+    - >-
+      orchestration/campaign/autopilot.py select_next() now honours both
+      dispositions and holds by default, because it calls open_ecc_ideas() and
+      newest_runnable() with default arguments.
+    - "Wall clock on the real corpus: newest_experiments --limit 0 --json about 90-100 s and --open-ideas about 60 s, both dominated by the pre-existing spec/proposal scans; the decision reading adds 2 git calls plus one `git show` per matching decision."
