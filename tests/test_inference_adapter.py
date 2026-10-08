@@ -379,8 +379,45 @@ def test_anthropic_request_shape(cfg):
     assert headers["anthropic-version"]
     assert body["system"] == "ROLE"                  # top level, not a message
     assert body["messages"] == [{"role": "user", "content": "hi"}]
-    assert body["thinking"]["budget_tokens"] < body["max_tokens"]
-    assert "temperature" not in body                 # pinned while thinking is on
+    # Claude 5: adaptive thinking with a named effort; a token budget or a
+    # temperature on this model is a 400, so neither may appear.
+    assert body["thinking"] == {"type": "adaptive"}
+    assert body["output_config"] == {"effort": "high"}
+    assert "budget_tokens" not in body["thinking"]
+    assert "temperature" not in body
+
+
+def test_every_claude_5_binding_is_adaptive_and_sends_no_budget(cfg):
+    """A `budget_tokens` on Opus 5 / Sonnet 5 is rejected by the API."""
+    checked = 0
+    for policy_id, binding in cfg.binding_table["anthropic"].items():
+        model = binding.get("model") or ""
+        if not (model.startswith("claude-opus-5") or model.startswith("claude-sonnet-5")):
+            continue
+        mode = (binding.get("request") or {}).get("reasoning", {}).get("mode")
+        assert mode == "anthropic_adaptive", f"{policy_id} on {model} uses {mode!r}"
+        assert "temperature" not in (binding.get("request") or {}), policy_id
+        resolution = adapter.resolve(cfg, policy_id, backend="anthropic",
+                                     independent_session=True, env={})
+        _, _, body = adapter.build_request(
+            cfg, resolution, system=None, messages=[adapter.Message("user", "x")],
+            env={"ANTHROPIC_API_KEY": "k"})
+        assert body["thinking"] == {"type": "adaptive"}, policy_id
+        assert body["output_config"]["effort"] == resolution.reasoning_effort, policy_id
+        assert "temperature" not in body, policy_id
+        checked += 1
+    assert checked >= 2, "expected Opus 5 and Sonnet 5 bindings on the anthropic backend"
+
+
+def test_adaptive_effort_map_covers_the_lattice_and_rejects_unknown(cfg):
+    for effort, expected in (("none", "low"), ("low", "low"), ("medium", "medium"),
+                             ("high", "high"), ("xhigh", "xhigh"), ("max", "max"),
+                             ("ultra", "max")):
+        assert transport_module._adaptive_effort({}, effort) == expected
+    assert transport_module._adaptive_effort(
+        {"effort_map": {"xhigh": "high"}}, "xhigh") == "high"
+    with pytest.raises(config_module.ConfigError, match="no effort_map entry"):
+        transport_module._adaptive_effort({}, "colossal")
 
 
 def test_abliteration_request_shapes(cfg):
@@ -658,17 +695,22 @@ def test_effort_is_capped_by_the_backend_and_says_so(cfg):
 
 def test_calibration_reaches_the_anthropic_wire(cfg):
     """A lower tier must change the request, not only the manifest."""
-    def thinking(policy: str) -> int:
+    def body_for(policy: str) -> dict:
         resolution = adapter.resolve(cfg, policy, backend="anthropic",
                                      independent_session=True, env={})
         _, _, body = adapter.build_request(
             cfg, resolution, system=None,
             messages=[adapter.Message("user", "x")],
             env={"ANTHROPIC_API_KEY": "k"})
-        return body.get("thinking", {}).get("budget_tokens", 0)
+        return body
 
-    assert thinking("executor-mechanical") == 0          # thinking off entirely
-    assert 0 < thinking("executor-implementation") < thinking("review-adversarial")
+    order = cfg.effort_order
+    # Haiku 4.5 (budget mode): the mechanical tier turns thinking off entirely.
+    assert body_for("executor-mechanical").get("thinking", {}).get("budget_tokens", 0) == 0
+    # Claude 5 (adaptive mode): the named effort follows the policy's tier.
+    executor = body_for("executor-implementation")["output_config"]["effort"]
+    review = body_for("review-adversarial")["output_config"]["effort"]
+    assert order.index(executor) < order.index(review)
 
 
 def test_thinking_off_lets_temperature_through(cfg):
@@ -767,8 +809,9 @@ def test_max_effort_reaches_the_wire(cfg):
     _, _, ordinary_body = adapter.build_request(
         cfg, ordinary, system=None, messages=[adapter.Message("user", "x")],
         env={"ANTHROPIC_API_KEY": "k"})
-    assert (body["thinking"]["budget_tokens"]
-            > ordinary_body["thinking"]["budget_tokens"])
+    assert body["output_config"]["effort"] == "max"
+    assert (cfg.effort_order.index(body["output_config"]["effort"])
+            > cfg.effort_order.index(ordinary_body["output_config"]["effort"]))
 
 
 def test_the_unrecoverable_routing_rule_names_the_top_tier(cfg):
