@@ -26,6 +26,7 @@ from . import batch_cli as batch_cli_module
 from . import config as config_module
 from . import codex_runtime as codex_runtime_module
 from . import manifest as manifest_module
+from . import prompt_cache as prompt_cache_module
 from . import resolver as resolve_module
 from . import transport as transport_module
 
@@ -215,10 +216,18 @@ def cmd_complete(args: argparse.Namespace) -> int:
     if args.role and not system:
         system = _role_contract(cfg, args.role)
     print(f"# {resolution.summary()}", file=sys.stderr)
-    completion = transport_module.complete(
-        cfg, resolution, system=system,
-        messages=[transport_module.Message("user", prompt)],
-        max_tokens=args.max_tokens)
+    messages = [transport_module.Message("user", prompt)]
+    if args.no_cache:
+        completion = transport_module.complete(
+            cfg, resolution, system=system, messages=messages,
+            max_tokens=args.max_tokens)
+    else:
+        # The role contract is the large, repeated part of every call; caching
+        # it makes the second call for the same role within five minutes read
+        # it at a tenth of the input price. The prompt itself is not marked.
+        completion = prompt_cache_module.cached_complete(
+            cfg, resolution, system=system, messages=messages,
+            max_tokens=args.max_tokens)
     print(completion.text)
     if completion.model and completion.model != resolution.resolved_model_id:
         print(f"# WARNING: backend answered as {completion.model!r}, not the "
@@ -323,6 +332,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_complete.add_argument("--prompt-file")
     p_complete.add_argument("--system-file")
     p_complete.add_argument("--max-tokens", type=int)
+    p_complete.add_argument(
+        "--no-cache", action="store_true",
+        help="send without prompt caching (a single call pays the cache-write "
+             "premium on the system prompt and never reads it back)")
     p_complete.set_defaults(func=cmd_complete)
 
     p_codex = sub.add_parser(
