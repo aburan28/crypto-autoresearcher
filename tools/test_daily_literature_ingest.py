@@ -207,5 +207,134 @@ class DailyLiteratureTests(unittest.TestCase):
             intake.validate_distillation(result, {1: quote})
 
 
+class FakeBatches:
+    """Just enough of /v1/messages/batches for the intake's batch lane."""
+
+    def __init__(self, answer, end_on_cancel_with=None, end_immediately=True):
+        self.answer = answer
+        self.batch = None
+        self.requests = []
+        self.results = []
+        self.end_immediately = end_immediately
+        self.end_on_cancel_with = end_on_cancel_with
+        self.cancelled = False
+
+    def _message(self):
+        return {"id": "msg", "type": "message", "role": "assistant", "model": "m",
+                "stop_reason": "end_turn",
+                "content": [{"type": "text", "text": json.dumps(self.answer)}],
+                "usage": {"input_tokens": 50, "output_tokens": 20}}
+
+    def _end(self, kinds):
+        self.results = [{"custom_id": r["custom_id"],
+                         "result": ({"type": "succeeded", "message": self._message()}
+                                    if kind == "succeeded" else {"type": kind})}
+                        for r, kind in zip(self.requests, kinds)]
+        self.batch["processing_status"] = "ended"
+
+    def __call__(self, request, timeout=None):
+        url, method = request.full_url, request.get_method()
+        if url.endswith("/v1/messages/batches") and method == "POST":
+            self.requests = json.loads(request.data)["requests"]
+            self.batch = {"id": "msgbatch_lit", "type": "message_batch",
+                          "processing_status": "in_progress",
+                          "request_counts": {"processing": len(self.requests)},
+                          "results_url": None}
+            if self.end_immediately:
+                self._end(["succeeded"] * len(self.requests))
+            return BytesIO(json.dumps({**self.batch, "processing_status": "in_progress"}).encode())
+        if url.endswith("/cancel"):
+            self.cancelled = True
+            self._end(self.end_on_cancel_with)
+            return BytesIO(json.dumps(self.batch).encode())
+        if url.endswith("/results"):
+            return BytesIO("".join(json.dumps(r) + "\n" for r in self.results).encode())
+        return BytesIO(json.dumps(self.batch).encode())
+
+
+class BatchLaneTest(unittest.TestCase):
+    def setUp(self):
+        try:
+            import fitz
+        except ImportError:
+            self.skipTest("optional PyMuPDF not installed")
+        self.quote = "We improve the cost of this toy walk through a new partition."
+        doc = fitz.open()
+        doc.new_page().insert_text((72, 72), "\n".join([self.quote] * 13))
+        self.pdf = doc.tobytes()
+        doc.close()
+        paper = intake.parse_eprint(RSS)[0]
+        twin = intake.replace(paper, identifier="2026/2457")
+        self.items = [(paper, self.pdf), (twin, self.pdf)]
+        self.answer = {"contribution": "The authors report a faster toy walk.",
+                       "affected_scope": "Toy curves only.",
+                       "reported_cost": "Not stated in extracted text.",
+                       "limitations": "No production-size solve is described.",
+                       "evidence": [{"page": 1, "quote": self.quote}]}
+
+    def test_every_paper_rides_one_batch_when_it_ends_in_time(self):
+        fake = FakeBatches(self.answer)
+        with TemporaryDirectory() as d, \
+                patch.object(intake, "_post_message",
+                             side_effect=AssertionError("no synchronous call expected")):
+            out = intake.distill_batch(self.items, "k", "claude-opus-5-5",
+                                       wait_seconds=60, registry=Path(d), opener=fake,
+                                       sleep=lambda s: None)
+        self.assertEqual(len(fake.requests), 2)
+        self.assertEqual([o["delivery"]["mode"] for o in out], ["batch", "batch"])
+        self.assertEqual(out[0]["delivery"]["batch_id"], "msgbatch_lit")
+        body = fake.requests[0]["params"]
+        self.assertEqual(body["model"], "claude-opus-5-5")
+        self.assertEqual(body["output_config"]["format"]["type"], "json_schema")
+        self.assertFalse(fake.cancelled)
+
+    def test_a_late_batch_is_cancelled_and_only_unfinished_papers_run_now(self):
+        fake = FakeBatches(self.answer, end_immediately=False,
+                           end_on_cancel_with=["succeeded", "canceled"])
+        ticks = iter(range(0, 10_000, 500))
+        sync_calls = []
+
+        def post(request, api_key):
+            sync_calls.append(request)
+            return fake._message()
+
+        with TemporaryDirectory() as d, patch.object(intake, "_post_message", side_effect=post):
+            out = intake.distill_batch(self.items, "k", "claude-opus-5-5",
+                                       wait_seconds=60, registry=Path(d), opener=fake,
+                                       sleep=lambda s: None, clock=lambda: next(ticks))
+        self.assertTrue(fake.cancelled)
+        self.assertEqual(out[0]["delivery"]["mode"], "batch")
+        self.assertEqual(out[1]["delivery"],
+                         {"mode": "interactive", "fallback_from_batch": "msgbatch_lit",
+                          "batch_result": "canceled"})
+        self.assertEqual(len(sync_calls), 1)           # nothing is paid for twice
+        self.assertEqual(sync_calls[0], fake.requests[1]["params"])
+
+    def test_ingest_distills_all_papers_together_and_records_the_lane(self):
+        seen = []
+
+        def many(items):
+            seen.append(len(items))
+            return [{"provider": "anthropic", "model": "m", "pages_extracted": 1,
+                     "text_truncated": False, "usage": {},
+                     "delivery": {"mode": "batch", "batch_id": "msgbatch_lit"},
+                     **self.answer} for _ in items]
+
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "knowledge/literature").mkdir(parents=True)
+            ids = iter(["KN-LIT-aaaaaa", "KN-LIT-bbbbbb"])
+            paper, twin = self.items[0][0], intake.replace(
+                self.items[1][0], title="A different walk paper")
+            with patch.object(intake, "new_id", side_effect=lambda root: next(ids)):
+                result = intake.ingest([paper, twin], root, "papers", FakeS3(),
+                                       get=lambda *_: self.pdf, distill_many=many)
+            self.assertEqual(seen, [2])
+            self.assertEqual(len(result["added"]), 2)
+            entry = (root / "knowledge/literature/KN-LIT-aaaaaa.md").read_text()
+            fm = yaml.safe_load(entry.split("---", 2)[1])
+            self.assertEqual(fm["distillation"]["delivery"]["batch_id"], "msgbatch_lit")
+
+
 if __name__ == "__main__":
     unittest.main()
