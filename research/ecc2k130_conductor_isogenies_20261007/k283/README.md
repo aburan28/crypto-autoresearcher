@@ -30,7 +30,9 @@ fail closed:
 - the pinned SEC2 subgroup order is prime, the cofactor is 4, and the source
   order and trace equal the K-283 values;
 - the Frobenius discriminant equals `-7 f_pi^2`;
-- `h(-20158663) = 1698`;
+- `1697` is prime and inert in the maximal order, its valuation in `f_pi` is
+  exactly one, and `h(-20158663) = 1698`, certifying a one-level
+  1697-volcano with 1,698 descending directions from the crater;
 - the Weber class polynomial has degree 1698 and, modulo 2, six distinct
   irreducible factors of degree 283;
 - the census contains exactly 1,698 distinct nonzero `b` values, all with
