@@ -32,7 +32,7 @@ def test_repository_subagents_match_their_pins():
 
 def test_executor_pins_follow_the_anthropic_bindings():
     roles, bindings = _docs()
-    for role in ("executor", "executor-mechanical"):
+    for role in ("executor", "executor-mechanical", "idea-generator", "consolidator"):
         policy = roles["roles"][role]["default_policy"]
         assert role_registry.expected_model(roles, bindings, role, "claude_code") == \
             bindings["bindings"]["anthropic"][policy]["model"]
@@ -53,7 +53,7 @@ def test_a_binding_change_is_a_build_failure_until_the_agent_file_follows(tmp_pa
 def test_an_unpinned_role_may_not_name_a_model(tmp_path):
     roles, bindings = _docs()
     text = (REPO / ".claude/agents/validator.md").read_text().replace(
-        "model: inherit", "model: claude-haiku-4-5-20251001", 1)
+        "model: inherit", "model: claude-haiku-5-5", 1)
     fake = tmp_path / "validator.md"
     fake.write_text(text)
     problems = role_registry._check_model(roles, bindings, "validator", "claude_code", fake)
