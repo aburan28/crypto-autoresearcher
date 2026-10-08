@@ -199,9 +199,15 @@ sampled with 4 random points per cell:
 **Rerun (`down163b.gp`).** The descent was run a second time to recover the log line lost in the restart. PARI's
 `random()` starts from the same default seed in every new `gp` session, so the rerun drew the same kernel and
 reproduced b″ exactly, in 930 s (`down163b.out`). That shows the run is reproducible. It is not a second,
-independent image. A second image would need a different seed (`setrand`).
+independent image.
 
-**Status.** b″ is on the level of conductor 45641·82153, two steps below the
+**Second, independent image (`down163c.gp`, `setrand(2)`).** A different seed gives a different kernel point
+and b‴ = 52997549064096697226797992255204505576485896783 (a₂ = 1, #E = N, Galois orbit of 163), in a
+different Galois orbit from b″ (835 s). Both level checks repeat: its 45641-part and its 82153-part are both
+cyclic, 4/4 samples each (`lvl163_c.out`), and its 11-cycle has length **82152** (`cyc163_level2c.out`).
+*Measured; independently verified.*
+
+**Status.** b″ and b‴ are on the level of conductor 45641·82153, two steps below the
 NIST K-163 crater, with h = 45640·82152 ≈ 3.7·10⁹ curves (23,002,560 Galois orbits). The two
 level checks are independent of each other (torsion structure over F_2^3260 and F_2^10269; the
 horizontal 11-cycle over F_2^163) and agree. *Measured; independently verified.*
