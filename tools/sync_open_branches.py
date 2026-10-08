@@ -61,7 +61,9 @@ GENERATED = (
 )
 
 # Branches never synced: the trunk itself and anything a human owns by name.
-SKIP_PREFIXES = ("origin/main", "origin/HEAD")
+# automation/repo-radar is an orphan data branch (tools/repo_radar.py) that
+# shares no history with main and is never merged into it.
+SKIP_PREFIXES = ("origin/main", "origin/HEAD", "origin/automation/repo-radar")
 
 # Kept for unit tests and for any PR-scoped sync wrapper that still filters
 # open pull requests before delegating to branch-based sync.
