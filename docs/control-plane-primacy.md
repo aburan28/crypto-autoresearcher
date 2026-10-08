@@ -118,7 +118,7 @@ aliases falling back to one model is not a quorum — which is what happens when
 three subagents in one Claude Code session all run `model: inherit`.
 
 Distinctness is on the model, so **three runtimes are not three models**. Claude
-Code and `api_direct` both pointed at `anthropic` resolve to `claude-opus-5`
+Code and `api_direct` both pointed at `anthropic` resolve to `claude-opus-5-5`
 twice and count once. What produces a quorum is three *backends* that bind the
 review policy to three different models; the runtime only decides where the
 session runs.
