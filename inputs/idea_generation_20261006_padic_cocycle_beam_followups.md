@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then seven structured addition/spectral measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method.
+- Bottom line: five earlier frozen successors failed their gates, then nineteen structured addition, collision-sketch, and validation-cost measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later three-element x-coordinate fingerprints reached complete recovery under the frozen toy workload and reduced charged validation work, but retained repeated square-root passes and large field-arithmetic costs rather than establishing a new exponent.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -100,8 +100,32 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `x_quotient_sketch_lab.py` | `d59b1fe654819f4968c9ade0fd8978f8c013eb8409d4415add0830dea83eb80e` |
 | `tests/test_x_quotient_sketch_lab.py` | `00309dfa9d1ee5e86a8e08ec782b6383183eac236ca99bbc644802f47613e4c7` |
 | `results/x-quotient-sketch.json` | `d25bff18bce72b9ba43aa3613f17b01e5e0d5595b36e17b71c22275093266f92` |
+| equal-work freeze/implementation/result commits | `a6255b1`, `2be24e9`, `6eb39c7` |
+| `equal_work_schedule_lab.py` | `ccfc23e1e3329cc5278e3bee29c0b103384be6caf5e03dfd7edabe826847e4c2` |
+| `tests/test_equal_work_schedule_lab.py` | `20fd487a2157e1a5e3f109a4f480768e99bdd1d6736d2d76e0a9990e52e46134` |
+| `results/equal-work-quotient-schedule.json` | `f75bcb3f205843e606875b259a53cfe30ea75fb65ad8c24137b09267d223ed13` |
+| validation-backed-pair freeze/implementation/result commits | `6eb39c7`, `fb2e013`, `f8493e7` |
+| `validated_x_pair_lab.py` | `32b597a3343a920f6cf0b242488095c201c6a05d990518c75865f40635299984` |
+| `tests/test_validated_x_pair_lab.py` | `8e506279366a4c209be51d973d62c38f937ed5a7e212b1ffb676ea819f3bf477` |
+| `results/validation-backed-x-pair.json` | `ee5cf4d5e456bd14ee287e22e794689ec2c7e35a5f70fcd994626d8e30559547` |
+| nonlinear-fingerprint freeze/implementation/result commits | `f8493e7`, `733b36d`, `d59cecf` |
+| `nonlinear_x_pair_fingerprint_lab.py` | `15894d3ab72834c97a79141ca41604c6ef6ed01c8d29f4996dfad90928a249a4` |
+| `tests/test_nonlinear_x_pair_fingerprint_lab.py` | `4f678481474e67233ef623201aaea24d2710eeec32fd98a063b9d3a316968094` |
+| `results/nonlinear-x-pair-fingerprint.json` | `24b34eccec2bed770147b21293174775a5af31f470920199df6aa61e861bc6e4` |
+| cheap-fingerprint freeze/implementation/result commits | `d59cecf`, `52dd84b`, `e0cad76` |
+| `cheap_x_pair_fingerprint_lab.py` | `4fc68903521361893331d8c9563344f6e72184f9dc4d758c5a094cc9d1acc08d` |
+| `tests/test_cheap_x_pair_fingerprint_lab.py` | `3f34c5099c6ae1e0550732e3e7467bba845319d334889dde75c119b0edd505ef` |
+| `results/cheap-x-pair-fingerprint-frontier.json` | `9de0931006bd5b8ac3f2a572c377392185582ea23640d3af35aae0c2dae22972` |
+| coefficient-family freeze/implementation/result commits | `e0cad76`, `58e921c`, `ae57de2` |
+| `quadratic_fingerprint_family_lab.py` | `bd7eed4cb7c77af352ffa277807408688360ab1752d57ad38e1ac16b2db3b173` |
+| `tests/test_quadratic_fingerprint_family_lab.py` | `fa168262b89d4d7f73fb0c27eb3b2d7e9cdc9d173ee8a00a6e6fdbca9ed53914` |
+| `results/quadratic-fingerprint-coefficient-family.json` | `2aebbb9612a8387b7621af933df4a9bf97c29402bb1f94f7759c5588ccb0b2b3` |
+| validation-path freeze/implementation/result commits | `ae57de2`, `a6543f3`, `ee20e7c` |
+| `validation_scalar_paths_lab.py` | `d6538ae7677b65d48bdccf2043d9a4caf0b63608de4339fd3c0812a69ed02b05` |
+| `tests/test_validation_scalar_paths_lab.py` | `7e11ac12f7ba1395131837c1f20271e9875f5528fa397a91a9b3bec3689596f4` |
+| `results/validation-scalar-operation-paths.json` | `388d6027e73382cf6010c7c86e4f0088fd6bf02e9294d2cc5a3f69cdad3f13ed` |
 
-All eighteen result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 74/74 tests. These are provenance statements, not repository run receipts.
+All twenty-four result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 94/94 tests. These are provenance statements, not repository run receipts.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -452,11 +476,66 @@ with zero failures. It recovered 3,069/3,072 targets, all seven point-baseline
 misses, and used half the baby probes. The sequential point/x-pair union covered
 all 3,072 targets at quarter-cap peak memory, but uses twice the passes.
 
+## H27 — equal-work point/x schedules
+
+Point-only, verified x-pair-only, and half/half alternating schedules were
+compared at equal total pass budgets `2,8,32,128,512`. All three first reached
+3,072/3,072 at 512 passes. Alternating failed both frozen gates, while x-pair-
+only was tied or highest at every earlier prefix and used half the point-only
+baby probes. Complementarity remained measurable but did not lower the first
+complete-recovery threshold at fixed pass count.
+
+## H28 — validation-backed three-element x pairs
+
+Removing the x-square certificate allowed three-element count/x-sum/label-sum
+cells. Every count-two candidate was publicly validated. The pair arm was never
+worse than its singleton baseline and reached 3,072/3,072 by 256 seeds,
+recovering all 13 singleton misses. At that prefix, 13,849 count-two tests
+contained 318 genuine same-x tests and 13,531 false sum collisions. Complete
+lifts emitted 27,748 pair candidates: 319 accepted and 27,429 rejected. The
+result is a validation-for-storage trade, not a free decoder.
+
+## H29 — seed-keyed nonlinear x-pair fingerprint
+
+Replacing `f(x)=x` with `f_c(x)=x+c*x^2` preserved complete recovery and all
+318 genuine pair passes. Rejected pair validations fell from 27,429 to 3,910.
+False singleton passes limited the net scalar-validation reduction to 13.02%,
+from 163,310 to 142,046. The nonlinear arm charged 396,623,872 fingerprint
+field multiplications, so the frozen result is a multi-resource trade rather
+than an unconditional speedup.
+
+## H30 — one-multiplication fingerprint frontier
+
+Fixed `x^2` and `x+x^2` fingerprints halved H29's fingerprint multiplication
+count and retained 3,072/3,072 recovery plus all genuine pair passes. They used
+142,142 and 142,078 scalar validations versus 142,046 for the keyed control.
+Because both exceeded the keyed count, the strict frozen frontier gate failed;
+the closest gap was 32 validations.
+
+## H31 — frozen quadratic coefficient family
+
+The complete preregistered family `f_d(x)=x^2+d*x`,
+`d in {-2,-1,1,2}`, retained every coefficient result. All arms reached
+3,072/3,072 and preserved 318 genuine pair passes. Final scalar-validation
+counts were 142,174, 142,078, 142,078, and 141,975 in coefficient order. Thus
+`d=2` passed the family gate with 103 fewer validations than `d=1` and 71 fewer
+than H29's keyed arm, but charged 198,311,936 more additions than `d=1`.
+
+## H32 — exact validation scalar paths
+
+Every candidate's right-to-left scalar path was partitioned into addend
+doublings, identity shortcuts, inverse cancellations, equal-point doublings,
+and generic additions. All endpoint and partition checks passed. `d=2` used
+1,151 fewer inversion-bearing operations at 256 seeds but 87 more at the
+four-seed prefix, so the frozen every-prefix gate failed. This is exact
+operation accounting for the originating implementation, not a universal
+scalar-multiplication cost model.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- equal-total-pass point-only, x-pair-only, and alternating schedules at
-  quarter-cap peak memory (H27, frozen in `a6255b1`).
+- first-success sequential stopping for `d=1` and `d=2`, with work charged
+  only until the first accepted candidate (H33, frozen in `ee20e7c`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
