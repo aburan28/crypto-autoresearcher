@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then forty-three structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. Fingerprint widening through six bits repeatedly cut validation and operation work. A joint sentinel/stream-offset construction then carried one more bit in the stored label rank without changing the six-bit table layout or reads; its held-out paired transfer remains unrun.
+- Bottom line: five earlier frozen successors failed their gates, then forty-six structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. Fingerprint widening through six bits repeatedly cut validation and operation work. A joint sentinel/stream-offset construction carried one more bit in the stored label rank without changing the six-bit table layout or reads, but missed three held-out gates. Using the label field's full unused mixed radix then passed both held-out and larger-curve scaling protocols while retaining the same square-root decoder.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -221,9 +221,21 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `sentinel_offset_rank_bit_lab.py` | `3d43f74e53e721780546cb417db4dbe7a2ef96c917108ed4c852f9d85b5f28e3` |
 | `tests/test_sentinel_offset_rank_bit_lab.py` | `2dbee2d8f53befefc64708193394f34f94f168b0c1c0c97222aa736ae06fe34c` |
 | `results/sentinel-offset-rank-bit.json` | `cf1af00dafbd9adcc30cb9c9146c8dbc00ff74a364b8fea0778bde0f2cad6ca6` |
-| sentinel-offset held-out transfer freeze commit | `82f39f1` |
+| sentinel-offset held-out transfer freeze/implementation/result commits | `82f39f1`, `92fd06d`, `cced35b` |
+| `sentinel_offset_heldout_transfer_lab.py` | `3f7e835374355efb78756f27ff560ae837eb70671ba8fe13e40c240026ff8c33` |
+| `tests/test_sentinel_offset_heldout_transfer_lab.py` | `62f78caf50dd8858a45ac73c29064afb16e688d54778b6a635196d54d33566af` |
+| `results/sentinel-offset-heldout-transfer.json` | `2b9a2d8acaf3c8b033cdefabc56cf828a1a363bbd12e3d262ed441d5adc283fd` |
+| maximal mixed-radix label-tag freeze/implementation/result commits | `cced35b`, `1e85029`, `83c9de7` |
+| `mixed_radix_label_tag_lab.py` | `1d0625c49fd38d40d3d631c99ea1c392da98b9e6872d23149ba3f9198eb30a74` |
+| `tests/test_mixed_radix_label_tag_lab.py` | `5e7d665201fdd892e3e2d07475ffd6c87707e15bb6eb8d01d603073218207a55` |
+| `results/mixed-radix-label-tag.json` | `ace274456b82fd258b9fcba39fb2fe790ddacbefd39f790306ff75beb2431754` |
+| mixed-radix scaling freeze/implementation/result commits | `83c9de7`, `80d7748`, `161b905` |
+| `mixed_radix_scaling_transfer_lab.py` | `182eee9b63c985bb6a1946ed01cf4278b3a0306e9e8da07c725d927ffbbb813a` |
+| `tests/test_mixed_radix_scaling_transfer_lab.py` | `d904ec8818a7661588b9f558775ea9a3eaf66a3884ba0be6e17958d5f2c14522` |
+| `results/mixed-radix-scaling-transfer.json` | `35ced86ff6f140970fd0a82f801ca5841c02fc61cb8278f4e454384a8119e08b` |
+| coordinate-residue label-tag freeze commit | `161b905` |
 
-All forty-nine result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 207/207 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
+All fifty-two result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 217/217 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -849,15 +861,47 @@ and no x-coordinate conflicts. This is a reproducible representation-level
 constant improvement inside the same signed square-root collision decoder; it
 does not establish a new ECDLP primitive or exponent.
 
+## H57 — held-out sentinel-offset transfer
+
+H57 paired H52 and H56 on six held-out V-series curves and a new target
+domain. Reference, curve, protocol, accounting, dataflow, layout, safety,
+recovery, and read gates passed, but the primary gate failed. Both arms
+completed all salts by seed 8 but only five by seed 6. H56 validations were
+68.70%--71.83% of paired H52 against a 62% ceiling, and operations were
+67.53%--70.82% against 67%. Reads were 99.60%--100.27%; the maximum prefix-1
+or prefix-2 recovery deficit was 0.2114%. The affine ticket's next quotient bit
+rejected only 23.72%--26.78% of rank reads, exposing conditional correlation
+rather than a correctness failure.
+
+## H58 — maximal mixed-radix label tag
+
+H58 retained the same one label field but used its full safe radix: a canonical
+rank plus a fixed SplitMix64 tag with `floor((p-1)/giant_count)` states. Every
+frozen held-out gate passed. The six curves supplied 44--251 tag states. H58
+used 4,598--4,689 validations, 41.08%--43.16% of H52 and 58.55%--60.98% of
+H56, and 81,990--83,585 inversion-bearing operations, 39.03%--40.87% of H52.
+Reads and completion matched H57. All 3,072 true comparisons passed per salt;
+false-tag pass rates were 0.580%--1.149% by salt.
+
+## H59 — mixed-radix scaling transfer
+
+H59 moved the sealed H58 mechanism to the W128K/W256K/W512K fixtures and
+matched the original H52/H56 targets exactly. Every gate passed. The curves
+supplied 361, 511, and 723 tag states. All salts completed by seed 6 with exact
+prefix-1/prefix-2 recovery and exact H52 reads. Validations were 4,606--4,700,
+15.60%--16.88% of H52 and 26.72%--29.10% of H56. Operations were
+15.29%--16.54% of H52. False-tag pass rates were 0.1187%--0.2269% by salt and
+at most 0.3395% for any curve/salt. This finite scaling result is not an
+asymptotic proof or a new ECDLP method.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a paired held-out transfer of H52 and H56 to H46's six V-series curves, four
-  multipliers, 128 public targets per generator, two controls, eight salts, and
-  frozen prefixes. It requires both arms to complete every salt by seed 8, at
-  least six salts per arm by seed 6, H56 prefix-1 and prefix-2 recovery no more
-  than 3% below H52, H56 validations at most 62%, operations at most 67%, and
-  reads at most 102% of paired H52 (H57, frozen in `82f39f1`).
+- a mixer-free coordinate-residue mixed-radix tag on H58's held-out workload,
+  retaining the exact encoding and layout but replacing SplitMix64 with
+  `x mod tag_states`. It tests whether filtering remains within 110% of H58
+  validation and operation work before any wall-clock claim (H60, frozen in
+  `161b905`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
