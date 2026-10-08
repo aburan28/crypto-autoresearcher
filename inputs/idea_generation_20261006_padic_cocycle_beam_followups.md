@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then thirty-five structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A public-target seed audit removed inherited harness-only target-scalar metadata; eight-salt and held-out-equation runs passed their frozen gates. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46.
+- Bottom line: five earlier frozen successors failed their gates, then thirty-six structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. A three-bit same-cap fingerprint then halved validations and group operations while retaining completion by seed 6.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -189,9 +189,13 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `public_salt_scaling_decomposition_lab.py` | `2bbeac0332c0d8593f79d275281981567304933e013fbe3f6902aa2f0fd5956b` |
 | `tests/test_public_salt_scaling_decomposition_lab.py` | `c11b599dcbbc8bd5e97eea45a63028e3a64c21241d66fe213e62a7f62255fd67` |
 | `results/public-salt-scaling-decomposition.json` | `0c766b526095a24d02344006cf66a2ef677f08cce9ba93f5f773475c30d88e28` |
-| octal-sentinel fingerprint freeze commit | `36d3762` |
+| octal-sentinel fingerprint freeze/implementation/result commits | `36d3762`, `f8ec19d`, `404a18c` |
+| `octal_sentinel_fingerprint_lab.py` | `e144171153302467ba6e11afc2c5d93a22c1a4c5e1ad1623a32abb7576b59452` |
+| `tests/test_octal_sentinel_fingerprint_lab.py` | `aeb1d2b1240e4f7e48c4531fa9dbf7927ab394ed30218e8dc72639b1f1c4726d` |
+| `results/octal-sentinel-fingerprint.json` | `3cddb41e91769d2cdb973dcdb9b1da10ee340e3ab53293eff89de9117ad9d3c3` |
+| four-bit sentinel fingerprint freeze commit | `404a18c` |
 
-All forty-one result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 163/163 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
+All forty-two result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 168/168 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -759,12 +763,21 @@ H47. Validation-per-target slopes were 0.4365--0.4632 with `R^2` at least
 finite-range measurements of the same square-root decoder, not an exponent
 improvement.
 
+## H49 — octal sentinel fingerprint
+
+H49 replaced the two-bit state code with eight final/decoy states under the
+same quarter-H20 cap. Every frozen gate passed and all eight salts completed by
+seed 6. The wider state map reduced bucket counts 4.59%--4.97%, while
+validations and inversion-bearing operations fell to 52.74%--54.53% of matched
+H47 salts. Combined reads fell to 91.46%--94.71%. This is a constant-factor
+fingerprint-width result inside the same square-root collision decoder.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a same-cap three-bit octal sentinel fingerprint on H47's workload, comparing
-  each salt with its sealed quaternary reference while charging the smaller
-  table and all reads/construction (H49, frozen in `36d3762`).
+- a same-cap four-bit sentinel fingerprint on H49's workload, comparing each
+  salt with its sealed octal reference while charging the smaller table and all
+  reads/construction (H50, frozen in `404a18c`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.
