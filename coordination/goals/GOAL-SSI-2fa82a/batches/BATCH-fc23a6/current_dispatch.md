@@ -6,35 +6,13 @@ Run one zero-run public-binding EndRing interface funnel: propose two distinct c
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20261008-417e47` | validator | running | 80 | TASK-20261008-ba8247, TASK-20261008-896b35, TASK-20261008-eb1230 | coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-417e47/candidate-a-review.yaml, coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-417e47/candidate-b-review.yaml | coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-417e47 |
-| `TASK-20261008-5b590b` | red-team | running | 80 | TASK-20261008-ba8247, TASK-20261008-896b35, TASK-20261008-eb1230 | coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-5b590b/candidate-a-review.yaml, coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-5b590b/candidate-b-review.yaml | coordination/design/TASK-20261008-46d7e4/reviews/TASK-20261008-5b590b |
+| `TASK-20261008-2464ec` | coordinator | queued | 30 | TASK-20261008-4f85ee | coordination/design/TASK-20261008-46d7e4/composition/TASK-20261008-2464ec/final-composition.yaml | coordination/design/TASK-20261008-46d7e4/composition/TASK-20261008-2464ec |
 
 ## Deferred or Blocked
 
-- `TASK-20261008-0eba4e`: dependency_not_completed:TASK-20261008-7a3610:queued, dependency_not_completed:TASK-20261008-84054f:queued
-- `TASK-20261008-2464ec`: dependency_not_completed:TASK-20261008-0eba4e:queued, dependency_not_completed:TASK-20261008-a6a7bb:queued, dependency_not_completed:TASK-20261008-dd1990:queued
-- `TASK-20261008-2b605a`: dependency_not_completed:TASK-20261008-417e47:running, dependency_not_completed:TASK-20261008-5b590b:running, dependency_not_completed:TASK-20261008-f0f824:queued
 - `TASK-20261008-46d7e4`: dependency_not_completed:TASK-20261008-2464ec:queued
-- `TASK-20261008-4f85ee`: dependency_not_completed:TASK-20261008-417e47:running, dependency_not_completed:TASK-20261008-5b590b:running, dependency_not_completed:TASK-20261008-f0f824:queued, dependency_not_completed:TASK-20261008-2b605a:queued
-- `TASK-20261008-7a3610`: dependency_not_completed:TASK-20261008-4f85ee:queued
-- `TASK-20261008-84054f`: dependency_not_completed:TASK-20261008-7a3610:queued
-- `TASK-20261008-a6a7bb`: dependency_not_completed:TASK-20261008-7a3610:queued, dependency_not_completed:TASK-20261008-84054f:queued
 - `TASK-20261008-cdfe7f`: dependency_not_completed:TASK-20261008-46d7e4:queued
-- `TASK-20261008-dd1990`: dependency_not_completed:TASK-20261008-7a3610:queued, dependency_not_completed:TASK-20261008-84054f:queued
-- `TASK-20261008-f0f824`: concurrency_cap
-- `TASK-20261008-fc652a`: dependency_not_completed:TASK-20261008-0eba4e:queued, dependency_not_completed:TASK-20261008-a6a7bb:queued, dependency_not_completed:TASK-20261008-dd1990:queued, dependency_not_completed:TASK-20261008-2464ec:queued, dependency_not_completed:TASK-20261008-46d7e4:queued, dependency_not_completed:TASK-20261008-cdfe7f:queued
-
-## Claims (write-once, tools/goal_lanes.py)
-
-A `live` claim is another session's hold on that task's write_scope:
-it is listed under Ready Tasks as `running` so you do not start it.
-Start only Ready Tasks whose `claim` is null, and claim them first.
-
-- `TASK-20261008-417e47`: live (owner `validator-endring-binding-initial`, epoch 1, expires 2026-10-08T02:26:48Z) -> running_with_lease
-- `TASK-20261008-5b590b`: live (owner `redteam-endring-binding-initial`, epoch 1, expires 2026-10-08T02:26:50Z) -> running_with_lease
-- `TASK-20261008-896b35`: released (owner `idea-endring-binding-b`, epoch 1, expires 2026-10-08T02:10:33Z) -> ignored:queue_state_completed
-- `TASK-20261008-ba8247`: released (owner `idea-endring-binding-a`, epoch 1, expires 2026-10-08T02:10:31Z) -> ignored:queue_state_completed
-- `TASK-20261008-eb1230`: released (owner `coordinator-ssi-public-binding`, epoch 1, expires 2026-10-08T01:55:11Z) -> ignored:queue_state_completed
+- `TASK-20261008-fc652a`: dependency_not_completed:TASK-20261008-0eba4e:cancelled, dependency_not_completed:TASK-20261008-a6a7bb:cancelled, dependency_not_completed:TASK-20261008-dd1990:cancelled, dependency_not_completed:TASK-20261008-2464ec:queued, dependency_not_completed:TASK-20261008-46d7e4:queued, dependency_not_completed:TASK-20261008-cdfe7f:queued
 
 ## Archives verified on CONTENT
 
@@ -48,6 +26,7 @@ checked in THAT tree, under `content_at_commit`, because its package
 contains a record allowed to change after the archive.
 
 - `TASK-20261008-eb1230`: declared content_first binding mode (13 path hashes verified)
+- `TASK-20261008-4f85ee`: declared content_first binding mode (10 path hashes verified)
 
 ## Dispatch Gates
 
@@ -63,4 +42,4 @@ contains a record allowed to change after the archive.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `e38d2a8acff306d6a88204baae9a2b24f81ba0ba0004132ce4530123ec7e1017`
+Plan SHA-256: `28256cf9310fd92809dfd4a5668f973eb64110e16fa069ff74112e3ee018a542`
