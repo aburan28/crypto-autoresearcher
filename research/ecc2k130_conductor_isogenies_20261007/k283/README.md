@@ -23,7 +23,7 @@ discriminant `D = -7 * 1697^2 = -20158663`.
 
 ## Frozen gates
 
-The producer and independent verifier must establish all of the following or
+The producer and separate verifier must establish all of the following or
 fail closed:
 
 - the standard NIST field polynomial is irreducible;
@@ -34,7 +34,7 @@ fail closed:
 - the Weber class polynomial has degree 1698 and, modulo 2, six distinct
   irreducible factors of degree 283;
 - the census contains exactly 1,698 distinct nonzero `b` values, all with
-  `a2 = 0`, and exactly matches the separately recomputed CM roots;
+  `a2 = 0`, and exactly matches the separately recomputed CM roots using the same PARI class-polynomial route;
 - every model has the standard K-283 group order;
 - all endpoints have Frobenius orbit size 283, in exactly six orbits;
 - the degree-37 ideal class has order 1698;
@@ -42,7 +42,8 @@ fail closed:
 - a non-backtracking degree-37 walk from the floor has length 1698, visits
   every census endpoint once, and has no outside or missing vertex.
 
-The census script rejects an invalid explicit field modulus. The verifier
+The K-283 driver requires a degree-283 field override, and the census script
+rejects a wrong-degree or reducible required modulus. The verifier
 rejects malformed rows and a file to which GP's `write()` appended a second
 expression.
 
@@ -58,7 +59,8 @@ The direct 1697-kernel route is predicted to require an extension of degree
 models without supplying that transfer. It also does not measure an ECDLP,
 an attack cost, or a speedup.
 
-The full-degree Frobenius orbits and absence of `j = 0` are negative checks
+The degree-37 cycle is an orthogonal class-group consistency check, not an
+independent-library replication. The full-degree Frobenius orbits and absence of `j = 0` are negative checks
 for two obvious endpoint traits--proper-subfield definition and exceptional
 automorphisms--but they do not rule out other representative-dependent
 structure.
