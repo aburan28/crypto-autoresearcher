@@ -6,8 +6,11 @@ the horizontal 11-cycle (expected 82152 = ord[𝔩₁₁] at this level) and the
 82153-parts both cyclic, ℓ′²). Driver: `run_batch.sh` → `curve.sh`; this table: `collect.py`.
 Field F_2[x]/(x¹⁶³ + x⁷ + x⁶ + x³ + 1); every image has a₂ = 1, #E = N and a Galois orbit of 163.
 
-**0 new verified curves in distinct Galois orbits** (0 of 20 runs complete). *Measured; independently verified.*
+**4 new verified curves in distinct Galois orbits** (4 of 20 runs complete). *Measured; independently verified.*
 
 | run | start b′ (45641-floor) | seed | image b (Galois-orbit min) | descent | 11-cycle | 45641-, 82153-part | status |
 |---|---|---|---|---|---|---|---|
-
+| 1 | 20183018253319052689704116247546275258431720285 | 101 | 342059720888020737206812110012681343287638363 | 943 s | 82152 | ℓ′^2, ℓ′^2 | VERIFIED |
+| 2 | 1699056145793825809974781818934579013935268431 | 102 | 168817268407026320501181223283088716240896141653 | 839 s | 82152 | ℓ′^2, ℓ′^2 | VERIFIED |
+| 3 | 71177121262957429327531167482112665894165601519 | 103 | 101001857936058137180193376103938920440283559673 | 839 s | 82152 | ℓ′^2, ℓ′^2 | VERIFIED |
+| 4 | 86418753047285346854356540661746105839786105877 | 104 | 11591447709041585424555551465498494405600605891 | 1141 s | 82152 | ℓ′^2, ℓ′^2 | VERIFIED |
