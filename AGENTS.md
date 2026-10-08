@@ -476,6 +476,20 @@ model, budgets, population, and stopping rule. Require certified arithmetic and
 planted controls. Separate base-field isogeny-class invariants from
 representative-dependent structure; unusual structure is only a lead.
 
+For an ordinary curve write
+`Delta_pi = t^2 - 4q = f_pi^2 D_K` and
+`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`, so
+`f_E | f_pi`. Record `f_pi`, `f_E`, and
+`g_(pi,E) = f_pi/f_E` separately: a certificate for `f_pi` does not
+determine `f_E` unless `f_pi = 1` or an independent endomorphism-ring
+certificate supplies the missing equality. For every separable prime-degree
+edge with `ell != char(F_q)`, certify its endpoint conductors and label it
+horizontal, ascending, descending, or unresolved. Treat characteristic-power
+Frobenius maps, including Koblitz `tau`, as inseparable endomorphisms rather
+than separable volcano edges. A large conductor or conductor gap is a
+structural lead, not ECDLP security bits without an explicit usable action or
+a full-cost transfer.
+
 An isogeny transfer claim requires explicit maps and subgroup preservation,
 with path discovery, construction, evaluation, attack, memory, data, and
 precomputation charged. Advice supports only an advice-holder claim. Singular
