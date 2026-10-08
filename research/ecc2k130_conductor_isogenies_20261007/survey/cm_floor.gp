@@ -7,6 +7,12 @@
 \\ set before reading: m, a, F, S, NSAMP, OUT
 \\ optionally set FIELD_MODULUS to a degree-m irreducible polynomial over F_2
 MODp = 0;
+REQUIRE_FIELD_MODULUS =
+  type(FIELD_MODULUS_REQUIRED) == "t_INT" && FIELD_MODULUS_REQUIRED;
+if(REQUIRE_FIELD_MODULUS &&
+   (type(FIELD_MODULUS) != "t_POL" || poldegree(FIELD_MODULUS) != m),
+  error("required FIELD_MODULUS does not have degree m")
+);
 if(type(FIELD_MODULUS) == "t_POL" && poldegree(FIELD_MODULUS) == m,
   if(!polisirreducible(Mod(1,2)*FIELD_MODULUS),
     error("FIELD_MODULUS is not irreducible over F_2"));
