@@ -1,0 +1,284 @@
+# =============================================================================
+# EXP-PAIR-1c9947 — version 1, approved by DEC-20261006-7b9be6. Frozen
+# comparison of embedding degrees and torsion-field degrees for
+# IDEA-20261006-bf2f6a. Success is the idea's prediction: k(E0) = k(E1)
+# and d(E0) < d(E1). The concrete negative is that the instance exists
+# and d(E0) >= d(E1). This design session did not point-count either
+# curve and did not compute a division-field degree. No discrete
+# logarithm is authorized. Source idea bytes are copied unchanged from
+# origin/design/ssi-2f5c3f-cartier, blob
+# efc12c8cab615784842c74a2b58b32267736919c.
+# =============================================================================
+experiment:
+  id: EXP-PAIR-1c9947
+  hypothesis_id: H-PAIR-d5da88
+  question_id: RQ-PAIR-21313f
+  source_idea: IDEA-20261006-bf2f6a
+  version: 1
+  title: >-
+    Embedding degrees and r-torsion field degrees of y^2 = x^3 + 1
+    and y^2 = x^3 + x + 1 at the least shared odd prime factor
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    composing_decision: DEC-20261006-7b9be6
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06:
+      "all is approved. ideas/experiments should be always approved")
+      because every field the design protocol requires is non-null.
+      Approval does not assert that the torsion field is smaller, does
+      not assert a discrete logarithm, and does not assert a security
+      level.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    scientific_execution_scope: >-
+      Search primes p from 31 up to 255 with p congruent to 1 mod 3.
+      Point-count E0: y^2 = x^3 + 1 and E1: y^2 = x^3 + x + 1. Take
+      the least p at which both curves are ordinary and nonsingular
+      and the group orders share an odd prime r that does not divide
+      p - 1. Use the least such r. Compute k as the order of p modulo
+      r, once, and check it by the least positive integer m with
+      p^m congruent to 1 mod r. Compute d as the degree of the
+      splitting field of the r-division polynomial over F_p. Run the
+      self-check on E0 and the 2-torsion check when it applies. Do
+      not evaluate a pairing and do not search for a discrete
+      logarithm.
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether the least eligible prime has k(E0) = k(E1) and
+    d(E0) < d(E1). The concrete negative is that this prime exists
+    and d(E0) >= d(E1). An empty search below 256 is not that
+    negative. No faster MOV transfer is in scope.
+
+  inputs:
+    curve_E0: y^2 = x^3 + 1
+    curve_E1: y^2 = x^3 + x + 1
+    prime_window: integers p with 31 <= p <= 255 and p congruent to 1 mod 3
+    selection: the least p that meets every eligibility condition
+    eligibility:
+      - both curves nonsingular over F_p
+      - both curves ordinary, meaning the trace is not divisible by p
+      - gcd of the two group orders divisible by an odd prime r
+      - that r does not divide p - 1
+    r_rule: >-
+      The least odd prime r that divides both group orders and does
+      not divide p - 1. A different prime factor on either curve is
+      not the instance.
+    k_definition: >-
+      k(E) is the multiplicative order of p modulo r. It is the same
+      integer for both curves whenever the same r is used. Compute it
+      twice: as the order of p in the multiplicative group modulo r,
+      and as the least positive integer m with p^m congruent to 1
+      modulo r. The two computations must agree. Disagreement is
+      instrument_failure.
+    d_definition: >-
+      d(E) is the degree over F_p of the splitting field of the
+      r-division polynomial of E. The polynomial has degree
+      (r^2 - 1)/2. A kernel polynomial of a single cyclic subgroup
+      is not this degree. Using it voids the run.
+    empty_search: >-
+      If no prime in the window meets the eligibility conditions,
+      record empty_search. Do not invent a p. Do not score d.
+
+  controls:
+    - id: self-check
+      statement: >-
+        The identity curve E0 against itself: d(E0) - d(E0) = 0 and
+        k is unchanged. A nonzero self-difference voids the
+        division-field code.
+    - id: exclude-p-minus-one
+      statement: >-
+        A prime r that divides p - 1 is excluded. If the search is
+        rerun without that exclusion and k drops to 1 on either
+        curve, the exclusion is what the drop measures, and the
+        original claim is not scored from that rerun.
+    - id: two-torsion
+      statement: >-
+        The same division-field procedure on E0 at ell = 2, if the
+        full 2-torsion is already rational, must return d = 1. A
+        larger d voids the procedure. If the full 2-torsion is not
+        rational, this control is not applicable and does not void
+        the run.
+    - id: gl2-divisor
+      statement: >-
+        Each reported d is a positive integer dividing the order of
+        GL_2(F_r). A non-divisor voids the run as instrument_failure.
+        This check does not require k to divide d.
+
+  independent_variables:
+    - the least eligible prime p, or the fact that none exists
+    - the least eligible odd prime r
+    - the curve in {E0, E1}
+    - whether the two computations of k agree
+
+  metrics:
+    primary:
+      - id: degree_gap
+        statement: >-
+          d(E0) - d(E1). The idea's prediction is at most -1, which
+          is d(E0) < d(E1).
+      - id: embedding_gap
+        statement: >-
+          k(E0) - k(E1). The idea's prediction is exactly 0.
+    secondary:
+      - id: instance
+        statement: p, r, both group orders, both k, both d
+      - id: ratio_flag
+        statement: >-
+          d/k on each curve, recorded when k is positive. The flag
+          does not change the reading row.
+      - id: self_difference
+        statement: d(E0) computed twice, and their difference
+
+  heuristic_under_test: HEUR-1
+  heuristic_under_test_note: >-
+    HEUR-1 predicts d(E0) < d(E1) with equal k at this one prime,
+    from a recalled Cartan image. The row degree_not_smaller is the
+    negative for the claim on this prime. It is not a refutation of
+    a Cartan image on any larger set. Do not relabel an empty search
+    as that negative.
+
+  preregistered_prediction:
+    quantity: >-
+      The pair (k(E0) - k(E1), d(E0) - d(E1)) at the least eligible
+      prime, with k the order of p modulo the shared r and d the
+      splitting-field degree of the r-division polynomial.
+    formula: >-
+      k(E0) - k(E1) = 0 and d(E0) - d(E1) <= -1. The concrete
+      negative is that the instance exists and d(E0) >= d(E1).
+      Source idea IDEA-20261006-bf2f6a. No group order was computed
+      before this formula was frozen.
+    source: >-
+      IDEA-20261006-bf2f6a. KR-RHO-53c89f, opened in this session,
+      classifies a small embedding degree as a curve check and does
+      not predict these four integers. The Cartan image is recalled
+      and is not a numerical prediction of the gap.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The search stops at p < 256. No transfer to a cryptographic
+      pairing-friendly prime is assumed. The instance is one prime,
+      the least eligible one, so there is no draw whose tail
+      probability must be resolved by extra samples. The minimum
+      effect is the idea's own: embedding gap exactly 0 and degree
+      gap at most -1.
+    correspondence: >-
+      Direct point counting and direct construction of the splitting
+      field of the division polynomial. No Deuring correspondence
+      is used to skip either degree.
+
+  tail_checks:
+    - >-
+      Record the ratio d/k on each curve when k is positive. The
+      claim's own tail check is d(E0)/k < d(E1)/k when k is equal
+      and positive. The ratio does not change the reading row.
+    - >-
+      Record whether r divides p - 1. If it does, the prime was not
+      eligible and must not be scored.
+
+  replication:
+    seeds:
+      - EXP-PAIR-1c9947|E0
+      - EXP-PAIR-1c9947|E1
+    independent_instances: 1
+    note: >-
+      The search is deterministic. One is the number of primes
+      scored, the least eligible prime. The two seeds name the two
+      curves. There is no shuffle sample.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: 1
+    maximum_workers: 1
+    budget_note: >-
+      One run manifest covers the prime search, the two degrees, the
+      self-check, and the 2-torsion check when it applies. Wall-clock
+      and CPU figures are advisory and null. The 4 GB memory figure
+      is machine protection for the division polynomial. A watchdog
+      expiry is failed_infrastructure, not a degree gap and not an
+      empty search.
+
+  stopping_rules:
+    - Stop after the least eligible prime, or after the window is exhausted, and exactly one reading row is recorded.
+    - Do not replace the least p with a later p after seeing the degrees.
+    - Do not drop the exclusion that r does not divide p - 1.
+    - A timeout voids the run. It does not fill the negative row.
+
+  invalidation_rules:
+    - A timeout, crash, or memory abort is failed_infrastructure, never a mathematical negative.
+    - Scoring a prime that is not the least eligible prime voids the run.
+    - Using different prime factors as r on the two curves voids the run.
+    - A nonzero self-difference on E0 voids the run.
+    - A 2-torsion degree other than 1, when the full 2-torsion is rational, voids the run.
+    - Reporting a kernel-field degree in place of the splitting-field degree voids the run.
+    - A reported d that does not divide the order of GL_2(F_r) voids the run.
+    - The two computations of k disagreeing voids the run.
+
+  success_criterion: >-
+    The search finds the least eligible prime, the instrument checks
+    pass, k(E0) = k(E1), and d(E0) < d(E1). This is the prediction
+    of IDEA-20261006-bf2f6a. It is reachable as a failure when the
+    instance exists and d(E0) >= d(E1).
+
+  falsification_criterion: >-
+    The instance exists, the instrument checks pass, and d(E0) >=
+    d(E1). That inequality is the concrete negative named with the
+    source idea. k(E0) != k(E1) is a separate failure of the same
+    prediction. An empty search, a nonzero self-difference, and a
+    failed 2-torsion check are not this negative.
+
+  required_artifacts:
+    - experiments/EXP-PAIR-1c9947/runs/RUN-*/manifest.yaml
+    - experiments/EXP-PAIR-1c9947/runs/RUN-*/stdout.txt
+    - experiments/EXP-PAIR-1c9947/runs/RUN-*/stderr.txt
+    - experiments/EXP-PAIR-1c9947/runs/RUN-*/degrees.csv
+    - experiments/EXP-PAIR-1c9947/runs/RUN-*/reading.yaml
+
+  assigned_to: executor
+
+  reading_rows:
+    - id: instrument_failure
+      when: >-
+        a scored prime is not the least eligible prime, the curves
+        are singular or not ordinary, r divides p - 1, the two
+        curves use different prime factors, the self-difference is
+        nonzero, the 2-torsion check applies and returns d other
+        than 1, a kernel field is reported as d, d does not divide
+        the order of GL_2(F_r), or the two computations of k disagree
+    - id: empty_search
+      when: >-
+        the instrument checks that can run without an instance pass,
+        and no prime below 256 meets the eligibility conditions
+    - id: embedding_unequal
+      when: >-
+        the instance exists, the instrument checks pass, and
+        k(E0) != k(E1)
+    - id: degree_not_smaller
+      when: >-
+        the instance exists, the instrument checks pass, k(E0) =
+        k(E1), and d(E0) >= d(E1)
+    - id: torsion_gap
+      when: >-
+        the instance exists, the instrument checks pass, k(E0) =
+        k(E1), and d(E0) < d(E1)
+  reading_rule: >-
+    Name exactly one row, the first whose condition holds in the order
+    listed. torsion_gap is the only success row. degree_not_smaller is
+    the concrete negative. embedding_unequal falsifies the prediction
+    that the embedding degrees agree and is not a degree gap. empty_search
+    is not a negative on d. instrument_failure is not a degree gap.
+    Record p, r, both group orders, both k, both d, the self-difference,
+    and attack_claimed false beside the row. Those fields do not change
+    the row.
