@@ -1,0 +1,187 @@
+schema: crypto.autoresearch.endring_trap_interface.v1
+identity:
+  name: Random-Walk Endpoint Routing Trap Interface
+  short_name: RWER-Trap
+  candidate_id: IDEA-20261007-7625cc
+  producer_task_id: TASK-20261007-61dd3f
+  status: typed_obstruction
+  obstruction_type: missing_any_basis_inversion_algorithm
+  earliest_failed_arrow: Inv_from_complete_basis
+endring_problem:
+  field_and_curve_distribution: >-
+    p > 3; a bare supersingular E/F_{p^2} from the exact curve-only EndRing
+    challenge distribution inherited from RQ-SSI-1946c9. The distribution is
+    not replaced by a special oriented or planted-basis distribution.
+  challenge_input: >-
+    Canonical finite-field representation, a validated model of E, public
+    security parameter lambda, constant ell != p, and polynomial walk bounds
+    L and L_max >= L + 2.
+  allowed_auxiliary_information:
+    - p and the F_{p^2} representation
+    - the input curve equation and canonical endpoint-encoding rules
+    - ell, L, L_max, and public edge-validation rules
+  forbidden_auxiliary_information:
+    - orientation or torsion basis
+    - connecting isogeny or endpoint endomorphism ring
+    - planted basis labels or a routing table
+  required_output_representation: >-
+    A complete evaluable rank-four Z-basis of End(E), with rational-map
+    evaluation and certificates that its Z-span is the full order.
+  conditional_dependencies:
+    - Exact EndRing challenge distribution is inherited and not re-proved.
+    - No EndRing-to-route equivalence is assumed.
+domains:
+  X_E: >-
+    Validated encodings of separable ell-isogeny walks from E of length at
+    most L_max, including explicit normalized edge maps or kernel-polynomial
+    certificates and canonical intermediate curve models.
+  Y_E: >-
+    Canonical endpoint isomorphism-class encodings, initially j(E_t) plus tags
+    for exceptional automorphism cases.
+  encodings: >-
+    Length-prefixed field elements, canonical curve models, normalized
+    rational maps or kernel polynomials, and explicit edge-continuity data.
+  equality_or_equivalence: >-
+    Path encodings are equal bytewise; two inputs are equivalent for inversion
+    exactly when their validated canonical endpoint encodings are equal.
+  validation: >-
+    Reject malformed fields, nonsupersingular curves, discontinuous paths,
+    inseparable or wrong-degree edges, noncanonical encodings, and paths longer
+    than L_max.
+  failure_symbols:
+    - INVALID_INSTANCE
+    - INVALID_PATH
+    - NONCANONICAL_ENCODING
+    - ROUTE_NOT_FOUND
+    - RETRY_EXHAUSTED
+algorithms:
+  Sample_from_bare_E:
+    status: proposed_discharge
+    definition: >-
+      For exactly L steps, enumerate and canonically sort constant-degree
+      cyclic subgroup/edge encodings from the current curve, sample an index,
+      compute the quotient, normalize the target, and append the edge.
+    secret_data_used: []
+    open_items:
+      - exact retry bound for finite-field factoring and model normalization
+      - automorphism-aware uniform edge convention
+  Eval_from_bare_E:
+    status: proposed_discharge
+    definition: >-
+      Validate the supplied walk from E and return its canonical endpoint
+      encoding.
+    secret_data_used: []
+  Inv_from_complete_basis:
+    status: unavailable
+    required_definition: >-
+      On E, any complete evaluable basis B of End(E), and honest-support y,
+      output some valid path pi of length at most L_max with Trap_E(pi)=y.
+    missing_algorithm: >-
+      No polynomial procedure derives endpoint order data, a connecting ideal,
+      or a route from the source basis alone.
+  runtimes:
+    Sample: expected polynomial in lambda and L for fixed ell, not proved here
+    Eval: polynomial in lambda and encoded path length, not implemented here
+    Inv: unavailable
+  failure_bounds:
+    Sample: open
+    Eval: deterministic rejection after parsing, conditional on arithmetic
+    Inv: no bound because the algorithm is unavailable
+any_basis_statement:
+  basis_representation: >-
+    An arbitrary certified evaluable Z-basis (beta_1,...,beta_4) of the full
+    End(E), not a basis planted during sampling.
+  quantified_correctness: >-
+    For every sampled E, every valid complete basis B, and every y in the
+    honest endpoint support, Inv(E,B,y) must return a valid preimage except
+    with explicit negligible probability. This statement is not discharged.
+  change_of_basis_audit: >-
+    Replacing B by B U for arbitrary U in GL_4(Z) must not alter correctness.
+    No invariant preprocessing-to-routing algorithm is supplied; T2 breaks.
+necessity:
+  smallest_known_sufficient_witness: >-
+    For one target, an explicit connecting path suffices. Candidate global
+    smaller witnesses include a polynomial routing structure, endpoint order
+    plus connecting ideal, or bounded torsion-action data; sufficiency is open.
+  factorization_search:
+    - finite point-evaluator tuple: not used by public Eval
+    - target-specific connecting path: exact factor for one y
+    - planted basis alignment: forbidden and unnecessary on the public side
+    - polynomial routing advice: not ruled out
+    - endpoint order plus connecting ideal: not ruled out
+  non_factorization_or_reconstruction_theorem: >-
+    Unavailable. There is neither a non-factorization theorem for declared
+    polynomial-size smaller witnesses nor a theorem reconstructing the full
+    source ring from one such witness.
+reduction:
+  first_security_game: >-
+    Endpoint relation inversion: pi <- Sample(E); y <- Eval(E,pi); given
+    (E,y), return any validated pi' with Eval(E,pi')=y.
+  challenge_embedding: >-
+    A later reduction would have to use the exact bare EndRing challenge E as
+    the public function index. No PKE public-key embedding is supplied.
+  oracle_simulation: >-
+    None supplied; no PKE or decryption oracle exists in this packet.
+  attacker_to_interface_step: >-
+    Missing. The many-to-one endpoint relation has no supplied
+    selected-message-correct PKE compiler or path-class-invariant hard-core
+    predicate.
+  interface_to_complete_ring_step: >-
+    Proposed proof lead only: combine a sampled pi and inverter output pi' as
+    dual(pi') composed with pi to obtain an endomorphism, repeat, then prove
+    rank-four generation and full-order saturation. Collision entropy,
+    generation, saturation, runtime, and adversarial output bias are open.
+  loss_runtime_abort: >-
+    Unavailable; no advantage bound, polynomial loss, abort probability, or
+    complete-ring extraction runtime has been established.
+audits:
+  CEST_RWCT_regression:
+    result: holds_as_distinction_only
+    detail: >-
+      RWER-Trap is not a finite point-evaluation or planted-word map, but the
+      audit still rejects KeyGen provenance as evidence of ring necessity.
+  observation_collisions:
+    result: breaks_injectivity
+    detail: >-
+      Appending an edge followed by its dual yields a distinct admitted path
+      with the same endpoint whenever two path slots remain.
+  quantifier_order:
+    result: breaks
+    detail: >-
+      The required every-basis router is absent; no helpful planted basis may
+      replace the universal quantifier.
+  known_false_control:
+    result: detected
+    detail: >-
+      If the output leaks the full path, inversion is public even if KeyGen
+      historically computed End(E); the methodology refuses a trapdoor claim.
+  method_ceiling: >-
+    These symbolic audits identify this interface's missing router, collisions,
+    and reduction gaps. They do not establish a family-level impossibility.
+obligations:
+  O1: open
+  O2: contradicted
+  O3: open
+  O4: open
+  O5: open
+  O6: open
+provenance:
+  sources_read:
+    - research/ssi-endring-pke/2026-10-07-trapdoor-interface/methodology.md
+    - research/ssi-endring-pke/2026-10-07-trapdoor-interface/trap-interface-schema.yaml
+    - research/ssi-endring-pke/2026-10-07-candidate-funnel/report.md
+    - docs/scheme-construction-contract.md
+    - knowledge/literature/KN-LIT-6572.md
+    - knowledge/literature/KN-LIT-6628.md
+    - knowledge/literature/KN-LIT-827.md
+    - knowledge/literature/KN-LIT-1260.md
+  prior_art_delta: >-
+    The mechanism uses a bare-curve public random-walk endpoint relation rather
+    than the auxiliary mechanisms summarized in the four literature pointers.
+    Primary papers were not read, so distinctness is unverified.
+  novelty_status: unverified
+  dominated_by: unresolved because no inverter is established
+  sota_delta: null
+  sota_delta_reason: >-
+    Target polynomial time and memory are stated, but achieved inversion cost
+    is undefined; no quantitative improvement is claimed.
