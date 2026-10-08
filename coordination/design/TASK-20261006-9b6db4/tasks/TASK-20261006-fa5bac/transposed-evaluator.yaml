@@ -1,0 +1,73 @@
+task_id: TASK-20261006-fa5bac
+challenge_id: evaluator_only
+mechanism: unique_calibrated_map_reconstruction
+status: no_bit_polynomial_evaluator_established
+selected_finalist: false
+exact_theorem_sought:
+  statement: >-
+    There exist uniform algorithms PreEval and Eval2 and a polynomial q such
+    that, for every successfully admitted honest encoded instance
+    (O,E,C,P,X,D,N) with D=2^a, N>4D and unique calibrated f:E->C,
+    PreEval uses at most q(B,a,log p) bit operations, memory and output bits,
+    and Eval2(DS,U,V) returns exactly (f(U),f(V)) within the same type of bound.
+  failure: "at most epsilon_eval(a), uniformly over admitted instances and recipient coins; every source of failure is named"
+  preprocessing: polynomial in encoded input length; no per-instance exponential table or advice
+  output: "two points on exact labelled C, or a tagged failure"
+  hidden_inputs_forbidden: [Hom_E_C, connecting_isogeny, target_order_action, orientation, sender_map_or_dual, retained_walk, private_frame, per_instance_advice]
+candidate:
+  name: transposed_orbit_Pade_evaluation
+  data_structure: >-
+    A structured approximant-basis or barycentric representation of the
+    2D orbit equations A(u_i)-v_i B(u_i)=0, together with the differential
+    scalar binding the signed y-coordinate.
+  construction_algorithm: |
+    Generate u_i=x([i]P), v_i=x([i]X) for i=1..2D.
+    Form the structured Padé matrix.
+    Apply a transposed kernel/evaluation solve for query abscissae x(U),x(V).
+    Recover the signed y multipliers from R' and c.
+    Verify curve, degree, column and output certificates.
+  evaluation_algorithm: |
+    Evaluate the represented R and R'/c at U and V.
+    Return f(U),f(V) on exact C.
+    Run the checked low-k slope decoder when actual m is requested.
+  exact_output: "(f(U),f(V)); optionally m after decoder"
+cost_accounting:
+  orbit_samples: "2D point multiples and 2D x-coordinate pairs"
+  construction_bit_time: "~O(M(D)*FieldBitCost(log p)) plus Theta(D) group work; not polynomial in a"
+  construction_memory: "Theta(D log p) bits for a reusable structured basis/data representation"
+  evaluation_bit_time: "O(D) field work for direct arbitrary-query application absent a stronger static polynomial-evaluation theorem"
+  evaluation_memory: "query workspace plus the Theta(D)-size data structure"
+  output_bits: "O(log p) for two points, demonstrating that small output alone does not imply small construction/evaluation"
+  preprocessing: exponential in a because D=2^a; forbidden by the challenge
+  uniform_failure: deterministic tagged failures after input admission; no probabilistic speedup or success amplification is claimed
+  intermediate_growth: all product-tree, approximant, derivative, denominator and field-element bits are charged
+hidden_assumptions_rejected:
+  - treating random access to 2D samples as polynomial-size advice
+  - treating a dense coefficient vector as free preprocessing
+  - assuming a black-box transposition theorem changes the dimension of the linear system
+  - using a target-order, connection or sender map inside an evaluation oracle
+  - inferring a lower bound solely from dense output size
+alternative_checks:
+  paterson_stockmeyer: reduces dense query multiplication count only to a sublinear function of D, still exponential in a and with D-size coefficients
+  recursive_composition: a length-a degree-two circuit would be compact and evaluable, but constructing it is Route B and costs exponential meet-in-the-middle without a local selector
+  ideal_circuit: a compact ideal label is not an evaluator until Route C's calibrated effective-Deuring interface is instantiated
+  torsion_only: the one column P->X on odd N-torsion identifies f but supplies no known poly(a)-time action on independent 2^a-torsion U,V
+missing_interface:
+  name: MISSING_SUBLINEAR_ORBIT_EVALUATOR
+  signature: "(O,E,C,P,X,D,N,U,V,encodings) -> (f(U),f(V),certificate)"
+  required_bound: "poly(total encoded bits,a,log p) time, memory and preprocessing"
+  required_correctness: every admitted honest instance, with explicit malformed/wrong-key behavior and uniform failure
+decoder:
+  equations: "A0=f(U), B0=f(V), H=[2^(a-k)]B0, G=-[2^(a-k)]A0=[m]H"
+  checks: "ord(B0)=D, ord(H)=2^k, digit shape and final [m]H=G"
+  cost: "two evaluator outputs plus O(k^2+a) group operations"
+scope:
+  dense_output_argument_used_as_disproof: false
+  lower_bound_claimed: false
+  universal_impossibility_claimed: false
+  conclusion: no candidate examined here meets the exact evaluator-only theorem
+citations:
+  - {ref: KN-LIT-209, provenance: kb, claim: abstract-level degree-sensitive isogeny computation; it does not state this evaluator-only theorem, verified_by: knowledge entry}
+  - {ref: KN-LIT-836, provenance: kb, claim: abstract-level report that an isogeny representation must support evaluation and verification; extra suborder data changes the interface, verified_by: knowledge entry}
+novelty_status: unverified
+
