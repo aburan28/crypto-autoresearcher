@@ -314,10 +314,84 @@ def read_declared_effort(runtime: str, path: Path) -> Any:
     return reader(Path(path))
 
 
+BINDINGS_PATH = REPO / "orchestration" / "model-bindings.yaml"
+
+
+def model_pin_support(roles_doc: dict[str, Any], runtime: str) -> dict[str, Any] | None:
+    """How a runtime pins per-agent models, or None if it does not."""
+    return (roles_doc.get("runtime_model_pins") or {}).get(runtime)
+
+
+def expected_model(roles_doc: dict[str, Any], bindings_doc: dict[str, Any],
+                   role: str, runtime: str) -> str | None:
+    """The model a role's binding file must declare: a pinned id or `inherit`.
+
+    None means the runtime pins nothing and the field is not checked.
+    """
+    support = model_pin_support(roles_doc, runtime)
+    if not support:
+        return None
+    if role not in (support.get("roles") or []):
+        return "inherit"
+    policy_id = role_spec(roles_doc, role)["default_policy"]
+    backend = support["backend"]
+    binding = ((bindings_doc.get("bindings") or {}).get(backend) or {}).get(policy_id) or {}
+    model = binding.get("model")
+    if not model:
+        raise ValueError(
+            f"{role}/{runtime}: pinned to the {backend} binding of {policy_id}, "
+            f"which names no model")
+    return str(model)
+
+
+def _check_model(roles_doc: dict[str, Any], bindings_doc: dict[str, Any],
+                 role: str, runtime: str, path: Path) -> list[str]:
+    support = model_pin_support(roles_doc, runtime)
+    if not support:
+        return []
+    field = support.get("field", "model")
+    try:
+        wanted = expected_model(roles_doc, bindings_doc, role, runtime)
+    except ValueError as exc:
+        return [str(exc)]
+    declared = parse_frontmatter(path).get(field)
+    if declared != wanted:
+        why = ("pinned in roles.yaml runtime_model_pins to its policy's "
+               f"{support['backend']} binding" if wanted != "inherit" else
+               "not pinned in roles.yaml runtime_model_pins, so it must run "
+               "on the session's model")
+        return [f"{role}/{runtime}: binding declares {field}: {declared!r} but "
+                f"expects {wanted!r} ({why})"]
+    return []
+
+
+def check_model_pin_table(roles_doc: dict[str, Any]) -> list[str]:
+    """The pin table names real roles that have a binding on that runtime.
+
+    Run over the whole registry, not inside `check`, which is also handed
+    single-role documents.
+    """
+    problems = []
+    roles = roles_doc.get("roles") or {}
+    for runtime, support in (roles_doc.get("runtime_model_pins") or {}).items():
+        if not support:
+            continue
+        for role in support.get("roles") or []:
+            if role not in roles:
+                problems.append(f"runtime_model_pins.{runtime} names unknown role {role!r}")
+            elif runtime not in (roles[role].get("runtime_bindings") or {}):
+                problems.append(f"runtime_model_pins.{runtime} pins {role}, which has "
+                                f"no {runtime} binding file")
+    return problems
+
+
 def check(roles_doc: dict[str, Any],
           policies_doc: dict[str, Any] | None = None) -> list[str]:
     """Every way a runtime binding can disagree with the role contract."""
     problems: list[str] = []
+    bindings_doc: dict[str, Any] | None = None
+    if policies_doc is not None and roles_doc.get("runtime_model_pins"):
+        bindings_doc = yaml.safe_load(BINDINGS_PATH.read_text(encoding="utf-8"))
     for role, spec in roles_doc["roles"].items():
         contract = REPO / spec["contract"]
         if not contract.exists():
@@ -365,6 +439,9 @@ def check(roles_doc: dict[str, Any],
             if policies_doc is not None:
                 problems.extend(
                     _check_effort(roles_doc, policies_doc, role, runtime, path))
+            if bindings_doc is not None:
+                problems.extend(
+                    _check_model(roles_doc, bindings_doc, role, runtime, path))
     return problems
 
 
