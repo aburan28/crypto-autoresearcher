@@ -172,8 +172,16 @@ bindings:
           # tier is low effort rather than no thinking.
           mode: anthropic_adaptive
 
+    # Claude Fable 5.1, the Mythos-tier model, on the one decision class the
+    # program cannot recover from (claimed break, closure, contradiction).
+    # Rare by construction, so the per-token premium is bounded, and it puts
+    # a DIFFERENT model on the final gate than the Opus coordinator that
+    # approved the work -- model-level independence, not only a new session.
+    # Fable carries extra cybersecurity safeguards; a refusal here stalls the
+    # review (degradable: false, no fallback) rather than weakening it, so
+    # probe it on a realistic breakthrough review before relying on it.
     review-breakthrough:
-      model: claude-opus-5-5
+      model: claude-fable-5-1
       provenance: operator-supplied
       last_probed: null
       capabilities:
@@ -185,13 +193,22 @@ bindings:
       request:
         max_tokens: 64000
         reasoning:
-          # Claude 5 models think adaptively and take depth as a named effort
-          # (`output_config.effort`); `thinking.budget_tokens` and
-          # `temperature` are rejected with a 400. The policy's requested
-          # effort maps onto the API's names 1:1 (`none` -> low, `ultra` ->
-          # max); override with `effort_map:` only for a model that lacks a
-          # tier. Thinking cannot be disabled on these models, so the `low`
-          # tier is low effort rather than no thinking.
+          mode: anthropic_adaptive
+
+    # Same model for the big-picture ideation pass (idea-synthesist).
+    research-synthesis:
+      model: claude-fable-5-1
+      provenance: operator-supplied
+      last_probed: null
+      capabilities:
+        max_reasoning_effort: max
+        tool_use: true
+        structured_output: true
+        context_tokens: 200000
+        max_output_tokens: 64000
+      request:
+        max_tokens: 32000
+        reasoning:
           mode: anthropic_adaptive
 
     executor-implementation:
@@ -391,6 +408,7 @@ bindings:
         max_output_tokens: 32000
       request:
         max_tokens: 32000
+    research-synthesis: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Same models, Anthropic wire format — this is what an Anthropic-protocol CLI
@@ -506,6 +524,7 @@ bindings:
         max_output_tokens: 32000
       request:
         max_tokens: 32000
+    research-synthesis: {model: null, provenance: unbound}
 
   # -------------------------------------------------------------------------
   # Declared but unbound. The program refuses to guess an identifier: fill
@@ -645,6 +664,7 @@ bindings:
       request:
         max_tokens: 16000
         temperature: 0.0
+    research-synthesis: {model: null, provenance: unbound}
 
   # Same models over the Anthropic wire. `review-breakthrough` has a `max`
   # floor, so it will refuse here unless a binding genuinely declares that
@@ -661,6 +681,7 @@ bindings:
     review-breakthrough: {model: null, provenance: unbound}
     executor-implementation: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   openai:
     coordinator-orchestration-code:
@@ -754,6 +775,7 @@ bindings:
       request:
         max_tokens: 128000
         reasoning: {mode: openai_effort, effort_map: {xhigh: xhigh}}
+    research-synthesis: {model: null, provenance: unbound}
 
   openrouter:
     coordinator-orchestration-code: {model: null, provenance: unbound}
@@ -766,6 +788,7 @@ bindings:
     executor-implementation: {model: null, provenance: unbound}
     executor-mechanical: {model: null, provenance: unbound}
     review-breakthrough: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Self-hosted Qwen3.8-27B-FP8 on vLLM, reached through the lazy-launch proxy
   # (LOCAL_LLM_BASE_URL=http://127.0.0.1:8787/v1 -> ALB -> g6e GPU box). Set
@@ -880,6 +903,7 @@ bindings:
         temperature: 0.0
 
     review-breakthrough: {model: null, provenance: unbound}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Abliteration.ai. Identifiers and capability numbers are the vendor's
   # published model page (retrieved 2026-10-01): three ids, tool use,
@@ -994,6 +1018,7 @@ bindings:
         reasoning:
           mode: openai_effort
           effort_map: {low: low, medium: medium}
+    research-synthesis: {model: null, provenance: unbound}
 
   # Same models, Anthropic Messages wire. Effort is `output_config.effort`.
   abliteration-anthropic:
@@ -1084,3 +1109,4 @@ bindings:
         reasoning:
           mode: output_effort
           effort_map: {low: low, medium: medium}
+    research-synthesis: {model: null, provenance: unbound}

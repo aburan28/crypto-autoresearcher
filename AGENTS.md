@@ -89,6 +89,7 @@ None names a vendor. `docs/inference-backends.md`.
 | --- | --- | --- |
 | Coordinator | `coordinator-orchestration-code` (`coordinator-orchestration` without code) | |
 | Idea Generator, research tasks | `research-deep` | |
+| Idea Synthesist (cross-goal ideation) | `research-synthesis` | `high` |
 | Executor | `executor-implementation`; `executor-mechanical` for judgment-free re-runs | |
 | Reviewer, Validator, Red Team | `review-adversarial` | `xhigh`, independent session |
 | Consolidator | `consolidation-routing` | `high`, independent of the lanes it reads |
