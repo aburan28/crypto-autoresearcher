@@ -798,7 +798,8 @@ class ResearchIndex:
         different fact and is labelled as one -- `committed`, never
         `started`. A run with neither reports neither.
         """
-        facts: dict[str, Any] = {"id": run_dir.name, "status": "no-manifest"}
+        facts: dict[str, Any] = {"id": run_dir.name, "status": "no-manifest",
+                                 "path": run_dir.relative_to(self.repo).as_posix(), "manifest_path": None}
         fields: dict[str, str] = {}
         for name in MANIFEST_NAMES:
             manifest = run_dir / name
@@ -809,6 +810,7 @@ class ResearchIndex:
                     manifest.read_text(encoding="utf-8", errors="replace"))
             except OSError:
                 return facts | {"status": "unreadable"}
+            facts["manifest_path"] = manifest.relative_to(self.repo).as_posix()
             facts["status"] = fields.get("status", "") or "unstated"
             break
 
@@ -1277,3 +1279,4 @@ def _rank(record: Record, needle: bytes) -> int:
     if needle in record.title.lower().encode("utf-8", "replace"):
         return 1
     return 2
+

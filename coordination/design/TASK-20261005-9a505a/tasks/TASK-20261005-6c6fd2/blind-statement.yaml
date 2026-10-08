@@ -1,0 +1,111 @@
+statement_id: TASK-20261005-6c6fd2
+parameters:
+  lambda: unary integer at least 8
+  a: lambda
+  k: floor(lambda/2)
+  D: '2^a'
+  b: 'min {j>=1: 5^j>4D}'
+  N: '5^b'
+  L: 'lambda^2'
+  M0: '3*2^(a+2)*5^b'
+  p: 'least prime in [2^lambda,2^(lambda^2)) equal to -1 modulo M0; undefined if the interval has none'
+  F: 'F_p[z]/(z^2+1)'
+  E_star: 'y^2=x^3+x'
+  supplied_source: evaluable full integral End(E_star) basis/table and certificates of total length at most lambda^4
+encodings:
+  field_element: two canonical padded residues
+  curve: nonsingular short Weierstrass coefficients
+  point: infinity tag or coordinate pair
+  integer: signed length-delimited binary
+  evaluated_map: domain-labelled arithmetic circuit or composition DAG; all node/bit counts included
+  order: four evaluated maps, multiplication table, rational coordinates and exact integral-order/map certificates
+  equality: exact represented field and map identities
+  curve_normalization: least coefficient pair among F-isomorphic models, then least simultaneous retained-point tuple under residual automorphisms
+  source_labels: public U,V,P,Q; any relabeling transports the scalar/message convention
+  order_equivalence: integral GL_4(Z) basis change and simultaneous model conjugation
+Setup:
+  input: lambda and supplied_source
+  steps:
+    - Search the finite interval in order for p, checking congruence and primality.
+    - Verify source integral order/map certificates and trace discriminant p^2.
+    - Return public source,field,parameters,factorizations,model arithmetic, or bottom.
+  cost_quantity: prime search, field construction and source certification in bit operations
+KeyGen:
+  single_trial:
+    - Start at E_star; choose uniformly one of four cyclic order-3 subgroups.
+    - Continue L steps; exclude the preceding dual subgroup and choose each of the other three with probability 1/3.
+    - Normalize after kernel choice, adding all isomorphic endpoint multiplicities without automorphism reweighting.
+    - 'Keep tau as a labelled DAG; form R=Z*1+tau End(E_star) dual(tau).'
+    - Enumerate subgroups of trace-dual quotient Rsharp/R in lexicographic Hermite-normal-form order.
+    - Keep integral multiplicatively closed overorders of trace discriminant p^2.
+    - Realize basis maps by denominator-kernel tests and increasing-length rational-map search with exact division identities.
+    - Sample projected rational points giving order-D basis U,V and order-N basis P,Q; check exact orders and primitive pairings.
+    - Normalize and transport all retained points/maps simultaneously.
+    - Erase tau,kernels,transcript,ideals,orientations and temporary witnesses.
+  random_ranges: exact fair-bit finite-range rejection, charged under work cap
+  rational_point_sampler: uniform slots in '{infinity} union (F x {0,1})'; reject nonexistent root or duplicated zero root, choose ordered root by slot
+  caps: at most lambda^12 bit operations/random bits and lambda^12 encoded output bits/nodes per trial
+  bad_predicate: cap exceeded, any stated field/model/order/map/degree/table certificate fails, or E is reached by a public nonbacktracking degree-3 word of length at most floor(log_3(lambda^2))
+  bad_test: exact public short-word enumeration and ephemeral algebraic certificate checking under the cap
+  rejection: lambda^3 independent trials; first acceptance outputs, otherwise bottom
+  q: single-trial acceptance probability conditioned on successful Setup
+  law: exact single-trial joint law conditioned on acceptance
+  pk: '(E,U,V,P,Q,p,F,D,N,k,encodings,public certificates)'
+  sk: source-curve E's full evaluable integral order basis/table/coordinates/certificates only
+  key_failure: '(1-q)^(lambda^3)'
+  capped_cost_quantities: 'K0<=O(lambda^15) bit operations, memory/output<=O(lambda^12) plus encoded Setup inputs'
+  conditional_failure_assertion: 'q>=lambda^-2 implies key_failure<=exp(-lambda)'
+  acceptance_requirement: 'q>=lambda^-2 for sufficiently large defined parameters'
+observations:
+  scalar: 'm in [0,2^k), r in [0,2^(a-k)), s=m+2^k*r'
+  quotient: 'phi_s:E->C_s=E/<U+sV>, separable degree D, chain of a degree-2 maps'
+  P1: 'Normalize(C_s,phi_s(P))'
+  P2: 'Normalize(C_s,(phi_s(P),phi_s(Q))*A), A in SL_2(Z/NZ)'
+  mask_law: uniform primitive first column v, one determinant-one complement w0, uniform h modulo N, second column w0+h*v
+  P1_fiber: 'all t with a target F-isomorphism i satisfying i(C_t)=C and i(phi_t(P))=X'
+  P2_fiber: 'all (t,B,i) with B in SL_2(Z/NZ) and Normalize(i(C_t),i(phi_t(P),phi_t(Q))*B)=ct'
+  message_condition: every compatible t has t modulo 2^k equal to the sender m
+P1_relation:
+  input: '(O=End(E),E,C,X,P,Q,D,N)'
+  output: 'Y=normalized phi_s(Q), or evaluated degree-D f with sender kernel and f(P)=X'
+  quantified_requirement: 'one fixed uniform algorithm; every accepted key,m,r; correct output except failure epsilon_1(lambda)'
+partial_algorithm_definitions:
+  A1:
+    - Validate O,E,C,X and certificates.
+    - 'Obtain evaluated h1,...,h4 spanning Hom(E,C).'
+    - Solve/enumerate 'deg(sum zi*hi)=D and (sum zi*hi)(P)=X'.
+    - Return f(Q) for the compatible f.
+  A2:
+    - Evaluate the four O basis maps on P,Q.
+    - Extract matrices over Z/NZ by smooth finite algebra.
+    - 'Solve sum ci*Mi*(1,0)^T=(0,1)^T; set alpha=sum ci*alpha_i; check alpha(P)=Q.'
+    - 'Evaluate gamma=phi_s alpha dual(phi_s) at X.'
+    - 'Return [D inverse modulo N]gamma(X).'
+  operation_domains:
+    obtain_Hom_basis: '(O,E,C,X)->four evaluated connecting maps'
+    evaluate_gamma: '(O,E,C,X,alpha,D,N)->gamma(X) in C[N]'
+  finite_public_A1:
+    - Enumerate t in '[0,D)' and the corresponding normalized quotient chain.
+    - Compare the curve and first image with ct.
+    - Return the compatible Q image and residue, or bottom.
+P2_relation:
+  input: '(O,E,C,Z1,Z2,U,V,P,Q,D,N,k)'
+  output: evaluated endpoint-compatible cyclic degree-D lift, slope t and determinant-one mask B, with common low-k residue over the full P2 fiber
+  partial_A3:
+    - Enumerate norm-D cyclic source left ideals using O.
+    - Match/evaluate an ideal realization with endpoint C.
+    - Recover its slope t and transition B to the observed basis.
+    - Return the common low-k residue only when the full fiber satisfies message_condition.
+  operation_domain: '(O,E,C,D)->evaluated cyclic degree-D map with endpoint C'
+cost_requirements:
+  uniformity: one algorithm fixed before key,message and randomness quantifiers
+  requested_time: polynomial in unary lambda and total encoded public/secret inputs
+  requested_memory: same uniform polynomial bound
+  requested_output: same uniform polynomial bound, including evaluated maps and preprocessing
+  circuit_evaluation: bound every evaluation separately; circuit size alone is insufficient
+  finite_public_enumeration: D quotient constructions, each a degree-2 steps, with streaming one chain
+correctness_event:
+  P1: 'Dec(sk,Enc_P1(pk,m;r))=m'
+  P2: 'Dec(sk,Enc_P2(pk,m;r,A))=m'
+  quantifiers: forall successful Setup,accepted key,m,permitted sender coins; recipient failure bounded uniformly
+  total_failures: Setup failure, key_failure and epsilon_i kept separate
