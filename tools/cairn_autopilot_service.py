@@ -34,7 +34,7 @@ def mcp_connected(url: str) -> bool:
     return status.get("status") == "connected"
 
 
-def wait_for_mcp(process: subprocess.Popen, url: str, seconds: int = 90) -> None:
+def wait_for_mcp(process: subprocess.Popen, url: str, seconds: int = 300) -> None:
     deadline = time.monotonic() + seconds
     last = "not ready"
     while time.monotonic() < deadline:
