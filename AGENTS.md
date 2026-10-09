@@ -112,6 +112,20 @@ expired or errored batch results are infrastructure signal
 `api_direct` write scope, no-overwrite, command allow-list and budget stops
 are enforced, not requested.
 
+## Endomorphism and isogeny-chain arithmetic
+
+For CM/GLV/GLS, endomorphism formulas, model changes, and isogeny-chain
+scalar multiplication, follow
+[docs/endomorphism-rules.md](docs/endomorphism-rules.md). Keep factored and
+mixed-degree loops in scope: degree alone and a bounded null search establish
+neither evaluation cost nor impossibility. Require explicit typed maps,
+working-field closure, subgroup-action certificates, endpoint recovery, and
+paired complete-cost measurements against an optimized baseline. Preserve
+failures and exact search bounds. Structural signals are leads, and
+known-scalar speedups are not unknown-scalar recovery. `run`, standing
+authorization, Coordinator authority, evidence review, and measured-bound
+rules remain unchanged.
+
 ## Core rules
 
 1. Separate speculation, implementation, observation and conclusion.
@@ -459,6 +473,18 @@ Freeze the curve/subgroup/protocol, attacker, threshold, costs, path-knowledge
 model, budgets, population, and stopping rule. Require certified arithmetic and
 planted controls. Separate base-field isogeny-class invariants from
 representative-dependent structure; unusual structure is only a lead.
+
+For an ordinary curve record
+`Delta_pi = t^2 - 4q = f_pi^2 D_K` and
+`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`
+independently; `f_E | f_pi`, but `f_pi` determines `f_E` only when
+`f_pi = 1` or a separate endomorphism-ring certificate does. Certify endpoint
+conductors and label each separable prime-degree `ell != char(F_q)` edge
+`horizontal | ascending | descending | unresolved`. Koblitz `tau` and
+other characteristic-power Frobenius maps are inseparable endomorphisms, not
+separable volcano edges. Conductors and their gap are structural leads, not
+ECDLP-bit discounts without an explicit usable action or fully costed
+transfer.
 
 An isogeny transfer claim requires explicit maps and subgroup preservation,
 with path discovery, construction, evaluation, attack, memory, data, and
