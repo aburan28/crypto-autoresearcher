@@ -12,9 +12,14 @@ import yaml
 from orchestration import fast_yaml
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "tools"))
+import validate_ledger  # noqa: E402  keeps a standalone copy; it must not drift
+
 GOOD = "a: 1\nb: [x, 2.5, null, 2026-10-09]\nc: {d: yes}\n"
 BAD = "a: 1\nb: [unclosed\nc: 2\n"
 needs_libyaml = pytest.mark.skipif(fast_yaml.CSafeLoader is None, reason="no libyaml")
+LOADERS = pytest.mark.parametrize("load", [fast_yaml.safe_load, validate_ledger._safe_load],
+                                  ids=["fast_yaml", "validate_ledger"])
 
 
 def _error(load, source) -> str:
@@ -23,28 +28,31 @@ def _error(load, source) -> str:
     return str(caught.value)
 
 
-def test_values_match_for_text_bytes_and_streams():
+@LOADERS
+def test_values_match_for_text_bytes_and_streams(load):
     expected = yaml.safe_load(GOOD)
-    assert fast_yaml.safe_load(GOOD) == expected
-    assert fast_yaml.safe_load(GOOD.encode()) == expected
-    assert fast_yaml.safe_load(io.StringIO(GOOD)) == expected
-    assert fast_yaml.safe_load(io.BytesIO(GOOD.encode())) == expected
-    assert fast_yaml.safe_load("") is None
+    assert load(GOOD) == expected
+    assert load(GOOD.encode()) == expected
+    assert load(io.StringIO(GOOD)) == expected
+    assert load(io.BytesIO(GOOD.encode())) == expected
+    assert load("") is None
 
 
 @needs_libyaml
-def test_errors_are_the_pure_loaders_word_for_word(tmp_path):
-    assert _error(fast_yaml.safe_load, BAD) == _error(yaml.safe_load, BAD)
+@LOADERS
+def test_errors_are_the_pure_loaders_word_for_word(load, tmp_path):
+    assert _error(load, BAD) == _error(yaml.safe_load, BAD)
     path = tmp_path / "bad.yaml"
     path.write_text(BAD)
     with path.open() as fast, path.open() as pure:
-        message = _error(fast_yaml.safe_load, fast)
+        message = _error(load, fast)
         assert message == _error(yaml.safe_load, pure)
     assert str(path) in message  # the mark names the file, not "<unicode string>"
 
 
 @needs_libyaml
-def test_unseekable_and_midway_streams_replay_what_was_read():
+@LOADERS
+def test_unseekable_and_midway_streams_replay_what_was_read(load):
     class Pipe(io.StringIO):
         def seekable(self):
             return False
@@ -56,15 +64,15 @@ def test_unseekable_and_midway_streams_replay_what_was_read():
     pipe.name = "<stdin>"
     reference = io.StringIO(BAD)
     reference.name = "<stdin>"
-    assert _error(fast_yaml.safe_load, pipe) == _error(yaml.safe_load, reference)
+    assert _error(load, pipe) == _error(yaml.safe_load, reference)
 
     def advanced(text):
         stream = io.StringIO("header: [\n" + text)
         stream.readline()
         return stream
 
-    assert fast_yaml.safe_load(advanced(GOOD)) == yaml.safe_load(GOOD)
-    assert _error(fast_yaml.safe_load, advanced(BAD)) == _error(yaml.safe_load, advanced(BAD))
+    assert load(advanced(GOOD)) == yaml.safe_load(GOOD)
+    assert _error(load, advanced(BAD)) == _error(yaml.safe_load, advanced(BAD))
 
 
 def test_without_libyaml_it_is_safe_load(monkeypatch):

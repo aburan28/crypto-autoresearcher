@@ -50,8 +50,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import validate_ledger as vl  # single source of truth for REPO
-import fast_yaml  # libyaml, with the pure loader's errors
+import validate_ledger as vl  # single source of truth for REPO and the YAML loader
 
 REPO = vl.REPO
 
@@ -505,7 +504,7 @@ def _retired_by_supersession() -> dict[str, str]:
     import yaml
     try:
         with open(SCHEMA_SUPERSESSION_REGISTRY, "r", encoding="utf-8") as fh:
-            registry = fast_yaml.safe_load(fh)
+            registry = vl._safe_load(fh)
     except (OSError, yaml.YAMLError):
         return {}
     if not isinstance(registry, dict):
@@ -526,7 +525,7 @@ def _retired_by_supersession() -> dict[str, str]:
         try:
             with open(new_full, "r", encoding="utf-8") as fh:
                 replacement = fh.read()
-            json.loads(replacement) if new.endswith(".json") else fast_yaml.safe_load(replacement)
+            json.loads(replacement) if new.endswith(".json") else vl._safe_load(replacement)
         except Exception:                                            # noqa: BLE001
             continue
         retired[old] = new
@@ -569,7 +568,7 @@ def check_parses(paths: list[str], *, report_stale: bool = True) -> list[str]:
             if rel.endswith(".json"):
                 json.loads(text)
             else:
-                fast_yaml.safe_load(text)
+                vl._safe_load(text)
         except Exception as exc:
             first = str(exc).strip().splitlines()[0]
             if rel in grandfathered:
