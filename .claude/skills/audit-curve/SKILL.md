@@ -11,6 +11,11 @@ change research state, or replace the public `run` entry point. If the audit
 requires launching an existing scientific experiment, route that launch
 through `/run` and consume its archived result separately.
 
+For a supplied isogeny, closed path, or representation-changing map, also
+follow `.claude/skills/transfer/SKILL.md`. Use
+`docs/endomorphism-rules.md` for the additional closed-loop and GLV
+certificate; neither document changes this skill's verdict vocabulary.
+
 The default threat model is classical ECDLP on an explicitly identified
 elliptic-curve subgroup. Do not reuse that conclusion for an isogeny-based
 protocol such as CSIDH or SQIsign; state and audit that protocol's security
@@ -79,14 +84,24 @@ factorizations and every local valuation of `f_pi` and `f_E`.
 5. For odd `q`, compute the quadratic-twist order `q + 1 + t`, its known
    factorization, subgroup sizes, and invariant factors. Treat other twists
    separately at exceptional `j`-invariants.
-6. After splitting composite `r` for Pohlig--Hellman, compute
+6. For any claimed extension-torsion signal, compute `t_0 = 2`, `t_1 = t`,
+   and `t_m = t t_(m-1) - q t_(m-2)`, hence
+   `N_m = #E(F_(q^m)) = q^m + 1 - t_m`, through a stated bounded `m`.
+   A prime `ell | N_m` certifies a point of order `ell`; it does not prove
+   that all of `E[ell]` is rational. For `ell != char(F_q)`, full rational
+   `ell`-torsion requires `Frob_q^m` to act as the identity on `E[ell]`;
+   a repeated characteristic-polynomial root modulo `ell` is insufficient.
+   Treat characteristic-`ell` torsion separately and identify the original
+   order-`r` subgroup under the field embedding instead of replacing it with
+   newly visible torsion.
+7. After splitting composite `r` for Pohlig--Hellman, compute
    `k_ell = ord_ell(q)` for every attack-relevant prime factor `ell | r` with
    `gcd(q, ell) = 1`, using an exact minimality certificate. Reporting only
    that `ell | q^k - 1` proves an upper bound, not the embedding degree. If
    `ell | q`, mark pairing transfer `NOT_APPLICABLE` for that factor and test
    the characteristic-specific attacks separately; never write `ord_r(q)`
    blindly for a composite subgroup.
-7. When adversarial inputs, post-validation faults, or a raw scalar-
+8. When adversarial inputs, post-validation faults, or a raw scalar-
    multiplication API are in scope, audit the formulas actually reached.
    Record which curve coefficients the decoder, addition, doubling, ladder,
    and output path consume. Enumerate the **formula-compatible companion

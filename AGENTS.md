@@ -451,8 +451,9 @@ bound. `docs/bounds-and-frontiers.md`.
 ## Weak-curve and isogenous-representative audits
 
 Before weak-curve, CM/GLV/GLS, or isogeny-chain claims, follow
-[the arithmetic rules](docs/endomorphism-rules.md),
-[`audit-curve`](.claude/skills/audit-curve/SKILL.md), and
+[the loop rules](docs/endomorphism-rules.md),
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md),
+[`transfer`](.claude/skills/transfer/SKILL.md), and
 [`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). They bind scope,
 evidence, controls, costs, statistics, and labels. Evaluate factored/mixed-degree
 loops with explicit working-field maps, subgroup action, closure/recovery,

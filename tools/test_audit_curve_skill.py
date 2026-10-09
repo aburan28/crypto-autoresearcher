@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 CANONICAL = ROOT / ".claude" / "skills" / "audit-curve" / "SKILL.md"
 ADAPTER = ROOT / ".agents" / "skills" / "audit-curve" / "SKILL.md"
+TRANSFER = ROOT / ".claude" / "skills" / "transfer" / "SKILL.md"
+ENDOMORPHISM_RULES = ROOT / "docs" / "endomorphism-rules.md"
 KNOWLEDGE = ROOT / "knowledge" / "techniques" / "KN-TECH-6a2ef9.md"
 REPORT_TEMPLATE = (
     ROOT / ".claude" / "skills" / "audit-curve" / "references"
@@ -31,15 +33,23 @@ def frontmatter_value(path: Path, key: str) -> str:
 class AuditCurveSkillTests(unittest.TestCase):
     def test_canonical_skill_and_report_contract_exist(self) -> None:
         self.assertTrue(CANONICAL.is_file(), f"missing {CANONICAL}")
+        self.assertTrue(TRANSFER.is_file(), f"missing {TRANSFER}")
+        self.assertTrue(
+            ENDOMORPHISM_RULES.is_file(), f"missing {ENDOMORPHISM_RULES}"
+        )
         self.assertTrue(KNOWLEDGE.is_file(), f"missing {KNOWLEDGE}")
         self.assertTrue(REPORT_TEMPLATE.is_file(), f"missing {REPORT_TEMPLATE}")
         self.assertEqual(frontmatter_value(CANONICAL, "name"), "audit-curve")
         body = CANONICAL.read_text(encoding="utf-8")
         self.assertIn("knowledge/techniques/KN-TECH-6a2ef9.md", body)
         self.assertIn("references/report-template.md", body)
+        self.assertIn(".claude/skills/transfer/SKILL.md", body)
+        self.assertIn("docs/endomorphism-rules.md", body)
 
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn(".claude/skills/audit-curve/SKILL.md", agents)
+        self.assertIn(".claude/skills/transfer/SKILL.md", agents)
+        self.assertIn("docs/endomorphism-rules.md", agents)
         self.assertIn("## Weak-curve and isogenous-representative audits", agents)
 
         report = REPORT_TEMPLATE.read_text(encoding="utf-8")
@@ -54,6 +64,7 @@ class AuditCurveSkillTests(unittest.TestCase):
             "conclusion:",
             "subgroup_order_factorization: null",
             "generator_nonidentity:",
+            "extension_orders_checked: []",
             "offline_work: null",
             "online_work: null",
             "indeterminate_samples: null",
@@ -110,6 +121,8 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("formula-compatible companion", body)
         self.assertIn("companion is not an elliptic curve", body)
         self.assertIn("inherit a square-root DLP cost automatically", body)
+        self.assertIn("t_m = t t_(m-1) - q t_(m-2)", body)
+        self.assertIn("Frob_q^m", body)
 
         for required in (
             "Delta_pi = f_pi^2 D_K",
@@ -134,6 +147,10 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("Follow the formulas beyond the named twist", knowledge)
         self.assertIn("singular parameter values", knowledge)
         self.assertIn("confirmation-only oracle", knowledge)
+        self.assertIn(
+            "does not prove that all of `E[ell]` is rational", knowledge
+        )
+        self.assertIn("`Frob_q^m` to act as the identity", knowledge)
 
         for required in (
             "Conductor and volcano accounting",
@@ -143,6 +160,22 @@ class AuditCurveSkillTests(unittest.TestCase):
             "does not generally certify the representative conductor `f_E`",
         ):
             self.assertIn(required, knowledge)
+
+        loop_rules = ENDOMORPHISM_RULES.read_text(encoding="utf-8")
+        for required in (
+            "explicit endpoint isomorphism",
+            "Matching `j`-invariants alone",
+            "hat(phi) o phi = [deg(phi)]",
+            "deg([n]) = n^2",
+            "nonsquare degree",
+            "characteristic-polynomial root alone is only a candidate",
+            "mixed-degree ideal-class relations",
+            "same mathematical map",
+            "Variable-base",
+            "known `k`",
+            "KN-LIT-390",
+        ):
+            self.assertIn(required, loop_rules)
 
         visuals = RESEARCH_VISUALS.read_text(encoding="utf-8")
         for required in (

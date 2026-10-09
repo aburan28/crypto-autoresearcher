@@ -1,130 +1,115 @@
-# Endomorphism and isogeny-chain research rules
+# Endomorphism and isogeny-loop supplement
 
-Repository policy for scalar-multiplication research. Read together with AGENTS.md; this document adds no scientific state transition or run admission gate.
+Read this with [`AGENTS.md`](../AGENTS.md),
+[`audit-curve`](../.claude/skills/audit-curve/SKILL.md),
+[`transfer`](../.claude/skills/transfer/SKILL.md), and
+[`KN-TECH-6a2ef9`](../knowledge/techniques/KN-TECH-6a2ef9.md).
 
-## Mandatory rule
+This file creates no authority, scientific state transition, execution entry
+point, or mandatory preflight. Generic correspondence identity, map typing,
+subgroup preservation, complete-cost accounting, controls, exploration
+boundaries, and reporting remain governed by `transfer`. Curve-weakness
+verdicts remain governed by `audit-curve`. This supplement adds only the
+closed-loop and GLV/GLS obligations specific to endomorphism arithmetic.
 
-When investigating scalar multiplication through endomorphisms, isogeny chains, or alternative representations, agents MUST preserve the requested experiment and distinguish mathematical existence, executable formulas, correctness, measured advantage, and security implications. A known endomorphism ring, a large discriminant, a high composite degree, or an unsuccessful bounded search is not by itself a proof that no faster implementation exists. Claims of impossibility require a precise theorem with applicable hypotheses. Report unsuccessful searches as “not found within the stated family and budget.”
+## Closed-loop certificate
 
-Agents MUST consider the cost of evaluating a factored map, rather than reject it solely from the degree of its expanded formula. Published isogeny-loop methods belong in the literature baseline. Do not claim that designers universally screen against every such optimization or that a well-studied ring exhausts efficient implementations.
+Apply the transfer obligations to every edge before treating a path as an
+endomorphism.
 
-The authorized activity under this rule is arithmetic optimization, mathematical assessment, and bounded correctness benchmarking. This rule does not authorize autonomous key-recovery campaigns or exploitation of third-party systems.
+1. Retain every map `phi_i:E_i -> E_(i+1)`, its exact degree, kernel or formula,
+   field of definition, exceptional inputs, coordinate conversions, and
+   correctness certificate.
+2. A closed path needs an explicit endpoint isomorphism
+   `iota:E_n -> E_0` over the declared working field. Matching
+   `j`-invariants alone does not certify closure there because the endpoints
+   may be twists. If individual maps live over an extension, an
+   `F_q`-endomorphism claim needs a descent certificate for the composite.
+3. Certify that
+   `Phi = iota o phi_(n-1) o ... o phi_0`
+   is a group endomorphism and retain its exact degree. Non-backtracking in an
+   isogeny graph does not establish either closure or non-scalarity.
+4. For an isogeny `phi`, retain the dual-composition control
+   `hat(phi) o phi = [deg(phi)]`. Do not count this forced scalar composition
+   as a new endomorphism discovery, although its arithmetic may still be
+   benchmarkable when requested.
+5. For a scalar map `[n]`, `deg([n]) = n^2`. Therefore, after closure and map
+   correctness are certified, a closed endomorphism of nonsquare degree is
+   nonscalar. Square degree supplies no converse.
 
-## When to apply
+## Subgroup action and scalar decomposition
 
-Apply whenever a task involves CM orders, endomorphism formulas, GLV/GLS decomposition, compositions of isogenies, changing curve models, or comparing scalar multiplication implementations. Use the repository's transfer assessment for maps between objects and its evidence-reporting workflow for experiments. Do not add a mandatory preflight that delays an already authorized feasible experiment.
+For the named cyclic subgroup `G = <P>` of order `r`:
 
-## Mathematical obligations
+1. Prove that `Phi` preserves `G`; equal ambient group orders do not establish
+   preservation.
+2. Prove the actual action `Phi(P) = [lambda]P`. A
+   characteristic-polynomial root alone is only a candidate eigenvalue;
+   identify which root acts whenever more than one action is compatible with
+   the polynomial.
+3. Verify the reconstruction congruence, for example
+   `k = k_0 + k_1 lambda (mod r)`, and the corresponding point identity
+   against reference scalar multiplication. Retain coefficient bounds, the
+   reduced kernel-lattice basis, decomposition cost, map cost, and conversion
+   cost. A lattice determinant alone does not certify short coefficients.
+4. Repeated powers of one endomorphism do not automatically create additional
+   independent decomposition dimensions. State the applicable endomorphism
+   algebra and independent relations. Ordinary elliptic endomorphism algebras
+   are quadratic; supersingular, higher-dimensional, and combined-map claims
+   require their own applicable construction and compatible maps.
 
-1. Identify the exact curve, field, model, subgroup order r, generator or subgroup definition, and workload. Preserve canonical curve and representation identifiers. Distinguish End over the working field from the geometric endomorphism ring. Record whether the curve is ordinary or supersingular; do not apply ordinary quadratic-order arguments indiscriminately.
-2. For an ordinary curve, distinguish the Frobenius discriminant t²−4q, the endomorphism-order discriminant, and the fundamental field discriminant. The relation t²−4q = c² D_K determines the order generated by Frobenius; it does not alone determine the exact endomorphism order. Its conductor divides c. Keep unresolved order determination explicit.
-3. Type each map E_i → E_(i+1), recording its field of definition, kernel, degree, explicit formula, exceptional inputs, and coordinate conversions. A closed path must include an explicit endpoint isomorphism back to the starting model. Matching j-invariants alone does not certify closure over the working field because of twists.
-4. Certify the resulting composite as a group endomorphism and distinguish scalar from non-scalar endomorphisms. Non-backtracking alone does not certify a non-scalar map. A map and its dual compose to multiplication by its degree; retain this as a control and deduplicate it as a new endomorphism discovery. Such a composition may still warrant an arithmetic benchmark when requested.
-5. A degree-d scalar endomorphism has square degree. Thus a nonsquare composite degree can certify non-scalarity after closure and map correctness are established. A square degree does not certify scalarity.
-6. For GLV-style use, establish that the map preserves the chosen cyclic subgroup and identify its action φ(P) = [λ]P. Record how λ was established. A characteristic-polynomial root alone is not enough to distinguish the actual action from the other root. Do not infer subgroup preservation from equal ambient group sizes.
-7. Verify scalar reconstruction modulo r and the final identity between candidate and reference multiplication. Record coefficient lengths, decomposition cost, and map-evaluation overhead. Repeated compositions of one endomorphism do not automatically yield additional independent dimensions: ordinary elliptic endomorphism algebras are quadratic, while higher-dimensional abelian varieties and supersingular settings require separate analysis.
-8. Treat randomized checks as implementation evidence. Use mathematical certificates for universal identities and document unresolved exceptional cases.
+## Candidate evaluation
 
-## Search guidance for arithmetic optimization
+Within the authorized family and budget:
 
-Within the user-authorized family and budget, compare direct evaluation of supplied endomorphisms with factored evaluation, supplied closed isogeny paths, inexpensive curve-model changes, and transport to a curve with faster group arithmetic followed by certified recovery. For ordinary CM families, include published ideal-class relations and mixed-degree loop constructions where applicable; restriction to powers of a single prime-degree step can miss cheaper paths.
+- compare direct evaluation with factored evaluation through explicit maps;
+- include applicable mixed-degree ideal-class relations and alternative curve
+  models instead of restricting the search to powers of one prime-degree step;
+- distinguish geometric degree from evaluation cost: composition degree is a
+  product, while sequential evaluation charges the edge costs and every field,
+  normalization, and coordinate conversion;
+- label modeled and measured costs separately;
+- deduplicate the same mathematical map as a discovery, but retain
+  cost-distinct formulas and factorizations as separate implementations; and
+- require a verified applicability record before using a published family as a
+  baseline or claiming that a bounded search covered it.
 
-Use measured edge costs to rank arithmetic candidates. The degree of a composition is the product of degrees, while sequential evaluation cost includes the sum of edge evaluation costs and all conversion overhead. This distinction is a cost model, not a guaranteed speedup. Include extension-field arithmetic, inversions, normalization, special constant multiplication, batching, and hardware effects.
+A high expanded degree does not by itself make a factored map expensive, and a
+low degree does not establish a speedup.
 
-Cache reusable formulas, certificates, curve identities, and measured map costs with their revisions. Maintain a cost-ranked queue and explicit exploration boundary. Deduplicate equivalent representations without assuming that equivalent maps have equal implementation costs. Keep alternative factorizations when their evaluation costs differ. Record why each candidate remains open, was invalidated, or lacked an advantage on the measured workload; attach a revisit condition.
+## Benchmark and claim boundary
 
-Do not treat anomalous trace, extension-field torsion, or twist checks as universal proxies for efficient endomorphism evaluation. Record each signal with the construction family it actually informs.
+Freeze the strongest validated baseline available inside the declared
+dependencies, hardware, side-channel policy, and workload; disclose any
+stronger known baseline that could not be run.
 
-## Curve-structure signals and extension torsion
+Separate Variable-base, fixed-base, batch, and multi-scalar multiplication.
+Keep secret-scalar constant-time code separate from public-scalar
+variable-time code. Use paired scalars and record decomposition, maps, group
+work, conversions, setup reuse, verification, dispersion, and failures.
 
-For a supplied curve or an explicitly authorized bounded family, maintain a typed
-signal record: exact field and model, characteristic, q, subgroup (order r and
-generator or definition), extension degree m, candidate prime ell, source of
-each parameter, construction family informed, computation or certificate,
-status, and the next test. Use exact arithmetic for algebraic claims; label
-unfactored orders, unproved endomorphism orders, and untested extensions.
+Check the identity, boundary scalars, subgroup inputs, exceptional
+denominators, and coordinate conversions. Exhaustive toy checks and held-out
+full-size cases support implementation correctness but do not replace
+universal map certificates. Timing measurements do not establish constant-time
+behavior.
 
-1. **Trace and anomalous patterns.** Verify N_1 = #E(F_q) = q + 1 - t and
-   |t| <= 2 sqrt(q) before classifying a trace. Exact anomalous order means
-   N_1 = q, equivalently t = 1; a near-anomalous trace is a separately
-   quantified observation, not an anomalous-curve result. Record whether a
-   proposed method requires a prime base field, an extension field, ordinary
-   reduction, or another hypothesis. Neither a small trace nor a distinctive
-   trace pattern alone proves a faster arithmetic map or logarithm method.
-2. **CM and conductor.** For an ordinary curve, factor t^2 - 4q = c^2 D_K
-   when certified and record the distinction among Z[pi], End(E), and O_K.
-   The endomorphism conductor divides c; determining it needs separate
-   evidence. A small class number, reduced form, or possible low-degree
-   isogeny gives a candidate construction, not an executable working-field
-   route or an automatic improvement on the chosen subgroup.
-3. **Extension point counts.** Compute t_0 = 2, t_1 = t, and
-   t_m = t t_(m-1) - q t_(m-2), so N_m = #E(F_(q^m)) = q^m + 1 - t_m.
-   State the exact extension and a bounded range of m. A prime ell dividing
-   N_m proves the existence of a point of order ell; it does not prove that
-   all of E[ell] is rational over F_(q^m). For ell distinct from the
-   characteristic, full rational ell-torsion requires Frobenius^m to act as
-   the identity on E[ell]. A repeated root of its characteristic polynomial
-   modulo ell is insufficient by itself. Treat characteristic-ell torsion
-   separately. Identify the original large-order subgroup inside the
-   extension instead of replacing it with newly visible small torsion.
-4. **Twists and isogeny classes.** Record each twist's defining field, degree,
-   model, point count, and subgroup separately. For a quadratic twist in odd
-   characteristic, t_twist = -t, but a shared j-invariant does not supply an
-   F_q-isomorphism. Curves F_q-isogenous to E have the same trace and point
-   count over F_q; their group structures and endomorphism orders can differ.
-   Compare a proposed representative through a field-defined, explicit map
-   and its action on the named subgroup, including kernel intersection and
-   return map. Do not attribute a different base-field trace to a member of
-   the same F_q-isogeny class.
-5. **Embedding and transfer.** For a prime r coprime to q, record
-   ord_r(q) when relevant to a proposed pairing transfer, alongside the
-   actual pairing, its nondegeneracy on the subgroup, field of definition,
-   extension-field arithmetic, destination problem, conversion, and
-   recovery costs. A small embedding degree, a small torsion factor, a cover,
-   or a geometric Jacobian correspondence is only a signal until the
-   working-field map, subgroup preservation, and complete-cost claim are
-   established. Distinguish the morphism of curves from induced maps on
-   divisor classes and unpolarized from principally polarized Jacobians.
+Faster computation of `[k]P` for known `k` does not establish faster recovery
+of unknown `k` from `P` and `[k]P`. Preserve measured arithmetic improvements,
+but require a separate reduction and complete attack-cost record before making
+an ECDLP work-factor claim.
 
-For every signal, state whether it is an exact invariant, a proposed route, an
-implemented map, a verified subgroup action, or a measured advantage.
-Preserve null/unknown values and failed checks; neither absence in a finite
-range nor a matching numerical pattern settles a global claim. Do not promote
-an arithmetic speedup to unknown-scalar recovery without a separate
-reduction and end-to-end evidence.
+## Source pointers
 
-## Required benchmark accounting
+Respect each source record’s stated verification boundary.
 
-Compare against the fastest available validated baseline appropriate to the same workload, rather than only textbook double-and-add. Separate variable-base, fixed-base, batch, and multi-scalar multiplication. Separate constant-time secret-scalar implementations from variable-time public-scalar implementations.
-
-Report:
-
-T_candidate = T_setup + T_decompose + T_maps + T_group_work + T_conversion + T_recovery + T_verify.
-
-For repeated workloads, report setup separately and amortize it only across instances that genuinely reuse it. Define verification costs symmetrically; disclose benchmark harness overhead separately. Record paired inputs, seeds, scalar distribution, sample count, timing dispersion, memory, compiler and dependency versions, revision, CPU and NUMA pinning, OS, CPU generation, RAM type, and GPU where applicable. Preserve failed construction attempts, timeouts, correctness failures, and missing measurements.
-
-Check boundary scalars, the identity, exceptional denominators, and subgroup inputs. Exhaustive small-parameter checks and held-out full-size cases complement, rather than replace, mathematical certificates. Label toy results separately. Performance tests do not establish constant-time behavior; secret-scalar adoption requires an independent side-channel review.
-
-## Reporting and completion
-
-Keep these findings separate:
-
-| Finding | Required evidence |
-| --- | --- |
-| Endomorphism exists | Applicable mathematical construction or certificate |
-| Formula is executable | Explicit maps, fields, exceptional-case handling |
-| Implementation is correct | Certificate plus relevant implementation checks |
-| Scalar multiplication is faster | Paired complete-cost measurements with stated baseline |
-| Security work factor changes | Separate argument and applicable evidence for that security claim |
-| Search family exhausted | Exact family, coverage, bounds, and unresolved obligations |
-
-Faster computation of [k]P for known k does not by itself establish faster recovery of unknown k from P and [k]P. Do not label arithmetic improvements as key recovery, a trapdoor, or a break. Conversely, do not suppress measured arithmetic gains because they do not establish key recovery. Report the observations and let the user decide research priority.
-
-Every handoff must contain exact parameters, formulas or artifact references, correctness status, baseline and candidate costs, unsuccessful cases, scope limitations, and the next unresolved obligation. A merged PR, static rule file, or completed literature review is not a completed performance experiment. Never imply this policy has reached running agents until the repository change or agent configuration has actually been applied.
-
-## Primary references
-
-- Dimitri Koshelev and Antonio Sanso, *Endomorphisms for Faster Cryptography on Elliptic Curves of Moderate CM Discriminants*, ePrint 2024/1985, archive revision dated 2025-09-02: https://eprint.iacr.org/2024/1985 . Establishes that isogeny loops and moderate CM discriminants are relevant published scalar-multiplication methods; it does not establish a new result for an untested curve.
-- Benjamin Smith, *Easy scalar decompositions for efficient scalar multiplication on elliptic curves and genus 2 Jacobians*, ePrint 2013/672: https://eprint.iacr.org/2013/672 . Background for eigenvalue lattices and scalar decompositions.
-- Explicit-Formulas Database: https://hyperelliptic.org/EFD/ . Reference arithmetic formulas and assumptions; operation counts require hardware-specific measurement before wall-time claims.
-
+- `recalled`: Dimitri Koshelev and Antonio Sanso, *Endomorphisms for Faster
+  Cryptography on Elliptic Curves of Moderate CM Discriminants*,
+  ePrint 2024/1985, <https://eprint.iacr.org/2024/1985>. This is a discovery
+  pointer until a retrieved or knowledge record verifies the applicable claim.
+- `kb`: `KN-LIT-390`, Benjamin Smith, *Easy scalar decompositions for efficient
+  scalar multiplication on elliptic curves and genus 2 Jacobians*. Its
+  knowledge entry defines the verified scope.
+- `recalled`: Explicit-Formulas Database,
+  <https://hyperelliptic.org/EFD/>. Formula assumptions remain to be checked
+  against the selected model; operation counts are not wall-time measurements.

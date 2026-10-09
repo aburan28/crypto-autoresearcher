@@ -97,7 +97,18 @@ pass.
 7. In odd characteristic compute the quadratic-twist order `q + 1 + t`, its
    known factors and invariant factors. Handle the additional twists at
    exceptional `j` separately.
-8. Audit point, curve, subgroup, output, and cofactor validation using
+8. For any proposed extension-torsion route, compute `t_0 = 2`, `t_1 = t`,
+   and `t_m = t t_(m-1) - q t_(m-2)`, so
+   `N_m = #E(F_(q^m)) = q^m + 1 - t_m`, over a declared bounded range.
+   A prime `ell | N_m` proves the existence of a point of order `ell`; it
+   does not prove that all of `E[ell]` is rational. For
+   `ell != char(F_q)`, full rational `ell`-torsion requires
+   `Frob_q^m` to act as the identity on `E[ell]`; a repeated root of the
+   characteristic polynomial modulo `ell` is insufficient. Treat
+   characteristic-`ell` torsion separately and retain the original order-`r`
+   subgroup under the field embedding rather than substituting newly visible
+   torsion.
+9. Audit point, curve, subgroup, output, and cofactor validation using
    KN-TECH-034 when an implementation or chosen-input protocol is in scope.
 
 ### Follow the formulas beyond the named twist
