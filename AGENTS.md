@@ -34,17 +34,21 @@ independent review and the Bedrock ban still bind.
 
 ## Roles
 
-**Coordinator**: priorities, decomposition, state transitions, synthesis; it
-alone changes the official status of a hypothesis or direction. **Idea
-Generator**: falsifiable mechanisms and experiments. **Executor**: implements
-and runs approved experiments, keeps every artifact, records observations
-only. **Reviewer**: challenges claims, validity and transitions.
-**Validator**: run integrity, controls, stated metrics. **Red Team**: tries
-to falsify interpretation, cost model and scope. **Consolidator**: carries
-pointers between lanes, weighing relevance, never correctness; adjudicates
-nothing. Contracts: `agents/*.md`; authority and tools:
-`orchestration/roles.yaml`; `tools/check_runtime_bindings.py` fails the build
-when a runtime's agent definition drifts from it.
+| role | owns | policy |
+| --- | --- | --- |
+| Coordinator | priorities, decomposition, state transitions, synthesis; alone changes the official status of a hypothesis or direction | `coordinator-orchestration-code` (`coordinator-orchestration` without code) |
+| Idea Generator; research tasks | falsifiable mechanisms and experiments | `research-deep` |
+| Idea Synthesist | cross-goal ideation | `research-synthesis`, `high` |
+| Executor | implements and runs approved experiments, keeps every artifact, records observations only | `executor-implementation`; `executor-mechanical` for judgment-free re-runs |
+| Reviewer | challenges claims, validity and transitions | `review-adversarial`, `xhigh`, independent session |
+| Validator | run integrity, controls, stated metrics | `review-adversarial`, as Reviewer |
+| Red Team | tries to falsify interpretation, cost model and scope | `review-adversarial`, as Reviewer |
+| Consolidator | carries pointers between lanes, weighing relevance, never correctness; adjudicates nothing | `consolidation-routing`, `high`, independent of the lanes it reads |
+
+
+Contracts: `agents/*.md`; authority and tools: `orchestration/roles.yaml`;
+`tools/check_runtime_bindings.py` fails the build when a runtime's agent
+definition drifts from it.
 
 ## Visual research record
 
@@ -76,17 +80,8 @@ proposals prospectively; immutable artifacts stay as written.
 Permissions: the role contract. Inference requirements:
 `orchestration/model-policies.yaml`. Serving model:
 `orchestration/model-bindings.yaml`, resolved by `orchestration/adapter/`.
-None names a vendor (`docs/inference-backends.md`).
-
-| role | policy | note |
-| --- | --- | --- |
-| Coordinator | `coordinator-orchestration-code` (`coordinator-orchestration` without code) | |
-| Idea Generator, research tasks | `research-deep` | |
-| Idea Synthesist (cross-goal ideation) | `research-synthesis` | `high` |
-| Executor | `executor-implementation`; `executor-mechanical` for judgment-free re-runs | |
-| Reviewer, Validator, Red Team | `review-adversarial` | `xhigh`, independent session |
-| Consolidator | `consolidation-routing` | `high`, independent of the lanes it reads |
-| breakthrough, closure, contradiction between validated records | `review-breakthrough` | `max`; **never degradable** |
+None names a vendor (`docs/inference-backends.md`). Each role's policy is in
+"Roles".
 
 Policy ids are permanent; pre-2.0 aliases (`model-policies.yaml`) resolve
 forever; new handoffs use canonical ids. The adapter records requested policy
@@ -98,7 +93,9 @@ is unverified until `python3 -m orchestration.adapter doctor --probe` confirms
 it (`model_verified`). Delivery (`interactive` | `batch` | `auto` with
 `deadline_seconds`) is recorded per manifest and changes nothing else; `auto`
 never batches urgent work; expired or errored batch results are infrastructure
-signal (`docs/batch-inference.md`). Runtimes (Claude Code, OpenAI-protocol CLIs,
+signal. Single-turn prompts batch through `python3 -m orchestration.adapter
+batch …`, with write-once records under `coordination/inference-batches/`
+(`docs/batch-inference.md`). Runtimes (Claude Code, OpenAI-protocol CLIs,
 `api_direct`) are interchangeable over the same role contracts; `api_direct`
 enforces write scope, no-overwrite, command allow-list and budget stops rather
 than requesting them.
@@ -210,8 +207,8 @@ infer it from an id prefix.
 ### Approval is bounded by execution
 
 Additive amendment, 2026-10-07 (`docs/track-record-review-20261006.md` P0.1,
-P0.2, P0.4; operator request `DEC-20261005-138b51` F-1). An open ECC idea is
-designed **when it can be approved**, and approval needs both:
+P0.2, P0.4; operator request `DEC-20261005-138b51` F-1). ECC rule 3 applies
+**once an idea can be approved**, and approval needs both:
 
 - **Capacity.** A goal (else its area) holds at most `APPROVAL_CAPACITY_CAP`
   (three, `tools/portfolio_kpis.py`) approved contracts that never ran.
@@ -227,9 +224,9 @@ An unapprovable idea stays `proposed` and unedited, the reason in the session
 receipt (`tools/session_receipt.py --outcome refused_capacity`) and the goal's
 `next_action`. That is not shelving: it remains ranked work
 (`--open-ideas`) for a session with headroom or the launcher, since designing
-it earlier makes records the harness cannot act on. Unchanged: priority orders
-the queue, designing is not approving, and an approved, unrun contract is
-neither evidence nor a failure of its hypothesis.
+it earlier makes records the harness cannot act on. Unchanged: ECC rules 2 and 3
+hold, and an approved, unrun contract is neither evidence nor a failure of its
+hypothesis.
 
 ## Research direction
 
@@ -404,17 +401,15 @@ cost; they are never evidence.
 ## Knowledge retrieval
 
 `kb/` is a derived, read-only MCP index over the corpus; no agent writes to it.
-Call `search_knowledge` before asserting an avenue was tested or known to
-fail,
-citing a paper or prior experiment, proposing a likely duplicate, or changing
-an authoritative conclusion: start with 4–6 results, use exact identifiers,
-filter by `field_type`/`source_type`, call `get_context` only where it affects
-the conclusion, read `claim_status`, `evidence_level` and `authority`, report
-contradictions rather than pick one, and never treat retrieval score as
-evidence quality. A passage points to a record and is not a citation; a
-remembered paper becomes `kb` or `retrieved` only in a new record naming
-`verified_by`. No result is not evidence of absence. Deduplicate against the
-ledger with the generated `ledger/.index/*.jsonl`
+Call `search_knowledge` before asserting an avenue was tested or known to fail,
+citing a paper or prior experiment, proposing a likely duplicate, or changing an
+authoritative conclusion: start with 4–6 results, use exact identifiers, filter
+by `field_type`/`source_type`, call `get_context` only where it affects the
+conclusion, read `claim_status`, `evidence_level` and `authority`, report
+contradictions rather than pick one, and never treat retrieval score as evidence
+quality. A passage points to a record and is not a citation; a remembered paper
+stays `recalled` until rule 9 is met. No result is not evidence of absence.
+Deduplicate against the ledger with the generated `ledger/.index/*.jsonl`
 (`tools/build_ledger_index.py`), not the corpus.
 
 ## Curve identity and measured bounds
