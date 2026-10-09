@@ -16,7 +16,7 @@ import json
 import os
 import threading
 import weakref
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 import numpy as np
 
@@ -230,6 +230,22 @@ def build_rows(eoff, emon, nv, D, mu, k, W=None, threads=None):
     if rc != 0:
         raise MemoryError("gf2_build_rows failed")
     return M, lead, weight
+
+
+def rows_sum(eoff, emon, nv, D, mu, k, W):
+    """XOR of the Macaulay rows mu[i] * f_{k[i]} (W words), without building
+    them."""
+    mu = np.ascontiguousarray(mu, dtype=np.uint64)
+    k = np.ascontiguousarray(k, dtype=np.int32)
+    lib = _native.load()
+    if lib is None:
+        M, _, _ = build_rows(eoff, emon, nv, D, mu, k, W=W)
+        return np.bitwise_xor.reduce(M, axis=0) if len(M) else np.zeros(W, np.uint64)
+    acc = np.zeros(W, dtype=np.uint64)
+    if _lib_for(len(mu) * 32).gf2_rows_sum(_ptr(eoff), _ptr(emon) if len(emon) else None, nv, D,
+                                           len(mu), _ptr(mu), _ptr(k), W, _ptr(acc)) != 0:
+        raise ValueError("rows_sum: monomial outside the column range")
+    return acc
 
 
 def row_lead_weight(M):
@@ -579,3 +595,38 @@ def map_threads(fn, items, threads=None):
         return [fn(x) for x in items]
     with ThreadPoolExecutor(max_workers=threads) as ex:
         return list(ex.map(_pooled(fn), items))
+
+
+_proc_fn = None
+
+
+def _proc_init():
+    os.environ["CRYPTO_AR_GF2_INNER_THREADS"] = "1"
+
+
+def _proc_call(x):
+    return _proc_fn(x)
+
+
+def map_processes(fn, items, procs=None):
+    """``list(map(fn, items))`` across forked worker processes, order preserved.
+
+    For batches of many small eliminations: the Python glue of one solve and
+    native calls too small to release the GIL serialize a thread pool
+    (``map_threads``), so its 4 workers reached ~2.7x on the RC-1 replay where
+    4 processes reach ~3.4x. ``fn`` may be a closure: workers inherit it, and
+    everything it refers to, through fork. Each worker runs its eliminations
+    single-threaded. Falls back to ``map_threads`` where fork is unavailable
+    or with the reference backend."""
+    import multiprocessing as mp
+    global _proc_fn
+    items = list(items)
+    procs = procs or default_threads()
+    if procs == 1 or len(items) < 2 or backend() != "native" or "fork" not in mp.get_all_start_methods():
+        return map_threads(fn, items, procs)
+    _proc_fn = fn
+    try:
+        with ProcessPoolExecutor(procs, mp_context=mp.get_context("fork"), initializer=_proc_init) as ex:
+            return list(ex.map(_proc_call, items))
+    finally:
+        _proc_fn = None

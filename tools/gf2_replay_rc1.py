@@ -12,7 +12,7 @@ no trial and assigns no RUN id. It is an engine regression and benchmark, not
 evidence about any hypothesis.
 
     python3 tools/gf2_replay_rc1.py [--threads N] [--limit K] [--json OUT]
-                                    [--solver exact|rankprofile]
+                                    [--solver exact|rankprofile] [--pool process|thread]
 
 --solver rankprofile replays every record with
 ``crypto_autoresearcher.gf2.rankprofile`` (macaulay_profile for M_D,
@@ -103,6 +103,8 @@ def main():
     ap.add_argument("--json", help="write the per-record results here")
     ap.add_argument("--solver", choices=("exact", "rankprofile"), default="exact",
                     help="rankprofile: certificates checked by evaluation, not compared")
+    ap.add_argument("--pool", choices=("process", "thread"), default="process",
+                    help="worker pool for the records (process: forked workers, no shared GIL)")
     a = ap.parse_args()
 
     rows = [json.loads(line) for line in gzip.open(RUN / "closures.jsonl.gz", "rt")]
@@ -115,7 +117,8 @@ def main():
     # big jobs first so the pool drains evenly
     jobs.sort(key=lambda j: -(j[0].get("wall_seconds") or 0))
     t0 = time.perf_counter()
-    res = kernels.map_threads(lambda j: run_one(j, eqs, closures, a.solver), jobs, a.threads)
+    pool = kernels.map_processes if a.pool == "process" else kernels.map_threads
+    res = pool(lambda j: run_one(j, eqs, closures, a.solver), jobs, a.threads)
     elapsed = time.perf_counter() - t0
 
     bad = [r for r in res if r["field_diffs"] or r["cert_ok"] is False]
@@ -128,7 +131,8 @@ def main():
         b[0] += 1
         b[1] += r["wall_archived"] or 0
         b[2] += r["wall_new"]
-    print(f"backend: {kernels.backend()}  threads: {a.threads or kernels.default_threads()}  solver: {a.solver}")
+    print(f"backend: {kernels.backend()}  workers: {a.threads or kernels.default_threads()} ({a.pool})"
+          f"  solver: {a.solver}")
     print(f"records: {len(res)}  certificates checked: {ncert}  mismatches: {len(bad)}")
     print(f"{'closure':8} {'n':>4} {'archived s':>11} {'new s':>8} {'speedup':>8}")
     for k in sorted(by):
