@@ -1,0 +1,204 @@
+# =============================================================================
+# DEC-20261009-629a6d -- records the user's ruling of 2026-10-09 ("Extend the
+# test (Recommended)") and specifies a ONE-FILE tooling change to
+# tools/test_run_supersession.py.
+# The committed-registry test then accepts the superseding records that
+# DEC-20261009-ff58fe PROC-DEF1 places at
+# experiments/<EXP>/supersessions/<RUN-ID>/manifest_v2.yaml, with the same
+# bindings the other branches check, plus the record's own reverse binding.
+# The records and the registry stay exactly as committed. The validator is
+# untouched.
+# Performed by TASK-20261009-c2666f, after TASK-20261009-c003de commits this
+# decision and both cards. NA-6 of DEC-20261008-ef482f follows as a separate
+# act.
+# =============================================================================
+coordinator_decision:
+  id: DEC-20261009-629a6d
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check, together with TASK-20261009-c2666f and
+    TASK-20261009-c003de. The Coordinator has no shell and minted no
+    identifier.
+  recorded_at: '2026-10-09'
+  decided_at: '2026-10-09'
+  decided_by: coordinator
+  archived_by: TASK-20261009-c003de
+  goal_id: null
+  batch_id: null
+  question_id: RQ-PFDR-ae2fba
+  hypothesis_id: H-PFDR-2765d2
+  experiment_id: EXP-PFDR-0b3699
+  review_plan_id: null
+  authorised_by:
+    - "The user, 2026-10-09, AskUserQuestion answer, verbatim: \"Extend the test (Recommended)\""
+    - DEC-20261009-ff58fe def1_repair (PROC-DEF1 and PROC-DEF1-C)
+  decision: revise
+  decision_label: user_ruled_extend_test__one_branch_and_helper_in_tools_test_run_supersession_py_for_supersessions_manifest_v2__records_and_registry_unchanged__c003de_then_c2666f__NA6_separate
+  target_ids:
+    - EXP-PFDR-0b3699
+    - H-PFDR-2765d2
+    - RQ-PFDR-ae2fba
+    - DEC-20261009-ff58fe
+    - TASK-20261009-c2666f
+    - TASK-20261009-c003de
+
+  user_ruling:
+    date: '2026-10-09'
+    answer_verbatim: "Extend the test (Recommended)"
+    option_text_verbatim: >-
+      Add one case to tools/test_run_supersession.py accepting
+      experiments/<EXP>/supersessions/<RUN-ID>/manifest_v2.yaml. It checks
+      the run id, both registry hashes, and that the record's own
+      supersession block names the superseded path and hash. One shared test
+      file changes; the records and registry stay as committed. Done as a
+      separate Coordinator-ruled tooling commit with a receipt, like the
+      validator change.
+    scope: exactly one shared file, tools/test_run_supersession.py; no other tools/ file, no registry or record change
+
+  context: >-
+    The line is at 414303194 after 398fce, with 1087 files and verify_archive
+    passing. CI fails on two checks.
+    (1) The ledger job reports the three AMD A-4 DEF-1 lines for the table,
+        calibrate and analysis run roots. These are expected, and PROC-DEF1-C
+        repairs them at NA-6.
+    (2) One harness test fails:
+        tools/test_run_supersession.py::CommittedRegistryTests::test_superseding_record_declares_the_supersession_from_its_own_side.
+        It accepts a superseding record only in the run directory, with a
+        run.supersedes chain, or under experiments/<EXP>/corrections/. The
+        PROC-DEF1 records sit at experiments/EXP-PFDR-0b3699/supersessions/<RUN>/manifest_v2.yaml,
+        outside the run root, by DEC-20261009-ff58fe's ruling, so that no
+        archived checksums.sha256 changes. That location is a fifth
+        vocabulary the test does not yet know. The finding is a gap in the
+        test, not in the records.
+
+  exact_change:
+    file: tools/test_run_supersession.py
+    task: TASK-20261009-c2666f
+    a_helper: >-
+      Insert, immediately after the function _is_experiment_correction (it
+      ends at the line "    )" after `and parts[2] == "corrections"`), one
+      blank-line-separated function:
+        def _is_experiment_supersession(path: Path, repo_root: Path, run_id: str) -> bool:
+            """True for experiments/<EXP>/supersessions/<run_id>/manifest_v2.yaml under repo_root."""
+      It returns True iff path.resolve().relative_to(repo_root).parts has
+      exactly five parts, where:
+      - parts[0] == "experiments";
+      - parts[2] == "supersessions";
+      - parts[3] == run_id;
+      - parts[4] == "manifest_v2.yaml".
+      It returns False if relative_to raises ValueError.
+    b_branch: >-
+      In test_superseding_record_declares_the_supersession_from_its_own_side,
+      insert a new branch immediately after the corrections branch's
+      `continue` and before the line
+      `self.assertEqual(current.parent, run_dir, str(current))`, preceded by
+      a three-line comment naming the "fifth vocabulary: experiment-level
+      supersessions/<RUN-ID>/manifest_v2.yaml (DEC-20261009-ff58fe PROC-DEF1;
+      DEC-20261009-629a6d)". The branch applies when
+      _is_experiment_supersession(current, repo_root, entry["run_id"]) holds.
+      It loads doc = yaml.safe_load(current.read_text(encoding="utf-8")),
+      asserts each of the following with str(current) (or
+      str(registry_original)) as the message, and then `continue`s:
+        (1) current.relative_to(repo_root).parts[1] ==
+            registry_original.relative_to(repo_root).parts[1]
+            (same experiment directory);
+        (2) doc["run"].get("id") == entry["run_id"];
+        (3) sha256_of(current) == entry["superseding_sha256"];
+        (4) sha256_of(registry_original) == entry["superseded_sha256"];
+        (5) declared = doc.get("supersession") or {} and
+            (repo_root / declared.get("supersedes_path", "")).resolve() ==
+            registry_original;
+        (6) declared.get("supersedes_sha256") == entry["superseded_sha256"].
+    must_not_alter:
+      - any existing line of tools/test_run_supersession.py (the diff is insertions only)
+      - every other test, constant, debt set and helper in the file
+      - any other file under tools/ (tools/validate_ledger.py and tools/run_supersession_registry.yaml included), any record, any manifest_v2.yaml
+    why_this_shape: >-
+      The branch checks everything the corrections branch checks (run id,
+      both registry hashes). It adds the record's own reverse binding, which
+      the user's option text names, and confines the location to the exact
+      path shape PROC-DEF1 writes. A record anywhere else still falls through
+      to the existing run-directory assertion and fails as before.
+
+  acceptance:
+    - "BEFORE the change, `pytest tools/test_run_supersession.py -p no:cacheprovider` (PYTHONDONTWRITEBYTECODE=1): exactly the one named test fails, its failure message names a path under experiments/EXP-PFDR-0b3699/supersessions/, and every other test in the file passes. Record the counts."
+    - "AFTER the change: the whole of tools/test_run_supersession.py passes; tests/test_approval_capacity_continuation.py, tests/test_obstruction_and_provenance.py, tests/test_review_independence.py and tests/test_measured_bound.py pass."
+    - "tools/validate_ledger.py output is byte-identical before and after (the validator, records and registry are untouched)."
+    - "git diff shows exactly tools/test_run_supersession.py, with insertions only (0 deleted lines), in two hunks: the helper, and the branch inside the named test."
+    - "Before and after, each of the three committed manifest_v2.yaml files and the registry equal their committed bytes (TS-09; the 70f831 receipt)."
+  prospective_note: >-
+    The PROC-DEF1-C records (table, calibrate, analysis) use the same path
+    shape and the same supersession block (supersedes_path,
+    supersedes_sha256), so they pass this branch without further change.
+    PROC-DEF1-C's card, at NA-6, includes this test in its acceptance.
+
+  order_of_operations:
+    - {step: 1, who: top-level session, what: "Check (j) of this decision (TS-01 to TS-12), read-only, before anything is staged. Any MISS: stop."}
+    - {step: 2, who: top-level session, what: "TASK-20261009-c003de ALONE: guarded merge, (j) re-run if the tree moved, then commit this decision and both cards. Verify, push, refresh PR #2008."}
+    - {step: 3, who: top-level session, what: "TASK-20261009-c2666f ALONE: the test change and its acceptance; commit with receipt. Verify, push."}
+    - {step: 4, who: coordinator, what: "NA-6 of DEC-20261008-ef482f, as a SEPARATE act after c2666f: the validity check of the full package from the 398fce receipt, the PROC-DEF1-C card, then the review_plan written first."}
+  na6_not_folded: >-
+    NA-6 is not folded in. The validity check must read the whole archived
+    continuation package and rule on it with its own reference table, and
+    PROC-DEF1-C's card should cite this branch as already committed.
+
+  procedure_deviations:
+    - id: PD-62-1
+      text: >-
+        A second user-authorised tooling commit rides research PR #2008, as
+        0f4c0a did (PD-ff-1). It is limited to one test file and its
+        acceptance is mechanical.
+
+  official_transitions:
+    experiments: none
+    hypotheses: none
+    evidence: none
+    goal: none
+    knowledge: none
+    handoffs_authorised:
+      - TASK-20261009-c003de (step 2)
+      - TASK-20261009-c2666f (step 3)
+
+  held_for_user:
+    - id: HU-1 to HU-3
+      text: Unchanged and not acted on.
+
+  rationale:
+    - "The records were placed outside the run roots deliberately, to keep every archived checksum exact. The test's location rule predates that choice. Extending it, as the user chose, keeps both the records and the stricter binding."
+  evidence_refs:
+    - tools/test_run_supersession.py (_is_experiment_correction; CommittedRegistryTests)
+    - ledger/decisions/DEC-20261009-ff58fe.yaml (def1_repair)
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261009-70f831/snapshot-receipt.json
+  limitations:
+    - This Coordinator ran no command. The CI result is the top-level session's report. The test is specified here, and the session writes it.
+  next_actions:
+    - {id: NA-1, role: top-level session, text: "Order steps 1 to 3."}
+    - {id: NA-2, role: coordinator, text: "Step 4 (NA-6), on request after c2666f verifies."}
+  knowledge_promotion:
+    promoted: []
+    not_warranted: A tooling-test extension; no evidence.
+  id_accounting:
+    used: [DEC-20261009-629a6d, TASK-20261009-c2666f, TASK-20261009-c003de]
+    reserved_unused: [AMD-20261008-1d902d]
+
+  reference_table:
+    machine_check_format: >-
+      Exactly DEC-20261008-8cb005 reference_table.machine_check_format, which
+      is AMD-20261002-236691 protocol_amendment.machine_check_format as
+      applied in DEC-20261002-e7f8c9.
+    rules:
+      - "Run read-only, writing only to scratch, before anything is staged for c003de, and again in c003de if its merge changes a named file. Any MISS: STOP; the rows return to this Coordinator."
+      - "Rows TS-01 to TS-04 describe tools/test_run_supersession.py BEFORE c2666f; (j) is never run after c2666f."
+    rows:
+      - {ref_id: TS-01, used_by: 'exact_change a_helper (insertion point)', file: tools/test_run_supersession.py, locator: file, check: contains, token: 'def _is_experiment_correction(path: Path, repo_root: Path) -> bool:', expected: true, verified_by_coordinator_reading: true}
+      - {ref_id: TS-02, used_by: 'exact_change b_branch (insertion point, once)', file: tools/test_run_supersession.py, locator: file, check: count_equals, token: 'self.assertEqual(current.parent, run_dir, str(current))', expected: 1, verified_by_coordinator_reading: true}
+      - {ref_id: TS-03, used_by: 'exact_change b_branch (the corrections branch it follows)', file: tools/test_run_supersession.py, locator: file, check: contains, token: '# Fourth vocabulary: experiment-level corrections/ next to runs/.', expected: true, verified_by_coordinator_reading: true}
+      - {ref_id: TS-04, used_by: 'exact_change (helper not yet present)', file: tools/test_run_supersession.py, locator: file, check: count_equals, token: '_is_experiment_supersession', expected: 0, verified_by_coordinator_reading: true}
+      - {ref_id: TS-05, used_by: 'context (registry routes to the supersessions/ path)', file: tools/run_supersession_registry.yaml, locator: file, check: count_equals, token: 'superseding_path: experiments/EXP-PFDR-0b3699/supersessions/RUN-PFDR-0b3699-tests/manifest_v2.yaml', expected: 1, verified_by_coordinator_reading: false}
+      - {ref_id: TS-06, used_by: 'b_branch (5), (6) on the tests record', file: experiments/EXP-PFDR-0b3699/supersessions/RUN-PFDR-0b3699-tests/manifest_v2.yaml, locator: ['yaml:run.id', 'yaml:supersession.supersedes_path', 'yaml:supersession.supersedes_sha256'], check: equals, expected: ['RUN-PFDR-0b3699-tests', 'experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-tests/manifest.yaml', '95ab87d36f7f7abe599a75d5a22233cf84aeea7a9e642a97f8eb94e8bad228c5'], verified_by_coordinator_reading: false}
+      - {ref_id: TS-07, used_by: 'b_branch (5), (6) on the repro record', file: experiments/EXP-PFDR-0b3699/supersessions/RUN-PFDR-0b3699-repro/manifest_v2.yaml, locator: ['yaml:run.id', 'yaml:supersession.supersedes_path', 'yaml:supersession.supersedes_sha256'], check: equals, expected: ['RUN-PFDR-0b3699-repro', 'experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-repro/manifest.yaml', '7531ec39b67d795a26997bfc453fad4d2ca2f6c319c7c90d282d718891f4a621'], verified_by_coordinator_reading: false}
+      - {ref_id: TS-08, used_by: 'b_branch (5), (6) on the p0-design record', file: experiments/EXP-PFDR-0b3699/supersessions/RUN-PFDR-0b3699-p0-design/manifest_v2.yaml, locator: ['yaml:run.id', 'yaml:supersession.supersedes_path', 'yaml:supersession.supersedes_sha256'], check: equals, expected: ['RUN-PFDR-0b3699-p0-design', 'experiments/EXP-PFDR-0b3699/runs/RUN-PFDR-0b3699-p0-design/manifest.yaml', '5ca39f144955fb45c3fb78d7cdeb54db2648e1e1bb5e40f9d93601178f86a228'], verified_by_coordinator_reading: false}
+      - {ref_id: TS-09, used_by: 'acceptance (records unchanged)', file: experiments/EXP-PFDR-0b3699/supersessions/RUN-PFDR-0b3699-tests/manifest_v2.yaml, locator: path, check: sha256_equals, expected: 'ffa5e9fc96cde362ebb78651937e5fd74d5e4d3ae6e4f320cf6a141580d5d860', verified_by_coordinator_reading: false}
+      - {ref_id: TS-10, used_by: 'order step 3', file: ledger/handoffs/TASK-20261009-c2666f.yaml, locator: ['yaml:handoff.id', 'yaml:handoff.ruling_decision', 'yaml:handoff.receipt_path', 'yaml:handoff.budget.maximum_runs'], check: equals, expected: ['TASK-20261009-c2666f', 'DEC-20261009-629a6d', 'coordination/design/TASK-20260928-102217/archives/TASK-20261009-c2666f/snapshot-receipt.json', 0], verified_by_coordinator_reading: false}
+      - {ref_id: TS-11, used_by: 'order step 2', file: ledger/handoffs/TASK-20261009-c003de.yaml, locator: ['yaml:handoff.id', 'yaml:handoff.archive_kind', 'yaml:handoff.ruling_decision', 'yaml:handoff.receipt_path'], check: equals, expected: ['TASK-20261009-c003de', 'ledger', 'DEC-20261009-629a6d', 'coordination/design/TASK-20260928-102217/archives/TASK-20261009-c003de/ledger-receipt.json'], verified_by_coordinator_reading: false}
+      - {ref_id: TS-12, used_by: 'context (the location was ruled)', file: ledger/decisions/DEC-20261009-ff58fe.yaml, locator: 'yaml:coordinator_decision.def1_repair.where_records_live', check: contains, token: 'experiments/EXP-PFDR-0b3699/supersessions/<RUN-ID>/manifest_v2.yaml', expected: true, verified_by_coordinator_reading: true}
