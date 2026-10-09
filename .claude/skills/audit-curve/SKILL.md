@@ -61,6 +61,21 @@ point count is `INDETERMINATE`, never a passing check.
 4. Compute `t = q + 1 - N`, the Frobenius polynomial
    `X^2 - tX + q`, `Delta_pi = t^2 - 4q`, ordinary or supersingular status,
    and the rational group invariant factors.
+
+For an ordinary curve, factor
+`Delta_pi = f_pi^2 D_K` with `D_K` fundamental and retain the
+factorization, primality, and fundamental-discriminant certificates. Record
+
+`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`,
+
+so `f_E | f_pi`, the representative order has discriminant
+`D_E = f_E^2 D_K`, and
+`g_(pi,E) = [End(E):Z[pi]] = f_pi/f_E`. Determine `f_E` from an
+endomorphism-ring basis or an independently checkable equivalent certificate;
+never copy `f_pi` into `f_E`. If that certificate is absent, report `f_E`,
+`D_E`, and `g_(pi,E)` as `INDETERMINATE`. Retain the complete known
+factorizations and every local valuation of `f_pi` and `f_E`.
+
 5. For odd `q`, compute the quadratic-twist order `q + 1 + t`, its known
    factorization, subgroup sizes, and invariant factors. Treat other twists
    separately at exceptional `j`-invariants.
@@ -122,6 +137,8 @@ are equal. Consequently these checks are class-wide for a fixed `r`:
 - quadratic-twist order in odd characteristic;
 - the rational endomorphism algebra, though not necessarily the integral
   endomorphism ring.
+- the CM field, fundamental discriminant `D_K`, and Frobenius-order
+  conductor `f_pi`;
 
 For composite `r`, the divisibility `r | N` and numerical cofactor `N/r` are
 invariant, but existence of a cyclic point of exact order `r` can vary with
@@ -137,6 +154,25 @@ and formula behavior, descent-friendly representation, and explicit path
 cost. A small coefficient, special model, short isogeny, small discriminant,
 or unusual `j`-invariant is only a lead until tied to an attack.
 
+The conductor `f_E` of the actual endomorphism ring is
+representative-dependent. For a separable `ell`-isogeny with
+`ell != char(F_q)`, classify the edge from certified endpoint valuations:
+
+- horizontal: `v_ell(f_E') = v_ell(f_E)`;
+- ascending: `v_ell(f_E') = v_ell(f_E) - 1`;
+- descending: `v_ell(f_E') = v_ell(f_E) + 1`.
+
+The total `ell`-volcano depth is `v_ell(f_pi)`, while the source level is
+`v_ell(f_E)`. A modular-polynomial root count, graph distance, or square
+factor of `Delta_pi` is diagnostic evidence, not an endpoint
+endomorphism-ring certificate. If `f_pi = 1`, then `f_E = 1` throughout the
+class and no separable conductor-changing edge exists.
+
+Characteristic-power Frobenius requires a separate record. In particular,
+Koblitz `tau` has degree two and is inseparable; record its explicit map,
+order relation, subgroup eigenvalue, action order, and evaluation cost, but
+do not label it a horizontal degree-two volcano edge.
+
 ## 3. Verify every claimed isogeny transfer
 
 For each path from source `E` to candidate `E'`, retain the ordered endpoint
@@ -148,6 +184,11 @@ and independent checks such as the dual composition. Measure separately:
 - mapping the input points;
 - destination attack work;
 - reusable offline work versus per-instance online work.
+- the certified `f_E` and order discriminant at every endpoint;
+- each edge's separability and horizontal, ascending, descending, or
+  unresolved direction;
+- the conductor-changing degree obligation independently of horizontal
+  navigation.
 
 For a target subgroup of order `r`, `gcd(deg(phi), r) = 1` is a sufficient
 condition that `phi` is injective on the subgroup. Otherwise compute the
@@ -155,6 +196,15 @@ order of `phi(P)` explicitly. An abstract existence theorem or matching point
 count is not an operational transfer attack. If the path is supplied as
 private advice, `SOURCE_TRANSFER_WEAK` applies only to the advice holder; do
 not assign zero discovery cost to a public attacker.
+
+For endpoints with certified conductors `f_1` and `f_2`, record
+
+`N_vertical = lcm(f_1, f_2) / gcd(f_1, f_2)
+            = product_ell ell^abs(v_ell(f_1)-v_ell(f_2))`
+
+as the necessary conductor-changing degree factor. It is not the total path
+degree, a construction algorithm, or a runtime estimate; horizontal
+navigation and map construction remain separately charged.
 
 ## 4. Build one attack ledger
 
@@ -187,6 +237,16 @@ Include `E` itself as the identity-path candidate with zero transfer cost.
 Report `log2(C*)` only after the sum is formed. Include memory, data, success
 probability, timeouts, preprocessing amortization, and uncertainty. A curve is
 weak only relative to the frozen threshold and threat model.
+
+Do not convert `f_pi`, `f_E`, `g_(pi,E)`, their largest prime factors, or a
+volcano depth directly into ECDLP bits. A conductor-related advantage enters
+the ledger only through either:
+
+- an explicit endomorphism with certified degree, formula, subgroup
+  eigenvalue, usable action order and orbit structure, evaluation and
+  canonicalization cost; or
+- an explicit transfer path whose discovery, construction, evaluation,
+  destination attack, recovery, and verification costs are all charged.
 
 ## 5. Treat statistics as coverage evidence
 
