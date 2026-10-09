@@ -51,3 +51,14 @@ what they are for (AGENTS.md rule 9).
   exercised on these records until a slot opens or a contract is retired.
 - No scientific claim: 13 records exceed the 8 KiB proposal advisory cap
   because the source's own experiment text is long; the cap is advisory.
+
+## Correction (2026-10-09, design session)
+
+`IDEA-20261009-64a1c0` (SNFS-G2) was first filed with the identity
+k(l) = ord_l(2)/gcd(ord_l(2), c), which is false: p = 2^c − 1 is not 2^c
+modulo l. The identity control in the smoke test of `EXP-ECDLP-8cc60d`
+caught it (12 of 16 toy rows violated it). The record now states the four
+exact conditions (k = 1 iff ord_l(2) | c − 1; k = 2 impossible; k = 3 iff
+l | Φ_6(2^c); k = 4 iff l | 2^{2c−1} − 2^c + 1), verified on every row of the
+corrected smoke test. Edited in place because the record had never reached
+`main`; `H-ECDLP-281dd6` records the correction.
