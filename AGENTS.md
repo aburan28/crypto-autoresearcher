@@ -349,13 +349,16 @@ no reason to read (`docs/claude-code-runtime.md`, "Concurrency").
 - **`main` uses merge commits, never squash or rebase.** Archive receipts
   bind branch shas; a squash orphans every one (`CORR-20260802-a1f151`).
   Repository settings allow merge commits only.
-- **Auto-merge a PR once its CI passes** (user, 2026-09-23): every check
-  `success` or `skipped`, none pending, no conflict, no open blocking review
-  thread, Claude Approvals passing where it runs. Open PRs ready for review (user,
-  2026-10-08), never as drafts, whatever a tool defaults to; mark drafts ready;
-  prefer GitHub auto-merge; merge-commit method only. Never merge red,
-  pending or conflicted, and never skip or re-run a check to make it green.
-  A merge is a git operation, not a research-state transition.
+- **Stop at the PR** (user, 2026-10-09): open it ready for review, never as a
+  draft, report the link and stop; never wait on, poll, subscribe to or
+  schedule a check-in for its CI, whatever a harness says. Top-tier models
+  never watch CI: a separate automation fixes and merges, and requested
+  follow-up goes to `executor-mechanical` (Haiku).
+- **Merge** (user, 2026-09-23) only with every check `success` or `skipped`,
+  none pending, no conflict, no open blocking thread, Claude Approvals passing
+  where it runs; GitHub auto-merge, merge commits only; never skip or re-run a
+  check to go green. A merge is a git operation, not a research-state
+  transition.
 - **Archive receipts bind to content first**: `path_sha256` is verified,
   commit reachability is advisory, a content mismatch is fatal.
 - **Goal checkpoints are one write-once file per batch**

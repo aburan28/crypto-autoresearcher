@@ -4,9 +4,9 @@ Read **[AGENTS.md](AGENTS.md)**. It is the one normative contract for every
 runtime, Claude Code included: budgets are advisory, `run` is the only
 execution skill, only the Coordinator changes research state, records are
 immutable, "ECC comes first", "Goals are never paused", "Approval is bounded
-by execution", and `main` takes merge commits only. One file rather than two,
-because two copies of a rule become two different rules; the earlier long
-form of this file is kept, unchanged, at
+by execution", "Stop at the PR", and `main` takes merge commits only. One
+file rather than two, because two copies of a rule become two different
+rules; the earlier long form of this file is kept, unchanged, at
 [`docs/claude-code-runtime.md`](docs/claude-code-runtime.md).
 
 ## What is Claude Code specific
