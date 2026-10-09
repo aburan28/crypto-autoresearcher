@@ -8,7 +8,10 @@ description: >-
   discriminating tests, and falsification criteria. Never assigns work or
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
-model: inherit
+model: claude-sonnet-5-5
+# Pinned, not inherited: roles.yaml runtime_model_pins -> idea-generator
+# -> model-bindings.yaml anthropic binding of research-deep. Edit the binding, never
+# this line; tools/check_runtime_bindings.py fails the build when they disagree.
 # Derived from roles.yaml -> default_policy: research-deep -> reasoning_effort.
 # Mechanism search over a large literature spine: depth is the product here, not
 # an overhead on it. Change the policy, not this line.
