@@ -70,11 +70,26 @@ class_invariants:
   t: null
   frobenius_polynomial: null
   delta_pi: null
+  fundamental_discriminant_D_K: null
+  frobenius_order_conductor_f_pi: null
+  frobenius_order_conductor_factorization: null
   extension_orders_checked: []
   anomalous: null
   supersingular: null
   embedding_degrees: []
   quadratic_twist_order: null
+
+representative_structure:
+  endomorphism_order_discriminant_D_E: null
+  endomorphism_order_conductor_f_E: null
+  endomorphism_order_conductor_factorization: null
+  conductor_gap_index_g_pi_E: null
+  conductor_gap_factorization: null
+  endomorphism_order_basis_or_certificate: null
+  endomorphism_order_status: INDETERMINATE
+  volcano_levels: []
+  inseparable_endomorphisms: []
+  explicit_endomorphism_actions: []
 
 attack_ledger:
   - attack: null
@@ -142,3 +157,11 @@ degrees, map or kernel artifact hashes, field of definition, path-discovery
 cost, construction cost, evaluation cost, and proof that the target subgroup
 survives. For each certificate include its format, producer, independent
 verification command, hash, and verification result.
+
+For each volcano-level record include `ell`, `v_ell(f_pi)`,
+`v_ell(f_E)`, the evidence for both valuations, and whether the level is
+certified or unresolved. For each isogeny edge include separability, field of
+definition, source and destination `f_E`, and direction
+`horizontal | ascending | descending | unresolved`. For certified path
+endpoints also include `N_vertical`; do not substitute it for total path
+degree or measured cost.
