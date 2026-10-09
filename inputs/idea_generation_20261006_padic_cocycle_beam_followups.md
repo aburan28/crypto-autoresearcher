@@ -7,7 +7,7 @@
 - Exclusions: no Pollard-rho collision walk and no index-calculus relation collection.
 - Evidence tier: deterministic toy experiments, external to this repository's contract and run-receipt system.
 - Canonical status: none. This file allocates no IDEA, hypothesis, experiment, evidence, or decision identifier and changes no official research state.
-- Bottom line: five earlier frozen successors failed their gates, then forty-six structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, and scaling measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. Fingerprint widening through six bits repeatedly cut validation and operation work. A joint sentinel/stream-offset construction carried one more bit in the stored label rank without changing the six-bit table layout or reads, but missed three held-out gates. Using the label field's full unused mixed radix then passed both held-out and larger-curve scaling protocols while retaining the same square-root decoder.
+- Bottom line: five earlier frozen successors failed their gates, then fifty-four structured addition, collision-sketch, validation-cost, representative-table, state-reuse, data-flow, robustness, scaling, representation, and timing measurements continued the path. Denominator clearing exposed an exact constructible rank-four numerator; a quotient/remainder rectangle represents the complete quadratic-character orbit with two singular corrections. Target translation recovers every toy log through a labelled square-root point collision, explicitly identifying the resulting decoder as signed, shifted baby-step/giant-step rather than a new method. Later first-success stopping, compact minimum-ticket representatives, and final-state fingerprints substantially reduced repeated toy construction/query or validation work, but remained square-root collision-table time-memory variants rather than establishing a new exponent. A larger-order run retained recovery and normalized reads but failed its absolute-validation gate; a sealed nine-curve decomposition measured validation slopes near 0.46. Fingerprint widening through six bits repeatedly cut validation and operation work. A joint sentinel/stream-offset construction carried one more bit in the stored label rank without changing the six-bit table layout or reads, but missed three held-out gates. Using the label field's full unused mixed radix then passed both held-out and larger-curve scaling protocols. Replacing SplitMix64 with a coordinate residue preserved every logical outcome and produced a replicating 1.065--1.066x reduced end-to-end Python speed ratio. Power-of-two masking preserved the full protocol, but per-call mask derivation was slower; precomputation restored a kernel-only gain that did not replicate end to end. Every result remains within the same square-root decoder.
 - Import rule: treat these measurements as deduplication, control, and stop-rule priors until reproduced under a frozen repository experiment.
 
 The originating code and JSON remain in a separate local repository. Reported provenance locators are:
@@ -233,9 +233,42 @@ The originating code and JSON remain in a separate local repository. Reported pr
 | `mixed_radix_scaling_transfer_lab.py` | `182eee9b63c985bb6a1946ed01cf4278b3a0306e9e8da07c725d927ffbbb813a` |
 | `tests/test_mixed_radix_scaling_transfer_lab.py` | `d904ec8818a7661588b9f558775ea9a3eaf66a3884ba0be6e17958d5f2c14522` |
 | `results/mixed-radix-scaling-transfer.json` | `35ced86ff6f140970fd0a82f801ca5841c02fc61cb8278f4e454384a8119e08b` |
-| coordinate-residue label-tag freeze commit | `161b905` |
+| coordinate-residue label-tag freeze/implementation/result commits | `161b905`, `db83384`, `4d6f1c1` |
+| `coordinate_residue_label_tag_lab.py` | `bf25231ba679b48cba48750e974e9f930116c19290559acafe833a0a5f50aa92` |
+| `tests/test_coordinate_residue_label_tag_lab.py` | `1f6c954fb6838e9fd919f4558047d501596166a20fe00c5203942cd1a46d77e3` |
+| `results/coordinate-residue-label-tag.json` | `d490c8f13d71230a4c4a8786c8182be1760894989c90157c76a259db12715ac1` |
+| paired tag-kernel freeze/implementation/result commits | `4d6f1c1`, `2607853`, `9dac214` |
+| `paired_tag_kernel_benchmark.py` | `8db72b5308153f70af4fd26205c0c5b67818f7887ea705f6604919fd24905b17` |
+| `tests/test_paired_tag_kernel_benchmark.py` | `79f80302f5890dd0920c3d727097f27baebfb17cc812871f25600785ca4303a1` |
+| H61 run-one / run-two payloads | `a1c94f51a534b436be821206c5bc493aa63fee23d7253610ed422768d8fe05dc`, `52cc7735fad84e86b8bc0c4439f822ab5ea6fba630ebaa5f9a10871df6be981e` |
+| paired reduced decoder freeze/implementation/result commits | `9dac214`, `147b911`, `76b773a` |
+| `paired_end_to_end_tag_benchmark.py` | `d1cfe924e88e0d90826130a0d263c0196878f7a7a47817eb3336302317eec929` |
+| `tests/test_paired_end_to_end_tag_benchmark.py` | `44847778327acb63914d617ad4f3d5de3f00695123bdc5eef13544b1f3b35cb4` |
+| H62 run-one / run-two payloads | `358e3c11255cc206aefb4f094c1e3991304d9460c753e1d61890c8e0c692d323`, `16698c45d46572fa2564fa02e7a3f735f8916fe83fc99e562aaae826b2d16a76` |
+| power-of-two tag freeze/implementation/result commits | `76b773a`, `28aaa3c`, `67014eb` |
+| `power_of_two_coordinate_tag_lab.py` | `50ed816cab3deed345cbe43be30f668741578e8ae09acc3cbcfd6eadcc85e6a2` |
+| `tests/test_power_of_two_coordinate_tag_lab.py` | `482870cd98fd0a1a80820db496469cd950bb13cc2c7dee9901a7bd9da587f471` |
+| H63 byte-identical payloads | `1d5bc2569399c9114d9adc13f08150db61894803a58bb57ce55a299f3da7e8f3` |
+| paired coordinate-kernel freeze/implementation/result commits | `67014eb`, `32461cb`, `1aadb6e` |
+| `paired_coordinate_tag_kernel_benchmark.py` | `abefcb21be0e0ba2c102ac38a5b749e4f5cb7a2b4ee369e8ee89753e91d0b709` |
+| `tests/test_paired_coordinate_tag_kernel_benchmark.py` | `da55191bda810466b546a3dd705fa4eeb8288915e6d19d14526135c00e7cedcb` |
+| H64 run-one / run-two payloads | `81ef01a3a8776622cbacd402911873ad447e554166e8630ce2654ff83adaab73`, `1bd0d0f44ec7d88e34217c34eec2edb66b86bf62ae1317da7e7c74f7a71d86df` |
+| precomputed-mask kernel freeze/implementation/result commits | `1aadb6e`, `8a08526`, `1188429` |
+| `precomputed_mask_kernel_benchmark.py` | `53483d12cdcc4241d6eba314a54f13cb4f6add12a8a7461d8575f55744588727` |
+| `tests/test_precomputed_mask_kernel_benchmark.py` | `59ad0a7eeab42de92756028f2db8b40e371f0278ef7b6386d4ddbb10b9fc4aa7` |
+| H65 run-one / run-two payloads | `9c1069e14885320f20a674bdd493727362efa80f29b8629e983f59cf9af7b617`, `75b5b1d495026b8a812ae84ea5b6cef2ac89b79db0633c3d3c2d13e2e9103dad` |
+| precomputed decoder freeze/implementation/fix/result commits | `1188429`, `c39da50`, `228f9ab`, `b35feb6` |
+| `precomputed_mask_decoder_lab.py` | `c9a9e4e64a24baec301c24eedb5d8118c16d74f97d0cc2048b495675a701d3a8` |
+| `tests/test_precomputed_mask_decoder_lab.py` | `e87f9610dd48daeb0dc1abdb235832d3c47f7cf6afef4677ed05fecd2d3c005e` |
+| H66 in-memory-key failure payload | `717027a3e960348d7271a623083a0b1056456f7dd2e3192575eb90607d606d7d` |
+| H66 byte-identical corrected payloads | `ae09dc81c5c0aefd251056b15817af321a2d172a6e35058528c912205e062731` |
+| paired precomputed decoder freeze/implementation/result commits | `b35feb6`, `dc571d6`, `e493379` |
+| `paired_precomputed_mask_decoder_benchmark.py` | `fbaaf5808dca055ee8e839d7fe08b8644141e660d90db4031febd2e9e43f4fd8` |
+| `tests/test_paired_precomputed_mask_decoder_benchmark.py` | `c8957849eb9155dd32105849647e4e3d166374dd3ae05e1f775bdd74c3f95060` |
+| H67 run-one / run-two payloads | `59eea00216e7efba8b944d8017897db1f39e64146677b704b97b04bc567a604c`, `71b1b798b8c6bfa7f42c389a6405142e835ad1862401bc963f57411064229f47` |
+| shifted-window selection freeze commit | `e493379` |
 
-All fifty-two result payloads omit timing fields and reproduced byte-for-byte. The expanded external suite passed 217/217 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
+The external packet now indexes sixty-eight result payloads. The earlier fifty-two payloads and deterministic H60/H63/H66 replays reproduced byte-for-byte; the ten H61/H62/H64/H65/H67 timing payloads intentionally retain independent raw observations instead. The expanded external suite passed 236/236 tests. These are provenance statements, not repository run receipts. The sacrificial-occupancy invalid-control payload is intentionally retained: its duplicated second-control seed made the frozen reproduction gate fail before the corrected full rerun. The H66 in-memory-key comparison failure is likewise retained even though both canonical summary digests matched and the corrected gate passed. One interrupted H47 rerun attempt produced no payload; both completed H47 runs were byte-identical.
 
 ## H9 — p-adic section-defect cocycle cancellation
 
@@ -894,14 +927,66 @@ prefix-1/prefix-2 recovery and exact H52 reads. Validations were 4,606--4,700,
 at most 0.3395% for any curve/salt. This finite scaling result is not an
 asymptotic proof or a new ECDLP method.
 
+## H60--H62 — coordinate residue and paired timing
+
+H60 replaced H58's SplitMix64 tag with `x mod tag_states` while preserving the
+same rank encoding and table layout. Every frozen gate passed twice with
+byte-identical output. All 56 recovery cells, eight completion budgets, and
+eight completed-stop read totals exactly matched H58. Validations were
+4,606--4,688, or 99.53%--100.60% of H58, and the maximum curve/salt false-tag
+rate was 4.984% under its frozen 5% boundary.
+
+H61 isolated the exact Python tag functions on a 262,144-row trace. Coordinate
+residue won all 62 measured blocks across two runs; median SplitMix/residue
+ratios were 3.6724 and 3.7461. H62 then timed a reduced V16K decoder workload.
+All 64 invocations produced the same logical certificate. Residue won 14/15
+and 15/15 blocks, with median ratios 1.0664 and 1.0653, despite charging
+slightly more validations and group operations. This is a replicating Python
+constant-factor result for the reduced workload, not an algorithmic exponent.
+
+## H63--H65 — power-of-two tags and precomputation boundary
+
+H63 retained H60's encoding radix but restricted actual tags to the largest
+power-of-two subset and used low coordinate bits. Both full outputs were
+byte-identical and passed every gate: all recovery, completion, read, and
+layout comparisons matched H60. Effective state fractions were 0.510--0.727;
+validation and operation ratios stayed within about 1.1% of H60, and the
+maximum curve/salt false-pass rate was 3.475%.
+
+H64 rejected the exact per-call implementation speed hypothesis. Computing
+the effective mask on every call made bit masking slower than modulo: median
+modulo/bitmask ratios were 0.8272 and 0.8236, with only 2/31 and 0/31 bitmask
+wins. H65 moved mask derivation outside the hot path. It passed both kernel
+runs with median modulo/mask ratios 1.0953 and 1.1055 and 29/31 and 27/31
+mask wins. This cleanly separates the positive precomputed kernel from H64's
+negative per-call representation.
+
+## H66--H67 — integrated mask and end-to-end negative
+
+H66 integrated one curve-precomputed mask through a curve-local public tag
+function. The first full payload is retained because an in-memory comparison
+treated integer aggregate keys as different from identical JSON string keys;
+the canonical curve and mechanism hashes already matched. A sealed correction
+compared canonical JSON structures. Both corrected payloads were byte-identical
+and passed every gate, with complete curve and mechanism summaries exactly
+equal to H63 and all 24 mask certificates passing.
+
+H67 timed H60 modulo against the integrated precomputed mask on a reduced
+V16K workload. Correctness passed and every invocation emitted the same
+certificate. The mask arm charged fewer validations (2,586 versus 2,674) and
+group operations (44,522 versus 46,179), but the timing claim failed to
+replicate: run one had median/trimmed ratios 0.9902/0.9919 and 8/21 mask wins;
+run two had 1.0158/0.9979 and 13/21 wins. The precomputed kernel gain therefore
+does not support an end-to-end speedup claim on this workload.
+
 ## Remaining preregistered cards, not results
 
 The active continuation has one next proposal. It has no result and is not a canonical candidate:
 
-- a mixer-free coordinate-residue mixed-radix tag on H58's held-out workload,
-  retaining the exact encoding and layout but replacing SplitMix64 with
-  `x mod tag_states`. It tests whether filtering remains within 110% of H58
-  validation and operation work before any wall-clock claim (H60, frozen in
-  `161b905`).
+- select a contiguous power-of-two coordinate-bit window per curve using
+  salts 0--3 only, freeze the selected shift, and compare it with the low-bit
+  control on held-out salts 4--7. Recovery, completion, reads, and layout must
+  remain exact; held-out false passes must fall by at least 5% without raising
+  validation or group-operation totals (H68, frozen in `e493379`).
 
 They are included here only to prevent parameter-tuning regressions and to identify possible future mechanism gates. Nothing in this packet is a breakthrough or promotion.

@@ -97,7 +97,18 @@ pass.
 7. In odd characteristic compute the quadratic-twist order `q + 1 + t`, its
    known factors and invariant factors. Handle the additional twists at
    exceptional `j` separately.
-8. Audit point, curve, subgroup, output, and cofactor validation using
+8. For any proposed extension-torsion route, compute `t_0 = 2`, `t_1 = t`,
+   and `t_m = t t_(m-1) - q t_(m-2)`, so
+   `N_m = #E(F_(q^m)) = q^m + 1 - t_m`, over a declared bounded range.
+   A prime `ell | N_m` proves the existence of a point of order `ell`; it
+   does not prove that all of `E[ell]` is rational. For
+   `ell != char(F_q)`, full rational `ell`-torsion requires
+   `Frob_q^m` to act as the identity on `E[ell]`; a repeated root of the
+   characteristic polynomial modulo `ell` is insufficient. Treat
+   characteristic-`ell` torsion separately and retain the original order-`r`
+   subgroup under the field embedding rather than substituting newly visible
+   torsion.
+9. Audit point, curve, subgroup, output, and cofactor validation using
    KN-TECH-034 when an implementation or chosen-input protocol is in scope.
 
 ### Follow the formulas beyond the named twist
@@ -172,6 +183,74 @@ endomorphism formulas, descent behavior, and cost of reaching a representative
 can vary. These are the proper per-vertex audit targets. Small coefficients,
 a special model, low-degree edges, a small discriminant, or unusual `j` are
 signals to investigate, not weakness predicates.
+
+## Conductor and volcano accounting
+
+For an ordinary curve let
+
+`Delta_pi = t^2 - 4q = f_pi^2 D_K`
+
+with `D_K` fundamental. The relevant order chain is
+
+`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`,
+`f_E | f_pi`.
+
+These numbers answer different questions:
+
+- `f_pi` is fixed by `(q,t)` and gives the total possible volcano depth;
+- `f_E` is the named representative's level;
+- `g_(pi,E) = f_pi/f_E` is the index
+  `[End(E):Z[pi]]` and measures extra integral endomorphism structure
+  present at that representative.
+
+A certificate for `f_pi` does not establish `f_E`. Record the endomorphism
+order basis or equivalent certificate, `D_E = f_E^2 D_K`, complete known
+factorizations, `v_ell(f_pi)`, `v_ell(f_E)`, largest prime factors,
+smooth parts, and unresolved cofactors separately.
+
+For a separable `ell`-isogeny with `ell != char(F_q)`, equality of endpoint
+`v_ell(f_E)` is horizontal, a decrease by one is ascending, and an increase
+by one is descending. The necessary vertical degree factor between certified
+endpoint conductors `f_1,f_2` is
+`lcm(f_1,f_2)/gcd(f_1,f_2)`; this is neither a complete path nor its cost.
+Characteristic-power Frobenius is outside this classification. Koblitz
+`tau` is an inseparable degree-two endomorphism, not a separable horizontal
+two-isogeny.
+
+Useful structural metrics are
+`log2(f_pi)`, `log2(f_E)`, `log2(g_(pi,E))`, their valuation vectors and
+largest prime factors, `h(D_E)`, the generated horizontal class-group
+subgroup, and the necessary vertical degree factor. None is an ECDLP
+hardness estimate by itself. For an explicit action also measure its norm or
+degree, formula size, evaluation cost, subgroup eigenvalue, usable action
+order, orbit-size distribution, canonicalization cost, and the resulting
+end-to-end attack ratio. A large gap without such an action is a lead; a
+large prime in `f_E` without a constructed route is a possible navigation
+gate, not a hardness lower bound.
+
+### Current NIST-family evidence boundary
+
+The checked artifact
+`research/endosweep_nist_20261006/nist.json` uses `exact.f` for `f_pi`;
+it does not generally certify the representative conductor `f_E`.
+
+- For P-192, P-256, P-384, and P-521 it certifies `f_pi = 1`, which forces
+  `f_E = 1`. It certifies `f_pi = 3` for P-224, but the current artifact does
+  not certify whether the named curve has `f_E = 1` or `f_E = 3`; retain that
+  value as unresolved until an independent endomorphism-ring or directed-edge
+  certificate is archived.
+- For B-163, B-233, B-283, and B-409 it certifies `f_pi = 1`, hence
+  `f_E = 1`. B-571 retains a 130-digit composite cofactor, so its exact
+  `D_K`, `f_pi`, and vertical depth are unresolved in this artifact.
+- For the five NIST Koblitz curves it derives `D_K = -7` and a large
+  `f_pi`. The explicit `tau` map gives `Z[tau] = O_K` and hence `f_E = 1`
+  when its curve-definition and order-relation certificate passes. Thus the
+  large value `g_(pi,E) = f_pi` records known extra endomorphism structure;
+  it is not a vertical distance of the named curve and does not imply a
+  square-root-in-`g_(pi,E)` ECDLP speedup.
+
+These rows are evidence pointers, not replacements for the per-audit
+certificates.
 
 ## Do not overstate isogeny hardness equivalence
 

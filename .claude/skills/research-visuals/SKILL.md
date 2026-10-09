@@ -26,7 +26,12 @@ a task's write scope before work is dispatched.
    rendering such as SVG, plus a quantitative graph when there are data to
    compare. Label isogeny vertices by full curve identity,
    their edges by degree/direction, and unknown or conjectural edges as
-   such. Quantitative plots need units, sample sizes, uncertainty, and cited
+   such. For an ordinary volcano diagram, label every vertex with
+   `(D_K, f_pi, f_E)`, using `null` when `f_E` is not certified, and label
+   every edge with degree, separability, field of definition, and
+   `horizontal | ascending | descending | unresolved`. Draw
+   characteristic-power Frobenius or Koblitz `tau` as an endomorphism action,
+   not as a separable volcano edge. Quantitative plots need units, sample sizes, uncertainty, and cited
    run IDs. Link the visual and its supporting records from the report.
 3. Produce a PDF of the report with the visual included, using an available
    document tool such as Pandoc, Typst, or LaTeX. Keep source and PDF together
