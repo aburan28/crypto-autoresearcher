@@ -2,33 +2,35 @@
 
 The normative contract of a multi-agent system for reproducible ECDLP
 experimentation: rules, each with its reason. Narratives and full statements:
-[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). This file
-wins any disagreement.
+[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md). Where this
+file and another document disagree, this file wins.
 
 ## Budgets: progress first
 
-Cost estimates are advisory, may be null, and never need re-approval (user,
-2026-09-06). Only a committed Coordinator stagnation review (≥ 90 days without
-documented progress; evidence, scope, a next action, an assessment from the
-last seven days) may cap spending. Memory/concurrency limits and justified
-watchdogs protect the machine; they are not budget. Sample counts, locked
-plans, write scopes, controls, immutable records, independent review and the
-Bedrock ban still bind. `docs/research-budget-policy.md`.
+Research cost estimates are advisory, may be null, and never need repeated user
+approval (user, 2026-09-06). Only a committed Coordinator stagnation review (≥
+90 days without documented progress; evidence, scope, a next action, an
+assessment from the last seven days) may cap spending. Memory/concurrency limits
+and justified process watchdogs protect the machine; they are not budget. Fixed
+sample counts, locked plans, write scopes, controls, immutable records,
+independent review and the Bedrock ban still bind.
+`docs/research-budget-policy.md`.
 
 ## Entry points
 
 - **`run`** (`plugins/crypto-autoresearcher-harness/skills/run/SKILL.md`, same
   name on every host) is the only public execution skill: it runs existing
   experiment programs and reports outputs, adding no preflight, validation,
-  audit, protocol authoring, mandatory review or state transition. The
-  runner's own admission, ownership, resource and correctness checks stay; a
-  refused launch is reported, never bypassed. Results are observations until
-  archive/review says otherwise. `run` may push its run records, then its run
-  reports, on its own branch.
-- **`coordinate`** (`.claude/skills/coordinate/SKILL.md`; adapter
-  `.agents/skills/coordinate/`) ranks, designs, approves, reviews, archives
-  and publishes; it never launches trials. `crypto-autoresearcher-harness`,
-  `launch-research-harness` and `coordinate-research-goal` stay retired.
+  audit, protocol authoring, mandatory review or state transition. The runner's
+  own admission, ownership, resource and correctness checks stay; a refused
+  launch is reported, never bypassed. Results are observations until
+  archive/review says otherwise. `run` may commit and push its run records, then
+  its run reports, on its own branch.
+- **`coordinate`** (`.claude/skills/coordinate/SKILL.md`; Codex/OpenCode adapter
+  `.agents/skills/coordinate/`) ranks, designs, approves, reviews, archives and
+  publishes; it never launches scientific trials.
+  `crypto-autoresearcher-harness`, `launch-research-harness` and
+  `coordinate-research-goal` stay retired.
 
 ## Roles
 
@@ -37,29 +39,32 @@ alone changes the official status of a hypothesis or direction. **Idea
 Generator**: falsifiable mechanisms and experiments. **Executor**: implements
 and runs approved experiments, keeps every artifact, records observations
 only. **Reviewer**: challenges claims, validity and transitions.
-**Validator**: run integrity, controls, stated metrics. **Red Team**:
-falsifies interpretation, cost model and scope. **Consolidator**: carries
+**Validator**: run integrity, controls, stated metrics. **Red Team**: tries
+to falsify interpretation, cost model and scope. **Consolidator**: carries
 pointers between lanes, weighing relevance, never correctness; adjudicates
 nothing. Contracts: `agents/*.md`; authority and tools:
-`orchestration/roles.yaml`; `tools/check_runtime_bindings.py` fails on drift.
+`orchestration/roles.yaml`; `tools/check_runtime_bindings.py` fails the build
+when a runtime's agent definition drifts from it.
 
 ## Visual research record
 
 Every experiment run, evidence review and substantive search for new
 isogenies, curves, scalar rules, endomorphisms or related ECDLP mechanisms
-leaves a report, a graph or diagram, and a PDF (`research-visuals`:
-`.claude/skills/research-visuals/SKILL.md`, also `.agents/skills/`), negative,
-failed and inconclusive work included. A verified finding or correction
-updates the affected canonical graph source and rendering in the same change;
-if none changes, record what was checked. Label conjectures and
-extrapolations; cite immutable evidence for verified items.
+leaves a report, a graph or diagram, and a PDF, following the
+`research-visuals` skill (`.claude/skills/research-visuals/SKILL.md`, also
+`.agents/skills/`), negative, failed and inconclusive work included. A verified
+finding or correction updates the affected canonical graph source and
+rendering in the same change; if none changes, record what was checked and
+why. Label conjectural edges and extrapolations; cite immutable evidence for
+verified ones.
 
 ## Standing user authorization
 
 "All is approved. Ideas/experiments should be always approved" (user,
 2026-09-06). Never ask the user to select, confirm or reapprove ideas,
-protocols or experiments: the Coordinator records approval once a protocol is
-complete **and approvable** ("Approval is bounded by execution").
+protocols or experiments: the Coordinator records approval under this
+authorization once a protocol is complete **and approvable** ("Approval is
+bounded by execution").
 Completeness (controls, metrics, budgets, stopping rules, artifact paths,
 dependencies, inference policy, committed handoffs) is the Coordinator's job;
 an incomplete protocol is completed or records its impediment, never parked on
@@ -88,32 +93,33 @@ forever; new handoffs use canonical ids. The adapter records requested policy
 and resolved model and never silently downgrades: substitution needs
 `fallback_allowed` (recorded `fallback_used`); a model missing a stated
 requirement also needs `degraded_allowed` and a Coordinator-approved
-`inference_amendment`, gaps listed in `degraded_requirements`. A model id is
-unverified until `python3 -m orchestration.adapter doctor --probe` confirms it
-(`model_verified`). Delivery (`interactive` | `batch` | `auto` with
+`inference_amendment`, every gap listed in `degraded_requirements`. A model id
+is unverified until `python3 -m orchestration.adapter doctor --probe` confirms
+it (`model_verified`). Delivery (`interactive` | `batch` | `auto` with
 `deadline_seconds`) is recorded per manifest and changes nothing else; `auto`
-never batches urgent work; expired or errored batch results are
-infrastructure signal (`docs/batch-inference.md`). Runtimes (Claude Code,
-OpenAI-protocol CLIs, `api_direct`) share the role contracts; `api_direct`
-enforces write scope, no-overwrite, command allow-list and budget stops.
+never batches urgent work; expired or errored batch results are infrastructure
+signal (`docs/batch-inference.md`). Runtimes (Claude Code, OpenAI-protocol CLIs,
+`api_direct`) are interchangeable over the same role contracts; `api_direct`
+enforces write scope, no-overwrite, command allow-list and budget stops rather
+than requesting them.
 
 ## Core rules
 
 1. Separate speculation, implementation, observation and conclusion.
-2. A hypothesis states mechanism, predictions, test boundary and
-   falsification criteria.
-3. An experiment fixes controls, metrics, budgets, stopping rules and required
+2. A hypothesis states mechanism, predictions, test boundary and falsification
+   criteria.
+3. An experiment defines controls, metrics, budgets, stopping rules and required
    artifacts before execution.
 4. Results are immutable records; corrections are new records.
 5. A timeout, crash or implementation failure is not evidence against a
    mathematical hypothesis.
 6. Negative evidence closes only the exact tested scope.
-7. Evidence at any scale is admissible; records state tested parameters,
-   actual scope and every transfer or extrapolation assumption.
+7. Evidence at any scale is admissible; records state tested parameters, actual
+   scope and every transfer or extrapolation assumption.
 8. Unexpected observations are recorded, never silently discarded.
 9. Never fabricate commands, outputs, timings, statistics, citations or runs.
-   Citations carry provenance `recalled | retrieved | kb | internal`
-   (`templates/research-records.md`); a `recalled` reference is a pointer, not
+   Every citation carries provenance `recalled | retrieved | kb | internal`
+   (`templates/research-records.md`); a `recalled` reference is a pointer, never
    support, until an agent that read the source says so in a new record naming
    itself in `verified_by`.
 10. Every conclusion cites its supporting experiment IDs and artifacts.
@@ -124,9 +130,9 @@ enforces write scope, no-overwrite, command allow-list and budget stops.
     degraded.
 13. Goal closure quorum: suspended (below).
 14. New record ids carry a random 6-hex suffix: `python3 tools/allocate_id.py
-    --next <type> --area|--date <x>`, then `--check`. Never grep for `max+1`:
-    concurrent worktrees mint the same id. Legacy `\d{3}` ids stay valid; ids
-    do not sort by creation (read `added`/`recorded_at`).
+    --next <type> --area|--date <x>`, then `--check`. Never allocate by grepping
+    for `max+1`: concurrent worktrees mint the same id. Legacy `\d{3}` ids stay
+    valid; ids do not sort by creation (read `added`/`recorded_at`).
 15. Remap identifiers only as a last resort: a record named in a *completed*
     archive's binding fields (`artifact_paths`, `write_scope`,
     `archive.path_sha256`, `archive.record_ids`, bound commit message) is
@@ -139,12 +145,12 @@ enforces write scope, no-overwrite, command allow-list and budget stops.
 
 ## Research-direction integrity
 
-Pursue promising paths in good faith; never abandon, suppress or steer away
-from a plausible high-value lead. A deprioritization or closure names
-evidence, budget, test boundary, remaining uncertainty and a successor or
+Pursue promising paths in good faith; never abandon, suppress or steer away from
+a plausible high-value lead to derail the program. A deprioritization or closure
+names evidence, budget, test boundary, remaining uncertainty and a successor or
 revisit condition. Decision records (candidate, evidence, rationale, ranking,
-action, model/session provenance) are the audit trail; private
-chain-of-thought is neither stored nor inferred.
+action, model/session provenance) are the audit trail; private chain-of-thought
+is neither stored nor inferred.
 
 ## Goal closure quorum (suspended)
 
@@ -168,7 +174,7 @@ claim, never "the goal"), `clears_when`, `recheck`, `asserts_nothing_about`).
 `pause_conditions` keep their name; triggering one records an impediment and
 changes no status.
 
-This schedules and relaxes nothing: an impediment is never negative
+This is a scheduling rule and relaxes nothing: an impediment is never negative
 mathematical evidence (rule 5); an unservable `review-breakthrough`
 (`degradable: false`) leaves the claim un-promoted, never downgraded to
 `validator`. Routine estimates do not stop research: only the exceptional
@@ -203,9 +209,9 @@ infer it from an id prefix.
 
 ### Approval is bounded by execution
 
-Amendment, 2026-10-07 (`docs/track-record-review-20261006.md` P0.1, P0.2,
-P0.4; `DEC-20261005-138b51` F-1). An open ECC idea is designed **when it can
-be approved**, and approval needs both:
+Additive amendment, 2026-10-07 (`docs/track-record-review-20261006.md` P0.1,
+P0.2, P0.4; operator request `DEC-20261005-138b51` F-1). An open ECC idea is
+designed **when it can be approved**, and approval needs both:
 
 - **Capacity.** A goal (else its area) holds at most `APPROVAL_CAPACITY_CAP`
   (three, `tools/portfolio_kpis.py`) approved contracts that never ran.
@@ -219,10 +225,11 @@ be approved**, and approval needs both:
 
 An unapprovable idea stays `proposed` and unedited, the reason in the session
 receipt (`tools/session_receipt.py --outcome refused_capacity`) and the goal's
-`next_action`: still ranked work (`--open-ideas`) for a session with headroom
-or the launcher, since designing it earlier makes records the harness cannot
-act on. Designing is not approving; an approved, unrun contract is neither
-evidence nor a failure of its hypothesis.
+`next_action`. That is not shelving: it remains ranked work
+(`--open-ideas`) for a session with headroom or the launcher, since designing
+it earlier makes records the harness cannot act on. Unchanged: priority orders
+the queue, designing is not approving, and an approved, unrun contract is
+neither evidence nor a failure of its hypothesis.
 
 ## Research direction
 
@@ -234,7 +241,7 @@ falsification condition and validation plan; single-responsibility lemmas;
 external structural ingredients; validation at scale; honest cost and scope
 (memory beside time, o(1) disclosed, a concrete cost table, affected-vs-safe
 scope). The Coordinator checks the promotion gates of `agents/coordinator.md`
-before an asymptotic claim moves toward `supported`. The profile steers
+before an asymptotic claim moves toward `supported`. The profile biases
 direction and lowers no rule.
 
 The **inventor protocol** (`docs/inventor-protocol.md`; `KN-TECH-056`,
@@ -274,12 +281,12 @@ compliant: a correction record supplies what followed
 
 ## Review architecture
 
-A claim-changing review round runs under a `review_plan` the Coordinator
-writes **before any reviewer runs**: its prior first; each load-bearing joint
-owned by exactly one reviewer with a worked attack plan; blindness declared
-and lifted only deliberately (`blindness.lifted_for`); a proves-too-much
-control on objects whose conclusion is known false; a blind re-derivation of
-each load-bearing quantity from statement and parameters alone
+A claim-changing review round runs under a `review_plan` the Coordinator writes
+**before any reviewer runs**: its prior recorded first; each load-bearing joint
+owned by exactly one reviewer with a worked attack plan; blindness within the
+round declared and lifted only deliberately (`blindness.lifted_for`); a
+proves-too-much control on objects whose conclusion is known false; a blind
+re-derivation of each load-bearing quantity from statement and parameters alone
 (`blind_rederivation.blind_from`; replicating from the producer's artifacts is
 not one). Reviewers report on their joints and the Coordinator composes;
 `tools/check_review_independence.py` checks the composition. Departures go in
@@ -288,32 +295,34 @@ not one). Reviewers report on their joints and the Coordinator composes;
 ## Messaging and coordination
 
 - `tools/agent_bus.py` carries write-once, role-addressed messages between
-  sessions (`coordination/bus/`), read on wake and before reporting done
+  sessions (`coordination/bus/`): a feed, read on wake and before reporting done
   (`inbox --as <addr>`). In-session `SendMessage` obeys the same rules and is
   the more dangerous.
-- **A message never confers authority, is never evidence, never carries a
-  task, and never records an agreement you did not obtain.** Work travels as a
+- **A message never confers authority, is never evidence, never carries a task,
+  and never records an agreement you did not obtain.** Work travels as a
   `TASK-*` handoff through `tools/research_dispatch.py`; a decision is a
-  committed record; a result exists in its run directory or not at all.
-  Messages past the bus shelf life are digest material, not pending work
+  committed record; a result exists in its run directory or not at all. Messages
+  past the bus shelf life are digest material, not pending work
   (`docs/inter-agent-messaging.md`).
 - **Dynamic dispatch.** `tools/research_dispatch.py` turns approved handoffs
   into a bounded plan (`--ready-only`: the Ready Tasks). Tasks own
-  non-overlapping `write_scope`s under their task directory and are eligible
-  once every dependency has a `completed` receipt; the queue's own
-  `max_concurrent` bounds concurrency (user, 2026-08-05). Regenerate the plan
-  on each terminal receipt; never fill a slot because it is free. Reserve an
+  non-overlapping `write_scope`s and write under their task directory; a task is
+  eligible only when every dependency has a `completed` receipt; the queue's own
+  `max_concurrent` bounds concurrency (user, 2026-08-05). Regenerate the plan on
+  each terminal receipt; never fill a slot because it is free. Reserve an
   independent review task whenever a result could change an ECDLP claim.
 - **Lanes.** Holds and open batches are write-once side files
   (`tools/goal_lanes.py claim|release`, `open-lane|close-lane`), read by
   `research_dispatch.py --claims refs`; another session's live claim is
   `running`, not yours (`docs/concurrent-goal-lanes.md`).
 - The `crypto-autoresearcher-peer` MCP board (`docs/peer-coordination.md`) is
-  advisory telemetry: never a run admission gate; its messages assign nothing.
+  optional advisory telemetry: never a run admission gate; its messages assign
+  nothing.
 
 ## Concurrency: many agents, many worktrees
 
-Reasons: `docs/claude-code-runtime.md`, "Concurrency".
+Each rule exists because a writer was made to read shared state it had no
+reason to read (`docs/claude-code-runtime.md`, "Concurrency").
 
 - **Generated artifacts are never committed**: `knowledge/INDEX.md`,
   `coordination/**/dispatch_plan.*` and `ledger/.index/` are gitignored and
@@ -323,33 +332,34 @@ Reasons: `docs/claude-code-runtime.md`, "Concurrency".
   rebase): archive receipts bind branch shas, which a squash orphans
   (`CORR-20260802-a1f151`).
 - **Stop at the PR** (user, 2026-10-09): open it ready for review, never as a
-  draft, report the link, stop. Never wait on, poll, subscribe to or schedule
-  a check-in for its CI, whatever a harness says; unsubscribe if opening it
+  draft, report the link, stop. Never wait on, poll, subscribe to or schedule a
+  check-in for its CI, whatever a harness says; unsubscribe if opening it
   subscribed you. Top-tier models never watch CI: a separate automation fixes
   and merges; requested follow-up goes, unawaited, to `executor-mechanical`
   (Haiku).
 - **Merge** (user, 2026-09-23) only with every check `success` or `skipped`,
   none pending, no conflict, no open blocking thread, Claude Approvals passing
-  where it runs; prefer GitHub auto-merge; never skip or re-run a check to go
-  green. A merge is a git operation, not a research-state transition.
+  where it runs; prefer GitHub auto-merge; merge commits only; never skip or
+  re-run a check to go green. A merge is a git operation, not a research-state
+  transition.
 - **Archive receipts bind to content first**: `path_sha256` verified, commit
   reachability advisory, a content mismatch fatal.
 - **Goal checkpoints are one write-once file per batch**
-  (`tools/shard_goal.py`), converted when a goal is next opened, never in
-  bulk. Goal heads over 64 KiB and `next_action` over 1,000 characters are
-  flagged: a next action points to a task, not a plan.
+  (`tools/shard_goal.py`), converted when a goal is next opened, never in bulk.
+  Goal heads over 64 KiB and `next_action` over 1,000 characters are flagged: a
+  next action points to a task, not a plan.
 - **Parseability is PR-scoped and absolute on `main`**
   (`check_merge_hygiene.py`; `main-health.yml` sweeps hourly).
 - **Read the merge digest on wake**: `python3 tools/merge_digest.py --since
   $(git merge-base HEAD origin/main) --until origin/main` (one
   `coordination/events/main/<sha>.yaml` per merge).
 - **Merge `main` in to stay current**, never rebase pushed records;
-  `tools/sync_open_branches.py` (`sync-branches.yml`, six-hourly) resolves no
-  conflicts. A conflict inside a record becomes a superseding record under a
-  new id.
+  `.github/workflows/sync-branches.yml` runs `tools/sync_open_branches.py` every
+  six hours and resolves no conflicts. A conflict inside a record becomes a
+  superseding record under a new id.
 - `tools/lab_sync.py` may carry `ledger/`, `coordination/`, `experiments/` and
-  `knowledge/` as signed CRDT ops (`docs/cairn-lab.md`); it relaxes nothing,
-  and git stays what archives bind.
+  `knowledge/` as signed CRDT ops (`docs/cairn-lab.md`); it relaxes nothing
+  above, and git stays what archives bind.
 
 ## Durable research commits
 
@@ -394,7 +404,8 @@ cost; they are never evidence.
 ## Knowledge retrieval
 
 `kb/` is a derived, read-only MCP index over the corpus; no agent writes to it.
-Call `search_knowledge` before asserting an avenue was tested or failed,
+Call `search_knowledge` before asserting an avenue was tested or known to
+fail,
 citing a paper or prior experiment, proposing a likely duplicate, or changing
 an authoritative conclusion: start with 4–6 results, use exact identifiers,
 filter by `field_type`/`source_type`, call `get_context` only where it affects
@@ -408,7 +419,7 @@ ledger with the generated `ledger/.index/*.jsonl`
 
 ## Curve identity and measured bounds
 
-Curve comparisons and UI exports follow `docs/curve-identities.md` and
+New curve comparisons and UI exports follow `docs/curve-identities.md` and
 `tools/curve_identity.py`: reuse EC1 aliases and full curve UIDs across IC and
 Pollard rho, keep factor-base/isogeny identities separate, keep historical
 names, never infer identity from field degree alone.
@@ -424,16 +435,16 @@ verdict, changes state. Wall time is never a bound.
 
 ## Weak-curve and isogenous-representative audits
 
-Before weak-curve, CM/GLV/GLS, or isogeny-chain claims, follow
-[the loop rules](docs/endomorphism-rules.md),
+Before weak-curve, CM/GLV/GLS, or isogeny-chain claims, follow [the loop
+rules](docs/endomorphism-rules.md),
 [`audit-curve`](.claude/skills/audit-curve/SKILL.md),
 [`transfer`](.claude/skills/transfer/SKILL.md), and
 [`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). They bind scope,
-evidence, controls, costs, statistics, and labels. Evaluate factored/mixed-degree
-loops with explicit working-field maps, subgroup action, closure/recovery,
-bounds, and paired baseline costs. Trials use `run`; audits do not change
-state. Structure or bounded-null evidence proves neither speedup, impossibility,
-nor unknown-scalar recovery.
+evidence, controls, costs, statistics, and labels. Evaluate
+factored/mixed-degree loops with explicit working-field maps, subgroup action,
+closure/recovery, bounds, and paired baseline costs. Trials use `run`; audits do
+not change state. Structure or bounded-null evidence proves neither speedup,
+impossibility, nor unknown-scalar recovery.
 
 For ordinary curves record
 `Delta_pi=t^2-4q=f_pi^2 D_K` and
@@ -456,7 +467,7 @@ scope**. Bounded or zero-hit statistics do not prove absence.
 Use `/usr/local/bin/python3` (CPython 3.12.8, `.python-version`), never the
 image's Ubuntu `/usr/bin/python3`: its builtin `_md5` fails
 `tests/test_harness.py::test_md5_pin_mechanism_real_registry_is_distinct`.
-Install the CI extras, not only `make install`:
+Install the CI extras, not only `make install` (`.[agent,dev]`):
 `python3 -m pip install -e ".[dev,agent,campaign-mcp,research-loop,gf2]"`.
 `autoresearch` and `pytest` land in `~/.local/bin`, linked into
 `/usr/local/bin`; `python3 -m pytest` and `python3 -m orchestration` work

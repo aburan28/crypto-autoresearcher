@@ -17,9 +17,10 @@ earlier long form of this file stays unchanged at
   `validator-breakthrough` and `red-team-breakthrough`. They keep
   `model: inherit` except the `runtime_model_pins` roles
   (`orchestration/roles.yaml`), pinned to their policy's `anthropic` binding;
-  each `effort:` derives from the role's policy (`roles.yaml` →
-  `orchestration/model-policies.yaml`). Never hand-edit either:
-  `tools/check_runtime_bindings.py` fails on drift (`--list` shows sources).
+  each `effort:` derives from the role's policy (`orchestration/roles.yaml` →
+  `orchestration/model-policies.yaml`). Never hand-edit a model or an effort:
+  `tools/check_runtime_bindings.py` fails the build on drift, and `--list`
+  shows where each role's effort comes from.
   Session default `claude-opus-5-5` (`.claude/settings.json`); `--model` or
   `adapter env --runtime claude_code --role <role>` overrides it.
 - **Skills** (`.claude/skills/`): `run` (execution only), `coordinate` (rank,
