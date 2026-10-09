@@ -9,7 +9,8 @@ description: Run existing experiments and report their outputs. Use for run, run
 Read `plugins/crypto-autoresearcher-harness/skills/run/SKILL.md` from this checkout and execute the requested experiments.
 
 Keep this an execution task: launch existing programs, show progress, preserve
-outputs, and report results. Do not add an agent-led protocol/schema validation
-phase, preparation workflow, or review cycle. Built-in runner checks still apply.
+outputs, leave each experiment's run report (graph and PDF), and report results.
+Do not add an agent-led protocol/schema validation phase, preparation workflow,
+or review cycle. Built-in runner checks still apply.
 
 The same run skill is used by Codex and OpenCode, Claude Code, and the plugin.
