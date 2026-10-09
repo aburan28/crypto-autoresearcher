@@ -83,6 +83,12 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
 
+      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # it they stay correct but fall back to the pure parser, ~10x slower.
+      - name: Check PyYAML has libyaml
+        run: |
+          python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
+
       # github.event.pull_request.base.sha is frozen when the PR is opened and
       # is not refreshed by later pushes, while actions/checkout gives a PR job
       # the merge of the CURRENT base tip and the PR head. Diffing that frozen
@@ -167,12 +173,23 @@ jobs:
       - name: Install api_direct runtime dependencies
         run: pip install -r requirements-agent.txt
 
+      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # it they stay correct but fall back to the pure parser, ~10x slower.
+      - name: Check PyYAML has libyaml
+        run: |
+          python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
+
       - name: Check the local entry point is usable
         run: python3 -m orchestration doctor || true
 
       # Generated artifacts are not committed (see .gitignore). Building them
       # here proves the corpus and every queue still build, which is the part
-      # that carried information; the files themselves carried none.
+      # that carried information; the files themselves carried none. This is
+      # also the whole of what the former "knowledge index is current" step
+      # protected (the builder crashing on a corrupt corpus): that step could
+      # never fail, since its base worktree never has the gitignored INDEX.md
+      # and "fails on base too" counted as a pass, and it cost 2m18s and a
+      # 9 GB worktree on every PR.
       - name: Build generated artifacts
         run: python3 tools/build_knowledge_index.py
 
@@ -224,33 +241,6 @@ jobs:
       # checkout, so it means the same thing here as on the porting machine.
       - name: Check ported Autolab packages match their archived artifacts
         run: python3 tools/port_autolab_experiments.py --verify
-
-      - name: Check knowledge index is current
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="origin/${{ github.base_ref }}"
-            BASE_WORKTREE="/tmp/validate-base-knowledge"
-            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
-            trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
-            git worktree add "$BASE_WORKTREE" "$BASE_REF"
-            HEAD_STATUS=0
-            python3 tools/build_knowledge_index.py --check > /tmp/knowledge_head.out 2>&1 || HEAD_STATUS=$?
-            BASE_STATUS=0
-            (
-              cd "$BASE_WORKTREE"
-              python3 tools/build_knowledge_index.py --check > /tmp/knowledge_base.out 2>&1
-            ) || BASE_STATUS=$?
-            if [ "$BASE_STATUS" -eq 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
-              echo "FAIL: knowledge index check fails on this PR but passes on base branch" >&2
-              cat /tmp/knowledge_head.out >&2
-              exit "$HEAD_STATUS"
-            fi
-            if [ "$BASE_STATUS" -ne 0 ] && [ "$HEAD_STATUS" -ne 0 ]; then
-              echo "PASS: knowledge index check already fails on base branch"
-            fi
-          else
-            python3 tools/build_knowledge_index.py --check
-          fi
 
       # Absolute, not diffed against base: this index is green as of the commit
       # that introduced it, so there is no pre-existing failure to compare away.
@@ -343,6 +333,12 @@ jobs:
         run: |
           pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
           pip install -r requirements-agent.txt
+
+      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # it they stay correct but fall back to the pure parser, ~10x slower.
+      - name: Check PyYAML has libyaml
+        run: |
+          python3 -c "import yaml; print('libyaml: yes' if hasattr(yaml, 'CSafeLoader') else '::warning::PyYAML without libyaml; YAML-heavy checks run ~10x slower')"
 
       - name: Build generated artifacts
         run: python3 tools/build_knowledge_index.py

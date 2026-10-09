@@ -92,9 +92,9 @@ def _load(text: str, key: str) -> Any:
         except json.JSONDecodeError:
             return None
     try:
-        import yaml
+        from crypto_kb.fastyaml import safe_load
 
-        return yaml.safe_load(text)
+        return safe_load(text)
     except Exception:
         return None
 
