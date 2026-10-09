@@ -157,3 +157,11 @@ session summary.
   concurrent workers supply evidence and proposed edits to the Coordinator.
   Review the graph against cited evidence, inspect the PDF, and include all
   affected forms in the same publication change.
+
+## Reports in S3
+
+Once a report is on `main`, `.github/workflows/reports-s3.yml` copies it to
+`s3://crypto-autoresearcher/reports/crypto-autoresearcher/<repository path>`
+with a per-push manifest (`docs/reports-s3.md`). It takes everything under
+`experiments/*/reports/` and `docs/reports/` and every PDF under `research/`,
+so keep reports at those paths. Sessions never upload to S3.
