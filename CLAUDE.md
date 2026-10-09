@@ -44,8 +44,8 @@ form of this file is kept, unchanged, at
 /coordinate                            # rank, approve (capacity + runnable), dispatch, archive
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...        # runnable in this turn or review_required
-  → /run EXP-...                       # execution only; publishes its run records
+  → /run EXP-...                       # execution; publishes run records, then reports
   → snapshot commit, independent validation / red team
-  → /review-evidence EXP-...           # knowledge-promotion gate
+  → /review-evidence EXP-...           # knowledge-promotion gate; decision report
   → ledger commit, verified decision → next iteration
 ```

@@ -28,7 +28,7 @@ prohibition still bind. `docs/research-budget-policy.md`.
   the runner's own admission, ownership, resource and correctness checks and
   report a refused launch rather than bypass it. Results are observations
   until the separate archive/review process says otherwise. `run` may commit
-  and push its own run records on its own branch.
+  and push its own run records on its own branch, then its run reports.
 - **`coordinate`** (`.claude/skills/coordinate/SKILL.md`; Codex/OpenCode
   adapter `.agents/skills/coordinate/`) ranks, designs, approves, reviews,
   archives and publishes. It never launches scientific trials.
@@ -55,15 +55,17 @@ build when a runtime's agent definition drifts from it.
 
 ## Visual research record
 
-A substantive search for new isogenies, curves, scalar rules, endomorphisms
-or related ECDLP mechanisms follows the `research-visuals` skill
-(`.claude/skills/research-visuals/SKILL.md`, also under `.agents/skills/`):
-a source-linked report, an explanatory diagram and a PDF of both per round,
-negative and inconclusive findings included. A verified finding or
-correction updates the affected canonical graph source and rendered output
-in the same change; if no graph changes, record what was checked and why.
-Label conjectural edges and extrapolations; cite immutable evidence for
-verified ones.
+Every experiment run, every evidence review, and every substantive search for
+new isogenies, curves, scalar rules, endomorphisms or related ECDLP
+mechanisms leaves a report, a graph or diagram, and a PDF of both, following
+the `research-visuals` skill (`.claude/skills/research-visuals/SKILL.md`,
+also under `.agents/skills/`); negative, failed and inconclusive work
+included. A run report describes, never reviews, and goes in
+`experiments/<EXP-ID>/reports/`, never a sealed run directory. A verified
+finding or correction updates the affected canonical graph source and
+rendered output in the same change; if no graph changes, record what was
+checked and why. Label conjectural edges and extrapolations; cite immutable
+evidence for verified ones.
 
 ## Standing user authorization
 

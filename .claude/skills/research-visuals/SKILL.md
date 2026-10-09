@@ -1,16 +1,113 @@
 ---
 name: research-visuals
-description: Produce evidence-linked diagrams, graphs, reports, and PDFs for substantive searches for new isogenies, curves, scalar rules, endomorphisms, and related ECDLP mechanisms.
+description: Produce evidence-linked diagrams, graphs, reports, and PDFs for every experiment run, every evidence review, and every substantive search for new isogenies, curves, scalar rules, endomorphisms, and related ECDLP mechanisms.
 ---
 
 # Research visuals and reports
 
-Use this skill for a substantive literature, theory, code, or experiment search
-for new isogenies, curves, scalar rules, endomorphisms, or related ECDLP ideas.
+Use this skill at three points (AGENTS.md "Visual research record"):
+
+- **every experiment run**: the `run` skill finishes each experiment it ran
+  with a descriptive run report ("Every experiment run" below);
+- **every evidence review**: the review that records a `DEC-*` decision
+  leaves a decision report and refreshes the canonical graphs it changes
+  ("Every evidence review" below);
+- **every substantive search round**: a literature, theory, code, or
+  experiment search for new isogenies, curves, scalar rules, endomorphisms, or
+  related ECDLP ideas ("Deliverables for each search round" below).
+
 Read `AGENTS.md` first. This skill publishes derived communication artifacts;
-it does not approve an experiment, launch a trial, promote a claim, or alter
-the public `run` skill. The Coordinator assigns the report and graph paths in
-a task's write scope before work is dispatched.
+it does not approve an experiment, launch a trial, promote a claim, or turn
+`run` into a review. Report paths for runs and reviews are fixed below; for a
+search round the Coordinator assigns the report and graph paths in a task's
+write scope before work is dispatched.
+
+## Every experiment run
+
+Each `run` session leaves one report per experiment it ran, covering every run
+directory it wrote for that experiment: completed, failed, and timed-out
+trials alike. A launch refused before any run directory exists gets no report;
+`run` reports the impediment as before.
+
+- **Where.** A fresh, write-once directory
+  `experiments/<EXP-ID>/reports/run-<YYYYMMDDTHHMMZ>/` (UTC time the session's
+  first trial for that experiment started). Never write into a run directory:
+  runners seal theirs (`manifest.sha256`, expected/missing/extra file lists),
+  and an added file reads as an unlisted extra. Never edit an earlier report;
+  a later session writes its own. An experiment whose own runner already
+  writes a report into its run directory keeps that report, and this one
+  links to it.
+- **What the report says.** Experiment, hypothesis and goal IDs; the run
+  IDs and their paths; code commit and dirty state; exact command,
+  parameters, seeds and controls; trials requested, completed, failed and
+  timed out, with each failure's recorded reason; wall and CPU time and the
+  host; the measured values with units, sample sizes and the spread or
+  uncertainty the runner recorded; the controls' outcomes and certificate
+  status; missing data stated as missing. Label every number measured or
+  derived (a ratio or mean computed from recorded values) and show how a
+  derived one was computed.
+- **Observations only.** No verdict, support or weaken language, significance
+  or priority: those belong to the evidence review. Say so in the report's
+  first paragraph. A failed process is an operational fact, not a mathematical
+  refutation.
+- **Graph.** At least one quantitative graph of the run's recorded data
+  (per-trial values, arms side by side, a quantity against a parameter, or
+  progress over time) with units, sample size, uncertainty where recorded,
+  and run IDs in the caption. Plot recorded values only: no new computation,
+  sampling, or reruns. A run with fewer than two comparable values gets a
+  diagram of what ran (arms, controls, pipeline, where it stopped) instead,
+  and the report says why. Keep the script or data that draws each graph
+  beside its SVG.
+- **PDF.** `report.pdf` from the report source with the graph embedded
+  ("Rendering" below), inspected before it is committed.
+- **Publish after the run records.** The run records are committed and
+  pushed first, as `run` already does, so no report delays them; then commit
+  the report directory on the same branch, push, and name it in the session's
+  final summary. Keep it proportionate: minutes per experiment, not a study.
+
+## Every evidence review
+
+The review that records a `DEC-*` decision (`/review-evidence`, or the review
+step of `coordinate`) leaves a decision report beside the experiment's earlier
+reports, in `experiments/<EXP-ID>/reports/review-<DEC-ID>/`, archived in the
+same ledger commit as the evidence and decision records.
+
+- State the decision, evidence strength, claim tier, and the exact scoped
+  claim, with the `EV-*`, `DEC-*`, `RUN-*` and `TASK-*` IDs they rest on.
+  Keep Observation, Comparison, Inference, and Limitation separate, as
+  `analysis.md` does, and list the next actions.
+- Graph the quantities the decision rests on: measured values with units,
+  sample sizes and uncertainty against the declared prediction, threshold, or
+  control, with run IDs cited. Adverse decisions graph the obstruction they
+  record (its measured value and scope).
+- Refresh every canonical graph the decision changes ("Keep graphs current
+  without changing the evidence" below) in the same change; list the graphs
+  checked and left unchanged.
+- Build and inspect the PDF. The subagent that writes the records may lack a
+  shell; then the session renders the graphs and PDF before the ledger
+  archive commit.
+
+## Rendering
+
+Use an installed renderer: Typst, Pandoc with a PDF engine, or LaTeX. Where
+none is installed (a Claude Code cloud container has none), install Typst as a
+Python wheel in a scratch virtualenv outside the repository; it is the same
+compiler that built this repository's Typst reports:
+
+```sh
+python3 -m venv /tmp/report-venv
+/tmp/report-venv/bin/pip install -q typst matplotlib
+/tmp/report-venv/bin/python -c "import typst; typst.compile('report.typ', output='report.pdf')"
+```
+
+Write the report source in Typst when Typst renders it (Markdown needs
+Pandoc). Draw graphs as SVG with matplotlib, Graphviz, or hand-written SVG,
+and embed the SVG in the PDF. Then open the PDF and read every page: check
+that it opens, that the graph is legible and labeled, and that run IDs and
+citations are present. Never commit a PDF you have not inspected, and never
+present an older PDF as current. If no renderer can be installed, commit the
+complete source and graphs, and state the exact blocker in the report and the
+session summary.
 
 ## Deliverables for each search round
 
@@ -34,8 +131,8 @@ a task's write scope before work is dispatched.
    not as a separable volcano edge. Quantitative plots need units, sample sizes, uncertainty, and cited
    run IDs. Link the visual and its supporting records from the report.
 3. Produce a PDF of the report with the visual included, using an available
-   document tool such as Pandoc, Typst, or LaTeX. Keep source and PDF together
-   and inspect legibility and citations. If rendering is blocked, preserve
+   document tool such as Pandoc, Typst, or LaTeX ("Rendering" above). Keep
+   source and PDF together and inspect legibility and citations. If rendering is blocked, preserve
    complete source and report the precise blocker; never reuse an older PDF
    as though it includes the latest finding.
 
