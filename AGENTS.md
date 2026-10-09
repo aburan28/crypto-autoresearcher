@@ -57,14 +57,12 @@ build when a runtime's agent definition drifts from it.
 
 Every experiment run, every evidence review, and every substantive search for
 new isogenies, curves, scalar rules, endomorphisms or related ECDLP
-mechanisms leaves a report, a graph or diagram, and a PDF of both, following
+mechanisms leaves a report, a graph or diagram, and a PDF, following
 the `research-visuals` skill (`.claude/skills/research-visuals/SKILL.md`,
 also under `.agents/skills/`); negative, failed and inconclusive work
-included. A run report describes, never reviews, and goes in
-`experiments/<EXP-ID>/reports/`, never a sealed run directory. A verified
-finding or correction updates the affected canonical graph source and
-rendered output in the same change; if no graph changes, record what was
-checked and why. Label conjectural edges and extrapolations; cite immutable
+included. A verified finding or correction updates the affected canonical
+graph source and rendered output in the same change; if no graph changes,
+record what was checked and why. Label conjectural edges and extrapolations; cite immutable
 evidence for verified ones.
 
 ## Standing user authorization
