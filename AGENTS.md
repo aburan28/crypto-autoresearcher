@@ -448,35 +448,33 @@ challenge verdict; `inadmissible` is never negative evidence; the
 Coordinator's decision, not the verdict, changes state. Wall time is never a
 bound. `docs/bounds-and-frontiers.md`.
 
-## Weak-curve, endomorphism, and isogeny audits
+## Weak-curve and isogenous-representative audits
 
-Use
-[`audit-curve`](.claude/skills/audit-curve/SKILL.md),
-[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md), and
-[the endomorphism rules](docs/endomorphism-rules.md). Trials use canonical
-`run`; audits are stateless.
+Before weak-curve, CM/GLV/GLS, or isogeny-chain claims, follow
+[the arithmetic rules](docs/endomorphism-rules.md),
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md), and
+[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). They bind scope,
+evidence, controls, costs, statistics, and labels. Evaluate factored/mixed-degree
+loops with explicit working-field maps, subgroup action, closure/recovery,
+bounds, and paired baseline costs. Trials use `run`; audits do not change
+state. Structure or bounded-null evidence proves neither speedup, impossibility,
+nor unknown-scalar recovery.
 
-Freeze scope, attacker, cost model, budgets, population, and stopping rule;
-require exact arithmetic and planted controls.
+For ordinary curves record
+`Delta_pi=t^2-4q=f_pi^2 D_K` and
+`Z[pi]=O_(f_pi) subseteq End(E)=O_(f_E) subseteq O_K` separately.
+`f_E|f_pi`; independently certify `f_E` unless `f_pi=1`. Label separable
+`ell!=char(F_q)` edges from certified endpoint conductors:
+`horizontal|ascending|descending|unresolved`. Koblitz
+`tau`/characteristic-power Frobenius are inseparable. Conductors are leads,
+not ECDLP-bit discounts.
 
-For ordinary curves certify
-`Delta_pi=t^2-4q=f_pi^2 D_K`, `f_E|f_pi`, and endpoint orders separately;
-infer `f_E` from `f_pi` only when `f_pi=1`. Label separable prime-degree
-edges `horizontal|ascending|descending|unresolved`; Koblitz `tau` is
-inseparable. Conductor gaps are leads, not hardness discounts. Keep factored
-and mixed-degree paths in scope.
-
-Claims require typed maps, field closure, subgroup action, endpoint recovery,
-and discovery, construction, evaluation, attack, memory, data, and
-precomputation costs against an optimized baseline. Known-scalar speedups are
-not key recovery. Invalid companions imply only **implementation-weak**;
-confirmation oracles need reductions.
-
-Use only **class-weak**, **weak representative exists**,
+Transfers require explicit maps, subgroup preservation, and complete costs;
+advice supports only its holder. Singular/invalid formula-compatible companions
+establish only **implementation-weak**; confirmation-only oracles need explicit
+reductions. Use only **class-weak**, **weak representative exists**,
 **source-transfer-weak**, **implementation-weak**, or **no weakness found in
-scope**, with exact scope. Report indeterminates, dependence, and
-multiplicity-adjusted intervals. Bounded null searches and zero-hit bounds do
-not prove absence.
+scope**. Bounded or zero-hit statistics do not prove absence.
 
 ## Cursor Cloud specific instructions
 
