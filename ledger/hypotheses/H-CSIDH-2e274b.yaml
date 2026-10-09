@@ -1,0 +1,295 @@
+# =============================================================================
+# H-CSIDH-2e274b — specified from IDEA-20261006-fd07db in design session
+# design-session-20261009 (worktree at origin/main tip). Question
+# RQ-CSIDH-64343f, goal GOAL-CSIDH-001. The prediction under test is the
+# idea's own: when both frozen circuits return the same reduced form on
+# both frozen pairs, the ancilla-width ratio width_I / width_F is at
+# least 2. A finished agreement with a ratio strictly below 2 is the
+# concrete negative. This record does not assert that any width was
+# measured, does not assert the cardinality of F as an observation, and
+# states no security level.
+# =============================================================================
+hypothesis:
+  id: H-CSIDH-2e274b
+  question_id: RQ-CSIDH-64343f
+  goal_id: GOAL-CSIDH-001
+  source_idea_ids:
+    - IDEA-20261006-fd07db
+  added: '2026-10-09'
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-09'
+  proposed_by: coordinator
+  title: >-
+    Ideal-multiplication ancilla width is at least twice the
+    form-composition width at discriminant -59
+  statement: >-
+    Let F be the set of reduced positive-definite binary quadratic forms
+    (a, b, c) of discriminant -59 under the reduced convention
+    -a < b <= a <= c, with b >= 0 when |b| = a or a = c. If F has fewer
+    than three forms, the claim is false. Otherwise let P be the
+    principal form (1,1,15) and let A and B be the two lexicographically
+    smallest forms of F distinct from P, ordered by (a, b, c) with b in
+    (-a, a]; as frozen definitions for the circuits, A = (3,-1,5) and
+    B = (3,1,5). Encode each form coefficient as one signed 16-bit
+    two's-complement register. Let Circuit-F be the frozen reversible NCT
+    circuit (NOT, CNOT, Toffoli) that computes one Dirichlet
+    composition step of two input forms followed by Gauss reduction.
+    Let Circuit-I be the frozen reversible NCT circuit that multiplies
+    the corresponding ideals in Z[(1+sqrt(-59))/2] and reduces the
+    product to a reduced form. Both circuits are built on the same
+    shared reversible arithmetic substrate under the same fresh-bit
+    allocation discipline, and both are checked on the pair (A, B) and
+    on (P, P). Ancilla width is the number of zero-initialized bits that
+    are not part of the input or output registers; garbage bits not
+    returned to zero count toward the width. The prediction taken from
+    IDEA-20261006-fd07db is that, when both circuits return the same
+    reduced form on both pairs and the instrument checks pass, the
+    ancilla width of Circuit-I is at least twice the ancilla width of
+    Circuit-F. The concrete negative is a finished agreement on both
+    pairs with a ratio strictly below 2. Fewer than three forms is also
+    a negative. This is not a CSIDH-512 gate count, and it states no
+    security level.
+  mechanism: >-
+    The tracked object is the ancilla width of one class-group
+    composition step in two representations, not the class group and not
+    a Montgomery coefficient. Circuit-F carries three form coefficients
+    through Dirichlet composition: input validation, a bounded
+    congruence fix, a coprimality requirement, one Chinese-remainder
+    step by extended gcd, a square-and-divide, and Gauss reduction.
+    Circuit-I carries two Z-basis elements per ideal, four 16-bit
+    coordinate registers plus ring-product temporaries, through ideal
+    multiplication in Z[(1+sqrt(-59))/2] and an integer-lattice
+    normalization, then the same Gauss reduction subroutine. Both maps
+    are classically simulable reversible Boolean functions on the same
+    96 input bits and 48 output bits, built from the same NOT, CNOT
+    and Toffoli substrate, so each has a well-defined ancilla width
+    under the frozen fresh-bit allocation discipline. Many circuits share
+    one composite form, so the projection onto the composite alone is
+    lossy; the width is the extra datum that separates them. Two
+    outcomes are separated before any run. A ratio at least 2 says the
+    ideal representation spends at least twice the clean ancilla of the
+    form representation on one certified step at this bit width. A
+    ratio below 2 says that separation fails at this discriminant and
+    encoding. The question asks for a classical reversible cost of the
+    group action; this record compares two representations of one step
+    and does not build the full action oracle.
+  assumptions:
+    - >-
+      Discriminant -59 is fundamental (59 is congruent to 3 modulo 4).
+      The form class group is the class group of the order
+      Z[(1+sqrt(-59))/2].
+    - >-
+      Both circuits use the NCT gate set (NOT, CNOT, Toffoli) and the
+      same signed 16-bit two's-complement encoding. A circuit outside
+      that gate set or that encoding is not scored.
+    - >-
+      Ancilla qubits are zero-initialized bits that are not part of the
+      input or output registers. Garbage bits that are not returned to
+      zero count toward the width.
+    - >-
+      The frozen allocation discipline binds both circuits: every
+      temporary result of every arithmetic operation is a fresh
+      zero-initialized bit with no time reuse of scratch bits, bounded
+      loops are unrolled to the frozen iteration bounds with fresh
+      temporaries per iteration, and no garbage is uncomputed. A
+      circuit that reuses scratch bits in time is a different circuit
+      and is not scored.
+    - >-
+      Both circuits are built from the same shared reversible arithmetic
+      substrate: the same ripple-carry adder, two's-complement
+      negation, comparator, conditional swap, shift-add multiplier,
+      restoring divider, and extended-gcd blocks, each built from NOT,
+      CNOT and Toffoli only.
+    - >-
+      No quantum oracle, no Kuperberg cost, and no security level enter
+      the claim.
+  proof_search_map:
+    bottleneck: >-
+      The ancilla ratio of the two frozen circuits: whether width_I is
+      at least twice width_F under the frozen encoding, gate set, and
+      allocation discipline.
+    observation_collision:
+      observable: >-
+        the ancilla width of each frozen circuit and their ratio
+      distinct_preimage_search: >-
+        Many circuits share one composite form, so the projection onto
+        the composite alone is lossy. The width is the extra datum.
+        Two circuits for the same pair can have different widths; only
+        the two frozen circuits are scored.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The same composite class computed twice, once by Dirichlet
+          composition of forms and once by ideal multiplication in
+          Z[(1+sqrt(-59))/2], both reduced by the same Gauss
+          subroutine.
+        predicted_gain: >-
+          A certified ancilla-width ratio for these two frozen
+          circuits, which is either at least 2 or strictly below 2.
+    quantifier_order: >-
+      For the two frozen circuits and the two frozen pairs: if both
+      circuits agree on both pairs and the instrument checks pass, then
+      the ratio width_I / width_F is at least 2 or it is strictly
+      below 2. No other circuit, pair, discriminant, bit width, or
+      allocation discipline enters the claim.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The ratio for these circuits at this discriminant and encoding,
+        under the frozen allocation discipline. Not a theorem that every
+        ideal circuit is wider, and not a bound on any quantum cost.
+      nearby_object_control: >-
+        The discriminant -60 pair ((1,0,15), (1,0,15)) is not
+        fundamental. Both builders must refuse it. Silent agreement on
+        a computed output voids the run.
+  rerandomization: >-
+    No re-randomizing walk is used. The cell is the two named pairs and
+    the two named circuits, every one of them, not a random draw. The
+    computation is deterministic, nothing is sampled, and nothing pulls
+    a hidden shift back to an input instance.
+  asymptotic_claim:
+    problem: >-
+      ancilla-width ratio of two reversible NCT circuits computing one
+      class-group composition step at discriminant -59
+    prior_best: >-
+      Generic discrete log in a prime-order group at exponent 1/2
+      (KR-RHO-13bf67), a different problem. The question's own target,
+      a reversible gate count of the full group action, is not improved
+      or replaced by this ratio.
+    time_exponent: '1/2, unchanged; no hidden-shift exponent is stated'
+    memory_exponent: >-
+      unchanged. The output is two integers and one ratio.
+    hidden_cofactor: >-
+      None in an exponent. The gap between one composition at
+      discriminant -59 and a cryptographic action evaluation is not an
+      o(1) term and is not claimed as one.
+    claim_kind: constant_factor
+    claim_kind_note: >-
+      The comparison is ancilla width at a fixed NCT gate set. It is
+      not the l^{1/3} online tradeoff after an l^{2/3} table
+      (KR-RHO-ea34b8), and that tradeoff is not evaluated. The constant
+      factor against every published hidden-shift exponent is 1; a
+      ratio of two widths is not a runtime.
+  heuristic_assumptions:
+    - id: HEUR-1
+      formal_statement: >-
+        Under the frozen no-reuse allocation discipline and the shared
+        substrate, ideal multiplication carries two Z-basis elements
+        (four 16-bit coordinate registers plus ring-product temporaries)
+        and a lattice normalization, while Dirichlet composition carries
+        three form coefficients and one Chinese-remainder step; a
+        reversible implementation of the first therefore needs at least
+        twice the ancilla of the second at this bit width. This is a
+        circuit-shape heuristic, not a theorem; the measurement can
+        refute it.
+      random_model_justification: >-
+        None. This is a circuit-shape heuristic over a complete frozen
+        cell, both pairs and both circuits, not a distributional claim.
+        No random model is invoked, and none is needed to compare the
+        measured ratio against 2.
+      supporting_results: []
+      validation_experiment_ids:
+        - EXP-CSIDH-906d0e
+      validation_plan: >-
+        The run compares the measured ratio against 2 on the complete
+        frozen cell, both pairs and both circuits, not a random draw of
+        circuits. The tail check is whether either width exceeds four
+        times the other.
+      falsification_condition: >-
+        Agreement on both frozen pairs with the ratio strictly below 2.
+  structural_ingredients:
+    - description: >-
+        Dirichlet composition of binary quadratic forms of one
+        discriminant yields another form of that discriminant. Not
+        opened as a primary text in this session.
+      citation: Dirichlet composition of binary quadratic forms
+      provenance: recalled
+      verified_by: null
+      role: the Circuit-F operation
+    - description: >-
+        Gauss reduction returns the reduced positive-definite form
+        equivalent to a given one. Not opened as a primary text in this
+        session.
+      citation: Gauss reduction of positive-definite binary quadratic forms
+      provenance: recalled
+      verified_by: null
+      role: shared subroutine of both circuits
+    - description: >-
+        Ideals of the quadratic order Z[(1+sqrt(-59))/2] multiply, and
+        ideal classes correspond to form classes of the same discriminant.
+        Not opened as a primary text in this session.
+      citation: ideal arithmetic in quadratic orders
+      provenance: recalled
+      verified_by: null
+      role: the Circuit-I operation
+    - description: >-
+        NOT, CNOT and Toffoli form a universal gate set for reversible
+        Boolean functions, so both maps are classically simulable
+        reversible Boolean functions. Not opened as a primary text in this
+        session.
+      citation: NCT universality for reversible Boolean functions
+      provenance: recalled
+      verified_by: null
+      role: both maps are classically simulable reversible circuits
+    - description: >-
+        The note estimates how often a prime fails to divide a class
+        number. It does not count ancilla qubits and does not predict
+        this ratio.
+      citation: KN-LIT-508
+      provenance: kb
+      verified_by: knowledge/literature/KN-LIT-508.md
+      role: orthogonal fence, not the width claim
+  reduction_chain:
+    core_problem: >-
+      the ancilla width of one class-group composition step in two
+      representations at discriminant -59
+    corollaries: []
+  predictions:
+    - metric: ratio of the ideal-circuit ancilla width to the form-circuit ancilla width
+      direction: higher
+      minimum_effect: at least 2
+  test_boundary:
+    instances:
+      - discriminant -59
+      - the frozen pair (A, B)
+      - the frozen pair (P, P)
+      - the non-fundamental control pair at discriminant -60
+    parameters:
+      bit_width: 16
+      gate_set: NOT, CNOT, Toffoli (NCT)
+      gauss_reduction_bound: 8
+      congruence_fix_bound: 3
+      allocation: fresh-bit-per-temporary, no uncomputation
+    implementation: >-
+      Build both circuits as classically simulable reversible Boolean
+      functions over the shared NCT substrate, simulate them on the
+      frozen pairs and on the discriminant -60 control, check agreement
+      and the accounting guards, and count ancilla bits under the
+      identical policy for both circuits. No quantum hardware, no
+      discrete-logarithm search, and no full group-action oracle.
+    budget:
+      cell: both pairs, both circuits, one run id
+      maximum_runs: 1
+  falsification_conditions:
+    - >-
+      Both circuits agree on both frozen pairs, the instrument checks
+      pass, and the ratio width_I / width_F is strictly below 2. That
+      ratio is the negative observation.
+    - F has fewer than three forms as re-derived by the run.
+    - The two circuits disagree on a pair that is then used in the ratio.
+  interpretation_limits:
+    - >-
+      The ratio is not a CSIDH-512 gate count and is not a Kuperberg
+      cost.
+    - >-
+      A ratio below 2 closes only this discriminant, this encoding, and
+      these two frozen circuits.
+    - >-
+      The full group-action oracle is not built. One composition step
+      is not an action evaluation.
+    - >-
+      A programmer gap between the two circuits is acknowledged and
+      scoped: the negative stands for the circuits that were written,
+      and it is not a theorem that every ideal circuit is wider.
+    - >-
+      No exponent moves. Two integers and one ratio are not a runtime.
