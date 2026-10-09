@@ -1,0 +1,223 @@
+hypothesis:
+  id: H-SSI-fbe68d
+  question_id: RQ-SSI-1946c9
+  idea_id: IDEA-20261007-560bcb
+  statement: >-
+    For every accepted CEST-PKE key whose complete evaluable End(E) witness W
+    makes CanonicalBoundedEnd return psi_E with A=psi_E(P), every message
+    m in {0,1}^mu and every encryption coin r in Z_q^* satisfy
+    Dec((pk,W),Enc(pk,m;r))=m, because psi_E([r]P)=[r]A. In the classical ROM,
+    any PPT IND-CPA adversary with advantage epsilon yields a
+    CEST-XFER-KI distinguisher with advantage at least epsilon-delta_parse,
+    where delta_parse=0 for honest canonical challenges. This hypothesis does
+    not assert CEST-XFER-KI hardness or a reduction to EndRing. The additional
+    EndRing-security statement remains open and would require converting the
+    adversary into a complete evaluable End(E) witness on the exact real
+    auxiliary-data distribution.
+  mechanism: >-
+    The sender samples r and computes the shared point by public scalar
+    multiplication from A; the recipient computes the same point by applying
+    a canonical endomorphism derived from W to R=[r]P. XOR with a
+    transcript-bound random-oracle pad gives actual-message recovery. The
+    intermediate security hybrid replaces that pad by uniform. A full EndRing
+    dependency is tested separately because a psi_E-only evaluator reproduces
+    all decryption behavior.
+  assumptions:
+    - >-
+      TrapCurveGen returns accepted complete evaluable End(E) witnesses and
+      CanonicalBoundedEnd is deterministic and representation-independent on
+      equivalent witnesses.
+    - >-
+      All field, point, tuple and public-key encodings are canonical, and both
+      sides query H_pad on identical encodings of pk,R and the shared point.
+    - >-
+      P and A have exact prime order q with e_q(P,A)!=1; ciphertext validation
+      accepts honest R=[r]P and rejects declared malformed classes.
+    - >-
+      The IND-CPA statement is classical PPT in the classical ROM and depends
+      on the separately named CEST-XFER-KI assumption, not on plain EndRing.
+    - >-
+      The exact real key distribution includes every setup rejection and the
+      public auxiliary points P,A; no uniform-curve replacement is assumed.
+
+  proof_search_map:
+    bottleneck: >-
+      Upgrade an IND/transfer adversary to a rank-four complete End(E) output;
+      one transfer value and one endomorphism action are insufficient by
+      definition.
+    baseline_embedding:
+      parameter_slice: >-
+        Substitute scalar multiplication psi_E=[s]. The scheme becomes a
+        hashed static-DH PKE shell with A=[s]P.
+      reproduction_check: >-
+        Re-derive correctness and the pad hybrid on this scalar slice. Any
+        EndRing argument unchanged by the substitution proves no ring-specific fact.
+    observation_collision:
+      observable: >-
+        pk, the reachable-line map R->psi_E(R), and the complete set of Dec outputs.
+      distinct_preimage_search: >-
+        Compare full W with the psi_E-only evaluator quotient, then seek
+        non-equivalent complete witnesses inducing the same reachable-line map.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          IND-CPA -> CEST-XFER-KI -> psi_E recovery -> complete EndRing with
+          explicit distribution and loss at each arrow.
+        predicted_gain: "identifies the exact missing extraction arrow"
+      - transform: observable_fiber
+        proposed_object: "fiber of complete ring witnesses over one transfer/decryption observable"
+        predicted_gain: "scoped extraction obstruction or injectivity premise"
+      - transform: stronger_invariant
+        proposed_object: "several independent torsion-module actions derived from W"
+        predicted_gain: >-
+          may identify more of End(E), while requiring a new leakage and
+          auxiliary-assumption analysis
+    quantifier_order: >-
+      Correctness: for every accepted key, then every allowed message, then
+      every r. Security: for every PPT classical-ROM A there must exist a PPT D
+      for CEST-XFER-KI; an EndRing theorem would further require a PPT B for
+      every such A on one exact EndRing challenge. B may depend on A but not on W.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Perfect accepted-key correctness and a conditional intermediate-game
+        reduction. No method in this record certifies EndRing hardness,
+        complete-ring necessity, quantum security or concrete security.
+      nearby_object_control: >-
+        Scalar-only hashed DH shares all current functional and hybrid
+        structure while having no full-ring trapdoor.
+    proof_obligations:
+      - claim: "CanonicalBoundedEnd gives the same psi_E for equivalent complete W"
+        responsibility: interface
+      - claim: "honest Enc and Dec hash exactly the same canonical string"
+        responsibility: correctness
+      - claim: "the random-pad hybrid is message-independent"
+        responsibility: security_reduction
+      - claim: "the simulator covers every public pairing and auxiliary datum"
+        responsibility: scope
+      - claim: "a successful attacker yields a complete End(E) basis"
+        responsibility: open_security_reduction
+    not_applicable_reason: null
+
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-1
+      formal_statement: >-
+        TrapCurveGen has inverse-polynomial accepted mass for the declared
+        polynomial B and q, including the non-scalar q-torsion action check.
+      random_model_justification: >-
+        None. This is a required structured-family density statement, not an
+        inference from uniform random supersingular curves.
+      supporting_results: []
+      validation_experiment_ids: []
+      falsification_condition: >-
+        A family proof showing negligible accepted mass, or a superpolynomial
+        expected retry bound, falsifies efficient KeyGen on the declared family.
+    - id: HEUR-2
+      formal_statement: >-
+        CEST-XFER-KI has negligible PPT advantage on the exact real key
+        distribution despite public pairing verification.
+      random_model_justification: >-
+        None. The scalar baseline suggests a gap-CDH-shaped target, but no
+        reduction or hardness evidence is supplied.
+      supporting_results: []
+      validation_experiment_ids: []
+      falsification_condition: >-
+        A polynomial algorithm computing [r]A from (P,A,[r]P), or otherwise
+        distinguishing the real pad with non-negligible advantage, falsifies it.
+
+  structural_ingredients:
+    - description: >-
+        Complete-witness sufficiency does not establish complete-witness
+        necessity when decryption factors through a finite evaluator quotient.
+      citation: IDEA-20261004-edbd24
+      provenance: internal
+      verified_by: TASK-20261007-913665
+      role: "mandatory quotient control on the claimed EndRing dependency"
+    - description: >-
+        Public isogeny label transport requires explicit structured data; this
+        candidate avoids that operation by using scalar transfer instead.
+      citation: IDEA-20261004-e4c461
+      provenance: internal
+      verified_by: TASK-20261007-913665
+      role: "regression boundary, not security support"
+    - description: >-
+        The real public-key distribution and auxiliary data must be embedded
+        exactly in any EndRing reduction.
+      citation: IDEA-20261004-a09dd4
+      provenance: internal
+      verified_by: TASK-20261007-913665
+      role: "distribution control"
+
+  reduction_chain:
+    core_problem: >-
+      CEST-XFER-KI: distinguish the hashed same-scalar transfer point [r]A from
+      a uniform mu-bit key given the exact real pk and R=[r]P.
+    corollaries:
+      - >-
+        Proposed classical-ROM IND-CPA implication with no parsing loss on
+        honest canonical challenges.
+    endring_connection: >-
+      A complete AuxEndRing_CEST solver breaks CEST-XFER-KI, which is the wrong
+      direction for security. The reverse extraction chain is open.
+
+  predictions:
+    - metric: symbolic_accepted_key_correctness_failures
+      direction: lower
+      minimum_effect: "exactly 0"
+    - metric: random_world_message_dependence
+      direction: lower
+      minimum_effect: "exactly 0 for the unmodified candidate"
+    - metric: quotient_decryption_disagreements
+      direction: lower
+      minimum_effect: >-
+        exactly 0 when W is replaced by its psi_E evaluator, demonstrating the
+        open complete-ring necessity gap
+    - metric: unresolved_endring_extraction_arrows
+      direction: lower
+      minimum_effect: "0 required for EndRing security; at least 1 is currently explicit"
+
+  test_boundary:
+    instances:
+      - "symbolic accepted CEST-PKE keys satisfying the scheme contract"
+    parameters:
+      security_parameter: lambda
+      message_space: "{0,1}^mu"
+      nonce_space: "Z_q^*"
+      model: "classical ROM"
+    implementation: >-
+      None. This batch task is zero-run design only. The first evaluation is
+      blind symbolic rederivation and adversarial control execution.
+    budget:
+      enforcement: frozen_zero_run
+      wall_clock_seconds_per_run: 0
+      maximum_memory_gb: 4
+      maximum_runs: 0
+
+  falsification_conditions:
+    - >-
+      One accepted symbolic trace where sender and recipient shared points or
+      canonical hash inputs differ falsifies actual-message correctness.
+    - >-
+      One pair of equivalent complete witnesses selecting different psi_E
+      falsifies representation-independent KeyGen/Dec behavior.
+    - >-
+      Non-negligible public scalar-transfer success falsifies recipient-only functionality.
+    - >-
+      A leaked-plaintext mutation that still passes the proposed hybrid shows
+      that the proof argument proves too much and falsifies it.
+    - >-
+      Failure to simulate the exact P,A auxiliary distribution blocks any
+      reduction to the advertised EndRing challenge.
+    - >-
+      A reviewed correctly directed attacker-to-EndRing reduction would close,
+      rather than falsify, the central open obligation.
+
+  interpretation_limits:
+    - "No hardness, security, novelty, practicality, deployability or concrete-parameter conclusion is asserted."
+    - "No experiment, implementation, formalization or measurement was run."
+    - "The correctness statement is conditional on accepted valid keys and open O2 interfaces."
+    - "CEST-XFER-KI remains separate from EndRing and may collapse to ordinary pairing-verifiable CDH."
+    - "Failure of this candidate is not evidence that EndRing-based PKE is impossible."
+  status: proposed
+  proposed_by: idea-generator

@@ -1,0 +1,163 @@
+# =============================================================================
+# TASK-20261005-fb3d89 -- LEDGER ARCHIVE (close-out) of the stranded-evidence
+# repair REVISION: DEC-20261005-fe9f9f, TASK-20261005-34c6e8, this card, the
+# GOAL-ECDLP2M-001 shard conversion, its write-once checkpoint shard and the
+# goal-head edit. Isolated commits, exactly the declared paths. RUNS ALONE.
+# Must verify, and its PR must merge, BEFORE TASK-20261005-34c6e8 starts.
+# Zero runs. WRITTEN, NOT DISPATCHED.
+# =============================================================================
+handoff:
+  id: TASK-20261005-fb3d89
+  id_provenance: >-
+    Spare id relayed by the dispatching session for a control or close-out
+    card. Used here as this revision's ledger-archive (close-out) card
+    because the decision and its successor card need exactly one archival
+    task, and no other id was assigned. Its own re-check is a stopping gate
+    below.
+  from: coordinator
+  to: coordinator
+  created_at: '2026-10-05'
+  recorded_under: DEC-20261005-fe9f9f
+  goal_id: GOAL-ECDLP2M-001
+  objective: >-
+    (1) Convert the GOAL-ECDLP2M-001 head to the shard layout with
+    tools/shard_goal.py, as its own commit, if and only if no open PR touches
+    it. (2) Write the checkpoint shard and apply the goal-head edit exactly as
+    DEC-20261005-fe9f9f goal_checkpoint specifies. (3) Commit exactly the
+    declared paths in one isolated ledger commit, verify the receipt, push,
+    open or refresh the PR naming the records, and merge it on green CI. Edit
+    no record content beyond goal_head_edit. If a stopping check fails, commit
+    nothing further and return the failure to the Coordinator.
+  uncertainty_reduced: >-
+    Whether the revised repair specification, its successor card and the goal
+    impediment are fixed, verified and on main before any transplant branch
+    is cut (TASK-20261005-34c6e8 DP-1).
+  inputs:
+    - ledger/decisions/DEC-20261005-fe9f9f.yaml
+    - ledger/handoffs/TASK-20261005-34c6e8.yaml
+    - ledger/goals/GOAL-ECDLP2M-001.yaml
+    - tools/shard_goal.py
+    - coordination/archives/TASK-20261005-b73fd8/inventory.yaml (goal_head_touchers)
+    - coordination/archives/TASK-20261005-8d4da1/ledger-receipt.yaml (format precedent)
+  constraints:
+    - RUNS ALONE. Stage only the declared paths. No other record and no status edit. maximum_runs 0.
+    - >-
+      BASE SYNC. Fetch origin, then merge origin/main into
+      claude/coordinate-portfolio-20261005. Merge, never rebase. Record the
+      base commit checked (expected cc96927c11 or a descendant) and the merge
+      outcome. A conflict inside a declared path STOPS the archive.
+    - >-
+      HEAD TOUCHERS (stopping for the shard step only). For every open PR, run
+      `git diff --name-status origin/main...<head> -- ledger/goals/GOAL-ECDLP2M-001.yaml ledger/goals/GOAL-ECDLP2M-001/`
+      and record the result. If any PR touches either path, do NOT shard.
+      Instead apply goal_head_edit to the flat file, write no shard, and
+      record the shard content as owed (fallback, 040d37 G-5 convention).
+    - >-
+      SHARD (when no toucher). Run `python3 tools/shard_goal.py
+      ledger/goals/GOAL-ECDLP2M-001.yaml` and commit its output alone, with a
+      message naming this task. Record the tool's stdout. Stopping: the tool
+      exits non-zero; or `python3 tools/validate_ledger.py` shows any new
+      error naming a GOAL-ECDLP2M-001 path; or the converted goal.yaml plus
+      checkpoints does not yaml.safe_load. The shard commit changes only
+      ledger/goals/GOAL-ECDLP2M-001.yaml (removed) and
+      ledger/goals/GOAL-ECDLP2M-001/ (created).
+    - >-
+      CHECKPOINT SHARD (write-once, stopping). Write
+      ledger/goals/GOAL-ECDLP2M-001/checkpoints/BATCH-075541-DEC-20261005-fe9f9f.yaml
+      with content equal to DEC-20261005-fe9f9f goal_checkpoint.shard_content
+      (the literal block, de-indented, ending in one newline). The path must
+      not exist before this commit.
+    - >-
+      HEAD EDIT. Apply DEC-20261005-fe9f9f goal_checkpoint.goal_head_edit
+      exactly. Add the impediments key with impediments_entry after
+      status_note. Prepend next_action_prepend to next_action, keeping
+      earlier text verbatim. Set updated_at '2026-10-05' and updated_by
+      DEC-20261005-fe9f9f. No other field changes. Verify by loading the file
+      before and after: the only differing keys are impediments (new),
+      next_action (prefix added), updated_at and updated_by.
+    - >-
+      IDENTIFIERS (stopping). For DEC-20261005-fe9f9f, TASK-20261005-34c6e8 and
+      TASK-20261005-fb3d89, run `python3 tools/allocate_id.py --check <ID>` and
+      `git grep -n -E "id: *[A-Z]+-[A-Za-z0-9-]*<token>" HEAD` on the merged
+      tree. Any definition other than the record's own path is a COLLISION.
+      It stops the archive and is returned to the Coordinator. Record
+      DEC-20261005-f37276 as relayed and unused.
+    - >-
+      PARSE AND VALIDATE (stopping). yaml.safe_load must succeed on every
+      staged file. Run `python3 tools/validate_ledger.py` before and after
+      staging. The condition is zero NEW errors naming any staged path.
+      Pre-existing errors are recorded, not fixed.
+    - >-
+      AFTER COMMIT AND PUSH. Open or refresh the PR against main naming
+      DEC-20261005-fe9f9f, TASK-20261005-34c6e8, TASK-20261005-fb3d89 and
+      GOAL-ECDLP2M-001. Merge with a merge commit once every check has
+      concluded success or skipped, with no conflict and no blocking thread.
+      Post one agent_bus message to role coordinator, a pointer and not an
+      approval: subject "GOAL-ECDLP2M-001 stranded-evidence repair revised:
+      DEC-20261005-fe9f9f; TASK-20261005-34c6e8 ready after merge", refs both
+      ids and the receipt.
+    - KNOWLEDGE INDEX. Not staged. No knowledge record is in this archive.
+    - Amazon Bedrock is prohibited.
+  deliverables:
+    - the shard-conversion commit (or the recorded fallback)
+    - one isolated ledger commit of exactly the declared paths
+    - coordination/archives/TASK-20261005-fb3d89/ledger-receipt.yaml
+    - a pushed branch and a merged PR against main naming the records above
+  artifact_paths:
+    - ledger/decisions/DEC-20261005-fe9f9f.yaml
+    - ledger/handoffs/TASK-20261005-34c6e8.yaml
+    - ledger/handoffs/TASK-20261005-fb3d89.yaml
+    - ledger/goals/GOAL-ECDLP2M-001.yaml (removed by the shard commit; edited in place only in the fallback)
+    - ledger/goals/GOAL-ECDLP2M-001/goal.yaml
+    - ledger/goals/GOAL-ECDLP2M-001/checkpoints/ (files created by shard_goal.py, plus BATCH-075541-DEC-20261005-fe9f9f.yaml)
+    - coordination/archives/TASK-20261005-fb3d89/ledger-receipt.yaml
+  write_scope:
+    - coordination/archives/TASK-20261005-fb3d89/
+    - ledger/goals/GOAL-ECDLP2M-001.yaml
+    - ledger/goals/GOAL-ECDLP2M-001/
+  archived_by: TASK-20261005-fb3d89
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 2700
+    memory_gb: 2
+    maximum_runs: 0
+  budget_note: Advisory machine protection. Zero scientific runs. Expiry checkpoints the task and is never evidence.
+  dispatch_preconditions:
+    - DP-1. DEC-20261005-fe9f9f, TASK-20261005-34c6e8 and this card exist in the working tree and are non-empty.
+    - DP-2. No other archive task is running on this worktree.
+  completion_gate:
+    - the shard commit (or the recorded fallback) precedes the ledger commit
+    - the ledger commit is reachable from HEAD with the expected parent and changes exactly the declared paths
+    - every path_sha256 verifies against the tree
+    - the checkpoint shard's bytes equal DEC-20261005-fe9f9f goal_checkpoint.shard_content
+    - the head-edit key diff is exactly impediments, next_action, updated_at and updated_by
+    - every stopping identifier check passes, or the archive stopped and reported
+    - validate_ledger.py shows zero new errors naming a staged path
+    - commit messages name TASK-20261005-fb3d89 and DEC-20261005-fe9f9f, and claim nothing beyond "goal shard" and "ledger archive"
+    - branch pushed, PR merged with a merge commit after green CI, bus pointer posted
+  return_format: >-
+    The shard commit sha (or fallback reason), the head-toucher table, the
+    ledger commit sha, the receipt path, the identifier table, the validator
+    outcome, the PR number and merge sha, and the bus message id.
+  review_plan: null
+  review_plan_note: An archival task opens no review round.
+  archive:
+    kind: ledger
+    binding_mode: content_at_commit
+    source_task_ids:
+      - TASK-20261005-fb3d89
+    commit_sha: null
+    parent_sha: null
+    path_sha256: {}
+    record_ids:
+      - DEC-20261005-fe9f9f
+      - TASK-20261005-34c6e8
+      - TASK-20261005-fb3d89
+      - GOAL-ECDLP2M-001
+  state: written_not_dispatched
+  amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
