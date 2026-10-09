@@ -57,10 +57,13 @@ class BridgeTests(unittest.TestCase):
                                 cairn_listen="127.0.0.1:9001", backend="local",
                                 opencode_bin=path / "opencode",
                                 bootstrap=[path / "peer-a.json", path / "peer-b.json"],
-                                attest_identity=path / "validator.json")
+                                attest_identity=path / "validator.json",
+                                node_only=True)
         argv = config["ProgramArguments"]
         self.assertEqual(argv.count("--bootstrap"), 2)
         self.assertIn(str(path / "validator.json"), argv)
+        self.assertIn("--node-only", argv)
+        self.assertNotIn("--allow-remote-inference", argv)
 
     def test_receipt_binds_settlement_verdict_and_archived_artifact(self) -> None:
         fixture = Repo()

@@ -202,18 +202,23 @@ python3 tools/cairn_autopilot_service.py \
   --identity .cairn-runtime/executor.identity.json \
   --cairn-data .cairn-runtime/node \
   --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
-  --cairn-listen 127.0.0.1:9001 --backend local
+  --cairn-listen 127.0.0.1:9001 --backend local --node-only
 ```
 
-`tools/cairn_autopilot_service.py` keeps `opencode serve` on loopback,
-requires its `/mcp` endpoint to report Cairn connected, and attaches the
-existing bounded-action supervisor to it. The node and campaign checkpoint
-survive individual actions; its state, identity, node log and OpenCode log stay
+`tools/cairn_autopilot_service.py` keeps `opencode serve` on loopback and
+requires its `/mcp` endpoint to report Cairn connected. `--node-only` keeps
+the network environment up without sending a model prompt. The committed
+`opencode.json` labels its loopback model endpoint as an AWS lazy proxy: the
+first inference request can launch paid remote compute. Campaign actions
+therefore refuse to start with this configuration unless the operator removes
+`--node-only` and explicitly passes `--allow-remote-inference` after approving
+that destination and cost. The node and campaign checkpoint survive individual
+actions; its state, identity, node log and OpenCode log stay
 in `.cairn-runtime/`, which Git ignores. Use a user service manager such as
 launchd with restart enabled for reboots and process failures. The command
-above runs indefinitely until stopped. `--once` runs one campaign action for
-a bounded live check; `--check` only confirms that Cairn connected and then
-stops. `--timeout` caps one OpenCode action without treating a
+above runs indefinitely until stopped. With inference approved, `--once` runs
+one campaign action for a bounded live check; `--check` only confirms that
+Cairn connected and then stops. `--timeout` caps one OpenCode action without treating a
 watchdog as research evidence. `autoresearch campaign autopilot --repo .
 --state-dir .cairn-runtime/campaign --report` reads its progress.
 The service puts OpenCode's XDG data, state, cache, and config under the same
@@ -230,7 +235,7 @@ python3 tools/cairn_autopilot_launchd.py --repo . \
   --identity .cairn-runtime/executor.identity.json \
   --cairn-data .cairn-runtime/node \
   --opencode-port 4096 --cairn-serve 127.0.0.1:8081 \
-  --cairn-listen 127.0.0.1:9001 --backend local \
+  --cairn-listen 127.0.0.1:9001 --backend local --node-only \
   --out .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist
 mkdir -p ~/Library/LaunchAgents
 cp .cairn-runtime/campaign/com.crypto-autoresearcher.cairn.plist \

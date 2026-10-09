@@ -20,7 +20,8 @@ LABEL = "com.crypto-autoresearcher.cairn"
 def render(*, repo: Path, state_dir: Path, cairn_bin: Path, identity: Path,
            cairn_data: Path, opencode_port: int, cairn_serve: str,
            cairn_listen: str, backend: str, opencode_bin: Path,
-           bootstrap: list[Path] | None = None, attest_identity: Path | None = None) -> dict:
+           bootstrap: list[Path] | None = None, attest_identity: Path | None = None,
+           node_only: bool = False, allow_remote_inference: bool = False) -> dict:
     service = repo / "tools" / "cairn_autopilot_service.py"
     argv = [sys.executable, str(service), "--repo", str(repo),
             "--state-dir", str(state_dir), "--cairn-bin", str(cairn_bin),
@@ -31,6 +32,10 @@ def render(*, repo: Path, state_dir: Path, cairn_bin: Path, identity: Path,
         argv.extend(["--bootstrap", str(peer)])
     if attest_identity:
         argv.extend(["--attest-identity", str(attest_identity)])
+    if node_only:
+        argv.append("--node-only")
+    if allow_remote_inference:
+        argv.append("--allow-remote-inference")
     return {
         "Label": LABEL,
         "ProgramArguments": argv,
@@ -62,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backend", default="local")
     parser.add_argument("--bootstrap", type=Path, action="append", default=[])
     parser.add_argument("--attest-identity", type=Path)
+    parser.add_argument("--node-only", action="store_true")
+    parser.add_argument("--allow-remote-inference", action="store_true")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     opencode = shutil.which("opencode")
@@ -79,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         cairn_listen=args.cairn_listen, backend=args.backend,
         bootstrap=[peer.resolve() for peer in args.bootstrap],
         attest_identity=args.attest_identity.resolve() if args.attest_identity else None,
+        node_only=args.node_only, allow_remote_inference=args.allow_remote_inference,
         # Keep the configured executable path rather than its current Cellar
         # target, so a package-manager upgrade can update the symlink.
         opencode_bin=Path(opencode).absolute())
