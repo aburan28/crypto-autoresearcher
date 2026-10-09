@@ -1,11 +1,11 @@
 # Crypto Autoresearcher Agent Contract
 
 A multi-agent operating system for reproducible ECDLP experimentation. This
-file is the normative contract: rules, with a one-line reason each. The
-incident narratives and worked reasoning behind them are in
-[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md), and the
-rules cite the document that holds their full statement. Where this file and
-any other document disagree, this file wins.
+file is the normative contract: rules, with a one-line reason each.
+Incident narratives and worked reasoning are in
+[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md); rules
+cite their full statements. Where this file and another document disagree,
+this file wins.
 
 ## Budgets: progress first
 
@@ -89,6 +89,7 @@ None names a vendor. `docs/inference-backends.md`.
 | --- | --- | --- |
 | Coordinator | `coordinator-orchestration-code` (`coordinator-orchestration` without code) | |
 | Idea Generator, research tasks | `research-deep` | |
+| Idea Synthesist (cross-goal ideation) | `research-synthesis` | `high` |
 | Executor | `executor-implementation`; `executor-mechanical` for judgment-free re-runs | |
 | Reviewer, Validator, Red Team | `review-adversarial` | `xhigh`, independent session |
 | Consolidator | `consolidation-routing` | `high`, independent of the lanes it reads |
@@ -350,7 +351,8 @@ no reason to read (`docs/claude-code-runtime.md`, "Concurrency").
   Repository settings allow merge commits only.
 - **Auto-merge a PR once its CI passes** (user, 2026-09-23): every check
   `success` or `skipped`, none pending, no conflict, no open blocking review
-  thread, Claude Approvals passing where it runs. Mark drafts ready first;
+  thread, Claude Approvals passing where it runs. Open PRs ready for review (user,
+  2026-10-08), never as drafts, whatever a tool defaults to; mark drafts ready;
   prefer GitHub auto-merge; merge-commit method only. Never merge red,
   pending or conflicted, and never skip or re-run a check to make it green.
   A merge is a git operation, not a research-state transition.

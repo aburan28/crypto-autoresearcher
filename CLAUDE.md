@@ -12,13 +12,16 @@ form of this file is kept, unchanged, at
 ## What is Claude Code specific
 
 - **Subagents** live in `.claude/agents/` and are generated from
-  `agents/*.md` by `tools/generate_runtime_agents.py`: six roles plus three
-  policy-tier variants (`executor-mechanical`, `validator-breakthrough`,
-  `red-team-breakthrough`). Keep `model: inherit`; per-role model selection
-  is process-level (`python3 -m orchestration.adapter env --runtime
-  claude_code --role <role>`). Each file's `effort:` is derived from its
-  role's policy (`orchestration/roles.yaml` → `orchestration/model-policies.yaml`),
-  never edited by hand; `tools/check_runtime_bindings.py` fails the build on
+  `agents/*.md` by `tools/generate_runtime_agents.py`: seven roles (the
+  newest, `idea-synthesist`, is Claude Code only) plus three policy-tier
+  variants (`executor-mechanical`, `validator-breakthrough`,
+  `red-team-breakthrough`). Subagents keep `model: inherit` except the roles
+  in `runtime_model_pins` (`orchestration/roles.yaml`), which name their
+  policy's `anthropic` binding; never hand-edit either. The session default
+  is `claude-opus-5-5` (`.claude/settings.json`); `--model` and
+  `adapter env --runtime claude_code --role <role>` override it. Each file's
+  `effort:` is derived from its role's policy (`orchestration/roles.yaml` →
+  `orchestration/model-policies.yaml`), never edited by hand; `tools/check_runtime_bindings.py` fails the build on
   drift and `--list` shows where each role's effort comes from.
 - **Skills** are in `.claude/skills/`: `run` (execution only), `coordinate`
   (rank, approve, dispatch, archive, publish; never runs trials),

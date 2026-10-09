@@ -34,19 +34,18 @@ capabilities:
   # which is exactly why this capability may only ever appear under
   # `optional_capabilities` (see below) and never under `capabilities`.
   send_messages: {claude_code: [SendMessage]}
-  # The cairn network over MCP (`.mcp.json` -> tools/cairn_mcp.sh), split the
+  # The cairn network over MCP (`.mcp.json` and `opencode.json` ->
+  # tools/cairn_mcp.sh), split the
   # way cairn's own tool surface splits authority. `network_submit` is the
   # Executor's: score a candidate against the pinned verifier (free, records
   # nothing -- the inner-loop fitness signal) and submit a claim as this
-  # worktree's signed identity. `network_read` is what a reviewer needs to
-  # look a claim and its standing up. Neither can post or fund an objective:
-  # cairn's MCP server exposes no such tool, and funding is the Coordinator's
-  # approval decision made at the CLI (docs/cairn-integration-plan.md Stage 1).
-  # Optional everywhere, like send_messages, because only Claude Code carries
-  # MCP tools per agent; a runtime without them loses the network path and
-  # nothing else.
-  network_submit: {claude_code: [mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim]}
-  network_read:   {claude_code: [mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit]}
+  # worktree's signed identity. `network_read` lets reviewers inspect claims.
+  # Current cairn also exposes post_objective, so both runtime bindings deny
+  # it and the launcher pins its MCP spend ceiling to zero. Funding remains a
+  # Coordinator CLI decision (docs/cairn-integration-plan.md Stage 1).
+  # Optional everywhere: runtimes without MCP lose this path, not the role.
+  network_submit: {claude_code: [mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim], opencode: [cairn_list_objectives, cairn_get_objective, cairn_frontier_status, cairn_get_claim, cairn_work_assignment, cairn_pending_reveals, cairn_score_candidate, cairn_submit_claim]}
+  network_read:   {claude_code: [mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit], opencode: [cairn_list_objectives, cairn_get_objective, cairn_frontier_status, cairn_get_claim, cairn_audit]}
 
 # Capabilities a runtime grants unconditionally and cannot withhold from a
 # role, whatever the contract says.
@@ -132,6 +131,29 @@ runtime_reasoning_effort:
   codex_cli: null
   # OpenCode frontmatter carries `temperature`, not a reasoning-effort level.
   opencode: null
+
+# Per-agent model pins. Every Claude Code subagent runs on the session's model
+# unless its file names one, so an Executor replaying a frozen protocol bills
+# at whatever tier the session was launched on -- the model-side twin of the
+# effort problem above. The roles listed here pin the model their own policy
+# is bound to on `backend` in model-bindings.yaml; every other role keeps
+# `model: inherit`, so coordination and review stay on the model the operator
+# chose for the session. Pinned: the executor roles (their work is a protocol
+# that was already frozen and approved) and, since 2026-10-07, the
+# idea-generator and consolidator, whose output -- proposals and pointers --
+# is gated downstream by Opus-tier review and never changes research state;
+# and the Fable-tier roles (idea-synthesist and both breakthrough reviewers),
+# which must not silently run on whatever the session was launched on.
+#
+# The pinned id is derived, never chosen in the agent file:
+# `tools/check_runtime_bindings.py` fails the build when a pinned file names
+# anything but its binding, or an unpinned file names any model at all.
+runtime_model_pins:
+  claude_code:
+    field: model
+    backend: anthropic
+    roles: [executor, executor-mechanical, idea-generator, consolidator,
+            idea-synthesist, validator-breakthrough, red-team-breakthrough]
 
 # Execution limits for the api_direct runtime (orchestration/agent/). These are
 # defaults; a task's own budget narrows them and never widens them.
@@ -321,6 +343,19 @@ roles:
     optional_capabilities: [send_messages, network_read]
     runtime_bindings:
       claude_code: .claude/agents/red-team-breakthrough.md
+
+  idea-synthesist:
+    contract: agents/idea-synthesist.md
+    default_policy: research-synthesis
+    authority:
+      may_change_official_state: false
+      may_approve_experiments: false
+      may_execute_experiments: false
+      independent_of_producer: false
+    capabilities: [read_files, search_files, write_files, web_search]
+    optional_capabilities: [send_messages]
+    runtime_bindings:
+      claude_code: .claude/agents/idea-synthesist.md
 
 # A role carrying `variant_of` must match its base role's contract, authority
 # and capabilities EXACTLY, and must resolve to a different policy than the

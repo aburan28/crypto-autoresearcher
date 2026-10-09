@@ -1,0 +1,197 @@
+experiment:
+  id: EXP-SCURVE-647ade
+  hypothesis_id: H-SCURVE-9f8f9a
+  proposal_id: IDEA-20261006-45f5a2
+  version: 1
+  title: Exact weighted CM class-relation search for the valid P-192 isogeny class
+  status: approved
+  objective: >-
+    Exhaust the frozen L<=2^48 class-relation box, independently certify every
+    algebraic hit, and test whether any hit is globally orientable, explicitly
+    evaluable, and beneficial after full P-192 map costs.
+  inputs:
+    curve:
+      name: NIST P-192 / secp192r1
+      p: '6277101735386680763835789423207666416083908700390324961279'
+      n: '6277101735386680763835789423176059013767194773182842284081'
+      trace_t: '31607402316713927207482677199'
+      discriminant_D: '-24109379060336110122544161233113975664949272517896865359515'
+      D_factorization: -5 * 11 * 31 * C
+      C: '14140398275856956083603613626459809774163796198179979683'
+    generators:
+      convention: >-
+        For split ell use (ell,pi-r) with r the smaller root of
+        X^2-tX+p mod ell as positive orientation; negative exponent is its
+        conjugate. Store and independently recompute both roots. Ramified
+        exponents are unsigned. Canonicalize global conjugation by requiring
+        the first nonzero split exponent to be positive.
+      ramified:
+        5: [2]
+        11: [3]
+        31: [7]
+      split:
+        13: [2, 5]
+        23: [21, 22]
+        37: [12, 35]
+        43: [8, 26]
+        73: [60, 67]
+        89: [6, 83]
+        101: [17, 70]
+        103: [5, 36]
+        107: [56, 68]
+        113: [26, 42]
+    exact_boundary:
+      norm: L=product ell^|e_ell| <= 2^48
+      max_ell: 113
+      oriented_vectors: 9948061
+      canonical_vectors_including_zero: 4974348
+      canonical_nonzero_vectors: 4974347
+      hard_state_cap: 5000000
+  method:
+    order_and_cm_certification:
+      - >-
+        Verify the pinned standard P-192 tuple, native p/n primality checks,
+        G!=O, [n]G=O, and the exact Hasse inequality forcing #E=n. If full
+        recursive p/n primality certificates are emitted, verify them; otherwise
+        retain the pinned-standard provenance explicitly.
+      - >-
+        Emit and natively replay a recursive Pocklington certificate proving C
+        prime. From D=-5*11*31*C, certify D squarefree and fundamental and the
+        Frobenius conductor one, hence End(E)=Z[pi]=O_D.
+    exact_search:
+      - Recompute every root/orientation fixture and compose/reduce binary quadratic forms exactly.
+      - Enumerate all canonical vectors under the norm boundary without empirical pruning; abort before exceeding the hard cap.
+      - Reproduce the prior no-extra-relation word-radius-at-most-16 check inside exactly this generator set.
+      - Classify zero, inverse/dual backtrack, scalar ramified, and non-scalar relations separately.
+      - >-
+        For each principal product emit exponent vector, oriented (ell,r) list,
+        reduced class product, alpha=(u,v) in basis {1,pi}, lambda=u+v mod n,
+        norm and factorization, ideal equality, explicit chain, and terminal
+        isomorphism. Independently verify HNF using prime-ideal columns
+        [(ell,0),(-r,1)] and principal columns [(u,v),(-v*p,u+v*t)].
+    weights:
+      primary_exact: log2(L), the exact geometric degree/norm weight
+      secondary_proxy: sum |e_ell|*ell, an explicitly uncalibrated deterministic degree-linear Velu proxy
+      HOT: exact tuple (#FpM,#FpS,#FpI,#FpAdd,#polyM,bytes) for map evaluation plus endpoint isomorphism
+      COLD: HOT plus root/kernel/map construction, verification, and serialization tuple
+      ranking_only: Hash-bound integer-Q32 ratios from calibration may scalarize tuples only for deterministic ranking; retain raw tuples.
+      calibration: 23 oriented generators times 16 deterministic endpoints = 368 edge records; seed 0x50313932434d5231; one warmup plus 11 paired repetitions.
+    payoff_gate: >-
+      No relation licenses a weakness without globally Frobenius-oriented
+      kernels, explicit P-192 maps and point evaluation, independent replay,
+      both HOT and COLD raw costs, and a fully charged canonicalization or DLP
+      inequality beating the applicable baseline. Measured hot/cold calibration
+      is an open deliverable, not silently satisfied by the degree-linear proxy.
+  exact_theorem_control: >-
+    For non-scalar alpha=u+v*pi, certify
+    N(alpha)>=ceil(|D|/4)=6027344765084027530636040308278493916237318129474216339879
+    (approximately 2^191.941). Therefore the L<=2^48 exact lane can contain
+    only scalar ramified relations if the premises hold.
+  controls:
+    - D=-23 with g2^3=1, alpha=(3+sqrt(-23))/2, norm 8, as a non-scalar positive control.
+    - P-192 g5^2, g11^2, and g31^2 as scalar ramified-square controls.
+    - >-
+      Symbolic-only P-192 control g5*g11*g31*gC=1 with
+      alpha=sqrt(D)=2*pi-t, (u,v)=(-t,2), norm |D|, and lambda=2-t mod n.
+      Keep C outside the <=113 buildable set. Algebraic verification must pass;
+      the payoff gate must reject it because the C-degree edge is unavailable
+      and alpha acts as ordinary scalar/Frobenius on E(F_p)[n].
+    - Zero, inverse-pair, and immediate dual-backtrack words must not count as hits.
+    - Corrupted exponent, root, D, HNF, alpha/norm, certificate, terminal isomorphism, and map artifacts must be rejected.
+    - Toy explicit-root Velu and kernel-polynomial maps must agree on endpoints and evaluated points.
+    - Shuffled ranking weights may change ordering but not exact membership or relation identities.
+  independent_variables:
+    - exact norm/degree layer versus empirical HOT and COLD cost ranking
+    - algebra-only relation versus globally oriented explicitly mapped relation
+    - valid certificates versus one-field-at-a-time mutations
+  metrics:
+    primary:
+      - exact oriented/canonical counts, boundary digest, and relation classification counts
+      - exact log2(L) and degree-linear proxy for every retained candidate
+      - independent reduced-form, exponent-vector, alpha/norm/lambda, HNF, and map replay verdicts
+      - fully charged end-to-end payoff inequality for every buildable non-scalar candidate
+    secondary:
+      - raw HOT and COLD operation tuples, Q32 ranking weights, and calibration dispersion
+      - peak resident/disk bytes, CPU time, and wall time by phase
+      - candidate coverage lost to unavailable orientation, kernels, maps, or point evaluation
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: useful buildable non-scalar relation count in the exact box
+    formula: zero, supported by the independently checked non-scalar norm lower bound
+    source: H-SCURVE-9f8f9a
+  scale_relevance:
+    tier: crypto
+    justification: Direct exact arithmetic in the valid P-192 endomorphism order and isogeny class.
+    correspondence: No toy-to-crypto extrapolation; toy instances are instrument controls only.
+  tail_checks:
+    - Enumerate and hash the exact L=2^48 boundary layer separately.
+    - Confirm all states are unchanged by a second deterministic enumeration order.
+    - Report every principal relation nearest the degree boundary, not only the lowest proxy-ranked item.
+  replication:
+    seeds:
+      - '0x50313932434d5231'
+    independent_instances: 1
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 21600
+    total_cpu_hours: 48
+    maximum_memory_gb: 16
+    maximum_runs: 4
+    maximum_workers: 8
+  stopping_rules:
+    - Abort invalid before search if order, C-primality, discriminant, conductor, roots, or theorem-bound certification fails.
+    - Abort invalid if canonical enumeration reaches 5,000,001 states or expected counts differ.
+    - Stop success only for an independently replayed non-scalar map with a favorable fully charged payoff inequality.
+    - Otherwise complete the entire frozen box; timeout or unavailable maps yield incomplete/candidate-only, not strength evidence.
+  invalidation_rules:
+    - Empirical weights prune or alter membership in the exact norm box.
+    - Wall time or the degree-linear proxy is presented as the primary security cost.
+    - A relation lacks independent HNF/exponent replay.
+    - A form identity is called a weakness without global orientation, explicit maps, point evaluation, and payoff accounting.
+    - The symbolic C-degree control is included in the <=113 buildable factor base.
+  success_criterion: >-
+    A non-scalar relation inside the exact box passes form, HNF, alpha/norm,
+    orientation, explicit-chain, map, point-evaluation, and terminal-isomorphism
+    replay and shows a favorable fully charged end-to-end attack or
+    canonicalization inequality against the declared baseline.
+  falsification_criterion: >-
+    The full exact census and all controls pass, yet no in-box relation passes
+    the non-scalar, buildability, replay, and payoff gates. This supports only
+    NO_WEAKNESS_FOUND_WITHIN_SCOPE for the frozen box.
+  commands:
+    build: cargo build --release --bin p192_cm_relation_search --target-dir /workspace/crypto-target
+    prove_order: >-
+      /workspace/crypto-target/release/p192_cm_relation_search prove-order
+      --curve p192 --pocklington <fresh-run-dir>/p192-pocklington.json
+      --out <fresh-run-dir>/order.json
+    generators: >-
+      /workspace/crypto-target/release/p192_cm_relation_search generators
+      --order <fresh-run-dir>/order.json --max-ell 113 --include split,ramified
+      --out <fresh-run-dir>/generators.json
+    calibrate: >-
+      /workspace/crypto-target/release/p192_cm_relation_search calibrate
+      --generators <fresh-run-dir>/generators.json --endpoints 16 --warmup 1
+      --reps 11 --seed 0x50313932434d5231 --out <fresh-run-dir>/weights.json
+    search: >-
+      /workspace/crypto-target/release/p192_cm_relation_search search
+      --mode exact-norm --max-ell 113 --max-degree-bits 48
+      --max-states 5000000 --canonical-conjugates
+      --generators <fresh-run-dir>/generators.json
+      --weights <fresh-run-dir>/weights.json --word-radius-control 16
+      --out <fresh-run-dir>/relations.json
+    verify: >-
+      /workspace/crypto-target/release/p192_cm_relation_search verify
+      --certificate <fresh-run-dir>/relations.json --independent-ideal-hnf
+      --replay-maps --out <fresh-run-dir>/verification.json
+  required_artifacts:
+    - run.yaml with fresh RUN ids, code commit, exact argv, environment, and timestamps
+    - p192-pocklington.json, order.json, generators.json, and exact-boundary-manifest.json
+    - weights.json with 368 raw edge records and hash-bound Q32 calibration
+    - relations.json and verification.json with all certificates and exclusions
+    - operation-counts.json, resource-metrics.json, stdout.log, and stderr.log
+    - report.md, editable relation/payoff flow source, rendered SVG, and rendered PDF
+    - SHA-256 manifest covering every artifact
+  assigned_to: executor
+  approved_by: coordinator
+  approval_decision: DEC-20261006-af8214
+  claim_ceiling: NO_WEAKNESS_FOUND_WITHIN_SCOPE unless every success gate passes

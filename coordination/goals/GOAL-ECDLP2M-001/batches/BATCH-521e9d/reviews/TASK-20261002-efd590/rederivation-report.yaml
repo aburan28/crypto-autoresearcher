@@ -1,0 +1,1757 @@
+rederivation_report:
+  task_id: TASK-20261002-efd590
+  goal_id: GOAL-ECDLP2M-001
+  batch_id: BATCH-521e9d
+  joint: JRD3
+  kind: blind-rederivation
+  status: final
+  produced_at: "2026-10-09T08:20:20Z"
+  runs_launched: 0
+  scope: >-
+    Blind re-derivation of the quantities QR0 to QR4 exactly as the card
+    defines them, for joint JRD3 only. Every value below was computed or
+    measured by this task with its own code (Python standard library; numpy
+    only inside the E-NP family), from the card's definitions alone. Operands
+    are random polynomials over F_2 and random F_2 matrices only. Zero
+    experiment runs. Nothing was compared with any other report (BR-5).
+    Measured values describe this host and these implementations only.
+  environment:
+    interpreter: >-
+      /usr/local/bin/python3, CPython 3.11.15 (main, Mar 3 2026, 09:26:23)
+      [GCC 13.3.0]; implementation CPython; recorded in the header line of
+      every item.
+    numpy: >-
+      numpy 2.4.6, imported only by E-NP items (np.fft.rfft/irfft, float64).
+    machine: >-
+      platform.machine() x86_64; Linux-6.18.44-fc-v80-x86_64-with-glibc2.39
+    nproc: >-
+      nproc 4 before and after every item; os.cpu_count 4; sched_getaffinity
+      4. Every measured operation is single-threaded.
+    cpu: >-
+      Two hosts, tagged per item as host. H1 is 'Intel(R) Xeon(R) Processor @
+      2.80GHz' (/proc/cpuinfo model name), 4 logical CPUs. Every item started
+      before the second container restart ran on H1, and this was re-checked
+      after the first restart. H2 is 'Intel(R) Xeon(R) Processor @ 2.10GHz', 4
+      logical CPUs, with the same kernel, memory, CPython and numpy. Every
+      item started after the second restart (2026-10-09T02:00Z) ran on H2. See
+      supplementary_measurements.host_control.
+    memory: >-
+      15 GiB physical, no swap (free -g at session start).
+    measurement_conditions: >-
+      One measurement process at a time, run sequentially by driver.sh. Each
+      process is wrapped as timeout 3600 under the bash time keyword
+      (TIMEFORMAT real/user/sys; /usr/bin/time is not installed), and its
+      first action is resource.setrlimit(RLIMIT_AS, (8 GiB, 8 GiB)). Recorded
+      per item are perf_counter seconds of the timed operation, peak RSS,
+      interpreter version, platform.machine, nproc and /proc/loadavg. Loadavg
+      is read before and after each process by the driver, and inside the
+      process before and after the timed operation. Exit 124 is a watchdog
+      expiry. MemoryError is caught and recorded (exit 3). Neither is a value.
+    host_load: >-
+      1-minute loadavg over all 111 item records (driver pre and post reads)
+      ranged 0.23 to 1.58. This task's own editing and light analysis ran
+      alongside some items. No other measurement process ran concurrently.
+    yaml_parse_check: >-
+      PyYAML 6.0.1 (system package) yaml.safe_load was used only to
+      parse-check this file. json.load parse-checked computations.json.
+  method:
+    operands_and_seeds: >-
+      A polynomial is a bit-packed Python int (bit i is the coefficient of
+      X^i). A random operand of exact degree D is X^D +
+      random.Random(seed).getrandbits(D). The generator is CPython
+      random.Random (MT19937). Each seed is the first 8 bytes (big-endian) of
+      SHA-256 of a label. Labels are JRD3|prod|D|a and JRD3|prod|D|b (product
+      operands, exact degree D-1 each, the reading of degree below D),
+      JRD3|msq|D|m (monic modulus, exact degree D) and JRD3|msq|D|a (exact
+      degree D-1), JRD3|gcd|D|a and JRD3|gcd|D|b (exact degree D), and
+      JRD3|ge|m (m rows of getrandbits(m)). Every family uses the same seeds,
+      so all three multiply bit-identical operands. Operand SHA-256 digests
+      are in every item record.
+    E_INT: >-
+      Kronecker substitution into one Python int per operand. Each coefficient
+      occupies a k-byte slot, k least with 256^k > min(len a, len b), where
+      len is the number of coefficients. That minimum bounds every integer
+      convolution value, so no carry can cross a slot. Spreading uses
+      format(x, 'b'), reversal, translation to 0/1 bytes, a strided bytearray
+      assignment and int.from_bytes. Multiplication is CPython int
+      multiplication. Extraction takes the low byte of each slot from
+      to_bytes, its parity, and int(..., 2). At the QR2 degrees, slot widths
+      are 3 bytes for the 2^20, 2^22 and 5^10 products and for every Barrett
+      product up to 2^24 (those have D-1 coefficients), and 4 bytes for the
+      2^24 product and everything at 5^11 and above. The supplementary small
+      degrees use 1 or 2 bytes. Conversions are inside the timed region.
+    E_DEC: >-
+      The same substitution in base 10 with decimal.Decimal. Each slot has k
+      decimal digits, k least with 10^k > min(len a, len b): 7 digits at 2^20,
+      2^22 and 5^10, 8 at 2^24, 5^11 and 6^10, 9 at 3^17. The bit lies in the
+      slot's units digit. The operand is built as a digit string, converted by
+      decimal.Decimal(str), and multiplied in a Context(prec=MAX_PREC,
+      Emax=MAX_EMAX, Emin=MIN_EMIN) that traps Inexact and Rounded, so a
+      non-exact product would raise. str() converts back, and each slot's
+      parity is the parity of its units digit (10^j is even for j >= 1). The
+      multiplication algorithm is libmpdec's internal choice, and only its
+      measured scaling is reported.
+    E_NP: >-
+      np.unpackbits of the operand bytes gives the 0/1 vectors. np.fft.rfft at
+      the least 5-smooth length >= len a + len b - 1, a pointwise product,
+      then np.fft.irfft and np.rint. Parity is int64 & 1, taken in
+      2^24-element chunks, followed by np.packbits and int.from_bytes.
+      Exactness: every convolution value is an integer <= min(len a, len b) <=
+      1.3e8, and the largest observed rounding residual |c - rint(c)| over all
+      unsplit E-NP products was 1.35e-08 (recorded per item), far below 0.5.
+      No split was needed for exactness, so the primary E-NP items are
+      unsplit. Where an unsplit item failed under RLIMIT_AS, a
+      memory-motivated variant was also run (one Karatsuba level over F_2 on
+      top of the family product, i.e. three half-size products). It is
+      reported as split_variant and never replaces the primary outcome.
+    modular_squaring: >-
+      a^2 mod m. s = a^2 is formed by F_2-linear zero interleaving: O(D) byte
+      operations, the same code for every family, inside the timed region. The
+      reduction is Barrett with mu = floor(X^(2D)/m), of degree D, precomputed
+      once per modulus by Newton iteration g <- f g^2 mod X^(2l) on f =
+      rev_D(m) (characteristic 2). mu is computed outside the timed process
+      and loaded from file. Its bits are identical whichever family computed
+      it, because E-NP and E-DEC agree bit for bit at every QR2 degree up to
+      6^10. At 3^17 only E-DEC completed it. The timed reduction is q =
+      floor(floor(s/X^D) mu / X^D), one family product of D-1 by D+1
+      coefficients, then r = s + q m, a second family product of the same
+      shape. For polynomials this quotient is exact whenever deg s <= 2D-1, so
+      there is no correction step. Every item checks deg r < D. Given correct
+      products, that certifies q is the true quotient, since any other q'
+      gives deg(s - q'm) >= D.
+    classical_gcd: >-
+      Euclid's algorithm on bit-packed Python ints: while b != 0, reduce a mod
+      b by repeated a ^= b << (deg a - deg b) until deg a < deg b, then swap.
+      Both operands have exact degree D, and there is one process per degree.
+      Verification uses Stein's binary gcd, an independent algorithm, on the
+      same operands in separate processes (degrees listed per ladder row as
+      stein_equal). At every degree there is an untimed check that the
+      returned gcd divides both operands.
+    elimination: >-
+      QR4: an m x m matrix over F_2 with uniform entries (rows =
+      getrandbits(m)), rows stored as Python ints. Forward Gaussian
+      elimination with leading-bit pivots, processed row by row. Each row is
+      XOR-reduced by the pivot row owning its current leading bit until it
+      acquires a new leading bit (and becomes a pivot) or vanishes. The pivot
+      rows in decreasing leading-bit order, followed by the zero rows, form a
+      row echelon form. This is checked (strictly decreasing leading bits) and
+      the rank is recorded. Reduced row echelon form is not computed.
+    verification: >-
+      Products are verified when the SHA-256 of the full result equals that of
+      a second family on identical operands. Modular squarings are verified
+      when deg r < D holds in-process and SHA-256 of r and of q equals that of
+      a second family on identical (a, m). The Barrett constant is
+      cross-checked between E-NP and E-DEC where both completed, and at 3^17
+      it is certified indirectly by the deg r < D check of both verifying
+      families. No randomised evaluation identity was used: a randomised check
+      needs reduction modulo a random irreducible, which is extension-field
+      arithmetic excluded by BR-6. All engines and the Barrett and gcd
+      routines also passed a schoolbook unit test of 2127 cases before the
+      campaign, including all-ones operands at slot boundaries.
+    timing_and_rss: >-
+      Seconds are time.perf_counter around the one timed operation: a product,
+      or the interleave plus the two Barrett products. One sample per item.
+      Peak RSS is getrusage(RUSAGE_SELF).ru_maxrss, sampled immediately after
+      the timed operation. It is the process-lifetime peak, including the
+      interpreter, imports and operand generation or loading, and is reported
+      in MiB. VmHWM and VmPeak are also in computations.json. The bash time
+      real/user/sys of each process is recorded beside it. sys time is a large
+      share for the large-array families because fresh multi-GB allocations
+      are page-faulted.
+  QR0:
+    statement: >-
+      The card's QR1 definitions are fully determined (no item changes a QR1
+      value). The items below are choices the card leaves open that change at
+      least one reported QR2, QR3 or QR4 value. Each gives the reading used
+      and the value under the other reading where it can be computed from this
+      task's measurements. QR3 alternative tables are computed in full in
+      computations.json.
+    empty: false
+    items:
+      - id: QR0-01
+        choice: >-
+          Meaning of random operand of degree below D (QR2 product; the a of a
+          modular squaring).
+        readings: >-
+          (i) exact degree D-1, a random operand of degree D-1 in the card's
+          sense; (ii) uniform over all polynomials of degree < D.
+        used: >-
+          (i).
+        effect: >-
+          Under (ii) the leading coefficients are random, which changes the
+          E-INT slot width exactly at D = 2^24: 4 bytes are needed only when
+          both operands have 2^24 coefficients, probability 1/4 under (ii). A
+          measured 3-byte-slot E-INT product of the same size is the
+          quotient-product phase of the E-INT 2^24 modular squaring, 1360 s,
+          against the 4-byte primary product 2239 s. No other family or degree
+          crosses a slot-width threshold under (ii). The residual effect of a
+          random top coefficient on time was not measured.
+      - id: QR0-02
+        choice: >-
+          Kronecker slot width in E-INT and E-DEC.
+        readings: >-
+          (i) byte-aligned k bytes (E-INT) / k decimal digits (E-DEC), the
+          least that cannot carry; (ii) the minimal bit width ceil(log2(min
+          len + 1)) for E-INT.
+        used: >-
+          (i).
+        effect: >-
+          (ii) was not implemented or measured; its value cannot be computed
+          from these measurements.
+      - id: QR0-03
+        choice: >-
+          How a^2 is formed inside a modular squaring (the card fixes only
+          that the reduction is built from the family's products).
+        readings: >-
+          (i) F_2-linear zero interleaving, O(D); (ii) a^2 by the family's
+          general product.
+        used: >-
+          (i).
+        effect: >-
+          Under (ii), t_sq gains one family product of the same size. Derived
+          values (t_sq + measured product time at the same D, labelled
+          derived, not measured) are E-INT 2^20 33.7+16.89=50.59 s; E-INT 2^22
+          301.6+151.3=452.9 s; E-INT 5^10 1167+583.3=1750 s; E-INT 2^24
+          2715+2239=4955 s; E-INT 5^11 not computable
+          (watchdog_expiry/watchdog_expiry); E-INT 6^10 not computable
+          (watchdog_expiry/watchdog_expiry); E-INT 3^17 not computable
+          (watchdog_expiry/watchdog_expiry); E-DEC 2^20 2.911+1.409=4.32 s;
+          E-DEC 2^22 12.27+6.273=18.54 s; E-DEC 5^10 33.45+16.71=50.16 s;
+          E-DEC 2^24 68.2+34.11=102.3 s; E-DEC 5^11 218.4+109.3=327.7 s; E-DEC
+          6^10 291.2+145.2=436.4 s; E-DEC 3^17 657.5+329.3=986.8 s; E-NP 2^20
+          0.5182+0.2578=0.776 s; E-NP 2^22 2.715+1.229=3.944 s; E-NP 5^10
+          7.207+4.122=11.33 s; E-NP 2^24 12.5+7.311=19.81 s; E-NP 5^11
+          37.84+20.07=57.91 s; E-NP 6^10 51.38+26.12=77.5 s; E-NP 3^17 not
+          computable (MemoryError/MemoryError).
+      - id: QR0-04
+        choice: >-
+          Whether the reduction's precomputation (the Barrett constant per
+          modulus) counts in one modular squaring.
+        readings: >-
+          (i) amortised, excluded from t_sq; (ii) included.
+        used: >-
+          (i). The precomputation is measured separately
+          (barrett_constant_precomputation).
+        effect: >-
+          Under (ii), the derived values t_sq + t_mu are E-INT 2^20
+          33.7+51.7=85.39 s; E-INT 2^22 301.6+461.7=763.4 s; E-INT 5^10 not
+          computable (precomputation not measured); E-INT 2^24 not computable
+          (precomputation not measured); E-DEC 2^20 2.911+5.787=8.699 s; E-DEC
+          2^22 12.27+24.19=36.46 s; E-DEC 5^10 33.45+50.53=83.98 s; E-DEC 2^24
+          68.2+114.2=182.4 s; E-DEC 5^11 218.4+245.5=463.9 s; E-DEC 6^10
+          291.2+278.6=569.8 s; E-DEC 3^17 657.5+610.6=1268 s; E-NP 2^20
+          0.5182+1.455=1.974 s; E-NP 2^22 2.715+7.196=9.911 s; E-NP 5^10
+          7.207+12.32=19.53 s; E-NP 2^24 12.5+24.37=36.87 s; E-NP 5^11
+          37.84+52.51=90.35 s; E-NP 6^10 51.38+56.94=108.3 s. E-INT
+          precomputation was measured only at 2^20 and 2^22.
+      - id: QR0-05
+        choice: >-
+          Reduction algorithm.
+        readings: >-
+          (i) Barrett with two full family products; (ii) short or middle
+          products, or long division.
+        used: >-
+          (i).
+        effect: >-
+          (ii) not measured; not computable here.
+      - id: QR0-06
+        choice: >-
+          E-NP operand splitting, which the card mentions only for exactness.
+        readings: >-
+          (i) split only as needed for exactness (none was needed); (ii) also
+          split when the unsplit transform exceeds RLIMIT_AS.
+        used: >-
+          (i) for every QR2 value. (ii) was measured as split_variant wherever
+          (i) failed.
+        effect: >-
+          Under (i), E-NP at 3^17 records MemoryError for both items. Under
+          (ii) the split variants complete; their seconds and peak RSS are in
+          QR2. QR3 under (ii) is alternative A5: 113 (cell, column) entries
+          change T_A or a verdict, and 1 change a verdict or flag; changed:
+          L8/d3/E-NP M+route FAIL,X,False -> PASS,D,False. Every changed value
+          under this reading is listed in computations.json at
+          derived.analysis.qr3_alternatives.A5_split_variant_where_unsplit_failed.differences.
+      - id: QR0-07
+        choice: >-
+          FFT length in E-NP.
+        readings: >-
+          (i) least 5-smooth length >= len a + len b - 1; (ii) a power of two.
+        used: >-
+          (i).
+        effect: >-
+          (ii) not measured; not computable here.
+      - id: QR0-08
+        choice: >-
+          Timed region.
+        readings: >-
+          (i) includes conversion between bit-packed ints and each engine's
+          representation; (ii) engine arithmetic only.
+        used: >-
+          (i), uniform across families.
+        effect: >-
+          (ii) not measured separately; not computable here.
+      - id: QR0-09
+        choice: >-
+          Number of samples per timed item.
+        readings: >-
+          (i) one operation per process (the card's one product, one modular
+          squaring); (ii) a statistic over repeats.
+        used: >-
+          (i).
+        effect: >-
+          Run-to-run variation was not characterised; (ii) is not computable
+          here.
+      - id: QR0-10
+        choice: >-
+          QR3 interpolation grid: which measured degrees count.
+        readings: >-
+          (i) the seven QR2 degrees only; (ii) also the supplementary
+          small-degree modular squarings (2^4, 2^8, 2^12, 2^16).
+        used: >-
+          (i). Below 2^20 the power-law fit is extrapolated downward.
+        effect: >-
+          QR3 alternative A1: 254 (cell, column) entries change T_A or a
+          verdict, and 0 change a verdict or flag; no verdict or flag changes.
+          Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A1_include_supplementary_small_degrees.differences.
+      - id: QR0-11
+        choice: >-
+          QR3 extrapolation form beyond the measured degrees.
+        readings: >-
+          (i) a least-squares power law over all completed QR2 degrees of the
+          family; (ii) the end segment of the log-log interpolant extended.
+        used: >-
+          (i).
+        effect: >-
+          QR3 alternative A2: 262 (cell, column) entries change T_A or a
+          verdict, and 0 change a verdict or flag; no verdict or flag changes.
+          Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A2_extrapolate_by_end_segment.differences.
+      - id: QR0-12
+        choice: >-
+          gcd fit window.
+        readings: >-
+          (i) all completed ladder degrees; (ii) the three largest.
+        used: >-
+          (i).
+        effect: >-
+          Exponent 1.7878 under (i) and 1.7328 under (ii). QR3 alternative A6:
+          320 (cell, column) entries change T_A or a verdict, and 0 change a
+          verdict or flag; no verdict or flag changes. Every changed value
+          under this reading is listed in computations.json at
+          derived.analysis.qr3_alternatives.A6_gcd_fit_top3_points.differences.
+      - id: QR0-13
+        choice: >-
+          t_gcd(B) where B is itself a measured ladder degree.
+        readings: >-
+          (i) from the fit everywhere (the card's from your gcd fit); (ii) the
+          measured value at B.
+        used: >-
+          (i).
+        effect: >-
+          QR3 alternative A10: 16 (cell, column) entries change T_A or a
+          verdict, and 0 change a verdict or flag; no verdict or flag changes.
+          Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A10_gcd_measured_value_where_B_on_ladder.differences.
+      - id: QR0-14
+        choice: >-
+          did not complete under RLIMIT_AS = 8 GiB in the memory verdict.
+        readings: >-
+          (i) failed because of the memory limit (MemoryError); (ii) any
+          non-completion in a process run under that limit, including a
+          watchdog expiry.
+        used: >-
+          (i), as M is a memory verdict.
+        effect: >-
+          QR3 alternative A3: 4 (cell, column) entries change T_A or a
+          verdict, and 4 change a verdict or flag; changed: L8/d3/E-INT M
+          PASS,X,False -> FAIL,X,False; L12/d5/E-INT M PASS,X,False ->
+          FAIL,X,False; L13/d5/E-INT M PASS,X,False -> FAIL,X,False;
+          L14/d6/E-INT M PASS,X,False -> FAIL,X,False. Every changed value
+          under this reading is listed in computations.json at
+          derived.analysis.qr3_alternatives.A3_watchdog_expiry_counts_as_not_completed.differences.
+      - id: QR0-15
+        choice: >-
+          Memory verdict of the smallest column.
+        readings: >-
+          (i) FAIL only if the criterion fails on every family, per the card's
+          parenthetical; (ii) the verdict of the family attaining the smallest
+          t_sq(B).
+        used: >-
+          (i).
+        effect: >-
+          QR3 alternative A4: 1 (cell, column) entries change T_A or a
+          verdict, and 1 change a verdict or flag; changed: L8/d3/smallest
+          M+route PASS,D,False -> FAIL,X,False. Every changed value under this
+          reading is listed in computations.json at
+          derived.analysis.qr3_alternatives.A4_smallest_column_memory_from_min_family.differences.
+      - id: QR0-16
+        choice: >-
+          Measured peak RSS per bit.
+        readings: >-
+          (i) whole-process peak RSS divided by D; (ii) peak minus the
+          interpreter baseline at process start, divided by D; (iii)
+          whole-process peak divided by the input bits (2D, two operands).
+        used: >-
+          (i).
+        effect: >-
+          QR3 alternative A7 for (ii): 0 (cell, column) entries change T_A or
+          a verdict, and 0 change a verdict or flag; no verdict or flag
+          changes. Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A7_rss_per_bit_minus_interpreter_baseline.differences.
+          QR3 alternative A8 for (iii): 15 (cell, column) entries change T_A
+          or a verdict, and 15 change a verdict or flag; changed: L10/d4/E-INT
+          M FAIL,X,False -> PASS,X,False; L10/d4/E-DEC M+route FAIL,X,True ->
+          PASS,D,True; L10/d4/smallest M+route FAIL,X,True -> PASS,D,True;
+          L11/d5/E-INT M FAIL,X,False -> PASS,X,False; L11/d5/E-DEC M
+          FAIL,X,True -> PASS,X,True; L11/d5/smallest M FAIL,X,True ->
+          PASS,X,True; L12/d6/E-INT M FAIL,X,False -> PASS,X,False;
+          L12/d6/E-DEC M FAIL,X,False -> PASS,X,False; L12/d6/smallest M
+          FAIL,X,False -> PASS,X,False; L13/d6/E-INT M FAIL,X,False ->
+          PASS,X,False; L13/d6/E-DEC M FAIL,X,False -> PASS,X,False;
+          L13/d6/smallest M FAIL,X,False -> PASS,X,False; L14/d7/E-INT M
+          FAIL,X,False -> PASS,X,False; L14/d7/E-DEC M FAIL,X,False ->
+          PASS,X,False; L14/d7/smallest M FAIL,X,False -> PASS,X,False. Every
+          changed value under this reading is listed in computations.json at
+          derived.analysis.qr3_alternatives.A8_rss_per_input_bit_two_operands.differences.
+      - id: QR0-17
+        choice: >-
+          Largest measured degree in the memory extrapolation rule.
+        readings: >-
+          (i) the largest degree at which that item completed (the only place
+          a peak RSS exists); (ii) the largest degree attempted.
+        used: >-
+          (i).
+        effect: >-
+          QR3 alternative A9: 0 (cell, column) entries change T_A or a
+          verdict, and 0 change a verdict or flag; no verdict or flag changes.
+          Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A9_largest_measured_degree_read_as_largest_attempted.differences.
+      - id: QR0-18
+        choice: >-
+          Gaussian elimination variant and engine (QR4).
+        readings: >-
+          (i) forward elimination to row echelon form, leading-bit pivots,
+          Python-int rows; (ii) reduced row echelon form, column-major pivot
+          search, or another engine.
+        used: >-
+          (i).
+        effect: >-
+          (ii) not measured; not computable here.
+      - id: QR0-19
+        choice: >-
+          Classical gcd inner loop.
+        readings: >-
+          (i) one shift-and-XOR per leading term on Python ints; (ii) word- or
+          block-level division.
+        used: >-
+          (i).
+        effect: >-
+          (ii) not measured; not computable here.
+      - id: QR0-20
+        choice: >-
+          t_sq(B) for a family whose own modular squaring at exactly B did not
+          complete, and its use in the smallest column.
+        readings: >-
+          (i) the family's power-law extrapolation (B lies beyond its
+          completed degrees), and the smallest column takes the least of the
+          three as computed; (ii) such a family is excluded from the smallest
+          column at that B.
+        used: >-
+          (i), literal. The basis field of the family column names the
+          non-completion at B.
+        effect: >-
+          QR3 alternative A11: 1 (cell, column) entries change T_A or a
+          verdict, and 0 change a verdict or flag; no verdict or flag changes.
+          Every changed value under this reading is listed in
+          computations.json at
+          derived.analysis.qr3_alternatives.A11_smallest_excludes_family_not_completed_at_B.differences.
+  QR1:
+    definition_check: >-
+      Every QR1 value is an exact integer computation (qr1.py). G(d) was
+      obtained by enumerating all 2^d monic polynomials of degree d and
+      testing whether the support lies in {X^(2^i), i >= 0}. The constant term
+      is excluded because X^0 is not of that form. log2 B comes from a
+      60-digit Decimal logarithm, rounded to two decimals; no value lies
+      within 1e-20 of a rounding tie. B = d^(q+1) > 2^s in every cell, so 2^s
+      never attains the maximum. L12 and L13 share q = 10 and therefore B, and
+      differ in r and s.
+    G: {3: 8, 4: 12, 5: 32, 6: 64, 7: 128}
+    rows:
+      - {cell: "L3", n: 131, n_prime: 3, d: 3, q: 43, r: 2, s: 1, B: "984770902183611232881", B_attained_by: "d^(q+1)", log2_B: "69.74", G: 8, flag_2B_le_2pow36: false}
+      - {cell: "L3", n: 131, n_prime: 3, d: 4, q: 43, r: 2, s: 1, B: "309485009821345068724781056", B_attained_by: "d^(q+1)", log2_B: "88.00", G: 12, flag_2B_le_2pow36: false}
+      - {cell: "L3", n: 131, n_prime: 3, d: 5, q: 43, r: 2, s: 1, B: "5684341886080801486968994140625", B_attained_by: "d^(q+1)", log2_B: "102.16", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L3", n: 131, n_prime: 3, d: 6, q: 43, r: 2, s: 1, B: "17324272922341479351919144385642496", B_attained_by: "d^(q+1)", log2_B: "113.74", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L3", n: 131, n_prime: 3, d: 7, q: 43, r: 2, s: 1, B: "15286700631942576193765185769276826401", B_attained_by: "d^(q+1)", log2_B: "123.52", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L4", n: 131, n_prime: 4, d: 3, q: 32, r: 3, s: 1, B: "5559060566555523", B_attained_by: "d^(q+1)", log2_B: "52.30", G: 8, flag_2B_le_2pow36: false}
+      - {cell: "L4", n: 131, n_prime: 4, d: 4, q: 32, r: 3, s: 1, B: "73786976294838206464", B_attained_by: "d^(q+1)", log2_B: "66.00", G: 12, flag_2B_le_2pow36: false}
+      - {cell: "L4", n: 131, n_prime: 4, d: 5, q: 32, r: 3, s: 1, B: "116415321826934814453125", B_attained_by: "d^(q+1)", log2_B: "76.62", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L4", n: 131, n_prime: 4, d: 6, q: 32, r: 3, s: 1, B: "47751966659678405306351616", B_attained_by: "d^(q+1)", log2_B: "85.30", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L4", n: 131, n_prime: 4, d: 7, q: 32, r: 3, s: 1, B: "7730993719707444524137094407", B_attained_by: "d^(q+1)", log2_B: "92.64", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L5", n: 131, n_prime: 5, d: 3, q: 26, r: 1, s: 4, B: "7625597484987", B_attained_by: "d^(q+1)", log2_B: "42.79", G: 8, flag_2B_le_2pow36: false}
+      - {cell: "L5", n: 131, n_prime: 5, d: 4, q: 26, r: 1, s: 4, B: "18014398509481984", B_attained_by: "d^(q+1)", log2_B: "54.00", G: 12, flag_2B_le_2pow36: false}
+      - {cell: "L5", n: 131, n_prime: 5, d: 5, q: 26, r: 1, s: 4, B: "7450580596923828125", B_attained_by: "d^(q+1)", log2_B: "62.69", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L5", n: 131, n_prime: 5, d: 6, q: 26, r: 1, s: 4, B: "1023490369077469249536", B_attained_by: "d^(q+1)", log2_B: "69.79", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L5", n: 131, n_prime: 5, d: 7, q: 26, r: 1, s: 4, B: "65712362363534280139543", B_attained_by: "d^(q+1)", log2_B: "75.80", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L6", n: 131, n_prime: 6, d: 3, q: 21, r: 5, s: 1, B: "31381059609", B_attained_by: "d^(q+1)", log2_B: "34.87", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L6", n: 131, n_prime: 6, d: 4, q: 21, r: 5, s: 1, B: "17592186044416", B_attained_by: "d^(q+1)", log2_B: "44.00", G: 12, flag_2B_le_2pow36: false}
+      - {cell: "L6", n: 131, n_prime: 6, d: 5, q: 21, r: 5, s: 1, B: "2384185791015625", B_attained_by: "d^(q+1)", log2_B: "51.08", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L6", n: 131, n_prime: 6, d: 6, q: 21, r: 5, s: 1, B: "131621703842267136", B_attained_by: "d^(q+1)", log2_B: "56.87", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L6", n: 131, n_prime: 6, d: 7, q: 21, r: 5, s: 1, B: "3909821048582988049", B_attained_by: "d^(q+1)", log2_B: "61.76", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L7", n: 131, n_prime: 7, d: 3, q: 18, r: 5, s: 2, B: "1162261467", B_attained_by: "d^(q+1)", log2_B: "30.11", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L7", n: 131, n_prime: 7, d: 4, q: 18, r: 5, s: 2, B: "274877906944", B_attained_by: "d^(q+1)", log2_B: "38.00", G: 12, flag_2B_le_2pow36: false}
+      - {cell: "L7", n: 131, n_prime: 7, d: 5, q: 18, r: 5, s: 2, B: "19073486328125", B_attained_by: "d^(q+1)", log2_B: "44.12", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L7", n: 131, n_prime: 7, d: 6, q: 18, r: 5, s: 2, B: "609359740010496", B_attained_by: "d^(q+1)", log2_B: "49.11", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L7", n: 131, n_prime: 7, d: 7, q: 18, r: 5, s: 2, B: "11398895185373143", B_attained_by: "d^(q+1)", log2_B: "53.34", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L8", n: 131, n_prime: 8, d: 3, q: 16, r: 3, s: 5, B: "129140163", B_attained_by: "d^(q+1)", log2_B: "26.94", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L8", n: 131, n_prime: 8, d: 4, q: 16, r: 3, s: 5, B: "17179869184", B_attained_by: "d^(q+1)", log2_B: "34.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L8", n: 131, n_prime: 8, d: 5, q: 16, r: 3, s: 5, B: "762939453125", B_attained_by: "d^(q+1)", log2_B: "39.47", G: 32, flag_2B_le_2pow36: false}
+      - {cell: "L8", n: 131, n_prime: 8, d: 6, q: 16, r: 3, s: 5, B: "16926659444736", B_attained_by: "d^(q+1)", log2_B: "43.94", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L8", n: 131, n_prime: 8, d: 7, q: 16, r: 3, s: 5, B: "232630513987207", B_attained_by: "d^(q+1)", log2_B: "47.73", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L9", n: 131, n_prime: 9, d: 3, q: 14, r: 5, s: 4, B: "14348907", B_attained_by: "d^(q+1)", log2_B: "23.77", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L9", n: 131, n_prime: 9, d: 4, q: 14, r: 5, s: 4, B: "1073741824", B_attained_by: "d^(q+1)", log2_B: "30.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L9", n: 131, n_prime: 9, d: 5, q: 14, r: 5, s: 4, B: "30517578125", B_attained_by: "d^(q+1)", log2_B: "34.83", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L9", n: 131, n_prime: 9, d: 6, q: 14, r: 5, s: 4, B: "470184984576", B_attained_by: "d^(q+1)", log2_B: "38.77", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L9", n: 131, n_prime: 9, d: 7, q: 14, r: 5, s: 4, B: "4747561509943", B_attained_by: "d^(q+1)", log2_B: "42.11", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L10", n: 131, n_prime: 10, d: 3, q: 13, r: 1, s: 9, B: "4782969", B_attained_by: "d^(q+1)", log2_B: "22.19", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L10", n: 131, n_prime: 10, d: 4, q: 13, r: 1, s: 9, B: "268435456", B_attained_by: "d^(q+1)", log2_B: "28.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L10", n: 131, n_prime: 10, d: 5, q: 13, r: 1, s: 9, B: "6103515625", B_attained_by: "d^(q+1)", log2_B: "32.51", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L10", n: 131, n_prime: 10, d: 6, q: 13, r: 1, s: 9, B: "78364164096", B_attained_by: "d^(q+1)", log2_B: "36.19", G: 64, flag_2B_le_2pow36: false}
+      - {cell: "L10", n: 131, n_prime: 10, d: 7, q: 13, r: 1, s: 9, B: "678223072849", B_attained_by: "d^(q+1)", log2_B: "39.30", G: 128, flag_2B_le_2pow36: false}
+      - {cell: "L11", n: 131, n_prime: 11, d: 3, q: 11, r: 10, s: 1, B: "531441", B_attained_by: "d^(q+1)", log2_B: "19.02", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L11", n: 131, n_prime: 11, d: 4, q: 11, r: 10, s: 1, B: "16777216", B_attained_by: "d^(q+1)", log2_B: "24.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L11", n: 131, n_prime: 11, d: 5, q: 11, r: 10, s: 1, B: "244140625", B_attained_by: "d^(q+1)", log2_B: "27.86", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L11", n: 131, n_prime: 11, d: 6, q: 11, r: 10, s: 1, B: "2176782336", B_attained_by: "d^(q+1)", log2_B: "31.02", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L11", n: 131, n_prime: 11, d: 7, q: 11, r: 10, s: 1, B: "13841287201", B_attained_by: "d^(q+1)", log2_B: "33.69", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L12", n: 131, n_prime: 12, d: 3, q: 10, r: 11, s: 1, B: "177147", B_attained_by: "d^(q+1)", log2_B: "17.43", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L12", n: 131, n_prime: 12, d: 4, q: 10, r: 11, s: 1, B: "4194304", B_attained_by: "d^(q+1)", log2_B: "22.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L12", n: 131, n_prime: 12, d: 5, q: 10, r: 11, s: 1, B: "48828125", B_attained_by: "d^(q+1)", log2_B: "25.54", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L12", n: 131, n_prime: 12, d: 6, q: 10, r: 11, s: 1, B: "362797056", B_attained_by: "d^(q+1)", log2_B: "28.43", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L12", n: 131, n_prime: 12, d: 7, q: 10, r: 11, s: 1, B: "1977326743", B_attained_by: "d^(q+1)", log2_B: "30.88", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L13", n: 131, n_prime: 13, d: 3, q: 10, r: 1, s: 12, B: "177147", B_attained_by: "d^(q+1)", log2_B: "17.43", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L13", n: 131, n_prime: 13, d: 4, q: 10, r: 1, s: 12, B: "4194304", B_attained_by: "d^(q+1)", log2_B: "22.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L13", n: 131, n_prime: 13, d: 5, q: 10, r: 1, s: 12, B: "48828125", B_attained_by: "d^(q+1)", log2_B: "25.54", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L13", n: 131, n_prime: 13, d: 6, q: 10, r: 1, s: 12, B: "362797056", B_attained_by: "d^(q+1)", log2_B: "28.43", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L13", n: 131, n_prime: 13, d: 7, q: 10, r: 1, s: 12, B: "1977326743", B_attained_by: "d^(q+1)", log2_B: "30.88", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L14", n: 131, n_prime: 14, d: 3, q: 9, r: 5, s: 9, B: "59049", B_attained_by: "d^(q+1)", log2_B: "15.85", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L14", n: 131, n_prime: 14, d: 4, q: 9, r: 5, s: 9, B: "1048576", B_attained_by: "d^(q+1)", log2_B: "20.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L14", n: 131, n_prime: 14, d: 5, q: 9, r: 5, s: 9, B: "9765625", B_attained_by: "d^(q+1)", log2_B: "23.22", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L14", n: 131, n_prime: 14, d: 6, q: 9, r: 5, s: 9, B: "60466176", B_attained_by: "d^(q+1)", log2_B: "25.85", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L14", n: 131, n_prime: 14, d: 7, q: 9, r: 5, s: 9, B: "282475249", B_attained_by: "d^(q+1)", log2_B: "28.07", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L22", n: 131, n_prime: 22, d: 3, q: 5, r: 21, s: 1, B: "729", B_attained_by: "d^(q+1)", log2_B: "9.51", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L22", n: 131, n_prime: 22, d: 4, q: 5, r: 21, s: 1, B: "4096", B_attained_by: "d^(q+1)", log2_B: "12.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L22", n: 131, n_prime: 22, d: 5, q: 5, r: 21, s: 1, B: "15625", B_attained_by: "d^(q+1)", log2_B: "13.93", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L22", n: 131, n_prime: 22, d: 6, q: 5, r: 21, s: 1, B: "46656", B_attained_by: "d^(q+1)", log2_B: "15.51", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L22", n: 131, n_prime: 22, d: 7, q: 5, r: 21, s: 1, B: "117649", B_attained_by: "d^(q+1)", log2_B: "16.84", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L33", n: 131, n_prime: 33, d: 3, q: 3, r: 32, s: 1, B: "81", B_attained_by: "d^(q+1)", log2_B: "6.34", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L33", n: 131, n_prime: 33, d: 4, q: 3, r: 32, s: 1, B: "256", B_attained_by: "d^(q+1)", log2_B: "8.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L33", n: 131, n_prime: 33, d: 5, q: 3, r: 32, s: 1, B: "625", B_attained_by: "d^(q+1)", log2_B: "9.29", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L33", n: 131, n_prime: 33, d: 6, q: 3, r: 32, s: 1, B: "1296", B_attained_by: "d^(q+1)", log2_B: "10.34", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L33", n: 131, n_prime: 33, d: 7, q: 3, r: 32, s: 1, B: "2401", B_attained_by: "d^(q+1)", log2_B: "11.23", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L44", n: 131, n_prime: 44, d: 3, q: 2, r: 43, s: 1, B: "27", B_attained_by: "d^(q+1)", log2_B: "4.75", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L44", n: 131, n_prime: 44, d: 4, q: 2, r: 43, s: 1, B: "64", B_attained_by: "d^(q+1)", log2_B: "6.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L44", n: 131, n_prime: 44, d: 5, q: 2, r: 43, s: 1, B: "125", B_attained_by: "d^(q+1)", log2_B: "6.97", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L44", n: 131, n_prime: 44, d: 6, q: 2, r: 43, s: 1, B: "216", B_attained_by: "d^(q+1)", log2_B: "7.75", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L44", n: 131, n_prime: 44, d: 7, q: 2, r: 43, s: 1, B: "343", B_attained_by: "d^(q+1)", log2_B: "8.42", G: 128, flag_2B_le_2pow36: true}
+      - {cell: "L66", n: 131, n_prime: 66, d: 3, q: 1, r: 65, s: 1, B: "9", B_attained_by: "d^(q+1)", log2_B: "3.17", G: 8, flag_2B_le_2pow36: true}
+      - {cell: "L66", n: 131, n_prime: 66, d: 4, q: 1, r: 65, s: 1, B: "16", B_attained_by: "d^(q+1)", log2_B: "4.00", G: 12, flag_2B_le_2pow36: true}
+      - {cell: "L66", n: 131, n_prime: 66, d: 5, q: 1, r: 65, s: 1, B: "25", B_attained_by: "d^(q+1)", log2_B: "4.64", G: 32, flag_2B_le_2pow36: true}
+      - {cell: "L66", n: 131, n_prime: 66, d: 6, q: 1, r: 65, s: 1, B: "36", B_attained_by: "d^(q+1)", log2_B: "5.17", G: 64, flag_2B_le_2pow36: true}
+      - {cell: "L66", n: 131, n_prime: 66, d: 7, q: 1, r: 65, s: 1, B: "49", B_attained_by: "d^(q+1)", log2_B: "5.61", G: 128, flag_2B_le_2pow36: true}
+  QR2:
+    units: >-
+      seconds are perf_counter seconds for one operation. peak_rss_mib is
+      ru_maxrss in MiB (process-lifetime peak, sampled right after the timed
+      operation). outcome is completed, MemoryError or watchdog_expiry, and an
+      item that did not complete carries no value. verified means SHA-256
+      equality with a second family on identical operands; for modular
+      squaring it also requires deg r < D. bash_time is the bash time keyword
+      output for the whole process, and it includes operand generation,
+      loading and verification work outside the timed operation. Product
+      operands have exact degree D-1; modular squaring uses m of exact degree
+      D and a of exact degree D-1.
+    product:
+      E-INT:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 1.689e+01, peak_rss_mib: 5.041e+01, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=16.946 user=16.760 sys=0.054"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 1.513e+02, peak_rss_mib: 1.569e+02, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=151.332 user=150.592 sys=0.240"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 5.833e+02, peak_rss_mib: 3.452e+02, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=583.442 user=581.271 sys=0.580"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 2.239e+03, peak_rss_mib: 7.360e+02, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=2239.590 user=2233.416 sys=2.209"}
+        - {D: "5^11", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, verified: null, bash_time: "real=3600.074 user=3552.779 sys=12.070"}
+        - {D: "6^10", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, verified: null, bash_time: "real=3600.077 user=3551.722 sys=8.219"}
+        - {D: "3^17", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, verified: null, bash_time: "real=3600.144 user=3529.216 sys=16.785"}
+      E-DEC:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 1.409e+00, peak_rss_mib: 6.009e+01, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=1.460 user=1.405 sys=0.054"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 6.273e+00, peak_rss_mib: 1.939e+02, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=6.333 user=5.989 sys=0.268"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 1.671e+01, peak_rss_mib: 3.373e+02, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=16.787 user=16.074 sys=0.693"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 3.411e+01, peak_rss_mib: 6.661e+02, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=34.209 user=32.750 sys=1.394"}
+        - {D: "5^11", host: "H1", outcome: "completed", seconds: 1.093e+02, peak_rss_mib: 1.896e+03, verified: true, verified_against: "E-NP", bash_time: "real=109.496 user=105.018 sys=4.003"}
+        - {D: "6^10", host: "H1", outcome: "completed", seconds: 1.452e+02, peak_rss_mib: 2.490e+03, verified: true, verified_against: "E-NP", bash_time: "real=145.447 user=140.107 sys=5.122"}
+        - {D: "3^17", host: "H1", outcome: "completed", seconds: 3.293e+02, peak_rss_mib: 5.554e+03, verified: true, verified_against: "E-NP", bash_time: "real=329.776 user=303.928 sys=25.233"}
+      E-NP:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 2.578e-01, peak_rss_mib: 1.033e+02, verified: true, verified_against: "E-DEC+E-INT", fft_len: 2097152, max_round_residual: 1.31e-10, bash_time: "real=0.394 user=0.546 sys=0.126"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 1.229e+00, peak_rss_mib: 3.243e+02, verified: true, verified_against: "E-DEC+E-INT", fft_len: 8388608, max_round_residual: 4.66e-10, bash_time: "real=1.360 user=1.275 sys=0.361"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 4.122e+00, peak_rss_mib: 7.158e+02, verified: true, verified_against: "E-DEC+E-INT", fft_len: 19531250, max_round_residual: 1.98e-09, bash_time: "real=4.274 user=2.416 sys=2.056"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 7.311e+00, peak_rss_mib: 1.208e+03, verified: true, verified_against: "E-DEC+E-INT", fft_len: 33554432, max_round_residual: 2.10e-09, bash_time: "real=7.486 user=4.476 sys=3.289"}
+        - {D: "5^11", host: "H1", outcome: "completed", seconds: 2.007e+01, peak_rss_mib: 3.460e+03, verified: true, verified_against: "E-DEC", fft_len: 97656250, max_round_residual: 9.31e-09, bash_time: "real=20.369 user=9.675 sys=10.927"}
+        - {D: "6^10", host: "H1", outcome: "completed", seconds: 2.612e+01, peak_rss_mib: 4.277e+03, verified: true, verified_against: "E-DEC", fft_len: 120932352, max_round_residual: 1.35e-08, bash_time: "real=26.427 user=14.510 sys=12.142"}
+        - {D: "3^17", host: "H1", outcome: "MemoryError", seconds: null, peak_rss_mib: null, verified: null, split_variant_outcome: "completed", split_variant_seconds: 7.650e+01, split_variant_peak_rss_mib: 4.686e+03, split_variant_verified: true, bash_time: "real=34.045 user=11.018 sys=23.247"}
+    modular_squaring:
+      E-INT:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 3.370e+01, peak_rss_mib: 5.418e+01, s_square: 9.396e-03, s_quotient_product: 1.688e+01, s_qm_product: 1.681e+01, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=33.752 user=33.555 sys=0.056"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 3.016e+02, peak_rss_mib: 1.718e+02, s_square: 3.747e-02, s_quotient_product: 1.512e+02, s_qm_product: 1.504e+02, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=301.678 user=301.004 sys=0.281"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 1.167e+03, peak_rss_mib: 3.503e+02, s_square: 9.872e-02, s_quotient_product: 5.849e+02, s_qm_product: 5.820e+02, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=1167.151 user=1164.402 sys=0.762"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 2.715e+03, peak_rss_mib: 5.910e+02, s_square: 1.678e-01, s_quotient_product: 1.360e+03, s_qm_product: 1.355e+03, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-NP", bash_time: "real=2715.181 user=2708.318 sys=2.177"}
+        - {D: "5^11", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, bash_time: "real=3600.071 user=3549.764 sys=10.749"}
+        - {D: "6^10", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, bash_time: "real=3600.077 user=3544.643 sys=5.649"}
+        - {D: "3^17", host: "H2", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, bash_time: "real=3600.166 user=3533.553 sys=13.832"}
+      E-DEC:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 2.911e+00, peak_rss_mib: 6.050e+01, s_square: 9.328e-03, s_quotient_product: 1.494e+00, s_qm_product: 1.408e+00, deg_r_below_D: true, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=2.962 user=2.841 sys=0.102"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 1.227e+01, peak_rss_mib: 1.955e+02, s_square: 3.750e-02, s_quotient_product: 6.176e+00, s_qm_product: 6.052e+00, deg_r_below_D: true, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=12.332 user=11.853 sys=0.439"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 3.345e+01, peak_rss_mib: 3.596e+02, s_square: 8.689e-02, s_quotient_product: 1.667e+01, s_qm_product: 1.670e+01, deg_r_below_D: true, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=33.543 user=32.071 sys=1.401"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 6.820e+01, peak_rss_mib: 6.725e+02, s_square: 1.499e-01, s_quotient_product: 3.396e+01, s_qm_product: 3.409e+01, deg_r_below_D: true, verified: true, verified_against: "E-INT+E-NP", bash_time: "real=68.319 user=65.480 sys=2.778"}
+        - {D: "5^11", host: "H1", outcome: "completed", seconds: 2.184e+02, peak_rss_mib: 1.939e+03, s_square: 4.658e-01, s_quotient_product: 1.087e+02, s_qm_product: 1.093e+02, deg_r_below_D: true, verified: true, verified_against: "E-NP", bash_time: "real=218.704 user=210.225 sys=8.012"}
+        - {D: "6^10", host: "H1", outcome: "completed", seconds: 2.912e+02, peak_rss_mib: 2.513e+03, s_square: 5.834e-01, s_quotient_product: 1.445e+02, s_qm_product: 1.461e+02, deg_r_below_D: true, verified: true, verified_against: "E-NP", bash_time: "real=291.469 user=280.380 sys=10.530"}
+        - {D: "3^17", host: "H1", outcome: "completed", seconds: 6.575e+02, peak_rss_mib: 5.513e+03, s_square: 1.269e+00, s_quotient_product: 3.270e+02, s_qm_product: 3.292e+02, deg_r_below_D: true, verified: true, verified_against: "E-NP", bash_time: "real=658.172 user=607.564 sys=49.311"}
+      E-NP:
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 5.182e-01, peak_rss_mib: 1.126e+02, s_square: 9.254e-03, s_quotient_product: 2.538e-01, s_qm_product: 2.551e-01, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-INT", bash_time: "real=0.644 user=0.715 sys=0.210"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 2.715e+00, peak_rss_mib: 3.266e+02, s_square: 3.784e-02, s_quotient_product: 1.256e+00, s_qm_product: 1.421e+00, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-INT", bash_time: "real=2.856 user=2.253 sys=0.818"}
+        - {D: "5^10", host: "H1", outcome: "completed", seconds: 7.207e+00, peak_rss_mib: 7.202e+02, s_square: 8.741e-02, s_quotient_product: 3.863e+00, s_qm_product: 3.257e+00, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-INT", bash_time: "real=7.371 user=4.216 sys=3.426"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 1.250e+01, peak_rss_mib: 1.215e+03, s_square: 1.524e-01, s_quotient_product: 6.344e+00, s_qm_product: 6.004e+00, deg_r_below_D: true, verified: true, verified_against: "E-DEC+E-INT", bash_time: "real=12.702 user=8.657 sys=4.307"}
+        - {D: "5^11", host: "H1", outcome: "completed", seconds: 3.784e+01, peak_rss_mib: 3.479e+03, s_square: 5.877e-01, s_quotient_product: 1.856e+01, s_qm_product: 1.870e+01, deg_r_below_D: true, verified: true, verified_against: "E-DEC", bash_time: "real=38.192 user=19.227 sys=19.102"}
+        - {D: "6^10", host: "H1", outcome: "completed", seconds: 5.138e+01, peak_rss_mib: 4.345e+03, s_square: 6.347e-01, s_quotient_product: 2.644e+01, s_qm_product: 2.431e+01, deg_r_below_D: true, verified: true, verified_against: "E-DEC", bash_time: "real=51.831 user=28.593 sys=23.368"}
+        - {D: "3^17", host: "H1", outcome: "MemoryError", seconds: null, peak_rss_mib: null, split_variant_outcome: "completed", split_variant_seconds: 1.552e+02, split_variant_peak_rss_mib: 4.760e+03, split_variant_verified: true, bash_time: "real=37.344 user=11.620 sys=25.918"}
+    barrett_constant_precomputation:
+      note: >-
+        Precomputation of the Barrett constant floor(X^(2D)/m) by Newton
+        iteration with the named family's products, one process per item. It
+        is excluded from t_sq (QR0-04). E-NP and E-DEC results are
+        bit-identical at every degree where both completed. E-NP at 3^17
+        failed under RLIMIT_AS, and the E-DEC constant was used there.
+      items:
+        - {family: "E-NP", D: "2^20", outcome: "completed", seconds: 1.455e+00, peak_rss_mib: 1.458e+02}
+        - {family: "E-NP", D: "2^22", outcome: "completed", seconds: 7.196e+00, peak_rss_mib: 4.986e+02}
+        - {family: "E-NP", D: "5^10", outcome: "completed", seconds: 1.232e+01, peak_rss_mib: 1.008e+03}
+        - {family: "E-NP", D: "2^24", outcome: "completed", seconds: 2.437e+01, peak_rss_mib: 1.898e+03}
+        - {family: "E-NP", D: "5^11", outcome: "completed", seconds: 5.251e+01, peak_rss_mib: 4.215e+03}
+        - {family: "E-NP", D: "6^10", outcome: "completed", seconds: 5.694e+01, peak_rss_mib: 4.570e+03}
+        - {family: "E-NP", D: "3^17", outcome: "MemoryError", seconds: null, peak_rss_mib: null}
+        - {family: "E-NP", D: "2^4", outcome: "completed", seconds: 2.474e-03, peak_rss_mib: 3.017e+01}
+        - {family: "E-NP", D: "2^8", outcome: "completed", seconds: 3.066e-03, peak_rss_mib: 3.017e+01}
+        - {family: "E-NP", D: "2^12", outcome: "completed", seconds: 4.627e-03, peak_rss_mib: 3.046e+01}
+        - {family: "E-NP", D: "2^16", outcome: "completed", seconds: 4.871e-02, peak_rss_mib: 3.834e+01}
+        - {family: "E-DEC", D: "2^20", outcome: "completed", seconds: 5.787e+00, peak_rss_mib: 8.629e+01}
+        - {family: "E-DEC", D: "2^22", outcome: "completed", seconds: 2.419e+01, peak_rss_mib: 2.629e+02}
+        - {family: "E-DEC", D: "5^10", outcome: "completed", seconds: 5.053e+01, peak_rss_mib: 5.142e+02}
+        - {family: "E-DEC", D: "2^24", outcome: "completed", seconds: 1.142e+02, peak_rss_mib: 1.030e+03}
+        - {family: "E-DEC", D: "5^11", outcome: "completed", seconds: 2.455e+02, peak_rss_mib: 2.232e+03}
+        - {family: "E-DEC", D: "6^10", outcome: "completed", seconds: 2.786e+02, peak_rss_mib: 2.540e+03}
+        - {family: "E-DEC", D: "3^17", outcome: "completed", seconds: 6.106e+02, peak_rss_mib: 5.577e+03}
+        - {family: "E-INT", D: "2^20", outcome: "completed", seconds: 5.170e+01, peak_rss_mib: 7.342e+01}
+        - {family: "E-INT", D: "2^22", outcome: "completed", seconds: 4.617e+02, peak_rss_mib: 2.359e+02}
+    classical_gcd:
+      algorithm: >-
+        Classical Euclid, shift-and-XOR on bit-packed Python ints, operands of
+        exact degree D, one process per degree, doubling from 2^16 until the
+        first non-completion at or above 2^22. stein_equal compares with
+        Stein's binary gcd on the same operands. divides_both is the untimed
+        divisibility check.
+      ladder:
+        - {D: "2^16", host: "H1", outcome: "completed", seconds: 9.505e-02, peak_rss_mib: 1.516e+01, deg_gcd: 0, divides_both: true, stein_equal: true, bash_time: "real=0.144 user=0.129 sys=0.016"}
+        - {D: "2^17", host: "H1", outcome: "completed", seconds: 3.485e-01, peak_rss_mib: 1.511e+01, deg_gcd: 1, divides_both: true, stein_equal: true, bash_time: "real=0.412 user=0.396 sys=0.016"}
+        - {D: "2^18", host: "H1", outcome: "completed", seconds: 1.328e+00, peak_rss_mib: 1.537e+01, deg_gcd: 6, divides_both: true, stein_equal: true, bash_time: "real=1.404 user=1.388 sys=0.015"}
+        - {D: "2^19", host: "H1", outcome: "completed", seconds: 5.197e+00, peak_rss_mib: 1.559e+01, deg_gcd: 1, divides_both: true, stein_equal: true, bash_time: "real=5.298 user=5.253 sys=0.026"}
+        - {D: "2^20", host: "H1", outcome: "completed", seconds: 2.041e+01, peak_rss_mib: 1.615e+01, deg_gcd: 0, divides_both: true, stein_equal: true, bash_time: "real=20.468 user=20.248 sys=0.208"}
+        - {D: "2^21", host: "H1", outcome: "completed", seconds: 6.271e+01, peak_rss_mib: 1.716e+01, deg_gcd: 2, divides_both: true, stein_equal: true, bash_time: "real=62.974 user=61.649 sys=1.271"}
+        - {D: "2^22", host: "H1", outcome: "completed", seconds: 1.796e+02, peak_rss_mib: 1.932e+01, deg_gcd: 3, divides_both: true, stein_equal: true, bash_time: "real=180.130 user=174.555 sys=5.221"}
+        - {D: "2^23", host: "H1", outcome: "completed", seconds: 5.817e+02, peak_rss_mib: 2.360e+01, deg_gcd: 0, divides_both: true, bash_time: "real=581.813 user=558.938 sys=21.830"}
+        - {D: "2^24", host: "H1", outcome: "completed", seconds: 1.985e+03, peak_rss_mib: 3.202e+01, deg_gcd: 2, divides_both: true, bash_time: "real=1986.298 user=1898.315 sys=84.166"}
+        - {D: "2^25", host: "H1", outcome: "watchdog_expiry", seconds: null, peak_rss_mib: null, deg_gcd: null, bash_time: "real=3600.007 user=3330.282 sys=239.175"}
+      fit:
+        model: >-
+          seconds = c D^a, by least squares on (log2 D, log2 seconds) over
+          every completed ladder degree. R2 is on the log scale. The
+          alternative fit over the three largest completed degrees is QR0-12.
+        points: ["2^16", "2^17", "2^18", "2^19", "2^20", "2^21", "2^22", "2^23", "2^24"]
+        exponent: 1.7878
+        c_seconds: 2.720e-10
+        R2: 0.99821
+        alt_top3_exponent: 1.7328
+        alt_top3_points: ["2^22", "2^23", "2^24"]
+  QR3:
+    method: >-
+      For each family, t_sq(B) is the measured modular-squaring time when B is
+      a QR2 degree. When B lies between two completed QR2 degrees it is a
+      linear interpolation in (log2 D, log2 seconds). Outside the completed
+      range (above or below) it is the family's least-squares power law over
+      its completed QR2 degrees (squaring_fits). t_gcd(B) comes from the gcd
+      fit. T_A = G(d) (131 t_sq(B) + t_gcd(B)) / 86400 days. The smallest
+      column uses the least of the three families' t_sq(B), naming the family.
+      The route is X if M is FAIL or T_A > 90 days, else D. marginal is true
+      when 30 < T_A <= 270 days. Numbers carry four significant digits.
+      Extrapolated values rest on the fitted power law holding beyond the
+      measured range, which these measurements cannot test; basis records
+      which case applies.
+    memory_rule_as_applied: >-
+      A family column is FAIL if (R1) B is a degree at which this task
+      measured that family's modular squaring, or the gcd, and the item did
+      not complete because of RLIMIT_AS (MemoryError); or (R2/R3) B exceeds
+      the largest degree at which that item completed and max(2B, rho B) >
+      2^36 bits, where rho is the measured whole-process peak RSS in bits
+      divided by D at that largest completed degree. R2 applies to the
+      family's modular squaring and R3 to the gcd. Otherwise the column is
+      PASS, including every B below the smallest measured degree. The smallest
+      column is FAIL only if all three family columns are FAIL. Alternative
+      readings are QR0-14 to QR0-17.
+    reason_codes: >-
+      R1-modsq-not-completed-at-B and R1-gcd-not-completed-at-B mean the item
+      measured at exactly B did not complete under RLIMIT_AS.
+      R2-modsq-rss-extrapolation means max(2B, rho B) > 2^36 bits with rho
+      from the family's modular squaring at its largest completed degree.
+      R3-gcd-rss-extrapolation is the same with rho from the gcd at its
+      largest completed degree. none means PASS.
+    squaring_fits:
+      E-INT: {exponent: 1.5850, c_seconds: 9.658e-09, R2: 0.99999, measured_degrees_used: "1048576, 4194304, 9765625, 16777216", largest_completed_D: 16777216, rss_bits_per_bit_at_largest: 2.955e+02}
+      E-DEC: {exponent: 1.1406, c_seconds: 3.729e-07, R2: 0.99923, measured_degrees_used: "1048576, 4194304, 9765625, 16777216, 48828125, 60466176, 129140163", largest_completed_D: 129140163, rss_bits_per_bit_at_largest: 3.581e+02}
+      E-NP: {exponent: 1.1186, c_seconds: 1.016e-07, R2: 0.99890, measured_degrees_used: "1048576, 4194304, 9765625, 16777216, 48828125, 60466176", largest_completed_D: 60466176, rss_bits_per_bit_at_largest: 6.028e+02}
+    gcd_largest_completed_D: 16777216
+    gcd_rss_bits_per_bit_at_largest: 1.601e+01
+    rows:
+      - cell: L3
+        d: 3
+        B: "984770902183611232881"
+        G: 8
+        t_gcd_s: 9.247e+27
+        E-INT: {t_sq_s: 1.813e+25, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.076e+24, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.287e+17, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.562e+23, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.098e+16, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.562e+23, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.098e+16, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.562e+23, M: "FAIL", route: "X", marginal: false}
+      - cell: L3
+        d: 4
+        B: "309485009821345068724781056"
+        G: 12
+        t_gcd_s: 6.222e+37
+        E-INT: {t_sq_s: 9.364e+33, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.813e+33, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 6.125e+23, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.642e+33, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 4.371e+22, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.642e+33, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 4.371e+22, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.642e+33, M: "FAIL", route: "X", marginal: false}
+      - cell: L3
+        d: 5
+        B: "5684341886080801486968994140625"
+        G: 32
+        t_gcd_s: 2.613e+45
+        E-INT: {t_sq_s: 5.368e+40, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.703e+41, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 4.474e+28, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.677e+41, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.574e+27, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.677e+41, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.574e+27, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.677e+41, M: "FAIL", route: "X", marginal: false}
+      - cell: L3
+        d: 6
+        B: "17324272922341479351919144385642496"
+        G: 64
+        t_gcd_s: 4.423e+51
+        E-INT: {t_sq_s: 1.785e+46, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.278e+48, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 4.212e+32, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.276e+48, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.032e+31, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.276e+48, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.032e+31, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.276e+48, M: "FAIL", route: "X", marginal: false}
+      - cell: L3
+        d: 7
+        B: "15286700631942576193765185769276826401"
+        G: 128
+        t_gcd_s: 8.163e+56
+        E-INT: {t_sq_s: 8.327e+50, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.209e+54, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 9.647e+35, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.209e+54, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 4.009e+34, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.209e+54, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 4.009e+34, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.209e+54, M: "FAIL", route: "X", marginal: false}
+      - cell: L4
+        d: 3
+        B: "5559060566555523"
+        G: 8
+        t_gcd_s: 3.830e+18
+        E-INT: {t_sq_s: 8.711e+16, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.411e+15, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.392e+11, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.546e+14, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 4.169e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.546e+14, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 4.169e+10, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.546e+14, M: "FAIL", route: "X", marginal: false}
+      - cell: L4
+        d: 4
+        B: "73786976294838206464"
+        G: 12
+        t_gcd_s: 8.998e+25
+        E-INT: {t_sq_s: 2.984e+23, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.793e+22, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.711e+16, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.250e+22, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.707e+15, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.250e+22, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.707e+15, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.250e+22, M: "FAIL", route: "X", marginal: false}
+      - cell: L4
+        d: 5
+        B: "116415321826934814453125"
+        G: 32
+        t_gcd_s: 4.693e+31
+        E-INT: {t_sq_s: 3.496e+28, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.908e+28, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 7.602e+19, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.738e+28, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 6.451e+18, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.738e+28, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 6.451e+18, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.738e+28, M: "FAIL", route: "X", marginal: false}
+      - cell: L4
+        d: 6
+        B: "47751966659678405306351616"
+        G: 64
+        t_gcd_s: 2.202e+36
+        E-INT: {t_sq_s: 4.842e+32, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.678e+33, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 7.266e+22, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.631e+33, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 5.403e+21, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.631e+33, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 5.403e+21, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.631e+33, M: "FAIL", route: "X", marginal: false}
+      - cell: L4
+        d: 7
+        B: "7730993719707444524137094407"
+        G: 128
+        t_gcd_s: 1.961e+40
+        E-INT: {t_sq_s: 1.537e+36, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.935e+37, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.405e+25, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.906e+37, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.600e+24, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.906e+37, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.600e+24, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.906e+37, M: "FAIL", route: "X", marginal: false}
+      - cell: L5
+        d: 3
+        B: "7625597484987"
+        G: 8
+        t_gcd_s: 2.919e+13
+        E-INT: {t_sq_s: 2.528e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.337e+10, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.842e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.705e+09, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.616e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.703e+09, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.616e+07, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.703e+09, M: "FAIL", route: "X", marginal: false}
+      - cell: L5
+        d: 4
+        B: "18014398509481984"
+        G: 12
+        t_gcd_s: 3.134e+19
+        E-INT: {t_sq_s: 5.615e+17, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.457e+16, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.297e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 4.352e+15, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.553e+11, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 4.352e+15, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.553e+11, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 4.352e+15, M: "FAIL", route: "X", marginal: false}
+      - cell: L5
+        d: 5
+        B: "7450580596923828125"
+        G: 32
+        t_gcd_s: 1.492e+24
+        E-INT: {t_sq_s: 7.880e+21, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.351e+20, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.251e+15, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.527e+20, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.313e+14, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.527e+20, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.313e+14, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.527e+20, M: "FAIL", route: "X", marginal: false}
+      - cell: L5
+        d: 6
+        B: "1023490369077469249536"
+        G: 64
+        t_gcd_s: 9.907e+27
+        E-INT: {t_sq_s: 1.928e+25, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.209e+24, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.435e+17, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.339e+24, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.234e+16, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.339e+24, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.234e+16, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.339e+24, M: "FAIL", route: "X", marginal: false}
+      - cell: L5
+        d: 7
+        B: "65712362363534280139543"
+        G: 128
+        t_gcd_s: 1.688e+31
+        E-INT: {t_sq_s: 1.412e+28, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.775e+28, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.959e+19, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.501e+28, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.403e+18, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.501e+28, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.403e+18, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.501e+28, M: "FAIL", route: "X", marginal: false}
+      - cell: L6
+        d: 3
+        B: "31381059609"
+        G: 8
+        t_gcd_s: 1.586e+09
+        E-INT: {t_sq_s: 4.185e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.223e+06, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.501e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.511e+05, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 5.611e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.475e+05, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 5.611e+04, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.475e+05, M: "FAIL", route: "X", marginal: false}
+      - cell: L6
+        d: 4
+        B: "17592186044416"
+        G: 12
+        t_gcd_s: 1.301e+14
+        E-INT: {t_sq_s: 9.510e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.911e+11, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 4.779e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.808e+10, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 6.665e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.807e+10, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 6.665e+07, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.807e+10, M: "FAIL", route: "X", marginal: false}
+      - cell: L6
+        d: 5
+        B: "2384185791015625"
+        G: 32
+        t_gcd_s: 8.431e+17
+        E-INT: {t_sq_s: 2.277e+16, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.417e+15, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.292e+11, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.123e+14, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.617e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.123e+14, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.617e+10, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.123e+14, M: "FAIL", route: "X", marginal: false}
+      - cell: L6
+        d: 6
+        B: "131621703842267136"
+        G: 64
+        t_gcd_s: 1.097e+21
+        E-INT: {t_sq_s: 1.313e+19, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.087e+18, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.253e+13, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.125e+17, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.437e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.125e+17, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.437e+12, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.125e+17, M: "FAIL", route: "X", marginal: false}
+      - cell: L6
+        d: 7
+        B: "3909821048582988049"
+        G: 128
+        t_gcd_s: 4.712e+23
+        E-INT: {t_sq_s: 2.836e+21, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.249e+21, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 5.998e+14, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.981e+20, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 6.383e+13, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.981e+20, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 6.383e+13, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.981e+20, M: "FAIL", route: "X", marginal: false}
+      - cell: L7
+        d: 3
+        B: "1162261467"
+        G: 8
+        t_gcd_s: 4.379e+06
+        E-INT: {t_sq_s: 2.254e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 2.775e+04, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 8.158e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 5.044e+02, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.406e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.225e+02, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.406e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 4.225e+02, M: "FAIL", route: "X", marginal: false}
+      - cell: L7
+        d: 4
+        B: "274877906944"
+        G: 12
+        t_gcd_s: 7.678e+10
+        E-INT: {t_sq_s: 1.305e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.480e+08, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 4.161e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.074e+07, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 6.358e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.068e+07, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 6.358e+05, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.068e+07, M: "FAIL", route: "X", marginal: false}
+      - cell: L7
+        d: 5
+        B: "19073486328125"
+        G: 32
+        t_gcd_s: 1.503e+14
+        E-INT: {t_sq_s: 1.081e+13, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.802e+11, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 5.241e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.571e+10, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 7.296e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.568e+10, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 7.296e+07, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.568e+10, M: "FAIL", route: "X", marginal: false}
+      - cell: L7
+        d: 6
+        B: "609359740010496"
+        G: 64
+        t_gcd_s: 7.357e+16
+        E-INT: {t_sq_s: 2.620e+15, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.087e+14, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.725e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.450e+13, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.516e+09, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.449e+13, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.516e+09, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.449e+13, M: "FAIL", route: "X", marginal: false}
+      - cell: L7
+        d: 7
+        B: "11398895185373143"
+        G: 128
+        t_gcd_s: 1.383e+19
+        E-INT: {t_sq_s: 2.719e+17, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.325e+16, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 7.695e+11, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.048e+16, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 9.309e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.048e+16, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 9.309e+10, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.048e+16, M: "FAIL", route: "X", marginal: false}
+      - cell: L8
+        d: 3
+        B: "129140163"
+        G: 8
+        t_gcd_s: 8.618e+04
+        E-INT: {t_sq_s: 6.928e+04, basis: "extrapolated_fit_above; item at B watchdog_expiry", M_reasons: "none", T_A_days: 8.483e+02, M: "PASS", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 6.575e+02, basis: "measured", M_reasons: "none", T_A_days: 1.595e+01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.203e+02, basis: "extrapolated_fit_above; item at B MemoryError", M_reasons: "R1-modsq-not-completed-at-B+R2-modsq-rss-extrapolation", T_A_days: 9.439e+00, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.203e+02, from: "E-NP", M_reasons: "none", T_A_days: 9.439e+00, M: "PASS", route: "D", marginal: false}
+      - cell: L8
+        d: 4
+        B: "17179869184"
+        G: 12
+        t_gcd_s: 5.402e+08
+        E-INT: {t_sq_s: 1.611e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.005e+06, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.761e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.823e+04, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.860e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.555e+04, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.860e+04, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 7.555e+04, M: "FAIL", route: "X", marginal: false}
+      - cell: L8
+        d: 5
+        B: "762939453125"
+        G: 32
+        t_gcd_s: 4.763e+11
+        E-INT: {t_sq_s: 6.579e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.368e+09, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.333e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.770e+08, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.992e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.765e+08, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.992e+06, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.765e+08, M: "FAIL", route: "X", marginal: false}
+      - cell: L8
+        d: 6
+        B: "16926659444736"
+        G: 64
+        t_gcd_s: 1.214e+14
+        E-INT: {t_sq_s: 8.946e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.581e+11, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 4.573e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 9.000e+10, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 6.383e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.996e+10, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 6.383e+07, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 8.996e+10, M: "FAIL", route: "X", marginal: false}
+      - cell: L8
+        d: 7
+        B: "232630513987207"
+        G: 128
+        t_gcd_s: 1.315e+16
+        E-INT: {t_sq_s: 5.695e+14, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.300e+14, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 9.086e+09, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.949e+13, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.197e+09, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.949e+13, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.197e+09, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.949e+13, M: "FAIL", route: "X", marginal: false}
+      - cell: L9
+        d: 3
+        B: "14348907"
+        G: 8
+        t_gcd_s: 1.696e+03
+        E-INT: {t_sq_s: 2.127e+03, basis: "interpolated", M_reasons: "none", T_A_days: 2.596e+01, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 5.551e+01, basis: "interpolated", M_reasons: "none", T_A_days: 8.304e-01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.066e+01, basis: "interpolated", M_reasons: "none", T_A_days: 2.864e-01, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.066e+01, from: "E-NP", M_reasons: "none", T_A_days: 2.864e-01, M: "PASS", route: "D", marginal: false}
+      - cell: L9
+        d: 4
+        B: "1073741824"
+        G: 12
+        t_gcd_s: 3.801e+06
+        E-INT: {t_sq_s: 1.988e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 3.671e+04, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 7.453e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 6.635e+02, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.286e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 5.513e+02, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.286e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 5.513e+02, M: "FAIL", route: "X", marginal: false}
+      - cell: L9
+        d: 5
+        B: "30517578125"
+        G: 32
+        t_gcd_s: 1.509e+09
+        E-INT: {t_sq_s: 4.004e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.998e+07, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 3.391e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.753e+05, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 5.438e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.615e+05, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 5.438e+04, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.615e+05, M: "FAIL", route: "X", marginal: false}
+      - cell: L9
+        d: 6
+        B: "470184984576"
+        G: 64
+        t_gcd_s: 2.005e+11
+        E-INT: {t_sq_s: 3.055e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.113e+09, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 7.675e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.492e+08, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.159e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.486e+08, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.159e+06, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.486e+08, M: "FAIL", route: "X", marginal: false}
+      - cell: L9
+        d: 7
+        B: "4747561509943"
+        G: 128
+        t_gcd_s: 1.251e+13
+        E-INT: {t_sq_s: 1.193e+12, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.500e+11, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.073e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.856e+10, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.540e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.854e+10, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.540e+07, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.854e+10, M: "FAIL", route: "X", marginal: false}
+      - cell: L10
+        d: 3
+        B: "4782969"
+        G: 8
+        t_gcd_s: 2.379e+02
+        E-INT: {t_sq_s: 3.722e+02, basis: "interpolated", M_reasons: "none", T_A_days: 4.536e+00, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.434e+01, basis: "interpolated", M_reasons: "none", T_A_days: 1.959e-01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 3.160e+00, basis: "interpolated", M_reasons: "none", T_A_days: 6.036e-02, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 3.160e+00, from: "E-NP", M_reasons: "none", T_A_days: 6.036e-02, M: "PASS", route: "D", marginal: false}
+      - cell: L10
+        d: 4
+        B: "268435456"
+        G: 12
+        t_gcd_s: 3.188e+05
+        E-INT: {t_sq_s: 2.209e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.064e+03, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.533e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 7.217e+01, M: "FAIL", route: "X", marginal: true}
+        E-NP: {t_sq_s: 2.728e+02, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.924e+01, M: "FAIL", route: "X", marginal: true}
+        smallest: {t_sq_s: 2.728e+02, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 4.924e+01, M: "FAIL", route: "X", marginal: true}
+      - cell: L10
+        d: 5
+        B: "6103515625"
+        G: 32
+        t_gcd_s: 8.493e+07
+        E-INT: {t_sq_s: 3.123e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.547e+06, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 5.409e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.408e+04, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 8.986e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.189e+04, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 8.986e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 3.189e+04, M: "FAIL", route: "X", marginal: false}
+      - cell: L10
+        d: 6
+        B: "78364164096"
+        G: 64
+        t_gcd_s: 8.145e+09
+        E-INT: {t_sq_s: 1.785e+09, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.792e+08, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 9.943e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.130e+06, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.562e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.048e+06, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.562e+05, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 6.048e+06, M: "FAIL", route: "X", marginal: false}
+      - cell: L10
+        d: 7
+        B: "678223072849"
+        G: 128
+        t_gcd_s: 3.859e+11
+        E-INT: {t_sq_s: 5.459e+10, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 1.117e+10, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.166e+07, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.740e+08, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 1.746e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.720e+08, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 1.746e+06, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.720e+08, M: "FAIL", route: "X", marginal: false}
+      - cell: L11
+        d: 3
+        B: "531441"
+        G: 8
+        t_gcd_s: 4.682e+00
+        E-INT: {t_sq_s: 1.147e+01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.395e-01, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.265e+00, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.578e-02, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.581e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 3.564e-03, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.581e-01, from: "E-NP", M_reasons: "none", T_A_days: 3.564e-03, M: "PASS", route: "D", marginal: false}
+      - cell: L11
+        d: 4
+        B: "16777216"
+        G: 12
+        t_gcd_s: 2.243e+03
+        E-INT: {t_sq_s: 2.715e+03, basis: "measured", M_reasons: "none", T_A_days: 4.971e+01, M: "PASS", route: "D", marginal: true}
+        E-DEC: {t_sq_s: 6.820e+01, basis: "measured", M_reasons: "none", T_A_days: 1.552e+00, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.250e+01, basis: "measured", M_reasons: "none", T_A_days: 5.389e-01, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.250e+01, from: "E-NP", M_reasons: "none", T_A_days: 5.389e-01, M: "PASS", route: "D", marginal: false}
+      - cell: L11
+        d: 5
+        B: "244140625"
+        G: 32
+        t_gcd_s: 2.691e+05
+        E-INT: {t_sq_s: 1.901e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 9.323e+03, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.376e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.664e+02, M: "FAIL", route: "X", marginal: true}
+        E-NP: {t_sq_s: 2.453e+02, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.116e+02, M: "FAIL", route: "X", marginal: true}
+        smallest: {t_sq_s: 2.453e+02, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 1.116e+02, M: "FAIL", route: "X", marginal: true}
+      - cell: L11
+        d: 6
+        B: "2176782336"
+        G: 64
+        t_gcd_s: 1.344e+07
+        E-INT: {t_sq_s: 6.095e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 6.014e+05, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.669e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.158e+04, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.836e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.023e+04, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.836e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 1.023e+04, M: "FAIL", route: "X", marginal: false}
+      - cell: L11
+        d: 7
+        B: "13841287201"
+        G: 128
+        t_gcd_s: 3.671e+08
+        E-INT: {t_sq_s: 1.144e+08, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 2.274e+07, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.376e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.706e+05, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.246e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.482e+05, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.246e+04, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation+R3-gcd-rss-extrapolation", T_A_days: 5.482e+05, M: "FAIL", route: "X", marginal: false}
+      - cell: L12
+        d: 3
+        B: "177147"
+        G: 8
+        t_gcd_s: 6.569e-01
+        E-INT: {t_sq_s: 2.010e+00, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.445e-02, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 3.613e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.444e-03, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 7.551e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.767e-04, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 7.551e-02, from: "E-NP", M_reasons: "none", T_A_days: 9.767e-04, M: "PASS", route: "D", marginal: false}
+      - cell: L12
+        d: 4
+        B: "4194304"
+        G: 12
+        t_gcd_s: 1.881e+02
+        E-INT: {t_sq_s: 3.016e+02, basis: "measured", M_reasons: "none", T_A_days: 5.514e+00, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.227e+01, basis: "measured", M_reasons: "none", T_A_days: 2.493e-01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.715e+00, basis: "measured", M_reasons: "none", T_A_days: 7.554e-02, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.715e+00, from: "E-NP", M_reasons: "none", T_A_days: 7.554e-02, M: "PASS", route: "D", marginal: false}
+      - cell: L12
+        d: 5
+        B: "48828125"
+        G: 32
+        t_gcd_s: 1.514e+04
+        E-INT: {t_sq_s: 1.483e+04, basis: "extrapolated_fit_above; item at B watchdog_expiry", M_reasons: "none", T_A_days: 7.251e+02, M: "PASS", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.184e+02, basis: "measured", M_reasons: "none", T_A_days: 1.621e+01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 3.784e+01, basis: "measured", M_reasons: "none", T_A_days: 7.445e+00, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 3.784e+01, from: "E-NP", M_reasons: "none", T_A_days: 7.445e+00, M: "PASS", route: "D", marginal: false}
+      - cell: L12
+        d: 6
+        B: "362797056"
+        G: 64
+        t_gcd_s: 5.463e+05
+        E-INT: {t_sq_s: 3.561e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 3.496e+04, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.162e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 6.144e+02, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.821e+02, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.417e+02, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.821e+02, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 4.417e+02, M: "FAIL", route: "X", marginal: false}
+      - cell: L12
+        d: 7
+        B: "1977326743"
+        G: 128
+        t_gcd_s: 1.132e+07
+        E-INT: {t_sq_s: 5.234e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.032e+06, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.496e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.968e+04, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.547e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.727e+04, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.547e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 1.727e+04, M: "FAIL", route: "X", marginal: false}
+      - cell: L13
+        d: 3
+        B: "177147"
+        G: 8
+        t_gcd_s: 6.569e-01
+        E-INT: {t_sq_s: 2.010e+00, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.445e-02, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 3.613e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.444e-03, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 7.551e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.767e-04, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 7.551e-02, from: "E-NP", M_reasons: "none", T_A_days: 9.767e-04, M: "PASS", route: "D", marginal: false}
+      - cell: L13
+        d: 4
+        B: "4194304"
+        G: 12
+        t_gcd_s: 1.881e+02
+        E-INT: {t_sq_s: 3.016e+02, basis: "measured", M_reasons: "none", T_A_days: 5.514e+00, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.227e+01, basis: "measured", M_reasons: "none", T_A_days: 2.493e-01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.715e+00, basis: "measured", M_reasons: "none", T_A_days: 7.554e-02, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.715e+00, from: "E-NP", M_reasons: "none", T_A_days: 7.554e-02, M: "PASS", route: "D", marginal: false}
+      - cell: L13
+        d: 5
+        B: "48828125"
+        G: 32
+        t_gcd_s: 1.514e+04
+        E-INT: {t_sq_s: 1.483e+04, basis: "extrapolated_fit_above; item at B watchdog_expiry", M_reasons: "none", T_A_days: 7.251e+02, M: "PASS", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.184e+02, basis: "measured", M_reasons: "none", T_A_days: 1.621e+01, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 3.784e+01, basis: "measured", M_reasons: "none", T_A_days: 7.445e+00, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 3.784e+01, from: "E-NP", M_reasons: "none", T_A_days: 7.445e+00, M: "PASS", route: "D", marginal: false}
+      - cell: L13
+        d: 6
+        B: "362797056"
+        G: 64
+        t_gcd_s: 5.463e+05
+        E-INT: {t_sq_s: 3.561e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 3.496e+04, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.162e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 6.144e+02, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 3.821e+02, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.417e+02, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 3.821e+02, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 4.417e+02, M: "FAIL", route: "X", marginal: false}
+      - cell: L13
+        d: 7
+        B: "1977326743"
+        G: 128
+        t_gcd_s: 1.132e+07
+        E-INT: {t_sq_s: 5.234e+06, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.032e+06, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.496e+04, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.968e+04, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.547e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 1.727e+04, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.547e+03, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 1.727e+04, M: "FAIL", route: "X", marginal: false}
+      - cell: L14
+        d: 3
+        B: "59049"
+        G: 8
+        t_gcd_s: 9.215e-02
+        E-INT: {t_sq_s: 3.524e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.283e-03, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.032e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.260e-03, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.209e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.765e-04, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.209e-02, from: "E-NP", M_reasons: "none", T_A_days: 2.765e-04, M: "PASS", route: "D", marginal: false}
+      - cell: L14
+        d: 4
+        B: "1048576"
+        G: 12
+        t_gcd_s: 1.578e+01
+        E-INT: {t_sq_s: 3.370e+01, basis: "measured", M_reasons: "none", T_A_days: 6.153e-01, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.911e+00, basis: "measured", M_reasons: "none", T_A_days: 5.516e-02, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 5.182e-01, basis: "measured", M_reasons: "none", T_A_days: 1.162e-02, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 5.182e-01, from: "E-NP", M_reasons: "none", T_A_days: 1.162e-02, M: "PASS", route: "D", marginal: false}
+      - cell: L14
+        d: 5
+        B: "9765625"
+        G: 32
+        t_gcd_s: 8.524e+02
+        E-INT: {t_sq_s: 1.167e+03, basis: "measured", M_reasons: "none", T_A_days: 5.694e+01, M: "PASS", route: "D", marginal: true}
+        E-DEC: {t_sq_s: 3.345e+01, basis: "measured", M_reasons: "none", T_A_days: 1.939e+00, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 7.207e+00, basis: "measured", M_reasons: "none", T_A_days: 6.654e-01, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 7.207e+00, from: "E-NP", M_reasons: "none", T_A_days: 6.654e-01, M: "PASS", route: "D", marginal: false}
+      - cell: L14
+        d: 6
+        B: "60466176"
+        G: 64
+        t_gcd_s: 2.219e+04
+        E-INT: {t_sq_s: 2.081e+04, basis: "extrapolated_fit_above; item at B watchdog_expiry", M_reasons: "none", T_A_days: 2.036e+03, M: "PASS", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 2.912e+02, basis: "measured", M_reasons: "none", T_A_days: 4.469e+01, M: "PASS", route: "D", marginal: true}
+        E-NP: {t_sq_s: 5.138e+01, basis: "measured", M_reasons: "none", T_A_days: 2.143e+01, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 5.138e+01, from: "E-NP", M_reasons: "none", T_A_days: 2.143e+01, M: "PASS", route: "D", marginal: false}
+      - cell: L14
+        d: 7
+        B: "282475249"
+        G: 128
+        t_gcd_s: 3.492e+05
+        E-INT: {t_sq_s: 2.395e+05, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 4.700e+04, M: "FAIL", route: "X", marginal: false}
+        E-DEC: {t_sq_s: 1.625e+03, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 8.327e+02, M: "FAIL", route: "X", marginal: false}
+        E-NP: {t_sq_s: 2.888e+02, basis: "extrapolated_fit_above", M_reasons: "R2-modsq-rss-extrapolation", T_A_days: 5.734e+02, M: "FAIL", route: "X", marginal: false}
+        smallest: {t_sq_s: 2.888e+02, from: "E-NP", M_reasons: "E-INT:R2-modsq-rss-extrapolation; E-DEC:R2-modsq-rss-extrapolation; E-NP:R2-modsq-rss-extrapolation", T_A_days: 5.734e+02, M: "FAIL", route: "X", marginal: false}
+      - cell: L22
+        d: 3
+        B: "729"
+        G: 8
+        t_gcd_s: 3.569e-05
+        E-INT: {t_sq_s: 3.328e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.040e-06, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 6.868e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 8.334e-06, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.619e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.968e-06, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.619e-04, from: "E-NP", M_reasons: "none", T_A_days: 1.968e-06, M: "PASS", route: "D", marginal: false}
+      - cell: L22
+        d: 4
+        B: "4096"
+        G: 12
+        t_gcd_s: 7.811e-04
+        E-INT: {t_sq_s: 5.133e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.349e-05, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 4.919e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 8.961e-05, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.117e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.043e-05, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.117e-03, from: "E-NP", M_reasons: "none", T_A_days: 2.043e-05, M: "PASS", route: "D", marginal: false}
+      - cell: L22
+        d: 5
+        B: "15625"
+        G: 32
+        t_gcd_s: 8.556e-03
+        E-INT: {t_sq_s: 4.285e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.082e-03, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.265e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.102e-03, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 4.993e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.454e-04, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 4.993e-03, from: "E-NP", M_reasons: "none", T_A_days: 2.454e-04, M: "PASS", route: "D", marginal: false}
+      - cell: L22
+        d: 6
+        B: "46656"
+        G: 64
+        t_gcd_s: 6.048e-02
+        E-INT: {t_sq_s: 2.426e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.359e-02, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 7.889e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 7.700e-03, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.698e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.692e-03, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.698e-02, from: "E-NP", M_reasons: "none", T_A_days: 1.692e-03, M: "PASS", route: "D", marginal: false}
+      - cell: L22
+        d: 7
+        B: "117649"
+        G: 128
+        t_gcd_s: 3.160e-01
+        E-INT: {t_sq_s: 1.051e+00, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.044e-01, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.265e-01, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.444e-02, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 4.777e-02, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.739e-03, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 4.777e-02, from: "E-NP", M_reasons: "none", T_A_days: 9.739e-03, M: "PASS", route: "D", marginal: false}
+      - cell: L33
+        d: 3
+        B: "81"
+        G: 8
+        t_gcd_s: 7.024e-07
+        E-INT: {t_sq_s: 1.023e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.241e-07, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 5.603e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 6.797e-07, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.386e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.682e-07, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.023e-05, from: "E-INT", M_reasons: "none", T_A_days: 1.241e-07, M: "PASS", route: "D", marginal: false}
+      - cell: L33
+        d: 4
+        B: "256"
+        G: 12
+        t_gcd_s: 5.496e-06
+        E-INT: {t_sq_s: 6.337e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.154e-06, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.082e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 3.789e-06, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 5.023e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.146e-07, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 5.023e-05, from: "E-NP", M_reasons: "none", T_A_days: 9.146e-07, M: "PASS", route: "D", marginal: false}
+      - cell: L33
+        d: 5
+        B: "625"
+        G: 32
+        t_gcd_s: 2.710e-05
+        E-INT: {t_sq_s: 2.608e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.266e-05, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 5.762e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.797e-05, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.363e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 6.624e-06, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.363e-04, from: "E-NP", M_reasons: "none", T_A_days: 6.624e-06, M: "PASS", route: "D", marginal: false}
+      - cell: L33
+        d: 6
+        B: "1296"
+        G: 64
+        t_gcd_s: 9.983e-05
+        E-INT: {t_sq_s: 8.284e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 8.046e-05, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.324e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.285e-04, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 3.082e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.998e-05, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 3.082e-04, from: "E-NP", M_reasons: "none", T_A_days: 2.998e-05, M: "PASS", route: "D", marginal: false}
+      - cell: L33
+        d: 7
+        B: "2401"
+        G: 128
+        t_gcd_s: 3.006e-04
+        E-INT: {t_sq_s: 2.201e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.277e-04, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.675e-03, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 5.196e-04, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 6.144e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.197e-04, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 6.144e-04, from: "E-NP", M_reasons: "none", T_A_days: 1.197e-04, M: "PASS", route: "D", marginal: false}
+      - cell: L44
+        d: 3
+        B: "27"
+        G: 8
+        t_gcd_s: 9.854e-08
+        E-INT: {t_sq_s: 1.793e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.176e-08, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.600e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.941e-07, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 4.057e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.922e-08, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.793e-06, from: "E-INT", M_reasons: "none", T_A_days: 2.176e-08, M: "PASS", route: "D", marginal: false}
+      - cell: L44
+        d: 4
+        B: "64"
+        G: 12
+        t_gcd_s: 4.610e-07
+        E-INT: {t_sq_s: 7.041e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.282e-07, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 4.283e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 7.793e-07, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.065e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.939e-07, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 7.041e-06, from: "E-INT", M_reasons: "none", T_A_days: 1.282e-07, M: "PASS", route: "D", marginal: false}
+      - cell: L44
+        d: 5
+        B: "125"
+        G: 32
+        t_gcd_s: 1.526e-06
+        E-INT: {t_sq_s: 2.034e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 9.876e-07, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 9.191e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.460e-06, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.253e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.093e-06, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.034e-05, from: "E-INT", M_reasons: "none", T_A_days: 9.876e-07, M: "PASS", route: "D", marginal: false}
+      - cell: L44
+        d: 6
+        B: "216"
+        G: 64
+        t_gcd_s: 4.056e-06
+        E-INT: {t_sq_s: 4.841e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.700e-06, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.715e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.665e-05, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 4.153e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.033e-06, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 4.153e-05, from: "E-NP", M_reasons: "none", T_A_days: 4.033e-06, M: "PASS", route: "D", marginal: false}
+      - cell: L44
+        d: 7
+        B: "343"
+        G: 128
+        t_gcd_s: 9.272e-06
+        E-INT: {t_sq_s: 1.007e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.957e-05, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.907e-04, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 5.642e-05, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 6.967e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.354e-05, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 6.967e-05, from: "E-NP", M_reasons: "none", T_A_days: 1.354e-05, M: "PASS", route: "D", marginal: false}
+      - cell: L66
+        d: 3
+        B: "9"
+        G: 8
+        t_gcd_s: 1.382e-08
+        E-INT: {t_sq_s: 3.143e-07, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 3.814e-09, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 4.571e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 5.545e-08, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 1.187e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.440e-08, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 3.143e-07, from: "E-INT", M_reasons: "none", T_A_days: 3.814e-09, M: "PASS", route: "D", marginal: false}
+      - cell: L66
+        d: 4
+        B: "16"
+        G: 12
+        t_gcd_s: 3.867e-08
+        E-INT: {t_sq_s: 7.823e-07, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.424e-08, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 8.811e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.603e-07, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 2.259e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 4.111e-08, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 7.823e-07, from: "E-INT", M_reasons: "none", T_A_days: 1.424e-08, M: "PASS", route: "D", marginal: false}
+      - cell: L66
+        d: 5
+        B: "25"
+        G: 32
+        t_gcd_s: 8.587e-08
+        E-INT: {t_sq_s: 1.587e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 7.703e-08, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 1.466e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 7.113e-07, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 3.722e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.806e-07, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 1.587e-06, from: "E-INT", M_reasons: "none", T_A_days: 7.703e-08, M: "PASS", route: "D", marginal: false}
+      - cell: L66
+        d: 6
+        B: "36"
+        G: 64
+        t_gcd_s: 1.648e-07
+        E-INT: {t_sq_s: 2.829e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.746e-07, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 2.222e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 2.156e-06, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 5.597e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 5.432e-07, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 2.829e-06, from: "E-INT", M_reasons: "none", T_A_days: 2.746e-07, M: "PASS", route: "D", marginal: false}
+      - cell: L66
+        d: 7
+        B: "49"
+        G: 128
+        t_gcd_s: 2.860e-07
+        E-INT: {t_sq_s: 4.611e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 8.953e-07, M: "PASS", route: "D", marginal: false}
+        E-DEC: {t_sq_s: 3.158e-05, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 6.130e-06, M: "PASS", route: "D", marginal: false}
+        E-NP: {t_sq_s: 7.902e-06, basis: "extrapolated_fit_below", M_reasons: "none", T_A_days: 1.534e-06, M: "PASS", route: "D", marginal: false}
+        smallest: {t_sq_s: 4.611e-06, from: "E-INT", M_reasons: "none", T_A_days: 8.953e-07, M: "PASS", route: "D", marginal: false}
+    summary:
+      E-INT:
+        counts: {route_D: 31, route_X: 49, memory_FAIL: 45, marginal: 2}
+        route_D_cells: ["L9/d3", "L10/d3", "L11/d3", "L11/d4", "L12/d3", "L12/d4", "L13/d3", "L13/d4", "L14/d3", "L14/d4", "L14/d5", "L22/d3", "L22/d4", "L22/d5", "L22/d6", "L22/d7", "L33/d3", "L33/d4", "L33/d5", "L33/d6", "L33/d7", "L44/d3", "L44/d4", "L44/d5", "L44/d6", "L44/d7", "L66/d3", "L66/d4", "L66/d5", "L66/d6", "L66/d7"]
+        marginal_cells: ["L11/d4", "L14/d5"]
+      E-DEC:
+        counts: {route_D: 35, route_X: 45, memory_FAIL: 45, marginal: 3}
+        route_D_cells: ["L8/d3", "L9/d3", "L10/d3", "L11/d3", "L11/d4", "L12/d3", "L12/d4", "L12/d5", "L13/d3", "L13/d4", "L13/d5", "L14/d3", "L14/d4", "L14/d5", "L14/d6", "L22/d3", "L22/d4", "L22/d5", "L22/d6", "L22/d7", "L33/d3", "L33/d4", "L33/d5", "L33/d6", "L33/d7", "L44/d3", "L44/d4", "L44/d5", "L44/d6", "L44/d7", "L66/d3", "L66/d4", "L66/d5", "L66/d6", "L66/d7"]
+        marginal_cells: ["L10/d4", "L11/d5", "L14/d6"]
+      E-NP:
+        counts: {route_D: 34, route_X: 46, memory_FAIL: 46, marginal: 2}
+        route_D_cells: ["L9/d3", "L10/d3", "L11/d3", "L11/d4", "L12/d3", "L12/d4", "L12/d5", "L13/d3", "L13/d4", "L13/d5", "L14/d3", "L14/d4", "L14/d5", "L14/d6", "L22/d3", "L22/d4", "L22/d5", "L22/d6", "L22/d7", "L33/d3", "L33/d4", "L33/d5", "L33/d6", "L33/d7", "L44/d3", "L44/d4", "L44/d5", "L44/d6", "L44/d7", "L66/d3", "L66/d4", "L66/d5", "L66/d6", "L66/d7"]
+        marginal_cells: ["L10/d4", "L11/d5"]
+      smallest:
+        counts: {route_D: 35, route_X: 45, memory_FAIL: 45, marginal: 2}
+        route_D_cells: ["L8/d3", "L9/d3", "L10/d3", "L11/d3", "L11/d4", "L12/d3", "L12/d4", "L12/d5", "L13/d3", "L13/d4", "L13/d5", "L14/d3", "L14/d4", "L14/d5", "L14/d6", "L22/d3", "L22/d4", "L22/d5", "L22/d6", "L22/d7", "L33/d3", "L33/d4", "L33/d5", "L33/d6", "L33/d7", "L44/d3", "L44/d4", "L44/d5", "L44/d6", "L44/d7", "L66/d3", "L66/d4", "L66/d5", "L66/d6", "L66/d7"]
+        marginal_cells: ["L10/d4", "L11/d5"]
+    alternative_readings:
+      A1_include_supplementary_small_degrees:
+        entries_with_changed_T_A_or_verdict: 254
+        verdict_or_flag_changes: 0
+      A2_extrapolate_by_end_segment:
+        entries_with_changed_T_A_or_verdict: 262
+        verdict_or_flag_changes: 0
+      A3_watchdog_expiry_counts_as_not_completed:
+        entries_with_changed_T_A_or_verdict: 4
+        verdict_or_flag_changes: 4
+        changes:
+          - {cell: "L8", d: 3, column: "E-INT", changed: "M", primary: "T_A=8.483e+02 M=PASS route=X marginal=False", alternative: "T_A=8.483e+02 M=FAIL route=X marginal=False"}
+          - {cell: "L12", d: 5, column: "E-INT", changed: "M", primary: "T_A=7.251e+02 M=PASS route=X marginal=False", alternative: "T_A=7.251e+02 M=FAIL route=X marginal=False"}
+          - {cell: "L13", d: 5, column: "E-INT", changed: "M", primary: "T_A=7.251e+02 M=PASS route=X marginal=False", alternative: "T_A=7.251e+02 M=FAIL route=X marginal=False"}
+          - {cell: "L14", d: 6, column: "E-INT", changed: "M", primary: "T_A=2.036e+03 M=PASS route=X marginal=False", alternative: "T_A=2.036e+03 M=FAIL route=X marginal=False"}
+      A4_smallest_column_memory_from_min_family:
+        entries_with_changed_T_A_or_verdict: 1
+        verdict_or_flag_changes: 1
+        changes:
+          - {cell: "L8", d: 3, column: "smallest", changed: "M+route", primary: "T_A=9.439e+00 M=PASS route=D marginal=False", alternative: "T_A=9.439e+00 M=FAIL route=X marginal=False"}
+      A5_split_variant_where_unsplit_failed:
+        entries_with_changed_T_A_or_verdict: 113
+        verdict_or_flag_changes: 1
+        changes:
+          - {cell: "L8", d: 3, column: "E-NP", changed: "M+route", primary: "T_A=9.439e+00 M=FAIL route=X marginal=False", alternative: "T_A=9.862e+00 M=PASS route=D marginal=False"}
+      A7_rss_per_bit_minus_interpreter_baseline:
+        entries_with_changed_T_A_or_verdict: 0
+        verdict_or_flag_changes: 0
+      A8_rss_per_input_bit_two_operands:
+        entries_with_changed_T_A_or_verdict: 15
+        verdict_or_flag_changes: 15
+        changes:
+          - {cell: "L10", d: 4, column: "E-INT", changed: "M", primary: "T_A=4.064e+03 M=FAIL route=X marginal=False", alternative: "T_A=4.064e+03 M=PASS route=X marginal=False"}
+          - {cell: "L10", d: 4, column: "E-DEC", changed: "M+route", primary: "T_A=7.217e+01 M=FAIL route=X marginal=True", alternative: "T_A=7.217e+01 M=PASS route=D marginal=True"}
+          - {cell: "L10", d: 4, column: "smallest", changed: "M+route", primary: "T_A=4.924e+01 M=FAIL route=X marginal=True", alternative: "T_A=4.924e+01 M=PASS route=D marginal=True"}
+          - {cell: "L11", d: 5, column: "E-INT", changed: "M", primary: "T_A=9.323e+03 M=FAIL route=X marginal=False", alternative: "T_A=9.323e+03 M=PASS route=X marginal=False"}
+          - {cell: "L11", d: 5, column: "E-DEC", changed: "M", primary: "T_A=1.664e+02 M=FAIL route=X marginal=True", alternative: "T_A=1.664e+02 M=PASS route=X marginal=True"}
+          - {cell: "L11", d: 5, column: "smallest", changed: "M", primary: "T_A=1.116e+02 M=FAIL route=X marginal=True", alternative: "T_A=1.116e+02 M=PASS route=X marginal=True"}
+          - {cell: "L12", d: 6, column: "E-INT", changed: "M", primary: "T_A=3.496e+04 M=FAIL route=X marginal=False", alternative: "T_A=3.496e+04 M=PASS route=X marginal=False"}
+          - {cell: "L12", d: 6, column: "E-DEC", changed: "M", primary: "T_A=6.144e+02 M=FAIL route=X marginal=False", alternative: "T_A=6.144e+02 M=PASS route=X marginal=False"}
+          - {cell: "L12", d: 6, column: "smallest", changed: "M", primary: "T_A=4.417e+02 M=FAIL route=X marginal=False", alternative: "T_A=4.417e+02 M=PASS route=X marginal=False"}
+          - {cell: "L13", d: 6, column: "E-INT", changed: "M", primary: "T_A=3.496e+04 M=FAIL route=X marginal=False", alternative: "T_A=3.496e+04 M=PASS route=X marginal=False"}
+          - {cell: "L13", d: 6, column: "E-DEC", changed: "M", primary: "T_A=6.144e+02 M=FAIL route=X marginal=False", alternative: "T_A=6.144e+02 M=PASS route=X marginal=False"}
+          - {cell: "L13", d: 6, column: "smallest", changed: "M", primary: "T_A=4.417e+02 M=FAIL route=X marginal=False", alternative: "T_A=4.417e+02 M=PASS route=X marginal=False"}
+          - {cell: "L14", d: 7, column: "E-INT", changed: "M", primary: "T_A=4.700e+04 M=FAIL route=X marginal=False", alternative: "T_A=4.700e+04 M=PASS route=X marginal=False"}
+          - {cell: "L14", d: 7, column: "E-DEC", changed: "M", primary: "T_A=8.327e+02 M=FAIL route=X marginal=False", alternative: "T_A=8.327e+02 M=PASS route=X marginal=False"}
+          - {cell: "L14", d: 7, column: "smallest", changed: "M", primary: "T_A=5.734e+02 M=FAIL route=X marginal=False", alternative: "T_A=5.734e+02 M=PASS route=X marginal=False"}
+      A9_largest_measured_degree_read_as_largest_attempted:
+        entries_with_changed_T_A_or_verdict: 0
+        verdict_or_flag_changes: 0
+      A10_gcd_measured_value_where_B_on_ladder:
+        entries_with_changed_T_A_or_verdict: 16
+        verdict_or_flag_changes: 0
+      A11_smallest_excludes_family_not_completed_at_B:
+        entries_with_changed_T_A_or_verdict: 1
+        verdict_or_flag_changes: 0
+      A6_gcd_fit_top3_points:
+        entries_with_changed_T_A_or_verdict: 320
+        verdict_or_flag_changes: 0
+  QR4:
+    method: >-
+      One process per m. The timed operation is the elimination alone; matrix
+      generation is outside it. See method.elimination. Rank and an
+      echelon-structure check are recorded.
+    rows:
+      - {m: 256, host: "H1", outcome: "completed", seconds: 5.119e-03, peak_rss_mib: 1.499e+01, rank: 256, echelon_check: true, bash_time: "real=0.072 user=0.064 sys=0.008"}
+      - {m: 512, host: "H1", outcome: "completed", seconds: 1.730e-02, peak_rss_mib: 1.492e+01, rank: 511, echelon_check: true, bash_time: "real=0.077 user=0.044 sys=0.030"}
+      - {m: 1024, host: "H1", outcome: "completed", seconds: 6.803e-02, peak_rss_mib: 1.523e+01, rank: 1022, echelon_check: true, bash_time: "real=0.116 user=0.110 sys=0.004"}
+      - {m: 2048, host: "H1", outcome: "completed", seconds: 3.179e-01, peak_rss_mib: 1.579e+01, rank: 2047, echelon_check: true, bash_time: "real=0.366 user=0.348 sys=0.016"}
+      - {m: 4096, host: "H1", outcome: "completed", seconds: 1.208e+00, peak_rss_mib: 1.839e+01, rank: 4095, echelon_check: true, bash_time: "real=1.269 user=1.242 sys=0.016"}
+      - {m: 8192, host: "H1", outcome: "completed", seconds: 5.359e+00, peak_rss_mib: 2.834e+01, rank: 8191, echelon_check: true, bash_time: "real=5.437 user=5.370 sys=0.052"}
+      - {m: 16384, host: "H1", outcome: "completed", seconds: 3.732e+01, peak_rss_mib: 6.778e+01, rank: 16382, echelon_check: true, bash_time: "real=37.467 user=37.195 sys=0.096"}
+  supplementary_measurements:
+    note: >-
+      Not part of the card's QR2 degree list. These were measured only to
+      evaluate QR0-10, the downward extrapolation of t_sq below 2^20, and to
+      cross-check all three families at small degrees. Each is one operation
+      in one process under the same conditions. At these sizes timings are
+      dominated by fixed per-call overhead, and the values are single samples.
+    modular_squaring_small_D:
+      - {family: "E-INT", D: "2^4", outcome: "completed", seconds: 2.854e-05, peak_rss_mib: 1.495e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-INT", D: "2^8", outcome: "completed", seconds: 5.051e-05, peak_rss_mib: 1.507e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-INT", D: "2^12", outcome: "completed", seconds: 3.112e-03, peak_rss_mib: 1.505e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-INT", D: "2^16", outcome: "completed", seconds: 2.310e-01, peak_rss_mib: 1.676e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-DEC", D: "2^4", outcome: "completed", seconds: 7.430e-05, peak_rss_mib: 1.527e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-DEC", D: "2^8", outcome: "completed", seconds: 1.627e-04, peak_rss_mib: 1.530e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-DEC", D: "2^12", outcome: "completed", seconds: 4.293e-03, peak_rss_mib: 1.526e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-DEC", D: "2^16", outcome: "completed", seconds: 1.458e-01, peak_rss_mib: 1.769e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-NP", D: "2^4", outcome: "completed", seconds: 1.870e-03, peak_rss_mib: 3.018e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-NP", D: "2^8", outcome: "completed", seconds: 1.968e-03, peak_rss_mib: 3.021e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-NP", D: "2^12", outcome: "completed", seconds: 2.701e-03, peak_rss_mib: 3.037e+01, deg_r_below_D: true, all_families_agree: true}
+      - {family: "E-NP", D: "2^16", outcome: "completed", seconds: 2.879e-02, peak_rss_mib: 3.570e+01, deg_r_below_D: true, all_families_agree: true}
+    host_control:
+      - {item: "H-prod-E-INT-2p20", host: "H2", outcome: "completed", seconds_H2: 1.368e+01, seconds_H1_reference: 1.689e+01, reference_item: "B-prod-E-INT-2p20", ratio_H2_over_H1: 8.098e-01, same_result_as_H1: true}
+      - {item: "H-msq-E-INT-2p20", host: "H2", outcome: "completed", seconds_H2: 2.782e+01, seconds_H1_reference: 3.370e+01, reference_item: "B-msq-E-INT-2p20", ratio_H2_over_H1: 8.256e-01, same_result_as_H1: true}
+      - {item: "H-prod-E-INT-2p22", host: "H2", outcome: "completed", seconds_H2: 1.246e+02, seconds_H1_reference: 1.513e+02, reference_item: "B-prod-E-INT-2p22", ratio_H2_over_H1: 8.239e-01, same_result_as_H1: true}
+      - {item: "H-prod-E-DEC-2p24", host: "H2", outcome: "completed", seconds_H2: 2.859e+01, seconds_H1_reference: 3.411e+01, reference_item: "A-prod-E-DEC-2p24", ratio_H2_over_H1: 8.382e-01, same_result_as_H1: true}
+      - {item: "H-prod-E-NP-2p24", host: "H2", outcome: "completed", seconds_H2: 8.248e+00, seconds_H1_reference: 7.311e+00, reference_item: "A-prod-E-NP-2p24", ratio_H2_over_H1: 1.128e+00, same_result_as_H1: true}
+      - {item: "H-gcd-2p20", host: "H2", outcome: "completed", seconds_H2: 1.576e+01, seconds_H1_reference: 2.041e+01, reference_item: "A-gcd-2p20", ratio_H2_over_H1: 7.718e-01, same_result_as_H1: true}
+    gcd_small_D:
+      - {D: "2^4", outcome: "completed", seconds: 7.189e-06, peak_rss_mib: 1.493e+01}
+      - {D: "2^8", outcome: "completed", seconds: 5.455e-05, peak_rss_mib: 1.497e+01}
+      - {D: "2^12", outcome: "completed", seconds: 1.278e-03, peak_rss_mib: 1.509e+01}
+  completion_gate:
+    - gate: "QR0 reported, an empty list stated as such"
+      met: true
+      evidence: >-
+        QR0 lists 20 items; empty is false.
+    - gate: "QR1 for every listed (cell, d)"
+      met: true
+      evidence: >-
+        80 rows = 16 cells x 5 values of d.
+    - gate: "QR2 for every family and degree, each item a value or a recorded non-completion"
+      met: true
+      evidence: >-
+        Product and modular squaring outcomes are completed 34,
+        watchdog_expiry 6, MemoryError 2. The gcd ladder attempted 2^16, 2^17,
+        2^18, 2^19, 2^20, 2^21, 2^22, 2^23, 2^24, 2^25, ending with 2^25
+        watchdog_expiry.
+    - gate: "QR3 for every (cell, d)"
+      met: true
+      evidence: >-
+        80 rows, each with four columns.
+    - gate: "QR4 for every m"
+      met: true
+      evidence: >-
+        m = 2^8 to 2^14: 256 completed, 512 completed, 1024 completed, 2048
+        completed, 4096 completed, 8192 completed, 16384 completed.
+    - gate: "interpreter, numpy version and every verification method named"
+      met: true
+      evidence: >-
+        environment.interpreter, environment.numpy and method.verification.
+    - gate: "review_attestation with sources_read complete and blind_from_respected set explicitly"
+      met: true
+      evidence: >-
+        See review_attestation.
+    - gate: "zero runs; nothing written outside the write scope and the private scratch"
+      met: true
+      evidence: >-
+        runs_launched 0. Files written are the two artifact paths and files
+        under the private scratch directory only.
+  interruptions:
+    - event: "container restart (infrastructure)"
+      when: "after 2026-10-08T23:44:08Z and before 2026-10-09T00:01Z"
+      affected: >-
+        runs/B-gcd-2p25 was running (about 16 to 17 minutes into a 3600 s
+        watchdog) and was killed, leaving no exit code. The detached drivers
+        queued for stages B (remainder), C and D were killed as well.
+      handling: >-
+        The killed attempt is kept unchanged as
+        runs/B-gcd-2p25-interrupted-attempt1, with an added interruption.txt,
+        and it contributes no value. The host was re-surveyed after the
+        restart and was unchanged (nproc 4, 15 GiB, same CPU, kernel
+        6.18.44-fc-v80, CPython 3.11.15, numpy 2.4.6). Stages B, C and D were
+        relaunched at 2026-10-09T00:02Z. Items with a recorded exit code were
+        skipped. B-gcd-2p25 was re-run from scratch with the same seeds, and
+        its result is the QR2 value. Each item is a self-contained process
+        with its own RLIMIT_AS and watchdog, so no completed item depends on
+        the interrupted one. The first items after the restart started at
+        elevated boot loadavg, recorded in their pre.txt.
+      asserts_nothing_about: >-
+        any QR quantity; an infrastructure interruption is not evidence
+    - event: "second container restart (infrastructure)"
+      when: "2026-10-09, between 01:20Z and 01:59Z (Coordinator notice); host uptime 2 min at 02:01:08Z"
+      affected: >-
+        runs/C-prod-E-INT-5p11 was running, having started 01:11:21Z and been
+        at most about 48 minutes into a 3600 s watchdog. It was killed and
+        left no exit code. The queued drivers for stages C and D were killed
+        as well. After the restart the host CPU model differed (H2, Xeon @
+        2.10GHz, instead of H1, Xeon @ 2.80GHz).
+      handling: >-
+        The killed attempt is kept unchanged as
+        runs/C-prod-E-INT-5p11-interrupted-attempt1, with an added
+        interruption.txt, and it contributes no value. The host change was
+        logged in campaign.log. Six already-measured seeded items were
+        re-measured on H2 as host controls
+        (supplementary_measurements.host_control). They are supplementary and
+        never replace a QR2 value. Stage D (Stein checks) and then stage C
+        were relaunched at 2026-10-09T02:02Z, and C-prod-E-INT-5p11 was re-run
+        from scratch on H2. The Coordinator was told by message that stage C
+        runs past the 05:07Z lane-claim expiry. The Coordinator replied that
+        the claim was renewed (epoch 3, expiring 2026-10-09T09:03:44Z) and
+        asked for the host change and host controls to be recorded. Both
+        messages are pointers, not records.
+      asserts_nothing_about: >-
+        any QR quantity; an infrastructure interruption is not evidence
+  leak_check:
+    statement: >-
+      BR-4: no computed or measured QR value was found in anything this task
+      read. The card states definitions and parameters only. AGENTS.md,
+      agents/validator.md and templates/research-records.md contain no QR
+      values. Neither does the runtime-injected context (see sources_note). No
+      leak is reported.
+  limitations:
+    - id: LIM-01
+      text: >-
+        Measured values hold for the recorded host of each item, CPython
+        3.11.15 and numpy 2.4.6, one operation per item. Run-to-run variance
+        was not characterised. Every completed QR2, QR4 and gcd value, and so
+        every QR3 input, was measured on H1 (Xeon @ 2.80GHz). The QR2 items
+        run on H2 (Xeon @ 2.10GHz) after the second restart were
+        C-msq-E-INT-3p17, C-msq-E-INT-5p11, C-msq-E-INT-6p10,
+        C-prod-E-INT-3p17, C-prod-E-INT-5p11, C-prod-E-INT-6p10. Their outcome
+        is reported as observed on H2. A non-completion within the watchdog on
+        H2 does not by itself show the same on H1. The measured host-control
+        ratios, H2 seconds over H1 seconds on identical seeded items, are
+        H-prod-E-INT-2p20 H2/H1 = 0.810; H-msq-E-INT-2p20 H2/H1 = 0.826;
+        H-prod-E-INT-2p22 H2/H1 = 0.824; H-prod-E-DEC-2p24 H2/H1 = 0.838;
+        H-prod-E-NP-2p24 H2/H1 = 1.128; H-gcd-2p20 H2/H1 = 0.772.
+    - id: LIM-02
+      text: >-
+        Every QR3 value at a B outside a family's completed QR2 range is a
+        power-law extrapolation. Above the range it assumes the fitted
+        exponent continues, and nothing here tests that. Below 2^20 it is a
+        downward extrapolation. Against the supplementary small-degree
+        measurements, measured over extrapolated is E-INT 2^4 36.5; E-INT 2^8
+        0.797; E-INT 2^12 0.606; E-INT 2^16 0.556; E-DEC 2^4 8.43; E-DEC 2^8
+        0.781; E-DEC 2^12 0.873; E-DEC 2^16 1.25; E-NP 2^4 828; E-NP 2^8 39.2;
+        E-NP 2^12 2.42; E-NP 2^16 1.16. The extrapolation therefore
+        understates per-call overhead at the smallest degrees by up to the
+        largest of these factors, and differs by less than a factor of 2 near
+        2^16 (QR0-10). Cost units are wall-clock seconds and days on one core.
+        No parallelism, time-memory trade-off or success-probability factor is
+        applied, because T_A as the card defines it contains none.
+    - id: LIM-03
+      text: >-
+        The memory verdict follows the card's two-part rule literally.
+        Whole-process RSS per bit (QR0-16) inflates rho for the gcd, where the
+        interpreter baseline dominates. In the primary table R3 fires in 105
+        family-column entries and is the only FAIL reason in 0 of them, so no
+        verdict rests on R3 alone. Alternative A7 (baseline subtracted)
+        changes no verdict, and A8 (per input bit) changes the verdicts listed
+        under QR0-16.
+    - id: LIM-04
+      text: >-
+        Watchdog expiries and MemoryErrors are recorded as non-completions
+        only. They are not values and not evidence about any quantity beyond
+        this implementation, host and limit.
+    - id: LIM-05
+      text: >-
+        Exact verification is by second-family SHA-256 agreement. Two
+        independent implementations agreeing on the same wrong result is not
+        excluded by a probability bound; it is excluded only by the
+        independence of their arithmetic (Karatsuba integers, decimal NTT and
+        float FFT). At 3^17 the E-NP evidence is the split variant. The gcd is
+        verified by Stein's algorithm at 2^16, 2^17, 2^18, 2^19, 2^20, 2^21,
+        2^22, and only by divisibility at 2^23, 2^24.
+    - id: LIM-06
+      text: >-
+        The six E-INT items at 5^11, 6^10 and 3^17 ran on H2 and each reached
+        the 3600 s watchdog. Their non-completion reflects CPython int
+        multiplication on H2 within that watchdog. It is not a memory outcome.
+    - id: LIM-07
+      text: >-
+        The card's advisory wall-clock budget (18000 s) was exceeded. Most of
+        the excess is the six E-INT items and the gcd item at the end of the
+        ladder, each of which ran until its 3600 s watchdog, plus the re-runs
+        of the two items killed by the two container restarts (see
+        interruptions). The campaign wall clock is in computations.json
+        (raw_outputs.campaign.log).
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-521e9d/reviews/TASK-20261002-efd590/rederivation-report.yaml
+    - coordination/goals/GOAL-ECDLP2M-001/batches/BATCH-521e9d/reviews/TASK-20261002-efd590/computations.json
+  archived_by: TASK-20261002-ea2ed7
+review_attestation:
+  task_id: TASK-20261002-efd590
+  joints_owned: [JRD3]
+  sources_read:
+    - ledger/handoffs/TASK-20261002-efd590.yaml
+    - AGENTS.md
+    - agents/validator.md
+    - templates/research-records.md
+  sources_note: >-
+    These four repository paths, the read_scope whitelist, are the only
+    repository files this task opened. Further texts were present in the
+    session context without any read by this task. These were the
+    runtime-injected project instruction files: this repository's CLAUDE.md,
+    in its long form at session start and its short form after the first
+    container restart, and /home/user/cairn/CLAUDE.md. The Coordinator's
+    resume message after each of the two restarts was also present. None of
+    them contains a QR value. docs/claude-code-runtime.md, which the short
+    CLAUDE.md names, was not opened. No sibling directory under reviews/ was
+    listed or opened. No git command was run. No web retrieval or
+    documentation lookup was made. Otherwise this task read only its own
+    scratch files, /proc (loadavg, cpuinfo, meminfo, self/status), nproc,
+    free, and the numpy module path.
+  read_sibling_reports: false
+  blind_from_respected: true
+  blind_from_note: >-
+    The blind_from list is in the review plan, which is itself in blind_from,
+    so this task cannot see the list. The attestation rests on having opened
+    only the four whitelisted repository paths plus this task's own scratch
+    files. No producer implementation, note or report was read.
+  verdict: inconclusive
+  verdict_note: >-
+    Inconclusive by design (BR-5). JRD3 compares with nothing, and the
+    re-derived values are reported for the Coordinator to compose.
