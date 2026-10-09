@@ -1,7 +1,7 @@
 # Crypto Autoresearcher Agent Contract
 
 A multi-agent operating system for reproducible ECDLP experimentation. This
-file is the normative contract: rules, with a one-line reason each. The
+file is the normative contract: rules, with one-line reasons. The
 incident narratives and worked reasoning behind them are in
 [`docs/agent-contract-extended.md`](docs/agent-contract-extended.md), and the
 rules cite the document that holds their full statement. Where this file and
@@ -111,20 +111,6 @@ expired or errored batch results are infrastructure signal
 `api_direct`) are interchangeable over the same role contracts; under
 `api_direct` write scope, no-overwrite, command allow-list and budget stops
 are enforced, not requested.
-
-## Endomorphism and isogeny-chain arithmetic
-
-For CM/GLV/GLS, endomorphism formulas, model changes, and isogeny-chain
-scalar multiplication, follow
-[docs/endomorphism-rules.md](docs/endomorphism-rules.md). Keep factored and
-mixed-degree loops in scope: degree alone and a bounded null search establish
-neither evaluation cost nor impossibility. Require explicit typed maps,
-working-field closure, subgroup-action certificates, endpoint recovery, and
-paired complete-cost measurements against an optimized baseline. Preserve
-failures and exact search bounds. Structural signals are leads, and
-known-scalar speedups are not unknown-scalar recovery. `run`, standing
-authorization, Coordinator authority, evidence review, and measured-bound
-rules remain unchanged.
 
 ## Core rules
 
@@ -462,45 +448,35 @@ challenge verdict; `inadmissible` is never negative evidence; the
 Coordinator's decision, not the verdict, changes state. Wall time is never a
 bound. `docs/bounds-and-frontiers.md`.
 
-## Weak-curve and isogenous-representative audits
+## Weak-curve, endomorphism, and isogeny audits
 
-Before a weak-curve claim, use
-[`audit-curve`](.claude/skills/audit-curve/SKILL.md) and
-[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). Trials still use the
-canonical `run` entry point; audits are evidence, not state transitions.
+Use
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md),
+[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md), and
+[the endomorphism rules](docs/endomorphism-rules.md). Trials use canonical
+`run`; audits are stateless.
 
-Freeze the curve/subgroup/protocol, attacker, threshold, costs, path-knowledge
-model, budgets, population, and stopping rule. Require certified arithmetic and
-planted controls. Separate base-field isogeny-class invariants from
-representative-dependent structure; unusual structure is only a lead.
+Freeze scope, attacker, cost model, budgets, population, and stopping rule;
+require exact arithmetic and planted controls.
 
-For an ordinary curve record
-`Delta_pi = t^2 - 4q = f_pi^2 D_K` and
-`Z[pi] = O_(f_pi) subseteq End(E) = O_(f_E) subseteq O_K`
-independently; `f_E | f_pi`, but `f_pi` determines `f_E` only when
-`f_pi = 1` or a separate endomorphism-ring certificate does. Certify endpoint
-conductors and label each separable prime-degree `ell != char(F_q)` edge
-`horizontal | ascending | descending | unresolved`. Koblitz `tau` and
-other characteristic-power Frobenius maps are inseparable endomorphisms, not
-separable volcano edges. Conductors and their gap are structural leads, not
-ECDLP-bit discounts without an explicit usable action or fully costed
-transfer.
+For ordinary curves certify
+`Delta_pi=t^2-4q=f_pi^2 D_K`, `f_E|f_pi`, and endpoint orders separately;
+infer `f_E` from `f_pi` only when `f_pi=1`. Label separable prime-degree
+edges `horizontal|ascending|descending|unresolved`; Koblitz `tau` is
+inseparable. Conductor gaps are leads, not hardness discounts. Keep factored
+and mixed-degree paths in scope.
 
-An isogeny transfer claim requires explicit maps and subgroup preservation,
-with path discovery, construction, evaluation, attack, memory, data, and
-precomputation charged. Advice supports only an advice-holder claim. Singular
-or invalid
-formula-compatible companions can establish **implementation-weak**, never
-elliptic-curve or isogeny-class weakness. A confirmation-only oracle needs an
-explicit reduction; it does not inherit the companion group's DLP cost.
+Claims require typed maps, field closure, subgroup action, endpoint recovery,
+and discovery, construction, evaluation, attack, memory, data, and
+precomputation costs against an optimized baseline. Known-scalar speedups are
+not key recovery. Invalid companions imply only **implementation-weak**;
+confirmation oracles need reductions.
 
-Use only the claim labels **class-weak**, **weak representative exists**,
+Use only **class-weak**, **weak representative exists**,
 **source-transfer-weak**, **implementation-weak**, or **no weakness found in
-scope**, with the exact certified scope. Algebraic claims require proof or
-certificates. Statistics address only a preregistered sampling law and detector:
-report exclusions and indeterminate cases, dependence/effective sample size,
-multiple-testing correction, and design-appropriate intervals. A bounded search
-or zero-hit prevalence bound is not evidence that no weak representative exists.
+scope**, with exact scope. Report indeterminates, dependence, and
+multiplicity-adjusted intervals. Bounded null searches and zero-hit bounds do
+not prove absence.
 
 ## Cursor Cloud specific instructions
 
