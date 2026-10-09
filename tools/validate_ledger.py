@@ -3056,8 +3056,11 @@ def main() -> int:
                          "heads and proposals, aged open handoffs)")
     args = ap.parse_args()
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import sparse_checkout
-    if sparse_checkout.refuse_if_sparse("validate_ledger", Path(REPO)):
+    try:
+        import sparse_checkout
+    except ImportError:  # a standalone copy (tools/test_goal_id_random_suffix.py)
+        sparse_checkout = None
+    if sparse_checkout and sparse_checkout.refuse_if_sparse("validate_ledger", Path(REPO)):
         return 2
 
     # This must precede every inventory, glob, supersession, and record read.
