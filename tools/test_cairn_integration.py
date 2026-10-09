@@ -12,11 +12,22 @@ import cairn_publish_objective as publish  # noqa: E402
 import cairn_replay_stage1cs as replay  # noqa: E402
 import cairn_settlement_receipt as receipt  # noqa: E402
 import cairn_autopilot_launchd as launchd  # noqa: E402
+import cairn_autopilot_service as service  # noqa: E402
 import exp_to_objective as e2o  # noqa: E402
 from test_exp_to_objective import Repo  # noqa: E402
 
 
 class BridgeTests(unittest.TestCase):
+    def test_campaign_refuses_an_aws_lazy_proxy_without_approval(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        name, url = service.configured_model(repo)
+        with self.assertRaisesRegex(RuntimeError, "remote inference"):
+            service.require_inference_approval(name, url, approved=False)
+        service.require_inference_approval(name, url, approved=True)
+        service.require_inference_approval("Local GPU", "http://127.0.0.1:8000/v1", False)
+        with self.assertRaisesRegex(RuntimeError, "remote inference"):
+            service.require_inference_approval("Provider", "https://example.org/v1", False)
+
     def test_the_pinned_replay_matches_an_archived_run_and_refuses_changed_input(self) -> None:
         repo = Path(__file__).resolve().parents[1]
         digest = hashlib.sha256((repo / replay.INPUT).read_bytes()).hexdigest()

@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -50,6 +51,23 @@ def wait_for_mcp(process: subprocess.Popen, url: str, seconds: int = 300) -> Non
     raise RuntimeError(f"OpenCode/Cairn MCP did not become ready: {last}")
 
 
+def configured_model(repo: Path) -> tuple[str, str]:
+    """Read the endpoint OpenCode will actually use from its project config."""
+    provider = json.loads((repo / "opencode.json").read_text(encoding="utf-8"))["provider"]["vllm"]
+    return provider["name"], provider["options"]["baseURL"]
+
+
+def require_inference_approval(name: str, url: str, approved: bool) -> None:
+    """A loopback lazy proxy can start paid remote compute on its first prompt."""
+    host = urlsplit(url).hostname
+    remote = host not in ("127.0.0.1", "localhost", "::1")
+    advertised_remote = any(word in name.lower() for word in ("aws", "cloud", "remote"))
+    if (remote or advertised_remote) and not approved:
+        raise RuntimeError(
+            f"configured model {name!r} at {url} may use remote inference; "
+            "pass --allow-remote-inference only after the destination and cost are approved")
+
+
 @contextmanager
 def stop_on_sigterm():
     """Allow the child cleanup blocks to run when launchd stops the service."""
@@ -79,8 +97,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="trusted Cairn peer bootstrap file; repeat for more peers")
     parser.add_argument("--attest-identity", type=Path,
                         help="separate funded validator identity for this node")
-    parser.add_argument("--local-model-url",
-                        help="override opencode.json's local vLLM base URL")
+    parser.add_argument("--allow-remote-inference", action="store_true",
+                        help="acknowledge the configured model may send work to a remote provider")
+    parser.add_argument("--node-only", action="store_true",
+                        help="keep the Cairn MCP node connected without starting campaign actions")
     parser.add_argument("--backend", action="append", default=None)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--check", action="store_true",
@@ -93,11 +113,11 @@ def main(argv: list[str] | None = None) -> int:
     if not (repo / "opencode.json").is_file():
         parser.error(f"no opencode.json in {repo}")
     try:
-        local_model_url = (args.local_model_url or json.loads(
-            (repo / "opencode.json").read_text(encoding="utf-8"))
-            ["provider"]["vllm"]["options"]["baseURL"])
+        model_name, model_url = configured_model(repo)
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        parser.error(f"cannot resolve the local model URL: {exc}")
+        parser.error(f"cannot resolve the configured model: {exc}")
+    if not args.node_only and not args.check:
+        require_inference_approval(model_name, model_url, args.allow_remote_inference)
     if not args.cairn_bin.is_file() or not os.access(args.cairn_bin, os.X_OK):
         parser.error(f"Cairn binary is not executable: {args.cairn_bin}")
     if not args.identity.is_file():
@@ -141,7 +161,6 @@ def main(argv: list[str] | None = None) -> int:
         "CAIRN_MCP_MAX_SPEND": "0",
         "CAIRN_KEY": str(state_dir / "cairn.key"),
         "CAIRN_BRIDGE_LOG": str(state_dir / "stage0.jsonl"),
-        "LOCAL_LLM_BASE_URL": local_model_url,
     })
     if args.bootstrap:
         env["CAIRN_BOOTSTRAP"] = ":".join(str(peer.resolve()) for peer in args.bootstrap)
@@ -161,6 +180,10 @@ def main(argv: list[str] | None = None) -> int:
                   flush=True)
             if args.check:
                 return 0
+            if args.node_only:
+                while process.poll() is None:
+                    time.sleep(2)
+                raise RuntimeError(f"OpenCode/Cairn node exited {process.returncode}")
 
             def sleep_or_fail(seconds: float) -> None:
                 if process.poll() is not None:
