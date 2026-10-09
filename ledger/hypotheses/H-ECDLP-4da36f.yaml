@@ -8,6 +8,13 @@
 # the root discriminant. Generalizes SNFS-F1 from f = t^d - c to arbitrary
 # low-weight f. Derived from IDEA-20261009-b6d31b (addendum G). Status
 # proposed with specified_by; nothing here asserts an outcome. Toy primes.
+# CORRECTION at design time: the source proposal and the first filing of this
+# record wrote the P-384 shape as t^12 - t^4 + t^3 + t - 1; the correct shape
+# is t^12 - t^4 - t^3 + t - 1 (2^384 - 2^128 - 2^96 + 2^32 - 1 at t = 2^32).
+# The runner's CTRL-SHAPE check (each shape at its deployed k must equal the
+# public NIST prime) caught it; the proposal is corrected on its unmerged
+# branch. The contract EXP-ECDLP-4c6a09's coverage arm is implemented in the
+# Python standard library; the rank arm is skipped and reported as skipped.
 # =============================================================================
 hypothesis:
   id: H-ECDLP-4da36f
@@ -32,7 +39,7 @@ hypothesis:
     Small root discriminant means many algebraic integers of small height,
     the resource a lift would want, and the NIST shapes (t^3 - t - 1 at 2^64
     for P-192; t^7 - t^3 + 1 at 2^32 for P-224; t^8 - t^7 + t^6 + t^3 - 1 at
-    2^32 for P-256; t^12 - t^4 + t^3 + t - 1 at 2^32 for P-384) have
+    2^32 for P-256; t^12 - t^4 - t^3 + t - 1 at 2^32 for P-384) have
     unusually small discriminants for their degree. But the Mordell-Weil
     group of E over K_f depends on f only through the arithmetic of E over
     K_f (rank, regulator), and Lang-type bounds keep nontorsion heights
@@ -163,21 +170,26 @@ hypothesis:
       - "5 seeded random curves E/Q per prime with good reduction at p; Q (d = 1) and f = t^d - c (EXP-ECDLP-3e8403) as embedded baselines"
     parameters:
       claim_tier: toy
-      box_ladder: "X in {2, 4, 8, 16, 32} on coefficient vectors in the power basis 1, t, ..., t^{deg f - 1}, denominators <= 4"
-      rank_method: "2-descent (PARI/GP ellrank or Magma) where available; else bounded point search with rank as a lower bound"
+      work_ladder: "W in {300, 1000, 3000, 10000, 30000, 100000} candidates x = a(t)/e tried, a in sup-norm shells on the power basis 1, t, ..., t^{deg f - 1}, denominators e <= 4"
+      rank_method: "no 2-descent over K_f in the container (PARI/GP ellrank is over Q only): the rank arm is skipped and reported as skipped; new K_f-points proven non-torsion by reduction are counted and their smallest naive height over log p reported as bounds"
     implementation: >-
-      NOT IMPLEMENTED in the design session (no PARI/GP, Sage or Magma); the
-      coverage arm alone is implementable in the Python standard library by
-      the EXP-ECDLP-3e8403 box-ladder method generalized to arbitrary f
-      (arithmetic in Z[t]/(f) with reduction t -> 2^k mod p), and is the
-      recommended first cell; see EXP-ECDLP-4c6a09 launcher.
+      IMPLEMENTED (coverage and height arms) in the design session:
+      experiments/EXP-ECDLP-4c6a09/implementation/{run.py, nfield.py,
+      ecnf.py, gptool.py}, Python standard library only, sharing the
+      number-field toolkit of EXP-ECDLP-84af7b byte for byte (Q[t]/(f)
+      arithmetic, exact discriminant, reduction t -> 2^k mod p, exact square
+      roots, sup-norm-shell point search sieved at 8 split auxiliary primes,
+      torsion bound by reduction). The rank arm is skipped and reported as
+      skipped. PARI/GP nfdisc is an optional cross-check of the field
+      discriminant. Smoke-tested on P-192 and P-224 at W <= 10000 (20
+      cells). See the EXP-ECDLP-4c6a09 launcher.
     budget:
       enforcement: advisory
       total_cpu_hours: 80
       maximum_memory_gb: 4
   falsification_conditions:
     - "HEUR-001 (alive condition): gamma on a Solinas f exceeds the random-g null by > 0.2 across >= 3 primes with descent bounds tight."
-    - "HEUR-001: a significant negative correlation between gamma and root discriminant across all fields (p < 0.01) with the d = 1 control at its EXP-ECDLP-3e8403 value."
+    - "HEUR-001: a significant negative correlation between gamma and root discriminant across all fields (99 % bootstrap interval of the slope excluding 0) with the d = 1 control reported beside EXP-ECDLP-3e8403's Q-lift."
     - "A cell with a loose descent bound and no exhibited points is inconclusive for the rank arm, never negative."
   interpretation_limits:
     - Toy primes f(2^k) at small k only; no deployed curve is lifted and nothing is extrapolated.

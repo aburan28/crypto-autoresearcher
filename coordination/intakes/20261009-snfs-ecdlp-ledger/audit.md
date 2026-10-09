@@ -62,3 +62,15 @@ exact conditions (k = 1 iff ord_l(2) | c − 1; k = 2 impossible; k = 3 iff
 l | Φ_6(2^c); k = 4 iff l | 2^{2c−1} − 2^c + 1), verified on every row of the
 corrected smoke test. Edited in place because the record had never reached
 `main`; `H-ECDLP-281dd6` records the correction.
+
+## Correction (2026-10-09, design session, second)
+
+`IDEA-20261009-b6d31b` (SNFS-G3) was first filed with the P-384 shape written
+as t^12 − t^4 + t^3 + t − 1. The correct shape is t^12 − t^4 − t^3 + t − 1
+(2^384 − 2^128 − 2^96 + 2^32 − 1 at t = 2^32). The CTRL-SHAPE check of the
+`EXP-ECDLP-4c6a09` runner (each shape evaluated at its deployed k must equal
+the public NIST prime) caught it; with the wrong sign the shape had no toy
+prime f(2^k) for k ≤ 80, with the right one it has k = 6. The proposal,
+`H-ECDLP-4da36f`, the specification and `source-addendum.yaml` now carry the
+correct shape. Edited in place because the record had never reached `main`;
+`H-ECDLP-4da36f` records the correction.
