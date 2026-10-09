@@ -8,7 +8,11 @@ description: >-
   adversarial challenge goes to `red-team`. Never changes research status or
   raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
-model: inherit
+model: claude-fable-5-1
+# Pinned, not inherited: roles.yaml runtime_model_pins -> red-team-breakthrough
+# -> model-bindings.yaml anthropic binding of review-breakthrough (Claude
+# Fable 5.1). Edit the binding, never this line; tools/check_runtime_bindings.py
+# fails the build when they disagree.
 # Policy-tier variant of `red-team` (orchestration/roles.yaml: variant_of).
 # Same contract, same authority, same tools -- only the thinking depth differs.
 # review-breakthrough is `degradable: false`: a claimed break of a real curve is
