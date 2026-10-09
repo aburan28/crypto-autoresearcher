@@ -21,8 +21,7 @@ endomorphism.
    field of definition, exceptional inputs, coordinate conversions, and
    correctness certificate.
 2. A closed path needs an explicit endpoint isomorphism
-   `iota:E_n -> E_0` over the declared working field. Matching
-   `j`-invariants alone does not certify closure there because the endpoints
+   `iota:E_n -> E_0` over the declared working field. Matching `j`-invariants alone does not certify closure there because the endpoints
    may be twists. If individual maps live over an extension, an
    `F_q`-endomorphism claim needs a descent certificate for the composite.
 3. Certify that
