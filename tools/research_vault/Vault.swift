@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import Security
+import Darwin
 
 // macOS 13+. No external dependencies. v1 recovery secret is 32 random bytes
 // represented as hex, NOT a BIP-39 mnemonic.
