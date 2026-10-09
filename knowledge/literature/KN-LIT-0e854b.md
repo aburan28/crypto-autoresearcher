@@ -60,10 +60,13 @@ rho = log2 rho time; D = rho - T when positive. EG1 caps the factor base at
   (equivalently lcm(n, l) = N, i.e. gcd(n, p) = 1 here) the usual
   non-subfield arguments apply.
 - **Table 3** (direct GHS on the given curves): for E176, (n, l, m, g) =
-  (8, 22, 8, 128) gives EG2 T = 2^222 against rho 2^87; (4, 44, 4, 8) gives
+  (8, 22, 8, 128) gives EG2 T = 2^222 against rho 2^78; (4, 44, 4, 8) gives
   T = 2^58 against 2^78 but is a gcd(n, p) > 1 descent and so fails by
   Remark 21; all other decompositions are worse. No ANSI curve is
-  directly attackable.
+  directly attackable. Table 3's rho column (2^78 for E176) is for the
+  subfield curve itself, with the Frobenius speedup of the paper's refs
+  [15, 34]; Table 4's (2^87 for E176) is for non-subfield isogenous curves,
+  which have none. Compare within a table, not across them.
 - **Remark 26 and Table 4 (extended GHS, i.e. an isogenous curve).** For
   every decomposition N = n l they list the best magic number m an
   isogenous non-subfield curve could have, the number of such classes, and
@@ -73,11 +76,19 @@ rho = log2 rho time; D = rho - T when positive. EG1 caps the factor base at
   T = 2^61 (D2 = 26). Verbatim: "it is well possible that such a curve
   exists. However, finding such a curve is very likely to be much harder
   than solving the ECDLP using Pollard rho." For E208 the best is
-  (8, 26, 5, 16): T = 2^69 versus 2^103 (D2 = 34), same caveat; E272:
-  (8, 34, 5, 16) T = 2^77 versus 2^135, and (272, 1, 9, 255) T = 2^51
-  versus 2^135 (D2 = 84, a descent all the way to F_2 with I = 2^10
-  classes); E304: (8, 38, 5, 16) T = 2^81 versus 2^151; E368: (8, 46, 5,
-  16) T = 2^89 versus 2^183. In every case the number of target classes
+  (8, 26, 5, 16): T = 2^69 versus 2^103 (D2 = 34), but only with a factor
+  base of 2^50 elements (EG1, capped at 10^7, shows no improvement), and
+  Remark 26(ii) says finding a curve with (n, m) = (4, 3) or (8, 5) among
+  2^156 or 2^130 classes "does not seem feasible". E272 (Remark 26(iii)):
+  (136, 9) and (272, 9) would "considerably improve on Pollard's rho", and
+  the authors **searched them exhaustively** (524288 classes over F_{2^272}
+  with (136, 9), 1276 with (272, 9)) and found **none isogenous to E272**;
+  the next best, (8, 34, 5, 16), T = 2^77 versus 2^135 with 2^170 classes,
+  is "well beyond the realm of feasibility". The (272, 1, 9, 255) row has
+  T = 2^51 versus 2^135 (D2 = 84, a descent all the way to F_2 with
+  I = 2^10 classes). E304: (8, 38, 5, 16) T = 2^81 versus 2^151; E368:
+  (8, 46, 5, 16) T = 2^89 versus 2^183; Remark 26(iv)-(v): "not possible to
+  improve on the GHS attack using isogenies", for the same reasons as E272. In every case the number of target classes
   is tiny relative to the isogeny class (2^110 of ~2^176 for E176, i.e.
   density 2^-66), and the paper's verdict is that reaching one is harder
   than rho.
