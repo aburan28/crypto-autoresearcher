@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The only module in this repository that talks to cairn (distributed-researcher).
+"""The Stage 0 certificate bridge to cairn (distributed-researcher).
 
 Stage 0 of docs/cairn-integration-plan.md: cairn as a second, independently
 implemented verifier for certificates this program already claims -- no
@@ -37,12 +37,12 @@ posted" refusal, is what a repeat run trusts).
 
 # Where the log lives
 
-Never inside this repository's tree (docs/cairn-integration-plan.md section
-5: this repo is worked by many concurrent worktrees, and cairn is one
-writer per log, enforced by an OS lock -- two worktrees sharing a log would
-have the second simply refused to open it). Defaults to
-`~/.cairn/<worktree-basename>.jsonl`, one file per checkout, override with
-`CAIRN_LOG`.
+Never in tracked source or shared between worktrees (docs/cairn-integration-plan.md
+section 5: cairn allows one writer per log, enforced by an OS lock). Defaults
+to `~/.cairn/<worktree-basename>.jsonl`, one file per checkout. The local
+service uses an ignored per-checkout directory and `CAIRN_BRIDGE_LOG` to keep
+this offline log apart from its live node. `CAIRN_LOG` remains a fallback for
+older standalone callers.
 """
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ ENV_BIN = "CAIRN_MCP_BIN"
 # `tools/lab_mcp.sh` and `tools/cairn_mcp.sh` already read, so one setting
 # covers the lab, the network stanza and this bridge.
 ENV_CLI = "CAIRN_BIN"
-ENV_LOG = "CAIRN_LOG"
+ENV_LOG = "CAIRN_BRIDGE_LOG"
 
 DISCRETE_LOG_OBJECTIVE = os.path.join(REPO, "cairn", "objectives", "discrete-log-reverification.json")
 DECOMPOSITION_OBJECTIVE = os.path.join(REPO, "cairn", "objectives", "decomposition-reverification.json")
@@ -156,7 +156,18 @@ def _cairn_mcp_bin() -> str | None:
     found = shutil.which("cairn-mcp")
     if found:
         return found
-    return shutil.which("cairn")
+    found = shutil.which("cairn")
+    if not found:
+        return None
+    # A pre-consolidation `cairn` may be on PATH without an `mcp` subcommand.
+    # Treating it as available turns every certificate into infrastructure
+    # failure at scoring time; the explicit CAIRN_BIN path remains operator-owned.
+    try:
+        help_text = subprocess.run([found, "help"], capture_output=True, text=True,
+                                   timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return found if help_text.returncode == 0 and "  mcp " in help_text.stdout else None
 
 
 def _is_single_binary(bin_path: str) -> bool:
@@ -173,7 +184,9 @@ def _default_log_path() -> str:
 
 
 def _log_path() -> str:
-    return os.environ.get(ENV_LOG) or _default_log_path()
+    # Stage 0 owns a standalone MCP log. A live `cairn run` node cannot open
+    # that same log, so let the service pin the bridge log independently.
+    return os.environ.get(ENV_LOG) or os.environ.get("CAIRN_LOG") or _default_log_path()
 
 
 def available() -> bool:
