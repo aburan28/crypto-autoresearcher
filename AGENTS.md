@@ -1,11 +1,11 @@
 # Crypto Autoresearcher Agent Contract
 
 A multi-agent operating system for reproducible ECDLP experimentation. This
-file is the normative contract: rules, with a one-line reason each. The
-incident narratives and worked reasoning behind them are in
-[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md), and the
-rules cite the document that holds their full statement. Where this file and
-any other document disagree, this file wins.
+file is the normative contract: rules, with a one-line reason each.
+Incident narratives and worked reasoning are in
+[`docs/agent-contract-extended.md`](docs/agent-contract-extended.md); rules
+cite their full statements. Where this file and another document disagree,
+this file wins.
 
 ## Budgets: progress first
 
