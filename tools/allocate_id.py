@@ -38,8 +38,10 @@ import random
 import os
 import re
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sparse_checkout  # noqa: E402
 import validate_ledger as vl  # single source of truth for ID_PATTERNS
 
 REPO = vl.REPO
@@ -191,6 +193,15 @@ def _identifier_paths() -> list[str]:
                 continue
             if PATH_ID_PREFIX.match(filename):
                 out.append(os.path.join(current, filename))
+    # A sparse checkout leaves tracked paths off disk; their identifiers are
+    # still taken. Empty in a full checkout.
+    for relative in sparse_checkout.tracked_absent(Path(REPO), ""):
+        parts = relative.split("/")
+        for depth, part in enumerate(parts, 1):
+            if part in PATH_SCAN_EXCLUDED_DIRS or part.startswith("._"):
+                break
+            if PATH_ID_PREFIX.match(part):
+                out.append(os.path.join(REPO, *parts[:depth]))
     return sorted(set(out))
 
 
