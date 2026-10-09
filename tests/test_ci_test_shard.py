@@ -47,4 +47,6 @@ def test_junit_seconds_map_dotted_classnames_to_files(tmp_path):
 
 def test_committed_durations_cover_most_of_the_suite():
     durations = shard.load_durations()
-    assert len(durations) > 100 and sum(durations.values()) > 600
+    on_disk = [f for f in durations if (shard.REPO / f).is_file()]
+    assert len(durations) > 100 and len(on_disk) >= 0.9 * len(durations)
+    assert all(seconds >= 0 for seconds in durations.values())
