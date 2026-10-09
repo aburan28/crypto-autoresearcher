@@ -84,6 +84,27 @@ def _declare(lib):
     lib.gf2_log_free.argtypes = [P]
     lib.gf2_row_pass.restype = i64
     lib.gf2_row_pass.argtypes = [P, i64, i64, i64, P, P, ctypes.POINTER(i64)]
+    lib.gf2_build_rows.restype = ctypes.c_int
+    lib.gf2_build_rows.argtypes = [P, P, ctypes.c_int, ctypes.c_int, i64, P, P, i64, P, P, P,
+                                   ctypes.c_int]
+    lib.gf2_block_elim.restype = ctypes.c_int
+    lib.gf2_block_elim.argtypes = [P, i64, ctypes.c_int, P, P, P]
+    lib.gf2_rows_sum.restype = ctypes.c_int
+    lib.gf2_rows_sum.argtypes = [P, P, ctypes.c_int, ctypes.c_int, i64, P, P, i64, P]
+    lib.gf2_row_lead_weight.restype = None
+    lib.gf2_row_lead_weight.argtypes = [P, i64, i64, P, P]
+    lib.gf2_row_leads.restype = i64
+    lib.gf2_annihilator.restype = i64
+    lib.gf2_annihilator.argtypes = [P, i64, i64, i64, P, P, i64]
+    lib.gf2_reduce_rows.restype = P
+    lib.gf2_reduce_rows.argtypes = [P, i64, i64, i64, P, P, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    lib.gf2_syndromes.restype = ctypes.c_int
+    lib.gf2_syndromes.argtypes = [P, i64, i64, P, P, i64, P, ctypes.c_int]
+    lib.gf2_product_syndromes.restype = ctypes.c_int
+    lib.gf2_product_syndromes.argtypes = [P, i64, i64, i64, P, i64, P, i64, P, ctypes.c_int]
+    lib.gf2_product_pairs.restype = None
+    lib.gf2_product_pairs.argtypes = [P, P, i64, i64, i64, P, P]
+    lib.gf2_row_leads.argtypes = [P, i64, i64, i64, P]
     lib.gf2_ops_json_bound.restype = i64
     lib.gf2_ops_json_bound.argtypes = [i64, i64]
     lib.gf2_ops_json.restype = i64

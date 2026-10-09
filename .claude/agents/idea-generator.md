@@ -8,7 +8,10 @@ description: >-
   discriminating tests, and falsification criteria. Never assigns work or
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
-model: inherit
+model: claude-sonnet-5-5
+# Pinned, not inherited: roles.yaml runtime_model_pins -> idea-generator
+# -> model-bindings.yaml anthropic binding of research-deep. Edit the binding, never
+# this line; tools/check_runtime_bindings.py fails the build when they disagree.
 # Derived from roles.yaml -> default_policy: research-deep -> reasoning_effort.
 # Mechanism search over a large literature spine: depth is the product here, not
 # an overhead on it. Change the policy, not this line.
@@ -110,7 +113,10 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   `known | adaptation | speculative | unverified`. If you did not check
   literature (corpus + web), write `novelty_status: unverified`. Never claim
   novelty from memory alone.
-- Write accepted proposals to `ledger/proposals/IDEA-YYYYMMDD-NNN.yaml`.
+- Write accepted proposals to `ledger/proposals/IDEA-YYYYMMDD-<tok>.yaml`
+  (id from `python3 tools/allocate_id.py --next idea --date YYYYMMDD`,
+  confirmed with `--check`; never the next free number). Keep a proposal
+  under 8 KB; derivations go to a sibling `<IDEA-ID>.notes.md`.
   Never edit an existing proposal file — supersede with a new ID.
 - You may add literature notes to `knowledge/literature/` when you verify a
   source during novelty checking (cite precisely; mark unverified claims).

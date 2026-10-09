@@ -19,12 +19,19 @@ from urllib.parse import urlsplit
 
 import yaml
 
-ADAPTER_VERSION = "1.1.0"
+ADAPTER_VERSION = "1.2.0"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICIES_PATH = REPO_ROOT / "orchestration" / "model-policies.yaml"
 PROVIDERS_PATH = REPO_ROOT / "orchestration" / "providers.yaml"
 BINDINGS_PATH = REPO_ROOT / "orchestration" / "model-bindings.yaml"
+# Operator-local bindings, merged over the committed file at load time. This
+# is how a backend the repository ships unbound (openrouter) gets model ids on
+# one machine without anyone committing an assertion nobody probed: the file
+# is gitignored, its entries must say `provenance: operator-supplied`, and
+# the merged digest changes so every manifest shows it was in effect.
+BINDINGS_OVERLAY_PATH = REPO_ROOT / "orchestration" / "model-bindings.local.yaml"
+BINDINGS_OVERLAY_ENV = "AUTORESEARCH_BINDINGS_OVERLAY"
 
 DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max", "ultra"]
 
@@ -34,6 +41,17 @@ DEFAULT_EFFORT_ORDER = ["none", "low", "medium", "high", "xhigh", "max", "ultra"
 REQUEST_TARGET_SELECTOR_FIELDS = frozenset({
     "model", "provider", "backend", "endpoint", "base_url", "url",
 })
+
+# Delivery routing between the synchronous Messages API and Message Batches,
+# overridable under `defaults.batch` in providers.yaml.
+DEFAULT_BATCH_DEFAULTS: dict[str, Any] = {
+    "expected_latency_seconds": 3600,
+    "max_latency_seconds": 86400,
+    "urgent_priority": 90,
+    "deadline_slack_seconds": 1800,
+    "registry_dir": "coordination/inference-batches",
+    "poll_interval_seconds": 60,
+}
 
 
 class ConfigError(ValueError):
@@ -181,6 +199,26 @@ class Config:
         return list(self.bindings.get("defaults", {}).get(
             "backend_fallback_order", []))
 
+    # -- message batches ---------------------------------------------------
+    def batch_defaults(self) -> dict[str, Any]:
+        """Delivery-routing figures from `providers.yaml` `defaults.batch`."""
+        defaults = dict(DEFAULT_BATCH_DEFAULTS)
+        defaults.update((self.providers.get("defaults") or {}).get("batch") or {})
+        return defaults
+
+    def supports_message_batches(self, backend_name: str) -> bool:
+        """Whether a backend declares the Message Batches API.
+
+        Speaking the Anthropic wire format does not imply it: the gateways
+        that re-serve open-weight models over this protocol do not batch, so
+        the capability is opt-in per backend rather than inferred from the
+        protocol.
+        """
+        backend = self.backend(backend_name)
+        if not backend.get("supports_message_batches"):
+            return False
+        return bool(self.wire_protocol(backend["wire"]).get("batches_path"))
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -192,16 +230,83 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
+def overlay_path(env: dict[str, str] | None = None,
+                 override: Path | None = None) -> Path | None:
+    """The bindings overlay in effect, or None.
+
+    `AUTORESEARCH_BINDINGS_OVERLAY` wins (an empty value disables the overlay
+    outright, which is what a test or a CI job wants); otherwise the local
+    file beside the committed bindings is used when it exists.
+    """
+    if override is not None:
+        return override
+    env = os.environ if env is None else env
+    if BINDINGS_OVERLAY_ENV in env:
+        value = env[BINDINGS_OVERLAY_ENV].strip()
+        return Path(value).expanduser() if value else None
+    return BINDINGS_OVERLAY_PATH if BINDINGS_OVERLAY_PATH.exists() else None
+
+
+def merge_bindings(base: dict[str, Any], overlay: dict[str, Any],
+                   source: str = "overlay") -> dict[str, Any]:
+    """Merge an overlay's binding tables over the committed ones.
+
+    One policy entry replaces the committed entry whole -- a half-merged
+    binding (the overlay's model with the committed capabilities) would be a
+    claim neither file made. An overlay may not relabel what it supplies as
+    `runtime-verified`: that word means `doctor --probe` listed the id, and
+    a local file cannot attest it. `defaults` are not overridable; the
+    fallback order is the repository's contract.
+    """
+    tables = overlay.get("bindings")
+    if not isinstance(tables, dict):
+        raise ConfigError(f"{source}: overlay must contain a `bindings` mapping")
+    for key in overlay:
+        if key not in ("bindings", "schema_version", "notes"):
+            raise ConfigError(f"{source}: overlay may set only `bindings` "
+                              f"(and `notes`), not {key!r}")
+    merged = json.loads(json.dumps(base))
+    merged.setdefault("bindings", {})
+    for backend_name, table in tables.items():
+        if not isinstance(table, dict):
+            raise ConfigError(f"{source}: bindings.{backend_name} must be a mapping")
+        target = merged["bindings"].setdefault(backend_name, {})
+        for policy_id, binding in table.items():
+            if not isinstance(binding, dict):
+                raise ConfigError(f"{source}: bindings.{backend_name}.{policy_id} "
+                                  f"must be a mapping")
+            if binding.get("provenance") == "runtime-verified":
+                raise ConfigError(
+                    f"{source}: bindings.{backend_name}.{policy_id} claims "
+                    f"runtime-verified; an overlay can only be operator-supplied "
+                    f"(run `adapter doctor --probe` and commit a verified binding "
+                    f"instead)")
+            target[policy_id] = dict(binding, overlay_source=source)
+    return merged
+
+
 def load(policies_path: Path | None = None,
          providers_path: Path | None = None,
-         bindings_path: Path | None = None) -> Config:
-    """Load, cross-validate, and digest the configuration."""
+         bindings_path: Path | None = None,
+         bindings_overlay: Path | None = None,
+         env: dict[str, str] | None = None) -> Config:
+    """Load, cross-validate, and digest the configuration.
+
+    `bindings_overlay` (or the file `overlay_path` finds) is merged over the
+    committed bindings before validation, and recorded in `paths` so a
+    manifest can say which local file shaped the resolution.
+    """
     paths = {
         "policies": policies_path or POLICIES_PATH,
         "providers": providers_path or PROVIDERS_PATH,
         "bindings": bindings_path or BINDINGS_PATH,
     }
     docs = {name: _load_yaml(path) for name, path in paths.items()}
+    overlay = overlay_path(env, bindings_overlay)
+    if overlay is not None:
+        docs["bindings"] = merge_bindings(docs["bindings"], _load_yaml(overlay),
+                                          source=str(overlay))
+        paths["bindings_overlay"] = overlay
     config = Config(
         policies=docs["policies"],
         providers=docs["providers"],
@@ -306,6 +411,9 @@ def validate(config: Config) -> None:
             wire_name, context="wire protocol name")
         for field in ("path", "models_path"):
             _validate_wire_path(config, wire_name, field, protocol.get(field))
+        for field in ("batches_path", "count_tokens_path"):
+            if protocol.get(field) is not None:
+                _validate_wire_path(config, wire_name, field, protocol.get(field))
 
     backends = config.providers.get("backends")
     if not isinstance(backends, dict) or not backends:
@@ -318,7 +426,32 @@ def validate(config: Config) -> None:
         for field in ("wire", "base_url", "api_key_env"):
             if not backend.get(field):
                 raise ConfigError(f"backend {name} is missing `{field}`")
-        config.wire_protocol(backend["wire"])
+        protocol = config.wire_protocol(backend["wire"])
+        if backend.get("supports_message_batches") and not protocol.get("batches_path"):
+            raise ConfigError(
+                f"backend {name} declares supports_message_batches but its wire "
+                f"protocol {backend['wire']!r} has no `batches_path`")
+
+    batch_defaults = (config.providers.get("defaults") or {}).get("batch") or {}
+    if not isinstance(batch_defaults, dict):
+        raise ConfigError("providers.yaml defaults.batch must be a mapping")
+    for field in ("expected_latency_seconds", "max_latency_seconds",
+                  "deadline_slack_seconds", "poll_interval_seconds"):
+        value = batch_defaults.get(field, DEFAULT_BATCH_DEFAULTS[field])
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ConfigError(f"providers.yaml defaults.batch.{field} must be a "
+                              f"non-negative number, got {value!r}")
+    urgent = batch_defaults.get("urgent_priority", DEFAULT_BATCH_DEFAULTS["urgent_priority"])
+    if isinstance(urgent, bool) or not isinstance(urgent, int) or not 0 <= urgent <= 100:
+        raise ConfigError("providers.yaml defaults.batch.urgent_priority must be an "
+                          f"integer 0..100, got {urgent!r}")
+    expected = batch_defaults.get("expected_latency_seconds",
+                                  DEFAULT_BATCH_DEFAULTS["expected_latency_seconds"])
+    maximum = batch_defaults.get("max_latency_seconds",
+                                 DEFAULT_BATCH_DEFAULTS["max_latency_seconds"])
+    if expected > maximum:
+        raise ConfigError("providers.yaml defaults.batch.expected_latency_seconds "
+                          "exceeds max_latency_seconds")
 
     for name, runtime in (config.providers.get("runtimes") or {}).items():
         for backend_name in runtime.get("compatible_backends") or []:

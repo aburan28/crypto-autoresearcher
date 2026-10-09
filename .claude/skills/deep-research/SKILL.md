@@ -150,6 +150,14 @@ Take its full output, including the mandatory §5 honest-accounting block
 when it proposes nothing usable — a session that finds nothing still owes
 that block.
 
+When the scope spans more than one goal, or a goal has stalled across
+sessions, also dispatch the **idea-synthesist** (Fable tier, `research-synthesis`)
+in parallel with the idea-generator, giving it the same inputs plus the
+ledger's `reject_scoped`, `inconclusive` and `weaken` decisions in scope. It
+returns at most five cross-goal ideas, each naming the records it bridges;
+hand both sets to step 4 unmerged, labelled by source. Skip it for a
+single-RQ scope — that is the idea-generator's job, at a fraction of the cost.
+
 ## 4. Convergent pass — portfolio ranking (dispatch coordinator)
 
 Dispatch the **coordinator** subagent — prioritization is its authority
@@ -233,6 +241,11 @@ Present, in this order:
    changed; every recommendation still needs its normal lifecycle skill and,
    where applicable, Coordinator approval and a ledger archive commit before
    it is official.
+6. **Receipt.** `python3 tools/session_receipt.py --skill deep-research
+   --role <role> --outcome no_change --files-read <n>`
+   (`docs/session-receipts.md`). A synthesis pass is the most expensive
+   read-only wake the program runs; it is the one whose cost most needs a
+   record.
 
 ## Rules
 
