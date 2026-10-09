@@ -20,6 +20,10 @@ wake read the queue and stopped (docs/track-record-review-20261006.md, P0.3).
 Each row also carries `off_main_runs`: remote branches holding unmerged
 commits under the experiment's runs/, so a session sees work in flight on
 another branch before it starts the same contract.
+
+In a sparse checkout (docs/sparse-checkout.md) a committed run left off disk
+still counts: it is read from the index, and a trial plan whose coverage it
+decides selects as `needs_materialization`, never as `ready`.
 """
 from __future__ import annotations
 
@@ -36,6 +40,7 @@ import yaml
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
 import ecc_priority  # noqa: E402
+import sparse_checkout  # noqa: E402
 from experiment_execution import coverage  # noqa: E402
 
 _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
@@ -54,19 +59,31 @@ def _load(path: Path) -> dict[str, Any] | None:
 
 def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
     plan = exp_dir / "trial-plan.json"
+    # A sparse checkout leaves tracked files off disk; they still exist.
+    absent = sparse_checkout.tracked_absent(repo, f"experiments/{exp_dir.name}/")
+    materialize = {"execution_state": "needs_materialization",
+                   "reason": "committed records are outside this sparse checkout; run "
+                             f"`{sparse_checkout.materialize_hint(exp_dir.name)}` first"}
     if plan.exists() or plan.is_symlink():
         try:
             report = coverage(repo, plan)
+            if report.get("not_materialized") and not report["measurement_complete"]:
+                return {**materialize, "trial_plan": str(plan.relative_to(repo)), "coverage": report}
             state = ("measurement_complete" if report["measurement_complete"] else
                      "ready" if report["planned"] else "needs_reconciliation")
             return {"execution_state": state, "trial_plan": str(plan.relative_to(repo)),
                     "coverage": report}
         except (OSError, ValueError, TypeError) as error:
             return {"execution_state": "needs_plan_repair", "reason": str(error)}
+    if f"experiments/{exp_dir.name}/trial-plan.json" in absent:
+        return materialize
     runs = exp_dir / "runs"
     activity = runs.is_dir() and any(runs.iterdir())
     activity = activity or any(exp_dir.rglob("execution-report.yaml")) or any(
         exp_dir.rglob("execution_report.yaml"))
+    activity = activity or any(
+        path.startswith(f"experiments/{exp_dir.name}/runs/")
+        or path.endswith(("/execution-report.yaml", "/execution_report.yaml")) for path in absent)
     if activity:
         return {"execution_state": "needs_reconciliation",
                 "reason": "legacy attempts/reports exist without explicit trial coverage; do not rerun blindly"}
@@ -74,8 +91,10 @@ def execution_progress(exp_dir: Path, repo: Path) -> dict[str, Any]:
             "reason": "no trial plan; arrange scoped implementation/contract preparation before execution"}
 
 
-_READINESS_RANK = {"ready": 0, "needs_implementation_or_plan": 1,
-                   "needs_reconciliation": 2, "needs_plan_repair": 3}
+_READINESS_RANK = {"ready": 0, "needs_materialization": 1, "needs_implementation_or_plan": 2,
+                   "needs_reconciliation": 3, "needs_plan_repair": 4}
+# needs_materialization occurs only in a sparse checkout: one command from runnable.
+_SELECTABLE = ("ready", "needs_materialization", "needs_implementation_or_plan")
 
 
 def off_main_runs(repo: Path = REPO, *, base: str = "origin/main") -> dict[str, list[str]]:
@@ -194,7 +213,7 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
         progress = execution_progress(spec.parent, repo)
         if progress["execution_state"] == "measurement_complete":
             continue
-        if not include_blocked and progress["execution_state"] not in ("ready", "needs_implementation_or_plan"):
+        if not include_blocked and progress["execution_state"] not in _SELECTABLE:
             continue
         if exp_id in held:
             hold = {"id": exp_id, "decision_id": held[exp_id]}
@@ -264,8 +283,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{row['id']}\t{row['designed_at']}\t{'ECC' if row['ecc'] else 'non-ECC'}"
                   f"\t{row['execution_state']}\t{row['specification']}{flight}")
     ready = sum(1 for r in rows if r["execution_state"] == "ready")
+    sparse = sum(1 for r in rows if r["execution_state"] == "needs_materialization")
     print(f"newest_experiments: {len(rows)} selectable row(s): {ready} ready, "
-          f"{len(rows) - ready} need implementation/plan; ready rows sort first",
+          + (f"{sparse} need materialization (sparse checkout), " if sparse else "")
+          + f"{len(rows) - ready - sparse} need implementation/plan; ready rows sort first",
           file=sys.stderr)
     for hold in report.get("explicit") or []:
         print(f"newest_experiments: {hold['id']} is withheld from dispatch by "

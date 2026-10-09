@@ -3055,6 +3055,10 @@ def main() -> int:
                     help="list every non-failing advisory (oversized goal "
                          "heads and proposals, aged open handoffs)")
     args = ap.parse_args()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import sparse_checkout
+    if sparse_checkout.refuse_if_sparse("validate_ledger", Path(REPO)):
+        return 2
 
     # This must precede every inventory, glob, supersession, and record read.
     # If ledger itself is an alias, even an apparently unrelated ledger glob
