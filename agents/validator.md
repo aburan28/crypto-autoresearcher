@@ -152,7 +152,7 @@ The Validator must not:
 ```yaml
 validation_report:
   id: VAL-YYYYMMDD-NNN
-  task_id: TASK-YYYYMMDD-NNN
+  task_id: TASK-YYYYMMDD-<tok>
   run_ids: []
   artifact_checks: []
   metric_recomputations: []
