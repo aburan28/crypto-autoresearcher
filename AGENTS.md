@@ -450,31 +450,32 @@ bound. `docs/bounds-and-frontiers.md`.
 
 ## Weak-curve and isogenous-representative audits
 
-Before a weak-curve claim, use
-[`audit-curve`](.claude/skills/audit-curve/SKILL.md) and
-[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). Trials still use the
-canonical `run` entry point; audits are evidence, not state transitions.
+Before weak-curve, CM/GLV/GLS, or isogeny-chain claims, follow
+[the loop rules](docs/endomorphism-rules.md),
+[`audit-curve`](.claude/skills/audit-curve/SKILL.md),
+[`transfer`](.claude/skills/transfer/SKILL.md), and
+[`KN-TECH-6a2ef9`](knowledge/techniques/KN-TECH-6a2ef9.md). They bind scope,
+evidence, controls, costs, statistics, and labels. Evaluate factored/mixed-degree
+loops with explicit working-field maps, subgroup action, closure/recovery,
+bounds, and paired baseline costs. Trials use `run`; audits do not change
+state. Structure or bounded-null evidence proves neither speedup, impossibility,
+nor unknown-scalar recovery.
 
-Freeze the curve/subgroup/protocol, attacker, threshold, costs, path-knowledge
-model, budgets, population, and stopping rule. Require certified arithmetic and
-planted controls. Separate base-field isogeny-class invariants from
-representative-dependent structure; unusual structure is only a lead.
+For ordinary curves record
+`Delta_pi=t^2-4q=f_pi^2 D_K` and
+`Z[pi]=O_(f_pi) subseteq End(E)=O_(f_E) subseteq O_K` separately.
+`f_E|f_pi`; independently certify `f_E` unless `f_pi=1`. Label separable
+`ell!=char(F_q)` edges from certified endpoint conductors:
+`horizontal|ascending|descending|unresolved`. Koblitz
+`tau`/characteristic-power Frobenius are inseparable. Conductors are leads,
+not ECDLP-bit discounts.
 
-An isogeny transfer claim requires explicit maps and subgroup preservation,
-with path discovery, construction, evaluation, attack, memory, data, and
-precomputation charged. Advice supports only an advice-holder claim. Singular
-or invalid
-formula-compatible companions can establish **implementation-weak**, never
-elliptic-curve or isogeny-class weakness. A confirmation-only oracle needs an
-explicit reduction; it does not inherit the companion group's DLP cost.
-
-Use only the claim labels **class-weak**, **weak representative exists**,
+Transfers require explicit maps, subgroup preservation, and complete costs;
+advice supports only its holder. Singular/invalid formula-compatible companions
+establish only **implementation-weak**; confirmation-only oracles need explicit
+reductions. Use only **class-weak**, **weak representative exists**,
 **source-transfer-weak**, **implementation-weak**, or **no weakness found in
-scope**, with the exact certified scope. Algebraic claims require proof or
-certificates. Statistics address only a preregistered sampling law and detector:
-report exclusions and indeterminate cases, dependence/effective sample size,
-multiple-testing correction, and design-appropriate intervals. A bounded search
-or zero-hit prevalence bound is not evidence that no weak representative exists.
+scope**. Bounded or zero-hit statistics do not prove absence.
 
 ## Cursor Cloud specific instructions
 
