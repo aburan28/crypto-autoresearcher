@@ -46,6 +46,14 @@ infer membership from an identifier prefix. An empty or impeded goal-scoped list
 never falls back to the whole portfolio. Report the selected goal, attempted
 experiments, completed/failed trials, output paths, and any remaining impediment.
 
+A sparse checkout (`python3 tools/sparse_checkout.py status`,
+`docs/sparse-checkout.md`) keeps run archives and reference bundles off disk.
+A `needs_materialization` row, or a launch the runner refuses because run
+directories are off disk, needs one command: `python3 tools/sparse_checkout.py
+add --experiment <EXP-ID>`. A declared input that `git ls-files` lists but the
+disk lacks is outside the checkout, not missing: `add --path` it rather than
+reporting an impediment.
+
 ## Execute
 
 Run the existing program with its declared inputs, seeds, controls, and trial

@@ -93,6 +93,11 @@ Coordinator's full campaign context.
   operation.
 - When more context is needed, retrieve the smallest source that answers the
   current implementation/validation question, then continue.
+- Check a file's size before reading it; read logs, `*.jsonl` and raw results
+  by key or range (`jq`, `rg -n`), never whole.
+- A declared input that `git ls-files` lists but the disk lacks is outside a
+  sparse checkout: `python3 tools/sparse_checkout.py add --path <path>` (or
+  `--experiment <EXP-ID>`), never a `specification_error`.
 - Keep references/paths in working context instead of copying large source
   bodies into the dispatch prompt. The durable transcript and run artifacts
   remain complete regardless of this working-context discipline.
