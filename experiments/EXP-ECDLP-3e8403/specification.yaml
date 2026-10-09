@@ -1,0 +1,226 @@
+# =============================================================================
+# EXP-ECDLP-3e8403 -- L3 / HEUR-002 + HEUR-003 of H-ECDLP-bd1572: the SNFS
+# number field attached to a special prime is the one "algebraic second
+# structure" that the polynomial form of p actually supplies, and the lift
+# of E into it is the one "lift with (potentially) unbounded rank" the form
+# of p actually offers (2^255 - 19 = u^d - 19 for every d | 255). This
+# contract measures what a sieve would need from that structure -- a
+# covering exponent gamma near 1 for E(F_p) residues hit per unit of
+# enumeration work -- and compares the SNFS field with a matched base-m
+# field at a random prime and with the Q-lift. status review_required:
+# implemented, not approved, no run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-3e8403
+  hypothesis_id: H-ECDLP-bd1572
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    SNFS-field lift covering: distinct E(F_p) residues hit by bounded-box
+    points on small-coefficient lifts of E over K_d = Q(c^{1/d}) at
+    p = m^d - c, versus the monic base-m field at a matched random prime and
+    the Q-lift, with the covering exponent gamma fitted over a box ladder and
+    a field-degree ladder on one composite-exponent prime
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  limb: L3
+  heuristic_under_test: HEUR-003
+  objective: >-
+    NFS works because small (a, b) give small elements on both sides of the
+    diagram Z -> F_p <- Z[alpha]. The curve analogue of "the algebraic side"
+    is E lifted to the SNFS field K_d: pick the lift (A, B) of (a, b) with
+    base-m digit coefficients (size about m = p^{1/d} instead of p),
+    enumerate x in Z[alpha] with coefficient vector in [-X, X]^d, keep the x
+    for which x^3 + A x + B is a square in K_d (a K_d-point of the lifted
+    curve), and reduce x at alpha -> m to a residue of E(F_p). A sieve needs
+    the number D(W) of distinct residues per W = (2X+1)^d candidates to grow
+    like W^gamma with gamma near 1; HEUR-003 says D grows like a power of
+    log W, so gamma -> 0, and the special field gives no exponent over the
+    null field. The contract measures gamma on three arms, the raw counts
+    (where a constant-level special advantage from the smaller model height
+    IS expected and is recorded as such), and whether raising the field
+    degree d on one prime -- the "unbounded rank" knob -- raises gamma.
+  inputs:
+    arms:
+      snfs: >-
+        p = m^d - c special, K_d = Q[x]/(x^d - c), reduction alpha -> m.
+        Lift: A = sum a_i alpha^i, B = sum b_i alpha^i with (a_i), (b_i) the
+        balanced base-m digits of the least-absolute residues of a, b.
+      null_base_m: >-
+        p' matched random prime of the same bit length, m' = floor(p'^{1/d}),
+        f'(x) = x^d + g(x) with g the balanced base-m' expansion of
+        p' - m'^d in degree < d, f' checked irreducible over Q by the
+        mod-q degree-pattern test on 8 primes q; K' = Q[x]/(f'), reduction
+        x -> m'. Lift by balanced base-m' digits exactly as in the snfs arm.
+      q_lift: >-
+        Same p as the snfs arm, d = 1: A, B the least-absolute residues of
+        a, b; x in [-X_1, X_1] with (2X_1+1) = W so the work is matched.
+    squareness_test: >-
+      x^3 + A x + B is declared a square in K when, for 48 auxiliary primes q
+      at which the defining polynomial has a root r (q not dividing the
+      leading coefficient, discriminant-free), the Legendre symbol of the
+      element evaluated at r modulo q is never -1 (zero evaluations skipped
+      and counted; a candidate with fewer than 40 decisive tests is
+      re-tested with 48 more primes). By Chebotarev in K(sqrt(gamma))/K a
+      non-square fails a decisive test with probability 1/2, so the
+      false-positive rate per candidate is at most 2^-40; every declared
+      square is re-verified with a disjoint second prime set (CTRL-REVERIFY).
+    residue_and_membership: >-
+      rho = x(m) mod p (resp. x(m') mod p', x mod p); a declared K-point
+      MUST reduce to an x-coordinate of E(F_p), i.e. rho^3 + a rho + b must
+      be a square or zero modulo p (CTRL-MEMBERSHIP), since a point with
+      p-integral x reduces to a point.
+    box_ladder:
+      X: [1, 2, 3, 4, 6, 8]
+      note: W = (2X+1)^d; the q_lift arm uses X_1 with 2X_1+1 = W.
+    cells:
+      d: [2, 3, 4, 5]
+      bits: [24, 32]
+      curves_per_prime: 4
+      seeds: [1, 2]
+    degree_ladder_cell: >-
+      One special prime p = m^12 - c with m = 8 (p near 2^36, the toy
+      analogue of 2^255 - 19 = (2^{255/d})^d - 19), lifted into K_d for
+      d in {2, 3, 4, 6, 12} using m_d = 8^{12/d}, same curves, same X ladder
+      truncated so that W <= 10^6 at every d.
+    metric_definitions: >-
+      H(W) = declared K-points found with x in the box; D(W) = distinct
+      residues rho among them; yield index Y(W) = D(W) / sqrt(W), the
+      quantity a sieve needs to hold near or above 1 (a factor base of
+      sqrt(p) residues from sqrt(p) work); Y_max = max over rungs;
+      gamma = slope of the least-squares line of log D against log W over
+      the rungs with D >= 2 (reported as unfitted when fewer than 3 such
+      rungs exist, never as 0); F = D(W_max) / sqrt(p). The design-session
+      dry run found D = 0 on every arm at W <= 5 * 10^5 with the planted
+      point recovered, so Y_max and D(W_max) are the primary quantities and
+      gamma is reported when it exists.
+    instrument: >-
+      experiments/EXP-ECDLP-3e8403/implementation/run.py, pure Python 3
+      standard library; polynomial arithmetic modulo the defining polynomial
+      with exact integers.
+  controls:
+    - >-
+      CTRL-REVERIFY: every declared square is re-tested with a disjoint set
+      of 48 primes; any disagreement invalidates the cell and is reported.
+    - >-
+      CTRL-MEMBERSHIP: every declared K-point reduces to a valid
+      x-coordinate of E(F_p); a failure is an arithmetic bug, invalidating
+      the cell.
+    - >-
+      CTRL-KNOWN-POINT: before enumeration, a planted K-point (choose x_0 and
+      set B := y_0^2 - x_0^3 - A x_0 for a random small y_0, then re-derive
+      (a, b) from (A, B) by reduction) must be found by the enumerator at the
+      rung containing x_0; a miss invalidates the run. The planted cell is
+      scored separately and excluded from the statistics.
+    - >-
+      CTRL-MATCHED-WORK: the q_lift arm and the field arms use the same W
+      per rung; the candidate count per rung is written and must match.
+    - >-
+      CTRL-IRREDUCIBLE: the null-arm polynomial passes the degree-pattern
+      irreducibility test; a reducible f' is regenerated with the next seed
+      and the regeneration count recorded.
+    - CTRL-REPLAY: seeded replay byte-identical.
+  independent_variables:
+    - "arm: snfs | null_base_m | q_lift"
+    - "d in {2, 3, 4, 5} (cells); d in {2, 3, 4, 6, 12} (degree ladder)"
+    - "bits in {24, 32}"
+    - "X in {1, 2, 3, 4, 6, 8}"
+    - "seed in {1, 2}"
+  metrics:
+    primary:
+      - yield_index_Y_max_per_arm_per_cell
+      - D_at_W_max_per_arm_per_cell_and_snfs_minus_null_difference
+      - covering_exponent_gamma_per_arm_when_fitted_with_rung_count
+      - Y_max_and_gamma_along_the_degree_ladder_on_the_composite_exponent_prime
+    secondary:
+      - H_and_D_per_rung_per_arm
+      - fraction_F_of_sqrt_p_covered_at_largest_rung
+      - raw_count_ratio_snfs_over_null_at_largest_rung
+      - mean_log2_coefficient_size_of_the_lifted_model_per_arm
+      - decisive_test_count_distribution
+      - wall_clock_seconds_per_cell
+  preregistered_prediction:
+    quantity: covering exponent gamma, per arm; its change along the degree ladder
+    formula: >-
+      D(W) <= C (d log X)^{r/2} with r the rank of the lifted model over K,
+      so Y_max <= 0.1 and D(W_max) <= 3 on every arm, |D_snfs - D_null| <= 3
+      at matched d, gamma <= 0.3 wherever it is fitted, Y_max not increasing
+      monotonically with d on the degree ladder, F < 10^-2 everywhere. The
+      raw count difference snfs minus null is EXPECTED to be >= 0 (smaller
+      model height) and is not a prediction of the hypothesis.
+    source: >-
+      Neron's count of points of bounded canonical height; KN-LIT-021
+      (xedni coefficient bound); GOAL-XEDN-001..003 closures (internal).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      24-36 bit primes, boxes up to 10^6 candidates. gamma is a local slope
+      over six rungs; it says whether a sieve-like yield exists at this
+      scale and nothing about its value elsewhere.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report, per arm, the rung at which the first K-point appears and the
+      largest D observed; an arm with D = 0 at every rung is reported as
+      unfitted, never as gamma = 0.
+  replication:
+    seeds: [1, 2]
+    independent_instances: 64
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 8
+    maximum_memory_gb: 2
+    maximum_runs: 100
+  stopping_rules:
+    - Stop a cell at 1800 s and record the rungs completed; a truncated ladder is fitted only if three rungs with D >= 2 completed.
+    - Stop the grid at 8 CPU hours.
+  invalidation_rules:
+    - A CTRL-REVERIFY or CTRL-MEMBERSHIP failure invalidates the cell.
+    - A CTRL-KNOWN-POINT miss invalidates the run.
+    - A replay mismatch is a provenance failure.
+  success_criterion: >-
+    On every valid cell Y_max <= 0.1 and D(W_max) <= 3 on all three arms,
+    |D_snfs - D_null| <= 3 at matched d, gamma <= 0.3 wherever fitted,
+    Y_max not increasing monotonically along the degree ladder, and
+    F < 10^-2 everywhere, with all controls passing: the SNFS field supplies
+    no sieve-grade covering of E(F_p) and raising the field degree does not
+    help, in the tested scope.
+  falsification_criterion: >-
+    An arm with Y(W) >= 1 on at least three consecutive rungs, or a fitted
+    gamma >= 0.5 over at least three rungs with gamma_snfs - gamma_null > 0.2
+    at the same d, or Y_max strictly increasing along the full degree
+    ladder, with all controls passing: the special field gives a sieve-grade
+    yield the null field does not, and HEUR-003 (or HEUR-002) is falsified
+    at toy scale.
+  decision_impact:
+    on_positive: >-
+      HEUR-002 and HEUR-003 of H-ECDLP-bd1572 are supported in scope; the
+      Coordinator records the measured gamma as the obstruction value for
+      the "SNFS-field lift" route and does not open a lane on it.
+    on_negative: >-
+      A new IDEA is filed on the arm and degree where gamma rose, with the
+      measured gamma as the resource; the result is routed to independent
+      validation before any repeat at larger p.
+  required_artifacts:
+    - experiments/EXP-ECDLP-3e8403/specification.yaml
+    - experiments/EXP-ECDLP-3e8403/implementation/run.py
+    - experiments/EXP-ECDLP-3e8403/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-3e8403/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: >-
+      python3 experiments/EXP-ECDLP-3e8403/implementation/run.py --d 2 3 4 5
+      --bits 24 32 --X 1 2 3 4 6 8 --curves 4 --seeds 1 2 --degree-ladder
+      --out <run_dir>
+    runnable_state_at_design: >-
+      Implementation committed and smoke-tested at reduced size in the design
+      session (no run record was written from the smoke test). Not selectable
+      by tools/newest_experiments.py until a Coordinator approval decision
+      sets status approved, and then its execution_progress reads
+      needs_implementation_or_plan until a dispatch task and a frozen
+      trial-plan.json exist. The missing pieces are the approval ceremony
+      (DEC-*, TASK-*, handoff) and the trial plan, not code.
+  assigned_to: executor

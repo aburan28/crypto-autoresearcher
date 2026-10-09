@@ -430,7 +430,10 @@ pointer to a record, not a citation; a remembered paper becomes `kb` or
 `retrieved` only in a new record naming `verified_by`. Absence of a result is
 not evidence of absence. No agent writes to the index. For dedup against the
 ledger itself, read the generated `ledger/.index/*.jsonl`
-(`tools/build_ledger_index.py`), not the corpus.
+(`tools/build_ledger_index.py`), not the corpus. Read only what a step needs:
+tools and indexes before records, sizes before contents, run outputs by
+receipt (`docs/agent-runtime-core.md`, "Reading discipline"). A path off disk
+in a sparse checkout still exists (`docs/sparse-checkout.md`).
 
 ## Curve identity and measured bounds
 

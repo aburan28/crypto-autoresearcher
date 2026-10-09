@@ -224,14 +224,11 @@ def deepen_clone(repo_root: Path) -> tuple[bool, str]:
     nothing to dispatch.
     """
 
-    proc = subprocess.run(
-        ["git", "-C", str(repo_root), "fetch", "--unshallow", "origin"],
-        capture_output=True, text=True,
-    )
-    if proc.returncode == 0 and not is_shallow_clone(repo_root):
-        return True, "deepened via `git fetch --unshallow origin`"
-    detail = (proc.stderr or proc.stdout).strip().splitlines()
-    return False, detail[-1] if detail else f"git exited {proc.returncode}"
+    # Commits and trees only (`--filter=blob:none`): reachability needs no
+    # historical file contents, and the full unshallow fetched every blob of
+    # every branch. docs/sparse-checkout.md.
+    import sparse_checkout
+    return sparse_checkout.deepen(repo_root)
 
 
 def main() -> int:
@@ -245,6 +242,9 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
+    import sparse_checkout
+    if sparse_checkout.refuse_if_sparse("goal_portfolio_health", repo_root):
+        return 2
 
     # A shallow clone makes research_dispatch.py's commit-reachability checks
     # fail for perfectly good archives whose commit is real but older than the
