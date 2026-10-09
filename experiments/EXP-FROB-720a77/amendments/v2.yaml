@@ -1,0 +1,90 @@
+protocol_amendment:
+  experiment_id: EXP-FROB-720a77
+  version_from: 1
+  version_to: 2
+  recorded_at: '2026-10-08'
+  predecessor_path: experiments/EXP-FROB-720a77/specification.yaml
+  predecessor_sha256: ff966bf30ef2979602d500010ef1469e4a5bf0a91639d9e1f9b16a486a644e46
+  predecessor_archive: PR #1914 (merged) and PR #1954 (merged, run outputs)
+  decision_id: DEC-20261007-0c298a
+  archived_by: null
+  archived_by_note: >-
+    Binding archive task is minted when the v2 executor card is dispatched;
+    this branch's commit (verified by its PR merge) carries the amendment.
+  reason: >-
+    RUN-FROB-c87706 (EV-FROB-a85eaf, DEC-20261007-0c298a) proved the v1
+    method infeasible at the new dimensions by exact measurement: 2,200,952,677
+    candidates at g=5 and 132,339,478,495,234 at g=6 against the frozen
+    50,000,000 exact-test feasibility gate. The hypothesis claim
+    (H-FROB-ff99bf) is undecided at dims 5-6, and the review named this
+    amendment as the successor: an exact, one-sided-safe pre-Sturm screen
+    that cuts the candidate boxes before the Sylvester-Sturm pass. The v1
+    specification is IMMUTABLE and bound by content in the merged PRs; it is
+    not edited. The v2 changes below are the only protocol deltas.
+  safety_argument: >-
+    The power-sum screen is NECESSARY, never sufficient: if all g roots of
+    h are real and lie in [-2 sqrt(2), 2 sqrt(2)], then |p_k| = |sum beta_i^k|
+    <= sum |beta_i|^k <= g (2 sqrt 2)^k for every k in {1..g}, where p_k is
+    computed EXACTLY from the integer coefficients by Newton's identities. A
+    candidate violating any bound therefore cannot be all-real-rooted-in-box
+    and may be rejected WITHOUT Sturm; a candidate passing every bound may
+    still fail Sturm, so Sturm remains the sole decider. The screen can
+    never reject a true hit (one-sided safe), which is the property the C1
+    reconfirmation cells verify empirically at dims 3-4.
+  changes:
+    - >-
+      inputs.frozen_enumeration gains a PRE-STURM SCREEN stage, inserted
+      between the DP candidate enumeration and the Sturm pass: "For each
+      candidate polynomial h, compute the power sums p_1..p_g exactly from
+      the integer coefficients via Newton's identities. REJECT h without
+      Sturm if any |p_k| > g (2 sqrt 2)^k (integer comparison against the
+      floor, no floating point). Survivors proceed to the existing Sturm
+      pass unchanged. The per-dimension survivor count and the pruning ratio
+      (candidates / survivors) are reported alongside the C3 per-multiple
+      counts."
+    - >-
+      controls gains C4: "POWER-SUM SCREEN CONTROL (runs within C1): at
+      dimensions 3 and 4 the screen must (a) reject zero of the
+      Sturm-admissible polynomials -- trivially true at both cells since the
+      Sturm pass found ZERO hits, the screen's reject set must therefore be
+      a subset of the Sturm reject set, verified by recording any candidate
+      the screen passes that Sturm rejects (allowed) and any candidate the
+      screen rejects that Sturm would pass (must be zero, and at dims 3-4
+      is exactly checkable by running Sturm on a recorded sample of the
+      screen's rejections, at least 1000 per dimension if available); and
+      (b) reproduce the zero-hit outcome. A screen rejection that Sturm
+      would have passed invalidates the run."
+    - >-
+      stopping_rules.FEASIBILITY GATE is REPLACED by: "before each
+      dimension's exact tests, apply the power-sum screen to every
+      candidate (exact integer arithmetic, no Sturm) and count survivors
+      per multiple. If the projected Sturm-test count (the survivor total)
+      exceeds 50,000,000 at that dimension, stop that dimension as an
+      impediment with the survivor count AND the pruning ratio reported,
+      never as evidence."
+    - >-
+      Every other field of the v1 specification -- C1's required 104 /
+      234,220 figures and zero-hit outcomes, C2 boundary reporting, C3
+      per-multiple candidate counts, the preregistered non-directional
+      prediction, success and falsification criteria, budget (14400 s /
+      4 GB / 1 run / 1 worker), the time guard, and the interpretation
+      limits -- is UNCHANGED and read against the v2 screen where the text
+      says 'exact tests'. The v2 run's C1 must reproduce the v1 run's
+      outcomes at dims 1-4 (RUN-FROB-c87706) including its own
+      power-sum-screen survivor counts as new reported quantities.
+    - >-
+      measured_vs_modeled gains: "the pruning ratio per dimension is itself
+      a reported measurement (EV-FROB-a85eaf resource_check: the DP count
+      is the enumeration oracle; the ratio measures how much the screen cuts,
+      which any v3 successor reuses."
+  prediction: >-
+    Non-directional, unchanged from v1: zero Sturm-admissible polynomials
+    with P(1) divisible to 131 at g in {5, 6} among the screen's SURVIVORS
+    supports the claim at the tested scope; one or more hits with their
+    polynomials falsifies it. Additionally and predictively: IF the screen
+    cuts the g=5 candidate box by the factor its dims 3-4 ratio suggests
+    (unknown at authoring time -- that is what C4 measures), the g=5
+    survivor count may fall under the 50M gate and become testable; if it
+    does not, the gate fires again on the survivor count and the impediment
+    is recorded with strictly more information than v1 had. No direction is
+    promised.
