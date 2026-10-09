@@ -15,6 +15,9 @@ REPORT_TEMPLATE = (
     ROOT / ".claude" / "skills" / "audit-curve" / "references"
     / "report-template.md"
 )
+RESEARCH_VISUALS = (
+    ROOT / ".claude" / "skills" / "research-visuals" / "SKILL.md"
+)
 
 
 def frontmatter_value(path: Path, key: str) -> str:
@@ -58,6 +61,12 @@ class AuditCurveSkillTests(unittest.TestCase):
             "adversarial_input_capability: null",
             "formula_compatible_companions: []",
             "singular_smooth_locus_checks: []",
+            "fundamental_discriminant_D_K: null",
+            "frobenius_order_conductor_f_pi: null",
+            "endomorphism_order_conductor_f_E: null",
+            "conductor_gap_index_g_pi_E: null",
+            "volcano_levels: []",
+            "inseparable_endomorphisms: []",
         ):
             self.assertIn(section, report)
 
@@ -102,6 +111,21 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("companion is not an elliptic curve", body)
         self.assertIn("inherit a square-root DLP cost automatically", body)
 
+        for required in (
+            "Delta_pi = f_pi^2 D_K",
+            "f_E | f_pi",
+            "g_(pi,E)",
+            "never copy `f_pi` into `f_E`",
+            "horizontal",
+            "ascending",
+            "descending",
+            "Koblitz `tau`",
+            "inseparable",
+            "N_vertical",
+            "Do not convert `f_pi`",
+        ):
+            self.assertIn(required, body)
+
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn("formula-compatible", agents)
         self.assertIn("confirmation-only oracle", agents)
@@ -110,6 +134,23 @@ class AuditCurveSkillTests(unittest.TestCase):
         self.assertIn("Follow the formulas beyond the named twist", knowledge)
         self.assertIn("singular parameter values", knowledge)
         self.assertIn("confirmation-only oracle", knowledge)
+
+        for required in (
+            "Conductor and volcano accounting",
+            "Current NIST-family evidence boundary",
+            "P-224",
+            "B-571",
+            "does not generally certify the representative conductor `f_E`",
+        ):
+            self.assertIn(required, knowledge)
+
+        visuals = RESEARCH_VISUALS.read_text(encoding="utf-8")
+        for required in (
+            "(D_K, f_pi, f_E)",
+            "horizontal | ascending | descending | unresolved",
+            "Koblitz `tau`",
+        ):
+            self.assertIn(required, visuals)
 
     def test_skill_does_not_create_a_second_execution_entry_point(self) -> None:
         body = CANONICAL.read_text(encoding="utf-8")
