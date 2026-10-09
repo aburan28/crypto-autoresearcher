@@ -12,8 +12,9 @@ form of this file is kept, unchanged, at
 ## What is Claude Code specific
 
 - **Subagents** live in `.claude/agents/` and are generated from
-  `agents/*.md` by `tools/generate_runtime_agents.py`: six roles plus three
-  policy-tier variants (`executor-mechanical`, `validator-breakthrough`,
+  `agents/*.md` by `tools/generate_runtime_agents.py`: seven roles (the
+  newest, `idea-synthesist`, is Claude Code only) plus three policy-tier
+  variants (`executor-mechanical`, `validator-breakthrough`,
   `red-team-breakthrough`). Subagents keep `model: inherit` except the roles
   in `runtime_model_pins` (`orchestration/roles.yaml`), which name their
   policy's `anthropic` binding; never hand-edit either. The session default
