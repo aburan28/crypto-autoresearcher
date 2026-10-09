@@ -45,6 +45,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -72,7 +77,7 @@ def audit(experiment: str | None, since: str | None) -> tuple[list, list, list]:
             continue
         try:
             with open(path, encoding="utf-8") as fh:
-                body = (yaml.safe_load(fh) or {}).get("run") or {}
+                body = (fast_yaml.safe_load(fh) or {}).get("run") or {}
         except (OSError, yaml.YAMLError) as exc:
             unreadable.append((rel, f"{type(exc).__name__}: {exc}"))
             continue

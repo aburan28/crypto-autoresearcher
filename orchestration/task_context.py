@@ -10,8 +10,7 @@ import json
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-import yaml
-
+from orchestration import fast_yaml
 from . import role_registry
 
 RUNTIME_CORE = "docs/agent-runtime-core.md"
@@ -24,7 +23,7 @@ def load_task(source: str | Path | dict[str, Any]) -> dict[str, Any]:
         source_path = str(Path(source).resolve())
         text = Path(source).read_text(encoding="utf-8")
         source = (json.loads(text) if str(source).endswith(".json")
-                  else yaml.safe_load(text))
+                  else fast_yaml.safe_load(text))
     if not isinstance(source, dict):
         raise ValueError("task source must be a mapping")
     task = copy.deepcopy(source if "handoff" in source else {"handoff": source})

@@ -15,6 +15,8 @@ from typing import Any, Mapping
 
 import yaml
 
+from crypto_kb.fastyaml import safe_load
+
 REGISTRY_PATH = PurePosixPath("tools/schema_supersession_registry.yaml")
 REGISTRY_SCHEMA = "schema-supersession-registry-v1"
 REPLACEMENT_ROOT = PurePosixPath("ledger/corrections/schema-supersessions")
@@ -74,7 +76,7 @@ def load_schema_supersessions(repo_root: Path) -> dict[str, SchemaSupersession]:
     if not registry.exists():
         return {}
     try:
-        document = yaml.safe_load(registry.read_text(encoding="utf-8"))
+        document = safe_load(registry.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise SchemaSupersessionError(f"cannot read schema supersession registry: {exc}") from exc
     if not isinstance(document, dict) or document.get("schema") != REGISTRY_SCHEMA:

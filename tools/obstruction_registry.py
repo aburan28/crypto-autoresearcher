@@ -42,10 +42,10 @@ import re
 import sys
 
 import yaml
-try:  # libyaml, with the pure loader's errors (tools/fast_yaml.py)
-    from fast_yaml import safe_load as _safe_load
-except ImportError:  # pragma: no cover - imported from outside tools/
-    _safe_load = yaml.safe_load
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -60,7 +60,7 @@ FRONTMATTER = re.compile(r"\A---\n(.*?)\n---", re.DOTALL)
 def _load_yaml(path: str):
     try:
         with open(path, encoding="utf-8") as handle:
-            return _safe_load(handle)
+            return fast_yaml.safe_load(handle)
     except (OSError, yaml.YAMLError):
         return None
 
@@ -74,7 +74,7 @@ def _load_frontmatter(path: str):
     if not match:
         return None
     try:
-        return _safe_load(match.group(1))
+        return fast_yaml.safe_load(match.group(1))
     except yaml.YAMLError:
         return None
 

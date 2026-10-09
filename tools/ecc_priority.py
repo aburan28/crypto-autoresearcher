@@ -38,10 +38,10 @@ try:
 except ImportError:                                          # pragma: no cover
     print("PyYAML required", file=sys.stderr)
     raise SystemExit(2)
-try:  # libyaml, with the pure loader's errors (tools/fast_yaml.py)
-    from fast_yaml import safe_load as _safe_load
-except ImportError:  # pragma: no cover - imported from outside tools/
-    _safe_load = yaml.safe_load
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 REPO = Path(__file__).resolve().parents[1]
 POLICY_PATH = REPO / "orchestration" / "research-priority.yaml"
@@ -55,7 +55,7 @@ _AREA_RE = re.compile(r"^(?:GOAL|RQ|H|EXP|EV|RUN|KN)-([A-Z0-9]+)-")
 def load_policy(path: Path | None = None) -> dict:
     p = path or POLICY_PATH
     with open(p) as fh:
-        return _safe_load(fh) or {}
+        return fast_yaml.safe_load(fh) or {}
 
 
 def ecc_areas(policy: dict | None = None) -> set[str]:
@@ -125,7 +125,7 @@ def _goal_files():
 
 def _goal_of(path):
     try:
-        d = _safe_load(Path(path).read_text())
+        d = fast_yaml.safe_load(Path(path).read_text())
     except Exception:
         return None
     g = (d or {}).get("research_goal") or d or {}
@@ -242,7 +242,7 @@ def committed_decision_blocks(keys, repo: Path = REPO, *, warn=warn) -> list[dic
     out = []
     for rel, text in texts:
         try:
-            doc = _safe_load(text)
+            doc = fast_yaml.safe_load(text)
         except Exception as error:
             warn(f"{rel} does not parse ({type(error).__name__}); skipped, "
                  "nothing in it is honoured")
@@ -342,7 +342,7 @@ def _rq_area_index(repo: Path = REPO) -> dict[str, str]:
     for p in glob.glob(str(repo / "ledger" / "questions" / "*.yaml")):
         try:
             with open(p) as fh:
-                d = _safe_load(fh)
+                d = fast_yaml.safe_load(fh)
         except Exception:
             continue
         q = (d or {}).get("research_question") or d or {}
@@ -418,7 +418,7 @@ def open_ecc_ideas(policy: dict | None = None, area: str | None = None,
     for p in _proposal_paths(repo):
         try:
             with open(p) as fh:
-                d = _safe_load(fh)
+                d = fast_yaml.safe_load(fh)
         except Exception:
             continue
         i = (d or {}).get("idea") or d or {}

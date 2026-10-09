@@ -12,6 +12,8 @@ import subprocess
 
 import yaml
 
+from orchestration import fast_yaml
+
 MINIMUM_STAGNATION_DAYS = 90
 MAXIMUM_REVIEW_AGE_DAYS = 7
 
@@ -65,7 +67,7 @@ def enforce_research_budget(budget, *, today=None, repo_root=None, target_id=Non
             raw = subprocess.check_output(
                 ["git", "-C", str(repo_root), "show", f"HEAD:{decision_path}"],
                 stderr=subprocess.PIPE, text=True)
-            decision = yaml.safe_load(raw)["coordinator_decision"]
+            decision = fast_yaml.safe_load(raw)["coordinator_decision"]
             if (not isinstance(decision, dict)
                     or decision.get("id") != review["decision_id"]
                     or decision.get("decision") != "approve"

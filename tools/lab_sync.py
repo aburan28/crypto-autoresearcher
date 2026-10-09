@@ -48,7 +48,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 HERE = Path(__file__).resolve().parent.parent
 CONFIG = HERE / "orchestration" / "lab.yaml"
@@ -63,7 +66,7 @@ class LabError(Exception):
 
 
 def load_config(path: Path = CONFIG) -> dict:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = fast_yaml.safe_load(path.read_text(encoding="utf-8"))
     scope = data.get("scope") or {}
     policy = data.get("policy") or {}
     if not scope.get("include"):

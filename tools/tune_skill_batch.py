@@ -47,6 +47,11 @@ from typing import Any, Iterable
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 REPO = Path(__file__).resolve().parents[1]
@@ -104,7 +109,7 @@ def load_yaml_dir(repo_root: Path, rel: str, *body_keys: str) -> tuple[list[dict
     for path in sorted((repo_root / rel).glob("*.yaml")):
         raw = path.read_text(encoding="utf-8", errors="replace")
         try:
-            doc = yaml.safe_load(raw)
+            doc = fast_yaml.safe_load(raw)
         except yaml.YAMLError:
             unreadable.append(str(path.relative_to(repo_root)))
             continue

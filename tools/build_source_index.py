@@ -43,10 +43,10 @@ import sys
 from collections import Counter, defaultdict
 
 import yaml
-try:  # libyaml, with the pure loader's errors (tools/fast_yaml.py)
-    from fast_yaml import safe_load as _safe_load
-except ImportError:  # pragma: no cover - imported from outside tools/
-    _safe_load = yaml.safe_load
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MD_OUT = os.path.join(REPO, "knowledge", "SOURCES.md")
@@ -131,7 +131,7 @@ def collect_source_packages() -> list[dict]:
     rows = []
     for path in sorted(glob.glob(os.path.join(REPO, "inputs", "**", "source_record.yaml"),
                                  recursive=True)):
-        record = _safe_load(_read(path)) or {}
+        record = fast_yaml.safe_load(_read(path)) or {}
         provenance = record.get("provenance") or {}
         artifact = record.get("source_artifact") or {}
         repro = record.get("reproducibility") or {}
@@ -399,7 +399,7 @@ def collect_literature() -> list[dict]:
         if not text.startswith("---"):
             continue
         try:
-            fm = _safe_load(text.split("---", 2)[1]) or {}
+            fm = fast_yaml.safe_load(text.split("---", 2)[1]) or {}
         except yaml.YAMLError:
             # Reported, not skipped: an unparseable entry is a corpus defect and
             # silently dropping it would shrink the gap counts below.

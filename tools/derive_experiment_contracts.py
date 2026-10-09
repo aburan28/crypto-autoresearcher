@@ -36,6 +36,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Lane area code per research question, so EXP ids land in the right namespace.
@@ -241,7 +246,7 @@ def main(argv=None) -> int:
     rows, skipped = [], []
     for path in sorted(glob.glob(os.path.join(REPO, args.glob))):
         try:
-            idea = yaml.safe_load(open(path))["idea"]
+            idea = fast_yaml.safe_load(open(path))["idea"]
         except Exception as exc:
             skipped.append((os.path.basename(path), f"unparseable: {exc}"))
             continue

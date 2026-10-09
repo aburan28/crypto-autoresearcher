@@ -28,6 +28,11 @@ import xml.etree.ElementTree as ET
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 
 ROOT = Path(__file__).resolve().parent.parent
 EPRINT_FEED = "https://eprint.iacr.org/rss/rss.xml"
@@ -254,7 +259,7 @@ def corpus_keys(root: Path) -> tuple[set[str], set[str]]:
         content = path.read_text(encoding="utf-8")
         if not content.startswith("---\n"):
             continue
-        fm = yaml.safe_load(content.split("---", 2)[1]) or {}
+        fm = fast_yaml.safe_load(content.split("---", 2)[1]) or {}
         ids = fm.get("identifiers") or {}
         for kind in ("eprint", "arxiv"):
             identifier = str(ids.get(kind) or "").lower().removeprefix("iacr:").removeprefix("arxiv:")

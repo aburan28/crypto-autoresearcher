@@ -85,6 +85,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 VERDICTS = {"holds", "breaks", "inconclusive"}
@@ -179,7 +184,7 @@ def _verdict_for(attestation: dict, name: str) -> tuple[str | None, str | None]:
 def _load(path: str):
     try:
         with open(path, encoding="utf-8") as handle:
-            return yaml.safe_load(handle)
+            return fast_yaml.safe_load(handle)
     except (OSError, yaml.YAMLError) as exc:
         return {"__error__": str(exc).splitlines()[0]}
 

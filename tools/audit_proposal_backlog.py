@@ -43,7 +43,10 @@ import re
 import subprocess
 import sys
 
-import yaml
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 IDEA_RE = r"IDEA-[0-9]{8}-[0-9a-zA-Z]{3,6}"
 RECORD_GLOBS = ("ledger/hypotheses/*.yaml", "experiments/*/specification.yaml")
@@ -98,7 +101,7 @@ def retired_idea_ids() -> set[str]:
 
 def load_proposal(path: str) -> dict:
     try:
-        doc = yaml.safe_load(open(path, encoding="utf8", errors="replace")) or {}
+        doc = fast_yaml.safe_load(open(path, encoding="utf8", errors="replace")) or {}
     except Exception:
         return {}
     # Some records nest everything under a single top-level key; unwrap it.
