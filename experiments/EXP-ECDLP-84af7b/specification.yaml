@@ -1,0 +1,160 @@
+# =============================================================================
+# EXP-ECDLP-84af7b -- H-ECDLP-2f1033 (SNFS-G1): cyclotomic lift with complete
+# splitting. Relation yield ratio R(H) and covering exponent gamma of E over
+# subfields K of Q(zeta_c) in which the Mersenne prime p = 2^c - 1 splits
+# completely, against random completely split fields of the same degree.
+# status review_required: DESIGN ONLY. Number-field descent and point search
+# (PARI/GP ellrank, Sage or Magma) are not available in the design container;
+# the d = 2 arm is implementable in the Python standard library with quadratic
+# field arithmetic and is the recommended first cell. No run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-84af7b
+  hypothesis_id: H-ECDLP-2f1033
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-57140c
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Cyclotomic lift with complete splitting: trace-relation yield ratio R(H),
+    covering exponent gamma and rank gain of rank-0 curves E/Q over subfields
+    K of Q(zeta_c) of degree d <= 12 in which p = 2^c - 1 splits completely,
+    for c in {13, 17, 19, 31}, against random completely split fields of the
+    same degree and the Q(c^{1/d}) ladder of EXP-ECDLP-3e8403
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Measure whether the Galois multiplier of a completely split cyclotomic
+    lift (one K-point gives d residues in E(F_p) and one free trace relation)
+    changes the two quantities a lift-based index calculus needs, relations
+    per residue and residues per unit of enumeration work, relative to a
+    random completely split field of the same degree. H-ECDLP-2f1033
+    predicts R(H) < 1 everywhere and gamma at the random-field value.
+  inputs:
+    primes: "p = 2^c - 1 for c in {13, 17, 19, 31} (8191, 131071, 524287, 2147483647)"
+    fields: >-
+      cyclotomic arm: every subfield K of Q(zeta_c) of degree d | c - 1 with
+      d <= 12 (c = 13: d in {2, 3, 4, 6, 12}; c = 17: {2, 4, 8}; c = 19: {2,
+      3, 6, 9}; c = 31: {2, 3, 5, 6, 10}), given by their defining polynomials
+      (Gaussian periods); complete splitting of p verified by factoring p in
+      O_K (CTRL-SPLIT). Control arm: three random number fields per (p, d) of
+      the same degree and root discriminant within a factor 4 in which p
+      splits completely, found by seeded search over small-coefficient
+      polynomials.
+    curves: >-
+      5 rank-0 curves E/Q of conductor <= 200 with good reduction at every p
+      above (from the standard tables, with the rank re-verified by ellrank
+      in the executing session); E(Q) finite so Tr(P) is torsion.
+    point_search: >-
+      Enumerate K-points of E with coordinates of coefficient height <= X in
+      the power basis of O_K for X on a ladder {2, 4, 8, 16, 32, 64}; where
+      ellrank is available, also 2-descent rank and generators.
+    residues_and_relations: >-
+      For each K-point P and each prime P_i | p: r_i(P) = P mod P_i via the
+      embedding O_K -> F_p at P_i; verify sum_i r_i(P) = Tr(P) mod p by exact
+      arithmetic in E(F_p) (CTRL-TRACE). Distinct residues D(X), relations
+      N(X) = #points found (torsion and conjugates deduplicated), R(X) =
+      N(X)/D(X), gamma = dlog D / dlog W with W the enumeration work (points
+      tried), fitted over the last three rungs with a non-empty count.
+    rank_arm: "rank E(K) - rank E(Q) by 2-descent where available; else the number of independent points found, reported as a lower bound"
+  controls:
+    - "CTRL-SPLIT: p splits completely in K (d primes of degree one); a cell failing this is invalid, not evidence."
+    - "CTRL-TRACE: every trace relation is verified in E(F_p) exactly; a failure invalidates the cell."
+    - "CTRL-RANDOM-FIELD: three random completely split fields per (p, d), same curves, same ladder, same code."
+    - "CTRL-D1: the d = 1 cell (K = Q) reproduces EXP-ECDLP-3e8403's covering numbers on shared curves and boxes."
+    - "CTRL-COINCIDENCE: residue coincidences r_i(P) = r_j(P) and residues shared between distinct K-points are counted and reported separately."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "c in {13, 17, 19, 31}"
+    - "field arm: cyclotomic subfield | random completely split field"
+    - "degree d (as listed) and X on the ladder"
+    - "curve 1..5"
+  metrics:
+    primary:
+      - relation_yield_ratio_R_X_per_cell_and_its_maximum
+      - covering_exponent_gamma_cyclotomic_minus_random_field_per_degree
+      - rank_gain_cyclotomic_minus_random_field_per_degree
+    secondary:
+      - residue_coincidence_counts
+      - complete_splitting_verified_cells
+      - smallest_nontorsion_height_over_log_p
+      - enumeration_work_per_rung
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: R(X), gamma and rank gain on the cyclotomic arm relative to the random-field arm
+    formula: >-
+      max_X R(X) < 1 on every cyclotomic cell with R decreasing in X;
+      |gamma_cyc - gamma_rand| <= 0.2 at every d; rank gain within sampling
+      error of the random-field arm; D(X) on d = 1 equal to EXP-ECDLP-3e8403's
+      count on shared cells.
+    source: >-
+      HEUR-001 of H-ECDLP-2f1033 (canonical height; KN-LIT-6935a1 face F4b;
+      KN-LIT-021); the trace relation is an identity.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Four toy Mersenne primes and conductors <= 200; the quantities are
+      ratios and exponents whose scale dependence is itself the measurement
+      (across c). Nothing is extrapolated.
+    correspondence: null
+  tail_checks:
+    - Report the cell with the largest R(X) and the cell with the largest gamma excess, with their fields and curves.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 60
+    maximum_memory_gb: 4
+    maximum_runs: 12
+  stopping_rules:
+    - Stop a (p, d) cell when the ladder is exhausted or 14400 s elapse; record what completed, never as evidence.
+    - Extend the ladder beyond X = 64 only by amendment.
+  invalidation_rules:
+    - A CTRL-SPLIT or CTRL-TRACE failure invalidates the cell.
+    - A curve found to have positive rank over Q invalidates its cells (the trace relation is then not free).
+    - A d = 1 cell disagreeing with EXP-ECDLP-3e8403 on a shared box invalidates the run (instrument).
+  success_criterion: >-
+    Every cyclotomic cell has max_X R(X) < 1 with R decreasing in X, every
+    degree has |gamma_cyc - gamma_rand| <= 0.2, rank gains match the random
+    arm within sampling error, and all controls pass: the Galois multiplier
+    changes neither relations per residue nor the covering exponent.
+  falsification_criterion: >-
+    A cyclotomic cell with R(X) >= 1 while its random-field control stays
+    below 1, reproduced at a second prime, or a degree with gamma_cyc -
+    gamma_rand > 0.2 across >= 3 primes, with CTRL-SPLIT and CTRL-TRACE
+    passing (HEUR-001 of H-ECDLP-2f1033 fails: the alive condition of
+    SNFS-G1).
+  decision_impact:
+    on_positive: >-
+      The Coordinator records that complete splitting and the trace relation
+      add nothing to the lift obstruction in the tested scope, cites the
+      table beside EXP-ECDLP-3e8403 in the special-prime battery synthesis,
+      and does not open a cyclotomic-lift lane.
+    on_negative: >-
+      An independent re-implementation (different field arithmetic) is
+      dispatched before any interpretation; on reproduction a new RQ on the
+      mechanism is opened under review-breakthrough routing, because a yield
+      ratio >= 1 contradicts the height obstruction as understood.
+  required_artifacts:
+    - experiments/EXP-ECDLP-84af7b/specification.yaml
+    - experiments/EXP-ECDLP-84af7b/implementation/run.py (to be written)
+    - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-84af7b/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: null
+    runnable_state_at_design: >-
+      NOT RUNNABLE: implementation/run.py does not exist. The missing pieces
+      are (1) arithmetic in subfields of Q(zeta_c) given by Gaussian-period
+      polynomials, with factorisation of p and the embeddings O_K -> F_p at
+      each prime above p; (2) bounded-height point enumeration on E over K
+      with exact square testing in K; (3) optionally 2-descent (PARI/GP
+      ellrank or Magma, neither present in the design container). The d = 2
+      arm needs only quadratic-field arithmetic (K = Q(sqrt(c*)) with
+      c* = (-1)^((c-1)/2) c) and is implementable in the Python standard
+      library in about 300 lines; it is the recommended first cell, with the
+      random-field controls Q(sqrt(D)) for D with (D/p) = 1.
+  assigned_to: executor

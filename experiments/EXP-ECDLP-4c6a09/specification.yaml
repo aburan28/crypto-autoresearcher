@@ -1,0 +1,147 @@
+# =============================================================================
+# EXP-ECDLP-4c6a09 -- H-ECDLP-4da36f (SNFS-G3): Solinas number fields. Rank
+# gain, new-point heights and covering exponent of E over K_f = Q[t]/(f) for
+# the four NIST low-weight shapes at toy k, against random low-weight g of
+# the same degree and weight, with a regression of gamma on root discriminant.
+# status review_required: DESIGN ONLY. Number-field descent (PARI/GP, Sage,
+# Magma) is not available in the design container; the coverage arm alone is
+# implementable in the Python standard library by generalizing the
+# EXP-ECDLP-3e8403 box ladder to arbitrary f. No run, no outcome.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-4c6a09
+  hypothesis_id: H-ECDLP-4da36f
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  derived_from_idea: IDEA-20261009-b6d31b
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Solinas number fields: rank gain, minimal new-point height and covering
+    exponent of E over K_f = Q[t]/(f) for the NIST shapes t^3 - t - 1,
+    t^7 - t^3 + 1, t^8 - t^7 + t^6 + t^3 - 1, t^12 - t^4 + t^3 + t - 1 at toy
+    primes f(2^k), against random monic g with coefficients in {-1, 0, 1} of
+    the same degree and weight, with a regression of gamma on root discriminant
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Decide whether the small root discriminant of a Solinas field reaches
+    E(K_f) as rank, small heights or residue coverage, relative to random
+    low-weight fields of the same degree and weight. H-ECDLP-4da36f predicts
+    no difference and no correlation with the root discriminant.
+  inputs:
+    primes: >-
+      For each NIST shape f and each k in 4..12 with f(2^k) prime and
+      f(2^k) >= 2^12, the toy prime p = f(2^k); for each degree deg f, 20
+      seeded random monic g with coefficients in {-1, 0, 1}, weight equal to
+      f's, and g(2^k) prime for some k in the same range (control primes).
+    fields: "K_f = Q[t]/(f) with the degree-one prime P_1 = (t - 2^k, p); root discriminant |disc(f)|^(1/deg f) recorded per field (CTRL-DISC: disc(f) computed exactly and squarefree part noted)"
+    curves: "5 seeded random curves E/Q with small coefficients and good reduction at p per prime; the same curves on the Solinas and random arms at the same k"
+    coverage_arm: >-
+      Enumerate K_f-points of E with coordinates (x, y) in (Z[t]/(f))[1/e]
+      with coefficient vectors in a box of side X on the power basis and
+      denominators e <= 4, X on the ladder {2, 4, 8, 16, 32}; reduce at P_1
+      by t -> 2^k mod p; distinct residues D(X), work W(X) = points tried,
+      gamma fitted over the last three non-empty rungs (the EXP-ECDLP-3e8403
+      method generalized to arbitrary f).
+    rank_and_height_arm: >-
+      2-descent over K_f (PARI/GP ellrank or Magma) where available: rank
+      E(K_f) - rank E(Q), canonical height of the smallest point not in E(Q)
+      divided by log p; else the number of independent points found and the
+      smallest naive height, reported as bounds.
+    regression: "gamma against log root discriminant across all fields, with a 99 % bootstrap interval on the slope"
+  controls:
+    - "CTRL-RANDOM-G: random g of the same degree and weight, same curves, same ladder, same code."
+    - "CTRL-D1: K = Q (d = 1) cells reproduce EXP-ECDLP-3e8403's covering numbers on shared curves and boxes."
+    - "CTRL-TDC: f = t^d - c cells (the EXP-ECDLP-3e8403 form) are included and must reproduce that contract's numbers."
+    - "CTRL-DISC: discriminants computed exactly; a field whose root discriminant is not within the stated range of its shape is reported, never dropped."
+    - "CTRL-REPLAY: seeded replay is byte-identical."
+  independent_variables:
+    - "f shape: four NIST shapes | random g (20 per degree) | t^d - c | Q"
+    - "k in 4..12 (toy primes)"
+    - "box side X on the ladder; curve 1..5"
+  metrics:
+    primary:
+      - covering_exponent_gamma_solinas_minus_random_g_per_degree
+      - rank_gain_solinas_minus_random_g_per_degree
+      - min_new_point_height_over_log_p_per_arm
+      - regression_slope_gamma_vs_log_root_discriminant_with_interval
+    secondary:
+      - root_discriminant_per_field
+      - d1_and_tdc_reproduction_checks
+      - enumeration_work_per_rung
+      - wall_clock_seconds
+  preregistered_prediction:
+    quantity: gamma, rank gain, height and the regression slope
+    formula: >-
+      |gamma_f - gamma_g| <= 0.2 at every degree; rank gain and height ratio
+      within sampling error of the random-g arm; regression slope's 99 %
+      interval contains 0; d = 1 and t^d - c cells reproduce EXP-ECDLP-3e8403.
+    source: >-
+      HEUR-001 of H-ECDLP-4da36f (Lang-type heights, KN-TECH-060, KN-LIT-021;
+      HEUR-003 of H-ECDLP-bd1572 for f = t^d - c).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy primes f(2^k) at k <= 12; small k compresses the discriminant
+      contrast, which the regression across all fields is designed to
+      measure rather than assume away. Nothing is extrapolated and no
+      deployed curve is lifted.
+    correspondence: null
+  tail_checks:
+    - Report the field with the largest gamma and the field with the smallest root discriminant, with their curves.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 20
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 80
+    maximum_memory_gb: 4
+    maximum_runs: 12
+  stopping_rules:
+    - Stop a (f, k) cell when the ladder is exhausted or 14400 s elapse; record what completed, never as evidence.
+    - The rank arm is skipped, and reported as skipped, where no descent tool is available; the coverage arm still runs.
+  invalidation_rules:
+    - A CTRL-D1 or CTRL-TDC disagreement invalidates the run (instrument).
+    - A field whose defining polynomial is reducible is invalid (not a field) and is replaced by the next seeded g, with the replacement logged.
+  success_criterion: >-
+    Every degree has |gamma_f - gamma_g| <= 0.2, rank gains and heights
+    match the random-g arm within sampling error, the regression slope's
+    99 % interval contains 0, and the d = 1 and t^d - c cells reproduce
+    EXP-ECDLP-3e8403: the Solinas form reaches nothing in E(K_f) beyond
+    degree and discriminant size.
+  falsification_criterion: >-
+    A NIST shape with gamma_f - gamma_g > 0.2 across >= 3 primes with tight
+    descent bounds, or a significant negative regression slope (99 %
+    interval excluding 0) with CTRL-D1 passing (HEUR-001 of H-ECDLP-4da36f
+    fails: the alive condition of SNFS-G3).
+  decision_impact:
+    on_positive: >-
+      The Coordinator records that low-weight f adds nothing to the lift
+      obstruction beyond degree and discriminant size, closes SNFS-G3 and
+      SNFS-F1's generalization question in the toy scope, and cites the
+      table in the special-prime battery synthesis.
+    on_negative: >-
+      An independent re-implementation of the coverage arm is dispatched
+      before interpretation; on reproduction the root-discriminant
+      correlation becomes a new RQ with the regression as its first exhibit.
+  required_artifacts:
+    - experiments/EXP-ECDLP-4c6a09/specification.yaml
+    - experiments/EXP-ECDLP-4c6a09/implementation/run.py (to be written)
+    - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-4c6a09/runs/<RUN-ID>/raw-result.json
+  launcher:
+    command: null
+    runnable_state_at_design: >-
+      NOT RUNNABLE: implementation/run.py does not exist. The missing pieces
+      are (1) arithmetic in Z[t]/(f) with exact discriminant and reduction
+      t -> 2^k mod p (about 150 lines of standard-library Python, by
+      generalizing experiments/EXP-ECDLP-3e8403/implementation/run.py from
+      t^d - c to arbitrary f); (2) bounded-box point enumeration with exact
+      square testing in K_f; (3) optionally 2-descent (PARI/GP ellrank or
+      Magma, neither present in the design container). The coverage arm
+      alone, with (1) and (2), makes the contract runnable; the rank arm is
+      then reported as skipped.
+  assigned_to: executor
