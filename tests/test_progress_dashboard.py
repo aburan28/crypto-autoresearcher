@@ -1,6 +1,6 @@
 import unittest
 from tools.progress_dashboard import bootstrap_paired, frontiers, render_html
-from tests.test_progress_fidelity import sample
+from test_progress_fidelity import sample
 
 class DashboardTests(unittest.TestCase):
     def test_few_pairs_not_confident(self):
