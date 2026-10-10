@@ -1,0 +1,286 @@
+schema: crypto.autoresearch.endring_bare_curve_distribution.v1
+contract_id: D-ER-BATCH-12e6aa-v1
+task_id: TASK-20261009-daf6ab
+goal_id: GOAL-SSI-2fa82a
+status: frozen_for_batch
+standard_problem_status: >-
+  Campaign-defined. No equivalence, reduction, indistinguishability, or hardness
+  transfer to a standard EndRing input distribution is asserted.
+
+security_parameter:
+  symbol: lambda
+  domain: positive integers
+  input_length_convention: n_lambda=ceil(log2(p_lambda))
+
+public_parameter_family:
+  notation: Pi_lambda
+  fields:
+    p_lambda:
+      type: prime integer
+      constraints: p_lambda>3; n_lambda is polynomially related to lambda
+    field:
+      type: canonically encoded F_(p_lambda^2)
+      constraints: >-
+        The irreducible polynomial/basis, coefficient byte order, and arithmetic
+        algorithms are fixed before endpoint sampling.
+    E0_lambda:
+      type: canonically encoded supersingular elliptic curve over F_(p_lambda^2)
+    ell:
+      type: prime integer different from p_lambda
+      constraints: fixed or polynomially bounded; its exact value is part of Pi_lambda
+    L_lambda:
+      type: nonnegative integer
+      constraints: declared before sampling and polynomially bounded in lambda
+    Canon:
+      type: deterministic curve canonicalizer
+      semantics: >-
+        On a curve model, returns canonical curve bytes and an explicit
+        isomorphism from the input model to that canonical model.
+    Norm:
+      type: deterministic quotient-map convention
+      semantics: >-
+        Given a curve and an ell-torsion kernel line, returns the fixed explicit
+        separable quotient map, then Canon is applied and the returned
+        isomorphism is included in the step. This fixes bytes, not semantic
+        uniqueness among all programs for the same map.
+    A_eval:
+      type: fixed deterministic evaluator and verifier
+      semantics: specified below
+  encoding: >-
+    Pi_lambda is a canonical length-delimited tuple. Its SHA-256 digest is
+    included in every accepted endomorphism descriptor.
+
+edge_and_walk_law:
+  vertex: canonical curve model over F_(p_lambda^2)
+  directed_edge: >-
+    One geometric cyclic subgroup C of order ell in E[ell], counted as a
+    kernel line. Parallel quotient edges and edges whose canonical targets
+    coincide remain distinct because distinct kernel lines remain distinct.
+  first_step: >-
+    Choose exactly uniformly from all ell+1 kernel lines in E0_lambda[ell].
+  later_step: >-
+    At step i>1, exclude exactly the kernel line giving the dual of the
+    immediately preceding chosen edge after transport to the canonical model;
+    choose exactly uniformly from the remaining ell kernel lines. No other
+    repeated vertex or edge is excluded.
+  exact_uniformity: >-
+    Uniform choices use exact finite-set sampling with rejection of biased
+    machine-word residues. Any implementation must expose its coin length and
+    rejection rule; this source task performs no implementation run.
+  transition: >-
+    Apply Norm to the chosen kernel line, canonicalize the quotient target with
+    Canon, and transport the incoming-edge marker through that explicit
+    isomorphism before the next choice.
+  endpoint: >-
+    After exactly L_lambda steps, output only the canonical endpoint curve E.
+  erased_state:
+    - all sampled kernel lines and random coins
+    - all intermediate curves, quotient maps, isomorphisms, and the composed walk
+    - the incoming-edge marker
+    - orientations, ideals, tags, torsion bases or labels
+    - any endomorphism, endomorphism-ring element, order, or ring basis
+  challenge_distribution: >-
+    D_ER(lambda) is exactly the probability law of the canonical endpoint bytes
+    under the preceding walk, including multiplicity from distinct kernel-line
+    walks that canonicalize to the same endpoint.
+  challenge_input: (Pi_lambda,E) only
+  exclusions:
+    - no conditioning on j(E) in F_p
+    - no conditioning on j(E) in {0,1728}
+    - no conditioning on a cycle, short path, orientation, or easy witness
+    - no substitution of a uniform-over-isomorphism-classes law
+
+sampler_interface:
+  signature: Samp(Pi_lambda,E;rho) -> FAIL or D_alpha
+  coins: >-
+    rho is an independent uniform bit string of a declared polynomial length
+    R(lambda). It is independent of the erased endpoint walk conditional on E.
+  dependency_gate: >-
+    Samp receives no erased state, correlated advice, preprocessing dependent
+    on the sampled walk, EndRing/OneEnd oracle, or hidden curve label.
+  halting: every invocation halts within declared T(lambda) time and M(lambda) memory
+  single_failure_encoding: 'one-byte value 0x00'
+
+descriptor_byte_grammar:
+  name: DER-ENDO-v1
+  canonical_integer: unsigned shortest big-endian; zero is one zero byte
+  canonical_field_element: two fixed-width base-field coefficients in the Pi_lambda basis
+  framing: all variable fields use shortest unsigned length prefixes; trailing bytes are forbidden
+  top_level_fields_in_order:
+    - fixed magic DER-ENDO
+    - version byte 0x01
+    - 32-byte digest of canonical Pi_lambda
+    - canonical source-curve bytes
+    - canonical target-curve bytes
+    - declared total degree
+    - declared inseparable degree
+    - node count
+    - topologically ordered evaluator nodes
+    - root node index
+    - non-scalarity certificate tag and payload
+  node_opcodes:
+    - opcode: EXPLICIT_MAP
+      payload: >-
+        Canonically reduced numerator/denominator polynomial tuples for the
+        projective coordinate functions, with primitive coefficient tuples,
+        monic denominators, explicit source and target, and declared degree.
+    - opcode: REL_FROB_P
+      payload: >-
+        Source model C and its coefficientwise p-conjugate C^(p); evaluation
+        sends projective coordinates to p-th powers. Repetition is explicit.
+    - opcode: VELU_STEP
+      payload: >-
+        Source, monic kernel polynomial or explicit canonical kernel generator,
+        Norm quotient map data, canonical target, and the explicit target
+        isomorphism returned by Canon.
+    - opcode: ISOMORPHISM
+      payload: canonical admissible Weierstrass change-of-variables coefficients and inverse
+    - opcode: MUL
+      payload: signed shortest integer a denoting multiplication by a
+    - opcode: COMPOSE
+      payload: ordered child indices; semantic order is last listed after earlier listed
+  forbidden_syntax:
+    - arbitrary native code, bytecode, external files, or oracle calls
+    - implicit source, target, degree, normalization, or field model
+    - a pointer to an erased path or hidden preprocessing table
+    - noncanonical integers, coefficients, ordering, or duplicate unused nodes
+  semantic_uniqueness: >-
+    Not promised. The grammar assigns one byte string to one syntax tree, but
+    distinct accepted trees may evaluate to the same isogeny. Output laws are
+    therefore laws on bytes as well as on semantic maps.
+
+A_eval_contract:
+  algorithms:
+    validity: >-
+      Parse canonical bytes; verify the parameter digest; verify every primitive
+      rational identity, source/target match, field of definition, declared
+      degree and inseparable degree; type every composition; reject unused or
+      cyclic nodes; require the root source and target both equal the supplied E;
+      and verify one allowed non-scalarity certificate.
+    curves: return the root source and target
+    degree: return the verified total degree
+    inseparable_degree: return the verified inseparable degree
+    eval: >-
+      Evaluate the typed DAG on P in E(F_(p^(2k))) using the fixed field
+      extension encoding, returning the root image.
+  complexity_requirement: >-
+    Descriptor length, validation, source/target recovery, degree recovery, and
+    evaluation are polynomial in lambda and k. In particular, every accepted
+    descriptor obeys log2(deg(alpha)) <= Lambda_PW(n_lambda) for one declared
+    polynomial Lambda_PW fixed by the candidate packet.
+  accepted_non_scalarity_certificates:
+    - tag: INSEP_NOT_SQUARE
+      rule: >-
+        The verified inseparable degree is not a square. A scalar [a] has square
+        inseparable degree, so the root is non-scalar.
+    - tag: DEGREE_NOT_SQUARE
+      rule: The verified total degree is not an integer square.
+    - tag: DEGREE_ONE_NOT_PM_ONE
+      rule: >-
+        The root is an explicit degree-one automorphism and its reduced
+        coordinate functions differ from both +1 and -1.
+    - tag: NONZERO_DISCRIMINANT
+      rule: >-
+        Payload gives signed t; validity verifies the rational-map identity
+        alpha^2-[t]alpha+[deg(alpha)]=0 and t^2-4*deg(alpha) is nonzero.
+  rejected_controls:
+    - any MUL root, including [0], [1], and [-1]
+    - a VELU_STEP immediately followed only by its verified dual
+    - the applicable scalar p^2-Frobenius slice
+    - a lone REL_FROB_P whose target is E^(p) distinct from E
+    - a non-scalarity assertion without one accepted public certificate
+
+success_and_cost_quantifiers:
+  candidate_must_declare:
+    - polynomials q(lambda), R(lambda), T(lambda), M(lambda), and Lambda_PW(n)
+    - negligible function nu(lambda)
+    - exact output-byte distribution conditional on each E
+    - abort conditions and the sole FAIL encoding
+  good_curve_set: >-
+    G_lambda={E: Pr_rho[A_eval.validity(E,Samp(Pi,E;rho))=true]
+    >=1/q(lambda)}.
+  required_mass: Pr_(E<-D_ER(lambda))[E in G_lambda] >= 1-nu(lambda)
+  separation_rule: >-
+    The bad-instance mass nu and the per-good-E coin failure 1-1/q are separate.
+    An average over (E,rho) does not discharge this contract.
+  retries:
+    same_curve_only: true
+    independent_coins: true
+    cap_for_target_failure_2_minus_kappa: >-
+      N(lambda,kappa)=ceil(q(lambda)*kappa*ln(2)); for E in G_lambda,
+      N independent attempts fail with probability at most 2^(-kappa).
+    accounting: total time N*T and peak memory M plus output storage
+    prohibition: retries never resample E or condition the endpoint law
+
+relation_to_oneend_and_endring:
+  local_implication:
+    statement: >-
+      For each E in G_lambda, a valid non-FAIL descriptor, after forgetting the
+      campaign framing and retaining its evaluator, is a bounded OneEnd answer
+      for that same E. Public validity makes repetition a Las Vegas search on
+      good E with expected at most q(lambda) calls.
+    status: derived directly from the frozen relation and source definitions
+  distributional_scope:
+    statement: >-
+      The frozen guarantee is only for 1-nu mass under D_ER. It is not a
+      worst-case OneEnd algorithm and is not guaranteed on every supersingular
+      curve.
+  published_reduction_directions:
+    - >-
+      OneEnd <= EndRing is the trivial direction: a full EndRing solution can
+      yield a non-scalar element.
+    - >-
+      EndRing <= OneEnd_Lambda_PW is PW24-VOR Theorem 7.2: an EndRing solver
+      uses polynomially many bounded-OneEnd oracle instances and has expected
+      time polynomial in log(p) and Lambda_PW(log(p)).
+  nonautomatic_bridge:
+    statement: >-
+      PW24-VOR Algorithm 3 invokes its oracle on curves produced by internal
+      2-isogeny random walks. The D_ER mass statement neither guarantees
+      success on each such query nor identifies their law with D_ER. Therefore
+      no EndRing solver follows from this contract unless a candidate separately
+      proves a universal bounded-OneEnd oracle contract, or proves a
+      distribution-preserving reduction with complete query-success accounting.
+  assumption_accounting:
+    PW24_theorem: probabilistic expected-polynomial reduction; no GRH premise stated in Theorem 7.2
+    required_here:
+      - p>3 for the algebra/control packet
+      - bounded degree log(deg(alpha))<=Lambda_PW(log p)
+      - valid efficient representation on every oracle answer used
+      - oracle coverage for every curve queried, not merely most D_ER endpoints
+    not_supplied:
+      - universal oracle coverage
+      - distribution bridge
+      - concrete polynomial exponents or concrete parameters
+
+typed_algebra_controls:
+  relative_frobenius:
+    correct_route: phi:E->E^(p), then Frob_p:E^(p)->E^(p^2)=E
+    non_scalarity_route: verified inseparable degree p via INSEP_NOT_SQUARE
+    wrong_route: coordinatewise p-power E->E^(p) treated as E->E without an explicit return map
+  exceptional_automorphisms:
+    j_1728_positive_control: >-
+      On y^2=x^3+A*x, encode (x,y)->(-x,i*y), i^2=-1, and verify
+      DEGREE_ONE_NOT_PM_ONE.
+    j_0_positive_control: >-
+      On y^2=x^3+B, encode (x,y)->(zeta*x,y), zeta^3=1 and zeta!=1,
+      and verify DEGREE_ONE_NOT_PM_ONE.
+    mass_rule: support on these two classes must be measured under D_ER; it is never conditioned in
+  normalized_composition:
+    rule: >-
+      Every quotient step uses Norm, then the explicit Canon isomorphism. All
+      source and target models are stored. COMPOSE is accepted only when every
+      adjacent target/source byte string matches.
+    immediate_backtrack: dual(phi) after phi verifies as [deg(phi)] and is rejected as scalar
+
+claim_boundary:
+  this_contract_establishes:
+    - one exact campaign input law
+    - one exact descriptor syntax and evaluator/verifier obligation
+    - exact conditional-success, bad-mass, retry, degree, and cost quantifiers
+    - the correct source-backed reduction directions and the missing bridge
+  this_contract_does_not_establish:
+    - existence of Samp
+    - hardness of D_ER or equivalence to standard EndRing
+    - full-ring reconstruction from a D_ER-only sampler
+    - PKE, key exchange, IND security, novelty, or parameters
