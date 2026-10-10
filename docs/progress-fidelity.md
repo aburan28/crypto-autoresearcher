@@ -47,3 +47,27 @@ check in branch protection. A workflow alone is not mandatory merge protection.
 The portfolio command exports JSON for future UI integration; it is not yet a
 deployed dashboard. Backfill, statistical intervals, censored observations,
 cost-frontier histories, and UI integration remain follow-up implementation.
+
+## Dashboard and uncertainty
+
+Run `python3 -m tools.progress_dashboard claims/ --json progress-report.json --html progress-report.html`.
+The workflow publishes these outputs as a downloadable build artifact. The
+portfolio frontier selects the best speedup only within an identical curve,
+scale, metric, unit, level, and evidence class; it never multiplies separate
+optimizations. Bootstrap intervals are deterministic descriptive paired
+intervals, suppressed below five pairs; they do not replace preregistered
+power analysis or independent replication.
+
+## Rollout requirements before merge
+
+1. Review and independently verify actual run artifacts; the validator checks
+   declared paths as strings, not their contents.
+2. Connect all existing experiment execution and evidence promotion paths so
+   unrecorded claims cannot bypass the gate.
+3. Backfill historic benchmark claims without editing immutable run records.
+4. Require the `progress-fidelity` GitHub status check in a repository ruleset.
+5. Verify CI results and dashboard artifacts on the PR.
+6. Add uncertainty-aware cost models for timeouts, failures, and partial solves.
+
+Until these conditions hold, this PR is an incremental implementation rather
+than a complete enforced scientific measurement system.
