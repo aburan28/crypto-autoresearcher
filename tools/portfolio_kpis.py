@@ -268,6 +268,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="approval headroom for one goal key (GOAL-... or "
                              "area:AREA); exit 1 when the goal is at the cap")
     args = parser.parse_args(argv)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import sparse_checkout
+    if sparse_checkout.refuse_if_sparse("portfolio_kpis", args.repo_root):
+        return 2
     if args.capacity:
         unrun = approved_unrun(args.repo_root).get(args.capacity, [])
         headroom = max(0, APPROVAL_CAPACITY_CAP - len(unrun))

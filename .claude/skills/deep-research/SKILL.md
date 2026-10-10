@@ -72,16 +72,20 @@ scan. Read broadly before ranking anything:
   fabrication), `docs/target-result-profile.md` (Parts A-C, the C1-C18
   checklist), `docs/inventor-protocol.md` (all 8 sections),
   `docs/claims-and-verification.md`, `docs/task-lifecycle.md`.
-- **Ledger, the whole tree**: `ledger/questions/`, `ledger/proposals/` (not
-  yet converted to hypotheses), `ledger/hypotheses/` grouped by status,
-  `ledger/evidence/`, `ledger/decisions/` (recent `next_actions`),
-  `ledger/goals/` — including sharded goals under
+- **Ledger, the whole tree — through its indexes**: `ledger/questions/`,
+  `ledger/proposals/` (not yet converted to hypotheses), `ledger/hypotheses/`
+  grouped by status, `ledger/evidence/`, `ledger/decisions/` (recent
+  `next_actions`), `ledger/goals/` — including sharded goals under
   `ledger/goals/GOAL-*/{goal.yaml,checkpoints/*.yaml}` — and
-  `ledger/handoffs/`. Grep the whole tree recursively
-  (`grep -rl <term> ledger/ knowledge/`), never just the top-level
-  `ledger/*.yaml` files: those are frozen legacy records covering a fraction
-  of the area codes, and a top-level-only scan reports a clean "free" for an
-  area that is in fact heavily worked.
+  `ledger/handoffs/`. Inventory proposals, hypotheses and experiments from
+  `ledger/.index/*.jsonl` (`python3 tools/build_ledger_index.py`), goals with
+  `tools/goal_head.py list` / `show`, and everything else with
+  `rg -l <term> ledger/ knowledge/` over the whole tree recursively; open
+  only the records those hits put in scope (`docs/agent-runtime-core.md`,
+  "Reading discipline"). Never stop at the top-level `ledger/*.yaml` files:
+  those are frozen legacy records covering a fraction of the area codes, and
+  a top-level-only scan reports a clean "free" for an area that is in fact
+  heavily worked.
 - **Knowledge corpus, every subtype**: `knowledge/open-problems/` (read the
   "why it matters" / forward-guidance text on every `KN-OPEN-*` record in
   scope — this is the program's own list of promising, unresolved leads),
@@ -149,6 +153,14 @@ Take its full output, including the mandatory §5 honest-accounting block
 (`dominated_by`, `sota_delta`, enumerated closures, open directions) even
 when it proposes nothing usable — a session that finds nothing still owes
 that block.
+
+When the scope spans more than one goal, or a goal has stalled across
+sessions, also dispatch the **idea-synthesist** (Fable tier, `research-synthesis`)
+in parallel with the idea-generator, giving it the same inputs plus the
+ledger's `reject_scoped`, `inconclusive` and `weaken` decisions in scope. It
+returns at most five cross-goal ideas, each naming the records it bridges;
+hand both sets to step 4 unmerged, labelled by source. Skip it for a
+single-RQ scope — that is the idea-generator's job, at a fraction of the cost.
 
 ## 4. Convergent pass — portfolio ranking (dispatch coordinator)
 

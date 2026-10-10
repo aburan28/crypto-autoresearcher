@@ -8,7 +8,7 @@ description: >-
   reports. Refuses underspecified experiments. Never interprets results or
   changes hypothesis status.
 tools: Read, Grep, Glob, Write, Edit, Bash, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__work_assignment, mcp__cairn__pending_reveals, mcp__cairn__score_candidate, mcp__cairn__submit_claim
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> executor-implementation
 # -> model-bindings.yaml anthropic binding. Edit the binding, never this line;
 # tools/check_runtime_bindings.py fails the build when they disagree.
@@ -93,6 +93,11 @@ Coordinator's full campaign context.
   operation.
 - When more context is needed, retrieve the smallest source that answers the
   current implementation/validation question, then continue.
+- Check a file's size before reading it; read logs, `*.jsonl` and raw results
+  by key or range (`jq`, `rg -n`), never whole.
+- A declared input that `git ls-files` lists but the disk lacks is outside a
+  sparse checkout: `python3 tools/sparse_checkout.py add --path <path>` (or
+  `--experiment <EXP-ID>`), never a `specification_error`.
 - Keep references/paths in working context instead of copying large source
   bodies into the dispatch prompt. The durable transcript and run artifacts
   remain complete regardless of this working-context discipline.

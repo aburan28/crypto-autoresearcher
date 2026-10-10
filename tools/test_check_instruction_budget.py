@@ -43,7 +43,8 @@ class SyntheticTree(unittest.TestCase):
             report = cib.measure(root)
             bad = cib.failures(report)
         self.assertEqual(len(bad), 2, bad)
-        self.assertIn("always-loaded instruction is 4010 words", bad[0])
+        self.assertIn(
+            f"always-loaded instruction is {cib.ALWAYS_LOADED_BUDGET + 10} words", bad[0])
         self.assertIn(".claude/skills/big/SKILL.md", bad[1])
         self.assertNotIn("small", "\n".join(bad))
 

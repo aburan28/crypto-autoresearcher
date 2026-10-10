@@ -26,6 +26,7 @@ Screening is a Coordinator-run operation, not a file copy.
 | External source | What it holds | Relevance here |
 |---|---|---|
 | `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md` | Six coordinate/orbit alternatives with toy measurements on seven ordinary prime-order groups and two anomalous controls | **Screened external packet.** Five mechanisms map to existing records or known results; the carry-ranked binary branch score is a distinct tested variant with no stable control advantage. H3's matched-random result directly bears on ECDLP-IDEA-110. No IDs allocated. |
+| `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md` | Frozen ECDLP mechanism follow-ups from p-adic cocycles through compact representative and state-fingerprint tables | **Screened external mixed results.** Early cocycle/beam/coordinate successors failed their gates; exact rational-addition structure led back to signed/shifted BSGS. Later capped sketches, nonlinear fingerprints, stopping rules, minimum-ticket representatives, and compact state reuse measured time-memory-validation frontiers on toy curves, including complete recovery, but no new exponent. No IDs allocated. |
 | `ECDLP_MECHANISM_CATALOG.md` | ~111 prime-field mechanisms mined from an external corpus, mapped to R6 / K1 / K2 / Defect-B / CM cells | **Largest unscreened input.** Candidate generation + dedup screening against IDs 001-410 |
 | `LIT_REVIEW_PRIME_FIELD_ECDLP.md` | 23-paper review, 8 field cards, dedup tags | Literature cross-check for `knowledge/literature`; names three untouched gaps: syzygies/Betti, singular loci of the Semaev ideal/variety, and Yokoyama semi-normality (flagged there as the top F_p test) |
 | `ISOGENY_SEMAEV_REVIEW.md`, `isogeny-semaev/` | Four-channel isogeny x Semaev sweep, alpha-stable factor bases, GLV/CM orbit folding, scaling study | Verdict recorded below|
@@ -60,6 +61,139 @@ state.
   variant of published binary division and adjacent to ECDLP-IDEA-034/005, but it
   did not consistently beat a scrambled control. Source:
   `inputs/idea_generation_20261005_coordinate_orbit_non_ic_non_rho.md`.
+- **Five preregistered coordinate/orbit successors also fail their gates.**
+  Four-section p-adic cocycle arithmetic was exact and both Smart controls
+  recovered 96/96 logs, but all six signed/dyadic formulas changed with the
+  section and had 0/7 ordinary-curve support. Separately, scalar-balanced
+  inverse-doubling beams gave W90 exponent estimates 0.731 (height) and 0.621
+  (carry), with upper 99% bounds above 1/2; neither score beat both controls for
+  every generator on any curve. A stricter largest-scalar-bucket diagnostic
+  increased the estimates to 0.970 and 0.938. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+  A third successor sought `f(Q+P)-f(Q)=1` outside explicit exceptions. For
+  `f in L(mO)`, the residual has pole degree at most `2m`, forcing the
+  undercharged bound `d+e >= ceil(r/2)`. All planted controls passed, but no
+  curve beat both matched controls on all four generators (0/7). This closes
+  only the explicit sparse-exception representation, not every compact dense
+  correction rule.
+  Finally, a six-channel block-Hankel successor had exact joint autonomous
+  linear-state dimension `r` on every curve and generator because required
+  scalar channels already had complexity `r`. Both matched controls did too
+  (0/7 strict support), and no sub-square-root state-to-index decoder was
+  supplied. This closes the frozen linear state, not nonlinear models.
+  A fifth successor trained a frozen 172-term coordinate grammar with
+  leave-one-curve-out and scalar holdout. All 28 one-sided 99% lower parity
+  advantages were negative, no generator beat all matched refits, and support
+  was 0/7; recursive peeling was not run. This closes only the frozen grammar,
+  not every mathematically derived generator-covariant predicate.
+- **Structured spectral continuation exposes exact rational-addition structure.**
+  Baby/giant coordinate phases required 78%-93% row rank for 99% energy and
+  matched controls. Denominator clearing then produced an exact rank-four
+  factor for `(x_B-x_A)^2*x(A+B)` and rank-one second Cauchy displacement on
+  all 28 curve/generator cases; shuffled/random outputs returned to full rank.
+  A subsequent exact Gauss expansion was dense: square-root mode budgets kept
+  3%-11% energy with roughly 0.95-0.99 matrix error, while 90% sign accuracy
+  appeared near `p/2` modes. These are external measurements and algebraic
+  identities, not canonical findings or a claimed ECDLP algorithm. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Full-coverage continuation isolates two corrections but target decoding is BSGS.**
+  Direct factor summation and a joint residue/scalar transform were exact, yet
+  tensor ranks matched controls and dense 2D state expanded to 93--895 entries
+  per rectangle cell. A quotient/remainder layout then covered the entire
+  scalar orbit with an exact rank-four character base plus exactly two
+  singular corrections on all 28 cases. Translating the layout by a target
+  recovered all 9,096 toy logs through a guaranteed signed point collision,
+  using square-root labelled baby/giant tables. This is an end-to-end positive
+  control and exact representation, but its decoder is Shanks
+  baby-step/giant-step prior art rather than a new ECDLP method. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Table-free collision aggregates trade memory for work but do not yet improve
+  both.** An exact `F_(p^2)` resultant stream recovered all 9,096 targets with
+  12 working field elements but linear pair work. Hashed two-moment buckets cut
+  query work and reached 99.7%, but required substantially more storage than
+  the original labelled point table; the only sub-table row recovered 3.6%.
+  The label quotient was audited across `F_p` versus scalar order `r` and now
+  emits every integer lift. These are time-memory measurements of the same
+  collision mechanism, not a new generic ECDLP exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Sequential sketches buy collision-table memory with repeated square-root
+  passes.** Capped singleton sketches recovered all 9,096 original targets by
+  16 seeds and all 12,288 larger-order samples by 16 seeds. At fixed sub-cap
+  memory, one-third of H20's coordinate cap reached complete recovery by 256
+  seeds; one-quarter reached 3,065/3,072. An x-coordinate negation quotient
+  validated 171/171 inverse-pair label-sum decodes, recovered 3,069/3,072, and
+  complemented every point-sketch miss. Exact occupancy predictions, controls,
+  and peak-memory accounting are retained. This remains a time-memory variant
+  of signed/shifted BSGS, not a non-generic exponent improvement. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Validation-backed nonlinear x fingerprints reduce one charged resource but
+  retain a multi-resource trade.** Equal-work point/x alternation did not beat
+  either single representation's first complete prefix. A three-element
+  validation-backed pair cell then recovered all 3,072 frozen targets while
+  rejecting 27,429 pair candidates. A keyed quadratic fingerprint reduced
+  total scalar validations by 13.02% but added 396.6 million field
+  multiplications. Fixed one-multiplication fingerprints retained complete
+  recovery; the frozen `x^2+2x` arm used 141,975 validations, 71 fewer than the
+  keyed arm, while charging more additions. Exact scalar-path accounting was
+  nonmonotone across prefixes and failed its strict every-prefix gate. These
+  are toy time-memory-arithmetic frontiers of the same signed/shifted collision
+  mechanism, not evidence of a new ECDLP exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Early stopping and compact representatives improve the measured constants,
+  not the collision exponent.** First-success stopping cut the prior full-scan
+  charges to 3.46%--4.46%. Deliberately nonuniform occupancy then reduced
+  average constructed seeds from 12.21 to 4.70. Minimum-ticket representatives
+  reduced this to 1.95, and a two-field selected-x/label layout to 1.49 while
+  completing all 3,072 targets by eight seeds under the quarter-H20 cap. A
+  two-choice cuckoo layout raised retention to 47.98% and improved early
+  recovery, but did not improve the eight-seed completion prefix; bucket reads
+  rose 76.22% and its strict gate failed. One invalid shuffled-control run is
+  retained alongside the corrected reproduction. These are min-wise/cuckoo
+  time-memory variants of signed/shifted BSGS, with no claimed new primitive or
+  ECDLP exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
+- **Label-only state reuse further trades construction and memory reads for
+  validation work, without changing the square-root collision lineage.** A
+  one-field label table completed all 3,072 targets by six seeds but raised
+  validation work about 70-fold before filtering. Reusing its charged state
+  bits then cut validations 49.23%; a wider state map cut another 43.08% but
+  lost early recovery. Ordered ternary and sentinel-quaternary reuse restored
+  the larger table and cut validations 32.10% and 48.09% relative to the
+  one-bit arm. A decoy-first lookup preserved recovery and validation while
+  bringing combined logical query reads 7.01% below that arm. Sorting,
+  transient storage, sentinel checks, and all failed gates are retained. An
+  audit then replaced inherited harness-only target-scalar seeding with one
+  canonical public target-point derivation; all gates passed, with 3.66% more
+  validations. All eight preregistered public salts completed by seed 6, and a
+  six-equation held-out rerun completed by seed 8. At orders through 524,053,
+  recovery and exposure-normalized reads retained their gates, but absolute
+  validations rose to 314,428--331,137 and failed the frozen bound. A sealed
+  nine-curve decomposition measured validation slopes 0.4365--0.4632 and read
+  slopes 0.4658--0.4961. Same-cap fingerprint widening from three through six
+  bits then repeatedly passed, with the six-bit arm using 55.02%--58.10% of
+  the preceding five-bit validations while retaining all eight completions by
+  seed 6. A seven-bit boundary arm missed its primary gate on one salt, despite
+  passing correctness and operation gates. Two attempts to carry that extra
+  bit in the stored label rank preserved correctness but missed completion or
+  read gates. Jointly selecting the existing sentinel as the public stream
+  offset removed that loss: all eight salts completed by seed 6, validations
+  and operations were 56.55%--59.17% and 56.37%--58.96% of the matched six-bit
+  arm, and reads were exactly unchanged. Its held-out transfer preserved
+  correctness, recovery, layout, and reads but missed completion, validation,
+  and operation gates. Packing the label field's full unused radix with an
+  independently mixed public tag then passed every held-out and scaling gate.
+  On six 2K--64K curves it used 41.08%--43.16% of paired six-bit validations;
+  on 128K--512K curves that fell to 15.60%--16.88%, with exact reads and
+  recovery and 361--723 tag states. Replacing SplitMix64 with `x mod
+  tag_states` preserved every recovery/read/layout outcome and gave replicated
+  1.065--1.066x reduced end-to-end Python timing ratios. Low-bit power-of-two
+  tags also preserved the full protocol. Per-call mask derivation was about
+  21% slower than modulo; precomputing it was about 10% faster in isolation,
+  but two integrated decoder runs failed their timing gate despite fewer
+  charged validations and group operations. These are compact-hash
+  representation measurements of signed/shifted BSGS, not a new ECDLP
+  exponent. Source:
+  `inputs/idea_generation_20261006_padic_cocycle_beam_followups.md`.
 - **GLV/CM orbit folding is a bounded constant, not a scaling win.** Measured
   `save_IC ~ 3-6`, **flat** across p ~ 2^12..2^24 for all five tested
   D = 5 mod 8 discriminants. An earlier apparent **~30x** seed-efficiency was a

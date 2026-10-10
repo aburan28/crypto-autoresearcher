@@ -96,18 +96,31 @@ review, and synthesis.
      `KN-TECH`).
    - If nothing is promoted, record why in `knowledge_promotion.
      not_warranted` — one concrete line, not "n/a".
-4. The Coordinator runs an isolated ledger archive task after every required
-   review. It commits the review reports, analysis, evidence record, decision
-   record, and any hypothesis or knowledge update by exact path. The official
+4. Write the decision report (`research-visuals`, "Every evidence review";
+   `.claude/skills/research-visuals/SKILL.md`): in
+   `experiments/<EXP-ID>/reports/review-<DEC-ID>/`, the decision, evidence
+   strength, claim tier and exact scoped claim with the IDs they rest on, at
+   least one graph of the quantities the decision rests on (units, sample
+   sizes, uncertainty, run IDs) against the declared prediction, threshold or
+   control, and its `report.pdf`, rendered and inspected. Refresh every
+   canonical graph the decision changes and list the ones checked and left
+   unchanged. The coordinator subagent has no shell: it writes the report
+   source and graph data; this session renders the graphs and the PDF. Link
+   the experiment's earlier run reports (`reports/run-*/`).
+5. The Coordinator runs an isolated ledger archive task after every required
+   review. It commits the review reports, the decision report with its graphs
+   and PDF, analysis, evidence record, decision record, any refreshed canonical
+   graph, and any hypothesis or knowledge update by exact path. The official
    transition is blocked until the dispatcher verifies that commit's parent,
    diff, record IDs, and file hashes.
-5. Push the branch and open or refresh a PR against `main` naming the new
+6. Push the branch and open or refresh a PR against `main` naming the new
    `EV-*`/`DEC-*`/`KN-*` records (see "Branch and PR hygiene"). An evidence
    or decision record that exists only in a local commit has not been made
    official — it is unpublished.
-6. Report to the user: the decision, the evidence strength, the exact scoped
+7. Report to the user: the decision, the evidence strength, the exact scoped
    claim the data justify (use the negative-result phrasing rules from
-   `docs/evidence-and-reproducibility.md`), and the next actions.
+   `docs/evidence-and-reproducibility.md`), the next actions, and the path to
+   the decision report's PDF.
 
 ## Branch and PR hygiene
 
@@ -148,3 +161,6 @@ pulls in `main` and surfaces the decision as a PR:
 - A decision record with an unfilled `knowledge_promotion` field is
   incomplete: proven results that never reach `knowledge/findings/` are lost
   to future ideation and novelty checks.
+- A review without its decision report, graph and PDF is incomplete. If no
+  renderer can be installed, archive the report source and graphs and state
+  the blocker; never present an older PDF as current.

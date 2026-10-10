@@ -94,6 +94,9 @@ protocol is complete. Do not ask the user to pick or confirm each idea.
    - run isolated snapshot then ledger archives; verify the Git receipt
      before treating a record as official;
    - fill `knowledge_promotion` on every evidence-review decision;
+   - leave a decision report with its graph and PDF on every evidence-review
+     decision, and refresh the canonical graphs it changes, in the same
+     ledger archive (`research-visuals`, "Every evidence review");
    - record impediments on an **active** goal — never `paused` or `blocked`.
 6. **Publish.** After every archive that adds `GOAL-*` / `RQ-*` / `IDEA-*` /
    `H-*` / `EXP-*` / `EV-*` / `DEC-*` / `TASK-*` / `KN-*` records: push the
