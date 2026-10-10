@@ -238,6 +238,7 @@ def enumerate_box(field: dict, A: list[int], B: list[int], X: int, p: int, a: in
     d = field["d"]
     m = field["m"]
     hits = []  # (rung, residue)
+    hit_vectors = []
     tests_hist = {}
     if d == 1:
         half = (W_target - 1) // 2 if W_target else X
@@ -269,8 +270,8 @@ def enumerate_box(field: dict, A: list[int], B: list[int], X: int, p: int, a: in
             membership_fail += 1
             continue
         hits.append((rung_of(vec), rho))
-    rungs = sorted(set(r for r, _ in hits))
-    return {"candidates": count, "hits": hits, "reverify_fail": reverify_fail,
+        hit_vectors.append(list(vec))
+    return {"candidates": count, "hits": hits, "hit_vectors": hit_vectors, "reverify_fail": reverify_fail,
             "membership_fail": membership_fail, "decisive_tests_hist": tests_hist}
 
 
@@ -345,6 +346,8 @@ def run_cell(d: int, bits: int, seed: int, X_list: list[int], curves: int) -> di
                 res = enumerate_box(field, A, B, X_max, P, aa, bb)
             stats = ladder_stats(res["hits"], field["d"], sorted(X_list), W_of)
             crow["arms"][arm] = {"A": A, "B": B, "candidates": res["candidates"],
+                                 "hits": res["hits"], "hit_vectors": res["hit_vectors"],
+                                 "X_max": X_max, "field_f": field["f"], "field_m": field["m"], "field_p": P,
                                  "reverify_fail": res["reverify_fail"],
                                  "membership_fail": res["membership_fail"],
                                  "decisive_tests_hist": res["decisive_tests_hist"],
@@ -394,7 +397,8 @@ def degree_ladder(seed: int, X_list: list[int], curves: int, W_cap: int) -> dict
             A, B = lift_coeff(a, field), lift_coeff(b, field)
             res = enumerate_box(field, A, B, max(Xs), p, a, b)
             stats = ladder_stats(res["hits"], d, Xs, lambda X, dd=d: (2 * X + 1) ** dd)
-            cell["curves"].append({"a": a, "b": b, "candidates": res["candidates"], "ladder": stats,
+            cell["curves"].append({"a": a, "b": b, "A": A, "B": B, "candidates": res["candidates"], "ladder": stats,
+                                   "hits": res["hits"], "hit_vectors": res["hit_vectors"],
                                    "reverify_fail": res["reverify_fail"], "membership_fail": res["membership_fail"]})
         out["cells"].append(cell)
         print(f"degree ladder d={d} done", file=sys.stderr, flush=True)

@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 8096 |
-| — with a resolvable external identifier | 2482 |
+| Literature entries (`KN-LIT-*`) | 8098 |
+| — with a resolvable external identifier | 2484 |
 | — with no identifier recorded | 5614 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 832, url 127. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 181, eprint 834, url 127. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7523, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
+`citation_verified` distribution: `False` 23, `True` 10, `abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page)` 1, `abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check)` 1, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7523, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 524.
 
 ## 1. Frozen source packages
 
@@ -225,7 +225,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2482 of 8096 `KN-LIT-*` entries carry an
+2484 of 8098 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1055,6 +1055,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-1622 | DISTORTION MAPS FOR ELLIPTIC CURVES OVER FINITE FIELDS arXiv:2601.09904v1 [math.NT] 14 Jan 2026 NIKITA ANDRUSOV, SEVAG BÜYÜKSIMKEŞYAN, DIMITRIOS NOULAS, FABIEN PAZUKI | 2026 | `arxiv:2601.09904` | read |
 | KN-LIT-1623 | Distributed Simon’s Algorithm with Less | 2026 | `eprint:2026/1001` | read |
 | KN-LIT-1624 | DISTRIBUTION OF SELMER RANKS IN PRIME CYCLIC EXTENSIONS | 2026 | `arxiv:2607.01126` | read |
+| KN-LIT-1624b6 | The Special Number Field Sieve in F_{p^n}: Application to Pairing-Friendly Constructions | 2013 | `eprint:2013/582` | abstract and bibliographic data fetched from eprint.iacr.org (landing page) and link.springer.com (chapter page) on 2026-10-10; PDF not retrieved (eprint.iacr.org/2013/582.pdf returned HTTP 403; HAL hal-01213666 has no file; no PDF on either author's publication page) |
 | KN-LIT-1625 | Distributions of Iwasawa λ-invariants of Zp -towers over supersingular isogeny graphs | 2026 | `arxiv:2605.23184` | read |
 | KN-LIT-1626 | DIVISIBILITY BIASES IN THE ORDERS OF ELLIPTIC CURVE REDUCTIONS | 2026 | `arxiv:2606.25067` | read |
 | KN-LIT-1627 | Doubly Aggregatable Signatures | 2026 | `eprint:2026/1042` | read |
@@ -1584,6 +1585,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-305 | Adaptive Pseudo-Free Groups and Applications | 2011 | `eprint:2011/053` | read |
 | KN-LIT-3054 | Computing Hasse–Witt matrices of hyperelliptic curves in |  | `doi:10.1090/conm/663/13352` | read |
 | KN-LIT-306 | AN ALGEBRAIC SATO-TATE GROUP AND SATO-TATE CONJECTURE | 2011 | `arxiv:1109.4449` | read |
+| KN-LIT-30605a | Updating Key Size Estimations for Pairings | 2019 | `eprint:2017/334` | abstract fetched from eprint.iacr.org on 2026-10-10; body figures taken from the Journal of Cryptology HTML full text at link.springer.com (doi 10.1007/s00145-018-9280-5) and its table pages /tables/8, /tables/9, /tables/10 via the fetch tool on 2026-10-10; no PDF retrieved (eprint PDF HTTP 403, HAL hal-01534101 blocked by a bot check) |
 | KN-LIT-307 | AVERAGE FROBENIUS DISTRIBUTION FOR THE DEGREE TWO PRIMES OF A NUMBER FIELD | 2011 | `arxiv:1109.4007` | read |
 | KN-LIT-308 | Caractère d’isogénie et critères d’irréductibilité Agnès David Laboratoire de mathématiques de Versailles Université de Versailles Saint-Quentin-en-Yvelines | 2011 | `arxiv:1103.3892` | read |
 | KN-LIT-309 | Computing endomorphism rings of elliptic curves under the GRH arXiv:1101.4323v2 [math.NT] 14 Feb 2011 Gaetan Bisson | 2011 | `arxiv:1101.4323` | read |
