@@ -1,0 +1,295 @@
+# =============================================================================
+# EXP-FROB-0688a8 — version 1, approved by DEC-20261006-9d9a8c.
+# Frozen square-test for IDEA-20261005-903ce8. The curve is
+# y^2 = x^3 + x + 1 over F_5. The prediction is exactly 27 points over
+# F_25. Any other count is a negative.
+# No ECDLP exponent. No run in this design.
+# The source idea is on origin/design/pair-3a18d1-hcp and is not copied.
+# =============================================================================
+experiment:
+  id: EXP-FROB-0688a8
+  hypothesis_id: H-FROB-d1e512
+  question_id: RQ-FROB-7d8dd4
+  source_idea: IDEA-20261005-903ce8
+  goal_id: null
+  version: 1
+  title: >-
+    Square-test point count of y^2 = x^3 + x + 1 over F_25, predicted 27
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    approved_by_role: coordinator
+    composing_decision: DEC-20261006-9d9a8c
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06: "all is
+      approved. ideas/experiments should be always approved") because every
+      field the design protocol requires is non-null. Approval does not assert
+      that the count is 27, does not assert an ECDLP exponent improvement, and
+      does not assert that the count was observed.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide the square-test count of E: y^2 = x^3 + x + 1 over F_25.
+    Success is exactly 27 points, including the point at infinity, with
+    the controls passing. Any other count of E(F_25) is a negative, so
+    success can fail.
+
+  inputs:
+    curve:
+      equation: y^2 = x^3 + x + 1
+      field: F_5
+      coefficients: [1, 1]
+    nearby:
+      equation: y^2 = x^3 + x + 2
+      role: different equation, not a copy of E
+    extension:
+      name: F_25
+      construction: F_5[z]/(z^2 - 2)
+      basis: a + b*z with a, b in {0, 1, 2, 3, 4}, a varying fastest
+    infinity: one point, always counted
+    square_test:
+      rule: >-
+        A field element c is a square when there exists y in the same
+        field with y^2 = c. If c = 0, the affine fibre has one point.
+        If c is a nonzero square, the affine fibre has two points.
+        Otherwise the affine fibre is empty. Add one for infinity.
+      method_A: >-
+        Square every field element, store the set of squares, then for
+        each x evaluate the right-hand side and apply the fibre rule.
+      method_B: >-
+        For every pair (x, y) test the equation and count the solutions,
+        then add one for infinity.
+      agreement: the two methods must return the same integer
+    forbidden_counter: >-
+      Do not replace the square test by the identity
+      trace(pi^2) = t^2 - 2q or by the formula q^2 + 1 - (t^2 - 2q).
+      That identity is the source of the prediction. An implementation
+      that substitutes it is invalid and is rerun.
+    pre_registered:
+      E_over_F_5: 9
+      E_over_F_25: 27
+      nearby_over_F_5: 4
+      nearby_over_F_25: 32
+    identity_before_count: >-
+      Before any curve is counted, list the squares of F_5. They must
+      be exactly {0, 1, 4}. The element 2 must be absent. If 2 is a
+      square, z^2 - 2 does not define F_25 and the run is invalid.
+    seeds: [0]
+    enumeration_order: >-
+      Seed 0 names the modulus z^2 - 2 and the lexicographic order
+      above. It is not a pseudorandom draw.
+    forbidden:
+      - Do not claim an ECDLP exponent improvement.
+      - Do not build a factor base or call a summation polynomial.
+      - Do not apply an isomorphism before the count.
+      - Do not omit the point at infinity.
+      - Do not copy the nearby count from E.
+
+  controls:
+    - id: modulus
+      statement: Squares in F_5 are exactly {0, 1, 4}, so 2 is not a square.
+      pass_condition: the set equality holds before any curve count
+      on_fail: The run is invalid. No point count is read.
+    - id: two-methods
+      statement: Method A and method B return the same integer on each of the four counts.
+      pass_condition: four agreements
+      on_fail: The instrument disagrees with itself. The run is invalid. No count is read as the prediction.
+    - id: nearby-not-27
+      statement: The nearby curve over F_25 does not return 27.
+      pass_condition: the agreed nearby F_25 count is not 27
+      on_fail: >-
+        The instrument cannot tell the two equations apart. The run is
+        invalid. The count of E is not scored.
+    - id: supporting-integers
+      statement: >-
+        E(F_5) is 9, the nearby curve over F_5 is 4, and the nearby
+        curve over F_25 is 32.
+      pass_condition: all three agreed counts match
+      on_fail: >-
+        A control integer failed. If E(F_25) is 27 this is not success.
+        If E(F_25) is not 27 the primary negative already holds.
+
+  independent_variables:
+    - the equation, E or the nearby curve
+    - the field, F_5 or F_25
+    - the square-test method, A or B
+
+  metrics:
+    primary:
+      - id: enumerated_point_count_of_E_over_F_25
+        statement: >-
+          The agreed square-test count of y^2 = x^3 + x + 1 over F_25,
+          including infinity. The prediction is 27. Any other integer
+          is the negative.
+    secondary:
+      - id: enumerated_point_count_of_E_over_F_5
+        statement: Agreed count of E over F_5. Pre-registered value 9.
+      - id: enumerated_point_count_of_nearby_curve_over_F_5
+        statement: Agreed count of y^2 = x^3 + x + 2 over F_5. Pre-registered value 4.
+      - id: enumerated_point_count_of_nearby_curve_over_F_25
+        statement: Agreed count of the nearby curve over F_25. Pre-registered value 32. The value 27 fails the nearby-not-27 control.
+      - id: method_agreement
+        statement: Boolean agreement of methods A and B on each of the four counts.
+      - id: squares_in_F_5
+        statement: The set of squares, recorded before any curve count.
+
+  heuristic_under_test: H1
+  heuristic_under_test_note: >-
+    H1 is the trace-of-pi-squared identity that writes the count 27.
+    A square-test count other than 27 falsifies it on this equation.
+    The identity is not the counter.
+
+  preregistered_prediction:
+    quantity: >-
+      The number of points of y^2 = x^3 + x + 1 over F_25, including
+      the point at infinity.
+    formula: >-
+      The count equals 27. Any other integer is the negative. The
+      formula that motivates 27 is 25 + 1 - (t^2 - 2*5) with t = -3,
+      which equals 25 + 1 - (-1). That formula is not evaluated as
+      the count.
+    source: >-
+      Copied from IDEA-20261005-903ce8 before any run of
+      EXP-FROB-0688a8. The Cayley-Hamilton step is the one written in
+      that proposal. No paper beyond the opened frontier rows is cited
+      as the source of the integer 27.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested object is one curve over F_5, counted over F_25.
+      A result here is not a result at cryptographic size and not an
+      exponent. No extrapolation is authorized.
+    correspondence: >-
+      Direct enumeration of two fields, of 5 and 25 elements. No
+      Deuring correspondence is used.
+
+  tail_checks:
+    - >-
+      There is no smoothness tail. The extreme check is the four
+      counts themselves. A single disagreement between method A and
+      method B already makes the run invalid. One count of E(F_25)
+      other than 27 is already the negative.
+
+  replication:
+    seeds:
+      - name: lex-basis
+        algorithm: modulus z^2 - 2 and lexicographic basis order in inputs
+        seed: [0]
+        note: >-
+          One exhaustive pass by two methods. Adding another scientific
+          field is a protocol amendment. Seed 0 does not draw a sample.
+    independent_instances: 1
+    independent_instances_note: >-
+      One curve. The nearby equation is a control, not a second copy
+      of the prediction 27. Methods A and B are two implementations of
+      one count.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 120
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). They do not change the fields
+      or the integer 27. maximum_runs is 2 so one infrastructure retry
+      may take a new run id. Watch expiry is failed_infrastructure,
+      never a negative mathematical result.
+
+  procedure:
+    identities: >-
+      List the squares of F_5. Stop as invalid unless they are
+      {0, 1, 4}.
+    counts: >-
+      For each of the two equations and each of the two fields, run
+      method A and method B. Record both integers and whether they
+      agree. Do not emit a verdict from a single method.
+    mechanism_assignment:
+      - observation: >-
+          The modulus identity holds, methods A and B agree on all
+          four counts, the nearby F_25 count is not 27, E(F_5) is 9,
+          the nearby F_5 count is 4, the nearby F_25 count is 32, and
+          E(F_25) is 27.
+        assigns_to: >-
+          The prediction holds on this equation. This is not an
+          exponent and not a factor base.
+      - observation: >-
+          The modulus identity holds, methods A and B agree, the
+          nearby F_25 count is not 27, and E(F_25) is an integer
+          other than 27.
+        assigns_to: >-
+          Negative. The square-test count is not 27. Success does not
+          hold. The observed integer is the datum.
+      - observation: >-
+          The modulus identity holds, methods A and B agree, E(F_25)
+          is 27, and at least one of the counts 9, 4, or 32 fails,
+          with the nearby F_25 count still not equal to 27.
+        assigns_to: >-
+          Not success. The prediction 27 held and a control integer
+          failed. Report the four integers. Do not call this the
+          primary negative.
+      - observation: >-
+          The squares of F_5 are not {0, 1, 4}, the two methods
+          disagree, the nearby F_25 count is 27, infinity was omitted,
+          or the trace recurrence was used as the counter.
+        assigns_to: >-
+          Invalid. Not evidence for either reading of the integer 27.
+      - observation: >-
+          The watch expires, a dependency is missing, or the process crashes.
+        assigns_to: >-
+          failed_infrastructure. Not evidence.
+
+  stopping_rules:
+    - Stop when all four agreed counts are recorded, or when an invalid row fires.
+    - Do not add another curve, another extension, or a factor base.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing dependency is failed_infrastructure and is not evidence against the hypothesis.
+    - Using the trace recurrence as the counter invalidates the run.
+    - Omitting the point at infinity invalidates the run.
+    - Scoring E(F_25) when methods A and B disagree, or when the nearby curve also returned 27, invalidates the run.
+    - Reporting success when E(F_25) is not 27 invalidates the run.
+
+  success_criterion: >-
+    The run is a success for the prediction exactly when the first row
+    of mechanism_assignment holds: the square-test count of
+    y^2 = x^3 + x + 1 over F_25 is 27. Any other completed assignment
+    is not this success. The second row is a negative, so success can
+    fail.
+
+  falsification_criterion: >-
+    The prediction is falsified when the second row holds: the agreed
+    square-test count of E(F_25) is an integer other than 27. The
+    third row does not falsify 27. The fourth and fifth rows falsify
+    nothing.
+
+  required_artifacts:
+    - experiments/EXP-FROB-0688a8/runs/RUN-*/manifest.yaml
+    - experiments/EXP-FROB-0688a8/runs/RUN-*/stdout.txt
+    - experiments/EXP-FROB-0688a8/runs/RUN-*/stderr.txt
+    - experiments/EXP-FROB-0688a8/runs/RUN-*/raw-result.json
+    - experiments/EXP-FROB-0688a8/runs/RUN-*/verdict.yaml
+  artifact_contents:
+    raw-result.json: >-
+      The set of squares in F_5, and for each equation and each field
+      the method A count, the method B count, and whether they agree.
+    verdict.yaml: >-
+      Exactly one assignment row from mechanism_assignment, or
+      failed_infrastructure with a reason. The verdict quotes the row.
+      It does not change hypothesis status. It does not claim an exponent.
+
+  assigned_to: executor
+  zero_runs_in_design: true
