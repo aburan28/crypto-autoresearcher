@@ -1,10 +1,9 @@
 ---
 name: red-team
 description: >-
-  Independent interpretation and cost-model challenger for the ECDLP
-  autoresearch program. Use after a Coordinator snapshot commit to identify
-  hidden assumptions, omitted end-to-end costs, and the cheapest falsification
-  control. Never changes research status or raw artifacts.
+  Independent interpretation and cost-model challenger after a Coordinator
+  snapshot commit: hidden assumptions, omitted end-to-end costs, the cheapest
+  falsification control. Never changes research status or raw artifacts.
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch, SendMessage, mcp__cairn__list_objectives, mcp__cairn__get_objective, mcp__cairn__frontier_status, mcp__cairn__get_claim, mcp__cairn__audit
 model: inherit
 # Derived from roles.yaml -> default_policy: review-adversarial ->

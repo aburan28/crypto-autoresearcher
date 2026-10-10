@@ -11,24 +11,15 @@ form of this file is kept, unchanged, at
 
 ## What is Claude Code specific
 
-- **Subagents** live in `.claude/agents/` and are generated from
-  `agents/*.md` by `tools/generate_runtime_agents.py`: seven roles (the
-  newest, `idea-synthesist`, is Claude Code only) plus three policy-tier
-  variants (`executor-mechanical`, `validator-breakthrough`,
-  `red-team-breakthrough`). Subagents keep `model: inherit` except the roles
-  in `runtime_model_pins` (`orchestration/roles.yaml`), which name their
-  policy's `anthropic` binding; never hand-edit either. The session default
-  is `claude-opus-5-5` (`.claude/settings.json`); `--model` and
-  `adapter env --runtime claude_code --role <role>` override it. Each file's
-  `effort:` is derived from its role's policy (`orchestration/roles.yaml` →
-  `orchestration/model-policies.yaml`), never edited by hand; `tools/check_runtime_bindings.py` fails the build on
-  drift and `--list` shows where each role's effort comes from.
-- **Skills** are in `.claude/skills/`: `run` (execution only), `coordinate`
-  (rank, approve, dispatch, archive, publish; never runs trials),
-  `propose-ideas`, `design-experiment`, `review-evidence`,
-  `research-status`, `deep-research`, `curate-knowledge`, `agent-bus`,
-  `consolidate-lanes`, `tune-skill`, `research-visuals`. Every skill ends by
-  writing a session receipt (`docs/session-receipts.md`).
+- **Subagents** live in `.claude/agents/`: seven roles plus three policy-tier
+  variants. Their tools, model pins and `effort:` come from
+  `orchestration/roles.yaml` and `orchestration/model-policies.yaml`, never
+  hand edits; `tools/check_runtime_bindings.py` fails the build on drift and
+  `--list` shows each role's source. The session default is `claude-opus-5-5`
+  (`.claude/settings.json`).
+- **Skills** are in `.claude/skills/`; `run` is the only execution skill and
+  `coordinate` never runs trials. Every skill ends by writing a session
+  receipt (`docs/session-receipts.md`).
 - **Retrieval**: `.mcp.json` starts the read-only `kb/` server with a
   relative `--directory`; machine settings go in `kb/.env`. The index is
   derived and starts empty (`make -C kb qdrant-up`, `crypto-kb stage-repo .`,

@@ -1,6 +1,13 @@
 ---
 name: transfer
-description: Assess supplied lifts, descents, field extensions, isogenies, curve covers, Jacobian correspondences, and decomposition representations. Use for mathematical transfer assessments, subgroup-preservation audits, and checking claims that changing algebraic objects makes a problem easier. Use when asked to evaluate whether moving a problem to another curve, field, or Jacobian helps; audit a supplied map; assess a cover or descent claim; compare representation costs; or specify evidence for a claimed speedup. Produce explicit certificates, cost accounting, controls, and open obligations.
+description: >-
+  Assess lifts, descents, field extensions, isogenies, curve covers, Jacobian
+  correspondences and decompositions: does moving the problem to another
+  curve, field or Jacobian make it easier? Use to audit a supplied map, a
+  cover or descent claim, subgroup preservation, representation costs or a
+  claimed speedup. Produces certificates, cost accounting, controls and open
+  obligations.
+
 ---
 
 # Assess mathematical transfers
