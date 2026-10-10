@@ -2849,9 +2849,13 @@ def check_approval_capacity(ctx: Ctx) -> None:
                 released.update(str(x) for x in raw)
         targets = [str(t) for t in (body.get("target_ids") or [])
                    if str(t).startswith("EXP-")]
+        # A target that already has runs is a continuation of an approved
+        # contract, not a new approval; it adds nothing to the unrun backlog
+        # (user ruling 2026-10-09; DEC-20261009-ff58fe).
         approved_here = {t for t in targets
                          if ctx.record_types.get(t) == "experiment"
-                         and ctx.records[t].get("status") == "approved"}
+                         and ctx.records[t].get("status") == "approved"
+                         and not _experiment_has_runs(t, ctx)}
         for exp_id in sorted(approved_here):
             goal = _goal_of(exp_id, ctx.records[exp_id])
             standing = backlog.get(goal, set()) - approved_here - released

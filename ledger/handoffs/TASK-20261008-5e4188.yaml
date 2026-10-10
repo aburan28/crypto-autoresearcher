@@ -1,0 +1,215 @@
+# =============================================================================
+# TASK-20261008-5e4188 -- Coordinator-only SNAPSHOT ARCHIVE that SEALS the
+# report of TASK-20261008-e2830e (blind adjudication; EXP-PFDR-0b3699), as
+# DEC-20261008-8cb005 PD-3 and the e2830e card's archived_by_rule require.
+#   - archives_tasks: TASK-20261008-e2830e.
+#   - artifact_paths: exactly e2830e's four, plus this receipt.
+#   - Runs ALONE, after this card is ledger-committed by
+#     TASK-20261008-733066.
+#   - Mechanical only. No content, verdict or number of the report enters
+#     the receipt, the commit message or the PR text, and no Coordinator
+#     ruling reads the report before this receipt verifies.
+# Fail-fast; receipt in the same commit; binding content_at_commit.
+# =============================================================================
+handoff:
+  id: TASK-20261008-5e4188
+  id_provenance: >-
+    Minted by the top-level session with tools/allocate_id.py and confirmed
+    free with --check, then supplied to this Coordinator. The Coordinator has
+    no shell and minted no identifier.
+  created_at: '2026-10-08'
+  created_by: coordinator
+  from: coordinator
+  to: coordinator
+  performed_by: the top-level session (Coordinator-only archival task; runs alone)
+  status: written_not_dispatched
+  archive_kind: snapshot
+  receipt_binding: content_at_commit
+  goal_id: null
+  batch_id: null
+  review_plan_id: null
+  experiment_id: EXP-PFDR-0b3699
+  hypothesis_id: H-PFDR-2765d2
+  question_id: RQ-PFDR-ae2fba
+  authorised_by: DEC-20261008-8cb005 PD-3; TASK-20261008-e2830e archived_by_rule
+  archives_tasks: [TASK-20261008-e2830e]
+  review_required: false
+  title: Sealing snapshot archive of the TASK-20261008-e2830e adjudication report, as produced
+  objective: >-
+    Commit, alone and by exact path, every artifact TASK-20261008-e2830e
+    produced, exactly as returned, so that the report is content-bound before
+    any Coordinator ruling reads it. Nothing is read for meaning, summarised
+    or judged.
+  uncertainty_reduced: >-
+    None scientific. It establishes whether the adjudication report is
+    complete and hash-bound, whether the adjudicator wrote only inside its
+    write_scope, and whether the archived run package and ledger records
+    were left unchanged by it.
+  inputs:
+    - ledger/handoffs/TASK-20261008-e2830e.yaml (its artifact_paths and write_scope are this card's scope)
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261008-5ea531/snapshot-receipt.json (the package; must still verify)
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261008-13dfad/ledger-receipt.json
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261008-7457ec/ledger-receipt.json
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261008-733066/ledger-receipt.json (commits this card)
+  constraints:
+    - >-
+      RUN ALONE. Run only after all of the following:
+      - TASK-20261008-e2830e has returned and its session has ended;
+      - its claim is released (MSG-20261008-3baf6b, commit d92759a4d);
+      - the TASK-20261008-733066 receipt has verified and the branch is
+        pushed.
+      No other archival task is running, and no agent is writing under
+      coordination/review/pfdr-0b3699-pdi-20261008/.
+    - >-
+      NO READING FOR MEANING. The top-level session hashes, sizes, lists and
+      parses files, and compares one hash string (check (d)). It records no
+      verdict, number, quotation or summary of the report in the receipt,
+      the commit message, the PR text or any message. A file's content is
+      used only in the mechanical ways named here.
+    - >-
+      ORDER.
+      (1) git diff --cached --name-only is empty.
+      (2) git fetch, then merge origin/main (merge, never rebase). Record the
+          base commit checked and the outcome. A conflict inside a record,
+          report or run artifact is a STOP.
+      (3) Run checks (a) to (f), then stage, commit, verify, push and refresh
+          the PR.
+    - >-
+      FAIL-FAST AND RECEIPT IN THE SAME COMMIT. Every command block runs with
+      set -euo pipefail, or with an explicit exit check after every command.
+      The receipt's path list is computed, BEFORE staging, from the files
+      that exist at or under this card's artifact_paths, never from git
+      status. The receipt is written self-neutral, parsed and staged before
+      the commit, and committed in the same commit. If any step after staging
+      fails, nothing is committed. Check scripts write only to absolute
+      scratch paths.
+    - >-
+      PRE-STAGING CHECKS, WITHOUT EDITING.
+      (a) CUSTODY. Each of the TASK-20261008-5ea531, -13dfad, -7457ec and
+      -733066 receipts verifies with tools/research_dispatch.py
+      (content_at_commit). Every path the 5ea531 receipt binds still has its
+      path_sha256, which shows the adjudicator left the run package
+      unchanged. Any mismatch is a STOP.
+      (b) SCOPE. git status --porcelain --untracked-files=all shows only
+      files at or under
+      coordination/review/pfdr-0b3699-pdi-20261008/TASK-20261008-e2830e/, and
+      every one of them lies at or under one of this card's first four
+      artifact_paths. Each of the following is a scope_finding and a STOP,
+      and is reported, not staged and not deleted:
+      - any other working-tree entry;
+      - a file in the task directory outside the four artifact_paths;
+      - a __pycache__ or .pyc file anywhere under coordination/review/.
+      (c) PRESENCE. b0-blind-reading.yaml, b0-seal.txt and adjudication.yaml
+      exist, and attacks/ exists and is non-empty. A missing expected path is
+      recorded, never invented, and is a STOP.
+      (d) MECHANICAL INTEGRITY. Record-only, never a STOP:
+      - the file count, the total bytes, and the sha256 and size of every
+        file;
+      - whether b0-blind-reading.yaml and adjudication.yaml each parse with
+        yaml.safe_load (true or false);
+      - b0_seal_match: whether the sha256 of b0-blind-reading.yaml occurs as
+        a substring of b0-seal.txt (true or false);
+      - the first ISO-8601 timestamp that occurs in b0-seal.txt;
+      - the earliest and latest file mtime in the task directory.
+      (e) VALIDATORS. Run tools/validate_ledger.py and
+      tools/check_merge_hygiene.py on the merged head. Record the exit codes
+      and line counts, and confirm that the only error lines naming any
+      EXP-PFDR-0b3699 path are the three DEF-1 known_defect_lines
+      (DEC-20261008-8cb005). Any line naming a path this task stages, and any
+      hygiene failure naming one, is a STOP.
+      (f) SIZE. No staged file exceeds 95 MB. Record the total staged bytes.
+      Any other mismatch or failure in (a), (b), (c), (e) or (f) is a STOP. It
+      goes to a Coordinator decision, it is never fixed by editing a file,
+      and the archive never proceeds past a STOP on its own reading.
+    - >-
+      STAGE ONLY the files at or under the first four artifact_paths, plus
+      this card's receipt, one by one, with literal pathspecs; git add -A is
+      forbidden. Never stage a ledger record, package file, shared tool file,
+      or scratch file.
+    - >-
+      One commit, containing the report files and the receipt. Its message
+      names TASK-20261008-5e4188, TASK-20261008-e2830e, DEC-20261008-8cb005,
+      EXP-PFDR-0b3699 and H-PFDR-2765d2, and carries no verdict, number or
+      quotation. A suitable message is "snapshot(TASK-20261008-5e4188): seal
+      TASK-20261008-e2830e adjudication report as returned
+      (DEC-20261008-8cb005 PD-3; EXP-PFDR-0b3699; H-PFDR-2765d2)", followed by
+      the session's attribution lines.
+      Verify the receipt with tools/research_dispatch.py. Push, and refresh
+      PR #2008 (or the open PR for this branch) naming the same ids. The PR's
+      ledger gate is expected to stay red on exactly the three DEF-1 lines
+      (HU-4). Never re-run, skip or work around a check, and never merge a
+      red head.
+    - No hypothesis, experiment, evidence or goal status changes; nothing under ledger/hypotheses/ is touched.
+    - Never select a provider, backend, endpoint or model identifier containing Bedrock.
+  deliverables:
+    - one snapshot commit containing exactly the report files and the receipt
+    - >-
+      coordination/design/TASK-20260928-102217/archives/TASK-20261008-5e4188/snapshot-receipt.json.
+      It records:
+      - kind snapshot and binding content_at_commit;
+      - archives_tasks;
+      - the base commit and the merge outcome;
+      - the commit sha and parent (self-neutral where the verifier requires);
+      - path_sha256 for every staged path;
+      - checks (a) to (f), including the record-only (d);
+      - record_ids;
+      - scope_findings and the verifier result.
+    - the pushed branch and the refreshed PR
+  artifact_paths:
+    - coordination/review/pfdr-0b3699-pdi-20261008/TASK-20261008-e2830e/b0-blind-reading.yaml
+    - coordination/review/pfdr-0b3699-pdi-20261008/TASK-20261008-e2830e/b0-seal.txt
+    - coordination/review/pfdr-0b3699-pdi-20261008/TASK-20261008-e2830e/adjudication.yaml
+    - coordination/review/pfdr-0b3699-pdi-20261008/TASK-20261008-e2830e/attacks/
+    - coordination/design/TASK-20260928-102217/archives/TASK-20261008-5e4188/snapshot-receipt.json
+  artifact_paths_note: The first four are exactly TASK-20261008-e2830e's artifact_paths; the fifth is this card's receipt.
+  receipt_path: coordination/design/TASK-20260928-102217/archives/TASK-20261008-5e4188/snapshot-receipt.json
+  archived_by: TASK-20261008-5e4188
+  archived_by_note: >-
+    This archival task owns its own receipt. The card itself is committed
+    beforehand by TASK-20261008-733066.
+  archive:
+    kind: snapshot
+    source_task_ids: [TASK-20261008-e2830e]
+    record_ids:
+      - TASK-20261008-e2830e
+      - DEC-20261008-8cb005
+      - EXP-PFDR-0b3699
+      - H-PFDR-2765d2
+    binding_mode: content_at_commit
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 3600
+    wall_clock_note: watchdog for custody of four receipts, scope, presence, integrity, validators, one commit, verification and push; expiry is a checkpoint, not a result
+    memory_gb: 2
+    maximum_runs: 0
+  completion_gate:
+    - checks (a), (b), (c), (e) and (f) pass and (d) is recorded; or the task stopped without committing and reported each mismatch
+    - the commit changes exactly the report files at or under the four artifact_paths plus the receipt; the receipt is in the same commit
+    - tools/research_dispatch.py verifies the receipt (content_at_commit)
+    - the commit message, receipt and PR text carry no verdict, number or quotation from the report
+    - the branch is pushed and the PR names the same ids
+  return_format: >-
+    Report:
+    - the merge outcome, commit sha, receipt path and verifier verdict;
+    - the custody results;
+    - the staged file count and bytes;
+    - the record-only (d) values: parse booleans, b0_seal_match, the seal
+      timestamp and the mtime range;
+    - the validate_ledger and hygiene results;
+    - the PR number and the observed CI result;
+    - any scope_findings.
+    Nothing from the report's content.
+  review_plan: null
+  dispatch_preconditions:
+    - archived_by bound (self).
+    - TASK-20261008-e2830e has returned, its session has ended and its claim is released (MSG-20261008-3baf6b at d92759a4d).
+    - The TASK-20261008-733066 receipt has verified and the branch is pushed, so this card is committed.
+    - No other archival task is running; no Coordinator ruling has read the report.
+  unblocks:
+    - the DEC-20261008-8cb005 NA-5 decision, which may read the report only after this receipt verifies
+  runs_launched: 0
