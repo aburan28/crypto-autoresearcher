@@ -1,0 +1,354 @@
+# =============================================================================
+# EXP-PAIR-513c28 — version 1, approved by DEC-20261006-2c3c71.
+# Frozen measurement: accepted ordered splits of n in {4, 5, 6, 8, 12},
+# and one discrete log of the target 2 in F_121 = F_11[z] / (z^2 + 1).
+# The prediction is the tuple (0, 0, 2, 0, 2) and the equality s = 12 t.
+# Both are fixed here, before any executor run. A different tuple, or a
+# failed logarithm identity, is a negative. This design session enumerated
+# the pairs and did not run baby-step giant-step. It did not open either
+# named PDF. Source idea IDEA-20261005-78e17d is not on origin/main; its
+# existing bytes are on this branch unchanged. No bit level is authorized.
+# =============================================================================
+experiment:
+  id: EXP-PAIR-513c28
+  hypothesis_id: H-PAIR-62e9cc
+  question_id: RQ-PAIR-f2e31f
+  source_idea: IDEA-20261005-78e17d
+  goal_id: null
+  version: 1
+  title: >-
+    Ordered coprime splits of n in {4, 5, 6, 8, 12}, and one checked
+    logarithm of 2 in F_121
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-10-06'
+  packaging_only: false
+  approval:
+    approved_by: coordinator
+    composing_decision: DEC-20261006-2c3c71
+    rule: >-
+      Approved under AGENTS.md standing user authorization (2026-09-06:
+      "all is approved. ideas/experiments should be always approved")
+      because every field the design protocol requires is non-null.
+      Approval does not assert that the tuple is (0, 0, 2, 0, 2), does
+      not assert that s = 12 t, and does not assert an ECDLP exponent
+      improvement.
+    implementation_authorized: true
+    scientific_execution_authorized: true
+    scientific_execution_scope: >-
+      Count ordered coprime splits of five named integers, then compute
+      one discrete log of the element 2 in F_121 and test s = 12 t. Do
+      not emit a bit level and do not build a relation matrix.
+    frozen: true
+    standing_user_authorization:
+      source: AGENTS.md
+      instruction_date: '2026-09-06'
+      renewed_user_approval_required: false
+
+  objective: >-
+    Decide whether the accepted ordered splits of n in {4, 5, 6, 8, 12}
+    are the tuple (0, 0, 2, 0, 2), and whether one generator g of
+    F_121^* satisfies g^s = 2 with an independent check and s = 12 t.
+    A different tuple is a negative. A failed logarithm identity is a
+    negative. No ECDLP exponent is in scope.
+
+  inputs:
+    degrees: [4, 5, 6, 8, 12]
+    acceptance: >-
+      An ordered pair (eta, kappa) is accepted when eta >= 2, kappa >= 2,
+      eta * kappa = n, and gcd(eta, kappa) = 1. eta runs through the
+      divisors. (2, 3) and (3, 2) are different pairs.
+    predicted_tuple: [0, 0, 2, 0, 2]
+    design_session_pairs:
+      n4: []
+      n5: []
+      n6: [[2, 3], [3, 2]]
+      n8: []
+      n12: [[3, 4], [4, 3]]
+    checksum_authority: >-
+      The acceptance rule is the definition. The listed pairs are a
+      design-session checksum. Re-enumerate from the rule. A count tuple
+      other than (0, 0, 2, 0, 2) is a negative on the prediction. A
+      checksum mismatch that still produces that tuple is an arithmetic
+      split and invalidates the run.
+    field:
+      prime: 11
+      modulus: z^2 + 1
+      construction: F_11[z] / (z^2 + 1)
+      design_session_irreducible: >-
+        Squares modulo 11 are {0, 1, 3, 4, 5, 9}. The residue 10 is not
+        a square, so z^2 + 1 is irreducible. Re-check before the search.
+        A reducible modulus invalidates the run. It is not a negative on
+        the equality s = 12 t, because the field was not built.
+    generator_search:
+      order: >-
+        Represent elements as a + b z with a, b in {0, 1, ..., 10}. Scan
+        in increasing a, and for each a in increasing b. Skip 0. Take the
+        first element g such that g^120 = 1, g^60 != 1, g^40 != 1, and
+        g^24 != 1. The exponents 60, 40, and 24 are 120 divided by the
+        prime factors of 120.
+      on_none: >-
+        If the exhaustive scan finds no such g, record that fact. It is
+        a negative for the certificate. Do not substitute a proper
+        subgroup.
+    target: >-
+      The prime-field element 2, that is 2 + 0 z. The element 1 is not
+      the target. Both of its logarithms are 0, so it cannot show the
+      factor 12.
+    logarithm:
+      s_range: '{0, 1, ..., 119}'
+      t_range: '{0, 1, ..., 9}'
+      base_for_t: g^12
+      identity: s = 12 t as integers, not merely modulo 120
+    forbidden:
+      - Do not emit a bit level for BLS12-381, BN254, or any other prime.
+      - Do not build a relation matrix or run a sieve.
+      - Do not claim an ECDLP exponent improvement.
+      - Do not use the element 1 as the target.
+      - Do not treat the design-session pair list as a completed run.
+
+  controls:
+    - id: prime-null
+      statement: >-
+        n = 5 has no ordered split with both parts at least 2. A positive
+        count means the enumerator ignored the bound.
+      pass_condition: the count at n = 5 is 0
+      on_fail: A positive count is a negative. The tuple has failed.
+    - id: prime-power-null
+      statement: >-
+        n = 8 is a composite prime power. Under the gcd rule its count is
+        0. A positive count is the uniform-composite reading, which this
+        prediction rejects.
+      pass_condition: the count at n = 8 is 0
+      on_fail: A positive count is a negative. The tuple has failed.
+    - id: two-enumerators
+      statement: >-
+        One loop walks eta from 2 through n - 1 and keeps a complementary
+        factor at least 2 when the gcd is 1. A second loop walks unordered
+        factor pairs and emits both orders when the two parts differ.
+        The two count tuples must agree, and both must list the same pairs.
+      pass_condition: the two tuples are equal and the pair lists match
+      on_fail: >-
+        Disagreement is an implementation split. The run is invalid, not
+        a negative on the abstracts.
+    - id: identity-is-not-the-target
+      statement: >-
+        The element 1 has logarithm 0 in both groups. Recording s = 12 t
+        for the target 1 does not test the factor 12.
+      pass_condition: the scored target is 2, and the run states that 1 was not scored
+      on_fail: >-
+        Scoring 1 as the target invalidates the equality. It is not a
+        negative and not a success.
+    - id: two-power-routines
+      statement: >-
+        One routine recomputes g^s by square-and-multiply. A second
+        routine recomputes it by successive multiplication by g, s times.
+        Both must return 2, or both must reject.
+      pass_condition: the two routines agree on whether g^s equals 2
+      on_fail: >-
+        Disagreement is an implementation split. The logarithm identity
+        is unsigned. The run is invalid.
+    - id: subfield-order
+      statement: >-
+        h = g^12 must satisfy h^10 = 1 and h^5 != 1 and h^2 != 1, so h
+        generates the subgroup of order 10. t is then the unique exponent
+        in {0, 1, ..., 9} with h^t = 2.
+      pass_condition: h has order 10 and exactly one such t exists
+      on_fail: >-
+        If h does not have order 10, the generator search failed its
+        order test and the run is invalid. If no t or two values of t
+        satisfy the equation, the run is invalid.
+
+  independent_variables:
+    - which n in {4, 5, 6, 8, 12} is counted
+    - which enumerator is used, divisor walk or both-orders emission
+    - which power routine recomputes g^s
+
+  metrics:
+    primary:
+      - id: split_tuple
+        statement: >-
+          The five counts in degree order 4, 5, 6, 8, 12. The predicted
+          value is (0, 0, 2, 0, 2).
+      - id: log_identity_holds
+        statement: >-
+          1 if both power routines accept g^s = 2, h has order 10, and
+          s = 12 t with s in 0..119 and t in 0..9. Else 0.
+    secondary:
+      - id: enumerators_agree
+        statement: 1 if the two enumerators agree on the five counts and the pair lists, else 0.
+      - id: certificate_accepts
+        statement: 1 if both power routines accept g^s = 2, else 0.
+      - id: exponent_gap
+        statement: >-
+          The integer s - 12 t when the certificate accepts and t is
+          found. Absent when the certificate does not accept.
+      - id: generator_found
+        statement: 1 if the exhaustive scan finds an element of order 120, else 0.
+      - id: modulus_irreducible
+        statement: 1 if z^2 + 1 has no root in F_11, else 0.
+      - id: bit_level_emitted
+        statement: Boolean. The design-session value is false. The run value must stay false.
+
+  heuristic_under_test: HEUR-1
+  heuristic_under_test_note: >-
+    HEUR-1 is the split tuple. HEUR-2 is the equality s = 12 t, scored
+    by log_identity_holds. A different tuple falsifies HEUR-1. A failed
+    logarithm identity falsifies HEUR-2. Neither is an ECDLP exponent.
+
+  preregistered_prediction:
+    quantity: >-
+      The accepted-split counts of n in {4, 5, 6, 8, 12}, and the gap
+      s - 12 t for the target 2 in F_121.
+    formula: >-
+      split_tuple = (0, 0, 2, 0, 2). log_identity_holds = 1, which
+      requires certificate_accepts = 1 and exponent_gap = 0. A different
+      tuple is a negative. exponent_gap different from 0, after an
+      accepted certificate, is a negative. A rejected certificate is a
+      negative for the certificate clause. No bit level enters the formula.
+    source: >-
+      IDEA-20261005-78e17d, copied before any run of EXP-PAIR-513c28.
+      The design session on 2026-10-06 listed the ordered pairs and did
+      not run baby-step giant-step. KN-LIT-3743 and KN-LIT-2061 were
+      opened as markdown and do not state this prediction.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The tested parameters are five integers at most 12 and one field
+      with 121 elements. A result here is not a result at a pairing
+      prime and not a transfer to GF(p^12). No extrapolation is
+      authorized.
+    correspondence: >-
+      Direct enumeration and direct arithmetic in F_121. No Deuring
+      correspondence and no sampling equivalence is used.
+
+  tail_checks:
+    - >-
+      There is no sampled tail. The census is five degrees. The extreme
+      checks are n = 5, which has no split, and n = 8, which is a
+      composite prime power predicted to score 0. A positive count at
+      either is a negative. The logarithm has one target. The element 1
+      is excluded because both of its logs are 0.
+
+  replication:
+    seeds:
+      - name: arithmetic
+        algorithm: deterministic enumeration, fixed generator scan, baby-step giant-step
+        seed: 11
+        note: >-
+          No random generator is consulted. seed 11 records the prime
+          field. Substituting a random degree or a random target is
+          forbidden.
+    independent_instances: 6
+    independent_instances_note: >-
+      The five degrees and the one logarithm are the census. They are
+      not draws from a distribution.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 1
+    maximum_workers: 1
+    budget_note: >-
+      Time and CPU figures are advisory machine-protection watches
+      (docs/research-budget-policy.md). maximum_runs is 1. The scientific
+      work is one enumeration of five degrees and one logarithm in a
+      group of order 120. Watch expiry is failed_infrastructure, never
+      a negative mathematical result.
+
+  procedure:
+    enumerate: >-
+      For each n in {4, 5, 6, 8, 12}, list the accepted ordered pairs
+      with both enumerators. Record the pairs and the five counts.
+      Compare the two enumerators. On disagreement, stop as invalid.
+    field_check: >-
+      Test whether z^2 + 1 has a root in F_11. On a root, stop as
+      invalid. Scan for g in the stated order and record it, or record
+      that none exists.
+    logarithm: >-
+      If g exists, run baby-step giant-step for the target 2 and record
+      s in {0, 1, ..., 119}. Recompute g^s by both routines. Set
+      h = g^12, test its order, and find t in {0, 1, ..., 9} with
+      h^t = 2. Record s - 12 t.
+    forbidden: >-
+      Do not emit a bit level. Do not build a relation matrix. Do not
+      claim an ECDLP exponent improvement. Do not add a second field.
+    mechanism_assignment:
+      - observation: >-
+          split_tuple is (0, 0, 2, 0, 2), the enumerators agree,
+          modulus_irreducible is 1, generator_found is 1,
+          log_identity_holds is 1, bit_level_emitted is false, and the
+          target scored was 2.
+        assigns_to: >-
+          The side-condition reading and the subgroup relation both hold
+          on these inputs. This is not an exTNFS cost and not an ECDLP
+          result.
+      - observation: >-
+          split_tuple is not (0, 0, 2, 0, 2), and the enumerators agree.
+        assigns_to: >-
+          The integer prediction fails. This is a negative. Quote the
+          tuple that was returned.
+      - observation: >-
+          generator_found is 0, or certificate_accepts is 0.
+        assigns_to: >-
+          The certificate failed. This is a negative for the logarithm
+          clause. It is not a logarithm.
+      - observation: >-
+          certificate_accepts is 1 and exponent_gap is not 0.
+        assigns_to: >-
+          The logarithm identity failed. This is a negative. Quote s
+          and t.
+      - observation: >-
+          The enumerators disagree, the power routines disagree, the
+          modulus is reducible, the target scored was 1, h does not have
+          order 10, a bit level was emitted, or the watch expires.
+        assigns_to: >-
+          Invalid, or failed_infrastructure, as the matching
+          invalidation rule says. Not evidence for the tuple, and not
+          evidence against it.
+
+  stopping_rules:
+    - Stop when both enumerators have returned a tuple and the logarithm clause has a row, or an invalidation has fired.
+    - Do not add a sixth degree. Do not add a second field. Do not emit a bit level.
+    - Watch expiry stops the run as failed_infrastructure.
+
+  invalidation_rules:
+    - A timeout, crash, memory abort, or missing arithmetic library is failed_infrastructure and is not evidence against the hypothesis.
+    - Disagreement of the two enumerators, or of the two power routines, invalidates the run.
+    - A reducible modulus invalidates the run. The field was not F_121.
+    - Scoring the element 1 as the target invalidates the equality.
+    - Emitting a bit level or a deployed-prime cost, or stating an ECDLP exponent improvement, invalidates the run.
+    - Changing the pre-registered prediction after seeing the counts or the exponents is forbidden. A correction is a new amendment record, and an existing run is not re-scored against it.
+
+  success_criterion: >-
+    The run is a success for this reading exactly when the first row of
+    mechanism_assignment holds: the count tuple is (0, 0, 2, 0, 2) and
+    the checked equality s = 12 t holds for the target 2. Any other
+    completed assignment is not this success. In particular, a different
+    tuple is not a success, and a failed logarithm identity is not a
+    success.
+
+  falsification_criterion: >-
+    The prediction fails when the enumerators agree and the tuple is not
+    (0, 0, 2, 0, 2). That is a negative. The prediction also fails when
+    the certificate is rejected, when no generator is found, or when the
+    certificate accepts and s is not 12 t. Each of those is a negative.
+    The fifth row of mechanism_assignment falsifies nothing about the
+    side condition or the subgroup relation.
+
+  required_artifacts:
+    - experiments/EXP-PAIR-513c28/runs/RUN-*/manifest.yaml
+    - experiments/EXP-PAIR-513c28/runs/RUN-*/stdout.txt
+    - experiments/EXP-PAIR-513c28/runs/RUN-*/stderr.txt
+    - experiments/EXP-PAIR-513c28/runs/RUN-*/reading.yaml
+  artifact_contents:
+    reading.yaml: >-
+      The pair lists from both enumerators and the five counts. The
+      irreducibility bit. The generator, or the statement that none was
+      found. s, both power-routine bits, h, t, and the gap s - 12 t.
+      Then the metric values, the control bits, and exactly one
+      mechanism_assignment row. bit_level_emitted is false.
+  assigned_to: executor
