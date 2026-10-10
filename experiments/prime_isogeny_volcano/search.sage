@@ -13,7 +13,7 @@ def search(p, a, b, primes, out):
         raise ValueError("Expected ordinary elliptic curve with negative Frobenius discriminant")
     D = ZZ(delta).squarefree_part()
     # The squarefree part is not necessarily a fundamental discriminant.
-    DK = fundamental_discriminant(D)
+    DK = D if D % 4 == 1 else 4*D
     quotient = ZZ(delta // DK)
     if quotient < 0 or not quotient.is_square():
         raise ValueError("Invalid Frobenius conductor decomposition")
