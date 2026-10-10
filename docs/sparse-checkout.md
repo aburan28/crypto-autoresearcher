@@ -109,3 +109,20 @@ absence from the repository.**
 
 A session that needs an excluded path adds it (`add --path`); it does not
 conclude the path is missing. `git ls-files <path>` tells the two apart.
+
+## In CI
+
+`validate.yml` gives the jobs whose tests read no run archive the same
+exclusions, sparse and therefore blobless: `runtime-regressions` and
+`harness-tests` shards 2-4 (`SPARSE_RULES`, which
+`tests/test_ci_sparse_guard.py` keeps equal to this profile's `exclude`
+list, without its per-experiment re-includes). `ledger`, `static-checks`
+(the absolute merge-hygiene scan opens every tracked file) and
+`harness-tests` shard 1 keep full checkouts.
+
+Shard 1 runs `.github/test-full-checkout.txt`: the test files that read or
+list excluded paths, found by tracing every file the suite opens. A sparse
+job re-creates the excluded directories, empty (`tools/ci_sparse_guard.py
+tripwires`) and loads an audit hook into every Python process, so a test
+that reads or lists one fails the job by name rather than passing on less
+data. Moving that file into the list is the fix.
