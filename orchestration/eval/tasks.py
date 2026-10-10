@@ -20,6 +20,8 @@ from typing import Any
 
 import yaml
 
+from orchestration import fast_yaml
+
 REPO = Path(__file__).resolve().parents[2]
 WORK_DIR = "work"
 
@@ -62,7 +64,7 @@ class Suite:
 
 
 def load_suite(path: str | Path) -> Suite:
-    document = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    document = fast_yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     suite = document["suite"]
     tasks = []
     for entry in suite["tasks"]:

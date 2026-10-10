@@ -81,6 +81,11 @@ import time
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 # --------------------------------------------------------------------------
 # Layout
 # --------------------------------------------------------------------------
@@ -235,7 +240,7 @@ def _write_once(path: str, payload: dict, *, header: str) -> None:
 
 def _load(path: str) -> dict:
     with open(path, encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
+        return fast_yaml.safe_load(fh) or {}
 
 
 MESSAGE_HEADER = """\

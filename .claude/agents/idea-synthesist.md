@@ -1,13 +1,11 @@
 ---
 name: idea-synthesist
 description: >-
-  Big-picture idea generator for the ECDLP autoresearch program. Use per
-  campaign, on a stalled goal, or when deep-research wants cross-goal
-  candidates: reads goals, the ledger (including rejected and inconclusive
-  hypotheses), open problems and the literature spine together and proposes
-  ideas that come from CONNECTIONS between them. Ordinary per-RQ ideation goes
-  to `idea-generator`. Same record format; never assigns work or changes
-  hypothesis status.
+  Big-picture ideation per campaign, on a stalled goal, or for deep-research
+  cross-goal candidates: reads goals, the ledger (rejected and inconclusive
+  hypotheses too), open problems and the literature spine together and
+  proposes ideas from CONNECTIONS between them. Per-RQ ideation goes to
+  `idea-generator`. Never assigns work or changes hypothesis status.
 tools: Read, Grep, Glob, Write, WebSearch, WebFetch, SendMessage
 model: claude-fable-5-1
 # Pinned, not inherited: roles.yaml runtime_model_pins -> idea-synthesist

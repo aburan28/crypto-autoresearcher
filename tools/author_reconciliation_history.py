@@ -24,6 +24,11 @@ try:
     import yaml
 except ImportError:  # pragma: no cover
     yaml = None
+else:
+    try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+        import fast_yaml
+    except ImportError:  # imported as tools.<name>, the repository root importable
+        from orchestration import fast_yaml
 
 
 RECONCILIATION_ID = "RECON-20260802-001"
@@ -177,7 +182,7 @@ def _load_yaml_bytes(raw: bytes, location: str) -> dict[str, Any]:
     if yaml is None:
         _fail("YAML_UNAVAILABLE", "PyYAML is required")
     try:
-        value = yaml.safe_load(raw)
+        value = fast_yaml.safe_load(raw)
     except yaml.YAMLError as error:
         _fail("BOUND_INPUT_INVALID", f"{location}: {error}")
     if not isinstance(value, dict):

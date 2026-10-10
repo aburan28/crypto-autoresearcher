@@ -62,6 +62,11 @@ import sys
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 DISTINGUISHER = "distinguisher"
 KEY_RECOVERY = "key-recovery"
 BANNED_PAIR = {DISTINGUISHER, KEY_RECOVERY}
@@ -90,7 +95,7 @@ def extract_frontmatter(text: str):
         return None, "opening '---' with no closing '---' (unterminated frontmatter block)"
     block = parts[1]
     try:
-        loaded = yaml.safe_load(block)
+        loaded = fast_yaml.safe_load(block)
     except yaml.YAMLError as exc:
         return None, f"YAML parse error: {exc}"
     if loaded is None:

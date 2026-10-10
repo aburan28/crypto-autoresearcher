@@ -55,6 +55,7 @@ PROFILES: dict[str, dict] = {
         # file under an excluded directory works).
         "exclude": (
             "/experiments/*/runs/",                     # 5.1 GB, 42k files
+            "/experiments/*/implementation/runs/",      # 1.4 GB of LFS stage caches
             "/inputs/refs/",                            # 1.1 GB, includes committed Rust build trees
             "/inputs/archive_from_autolab/",            # 0.17 GB
             "/inputs/pqshield-signature-zoo-20260928/",  # 0.15 GB

@@ -1,12 +1,11 @@
 ---
 name: coordinator
 description: >-
-  Research Coordinator for the ECDLP autoresearch program. Use for approving or
-  revising experiment protocols, changing official hypothesis status, reviewing
-  Executor run records and evidence, issuing handoffs, prioritizing the
-  roadmap, and writing synthesis or decision records. The only agent allowed to
-  change hypothesis status or approve experiments. Use proactively whenever a
-  research-state transition, evidence review, or task assignment is needed.
+  Research Coordinator: approves or revises experiment protocols, changes
+  hypothesis status (the only agent that may), reviews run records and
+  evidence, issues handoffs, prioritizes and writes decision records. Use
+  proactively for any research-state transition, evidence review or task
+  assignment.
 tools: Read, Grep, Glob, Write, Edit, SendMessage
 model: inherit
 # Reasoning effort for this subagent, derived from roles.yaml ->

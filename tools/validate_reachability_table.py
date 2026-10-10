@@ -32,6 +32,10 @@ try:
 except ImportError:  # pragma: no cover
     print("PyYAML required", file=sys.stderr)
     sys.exit(2)
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REACHABILITY = REPO_ROOT / "analysis" / "binstd-curve-audit" / "reachability"
@@ -126,7 +130,7 @@ class Ctx:
 
 def _load_yaml(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+        return fast_yaml.safe_load(fh)
 
 
 def _sha256_file(path: Path) -> str:

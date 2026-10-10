@@ -22,6 +22,22 @@ defaults:
   run:
     shell: bash
 
+# Jobs whose tests read no run archive check out sparse and blobless: all but
+# tools/sparse_checkout.py's `harness` exclusions (run archives, implementation
+# run caches, reference bundles, cold research outputs), about 2.2 of the
+# 8.6 GiB a full checkout writes. tests/test_ci_sparse_guard.py keeps this
+# equal to the profile; tools/ci_sparse_guard.py fails a sparse job whose
+# tests touch an excluded path.
+env:
+  SPARSE_RULES: |
+    /*
+    !/experiments/*/runs/
+    !/experiments/*/implementation/runs/
+    !/inputs/refs/
+    !/inputs/archive_from_autolab/
+    !/inputs/pqshield-signature-zoo-20260928/
+    !/research/cold_*/
+
 jobs:
   runtime-regressions:
     runs-on: ubuntu-latest
@@ -31,7 +47,11 @@ jobs:
       matrix:
         python: ["3.11", "3.13"]
     steps:
+      # These tests read no run archive (traced 2026-10-10).
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: ${{ env.SPARSE_RULES }}
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -43,11 +63,23 @@ jobs:
         run: python -m pip install -e ".[dev,agent]"
       - name: Require runtime dependencies rather than silently skipping tests
         run: python -c "import langgraph, langchain_core, langgraph.checkpoint.sqlite"
+      - name: Lay sparse-checkout tripwires
+        run: python3 tools/ci_sparse_guard.py tripwires
       - name: Runtime and CI-gate regression controls (no inference calls)
+        env:
+          SPARSE: "1"
         run: |
+          if [ -n "$SPARSE" ]; then
+            export PYTHONPATH="$PWD/tools/sparse_guard_site" CI_SPARSE_GUARD_ROOT="$PWD" \
+              CI_SPARSE_GUARD_RULES="$PWD/$(git rev-parse --git-path info/sparse-checkout)" \
+              CI_SPARSE_GUARD_LOG="$RUNNER_TEMP/sparse-guard.log"
+          fi
           python -m pytest -q tests/test_agent_runtime.py \
             tests/test_agent_progress.py tests/test_ci_ledger_gate.py \
             --junitxml=runtime-regressions.xml
+      - name: Fail on reads of off-disk paths
+        if: always()
+        run: python3 tools/ci_sparse_guard.py report "$RUNNER_TEMP/sparse-guard.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -83,7 +115,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
 
-      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
       # it they stay correct but fall back to the pure parser, ~10x slower.
       - name: Check PyYAML has libyaml
         run: |
@@ -178,7 +210,7 @@ jobs:
       - name: Install api_direct runtime dependencies
         run: pip install -r requirements-agent.txt
 
-      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
       # it they stay correct but fall back to the pure parser, ~10x slower.
       - name: Check PyYAML has libyaml
         run: |
@@ -318,9 +350,13 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
+      # Shard 1 runs .github/test-full-checkout.txt, the files that read run
+      # archives, on a full checkout; the other shards are sparse and blobless.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          sparse-checkout: ${{ matrix.shard != 1 && env.SPARSE_RULES || '' }}
+          sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
         with:
@@ -339,7 +375,7 @@ jobs:
           pip install -e ".[dev,campaign-mcp,research-loop,gf2]"
           pip install -r requirements-agent.txt
 
-      # The corpus tools parse YAML through libyaml (tools/fast_yaml.py); without
+      # The corpus tools parse YAML through libyaml (orchestration/fast_yaml.py); without
       # it they stay correct but fall back to the pure parser, ~10x slower.
       - name: Check PyYAML has libyaml
         run: |
@@ -348,12 +384,27 @@ jobs:
       - name: Build generated artifacts
         run: python3 tools/build_knowledge_index.py
 
+      - name: Lay sparse-checkout tripwires
+        if: matrix.shard != 1
+        run: python3 tools/ci_sparse_guard.py tripwires
+
       - name: Run harness tests (shard ${{ matrix.shard }} of 4)
+        env:
+          SPARSE: ${{ matrix.shard != 1 && '1' || '' }}
         run: |
           mapfile -t files < <(python3 tools/ci_test_shard.py --of 4 --shard ${{ matrix.shard }})
           [ "${#files[@]}" -gt 0 ] || { echo "empty shard" >&2; exit 1; }
           echo "${#files[@]} test files in this shard"
+          if [ -n "$SPARSE" ]; then
+            export PYTHONPATH="$PWD/tools/sparse_guard_site" CI_SPARSE_GUARD_ROOT="$PWD" \
+              CI_SPARSE_GUARD_RULES="$PWD/$(git rev-parse --git-path info/sparse-checkout)" \
+              CI_SPARSE_GUARD_LOG="$RUNNER_TEMP/sparse-guard.log"
+          fi
           python3 -m pytest -q --junitxml=harness-tests-${{ matrix.shard }}.xml "${files[@]}"
+
+      - name: Fail on reads of off-disk paths
+        if: always() && matrix.shard != 1
+        run: python3 tools/ci_sparse_guard.py report "$RUNNER_TEMP/sparse-guard.log"
 
       - name: Preserve test results
         if: always()

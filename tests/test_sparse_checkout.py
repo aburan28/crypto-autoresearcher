@@ -53,6 +53,8 @@ def origin(tmp_path: Path) -> Path:
     _write(root, f"experiments/{PLANNED}/runs/RUN-ECDLP-111111/raw-result.json", "{}\n")
     _write(root, f"experiments/{LEGACY}/specification.yaml", _spec(LEGACY))
     _write(root, f"experiments/{LEGACY}/runs/RUN-ECDLP-222222/manifest.yaml", "run: {}\n")
+    _write(root, f"experiments/{LEGACY}/implementation/stage1.py", "pass\n")
+    _write(root, f"experiments/{LEGACY}/implementation/runs/stage-cache/x.npy", "x" * 4096)
     _write(root, f"experiments/{FRESH}/specification.yaml", _spec(FRESH))
     _write(root, "inputs/refs/paper-x/table.csv", "a,b\n")
     _write(root, "inputs/refs/other/blob.bin", "x" * 4096)
@@ -98,7 +100,10 @@ def test_harness_profile_drops_archives_and_keeps_planned_runs(clone: Path):
     assert f"experiments/{LEGACY}/runs/RUN-ECDLP-222222/manifest.yaml" not in disk
     assert not any(p.startswith(("inputs/refs/", "research/cold_")) for p in disk)
     assert "research/warm/notes.md" in disk and "tools/x.py" in disk
-    assert info["profile"] == "harness" and info["skipped_files"] == 4
+    # an implementation's run caches (LFS in practice) go, its code stays
+    assert f"experiments/{LEGACY}/implementation/stage1.py" in disk
+    assert f"experiments/{LEGACY}/implementation/runs/stage-cache/x.npy" not in disk
+    assert info["profile"] == "harness" and info["skipped_files"] == 5
     assert sc.tracked_absent(clone, f"experiments/{LEGACY}/runs/") == [
         f"experiments/{LEGACY}/runs/RUN-ECDLP-222222/manifest.yaml"]
     # `git add` would refuse a new run here, so the runner must know.
@@ -118,6 +123,8 @@ def test_add_experiment_materializes_it_and_the_inputs_it_names(clone: Path):
     assert main(clone, "add", "--experiment", LEGACY) == 0
     assert sc.read_state(clone)["experiments"] == [PLANNED, LEGACY]
     assert f"experiments/{LEGACY}/runs/RUN-ECDLP-222222/manifest.yaml" in _on_disk(clone)
+    # naming the experiment brings back its implementation run caches too
+    assert f"experiments/{LEGACY}/implementation/runs/stage-cache/x.npy" in _on_disk(clone)
 
 
 def test_goal_selects_its_experiments(clone: Path):
@@ -215,7 +222,8 @@ def main(repo: Path, *argv: str) -> int:
 
 def test_a_named_directory_reincludes_excluded_subtrees_beneath_it(clone: Path):
     assert sc._include("harness", f"experiments/{LEGACY}/") == [
-        f"/experiments/{LEGACY}/", f"/experiments/{LEGACY}/runs/"]
+        f"/experiments/{LEGACY}/", f"/experiments/{LEGACY}/runs/",
+        f"/experiments/{LEGACY}/implementation/runs/"]
     assert sc._include("harness", "inputs/") == ["/inputs/", "/inputs/refs/",
         "/inputs/archive_from_autolab/", "/inputs/pqshield-signature-zoo-20260928/"]
     assert sc._include("harness", "inputs/refs/a.csv") == ["/inputs/refs/a.csv"]

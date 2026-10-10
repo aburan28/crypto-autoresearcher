@@ -24,8 +24,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from orchestration import fast_yaml
 from . import batch as batch_module
 from . import config as config_module
 from . import manifest as manifest_module
@@ -69,7 +68,7 @@ def _role_contract(role: str) -> str:
 
 
 def _load_handoff(path: str) -> dict[str, Any]:
-    record = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    record = fast_yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not isinstance(record, dict):
         raise SystemExit(f"{path} is not a YAML mapping")
     return record

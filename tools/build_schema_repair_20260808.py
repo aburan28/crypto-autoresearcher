@@ -14,6 +14,11 @@ from pathlib import Path
 
 import yaml
 
+try:  # libyaml, with the pure loader's errors (orchestration/fast_yaml.py)
+    import fast_yaml
+except ImportError:  # imported as tools.<name>, the repository root importable
+    from orchestration import fast_yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "ledger/corrections/schema-supersessions/20260808"
@@ -167,7 +172,7 @@ def parse_archived_yaml(relative: str) -> dict:
             '      - "RERANK TRIGGER FIRES" or "RERANK TRIGGER DOES NOT FIRE"',
             "      - 'RERANK TRIGGER FIRES or RERANK TRIGGER DOES NOT FIRE'",
         )
-    doc = yaml.safe_load(text)
+    doc = fast_yaml.safe_load(text)
     if not isinstance(doc, dict):
         raise ValueError(f"{relative}: expected mapping")
     return doc
@@ -319,7 +324,7 @@ def repair_markdown(relative: str) -> str:
     kind = "internal_finding" if "/findings/" in relative else "literature"
     if text.startswith("---"):
         _, raw, body = text.split("---", 2)
-        fm = yaml.safe_load(raw) or {}
+        fm = fast_yaml.safe_load(raw) or {}
     else:
         body = "\n" + text
         title = text.splitlines()[0].lstrip("# ").strip()

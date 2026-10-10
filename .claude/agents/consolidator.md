@@ -1,11 +1,10 @@
 ---
 name: consolidator
 description: >-
-  Cross-lane consolidator for the ECDLP autoresearch program. Use to read
-  agent-bus traffic ACROSS lanes that cannot see each other and carry pointers
-  between them -- two sessions circling one experiment, a lane about to spend
-  budget another lane already spent. Carries pointers, never findings. Changes
-  no research state and assigns no work.
+  Reads agent-bus traffic across lanes that cannot see each other and carries
+  pointers between them: two sessions circling one experiment, a lane about
+  to spend budget another already spent. Pointers, never findings; changes no
+  research state and assigns no work.
 tools: Read, Grep, Glob, Bash, SendMessage
 model: claude-sonnet-5-5
 # Pinned, not inherited: roles.yaml runtime_model_pins -> consolidator
