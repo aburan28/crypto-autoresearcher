@@ -1,0 +1,197 @@
+# =============================================================================
+# EXP-ECDLP-2535ec -- L0 positive control of H-ECDLP-bd1572: on the SAME toy
+# prime set the curve-side experiments use, the F_p^* sieve must SEE the
+# special form. Companion to EXP-SNFS-465979 (which owns the richer norm
+# histogram design and the Dickman validation); this contract reuses its
+# null object and adds nothing to it except the pairing with the curve-side
+# battery. status review_required: designed and implemented in the design
+# session, not approved; no run exists and no outcome is written.
+# =============================================================================
+experiment:
+  id: EXP-ECDLP-2535ec
+  hypothesis_id: H-ECDLP-bd1572
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  designed_at: '2026-10-09'
+  title: >-
+    Paired-prime positive control: counted double-smoothness yield of the
+    SNFS polynomial x^d - c at p = m^d - c against a same-prime
+    large-coefficient monic null and a matched random-prime monic base-m null,
+    on the shared toy prime set of the H3 battery
+  status: review_required
+  approved_by: null
+  claim_tier: toy
+  limb: L0
+  objective: >-
+    Establish, on exactly the primes the curve-side contracts
+    (EXP-ECDLP-6dacdb, EXP-ECDLP-3e8403, EXP-ECDLP-15534c) use, that the
+    polynomial form of p is a real, counted advantage for an NFS-style
+    relation search in F_p^*: over an identical (a, b) box and identical
+    smoothness bound, the SNFS polynomial arm must yield more doubly smooth
+    pairs than either null. Without this row a null result on the curve side
+    could mean the toy primes are not special enough to see anything.
+  inputs:
+    prime_set: >-
+      Shared with the battery: for each cell (d, bits, seed) the special prime
+      is the first prime p = m^d - c found by scanning m upward from
+      round(2^(bits/d)) over c in the frozen list [-31..31] excluding 0 and
+      non-squarefree |c| (with x^d - c required irreducible mod a witness
+      prime set); the matched random prime p' is the first prime at or above a
+      seeded uniform integer of the same bit length. Both are written to the
+      raw result together with the seed.
+    arms:
+      special: >-
+        f(x) = x^d - c with base m; rational side a + b*m; algebraic norm
+        F(a, b) = a^d - c*b^d.
+      null_same_prime: >-
+        The same p with a shifted base m0 = m - t, t drawn seeded from
+        [m/(8d), m/(4d)] (the largest shift for which p - m0^d still fits in
+        d balanced base-m0 digits); f0 is the MONIC balanced base-m0
+        expansion of p - m0^d in degree < d plus x^d, so f0(m0) = p and its
+        coefficients are of size between m/(4d) and m/2 instead of |c| <= 31.
+        Only the coefficient magnitude differs from the special arm.
+      null_random_prime: >-
+        p' with base m' = floor(p'^(1/d)) and the monic balanced base-m'
+        expansion of p' - m'^d; this is the null object every curve-side
+        contract uses, so the prime pairing is exact.
+    box: >-
+      All (a, b) with |a| <= A, 1 <= b <= A, gcd(a, b) = 1, enumerated once per
+      cell and scored for all three arms from the same enumeration.
+    smoothness: >-
+      Exact trial division by every prime up to B_s; a pair counts when both
+      |a + b*m_arm| and |F_arm(a, b)| are B_s-smooth (zero values are
+      discarded and counted separately).
+    cells:
+      d: [3, 4, 5]
+      bits: [30, 40]
+      A: [150, 300]
+      B_s: [512, 2048]
+      seeds: [1, 2, 3]
+    instrument: >-
+      experiments/EXP-ECDLP-2535ec/implementation/run.py, pure Python 3
+      standard library; the Rust toy aburan28/crypto
+      src/cryptanalysis/fght_snfs.rs is the nearest independent instrument
+      and may be used by the validator to cross-check one cell.
+  controls:
+    - >-
+      CTRL-SAME-BOX: all three arms are scored from one enumeration of one
+      box; the coprime pair count is written once and must be identical
+      across arms.
+    - >-
+      CTRL-ROOT: f(m) = p, f0(m0) = p and f'(m') = p' are re-evaluated exactly
+      before scoring; a cell whose polynomial does not vanish at its base is
+      invalid.
+    - >-
+      CTRL-NULL-NULL: the two nulls are compared on the log2-norm mean
+      (tolerance 2.0 bits) and on the counted yield (factor 2.0); outside the
+      tolerance the cell is FLAGGED, not invalidated, and the special-over-null
+      ratio is read against both nulls separately, because the same-prime
+      null has smaller coefficients than the random-prime null by
+      construction (about m/4 against m).
+    - >-
+      CTRL-PREDICTED-DIRECTION: the mean log2 algebraic norm of the special
+      arm must be strictly lower than both nulls'; the measured gap is written
+      beside the coefficient gap log2(max|f_null| / |c|) that predicts its
+      order. A cell with the wrong direction has a mis-built polynomial, not
+      a surprising result.
+    - >-
+      CTRL-REPLAY: the same seed and cell must reproduce raw-result.json
+      byte-for-byte from a clean checkout.
+  independent_variables:
+    - "arm: special | null_same_prime | null_random_prime"
+    - "d in {3, 4, 5}"
+    - "bits in {30, 40}"
+    - "A in {150, 300}"
+    - "B_s in {512, 2048}"
+    - "seed in {1, 2, 3}"
+  metrics:
+    primary:
+      - counted_doubly_smooth_pairs_per_arm
+      - yield_ratio_special_over_null_same_prime_with_bootstrap_95ci
+      - yield_ratio_special_over_null_random_prime_with_bootstrap_95ci
+    secondary:
+      - mean_and_median_log2_algebraic_norm_per_arm
+      - mean_log2_rational_side_per_arm
+      - coprime_pair_count
+      - zero_norm_count_per_arm
+      - wall_clock_seconds_per_cell
+  preregistered_prediction:
+    quantity: yield ratio special over each null, per cell
+    formula: >-
+      ratio > 1 with the bootstrap 95% interval excluding 1 against BOTH
+      nulls on every cell with d >= 3; ratio >= 1.5 against the random-prime
+      null on every cell with bits/d >= 8 (m >= 2^8), since the norm gap is
+      about log2(m/|c|) bits and shrinks with m at fixed bits as d grows.
+      Not predicted: monotonicity in d at fixed bits (m falls as d rises).
+    source: >-
+      SNFS versus GNFS norm sizes (KN-LIT-7635 background; Dickman-rho
+      conversion as pre-registered in EXP-SNFS-465979).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      30-40 bit primes and norms under 2^64 are far outside any asymptotic
+      regime; the cell establishes direction and a counted magnitude on the
+      shared prime set only. Nothing is extrapolated.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report the smallest algebraic norm observed per arm and whether it is
+      smooth; a special arm whose minimum norm is not below both nulls'
+      minima contradicts the construction.
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: 24
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 3
+    maximum_memory_gb: 2
+    maximum_runs: 72
+  stopping_rules:
+    - Stop a cell at 900 s and record resource_exhaustion; never as negative evidence.
+    - Stop the grid after 3 CPU hours and report the cells completed.
+  invalidation_rules:
+    - A cell failing CTRL-ROOT or CTRL-SAME-BOX is invalid.
+    - A missing command line, environment record, stdout, stderr or raw result invalidates the run.
+    - A replay mismatch is a provenance failure, not a result.
+  success_criterion: >-
+    On every valid cell with d >= 3 the special-over-null yield ratio is
+    above 1 with the bootstrap 95% interval excluding 1 against both nulls,
+    and at least 1.5 against the random-prime null wherever bits/d >= 8: the
+    shared toy primes are special in the sense H-ECDLP-bd1572 uses, and the
+    curve-side contracts are interpretable on them.
+  falsification_criterion: >-
+    A valid cell with d >= 3 whose special-over-null ratio interval includes
+    1 against either null: on that prime pair the sieve does not see the
+    form, and every curve-side result on that pair is UNTESTED rather than
+    supportive.
+  decision_impact:
+    on_positive: >-
+      The prime set is certified as special for the battery; the Coordinator
+      may read EXP-ECDLP-6dacdb, EXP-ECDLP-3e8403 and EXP-ECDLP-15534c
+      results on it as tests of L1-L3.
+    on_negative: >-
+      The prime set is re-generated with larger m (bits/d) before any
+      curve-side contract is interpreted; H-ECDLP-bd1572 L0 is marked
+      unsupported at the failing (d, bits) and the curve-side contracts on
+      that cell are reclassified as untested.
+  required_artifacts:
+    - experiments/EXP-ECDLP-2535ec/specification.yaml
+    - experiments/EXP-ECDLP-2535ec/implementation/run.py
+    - experiments/EXP-ECDLP-2535ec/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-2535ec/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-ECDLP-2535ec/runs/<RUN-ID>/stdout.log
+  launcher:
+    command: >-
+      python3 experiments/EXP-ECDLP-2535ec/implementation/run.py --d 3 4 5
+      --bits 30 40 --A 150 300 --Bs 512 2048 --seeds 1 2 3 --out <run_dir>
+    runnable_state_at_design: >-
+      Implementation committed and smoke-tested at reduced size in the design
+      session (no run record was written from the smoke test). Not selectable
+      by tools/newest_experiments.py until a Coordinator approval decision
+      sets status approved, and then its execution_progress reads
+      needs_implementation_or_plan until a dispatch task and a frozen
+      trial-plan.json exist. The missing pieces are the approval ceremony
+      (DEC-*, TASK-*, handoff) and the trial plan, not code.
+  assigned_to: executor

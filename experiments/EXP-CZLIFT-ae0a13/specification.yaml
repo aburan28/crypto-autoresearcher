@@ -1,0 +1,136 @@
+# EXP-CZLIFT-ae0a13 -- the canonical point section on non-anomalous curves.
+# H-CZLIFT-6d4ed1 / RQ-CZLIFT-b9f765 / GOAL-CZLIFT-1516d5.
+# Approved by DEC-20261009-a3797d under the standing user authorization.
+experiment:
+  id: EXP-CZLIFT-ae0a13
+  hypothesis_id: H-CZLIFT-6d4ed1
+  question_id: RQ-CZLIFT-b9f765
+  goal_id: GOAL-CZLIFT-1516d5
+  version: 1
+  title: >-
+    Compute the prime-to-p torsion section explicitly on CM-canonical and
+    arbitrary lifts, verify it is canonical, homomorphic, cheap and
+    formal-log-degenerate, and measure every other section's Smart ratio
+    against its tau-ratio and against the random rate 1/p
+  status: approved
+  frozen: true
+  designed_at: '2026-10-09'
+  approved_by: coordinator
+  approval_decision: DEC-20261009-a3797d
+  execution_authorized: true
+  status_note: >-
+    Frozen at version 1 and approved 2026-10-09 by DEC-20261009-a3797d under
+    AGENTS.md "Standing user authorization" after the Coordinator's
+    readiness check (all fields non-null, criteria decidable, launcher bound
+    in trial-plan.json). Approval asserts nothing about H-CZLIFT-6d4ed1.
+    Later changes are versioned amendments under amendments/.
+  objective: >-
+    On two arms -- cm_canonical (class-number-one CM reductions lifted by
+    their integral CM model, up to 24 curves with 50 <= p <= 600) and
+    random_naive (random y^2 = x^3 + a x + b at 12 primes in [53, 557]
+    lifted by their integer coefficients) -- with a prime-order subgroup
+    n != p, n >= 11, #E odd: compute s_tor from two Hensel starts, test
+    canonicity, the homomorphism identity on random pairs, degeneracy
+    [n]s_tor = O at precision 4, reduction and scalar-multiplication
+    equivariance, and the addition count; for the sections hensel_random,
+    naive and teichmuller compute the Smart ratio z([n]s(Q))/z([n]s(P)), its
+    success against d mod p, and the tau-identity against
+    z(s(Q) - s_tor(Q))/z(s(P) - s_tor(P)).
+  inputs:
+    cm_arm: harness.czlift.cm_curves_with_prime_subgroup(50, 600, 11), shuffled by seed, first 24
+    random_arm: harness.czlift.random_curves_with_prime_subgroup at primes [53, 71, 101, 131, 173, 211, 263, 307, 367, 421, 487, 557]
+    precision: 4
+    samples_per_curve: 16
+    sections: [torsion, hensel_random, naive, teichmuller]
+    seeds: [20261009, 20261010]
+  controls:
+    - 'Two independent Hensel starts for s_tor(P): canonicity is a cross-check between two computations, not a self-consistency.'
+    - 'The random_naive arm has no CM structure and an arbitrary curve lift: if the canonical curve lift mattered, the two arms would differ.'
+    - The tau-identity is an exact theorem at the stated precision; any failure is an instrument defect.
+    - 'd in [2, n-2] (+-1 excluded by symmetry) and compared mod p, the residue the attack would output.'
+  independent_variables:
+    - arm (cm_canonical, random_naive)
+    - section (torsion; hensel_random, naive, teichmuller)
+    - p, n
+  metrics:
+    primary:
+      - canonicity_rate, homomorphism_rate_torsion, degeneracy_rate_torsion, torsion_reduces_rate, scalar_mult_equivariance_rate
+      - sections.<name>.<arm>.identity_rate
+      - sections.<name>.<arm>.success_rate with reference_inv_p and z_score
+      - arm_difference.<name>.z_score
+    secondary:
+      - torsion_cost_mean_additions and torsion_cost_within_bound
+      - sections.<name>.<arm>.frac_valuation_1 and homomorphism_rate_prec2
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: the five torsion rates, identity_rate, success_rate, arm_difference
+    formula: >-
+      five torsion rates = 1 and identity_rate = 1 exactly; success_rate
+      within 4 standard errors of mean(1/p) on each arm; arm_difference
+      z-score within 3; torsion_cost_within_bound = true.
+    source: H-CZLIFT-6d4ed1 predictions (Hom(Z/n, Z_p) = 0; tau decomposition).
+  scale_relevance:
+    tier: toy
+    justification: p <= 600 and n <= 600; identities are exact at precision 4; no crypto-scale statement.
+    correspondence: null
+  tail_checks:
+    - 'The teichmuller section may have frac_valuation_1 below 1 (Teichmuller x can coincide with the torsion x-digit); such pairs have an undefined ratio and are not successes.'
+    - 'homomorphism_rate_prec2 for the non-torsion sections is expected near 1/p; a value near 1 would mean a section accidentally equal to s_tor.'
+  replication:
+    seeds: [20261009, 20261010]
+    independent_instances: 2
+    replication_note: two full sweeps with distinct seeds (different CM subsample and random curves).
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 1
+    maximum_runs: 4
+    maximum_workers: 1
+  stopping_rules:
+    - Stop after the two planned trials have output_validated receipts.
+    - A crash or timeout is failed_infrastructure; it is never a value of any metric.
+  invalidation_rules:
+    - harness.czlift.self_test() fails on the executing commit.
+    - Either arm is empty (the checker requires both).
+    - The checker cannot reproduce the first curve of each arm row by row from the recorded seed.
+  success_criterion: >-
+    On both seeds: all five torsion rates equal 1.0; every identity_rate
+    equals 1.0; every section's |z_score| <= 4 on each arm; every
+    arm_difference |z_score| <= 3; torsion_cost_within_bound is true.
+  falsification_criterion: >-
+    On both seeds any of: a torsion rate below 1.0; an identity_rate below
+    1.0; a section with z_score > 4 on an arm; an arm_difference |z_score| >
+    3 (the canonical curve lift would then matter).
+  decision_impact:
+    on_positive: >-
+      H-CZLIFT-6d4ed1 moves to supported at toy tier after review; the
+      finding "the canonical point section exists, is the torsion section,
+      costs O(log n + k log p) additions, and the formal logarithm vanishes
+      on it; every other section's output is its non-canonical part" is
+      promoted, and the user's clause "a computable canonical section would
+      be a full break" is recorded as answered negatively at this scope.
+    on_negative: >-
+      A torsion-rate or identity failure sends harness/czlift.py to repair
+      before inference. A section with z_score > 4 on both seeds, or an arm
+      difference beyond 3 sigma on both seeds, opens a scaled follow-up on
+      that section/arm with a red-team card: it would be the first sign that
+      the canonical curve lift or a structured section carries information
+      about d.
+  required_artifacts:
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/raw-result.json
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/command.txt
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/environment.json
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-CZLIFT-ae0a13/runs/<RUN-ID>/stderr.log
+  launcher:
+    trial_plan: experiments/EXP-CZLIFT-ae0a13/trial-plan.json
+    driver: experiments/EXP-CZLIFT-ae0a13/implementation/run.py
+    checker: experiments/EXP-CZLIFT-ae0a13/implementation/check.py
+    library: [harness/czlift.py, harness/czlift_run.py, harness/toycurve.py]
+  assigned_to: executor
+  out_of_scope:
+    - Sections that encode the discrete logarithm by construction.
+    - Anomalous curves (EXP-CZLIFT-17b7eb); global lifts (EXP-CZLIFT-a255fc).
+    - Any claim about a deployed curve.
